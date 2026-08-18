@@ -97,3 +97,56 @@ def test_no_false_candidates_without_objects(sentence):
     This is the false-positive guard: over-flagging would teach the wrong rule.
     """
     assert object_case_candidates(sentence) == []
+
+
+class TestVerbForms:
+    """Irregular verb stems — the secondary documented gap (`verb-form`).
+
+    The design claim under test: the naive form (strip -ma, add the ending) is
+    the error a learner actually makes, so it is the right distractor. These
+    check that claim holds for the verbs the drills lean on hardest.
+    """
+
+    @pytest.mark.parametrize(
+        "lemma,tag,actual,naive",
+        [
+            ("minema", "n", "lähen", "minen"),      # the canonical example
+            ("minema", "sin", "läksin", "minesin"),
+            ("minema", "da", "minna", "mineda"),
+            ("olema", "b", "on", "oleb"),
+            ("tegema", "sin", "tegin", "tegesin"),
+            ("nägema", "n", "näen", "nägen"),
+            ("sööma", "sin", "sõin", "söösin"),
+        ],
+    )
+    def test_naive_form_is_the_real_mistake(self, lemma, tag, actual, naive):
+        from eesti.verbs import forms_for, naive_form
+
+        match = [f for f in forms_for(lemma) if f.tag == tag]
+        assert match, f"{lemma} has no {tag} form"
+        form = match[0]
+        assert form.actual == actual
+        assert naive_form(lemma, tag) == naive
+        assert form.is_irregular
+
+    def test_regular_verbs_are_excluded(self):
+        """A verb the naive rule gets right teaches nothing and must not appear."""
+        from eesti.verbs import forms_for
+
+        regular = [f for f in forms_for("elama") if f.tag == "n"]
+        assert regular and regular[0].actual == "elan"
+        assert not regular[0].is_irregular
+
+    def test_generated_verb_drills_are_answerable(self):
+        from eesti.drills import generate_verb_drills
+        from eesti.wordlist import connect
+
+        drills = generate_verb_drills(connect(), count=12, seed=1)
+        assert len(drills) == 12
+        for drill in drills:
+            assert drill.rule == "verb-form"
+            # The whole point: answer and distractor must differ, or the item
+            # cannot be got wrong and measures nothing.
+            assert drill.answer.lower() != drill.distractor.lower()
+            assert drill.check(drill.answer)
+            assert not drill.check(drill.distractor)

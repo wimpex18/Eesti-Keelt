@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from .config import LEVELS
-from .drills import TEMPLATES, generate
+from .drills import TEMPLATES, generate, generate_verb_drills
 from .lookup import annotate, lookup
 from .providers import grammar
 from .providers import tts
@@ -78,13 +78,20 @@ def check(req: CheckRequest) -> dict:
 def drills(req: DrillRequest) -> dict:
     """Generate object-case drills. Fully offline."""
     try:
-        items = generate(
-            db(),
-            count=req.count,
-            levels=tuple(req.levels),
-            rules=tuple(req.rules) if req.rules else None,
-            seed=req.seed,
-        )
+        # verb-form is a different generator: it drills irregular stems rather
+        # than object case, so it does not share the template pool.
+        if req.rules == ["verb-form"]:
+            items = generate_verb_drills(
+                db(), count=req.count, levels=tuple(req.levels), seed=req.seed
+            )
+        else:
+            items = generate(
+                db(),
+                count=req.count,
+                levels=tuple(req.levels),
+                rules=tuple(req.rules) if req.rules else None,
+                seed=req.seed,
+            )
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"drills": [d.to_dict() for d in items]}

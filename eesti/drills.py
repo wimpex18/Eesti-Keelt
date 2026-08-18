@@ -207,3 +207,61 @@ def generate(
             )
         )
     return drills
+
+
+# --- verb-form drills (the secondary documented gap) -------------------------
+
+VERB_FRAMES: dict[str, str] = {
+    "n": "Ma ____ homme kooli.",
+    "d": "Sa ____ tihti tööle.",
+    "b": "Ta ____ iga päev.",
+    "sin": "Eile ma ____ .",
+    "s": "Eile ta ____ .",
+    "nud": "Ma olen juba ____ .",
+    "da": "Ma tahan ____ .",
+    "ks": "Ma ____ , kui saaksin.",
+}
+
+
+def generate_verb_drills(
+    conn: sqlite3.Connection,
+    count: int = 10,
+    levels: tuple[str, ...] = LEVELS,
+    seed: int | None = None,
+) -> list[Drill]:
+    """Drills on irregular verb stems.
+
+    The distractor is not invented: it is the form the learner would build by
+    stripping `-ma` and adding the ending, which is the mistake they actually
+    make (`minema` -> `minen`, where Estonian says `lähen`). Only verbs where
+    that naive form is wrong are drilled.
+    """
+    from .verbs import irregular_verbs
+
+    rng = random.Random(seed)
+    pool = [f for f in irregular_verbs(conn, levels) if f.tag in VERB_FRAMES]
+    if not pool:
+        raise RuntimeError("no irregular verbs indexed — run `cli build` first")
+
+    rng.shuffle(pool)
+    if count > len(pool):
+        pool *= (count // len(pool)) + 1
+
+    return [
+        Drill(
+            prompt=VERB_FRAMES[form.tag].replace("____", "____"),
+            answer=form.actual,
+            distractor=form.naive,
+            lemma=form.lemma,
+            case="genitive",  # unused for verbs; kept so the shape stays uniform
+            rule="verb-form",
+            why_ru=(
+                f"«{form.lemma}» — неправильный глагол: **{form.name}** = "
+                f"*{form.actual}*, а не *{form.naive}*. "
+                "Основа меняется, поэтому её нужно запомнить, "
+                "а не выводить по правилу."
+            ),
+            level=form.level,
+        )
+        for form in pool[:count]
+    ]
