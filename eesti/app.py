@@ -24,10 +24,33 @@ from .wordlist import connect
 
 CONTENT_DB = "data/content.db"
 REVIEW_DB = "data/review.db"
+PROGRESS_DB = "data/progress.db"
+VOCAB_DB = "data/vocab.db"
 
 
 def review_db():
     return review.connect(REVIEW_DB)
+
+
+def progress_db():
+    from . import progress
+
+    return progress.connect(PROGRESS_DB)
+
+
+def vocab_db():
+    from . import vocab
+
+    return vocab.connect(VOCAB_DB)
+
+
+# Generated items are not stored, so an answer arrives without the question. The
+# client sends the item back with the answer and the server re-grades it, which
+# keeps the API stateless — but it also means the client could send an item it
+# was never given. That is fine for a single-user app behind Cloudflare Access
+# and would not be for a multi-user one: the fix there is to sign the item or
+# hold the session server-side, and this note exists so that is a decision
+# rather than an oversight.
 
 WEB = Path(__file__).parent / "web"
 
@@ -296,3 +319,195 @@ def speak(req: SpeakRequest) -> FileResponse:
             status_code=503, detail=f"TTS unavailable: {type(exc).__name__}"
         ) from exc
     return FileResponse(path, media_type="audio/wav", filename="eesti.wav")
+
+
+# --------------------------------------------------------------------------
+# The path: curriculum, practice, progress, placement, checkpoints
+# --------------------------------------------------------------------------
+
+class PracticeRequest(BaseModel):
+    topic: str | None = None
+    theme: str | None = None
+    count: int = Field(default=10, ge=1, le=30)
+    levels: list[str] = Field(default_factory=lambda: list(LEVELS))
+    seed: int | None = None
+
+
+class AnswerRequest(BaseModel):
+    topic: str
+    prompt: str
+    answer: str
+    given: str
+    distractor: str = ""
+    lemma: str = ""
+    label: str = ""
+    why_ru: str = ""
+
+
+class _Answered:
+    """A graded item reconstructed from the client, for recording only.
+
+    `progress.record` and `handoff.queue_failed` need an object with these
+    fields; they never regenerate the drill, so this is deliberately a plain
+    carrier rather than a re-created generator item.
+    """
+
+    def __init__(self, req: "AnswerRequest") -> None:
+        self.topic = req.topic
+        self.prompt = req.prompt
+        self.answer = req.answer
+        self.distractor = req.distractor
+        self.lemma = req.lemma
+        self.label = req.label
+        self.why_ru = req.why_ru
+
+    def check(self, given: str) -> bool:
+        return given.strip().casefold() == self.answer.casefold()
+
+
+@app.get("/api/curriculum")
+def curriculum_path() -> dict:
+    """The whole syllabus in study order, with where the learner stands on each."""
+    from .progress import report, resume
+
+    progress = progress_db()
+    rows = report(progress)
+    return {
+        "resume": resume(progress),
+        "mastered": sum(1 for r in rows if r.state == "mastered"),
+        "total": len(rows),
+        "topics": [
+            {
+                "id": r.topic, "level": r.level, "et": r.et, "state": r.state,
+                "attempts": r.attempts, "accuracy": r.accuracy,
+                "blocked_by": list(r.blocked_by),
+            }
+            for r in rows
+        ],
+    }
+
+
+@app.get("/api/themes")
+def themes_list() -> dict:
+    from .themes import coverage
+
+    return {"themes": [{"id": k, **v} for k, v in coverage(db()).items()]}
+
+
+@app.post("/api/practice")
+def practice_items(req: PracticeRequest) -> dict:
+    """Items for one topic — the topic you are on, unless you name another."""
+    from .curriculum import by_id
+    from .practice import items_for
+    from .progress import resume
+
+    topic = req.topic or resume(progress_db())
+    if topic is None:
+        return {"topic": None, "items": [], "detail": "nothing unlocked to practise"}
+
+    try:
+        items = items_for(
+            topic, count=req.count, levels=tuple(req.levels), seed=req.seed,
+            theme=req.theme,
+        )
+    except (ValueError, RuntimeError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    meta = by_id(topic)
+    return {
+        "topic": topic,
+        "level": meta.level,
+        "et": meta.et,
+        "ru": meta.ru,
+        "reference": describe_rule(meta.tag) if meta.tag else None,
+        "items": [i.to_dict() for i in items],
+    }
+
+
+@app.post("/api/practice/answer")
+def practice_answer(req: AnswerRequest) -> dict:
+    """Grade one answer, record it, and queue it for review if it was missed."""
+    from .handoff import queue_failed
+    from .progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy,
+                           is_mastered, record)
+
+    item = _Answered(req)
+    correct = item.check(req.given)
+    progress = progress_db()
+    was_mastered = is_mastered(progress, req.topic)
+    record(progress, item, correct, answer=req.given)
+
+    if not correct:
+        try:
+            queue_failed(review_db(), item)
+        except Exception:  # noqa: BLE001 - review is enrichment, never a blocker
+            pass
+
+    mastered_now = is_mastered(progress, req.topic)
+    if mastered_now and not was_mastered:
+        from .handoff import seed_mastered
+
+        seed_mastered(review_db(), req.topic)
+
+    return {
+        "correct": correct,
+        "answer": req.answer,
+        "why_ru": req.why_ru,
+        "accuracy": accuracy(progress, req.topic),
+        "mastered": mastered_now,
+        "just_mastered": mastered_now and not was_mastered,
+        "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",
+    }
+
+
+@app.get("/api/checkpoint/{level}")
+def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> dict:
+    """A mixed set across a whole level — interleaved by construction."""
+    from .checkpoint import PASS_MARK, build, ready, topics_at
+
+    if level not in LEVELS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    items = build(level, count=count, seed=seed)
+    return {
+        "level": level,
+        "ready": ready(progress_db(), level),
+        "pass_mark": PASS_MARK,
+        "topics": topics_at(level),
+        "items": [i.to_dict() for i in items],
+    }
+
+
+@app.get("/api/status")
+def status() -> dict:
+    """Every section with its own measure, and no overall percentage."""
+    from .overview import overview
+
+    return overview(
+        progress=progress_db(), reviews=review_db(), vocabulary=vocab_db(),
+        words=db(), content=content_connect(CONTENT_DB),
+    )
+
+
+class KnownWords(BaseModel):
+    lemmas: list[str] = Field(min_length=1, max_length=200)
+    long_known: bool = False
+
+
+@app.get("/api/vocab")
+def vocab_bands() -> dict:
+    from .vocab import band_progress, summary
+
+    vocabulary = vocab_db()
+    return {"bands": band_progress(vocabulary, db()), **summary(vocabulary)}
+
+
+@app.post("/api/vocab/known")
+def vocab_known(req: KnownWords) -> dict:
+    """Marking a word known is an explicit act — never inferred from reading."""
+    from .vocab import KNOWN, WELL_KNOWN, set_status
+
+    vocabulary = vocab_db()
+    status_ = WELL_KNOWN if req.long_known else KNOWN
+    for lemma in req.lemmas:
+        set_status(vocabulary, lemma.strip().lower(), status_)
+    return {"marked": len(req.lemmas)}

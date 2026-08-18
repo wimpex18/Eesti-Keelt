@@ -5,3 +5,4 @@ uvicorn[standard]>=0.30
 # Optional — the grammar checker degrades gracefully without it.
 # anthropic>=0.40
 fsrs>=6.0                # FSRS-6 spaced repetition (MIT)
+httpx

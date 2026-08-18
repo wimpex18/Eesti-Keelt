@@ -87,6 +87,13 @@
   #wordCard .pair{margin-top:7px;font-size:13.5px}
   #wordCard .pair b{color:var(--accent)}
   audio{width:100%;margin-top:12px}
+  .topic{display:flex;gap:10px;align-items:baseline;padding:4px 0;font-size:14px}
+  .topic .st{font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+    min-width:74px;color:var(--muted)}
+  .topic.mastered .st{color:var(--ok)}
+  .topic.locked{opacity:.45}
+  .topic .lv{color:var(--muted);font-size:12px}
+  .topic button{font-size:12px;padding:2px 8px}
   label{font-size:13px;color:var(--muted)}
 </style>
 </head>
@@ -106,7 +113,8 @@
   </div>
 
   <nav role="tablist" data-mode-nav="learn">
-    <button role="tab" aria-selected="true"  data-tab="read">Lugemine</button>
+    <button role="tab" aria-selected="true"  data-tab="path">Rada</button>
+    <button role="tab" aria-selected="false" data-tab="read">Lugemine</button>
     <button role="tab" aria-selected="false" data-tab="listen">Kuulamine</button>
     <button role="tab" aria-selected="false" data-tab="write">Kirjutamine</button>
     <button role="tab" aria-selected="false" data-tab="drill">Grammatika</button>
@@ -116,6 +124,26 @@
   <nav role="tablist" data-mode-nav="exam" hidden>
     <button role="tab" aria-selected="true" data-tab="exam">Ülevaade</button>
   </nav>
+
+  <!-- ── The path ──────────────────────────────────────────────────
+       Ordered, gated, pass/fail — the opposite of the library. What the
+       learner sees first is one topic, not thirty-six: the research on paths
+       versus trees is that removing the choice is what improves outcomes. -->
+  <section class="panel" id="tab-path">
+    <div id="pathHead" class="banner" hidden></div>
+    <div class="row" style="margin-top:0">
+      <button class="go" id="practiceBtn">Harjuta</button>
+      <label>Teema
+        <select id="theme"><option value="">kõik sõnad</option></select>
+      </label>
+      <span class="hint" id="pathScore"></span>
+    </div>
+    <div id="practiceOut"></div>
+    <details id="pathAll" style="margin-top:18px">
+      <summary>Kogu rada</summary>
+      <div id="pathList"></div>
+    </details>
+  </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
   <section class="panel" id="tab-write">
@@ -270,7 +298,8 @@ document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
     `nav[data-mode-nav="${m.dataset.mode}"] button`));
 });
 
-// Reading is the default landing tab: it is where material actually is.
+// The path is the default landing tab: it is the one screen that answers
+// "what do I do now" without the learner having to decide.
 selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
 
 async function api(path, body) {
@@ -373,6 +402,121 @@ function renderDrill(d, i) {
   if (i === 0) setTimeout(() => input.focus(), 0);
   return el;
 }
+
+// ── the path ────────────────────────────────────────────────────────
+let pathTopic = null, pathAnswered = 0, pathCorrect = 0;
+
+async function loadPath() {
+  try {
+    const p = await (await fetch("/api/curriculum")).json();
+    pathTopic = p.resume;
+    $("#pathHead").hidden = false;
+    $("#pathHead").innerHTML = p.resume
+      ? `<strong>${p.mastered}/${p.total}</strong> teemat läbitud · järgmine:
+         <strong>${esc(p.resume)}</strong>`
+      : `<strong>${p.mastered}/${p.total}</strong> teemat läbitud`;
+
+    $("#pathList").innerHTML = p.topics.map(t => {
+      const blocked = t.blocked_by.length ? ` ← ${t.blocked_by.join(", ")}` : "";
+      const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
+      const testOut = t.state === "ready" || t.state === "in progress"
+        ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta</button>` : "";
+      return `<div class="topic ${t.state.replace(" ", "-")}">
+        <span class="st">${esc(t.state)}</span>
+        <span class="lv">${esc(t.level)}</span>
+        <span>${esc(t.et)}${esc(blocked)}${acc}</span>
+        ${testOut}</div>`;
+    }).join("");
+  } catch (e) { $("#pathHead").hidden = false; $("#pathHead").textContent = e.message; }
+}
+
+$("#pathList").addEventListener("click", e => {
+  const b = e.target.closest("button[data-topic]");
+  if (b) { pathTopic = b.dataset.topic; $("#pathAll").open = false; startPractice(); }
+});
+
+async function loadThemes() {
+  try {
+    const {themes} = await (await fetch("/api/themes")).json();
+    $("#theme").innerHTML = '<option value="">kõik sõnad</option>' +
+      themes.map(t => `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("");
+  } catch {}
+}
+
+async function startPractice() {
+  const out = $("#practiceOut"); out.innerHTML = "";
+  pathAnswered = 0; pathCorrect = 0; $("#pathScore").textContent = "";
+  const btn = $("#practiceBtn"); btn.disabled = true; btn.textContent = "Laen…";
+  try {
+    const body = {count: 10};
+    if (pathTopic) body.topic = pathTopic;
+    const theme = $("#theme").value; if (theme) body.theme = theme;
+    const res = await (await api("/api/practice", body)).json();
+    if (!res.items.length) { out.innerHTML = `<div class="banner">${esc(res.detail || "midagi ei tulnud")}</div>`; return; }
+    pathTopic = res.topic;
+    let head = `<div class="banner"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
+    if (res.reference && res.reference.known)
+      head += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
+    head += `</div>`;
+    out.innerHTML = head;
+    res.items.forEach((it, i) => out.appendChild(renderPracticeItem(it, res.topic, i)));
+  } catch (e) {
+    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; btn.textContent = "Harjuta"; }
+}
+
+function renderPracticeItem(it, topic, i) {
+  const el = document.createElement("div");
+  el.className = "drill";
+  el.innerHTML = `
+    <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    <div class="row" style="margin-top:0">
+      <input type="text" size="18" placeholder="?">
+      <button class="ghost">Kontrolli</button>
+      <span class="hint">${esc(it.hint || it.lemma || "")}${it.level ? " · " + esc(it.level) : ""}</span>
+    </div>
+    <div class="verdict"></div>`;
+  const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const grade = async () => {
+    if (input.disabled) return;
+    input.disabled = true;
+    let res;
+    try {
+      // The server grades and records: the client must not be the judge of
+      // whether a topic has been mastered.
+      res = await (await api("/api/practice/answer", {
+        topic, prompt: it.prompt, answer: it.answer, given: input.value,
+        distractor: it.distractor || "", lemma: it.lemma || "",
+        label: it.hint || "", why_ru: it.why_ru || "",
+      })).json();
+    } catch (e) {
+      verdict.className = "verdict no"; verdict.textContent = e.message; return;
+    }
+    pathAnswered++; if (res.correct) pathCorrect++;
+    verdict.className = "verdict " + (res.correct ? "ok" : "no");
+    verdict.innerHTML = res.correct
+      ? `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`
+      : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, mitte <em>${esc(it.distractor)}</em>` : ""}<br>
+         <span class="why">${md(it.why_ru || "")}</span>`;
+    let line = `${pathCorrect}/${pathAnswered} õiget`;
+    if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% viimasest ${res.gate.split("/")[1]}-st`;
+    $("#pathScore").textContent = line;
+    if (res.just_mastered) {
+      $("#pathHead").innerHTML =
+        `✓ <strong>${esc(topic)}</strong> läbitud — avab järgmised teemad. ` +
+        `Harjutused läksid kordamise järjekorda.`;
+      loadPath();
+      refreshDueBadge();
+    }
+  };
+  el.querySelector("button").onclick = grade;
+  input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
+  if (i === 0) setTimeout(() => input.focus(), 0);
+  return el;
+}
+
+$("#practiceBtn").onclick = startPractice;
+loadPath(); loadThemes();
 
 // ── review ──────────────────────────────────────────────────────────
 async function refreshDueBadge() {
