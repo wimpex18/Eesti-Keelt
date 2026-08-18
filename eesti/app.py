@@ -16,11 +16,17 @@ from .drills import TEMPLATES, generate
 from .lookup import annotate, lookup
 from .providers import grammar
 from .providers import tts
+from . import review
 from .sources import connect as content_connect
 from .sources import query as content_query
 from .wordlist import connect
 
 CONTENT_DB = "data/content.db"
+REVIEW_DB = "data/review.db"
+
+
+def review_db():
+    return review.connect(REVIEW_DB)
 
 WEB = Path(__file__).parent / "web"
 
@@ -144,6 +150,66 @@ def library_item(item_id: str) -> dict:
 def lookup_word(word: str) -> dict:
     """Analyse one word: lemma, case, CEFR level, and its object-case pair."""
     return lookup(word)
+
+
+class ReviewAdd(BaseModel):
+    kind: str
+    lemma: str
+    prompt: str
+    answer: str
+    tag: str | None = None
+    distractor: str | None = None
+    why_ru: str | None = None
+    source: str = "drill"
+    context: str | None = None
+
+
+class ReviewGrade(BaseModel):
+    id: str
+    rating: str  # again | hard | good | easy
+
+
+@app.get("/api/review")
+def review_queue(limit: int = 20, kind: str | None = None) -> dict:
+    """Items due for review, most overdue first."""
+    items = review.due(review_db(), limit=limit, kind=kind)
+    return {
+        "items": [
+            {
+                "id": i.id, "kind": i.kind, "lemma": i.lemma,
+                "prompt": i.prompt, "answer": i.answer,
+                "distractor": i.distractor, "why_ru": i.why_ru,
+                "context": i.context, "reps": i.reps, "lapses": i.lapses,
+            }
+            for i in items
+        ]
+    }
+
+
+@app.post("/api/review")
+def review_add(req: ReviewAdd) -> dict:
+    """Queue an item. Re-adding an existing one keeps its existing schedule."""
+    item_id = review.add(
+        review_db(), kind=req.kind, lemma=req.lemma, prompt=req.prompt,
+        answer=req.answer, tag=req.tag, distractor=req.distractor,
+        why_ru=req.why_ru, source=req.source, context=req.context,
+    )
+    return {"id": item_id}
+
+
+@app.post("/api/review/grade")
+def review_grade(req: ReviewGrade) -> dict:
+    try:
+        return review.grade(review_db(), req.id, req.rating)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="unknown item") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/review/stats")
+def review_stats() -> dict:
+    return review.stats(review_db())
 
 
 @app.post("/api/speak")

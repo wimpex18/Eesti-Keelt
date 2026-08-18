@@ -175,6 +175,9 @@ git-ignored; fetch it yourself.
 
 ## Docs
 
+**Start here:** [`docs/roadmap.md`](docs/roadmap.md) — what is built, what is
+next, and what the 2026 competitors do that is worth copying.
+
 - [`docs/setup.md`](docs/setup.md) — which API key, how to get it, where it goes
 - [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
   from research, against what is actually built
@@ -184,7 +187,7 @@ git-ignored; fetch it yourself.
   nouns, and where Estonian grammar data actually comes from
 - [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM, model
   options, competitive landscape
-- [`docs/stack-2026.md`](docs/stack-2026.md) — stack and practice decisions
+  nouns, and where Estonian grammar data actually comes from
 
 ## Roadmap
 
