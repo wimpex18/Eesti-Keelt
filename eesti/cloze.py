@@ -150,8 +150,26 @@ class Cloze:
         """
         return f"{self.lemma}, {self.case_et}"
 
+    @property
+    def reference(self) -> dict | None:
+        """The handbook section for this item's topic, shipped with the item.
+
+        Every grammar app that teaches well puts the reference and the exercise
+        on the same screen; the ones that make you go and find the rule are the
+        ones people stop using. `grammar.py` already knows where EKK defines
+        each rule, so the only thing missing was carrying it here.
+
+        None where the topic has no tagged rule — a case-production item on the
+        rare cases is not a rule with a section, it is a paradigm.
+        """
+        from .curriculum import by_id
+        from .grammar import describe
+
+        tag = by_id(self.topic).tag
+        return describe(tag) if tag else None
+
     def to_dict(self) -> dict:
-        return asdict(self) | {"hint": self.hint}
+        return asdict(self) | {"hint": self.hint, "reference": self.reference}
 
     def check(self, given: str) -> bool:
         """Deterministic, like every other grader here. No model, no network."""

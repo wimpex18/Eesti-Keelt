@@ -47,9 +47,10 @@ Three of these change something concrete here:
    the contrasts the corpus does not happen to contain.
 2. **Placement before lesson 1**, not as an afterthought. Already step 4 of the
    curriculum plan; Busuu's version is the argument for it not slipping.
-3. **The reference and the exercise are one unit.** `grammar.py` already maps
-   each tag to its EKK section — that link belongs *in* the drill, not on a
-   separate page.
+3. **The reference and the exercise are one unit.** Done: every cloze item
+   carries its EKK section, so the rule is on the same screen as the exercise
+   rather than a page away. Items whose topic has no tagged rule report *no*
+   reference rather than a nearby-looking one.
 
 Babbel's dialogue framing is the one deliberately skipped: it needs authored
 conversations, which is exactly the hand-written lesson prose `curriculum-plan.md`

@@ -382,6 +382,9 @@ def cmd_cloze(args: argparse.Namespace) -> int:
         if args.answers:
             print(f"   -> {item.answer}   (не *{item.distractor}*)")
             print(f"   {item.why_ru}")
+            ref = item.reference
+            if ref and ref.get("known"):
+                print(f"   EKK {ref['ekk_section']} — {ref['et_term']}: {ref['url']}")
     print(f"\n{len(items)} items from {len(sents):,} authentic sentences.")
     return 0
 

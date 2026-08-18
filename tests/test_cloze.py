@@ -173,3 +173,22 @@ class TestSafetyGates:
     def test_every_declared_case_has_a_topic_and_a_name(self):
         covered = {tag for tags in cloze.TOPIC_CASES.values() for tag in tags}
         assert covered == set(cloze.CASES)
+
+
+def test_items_carry_their_handbook_reference(content):
+    """Reference and exercise ship together, or the learner has to go looking."""
+    items = cloze.negation_clozes(cloze.sentences(content), seed=1)
+    assert items
+    for item in items:
+        ref = item.reference
+        assert ref and ref["known"]
+        assert ref["ekk_section"] == "SÜ 37"
+        assert item.to_dict()["reference"] == ref
+
+
+def test_untagged_topics_report_no_reference_rather_than_a_wrong_one(content):
+    items = cloze.case_clozes(
+        cloze.sentences(content), topics=("harvad-kaanded",), seed=1
+    )
+    for item in items:
+        assert item.reference is None
