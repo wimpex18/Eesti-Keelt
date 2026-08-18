@@ -76,9 +76,10 @@ Two sources, and the split matters:
   validated: each candidate is re-analysed and kept only if it reads back as the
   requested lemma in the requested case.
 
-Only nouns whose genitive and partitive genuinely **differ** are drilled — 1,741
-of them at A1–B1. For `maja`/`maja` there is no wrong answer, so such an item
-would measure nothing.
+Only nouns whose genitive and partitive genuinely **differ** are drilled. That is
+the clear majority — **1,741 of 2,533 indexed A1–B1 nouns (69 %)**. The remaining
+31 % where the two coincide (`kino`→kino/kino, `kets`→ketsi/ketsi) are excluded
+because there is no wrong answer to give, so such an item would measure nothing.
 
 ## Tests
 
