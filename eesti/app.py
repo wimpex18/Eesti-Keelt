@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field
 
 from .config import LEVELS
 from .drills import TEMPLATES, generate, generate_verb_drills
-from .lookup import annotate, lookup
+from .grammar import REFERENCES, describe as describe_rule
+from .lookup import annotate, lookup, principal_forms
 from .providers import grammar
 from .providers import tts
 from . import mining, review
@@ -151,6 +152,34 @@ def library_item(item_id: str) -> dict:
         "audio_url": row["audio_url"],
         "profile": annotate(row["body"] or ""),
     }
+
+
+@app.get("/api/grammar")
+def grammar_rules() -> dict:
+    """Every rule the app drills, linked to its section in the EKK handbook.
+
+    Explanations point at the authority (Eesti keele käsiraamat) rather than
+    restating it, so a learner who doubts a drill can check the source — and so
+    we are not maintaining a parallel grammar that can drift.
+    """
+    return {"rules": [describe_rule(tag) for tag in REFERENCES]}
+
+
+@app.get("/api/grammar/{tag}")
+def grammar_rule(tag: str) -> dict:
+    rule = describe_rule(tag)
+    if not rule["known"]:
+        raise HTTPException(status_code=404, detail=f"no reference for {tag!r}")
+    return rule
+
+
+@app.get("/api/word/{lemma}")
+def word_card(lemma: str) -> dict:
+    """A word in its three principal forms, as a dictionary would cite it."""
+    result = principal_forms(lemma)
+    if not result.get("found"):
+        raise HTTPException(status_code=404, detail=f"{lemma!r} not found")
+    return result
 
 
 @app.get("/api/lookup/{word}")

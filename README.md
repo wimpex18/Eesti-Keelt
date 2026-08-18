@@ -187,6 +187,8 @@ git-ignored; fetch it yourself.
 next, and what the 2026 competitors do that is worth copying.
 
 - [`docs/setup.md`](docs/setup.md) — which API key, how to get it, where it goes
+- [`docs/content-sources.md`](docs/content-sources.md) — where grammar and
+  vocabulary come from, and why neither is stored per-word
 - [`docs/architecture.md`](docs/architecture.md) — how this deploys to Cloudflare
   when Vabamorf cannot run there, plus stack and practice decisions
 - [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
