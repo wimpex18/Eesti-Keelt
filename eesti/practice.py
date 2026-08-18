@@ -15,8 +15,12 @@ from pathlib import Path
 from .config import CACHE, LEVELS
 
 
-def _content(path: str | Path = "data/content.db") -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+def _content(path: str | Path | None = None) -> sqlite3.Connection:
+    # Resolved at call time. A hardcoded default here is how the test suite
+    # ended up reading the developer's own harvest without anyone noticing.
+    from . import config
+
+    conn = sqlite3.connect(path or config.CONTENT_DB)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -26,7 +30,7 @@ def items_for(
     count: int = 10,
     levels: tuple[str, ...] = LEVELS,
     seed: int | None = None,
-    content_db: str | Path = "data/content.db",
+    content_db: str | Path | None = None,
 ) -> list:
     """Practice items for one curriculum topic, from whichever generator owns it.
 
