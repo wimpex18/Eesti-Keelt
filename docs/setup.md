@@ -41,6 +41,11 @@ That is it. GitHub encrypts it, never shows it again, and masks it in logs.
 provider and optionally a model id. Leave the model blank to score the pinned
 default.
 
+If no key is configured the workflow still passes — the model-id check is worth
+running on its own — but it emits a **warning** and its summary says in as many
+words that **no model was scored**. A green tick there never means "the model is
+good"; check the run summary for numbers.
+
 ```
 recall     0.9   caught 9/10        # planted errors found
 precision  1.0   left alone 8/8     # correct sentences not flagged
