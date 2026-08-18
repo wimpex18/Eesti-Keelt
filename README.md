@@ -37,6 +37,8 @@ Terminal use, if you prefer:
 .venv/bin/python -m eesti.cli practice          # graded session, picks up where you left off
 .venv/bin/python -m eesti.cli practice --topic lihtminevik --theme reisimine
 .venv/bin/python -m eesti.cli review            # interleaved review of whatever is due
+.venv/bin/python -m eesti.cli checkpoint --level A1   # mixed end-of-level quiz
+.venv/bin/python -m eesti.cli status            # where you stand, section by section
 .venv/bin/python -m eesti.cli progress --todo   # what is left, in study order
 .venv/bin/python -m eesti.cli check "Ma lugesin eile raamatut läbi."
 ```
@@ -161,7 +163,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 260 passed
+.venv/bin/python -m pytest tests/ -q     # 296 passed
 ```
 
 Four gates:

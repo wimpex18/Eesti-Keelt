@@ -134,6 +134,61 @@ def coverage(conn: sqlite3.Connection, lemmas: list[str]) -> dict:
     }
 
 
+# Speakly orders vocabulary by real-world frequency and reports progress as
+# "known within the top N". Band size is a display choice, not a claim: 500 is
+# small enough that a band can be finished and large enough that finishing one
+# means something.
+BAND_SIZE = 500
+BAND_TOP = 4000
+
+
+def band_progress(
+    conn: sqlite3.Connection,
+    words: sqlite3.Connection,
+    size: int = BAND_SIZE,
+    top: int = BAND_TOP,
+) -> list[dict]:
+    """Known words per frequency band — the only vocabulary number worth showing.
+
+    Vocabulary has no prerequisites, only usefulness, so it is ordered by
+    frequency rather than sequenced like the grammar path. And the denominator
+    is a band rather than the language: **"1 200 of the top 2 000" means
+    something; "12 % of Estonian" does not**, because the tail is endless and
+    nobody is trying to finish it.
+
+    `top` stops at 4 000 because that is roughly the whole A1-B1 vocabulary
+    target — the enriched word list tags 4 191 lemmas A1, A2 or B1 — so the
+    bands cover the thing being studied rather than trailing off into words no
+    exam will ask for.
+
+    Unranked lemmas are excluded: `freq_rank` 0 or NULL means the frequency
+    corpus never saw the word, which is not the same as it being rare-but-rank-
+    160000, and treating them as a band would invent a denominator.
+    """
+    settled = {
+        r[0] for r in conn.execute(
+            f"SELECT lemma FROM vocab_status WHERE status IN "
+            f"({','.join(str(s) for s in sorted(SETTLED - {IGNORED}))})"
+        )
+    }
+    out: list[dict] = []
+    for start in range(1, top + 1, size):
+        end = min(start + size - 1, top)
+        band = [
+            r[0] for r in words.execute(
+                "SELECT word FROM words WHERE freq_rank BETWEEN ? AND ?"
+                " AND freq_rank > 0",
+                (start, end),
+            )
+        ]
+        known = sum(1 for w in band if w in settled)
+        out.append({
+            "from": start, "to": end, "size": len(band), "known": known,
+            "share": round(known / len(band), 3) if band else 0.0,
+        })
+    return out
+
+
 def summary(conn: sqlite3.Connection) -> dict:
     counts = dict(
         conn.execute("SELECT status, COUNT(*) FROM vocab_status GROUP BY status")

@@ -520,19 +520,66 @@ it reports nothing. Measured cost, **111 of 2 570 A1–B1 nouns (4.3 %)** — an
 every one of them would otherwise have been an exercise with a confidently wrong
 answer.
 
-### 7. Path and library split
-Implement the two-surface structure in `app-structure.md`: a mastery-gated path
-for grammar, a browsable library for material. Keelekõdi and the audio-only
-episodes belong to the library — 30 minutes of mixed content with no transcript
-is exposure, not a curriculum step.
+### 7. Path and library split — done ✅
+`eesti/library.py` (`cli library`) and `eesti/overview.py` (`cli status`).
 
-### 8. Frequency-ordered vocabulary
-Speakly's ordering, using the `freq_rank` already in the word list: progress
-measured as "known within the top N", not as a percentage of the language.
+The library is the second surface: **unordered, ungated, measured by exposure
+only**. Keelekõdi forces the distinction — 30 minutes of mixed content with no
+transcript is genuinely useful exposure and genuinely useless as a curriculum
+step, because it cannot be sequenced, gated on or checked. Putting it on the
+path would break the path's one promise, that finishing a step means something.
 
-### 9. Unit checkpoints
-A short mixed quiz at the end of each level — interleaved by construction, and a
-progress signal the learner can trust.
+Exposure is counted as openings and minutes, and reports **no percentage**,
+because no denominator would be honest: the library grows, and "12 % of the
+library" says nothing about whether the learner can read. Whether a text is
+worth their time is already answered by `vocab.py`, which measures words.
+
+`browse(..., public_only=True)` filters on the **source's** licence rather than
+on the item, so a new source cannot leak by forgetting to tag its rows. Today
+that filter returns **0 of 421 items** — ERR is © ERR, Selges keeles carries no
+reuse grant — which is not a bug but the reason Cloudflare Access is not
+optional.
+
+`cli status` prints all five sections with **no overall percentage**. That is a
+decision, not an omission: the exam scores four parts separately and fails you
+for a zero in any one, so a learner at "68 % overall" who has never done a
+listening task is not 68 % ready, and an aggregate hides precisely the thing
+that decides the outcome.
+
+### 8. Frequency-ordered vocabulary — done ✅
+`vocab.band_progress`. Grammar is sequenced because it has real prerequisites;
+vocabulary has none, only usefulness, so it is ordered by `freq_rank` in bands
+of 500 up to 4 000 — roughly the whole A1–B1 target.
+
+The denominator is the point. **"1 200 of the top 2 000" means something;
+"12 % of Estonian" does not**, because the tail is endless and nobody is trying
+to finish it. Unranked lemmas are excluded rather than pooled: `freq_rank` 0
+means the frequency corpus never saw the word, which is not the same as it being
+rare, and counting them would invent a denominator. Bands report their real
+size — ranks are not dense, so the first band holds 304 words, not 500.
+
+### 9. Unit checkpoints — done ✅
+`eesti/checkpoint.py`, `cli checkpoint --level A1`.
+
+A checkpoint asks across **every drillable topic at a level at once**, which
+makes it the one thing here that is interleaved without having to be arranged —
+there is no blocked version of "everything you learned at A1". That is also why
+it measures something a topic gate cannot: the gate asks "can you do the
+conditional" right after ten conditionals, when the rule is in working memory
+and every item has the same shape. A checkpoint gives no clue which rule
+applies, which is the situation the exam creates and the one in which people who
+have mastered every topic separately find they cannot choose between them.
+
+Items are dealt **round-robin, not sampled randomly**: a random draw from a
+level with nine verb topics and three noun topics measures what the syllabus
+happens to contain rather than the learner.
+
+The pass mark is **75 %**, below the topic gate's 80 %. Not a contradiction —
+the same number across a whole level unprompted is harder, so an equal bar would
+make finishing a level rarer than mastering every topic in it. And a failed
+checkpoint **un-masters nothing**; it puts the missed items in the review queue,
+because its value is the diagnosis (`weakest` names the topics that went worse
+than the level as a whole), not the score.
 
 ---
 

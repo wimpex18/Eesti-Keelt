@@ -716,6 +716,132 @@ def cmd_themes(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_library(args: argparse.Namespace) -> int:
+    """Browse the material: unordered, ungated, measured only by exposure."""
+    import sqlite3
+
+    from .library import browse, exposure, sections
+    from .progress import connect as progress_connect
+
+    content = sqlite3.connect(args.content_db)
+    content.row_factory = sqlite3.Row
+
+    if not args.section:
+        for row in sections(content):
+            print(f"  {row['id']:<11}{row['items']:>5} items"
+                  f"{'  (' + str(row['with_audio']) + ' with audio)' if row['with_audio'] else '':<22}"
+                  f" {row['et']}")
+        public = sum(s["items"] for s in sections(content, public_only=True))
+        print(f"\n{public} item(s) may be served publicly — the rest is owner-only "
+              "by licence,\nwhich is what Cloudflare Access exists to enforce.")
+        print("Browse one: `library --section lugemine`")
+        return 0
+
+    rows = browse(content, args.section, level=args.level, limit=args.count)
+    if not rows:
+        print(f"nothing in {args.section} — run the harvest commands first")
+        return 1
+    for row in rows:
+        title = (row["title"] or "")[:58]
+        audio = " ♪" if row["audio_url"] else ""
+        print(f"  {row['id'][:10]}  [{row['level'] or '-':<3}] {title}{audio}")
+
+    if args.seen:
+        progress = progress_connect(args.progress_db)
+        from .library import mark_seen
+
+        for row in rows:
+            mark_seen(progress, row["id"], minutes=args.minutes)
+        print(f"\nmarked {len(rows)} item(s) as opened: {exposure(progress)}")
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    """Where you stand across every section — with no single number."""
+    import sqlite3
+
+    from .overview import overview
+    from .progress import connect as progress_connect
+    from .review import connect as review_connect
+    from .vocab import connect as vocab_connect
+    from .wordlist import connect as wordlist_connect
+
+    content = sqlite3.connect(args.content_db)
+    content.row_factory = sqlite3.Row
+    data = overview(
+        progress=progress_connect(args.progress_db),
+        reviews=review_connect(args.review_db),
+        vocabulary=vocab_connect(args.vocab_db),
+        words=wordlist_connect(),
+        content=content,
+    )
+
+    rada = data["sections"].get("rada")
+    if rada:
+        print(f"Rada          {rada['mastered']}/{rada['total']} topics mastered, "
+              f"{rada['available']} available   next: {rada['next'] or '-'}")
+    sonavara = data["sections"].get("sonavara")
+    if sonavara:
+        print(f"Sõnavara      {sonavara['known_in_top']} known within the top "
+              f"{sonavara['top']}")
+        for band in sonavara["bands"]:
+            if band["known"] or band["from"] == 1:
+                print(f"                top {band['from']:>4}-{band['to']:<5}"
+                      f" {band['known']:>4}/{band['size']:<4} {band['share']:>6.0%}")
+    kordamine = data["sections"].get("kordamine")
+    if kordamine:
+        print(f"Kordamine     {kordamine['due']} due now, "
+              f"{kordamine['scheduled']} scheduled")
+    lib = data["sections"].get("raamatukogu")
+    if lib:
+        print(f"Raamatukogu   {lib.get('items', 0)} item(s) opened, "
+              f"{lib.get('minutes', 0)} minute(s)")
+        for section, n in (lib.get("available") or {}).items():
+            print(f"                {section:<11} {n} available")
+
+    print("\nNo overall percentage: the exam scores four parts separately and "
+          "fails you\nfor a zero in any one, so an aggregate would hide the "
+          "thing that decides it.")
+    return 0
+
+
+def cmd_checkpoint(args: argparse.Namespace) -> int:
+    """A mixed quiz across a whole level — interleaved by construction."""
+    from .checkpoint import DEFAULT_ITEMS, PASS_MARK, ready, run, topics_at
+    from .progress import connect as progress_connect
+    from .review import connect as review_connect
+
+    progress = progress_connect(args.progress_db)
+    reviews = review_connect(args.review_db)
+
+    topics = topics_at(args.level)
+    if not topics:
+        print(f"no drillable topics at {args.level}")
+        return 1
+    if not ready(progress, args.level) and not args.force:
+        from .progress import mastered
+
+        missing = sorted(set(topics) - mastered(progress))
+        print(f"{args.level} is not finished yet — still to master: "
+              f"{', '.join(missing)}")
+        print("Run it anyway with --force; it is a diagnosis, not a gate.")
+        return 1
+
+    print(f"\n{args.level} checkpoint: {args.count} questions across "
+          f"{len(topics)} topics, mixed.\nNo hint which rule applies — that is "
+          "the point.\n")
+    result = run(progress, args.level, _ask_terminal, count=args.count,
+                 seed=args.seed, reviews=reviews)
+    print(f"\n{result.correct}/{result.asked} — {result.score:.0%} "
+          f"(pass is {PASS_MARK:.0%})")
+    if result.weakest:
+        print(f"weakest: {', '.join(result.weakest)}")
+    print("✓ passed" if result.passed else
+          "not passed. Nothing is un-mastered; the missed items are in the "
+          "review queue.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -831,6 +957,32 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("themes", help="themed word sets a topic can be drilled over")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_themes)
+
+    p = sub.add_parser("library", help="browse material: ungated, unordered")
+    p.add_argument("--section", choices=("lugemine", "kuulamine", "saated", "eksam"))
+    p.add_argument("--level")
+    p.add_argument("-n", "--count", type=int, default=15)
+    p.add_argument("--seen", action="store_true", help="record these as opened")
+    p.add_argument("--minutes", type=float, default=0.0)
+    p.add_argument("--content-db", default="data/content.db")
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.set_defaults(func=cmd_library)
+
+    p = sub.add_parser("status", help="where you stand, section by section")
+    p.add_argument("--content-db", default="data/content.db")
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--review-db", default="data/review.db")
+    p.add_argument("--vocab-db", default="data/vocab.db")
+    p.set_defaults(func=cmd_status)
+
+    p = sub.add_parser("checkpoint", help="mixed end-of-level quiz")
+    p.add_argument("--level", default="A1", choices=list(LEVELS))
+    p.add_argument("-n", "--count", type=int, default=15)
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--seed", type=int)
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--review-db", default="data/review.db")
+    p.set_defaults(func=cmd_checkpoint)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

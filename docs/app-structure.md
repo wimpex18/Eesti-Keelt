@@ -90,6 +90,21 @@ Prerequisites come from the topic graph, not a hand-written order: `gen-stem`
 genuinely precedes eleven other cases, so the path can be *derived* and stays
 correct when topics are added.
 
+## Built
+
+All of the above is implemented, and three things only became clear once it was:
+
+- **`public_only` currently returns 0 of 421 items.** ERR material is © ERR and
+  Selges keeles carries no reuse grant, so every harvested item is owner-only.
+  The filter is not decorative — it is the whole reason Cloudflare Access is a
+  requirement rather than a nicety.
+- **Frequency ranks are not dense.** The top-500 band holds 304 lemmas, not 500,
+  so bands report their real size rather than the width of their range.
+- **A topic with no generator cannot gate.** `pohivormid` and `lauseehitus` are
+  real prerequisites with no practice behind them, and requiring them to be
+  demonstrated made everything downstream unreachable. They show as `reference`
+  and do not block; see `curriculum-plan.md` step 3.
+
 ## Sources checked and set aside
 
 Completing the sweep, so these are not rediscovered as if new:
