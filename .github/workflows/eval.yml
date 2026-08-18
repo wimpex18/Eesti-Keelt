@@ -1,0 +1,55 @@
+name: Estonian model eval
+
+# Answers a question that cannot be answered by reading model cards: does this
+# model actually handle Estonian object case? Runs on demand so a key is only
+# ever used deliberately, and on PRs that touch the eval or the providers.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider to score
+        default: openrouter
+        type: choice
+        options: [openrouter, groq, workers-ai, anthropic]
+      model:
+        description: Model id (blank = the provider's pinned default)
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - "eesti/evals/**"
+      - "eesti/providers/**"
+      - ".github/workflows/eval.yml"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    # Without a key there is nothing to measure; skip rather than fail red.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork == false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # No dependencies: the eval path is stdlib-only by design, so this needs
+      # no compiled extensions and takes seconds.
+      - name: Check the pinned model id still exists
+        run: python -m eesti.cli models --provider "${{ inputs.provider || 'openrouter' }}" --limit 10
+
+      - name: Score the model on Estonian
+        if: env.HAS_KEY == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python -m eesti.cli eval \
+            --provider "${{ inputs.provider || 'openrouter' }}" \
+            ${{ inputs.model && format('--model {0}', inputs.model) || '' }}
+
+    env:
+      HAS_KEY: ${{ secrets.OPENROUTER_API_KEY != '' || secrets.GROQ_API_KEY != '' }}

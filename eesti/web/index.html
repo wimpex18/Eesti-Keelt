@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="et">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eesti-Keelt</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#fff; --ink:#1b1b19; --muted:#6b6b66;
+    --line:#e3e3de; --accent:#1c6b52; --accent-soft:#e6f2ec;
+    --warn:#9a5b00; --warn-soft:#fdf3e3; --bad:#a32c2c; --good:#1c6b52;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#16171a; --panel:#1e2024; --ink:#e9e9e6; --muted:#9a9a94;
+      --line:#2e3138; --accent:#5fbf9b; --accent-soft:#1b302a;
+      --warn:#e0a758; --warn-soft:#2e2618; --bad:#e88b8b; --good:#5fbf9b;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#16171a; --panel:#1e2024; --ink:#e9e9e6; --muted:#9a9a94;
+    --line:#2e3138; --accent:#5fbf9b; --accent-soft:#1b302a;
+    --warn:#e0a758; --warn-soft:#2e2618; --bad:#e88b8b; --good:#5fbf9b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:860px;margin:0 auto;padding:28px 20px 80px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:20px;margin:0;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  nav{display:flex;gap:4px;margin:22px 0 18px;border-bottom:1px solid var(--line)}
+  nav button{background:none;border:0;padding:9px 14px;font:inherit;color:var(--muted);
+    cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  textarea{width:100%;min-height:130px;padding:12px;border:1px solid var(--line);
+    border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  button.go{background:var(--accent);color:#fff;border:0;padding:9px 18px;border-radius:8px;
+    font:inherit;font-weight:600;cursor:pointer}
+  button.go:disabled{opacity:.55;cursor:default}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--ink);
+    padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+  select,input[type=text],input[type=number]{padding:8px;border:1px solid var(--line);
+    border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+  .engine{font-size:12px;color:var(--muted);margin-top:14px}
+  .engine b{color:var(--ink)}
+  .banner{background:var(--warn-soft);border:1px solid var(--warn);color:var(--warn);
+    padding:10px 12px;border-radius:8px;font-size:13px;margin-top:14px}
+  .corr{border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:8px;padding:12px;margin-top:12px;background:var(--bg)}
+  .corr.objcase{border-left-color:var(--warn)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;padding:2px 7px;border-radius:5px;
+    background:var(--accent-soft);color:var(--accent)}
+  .corr.objcase .tag{background:var(--warn-soft);color:var(--warn)}
+  .fix{margin:8px 0 6px;font-size:15px}
+  .fix del{color:var(--bad);text-decoration:line-through}
+  .fix ins{color:var(--good);text-decoration:none;font-weight:600}
+  .why{color:var(--muted);font-size:13.5px}
+  .why strong{color:var(--ink)}
+  .drill{border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:12px;background:var(--bg)}
+  .prompt{font-size:17px;margin-bottom:10px}
+  .prompt .blank{color:var(--accent);font-weight:700}
+  .hint{font-size:12px;color:var(--muted)}
+  .verdict{margin-top:10px;font-size:14px}
+  .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
+  .score{font-size:13px;color:var(--muted);margin-top:16px}
+  .empty{color:var(--muted);font-size:14px;margin-top:14px}
+  .lib-item{border:1px solid var(--line);border-radius:8px;padding:11px 13px;
+    margin-top:9px;background:var(--bg);cursor:pointer;display:flex;gap:10px;
+    align-items:baseline;justify-content:space-between}
+  .lib-item:hover{border-color:var(--accent)}
+  .lib-item h4{margin:0;font-size:14.5px;font-weight:600}
+  .lib-meta{font-size:12px;color:var(--muted);white-space:nowrap}
+  .prose{margin-top:12px;font-size:16.5px;line-height:1.75}
+  .prose w{cursor:pointer;border-bottom:1px dotted transparent}
+  .prose w:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .prose w.hard{background:var(--warn-soft);border-radius:3px;padding:0 1px}
+  #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
+    border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
+    box-shadow:0 4px 18px rgba(0,0,0,.13)}
+  #wordCard .lemma{font-size:16px;font-weight:700}
+  #wordCard .tags{font-size:13px;color:var(--muted);margin-top:3px}
+  #wordCard .pair{margin-top:7px;font-size:13.5px}
+  #wordCard .pair b{color:var(--accent)}
+  audio{width:100%;margin-top:12px}
+  label{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Eesti-Keelt</h1>
+    <span class="sub" id="stats">…</span>
+  </header>
+
+  <nav role="tablist">
+    <button role="tab" aria-selected="true"  data-tab="write">Kirjutamine</button>
+    <button role="tab" aria-selected="false" data-tab="drill">Harjutused</button>
+    <button role="tab" aria-selected="false" data-tab="read">Lugemine</button>
+    <button role="tab" aria-selected="false" data-tab="listen">Kuulamine</button>
+  </nav>
+
+  <!-- ── Writing check ─────────────────────────────────────────────── -->
+  <section class="panel" id="tab-write">
+    <textarea id="text" placeholder="Kirjuta või kleebi eestikeelne tekst…&#10;Näiteks: Ma lugesin eile raamatut läbi."></textarea>
+    <div class="row">
+      <button class="go" id="checkBtn">Kontrolli</button>
+      <span class="hint">Ctrl+Enter</span>
+    </div>
+    <div id="checkOut"></div>
+  </section>
+
+  <!-- ── Drills ────────────────────────────────────────────────────── -->
+  <section class="panel" id="tab-drill" hidden>
+    <div class="row" style="margin-top:0">
+      <label>Reegel
+        <select id="rule">
+          <option value="">kõik</option>
+          <option value="negation">eitus → partitiiv</option>
+          <option value="completed">lõpetatud → genitiiv</option>
+          <option value="ongoing">kestev → partitiiv</option>
+        </select>
+      </label>
+      <label>Raskus
+        <select id="level">
+          <option value="A1,A2,B1">A1–B1</option>
+          <option value="A1,A2">A1–A2</option>
+          <option value="B1">B1</option>
+        </select>
+      </label>
+      <label>Arv <input type="number" id="count" value="10" min="1" max="30" style="width:70px"></label>
+      <button class="go" id="drillBtn">Alusta</button>
+    </div>
+    <div id="drillOut"></div>
+    <div class="score" id="score"></div>
+  </section>
+
+  <!-- ── Reading ───────────────────────────────────────────────────── -->
+  <section class="panel" id="tab-read" hidden>
+    <div class="row" style="margin-top:0">
+      <label>Raskus
+        <select id="readLevel">
+          <option value="">kõik</option>
+          <option value="kergem">kergem</option>
+          <option value="keskmine">keskmine</option>
+          <option value="raskem">raskem</option>
+        </select>
+      </label>
+      <button class="go" id="loadLib">Lae tekstid</button>
+      <span class="hint" id="libCount"></span>
+    </div>
+    <div id="libList"></div>
+    <div id="reader" hidden>
+      <div class="row" style="margin-top:16px">
+        <button class="ghost" id="backToLib">← Nimekirja</button>
+        <span class="hint" id="readerMeta"></span>
+      </div>
+      <h3 id="readerTitle" style="margin:12px 0 4px;font-size:17px"></h3>
+      <div id="readerAudio"></div>
+      <p class="hint" id="readerProfile"></p>
+      <div id="readerBody" class="prose"></div>
+      <div id="wordCard" hidden></div>
+    </div>
+  </section>
+
+  <!-- ── Listening ─────────────────────────────────────────────────── -->
+  <section class="panel" id="tab-listen" hidden>
+    <p class="hint" style="margin-top:0">
+      Mis tahes tekst → eestikeelne heli. Aeglasem kõne (0.7×) sobib kuulamisharjutuseks.
+    </p>
+    <textarea id="ttsText" placeholder="Kleebi tekst õpikust või artiklist…"></textarea>
+    <div class="row">
+      <label>Hääl <select id="voice"></select></label>
+      <label>Kiirus
+        <select id="speed">
+          <option value="0.7" selected>0.7× (õppijale)</option>
+          <option value="0.85">0.85×</option>
+          <option value="1">1× (tavaline)</option>
+        </select>
+      </label>
+      <button class="go" id="speakBtn">Loe ette</button>
+    </div>
+    <div id="ttsOut"></div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// The Russian explanations use **bold** for the grammar term being taught.
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  ["write","drill","read","listen"].forEach(t => $("#tab-" + t).hidden = (t !== b.dataset.tab));
+});
+
+async function api(path, body) {
+  const r = await fetch(path, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r;
+}
+
+// ── health ──────────────────────────────────────────────────────────
+fetch("/api/health").then(r => r.json()).then(h => {
+  $("#stats").textContent =
+    `${h.words.toLocaleString("et")} sõna · ${h.drillable_nouns.toLocaleString("et")} harjutatavat nimisõna`;
+  $("#voice").innerHTML = h.voices.map(v => `<option${v === "mari" ? " selected" : ""}>${v}</option>`).join("");
+});
+
+// ── writing check ───────────────────────────────────────────────────
+async function runCheck() {
+  const text = $("#text").value.trim();
+  if (!text) return;
+  const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Kontrollin…";
+  const out = $("#checkOut"); out.innerHTML = "";
+  try {
+    const res = await (await api("/api/check", {text})).json();
+    let html = "";
+    if (res.degraded && res.note) html += `<div class="banner">${esc(res.note)}</div>`;
+    if (!res.corrections.length) {
+      html += `<p class="empty">Kõik on õige — vigu ei leitud.</p>`;
+    } else {
+      // Object-case errors first: that is the documented priority gap.
+      const sorted = [...res.corrections].sort(
+        (a, b) => (b.tag === "obj-case") - (a.tag === "obj-case"));
+      for (const c of sorted) {
+        const fix = c.correct
+          ? `<del>${esc(c.wrong)}</del> → <ins>${esc(c.correct)}</ins>`
+          : `<ins>${esc(c.wrong)}</ins>`;
+        html += `<div class="corr ${c.tag === "obj-case" ? "objcase" : ""}">
+          <span class="tag">${esc(c.tag)}</span>
+          <div class="fix">${fix}</div>
+          <div class="why">${md(c.why)}</div></div>`;
+      }
+    }
+    html += `<div class="engine">mootor: <b>${esc(res.engine)}</b>${res.degraded ? " (piiratud režiim)" : ""}</div>`;
+    out.innerHTML = html;
+  } catch (e) {
+    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; btn.textContent = "Kontrolli"; }
+}
+$("#checkBtn").onclick = runCheck;
+$("#text").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCheck();
+});
+
+// ── drills ──────────────────────────────────────────────────────────
+let answered = 0, correct = 0;
+$("#drillBtn").onclick = async () => {
+  const rule = $("#rule").value;
+  const body = {
+    count: +$("#count").value,
+    levels: $("#level").value.split(","),
+    ...(rule ? {rules: [rule]} : {})
+  };
+  answered = correct = 0; $("#score").textContent = "";
+  const out = $("#drillOut"); out.innerHTML = "";
+  try {
+    const {drills} = await (await api("/api/drills", body)).json();
+    drills.forEach((d, i) => out.appendChild(renderDrill(d, i)));
+  } catch (e) {
+    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  }
+};
+
+function renderDrill(d, i) {
+  const el = document.createElement("div");
+  el.className = "drill";
+  el.innerHTML = `
+    <div class="prompt">${esc(d.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    <div class="row" style="margin-top:0">
+      <input type="text" placeholder="${esc(d.lemma)} → ?" size="18">
+      <button class="ghost">Kontrolli</button>
+      <span class="hint">${esc(d.lemma)}${d.level ? " · " + esc(d.level) : ""}</span>
+    </div>
+    <div class="verdict"></div>`;
+  const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const grade = () => {
+    if (input.disabled) return;
+    const ok = input.value.trim().toLowerCase() === d.answer.toLowerCase();
+    input.disabled = true;
+    answered++; if (ok) correct++;
+    verdict.className = "verdict " + (ok ? "ok" : "no");
+    verdict.innerHTML = ok
+      ? `✓ õige — <strong>${esc(d.prompt.replace("____", d.answer))}</strong>`
+      : `✗ <strong>${esc(d.answer)}</strong>, mitte <em>${esc(d.distractor)}</em><br>
+         <span class="why">${md(d.why_ru)}</span>`;
+    $("#score").textContent = `${correct}/${answered} õiget`;
+  };
+  el.querySelector("button").onclick = grade;
+  input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
+  if (i === 0) setTimeout(() => input.focus(), 0);
+  return el;
+}
+
+// ── reading ─────────────────────────────────────────────────────────
+async function loadLibrary() {
+  const level = $("#readLevel").value;
+  const q = new URLSearchParams({skill: "lugemine", limit: "80"});
+  if (level) q.set("level", level);
+  const list = $("#libList"); list.innerHTML = "";
+  $("#reader").hidden = true;
+  try {
+    const {items} = await (await fetch("/api/library?" + q)).json();
+    $("#libCount").textContent = `${items.length} teksti`;
+    if (!items.length) { list.innerHTML = `<p class="empty">Tekste pole. Käivita <code>cli harvest-reading</code>.</p>`; return; }
+    for (const it of items) {
+      const el = document.createElement("div");
+      el.className = "lib-item";
+      el.innerHTML = `<h4>${esc(it.title)}</h4>
+        <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}${it.words} sõna${it.audio_url ? " · ♪" : ""}</span>`;
+      el.onclick = () => openItem(it.id);
+      list.appendChild(el);
+    }
+  } catch (e) { list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`; }
+}
+$("#loadLib").onclick = loadLibrary;
+$("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
+
+async function openItem(id) {
+  const d = await (await fetch("/api/library/" + id)).json();
+  $("#libList").hidden = true;
+  $("#reader").hidden = false;
+  $("#readerTitle").textContent = d.title;
+  $("#readerMeta").textContent = `${esc(d.source)} · ${esc(d.licence)}`;
+  $("#readerAudio").innerHTML = d.audio_url
+    ? `<audio controls preload="none" src="${esc(d.audio_url)}"></audio>` : "";
+
+  const p = d.profile || {};
+  // Coverage is the number that decides whether a text is worth your time:
+  // not how long it is, but how much of it you can already handle.
+  $("#readerProfile").textContent = p.coverage != null
+    ? `Sõnavara: ${Math.round(p.coverage * 100)}% sinu tasemel · ${p.unique} eri sõna`
+    : "";
+
+  const hard = new Set((p.hard_words || []).map(w => w.toLowerCase()));
+  // Wrap each word so it can be clicked; non-words pass through untouched.
+  $("#readerBody").innerHTML = esc(d.body).replace(
+    /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+/g,
+    m => `<w class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
+  $("#wordCard").hidden = true;
+}
+
+$("#readerBody").addEventListener("click", async e => {
+  if (e.target.tagName !== "W") return;
+  const card = $("#wordCard");
+  card.hidden = false;
+  card.innerHTML = `<span class="hint">…</span>`;
+  const d = await (await fetch("/api/lookup/" + encodeURIComponent(e.target.textContent))).json();
+  if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
+  card.innerHTML = d.analyses.slice(0, 2).map(a => `
+    <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
+    <div class="tags">${a.tags.map(t => esc(t.name)).join(" · ")}</div>
+    ${a.object_case_contrast ? `<div class="pair">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
+      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>");
+});
+
+// ── listening ───────────────────────────────────────────────────────
+$("#speakBtn").onclick = async () => {
+  const text = $("#ttsText").value.trim();
+  if (!text) return;
+  const btn = $("#speakBtn"); btn.disabled = true; btn.textContent = "Sünteesin…";
+  const out = $("#ttsOut"); out.innerHTML = "";
+  try {
+    const r = await api("/api/speak", {
+      text, voice: $("#voice").value, speed: +$("#speed").value
+    });
+    const url = URL.createObjectURL(await r.blob());
+    out.innerHTML = `<audio controls autoplay src="${url}"></audio>`;
+  } catch (e) {
+    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; btn.textContent = "Loe ette"; }
+};
+</script>
+</body>
+</html>
