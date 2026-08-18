@@ -18,13 +18,31 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt pytest
 
+      # Third-party data from HuggingFace. It has returned 502 mid-run, and this
+      # project's whole point is not to let someone else's bad minute break the
+      # parts we own — so a failure here must not fail the build. The fetcher
+      # retries 5xx with backoff; if it still cannot get the data, the validation
+      # step below is skipped loudly rather than silently.
       - name: Fetch benchmark data
+        id: bench
+        continue-on-error: true
         run: python -m eesti.cli fetch-bench
 
       # Checks Vabamorf against TalTech's native-curated gold forms. Everything
-      # the app generates inherits this correctness, so it gates the build.
+      # the app generates inherits that correctness, so it gates the build —
+      # but only when the data is actually available to gate against.
       - name: Validate morphology against native gold data
+        if: steps.bench.outcome == 'success'
         run: python -m eesti.cli validate
 
+      - name: Warn that the morphology gate did not run
+        if: steps.bench.outcome != 'success'
+        run: |
+          echo "::warning title=Validation skipped::Benchmark data unavailable \
+          (HuggingFace fetch failed after retries), so Vabamorf was NOT checked \
+          against gold forms in this run."
+
+      # Runs either way: the validation tests skip themselves when the dataset
+      # is absent, and everything else is self-contained.
       - name: Tests
         run: python -m pytest tests/ -q
