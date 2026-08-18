@@ -72,12 +72,34 @@ TEXTS: tuple[str, ...] = (
 )
 
 
+def _theme_words() -> list[tuple[str, int, str, str]]:
+    """Every themed lemma, so theme tests measure the themes and not the fixture.
+
+    Deliberately *not* how the "are these real Estonian words?" check is run —
+    inserting them here would make that check circular. That one uses the real
+    160 316-word lexicon and skips when it is not built.
+    """
+    from eesti.themes import THEMES
+
+    rows: dict[str, tuple[str, int, str, str]] = {}
+    for offset, theme in enumerate(THEMES):
+        for i, word in enumerate(theme.nouns):
+            rows.setdefault(word, (word, 1000 + offset * 100 + i, "A2", "s"))
+        for i, word in enumerate(theme.verbs):
+            rows.setdefault(word, (word, 2000 + offset * 100 + i, "A2", "v"))
+    return list(rows.values())
+
+
 def _build_wordlist(path) -> None:
     from eesti.wordlist import SCHEMA
 
     conn = sqlite3.connect(path)
     conn.executescript(SCHEMA)
     conn.executemany("INSERT OR REPLACE INTO words VALUES (?,?,?,?)", WORDS)
+    # Inserted second so a word named in WORDS keeps its declared level.
+    conn.executemany(
+        "INSERT OR IGNORE INTO words VALUES (?,?,?,?)", _theme_words()
+    )
     conn.commit()
     conn.close()
 
@@ -125,6 +147,29 @@ def _build_content(path) -> None:
     )
     conn.commit()
     conn.close()
+
+
+@pytest.fixture
+def real_wordlist():
+    """The actual 160 316-word Ekilex build, or a skip.
+
+    A handful of tests check curated content *against the lexicon* — "is
+    `kingad` a word?" — and a fixture cannot answer that about itself. They opt
+    out of the redirect and skip loudly where the build is absent, which is what
+    CI sees.
+    """
+    import sqlite3 as _sqlite3
+    from pathlib import Path
+
+    real = Path("data/eesti.db")
+    if not real.exists():
+        pytest.skip("needs the full wordlist — run `cli fetch-data && cli build`")
+    conn = _sqlite3.connect(f"file:{real}?mode=ro", uri=True)
+    conn.row_factory = _sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 @pytest.fixture(scope="session")

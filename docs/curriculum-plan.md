@@ -479,9 +479,46 @@ carried no `topic`, so the handoff crashed on exactly the two topics that matter
 most. Both now declare their topic and share `item.py`'s interface with everyone
 else.
 
-### 6. Thematic lessons (grammar × vocabulary)
-Tag vocabulary by theme; a lesson pairs a grammar rule with a themed word set.
-Keeleklikk's insight, but generated, so themes and rules can be recombined.
+### 6. Thematic lessons (grammar × vocabulary) — done ✅
+`eesti/themes.py`, `cli themes`, and `practice --theme`. **Eleven themes, 233
+words**, all validated against Ekilex.
+
+Keeleklikk's chapters are *situations* — food, family, work — and grammar
+arrives in service of one: the chapter that needs the partitive teaches the
+partitive. Because everything here is generated, theme and rule stay **separate
+axes and recombine freely**: `lihtminevik × reisimine`, `täissihitis × toit`.
+Sixteen chapters becomes eleven themes × twenty-one drillable topics, from the
+same generators, with no lesson written.
+
+The word lists are hand-picked, and that is right — "which words belong to
+*food*" is a curatorial judgement, and Keeleklikk's authors made it by hand too.
+What is not left to judgement is whether the words are **real**: every lemma is
+checked against the 160 316-word list, and the check immediately earned itself
+by rejecting `kindad`, `kingad`, `saapad`, `sokid` — plural-only forms where the
+lexicon lists `kinnas`, `king`, `saabas`, `sokk`, and whose genitive a generator
+would have invented.
+
+Two things the first working version got wrong, both visible only in the output:
+
+- *"Mul on kaks riisi"* — two rice. Countability is not in the word list and is
+  not guessable from the theme either: `toit` holds both `kook` and `suhkur`.
+  An explicit `UNCOUNTABLE` set fixes it, tested to contain nothing stale.
+- *"Mul on kaheksa reit"* — see below. That one was not a theme bug at all.
+
+**And it exposed a real defect in the foundation.** `reis` produced `reit`,
+which is the partitive of *reis* meaning **thigh**, not journey. The cause was
+in `morph.case_forms`, which every drill and the whole exported dataset rest on:
+when Vabamorf returned several validated candidates it broke the tie by
+preferring the one with the fewest competing lemma readings. That is right for
+`kool` (*kooli*, not *koola*) and exactly wrong for `reis`, because the rarer
+word is the less ambiguous one. Two real words spelled the same cannot be
+separated by morphology — only by meaning — and the same applies to free
+variants like `kaht`/`kahte`, where a drill accepting one marks the other wrong.
+
+`case_forms` now treats *several* candidates the way it already treated *none*:
+it reports nothing. Measured cost, **111 of 2 570 A1–B1 nouns (4.3 %)** — and
+every one of them would otherwise have been an exercise with a confidently wrong
+answer.
 
 ### 7. Path and library split
 Implement the two-surface structure in `app-structure.md`: a mastery-gated path

@@ -172,6 +172,7 @@ def numeral_drills(
     count: int = 10,
     seed: int | None = None,
     topics: tuple[str, ...] = ("arvsonad", "jargarvud"),
+    only: frozenset[str] | None = None,
 ) -> list[PatternDrill]:
     """Two rules: what a cardinal does to its noun, and how ordinals decline."""
     rng = random.Random(seed)
@@ -187,6 +188,13 @@ def numeral_drills(
 
         countable = sorted({w for pool_ in ("buyable", "edible", "readable",
                                             "findable", "watchable") for w in POOLS[pool_]})
+        if only is not None:
+            # A theme's own nouns are countable enough — they are concrete
+            # everyday words by construction — so the theme replaces the pool
+            # rather than intersecting with it, which would usually be empty.
+            countable = sorted(only)
+        if not countable:
+            return out
         marks = ",".join("?" * len(levels))
         nouns = conn.execute(
             f"""SELECT word, proficiency FROM words

@@ -337,6 +337,7 @@ def case_clozes(
     seed: int | None = None,
     source_id: str = "selges-keeles",
     require_contrast: bool = True,
+    only: frozenset[str] | None = None,
 ) -> list[Cloze]:
     """Case-production items: the sentence is real, the case is named, produce the form.
 
@@ -360,6 +361,8 @@ def case_clozes(
             break
         for token in analyze(sentence):
             if token.pos != "S" or token.form not in wanted:
+                continue
+            if only is not None and token.lemma not in only:
                 continue
             if (token.lemma, token.form) in seen:
                 continue

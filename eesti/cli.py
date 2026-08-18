@@ -482,12 +482,23 @@ def cmd_practice(args: argparse.Namespace) -> int:
         return 0
 
     meta = by_id(topic)
-    print(f"\n{meta.level}  {meta.et}  ({meta.ru})")
+    header = f"\n{meta.level}  {meta.et}  ({meta.ru})"
+    if args.theme:
+        from .themes import by_id as theme_by_id
+
+        header += f"   —   {theme_by_id(args.theme).et}"
+    print(header)
     ref = meta.reference
     if ref is not None:
         print(f"EKK {ref.ekk_section}: {ref.url}")
 
-    items = items_for(topic, count=args.count, seed=args.seed)
+    items = items_for(topic, count=args.count, seed=args.seed, theme=args.theme)
+    if not items and args.theme:
+        # Keeleklikk pairs a rule with a situation; not every pairing exists.
+        # Say so and fall back rather than ending the session empty-handed.
+        print(f"  ({args.theme} has no words this topic can drill — "
+              "using the full vocabulary instead)")
+        items = items_for(topic, count=args.count, seed=args.seed)
     if not items:
         print("the generator produced nothing for this topic today.")
         return 1
@@ -681,6 +692,30 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_themes(args: argparse.Namespace) -> int:
+    """The situations a grammar topic can be drilled inside.
+
+    Keeleklikk's insight — grammar arrives in service of a situation — but with
+    theme and rule as separate axes, so eleven themes times twenty-one drillable
+    topics come out of the same generators.
+    """
+    from .themes import coverage, validate
+    from .wordlist import connect
+
+    conn = connect()
+    unknown = validate(conn)
+    for theme, words in unknown.items():
+        print(f"  !! {theme}: not in the lexicon — {', '.join(words)}")
+
+    levels = tuple(args.levels.split(","))
+    print(f"  {'theme':<12}{'words':>6}{'nouns':>7}{'verbs':>7}   name")
+    for theme_id, info in coverage(conn, levels).items():
+        print(f"  {theme_id:<12}{info['usable']:>6}{info['nouns']:>7}"
+              f"{info['verbs']:>7}   {info['et']}")
+    print("\nUse with practice: `practice --topic lihtminevik --theme reisimine`")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -764,6 +799,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("practice", help="graded session on one topic, progress saved")
     p.add_argument("--topic", help="curriculum topic id (default: where you left off)")
+    p.add_argument("--theme", help="drill this topic over a themed word set")
     p.add_argument("-n", "--count", type=int, default=10)
     p.add_argument("--seed", type=int)
     p.add_argument("--progress-db", default="data/progress.db")
@@ -791,6 +827,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--review-db", default="data/review.db")
     p.add_argument("--progress-db", default="data/progress.db")
     p.set_defaults(func=cmd_review)
+
+    p = sub.add_parser("themes", help="themed word sets a topic can be drilled over")
+    p.add_argument("--levels", default="A1,A2,B1")
+    p.set_defaults(func=cmd_themes)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

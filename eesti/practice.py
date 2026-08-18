@@ -31,6 +31,7 @@ def items_for(
     levels: tuple[str, ...] = LEVELS,
     seed: int | None = None,
     content_db: str | Path | None = None,
+    theme: str | None = None,
 ) -> list:
     """Practice items for one curriculum topic, from whichever generator owns it.
 
@@ -50,10 +51,27 @@ def items_for(
 
     words = wordlist_connect()
 
+    # A theme narrows *which words* a topic is drilled over, without changing
+    # what is being drilled. Some generators cannot honour it — question words
+    # and ordinals are closed classes with no vocabulary to vary — and those
+    # ignore it rather than returning nothing, because a lesson that silently
+    # produces zero items is worse than one that is thematic in only half its
+    # exercises.
+    nouns = verbs = countable = None
+    if theme is not None:
+        from .themes import countable_nouns, lemmas_for
+
+        nouns = frozenset(lemmas_for(words, theme, levels, pos="s"))
+        verbs = frozenset(lemmas_for(words, theme, levels, pos="v"))
+        # Counting needs a narrower list than reading does: "kaks suhkrut" is
+        # not a sentence anyone says.
+        countable = frozenset(countable_nouns(words, theme, levels))
+
     if generator == "conjugation":
         from .conjugation import generate
 
-        return generate(words, topics=(topic,), levels=levels, count=count, seed=seed)
+        return generate(words, topics=(topic,), levels=levels, count=count,
+                        seed=seed, only=verbs)
 
     if generator == "patterns":
         from .patterns import comparison_drills, numeral_drills, question_drills
@@ -62,7 +80,8 @@ def items_for(
             return question_drills(count=count, seed=seed)
         if topic == "vordlusastmed":
             return comparison_drills(words, levels, count, seed)
-        return numeral_drills(words, levels, count, seed, topics=(topic,))
+        return numeral_drills(words, levels, count, seed, topics=(topic,),
+                              only=countable if topic == "arvsonad" else None)
 
     if generator == "corpus_cloze":
         from .cloze import case_clozes, negation_clozes, sentences
@@ -71,7 +90,8 @@ def items_for(
         if topic == "obj-case":
             return negation_clozes(sents, words=words, count=count, seed=seed)
         return case_clozes(
-            sents, topics=(topic,), words=words, count=count, seed=seed
+            sents, topics=(topic,), words=words, count=count, seed=seed,
+            only=nouns,
         )
 
     if generator == "ekk_rection":

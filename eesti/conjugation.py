@@ -182,6 +182,7 @@ def generate(
     count: int = 10,
     seed: int | None = None,
     top: int = 150,
+    only: frozenset[str] | None = None,
 ) -> list[VerbDrill]:
     """Drills for the tense, mood, infinitive and voice topics.
 
@@ -201,8 +202,17 @@ def generate(
     # learner meets daily and oddly with one they never will — "Hirmutage palun
     # kohe!" is grammatical and useless. Restricting to the frequent end costs
     # nothing, since those are also the verbs worth conjugating correctly.
-    pool = verbs_at_levels(conn, levels)[:top]
+    pool = verbs_at_levels(conn, levels)
+    if only is not None:
+        # A theme restriction bypasses the frequency cut: its words were chosen
+        # for belonging to the theme, and slicing the common band on top would
+        # silently drop the ones that make it that theme.
+        pool = [(lemma, level) for lemma, level in pool if lemma in only]
+    else:
+        pool = pool[:top]
     if not pool:
+        if only is not None:
+            return []  # the theme has no verbs at this level; not an error
         raise RuntimeError("no verbs indexed — run `cli build` first")
 
     # Every (verb, frame) pair is a candidate, not one item per verb. Drawing a

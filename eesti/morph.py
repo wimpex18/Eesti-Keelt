@@ -145,25 +145,33 @@ def case_forms(lemma: str) -> dict[str, str]:
     Vabamorf may return several candidates for an ambiguous string: synthesizing
     "kool" yields both 'kooli' (school) and 'koola' (cola, lemma "koola"). A
     prefix heuristic picks the wrong one, so we round-trip instead — analyse each
-    candidate and keep the one that actually reads back as this lemma in this
-    case. If none does, we report nothing rather than guess, because a wrong
-    "correct answer" in a drill is worse than no drill.
+    candidate and keep it only if it reads back as this lemma in this case.
+
+    Then, crucially, we require exactly **one** survivor. Zero and several are
+    the same situation — we do not know the answer — and a wrong "correct
+    answer" in a drill is worse than no drill.
     """
     out: dict[str, str] = {}
     for key, tag in (("genitive", GENITIVE_SG), ("partitive", PARTITIVE_SG)):
-        candidates = [
+        candidates = {
             c for c in (synthesize(lemma, tag) or []) if (lemma, tag) in _readings(c)
-        ]
-        if not candidates:
+        }
+        # An earlier version broke ties by preferring the candidate with the
+        # fewest competing lemma readings. That is right for "kool" — 'kooli'
+        # reads only as *kool*, 'koola' also as the separate lemma *koola* — and
+        # wrong for "reis", where it confidently returns the paradigm of *reis*
+        # the thigh (reie, reit) over *reis* the journey (reisi), precisely
+        # because the rarer word is the less ambiguous one. Two real words
+        # spelled the same cannot be separated by morphology; only by meaning.
+        #
+        # The same refusal covers genuine free variants — 'kaht'/'kahte',
+        # 'armast'/'armsat' — where a drill accepting one marks the other wrong.
+        #
+        # Measured cost: 111 of 2 570 A1-B1 nouns (4.3 %). Every one of them
+        # would otherwise be an exercise with a confidently wrong answer.
+        if len(candidates) != 1:
             return {}
-        # Several candidates can all read back correctly: Vabamorf accepts both
-        # 'kooli' and 'koola' as genitive of "kool". Prefer the one that is
-        # unambiguous — 'kooli' reads only as "kool", while 'koola' also reads as
-        # the separate lemma "koola" (cola). Fewer competing lemmas means the
-        # more canonical form.
-        out[key] = min(
-            candidates, key=lambda c: (len({lm for lm, _ in _readings(c)}), c)
-        )
+        out[key] = candidates.pop()
     return out
 
 
