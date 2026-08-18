@@ -108,6 +108,8 @@ redistribution — `data/exam/` is git-ignored. Fetch it yourself.
 
 ## Docs
 
+- [`docs/architecture.md`](docs/architecture.md) — how this deploys to Cloudflare
+  when Vabamorf cannot run there
 - [`docs/grammar-scope.md`](docs/grammar-scope.md) — what is drillable beyond
   nouns, and where Estonian grammar data actually comes from
 - [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM, model

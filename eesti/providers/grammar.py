@@ -160,36 +160,35 @@ class TartuNLPGrammar:
         return GrammarResult(self.name, _locate(text, corrections))
 
 
-class ClaudeGrammar:
-    """LLM checker, prompted for this learner's specific gap and tag vocabulary.
+class LLMGrammar:
+    """LLM checker, prompted for this learner's gap and the fixed Notion tags.
 
-    Primary engine in practice: it is the only option that explains in Russian
-    and can assign the fixed Notion tags.
+    Primary engine in practice: the only option that explains in Russian and can
+    assign tags that group with the existing error log.
+
+    Works against any OpenAI-compatible provider (OpenRouter, Groq, Workers AI,
+    Anthropic) so the deployment target can change without touching this class.
+    Which one to prefer is a quality question, not a taste one — run
+    `python -m eesti.cli eval --provider X` before switching.
     """
 
-    name = "claude"
-
-    def __init__(self, model: str = "claude-sonnet-5"):
+    def __init__(self, provider: str = "openrouter", model: str | None = None):
+        self.provider_name = provider
         self.model = model
-        self._key = os.environ.get("ANTHROPIC_API_KEY")
+        self.name = f"llm:{provider}"
 
     def available(self) -> bool:
-        return bool(self._key)
+        from .llm import PROVIDERS
+
+        provider = PROVIDERS.get(self.provider_name)
+        return bool(provider and provider.available)
 
     def check(self, text: str) -> GrammarResult:
-        from anthropic import Anthropic  # imported lazily: optional dependency
+        from .llm import complete, parse_json
 
-        message = Anthropic(api_key=self._key).messages.create(
-            model=self.model,
-            max_tokens=2000,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": text}],
+        payload = parse_json(
+            complete(self.provider_name, SYSTEM_PROMPT, text, model=self.model)
         )
-        raw = "".join(b.text for b in message.content if b.type == "text").strip()
-        if raw.startswith("```"):  # strip a fenced block if the model adds one
-            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-
-        payload = json.loads(raw)
         corrections = [
             Correction(
                 wrong=c.get("wrong", ""),
@@ -258,9 +257,26 @@ class VabamorfFallback:
         )
 
 
+# Preference order for LLM providers. Free tiers first — at a few checks a day
+# they are ample — with a paid model last as the quality backstop. Any provider
+# whose key is unset is skipped, so this degrades by configuration alone.
+LLM_PREFERENCE = ("openrouter", "groq", "workers-ai", "anthropic")
+
+
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
-    """Default order: free Estonian-specific service, then LLM, then offline."""
-    return providers or [TartuNLPGrammar(), ClaudeGrammar(), VabamorfFallback()]
+    """Default order: Estonian-specific service, then LLMs, then offline.
+
+    TartuNLP goes first because it is purpose-built for Estonian and free, but it
+    was failing every request during development, so the breaker will normally
+    step over it within a couple of calls.
+    """
+    if providers is not None:
+        return providers
+    return [
+        TartuNLPGrammar(),
+        *(LLMGrammar(name) for name in LLM_PREFERENCE),
+        VabamorfFallback(),
+    ]
 
 
 def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarResult:

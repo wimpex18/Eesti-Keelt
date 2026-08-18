@@ -16,6 +16,10 @@ from pathlib import Path
 
 from .config import DB_PATH, LEVELS, RAW
 
+# Named here rather than imported at module load so the CLI stays importable
+# without the provider dependencies installed.
+_PROVIDERS = ("openrouter", "groq", "workers-ai", "anthropic")
+
 WORDLIST_BASE = (
     "https://raw.githubusercontent.com/KristjanPikhof/"
     "Estonian-Wordlist-Enriched-Ekilex/main/data"
@@ -101,6 +105,54 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export(args: argparse.Namespace) -> int:
+    """Build the edge dataset. Vabamorf runs here, never at the edge."""
+    from .export import export
+    from .wordlist import connect
+
+    print("Synthesizing forms with Vabamorf (build-time only) ...")
+    stats = export(connect(), max_freq_rank=args.max_freq_rank)
+    for key in ("lemmas", "forms", "object_cases", "distinct"):
+        print(f"  {key:14} {stats[key]:,}")
+    print(f"  {'size':14} {stats['bytes'] / 1e6:.1f} MB  ->  data/edge.db")
+    print("\nImport to Cloudflare D1 with:")
+    print("  npx wrangler d1 execute eesti --file=data/edge.sql --remote")
+    return 0
+
+
+def cmd_models(args: argparse.Namespace) -> int:
+    """List a provider's live catalogue.
+
+    Model ids get withdrawn silently, and a withdrawn ':free' id is especially
+    easy to miss because the paid one with the same name keeps working. Probe
+    before pinning.
+    """
+    from .providers.llm import PROVIDERS, list_models
+
+    models = list_models(args.provider)
+    free = [m for m in models if m.get("id", "").endswith(":free")]
+    print(f"{args.provider}: {len(models)} models, {len(free)} free")
+    shown = free if (free and not args.all) else models
+    for m in sorted(shown, key=lambda x: -(x.get("context_length") or 0))[: args.limit]:
+        params = m.get("supported_parameters") or []
+        print(
+            f"  {m['id']:52} ctx={str(m.get('context_length')):9}"
+            f" json={'structured_outputs' in params}"
+        )
+    default = PROVIDERS[args.provider].default_model
+    present = any(m.get("id") == default for m in models)
+    print(f"\npinned default {default!r}: {'PRESENT' if present else 'ABSENT — fix it'}")
+    return 0
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    """Score a model on Estonian grammar. Recall AND precision — see evals/gec.py."""
+    from .evals.gec import run
+
+    result = run(args.provider, model=args.model)
+    return 0 if result["recall"] >= 0.8 and result["precision"] >= 0.8 else 1
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -133,6 +185,21 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("check", help="grammar-check a sentence")
     p.add_argument("text")
     p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("export", help="build the edge dataset for Cloudflare D1")
+    p.add_argument("--max-freq-rank", type=int, default=25_000)
+    p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("models", help="list a provider's live model catalogue")
+    p.add_argument("--provider", default="openrouter", choices=list(_PROVIDERS))
+    p.add_argument("--all", action="store_true", help="include paid models")
+    p.add_argument("--limit", type=int, default=25)
+    p.set_defaults(func=cmd_models)
+
+    p = sub.add_parser("eval", help="score a model on the Estonian grammar eval")
+    p.add_argument("--provider", default="openrouter", choices=list(_PROVIDERS))
+    p.add_argument("--model")
+    p.set_defaults(func=cmd_eval)
 
     p = sub.add_parser("serve", help="run the local web app")
     p.add_argument("--host", default="127.0.0.1")

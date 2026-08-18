@@ -63,6 +63,49 @@ a laptop (7B class, needs a GPU), but it is the only *Estonian-tuned* option and
 would remove the low-resource concern entirely. Worth revisiting if a smaller
 distilled version appears.
 
+## Verified provider table (probed August 2026)
+
+| Provider | Free allowance | Note |
+|---|---|---|
+| **OpenRouter** | 50 req/day; **1 000/day after a one-time $10 credit purchase** | One key, 412 models, 15 currently `:free`. 20 req/min either way. The $10 is an account threshold, not consumption. |
+| **Groq** | generous, per-model limits | Fastest inference. |
+| **Cloudflare Workers AI** | **10 000 neurons/day**, shared across models | Runs *inside* Cloudflare — no egress, no third-party key. |
+| Google Gemini 2.5 Flash | ~1 500 req/day, 1 M ctx | Most generous standalone tier. |
+| Mistral | 1 B tokens/month | ⚠️ free tier **requires opting into training**. |
+
+**Probe before pinning.** Ids are withdrawn silently, and a withdrawn `:free` id
+is the worst case: the paid one with the same name keeps working, so the name
+still looks right while every call 404s. Verified live —
+`openai/gpt-oss-120b:free` is **absent** from OpenRouter while
+`openai/gpt-oss-120b` persists. `python -m eesti.cli models` re-probes.
+
+Free ids with `structured_outputs` (needed for the JSON contract), largest first:
+`dots-studio/dots-3-note-preview:free` (512 K ctx),
+`google/gemma-4-26b-a4b-it:free` (262 K),
+`nvidia/nemotron-3-super-120b-a12b:free` (262 K, the pinned default),
+`openai/gpt-oss-20b:free` (131 K), `nvidia/nemotron-nano-9b-v2:free` (128 K).
+
+## Testing the "it knows other languages, so it knows Estonian" hypothesis
+
+That hypothesis is reasonable and it is testable, so `eesti/evals/gec.py` tests it
+instead of assuming. 18 Estonian sentences, two scores:
+
+- **recall** — of the 10 with planted errors, how many were caught
+- **precision** — of the 8 **already correct** sentences, how many were left alone
+
+Precision is what separates models. A checker that flags every partitive scores
+perfect recall and is actively harmful, because it teaches that every partitive is
+wrong. Estonian is low-resource and the judgement needed here (genitive for a
+completed whole object; partitive for ongoing, partial or negated) is exactly the
+language-specific semantics that thins out first in a multilingual model.
+
+```bash
+python -m eesti.cli eval --provider openrouter --model <id>
+```
+
+Exits non-zero below 0.8 on either score, so it can gate a deploy. **Run this
+before believing any recommendation in this document, including its own.**
+
 ## Competitive landscape
 
 What the 2026 AI language apps do, and what they leave open:
@@ -74,14 +117,23 @@ What the 2026 AI language apps do, and what they leave open:
 | Praktika | avatar roleplay, cheapest | ~$8/mo |
 | Duolingo Max | habit-building; weak on speaking | — |
 | Memrise | spaced repetition + MemBot chat | — |
+| **ABC Pilot** (`abcpilot.eu`) | **the direct competitor** — Estonian only | A2 €29/mo, B1 **€49/mo**, B2/C1 €99/mo (Oct 2026) |
+
+**ABC Pilot is the one to study.** Built by Saan Targaks, an Estonian language
+school, on official HARNO materials: a 6-month plan, AI speech recognition, instant
+AI writing feedback, and exam-format listening/reading/writing tasks, for 2 500+
+learners. It does not publish which models it uses.
+
+It validates the concept and prices it — B1 prep is worth €49/month to enough
+people to sustain a business. What it cannot do is the thing below.
 
 The consistent criticism across reviews: **feedback is shallow** — brief, generic,
 and not tied to the learner's recurring errors. Reviews also note the split that
 matters here: general LLM tools are good at explanation and bad at habit; dedicated
 apps are good at habit and shallow at feedback.
 
-**None of them support Estonian meaningfully.** Estonian is absent from the major
-AI tutors' language lists, which is why this exists at all.
+**None of the general AI tutors support Estonian meaningfully** — it is absent
+from their language lists. ABC Pilot does, and charges €49/month for B1.
 
 ### What that implies for this app
 
