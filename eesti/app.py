@@ -607,4 +607,8 @@ async def transcribe(request: Request) -> dict:
     if len(audio) > 12_000_000:
         raise HTTPException(status_code=413, detail="recording too long")
     mime = request.headers.get("content-type", "audio/wav").split(";")[0]
-    return asr.transcribe(audio, mime).to_dict()
+    # The question being answered, passed through as Whisper's initial_prompt:
+    # a few seconds of accented Estonian is exactly what a recogniser guesses
+    # wrong on, and the topic's vocabulary is a free hint.
+    context = request.query_params.get("q", "")[:220]
+    return asr.transcribe(audio, mime, context=context).to_dict()

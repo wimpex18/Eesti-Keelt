@@ -710,9 +710,8 @@ let recorder = null, chunks = [], recording = false, asrReady = false;
 
 // Ask once what this deployment can do, and say so rather than offering a
 // feature that silently does nothing.
-fetch("/api/asr").then(r => r.json()).then(a => {
-  asrReady = a.local || a.hosted;
-}).catch(() => {});
+fetch("/api/asr").then(r => r.json()).then(a => { asrReady = a.ready; })
+  .catch(() => {});
 
 async function loadSpeakQuestions() {
   try {
@@ -781,7 +780,9 @@ if (!canRecord) {
         heard.hidden = false;
         heard.innerHTML = `<span class="tag">Kuuldi</span><div class="fix">…</div>`;
         try {
-          const r = await fetch("/api/transcribe", {
+          const q = (window.__speak || [])[$("#speakTopic").value | 0];
+          const r = await fetch("/api/transcribe?q=" +
+              encodeURIComponent(q ? q.question : ""), {
             method: "POST", headers: {"Content-Type": blob.type}, body: blob,
           });
           const t = await r.json();
