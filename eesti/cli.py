@@ -120,6 +120,21 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_keys(args: argparse.Namespace) -> int:
+    """Show which API keys are configured. Never prints a full key."""
+    from .env import ENV_FILE, describe
+
+    print(f".env: {ENV_FILE} {'(found)' if ENV_FILE.exists() else '(missing)'}\n")
+    for name, is_set, masked, purpose in describe():
+        mark = "✓" if is_set else " "
+        print(f" {mark} {name:24} {masked:10} {purpose}")
+    if not any(s for _, s, _, _ in describe()):
+        print("\nNo keys set. `cp .env.example .env` and add one — "
+              "OpenRouter is the recommended starting point:")
+        print("  https://openrouter.ai/keys")
+    return 0
+
+
 def cmd_harvest(args: argparse.Namespace) -> int:
     """Crawl the ERR language-course archives into the content store.
 
@@ -240,6 +255,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("export", help="build the edge dataset for Cloudflare D1")
     p.add_argument("--max-freq-rank", type=int, default=25_000)
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("keys", help="show which API keys are configured")
+    p.set_defaults(func=cmd_keys)
 
     p = sub.add_parser("harvest", help="crawl ERR language archives (one time)")
     p.add_argument("--max-pages", type=int, default=300)

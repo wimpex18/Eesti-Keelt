@@ -37,13 +37,15 @@ Terminal use, if you prefer:
 .venv/bin/python -m eesti.cli check "Ma lugesin eile raamatut läbi."
 ```
 
-For full grammar explanations in Russian, set an API key — everything else works
-without it:
+For the free-text writing check (corrections explained in Russian), add one API
+key — everything else works without it:
 
 ```bash
-export ANTHROPIC_API_KEY=...
-.venv/bin/pip install anthropic
+cp .env.example .env          # then paste an OpenRouter key into it
+.venv/bin/python -m eesti.cli keys   # confirm it loaded; prints only the last 4 chars
 ```
+
+See [`docs/setup.md`](docs/setup.md) for where to get a key and why OpenRouter.
 
 ## What it does
 
@@ -149,6 +151,7 @@ git-ignored; fetch it yourself.
 
 ## Docs
 
+- [`docs/setup.md`](docs/setup.md) — which API key, how to get it, where it goes
 - [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
   from research, against what is actually built
 - [`docs/architecture.md`](docs/architecture.md) — how this deploys to Cloudflare
