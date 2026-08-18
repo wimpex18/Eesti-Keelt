@@ -163,10 +163,10 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 296 passed
+.venv/bin/python -m pytest tests/ -q     # 338 passed
 ```
 
-Four gates:
+Five gates:
 
 1. **Planted errors are caught** — the obj-case regression set.
 2. **Correct sentences are left alone.** A checker that flagged every partitive
@@ -174,7 +174,11 @@ Four gates:
    object at all must produce no candidates.
 3. **Owner-only material cannot leak.** A public query must never return an item
    from a source that is not redistributable.
-4. **The syllabus graph stays sound.** No topic may be scheduled before a topic
+4. **Nothing touches the network.** `tests/test_offline.py` blocks sockets and
+   runs every generator. The dependency-free claim at the top of this file is
+   the project's main architectural bet, and it was quietly false until CI
+   caught a drill fetching a page from EKI mid-lesson.
+5. **The syllabus graph stays sound.** No topic may be scheduled before a topic
    it depends on, and every declared topic must appear in the derived path
    exactly once — a dropped edge silently removes topics from the course.
 

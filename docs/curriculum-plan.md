@@ -546,6 +546,33 @@ for a zero in any one, so a learner at "68 % overall" who has never done a
 listening task is not 68 % ready, and an aggregate hides precisely the thing
 that decides the outcome.
 
+**Four defects found by auditing 7–9 afterwards**, in rough order of severity:
+
+1. **Nothing ever wrote to the vocabulary database.** `vocab.set_status` and
+   `record_encounter` existed, `coverage` and `band_progress` read them, and no
+   caller anywhere put a word in — so step 8's bands and the reader's "how much
+   of this text do you know" both measured a permanently empty table. The
+   measurement had been built without the recording. `library.open_item` now
+   records encounters when material is opened, and `cli vocab --know` is the
+   explicit act that marks a word known. Encounters are deliberately **not**
+   knowledge: a word skimmed past is not a word learned, and conflating them is
+   what makes automatic "known" counts meaningless.
+2. **Practice made a network call.** `items_for("rektsioon")` fetched EKK's page
+   on demand; CI proved the cost by getting `403 Forbidden` from a runner, so a
+   drill failed because someone else's server had a bad minute — in the project
+   whose first architectural claim is that it does not do that. Rections are now
+   fetched once by `cli rections`, stored, and *read* at practice time.
+   `tests/test_offline.py` blocks sockets outright and runs every generator, so
+   the claim is enforced instead of asserted.
+3. **A multi-skill library section could not reach its second skill.** `browse`
+   asked each skill for `limit` rows and truncated, so with eight writing tasks
+   and a limit of five, no speaking task was ever visible. Now dealt round-robin.
+4. **Two library openings in the same second lost their minutes.** The exposure
+   key was `(item_id, seen_at)` at second granularity, so the second `INSERT OR
+   REPLACE` overwrote the first — and the test I had written *slept 1.05 s to
+   avoid noticing*. A test that waits to observe correct behaviour is describing
+   the defect, not the requirement.
+
 ### 8. Frequency-ordered vocabulary — done ✅
 `vocab.band_progress`. Grammar is sequenced because it has real prerequisites;
 vocabulary has none, only usefulness, so it is ordered by `freq_rank` in bands
@@ -573,6 +600,11 @@ have mastered every topic separately find they cannot choose between them.
 Items are dealt **round-robin, not sampled randomly**: a random draw from a
 level with nine verb topics and three noun topics measures what the syllabus
 happens to contain rather than the learner.
+
+`weakest` **points rather than proves**: fifteen questions across eleven topics
+is one or two items each, so it says where to look, not what the learner cannot
+do. The CLI prints the tallies (`olevik 0/1`) rather than bare names, so the
+sample size is visible instead of implied.
 
 The pass mark is **75 %**, below the topic gate's 80 %. Not a contradiction —
 the same number across a whole level unprompted is harder, so an equal bar would

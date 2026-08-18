@@ -71,7 +71,13 @@ class CheckpointResult:
 
     @property
     def weakest(self) -> list[str]:
-        """Topics that went worse than the level as a whole — the diagnosis."""
+        """Topics that went worse than the level as a whole — the diagnosis.
+
+        With fifteen questions across eleven topics this rests on one or two
+        items each, so it **points rather than proves**: it says where to look,
+        not what you cannot do. `by_topic` carries the tallies so a caller can
+        show the sample size instead of implying a measurement.
+        """
         return sorted(
             (t for t, (ok, n) in self.by_topic.items() if n and ok / n < self.score),
             key=lambda t: self.by_topic[t][0] / self.by_topic[t][1],

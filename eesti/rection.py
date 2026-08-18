@@ -208,6 +208,25 @@ CREATE TABLE IF NOT EXISTS rections (
 """
 
 
+def load(conn) -> list[Rection]:
+    """Read the stored table. **No network** — that is the whole point.
+
+    `fetch` belongs to a deliberate, one-time `cli rections` run. Calling it
+    from a lesson made a practice session depend on EKI being reachable, and
+    CI proved the point by getting a 403 from a GitHub runner: a drill that
+    cannot run because someone else's server is having a bad minute is exactly
+    what this project claims not to build.
+    """
+    conn.executescript(SCHEMA)
+    return [
+        Rection(r[0], r[1], r[2], r[3], r[4])
+        for r in conn.execute(
+            "SELECT headword, correct_frame, wrong_frame, correct_case, wrong_case"
+            " FROM rections ORDER BY headword"
+        )
+    ]
+
+
 def store(conn, rections: list[Rection]) -> int:
     conn.executescript(SCHEMA)
     with conn:

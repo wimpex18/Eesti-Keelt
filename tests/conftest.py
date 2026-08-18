@@ -100,6 +100,20 @@ def _build_wordlist(path) -> None:
     conn.executemany(
         "INSERT OR IGNORE INTO words VALUES (?,?,?,?)", _theme_words()
     )
+    # Rections live in the word database and are fetched by a deliberate `cli
+    # rections` run, never during a lesson. Seeding two here means the generator
+    # is exercised offline — CI proved why that matters by getting a 403 from
+    # EKI when a test reached for the live page.
+    from eesti.rection import SCHEMA as RECTION_SCHEMA
+
+    conn.executescript(RECTION_SCHEMA)
+    conn.executemany(
+        "INSERT OR REPLACE INTO rections VALUES (?,?,?,?,?)",
+        [
+            ("kohanema", "millega", "millele", "sg kom", "sg all"),
+            ("teavitama", "keda", "kellele", "sg p", "sg all"),
+        ],
+    )
     conn.commit()
     conn.close()
 

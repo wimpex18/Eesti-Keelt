@@ -12,7 +12,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from .config import CACHE, LEVELS
+from .config import LEVELS
 
 
 def _content(path: str | Path | None = None) -> sqlite3.Connection:
@@ -96,10 +96,17 @@ def items_for(
 
     if generator == "ekk_rection":
         from .cloze import rection_clozes
-        from .rection import at_levels, fetch
+        from .rection import at_levels, load
 
-        pool = at_levels(words, fetch(cache=CACHE / "ekk_su64.html"), levels)
-        return rection_clozes(pool, words=words, count=count, seed=seed)
+        stored = load(words)
+        if not stored:
+            raise ValueError(
+                "no rections stored — run `python -m eesti.cli rections` once. "
+                "They are fetched deliberately, never during a lesson."
+            )
+        return rection_clozes(
+            at_levels(words, stored, levels), words=words, count=count, seed=seed
+        )
 
     if generator == "object_case":
         from .drills import generate as generate_objcase

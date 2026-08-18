@@ -69,11 +69,16 @@ SECTIONS: tuple[Section, ...] = (
 _BY_ID = {s.id: s for s in SECTIONS}
 
 SCHEMA = """
+-- One row per opening, with a surrogate key. Keying on (item_id, seen_at) with
+-- second-granularity timestamps meant two opens in the same second collided:
+-- the second REPLACEd the first, so a re-read looked like one visit and its
+-- minutes were *lost* rather than added. A test that has to sleep to observe
+-- correct behaviour is a test accommodating a bug.
 CREATE TABLE IF NOT EXISTS exposure (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id  TEXT NOT NULL,
     seen_at  TEXT NOT NULL,
-    minutes  REAL NOT NULL DEFAULT 0,
-    PRIMARY KEY (item_id, seen_at)
+    minutes  REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_exposure_item ON exposure(item_id);
 """
@@ -114,15 +119,25 @@ def browse(
     limit: int = 20,
     public_only: bool = False,
 ) -> list[sqlite3.Row]:
-    """Material in one section. Unordered by design — this is a shelf, not a path."""
+    """Material in one section. Unordered by design — this is a shelf, not a path.
+
+    A section can cover several skills, and the naive version asked each for
+    `limit` rows and then truncated: with eight writing tasks and a limit of
+    five, every speaking task was unreachable. Sections are dealt round-robin
+    so each skill in a section is represented.
+    """
     from .sources import query
 
-    found: list[sqlite3.Row] = []
-    for skill in by_id(section).skills:
-        found += query(
-            content, skill=skill, level=level, public_only=public_only, limit=limit
-        )
-    return found[:limit]
+    per_skill = [
+        query(content, skill=skill, level=level, public_only=public_only, limit=limit)
+        for skill in by_id(section).skills
+    ]
+    out: list[sqlite3.Row] = []
+    while any(per_skill) and len(out) < limit:
+        for rows in per_skill:
+            if rows and len(out) < limit:
+                out.append(rows.pop(0))
+    return out
 
 
 def mark_seen(progress: sqlite3.Connection, item_id: str, minutes: float = 0.0) -> None:
@@ -130,10 +145,51 @@ def mark_seen(progress: sqlite3.Connection, item_id: str, minutes: float = 0.0) 
     progress.executescript(SCHEMA)
     with progress:
         progress.execute(
-            "INSERT OR REPLACE INTO exposure (item_id, seen_at, minutes)"
-            " VALUES (?,?,?)",
+            "INSERT INTO exposure (item_id, seen_at, minutes) VALUES (?,?,?)",
             (item_id, _now(), float(minutes)),
         )
+
+
+def open_item(
+    content: sqlite3.Connection,
+    item_id: str,
+    progress: sqlite3.Connection | None = None,
+    vocabulary: sqlite3.Connection | None = None,
+    minutes: float = 0.0,
+) -> dict:
+    """Open one piece of material: record the exposure *and* the words met.
+
+    This is the missing writer. `vocab.py` could measure how much of a text a
+    learner already handles, and `band_progress` could report known words per
+    frequency band, and **nothing in the app ever wrote a word into that table**
+    — so both were measuring something permanently empty. The measurement was
+    built without the recording.
+
+    Encounters are exposure, not knowledge: `record_encounter` bumps a met-count
+    and never promotes a word to *known*, because a word skimmed past is not a
+    word learned. Deciding a word is known stays an explicit act (`cli vocab
+    --know`). That distinction is the difference between a coverage number worth
+    trusting and one that inflates every time a text is opened.
+    """
+    row = content.execute(
+        "SELECT id, body FROM items WHERE id = ?", (item_id,)
+    ).fetchone()
+    if row is None:
+        raise KeyError(item_id)
+
+    out = {"item": item_id, "lemmas": 0}
+    if progress is not None:
+        mark_seen(progress, item_id, minutes=minutes)
+    if vocabulary is not None and row["body"]:
+        from .morph import analyze
+        from .vocab import record_encounter
+
+        lemmas = sorted({
+            t.lemma.lower() for t in analyze(row["body"])
+            if t.pos in ("S", "V", "A", "adj") and len(t.lemma) > 1
+        })
+        out["lemmas"] = record_encounter(vocabulary, lemmas)
+    return out
 
 
 def exposure(progress: sqlite3.Connection) -> dict:

@@ -365,11 +365,14 @@ def cmd_cloze(args: argparse.Namespace) -> int:
     words = wordlist_connect()
     topics = tuple(args.topics.split(",")) if args.topics else None
     if args.rule == "rection":
-        from .config import CACHE
-        from .rection import at_levels, fetch as fetch_rections
+        from .rection import at_levels, load
 
         levels = tuple(args.levels.split(","))
-        pool = at_levels(words, fetch_rections(cache=CACHE / "ekk_su64.html"), levels)
+        stored = load(words)
+        if not stored:
+            print("no rections stored — run `cli rections` once (one page, cached)")
+            return 1
+        pool = at_levels(words, stored, levels)
         if not pool:
             print(f"no rections at {args.levels} — try --levels A1,A2,B1,B2")
             return 1
@@ -747,12 +750,45 @@ def cmd_library(args: argparse.Namespace) -> int:
         print(f"  {row['id'][:10]}  [{row['level'] or '-':<3}] {title}{audio}")
 
     if args.seen:
-        progress = progress_connect(args.progress_db)
-        from .library import mark_seen
+        from .library import open_item
+        from .vocab import connect as vocab_connect
 
-        for row in rows:
-            mark_seen(progress, row["id"], minutes=args.minutes)
-        print(f"\nmarked {len(rows)} item(s) as opened: {exposure(progress)}")
+        progress = progress_connect(args.progress_db)
+        vocabulary = vocab_connect(args.vocab_db)
+        met = sum(
+            open_item(content, row["id"], progress, vocabulary, args.minutes)["lemmas"]
+            for row in rows
+        )
+        print(f"\nopened {len(rows)} item(s): {exposure(progress)}")
+        print(f"{met} word encounter(s) recorded — encounters, not knowledge. "
+              "Mark words known with `vocab --know`.")
+    return 0
+
+
+def cmd_vocab(args: argparse.Namespace) -> int:
+    """Track which words you actually know, and how far into the frequency list."""
+    from .vocab import (KNOWN, STATUS_NAMES, WELL_KNOWN, band_progress, connect,
+                        set_status, summary)
+    from .wordlist import connect as wordlist_connect
+
+    vocabulary = connect(args.vocab_db)
+    words = wordlist_connect()
+
+    if args.know:
+        status = WELL_KNOWN if args.long_known else KNOWN
+        for lemma in args.know:
+            set_status(vocabulary, lemma.lower(), status)
+        print(f"marked {len(args.know)} word(s) as {STATUS_NAMES[status]}")
+
+    info = summary(vocabulary)
+    print(f"\n{info['known_total']} known of {info['tracked']} tracked: "
+          f"{info['by_status']}")
+    print("\nKnown within each frequency band — the denominator is the band, "
+          "not the language:")
+    for band in band_progress(vocabulary, words):
+        bar = "#" * int(band["share"] * 20)
+        print(f"  top {band['from']:>4}-{band['to']:<5} {band['known']:>4}/"
+              f"{band['size']:<4} {band['share']:>6.0%} {bar}")
     return 0
 
 
@@ -835,10 +871,38 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     print(f"\n{result.correct}/{result.asked} — {result.score:.0%} "
           f"(pass is {PASS_MARK:.0%})")
     if result.weakest:
-        print(f"weakest: {', '.join(result.weakest)}")
+        # Show the tallies, not just the names: one or two items per topic
+        # points at where to look, it does not measure the topic.
+        detail = ", ".join(
+            f"{t} {result.by_topic[t][0]}/{result.by_topic[t][1]}"
+            for t in result.weakest
+        )
+        print(f"look at: {detail}")
     print("✓ passed" if result.passed else
           "not passed. Nothing is un-mastered; the missed items are in the "
           "review queue.")
+    return 0
+
+
+def cmd_rections(args: argparse.Namespace) -> int:
+    """Fetch EKK's list of error-prone rections, once, and store it.
+
+    Deliberate and separate from practice: a lesson must never depend on EKI
+    being reachable. One page, cached on disk, stored in the word database.
+    """
+    from .config import CACHE
+    from .rection import at_levels, fetch, load, store
+    from .wordlist import connect
+
+    conn = connect()
+    rections = fetch(cache=CACHE / "ekk_su64.html")
+    store(conn, rections)
+    usable = at_levels(conn, load(conn), tuple(args.levels.split(",")))
+    print(f"{len(rections)} unambiguous contrasts stored, "
+          f"{len(usable)} at {args.levels}")
+    for r in usable:
+        print(f"  {r.headword:<14} {r.correct_frame} ({r.correct_case})"
+              f"  NOT {r.wrong_frame} ({r.wrong_case})")
     return 0
 
 
@@ -966,7 +1030,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--minutes", type=float, default=0.0)
     p.add_argument("--content-db", default="data/content.db")
     p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--vocab-db", default="data/vocab.db")
     p.set_defaults(func=cmd_library)
+
+    p = sub.add_parser("vocab", help="words you know, by frequency band")
+    p.add_argument("--know", nargs="*", help="mark these lemmas as known")
+    p.add_argument("--long-known", action="store_true",
+                   help="mark as well known rather than newly known")
+    p.add_argument("--vocab-db", default="data/vocab.db")
+    p.set_defaults(func=cmd_vocab)
 
     p = sub.add_parser("status", help="where you stand, section by section")
     p.add_argument("--content-db", default="data/content.db")
@@ -983,6 +1055,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--progress-db", default="data/progress.db")
     p.add_argument("--review-db", default="data/review.db")
     p.set_defaults(func=cmd_checkpoint)
+
+    p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
+    p.add_argument("--levels", default="A1,A2,B1")
+    p.set_defaults(func=cmd_rections)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))
