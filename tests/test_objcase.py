@@ -137,11 +137,33 @@ class TestVerbForms:
         assert regular and regular[0].actual == "elan"
         assert not regular[0].is_irregular
 
-    def test_generated_verb_drills_are_answerable(self):
+    def test_generated_verb_drills_are_answerable(self, tmp_path):
+        """Uses a fixture database rather than the built one.
+
+        An earlier version called `wordlist.connect()`, which passed locally
+        only because the developer's machine had a populated data/eesti.db —
+        and failed in CI, where nothing builds it. Seeding a handful of verbs
+        keeps the test hermetic and fast, and it exercises the same code path:
+        generation depends on the verbs table, not on all 160k rows.
+        """
         from eesti.drills import generate_verb_drills
         from eesti.wordlist import connect
 
-        drills = generate_verb_drills(connect(), count=12, seed=1)
+        conn = connect(tmp_path / "fixture.db")
+        with conn:
+            conn.executemany(
+                "INSERT INTO words(word, freq_rank, proficiency, pos) VALUES (?,?,?,?)",
+                [
+                    ("minema", 10, "A1", "v"),
+                    ("olema", 1, "A1", "v"),
+                    ("tegema", 20, "A1", "v"),
+                    ("sööma", 30, "A1", "v"),
+                    ("nägema", 40, "A2", "v"),
+                    ("saama", 50, "A1", "v"),
+                ],
+            )
+
+        drills = generate_verb_drills(conn, count=12, seed=1)
         assert len(drills) == 12
         for drill in drills:
             assert drill.rule == "verb-form"
