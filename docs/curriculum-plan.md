@@ -162,7 +162,7 @@ vocabulary teaches the rule and the words in the same repetition.
 
 | Need | Have | Missing |
 |---|---|---|
-| Grammar topics | **declared: 36; drillable: 8** | 28 generators |
+| Grammar topics | **declared: 36; drillable: 17** | 19 generators |
 | Forms for those topics | **all of them** (411 349, gold-validated) | nothing |
 | Explanations | 8 rules → EKK handbook, verified | ~17 more mappings |
 | Blocked practice | drill generator with rule filter | mastery gate |
@@ -222,6 +222,32 @@ the 349 harvested Selges keeles texts** gives authentic sentences whose answers
 are correct because a native wrote them (see `roadmap.md`). Prefer the corpus
 where it has the pattern; fall back to templates where it does not.
 
+**The verb topics are built** — `eesti/conjugation.py`, `cli conjugate`.
+Nine topics at once: `olevik`, `lihtminevik`, `taisminevik`, `enneminevik`,
+`tingiv`, `kaskiv`, `ma-da-inf`, `kesksonad`, `umbisikuline`. **2 700 items** at
+A1–B1 from Vabamorf synthesis alone.
+
+`verbs.py` already drilled verbs, but only *irregular stems* — verbs where
+stripping `-ma` gives the wrong answer, so the distractor writes itself. That
+deliberately skips every regular verb, which is right for stems and wrong for
+everything else: a learner who can build `õpib` still has to choose between
+`õpib` and `õppis`, `õpiks` and `õpib`, `pean õppima` and `tahan õppida`.
+
+So the distractor here is **the same verb in the neighbouring form it gets
+confused with** — `õpiks` against `õpib`, `tehtud` against `teinud`,
+`tehakse` against `teeb`. What is tested is the marker, not the stem, and both
+halves come from Vabamorf rather than a table. Where a verb produces the same
+string for both, the item measures nothing and is dropped.
+
+Two things the frames had to get right. They are **object-free**: the first
+version wrote the impersonal as *"Seda ____ iga päev"*, and `seda` is a
+partitive object — fine for `tegema`, ungrammatical for `liikuma`, with no
+transitivity flag in the data to filter on. A locative frame (*"Siin ____ iga
+päev"*) works for both, which avoids the per-verb semantic pool the object-case
+templates have to carry. And the verb pool is **frequency-ordered**, because a
+bleached frame reads fine with a verb met daily and uselessly with a rare one —
+*"Hirmutage palun kohe!"* is grammatical and worthless.
+
 **`rektsioon` is built** — `eesti/rection.py`, `cli cloze --rule rection`.
 The source is not a dictionary dump: **EKK SÜ 64 is titled "Rektsioone, milles
 sageli eksitakse"** — *rections that are often got wrong* — and it tabulates
@@ -257,7 +283,7 @@ published simplified news. Mining it would have taught the mistake as the answer
 **The corpus half is built** — `eesti/cloze.py`, `python -m eesti.cli cloze`.
 2 073 usable sentences yield **1 138 case items and 28 negation items** across
 five topics, so `gen-stem`, `osastav`, `kohakaanded`, `harvad-kaanded` and
-`mitmus` all gained a generator at once. With rection, generators go **2 → 8 of 36**.
+`mitmus` all gained a generator at once. With rection and the verb topics, generators go **2 → 17 of 36**.
 
 The design problem was not extraction, it was **deciding when an authentic
 sentence has one right answer.** Blank the object in *"Ta luges raamatut"* and

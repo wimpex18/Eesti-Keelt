@@ -399,6 +399,38 @@ def cmd_cloze(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_conjugate(args: argparse.Namespace) -> int:
+    """Drill tenses, moods, infinitives and voice.
+
+    The distractor is the neighbouring form the learner confuses this one with —
+    `õpiks` against `õpib` — so what is being tested is the marker, not the stem.
+    """
+    from .conjugation import FRAMES, generate
+    from .wordlist import connect
+
+    topics = tuple(args.topics.split(",")) if args.topics else None
+    items = generate(
+        connect(),
+        topics=topics,
+        levels=tuple(args.levels.split(",")),
+        count=args.count,
+        seed=args.seed,
+    )
+    if not items:
+        print("no items — check --topics against: " + ", ".join(FRAMES))
+        return 1
+
+    for i, item in enumerate(items, 1):
+        level = f" [{item.level}]" if item.level else ""
+        print(f"\n{i}. {item.prompt}")
+        print(f"   ({item.hint}){level}")
+        if args.answers:
+            print(f"   -> {item.answer}   (не *{item.distractor}*)")
+            print(f"   {item.why_ru}")
+    print(f"\n{len(items)} items across {len(set(i.topic for i in items))} topics.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -463,6 +495,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--seed", type=int)
     p.add_argument("--content-db", default="data/content.db")
     p.set_defaults(func=cmd_cloze)
+
+    p = sub.add_parser("conjugate", help="drill tenses, moods, infinitives, voice")
+    p.add_argument("-n", "--count", type=int, default=10)
+    p.add_argument("--topics", help="comma-separated curriculum topic ids")
+    p.add_argument("--levels", default="A1,A2,B1")
+    p.add_argument("--answers", action="store_true")
+    p.add_argument("--seed", type=int)
+    p.set_defaults(func=cmd_conjugate)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))
