@@ -410,11 +410,26 @@ one user. Calling a stopping rule "IRT" would be dressing up a heuristic. What
 the sweep actually leans on is the prerequisite graph: study order already
 encodes difficulty, because a topic depending on four others is genuinely later.
 
-**A placement is not an audit.** The sweep stops when it has found where to
-start, so a topic the learner knows on a *parallel* branch may never be probed —
-`olevik` sits in the verb branch and the sweep may stop in the noun branch
-before reaching it. That is the right trade for a placement, and `test-out
---topic X` covers the rest, one topic at a time, whenever they want.
+**Failing one topic no longer ends the sweep.** The first version stopped after
+two consecutive failures, and that was wrong in a way worth recording because it
+looked reasonable. The syllabus is a **graph, not a line**: `osastav` and
+`mitmus` are nouns, `olevik` and `verb-form` are verbs, and they are
+independent. A learner solid on verbs and shaky on nouns — an ordinary way to be
+— failed two noun topics in a row and the sweep concluded it had found their
+level *without ever asking about a verb*.
+
+A failure now prunes exactly what the graph says it should: the topics that
+**depend on** the failed one. Failing `osastav` means not asking about `eitus`
+or `obj-case`, which are built on it; it means nothing about the verb branch,
+which keeps being probed. Measured on a learner who knows verbs and not nouns,
+the sweep now reports `gen-stem, osastav, arvsonad` as entry points and marks
+`olevik, verb-form, lihtminevik, ma-da-inf, kusisonad` known — where before it
+stopped after two probes.
+
+So the result is a **set** of entry points, which is the honest shape: one
+"you are here" cannot say that someone is at A2 on verbs and A1 on nouns. Two
+budgets bound the session (`MAX_FAILURES`, `MAX_PROBES`); they are stopping
+rules for the learner's patience, not claims about their level.
 
 ### 5. Blocked → interleaved handoff — done ✅
 `eesti/handoff.py`, plus `cli review`. `progress.py` decided when a topic was
@@ -428,9 +443,24 @@ generators. On mastery, a **sample** of the topic's items joins the queue, not
 all of them: a topic can generate hundreds, and a queue that spikes every time
 something is passed is one the learner stops opening.
 
-Interleaving is not implemented anywhere. It falls out of a due queue that mixes
-whatever is ready across topics — which is the point of building the pieces in
-this order.
+**Interleaving turned out not to fall out for free, which was the assumption.**
+Measured after building it: seeding three topics and asking for the queue
+returned six `kusisonad`, then six `olevik`, then six `tingiv`. Blocked review,
+produced by the module whose entire purpose is to end blocked review.
+
+The cause is the batching. Six items enter the instant a topic is mastered, so
+they carry near-identical due times, and `ORDER BY due` hands them back in the
+order they went in. `review.interleave` now deals the due queue round-robin by
+topic, keeping each topic's own order — and `due()` over-fetches before
+truncating, because applying `LIMIT` first takes the ten most overdue, which are
+the ten that entered together, which is one topic, leaving nothing to mix. That
+second half was caught by a test written for the first.
+
+Mixing here rather than in the scheduler is deliberate: FSRS decides *when* an
+item returns and is good at it, and nothing about an answer changes if two items
+due the same minute swap places. Selection stays the scheduler's; only the order
+within what is already due is ours. A request for a single topic is a deliberate
+drill-down and is left alone.
 
 `pending_handoffs` exists because the handoff can be missed: a topic mastered
 before this module existed, or in a session that ended early, would otherwise

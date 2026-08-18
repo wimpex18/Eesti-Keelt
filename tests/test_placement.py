@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import pytest
 
-from eesti.placement import (PROBE_ITEMS, PROBE_REQUIRED, STOP_AFTER_FAILURES,
-                             candidates, entry_point, probe, sweep)
+from eesti.placement import (MAX_FAILURES, MAX_PROBES, PROBE_ITEMS,
+                             PROBE_REQUIRED, candidates, entry_point,
+                             entry_points, probe, sweep)
 from eesti.progress import connect, is_mastered, mark_mastered, mastered
 
 
@@ -91,10 +92,39 @@ class TestProbe:
 
 class TestSweep:
     def test_it_stops_once_failures_accumulate(self, db):
-        results = sweep(db, knows({"kusisonad", "gen-stem"}), seed=1)
-        ran = [r for r in results if r.ran]
-        assert ran[-STOP_AFTER_FAILURES:] == [r for r in ran if not r.passed][-STOP_AFTER_FAILURES:]
-        assert not any(r.passed for r in ran[-STOP_AFTER_FAILURES:])
+        results = sweep(db, wrong, seed=1)
+        failed = [r for r in results if r.ran and not r.passed]
+        assert len(failed) <= MAX_FAILURES
+        assert len(results) <= MAX_PROBES
+
+    def test_a_failure_on_one_branch_does_not_end_the_other(self, db):
+        """The defect this replaced: two consecutive noun failures concluded the
+        placement without ever asking about a verb. Being strong on verbs and
+        shaky on nouns is an ordinary way to be."""
+        verbs = {"olevik", "verb-form", "lihtminevik", "ma-da-inf", "kusisonad"}
+        results = sweep(db, knows(verbs), seed=1)
+        asked = {r.topic for r in results if r.ran}
+        assert "gen-stem" in asked          # the noun branch was probed
+        assert asked & {"olevik", "verb-form"}   # and so was the verb branch
+        assert {"olevik", "verb-form"} <= mastered(db)
+
+    def test_a_failure_prunes_what_depends_on_it(self, db):
+        """Asking about `obj-case` after failing `osastav` only confirms what
+        the failure already established."""
+        from eesti.curriculum import unlocks
+
+        results = sweep(db, knows({"kusisonad"}), seed=1)
+        failed = {r.topic for r in results if r.ran and not r.passed}
+        asked = {r.topic for r in results}
+        for topic in failed:
+            assert not (set(unlocks(topic)) & asked)
+
+    def test_entry_points_are_reported_per_branch(self, db):
+        results = sweep(db, knows({"olevik", "verb-form", "kusisonad"}), seed=1)
+        points = entry_points(results)
+        assert len(points) >= 1
+        assert entry_point(results) == points[0]
+        assert not (set(points) & mastered(db))
 
     def test_a_complete_beginner_is_placed_at_the_first_topic(self, db):
         results = sweep(db, wrong, seed=1)
@@ -126,6 +156,12 @@ class TestSweep:
         results = sweep(db, knows({"kusisonad"}), seed=1)
         first_fail = next(r for r in results if r.ran and not r.passed)
         assert entry_point(results) == first_fail.topic
+
+    def test_a_probe_budget_bounds_the_session(self, db):
+        """These are stopping rules for the learner's patience, not claims
+        about their level."""
+        results = sweep(db, perfect, seed=1, max_probes=3)
+        assert len(results) <= 3
 
     def test_entry_point_is_none_when_nothing_failed(self, db):
         from eesti.placement import ProbeResult

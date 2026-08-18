@@ -120,10 +120,44 @@ class TestPendingHandoffs:
         assert handoff.pending_handoffs(progress, reviews) == []
 
 
-def test_the_queue_interleaves_by_construction(reviews):
-    """Interleaving is not implemented here — it falls out of a due queue that
-    mixes whatever is ready across topics."""
-    handoff.seed_mastered(reviews, "kusisonad", seed=1)
-    handoff.seed_mastered(reviews, "olevik", seed=1)
-    kinds = {i.kind for i in review.due(reviews, limit=50)}
-    assert kinds == {"kusisonad", "olevik"}
+class TestInterleaving:
+    """Step 5's whole purpose: practice is blocked, review is interleaved.
+
+    It did not hold when first built. Items enter in batches of six the moment a
+    topic is mastered, so they carry near-identical due times, and ordering by
+    due date handed them back in insertion order — all of one topic, then all of
+    the next. Blocked review, from the module whose job was to end it.
+    """
+
+    def test_a_session_alternates_between_topics(self, reviews):
+        for topic in ("kusisonad", "olevik", "tingiv"):
+            handoff.seed_mastered(reviews, topic, seed=1)
+        order = [i.kind for i in review.due(reviews, limit=50)]
+        assert len(order) == 3 * handoff.SEED_ITEMS
+        # No topic ever appears twice in a row.
+        assert all(a != b for a, b in zip(order, order[1:]))
+
+    def test_the_first_three_cover_all_three_topics(self, reviews):
+        for topic in ("kusisonad", "olevik", "tingiv"):
+            handoff.seed_mastered(reviews, topic, seed=1)
+        assert len({i.kind for i in review.due(reviews, limit=3)}) == 3
+
+    def test_nothing_is_dropped_or_duplicated(self, reviews):
+        for topic in ("kusisonad", "olevik"):
+            handoff.seed_mastered(reviews, topic, seed=1)
+        ids = [i.id for i in review.due(reviews, limit=50)]
+        stored = {r[0] for r in reviews.execute("SELECT id FROM review_items")}
+        assert sorted(ids) == sorted(stored)
+
+    def test_uneven_topics_still_drain_completely(self, reviews):
+        handoff.seed_mastered(reviews, "kusisonad", count=2, seed=1)
+        handoff.seed_mastered(reviews, "olevik", count=5, seed=1)
+        order = [i.kind for i in review.due(reviews, limit=50)]
+        assert order.count("kusisonad") == 2 and order.count("olevik") == 5
+
+    def test_a_single_topic_request_is_left_alone(self, reviews):
+        """Asking for one topic is a deliberate drill-down, not a session."""
+        handoff.seed_mastered(reviews, "olevik", seed=1)
+        handoff.seed_mastered(reviews, "kusisonad", seed=1)
+        got = review.due(reviews, limit=10, kind="olevik")
+        assert got and {i.kind for i in got} == {"olevik"}

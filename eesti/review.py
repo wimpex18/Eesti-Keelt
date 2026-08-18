@@ -36,10 +36,16 @@ from fsrs import Card, Rating, Scheduler
 RATINGS = {"again": Rating.Again, "hard": Rating.Hard, "good": Rating.Good,
            "easy": Rating.Easy}
 
+# How far past the requested count to look when building an interleaved session.
+# Wide enough that several topics are in view even when one has a long overdue
+# run; capped so a large backlog is never loaded whole.
+FETCH_FACTOR = 10
+FETCH_CAP = 1000
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS review_items (
     id          TEXT PRIMARY KEY,   -- stable per (kind, lemma, tag)
-    kind        TEXT NOT NULL,      -- obj-case | verb-form | vocab
+    kind        TEXT NOT NULL,      -- curriculum topic id, or `vocab`
     lemma       TEXT NOT NULL,
     tag         TEXT,               -- rule or form being tested
     prompt      TEXT NOT NULL,
@@ -128,18 +134,56 @@ def add(
     return key
 
 
+def interleave(items: list[ReviewItem]) -> list[ReviewItem]:
+    """Deal the queue round-robin by topic, keeping each topic's own order.
+
+    Without this the queue is interleaved only by accident. Items enter in
+    batches — six seeded the moment a topic is mastered — so they carry
+    near-identical due times, and ordering by due date hands them back in the
+    order they went in: all of one topic, then all of the next. That is
+    *blocked* review, which is precisely what the practice phase already did and
+    what the handoff exists to stop doing.
+
+    Mixing here rather than in the scheduler is deliberate. FSRS decides *when*
+    an item should come back and is good at it; nothing about its answer changes
+    if two items due the same minute swap places. This reorders within what is
+    already due, so it costs the scheduler nothing.
+    """
+    by_kind: dict[str, list[ReviewItem]] = {}
+    for item in items:
+        by_kind.setdefault(item.kind, []).append(item)
+
+    out: list[ReviewItem] = []
+    while by_kind:
+        for kind in list(by_kind):
+            out.append(by_kind[kind].pop(0))
+            if not by_kind[kind]:
+                del by_kind[kind]
+    return out
+
+
 def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> list[ReviewItem]:
-    """Items ready for review, most overdue first."""
+    """Items ready for review: the most overdue, dealt out across topics.
+
+    Selection is by due date — the scheduler's judgement, untouched. Only the
+    order they are asked in is mixed, so a session interleaves instead of
+    marching through one topic at a time.
+    """
     now = datetime.now(timezone.utc).isoformat()
     sql = "SELECT * FROM review_items WHERE due <= ?"
     params: list = [now]
     if kind:
         sql += " AND kind = ?"
         params.append(kind)
+    # Over-fetch, then interleave, then truncate. Applying LIMIT first defeats
+    # the whole thing: a ten-item session takes the ten most overdue, which are
+    # the ten that entered together, which is one topic — and there is nothing
+    # left to mix. Selection is still "the most overdue window"; only the order
+    # inside it changes.
     sql += " ORDER BY due LIMIT ?"
-    params.append(limit)
+    params.append(limit if kind else min(limit * FETCH_FACTOR, FETCH_CAP))
 
-    return [
+    items = [
         ReviewItem(
             id=r["id"], kind=r["kind"], lemma=r["lemma"], prompt=r["prompt"],
             answer=r["answer"], distractor=r["distractor"], why_ru=r["why_ru"],
@@ -148,6 +192,8 @@ def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> l
         )
         for r in conn.execute(sql, params)
     ]
+    # A single-topic request is a deliberate drill-down, so leave it alone.
+    return items if kind else interleave(items)[:limit]
 
 
 def grade(conn: sqlite3.Connection, item_id_: str, rating: str) -> dict:

@@ -27,6 +27,28 @@ Probe attempts are recorded as ordinary attempts, because that is what they are.
 A learner who fails a test-out has genuinely answered those items, and the
 rolling window should know.
 
+## Failing one topic does not end the sweep
+
+The first version stopped after two consecutive failures, and that was wrong in
+a way worth recording, because it looked reasonable. The syllabus is a **graph,
+not a line**: `osastav` and `mitmus` are nouns, `olevik` and `verb-form` are
+verbs, and they are independent. A learner who is solid on verbs and shaky on
+nouns — which is an ordinary way to be — failed two noun topics in a row and the
+sweep concluded it had found their level without ever asking about a verb.
+
+So a failure now prunes exactly what the graph says it should: the topics that
+**depend on** the failed one. Failing `osastav` means not asking about `eitus`
+or `obj-case`, because those are built on it and the answer is already known.
+It means nothing at all about the verb branch, which keeps being probed.
+
+That makes the result a **set** of entry points rather than one, which is the
+honest shape: a learner can be at A2 on verbs and A1 on nouns, and a single
+"you are here" cannot express that.
+
+The cost is session length, so two budgets bound it — `MAX_FAILURES` and
+`MAX_PROBES`. They are stopping rules for the learner's patience, not claims
+about their level, and the sweep reports when it hit one.
+
 ## This is not IRT, and says so
 
 The plan floated item-response theory: ask progressively harder items, and the
@@ -52,10 +74,11 @@ from .config import LEVELS
 PROBE_ITEMS = 5
 PROBE_REQUIRED = 5
 
-# How many topics in a row may fail before the sweep concludes it has found the
-# learner's level. One failure can be a bad item or a slip; two in a row in an
-# ordered syllabus is a boundary.
-STOP_AFTER_FAILURES = 2
+# A failure prunes the topics that *depend* on the failed one, and nothing else.
+# These two bound the session: a sweep ends when the learner has failed this many
+# topics outright, or when it has asked this many probes, whichever comes first.
+MAX_FAILURES = 3
+MAX_PROBES = 12
 
 Ask = Callable[[object], str]
 
@@ -136,22 +159,30 @@ def sweep(
     progress: sqlite3.Connection,
     ask: Ask,
     levels: tuple[str, ...] = LEVELS,
-    stop_after: int = STOP_AFTER_FAILURES,
+    max_failures: int = MAX_FAILURES,
+    max_probes: int = MAX_PROBES,
     seed: int | None = None,
     on_result: Callable[[ProbeResult], None] | None = None,
 ) -> list[ProbeResult]:
-    """Walk the syllabus until the learner starts failing; that is where to start.
+    """Probe the syllabus, pruning by the graph rather than stopping at the first wall.
 
-    Stops on consecutive failures rather than on the first one, so a single bad
-    item or a slip does not end the placement early and leave a learner doing
-    A1 material they know.
+    A failed topic removes its **dependants** from the sweep — they are built on
+    it, so the answer is already known — and leaves every independent branch
+    still to be asked about. That is what lets a learner who is strong on verbs
+    and weak on nouns be placed correctly on both.
     """
-    results: list[ProbeResult] = []
-    consecutive = 0
-    seen: set[str] = set()
+    from .curriculum import unlocks
 
-    while consecutive < stop_after:
-        pending = [t for t in candidates(progress, levels) if t.id not in seen]
+    results: list[ProbeResult] = []
+    seen: set[str] = set()
+    pruned: set[str] = set()
+    failures = 0
+
+    while failures < max_failures and len(results) < max_probes:
+        pending = [
+            t for t in candidates(progress, levels)
+            if t.id not in seen and t.id not in pruned
+        ]
         if not pending:
             break
         topic = pending[0]
@@ -164,13 +195,24 @@ def sweep(
 
         if not result.ran:
             continue
-        consecutive = 0 if result.passed else consecutive + 1
+        if not result.passed:
+            failures += 1
+            # Everything downstream rests on what was just missed. Asking about
+            # it would only confirm what the failure already established.
+            pruned |= set(unlocks(topic.id))
     return results
 
 
+def entry_points(results: Iterable[ProbeResult]) -> list[str]:
+    """Every topic the learner failed — one entry point per independent branch.
+
+    A list rather than a single topic on purpose: being at A2 on verbs and A1 on
+    nouns is an ordinary way to be, and one "you are here" cannot say it.
+    """
+    return [r.topic for r in results if r.ran and not r.passed]
+
+
 def entry_point(results: Iterable[ProbeResult]) -> str | None:
-    """The first topic the learner actually failed — where the course begins."""
-    for result in results:
-        if result.ran and not result.passed:
-            return result.topic
-    return None
+    """The first branch to start on, or None if nothing was failed."""
+    found = entry_points(results)
+    return found[0] if found else None

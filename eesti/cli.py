@@ -569,13 +569,15 @@ def cmd_placement(args: argparse.Namespace) -> int:
     stops once failures accumulate. It places you; it does not audit you — use
     `test-out --topic X` for any single topic you already know.
     """
-    from .placement import PROBE_ITEMS, PROBE_REQUIRED, entry_point, sweep
+    from .placement import PROBE_ITEMS, PROBE_REQUIRED, entry_points, sweep
     from .progress import connect
 
     progress = connect(args.progress_db)
     print(
         f"Placement: {PROBE_ITEMS} items per topic, all {PROBE_REQUIRED} correct "
-        "to skip it.\nStops once you start missing. Ctrl-C to leave early.\n"
+        "to skip it.\nA miss skips what depends on that topic, not the whole "
+        "sweep — so the\nverb branch is still asked about after a noun topic "
+        "goes wrong. Ctrl-C to leave early.\n"
     )
 
     def report(result) -> None:
@@ -586,10 +588,15 @@ def cmd_placement(args: argparse.Namespace) -> int:
 
     results = sweep(progress, _ask_terminal, seed=args.seed, on_result=report)
     known = [r.topic for r in results if r.passed]
-    start = entry_point(results)
+    starts = entry_points(results)
 
     print(f"\n{len(known)} topic(s) marked known: {', '.join(known) or 'none'}")
-    print(f"start at: {start}" if start else "start at: nothing left to place")
+    if starts:
+        # One per independent branch: being at A2 on verbs and A1 on nouns is an
+        # ordinary way to be, and a single "you are here" cannot say it.
+        print(f"start at: {', '.join(starts)}")
+    else:
+        print("start at: nothing left to place")
     print("run `practice` to begin, or `progress` to see the whole syllabus.")
     return 0
 
