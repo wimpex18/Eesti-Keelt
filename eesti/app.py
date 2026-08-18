@@ -5,10 +5,11 @@ Run with:  python -m eesti.cli serve
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from .config import LEVELS
@@ -511,3 +512,99 @@ def vocab_known(req: KnownWords) -> dict:
     for lemma in req.lemmas:
         set_status(vocabulary, lemma.strip().lower(), status_)
     return {"marked": len(req.lemmas)}
+
+
+@app.get("/api/speaking")
+def speaking_bank(kind: str | None = None) -> dict:
+    """Questions in the exam's shape. No scoring — see `eesti/speaking.py`."""
+    from .speaking import KINDS, bank
+
+    return {
+        "kinds": KINDS,
+        "questions": [
+            {"topic": q.topic, "question": q.question, "hint_ru": q.hint_ru,
+             "kind": q.kind}
+            for q in bank(kind)
+        ],
+    }
+
+
+# --------------------------------------------------------------------------
+# Installable on a phone: manifest and icons
+# --------------------------------------------------------------------------
+
+ICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    '<rect width="64" height="64" rx="14" fill="#1c6b52"/>'
+    '<text x="32" y="44" font-family="ui-sans-serif,system-ui,sans-serif" '
+    'font-size="34" font-weight="700" fill="#fff" text-anchor="middle">ä</text>'
+    "</svg>"
+)
+
+
+@app.get("/icon.svg")
+def icon_svg() -> Response:
+    return Response(ICON_SVG, media_type="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/icon.png")
+def icon_png() -> Response:
+    """iOS ignores SVG for the home-screen icon, so serve the SVG's bytes under
+    a .png name only if a real PNG exists; otherwise fall back to the SVG.
+
+    Kept deliberately simple: adding a raster toolchain to draw one letter would
+    be a dependency for a favicon.
+    """
+    png = WEB / "icon.png"
+    if png.exists():
+        return FileResponse(png, media_type="image/png")
+    return Response(ICON_SVG, media_type="image/svg+xml")
+
+
+@app.get("/manifest.webmanifest")
+def manifest() -> Response:
+    """Enough for "Add to Home Screen" to produce an app-like window."""
+    return Response(
+        json.dumps({
+            "name": "Eesti keel",
+            "short_name": "Eesti keel",
+            "start_url": "/",
+            "display": "standalone",
+            "background_color": "#f7f7f5",
+            "theme_color": "#1c6b52",
+            "lang": "et",
+            "icons": [
+                {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml",
+                 "purpose": "any"},
+            ],
+        }),
+        media_type="application/manifest+json",
+    )
+
+
+@app.get("/api/asr")
+def asr_available() -> dict:
+    """Which speech engines this deployment can use — shown in the UI as-is."""
+    from .providers import asr
+
+    return asr.available()
+
+
+@app.post("/api/transcribe")
+async def transcribe(request: Request) -> dict:
+    """Transcribe a recording. Optional everywhere: no engine is still a 200.
+
+    The audio is not stored. A voice is biometric where text is disposable, so
+    the local engine is preferred and nothing is written to disk beyond the
+    temporary file whisper.cpp needs.
+    """
+    from .providers import asr
+
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(status_code=400, detail="no audio")
+    if len(audio) > 12_000_000:
+        raise HTTPException(status_code=413, detail="recording too long")
+    mime = request.headers.get("content-type", "audio/wav").split(";")[0]
+    return asr.transcribe(audio, mime).to_dict()

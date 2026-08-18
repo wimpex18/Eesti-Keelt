@@ -105,9 +105,11 @@ deterministic and the error history already exists.
 1. **The curriculum path** — `curriculum-plan.md` steps 1-9, starting with the
    topic model. This is the largest remaining piece and the one the whole
    "learn Estonian, not just pass the exam" scope depends on.
-2. **Notion write-back** to the existing `Vead` database, so confirmed errors
+2. **Cloudflare deploy** — Workers/Pages behind Access. Also what makes the
+   microphone work on the phone: `getUserMedia` needs a secure context.
+3. **Notion write-back** to the existing `Vead` database, so confirmed errors
    join the hand-curated log rather than living in a parallel one.
-3. **Cloudflare deploy** — Workers + D1 + Pages behind Access. Access is not
+4. **Cloudflare deploy detail** — Workers + D1 + Pages behind Access. Access is not
    optional: it is what keeps the owner-only material (HARNO, ERR) private on a
    public URL.
 

@@ -163,7 +163,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 338 passed
+.venv/bin/python -m pytest tests/ -q     # 371 passed
 ```
 
 Five gates:
@@ -186,7 +186,10 @@ Five gates:
 
 - **Pronunciation scoring** — forced alignment yields timings, not correctness,
   and EKI already publishes free
-  [pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/).
+  [pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/). The
+  speaking tab records, plays back and (optionally) transcribes, so you can
+  compare what you meant with what a recogniser heard — see
+  [`docs/speaking.md`](docs/speaking.md). It does not grade.
 - **A dictionary / flashcard app** — Sõnaveeb, Sõnastik and Anki do it better.
 - **A notes system** — Notion stays the system of record.
 
@@ -235,6 +238,14 @@ next, and what the 2026 competitors do that is worth copying.
   nouns, and where Estonian grammar data actually comes from
 - [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM,
   model options, and the eval results
+
+## On a phone
+
+The web app is responsive and installable: a bottom tab bar under 720px, safe-area
+insets for the notch and home indicator, 16px inputs so iOS does not zoom on
+focus, and a web manifest so "Add to Home Screen" gives an app window rather than
+a Safari tab. `getUserMedia` needs a secure context, which the Cloudflare
+deployment provides and `serve` on localhost also satisfies.
 
 ## Roadmap
 
