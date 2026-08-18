@@ -163,7 +163,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 405 passed
+.venv/bin/python -m pytest tests/ -q     # 412 passed
 ```
 
 Five gates:
@@ -230,8 +230,9 @@ next, and what the 2026 competitors do that is worth copying.
 - [`docs/setup.md`](docs/setup.md) — which API key, how to get it, where it goes
 - [`docs/content-sources.md`](docs/content-sources.md) — where grammar and
   vocabulary come from, and why neither is stored per-word
-- [`docs/architecture.md`](docs/architecture.md) — how this deploys to Cloudflare
-  when Vabamorf cannot run there, plus stack and practice decisions
+- [`docs/deploy.md`](docs/deploy.md) — Cloudflare Containers, why not Workers,
+  and the ephemeral-disk problem that would otherwise eat your progress
+- [`docs/architecture.md`](docs/architecture.md) — stack and practice decisions
 - [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
   from research, against what is actually built
 - [`docs/source-gaps.md`](docs/source-gaps.md) — what was discovered but never

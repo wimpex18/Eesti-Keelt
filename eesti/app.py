@@ -5,7 +5,10 @@ Run with:  python -m eesti.cli serve
 
 from __future__ import annotations
 
+import base64
+import hmac
 import json
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -705,3 +708,85 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
             "vigade logisse need ei lähe."
         ),
     }
+
+
+# --------------------------------------------------------------------------
+# State snapshots — the thing that stops a deploy eating the learner's progress
+# --------------------------------------------------------------------------
+#
+# Cloudflare Containers have **ephemeral disk**: "when a Container instance goes
+# to sleep, the next time it is started, it will have a fresh disk as defined by
+# its container image." With a ten-minute sleep timer, that means every coffee
+# break would reset mastery, the review queue and the vocabulary table — the
+# state that steps 3 to 9 exist to accumulate.
+#
+# So the durable copy lives outside the container, in the Durable Object that
+# manages it, and these two endpoints are how it gets in and out. Only the
+# *learner's* databases travel: the word list, the form index and the harvested
+# corpus are derived or baked into the image, so shipping them would be copying
+# 58 MB to say nothing.
+
+STATE_DATABASES = ("progress", "review", "vocab")
+
+
+def _state_paths() -> dict[str, Path]:
+    return {
+        "progress": Path(PROGRESS_DB),
+        "review": Path(REVIEW_DB),
+        "vocab": Path(VOCAB_DB),
+    }
+
+
+def _require_state_token(request: Request) -> None:
+    """Snapshots are for the platform, not for the browser.
+
+    Cloudflare Access already gates the whole app, but a restore endpoint
+    overwrites everything the learner has done, so it does not rely on a single
+    layer. With no token configured the endpoints refuse outright rather than
+    defaulting to open — an unset secret is a misconfiguration, not permission.
+    """
+    expected = os.environ.get("STATE_TOKEN")
+    if not expected:
+        raise HTTPException(status_code=503, detail="STATE_TOKEN is not configured")
+    if not hmac.compare_digest(request.headers.get("x-state-token", ""), expected):
+        raise HTTPException(status_code=403, detail="bad state token")
+
+
+@app.get("/api/state/export")
+def state_export(request: Request) -> dict:
+    """The learner's databases, base64'd, for the Worker to persist."""
+    _require_state_token(request)
+    out = {}
+    for name, path in _state_paths().items():
+        out[name] = (
+            base64.b64encode(path.read_bytes()).decode("ascii")
+            if path.exists() else ""
+        )
+    return {"databases": out, "bytes": sum(len(v) for v in out.values())}
+
+
+class StateBlob(BaseModel):
+    databases: dict[str, str]
+
+
+@app.post("/api/state/import")
+def state_import(blob: StateBlob, request: Request) -> dict:
+    """Restore a snapshot into a fresh container.
+
+    Refuses to overwrite a database that already has content: a restore racing
+    a learner who has already started answering would silently discard the newer
+    work, and losing five minutes is better than losing five minutes *silently*.
+    """
+    _require_state_token(request)
+    restored, skipped = [], []
+    for name, path in _state_paths().items():
+        payload = blob.databases.get(name) or ""
+        if not payload:
+            continue
+        if path.exists() and path.stat().st_size > 0:
+            skipped.append(name)
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(base64.b64decode(payload))
+        restored.append(name)
+    return {"restored": restored, "skipped": skipped}

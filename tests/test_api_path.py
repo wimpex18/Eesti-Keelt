@@ -170,3 +170,103 @@ class TestOtherSurfaces:
     def test_vocab_bands_are_returned(self, client):
         bands = client.get("/api/vocab").json()["bands"]
         assert bands and bands[0]["from"] == 1
+
+
+class TestStateSnapshots:
+    """The endpoints that stop a Cloudflare deploy eating the learner's progress.
+
+    Container disk is ephemeral — "when a Container instance goes to sleep, the
+    next time it is started, it will have a fresh disk" — so mastery, the review
+    queue and the vocabulary table have to be handed out and taken back.
+    """
+
+    @pytest.fixture
+    def secured(self, client, monkeypatch):
+        monkeypatch.setenv("STATE_TOKEN", "s3cret")
+        return client
+
+    def test_an_unset_token_refuses_rather_than_defaulting_open(self, client, monkeypatch):
+        """An unset secret is a misconfiguration, not permission."""
+        monkeypatch.delenv("STATE_TOKEN", raising=False)
+        assert client.get("/api/state/export").status_code == 503
+
+    def test_a_wrong_token_is_rejected(self, secured):
+        r = secured.get("/api/state/export", headers={"x-state-token": "nope"})
+        assert r.status_code == 403
+
+    def test_export_returns_only_the_learners_databases(self, secured):
+        """Not the word list or the form index: those are baked into the image,
+        so shipping 58 MB would be copying nothing."""
+        data = secured.get("/api/state/export",
+                           headers={"x-state-token": "s3cret"}).json()
+        assert set(data["databases"]) == {"progress", "review", "vocab"}
+
+    def test_a_snapshot_round_trips(self, secured, tmp_path, monkeypatch):
+        import base64
+
+        from eesti import app as app_module
+
+        # Write something worth losing. It has to be a graded *answer*: asking
+        # for items with an explicit topic never touches the progress database.
+        items = secured.post(
+            "/api/practice", json={"topic": "kusisonad", "count": 1, "seed": 1}
+        ).json()["items"]
+        secured.post("/api/practice/answer", json={
+            "topic": "kusisonad", "prompt": items[0]["prompt"],
+            "answer": items[0]["answer"], "given": items[0]["answer"],
+        })
+        blob = secured.get("/api/state/export",
+                           headers={"x-state-token": "s3cret"}).json()
+        assert blob["databases"]["progress"], "nothing was captured to restore"
+
+        # A fresh container: new, empty paths.
+        fresh = {name: tmp_path / f"{name}.db" for name in ("progress", "review", "vocab")}
+        monkeypatch.setattr(app_module, "PROGRESS_DB", str(fresh["progress"]))
+        monkeypatch.setattr(app_module, "REVIEW_DB", str(fresh["review"]))
+        monkeypatch.setattr(app_module, "VOCAB_DB", str(fresh["vocab"]))
+
+        restored = secured.post(
+            "/api/state/import", json={"databases": blob["databases"]},
+            headers={"x-state-token": "s3cret"},
+        ).json()
+        assert "progress" in restored["restored"]
+        assert fresh["progress"].read_bytes() == base64.b64decode(
+            blob["databases"]["progress"]
+        )
+
+        # And the restored attempt is really there, not just the bytes.
+        import sqlite3
+
+        assert sqlite3.connect(fresh["progress"]).execute(
+            "SELECT COUNT(*) FROM attempts WHERE topic = 'kusisonad'"
+        ).fetchone()[0] == 1
+
+    def test_restore_refuses_to_overwrite_live_data(self, secured, tmp_path, monkeypatch):
+        """A restore racing a learner who has already started would discard the
+        newer work. Losing five minutes beats losing it silently."""
+        import base64
+
+        from eesti import app as app_module
+
+        live = tmp_path / "progress.db"
+        live.write_bytes(b"already here")
+        monkeypatch.setattr(app_module, "PROGRESS_DB", str(live))
+
+        payload = base64.b64encode(b"older snapshot").decode()
+        got = secured.post(
+            "/api/state/import", json={"databases": {"progress": payload}},
+            headers={"x-state-token": "s3cret"},
+        ).json()
+        assert got["skipped"] == ["progress"] and got["restored"] == []
+        assert live.read_bytes() == b"already here"
+
+    def test_an_empty_entry_is_skipped_not_written(self, secured, tmp_path, monkeypatch):
+        from eesti import app as app_module
+
+        target = tmp_path / "vocab.db"
+        monkeypatch.setattr(app_module, "VOCAB_DB", str(target))
+        got = secured.post(
+            "/api/state/import", json={"databases": {"vocab": ""}},
+            headers={"x-state-token": "s3cret"},
+        ).json()
+        assert got["restored"] == [] and not target.exists()
