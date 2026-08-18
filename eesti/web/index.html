@@ -97,12 +97,24 @@
     <span class="sub" id="stats">…</span>
   </header>
 
-  <nav role="tablist">
-    <button role="tab" aria-selected="true"  data-tab="write">Kirjutamine</button>
-    <button role="tab" aria-selected="false" data-tab="drill">Harjutused</button>
-    <button role="tab" aria-selected="false" data-tab="review">Kordamine <span id="dueBadge" class="badge" hidden></span></button>
-    <button role="tab" aria-selected="false" data-tab="read">Lugemine</button>
+  <!-- Mode, then skill. The split is not by content but by CONDITIONS: the same
+       passage is study material untimed with lookups, and an exam task timed,
+       scored and unaided. Mixing the two hides which one you can actually do. -->
+  <div class="modes" role="tablist" aria-label="Režiim">
+    <button role="tab" aria-selected="true"  data-mode="learn">Õppimine</button>
+    <button role="tab" aria-selected="false" data-mode="exam">Eksam</button>
+  </div>
+
+  <nav role="tablist" data-mode-nav="learn">
+    <button role="tab" aria-selected="true"  data-tab="read">Lugemine</button>
     <button role="tab" aria-selected="false" data-tab="listen">Kuulamine</button>
+    <button role="tab" aria-selected="false" data-tab="write">Kirjutamine</button>
+    <button role="tab" aria-selected="false" data-tab="drill">Grammatika</button>
+    <button role="tab" aria-selected="false" data-tab="review">Kordamine <span id="dueBadge" class="badge" hidden></span></button>
+  </nav>
+
+  <nav role="tablist" data-mode-nav="exam" hidden>
+    <button role="tab" aria-selected="true" data-tab="exam">Ülevaade</button>
   </nav>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
@@ -139,6 +151,31 @@
     </div>
     <div id="drillOut"></div>
     <div class="score" id="score"></div>
+  </section>
+
+  <!-- ── Exam ──────────────────────────────────────────────────────── -->
+  <section class="panel" id="tab-exam" hidden>
+    <p class="hint" style="margin-top:0">
+      B1 tasemeeksam — neli osa, igaüks 25 punkti. Sooritatud, kui kokku
+      <strong>≥ 60 punkti</strong> ja <strong>ükski osa pole 0</strong>.
+    </p>
+    <table class="exam-table">
+      <thead><tr><th>Osa</th><th>Aeg</th><th>Punktid</th><th>Seis</th></tr></thead>
+      <tbody>
+        <tr><td>Kirjutamine</td><td>35 min</td><td>25</td><td class="ok">kontroll töötab</td></tr>
+        <tr><td>Kuulamine</td><td>30–35 min</td><td>25</td><td class="part">materjal olemas</td></tr>
+        <tr><td>Lugemine</td><td>50 min</td><td>25</td><td class="ok">349 teksti</td></tr>
+        <tr><td>Rääkimine</td><td>15 min</td><td>25</td><td class="no">pole veel</td></tr>
+      </tbody>
+    </table>
+    <p class="hint">
+      Rääkimine on <strong>paarisülesanne</strong> — vestlus teise eksaminandiga
+      ja rollimäng. Üksi salvestamine seda ei asenda, seetõttu on see viimane.
+    </p>
+    <p class="hint">
+      Ametlikud HARNO materjalid on autoriõigusega: isiklikuks õppimiseks jah,
+      avalikult jagamiseks ei. Neid hoitakse eraldi ega jagata.
+    </p>
   </section>
 
   <!-- ── Review (spaced repetition) ────────────────────────────────── -->
@@ -212,10 +249,29 @@ const md = s => esc(s)
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
   .replace(/\*(.+?)\*/g, "<em>$1</em>");
 
-document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
-  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
-  ["write","drill","review","read","listen"].forEach(t => $("#tab-" + t).hidden = (t !== b.dataset.tab));
+const TABS = ["write", "drill", "review", "read", "listen", "exam"];
+
+function selectTab(button) {
+  button.closest("nav").querySelectorAll("button").forEach(x =>
+    x.setAttribute("aria-selected", x === button));
+  TABS.forEach(t => $("#tab-" + t).hidden = (t !== button.dataset.tab));
+}
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => selectTab(b));
+
+document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
+  document.querySelectorAll(".modes button").forEach(x =>
+    x.setAttribute("aria-selected", x === m));
+  document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
+    nav.hidden = nav.dataset.modeNav !== m.dataset.mode;
+  });
+  // Land on the mode's first tab, so switching never shows a blank panel.
+  selectTab(document.querySelector(
+    `nav[data-mode-nav="${m.dataset.mode}"] button`));
 });
+
+// Reading is the default landing tab: it is where material actually is.
+selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
 
 async function api(path, body) {
   const r = await fetch(path, {

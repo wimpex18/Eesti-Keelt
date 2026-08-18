@@ -71,15 +71,29 @@ jobs:
       - name: Score the model on Estonian
         id: score
         run: |
-          if python -m eesti.cli keys | grep -q '✓'; then
-            python -m eesti.cli eval --provider "$PROVIDER" \
-              ${{ inputs.model && format('--model {0}', inputs.model) || '' }} \
-              ${{ inputs.evidence && '--evidence' || '' }} \
-              | tee eval.txt
-          else
+          if ! python -m eesti.cli keys | grep -q '✓'; then
             echo "SKIPPED=1" >> "$GITHUB_OUTPUT"
             echo "no provider key configured — nothing was measured" > eval.txt
+            exit 0
           fi
+
+          # `cmd | tee` reports tee's status, not the command's, so the eval's
+          # exit code was being swallowed and an unmeasurable run reported
+          # success. pipefail keeps it.
+          set -o pipefail
+          rc=0
+          python -m eesti.cli eval --provider "$PROVIDER" \
+            ${{ inputs.model && format('--model {0}', inputs.model) || '' }} \
+            ${{ inputs.evidence && '--evidence' || '' }} \
+            | tee eval.txt || rc=$?
+          echo "RC=$rc" >> "$GITHUB_OUTPUT"
+
+          # 2 = could not measure (rate limit, provider down). That is somebody
+          # else's bad minute, so it warns rather than failing the build.
+          # 1 = measured, and the model fell below threshold: real information,
+          # reported loudly but still not a code defect, so also not a failure.
+          # Anything else is an actual crash and should fail.
+          if [ "$rc" -gt 2 ]; then exit "$rc"; fi
 
       - name: Report
         run: |
@@ -91,6 +105,15 @@ jobs:
               echo "> The model-id check passed, but **no model was scored**."
               echo "> Add \`OPENROUTER_API_KEY\` under Settings → Secrets and"
               echo "> variables → Actions, then re-run this workflow."
+            elif [ "${{ steps.score.outputs.RC }}" = "2" ]; then
+              echo
+              echo "> **Could not measure.** Every call failed — rate limit or"
+              echo "> provider outage. No score is reported, because a run that"
+              echo "> never reached the model says nothing about the model."
+              echo
+              echo '```'
+              cat eval.txt
+              echo '```'
             else
               echo
               echo '```'
@@ -105,6 +128,14 @@ jobs:
       # Make the absence of a measurement visible in the checks list itself,
       # rather than only in a summary somebody has to open.
       - name: Warn that nothing was measured
-        if: steps.score.outputs.SKIPPED == '1'
+        if: steps.score.outputs.SKIPPED == '1' || steps.score.outputs.RC == '2'
         run: |
-          echo "::warning title=Eval skipped::No API key configured, so no model was scored."
+          echo "::warning title=Eval did not measure::No score was produced \
+          (missing key, rate limit, or provider outage). A green check here does \
+          NOT mean the model passed."
+
+      - name: Note that the model scored below threshold
+        if: steps.score.outputs.RC == '1'
+        run: |
+          echo "::warning title=Model below threshold::The model was scored and \
+          fell under 0.8 recall or precision. See the run summary."
