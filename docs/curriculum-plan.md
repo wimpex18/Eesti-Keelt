@@ -353,10 +353,35 @@ sentence-level machinery rather than form generation — `sonajark`,
 `kirjavahemargid`, `uhildumine`, `liitsonad`. Those are honest gaps, listed
 here so they are not mistaken for oversights.
 
-### 3. Mastery and progress
-Per-topic state: attempts, rolling accuracy, `mastered_at`. Gate advancement on
-*n of last m*. Persist where the learner left off. This is what makes it a
-course rather than a drill box.
+### 3. Mastery and progress — done ✅
+`eesti/progress.py`, plus `cli practice` (a graded session that records what
+happened) and `cli progress` (where you stand on all 36 topics).
+`eesti/practice.py` maps a topic to whichever of the six generators owns it, so
+the learner asks for the conditional rather than for a generator.
+
+Three decisions worth stating, because each has a plausible opposite:
+
+- **Rolling window, not lifetime accuracy.** 8 of the last 10, and the window
+  must be *full* — three clean answers is not evidence about a paradigm. A
+  learner who got their first twenty wrong and their last twenty right has
+  learned the topic; a lifetime ratio would say 50 % forever and never let them
+  past.
+- **Mastery is never revoked.** A later bad run lowers current accuracy and
+  brings items back through FSRS, but it does not clear `mastered_at`.
+  Prerequisites unlock the rest of the syllabus, and revoking them would let one
+  bad evening lock the learner out of half the course. Forgetting is the
+  scheduler's job; sequencing is this module's, and wiring them to fight helps
+  nobody.
+- **Skipping and passing are one operation**, differing only in a `via` column.
+  That is what lets step 4's test-out reuse this gate rather than build a
+  parallel one.
+
+**And it caught a live defect in the syllabus.** Topics with no generator —
+`pohivormid`, `lauseehitus` — cannot be *demonstrated*, so requiring them made
+everything downstream permanently unreachable: the path offered `tahestik` on
+repeat and `gen-stem` never. A topic that cannot be tested cannot be a gate, so
+those show as `reference` and do not block. A test now asserts every drillable
+topic is reachable, which is the kind of failure nothing on screen would reveal.
 
 ### 4. Placement / skip
 Reuse the mastery check as a test-out: answer a short set correctly and the

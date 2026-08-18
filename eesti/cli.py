@@ -462,6 +462,88 @@ def cmd_patterns(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_practice(args: argparse.Namespace) -> int:
+    """A graded practice session on one topic, with progress recorded.
+
+    Defaults to wherever the learner left off, because the research on paths
+    versus trees is consistent: removing the choice improves outcomes.
+    """
+    from .curriculum import by_id
+    from .practice import items_for
+    from .progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy, connect,
+                           is_mastered, record, resume)
+
+    progress = connect(args.progress_db)
+    topic = args.topic or resume(progress)
+    if topic is None:
+        print("nothing available to practise — every unlocked topic is mastered.")
+        return 0
+
+    meta = by_id(topic)
+    print(f"\n{meta.level}  {meta.et}  ({meta.ru})")
+    ref = meta.reference
+    if ref is not None:
+        print(f"EKK {ref.ekk_section}: {ref.url}")
+
+    items = items_for(topic, count=args.count, seed=args.seed)
+    if not items:
+        print("the generator produced nothing for this topic today.")
+        return 1
+
+    right = 0
+    for i, item in enumerate(items, 1):
+        print(f"\n{i}/{len(items)}  {item.prompt}")
+        print(f"        ({item.hint})")
+        try:
+            given = input("     > ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nstopped.")
+            break
+        ok = item.check(given)
+        right += ok
+        record(progress, item, ok, answer=given)
+        if ok:
+            print("     ✓")
+        else:
+            print(f"     ✗  {item.answer}   (не *{item.distractor}*)")
+            print(f"        {item.why_ru}")
+
+    acc = accuracy(progress, topic)
+    print(f"\n{right}/{len(items)} correct.")
+    if acc is not None:
+        print(f"rolling accuracy over the last {MASTERY_WINDOW}: {acc:.0%}")
+    if is_mastered(progress, topic):
+        print(f"✓ {meta.et} is mastered — it unlocks what depends on it.")
+    else:
+        print(f"mastery gate: {MASTERY_CORRECT} of the last {MASTERY_WINDOW}.")
+    return 0
+
+
+def cmd_progress(args: argparse.Namespace) -> int:
+    """Where you stand on every topic, in study order."""
+    from .progress import connect, report, resume
+
+    progress = connect(args.progress_db)
+    rows = report(progress)
+    level = None
+    for row in rows:
+        if args.todo and row.state in ("mastered", "locked"):
+            continue
+        if row.level != level:
+            level = row.level
+            print(f"\n{level}")
+        acc = f"{row.accuracy:.0%}" if row.accuracy is not None else "  -"
+        blocked = f"  <- {', '.join(row.blocked_by)}" if row.blocked_by else ""
+        print(f"  {row.state:<12} {row.topic:<16} {row.et[:30]:<32}"
+              f" n={row.attempts:<4} {acc:>4}{blocked}")
+
+    done = sum(1 for r in rows if r.state == "mastered")
+    print(f"\n{done}/{len(rows)} topics mastered.")
+    nxt = resume(progress)
+    print(f"next: {nxt}" if nxt else "next: nothing unlocked to practise")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -542,6 +624,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--answers", action="store_true")
     p.add_argument("--seed", type=int)
     p.set_defaults(func=cmd_patterns)
+
+    p = sub.add_parser("practice", help="graded session on one topic, progress saved")
+    p.add_argument("--topic", help="curriculum topic id (default: where you left off)")
+    p.add_argument("-n", "--count", type=int, default=10)
+    p.add_argument("--seed", type=int)
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.set_defaults(func=cmd_practice)
+
+    p = sub.add_parser("progress", help="where you stand on every topic")
+    p.add_argument("--todo", action="store_true", help="hide mastered and locked")
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.set_defaults(func=cmd_progress)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))
