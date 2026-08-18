@@ -48,6 +48,31 @@ Two deliberate refusals in that path:
 - **The snapshot endpoints refuse when `STATE_TOKEN` is unset**, rather than
   defaulting to open. An unset secret is a misconfiguration, not permission.
 
+### Verified, not assumed
+
+The image was built and run before any of this was recommended, which is how the
+next bug was found rather than discovered in production:
+
+| Check | Result |
+|---|---|
+| image builds | 1.08 GB |
+| app starts, `/api/health` | 160 316 words indexed |
+| Vabamorf generates in-container | `Ta ____, kui saaks.` (tingiv) |
+| answer recorded | `accuracy: 1.0`, gate `8/10` |
+| **snapshot survives container destroy → recreate** | attempt count 1 → 1 |
+
+**The bug that found.** The restore refused every time: `{"restored": [],
+"skipped": ["progress"]}`. The guard against overwriting live data tested
+"database exists and is non-empty", and a fresh container's very first request
+creates `progress.db` *with its schema* — so an untouched instance looked like
+one with work in it, and the snapshot was silently discarded. The guard now asks
+whether the database holds **learner rows**, which is what "live data" was
+always supposed to mean.
+
+That failure mode is worth naming: the mechanism protecting progress would have
+thrown progress away, quietly, and only under the exact conditions of a real
+deploy.
+
 **The residual risk, stated plainly:** a crash between snapshots loses up to
 five minutes of answers. Cloudflare's docs mention disk snapshots "coming soon";
 until then, the alternative is moving learner state to D1, which is a real

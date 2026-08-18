@@ -241,24 +241,70 @@ class TestStateSnapshots:
             "SELECT COUNT(*) FROM attempts WHERE topic = 'kusisonad'"
         ).fetchone()[0] == 1
 
-    def test_restore_refuses_to_overwrite_live_data(self, secured, tmp_path, monkeypatch):
+    def test_restore_refuses_to_overwrite_real_work(self, secured, tmp_path, monkeypatch):
         """A restore racing a learner who has already started would discard the
         newer work. Losing five minutes beats losing it silently."""
         import base64
 
         from eesti import app as app_module
+        from eesti.progress import connect as progress_connect
 
         live = tmp_path / "progress.db"
-        live.write_bytes(b"already here")
+        conn = progress_connect(live)
+        conn.execute(
+            "INSERT INTO attempts (topic,item_key,correct,answer,at)"
+            " VALUES ('olevik','k',1,'x','now')"
+        )
+        conn.commit()
         monkeypatch.setattr(app_module, "PROGRESS_DB", str(live))
 
-        payload = base64.b64encode(b"older snapshot").decode()
+        before = live.read_bytes()
         got = secured.post(
-            "/api/state/import", json={"databases": {"progress": payload}},
+            "/api/state/import",
+            json={"databases": {"progress": base64.b64encode(b"older").decode()}},
             headers={"x-state-token": "s3cret"},
         ).json()
         assert got["skipped"] == ["progress"] and got["restored"] == []
-        assert live.read_bytes() == b"already here"
+        assert live.read_bytes() == before
+
+    def test_an_empty_schema_is_not_treated_as_work(self, secured, tmp_path, monkeypatch):
+        """The bug this replaces, found by running the real container: a fresh
+        instance served one request, which created progress.db with an empty
+        schema, and the restore then refused to overwrite it — silently
+        discarding the snapshot it existed to restore."""
+        import base64
+
+        from eesti import app as app_module
+        from eesti.progress import connect as progress_connect
+
+        empty = tmp_path / "progress.db"
+        progress_connect(empty)                 # schema only, no attempts
+        assert empty.stat().st_size > 0
+        monkeypatch.setattr(app_module, "PROGRESS_DB", str(empty))
+
+        snapshot = tmp_path / "snap.db"
+        conn = progress_connect(snapshot)
+        conn.execute(
+            "INSERT INTO attempts (topic,item_key,correct,answer,at)"
+            " VALUES ('olevik','k',1,'x','now')"
+        )
+        conn.commit()
+        conn.close()
+
+        got = secured.post(
+            "/api/state/import",
+            json={"databases": {
+                "progress": base64.b64encode(snapshot.read_bytes()).decode()
+            }},
+            headers={"x-state-token": "s3cret"},
+        ).json()
+        assert got["restored"] == ["progress"]
+
+        import sqlite3
+
+        assert sqlite3.connect(empty).execute(
+            "SELECT COUNT(*) FROM attempts"
+        ).fetchone()[0] == 1
 
     def test_an_empty_entry_is_skipped_not_written(self, secured, tmp_path, monkeypatch):
         from eesti import app as app_module

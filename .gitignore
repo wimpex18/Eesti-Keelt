@@ -15,3 +15,4 @@ audio-cache/
 data/exam/
 
 .env
+deploy/ca-bundle.crt

@@ -9,6 +9,7 @@ import base64
 import hmac
 import json
 import os
+import sqlite3
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -769,13 +770,46 @@ class StateBlob(BaseModel):
     databases: dict[str, str]
 
 
+# The table that means "this learner has actually done something" in each
+# database. Existence of the file is not that: the first request to arrive
+# creates it *with its schema*, so "the file is non-empty" is true of a
+# completely fresh container.
+LEARNER_ROWS = {
+    "progress": "attempts",
+    "review": "review_items",
+    "vocab": "vocab_status",
+}
+
+
+def _has_learner_data(path: Path, table: str) -> bool:
+    """True only if there is real work in there worth protecting.
+
+    Tested against a live container, which is how the bug this replaces was
+    found: a fresh instance answered `/api/curriculum`, which created
+    `progress.db` with an empty schema, and the restore that followed refused to
+    overwrite it — silently discarding the snapshot it existed to restore.
+    """
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    try:
+        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
+            return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] > 0
+    except sqlite3.Error:
+        # Unreadable or not a database: not something worth preserving, but not
+        # something to overwrite blindly either.
+        return True
+
+
 @app.post("/api/state/import")
 def state_import(blob: StateBlob, request: Request) -> dict:
     """Restore a snapshot into a fresh container.
 
-    Refuses to overwrite a database that already has content: a restore racing
-    a learner who has already started answering would silently discard the newer
-    work, and losing five minutes is better than losing five minutes *silently*.
+    Refuses to overwrite a database that already holds **learner rows** — not
+    merely one that exists. A restore racing a learner who has started answering
+    would discard the newer work, and losing five minutes beats losing it
+    silently; but an empty schema is not work, and treating it as such made the
+    restore refuse every time, which is the failure the snapshot exists to
+    prevent.
     """
     _require_state_token(request)
     restored, skipped = [], []
@@ -783,7 +817,7 @@ def state_import(blob: StateBlob, request: Request) -> dict:
         payload = blob.databases.get(name) or ""
         if not payload:
             continue
-        if path.exists() and path.stat().st_size > 0:
+        if _has_learner_data(path, LEARNER_ROWS[name]):
             skipped.append(name)
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
