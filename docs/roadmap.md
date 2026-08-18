@@ -88,6 +88,11 @@ deterministic and the error history already exists.
   **per lemma** rather than per surface form, because `raamat` and `raamatut`
   are not two things to learn. The library orders by what is comprehensible now
   instead of by a static difficulty band.
+- **Corpus cloze** (`eesti/cloze.py`) — Clozemaster's idea against the 349
+  harvested texts: 1 138 case items and 28 negation items whose answers are
+  correct because a native wrote them, with no semantic pool to maintain. The
+  hard part was refusing the unsound ones — see `curriculum-plan.md` for the
+  two routes by which an authentic sentence gets a unique answer.
 - **Learner-corpus weighting** (`eesti/harvest/evkk.py`) — 51 467 annotated
   errors ranking the nine tags by what learners of Estonian actually get wrong,
   as a counterweight to a single error log.
@@ -99,11 +104,9 @@ deterministic and the error history already exists.
 1. **The curriculum path** — `curriculum-plan.md` steps 1-9, starting with the
    topic model. This is the largest remaining piece and the one the whole
    "learn Estonian, not just pass the exam" scope depends on.
-2. **Corpus cloze generation**, feeding step 2's generators from the 349
-   harvested texts instead of only from templates.
-3. **Notion write-back** to the existing `Vead` database, so confirmed errors
+2. **Notion write-back** to the existing `Vead` database, so confirmed errors
    join the hand-curated log rather than living in a parallel one.
-4. **Cloudflare deploy** — Workers + D1 + Pages behind Access. Access is not
+3. **Cloudflare deploy** — Workers + D1 + Pages behind Access. Access is not
    optional: it is what keeps the owner-only material (HARNO, ERR) private on a
    public URL.
 

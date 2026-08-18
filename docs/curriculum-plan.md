@@ -162,7 +162,7 @@ vocabulary teaches the rule and the words in the same repetition.
 
 | Need | Have | Missing |
 |---|---|---|
-| Grammar topics | **declared: 36; drillable: 2** | 34 generators |
+| Grammar topics | **declared: 36; drillable: 7** | 29 generators |
 | Forms for those topics | **all of them** (411 349, gold-validated) | nothing |
 | Explanations | 8 rules → EKK handbook, verified | ~17 more mappings |
 | Blocked practice | drill generator with rule filter | mastery gate |
@@ -221,6 +221,39 @@ Two inputs, not one. Templates give controlled contrasts; **cloze deletion over
 the 349 harvested Selges keeles texts** gives authentic sentences whose answers
 are correct because a native wrote them (see `roadmap.md`). Prefer the corpus
 where it has the pattern; fall back to templates where it does not.
+
+**The corpus half is built** — `eesti/cloze.py`, `python -m eesti.cli cloze`.
+2 073 usable sentences yield **1 138 case items and 28 negation items** across
+five topics, so `gen-stem`, `osastav`, `kohakaanded`, `harvad-kaanded` and
+`mitmus` all gained a generator at once. Generators: **2 → 7 of 36**.
+
+The design problem was not extraction, it was **deciding when an authentic
+sentence has one right answer.** Blank the object in *"Ta luges raamatut"* and
+ask genitive-or-partitive, and you assert the genitive is wrong — which depends
+on telicity, which Estonian frequently leaves open. Marking a licit answer wrong
+teaches a rule that does not exist, which is worse than not drilling at all. So
+an item ships only where the form is forced, by one of two routes:
+
+| Route | Why the answer is unique |
+|---|---|
+| **The prompt names the case** — *"Ma elan ____ (Tallinn, seesütlev)"* | Morphology decides. Nothing is claimed about which case the sentence needed; the learner produces a form, which is the skill the error log records. |
+| **A trigger makes the case obligatory** — negation | Under negation the partitive is exception-free. This is the one object-case rule needing no aspect judgement, and the only one generated from the corpus. |
+
+Three gates run before any item ships: the token must read as **one** lemma
+(naming it in the prompt is what pins the answer), Vabamorf must **synthesise
+the attested form back** from lemma + case (disagreement means something is
+wrong and the item is dropped, not guessed at), and answer and distractor must
+actually differ.
+
+The distractor is chosen per case rather than uniformly: the citation form for
+the genitive, the genitive for the partitive, and for every other case the
+ending attached to the **nominative stem instead of the genitive stem** —
+*sõber* + *-s* → *sõbers* where Estonian says *sõbras*. That is not a decoy, it
+is the error, and it is why `gen-stem` sits upstream of eleven topics.
+
+Also caught by building it: negation scopes over its **clause**, not the
+sentence. The first version explained a partitive in one clause by an `ei` in
+another.
 
 ### 3. Mastery and progress
 Per-topic state: attempts, rolling accuracy, `mastered_at`. Gate advancement on

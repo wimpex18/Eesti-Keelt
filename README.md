@@ -63,6 +63,24 @@ grammar terms (`osastav`, `omastav`) so the exam vocabulary sticks.
 
 Grading is deterministic — no model involved, so it is right every time and free.
 
+Beyond the templates, drills are also generated **from real Estonian**: the 349
+harvested texts give 2 073 usable sentences, and blanking one word in a sentence
+a native wrote removes both the semantic pool to maintain and any doubt about
+whether the answer is right.
+
+```bash
+.venv/bin/python -m eesti.cli cloze -n 5 --topics kohakaanded --answers
+```
+
+The catch is that an authentic sentence does not always *have* one right answer.
+Blank the object in *"Ta luges raamatut"* and ask genitive-or-partitive and you
+are asserting the genitive is wrong — which depends on telicity, and Estonian
+often licenses both. So an item ships only where the form is forced: either the
+prompt **names the case** (*"Ma elan ____ (Tallinn, seesütlev)"* — morphology
+decides, and nothing is claimed about which case the sentence needed), or a
+**trigger makes it obligatory**, which for the object is negation and nothing
+else. 1 138 case items and 28 negation items, covering five curriculum topics.
+
 The verb drills exploit a useful property: **the form a learner builds by naive
 rule is the mistake they actually make.** Estonian cites verbs as `minema`, and
 stripping `-ma` for "I go" gives `minen`; the real form is `lähen`. So the naive
@@ -139,7 +157,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 115 passed
+.venv/bin/python -m pytest tests/ -q     # 136 passed
 ```
 
 Four gates:

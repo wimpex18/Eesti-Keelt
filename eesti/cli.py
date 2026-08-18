@@ -343,6 +343,49 @@ def cmd_curriculum(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_cloze(args: argparse.Namespace) -> int:
+    """Drill on sentences Estonians actually wrote, not on templates.
+
+    The case is named in the prompt, so the answer is forced by morphology and
+    nothing is claimed about which case the sentence needed — that is what makes
+    an authentic sentence safe to grade.
+    """
+    import sqlite3
+
+    from .cloze import case_clozes, negation_clozes, sentences
+    from .wordlist import connect as wordlist_connect
+
+    content = sqlite3.connect(args.content_db)
+    content.row_factory = sqlite3.Row
+    sents = sentences(content)
+    if not sents:
+        print(f"no texts in {args.content_db} — run `cli harvest-reading` first")
+        return 1
+
+    words = wordlist_connect()
+    topics = tuple(args.topics.split(",")) if args.topics else None
+    if args.rule == "negation":
+        items = negation_clozes(sents, words=words, count=args.count, seed=args.seed)
+    else:
+        items = case_clozes(
+            sents, topics=topics, words=words, count=args.count, seed=args.seed
+        )
+
+    if not items:
+        print("no items matched — try other topics, or --rule negation")
+        return 1
+
+    for i, item in enumerate(items, 1):
+        level = f" [{item.level}]" if item.level else ""
+        print(f"\n{i}. {item.prompt}")
+        print(f"   ({item.hint}){level}")
+        if args.answers:
+            print(f"   -> {item.answer}   (не *{item.distractor}*)")
+            print(f"   {item.why_ru}")
+    print(f"\n{len(items)} items from {len(sents):,} authentic sentences.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -395,6 +438,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int)
     p.add_argument("--db", default="data/content.db")
     p.set_defaults(func=cmd_harvest_reading)
+
+    p = sub.add_parser("cloze", help="drill on real harvested sentences")
+    p.add_argument("-n", "--count", type=int, default=10)
+    p.add_argument("--topics", help="comma-separated curriculum topic ids")
+    p.add_argument("--rule", choices=("case-form", "negation"), default="case-form")
+    p.add_argument("--answers", action="store_true", help="show answers")
+    p.add_argument("--seed", type=int)
+    p.add_argument("--content-db", default="data/content.db")
+    p.set_defaults(func=cmd_cloze)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

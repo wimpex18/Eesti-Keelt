@@ -1,0 +1,450 @@
+"""Drills built from sentences Estonians actually wrote.
+
+Every drill in this project so far came out of a template I wrote by hand. That
+caps variety at my imagination and it has already gone wrong once: pairing every
+frame with every level-appropriate noun produced *"Ma ostsin haigla ära"* — "I
+bought the hospital" — until each template had to declare a semantic pool of
+objects it accepts. Maintaining those pools is a permanent tax, and the ceiling
+is still a few dozen frames.
+
+There are **2 073 usable sentences** of real Estonian already on disk, harvested
+from Selges keeles and lemmatised by Vabamorf. Blanking a word in one of those
+gives a drill with no pool to maintain and a guarantee no template can offer:
+**the answer is correct because a native speaker wrote it.** This is
+Clozemaster's move, done against a corpus that is already graded for difficulty.
+
+## The trap, and how the answer stays decidable
+
+The obvious version of this is unsafe. Blank the object in *"Ta luges raamatut"*
+and ask genitive-or-partitive, and you are asserting that the genitive would be
+wrong — which depends on telicity, which is semantics, not morphology. Estonian
+frequently licenses both. A drill that marks a licit answer wrong is worse than
+no drill: it teaches a rule that does not exist.
+
+So an item is generated only where the target form is **forced**, by one of two
+routes:
+
+1. **The prompt names the case.** *"Ma elan ____ (Tallinn, seesütlev)"* has
+   exactly one answer, because the case is given and morphology decides the rest.
+   Nothing is being claimed about which case the sentence needed — the learner is
+   asked to produce a form, which is the skill the error log actually records.
+2. **A trigger makes the case obligatory.** Under negation the partitive is
+   exception-free — the one object-case rule that needs no aspect judgement.
+   That, and only that, is generated as a genitive/partitive choice.
+
+Anything else stays with the templates, which can supply the aspect context that
+a corpus sentence leaves implicit.
+
+## Why the wrong answer is not invented
+
+The distractor is the same case built from the **nominative stem instead of the
+genitive stem** — `sõber` + `-s` gives `sõbers` where Estonian says `sõbras`.
+That is not a plausible-looking decoy; it is the error, and it is the reason
+`gen-stem` sits upstream of eleven other topics in the curriculum graph. Where
+the naive form happens to be right, there is no contrast and no multiple-choice
+item — the same rule that drops `kino` from the object-case pool.
+
+## Three gates before an item ships
+
+Corpus text is not clean, and a wrong "correct answer" is the worst possible
+output. So each candidate must pass:
+
+* **unambiguous lemma** — a token that reads as two different lemmas cannot be
+  pinned by naming one of them in the prompt;
+* **round-trip** — Vabamorf's synthesis of `(lemma, case)` must reproduce the
+  attested surface form exactly. Where the corpus and the synthesiser disagree,
+  something is wrong with one of them and the item is dropped rather than
+  guessed at. This is also what keeps grading deterministic;
+* **a real contrast** — answer and distractor must differ.
+"""
+
+from __future__ import annotations
+
+import random
+import re
+import sqlite3
+from dataclasses import asdict, dataclass
+
+from estnltk.vabamorf.morf import synthesize
+
+from .morph import _readings, analyze, case_forms, split_sentences
+
+# Vabamorf case tags -> the Estonian name (what the exam uses) and a Russian
+# gloss (what the learner will recognise). Nominative and the short illative are
+# deliberately absent: the nominative is the prompt's own citation form, and the
+# short illative is optional in a way that makes "the" answer a fiction.
+CASES: dict[str, tuple[str, str]] = {
+    "sg g": ("omastav", "родительный"),
+    "sg p": ("osastav", "частичный"),
+    "sg ill": ("sisseütlev", "иллатив (куда)"),
+    "sg in": ("seesütlev", "инессив (где, внутри)"),
+    "sg el": ("seestütlev", "элатив (откуда, изнутри)"),
+    "sg all": ("alaleütlev", "аллатив (кому, на что)"),
+    "sg ad": ("alalütlev", "адессив (у кого, на чём)"),
+    "sg abl": ("alaltütlev", "аблатив (от кого, с чего)"),
+    "sg tr": ("saav", "транслатив (кем/чем становится)"),
+    "sg ter": ("rajav", "терминатив (до)"),
+    "sg es": ("olev", "эссив (в качестве)"),
+    "sg ab": ("ilmaütlev", "абессив (без)"),
+    "sg kom": ("kaasaütlev", "комитатив (с кем/чем)"),
+    "pl g": ("omastav mitmuses", "родительный мн."),
+    "pl p": ("osastav mitmuses", "частичный мн."),
+    "pl in": ("seesütlev mitmuses", "инессив мн."),
+    "pl ad": ("alalütlev mitmuses", "адессив мн."),
+}
+
+# Which curriculum topic each case belongs to, so a generated item can be filed
+# against the syllabus rather than floating free.
+TOPIC_CASES: dict[str, tuple[str, ...]] = {
+    "gen-stem": ("sg g",),
+    "osastav": ("sg p",),
+    "kohakaanded": ("sg ill", "sg in", "sg el", "sg all", "sg ad", "sg abl"),
+    "harvad-kaanded": ("sg tr", "sg ter", "sg es", "sg ab", "sg kom"),
+    "mitmus": ("pl g", "pl p", "pl in", "pl ad"),
+}
+
+# Negation words. `ära` is the imperative negator; `pole`/`polnud` are the
+# contracted forms of "ei ole", which Vabamorf lemmatises as "olema".
+NEGATORS = frozenset({"ei", "ega", "ära", "ärge", "ärgem", "ärme"})
+_CONTRACTED = frozenset({"pole", "polnud", "poleks", "polevat"})
+
+# Negation scopes over its own clause, not the sentence. Without this the
+# generator produced *"Kui jahipidamisõigust tõendavad dokumendid ..., siis ei
+# pea ..."* as a negation item: the partitive is right, but it has nothing to do
+# with the `ei` in the other clause, so the explanation would have taught a
+# connection that is not there. Splitting on punctuation and clause-introducing
+# words is crude next to real parsing, and errs towards dropping items.
+_CLAUSE_RE = re.compile(
+    r"[,;:—–]|\b(?:kui|et|sest|kuid|aga|siis|mis|mida|kes|keda|kuna|ehkki|"
+    r"kuigi|ning|või)\b",
+    re.IGNORECASE,
+)
+
+BLANK = "____"
+_WORD_RE = re.compile(r"\w", re.UNICODE)
+
+
+@dataclass(frozen=True)
+class Cloze:
+    """One item. Same surface as `drills.Drill`, plus where it came from."""
+
+    prompt: str          # the sentence with one word replaced by ____
+    answer: str          # the form the native speaker used
+    distractor: str      # the form a learner builds from the wrong stem
+    lemma: str
+    case: str            # Vabamorf tag, e.g. "sg in"
+    case_et: str         # "seesütlev" — the name an examiner uses
+    rule: str            # "case-form" | "negation"
+    why_ru: str
+    topic: str           # curriculum topic id
+    level: str | None
+    source_id: str
+
+    @property
+    def hint(self) -> str:
+        """What the learner is told: which word, and which case to put it in.
+
+        This is the whole reason an authentic sentence is safe to drill — name
+        the case and the answer is forced, so nothing is being asserted about
+        which case the sentence needed.
+        """
+        return f"{self.lemma}, {self.case_et}"
+
+    def to_dict(self) -> dict:
+        return asdict(self) | {"hint": self.hint}
+
+    def check(self, given: str) -> bool:
+        """Deterministic, like every other grader here. No model, no network."""
+        return given.strip().lower() == self.answer.lower()
+
+    @property
+    def solution(self) -> str:
+        return self.prompt.replace(BLANK, self.answer)
+
+
+def sentences(
+    conn: sqlite3.Connection,
+    source_id: str = "selges-keeles",
+    min_words: int = 5,
+    max_words: int = 20,
+) -> list[str]:
+    """Sentences from the content store, at a length worth drilling.
+
+    Under five words there is rarely enough context to place a case; over twenty
+    the learner is parsing a paragraph rather than practising a form.
+    """
+    rows = conn.execute(
+        "SELECT body FROM items WHERE source_id = ? AND body <> ''", (source_id,)
+    ).fetchall()
+    out: list[str] = []
+    for row in rows:
+        body = row[0] if not isinstance(row, sqlite3.Row) else row["body"]
+        for sentence in split_sentences(body):
+            sentence = sentence.strip()
+            if min_words <= len(sentence.split()) <= max_words:
+                out.append(sentence)
+    return out
+
+
+def naive_case_form(nominative: str, genitive: str, correct: str) -> str | None:
+    """The form a learner builds from the nominative instead of the genitive stem.
+
+    Estonian builds almost every case on the genitive stem, so the characteristic
+    beginner error is attaching the ending to the citation form: `sõber` + `-s`
+    gives `sõbers` where the language says `sõbras`. Recovering the ending by
+    stripping the genitive off the correct form means we never have to hard-code
+    a table of endings — and it returns None exactly when the genitive is not a
+    prefix of the form, which is where this model of the error stops applying.
+    """
+    if not genitive or not correct.startswith(genitive):
+        return None
+    ending = correct[len(genitive):]
+    if not ending:
+        return None
+    return nominative + ending
+
+
+def _distractor(
+    lemma: str, tag: str, correct: str, forms: dict[str, str]
+) -> str | None:
+    """The wrong answer, chosen to be the error the learner would actually make.
+
+    Three cases, because the characteristic mistake differs:
+
+    * **genitive** — the learner leaves the word in its citation form. Stripping
+      the genitive off itself yields no ending, so the nominative-stem model has
+      nothing to say here; the nominative *is* the error.
+    * **partitive** — the documented weakness: genitive where partitive belongs,
+      and the other way round. The contrast is the drill.
+    * **everything else** — built on the nominative stem instead of the genitive
+      one, which is why `gen-stem` is upstream of eleven topics.
+    """
+    if tag == "sg g":
+        return lemma if lemma != correct else forms.get("partitive")
+    if tag == "sg p":
+        return forms.get("genitive")
+    return naive_case_form(lemma, forms["genitive"], correct)
+
+
+def _why(
+    lemma: str, tag: str, correct: str, wrong: str, forms: dict[str, str]
+) -> str:
+    case_et, case_ru = CASES[tag]
+    if tag == "sg g":
+        return (
+            f"**{case_et}** — {case_ru}. Словарная форма *{lemma}* здесь не "
+            f"подходит: нужна основа омастава *{correct}*."
+        )
+    if tag == "sg p":
+        return (
+            f"**{case_et}** — {case_ru}. Здесь *{correct}*, а не омастав "
+            f"*{wrong}*."
+        )
+    return (
+        f"**{case_et}** — {case_ru}. Падеж строится от основы омастава "
+        f"(*{forms['genitive']}*), а не от словарной формы: *{correct}*, "
+        f"не *{wrong}*."
+    )
+
+
+def _unambiguous_lemma(surface: str, lemma: str, tag: str) -> bool:
+    """The surface form must read back as this lemma in this case, and no other lemma.
+
+    Naming the lemma in the prompt is what makes the answer unique, so a token
+    that two different lemmas could produce cannot be used.
+    """
+    readings = _readings(surface)
+    if (lemma, tag) not in readings:
+        return False
+    return len({lm for lm, _ in readings}) == 1
+
+
+def _synthesises_back(lemma: str, tag: str, surface: str) -> bool:
+    """Vabamorf must produce the attested form from the lemma and case.
+
+    Where the corpus and the synthesiser disagree the item is dropped. That
+    costs yield and buys the thing that matters: a grader that is right.
+    """
+    return surface in (synthesize(lemma, tag) or [])
+
+
+def _clause_span(sentence: str, position: int) -> tuple[int, int]:
+    """The clause containing a character offset, as (start, end)."""
+    start, end = 0, len(sentence)
+    for match in _CLAUSE_RE.finditer(sentence):
+        if match.end() <= position:
+            start = match.end()
+        elif match.start() >= position:
+            end = match.start()
+            break
+    return start, end
+
+
+def _blank(sentence: str, start: int, end: int) -> str:
+    return sentence[:start] + BLANK + sentence[end:]
+
+
+def _hyphenated(sentence: str, start: int, end: int) -> bool:
+    """Is this token glued to a neighbour by a hyphen?
+
+    Blanking half of *"Selges keeles-žürii"* asks the learner to inflect a word
+    that is not standing on its own, and the surviving fragment gives the answer
+    away as often as it hides it.
+    """
+    # A two-character window, not one: the corpus writes *"Selges keeles
+    # -žürii"* with a space before the hyphen, which a one-character check
+    # walks straight past.
+    return "-" in sentence[max(0, start - 2):start] + sentence[end:end + 2]
+
+
+def _level_of(conn: sqlite3.Connection | None, lemma: str) -> str | None:
+    if conn is None:
+        return None
+    row = conn.execute(
+        "SELECT proficiency FROM words WHERE word = ?", (lemma,)
+    ).fetchone()
+    return row[0] if row else None
+
+
+def case_clozes(
+    sents: list[str],
+    topics: tuple[str, ...] | None = None,
+    words: sqlite3.Connection | None = None,
+    count: int = 10,
+    seed: int | None = None,
+    source_id: str = "selges-keeles",
+    require_contrast: bool = True,
+) -> list[Cloze]:
+    """Case-production items: the sentence is real, the case is named, produce the form.
+
+    The prompt gives the lemma and the case, so the answer is forced by
+    morphology alone and nothing is being claimed about which case the sentence
+    *needed*. That is what makes an authentic sentence safe to drill.
+    """
+    wanted: set[str] = set()
+    for topic in topics or tuple(TOPIC_CASES):
+        wanted |= set(TOPIC_CASES.get(topic, ()))
+    by_case = {tag: topic for topic, tags in TOPIC_CASES.items() for tag in tags}
+
+    rng = random.Random(seed)
+    pool = list(sents)
+    rng.shuffle(pool)
+
+    out: list[Cloze] = []
+    seen: set[tuple[str, str]] = set()
+    for sentence in pool:
+        if len(out) >= count:
+            break
+        for token in analyze(sentence):
+            if token.pos != "S" or token.form not in wanted:
+                continue
+            if (token.lemma, token.form) in seen:
+                continue
+            if not _WORD_RE.search(token.text):
+                continue
+            if _hyphenated(sentence, token.start, token.end):
+                continue
+
+            forms = case_forms(token.lemma)
+            if not forms:
+                continue
+            if not _unambiguous_lemma(token.text, token.lemma, token.form):
+                continue
+            if not _synthesises_back(token.lemma, token.form, token.text):
+                continue
+
+            wrong = _distractor(token.lemma, token.form, token.text, forms)
+            if wrong is None or (require_contrast and wrong == token.text):
+                continue
+
+            case_et, case_ru = CASES[token.form]
+            out.append(
+                Cloze(
+                    prompt=_blank(sentence, token.start, token.end),
+                    answer=token.text,
+                    distractor=wrong,
+                    lemma=token.lemma,
+                    case=token.form,
+                    case_et=case_et,
+                    rule="case-form",
+                    why_ru=_why(token.lemma, token.form, token.text, wrong, forms),
+                    topic=by_case[token.form],
+                    level=_level_of(words, token.lemma),
+                    source_id=source_id,
+                )
+            )
+            seen.add((token.lemma, token.form))
+            break  # one item per sentence, so a text is not drilled to death
+    return out
+
+
+def negation_clozes(
+    sents: list[str],
+    words: sqlite3.Connection | None = None,
+    count: int = 10,
+    seed: int | None = None,
+    source_id: str = "selges-keeles",
+) -> list[Cloze]:
+    """The one object-case rule a corpus sentence can settle on its own.
+
+    Under negation Estonian takes the partitive without exception, so no aspect
+    judgement is needed and the genitive really is wrong. The completed/ongoing
+    contrast is *not* generated from the corpus — both cases are often licit
+    there, and marking a licit answer wrong teaches a rule that does not exist.
+    """
+    rng = random.Random(seed)
+    pool = list(sents)
+    rng.shuffle(pool)
+
+    out: list[Cloze] = []
+    seen: set[str] = set()
+    for sentence in pool:
+        if len(out) >= count:
+            break
+        tokens = analyze(sentence)
+        negators = [
+            t for t in tokens
+            if t.lemma in NEGATORS or t.text.lower() in _CONTRACTED
+        ]
+        if not negators:
+            continue
+
+        for token in tokens:
+            if token.pos != "S" or token.form != "sg p" or token.lemma in seen:
+                continue
+            # The negator must govern *this* noun: same clause, and before it,
+            # which is where Estonian puts it.
+            lo, hi = _clause_span(sentence, token.start)
+            if not any(lo <= n.start < token.start and n.end <= hi for n in negators):
+                continue
+            forms = case_forms(token.lemma)
+            if not forms or forms["genitive"] == forms["partitive"]:
+                continue
+            if not _unambiguous_lemma(token.text, token.lemma, "sg p"):
+                continue
+            if _hyphenated(sentence, token.start, token.end):
+                continue
+            if not _synthesises_back(token.lemma, "sg p", token.text):
+                continue
+
+            out.append(
+                Cloze(
+                    prompt=_blank(sentence, token.start, token.end),
+                    answer=token.text,
+                    distractor=forms["genitive"],
+                    lemma=token.lemma,
+                    case="sg p",
+                    case_et="osastav",
+                    rule="negation",
+                    why_ru=(
+                        "Отрицание всегда требует **osastav** — исключений нет. "
+                        f"*{token.text}*, не *{forms['genitive']}*."
+                    ),
+                    topic="obj-case",
+                    level=_level_of(words, token.lemma),
+                    source_id=source_id,
+                )
+            )
+            seen.add(token.lemma)
+            break
+    return out
