@@ -23,10 +23,23 @@ from .sources import connect as content_connect
 from .sources import query as content_query
 from .wordlist import connect
 
-CONTENT_DB = "data/content.db"
 REVIEW_DB = "data/review.db"
 PROGRESS_DB = "data/progress.db"
 VOCAB_DB = "data/vocab.db"
+
+
+def content_db():
+    """The harvested material, resolved when called.
+
+    A module-level `CONTENT_DB = "data/content.db"` sat here and bypassed
+    `config.CONTENT_DB` entirely, so redirecting the database had no effect on
+    the web app — which is how a read-aloud endpoint passed locally and returned
+    an empty list in CI. Same shape as the bug in `wordlist.connect`: a path
+    frozen at import cannot be pointed anywhere else.
+    """
+    from . import config
+
+    return content_connect(config.CONTENT_DB)
 
 
 def review_db():
@@ -136,7 +149,7 @@ def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) 
     single-user local one; the public deployment sets it, and making it a query
     parameter would let a caller ask for owner-only material by guessing.
     """
-    conn = content_connect(CONTENT_DB)
+    conn = content_db()
     rows = content_query(conn, skill=skill, level=level, limit=limit)
     return {
         "items": [
@@ -157,7 +170,7 @@ def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) 
 @app.get("/api/library/{item_id}")
 def library_item(item_id: str) -> dict:
     """One item with its full text and a vocabulary profile."""
-    conn = content_connect(CONTENT_DB)
+    conn = content_db()
     row = conn.execute(
         """SELECT i.*, s.name AS source_name, s.licence
            FROM items i JOIN sources s ON s.id = i.source_id
@@ -485,7 +498,7 @@ def status() -> dict:
 
     return overview(
         progress=progress_db(), reviews=review_db(), vocabulary=vocab_db(),
-        words=db(), content=content_connect(CONTENT_DB),
+        words=db(), content=content_db(),
     )
 
 
@@ -633,7 +646,7 @@ def read_aloud(kind: str = "lause", n: int = 8, levels: str = "A1,A2,B1",
     if kind == "sona":
         items = words_to_say(db(), tuple(levels.split(",")), count=n, seed=seed)
     elif kind == "lause":
-        items = sentences_to_say(content_connect(CONTENT_DB), count=n, seed=seed)
+        items = sentences_to_say(content_db(), count=n, seed=seed)
     else:
         raise HTTPException(status_code=400, detail="kind must be sona or lause")
     return {"kind": kind, "items": [i.to_dict() for i in items]}

@@ -82,3 +82,35 @@ def test_grading_never_needs_the_network(no_network):
         for item in items_for(topic, count=3, seed=2):
             assert item.check(item.answer)
             assert not item.check(item.distractor)
+
+
+def test_reference_data_paths_honour_the_config(fixture_data):
+    """A path frozen at import cannot be redirected.
+
+    This has now caused three separate failures — `wordlist.connect`,
+    `practice._content`, and `app.CONTENT_DB` — each time passing locally
+    because the developer's `data/` exists and failing in CI because a runner's
+    does not. The rule: **reference data** (the word list, the harvested
+    content) resolves through `eesti.config` when called. Learner *state*
+    (progress, review, vocab) may keep literal defaults, since those are
+    per-deployment settings a caller overrides explicitly.
+    """
+    from eesti import app as app_module
+    from eesti import config
+
+    assert app_module.content_db().execute(
+        "SELECT COUNT(*) FROM items"
+    ).fetchone()[0] > 0
+    assert str(config.CONTENT_DB) == str(fixture_data["content"])
+
+
+def test_the_web_app_reads_the_redirected_content(fixture_data):
+    """The endpoint that caught it: read-aloud sentences come from the corpus,
+    and returned an empty list in CI while passing locally."""
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from eesti.app import app
+
+    items = TestClient(app).get("/api/speaking/readaloud?kind=lause&n=3").json()
+    assert items["items"], "read-aloud found no sentences in the fixture corpus"
