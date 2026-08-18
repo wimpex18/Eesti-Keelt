@@ -55,6 +55,49 @@ produces every form involved.
 
 ## Part 2 — What the research says (the parts I did not know)
 
+### The priority order was one person's, and now it does not have to be
+
+Every weighting in this project came from a single error log. EVKK — Tallinn
+University's corpus of learner Estonian, annotated by linguists — publishes
+corpus-wide counts for its error taxonomy, and `eesti/harvest/evkk.py` now reads
+them. **51 467 annotated errors**, ranked into our nine tags:
+
+| Tag | Marks | Share |
+|---|---:|---:|
+| `vocab` | 12 437 | 24.2 % |
+| **`word-order`** | **5 889** | **11.4 %** |
+| **`rektsioon`** | **5 170** | **10.0 %** |
+| `verb-form` | 2 382 | 4.6 % |
+| `gen-stem` | 1 566 | 3.0 % |
+| `ma-da-inf` | 1 152 | 2.2 % |
+| `loc-case` | 833 | 1.6 % |
+| **`obj-case`** | **653** | **1.3 %** |
+| `gradation` | 434 | 0.8 % |
+| *(unmapped)* | 20 951 | 40.7 % |
+
+Object case — the thing this app was built around — is **1.3 %** of annotated
+learner errors. The two largest are word order and verb rection: the first has a
+tag and no model behind it, the second has a tag, no drills, and (since `sonapi`
+was wired) all the data it needs.
+
+**This does not demote the error log.** The log is evidence about *this* learner,
+gathered by the person who has to sit the exam, and it stays the first weight —
+a corpus average is the wrong thing to study if your own mistakes are elsewhere.
+What it does is remove the assumption that one ranking generalises, which is what
+was quietly driving topic order.
+
+Two honest caveats. These are **annotation** frequencies: a parent category
+absorbs marks a finer child would have taken (`põhikäänded` alone carries 1 331),
+and 40.7 % falls outside our nine tags entirely, mostly spelling and text-level
+categories we do not model. And the corpus leans on exam essays, where word order
+and register errors are more visible than in speech. Read the ordering, not the
+numbers.
+
+**Consequence for Part 4:** step 2's generator order changes. `rektsioon` moves
+to the front — it is the second-largest real error class and the data is already
+on hand — and word order becomes a topic that needs modelling rather than a tag
+that exists.
+
 ### Blocked first, then interleaved — not one or the other
 
 The strongest and most actionable finding. Interleaved practice (mixing rules)
@@ -146,10 +189,16 @@ reference, prerequisites, and which generator produces its drills. Ship the
 A1 set first. **No UI. This is the spine everything else hangs on.**
 
 ### 2. Generators for the big topics
-Extend the drill generator to cover, in order of exam weight: noun declension
-(all 14 cases), the four past tenses, imperative and conditional, ma-/da-
-infinitive, comparison, numerals, question words. Vabamorf already produces
-every form; this is templates plus explanations.
+Extend the drill generator, in an order the corpus evidence now sets rather than
+guesswork: **rektsioon** (largest real error class with drillable data, straight
+from `sonapi`), noun declension (all 14 cases), the four past tenses, ma-/da-
+infinitive, imperative and conditional, comparison, numerals, question words.
+Vabamorf already produces every form; this is templates plus explanations.
+
+Two inputs, not one. Templates give controlled contrasts; **cloze deletion over
+the 349 harvested Selges keeles texts** gives authentic sentences whose answers
+are correct because a native wrote them (see `roadmap.md`). Prefer the corpus
+where it has the pattern; fall back to templates where it does not.
 
 ### 3. Mastery and progress
 Per-topic state: attempts, rolling accuracy, `mastered_at`. Gate advancement on

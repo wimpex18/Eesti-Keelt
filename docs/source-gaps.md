@@ -83,26 +83,33 @@ Used: `inflection_et`, `grammar_et`. Unused and relevant:
 
 ## Overlooked — never investigated at all
 
-### 6. EVKK, the Estonian Interlanguage Corpus ⚠️ **highest value**
+### 6. EVKK, the Estonian Interlanguage Corpus — fixed ✅
 
 Tallinn University's corpus of texts **written by learners of Estonian**, with a
-**linguistic error taxonomy** and error annotation — heading for 500 000 strings
-of error-annotated learner text, licensed **CC-BY-4.0**.
+linguist-maintained error taxonomy. This was the most valuable item in this
+document and the one filed as hardest to reach: ELLE's bulk export endpoint
+500s, so the note said it needed "the web interface or an email to the
+maintainers."
 
-This is the most valuable thing in this document, and it was mentioned early and
-never followed up. Every drill in this app is generated from templates I wrote,
-weighted by *one* learner's error log. EVKK is thousands of learners' actual
-errors, annotated by linguists. It could tell us:
+It needed neither. The corpus is **Plone-served HTML**, not a SPA, and the error
+taxonomy with corpus-wide counts is a **public page** — 202 categories,
+**51 467 annotated errors**, one request. `eesti/harvest/evkk.py` reads it.
 
-- whether object case really is the dominant error at A2–B1, or whether that is
-  an artefact of one person's log;
-- which errors cluster with which, giving a real difficulty ordering;
-- authentic wrong sentences to drill against, instead of ones I invented.
+**The finding contradicts an assumption this app was built on.** Ranked by
+annotation frequency, `obj-case` is 1.3 % of learner errors; the two largest
+classes are **word order (5 889)** and **verb rection (5 170)**. See
+`curriculum-plan.md` for the full table, the caveats, and what changes. In
+short: the personal error log stays the first weight because it is evidence
+about *this* learner, but it is no longer the only weight, and it was quietly
+setting topic order.
 
-**Status:** the corpus is browsable at `evkk.tlu.ee/vers1`, but the ELLE bulk
-export endpoint (`/api/texts/tekstidfailina`) returns **500**, like the rest of
-ELLE's API. So it needs either the web interface or an email to the maintainers.
-Worth doing — this is a research-grade dataset for exactly our problem.
+**What is deliberately not taken.** The corpus search also works — POST to
+`Search/search_results.html`, plain form encoding, no login — and returns
+authentic learner sentences with their errors. Two reasons it stays untouched: a
+single-word query returned **6 MB** from a research server with no rate limiting
+to protect it, and the site publishes **no reuse licence**, so the texts are
+other people's writing with no permission attached. Counts about a published
+taxonomy are facts; the texts are not. Registered owner-only either way.
 
 ### 7. EstLLM — an Estonian-adapted Llama, open weights
 
@@ -147,4 +154,21 @@ And two become explicit investigations rather than footnotes:
 | **D** | Pursue EVKK access | real learner errors beat invented ones |
 | **E** | Test EstLLM | the strongest candidate for the model problem |
 
-None of these block **Step 1 (the topic model)**, which stays next.
+**All five are done.** A–C landed with the ERR reseed, `providers/sonapi.py` and
+`evals/external.py`; D is `harvest/evkk.py`; E is the `huggingface` provider
+entry pointing at `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`.
+
+Only D changed the plan, and it changed it in one place: **step 2's generator
+order** now starts with `rektsioon` rather than noun declension, because the
+corpus says rection is the second-largest real error class and `sonapi` already
+supplies the data. **Step 1 (the topic model) stays next** — unchanged.
+
+## Still open
+
+| Item | State |
+|---|---|
+| HARNO / EIS fetch scripts | registered owner-only, never fetched (§4) |
+| `word_meanings_et`, `exam_et` | on disk via `fetch-bench`, unused (§5) |
+| ERR *Lihtsad uudised* | client-rendered; ERR hosts unreachable from the sandbox |
+| Notion write-back | scoped, not built |
+| Cloudflare deploy | scoped, not built |
