@@ -120,6 +120,29 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_harvest(args: argparse.Namespace) -> int:
+    """Crawl the ERR language-course archives into the content store.
+
+    One-time: the archives are closed, and every page is cached, so a re-run
+    issues no requests. Content is (c) ERR and stored owner-only.
+    """
+    from .harvest.err import harvest, to_items
+    from .sources import add_items, connect, register
+
+    result = harvest(max_pages=args.max_pages)
+    conn = connect(args.db)
+    register(conn)
+    items = to_items(result)
+    add_items(conn, items)
+
+    for series, episodes in result.items():
+        words = sum(e.word_count for e in episodes)
+        audio = sum(1 for e in episodes if e.audio_url)
+        print(f"  {series}: {len(episodes)} episodes, {words:,} words, {audio} with audio")
+    print(f"\nstored {len(items)} items in {args.db} (owner-only, (c) ERR)")
+    return 0
+
+
 def cmd_fetch_bench(args: argparse.Namespace) -> int:
     """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026)."""
     from .evals.fetch import fetch_all
@@ -217,6 +240,11 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("export", help="build the edge dataset for Cloudflare D1")
     p.add_argument("--max-freq-rank", type=int, default=25_000)
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("harvest", help="crawl ERR language archives (one time)")
+    p.add_argument("--max-pages", type=int, default=300)
+    p.add_argument("--db", default="data/content.db")
+    p.set_defaults(func=cmd_harvest)
 
     p = sub.add_parser("fetch-bench", help="download the Estonian benchmark datasets")
     p.set_defaults(func=cmd_fetch_bench)

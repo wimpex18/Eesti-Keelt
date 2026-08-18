@@ -11,6 +11,7 @@ built. Kept honest: "verified" means called and observed, not read about.
 |---|---|---|
 | **Vabamorf / EstNLTK** | all forms, case detection, drill answers | **98.1 % agreement** with TalTech gold data; 98 % on genitive and partitive |
 | **Enriched Ekilex wordlist** (CC-BY-SA-4.0) | CEFR level + frequency, 160 316 lemmas | counts match source exactly (A1 685 / A2 997 / B1 2 509) |
+| **ERR Raadio 4** | transcript **+** audio, one artefact per episode | **28 episodes, 27 087 words, all 28 with audio**, harvested and stored owner-only |
 | **TalTechNLP/inflection_et** | validates Vabamorf | 1 400 rows fetched; `cli validate` |
 | **TalTechNLP/grammar_et** | GEC benchmark | 1 000 error/correct pairs fetched |
 | **TartuNLP TTS** | any text → listening practice | 310 KB WAV in 2.0 s, 14 voices, cached |
@@ -24,7 +25,7 @@ built. Kept honest: "verified" means called and observed, not read about.
 | **`api.sonapi.ee`** | muuttüüp (inflection type) + **`rection`** — the `rektsioon` tag directly — plus definitions and examples | verified 200; registered in `sources.py`; single-lookup only |
 | **HARNO exam material** | the best exam material that exists: per-task PDFs for every skill + listening MP3s, consultation workbooks re-uploaded 2026-01 | registered **owner-only**; fetch script pending |
 | **EIS `publicitems`** | official A2–C1 reading/listening tasks with feedback, no login | verified 200, plain HTML form, `aine=R`; harvester pending |
-| **ERR Raadio 4** (~170 episodes) | transcript **+** audio in one page; two episodes cover exactly the obj-case contrast | episode 28 verified (~2 500-word transcript); harvester pending |
+
 | **ERR Lihtsad uudised** | simplified Estonian, audio + text, **weekly and ongoing** | verified live (7 Aug 2026); harvester pending |
 
 ### Rejected, with reasons
@@ -62,18 +63,30 @@ that perfects one part and ignores another can still fail you.
 |---|---|
 | **Kirjutamine** | working — check + Russian explanations + obj-case priority |
 | **Grammatika** | working — generated drills, 3 rules, 7 256 drillable lemmas |
-| **Kuulamine** | partial — TTS on any text works; ERR/HARNO audio not yet harvested |
-| **Lugemine** | not built — needs the ERR + EIS harvesters |
+| **Kuulamine** | partial — TTS on any text; 28 ERR episodes with audio harvested; no player UI yet |
+| **Lugemine** | material ready — 27 087 words of transcript stored; no reader UI yet |
 | **Rääkimine** | not built — and deliberately last (the real task is **paired**) |
 
 ## Next, in order
 
-1. **Harvesters** — ERR (one-time, ~170 episodes), Lihtsad uudised (weekly), EIS
-   task pages. This lights up Lugemine and most of Kuulamine from one build.
-2. **HARNO fetch script** — owner-only, git-ignored, into `sources`.
-3. **Notion write-back** to the existing `Vead` database.
-4. **Verb-form drills** — machinery proven, template work.
-5. **Cloudflare deploy** — Worker + D1 + Pages, behind Access.
+1. **Reader / listener UI** — the material exists; the views do not.
+2. **More harvesters** — Lihtsad uudised (weekly, ongoing), EIS task pages, and
+   seeds for the other two ERR series (`ekeel`, `keelekodi`).
+3. **HARNO fetch script** — owner-only, git-ignored, into `sources`.
+4. **Notion write-back** to the existing `Vead` database.
+5. **Verb-form drills** — machinery proven, template work.
+6. **Cloudflare deploy** — Worker + D1 + Pages, behind Access.
+
+## Harvesting note
+
+ERR's archive index renders its episode list in JavaScript, and a headless
+browser cannot reach the host from a sandboxed session (ERR_CONNECTION_RESET,
+with or without the proxy, while plain curl succeeds). The harvester therefore
+walks the series as a **graph**: every episode page carries an `ld+json` ItemList
+of siblings, so a crawl seeded with one known episode reaches the rest using
+ordinary requests. Episodes are deduplicated by transcript hash, because ERR
+publishes the same episode under several content ids — one series returned
+episode 21 three times at three different ids.
 
 ## Open questions
 
