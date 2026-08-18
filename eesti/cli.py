@@ -120,6 +120,34 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fetch_bench(args: argparse.Namespace) -> int:
+    """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026)."""
+    from .evals.fetch import fetch_all
+
+    for name, count in fetch_all().items():
+        print(f"  {name}: {count:,} rows")
+    return 0
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    """Check Vabamorf against native-curated gold forms.
+
+    Everything this app generates inherits Vabamorf's correctness, so this is the
+    check that the foundation is sound.
+    """
+    from .evals.morphology import run
+
+    r = run()
+    print(f"Vabamorf vs inflection_et: {r['match']}/{r['total']} = {r['agreement']:.1%}")
+    for key, (match, total) in r["per_case"].items():
+        print(f"  {key:6} {match}/{total} = {match / total:.0%}")
+    if r["misses"]:
+        print("\nsample disagreements (mostly invariant adjectives):")
+        for phrase, key, gold, got in r["misses"][:5]:
+            print(f"  {phrase!r} [{key}] gold={gold} vabamorf={got}")
+    return 0 if r["agreement"] >= 0.95 else 1
+
+
 def cmd_models(args: argparse.Namespace) -> int:
     """List a provider's live catalogue.
 
@@ -189,6 +217,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("export", help="build the edge dataset for Cloudflare D1")
     p.add_argument("--max-freq-rank", type=int, default=25_000)
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("fetch-bench", help="download the Estonian benchmark datasets")
+    p.set_defaults(func=cmd_fetch_bench)
+
+    p = sub.add_parser("validate", help="check Vabamorf against native gold forms")
+    p.set_defaults(func=cmd_validate)
 
     p = sub.add_parser("models", help="list a provider's live model catalogue")
     p.add_argument("--provider", default="openrouter", choices=list(_PROVIDERS))

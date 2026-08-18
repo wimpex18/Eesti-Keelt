@@ -1,22 +1,25 @@
 # Eesti-Keelt
 
 A personal tool for learning Estonian and preparing for the **A2/B1 tasemeeksam**.
-Single user, runs locally, no accounts, no cloud.
+Single user. Runs locally for development; deploys to Cloudflare so it is
+reachable from anywhere, on desktop and phone.
 
 Built around one documented weakness: choosing **partitive (osastav)** where a
 completed, whole object needs **genitive (omastav)** — the only tag past the "3+
 occurrences" threshold in my error log.
 
-## Offline-first, on purpose
+## Dependency-free core
 
-While researching this, four separate research-hosted endpoints (TartuNLP's
-grammar API `/v1` and `/v2`, ELLE's CEFR predictor and corrector) were all
-returning HTTP 500, while every dataset and static asset worked fine. That is the
-normal state of grant-funded infrastructure, not an outage.
+Not "offline" in the sense of your connection — in the sense of *theirs*. While
+researching this, four separate research-hosted endpoints (TartuNLP's grammar API
+`/v1` and `/v2`, ELLE's CEFR predictor and corrector) were all returning HTTP 500
+while every dataset and static asset worked fine. That is the normal state of
+grant-funded infrastructure, not an outage.
 
-So the core loop — vocabulary, morphology, drills, grading — **needs no network at
-all**. Online services are optional enrichment behind a provider chain with short
-timeouts and a circuit breaker, and the UI always shows which engine answered.
+So vocabulary, morphology, drill generation and grading depend on **no third-party
+service at all**. They read from data this project owns. Online services are
+optional enrichment behind a provider chain with short timeouts and a circuit
+breaker, and the UI always shows which engine answered.
 
 ## Quick start
 
@@ -81,16 +84,38 @@ the clear majority — **1,741 of 2,533 indexed A1–B1 nouns (69 %)**. The rema
 31 % where the two coincide (`kino`→kino/kino, `kets`→ketsi/ketsi) are excluded
 because there is no wrong answer to give, so such an item would measure nothing.
 
+## Is the foundation actually correct?
+
+Every drill answer, every case label and the whole exported dataset inherit
+Vabamorf's correctness, so that inheritance is checked against data this project
+did not write — `TalTechNLP/inflection_et` from the **Estonian Native LLM
+Benchmark** (LREC 2026), 1 400 noun phrases built from native Estonian sources
+with their correct form per case.
+
+```bash
+.venv/bin/python -m eesti.cli fetch-bench
+.venv/bin/python -m eesti.cli validate
+```
+
+**98.1 % agreement overall, 98 % on both genitive and partitive** — the two cases
+the entire app rests on. The disagreements are a narrow, real class: invariant
+adjectives. In `täis pudel` ("a full bottle") the modifier does not decline, so
+the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
+
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m pytest tests/ -q     # 33 passed
 ```
 
-The suite is the regression gate for the one thing that matters: it checks planted
-errors are caught **and** that sentences without objects produce no candidates.
-A checker that flagged every partitive would pass the first half while teaching
-exactly the wrong rule. Runs fully offline.
+Three gates:
+
+1. **Planted errors are caught** — the obj-case regression set.
+2. **Correct sentences are left alone.** A checker that flagged every partitive
+   would pass gate 1 while teaching exactly the wrong rule, so sentences with no
+   object at all must produce no candidates.
+3. **Owner-only material cannot leak.** A public query must never return an item
+   from a source that is not redistributable.
 
 ## Deliberately not built
 
@@ -100,11 +125,27 @@ exactly the wrong rule. Runs fully offline.
 - **A dictionary / flashcard app** — Sõnaveeb, Sõnastik and Anki do it better.
 - **A notes system** — Notion stays the system of record.
 
-## Not in this repo
+## Licensing is a column, not a convention
 
-Exam material from [harno.ee](https://harno.ee/eesti-keele-tasemeeksamid) (task
-PDFs and listening MP3s) is HARNO copyright. Fine for personal study, not for
-redistribution — `data/exam/` is git-ignored. Fetch it yourself.
+The app draws on sources with very different terms, so `licence` and
+`redistributable` are columns in the `sources` table rather than a note in a
+README. Once the app is on a public URL, "may this be served to an anonymous
+visitor?" is a question every item must be able to answer.
+
+| Source | May be served publicly |
+|---|---|
+| Enriched Ekilex wordlist (CC-BY-SA-4.0) | yes |
+| Generated drills, TartuNLP TTS, sonapi | yes |
+| **HARNO exam material** | **owner only** |
+| **EIS public tasks, ERR transcripts** | **owner only** |
+
+**Yes, HARNO material can be used** — downloading the official sample tasks and
+listening MP3s to study from is ordinary personal use, and it is the best exam
+material that exists. Serving it from a public URL is redistribution of a state
+agency's copyrighted work. The same file is fine in one place and not the other,
+which is why access control is data-driven and why **Cloudflare Access is not
+optional** — it is what keeps the private half private. `data/exam/` stays
+git-ignored; fetch it yourself.
 
 ## Docs
 
