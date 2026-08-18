@@ -215,21 +215,45 @@ def run(
                 got = [c.get("wrong") for c in result["corrections"]]
                 failures.append((case.sentence, f"false flag {got} ({case.note})"))
 
-    recall = caught / len(errors) if errors else 0.0
-    precision = 1 - (false_flags / len(clean)) if clean else 0.0
+    # A case that never reached the model is not evidence about the model.
+    # An earlier run had all 18 cases fail with HTTP 429 and still reported
+    # precision 1.0 — nothing was flagged, because nothing was asked — which
+    # reads as a perfect score. Scores are computed over answered cases only,
+    # and a run with too few answers reports no score at all.
+    answered_errors = len(errors) - sum(
+        1 for c in errors if any(c.sentence == s and "ERROR" in w for s, w in failures)
+    )
+    answered_clean = len(clean) - sum(
+        1 for c in clean if any(c.sentence == s and "ERROR" in w for s, w in failures)
+    )
+
+    usable = broken < len(cases) * 0.25
+    recall = (caught / answered_errors) if (usable and answered_errors) else None
+    precision = (
+        1 - (false_flags / answered_clean) if (usable and answered_clean) else None
+    )
+
     score = {
         "provider": provider,
         "model": model or "default",
         "evidence": evidence,
-        "recall": round(recall, 3),
-        "precision": round(precision, 3),
-        "caught": f"{caught}/{len(errors)}",
-        "left_alone": f"{len(clean) - false_flags}/{len(clean)}",
+        "recall": round(recall, 3) if recall is not None else None,
+        "precision": round(precision, 3) if precision is not None else None,
+        "caught": f"{caught}/{answered_errors}",
+        "left_alone": f"{answered_clean - false_flags}/{answered_clean}",
         "broken": broken,
+        "valid": usable,
         "failures": failures,
     }
+    if not usable:
+        score["invalid_reason"] = (
+            f"{broken}/{len(cases)} cases never reached the model "
+            "(rate limit, timeout or unparseable reply) — no score reported"
+        )
     if verbose:
         print(json.dumps({k: v for k, v in score.items() if k != "failures"}, indent=2))
         for sentence, why in failures:
             print(f"  ✗ {sentence}\n      {why}")
+        if not usable:
+            print(f"\n!! {score['invalid_reason']}")
     return score

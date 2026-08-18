@@ -95,3 +95,40 @@ class TestSourceLicensing:
 
     def test_every_registered_source_declares_a_licence(self):
         assert all(s.licence.strip() for s in REGISTRY)
+
+
+class TestEvalScoreValidity:
+    """A run that never reached the model must not report a score.
+
+    A real run had all 18 cases fail with HTTP 429 and reported precision 1.0 —
+    nothing was flagged because nothing was asked, which reads as perfect. That
+    is the same class of bug as a green CI check that ran no checks.
+    """
+
+    def _run_with(self, monkeypatch, side_effect):
+        import eesti.evals.gec as gec
+
+        monkeypatch.setattr(gec, "complete", side_effect)
+        return gec.run("openrouter", verbose=False)
+
+    def test_all_calls_failing_reports_no_score(self, monkeypatch):
+        def rate_limited(*_a, **_k):
+            raise RuntimeError("HTTP Error 429: Too Many Requests")
+
+        result = self._run_with(monkeypatch, rate_limited)
+        assert result["valid"] is False
+        assert result["recall"] is None and result["precision"] is None
+        assert "never reached the model" in result["invalid_reason"]
+
+    def test_a_silent_model_scores_zero_recall_not_perfect_precision(self, monkeypatch):
+        """Answering "no errors" to everything is a real, measurable failure.
+
+        This must be scored — unlike an unreachable model — because a model that
+        never flags anything is exactly the useless-but-safe behaviour the eval
+        exists to catch.
+        """
+        result = self._run_with(monkeypatch, lambda *_a, **_k: '{"corrections":[]}')
+        assert result["valid"] is True
+        assert result["recall"] == 0.0
+        assert result["precision"] == 1.0
+        assert result["broken"] == 0

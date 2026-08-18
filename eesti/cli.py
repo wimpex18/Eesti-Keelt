@@ -242,6 +242,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
     from .evals.gec import run
 
     result = run(args.provider, model=args.model, evidence=args.evidence)
+    # An unmeasurable run must not pass. Exit 2 distinguishes "could not
+    # measure" from "measured and the model is not good enough" (exit 1).
+    if not result["valid"]:
+        return 2
     return 0 if result["recall"] >= 0.8 and result["precision"] >= 0.8 else 1
 
 
