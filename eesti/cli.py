@@ -18,7 +18,7 @@ from .config import DB_PATH, LEVELS, RAW
 
 # Named here rather than imported at module load so the CLI stays importable
 # without the provider dependencies installed.
-_PROVIDERS = ("openrouter", "groq", "workers-ai", "anthropic")
+_PROVIDERS = ("openrouter", "groq", "workers-ai", "huggingface", "anthropic")
 
 WORDLIST_BASE = (
     "https://raw.githubusercontent.com/KristjanPikhof/"
@@ -245,7 +245,23 @@ def cmd_models(args: argparse.Namespace) -> int:
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
-    """Score a model on Estonian grammar. Recall AND precision — see evals/gec.py."""
+    """Score a model on Estonian grammar.
+
+    Two tracks. The default is the hand-written set: 18 sentences aimed at this
+    learner's documented errors, half already correct so precision is real.
+    `--track external` uses TalTech's grammar_et instead — 1000 real pairs the
+    model has never seen, 88% of their vocabulary at A1-B1.
+    """
+    if args.track == "external":
+        from .evals.external import run as run_external
+
+        result = run_external(
+            args.provider, model=args.model, sample=args.sample, seed=args.seed
+        )
+        if not result["valid"]:
+            return 2
+        return 0 if (result["accuracy"] or 0) >= 0.5 else 1
+
     from .evals.gec import run
 
     result = run(args.provider, model=args.model, evidence=args.evidence)
@@ -328,6 +344,12 @@ def main(argv: list[str] | None = None) -> int:
         "--evidence", action="store_true",
         help="attach Vabamorf's case analysis, as the real app does",
     )
+    p.add_argument(
+        "--track", choices=("hand", "external"), default="hand",
+        help="hand = 18 targeted sentences; external = TalTech grammar_et",
+    )
+    p.add_argument("--sample", type=int, default=30, help="external track only")
+    p.add_argument("--seed", type=int, default=0)
     p.set_defaults(func=cmd_eval)
 
     p = sub.add_parser("serve", help="run the local web app")
