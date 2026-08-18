@@ -59,8 +59,16 @@ grammar terms (`osastav`, `omastav`) so the exam vocabulary sticks.
 | `negation` | partitive, no exceptions | *Ma ei ostnud **piletit**.* |
 | `completed` | genitive | *Ma leidsin **rahakoti** üles.* |
 | `ongoing` | partitive | *Ta luges **aruannet** tund aega.* |
+| `verb-form` | irregular stem | *Ma **lähen** kooli* — not *minen* |
 
 Grading is deterministic — no model involved, so it is right every time and free.
+
+The verb drills exploit a useful property: **the form a learner builds by naive
+rule is the mistake they actually make.** Estonian cites verbs as `minema`, and
+stripping `-ma` for "I go" gives `minen`; the real form is `lähen`. So the naive
+form is not an invented distractor — it is the error, and it appears verbatim in
+my own log. Only the 507 forms (across 129 A1–B1 verbs) where naive and actual
+differ are drilled.
 
 **Lugemine** — 349 simplified Estonian texts (~23 000 words, 100 % Estonian),
 sorted into three difficulty bands. Click any word for its lemma, case and CEFR

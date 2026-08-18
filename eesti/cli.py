@@ -67,10 +67,17 @@ def cmd_drill(args: argparse.Namespace) -> int:
     from .drills import generate
     from .wordlist import connect
 
-    drills = generate(
-        connect(), count=args.count, levels=tuple(args.levels),
-        rules=tuple(args.rules) if args.rules else None, seed=args.seed,
-    )
+    if args.rules == ["verb-form"]:
+        from .drills import generate_verb_drills
+
+        drills = generate_verb_drills(
+            connect(), count=args.count, levels=tuple(args.levels), seed=args.seed
+        )
+    else:
+        drills = generate(
+            connect(), count=args.count, levels=tuple(args.levels),
+            rules=tuple(args.rules) if args.rules else None, seed=args.seed,
+        )
     right = 0
     for i, d in enumerate(drills, 1):
         print(f"\n[{i}/{len(drills)}]  {d.prompt}")
@@ -270,7 +277,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("drill", help="practise object case")
     p.add_argument("-n", "--count", type=int, default=10)
     p.add_argument("--levels", nargs="+", default=list(LEVELS))
-    p.add_argument("--rules", nargs="+", help="completed | ongoing | negation")
+    p.add_argument(
+        "--rules", nargs="+",
+        help="completed | ongoing | negation | verb-form",
+    )
     p.add_argument("--seed", type=int)
     p.set_defaults(func=cmd_drill)
 
