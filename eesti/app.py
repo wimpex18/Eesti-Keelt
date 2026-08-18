@@ -16,7 +16,7 @@ from .drills import TEMPLATES, generate, generate_verb_drills
 from .lookup import annotate, lookup
 from .providers import grammar
 from .providers import tts
-from . import review
+from . import mining, review
 from .sources import connect as content_connect
 from .sources import query as content_query
 from .wordlist import connect
@@ -212,6 +212,42 @@ def review_grade(req: ReviewGrade) -> dict:
         raise HTTPException(status_code=404, detail="unknown item") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class MineRequest(BaseModel):
+    word: str
+    context: str | None = None
+
+
+class DrillFailed(BaseModel):
+    lemma: str
+    prompt: str
+    answer: str
+    rule: str
+    distractor: str | None = None
+    why_ru: str | None = None
+
+
+@app.post("/api/mine")
+def mine(req: MineRequest) -> dict:
+    """Queue the grammar pattern behind a word met while reading.
+
+    Refusals carry a reason, so the reader can explain why a word was not added
+    rather than appearing to do nothing.
+    """
+    result = mining.from_reading(review_db(), req.word, context=req.context)
+    return {"queued": result.queued, "reason": result.reason,
+            "id": result.item_id, "kind": result.kind}
+
+
+@app.post("/api/review/failed")
+def review_failed(req: DrillFailed) -> dict:
+    """Record a drill answered wrong: queue it and mark it missed in one step."""
+    result = mining.from_failed_drill(
+        review_db(), lemma=req.lemma, prompt=req.prompt, answer=req.answer,
+        distractor=req.distractor, rule=req.rule, why_ru=req.why_ru,
+    )
+    return {"queued": result.queued, "id": result.item_id}
 
 
 @app.get("/api/review/stats")

@@ -42,18 +42,21 @@ deterministic and the error history already exists.
   retrievability per item; needs 20–30 % fewer reviews than SM-2 for the same
   retention. Re-adding an item keeps its schedule, so meeting a word again does
   not wipe the memory model built for it.
+- **The loop is closed** (`eesti/mining.py`). A drill answered wrong enqueues
+  itself *already marked missed*, so FSRS schedules it soon rather than treating
+  it as fresh. Clicking a word in the reader queues the **grammar pattern**
+  behind it with the sentence as context — LingQ's move, but producing an
+  object-case card rather than a translation.
+
+  Words with nothing to teach are **refused with a reason**: `kino` has an
+  identical genitive and partitive, so there is no contrast to drill, and a card
+  that cannot be got wrong wastes the scarcest resource in spaced repetition.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
   TTS, ERR episode audio.
 
 ## Next, in order
 
-1. **Close the loop: failed drill → review queue.** The scheduler exists but
-   nothing feeds it automatically yet. A drill answered wrong should enqueue
-   itself; that alone turns practice into a system.
-2. **Click-to-mine from the reader.** LingQ's move, with the twist above: clicking
-   an unknown word in a text queues the *grammar* drill for it, carrying the
-   sentence as context.
-3. **Known-word tracking.** The reader already computes coverage per text; record
+1. **Known-word tracking.** The reader already computes coverage per text; record
    which words have actually been met, and order the library by what is
    comprehensible *now* rather than by a static difficulty band.
 4. **Notion write-back** to the existing `Vead` database, so confirmed errors

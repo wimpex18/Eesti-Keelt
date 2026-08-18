@@ -100,6 +100,7 @@
   <nav role="tablist">
     <button role="tab" aria-selected="true"  data-tab="write">Kirjutamine</button>
     <button role="tab" aria-selected="false" data-tab="drill">Harjutused</button>
+    <button role="tab" aria-selected="false" data-tab="review">Kordamine <span id="dueBadge" class="badge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="read">Lugemine</button>
     <button role="tab" aria-selected="false" data-tab="listen">Kuulamine</button>
   </nav>
@@ -138,6 +139,18 @@
     </div>
     <div id="drillOut"></div>
     <div class="score" id="score"></div>
+  </section>
+
+  <!-- ── Review (spaced repetition) ────────────────────────────────── -->
+  <section class="panel" id="tab-review" hidden>
+    <p class="hint" style="margin-top:0">
+      Vead ja loetud sõnad tulevad siia. Ajastus: FSRS — mida raskem, seda tihedamini.
+    </p>
+    <div class="row" style="margin-top:0">
+      <button class="go" id="loadReview">Alusta kordamist</button>
+      <span class="hint" id="reviewStats"></span>
+    </div>
+    <div id="reviewOut"></div>
   </section>
 
   <!-- ── Reading ───────────────────────────────────────────────────── -->
@@ -192,12 +205,16 @@
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => (s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-// The Russian explanations use **bold** for the grammar term being taught.
-const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+// Explanations use **bold** for the grammar term and *italic* for the Estonian
+// form being cited. Bold must be replaced first, or its inner asterisks get
+// consumed by the italic rule and the markup comes out mangled.
+const md = s => esc(s)
+  .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+  .replace(/\*(.+?)\*/g, "<em>$1</em>");
 
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
-  ["write","drill","read","listen"].forEach(t => $("#tab-" + t).hidden = (t !== b.dataset.tab));
+  ["write","drill","review","read","listen"].forEach(t => $("#tab-" + t).hidden = (t !== b.dataset.tab));
 });
 
 async function api(path, body) {
@@ -301,6 +318,54 @@ function renderDrill(d, i) {
   return el;
 }
 
+// ── review ──────────────────────────────────────────────────────────
+async function refreshDueBadge() {
+  try {
+    const s = await (await fetch("/api/review/stats")).json();
+    const b = $("#dueBadge");
+    b.hidden = !s.due; b.textContent = s.due || "";
+    $("#reviewStats").textContent =
+      `${s.due} kordamiseks · ${s.total} kokku`;
+  } catch {}
+}
+refreshDueBadge();
+
+$("#loadReview").onclick = async () => {
+  const out = $("#reviewOut"); out.innerHTML = "";
+  const {items} = await (await fetch("/api/review?limit=20")).json();
+  if (!items.length) {
+    out.innerHTML = `<p class="empty">Praegu pole midagi korrata. Tee harjutusi või loe tekste.</p>`;
+    return;
+  }
+  for (const it of items) out.appendChild(renderReview(it));
+};
+
+function renderReview(it) {
+  const el = document.createElement("div");
+  el.className = "drill";
+  el.innerHTML = `
+    <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    ${it.context ? `<div class="rev-ctx">${esc(it.context)}</div>` : ""}
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" data-r="again">Ei mäleta</button>
+      <button class="ghost" data-r="hard">Raske</button>
+      <button class="go" data-r="good">Teadsin</button>
+      <span class="hint">${esc(it.lemma)}${it.lapses ? ` · ${it.lapses}× eksinud` : ""}</span>
+    </div>
+    <div class="verdict"></div>`;
+  const verdict = el.querySelector(".verdict");
+  el.querySelectorAll("button[data-r]").forEach(b => b.onclick = async () => {
+    el.querySelectorAll("button[data-r]").forEach(x => x.disabled = true);
+    const r = await (await api("/api/review/grade", {id: it.id, rating: b.dataset.r})).json();
+    verdict.className = "verdict ok";
+    verdict.innerHTML = `<strong>${esc(it.answer)}</strong> — järgmine kord
+      ${r.interval_days < 1 ? "täna" : `${Math.round(r.interval_days)} päeva pärast`}
+      ${it.why_ru ? `<br><span class="why">${md(it.why_ru)}</span>` : ""}`;
+    refreshDueBadge();
+  });
+  return el;
+}
+
 // ── reading ─────────────────────────────────────────────────────────
 async function loadLibrary() {
   const level = $("#readLevel").value;
@@ -351,16 +416,33 @@ async function openItem(id) {
 
 $("#readerBody").addEventListener("click", async e => {
   if (e.target.tagName !== "W") return;
+  const word = e.target.textContent;
   const card = $("#wordCard");
   card.hidden = false;
   card.innerHTML = `<span class="hint">…</span>`;
-  const d = await (await fetch("/api/lookup/" + encodeURIComponent(e.target.textContent))).json();
+  const d = await (await fetch("/api/lookup/" + encodeURIComponent(word))).json();
   if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
+  const mineBtn = `<div class="row" style="margin-top:9px">
+      <button class="ghost" id="mineBtn">+ Kordamisse</button></div>
+    <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
     <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
     <div class="tags">${a.tags.map(t => esc(t.name)).join(" · ")}</div>
     ${a.object_case_contrast ? `<div class="pair">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
-      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>");
+      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>") + mineBtn;
+
+  // Mining the word queues the GRAMMAR pattern behind it, with the sentence as
+  // context — not a translation. Refusals explain themselves.
+  card.querySelector("#mineBtn").onclick = async e => {
+    e.target.disabled = true;
+    const sentence = ($("#readerBody").textContent.match(
+      new RegExp("[^.!?]*" + word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.!?]*[.!?]")) || [])[0];
+    const r = await (await api("/api/mine", {word, context: sentence ? sentence.trim() : null})).json();
+    const note = card.querySelector("#mineNote");
+    note.className = "mine-note" + (r.queued ? "" : " no");
+    note.textContent = r.reason;
+    if (r.queued) refreshDueBadge();
+  };
 });
 
 // ── listening ───────────────────────────────────────────────────────
