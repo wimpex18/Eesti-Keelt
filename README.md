@@ -183,7 +183,11 @@ git-ignored; fetch it yourself.
 
 ## Docs
 
-**Start here:** [`docs/roadmap.md`](docs/roadmap.md) — what is built, what is
+**Start here:** [`docs/curriculum-plan.md`](docs/curriculum-plan.md) — the
+A1→B1 grammar syllabus, what the research says about practice schedules, and the
+sequenced plan for covering it.
+
+Also: [`docs/roadmap.md`](docs/roadmap.md) — what is built, what is
 next, and what the 2026 competitors do that is worth copying.
 
 - [`docs/setup.md`](docs/setup.md) — which API key, how to get it, where it goes
