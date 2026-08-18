@@ -162,7 +162,7 @@ vocabulary teaches the rule and the words in the same repetition.
 
 | Need | Have | Missing |
 |---|---|---|
-| Grammar topics | **declared: 36; drillable: 7** | 29 generators |
+| Grammar topics | **declared: 36; drillable: 8** | 28 generators |
 | Forms for those topics | **all of them** (411 349, gold-validated) | nothing |
 | Explanations | 8 rules → EKK handbook, verified | ~17 more mappings |
 | Blocked practice | drill generator with rule filter | mastery gate |
@@ -222,10 +222,42 @@ the 349 harvested Selges keeles texts** gives authentic sentences whose answers
 are correct because a native wrote them (see `roadmap.md`). Prefer the corpus
 where it has the pattern; fall back to templates where it does not.
 
+**`rektsioon` is built** — `eesti/rection.py`, `cli cloze --rule rection`.
+The source is not a dictionary dump: **EKK SÜ 64 is titled "Rektsioone, milles
+sageli eksitakse"** — *rections that are often got wrong* — and it tabulates
+headword, correct case frame, and the wrong one, starred. An authority's own
+error list, one page, fetched once. So the distractor is a documented error
+rather than a decoy, the same standard the verb-stem drills hold to.
+
+`providers/sonapi.py` could supply rections in bulk and deliberately does not:
+its own docstring says single lookups only, because Sõnaveeb asks not to be
+batch-requested, and reinterpreting that rule the moment it became convenient
+is how such a rule dies. It stays interactive, enriching a word the learner is
+looking at.
+
+62 entries; 23 survive as unambiguous contrasts; **6 are A1–B1** (17 including
+B2, available with `--levels`). Small, and honestly so — the refusals are the
+point:
+
+- *`sarnane mille/millega (*millele)`* — **two correct frames**, so a drill
+  accepting one marks the other wrong. Dropped.
+- *`kindel milles (*millele) kellele ~ kelle peale`* — stars the allative for
+  things, then licenses it for people. A contradiction, not a contrast. Dropped.
+- *`algama millal`*, *`kohustus kelle vastu`* — real rules, but not case
+  contrasts. Dropped rather than forced into a case slot.
+
+**These are generated from a frame, not from the corpus**, which inverts the
+choice made for case forms — for a reason worth recording. A corpus is
+authoritative about case *forms*, because morphology is not something a
+journalist gets wrong. It is **not** authoritative about case *choice*: searching
+the 2 073 harvested sentences for these verbs returned three hits, and one was
+*"süsteem põhineb kaartidele"* — the exact error EKK stars under `põhinema`, in
+published simplified news. Mining it would have taught the mistake as the answer.
+
 **The corpus half is built** — `eesti/cloze.py`, `python -m eesti.cli cloze`.
 2 073 usable sentences yield **1 138 case items and 28 negation items** across
 five topics, so `gen-stem`, `osastav`, `kohakaanded`, `harvad-kaanded` and
-`mitmus` all gained a generator at once. Generators: **2 → 7 of 36**.
+`mitmus` all gained a generator at once. With rection, generators go **2 → 8 of 36**.
 
 The design problem was not extraction, it was **deciding when an authentic
 sentence has one right answer.** Blank the object in *"Ta luges raamatut"* and

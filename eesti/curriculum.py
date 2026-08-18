@@ -164,7 +164,7 @@ _B1: tuple[Topic, ...] = (
     Topic("umbisikuline", "B1", "umbisikuline tegumood", "безличный залог",
           requires=("kesksonad",)),
     Topic("rektsioon", "B1", "rektsioon", "управление глагола",
-          requires=("kohakaanded",), tag="rektsioon",
+          requires=("kohakaanded",), tag="rektsioon", generator="ekk_rection",
           note="Second-largest error class in the learner corpus (10.0 %), and "
                "sonapi already returns the rection of any verb."),
     Topic("sonajark", "B1", "sõnajärg", "порядок слов",

@@ -157,7 +157,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 138 passed
+.venv/bin/python -m pytest tests/ -q     # 153 passed
 ```
 
 Four gates:

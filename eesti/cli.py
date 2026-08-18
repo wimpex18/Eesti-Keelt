@@ -352,7 +352,7 @@ def cmd_cloze(args: argparse.Namespace) -> int:
     """
     import sqlite3
 
-    from .cloze import case_clozes, negation_clozes, sentences
+    from .cloze import case_clozes, negation_clozes, rection_clozes, sentences
     from .wordlist import connect as wordlist_connect
 
     content = sqlite3.connect(args.content_db)
@@ -364,7 +364,17 @@ def cmd_cloze(args: argparse.Namespace) -> int:
 
     words = wordlist_connect()
     topics = tuple(args.topics.split(",")) if args.topics else None
-    if args.rule == "negation":
+    if args.rule == "rection":
+        from .config import CACHE
+        from .rection import at_levels, fetch as fetch_rections
+
+        levels = tuple(args.levels.split(","))
+        pool = at_levels(words, fetch_rections(cache=CACHE / "ekk_su64.html"), levels)
+        if not pool:
+            print(f"no rections at {args.levels} — try --levels A1,A2,B1,B2")
+            return 1
+        items = rection_clozes(pool, words=words, count=args.count, seed=args.seed)
+    elif args.rule == "negation":
         items = negation_clozes(sents, words=words, count=args.count, seed=args.seed)
     else:
         items = case_clozes(
@@ -445,7 +455,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("cloze", help="drill on real harvested sentences")
     p.add_argument("-n", "--count", type=int, default=10)
     p.add_argument("--topics", help="comma-separated curriculum topic ids")
-    p.add_argument("--rule", choices=("case-form", "negation"), default="case-form")
+    p.add_argument("--rule", choices=("case-form", "negation", "rection"),
+                   default="case-form")
+    p.add_argument("--levels", default="A1,A2,B1",
+                   help="rection only: CEFR levels of the governing word")
     p.add_argument("--answers", action="store_true", help="show answers")
     p.add_argument("--seed", type=int)
     p.add_argument("--content-db", default="data/content.db")

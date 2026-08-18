@@ -134,11 +134,12 @@ class Cloze:
     lemma: str
     case: str            # Vabamorf tag, e.g. "sg in"
     case_et: str         # "seesütlev" — the name an examiner uses
-    rule: str            # "case-form" | "negation"
+    rule: str            # "case-form" | "negation" | "rection"
     why_ru: str
     topic: str           # curriculum topic id
     level: str | None
     source_id: str
+    governor: str = ""   # the word whose rection is under test, for rection items
 
     @property
     def hint(self) -> str:
@@ -148,6 +149,10 @@ class Cloze:
         the case and the answer is forced, so nothing is being asserted about
         which case the sentence needed.
         """
+        if self.governor:
+            # For rection the case is the *question*, so naming it would give
+            # the answer away. The governing word is the whole prompt.
+            return f"{self.lemma} — {self.governor}?"
         return f"{self.lemma}, {self.case_et}"
 
     @property
@@ -465,4 +470,105 @@ def negation_clozes(
             )
             seen.add(token.lemma)
             break
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Rection
+# ---------------------------------------------------------------------------
+#
+# These are generated from a frame rather than from the corpus, which inverts
+# the choice made everywhere else in this module — deliberately. A corpus is
+# authoritative about case *forms*, because morphology is not something a
+# journalist gets wrong. It is **not** authoritative about case *choice* after
+# a verb, because that is precisely what people get wrong: searching the 2 073
+# harvested sentences for these verbs returned three hits, and one of them was
+# *"süsteem põhineb kaartidele"* — the exact error EKK stars under `põhinema`,
+# in published simplified news. Mining that sentence would have taught the
+# mistake as the answer.
+
+# Semantically bleached fillers, split only by what the frame itself says: a
+# `keda`/`kelle` frame wants a person, a `mida`/`mille` frame wants a thing.
+# No per-verb pool to maintain — abstract nouns fit all of these verbs.
+_THINGS = ("olukord", "plaan", "otsus", "süsteem", "muudatus", "tulemus", "seadus")
+_PEOPLE = ("klient", "elanik", "õpilane", "töötaja", "naaber")
+
+# Verbs that cannot take a personal subject. Everything else defaults to "Ta",
+# which is the only agreement-free pronoun in the language. Listing five
+# exceptions by hand beats generating "Ta põhineb otsusel".
+_IMPERSONAL = frozenset({"põhinema", "rajanema", "baseeruma", "kaasnema", "vastanduma"})
+
+
+def _finite(lemma: str) -> str | None:
+    """Third person singular present — the tag Vabamorf calls `b`."""
+    forms = synthesize(lemma, "b") or []
+    return forms[0] if forms else None
+
+
+def _in_case(lemma: str, tag: str) -> str | None:
+    """Synthesise and round-trip, the same gate every other item passes."""
+    for candidate in synthesize(lemma, tag) or []:
+        if (lemma, tag) in _readings(candidate):
+            return candidate
+    return None
+
+
+def rection_clozes(
+    rections: list,
+    words: sqlite3.Connection | None = None,
+    count: int = 10,
+    seed: int | None = None,
+) -> list[Cloze]:
+    """Which case does this word govern? The contrast comes from EKK, not from me.
+
+    Both halves are the handbook's: `kohanema` takes *millega*, and EKK stars
+    *millele* as what people write instead. So the distractor is a documented
+    error rather than a plausible-looking decoy — the same standard the verb
+    drills hold themselves to.
+    """
+    rng = random.Random(seed)
+    out: list[Cloze] = []
+    for rection in rng.sample(list(rections), k=len(rections)):
+        if len(out) >= count:
+            break
+        person = rection.correct_frame.startswith(("kelle", "keda"))
+        noun = rng.choice(_PEOPLE if person else _THINGS)
+
+        answer = _in_case(noun, rection.correct_case)
+        wrong = _in_case(noun, rection.wrong_case)
+        if not answer or not wrong or answer == wrong:
+            continue
+
+        head = rection.headword
+        if head.endswith("ma"):
+            verb = _finite(head)
+            if not verb:
+                continue
+            subject = "See" if head in _IMPERSONAL else "Ta"
+            prompt = f"{subject} {verb} {BLANK}."
+        else:
+            prompt = f"See on {BLANK} {head}."
+
+        case_et, case_ru = CASES.get(rection.correct_case, (rection.correct_case, ""))
+        wrong_et = CASES.get(rection.wrong_case, (rection.wrong_case, ""))[0]
+        out.append(
+            Cloze(
+                prompt=prompt,
+                answer=answer,
+                distractor=wrong,
+                lemma=noun,
+                case=rection.correct_case,
+                case_et=case_et,
+                rule="rection",
+                why_ru=(
+                    f"**{head}** требует падежа *{rection.correct_frame}* "
+                    f"({case_et}), а не *{rection.wrong_frame}* ({wrong_et}). "
+                    f"EKK отмечает это как частую ошибку."
+                ),
+                topic="rektsioon",
+                level=_level_of(words, noun),
+                source_id="ekk",
+                governor=head,
+            )
+        )
     return out
