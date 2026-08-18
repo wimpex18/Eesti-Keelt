@@ -105,6 +105,14 @@ Exam material from [harno.ee](https://harno.ee/eesti-keele-tasemeeksamid) (task
 PDFs and listening MP3s) is HARNO copyright. Fine for personal study, not for
 redistribution — `data/exam/` is git-ignored. Fetch it yourself.
 
+## Docs
+
+- [`docs/grammar-scope.md`](docs/grammar-scope.md) — what is drillable beyond
+  nouns, and where Estonian grammar data actually comes from
+- [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM, model
+  options, competitive landscape
+- [`docs/stack-2026.md`](docs/stack-2026.md) — stack and practice decisions
+
 ## Roadmap
 
 Phase 2 (reading + listening) and phase 3 (speaking) are scoped but not built:
