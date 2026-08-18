@@ -10,9 +10,10 @@ from __future__ import annotations
 import pytest
 
 from eesti import progress
-from eesti.progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy, connect,
-                            is_mastered, mark_mastered, mastered, record,
-                            report, resume, unlocked)
+from eesti.progress import (MASTERY_CORRECT, MASTERY_DISTINCT, MASTERY_WINDOW,
+                            accuracy, connect, distinct_recent, is_mastered,
+                            mark_mastered, mastered, record, report, resume,
+                            unlocked)
 
 
 class Item:
@@ -64,6 +65,33 @@ class TestMasteryGate:
         _run(db, "olevik", [0] * MASTERY_WINDOW)
         assert is_mastered(db, "olevik")
         assert accuracy(db, "olevik") == 0.0
+
+    def test_the_same_two_items_cannot_clear_the_gate(self, db):
+        """Ten attempts, eight correct, window full — and nothing demonstrated
+        but short-term memory. `item_key` was stored and never read, which is
+        what made this hole invisible."""
+        for i in range(MASTERY_WINDOW):
+            record(db, Item(topic="olevik", prompt=f"q{i % 2}"), correct=True)
+        assert distinct_recent(db, "olevik") == 2
+        assert not is_mastered(db, "olevik")
+
+    def test_enough_variety_still_masters_normally(self, db):
+        """A real ten-item session produces ten distinct items, so the variety
+        condition costs an honest learner nothing."""
+        _run(db, "olevik", [1] * MASTERY_WINDOW)
+        assert distinct_recent(db, "olevik") == MASTERY_WINDOW
+        assert is_mastered(db, "olevik")
+
+    def test_variety_is_measured_over_the_window_not_all_time(self, db):
+        """Ten varied items long ago do not license ten repeats today."""
+        _run(db, "olevik", [0] * MASTERY_WINDOW)          # q0..q9, all wrong
+        for i in range(MASTERY_WINDOW):
+            record(db, Item(topic="olevik", prompt=f"repeat{i % 2}"), correct=True)
+        assert distinct_recent(db, "olevik") == 2
+        assert not is_mastered(db, "olevik")
+
+    def test_the_distinct_threshold_is_below_the_window(self, db):
+        assert MASTERY_DISTINCT < MASTERY_WINDOW
 
     def test_the_first_mastery_date_is_kept(self, db):
         mark_mastered(db, "olevik", via="placement")

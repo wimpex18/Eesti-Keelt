@@ -9,9 +9,11 @@ says what *has* been, and it is the piece that makes the other steps possible �
 
 The standard shape in course software, and the one the research supports, is
 **n correct out of the last m attempts** rather than "you have seen this page".
-Here that is 8 of the last 10, with the window required to be full: a topic
-answered three times cannot be mastered on a 3/3, because three items is not
-evidence about a paradigm.
+Here that is 8 of the last 10, with two conditions on the window: it must be
+**full**, because a 3/3 is not evidence about a paradigm, and it must cover at
+least **five different items**, because otherwise the same two can be answered
+five times each and clear the gate — ten attempts, eight correct, window full,
+and nothing demonstrated but short-term memory.
 
 Using a *rolling window* rather than lifetime accuracy matters. A learner who got
 their first twenty attempts wrong and their last twenty right has learned the
@@ -46,6 +48,14 @@ from pathlib import Path
 # not demonstrated anything about a paradigm, however clean the three were.
 MASTERY_CORRECT = 8
 MASTERY_WINDOW = 10
+
+# ...and it must contain this many *different* items. Without it the gate can be
+# passed by answering the same two items five times each: ten attempts, eight
+# correct, window full, mastered — having demonstrated nothing about the
+# paradigm and everything about short-term memory. `item_key` was being stored
+# and never read, which is what made the hole invisible. A normal ten-item
+# session produces ten distinct items, so this costs an honest learner nothing.
+MASTERY_DISTINCT = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS attempts (
@@ -127,9 +137,23 @@ def accuracy(conn: sqlite3.Connection, topic: str, window: int = MASTERY_WINDOW)
     return sum(results) / len(results) if results else None
 
 
+def distinct_recent(
+    conn: sqlite3.Connection, topic: str, window: int = MASTERY_WINDOW
+) -> int:
+    """How many different items the last `window` attempts covered."""
+    return conn.execute(
+        "SELECT COUNT(DISTINCT item_key) FROM ("
+        "  SELECT item_key FROM attempts WHERE topic = ? ORDER BY id DESC LIMIT ?"
+        ")",
+        (topic, window),
+    ).fetchone()[0]
+
+
 def _window_passes(conn: sqlite3.Connection, topic: str) -> bool:
     results = recent(conn, topic, MASTERY_WINDOW)
-    return len(results) >= MASTERY_WINDOW and sum(results) >= MASTERY_CORRECT
+    if len(results) < MASTERY_WINDOW or sum(results) < MASTERY_CORRECT:
+        return False
+    return distinct_recent(conn, topic) >= MASTERY_DISTINCT
 
 
 def mark_mastered(conn: sqlite3.Connection, topic: str, via: str = "practice") -> None:

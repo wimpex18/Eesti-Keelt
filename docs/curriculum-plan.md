@@ -366,6 +366,13 @@ Three decisions worth stating, because each has a plausible opposite:
   learner who got their first twenty wrong and their last twenty right has
   learned the topic; a lifetime ratio would say 50 % forever and never let them
   past.
+- **The window must also cover five different items.** Without that the gate
+  can be cleared by answering the same two items five times each: ten attempts,
+  eight correct, window full, mastered — having demonstrated nothing about the
+  paradigm and everything about short-term memory. `item_key` was already being
+  stored and was never read, which is exactly what made the hole invisible. A
+  real ten-item session produces ten distinct items, so this costs an honest
+  learner nothing.
 - **Mastery is never revoked.** A later bad run lowers current accuracy and
   brings items back through FSRS, but it does not clear `mastered_at`.
   Prerequisites unlock the rest of the syllabus, and revoking them would let one
