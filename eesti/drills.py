@@ -30,6 +30,7 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 
 from .config import LEVELS
+from .item import GradedItem
 from .wordlist import object_case_rows
 
 Case = Literal["genitive", "partitive"]
@@ -128,7 +129,7 @@ TEMPLATES: tuple[Template, ...] = (
 
 
 @dataclass(frozen=True)
-class Drill:
+class Drill(GradedItem):
     prompt: str        # sentence with the object blanked out
     answer: str        # the correct inflected form
     distractor: str    # the other case — the mistake being trained against
@@ -137,17 +138,14 @@ class Drill:
     rule: str
     why_ru: str
     level: str | None
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-    def check(self, given: str) -> bool:
-        """Grade an answer. Deterministic — no model, no network."""
-        return given.strip().lower() == self.answer.lower()
+    # These drills predate the curriculum model, so the topic they belong to was
+    # implicit in which function built them. Naming it is what lets the review
+    # handoff and the progress gate treat them like every other generator.
+    topic: str = "obj-case"
 
     @property
-    def solution(self) -> str:
-        return self.prompt.replace("____", self.answer)
+    def label(self) -> str:
+        return self.case if self.rule != "verb-form" else self.rule
 
 
 def generate(
@@ -204,6 +202,7 @@ def generate(
                 rule=tpl.rule,
                 why_ru=tpl.why_ru,
                 level=row["proficiency"],
+                topic="obj-case",
             )
         )
     return drills
@@ -255,6 +254,7 @@ def generate_verb_drills(
             lemma=form.lemma,
             case="genitive",  # unused for verbs; kept so the shape stays uniform
             rule="verb-form",
+            topic="verb-form",
             why_ru=(
                 f"«{form.lemma}» — неправильный глагол: **{form.name}** = "
                 f"*{form.actual}*, а не *{form.naive}*. "

@@ -468,12 +468,14 @@ def cmd_practice(args: argparse.Namespace) -> int:
     Defaults to wherever the learner left off, because the research on paths
     versus trees is consistent: removing the choice improves outcomes.
     """
+    from . import handoff, review
     from .curriculum import by_id
     from .practice import items_for
     from .progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy, connect,
                            is_mastered, record, resume)
 
     progress = connect(args.progress_db)
+    reviews = review.connect(args.review_db)
     topic = args.topic or resume(progress)
     if topic is None:
         print("nothing available to practise — every unlocked topic is mastered.")
@@ -507,6 +509,9 @@ def cmd_practice(args: argparse.Namespace) -> int:
         else:
             print(f"     ✗  {item.answer}   (не *{item.distractor}*)")
             print(f"        {item.why_ru}")
+            # Into the queue already marked missed, so it comes back soon
+            # rather than being scheduled as fresh material.
+            handoff.queue_failed(reviews, item)
 
     acc = accuracy(progress, topic)
     print(f"\n{right}/{len(items)} correct.")
@@ -514,6 +519,10 @@ def cmd_practice(args: argparse.Namespace) -> int:
         print(f"rolling accuracy over the last {MASTERY_WINDOW}: {acc:.0%}")
     if is_mastered(progress, topic):
         print(f"✓ {meta.et} is mastered — it unlocks what depends on it.")
+        seeded = handoff.seed_mastered(reviews, topic, seed=args.seed)
+        if seeded:
+            print(f"  {len(seeded)} item(s) moved into the interleaved review "
+                  "queue — run `review`.")
     else:
         print(f"mastery gate: {MASTERY_CORRECT} of the last {MASTERY_WINDOW}.")
     return 0
@@ -608,6 +617,63 @@ def cmd_test_out(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_review(args: argparse.Namespace) -> int:
+    """Interleaved review: whatever is due, mixed across topics by construction.
+
+    This is the second half of the blocked-then-interleaved schedule. Items
+    arrive here two ways — missed during practice, or seeded when their topic
+    was mastered — and FSRS decides when each comes back.
+    """
+    from . import handoff, review
+    from .progress import connect as progress_connect
+
+    reviews = review.connect(args.review_db)
+    progress = progress_connect(args.progress_db)
+
+    # Catch topics mastered before the handoff existed, or in a session that
+    # ended early, so nothing sits outside the review pool forever.
+    for topic in handoff.pending_handoffs(progress, reviews):
+        added = handoff.seed_mastered(reviews, topic)
+        if added:
+            print(f"  seeded {len(added)} item(s) from mastered topic {topic}")
+
+    items = review.due(reviews, limit=args.count)
+    if not items:
+        info = review.stats(reviews)
+        nxt = reviews.execute(
+            "SELECT MIN(due) FROM review_items"
+        ).fetchone()[0]
+        print(f"nothing due. {info['total']} item(s) in the queue.")
+        if nxt:
+            # Worth saying: an item missed a minute ago is *supposed* to be a
+            # few minutes out, and an empty queue right after practice
+            # otherwise reads as a bug.
+            print(f"next due at {nxt}.")
+        return 0
+
+    right = 0
+    for i, item in enumerate(items, 1):
+        print(f"\n{i}/{len(items)}  [{item.kind}]  {item.prompt}")
+        try:
+            given = input("     > ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nstopped.")
+            break
+        ok = given.strip().casefold() == item.answer.casefold()
+        right += ok
+        result = review.grade(reviews, item.id, "good" if ok else "again")
+        if ok:
+            print(f"     ✓  next in {result['interval_days']} day(s)")
+        else:
+            print(f"     ✗  {item.answer}")
+            if item.why_ru:
+                print(f"        {item.why_ru}")
+
+    print(f"\n{right}/{len(items)} correct.")
+    print(f"{review.stats(reviews)['due']} still due.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -694,6 +760,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-n", "--count", type=int, default=10)
     p.add_argument("--seed", type=int)
     p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--review-db", default="data/review.db")
     p.set_defaults(func=cmd_practice)
 
     p = sub.add_parser("progress", help="where you stand on every topic")
@@ -711,6 +778,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--seed", type=int)
     p.add_argument("--progress-db", default="data/progress.db")
     p.set_defaults(func=cmd_test_out)
+
+    p = sub.add_parser("review", help="interleaved review of whatever is due")
+    p.add_argument("-n", "--count", type=int, default=20)
+    p.add_argument("--review-db", default="data/review.db")
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.set_defaults(func=cmd_review)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

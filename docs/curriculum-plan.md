@@ -416,9 +416,31 @@ start, so a topic the learner knows on a *parallel* branch may never be probed �
 before reaching it. That is the right trade for a placement, and `test-out
 --topic X` covers the rest, one topic at a time, whenever they want.
 
-### 5. Blocked → interleaved handoff
-On mastery, a topic's items enter the FSRS queue. Practice becomes review
-automatically, and the research-backed schedule falls out of the existing parts.
+### 5. Blocked → interleaved handoff — done ✅
+`eesti/handoff.py`, plus `cli review`. `progress.py` decided when a topic was
+learned and `review.py` decided when it needed seeing again, and nothing
+connected them; this is the arrow.
+
+**Two arrows, in fact.** On failure, an item enters the queue *already graded
+wrong*, so FSRS schedules it soon rather than as fresh material — `mining.py`
+did this for object-case and verb-form drills, and it now works for all six
+generators. On mastery, a **sample** of the topic's items joins the queue, not
+all of them: a topic can generate hundreds, and a queue that spikes every time
+something is passed is one the learner stops opening.
+
+Interleaving is not implemented anywhere. It falls out of a due queue that mixes
+whatever is ready across topics — which is the point of building the pieces in
+this order.
+
+`pending_handoffs` exists because the handoff can be missed: a topic mastered
+before this module existed, or in a session that ended early, would otherwise
+sit outside the review pool forever. `cli review` sweeps for those first.
+
+**And it exposed a seam.** `drills.Drill` — the object-case and verb-form
+generators, the two the app started with — predated the curriculum model and
+carried no `topic`, so the handoff crashed on exactly the two topics that matter
+most. Both now declare their topic and share `item.py`'s interface with everyone
+else.
 
 ### 6. Thematic lessons (grammar × vocabulary)
 Tag vocabulary by theme; a lesson pairs a grammar rule with a themed word set.
