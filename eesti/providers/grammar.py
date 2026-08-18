@@ -251,8 +251,9 @@ class VabamorfFallback:
             degraded=True,
             note=(
                 "Офлайн-режим: показаны кандидаты на obj-case и опечатки, "
-                "но без проверки правильности. Нужен ANTHROPIC_API_KEY "
-                "для полноценного разбора."
+                "но без проверки правильности. Для полного разбора задай ключ "
+                "любого провайдера: OPENROUTER_API_KEY, GROQ_API_KEY, "
+                "CLOUDFLARE_API_TOKEN или ANTHROPIC_API_KEY."
             ),
         )
 
