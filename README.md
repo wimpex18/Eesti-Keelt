@@ -197,6 +197,8 @@ next, and what the 2026 competitors do that is worth copying.
   when Vabamorf cannot run there, plus stack and practice decisions
 - [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
   from research, against what is actually built
+- [`docs/source-gaps.md`](docs/source-gaps.md) — what was discovered but never
+  wired up, including the learner corpus and the Estonian-adapted LLM
 - [`docs/grammar-scope.md`](docs/grammar-scope.md) — what is drillable beyond
   nouns, and where Estonian grammar data actually comes from
 - [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM,
