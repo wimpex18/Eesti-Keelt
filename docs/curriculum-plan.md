@@ -168,7 +168,17 @@ automatically, and the research-backed schedule falls out of the existing parts.
 Tag vocabulary by theme; a lesson pairs a grammar rule with a themed word set.
 Keeleklikk's insight, but generated, so themes and rules can be recombined.
 
-### 7. Unit checkpoints
+### 7. Path and library split
+Implement the two-surface structure in `app-structure.md`: a mastery-gated path
+for grammar, a browsable library for material. Keelekõdi and the audio-only
+episodes belong to the library — 30 minutes of mixed content with no transcript
+is exposure, not a curriculum step.
+
+### 8. Frequency-ordered vocabulary
+Speakly's ordering, using the `freq_rank` already in the word list: progress
+measured as "known within the top N", not as a percentage of the language.
+
+### 9. Unit checkpoints
 A short mixed quiz at the end of each level — interleaved by construction, and a
 progress signal the learner can trust.
 
