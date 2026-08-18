@@ -611,4 +611,77 @@ async def transcribe(request: Request) -> dict:
     # a few seconds of accented Estonian is exactly what a recogniser guesses
     # wrong on, and the topic's vocabulary is a free hint.
     context = request.query_params.get("q", "")[:220]
-    return asr.transcribe(audio, mime, context=context).to_dict()
+    target = request.query_params.get("target", "")[:400]
+    result = asr.transcribe(audio, mime, context=context or target).to_dict()
+
+    # Read-aloud: the target is known, so the comparison is deterministic and
+    # carries no model judgement. This is the part that *is* measurable — see
+    # eesti/pronunciation.py for why it is not the same as scoring pronunciation.
+    if target and result.get("text"):
+        from .pronunciation import compare
+
+        result["comparison"] = compare(target, result["text"]).to_dict()
+    return result
+
+
+@app.get("/api/speaking/readaloud")
+def read_aloud(kind: str = "lause", n: int = 8, levels: str = "A1,A2,B1",
+               seed: int | None = None) -> dict:
+    """Things to say out loud, with a known target so the result is checkable."""
+    from .pronunciation import sentences_to_say, words_to_say
+
+    if kind == "sona":
+        items = words_to_say(db(), tuple(levels.split(",")), count=n, seed=seed)
+    elif kind == "lause":
+        items = sentences_to_say(content_connect(CONTENT_DB), count=n, seed=seed)
+    else:
+        raise HTTPException(status_code=400, detail="kind must be sona or lause")
+    return {"kind": kind, "items": [i.to_dict() for i in items]}
+
+
+class SpokenAnswer(BaseModel):
+    transcript: str = Field(min_length=1, max_length=4000)
+    question: str = ""
+    seconds: float = 0.0
+
+
+@app.post("/api/speaking/feedback")
+def speaking_feedback(req: SpokenAnswer) -> dict:
+    """Feedback on an open spoken answer — on the words, not on the sounds.
+
+    Once there is a transcript, a spoken answer is text, and this project
+    already knows what to do with Estonian text: the same grammar chain that
+    checks writing, and the same vocabulary tables that measure a reading. What
+    it still refuses to do is grade the audio.
+
+    Pace is reported only when the client supplies a duration, and as a plain
+    number: 100-130 words a minute is ordinary conversational Estonian, and a
+    learner reading haltingly will see why the number is low without anyone
+    inventing a fluency score.
+    """
+    from .lookup import annotate
+    from .providers import grammar as grammar_provider
+
+    checked = grammar_provider.check(req.transcript)
+    words = req.transcript.split()
+    profile = annotate(req.transcript)
+
+    pace = None
+    if req.seconds > 0:
+        pace = round(len(words) / (req.seconds / 60), 1)
+
+    return {
+        "corrections": [c.to_dict() if hasattr(c, "to_dict") else c
+                        for c in checked.corrections],
+        "engine": checked.engine,
+        "degraded": checked.degraded,
+        "words": len(words),
+        "pace_wpm": pace,
+        "vocabulary": {
+            "known_levels": profile.get("levels", {}) if isinstance(profile, dict) else {},
+        },
+        "note": (
+            "Sisu ja grammatika kohta — mitte häälduse. Rääkimiseksam on paaris, "
+            "nii et üksi harjutades loeb vastuse ülesehitus ja keel."
+        ),
+    }

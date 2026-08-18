@@ -13,12 +13,39 @@ it. So the app does the parts a phone can honestly do — **the questions in the
 exam's shape, the other side voiced by TTS, and hearing yourself back** — and
 does not pretend to grade.
 
-There is **no pronunciation score**, deliberately. Forced alignment yields
-timings, not correctness; converting that into feedback is a research project;
-and EKI already publishes free
-[pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/). A
-transcript is used for exactly one honest thing: showing what the recogniser
-*heard*, so you can compare it with what you meant.
+## What can honestly be checked, and what cannot
+
+An earlier version of this file said, flatly, that nothing here scores you. That
+was right about **acoustic** scoring and too broad, because it also ruled out
+something quite different and entirely sound.
+
+|  | Acoustic pronunciation scoring | Read-aloud comparison | Open-answer feedback |
+|---|---|---|---|
+| Input | waveform | two strings | text |
+| Needs | phoneme models, alignment, an invented scale | `difflib` | the grammar chain that already exists |
+| Output | *"your /õ/ is 62 % correct"* | *"it heard **kohli** where you were asked to say **kooli**"* | *"raamatut → raamatu, obj-case"* |
+| Built? | **no** | **yes** | **yes** |
+
+**Read aloud** (`Loe ette`): the target is known, so comparing what the
+recogniser heard against what you were asked to say is deterministic and has no
+model judgement in it. Word by word, because *"7/9"* is actionable and *"78 %"*
+is not — the two that were missed are the two to say again. The caveat travels
+with the number wherever it is shown: this measures what an ASR model heard,
+which is a proxy for intelligibility and not a phonetics grade. A miss can mean
+you mispronounced it *or* that the model is weak on accented Estonian.
+
+**Answer a question** (`Vasta küsimusele`): once transcribed, a spoken answer is
+text — and this project already knows what to do with Estonian text. It goes
+through the same grammar chain that checks writing, so an object-case error in
+speech is caught the same way it is in an essay, plus word count and pace when
+the client reports a duration. 100–130 words a minute is ordinary conversational
+Estonian; the number is shown plainly rather than converted into a fluency score
+nobody defined.
+
+**Still not built:** scoring the audio itself. Forced alignment yields timings,
+not correctness; converting that into feedback is a research project; and EKI
+already publishes free
+[pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/).
 
 ## Estonian speech recognition, probed rather than assumed
 

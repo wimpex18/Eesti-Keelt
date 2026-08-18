@@ -259,8 +259,14 @@
        you hear yourself back — so that is what this is, and it says so. -->
   <section class="panel" id="tab-speak" hidden>
     <div class="row" style="margin-top:0">
+      <select id="speakMode" aria-label="Harjutus">
+        <option value="lause">Loe ette — laused</option>
+        <option value="sona">Loe ette — sõnad</option>
+        <option value="vastus">Vasta küsimusele</option>
+      </select>
       <select id="speakTopic" aria-label="Teema"></select>
-      <button class="ghost" id="speakPlay">Kuula küsimust</button>
+      <button class="ghost" id="speakPlay">Kuula ette</button>
+      <button class="ghost" id="speakNext" hidden>Järgmine</button>
     </div>
     <div class="prompt" id="speakPrompt" style="margin-top:14px">…</div>
     <audio id="speakModel" controls hidden></audio>
@@ -446,7 +452,10 @@ document.addEventListener("click", e => {
   const b = e.target.closest("nav button[data-tab]");
   if (!b) return;
   const tab = b.dataset.tab;
-  if (tab === "speak" && !loaded.has(tab)) { loaded.add(tab); loadSpeakQuestions(); }
+  if (tab === "speak" && !loaded.has(tab)) {
+    loaded.add(tab);
+    loadSpeakQuestions().then(() => loadReadAloud("lause"));
+  }
   if (tab === "status") loadStatus();
   if (tab === "path") loadPath();
 });
@@ -713,6 +722,61 @@ let recorder = null, chunks = [], recording = false, asrReady = false;
 fetch("/api/asr").then(r => r.json()).then(a => { asrReady = a.ready; })
   .catch(() => {});
 
+let readAloud = [], readIdx = 0;
+
+function speakMode() { return $("#speakMode").value; }
+
+async function loadReadAloud(kind) {
+  try {
+    const {items} = await (await fetch(`/api/speaking/readaloud?kind=${kind}&n=12`)).json();
+    readAloud = items; readIdx = 0;
+    $("#speakTopic").hidden = true;
+    $("#speakNext").hidden = false;
+    showReadAloud();
+  } catch (e) { $("#speakPrompt").textContent = e.message; }
+}
+
+function showReadAloud() {
+  const it = readAloud[readIdx];
+  if (!it) return;
+  $("#speakPrompt").innerHTML =
+    `${esc(it.text)}<div class="why" style="margin-top:8px">Loe valjusti ette.
+     ${it.level ? esc(it.level) : ""}</div>`;
+  $("#speakModel").hidden = true;
+  $("#recPlayback").hidden = true;
+  $("#recHeard").hidden = true;
+}
+
+$("#speakNext").onclick = () => {
+  readIdx = (readIdx + 1) % Math.max(readAloud.length, 1);
+  showReadAloud();
+};
+
+$("#speakMode").addEventListener("change", () => {
+  const m = speakMode();
+  if (m === "vastus") {
+    $("#speakTopic").hidden = false;
+    $("#speakNext").hidden = true;
+    showSpeakQuestion();
+  } else {
+    loadReadAloud(m);
+  }
+});
+
+// What the microphone is aimed at right now: a known target when reading
+// aloud, an open question otherwise. The distinction decides whether the
+// result can be checked at all.
+function currentTarget() {
+  if (speakMode() === "vastus") return null;
+  const it = readAloud[readIdx];
+  return it ? it.text : null;
+}
+function currentQuestion() {
+  if (speakMode() !== "vastus") return "";
+  const q = (window.__speak || [])[$("#speakTopic").value | 0];
+  return q ? q.question : "";
+}
+
 async function loadSpeakQuestions() {
   try {
     const {questions} = await (await fetch("/api/speaking")).json();
@@ -734,17 +798,17 @@ function showSpeakQuestion() {
 $("#speakTopic").addEventListener("change", showSpeakQuestion);
 
 $("#speakPlay").onclick = async () => {
-  const q = (window.__speak || [])[$("#speakTopic").value | 0];
-  if (!q) return;
+  const text = currentTarget() || currentQuestion();
+  if (!text) return;
   const btn = $("#speakPlay"); btn.disabled = true; btn.textContent = "Sünteesin…";
   try {
-    const r = await api("/api/speak", {text: q.question, speed: 0.85});
+    const r = await api("/api/speak", {text, speed: 0.85});
     const el = $("#speakModel");
     el.src = URL.createObjectURL(await r.blob());
     el.hidden = false; el.play().catch(() => {});
   } catch (e) {
     $("#recNote").textContent = "Kõnesüntees ei vastanud: " + e.message;
-  } finally { btn.disabled = false; btn.textContent = "Kuula küsimust"; }
+  } finally { btn.disabled = false; btn.textContent = "Kuula ette"; }
 };
 
 if (!canRecord) {
@@ -780,17 +844,45 @@ if (!canRecord) {
         heard.hidden = false;
         heard.innerHTML = `<span class="tag">Kuuldi</span><div class="fix">…</div>`;
         try {
-          const q = (window.__speak || [])[$("#speakTopic").value | 0];
-          const r = await fetch("/api/transcribe?q=" +
-              encodeURIComponent(q ? q.question : ""), {
+          const target = currentTarget();
+          const params = new URLSearchParams();
+          if (target) params.set("target", target);
+          else params.set("q", currentQuestion());
+          const r = await fetch("/api/transcribe?" + params, {
             method: "POST", headers: {"Content-Type": blob.type}, body: blob,
           });
           const t = await r.json();
-          heard.innerHTML = t.text
-            ? `<span class="tag">Kuuldi</span><div class="fix">${esc(t.text)}</div>
-               <div class="why">Mootor: ${esc(t.engine)}. See on see, mida
-               tuvastaja kuulis — mitte hinne.</div>`
-            : `<span class="tag">Kuuldi</span><div class="why">${esc(t.note || "ei tuvastanud")}</div>`;
+          if (!t.text) {
+            heard.innerHTML = `<span class="tag">Kuuldi</span><div class="why">${esc(t.note || "ei tuvastanud")}</div>`;
+            return;
+          }
+          let html = `<span class="tag">Kuuldi</span><div class="fix">${esc(t.text)}</div>`;
+          if (t.comparison) {
+            const c = t.comparison;
+            // Word by word, because "7/9" is actionable and "78%" is not: the
+            // two that were missed are the two to say again.
+            html += `<div class="fix">` + c.words.map(w =>
+              w.ok ? `<ins>${esc(w.target)}</ins>`
+                   : `<del>${esc(w.target)}</del>`).join(" ") + `</div>`;
+            html += `<div class="why">${c.matched}/${c.total} sõna tuvastati.
+              ${c.missed.length ? "Korda: <b>" + c.missed.map(esc).join(", ") + "</b>. " : ""}
+              ${esc(c.caveat)}</div>`;
+          } else {
+            html += `<div class="why">Mootor: ${esc(t.engine)}.</div>`;
+            // An open answer is text once transcribed, so it goes through the
+            // same grammar check as writing.
+            try {
+              const fb = await (await api("/api/speaking/feedback", {
+                transcript: t.text, question: currentQuestion(),
+              })).json();
+              html += `<div class="why">${fb.words} sõna` +
+                (fb.pace_wpm ? ` · ${fb.pace_wpm} sõna/min` : "") + `</div>`;
+              if (fb.corrections.length) html += fb.corrections.map(c =>
+                `<div class="why">✗ <del>${esc(c.wrong)}</del> →
+                 <ins>${esc(c.correct)}</ins> — ${esc(c.why || "")}</div>`).join("");
+            } catch {}
+          }
+          heard.innerHTML = html;
         } catch (e) {
           heard.innerHTML = `<span class="tag">Kuuldi</span><div class="why">${esc(e.message)}</div>`;
         }

@@ -163,7 +163,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 376 passed
+.venv/bin/python -m pytest tests/ -q     # 394 passed
 ```
 
 Five gates:
@@ -184,12 +184,14 @@ Five gates:
 
 ## Deliberately not built
 
-- **Pronunciation scoring** — forced alignment yields timings, not correctness,
-  and EKI already publishes free
-  [pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/). The
-  speaking tab records, plays back and (optionally) transcribes, so you can
-  compare what you meant with what a recogniser heard — see
-  [`docs/speaking.md`](docs/speaking.md). It does not grade.
+- **Scoring the audio itself** — forced alignment yields timings, not
+  correctness, and EKI already publishes free
+  [pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/).
+  What the speaking tab *does* do: **read a known sentence aloud** and see, word
+  by word, which words the recogniser heard — deterministic, because the target
+  is known — or **answer an exam question** and get the transcript through the
+  same grammar chain that checks your writing. See
+  [`docs/speaking.md`](docs/speaking.md) for the line between the two.
 - **A dictionary / flashcard app** — Sõnaveeb, Sõnastik and Anki do it better.
 - **A notes system** — Notion stays the system of record.
 
