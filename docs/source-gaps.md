@@ -37,14 +37,24 @@ while I drew conclusions from the small set.
 targeted at *our* error class and carries the precision half — but a 1 000-pair
 external benchmark is stronger evidence about a model than 18 sentences.
 
-### 2. ERR — only 1 of 3 series harvested
+### 2. ERR — fixed, and it corrected an earlier claim ✅
 
-`ARCHIVES` names three (`kak_eto_po_estonski`, `ekeel`, `keelekodi`) but `SEEDS`
-has one. So 28 episodes of roughly 170 are in. `keelekodi` alone is ~100
-episodes.
+`SEEDS` had one of the three series. Adding the other two exposed two bugs and
+one wrong assumption:
 
-The crawl walks siblings from a seed, so this needs one known episode URL per
-series — a few minutes of work that was simply never done.
+- **Only the 2010 series has transcripts.** The 2015 (`ekeel`) and 2019
+  (`keelekodi`) series carry a series blurb and nothing more. My earlier
+  "~170 episodes pairing transcript with audio" extrapolated from the one series
+  I had looked at, and was wrong.
+- **The later series serve HLS (`.m3u8`), not MP3.** The parser accepted only
+  `.mp3`, so both series looked empty even once seeded.
+- **Audio-only episodes were discarded** by a `word_count > 100` filter, and
+  they all share the same blurb, so hashing the body collapsed ~44 of them into
+  one. The content key now uses title + audio URL for those.
+
+Result: **72 episodes — 28 with transcripts (filed `grammatika`) and 44
+audio-only (filed `kuulamine`)**. Fewer than hoped for reading, considerably
+more for listening.
 
 ### 3. `api.sonapi.ee` — verified, registered, never called
 

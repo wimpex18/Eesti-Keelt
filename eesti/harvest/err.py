@@ -54,9 +54,16 @@ ARCHIVES = {
     "keelekodi": "https://r4.err.ee/arhiiv/keelekodi",
 }
 
-# One known episode per series; the crawl expands outward from each.
+# One known episode per series; the crawl expands outward from each by following
+# the ld+json sibling list. Any episode works as a seed — these are just ones
+# whose ids were easy to find.
 SEEDS = {
     "kak_eto_po_estonski": "https://r4.err.ee/755936/kak-jeto-po-jestonski-28",
+    # Course two (2015-16). Episode 27 covers rektsioon and 25 the minema /
+    # tulema / käima trio — both are error-log tags.
+    "ekeel": "https://r4.err.ee/764574/kak-jeto-po-jestonski-kurs-vtoroj-27",
+    # Keelekõdi (2019), the largest of the three at ~100 episodes.
+    "keelekodi": "https://r4.err.ee/932880/keelekodi-17",
 }
 
 # Deliberately slow. This is somebody else's server and the whole corpus is
@@ -122,7 +129,11 @@ class Episode:
         one series returned "Как это по-эстонски? 21" three times at three
         different ids. The transcript is what makes an episode distinct.
         """
-        return hashlib.sha256(self.body.encode("utf-8")).hexdigest()[:16]
+        # Audio-only episodes in the later series all carry the same series
+        # blurb, so hashing the body alone would collapse ~140 of them into one.
+        # The audio URL is what distinguishes them.
+        key = self.body if self.word_count > 100 else f"{self.title}|{self.audio_url}"
+        return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
 def _balanced(raw: str) -> str:
@@ -155,17 +166,23 @@ def _get(url: str, timeout: float = 45.0) -> str:
 
 
 def parse_episode(html: str, url: str) -> Episode | None:
-    """Pull transcript and audio out of an episode page."""
+    """Pull transcript and audio out of an episode page.
+
+    An episode is worth keeping if it has *either* a transcript or audio. Only
+    the 2010 series carries transcripts; the 2015 and 2019 series are audio-only,
+    and requiring text discarded them entirely.
+    """
     content = _page_data(html).get("mainContent") or {}
     body_html = content.get("body") or ""
     text = " ".join(_TAG_RE.sub(" ", body_html).split())
-    if not text:
-        return None
 
+    # Two audio shapes across the archives: the 2010 series serves plain MP3s,
+    # while the 2015 and 2019 series serve HLS streams (.m3u8). Accepting only
+    # MP3 silently dropped both later series, which is why they looked empty.
     audio = None
     for clip in _page_data(html).get("playerClips") or []:
         src = clip.get("src") or ""
-        if src.endswith(".mp3"):
+        if src.endswith((".mp3", ".m3u8")):
             audio = f"https:{src}" if src.startswith("//") else src
             break
 
@@ -279,7 +296,12 @@ def harvest(
         unique: dict[str, Episode] = {}
         for url, html in crawl_series(seed, max_pages, cache_dir).items():
             episode = parse_episode(html, url)
-            if episode and episode.word_count > 100:
+            if episode is None:
+                continue
+            # Keep an episode with a real transcript, or one with audio even if
+            # its page carries only a series blurb — the later series are
+            # listening material and nothing else.
+            if episode.word_count > 100 or episode.audio_url:
                 unique.setdefault(episode.content_key, episode)
         out[name] = sorted(unique.values(), key=lambda e: e.published or "")
     return out
@@ -301,8 +323,10 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
             items.append(
                 Item(
                     source_id="err-r4",
-                    # Filed as grammar, not reading: measured 12% Estonian.
-                    skill="grammatika",
+                    # Episodes with a transcript are Russian-language grammar
+                    # lessons (measured 12% Estonian). Audio-only episodes are
+                    # listening material and nothing else.
+                    skill="grammatika" if episode.word_count > 100 else "kuulamine",
                     title=episode.title,
                     body=episode.body,
                     audio_url=episode.audio_url,
