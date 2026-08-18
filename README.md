@@ -139,10 +139,10 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 33 passed
+.venv/bin/python -m pytest tests/ -q     # 115 passed
 ```
 
-Three gates:
+Four gates:
 
 1. **Planted errors are caught** — the obj-case regression set.
 2. **Correct sentences are left alone.** A checker that flagged every partitive
@@ -150,6 +150,9 @@ Three gates:
    object at all must produce no candidates.
 3. **Owner-only material cannot leak.** A public query must never return an item
    from a source that is not redistributable.
+4. **The syllabus graph stays sound.** No topic may be scheduled before a topic
+   it depends on, and every declared topic must appear in the derived path
+   exactly once — a dropped edge silently removes topics from the course.
 
 ## Deliberately not built
 

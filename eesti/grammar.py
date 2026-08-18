@@ -7,7 +7,7 @@ But the authority does exist online and free: **Eesti keele käsiraamat** (EKK),
 the Estonian Language Institute's handbook by Erelt, Erelt and Ross, hosted at
 `arhiiv.eki.ee/books/ekk09/` with stable per-section URLs.
 
-Its syntax chapter numbers the rules this app drills — SÜ 36–42 are the object,
+Its syntax chapter numbers the rules this app drills — SÜ 37–44 are the object,
 täissihitis vs osasihitis, and the hard cases of choosing between them. So each
 drill links to the section that defines it. Three reasons that beats writing our
 own explanations:
@@ -28,7 +28,15 @@ from dataclasses import dataclass
 
 EKK_BASE = "https://arhiiv.eki.ee/books/ekk09/index.php"
 
-# Chapter ids in EKK's URL scheme.
+# Chapter ids in EKK's URL scheme. `p1` selects a sub-page within the chapter,
+# and there are no per-section anchors, so a link lands on the page that
+# *contains* the section and `ekk_section` is the label to look for on it.
+#
+# Getting these right needs reading the handbook, not guessing: the morphology
+# chapter numbers its sections **M**, not `MO`, and its sub-pages do not run in
+# section order. An earlier version of this table had six of seven entries
+# pointing at a real page with the wrong section on it — which is worse than no
+# link, because it looks checked.
 MORFOLOOGIA, SUNTAKS = 3, 5
 
 
@@ -67,9 +75,9 @@ REFERENCES: dict[str, Reference] = {
         tag="verb-form",
         et_term="verbi põhivormid",
         ru_term="основные формы глагола",
-        ekk_section="MO 24",
+        ekk_section="M 19",
         chapter=MORFOLOOGIA,
-        subsection=3,
+        subsection=2,
         summary_ru=(
             "У эстонского глагола несколько основ, и они не выводятся из "
             "ma-инфинитива по одному правилу: *minema → lähen*, *tegema → teen*. "
@@ -78,7 +86,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "gen-stem": Reference(
         tag="gen-stem", et_term="omastava tüvi", ru_term="основа генитива",
-        ekk_section="MO 12", chapter=MORFOLOOGIA, subsection=2,
+        ekk_section="M 51", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Все падежи кроме nimetav и osastav строятся от **основы омастава**. "
             "Зная omastav, ты знаешь почти всё слово."
@@ -86,7 +94,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "gradation": Reference(
         tag="gradation", et_term="astmevaheldus", ru_term="чередование ступеней",
-        ekk_section="MO 9", chapter=MORFOLOOGIA, subsection=2,
+        ekk_section="M 22", chapter=MORFOLOOGIA, subsection=3,
         summary_ru=(
             "Согласная в основе чередуется между сильной и слабой ступенью: "
             "*sõber → sõbra*, *pood → poe*. Это регулярно, но по типам."
@@ -94,7 +102,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "loc-case": Reference(
         tag="loc-case", et_term="kohakäänded", ru_term="местные падежи",
-        ekk_section="MO 18", chapter=MORFOLOOGIA, subsection=2,
+        ekk_section="M 53", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Шесть местных падежей парами: внутренние (sisse/sees/seest) и "
             "внешние (peale/peal/pealt). Выбор зависит от того, мыслится ли "
@@ -103,16 +111,26 @@ REFERENCES: dict[str, Reference] = {
     ),
     "rektsioon": Reference(
         tag="rektsioon", et_term="rektsioon", ru_term="управление глагола",
-        ekk_section="SÜ 43", chapter=SUNTAKS, subsection=3,
+        ekk_section="SÜ 64", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "Глагол требует определённого падежа, и он часто не совпадает с "
             "русским: *mõtlema **millele*** (алалютлев), не «о чём»."
         ),
     ),
+    "word-order": Reference(
+        tag="word-order", et_term="lause sõnajärg", ru_term="порядок слов",
+        ekk_section="SÜ 90", chapter=SUNTAKS, subsection=2,
+        summary_ru=(
+            "Эстонский порядок слов свободнее русского, но не произволен: "
+            "**самое важное — в конце**, а спрягаемый глагол обычно вторым "
+            "(*Eile **käisin** ma kinos*). Инверсия — не ошибка, а способ "
+            "выделить."
+        ),
+    ),
     "ma-da-inf": Reference(
         tag="ma-da-inf", et_term="ma- ja da-infinitiiv",
         ru_term="ma- и da-инфинитив",
-        ekk_section="MO 27", chapter=MORFOLOOGIA, subsection=3,
+        ekk_section="M 73", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Какой инфинитив брать, решает управляющий глагол: *pean õppi**ma***, "
             "но *tahan õppi**da***. Это список, а не правило."

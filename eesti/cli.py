@@ -305,6 +305,44 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_curriculum(args: argparse.Namespace) -> int:
+    """Show the syllabus: the study path, and what can actually be practised.
+
+    The path is derived from the prerequisite graph, not hand-written, so it
+    cannot offer a case before the stem that case is built from.
+    """
+    from .curriculum import at_level, coverage, order, practice_order, validate
+
+    from .curriculum import TOPICS
+
+    validate()
+    topics = at_level(args.level) if args.level else TOPICS
+
+    if args.priority:
+        print("Ranked by share of annotated errors in the EVKK learner corpus:\n")
+        for t in practice_order(topics)[: args.limit]:
+            mark = "drillable" if t.generator else "no generator"
+            print(f"  {t.weight:>5.1f}%  {t.level}  {t.id:<16} {t.et:<34} {mark}")
+        return 0
+
+    level = None
+    for t in order(topics):
+        if t.level != level:
+            level = t.level
+            print(f"\n{level}")
+        needs = f"  <- {', '.join(t.requires)}" if t.requires else ""
+        flag = " *" if t.generator else "  "
+        print(f" {flag} {t.id:<16} {t.et}{needs}")
+
+    c = coverage(topics)
+    print(
+        f"\n{c['topics']} topics, {c['with_generator']} with a drill generator, "
+        f"{c['with_reference']} linked to the EKK handbook."
+        "\n* = practice exists today; the rest is step 2 of the curriculum plan."
+    )
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -357,6 +395,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int)
     p.add_argument("--db", default="data/content.db")
     p.set_defaults(func=cmd_harvest_reading)
+
+    p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
+    p.add_argument("--level", choices=list(LEVELS))
+    p.add_argument("--priority", action="store_true",
+                   help="rank by learner-corpus error frequency instead")
+    p.add_argument("--limit", type=int, default=12)
+    p.set_defaults(func=cmd_curriculum)
 
     p = sub.add_parser("evkk", help="rank error tags by real learner-corpus data")
     p.add_argument("--db", default="data/content.db")

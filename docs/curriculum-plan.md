@@ -162,9 +162,9 @@ vocabulary teaches the rule and the words in the same repetition.
 
 | Need | Have | Missing |
 |---|---|---|
-| Grammar topics | 2 of ~25 | 23 topics as drillable rules |
+| Grammar topics | **declared: 36; drillable: 2** | 34 generators |
 | Forms for those topics | **all of them** (411 349, gold-validated) | nothing |
-| Explanations | 7 rules → EKK handbook | ~18 more mappings |
+| Explanations | 8 rules → EKK handbook, verified | ~17 more mappings |
 | Blocked practice | drill generator with rule filter | mastery gate |
 | Interleaved practice | FSRS queue | feed from lessons |
 | Progress / resume | review DB, vocab statuses | no lesson-level state |
@@ -183,10 +183,32 @@ their templates — rather than new machinery.
 
 Each step is independently useful and shippable.
 
-### 1. Topic model
-`eesti/curriculum.py` — declare each topic: id, CEFR level, Estonian name, EKK
-reference, prerequisites, and which generator produces its drills. Ship the
-A1 set first. **No UI. This is the spine everything else hangs on.**
+### 1. Topic model — done ✅
+`eesti/curriculum.py` declares **36 topics** across A1/A2/B1: id, level, Estonian
+and Russian names, prerequisites, error tag, and which generator drills it.
+`python -m eesti.cli curriculum` prints the path.
+
+All three levels shipped rather than A1 alone — the topics are declarative data,
+and a partial graph would have produced a prerequisite order that looked
+authoritative while missing half its edges.
+
+Two things came out of building it that were not in the plan:
+
+- **Sequencing and priority are different questions**, and merging them produced
+  nonsense. Ordering the path by corpus error weight put irregular verb stems
+  before the genitive stem and left the alphabet until last. So `order()` derives
+  the *study path* — graph first, then the authored course sequence — and
+  `practice_order()` ranks the *same topics by where learners fail*. The graph
+  stays the hard constraint in both: nothing can teach a case before the stem it
+  is built from, and a test asserts it.
+- **Six of the seven handbook references pointed at the wrong section.** EKK
+  numbers its morphology chapter `M`, not `MO`, and its sub-pages do not run in
+  section order, so every morphology link resolved to a real page carrying a
+  different rule — which is worse than no link, because it looks checked. All
+  eight are now read off the handbook's own contents and pinned by test.
+  `word-order`, the largest error class in the learner corpus, had no entry at
+  all and now has one (**SÜ 90**); `rektsioon` moved from SÜ 43 to **SÜ 64**,
+  which is titled *"Rektsioone, milles sageli eksitakse"*.
 
 ### 2. Generators for the big topics
 Extend the drill generator, in an order the corpus evidence now sets rather than
