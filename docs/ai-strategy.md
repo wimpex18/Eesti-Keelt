@@ -106,6 +106,35 @@ python -m eesti.cli eval --provider openrouter --model <id>
 Exits non-zero below 0.8 on either score, so it can gate a deploy. **Run this
 before believing any recommendation in this document, including its own.**
 
+### First real result (18 Aug 2026)
+
+`nvidia/nemotron-3-super-120b-a12b:free` — the pinned default, a 120B model with
+a 262 K context:
+
+| | |
+|---|---|
+| recall | **0.50** — caught 5/10 planted errors |
+| precision | **0.50** — left alone only 4/8 correct sentences |
+
+**It fails in the harmful direction.** It flagged `Ma ostsin uue auto` and
+`Ma sõin suppi` — both correct — and missed both irregular-verb errors
+(`minen`→`lähen`, `teesin`→`tegin`). A learner following it would be taught that
+correct Estonian is wrong.
+
+This is the hypothesis tested and answered: **being a large, capable multilingual
+model does not confer Estonian object-case competence.** Estonian is low-resource
+and this judgement is exactly the language-specific semantics that thins out
+first. The eval existed precisely because this could not be assumed either way.
+
+Caveat on the number: two of the eighteen cases were lost to HTTP 429 and a
+malformed reply, so 0.50/0.50 is a lower bound. The client now throttles to
+OpenRouter's 20 req/min limit and retries 429/5xx, so later runs measure the
+model rather than our impatience.
+
+**Next step:** score `google/gemma-4-26b-a4b-it:free` and `openai/gpt-oss-20b:free`,
+then a paid frontier model as the ceiling. If no free model clears ~0.8 precision,
+the honest conclusion is that this one job is worth paying cents a month for.
+
 ## Competitive landscape
 
 What the 2026 AI language apps do, and what they leave open:

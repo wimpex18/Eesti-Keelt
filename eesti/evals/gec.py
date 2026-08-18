@@ -118,11 +118,22 @@ def run(
     caught, false_flags, failures, broken = 0, 0, [], 0
 
     for case in cases:
-        try:
-            result = parse_json(complete(provider, SYSTEM, case.sentence, model=model))
-        except Exception as exc:  # a model that cannot return JSON has failed the eval
+        # One retry on a malformed reply: returning prose instead of JSON is a
+        # real weakness, but scoring a model on a single bad sample overstates
+        # it. Two failures in a row is the model, not luck.
+        result = None
+        for attempt in range(2):
+            try:
+                result = parse_json(complete(provider, SYSTEM, case.sentence, model=model))
+                break
+            except json.JSONDecodeError:
+                if attempt:
+                    failures.append((case.sentence, "ERROR: no valid JSON after retry"))
+            except Exception as exc:
+                failures.append((case.sentence, f"ERROR {type(exc).__name__}: {exc}"))
+                break
+        if result is None:
             broken += 1
-            failures.append((case.sentence, f"ERROR {type(exc).__name__}: {exc}"))
             continue
 
         if case.wrong:
