@@ -272,6 +272,39 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return 0 if result["recall"] >= 0.8 and result["precision"] >= 0.8 else 1
 
 
+def cmd_evkk(args: argparse.Namespace) -> int:
+    """Weight the curriculum by real learner errors, not just one person's log.
+
+    Fetches the public EVKK error taxonomy (51 467 linguist-annotated errors in
+    learner Estonian) and reports how the nine tags rank in it. One request,
+    cached; the learner texts themselves are deliberately left alone.
+    """
+    from .config import CACHE
+    from .harvest.evkk import fetch, store, tag_weights, unmapped
+    from .sources import connect, register
+
+    marks = fetch(cache=CACHE / "evkk_marks.html")
+    weights = tag_weights(marks)
+    rest = unmapped(marks)
+    total = sum(weights.values()) + rest
+
+    conn = connect(args.db)
+    register(conn)
+    store(conn, marks)
+
+    print(f"{len(marks)} taxonomy nodes, {total:,} annotated errors\n")
+    print(f"  {'tag':<12}{'marks':>8}{'share':>8}")
+    for tag, n in sorted(weights.items(), key=lambda kv: -kv[1]):
+        print(f"  {tag:<12}{n:>8,}{n / total:>8.1%}")
+    print(f"  {'(unmapped)':<12}{rest:>8,}{rest / total:>8.1%}")
+    print(
+        "\nAnnotation frequency, not incidence: parent categories absorb marks a"
+        "\nfiner child would have taken, and exam essays dominate the corpus."
+        "\nRead the ordering, not the absolute numbers."
+    )
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -324,6 +357,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int)
     p.add_argument("--db", default="data/content.db")
     p.set_defaults(func=cmd_harvest_reading)
+
+    p = sub.add_parser("evkk", help="rank error tags by real learner-corpus data")
+    p.add_argument("--db", default="data/content.db")
+    p.set_defaults(func=cmd_evkk)
 
     p = sub.add_parser("fetch-bench", help="download the Estonian benchmark datasets")
     p.set_defaults(func=cmd_fetch_bench)
