@@ -174,3 +174,98 @@ class TestApi:
         data = client.get("/api/speaking").json()
         assert len(data["questions"]) == len(speaking.BANK)
         assert set(data["kinds"]) == set(speaking.KINDS)
+
+
+class TestTranscriptCorrections:
+    """A transcript is evidence about the learner *and* the recogniser.
+
+    Nothing in the pipeline can separate them, so anything anchored on a word
+    the recogniser may have invented has to go. See docs/ai-boundaries.md.
+    """
+
+    TEXT = "ma lugesin eile raamatut läbi ja siis läksin kohli"
+
+    def test_the_real_error_survives(self):
+        from eesti.providers import grammar
+
+        result = grammar.from_transcript(grammar.check(self.TEXT), self.TEXT)
+        assert any(c.tag == "obj-case" and c.wrong == "raamatut"
+                   for c in result.corrections)
+
+    def test_corrections_on_an_invented_word_are_dropped(self):
+        """`kohli` is not a word — the recogniser made it up. Reporting it as a
+        vocabulary error *and* an object-case error is two mistakes the learner
+        never made."""
+        from eesti.providers import grammar
+
+        result = grammar.from_transcript(grammar.check(self.TEXT), self.TEXT)
+        assert not any("kohli" in c.wrong.lower() for c in result.corrections)
+
+    def test_the_result_is_advisory(self):
+        from eesti.providers import grammar
+
+        result = grammar.from_transcript(grammar.check(self.TEXT), self.TEXT)
+        assert result.advisory and result.to_dict()["advisory"]
+
+    def test_written_input_is_not_advisory(self):
+        """The same sentence typed is the learner's, and is recorded as such."""
+        from eesti.providers import grammar
+
+        assert grammar.check("Ma lugesin eile raamatut läbi.").advisory is False
+
+    def test_the_rule_holds_without_vocab_corrections(self, monkeypatch):
+        """An LLM engine may never emit a `vocab` tag, so the unknown-word set
+        is recomputed from the text rather than read off the corrections."""
+        from eesti.providers import grammar
+
+        raw = grammar.GrammarResult(
+            "some-llm",
+            [grammar.Correction(wrong="kohli", correct="kohil", why="x",
+                                tag="obj-case")],
+        )
+        assert grammar.from_transcript(raw, self.TEXT).corrections == []
+
+    def test_speech_never_reaches_the_review_queue(self):
+        """Verified structurally: every queue_failed caller is a drill path."""
+        import subprocess
+
+        out = subprocess.run(
+            ["grep", "-rn", "queue_failed", "eesti/"],
+            capture_output=True, text=True,
+        ).stdout
+        for line in out.splitlines():
+            if "def queue_failed" in line or "handoff.py" in line:
+                continue
+            assert "speaking" not in line and "asr" not in line, line
+
+
+class TestBreaker:
+    def test_a_dead_engine_is_skipped_after_two_failures(self, monkeypatch):
+        """Four engines at 120s each meant an outage cost eight minutes before
+        saying nothing was heard."""
+        from eesti.providers import breaker
+
+        breaker.reset()
+        calls = []
+
+        def dying(audio, context=""):
+            calls.append(1)
+            return asr.Transcript("", "workers-ai", True, "down")
+
+        monkeypatch.setattr(asr, "_cloudflare", dying)
+        monkeypatch.setattr(asr, "_openrouter", lambda *a, **k: None)
+        monkeypatch.setattr(asr, "_hosted", lambda *a, **k: None)
+        monkeypatch.setattr(asr, "_local", lambda *a, **k: None)
+        for _ in range(4):
+            asr.transcribe(b"x")
+        assert len(calls) == breaker.THRESHOLD
+        breaker.reset()
+
+    def test_both_chains_share_one_breaker(self):
+        """Two copies of a stateful mechanism drift into two behaviours."""
+        from eesti.providers import breaker, grammar
+
+        assert grammar._breaker_open is breaker.is_open
+
+    def test_the_timeout_is_not_four_times_generous(self):
+        assert asr.TIMEOUT <= 60

@@ -60,11 +60,17 @@ import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
+
+from . import breaker
 from pathlib import Path
 
-# Generous next to the text providers: a minute of audio takes real time to
-# transcribe, and a learner who has just recorded is willing to wait for it.
-TIMEOUT = 120.0
+# Generous next to the text providers — a minute of audio takes real time to
+# transcribe — but not four times generous. With four engines in series, 120 s
+# each meant a full outage cost the learner eight minutes before telling them
+# nothing was heard. 45 s is comfortably above what hosted Whisper needs for a
+# short answer, and the circuit breaker below stops a dead engine being tried at
+# all after two failures.
+TIMEOUT = 45.0
 
 CF_MODEL = "@cf/openai/whisper-large-v3-turbo"
 CF_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}"
@@ -125,6 +131,9 @@ def available() -> dict:
     }
     return {
         **engines,
+        # What is currently tripped, so a slow first recording after an outage
+        # is explainable rather than mysterious.
+        "breakers": breaker.state(),
         # Kept for the UI's single question: can this deployment transcribe?
         "ready": any(engines.values()),
         "hosted": engines["cloudflare"] or engines["openrouter"] or engines["huggingface"],
@@ -281,18 +290,22 @@ def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Tran
     """
     suffix = ".wav" if "wav" in mime else ".webm" if "webm" in mime else ".ogg"
     attempts = (
-        lambda: _cloudflare(audio, context),
-        lambda: _openrouter(audio, mime, context),
-        lambda: _hosted(audio, mime),
-        lambda: _local(audio, suffix),
+        ("workers-ai", lambda: _cloudflare(audio, context)),
+        ("openrouter-audio", lambda: _openrouter(audio, mime, context)),
+        ("hf-whisper", lambda: _hosted(audio, mime)),
+        ("whisper.cpp", lambda: _local(audio, suffix)),
     )
     first_failure: Transcript | None = None
-    for engine in attempts:
+    for name, engine in attempts:
+        if breaker.is_open(name):
+            continue                      # tripped; do not pay its timeout again
         result = engine()
         if result is None:
             continue                      # not configured; not a failure
         if result.text:
+            breaker.record_success(name)
             return result
+        breaker.record_failure(name)
         first_failure = first_failure or result
 
     if first_failure is not None:

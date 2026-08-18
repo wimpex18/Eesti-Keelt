@@ -163,7 +163,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 394 passed
+.venv/bin/python -m pytest tests/ -q     # 405 passed
 ```
 
 Five gates:
@@ -239,7 +239,12 @@ next, and what the 2026 competitors do that is worth copying.
 - [`docs/grammar-scope.md`](docs/grammar-scope.md) — what is drillable beyond
   nouns, and where Estonian grammar data actually comes from
 - [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM,
-  model options, and the eval results
+  model options, and the eval results ·
+  [`docs/ai-boundaries.md`](docs/ai-boundaries.md) — where models are used,
+  where they are deliberately not, and the one place the speech and grammar
+  chains collided
+- [`docs/speaking.md`](docs/speaking.md) — Estonian ASR options, what can
+  honestly be checked, and what cannot
 
 ## On a phone
 

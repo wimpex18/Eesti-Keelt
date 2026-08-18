@@ -675,7 +675,12 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
     from .lookup import annotate
     from .providers import grammar as grammar_provider
 
-    checked = grammar_provider.check(req.transcript)
+    # A transcript is evidence about two things at once — what was said and what
+    # the model heard — and nothing here can separate them, so the result is
+    # re-read as advisory and the recogniser-shaped corrections are dropped.
+    checked = grammar_provider.from_transcript(
+        grammar_provider.check(req.transcript), req.transcript
+    )
     words = req.transcript.split()
     profile = annotate(req.transcript)
 
@@ -688,13 +693,15 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
                         for c in checked.corrections],
         "engine": checked.engine,
         "degraded": checked.degraded,
+        "advisory": checked.advisory,
         "words": len(words),
         "pace_wpm": pace,
         "vocabulary": {
             "known_levels": profile.get("levels", {}) if isinstance(profile, dict) else {},
         },
         "note": (
-            "Sisu ja grammatika kohta — mitte häälduse. Rääkimiseksam on paaris, "
-            "nii et üksi harjutades loeb vastuse ülesehitus ja keel."
+            "Sisu ja grammatika kohta — mitte häälduse. Kõnetuvastus võib olla "
+            "valesti kuulnud, nii et need on vihjed, mitte kinnitatud vead: "
+            "vigade logisse need ei lähe."
         ),
     }
