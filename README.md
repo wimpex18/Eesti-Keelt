@@ -149,6 +149,8 @@ git-ignored; fetch it yourself.
 
 ## Docs
 
+- [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
+  from research, against what is actually built
 - [`docs/architecture.md`](docs/architecture.md) — how this deploys to Cloudflare
   when Vabamorf cannot run there
 - [`docs/grammar-scope.md`](docs/grammar-scope.md) — what is drillable beyond
