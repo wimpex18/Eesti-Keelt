@@ -383,9 +383,38 @@ repeat and `gen-stem` never. A topic that cannot be tested cannot be a gate, so
 those show as `reference` and do not block. A test now asserts every drillable
 topic is reachable, which is the kind of failure nothing on screen would reveal.
 
-### 4. Placement / skip
-Reuse the mastery check as a test-out: answer a short set correctly and the
-topic is marked known without doing the lesson. Same mechanism, two features.
+### 4. Placement / skip — done ✅
+`eesti/placement.py`, `cli placement` and `cli test-out --topic X`. It owns no
+state: a probe calls `progress.mark_mastered(..., via="placement")`, which is
+exactly the promise step 3 made about skipping and passing being one operation.
+
+**The bar is 5 of 5, against practice's 8 of 10.** That looks inconsistent and
+is not — the two buy different things. Ten attempts with two mistakes is a
+learner who worked through a topic and mostly holds it. Five attempts is thin
+evidence being used to skip the work entirely, so the only defensible reading of
+a wrong answer is "not yet". A false pass silently removes a topic from the
+course *and* unlocks everything downstream; a false fail costs one session of
+practice the learner did not strictly need. The errors are not symmetric, so the
+thresholds should not be either.
+
+Probe attempts are recorded as ordinary attempts, because that is what they are
+— a failed test-out means those items really were answered, and the rolling
+window should know.
+
+**It is not IRT, and the code says so.** The plan floated item-response theory:
+ask progressively harder items, and where the learner fails is the entry point.
+The adaptive half is here — the sweep walks study order and stops after two
+consecutive failures — but the psychometric half is not, because IRT needs
+per-item difficulty estimated from a population of test-takers and this app has
+one user. Calling a stopping rule "IRT" would be dressing up a heuristic. What
+the sweep actually leans on is the prerequisite graph: study order already
+encodes difficulty, because a topic depending on four others is genuinely later.
+
+**A placement is not an audit.** The sweep stops when it has found where to
+start, so a topic the learner knows on a *parallel* branch may never be probed —
+`olevik` sits in the verb branch and the sweep may stop in the noun branch
+before reaching it. That is the right trade for a placement, and `test-out
+--topic X` covers the rest, one topic at a time, whenever they want.
 
 ### 5. Blocked → interleaved handoff
 On mastery, a topic's items enter the FSRS queue. Practice becomes review

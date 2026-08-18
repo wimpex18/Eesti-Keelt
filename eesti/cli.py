@@ -544,6 +544,70 @@ def cmd_progress(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ask_terminal(item) -> str:
+    print(f"\n   {item.prompt}")
+    print(f"   ({item.hint})")
+    try:
+        return input("   > ")
+    except (EOFError, KeyboardInterrupt):
+        return ""
+
+
+def cmd_placement(args: argparse.Namespace) -> int:
+    """Find where to start, instead of starting at lesson one.
+
+    Walks the syllabus in study order, probing each topic with a short set, and
+    stops once failures accumulate. It places you; it does not audit you — use
+    `test-out --topic X` for any single topic you already know.
+    """
+    from .placement import PROBE_ITEMS, PROBE_REQUIRED, entry_point, sweep
+    from .progress import connect
+
+    progress = connect(args.progress_db)
+    print(
+        f"Placement: {PROBE_ITEMS} items per topic, all {PROBE_REQUIRED} correct "
+        "to skip it.\nStops once you start missing. Ctrl-C to leave early.\n"
+    )
+
+    def report(result) -> None:
+        if not result.ran:
+            return
+        mark = "✓ known" if result.passed else "→ start here"
+        print(f"\n   {result.topic}: {result.correct}/{result.asked}  {mark}")
+
+    results = sweep(progress, _ask_terminal, seed=args.seed, on_result=report)
+    known = [r.topic for r in results if r.passed]
+    start = entry_point(results)
+
+    print(f"\n{len(known)} topic(s) marked known: {', '.join(known) or 'none'}")
+    print(f"start at: {start}" if start else "start at: nothing left to place")
+    print("run `practice` to begin, or `progress` to see the whole syllabus.")
+    return 0
+
+
+def cmd_test_out(args: argparse.Namespace) -> int:
+    """Skip one topic you already know, by demonstrating it."""
+    from .curriculum import by_id
+    from .placement import PROBE_REQUIRED, probe
+    from .progress import connect
+
+    progress = connect(args.progress_db)
+    meta = by_id(args.topic)
+    print(f"\nTest-out: {meta.level}  {meta.et}")
+
+    result = probe(progress, args.topic, _ask_terminal, seed=args.seed)
+    if not result.ran:
+        print(f"\nnot probed: {result.skipped}")
+        return 1
+    print(f"\n{result.correct}/{result.asked}")
+    if result.passed:
+        print(f"✓ {meta.et} marked known — it unlocks what depends on it.")
+    else:
+        print(f"needs {PROBE_REQUIRED}/{result.asked}. Those attempts were "
+              "recorded, so practice picks up from here.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -636,6 +700,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--todo", action="store_true", help="hide mastered and locked")
     p.add_argument("--progress-db", default="data/progress.db")
     p.set_defaults(func=cmd_progress)
+
+    p = sub.add_parser("placement", help="find where to start in the syllabus")
+    p.add_argument("--seed", type=int)
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.set_defaults(func=cmd_placement)
+
+    p = sub.add_parser("test-out", help="skip one topic by demonstrating it")
+    p.add_argument("--topic", required=True)
+    p.add_argument("--seed", type=int)
+    p.add_argument("--progress-db", default="data/progress.db")
+    p.set_defaults(func=cmd_test_out)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))
