@@ -158,6 +158,32 @@ def cmd_harvest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_harvest_reading(args: argparse.Namespace) -> int:
+    """Harvest simplified-Estonian reading material (Selges keeles).
+
+    This is the actual reading corpus. The ERR radio archives measured 12%
+    Estonian — Russian grammar lessons with Estonian examples — so they are
+    filed as grammar, not reading.
+    """
+    from .harvest.selges import fetch, to_items
+    from .sources import add_items, clear_source, connect, register
+
+    posts = fetch(limit=args.limit)
+    conn = connect(args.db)
+    register(conn)
+    clear_source(conn, "selges-keeles")
+    items = to_items(posts)
+    add_items(conn, items)
+
+    words = sum(p.word_count for p in posts)
+    bands: dict[str, int] = {}
+    for item in items:
+        bands[item.level or "?"] = bands.get(item.level or "?", 0) + 1
+    print(f"  {len(items)} texts, {words:,} words, 100% Estonian")
+    print(f"  difficulty: {bands}")
+    return 0
+
+
 def cmd_fetch_bench(args: argparse.Namespace) -> int:
     """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026)."""
     from .evals.fetch import fetch_all
@@ -263,6 +289,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-pages", type=int, default=300)
     p.add_argument("--db", default="data/content.db")
     p.set_defaults(func=cmd_harvest)
+
+    p = sub.add_parser("harvest-reading", help="harvest simplified Estonian texts")
+    p.add_argument("--limit", type=int)
+    p.add_argument("--db", default="data/content.db")
+    p.set_defaults(func=cmd_harvest_reading)
 
     p = sub.add_parser("fetch-bench", help="download the Estonian benchmark datasets")
     p.set_defaults(func=cmd_fetch_bench)

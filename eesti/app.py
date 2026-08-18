@@ -13,9 +13,14 @@ from pydantic import BaseModel, Field
 
 from .config import LEVELS
 from .drills import TEMPLATES, generate
+from .lookup import annotate, lookup
 from .providers import grammar
 from .providers import tts
+from .sources import connect as content_connect
+from .sources import query as content_query
 from .wordlist import connect
+
+CONTENT_DB = "data/content.db"
 
 WEB = Path(__file__).parent / "web"
 
@@ -83,6 +88,62 @@ def drills(req: DrillRequest) -> dict:
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"drills": [d.to_dict() for d in items]}
+
+
+@app.get("/api/library")
+def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) -> dict:
+    """Harvested study material.
+
+    `public_only` is deliberately NOT exposed as a parameter. This server is the
+    single-user local one; the public deployment sets it, and making it a query
+    parameter would let a caller ask for owner-only material by guessing.
+    """
+    conn = content_connect(CONTENT_DB)
+    rows = content_query(conn, skill=skill, level=level, limit=limit)
+    return {
+        "items": [
+            {
+                "id": r["id"],
+                "title": r["title"],
+                "level": r["level"],
+                "source": r["source_name"],
+                "licence": r["licence"],
+                "audio_url": r["audio_url"],
+                "words": len(( r["body"] or "").split()),
+            }
+            for r in rows
+        ]
+    }
+
+
+@app.get("/api/library/{item_id}")
+def library_item(item_id: str) -> dict:
+    """One item with its full text and a vocabulary profile."""
+    conn = content_connect(CONTENT_DB)
+    row = conn.execute(
+        """SELECT i.*, s.name AS source_name, s.licence
+           FROM items i JOIN sources s ON s.id = i.source_id
+           WHERE i.id = ?""",
+        (item_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="not found")
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "body": row["body"],
+        "level": row["level"],
+        "source": row["source_name"],
+        "licence": row["licence"],
+        "audio_url": row["audio_url"],
+        "profile": annotate(row["body"] or ""),
+    }
+
+
+@app.get("/api/lookup/{word}")
+def lookup_word(word: str) -> dict:
+    """Analyse one word: lemma, case, CEFR level, and its object-case pair."""
+    return lookup(word)
 
 
 @app.post("/api/speak")

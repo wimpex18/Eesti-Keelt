@@ -69,6 +69,23 @@
   .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
   .score{font-size:13px;color:var(--muted);margin-top:16px}
   .empty{color:var(--muted);font-size:14px;margin-top:14px}
+  .lib-item{border:1px solid var(--line);border-radius:8px;padding:11px 13px;
+    margin-top:9px;background:var(--bg);cursor:pointer;display:flex;gap:10px;
+    align-items:baseline;justify-content:space-between}
+  .lib-item:hover{border-color:var(--accent)}
+  .lib-item h4{margin:0;font-size:14.5px;font-weight:600}
+  .lib-meta{font-size:12px;color:var(--muted);white-space:nowrap}
+  .prose{margin-top:12px;font-size:16.5px;line-height:1.75}
+  .prose w{cursor:pointer;border-bottom:1px dotted transparent}
+  .prose w:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .prose w.hard{background:var(--warn-soft);border-radius:3px;padding:0 1px}
+  #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
+    border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
+    box-shadow:0 4px 18px rgba(0,0,0,.13)}
+  #wordCard .lemma{font-size:16px;font-weight:700}
+  #wordCard .tags{font-size:13px;color:var(--muted);margin-top:3px}
+  #wordCard .pair{margin-top:7px;font-size:13.5px}
+  #wordCard .pair b{color:var(--accent)}
   audio{width:100%;margin-top:12px}
   label{font-size:13px;color:var(--muted)}
 </style>
@@ -83,6 +100,7 @@
   <nav role="tablist">
     <button role="tab" aria-selected="true"  data-tab="write">Kirjutamine</button>
     <button role="tab" aria-selected="false" data-tab="drill">Harjutused</button>
+    <button role="tab" aria-selected="false" data-tab="read">Lugemine</button>
     <button role="tab" aria-selected="false" data-tab="listen">Kuulamine</button>
   </nav>
 
@@ -107,7 +125,7 @@
           <option value="ongoing">kestev → partitiiv</option>
         </select>
       </label>
-      <label>Tase
+      <label>Raskus
         <select id="level">
           <option value="A1,A2,B1">A1–B1</option>
           <option value="A1,A2">A1–A2</option>
@@ -119,6 +137,34 @@
     </div>
     <div id="drillOut"></div>
     <div class="score" id="score"></div>
+  </section>
+
+  <!-- ── Reading ───────────────────────────────────────────────────── -->
+  <section class="panel" id="tab-read" hidden>
+    <div class="row" style="margin-top:0">
+      <label>Raskus
+        <select id="readLevel">
+          <option value="">kõik</option>
+          <option value="kergem">kergem</option>
+          <option value="keskmine">keskmine</option>
+          <option value="raskem">raskem</option>
+        </select>
+      </label>
+      <button class="go" id="loadLib">Lae tekstid</button>
+      <span class="hint" id="libCount"></span>
+    </div>
+    <div id="libList"></div>
+    <div id="reader" hidden>
+      <div class="row" style="margin-top:16px">
+        <button class="ghost" id="backToLib">← Nimekirja</button>
+        <span class="hint" id="readerMeta"></span>
+      </div>
+      <h3 id="readerTitle" style="margin:12px 0 4px;font-size:17px"></h3>
+      <div id="readerAudio"></div>
+      <p class="hint" id="readerProfile"></p>
+      <div id="readerBody" class="prose"></div>
+      <div id="wordCard" hidden></div>
+    </div>
   </section>
 
   <!-- ── Listening ─────────────────────────────────────────────────── -->
@@ -150,7 +196,7 @@ const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
-  ["write","drill","listen"].forEach(t => $("#tab-" + t).hidden = (t !== b.dataset.tab));
+  ["write","drill","read","listen"].forEach(t => $("#tab-" + t).hidden = (t !== b.dataset.tab));
 });
 
 async function api(path, body) {
@@ -253,6 +299,68 @@ function renderDrill(d, i) {
   if (i === 0) setTimeout(() => input.focus(), 0);
   return el;
 }
+
+// ── reading ─────────────────────────────────────────────────────────
+async function loadLibrary() {
+  const level = $("#readLevel").value;
+  const q = new URLSearchParams({skill: "lugemine", limit: "80"});
+  if (level) q.set("level", level);
+  const list = $("#libList"); list.innerHTML = "";
+  $("#reader").hidden = true;
+  try {
+    const {items} = await (await fetch("/api/library?" + q)).json();
+    $("#libCount").textContent = `${items.length} teksti`;
+    if (!items.length) { list.innerHTML = `<p class="empty">Tekste pole. Käivita <code>cli harvest-reading</code>.</p>`; return; }
+    for (const it of items) {
+      const el = document.createElement("div");
+      el.className = "lib-item";
+      el.innerHTML = `<h4>${esc(it.title)}</h4>
+        <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}${it.words} sõna${it.audio_url ? " · ♪" : ""}</span>`;
+      el.onclick = () => openItem(it.id);
+      list.appendChild(el);
+    }
+  } catch (e) { list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`; }
+}
+$("#loadLib").onclick = loadLibrary;
+$("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
+
+async function openItem(id) {
+  const d = await (await fetch("/api/library/" + id)).json();
+  $("#libList").hidden = true;
+  $("#reader").hidden = false;
+  $("#readerTitle").textContent = d.title;
+  $("#readerMeta").textContent = `${esc(d.source)} · ${esc(d.licence)}`;
+  $("#readerAudio").innerHTML = d.audio_url
+    ? `<audio controls preload="none" src="${esc(d.audio_url)}"></audio>` : "";
+
+  const p = d.profile || {};
+  // Coverage is the number that decides whether a text is worth your time:
+  // not how long it is, but how much of it you can already handle.
+  $("#readerProfile").textContent = p.coverage != null
+    ? `Sõnavara: ${Math.round(p.coverage * 100)}% sinu tasemel · ${p.unique} eri sõna`
+    : "";
+
+  const hard = new Set((p.hard_words || []).map(w => w.toLowerCase()));
+  // Wrap each word so it can be clicked; non-words pass through untouched.
+  $("#readerBody").innerHTML = esc(d.body).replace(
+    /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+/g,
+    m => `<w class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
+  $("#wordCard").hidden = true;
+}
+
+$("#readerBody").addEventListener("click", async e => {
+  if (e.target.tagName !== "W") return;
+  const card = $("#wordCard");
+  card.hidden = false;
+  card.innerHTML = `<span class="hint">…</span>`;
+  const d = await (await fetch("/api/lookup/" + encodeURIComponent(e.target.textContent))).json();
+  if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
+  card.innerHTML = d.analyses.slice(0, 2).map(a => `
+    <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
+    <div class="tags">${a.tags.map(t => esc(t.name)).join(" · ")}</div>
+    ${a.object_case_contrast ? `<div class="pair">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
+      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>");
+});
 
 // ── listening ───────────────────────────────────────────────────────
 $("#speakBtn").onclick = async () => {

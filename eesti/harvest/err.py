@@ -1,9 +1,22 @@
 """One-time harvest of ERR's Estonian-for-Russian-speakers radio archives.
 
-Three archives, ~170 episodes, each pairing a **full transcript** with **audio** —
-so a single harvest supplies both Lugemine and Kuulamine material. Several
-episodes teach exactly the completed/incomplete object contrast behind the
-`obj-case` gap.
+**What these actually are, measured rather than assumed.** Across the 28
+harvested episodes the transcripts are **12 % Estonian** — 3 214 Estonian words
+against 23 147 Russian. They are Russian-language *grammar lessons* with Estonian
+examples embedded, not Estonian reading material. An earlier plan filed them
+under `lugemine`; that was wrong, and reading practice has to come from a source
+that is actually in Estonian (Lihtsad uudised, HARNO reading tasks).
+
+What they are good for, and it is a lot:
+
+  * **Grammar explanation in Russian** — the learner's native language, and the
+    language corrections are explained in. Several episodes cover exactly the
+    completed/incomplete object contrast behind the `obj-case` gap.
+  * **Listening** — the audio is bilingual, so it is graded input rather than a
+    wall of native speech.
+  * **Example sentences** — the Estonian fragments are teacher-curated
+    illustrations of specific grammar points. `estonian_fragments()` pulls them
+    out for use as drill material.
 
 All three archives are closed and static: nothing new is being added. So this
 runs once, caches to disk, and never touches ERR again. That is both polite and
@@ -53,6 +66,10 @@ USER_AGENT = "Eesti-Keelt/0.1 (personal language study; one-time archive fetch)"
 
 _PCD_RE = re.compile(r"window\.pageControlData\s*=\s*(\{.*?\});\s*\n", re.S)
 _TAG_RE = re.compile(r"<[^>]+>")
+_LATIN_RE = re.compile(r"[A-Za-zÕÄÖÜõäöüŠŽšž]+")
+_CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]+")
+# A run of Latin-script words with Estonian-legal punctuation between them.
+_FRAGMENT_RE = re.compile(r"[A-Za-zÕÄÖÜõäöüŠŽšž][A-Za-zÕÄÖÜõäöüŠŽšž \-']{8,120}")
 
 
 @dataclass(frozen=True)
@@ -66,6 +83,36 @@ class Episode:
     @property
     def word_count(self) -> int:
         return len(self.body.split())
+
+    @property
+    def estonian_word_count(self) -> int:
+        return len(_LATIN_RE.findall(self.body))
+
+    @property
+    def estonian_share(self) -> float:
+        """Fraction of words in Latin script.
+
+        Crude but sufficient: these transcripts are Russian prose with Estonian
+        examples, and script cleanly separates the two.
+        """
+        latin = len(_LATIN_RE.findall(self.body))
+        cyrillic = len(_CYRILLIC_RE.findall(self.body))
+        total = latin + cyrillic
+        return round(latin / total, 3) if total else 0.0
+
+    def estonian_fragments(self, min_words: int = 3) -> list[str]:
+        """Estonian runs of `min_words`+ words — the worked examples.
+
+        These are what a teacher wrote on the board to illustrate a rule, so they
+        are better drill material than anything generated: real, idiomatic, and
+        already tied to a grammar point.
+        """
+        out = []
+        for run in _FRAGMENT_RE.findall(self.body):
+            cleaned = " ".join(run.split())
+            if len(cleaned.split()) >= min_words:
+                out.append(cleaned)
+        return out
 
     @property
     def content_key(self) -> str:
@@ -254,7 +301,8 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
             items.append(
                 Item(
                     source_id="err-r4",
-                    skill="lugemine",
+                    # Filed as grammar, not reading: measured 12% Estonian.
+                    skill="grammatika",
                     title=episode.title,
                     body=episode.body,
                     audio_url=episode.audio_url,
@@ -264,6 +312,8 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
                         "words": episode.word_count,
                         "published": episode.published,
                         "has_audio": bool(episode.audio_url),
+                        "estonian_words": episode.estonian_word_count,
+                        "estonian_share": episode.estonian_share,
                     },
                 )
             )

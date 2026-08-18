@@ -63,8 +63,33 @@ grammar terms (`osastav`, `omastav`) so the exam vocabulary sticks.
 
 Grading is deterministic — no model involved, so it is right every time and free.
 
+**Lugemine** — 349 simplified Estonian texts (~23 000 words, 100 % Estonian),
+sorted into three difficulty bands. Click any word for its lemma, case and CEFR
+level; words above your level are highlighted, and each text shows what share of
+its vocabulary you already know — which is the number that decides whether a text
+is worth your time.
+
 **Kuulamine** — any text becomes Estonian audio via TartuNLP TTS (12 voices),
 default 0.7× for learners. Cached on disk, so replay is instant and offline.
+Plus 28 ERR radio episodes with audio.
+
+## What the reading material actually is
+
+Measured, not assumed. The ERR Raadio 4 archives were planned as reading
+material; they turned out to be **12 % Estonian** — 3 214 Estonian words against
+23 147 Russian. They are Russian-language *grammar lessons* with Estonian
+examples, so they are filed as `grammatika`, not `lugemine`, and their 333
+teacher-curated Estonian example sentences are extracted for drill use.
+
+Actual reading practice comes from **Selges keeles** — 349 simplified Estonian
+news posts, 100 % Estonian, fetched through WordPress.com's public API.
+
+Difficulty is **relative, not CEFR**. An earlier version estimated an absolute
+level from vocabulary coverage and rated 342 of 349 deliberately-simplified texts
+as B2. The cause is structural: only 9 951 of 160 316 lemmas (6.2 %) carry a CEFR
+tag, so coverage systematically undercounts — measured 0.25–0.87, median 0.53.
+The bands rank texts against each other instead, which is all that is needed to
+start with the easier ones.
 
 ## How the forms are trusted
 

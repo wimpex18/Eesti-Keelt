@@ -139,6 +139,14 @@ REGISTRY: tuple[Source, ...] = (
         "Turns any text into listening practice. 14 voices, 0.7x for learners.",
     ),
     Source(
+        "selges-keeles", "Selges keeles — lihtne eesti keel", "api",
+        "© the authors — no explicit reuse licence; personal study only", False,
+        "https://selgeskeeles.wordpress.com",
+        "349 simplified Estonian news posts, 35-80 words each, 100% Estonian. "
+        "Fetched via WordPress.com's public API. Dormant since 2018, which "
+        "makes it a fixed corpus — harvest once.",
+    ),
+    Source(
         "generated", "Genereeritud harjutused", "generated",
         "own work", True, None,
         "Drills built from Vabamorf forms. Unlimited, deterministic.",
@@ -188,6 +196,18 @@ def add_items(conn: sqlite3.Connection, items: list[Item]) -> int:
             ],
         )
     return len(items)
+
+
+def clear_source(conn: sqlite3.Connection, source_id: str) -> int:
+    """Drop every item from one source.
+
+    Item ids are content hashes, so improving the cleaning step changes the hash
+    and `add_items` inserts alongside the old rows rather than replacing them.
+    Re-harvesting is a normal operation, so it clears first.
+    """
+    with conn:
+        cur = conn.execute("DELETE FROM items WHERE source_id = ?", (source_id,))
+    return cur.rowcount
 
 
 def query(
