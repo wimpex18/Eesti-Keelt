@@ -17,12 +17,18 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
 from ..config import DATA
 
 ROWS_API = "https://datasets-server.huggingface.co/rows"
+
+# The datasets server returns transient 5xx under load — a 502 broke a CI run.
+# Retry with backoff rather than failing the build on somebody else's bad minute.
+RETRIES = 4
+TIMEOUT = 60.0
 BENCH_DIR = DATA / "raw" / "bench"
 
 DATASETS = {
@@ -41,8 +47,23 @@ def fetch(name: str, split: str, total: int, out_dir: Path | None = None) -> Pat
             f"{ROWS_API}?dataset=TalTechNLP%2F{name}&config=default"
             f"&split={split}&offset={offset}&length=100"
         )
-        with urllib.request.urlopen(url, timeout=60) as resp:
-            batch = json.loads(resp.read()).get("rows", [])
+        batch = None
+        for attempt in range(RETRIES):
+            try:
+                with urllib.request.urlopen(url, timeout=TIMEOUT) as resp:
+                    batch = json.loads(resp.read()).get("rows", [])
+                break
+            except urllib.error.HTTPError as exc:
+                # 4xx means we asked wrongly; only 5xx is worth retrying.
+                if exc.code < 500 or attempt == RETRIES - 1:
+                    raise
+                time.sleep(2 ** attempt)
+            except (TimeoutError, OSError):
+                if attempt == RETRIES - 1:
+                    raise
+                time.sleep(2 ** attempt)
+        if batch is None:
+            break
         if not batch:
             break
         rows.extend(item["row"] for item in batch)

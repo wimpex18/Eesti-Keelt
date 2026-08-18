@@ -17,11 +17,27 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
 DEFAULT_TIMEOUT = 60.0
+
+# OpenRouter's free tier caps at 20 requests/minute, and the eval fires 18 in a
+# row — a real run lost two cases to HTTP 429. Pace requests and retry the
+# transient failures, or the score measures our impatience rather than the model.
+MIN_INTERVAL = 3.5
+RETRIES = 3
+_last_call = 0.0
+
+
+def _throttle() -> None:
+    global _last_call
+    wait = MIN_INTERVAL - (time.monotonic() - _last_call)
+    if wait > 0:
+        time.sleep(wait)
+    _last_call = time.monotonic()
 
 
 @dataclass(frozen=True)
@@ -146,9 +162,27 @@ def complete(
             "Authorization": f"Bearer {provider.api_key}",
         },
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = json.loads(resp.read())
-    return body["choices"][0]["message"]["content"]
+
+    for attempt in range(RETRIES):
+        _throttle()
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                body = json.loads(resp.read())
+            return body["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as exc:
+            # 429 and 5xx are the provider having a moment; 4xx otherwise is us.
+            retryable = exc.code == 429 or exc.code >= 500
+            if not retryable or attempt == RETRIES - 1:
+                raise
+            # Honour Retry-After when the provider sends one.
+            delay = exc.headers.get("Retry-After")
+            time.sleep(float(delay) if delay and delay.isdigit() else 5 * (attempt + 1))
+        except (TimeoutError, OSError):
+            if attempt == RETRIES - 1:
+                raise
+            time.sleep(2 ** attempt)
+
+    raise RuntimeError("unreachable")
 
 
 def parse_json(raw: str) -> dict:

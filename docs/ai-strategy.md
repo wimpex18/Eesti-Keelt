@@ -106,6 +106,71 @@ python -m eesti.cli eval --provider openrouter --model <id>
 Exits non-zero below 0.8 on either score, so it can gate a deploy. **Run this
 before believing any recommendation in this document, including its own.**
 
+### First real result (18 Aug 2026)
+
+`nvidia/nemotron-3-super-120b-a12b:free` — the pinned default, a 120B model with
+a 262 K context:
+
+| | |
+|---|---|
+| recall | **0.50** — caught 5/10 planted errors |
+| precision | **0.50** — left alone only 4/8 correct sentences |
+
+**It fails in the harmful direction.** It flagged `Ma ostsin uue auto` and
+`Ma sõin suppi` — both correct — and missed both irregular-verb errors
+(`minen`→`lähen`, `teesin`→`tegin`). A learner following it would be taught that
+correct Estonian is wrong.
+
+This is the hypothesis tested and answered: **being a large, capable multilingual
+model does not confer Estonian object-case competence.** Estonian is low-resource
+and this judgement is exactly the language-specific semantics that thins out
+first. The eval existed precisely because this could not be assumed either way.
+
+Caveat on the number: two of the eighteen cases were lost to HTTP 429 and a
+malformed reply, so 0.50/0.50 is a lower bound. The client now throttles to
+OpenRouter's 20 req/min limit and retries 429/5xx, so later runs measure the
+model rather than our impatience.
+
+### The candidates that remain
+
+Of the 15 free models on OpenRouter, only **five support structured outputs** —
+and a model that cannot return JSON fails the checker for the wrong reason:
+
+| Model | Context | Why it is on the list |
+|---|---|---|
+| **`google/gemma-4-26b-a4b-it:free`** | 262 K | **Try first.** The OmniGEC study (arXiv 2509.14504) found Gemma's largest multilingual GEC gain was **on Estonian** — +8.25 GLEU — and Gemma-3 gained +26 GLEU on Latvian, the neighbouring low-resource Baltic language. |
+| `dots-studio/dots-3-note-preview:free` | 512 K | largest free context |
+| `openai/gpt-oss-20b:free` | 131 K | small but instruction-tuned |
+| `nvidia/nemotron-3-super-120b-a12b:free` | 262 K | **scored 0.50/0.50 — tested, insufficient** |
+| `nvidia/nemotron-nano-9b-v2:free` | 128 K | smallest; likely worse |
+
+Two things worth knowing about the search for a better model. **Qwen is probably
+not the answer** despite its 119-language pretraining: a Baltic/Nordic evaluation
+found it scored *lower* on Estonian and Latvian than on Nordic languages. And
+**no Baltic-specialist model is on OpenRouter at all** — Tilde's European LLM and
+TartuNLP's Llammas exist, but not there.
+
+### The other lever: the prompt, not the model
+
+The observed failure was **over-flagging correct Estonian**, and that is as
+likely a task-design problem as a capability one. Two changes now under test:
+
+1. **A prompt built to make silence easy.** Rules stated positively, so a correct
+   genitive is recognisably correct rather than merely un-flagged; worked
+   examples that include correct sentences returning `{"corrections":[]}`,
+   because a model shown only errors infers that errors are expected; and an
+   explicit instruction to return nothing when unsure.
+2. **`--evidence` mode**, which attaches Vabamorf's reading of each
+   object-position word. Vabamorf already knows *which case was written*, so the
+   model only has to judge whether that case fits the aspect. This is the design
+   the app actually uses, so the eval should measure the prompt really sent.
+
+If a model still over-flags with the case handed to it, that is a capability
+limit. If it stops, the earlier score was measuring the prompt.
+
+**If no free model clears ~0.8 precision even with evidence,** the honest
+conclusion is that this one job — and only this job — is worth cents a month.
+
 ## Competitive landscape
 
 What the 2026 AI language apps do, and what they leave open:
