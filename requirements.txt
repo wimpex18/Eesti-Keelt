@@ -1,0 +1,6 @@
+estnltk==1.7.4        # Vabamorf: offline morphology + synthesis (the core)
+fastapi>=0.115        # local web app
+uvicorn[standard]>=0.30
+
+# Optional — the grammar checker degrades gracefully without it.
+# anthropic>=0.40
