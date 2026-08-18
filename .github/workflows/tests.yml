@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt pytest
+
+      - name: Fetch benchmark data
+        run: python -m eesti.cli fetch-bench
+
+      # Checks Vabamorf against TalTech's native-curated gold forms. Everything
+      # the app generates inherits this correctness, so it gates the build.
+      - name: Validate morphology against native gold data
+        run: python -m eesti.cli validate
+
+      - name: Tests
+        run: python -m pytest tests/ -q

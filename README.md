@@ -37,15 +37,14 @@ Terminal use, if you prefer:
 .venv/bin/python -m eesti.cli check "Ma lugesin eile raamatut läbi."
 ```
 
-For the free-text writing check (corrections explained in Russian), add one API
-key — everything else works without it:
+For the free-text writing check (corrections explained in Russian), one API key
+is needed — everything else works without it.
 
-```bash
-cp .env.example .env          # then paste an OpenRouter key into it
-.venv/bin/python -m eesti.cli keys   # confirm it loaded; prints only the last 4 chars
-```
-
-See [`docs/setup.md`](docs/setup.md) for where to get a key and why OpenRouter.
+**The key belongs where the code that uses it runs.** For CI and the model eval
+that is a **GitHub repository secret** (`OPENROUTER_API_KEY`); for the deployed
+app it will be a Cloudflare Worker secret; only if you clone this locally does a
+git-ignored `.env` apply. See [`docs/setup.md`](docs/setup.md) — it also says
+where *not* to put it.
 
 ## What it does
 
