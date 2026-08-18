@@ -431,6 +431,37 @@ def cmd_conjugate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_patterns(args: argparse.Namespace) -> int:
+    """Drill comparison, numerals and question words — the closed classes."""
+    from .patterns import comparison_drills, numeral_drills, question_drills
+    from .wordlist import connect
+
+    conn = connect()
+    levels = tuple(args.levels.split(","))
+    builders = {
+        "vordlusastmed": lambda n: comparison_drills(conn, levels, n, args.seed),
+        "arvsonad": lambda n: numeral_drills(conn, levels, n, args.seed, ("arvsonad",)),
+        "jargarvud": lambda n: numeral_drills(conn, levels, n, args.seed, ("jargarvud",)),
+        "kusisonad": lambda n: question_drills(n, args.seed),
+    }
+    wanted = args.topics.split(",") if args.topics else list(builders)
+    unknown = set(wanted) - set(builders)
+    if unknown:
+        print(f"no generator for: {sorted(unknown)}. Known: {', '.join(builders)}")
+        return 1
+
+    per = max(1, args.count // len(wanted))
+    items = [item for topic in wanted for item in builders[topic](per)]
+    for i, item in enumerate(items, 1):
+        print(f"\n{i}. {item.prompt}")
+        print(f"   ({item.hint})")
+        if args.answers:
+            print(f"   -> {item.answer}   (не *{item.distractor}*)")
+            print(f"   {item.why_ru}")
+    print(f"\n{len(items)} items across {len(wanted)} topics.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -503,6 +534,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--answers", action="store_true")
     p.add_argument("--seed", type=int)
     p.set_defaults(func=cmd_conjugate)
+
+    p = sub.add_parser("patterns", help="drill comparison, numerals, question words")
+    p.add_argument("-n", "--count", type=int, default=8)
+    p.add_argument("--topics", help="comma-separated curriculum topic ids")
+    p.add_argument("--levels", default="A1,A2,B1")
+    p.add_argument("--answers", action="store_true")
+    p.add_argument("--seed", type=int)
+    p.set_defaults(func=cmd_patterns)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from estnltk.vabamorf.morf import synthesize
 
 from .config import LEVELS
+from .item import GradedItem
 
 
 @dataclass(frozen=True)
@@ -127,7 +128,7 @@ FRAMES: dict[str, tuple[Frame, ...]] = {
 
 
 @dataclass(frozen=True)
-class VerbDrill:
+class VerbDrill(GradedItem):
     prompt: str
     answer: str
     distractor: str
@@ -139,32 +140,9 @@ class VerbDrill:
     topic: str
     level: str | None
 
-    def to_dict(self) -> dict:
-        from dataclasses import asdict
-
-        return asdict(self) | {"hint": self.hint, "reference": self.reference}
-
-    def check(self, given: str) -> bool:
-        return given.strip().lower() == self.answer.lower()
-
     @property
-    def hint(self) -> str:
-        return f"{self.lemma}, {self.form_et}"
-
-    @property
-    def solution(self) -> str:
-        answer = self.answer
-        if self.prompt.startswith("____"):
-            answer = answer[:1].upper() + answer[1:]
-        return self.prompt.replace("____", answer)
-
-    @property
-    def reference(self) -> dict | None:
-        from .curriculum import by_id
-        from .grammar import describe
-
-        tag = by_id(self.topic).tag
-        return describe(tag) if tag else None
+    def label(self) -> str:
+        return self.form_et
 
 
 def verbs_at_levels(

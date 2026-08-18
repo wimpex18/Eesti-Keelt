@@ -162,7 +162,7 @@ vocabulary teaches the rule and the words in the same repetition.
 
 | Need | Have | Missing |
 |---|---|---|
-| Grammar topics | **declared: 36; drillable: 17** | 19 generators |
+| Grammar topics | **declared: 36; drillable: 21** | 15 generators |
 | Forms for those topics | **all of them** (411 349, gold-validated) | nothing |
 | Explanations | 8 rules → EKK handbook, verified | ~17 more mappings |
 | Blocked practice | drill generator with rule filter | mastery gate |
@@ -221,6 +221,37 @@ Two inputs, not one. Templates give controlled contrasts; **cloze deletion over
 the 349 harvested Selges keeles texts** gives authentic sentences whose answers
 are correct because a native wrote them (see `roadmap.md`). Prefer the corpus
 where it has the pattern; fall back to templates where it does not.
+
+**Comparison, numerals and question words are built** — `eesti/patterns.py`,
+`cli patterns`. That finishes every generator step 2 named. **21 of 36 topics**
+now have practice.
+
+Each needed a different treatment, and the interesting one is comparison.
+Vabamorf will not synthesise it: ask for the comparative of `suur` and it
+returns nothing, because Estonian comparatives are separate lemmas in its
+lexicon. The rule — genitive stem + `-m` — is easy to write and dangerous to
+trust: it gives `suurem` and `väiksem` correctly, and also `vanam` for *vanem*,
+`pikam` for *pikem*, and `omam` for a word with no comparative at all. So the
+generated form must be **a lemma Ekilex knows** *and* **have been observed in a
+corpus** (`freq_rank > 0`). The second gate is the one that earns its keep — it
+removes `hullum`, `täiem` and `ainsam`, all productively well-formed and never
+written. 96 comparatives survive at A1–B1; the rule's failures are dropped
+rather than taught.
+
+Numerals are not about forms but **government**: after a cardinal above one the
+noun goes to partitive singular — *kaks raamatut*, not *kaks raamatud*. An A1
+rule with an A1 error. The frame needed countable nouns (frequency order alone
+produced *"Mul on kaks tähelepanu"*, two attentions), so it reuses the
+object-case semantic pools rather than inventing a list.
+
+Question words are a **genuinely closed class**, so a table of twelve is the
+right representation, not a tax — and each entry names the confusion that
+actually happens (`kus`/`kuhu`, `kes`/`mis`, `kellele`/`kellelt`), which is where
+Estonian splits and Russian does not.
+
+Four generators now exist, so the five things every item must do — show, grade,
+name, reveal, link the rule — live in `eesti/item.py` rather than in four
+diverging copies.
 
 **The verb topics are built** — `eesti/conjugation.py`, `cli conjugate`.
 Nine topics at once: `olevik`, `lihtminevik`, `taisminevik`, `enneminevik`,
@@ -283,7 +314,8 @@ published simplified news. Mining it would have taught the mistake as the answer
 **The corpus half is built** — `eesti/cloze.py`, `python -m eesti.cli cloze`.
 2 073 usable sentences yield **1 138 case items and 28 negation items** across
 five topics, so `gen-stem`, `osastav`, `kohakaanded`, `harvad-kaanded` and
-`mitmus` all gained a generator at once. With rection and the verb topics, generators go **2 → 17 of 36**.
+`mitmus` all gained a generator at once. With rection, the verb topics and the closed classes, generators go
+**2 → 21 of 36**.
 
 The design problem was not extraction, it was **deciding when an authentic
 sentence has one right answer.** Blank the object in *"Ta luges raamatut"* and
@@ -312,6 +344,14 @@ is the error, and it is why `gen-stem` sits upstream of eleven topics.
 Also caught by building it: negation scopes over its **clause**, not the
 sentence. The first version explained a partitive in one clause by an `ei` in
 another.
+
+**Step 2 is complete** for everything it named. What has no generator is what
+the plan never claimed one for: the reference topics (`tahestik`,
+`lauseehitus`), the closed word classes already covered by vocabulary work
+(`asesonad`, `kaassonad`, `sidesonad`, `maarsonad`), and four topics that need
+sentence-level machinery rather than form generation — `sonajark`,
+`kirjavahemargid`, `uhildumine`, `liitsonad`. Those are honest gaps, listed
+here so they are not mistaken for oversights.
 
 ### 3. Mastery and progress
 Per-topic state: attempts, rolling accuracy, `mastered_at`. Gate advancement on
