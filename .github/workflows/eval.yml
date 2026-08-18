@@ -12,9 +12,24 @@ on:
         type: choice
         options: [openrouter, groq, workers-ai, anthropic]
       model:
-        description: Model id (blank = the provider's pinned default)
-        required: false
-        type: string
+        description: Model to score
+        default: "google/gemma-4-26b-a4b-it:free"
+        type: choice
+        options:
+          # Only free models that support structured outputs — the checker needs
+          # JSON, and a model that cannot produce it fails for the wrong reason.
+          # Gemma first: the OmniGEC work found it gained most on Estonian GEC.
+          - google/gemma-4-26b-a4b-it:free
+          - dots-studio/dots-3-note-preview:free
+          - openai/gpt-oss-20b:free
+          - nvidia/nemotron-3-super-120b-a12b:free
+          - nvidia/nemotron-nano-9b-v2:free
+      evidence:
+        description: >-
+          Attach Vabamorf's case analysis (as the real app does). Tests whether
+          the model's weakness is judgement or morphology.
+        default: false
+        type: boolean
   pull_request:
     paths:
       - "eesti/evals/**"
@@ -38,8 +53,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      # No install step: the eval path is stdlib-only by design, so this needs
-      # no compiled extensions and finishes in seconds.
+      # Evidence mode is the only thing here that needs Vabamorf; the plain eval
+      # path stays stdlib-only so a normal run costs seconds.
+      - name: Install morphology (evidence mode only)
+        if: inputs.evidence
+        run: |
+          pip install -r requirements.txt
+          python -m eesti.cli fetch-data
+          python -m eesti.cli build
+
       - name: Check the pinned model id still exists
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
 
@@ -52,6 +74,7 @@ jobs:
           if python -m eesti.cli keys | grep -q '✓'; then
             python -m eesti.cli eval --provider "$PROVIDER" \
               ${{ inputs.model && format('--model {0}', inputs.model) || '' }} \
+              ${{ inputs.evidence && '--evidence' || '' }} \
               | tee eval.txt
           else
             echo "SKIPPED=1" >> "$GITHUB_OUTPUT"
