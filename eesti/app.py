@@ -959,6 +959,63 @@ def grammar_engines() -> dict:
     }
 
 
+class DictationAnswer(BaseModel):
+    text: str = Field(min_length=1, max_length=400)
+    typed: str = Field(default="", max_length=800)
+
+
+@app.get("/api/dictation/next")
+def dictation_next(count: int = 1, seed: int | None = None) -> dict:
+    """Sentences to write down, easiest-first for this learner.
+
+    The corpus is owner-only and supplied at runtime, so an empty library is a
+    supported state and answers 200 with an empty list — the same contract the
+    reading views use. A 404 here would read as a broken feature.
+    """
+    from .dictation import CAVEAT, MAX_WORDS, MIN_WORDS, choose
+
+    try:
+        content = content_db()
+    except Exception:  # noqa: BLE001 - no corpus is a state, not an error
+        content = None
+    passages = choose(
+        content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
+    ) if content is not None else []
+    return {
+        "passages": [p.to_dict() for p in passages],
+        "words": [MIN_WORDS, MAX_WORDS],
+        "caveat": CAVEAT,
+        "note": ("Kuula ja kirjuta üles. Kuulata võib nii mitu korda kui vaja."
+                 if passages else
+                 "Tekstikogu on tühi — lisa materjal, siis tulevad ka diktaadid."),
+    }
+
+
+@app.post("/api/dictation/answer")
+def dictation_answer(req: DictationAnswer) -> dict:
+    """Grade a submission, and write it down.
+
+    Graded server-side for the same reason every other answer is: a page can
+    be edited, and a score the browser computed measures nothing. Recorded in
+    the same call, because a listening exercise whose result nothing stores is
+    how the verdict came to report this part as untouched no matter how much
+    had been played.
+    """
+    from .dictation import Passage, grade, key_of, record
+
+    passage = Passage(req.text, key_of(req.text), len(req.text.split()))
+    result = grade(passage, req.typed)
+    record(progress_db(), result)
+    return result.to_dict()
+
+
+@app.get("/api/dictation/stats")
+def dictation_stats() -> dict:
+    from .dictation import stats
+
+    return stats(progress_db())
+
+
 @app.get("/api/asr")
 def asr_available() -> dict:
     """Which speech engines this deployment can use — shown in the UI as-is."""

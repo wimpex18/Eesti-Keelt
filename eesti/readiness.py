@@ -256,11 +256,28 @@ def _parts(progress: sqlite3.Connection, level: str,
         note="На экзамене четыре задания по письму.",
         next_task=_next_task(content, level, "kirjutamine"),
     ))
+    # Listening counts two different things, and the second is the stronger of
+    # the two. Opening a task means audio was played; a dictation means what
+    # was said had to be written down and was scored against the transcript.
+    # Either one is contact, but the evidence line says which happened, so
+    # "I listened a lot" cannot quietly stand in for having been tested.
+    try:
+        from .dictation import stats as dictation_stats
+
+        heard = dictation_stats(progress)
+    except sqlite3.Error:
+        heard = {"attempts": 0, "passed": 0, "accuracy": None}
+
+    opened = touched.get("kuulamine", 0)
+    evidence = f"{opened} заданий открыто"
+    if heard["attempts"]:
+        evidence += f" · {heard['passed']}/{heard['attempts']} диктантов"
+        if heard["accuracy"] is not None:
+            evidence += f", слов расслышано {heard['accuracy']:.0%}"
     out.append(Part(
         "kuulamine", "Kuulamine", "аудирование",
-        evidence=(f"{touched.get('kuulamine', 0)} заданий открыто"
-                  + material("kuulamine")),
-        touched=touched.get("kuulamine", 0) >= CONTACT,
+        evidence=evidence + material("kuulamine"),
+        touched=opened >= CONTACT or heard["attempts"] >= CONTACT,
         next_task=_next_task(content, level, "kuulamine"),
     ))
     out.append(Part(

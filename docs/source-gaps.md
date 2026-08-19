@@ -167,8 +167,15 @@ supplies the data. **Step 1 (the topic model) stays next** — unchanged.
 
 | Item | State |
 |---|---|
-| HARNO / EIS fetch scripts | registered owner-only, never fetched (§4) |
-| `word_meanings_et`, `exam_et` | on disk via `fetch-bench`, unused (§5) |
-| ERR *Lihtsad uudised* | client-rendered; ERR hosts unreachable from the sandbox |
-| Notion write-back | scoped, not built |
-| Cloudflare deploy | scoped, not built |
+| HARNO / EIS fetch scripts | **built** — 39 HARNO items and 23 EIS tasks, as pointers |
+| ERR *Lihtsad uudised* | **built** (`harvest/lihtsad.py`) |
+| Notion write-back | **built** (`notion.py`), queue then confirm |
+| Cloudflare deploy | **built** — Worker in front of Cloud Run, both free tier |
+| `word_meanings_et`, `exam_et` | still unused (§5) — the only row that has not moved |
+
+`word_meanings_et` is a native-authored vocabulary quiz, and the reason it is
+still unused is that vocabulary here is measured from **what the learner has
+actually met while reading**, per lemma. A quiz over words nobody met would
+report on a different population than every other number in the app. It stays
+open rather than closed: it would be the right source if a placement-style
+vocabulary check is ever wanted, which is a different question from progress.

@@ -97,6 +97,23 @@ deterministic and the error history already exists.
 - **Learner-corpus weighting** (`eesti/harvest/evkk.py`) — 51 467 annotated
   errors ranking the nine tags by what learners of Estonian actually get wrong,
   as a counterweight to a single error log.
+- **Dictation** (`eesti/dictation.py`) — the Kuulamine tab had no exercise. It
+  was a text-to-speech box: paste a passage, hear it read. Nothing could be
+  answered, so nothing was scored and nothing recorded, and the verdict went on
+  reporting listening as untouched however much had been played — on an exam
+  where a zero in one part fails you regardless of the other three.
+
+  A sentence from the corpus is spoken at 0.7×, the learner writes down what
+  they heard, and the submission is aligned against the transcript word by
+  word. The answer is correct because a native wrote it, grading needs no
+  model, and — unlike the read-aloud loop, which compares against what a
+  *recogniser* heard — a miss here is a real miss, so the result carries no
+  caveat about the model's Estonian.
+
+  Missed words are deliberately **not** queued for review: a word missed in
+  dictation may be evidence about hearing rather than about grammar, and an
+  object-case card raised from a mis-heard word teaches the wrong lesson from
+  the right mistake.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
   TTS, ERR episode audio, rection and inflection type via `sonapi`.
 
