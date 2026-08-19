@@ -1236,12 +1236,17 @@ async function loadLibrary() {
 
   try {
     let items, note = "";
+    let measured = true;
     if (choice === "soovitatud") {
       const d = await (await fetch("/api/reading/next?limit=25")).json();
       items = d.items;
-      note = d.known_words
+      // With nothing marked known, every text scores 0 % — true, and it reads
+      // as "you know nothing" rather than "we have not measured yet". Suppress
+      // the number until there is a vocabulary to measure against, and say why.
+      measured = d.known_words > 0;
+      note = measured
         ? `${d.known_words} слов знакомо`
-        : "Пока нет отмеченных слов — показаны самые простые тексты.";
+        : "Слова ещё не отмечены — показаны самые простые тексты.";
     } else {
       const q = new URLSearchParams({skill: "lugemine", limit: "80"});
       if (choice) q.set("band", choice);
@@ -1260,7 +1265,7 @@ async function loadLibrary() {
       el.className = "lib-item";
       // Coverage only appears where it was actually computed. Showing "0 %"
       // for a list that never measured it would read as "you know nothing".
-      const cover = it.coverage !== undefined
+      const cover = (measured && it.coverage !== undefined)
         ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
       const size = it.words !== undefined ? `${it.words} sõna`
         : (it.total !== undefined ? `${it.total} sõna` : "");
