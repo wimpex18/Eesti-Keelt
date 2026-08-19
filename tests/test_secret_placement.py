@@ -137,3 +137,37 @@ class TestTheDeploymentCanSayWhetherTheKeyLanded:
         workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
         assert "/api/engines" in workflow
         assert '"explains":true' in workflow
+
+
+class TestTheDeepCheckIsOptIn:
+    """The configuration check cannot tell a working key from a revoked one.
+    Sending one real sentence can — but it spends a request of a 50/day free
+    tier, so it belongs on a manual switch, not on every deploy."""
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
+
+    @pytest.fixture(scope="class")
+    def workflow(self) -> str:
+        return self.WORKFLOW.read_text(encoding="utf-8")
+
+    def test_it_does_not_run_automatically(self, workflow):
+        import yaml
+
+        parsed = yaml.safe_load(workflow)
+        # `on:` parses as the boolean True in YAML 1.1.
+        triggers = parsed.get("on", parsed.get(True))
+        assert triggers["workflow_dispatch"]["inputs"]["deep"]["default"] is False
+
+    def test_it_is_guarded_by_the_switch(self, workflow):
+        assert 'if [ "$DEEP" = "true" ]' in workflow
+
+    def test_it_probes_the_documented_weakness(self, workflow):
+        """If one sentence is going to cost a request, it should be the one
+        this whole app is pointed at: a completed object that must be genitive
+        `raamatu`, not partitive `raamatut`."""
+        assert "raamatut" in workflow
+
+    def test_only_an_llm_engine_counts_as_a_pass(self, workflow):
+        """`vabamorf-offline` answering is exactly the failure being checked
+        for — an answer, with no explanation behind it."""
+        assert "llm:*)" in workflow

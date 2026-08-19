@@ -21,6 +21,14 @@ name: smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      deep:
+        description: >-
+          Also send one sentence through the grammar chain. Costs one LLM
+          request of a 50/day free tier, so it is opt-in rather than run on
+          every deploy.
+        type: boolean
+        default: false
   workflow_run:
     workflows: [deploy]
     types: [completed]
@@ -34,6 +42,7 @@ jobs:
           URL: ${{ secrets.WORKER_URL }}
           CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          DEEP: ${{ inputs.deep }}
         run: |
           if [ -z "$URL" ] || [ -z "$CF_ID" ] || [ -z "$CF_SECRET" ]; then
             echo "::warning::Smoke test not configured. Add WORKER_URL, \
@@ -104,7 +113,32 @@ jobs:
           checker is in offline mode. Run deploy/set-llm-key.sh."
           fi
 
-          # 7. The reading library. A warning, not an error: an unharvested
+          # 7. Opt-in: one real sentence through the whole chain.
+          #
+          #    The check above reads configuration; this one proves the key
+          #    actually works — a revoked or mistyped key is configured and
+          #    useless. It costs a request of a 50/day free tier, which is why
+          #    it is not on the automatic path.
+          #
+          #    The sentence is the learner's documented weakness: "Ma lugesin
+          #    raamatut labi" — a completed action, so the object should be
+          #    genitive `raamatu`, not partitive `raamatut`.
+          if [ "$DEEP" = "true" ]; then
+            answer="$(curl -s "${auth[@]}" -X POST "$URL/api/check" \
+              -H 'Content-Type: application/json' \
+              -d '{"text":"Ma lugesin raamatut läbi."}')"
+            engine="$(echo "$answer" \
+              | sed -n 's/.*"engine":"\([^"]*\)".*/\1/p')"
+            case "$engine" in
+              llm:*) echo "grammar chain ........... OK (answered by $engine)" ;;
+              "")    echo "::error::/api/check did not answer: ${answer:0:200}"
+                     fail=1 ;;
+              *)     echo "::warning::Answered by '$engine' — no explanation \
+          behind it. The key is set but not usable, or the LLM refused." ;;
+            esac
+          fi
+
+          # 8. The reading library. A warning, not an error: an unharvested
           #    deployment is a supported state.
           library="$(curl -s "${auth[@]}" "$URL/api/health")"
           echo "$library" | grep -q '"library":true' \
