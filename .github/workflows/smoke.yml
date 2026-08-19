@@ -113,15 +113,46 @@ jobs:
           #    it" button, nothing ever reached the Notion log either. A
           #    warning rather than an error — a deployment with no LLM key is
           #    a legitimate choice; a key that is set and unreachable is not.
-          code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" \
-                    "$URL/api/engines")"
-          if [ "$code" = "404" ]; then
+          #    Asked five times, not once. Production answered this question
+          #    two ways within a minute — /api/engines reported an LLM
+          #    configured while /api/check fell through to offline mode — which
+          #    is not a contradiction but a traffic split: two revisions
+          #    serving, only one carrying the key. A single request reports
+          #    whichever instance it landed on, so a split looks like a flake
+          #    and gets re-run until it passes.
+          yes_n=0; no_n=0; gone_n=0
+          for _ in 1 2 3 4 5; do
+            out="$(curl -s -w '\n%{http_code}' "${auth[@]}" "$URL/api/engines")"
+            case "$(tail -1 <<<"$out")" in
+              404) gone_n=$((gone_n + 1)) ;;
+              200) grep -q '"explains":true' <<<"$out" \
+                     && yes_n=$((yes_n + 1)) || no_n=$((no_n + 1)) ;;
+            esac
+          done
+
+          # Counted with `if`, not `[ ... ] && x`: the shell runs with -e, and
+          # an && list whose test fails returns non-zero, which would end the
+          # step. And written plainly rather than as one arithmetic
+          # expression -- the clever version parsed as a command
+          # substitution and ran the comparison as a command.
+          kinds=0
+          if [ "$yes_n"  -gt 0 ]; then kinds=$((kinds + 1)); fi
+          if [ "$no_n"   -gt 0 ]; then kinds=$((kinds + 1)); fi
+          if [ "$gone_n" -gt 0 ]; then kinds=$((kinds + 1)); fi
+
+          if [ "$gone_n" = 5 ]; then
             # The running image predates this endpoint. Saying "offline mode"
             # here would be a guess, and a misleading warning is worse than
             # none.
             echo "::notice::/api/engines not in the deployed image yet."
-          elif curl -s "${auth[@]}" "$URL/api/engines" | grep -q '"explains":true'
-          then
+          elif [ "$kinds" -gt 1 ]; then
+            echo "::error::Instances disagree ($yes_n with an engine, \
+          $no_n without, $gone_n on an older image). Traffic is split across \
+          revisions, so the app works or does not depending on which one \
+          answers. Fix: gcloud run services update-traffic SERVICE \
+          --region REGION --to-latest"
+            fail=1
+          elif [ "$yes_n" = 5 ]; then
             echo "grammar explains ........ OK"
           else
             echo "::warning::No engine can explain a correction — the grammar \

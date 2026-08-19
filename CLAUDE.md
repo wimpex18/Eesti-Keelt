@@ -186,7 +186,13 @@ in Cloud Shell and discover the project, service and region themselves.
   the opposite. Claims about privacy, cost and provenance are facts about the
   code — pin them with a test that fails when the code changes.
 - **Check production by asking it.** Three bugs were found that way after the
-  full suite was green.
+  full suite was green — and a fourth: the grammar checker running in offline
+  mode with the key apparently set.
+- **Ask production more than once.** It answered the same question two ways in
+  a minute: one endpoint reported an LLM configured, another fell through to
+  offline mode. Two revisions were serving and only one carried the key. A
+  single request reports whichever instance it reached, so a split reads as a
+  flake and gets re-run until it passes.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,

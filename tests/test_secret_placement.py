@@ -250,3 +250,44 @@ class TestTheDeploymentSaysWhichBuildItIs:
     def test_the_smoke_test_reports_it(self):
         workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
         assert '"built"' in workflow
+
+
+class TestASplitDeploymentIsNotAFlake:
+    """Production answered the same question two ways within a minute:
+    `/api/engines` reported an LLM configured while `/api/check` fell through
+    to offline mode. Not a contradiction — two revisions serving, only one
+    carrying the key, and each request landing wherever it landed.
+
+    Asked once, that reads as a flake and gets re-run until it passes. Asked
+    five times, disagreement between instances is itself the finding, and it
+    is an error rather than a warning: an app that works or does not depending
+    on which instance answers is not a supported state, unlike having no key
+    at all."""
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
+
+    @pytest.fixture(scope="class")
+    def workflow(self) -> str:
+        return self.WORKFLOW.read_text(encoding="utf-8")
+
+    def test_it_asks_more_than_once(self, workflow):
+        block = workflow.split("Asked five times")[1][:900]
+        assert "for _ in 1 2 3 4 5" in block
+
+    def test_disagreement_fails_the_run(self, workflow):
+        block = workflow.split('elif [ "$kinds" -gt 1 ]')[1][:600]
+        assert "::error::" in block
+        assert "fail=1" in block
+
+    def test_it_names_the_fix(self, workflow):
+        """A split is fixed by moving traffic, not by setting the key again."""
+        block = workflow.split('elif [ "$kinds" -gt 1 ]')[1][:600]
+        assert "update-traffic" in block
+
+    def test_the_counting_survives_set_e(self, workflow):
+        """The step runs under `bash -e`. `[ x -gt 0 ] && n=$((n+1))` returns
+        non-zero when the test fails, which ends the step — so the counters
+        are `if` blocks."""
+        block = workflow.split("kinds=0")[1][:400]
+        assert "&&" not in block.split("fi")[0]
+        assert block.lstrip().startswith("if [")
