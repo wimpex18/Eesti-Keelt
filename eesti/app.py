@@ -380,6 +380,11 @@ def library_item(item_id: str) -> dict:
         "source": row["source_name"],
         "licence": row["licence"],
         "audio_url": row["audio_url"],
+        "band": row["band"],
+        # The reader needs to know *what kind of thing* this is before it can
+        # decide between a text, a player and an embed.
+        "meta": json.loads(row["meta"] or "{}"),
+        "url": json.loads(row["meta"] or "{}").get("url"),
         "profile": annotate(row["body"] or ""),
     }
 
@@ -786,6 +791,25 @@ ICON_SVG = (
     'font-size="34" font-weight="700" fill="#fff" text-anchor="middle">ä</text>'
     "</svg>"
 )
+
+
+@app.get("/vendor/{name}")
+def vendor(name: str) -> FileResponse:
+    """Third-party browser libraries, served from here rather than a CDN.
+
+    One of them is load-bearing: 44 of the 91 audio items are HLS streams,
+    which Safari plays natively and Chrome and Firefox do not. Without hls.js
+    half the listening library is silently silent on a laptop.
+
+    Served locally because the rest of this app already refuses to depend on
+    someone else's uptime for a lesson, and a CDN is exactly that dependency in
+    a smaller package.
+    """
+    path = (WEB / "vendor" / name).resolve()
+    # Path traversal: `name` comes from the URL.
+    if path.parent != (WEB / "vendor").resolve() or not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type="application/javascript")
 
 
 @app.get("/icon.svg")

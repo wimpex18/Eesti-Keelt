@@ -161,6 +161,10 @@
   #wordCard .pair{margin-top:7px;font-size:13.5px}
   #wordCard .pair b{color:var(--accent)}
   audio{width:100%;margin-top:12px}
+  /* 16:9 without magic padding — `aspect-ratio` is universally supported now
+     and survives a phone rotating better than a percentage hack. */
+  .video{margin-top:12px;aspect-ratio:16/9;width:100%}
+  .video iframe{width:100%;height:100%;border:0;border-radius:10px}
   .topic{display:flex;gap:10px;align-items:baseline;padding:4px 0;font-size:14px}
   .topic .st{font-size:11px;text-transform:uppercase;letter-spacing:.04em;
     min-width:74px;color:var(--muted)}
@@ -488,6 +492,78 @@ fetch("/api/health").then(r => r.json()).then(h => {
 });
 
 // ── writing check ───────────────────────────────────────────────────
+/* ---------------------------------------------------------------------------
+   Audio, including the half of it that Chrome cannot play unaided.
+
+   Forty-four of the ninety-one audio items are HLS streams (`.m3u8`) from ERR.
+   Safari plays those natively; Chrome, Firefox and Edge do not. Setting
+   `<audio src="...m3u8">` therefore worked on the phone and failed **silently**
+   on the laptop — no error, no message, just a player that never starts.
+
+   So: native first where the browser has it, hls.js otherwise, and the library
+   is fetched only when an HLS stream is actually opened. A learner who never
+   touches the radio archive never downloads it.
+--------------------------------------------------------------------------- */
+const isHls = url => /\.m3u8(\?|$)/i.test(url || "");
+let hlsReady = null;
+
+function loadHls() {
+  if (hlsReady) return hlsReady;
+  hlsReady = new Promise((resolve, reject) => {
+    const tag = document.createElement("script");
+    tag.src = "/vendor/hls.light.min.js";
+    tag.onload = () => resolve(window.Hls);
+    tag.onerror = () => reject(new Error("hls.js ei laadinud"));
+    document.head.appendChild(tag);
+  });
+  return hlsReady;
+}
+
+/* Video: the four official level-introduction films, embedded rather than
+   linked. `youtube-nocookie.com` because an app behind a private login should
+   not hand a third party a tracking cookie on page load, and the embed works
+   identically without one. */
+const YT = /(?:youtu\.be\/|v=)([\w-]{6,})/;
+
+function mountVideo(host, url) {
+  const id = (url || "").match(YT)?.[1];
+  if (!id) { host.innerHTML = ""; return; }
+  host.innerHTML = `<div class="video"><iframe
+    src="https://www.youtube-nocookie.com/embed/${esc(id)}"
+    title="Eksami tutvustav video" loading="lazy" allowfullscreen
+    referrerpolicy="no-referrer"></iframe></div>`;
+}
+
+async function mountAudio(host, url) {
+  host.innerHTML = "";
+  if (!url) return;
+
+  const el = document.createElement("audio");
+  el.controls = true;
+  el.preload = "none";
+  host.appendChild(el);
+
+  const native = el.canPlayType("application/vnd.apple.mpegurl");
+  if (!isHls(url) || native) { el.src = url; return; }
+
+  try {
+    const Hls = await loadHls();
+    if (!Hls || !Hls.isSupported()) throw new Error("HLS pole toetatud");
+    const hls = new Hls({ enableWorker: false });
+    hls.loadSource(url);
+    hls.attachMedia(el);
+    // Free the stream when the panel is replaced, or a long session
+    // accumulates one buffering player per episode opened.
+    host._hls?.destroy();
+    host._hls = hls;
+  } catch (e) {
+    // Say so rather than showing a dead player. Russian: this is an
+    // explanation, and the reader is still learning Estonian.
+    host.innerHTML = `<div class="banner">Аудио не воспроизводится в этом
+      браузере (поток HLS). Откройте в Safari или обновите страницу.</div>`;
+  }
+}
+
 async function runCheck() {
   const text = $("#text").value.trim();
   if (!text) return;
@@ -1022,8 +1098,13 @@ async function openItem(id) {
   $("#reader").hidden = false;
   $("#readerTitle").textContent = d.title;
   $("#readerMeta").textContent = `${esc(d.source)} · ${esc(d.licence)}`;
-  $("#readerAudio").innerHTML = d.audio_url
-    ? `<audio controls preload="none" src="${esc(d.audio_url)}"></audio>` : "";
+  // An item is a text, a recording or a film; the reader shows whichever it
+  // has rather than assuming audio.
+  if (d.meta?.kind === "video" || YT.test(d.url || "")) {
+    mountVideo($("#readerAudio"), d.url || d.audio_url);
+  } else {
+    mountAudio($("#readerAudio"), d.audio_url);
+  }
 
   const p = d.profile || {};
   // Coverage is the number that decides whether a text is worth your time:
@@ -1082,7 +1163,8 @@ $("#speakBtn").onclick = async () => {
       text, voice: $("#voice").value, speed: +$("#speed").value
     });
     const url = URL.createObjectURL(await r.blob());
-    out.innerHTML = `<audio controls autoplay src="${url}"></audio>`;
+    await mountAudio(out, url);
+    out.querySelector("audio")?.play().catch(() => {});
   } catch (e) {
     out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Loe ette"; }
