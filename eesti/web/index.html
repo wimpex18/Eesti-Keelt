@@ -419,8 +419,11 @@
   <!-- ── Reading ───────────────────────────────────────────────────── -->
   <section class="panel" id="tab-read" hidden>
     <div class="row" style="margin-top:0">
-      <label>Raskus
+      <label>Valik
         <select id="readLevel">
+          <!-- Default, because it is the only option that knows anything about
+               *this* reader. The rest rank texts against each other. -->
+          <option value="soovitatud">soovitatud sulle</option>
           <option value="">kõik</option>
           <option value="kergem">kergem</option>
           <option value="keskmine">keskmine</option>
@@ -1214,25 +1217,62 @@ function renderReview(it) {
 }
 
 // ── reading ─────────────────────────────────────────────────────────
+/* Reading list. Two different questions, and the selector picks which one.
+
+   "soovitatud" asks /api/reading/next, which ranks by how much of each text
+   *this* learner already has words for and puts the instructional band first —
+   the reading research is specific that input works when it is understood, and
+   a difficulty band cannot see who is reading.
+
+   The others filter on `band`, which is difficulty relative to a source. That
+   used to be sent as `level`; when the two scales were separated into their own
+   columns this select went on sending the old one and quietly returned zero
+   texts for every difficulty. */
 async function loadLibrary() {
-  const level = $("#readLevel").value;
-  const q = new URLSearchParams({skill: "lugemine", limit: "80"});
-  if (level) q.set("level", level);
+  const choice = $("#readLevel").value;
   const list = $("#libList"); list.innerHTML = "";
   $("#reader").hidden = true;
+  $("#libList").hidden = false;
+
   try {
-    const {items} = await (await fetch("/api/library?" + q)).json();
-    $("#libCount").textContent = `${items.length} teksti`;
-    if (!items.length) { list.innerHTML = `<p class="empty">Tekste pole. Käivita <code>cli harvest-reading</code>.</p>`; return; }
+    let items, note = "";
+    if (choice === "soovitatud") {
+      const d = await (await fetch("/api/reading/next?limit=25")).json();
+      items = d.items;
+      note = d.known_words
+        ? `${d.known_words} слов знакомо`
+        : "Пока нет отмеченных слов — показаны самые простые тексты.";
+    } else {
+      const q = new URLSearchParams({skill: "lugemine", limit: "80"});
+      if (choice) q.set("band", choice);
+      items = (await (await fetch("/api/library?" + q)).json()).items;
+    }
+
+    $("#libCount").textContent =
+      `${items.length} teksti${note ? " · " + note : ""}`;
+    if (!items.length) {
+      list.innerHTML = `<p class="empty">Tekste pole. Käivita
+        <code>cli harvest-reading</code>.</p>`;
+      return;
+    }
     for (const it of items) {
       const el = document.createElement("div");
       el.className = "lib-item";
+      // Coverage only appears where it was actually computed. Showing "0 %"
+      // for a list that never measured it would read as "you know nothing".
+      const cover = it.coverage !== undefined
+        ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
+      const size = it.words !== undefined ? `${it.words} sõna`
+        : (it.total !== undefined ? `${it.total} sõna` : "");
       el.innerHTML = `<h4>${esc(it.title)}</h4>
-        <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}${it.words} sõna${it.audio_url ? " · ♪" : ""}</span>`;
+        <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
+          it.audio_url ? " · ♪" : ""}${cover}</span>`;
       el.onclick = () => openItem(it.id);
       list.appendChild(el);
     }
-  } catch (e) { list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`; }
+  } catch (e) {
+    list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  }
 }
 $("#loadLib").onclick = loadLibrary;
 $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
