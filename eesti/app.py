@@ -922,6 +922,35 @@ def _require_state_token(request: Request) -> None:
         raise HTTPException(status_code=403, detail="bad state token")
 
 
+class ResetRequest(BaseModel):
+    topic: str | None = None
+    everything: bool = False
+
+
+@app.post("/api/progress/reset")
+def progress_reset(req: ResetRequest, request: Request) -> dict:
+    """Forget a topic's attempts.
+
+    Guarded by `STATE_TOKEN` rather than left open behind Access, for the same
+    reason the snapshot endpoints are: this destroys learner history, and a
+    misfired request from a page the learner has open should not be able to do
+    that. It is an operator action, not a UI button.
+
+    Clearing everything must be asked for explicitly. A missing `topic` is far
+    more likely to be a bug in a caller than a genuine wish to erase months of
+    work, so it is refused unless `everything` says otherwise.
+    """
+    _require_state_token(request)
+    from .progress import reset
+
+    if not req.topic and not req.everything:
+        raise HTTPException(
+            status_code=400,
+            detail="Pass a topic, or everything=true to clear all of it.",
+        )
+    return reset(progress_db(), req.topic)
+
+
 @app.get("/api/state/export")
 def state_export(request: Request) -> dict:
     """The learner's databases, base64'd, for the Worker to persist."""

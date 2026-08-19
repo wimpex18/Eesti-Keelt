@@ -65,6 +65,13 @@
      to the bottom, where a thumb reaches, which is the iOS convention and the
      reason six tabs across the top does not work at 390px wide. On a desktop
      the same buttons sit under the header as a normal row. */
+  /* `display` on a bare element name is an author rule, and an author rule
+     beats the browser's own `[hidden]{display:none}`. Without this line the
+     exam navigation stayed laid out while marked hidden, so on a phone two
+     fixed bottom bars sat on top of each other and the upper one swallowed
+     every tap. Found by driving the page in a real browser; no test that
+     renders markup without layout could have seen it. */
+  [hidden]{display:none !important}
   nav{display:flex;gap:2px;margin:0 0 18px;overflow-x:auto;scrollbar-width:none}
   nav::-webkit-scrollbar{display:none}
   nav button{background:none;border:0;padding:8px 13px;font:inherit;font-size:14px;
