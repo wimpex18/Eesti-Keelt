@@ -153,6 +153,50 @@ def index() -> str:
     return (WEB / "index.html").read_text(encoding="utf-8")
 
 
+def _bind_breaker() -> None:
+    """Point the provider breaker at the learner's database.
+
+    Without this the breaker is per-process, and on Cloud Run — which scales to
+    zero — that meant every cold container paid a dead provider's full timeout
+    twice before stepping over it. `progress.db` rather than a file of its own
+    so it rides the existing snapshot; the table is tiny and its lifetime is
+    the same as the deployment's.
+    """
+    from .providers import breaker
+
+    try:
+        breaker.bind(progress_db())
+    except Exception:  # noqa: BLE001 - an unbound breaker still works
+        pass
+
+
+_bind_breaker()
+
+
+def build_info() -> dict:
+    """When this image was built, and from what commit if the builder said.
+
+    Read once and cached by the module-level call below: it is a file written
+    at image build time and it cannot change while the process runs.
+
+    Why it exists: a Python change was merged, the Worker redeployed, and the
+    new endpoint was still absent from production — with no way to tell whether
+    the container build had not run yet, had failed, or was never wired up.
+    Running from a source checkout there is no file and no build, which is
+    itself the honest answer.
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        return json.loads((Path("/app") / "BUILD_INFO").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"built": None, "revision": None}
+
+
+BUILD = build_info()
+
+
 @app.get("/api/health")
 def health() -> dict:
     conn = db()
@@ -173,6 +217,10 @@ def health() -> dict:
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
         "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),
+        # Which build is answering. `null` from a source checkout; on a
+        # deployment it is how you tell a stale image from a missing feature.
+        "built": BUILD.get("built"),
+        "revision": BUILD.get("revision") or None,
     }
 
 
@@ -215,7 +263,67 @@ def notion_queue(row: QueueError) -> dict:
 def notion_pending() -> dict:
     from .notion import connect, pending
 
-    return {"items": [dict(r) for r in pending(connect(NOTION_DB))]}
+    return {
+        "items": [dict(r) for r in pending(connect(NOTION_DB))],
+        # Whether pressing "send" can possibly work, said before it is pressed
+        # rather than as a failure afterwards.
+        "can_push": bool(os.environ.get("NOTION_TOKEN")),
+    }
+
+
+class NotionPush(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=50)
+
+
+@app.post("/api/notion/push")
+def notion_push(req: NotionPush) -> dict:
+    """Send named rows to the `Vead` log. Nothing else, ever.
+
+    This was missing, and its absence was quiet in the worst way. Corrections
+    could be queued from the app but pushed only by `cli notion --push` — and
+    the CLI does not exist on the deployment: the container is ephemeral and
+    the learner is on a phone. So the queue filled and never drained, and the
+    readiness verdict counted queued rows as writing evidence, which measured
+    the queue rather than the log it is supposed to feed.
+
+    It takes **ids**, not "push everything". The `Vead` log's worth is that it
+    is curated — three rows sharing a tag become the focus of the week, and
+    that rule is what identified `obj-case` in the first place. An endpoint
+    that drained the queue wholesale would be the same mistake as appending
+    every suspicion, one step later. The page shows the rows and sends the ones
+    ticked.
+
+    A row that fails to send stays queued. The queue is the record until Notion
+    says it has one.
+    """
+    from .notion import Row, connect, mark_pushed, pending, push
+
+    if not os.environ.get("NOTION_TOKEN"):
+        raise HTTPException(
+            status_code=503,
+            detail="NOTION_TOKEN is not set on this service, so nothing can "
+                   "be sent. The rows stay queued.",
+        )
+
+    conn = connect(NOTION_DB)
+    by_id = {r["id"]: r for r in pending(conn)}
+    sent, failed = [], []
+    for row_id in req.ids:
+        row = by_id.get(row_id)
+        if row is None:
+            # Already pushed, or never queued. Not an error worth failing the
+            # whole request over, and worth naming so the page can drop it.
+            failed.append({"id": row_id, "detail": "not queued"})
+            continue
+        ok, detail = push(Row(wrong=row["wrong"], correct=row["correct"],
+                              why=row["why"], tag=row["tag"]))
+        if ok:
+            mark_pushed(conn, row_id)
+            sent.append(row_id)
+        else:
+            failed.append({"id": row_id, "detail": detail})
+    return {"sent": sent, "failed": failed,
+            "remaining": len(pending(conn))}
 
 
 @app.post("/api/drills")
@@ -744,9 +852,11 @@ def exam_readiness(level: str) -> dict:
 
     if level not in LEVELS:
         raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    from .notion import connect as notion_connect
+
     return readiness(
         level, progress=progress_db(), vocabulary=vocab_db(), words=db(),
-        content=content_db(),
+        content=content_db(), notion=notion_connect(NOTION_DB),
     ).to_dict()
 
 
@@ -919,9 +1029,73 @@ def grammar_engines() -> dict:
     ]
     return {
         "engines": engines,
-        "explains": any(e["available"] and e["explains"] for e in engines),
+        # Deliberately NOT called `explains`: each engine carries a field of
+        # that name too, and a smoke check grepping the body for
+        # `"explains":true` matched a per-engine one on a provider that was
+        # not available — reporting the chain healthy while it was in offline
+        # mode, and sending me looking for a traffic split that did not exist.
+        # A summary field that shares a name with a per-item field is a trap
+        # for every line-oriented reader.
+        "can_explain": any(e["available"] and e["explains"] for e in engines),
         "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
     }
+
+
+class DictationAnswer(BaseModel):
+    text: str = Field(min_length=1, max_length=400)
+    typed: str = Field(default="", max_length=800)
+
+
+@app.get("/api/dictation/next")
+def dictation_next(count: int = 1, seed: int | None = None) -> dict:
+    """Sentences to write down, easiest-first for this learner.
+
+    The corpus is owner-only and supplied at runtime, so an empty library is a
+    supported state and answers 200 with an empty list — the same contract the
+    reading views use. A 404 here would read as a broken feature.
+    """
+    from .dictation import CAVEAT, MAX_WORDS, MIN_WORDS, choose
+
+    try:
+        content = content_db()
+    except Exception:  # noqa: BLE001 - no corpus is a state, not an error
+        content = None
+    passages = choose(
+        content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
+    ) if content is not None else []
+    return {
+        "passages": [p.to_dict() for p in passages],
+        "words": [MIN_WORDS, MAX_WORDS],
+        "caveat": CAVEAT,
+        "note": ("Kuula ja kirjuta üles. Kuulata võib nii mitu korda kui vaja."
+                 if passages else
+                 "Tekstikogu on tühi — lisa materjal, siis tulevad ka diktaadid."),
+    }
+
+
+@app.post("/api/dictation/answer")
+def dictation_answer(req: DictationAnswer) -> dict:
+    """Grade a submission, and write it down.
+
+    Graded server-side for the same reason every other answer is: a page can
+    be edited, and a score the browser computed measures nothing. Recorded in
+    the same call, because a listening exercise whose result nothing stores is
+    how the verdict came to report this part as untouched no matter how much
+    had been played.
+    """
+    from .dictation import Passage, grade, key_of, record
+
+    passage = Passage(req.text, key_of(req.text), len(req.text.split()))
+    result = grade(passage, req.typed)
+    record(progress_db(), result)
+    return result.to_dict()
+
+
+@app.get("/api/dictation/stats")
+def dictation_stats() -> dict:
+    from .dictation import stats
+
+    return stats(progress_db())
 
 
 @app.get("/api/asr")

@@ -197,3 +197,82 @@ class TestEveryTabOpensItsOwnPanel:
         """Two unhidden panels stack on load; zero shows a blank app."""
         sections = re.findall(r'<section class="panel" id="tab-[a-z]+"([^>]*)>', page)
         assert sum("hidden" not in s for s in sections) == 1
+
+
+class TestTheListeningTabHasAnExercise:
+    """It was a text-to-speech box: paste a passage, hear it read. Nothing
+    could be answered, so nothing was scored and nothing recorded — and the
+    verdict reported listening untouched however much had been played."""
+
+    def test_the_page_calls_the_dictation_endpoints(self, page):
+        for path in ("/api/dictation/next", "/api/dictation/answer"):
+            assert path in page
+
+    def test_they_answer(self, client):
+        assert client.get("/api/dictation/next").status_code == 200
+        assert client.post("/api/dictation/answer",
+                           json={"text": "Ma elan siin.",
+                                 "typed": "Ma elan siin."}).status_code == 200
+
+    def test_the_sentence_is_not_rendered_before_it_is_answered(self, page):
+        """Held in JS and written into the DOM only by the result render. A
+        screen rather than a lock — devtools defeats it, and that is the
+        learner's business — but it must not be on screen by accident.
+
+        Scoped to the loader's own body. A fixed-size window spilled into the
+        next function, where `dictNow.text` goes to the synthesiser and is
+        exactly where it belongs."""
+        body = page.split("async function loadDictation")[1]
+        body = body.split("async function dictAudio")[0]
+        assert "dictNow = " in body
+        assert "dictNow.text" not in body, (
+            "the loader must not put the sentence on screen — that is the "
+            "exercise"
+        )
+
+    def test_the_player_is_not_in_the_container_the_result_overwrites(self, page):
+        """It was, and grading destroyed it — so replaying while looking at the
+        marked words, the moment a replay is worth most, was impossible."""
+        assert 'id="dictAudio"' in page
+        play = page.split('$("#dictPlay").onclick')[1][:500]
+        assert '$("#dictAudio")' in play
+        assert '$("#dictOut")' not in play
+
+    def test_grading_is_server_side(self, page):
+        """A page can be edited; a score the browser computed measures
+        nothing. The same rule the practice loop follows."""
+        check = page.split('$("#dictCheck").onclick')[1][:700]
+        assert "/api/dictation/answer" in check
+
+
+class TestATwoChoiceItemIsAnsweredByChoosing:
+    """Word order is the one topic whose unit is the whole sequence, so its
+    items carry `choices` instead of a blank. Everything downstream is
+    unchanged — the chosen sentence is submitted as the answer and the server
+    grades it the same way — which is what lets it reach mastery and the review
+    queue without a loop of its own."""
+
+    def test_the_renderer_has_a_branch_for_them(self, page):
+        assert "it.choices && it.choices.length" in page
+
+    def test_the_chosen_sentence_is_what_gets_submitted(self, page):
+        fn = page.split("function renderPracticeItem")[1]
+        assert "given: input ? input.value : picked" in fn
+
+    def test_the_typed_path_still_exists_for_every_other_item(self, page):
+        fn = page.split("function renderPracticeItem")[1]
+        assert 'input type="text"' in fn
+        assert 'e.key === "Enter"' in fn
+
+    def test_a_correct_choice_does_not_echo_the_question(self, page):
+        """The blank-filling verdict fills `____` from the prompt. A choice
+        item's prompt is a question with no blank, so that path printed
+        "✓ õige — Kumb lause on õige?" back at the learner."""
+        fn = page.split("verdict.innerHTML = res.correct")[1][:600]
+        assert "choices.length" in fn
+
+    def test_choosing_locks_both_buttons(self, page):
+        """Otherwise the second click would submit a second answer for an item
+        already graded, and the accuracy gate would count it."""
+        fn = page.split("const lock = ()")[1][:300]
+        assert "disabled = true" in fn

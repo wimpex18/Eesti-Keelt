@@ -111,19 +111,19 @@ class TestTheDeploymentCanSayWhetherTheKeyLanded:
         monkeypatch.setattr(urllib.request, "urlopen", forbidden)
         assert client.get("/api/engines").status_code == 200
 
-    def test_explains_is_false_with_no_llm_key(self, client, monkeypatch):
+    def test_it_cannot_explain_with_no_llm_key(self, client, monkeypatch):
         """The exact production state that looked healthy: offline mode."""
         from eesti.providers.llm import PROVIDERS
 
         for p in PROVIDERS.values():
             monkeypatch.delenv(p.key_env, raising=False)
-        assert client.get("/api/engines").json()["explains"] is False
+        assert client.get("/api/engines").json()["can_explain"] is False
 
-    def test_explains_is_true_once_the_key_is_on_this_process(self, client,
-                                                              monkeypatch):
+    def test_it_can_explain_once_the_key_is_on_this_process(self, client,
+                                                            monkeypatch):
         monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
         got = client.get("/api/engines").json()
-        assert got["explains"] is True
+        assert got["can_explain"] is True
 
     def test_only_an_llm_is_credited_with_explaining(self, client):
         """Vabamorf reports evidence without judgement, and TartuNLP answers in
@@ -136,7 +136,7 @@ class TestTheDeploymentCanSayWhetherTheKeyLanded:
     def test_the_smoke_test_asks(self):
         workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
         assert "/api/engines" in workflow
-        assert '"explains":true' in workflow
+        assert ".can_explain" in workflow
 
 
 class TestTheDeepCheckIsOptIn:
@@ -205,3 +205,142 @@ class TestTheScriptsCheckTheirOwnWork:
         body = self.CHECK.read_text(encoding="utf-8")
         for mutating in ("services update", "services delete", "services replace"):
             assert mutating not in body.replace("update-traffic", ""), mutating
+
+
+class TestTheDeploymentSaysWhichBuildItIs:
+    """A Python change was merged, the Worker redeployed green, and the new
+    endpoint was still absent from production. Nothing could distinguish
+    "the container build has not run yet" from "the build failed" from "there
+    is no trigger" — the Worker and the app deploy by different routes, so a
+    green deploy workflow says nothing about the app.
+
+    The image stamps itself; health reports the stamp."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        return TestClient(app_module.app)
+
+    def test_health_carries_the_stamp(self, client):
+        got = client.get("/api/health").json()
+        assert "built" in got and "revision" in got
+
+    def test_a_source_checkout_says_so_rather_than_guessing(self, client):
+        """There is no image and no build here. `null` is the honest answer;
+        inventing a date would make the field useless for its one purpose."""
+        assert client.get("/api/health").json()["built"] is None
+
+    def test_the_stamp_is_written_after_the_code_is_copied(self):
+        """Written before, the layer cache would freeze it and the stamp would
+        outlive the code it describes — worse than not having one."""
+        body = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        runtime = body.split("# Runtime")[1]
+        assert runtime.index("COPY eesti/") < runtime.index("BUILD_INFO")
+
+    def test_the_commit_is_optional(self):
+        """A Cloud Build trigger configured against a plain Dockerfile passes
+        no build args. The timestamp alone answers the question that prompted
+        this, so requiring the commit would mean shipping nothing."""
+        body = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        assert 'ARG BUILD_REV=""' in body
+
+    def test_the_smoke_test_reports_it(self):
+        workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
+        assert ".built" in workflow
+
+
+class TestASplitDeploymentIsNotAFlake:
+    """Production answered the same question two ways within a minute:
+    `/api/engines` reported an LLM configured while `/api/check` fell through
+    to offline mode. Not a contradiction — two revisions serving, only one
+    carrying the key, and each request landing wherever it landed.
+
+    Asked once, that reads as a flake and gets re-run until it passes. Asked
+    five times, disagreement between instances is itself the finding, and it
+    is an error rather than a warning: an app that works or does not depending
+    on which instance answers is not a supported state, unlike having no key
+    at all."""
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
+
+    @pytest.fixture(scope="class")
+    def workflow(self) -> str:
+        return self.WORKFLOW.read_text(encoding="utf-8")
+
+    def test_it_asks_more_than_once(self, workflow):
+        block = workflow.split("Asked five times")[1][:900]
+        assert "for _ in 1 2 3 4 5" in block
+
+    def test_disagreement_fails_the_run(self, workflow):
+        block = workflow.split('elif [ "$kinds" -gt 1 ]')[1][:600]
+        assert "::error::" in block
+        assert "fail=1" in block
+
+    def test_it_names_the_fix(self, workflow):
+        """A split is fixed by moving traffic, not by setting the key again."""
+        block = workflow.split('elif [ "$kinds" -gt 1 ]')[1][:600]
+        assert "update-traffic" in block
+
+    def test_the_counting_survives_set_e(self, workflow):
+        """The step runs under `bash -e`. `[ x -gt 0 ] && n=$((n+1))` returns
+        non-zero when the test fails, which ends the step — so the counters
+        are `if` blocks."""
+        block = workflow.split("kinds=0")[1][:400]
+        assert "&&" not in block.split("fi")[0]
+        assert block.lstrip().startswith("if [")
+
+
+class TestTheSummaryFieldCannotBeConfusedForAPerEngineOne:
+    """The check read the response body with `grep -q '"explains":true'`. Each
+    engine carries a field of that name too, and it is true for every `llm:`
+    provider whether or not that provider is available — so the grep matched a
+    per-engine field on an unavailable provider and reported the chain healthy
+    while production was in offline mode.
+
+    Worse than a missed check: it contradicted the deep check in the same run,
+    and I spent a round diagnosing a traffic split that did not exist.
+
+    Two fixes, both needed. The summary field has its own name, and the
+    workflow reads JSON with jq rather than by matching text."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        return TestClient(app_module.app)
+
+    def test_the_summary_field_has_a_name_of_its_own(self, client, monkeypatch):
+        from eesti.providers.llm import PROVIDERS
+
+        for p in PROVIDERS.values():
+            monkeypatch.delenv(p.key_env, raising=False)
+        got = client.get("/api/engines").json()
+        assert "explains" not in got, (
+            "a top-level field sharing a name with a per-item field is a trap "
+            "for every line-oriented reader"
+        )
+        assert got["can_explain"] is False
+
+    def test_the_body_still_contains_the_string_that_fooled_the_grep(self, client,
+                                                                     monkeypatch):
+        """Not incidental — it is why the rename was the fix rather than a
+        tidier regex. Any check matching text against this body can still be
+        misled; only reading the named field cannot."""
+        from eesti.providers.llm import PROVIDERS
+
+        for p in PROVIDERS.values():
+            monkeypatch.delenv(p.key_env, raising=False)
+        body = client.get("/api/engines").text
+        assert '"explains":true' in body
+        assert '"can_explain":false' in body
+
+    def test_the_workflow_parses_json_instead_of_matching_text(self):
+        workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
+        block = workflow.split("Asked five times")[1][:800]
+        assert "jq -r" in block
+        assert "grep" not in block

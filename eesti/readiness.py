@@ -40,8 +40,14 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import date
 
-#: From the Notion plan. The optional A2 rehearsal and the date the decision is
-#: due — both are the reason this module exists rather than a percentage.
+#: From the Notion plan, and from HARNO's own exam calendar: Q4 2026 closes
+#: registration on 01.10 and runs the exams 07.11-15.11.
+#:
+#: `DECIDE_BY` is therefore **not** a personal checkpoint that can slip. It is
+#: the day registration closes: after it, the November sitting is gone until
+#: the next quarter whatever the learner decides. This was displayed as "до
+#: решения", which reads like a self-imposed deadline — the one date in this
+#: app where a soft word could cost an entire sitting.
 DECIDE_BY = date(2026, 10, 1)
 SITTING = date(2026, 11, 7)
 
@@ -96,7 +102,7 @@ class Readiness:
         true, and it is the fact that actually applies pressure.
         """
         if self.days_to_decide > 0:
-            return f"до решения {self.days_to_decide} дн."
+            return f"до регистрации {self.days_to_decide} дн."
         if self.days_to_sitting > 0:
             return f"до экзамена {self.days_to_sitting} дн."
         return "дата прошла"
@@ -120,6 +126,18 @@ class Readiness:
                 "то, что не тронуто. Говорение (rääkimine) оценить нельзя: на "
                 "экзамене говорят в паре."
             ),
+            # The deadline is external and hard, and the countdown alone does
+            # not say so. Registration for the November sitting closes on
+            # 01.10.2026; after that the date is not a choice any more.
+            "deadline": {
+                "registration": DECIDE_BY.isoformat(),
+                "sitting": SITTING.isoformat(),
+                "note": (
+                    f"Регистрация на экзамен закрывается {DECIDE_BY:%d.%m.%Y}. "
+                    f"Экзамен {SITTING:%d.%m.%Y}. Это не личный дедлайн: после "
+                    f"{DECIDE_BY:%d.%m.%Y} записаться на эту сессию уже нельзя."
+                ),
+            },
         }
 
 
@@ -217,9 +235,8 @@ def _next_task(content, level: str, skill: str) -> dict | None:
 
 
 def _parts(progress: sqlite3.Connection, level: str,
-           content=None) -> list[Part]:
+           content=None, notion=None) -> list[Part]:
     from .library import exposure, seen_items
-    from .notion import connect as notion_connect
 
     out: list[Part] = []
     seen = seen_items(progress)
@@ -240,27 +257,62 @@ def _parts(progress: sqlite3.Connection, level: str,
 
     # Writing: corrections queued for the error log are the only durable trace
     # a writing check leaves, which makes them the honest count here.
-    try:
-        from . import app as _app
+    #
+    # Queued and sent are counted separately. While there was no way to push
+    # from the app the distinction did not exist, and "N исправлений в логе"
+    # described rows that had never reached the log. Both are contact; only one
+    # is in the Vead database where the "three of a tag" rule can see it.
+    #
+    # The connection is passed in. It used to be opened from `app.NOTION_DB`
+    # inside this function, which made the verdict depend on a module-level
+    # path no caller could redirect: a test with its own fixtures still read
+    # the developer's real queue, so the suite reported one thing locally and
+    # another in CI. Same shape as every other path-frozen-at-import bug here.
+    queued = pushed = 0
+    if notion is not None:
+        try:
+            row = notion.execute(
+                "SELECT COUNT(*) AS n, "
+                "       COALESCE(SUM(pushed IS NOT NULL), 0) AS sent "
+                "FROM notion_queue"
+            ).fetchone()
+            queued, pushed = row[0], row[1]
+        except sqlite3.Error:
+            pass  # absence is a valid answer, not an error
 
-        queued = notion_connect(_app.NOTION_DB).execute(
-            "SELECT COUNT(*) FROM notion_queue"
-        ).fetchone()[0]
-    except Exception:  # noqa: BLE001 - absence is a valid answer, not an error
-        queued = 0
-
+    writing = f"{queued} исправлений"
+    if queued:
+        writing += (f", из них {pushed} в логе Vead" if pushed
+                    else ", ни одного ещё не отправлено в Vead")
     out.append(Part(
         "kirjutamine", "Kirjutamine", "письмо",
-        evidence=f"{queued} исправлений в логе" + material("kirjutamine"),
+        evidence=writing + material("kirjutamine"),
         touched=queued >= CONTACT if queued else False,
         note="На экзамене четыре задания по письму.",
         next_task=_next_task(content, level, "kirjutamine"),
     ))
+    # Listening counts two different things, and the second is the stronger of
+    # the two. Opening a task means audio was played; a dictation means what
+    # was said had to be written down and was scored against the transcript.
+    # Either one is contact, but the evidence line says which happened, so
+    # "I listened a lot" cannot quietly stand in for having been tested.
+    try:
+        from .dictation import stats as dictation_stats
+
+        heard = dictation_stats(progress)
+    except sqlite3.Error:
+        heard = {"attempts": 0, "passed": 0, "accuracy": None}
+
+    opened = touched.get("kuulamine", 0)
+    evidence = f"{opened} заданий открыто"
+    if heard["attempts"]:
+        evidence += f" · {heard['passed']}/{heard['attempts']} диктантов"
+        if heard["accuracy"] is not None:
+            evidence += f", слов расслышано {heard['accuracy']:.0%}"
     out.append(Part(
         "kuulamine", "Kuulamine", "аудирование",
-        evidence=(f"{touched.get('kuulamine', 0)} заданий открыто"
-                  + material("kuulamine")),
-        touched=touched.get("kuulamine", 0) >= CONTACT,
+        evidence=evidence + material("kuulamine"),
+        touched=opened >= CONTACT or heard["attempts"] >= CONTACT,
         next_task=_next_task(content, level, "kuulamine"),
     ))
     out.append(Part(
@@ -295,12 +347,14 @@ def readiness(
     vocabulary: sqlite3.Connection | None = None,
     words: sqlite3.Connection | None = None,
     content: sqlite3.Connection | None = None,
+    notion: sqlite3.Connection | None = None,
     today: date | None = None,
 ) -> Readiness:
     """Evidence for and against sitting `level`, with the reasons named."""
     today = today or date.today()
     grammar = _grammar(progress, level) if progress is not None else {}
-    parts = _parts(progress, level, content) if progress is not None else []
+    parts = (_parts(progress, level, content, notion)
+             if progress is not None else [])
     vocab = _vocabulary(vocabulary, words, level)
 
     reasons: list[str] = []

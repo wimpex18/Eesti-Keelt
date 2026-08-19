@@ -58,6 +58,25 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY eesti/ ./eesti/
 COPY --from=builder /build/data/ ./data/
 
+# When this image was built, and from what.
+#
+# Written here, immediately after the code is copied, so the layer cache
+# invalidates exactly when `eesti/` changes -- a stamp that survives a code
+# change would be worse than none.
+#
+# It exists because of a question nothing could answer: a Python change was
+# merged, the Worker redeployed, and the new endpoint was still missing from
+# production. There was no way to tell whether the container build had not run
+# yet, had failed, or had never been wired up at all. `built` answers that
+# without any deploy-side configuration.
+#
+# `revision` is the exact commit, and needs the builder to pass it:
+#   docker build --build-arg BUILD_REV="$COMMIT_SHA" .
+# Unset it and the timestamp still answers the question that matters.
+ARG BUILD_REV=""
+RUN printf '{"built":"%s","revision":"%s"}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$BUILD_REV" > /app/BUILD_INFO
+
 # Harvested reading material is NOT baked in. Two reasons: re-running the ERR
 # and Selges keeles harvest on every image build would hammer someone else's
 # server for no reason, and that material is owner-only by licence, so it has no

@@ -114,3 +114,104 @@ class TestPayload:
         the failure this whole choice exists to avoid."""
         why = a_row().properties()["Miks (why)"]["rich_text"][0]["text"]["content"]
         assert "завершённое" in why
+
+
+class TestTheQueueCanActuallyBeDrained:
+    """Corrections could be queued from the app and pushed only by
+    `cli notion --push`. The CLI does not exist on the deployment — the
+    container is ephemeral and the learner is on a phone — so the queue filled
+    and never drained, and the readiness verdict counted queued rows as
+    writing evidence, measuring the queue rather than the log it feeds."""
+
+    @pytest.fixture
+    def client(self, monkeypatch, tmp_path):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        monkeypatch.setattr(app_module, "NOTION_DB", str(tmp_path / "n.db"))
+        return TestClient(app_module.app)
+
+    def queue_one(self, client, wrong="raamatut"):
+        client.post("/api/notion/queue", json={
+            "wrong": wrong, "correct": "raamatu",
+            "why": "täissihitis", "tag": "obj-case"})
+        return client.get("/api/notion/pending").json()["items"][-1]["id"]
+
+    def test_there_is_a_push_route_at_all(self, client, monkeypatch):
+        monkeypatch.setenv("NOTION_TOKEN", "t")
+        row_id = self.queue_one(client)
+        assert client.post("/api/notion/push",
+                           json={"ids": [row_id]}).status_code != 405
+
+    def test_without_a_token_it_says_so_and_keeps_the_rows(self, client,
+                                                           monkeypatch):
+        monkeypatch.delenv("NOTION_TOKEN", raising=False)
+        row_id = self.queue_one(client)
+        got = client.post("/api/notion/push", json={"ids": [row_id]})
+        assert got.status_code == 503
+        assert "NOTION_TOKEN" in got.json()["detail"]
+        assert client.get("/api/notion/pending").json()["items"]
+
+    def test_the_page_is_told_before_the_button_is_pressed(self, client,
+                                                           monkeypatch):
+        """A button that looks live and 503s is worse than one that says why."""
+        monkeypatch.delenv("NOTION_TOKEN", raising=False)
+        assert client.get("/api/notion/pending").json()["can_push"] is False
+        monkeypatch.setenv("NOTION_TOKEN", "t")
+        assert client.get("/api/notion/pending").json()["can_push"] is True
+
+    def test_it_takes_named_rows_not_the_whole_queue(self, client, monkeypatch):
+        """The Vead log is worth having only while it stays curated: three rows
+        sharing a tag become the focus of the week, and that rule is what
+        identified obj-case. An endpoint that drained the queue wholesale would
+        be the same mistake as appending every suspicion, one step later.
+
+        Tested by asking for a bulk push and being refused, rather than by
+        inspecting the signature — `from __future__ import annotations` makes
+        the annotation a string, and a test that reads it is testing the import
+        style."""
+        from eesti import notion
+
+        monkeypatch.setenv("NOTION_TOKEN", "t")
+        sent = []
+        monkeypatch.setattr(notion, "push",
+                            lambda row, token=None: (sent.append(row), (True, "ok"))[1])
+        self.queue_one(client, "raamatut")
+        self.queue_one(client, "autot")
+        for body in ({}, {"ids": []}, {"all": True}):
+            assert client.post("/api/notion/push", json=body).status_code == 422
+        assert sent == [], "a request that named no rows sent something"
+        assert len(client.get("/api/notion/pending").json()["items"]) == 2
+
+    def test_a_failed_row_stays_queued(self, client, monkeypatch):
+        """The queue is the record until Notion confirms it has one."""
+        from eesti import notion
+
+        monkeypatch.setenv("NOTION_TOKEN", "t")
+        monkeypatch.setattr(notion, "push", lambda row, token=None: (False, "boom"))
+        row_id = self.queue_one(client)
+        got = client.post("/api/notion/push", json={"ids": [row_id]}).json()
+        assert got["sent"] == []
+        assert got["failed"][0]["detail"] == "boom"
+        assert got["remaining"] == 1
+
+    def test_a_sent_row_leaves_the_queue(self, client, monkeypatch):
+        from eesti import notion
+
+        monkeypatch.setenv("NOTION_TOKEN", "t")
+        monkeypatch.setattr(notion, "push", lambda row, token=None: (True, "ok"))
+        row_id = self.queue_one(client)
+        got = client.post("/api/notion/push", json={"ids": [row_id]}).json()
+        assert got["sent"] == [row_id] and got["remaining"] == 0
+
+    def test_an_unknown_id_does_not_fail_the_others(self, client, monkeypatch):
+        from eesti import notion
+
+        monkeypatch.setenv("NOTION_TOKEN", "t")
+        monkeypatch.setattr(notion, "push", lambda row, token=None: (True, "ok"))
+        row_id = self.queue_one(client)
+        got = client.post("/api/notion/push",
+                          json={"ids": [row_id, 9999]}).json()
+        assert got["sent"] == [row_id]
+        assert got["failed"] == [{"id": 9999, "detail": "not queued"}]

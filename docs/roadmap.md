@@ -97,6 +97,46 @@ deterministic and the error history already exists.
 - **Learner-corpus weighting** (`eesti/harvest/evkk.py`) — 51 467 annotated
   errors ranking the nine tags by what learners of Estonian actually get wrong,
   as a counterweight to a single error log.
+- **Dictation** (`eesti/dictation.py`) — the Kuulamine tab had no exercise. It
+  was a text-to-speech box: paste a passage, hear it read. Nothing could be
+  answered, so nothing was scored and nothing recorded, and the verdict went on
+  reporting listening as untouched however much had been played — on an exam
+  where a zero in one part fails you regardless of the other three.
+
+  A sentence from the corpus is spoken at 0.7×, the learner writes down what
+  they heard, and the submission is aligned against the transcript word by
+  word. The answer is correct because a native wrote it, grading needs no
+  model, and — unlike the read-aloud loop, which compares against what a
+  *recogniser* heard — a miss here is a real miss, so the result carries no
+  caveat about the model's Estonian.
+
+  Missed words are deliberately **not** queued for review: a word missed in
+  dictation may be evidence about hearing rather than about grammar, and an
+  object-case card raised from a mis-heard word teaches the wrong lesson from
+  the right mistake.
+- **Word order** (`eesti/wordorder.py`) — the second-largest error class in the
+  learner corpus (11.4 % of all EVKK marks, 19.3 % of those the nine tags
+  cover) and, until now, the largest tag with **no drill at all**. `sonajark`
+  was a topic the path could reach and never practise.
+
+  The items are **attested, never generated**, and that was a measurement
+  rather than a preference. The obvious generator — take a sentence, swap two
+  constituents, offer the swap as wrong — would teach V2. Measured against
+  1 000 native-corrected sentences restricted to single-clause declaratives
+  opening with a fronted element: **75.4 % invert, 24.6 % do not**, and almost
+  all of the non-inverting quarter turn out to be `Just ühiskond on…`,
+  `Peaaegu kõik mehed tahavad…` — a leading adverb modifying the *subject*
+  rather than a fronted constituent. Telling those apart is syntax; this
+  project has morphology. It is the same boundary Vabamorf already has with
+  object case.
+
+  So items come from pairs where a learner wrote it and a native corrected it,
+  filtered to corrections that only re-order. Correctness is given rather than
+  inferred, and nothing is claimed about the learner's version being
+  ungrammatical — the question asked is which one a native wrote, which is how
+  the exam is marked. The explanation says "обычно вторым", matching EKK
+  (SÜ 90) and the 75.4 %, because an absolute rule would have the learner
+  "correcting" good Estonian.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
   TTS, ERR episode audio, rection and inflection type via `sonapi`.
 
@@ -125,6 +165,27 @@ three of these were found at all:
 2. **Whatever the verdict names.** It reports untouched exam parts first,
    because ≥60 % overall with one part at zero is still a fail. That list is
    the honest backlog.
+
+### Blocked on an upload, not on code
+
+`content.db` has not been pushed to the deployment. Three things are empty in
+production until it is, and all three exist and are tested:
+
+| | |
+|---|---|
+| the reading library | 349 texts, the whole Lugemine part |
+| dictation | draws its sentences from the same corpus |
+| word order | 47 attested items ride `content.db` too |
+
+`bash deploy/push-content.sh data/content.db`, from Cloud Shell.
+
+### Tags with no drill, and whether that is a gap
+
+| Tag | State |
+|---|---|
+| `word-order` | **built** — attested items, see above |
+| `vocab` | no drill, and none intended: it is the largest class (24.2 %) but it is word *choice*, which the reading library, the known-word tracking and the review queue already work on. A grammar drill is the wrong shape for it. |
+| `gradation` | no drill of its own. `astmevaheldus` is reference material and the contrast it teaches is already drilled through `gen-stem`, which is where the stem is actually chosen. 0.8 % of corpus marks — the smallest of the nine. |
 
 ## The official material, and what is deliberately not done with it
 

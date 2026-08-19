@@ -348,10 +348,18 @@ another.
 **Step 2 is complete** for everything it named. What has no generator is what
 the plan never claimed one for: the reference topics (`tahestik`,
 `lauseehitus`), the closed word classes already covered by vocabulary work
-(`asesonad`, `kaassonad`, `sidesonad`, `maarsonad`), and four topics that need
-sentence-level machinery rather than form generation — `sonajark`,
-`kirjavahemargid`, `uhildumine`, `liitsonad`. Those are honest gaps, listed
-here so they are not mistaken for oversights.
+(`asesonad`, `kaassonad`, `sidesonad`, `maarsonad`), and three topics that need
+sentence-level machinery rather than form generation — `kirjavahemargid`,
+`uhildumine`, `liitsonad`. Those are honest gaps, listed here so they are not
+mistaken for oversights.
+
+**`sonajark` has since been closed** (`eesti/wordorder.py`), and how it was
+closed is the point. Form generation could not do it: Estonian word order is
+flexible enough that a generated distractor is sometimes correct Estonian —
+measured at 75.4 % inversion, not ~100 %, in the one shape a generator could
+have targeted. The items are attested learner corrections instead, so
+correctness is given rather than inferred. The remaining three would need the
+same treatment or a parser; neither is claimed.
 
 ### 3. Mastery and progress — done ✅
 `eesti/progress.py`, plus `cli practice` (a graded session that records what

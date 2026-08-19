@@ -192,6 +192,33 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_wordorder(args: argparse.Namespace) -> int:
+    """Ingest the attested word-order corrections.
+
+    Run after `fetch-bench`. The pairs are ungranted third-party data, so they
+    go into `content.db` and travel by `deploy/push-content.sh` — never into
+    the image.
+    """
+    from collections import Counter
+
+    from .config import DATA
+    from .sources import connect
+    from .wordorder import SOURCE_ID, ingest, items
+
+    path = args.file or (DATA / "raw" / "bench" / "grammar_et.json")
+    conn = connect(args.db)
+    added = ingest(conn, path)
+    if not added:
+        print(f"Nothing ingested. Is {path} there? Run `cli fetch-bench` first.")
+        return 1
+    got = items(conn, limit=1000)
+    print(f"  {added} word-order items into {args.db} as {SOURCE_ID!r}")
+    for rule, n in Counter(i.rule for i in got).most_common():
+        print(f"    {rule:10} {n}")
+    print("  Ungranted source: push with deploy/push-content.sh, never commit.")
+    return 0
+
+
 def cmd_fetch_bench(args: argparse.Namespace) -> int:
     """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026)."""
     from .evals.fetch import fetch_all
@@ -1406,6 +1433,13 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("evkk", help="rank error tags by real learner-corpus data")
     p.add_argument("--db", default="data/content.db")
     p.set_defaults(func=cmd_evkk)
+
+    p = sub.add_parser("wordorder",
+                       help="ingest attested word-order corrections into content.db")
+    p.add_argument("--db", default="data/content.db")
+    p.add_argument("--file", default=None,
+                   help="grammar_et.json (default: the fetch-bench location)")
+    p.set_defaults(func=cmd_wordorder)
 
     p = sub.add_parser("fetch-bench", help="download the Estonian benchmark datasets")
     p.set_defaults(func=cmd_fetch_bench)

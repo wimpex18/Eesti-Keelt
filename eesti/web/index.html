@@ -79,6 +79,26 @@
     .rail{grid-column:2;grid-row:3 / span 40;position:sticky;top:20px;
       display:flex;flex-direction:column;gap:12px}
   }
+  /* A dictation result is a sentence with holes in it, and showing which
+     words were missed is the whole feedback — a ratio alone tells the learner
+     nothing about what to listen for next time. */
+  .w-ok{color:var(--ink)}
+  .w-no{color:var(--warn);font-weight:600;text-decoration:underline;
+    text-decoration-style:wavy;text-underline-offset:3px}
+  #dictTyped{min-height:56px}
+  /* Two whole sentences, stacked. Side by side they would wrap into an
+     unreadable pair on a phone, and reading both is the exercise. */
+  .choices{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .choice{text-align:left;background:var(--bg);border:1px solid var(--line);
+    border-radius:10px;padding:10px 13px;font:inherit;font-size:14.5px;
+    color:var(--ink);cursor:pointer;line-height:1.45}
+  .choice:hover:not(:disabled){border-color:var(--accent)}
+  .choice.picked{border-color:var(--accent);background:var(--accent-soft)}
+  .choice:disabled{cursor:default;opacity:.75}
+  .choice.picked:disabled{opacity:1}
+  .qrow{display:flex;gap:9px;align-items:baseline;padding:6px 0;
+    border-bottom:1px solid var(--line);font-size:14px}
+  .qrow:last-of-type{border-bottom:0}
   .rail-card{background:var(--panel);border:1px solid var(--line);
     border-radius:12px;padding:14px 16px;display:flex;
     flex-direction:column;gap:8px}
@@ -386,6 +406,22 @@
       <span class="hint">Ctrl+Enter</span>
     </div>
     <div id="checkOut"></div>
+
+    <!-- The other half of the error log, which was missing.
+         Corrections could be queued from here but sent only by
+         `cli notion --push` — and the CLI does not exist on the deployment:
+         the container is ephemeral and the learner is on a phone. So the
+         queue filled and never drained. Sending is still an explicit act on
+         named rows, because the Vead log is worth having only while it stays
+         curated. -->
+    <details id="queueBox" style="margin-top:18px">
+      <summary>Vigade logi — ootab saatmist <span id="queueCount"></span></summary>
+      <div id="queueList"></div>
+      <div class="row">
+        <button class="go" id="queueSend">Saada valitud Notionisse</button>
+        <span class="hint" id="queueNote"></span>
+      </div>
+    </details>
   </section>
 
   <!-- ── Drills ────────────────────────────────────────────────────── -->
@@ -487,8 +523,37 @@
 
   <!-- ── Listening ─────────────────────────────────────────────────── -->
   <section class="panel" id="tab-listen" hidden>
+    <!-- Dictation first, the text-to-speech box second.
+         This panel used to be only the box below: paste a passage, hear it
+         read. Nothing could be answered, so nothing could be scored, so
+         nothing was recorded — and the verdict reported listening as
+         untouched however much had been played. On an exam where a zero in
+         one part fails you regardless of the other three, that was the worst
+         place in the app to have no exercise. -->
+    <div id="dictBox">
+      <div class="row" style="margin-top:0">
+        <button class="go" id="dictPlay">▶ Kuula</button>
+        <button class="ghost" id="dictNext">Järgmine</button>
+        <span class="hint" id="dictState">Kuula ja kirjuta üles.</span>
+      </div>
+      <textarea id="dictTyped" rows="2"
+        placeholder="Kirjuta, mida kuulsid…"></textarea>
+      <div class="row">
+        <button class="go" id="dictCheck">Kontrolli</button>
+        <span class="hint" id="dictScore"></span>
+      </div>
+      <!-- Separate containers on purpose. The player lived in #dictOut and
+           was destroyed the moment the result rendered into it, so replaying
+           after seeing the marked words -- which is the one moment the replay
+           is worth most -- was impossible. -->
+      <div id="dictAudio"></div>
+      <div id="dictOut"></div>
+      <p class="hint" id="dictCaveat"></p>
+    </div>
+
+    <h3 style="margin:22px 0 6px;font-size:15px">Mis tahes tekst → heli</h3>
     <p class="hint" style="margin-top:0">
-      Mis tahes tekst → eestikeelne heli. Aeglasem kõne (0.7×) sobib kuulamisharjutuseks.
+      Aeglasem kõne (0.7×) sobib kuulamisharjutuseks.
     </p>
     <textarea id="ttsText" placeholder="Kleebi tekst õpikust või artiklist…"></textarea>
     <div class="row">
@@ -547,6 +612,7 @@ const ON_OPEN = {
   vihikud: () => loadVihikud(),
   path: () => loadPath(),
   status: () => loadStatus(),
+  listen: once(() => loadDictation()),
   speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
 };
 
@@ -893,11 +959,57 @@ async function queueError(btn) {
       why: btn.dataset.why, tag: btn.dataset.tag,
     })).json();
     btn.textContent = r.queued ? "✓ Logis" : "✓ Juba logis";
+    loadQueue();
   } catch (e) {
     btn.textContent = "Ei õnnestunud";
     btn.disabled = false;
   }
 }
+/* Show what is waiting, and send only what is ticked.
+
+   `can_push` is read before the button is pressed rather than discovered as a
+   failure after: without NOTION_TOKEN on the service nothing can be sent, and
+   a button that looks live and 503s is worse than one that says why. */
+async function loadQueue() {
+  try {
+    const d = await (await fetch("/api/notion/pending")).json();
+    const rows = d.items || [];
+    $("#queueCount").textContent = rows.length ? `(${rows.length})` : "";
+    $("#queueBox").hidden = !rows.length;
+    $("#queueList").innerHTML = rows.map(r => `
+      <label class="qrow">
+        <input type="checkbox" value="${r.id}" checked>
+        <span><b>${esc(r.wrong)}</b> → <b>${esc(r.correct)}</b>
+          <span class="hint">${esc(r.tag)}</span></span>
+      </label>`).join("");
+    $("#queueSend").disabled = !d.can_push;
+    $("#queueNote").textContent = d.can_push
+      ? "Saadetakse ainult märgitud read."
+      : "NOTION_TOKEN puudub — read jäävad ootele.";
+  } catch { $("#queueBox").hidden = true; }
+}
+loadQueue();
+
+$("#queueSend").onclick = async () => {
+  const ids = [...$("#queueList").querySelectorAll("input:checked")]
+    .map(i => +i.value);
+  if (!ids.length) return;
+  const btn = $("#queueSend"); btn.disabled = true;
+  try {
+    const r = await (await api("/api/notion/push", {ids})).json();
+    // A row that failed stays queued, so reloading is the honest report of
+    // what is left. The outcome line goes AFTER the reload: written before it,
+    // `loadQueue` overwrote the one sentence saying what had just happened.
+    await loadQueue();
+    $("#queueNote").textContent =
+      `Saadetud ${r.sent.length}${r.failed.length
+        ? `, ebaõnnestus ${r.failed.length}` : ""}.`;
+    loadRail();
+  } catch (e) {
+    $("#queueNote").textContent = e.message;
+  } finally { btn.disabled = false; }
+};
+
 $("#checkBtn").onclick = runCheck;
 $("#text").addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCheck();
@@ -1051,22 +1163,47 @@ function renderPracticeItem(it, topic, i) {
   el.className = "drill";
   el.innerHTML = `
     <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    ${it.choices && it.choices.length ? `
+    <!-- Word order is the one topic whose unit is the whole sequence, so it
+         is answered by choosing a sentence rather than typing a word.
+         Everything after this point is unchanged: the chosen sentence is
+         submitted as the answer, the server grades it by the same string
+         comparison, and it reaches mastery and the review queue by the same
+         path as every other item. -->
+    <div class="choices">
+      ${it.choices.map(c =>
+        `<button class="choice" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
+    </div>
+    <div class="row" style="margin-top:0">
+      <span class="hint">${esc(it.hint || "")}</span>
+    </div>` : `
     <div class="row" style="margin-top:0">
       <input type="text" size="18" placeholder="?">
       <button class="ghost">Kontrolli</button>
       <span class="hint">${esc(it.hint || it.lemma || "")}${it.level ? " · " + esc(it.level) : ""}</span>
-    </div>
+    </div>`}
     <div class="verdict"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const choices = [...el.querySelectorAll(".choice")];
+  // One holder for "what was answered", whichever shape the item took, so the
+  // submit path below stays single.
+  let picked = "";
+  const lock = () => {
+    if (input) input.disabled = true;
+    choices.forEach(b => b.disabled = true);
+  };
+  const locked = () => (input ? input.disabled : choices[0]?.disabled);
+
   const grade = async () => {
-    if (input.disabled) return;
-    input.disabled = true;
+    if (locked()) return;
+    lock();
     let res;
     try {
       // The server grades and records: the client must not be the judge of
       // whether a topic has been mastered.
       res = await (await api("/api/practice/answer", {
-        topic, prompt: it.prompt, answer: it.answer, given: input.value,
+        topic, prompt: it.prompt, answer: it.answer,
+        given: input ? input.value : picked,
         distractor: it.distractor || "", lemma: it.lemma || "",
         label: it.hint || "", why_ru: it.why_ru || "",
       })).json();
@@ -1075,8 +1212,16 @@ function renderPracticeItem(it, topic, i) {
     }
     pathAnswered++; if (res.correct) pathCorrect++;
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
+    // A choice item's prompt is a question with no blank in it, so filling the
+    // blank echoed "Kumb lause on õige?" back at the learner instead of
+    // showing the sentence they got right. The rule is worth seeing either
+    // way here: on a right answer it says *why* it was right, which for word
+    // order is the whole lesson.
     verdict.innerHTML = res.correct
-      ? `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`
+      ? (choices.length
+          ? `✓ õige — <strong>${esc(it.answer)}</strong><br>
+             <span class="why">${md(it.why_ru || "")}</span>`
+          : `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
       : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, mitte <em>${esc(it.distractor)}</em>` : ""}<br>
          <span class="why">${md(it.why_ru || "")}</span>`;
     let line = `${pathCorrect}/${pathAnswered} õiget`;
@@ -1091,9 +1236,19 @@ function renderPracticeItem(it, topic, i) {
       loadRail();
     }
   };
-  el.querySelector("button").onclick = grade;
-  input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
-  if (i === 0) setTimeout(() => input.focus(), 0);
+  if (choices.length) {
+    // Clicking a sentence both records the choice and submits it: a separate
+    // "check" step would be one tap of ceremony on a phone for no decision.
+    choices.forEach(b => b.onclick = () => {
+      picked = b.dataset.choice;
+      b.classList.add("picked");
+      grade();
+    });
+  } else {
+    el.querySelector("button").onclick = grade;
+    input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
+    if (i === 0) setTimeout(() => input.focus(), 0);
+  }
   return el;
 }
 
@@ -1481,7 +1636,90 @@ $("#readerBody").addEventListener("click", async e => {
   };
 });
 
-// ── listening ───────────────────────────────────────────────────────
+// ── listening: dictation ────────────────────────────────────────────
+/* The exercise the Kuulamine tab did not have.
+
+   The sentence is held in JS and never rendered until the answer is graded.
+   That is a screen, not a lock: anyone can read it in devtools. There is no
+   point defending it — this is self-study, and the only person it could be
+   hidden from is the person choosing whether to look.
+
+   Audio is fetched once per passage and reused, so replaying costs nothing.
+   Replays are unlimited and uncounted on purpose: rationing them would turn a
+   listening exercise into a memory test, which is the same reason the
+   sentences are short. */
+let dictNow = null, dictUrl = null;
+
+async function loadDictation() {
+  const state = $("#dictState");
+  try {
+    const d = await (await fetch("/api/dictation/next?count=1")).json();
+    $("#dictCaveat").innerHTML = md(d.caveat || "");
+    dictNow = (d.passages || [])[0] || null;
+    if (dictUrl) { URL.revokeObjectURL(dictUrl); dictUrl = null; }
+    $("#dictTyped").value = "";
+    $("#dictAudio").innerHTML = "";
+    $("#dictOut").innerHTML = "";
+    $("#dictScore").textContent = "";
+    // No corpus is a supported state, not an error — say which it is.
+    $("#dictBox").hidden = !dictNow;
+    state.textContent = d.note || "";
+    if (!dictNow) $("#dictState").textContent = d.note || "";
+  } catch (e) {
+    state.textContent = "Ei saanud lauset: " + e.message;
+  }
+}
+
+async function dictAudio() {
+  if (dictUrl) return dictUrl;
+  const r = await api("/api/speak", {text: dictNow.text, speed: 0.7});
+  dictUrl = URL.createObjectURL(await r.blob());
+  return dictUrl;
+}
+
+$("#dictPlay").onclick = async () => {
+  if (!dictNow) return;
+  const btn = $("#dictPlay"); btn.disabled = true;
+  try {
+    const url = await dictAudio();
+    const out = $("#dictAudio");
+    if (!out.querySelector("audio")) await mountAudio(out, url);
+    const el = out.querySelector("audio");
+    el.currentTime = 0; el.play().catch(() => {});
+  } catch (e) {
+    $("#dictState").textContent = "Heli ei tulnud: " + e.message;
+  } finally { btn.disabled = false; }
+};
+
+$("#dictNext").onclick = () => loadDictation();
+
+$("#dictCheck").onclick = async () => {
+  if (!dictNow) return;
+  const btn = $("#dictCheck"); btn.disabled = true;
+  try {
+    const r = await (await api("/api/dictation/answer", {
+      text: dictNow.text, typed: $("#dictTyped").value
+    })).json();
+    // Word by word, so a miss is visible as a miss rather than as a number.
+    $("#dictOut").innerHTML =
+      `<div class="corr"><div class="fix">` +
+      r.words.map(w => w.ok
+        ? `<span class="w-ok">${esc(w.target)}</span>`
+        : `<span class="w-no">${esc(w.target)}</span>`).join(" ") +
+      `</div>
+      <div class="why">Õigesti: ${esc(r.text)}</div>${r.extra.length
+        ? `<div class="why">Lisaks kirjutatud: ${esc(r.extra.join(" "))}</div>` : ""}
+      </div>`;
+    $("#dictScore").textContent =
+      `${r.matched}/${r.total} sõna${r.correct ? " · läbitud" : ""}`;
+    // The verdict counts dictations, so the rail is now out of date.
+    loadRail();
+  } catch (e) {
+    $("#dictScore").textContent = "Viga: " + e.message;
+  } finally { btn.disabled = false; }
+};
+
+// ── listening: any text → audio ─────────────────────────────────────
 $("#speakBtn").onclick = async () => {
   const text = $("#ttsText").value.trim();
   if (!text) return;

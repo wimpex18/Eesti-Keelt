@@ -150,3 +150,127 @@ class TestTiming:
         check("tekst", [Provider("a", fails=a_500()),
                         Provider("b", fails=a_500())])
         assert time.monotonic() - started < 1.0
+
+
+class TestTheBreakerSurvivesTheProcess:
+    """The breaker existed to stop a dead provider costing its full timeout on
+    every request, and in production it did not do that.
+
+    State was a module-level dict, documented as process-local and "right for a
+    single-user app". Cloud Run scales to zero, so a learner who checks one
+    paragraph in the evening gets a cold container almost every time — and a
+    cold container has an empty breaker. With a threshold of two, the first two
+    requests of every container lifetime paid the timeout in full. TartuNLP's
+    grammar endpoint has answered 500 after ~61 seconds since the research
+    phase and did so again when re-probed, so at a 5 second provider timeout
+    that was ten seconds of dead waiting per cold start for a service that has
+    never once answered.
+    """
+
+    class Dead:
+        name = "tartunlp"
+
+        def __init__(self, calls):
+            self.calls = calls
+
+        def available(self):
+            return True
+
+        def check(self, text):
+            self.calls.append(1)
+            raise TimeoutError("as production reports on every run")
+
+    class Fallback:
+        name = "vabamorf-offline"
+
+        def available(self):
+            return True
+
+        def check(self, text):
+            from eesti.providers.grammar import GrammarResult
+
+            return GrammarResult("vabamorf-offline", [], degraded=True)
+
+    def cold_start(self, conn):
+        """What a new container does: fresh process memory, same database."""
+        breaker._failures.clear()
+        breaker._loaded = False
+        breaker.bind(conn)
+
+    @pytest.fixture
+    def store(self, tmp_path):
+        from eesti.progress import connect
+
+        conn = connect(tmp_path / "p.db")
+        breaker.bind(conn)
+        breaker.reset()
+        yield conn
+        breaker.bind(None)
+        breaker.reset()
+
+    def test_a_dead_provider_is_tried_twice_ever_not_twice_per_start(self, store):
+        calls = []
+        for _ in range(6):
+            self.cold_start(store)
+            check("Ma lugesin raamatut läbi.",
+                  providers=[self.Dead(calls), self.Fallback()])
+        assert len(calls) == breaker.THRESHOLD, (
+            f"tried {len(calls)} times across 6 cold starts; the breaker is "
+            f"not surviving the process"
+        )
+
+    def test_without_a_store_it_forgets_as_it_always_did(self, tmp_path):
+        """The regression, stated as a test so the fix cannot silently revert.
+        Unbound is still a supported mode — the CLI runs that way."""
+        breaker.bind(None)
+        breaker.reset()
+        calls = []
+        for _ in range(3):
+            breaker._failures.clear()
+            check("Ma lugesin raamatut läbi.",
+                  providers=[self.Dead(calls), self.Fallback()])
+        assert len(calls) == 3
+
+    def test_the_timestamp_means_something_to_the_next_process(self, store):
+        """`monotonic` is meaningless across processes — it would have made a
+        restored breaker either permanently open or permanently closed
+        depending on which way the clocks happened to fall."""
+        import time
+
+        breaker.record_failure("tartunlp")
+        last = store.execute(
+            "SELECT last FROM breaker WHERE name = 'tartunlp'").fetchone()[0]
+        assert abs(last - time.time()) < 5
+
+    def test_a_success_clears_it_everywhere(self, store):
+        for _ in range(3):
+            breaker.record_failure("tartunlp")
+        assert breaker.is_open("tartunlp")
+        breaker.record_success("tartunlp")
+        self.cold_start(store)
+        assert not breaker.is_open("tartunlp")
+
+    def test_the_cooldown_grows_but_stops_at_about_a_week(self):
+        """The plan's instruction is to re-probe the research APIs weekly, so
+        there is nothing to gain from backing off further: a permanently dead
+        endpoint should cost one timeout a week, not two a session."""
+        assert breaker.cooldown(breaker.THRESHOLD) == breaker.COOLDOWN
+        assert breaker.cooldown(breaker.THRESHOLD + 1) == breaker.COOLDOWN * 2
+        assert breaker.cooldown(99) == breaker.MAX_COOLDOWN
+        assert breaker.MAX_COOLDOWN <= 7 * 24 * 3600
+
+    def test_below_the_threshold_nothing_is_skipped(self):
+        assert breaker.cooldown(breaker.THRESHOLD - 1) == 0.0
+
+    def test_an_unwritable_store_still_breaks_the_circuit(self, tmp_path):
+        """Storage is an optimisation over forgetting, never a dependency."""
+        from eesti.progress import connect
+
+        conn = connect(tmp_path / "p.db")
+        breaker.bind(conn)
+        breaker.reset()
+        conn.close()                       # every write from here raises
+        for _ in range(breaker.THRESHOLD):
+            breaker.record_failure("tartunlp")
+        assert breaker.is_open("tartunlp")
+        breaker.bind(None)
