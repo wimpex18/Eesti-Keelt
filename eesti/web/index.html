@@ -86,6 +86,18 @@
   .w-no{color:var(--warn);font-weight:600;text-decoration:underline;
     text-decoration-style:wavy;text-underline-offset:3px}
   #dictTyped{min-height:56px}
+  .sec-head{margin:20px 0 2px;font-size:15px;display:flex;gap:8px;
+    align-items:baseline}
+  .sec-note{margin:0 0 8px}
+  .sec-list{display:flex;flex-direction:column;gap:7px}
+  .lib-open{margin-top:9px;flex:0 0 100%;min-width:0}
+  .lib-open audio{width:100%}
+  /* `pre-wrap` keeps the transcript's paragraphs, but a long unbroken token
+     would still push the row wide; the reading column must never scroll
+     sideways. */
+  .listen-text{margin-top:9px;font-size:14px;line-height:1.6;
+    white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;
+    overflow-y:auto;border-top:1px solid var(--line);padding-top:9px}
   /* Two whole sentences, stacked. Side by side they would wrap into an
      unreadable pair on a phone, and reading both is the exercise. */
   .choices{display:flex;flex-direction:column;gap:8px;margin:10px 0}
@@ -201,10 +213,16 @@
   .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
   .score{font-size:13px;color:var(--muted);margin-top:16px}
   .empty{color:var(--muted);font-size:14px;margin-top:14px}
+  /* The row lays a title against its meta with space between them. An
+     expanded panel is a *third* child of that flex line, so it was squeezed
+     into the right-hand gap and pushed 29px past the viewport on a phone.
+     Wrapping, plus a full-width basis for the panel, keeps the header line
+     exactly as it was and drops the panel underneath it. */
   .lib-item{border:1px solid var(--line);border-radius:8px;padding:11px 13px;
     margin-top:9px;background:var(--bg);cursor:pointer;display:flex;gap:10px;
-    align-items:baseline;justify-content:space-between}
+    align-items:baseline;justify-content:space-between;flex-wrap:wrap}
   .lib-item:hover{border-color:var(--accent)}
+  a.lib-item{text-decoration:none;color:inherit}
   .lib-item h4{margin:0;font-size:14.5px;font-weight:600}
   .lib-meta{font-size:12px;color:var(--muted);white-space:nowrap}
   .prose{margin-top:12px;font-size:16.5px;line-height:1.75}
@@ -551,6 +569,15 @@
       <p class="hint" id="dictCaveat"></p>
     </div>
 
+    <!-- The harvested listening archive.
+         It was indexed, sectioned, covered by API tests — and unreachable:
+         the page could only ask the library by *skill* and only ever asked for
+         `lugemine`, so 54 listening items and 28 radio-course transcripts, 13 %
+         of everything harvested, could not be opened from the app at all. That
+         also meant the readiness verdict's Kuulamine evidence, which counts
+         library items opened, could never move. -->
+    <div id="listenLib"></div>
+
     <h3 style="margin:22px 0 6px;font-size:15px">Mis tahes tekst → heli</h3>
     <p class="hint" style="margin-top:0">
       Aeglasem kõne (0.7×) sobib kuulamisharjutuseks.
@@ -612,7 +639,7 @@ const ON_OPEN = {
   vihikud: () => loadVihikud(),
   path: () => loadPath(),
   status: () => loadStatus(),
-  listen: once(() => loadDictation()),
+  listen: once(() => { loadDictation(); loadListenLibrary(); }),
   speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
 };
 
@@ -1718,6 +1745,86 @@ $("#dictCheck").onclick = async () => {
     $("#dictScore").textContent = "Viga: " + e.message;
   } finally { btn.disabled = false; }
 };
+
+/* The listening sections, built from `/api/modes`.
+
+   That endpoint returns every section with its item count and its Russian
+   note, and until now nothing called it — an endpoint with no caller, which is
+   the same shape of bug as a measurement with no writer. Rendering from it
+   means adding a section to `SECTIONS` surfaces it here, instead of requiring
+   somebody to remember this file too. */
+async function loadListenLibrary() {
+  const box = $("#listenLib");
+  if (!box) return;
+  try {
+    const {modes} = await (await fetch("/api/modes")).json();
+    const learn = (modes || []).find(m => m.id === "oppimine");
+    // Everything in this mode except reading, which has its own tab.
+    const wanted = (learn?.sections || []).filter(
+      sec => sec.id !== "lugemine" && sec.items > 0);
+    if (!wanted.length) { box.innerHTML = ""; return; }
+
+    box.innerHTML = wanted.map(sec => `
+      <h3 class="sec-head">${esc(sec.et)}
+        <span class="hint">${sec.items}${sec.with_audio ? " · ♪ " + sec.with_audio : ""}</span></h3>
+      <p class="hint sec-note">${esc(sec.note || "")}</p>
+      <div class="sec-list" data-section="${esc(sec.id)}"></div>`).join("");
+
+    for (const el of box.querySelectorAll(".sec-list")) {
+      const id = el.dataset.section;
+      const {items} = await (await fetch(
+        `/api/library?section=${encodeURIComponent(id)}&limit=60`)).json();
+      // A pointer is a link, not a player. Ten of these are EIS tasks whose
+      // audio and scoring live on eis.harno.ee — nothing of theirs is stored
+      // here, so an expandable row would open on an empty panel. The exam
+      // section already made this distinction; this list has to make it too.
+      el.innerHTML = (items || []).map(it => it.external
+        ? `<a class="lib-item" href="${esc(it.url || "#")}" target="_blank"
+              rel="noopener">
+             <h4>${esc(it.title)}</h4>
+             <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}EIS ↗</span>
+           </a>`
+        : `<div class="lib-item" data-id="${esc(it.id)}">
+             <h4>${esc(it.title)}</h4>
+             <span class="lib-meta">${it.words ? it.words + " sõna" : "heli"}${
+               it.audio_url ? " · ♪" : ""}${it.level ? " · " + esc(it.level) : ""}</span>
+             <div class="lib-open" hidden></div>
+           </div>`).join("");
+      el.querySelectorAll(".lib-item[data-id]").forEach(row =>
+        row.onclick = () => openListenItem(row));
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  }
+}
+
+/* Expanded in place rather than in the reader, which lives in the other tab.
+
+   It goes through `/api/library/{id}` — the same call the reader makes, and
+   the one that records the opening. A player mounted from the list row without
+   that call would look identical and leave the verdict at zero, which is
+   exactly the bug this whole section exists to undo. */
+async function openListenItem(row) {
+  const out = row.querySelector(".lib-open");
+  if (!out.hidden) { out.hidden = true; out.innerHTML = ""; return; }
+  out.hidden = false;
+  out.innerHTML = `<span class="hint">Laen…</span>`;
+  try {
+    const d = await (await fetch("/api/library/" + row.dataset.id)).json();
+    out.innerHTML = "";
+    if (d.audio_url) await mountAudio(out, d.audio_url);
+    if (d.body && d.body.trim()) {
+      const p = document.createElement("div");
+      p.className = "listen-text";
+      p.textContent = d.body;
+      out.appendChild(p);
+    }
+    // Opening one is contact with the language, and the verdict counts it.
+    loadRail();
+  } catch (e) {
+    out.innerHTML = `<span class="hint">Ei saanud avada: ${esc(e.message)}</span>`;
+  }
+}
 
 // ── listening: any text → audio ─────────────────────────────────────
 $("#speakBtn").onclick = async () => {

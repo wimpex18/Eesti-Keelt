@@ -374,16 +374,39 @@ def modes() -> dict:
 
 
 @app.get("/api/library")
-def library(skill: str = "lugemine", level: str | None = None,
-            band: str | None = None, limit: int = 60) -> dict:
-    """Harvested study material.
+def library(skill: str = "lugemine", section: str | None = None,
+            level: str | None = None, band: str | None = None,
+            limit: int = 60) -> dict:
+    """Harvested study material, by skill or by section.
+
+    `section` exists because a skill is not a shelf. A section also carries the
+    `kind` filters that keep an exam task out of the reading list and a
+    consultation workbook out of the exam list, and asking by skill alone
+    silently ignores them.
+
+    It was added after finding that two of the seven sections — 82 items, the
+    entire harvested listening archive and the 28 radio-course transcripts —
+    could not be reached from the page at all. They were indexed, sectioned and
+    covered by API tests; the page just never asked, because it could only ask
+    by skill and it only ever asked for `lugemine`.
 
     `public_only` is deliberately NOT exposed as a parameter. This server is the
     single-user local one; the public deployment sets it, and making it a query
     parameter would let a caller ask for owner-only material by guessing.
     """
     conn = content_db()
-    rows = content_query(conn, skill=skill, level=level, band=band, limit=limit)
+    if section is not None:
+        from .library import browse
+
+        try:
+            rows = browse(conn, section=section, level=level, band=band,
+                          limit=limit)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=404, detail=f"unknown section {section!r}") from exc
+    else:
+        rows = content_query(conn, skill=skill, level=level, band=band,
+                             limit=limit)
     return {
         "items": [
             {

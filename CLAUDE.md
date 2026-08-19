@@ -212,6 +212,15 @@ in Cloud Shell and discover the project, service and region themselves.
   with its own fixtures read the developer's real data and the suite reported
   differently locally than in CI. Pass the connection; never reach for a
   module-level path.
+- **Check the contract in both directions.** `test_ui_contract.py` had asked
+  "does every endpoint the page calls exist?" since it was written, and never
+  "can every section the API serves be reached?". 82 items — 13 % of the
+  library — were indexed, sectioned, API-tested and unopenable. A one-way
+  contract test finds typos; it does not find things nobody wired up.
+- **An endpoint with no caller is the same bug as a measurement with no
+  writer.** `/api/modes` returned every section with its counts and its
+  Russian note, and nothing called it — while the page hardcoded the one
+  section it knew about.
 - **Measure before generating a distractor.** The obvious word-order drill —
   swap two constituents, offer the swap as wrong — was abandoned after
   measuring 1 000 native sentences: 75.4 % follow the rule, not ~100 %, and

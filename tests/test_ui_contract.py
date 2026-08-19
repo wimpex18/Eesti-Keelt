@@ -57,7 +57,14 @@ def api_paths(page: str) -> set[str]:
     `/api/lookup/` into `/api/lookup` and reported a route that exists as
     missing.
     """
-    found = set(re.findall(r'["`\'](/api/[^"`\'?\s]+)', page))
+    # Comments are not calls. A comment explaining *why* a handler goes
+    # through `/api/library/{id}` was read as a call to a route of that
+    # literal name — the page should be free to name its own endpoints in
+    # prose without the test inventing a caller.
+    code = re.sub(r"/\*.*?\*/", " ", page, flags=re.S)
+    code = re.sub(r"(?m)^\s*//.*$", " ", code)
+    code = re.sub(r"<!--.*?-->", " ", code, flags=re.S)
+    found = set(re.findall(r'["`\'](/api/[^"`\'?\s]+)', code))
     out = set()
     for path in found:
         path = re.sub(r"\$\{[^}]*\}", "{x}", path)
@@ -276,3 +283,106 @@ class TestATwoChoiceItemIsAnsweredByChoosing:
         already graded, and the accuracy gate would count it."""
         fn = page.split("const lock = ()")[1][:300]
         assert "disabled = true" in fn
+
+
+class TestEverySectionCanBeReached:
+    """This file has checked one direction since it was written: every
+    endpoint the page calls must exist. The other direction was never checked,
+    and that is where 82 items went missing.
+
+    Two of the seven library sections — the entire harvested listening archive
+    (54 items) and the 28 radio-course transcripts, 13 % of everything
+    harvested — were indexed, sectioned, and covered by API tests, and could
+    not be opened from the app. The page could only ask the library by *skill*,
+    and it only ever asked for `lugemine`.
+
+    It cost more than hidden content: the readiness verdict measures Kuulamine
+    by library items opened, so that evidence could never move."""
+
+    def test_the_page_can_ask_for_every_learning_section(self, page, client):
+        from eesti.library import SECTIONS
+
+        learn = [s for s in SECTIONS if s.mode == "oppimine"]
+        assert learn, "the fixture is wrong, not the app"
+        # Either named directly, or reachable because the page renders whatever
+        # /api/modes returns.
+        driven = "/api/modes" in page and "section=" in page
+        for section in learn:
+            assert driven or section.id in page, (
+                f"section {section.id!r} cannot be reached from the page"
+            )
+
+    def test_the_library_endpoint_serves_a_section(self, client):
+        assert client.get("/api/library?section=kuulamine").status_code == 200
+        assert client.get("/api/library?section=saated").status_code == 200
+
+    def test_an_unknown_section_is_a_404_not_an_empty_list(self, client):
+        """An empty list would look exactly like a section with no material,
+        which is a supported state — a typo must not imitate it."""
+        assert client.get("/api/library?section=nope").status_code == 404
+
+    def test_the_modes_endpoint_has_a_caller_now(self, page):
+        """It returned every section with its count and its Russian note, and
+        nothing called it. An endpoint with no caller is the same shape of bug
+        as a measurement with no writer."""
+        assert "/api/modes" in page
+
+    def test_opening_a_listening_item_records_it(self, page):
+        """Mounting a player straight from the list row would look identical
+        and leave the verdict at zero. It has to go through the endpoint that
+        writes the exposure down."""
+        fn = page.split("async function openListenItem")[1][:900]
+        assert "/api/library/" in fn
+
+
+class TestAPointerIsALinkNotAPlayer:
+    """Ten of the listening shelf's items are EIS tasks: their audio and their
+    scoring live on eis.harno.ee, and nothing of theirs is stored here — `body`
+    is empty and there is no `audio_url`, by licence and by design.
+
+    Rendered as expandable rows they opened on an empty panel. The exam section
+    had already made this distinction; the new listening list had to make it
+    too, which is the cost of a second list rather than a shared one."""
+
+    def test_the_api_marks_them(self, monkeypatch, tmp_path):
+        """Built here rather than read from a harvest: a test that only passes
+        where the corpus happens to exist is a test that fails in CI for the
+        wrong reason."""
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module, config
+        from eesti.sources import Item, add_items, connect, register
+
+        path = tmp_path / "content.db"
+        conn = connect(path)
+        register(conn)
+        add_items(conn, [
+            Item(source_id="eis", skill="kuulamine", level="A2",
+                 title="Kuulamine 1 (A2-tase, harjutusülesanne)",
+                 body="",                       # nothing of theirs is stored
+                 meta={"external": True,
+                       "url": "https://eis.harno.ee/publicitems/54950"}),
+            Item(source_id="err-r4", skill="kuulamine", title="Saade",
+                 body="Tere. See on tekst.", audio_url="https://example/a.mp3"),
+        ])
+        conn.commit()
+        monkeypatch.setattr(config, "CONTENT_DB", str(path))
+
+        got = TestClient(app_module.app).get(
+            "/api/library?section=kuulamine&limit=100").json()
+        external = [i for i in got["items"] if i.get("external")]
+        assert len(external) == 1
+        assert external[0]["url"].startswith("https://eis.harno.ee/")
+        # And the one with real content is not flagged, or it would lose its
+        # player.
+        assert any(not i.get("external") for i in got["items"])
+
+    def test_the_page_branches_on_it(self, page):
+        fn = page.split("async function loadListenLibrary")[1][:2000]
+        assert "it.external" in fn
+        assert 'target="_blank"' in fn
+
+    def test_only_real_content_gets_a_click_handler(self, page):
+        """Binding the handler to every row would put an expander on a link."""
+        fn = page.split("async function loadListenLibrary")[1][:2000]
+        assert '.lib-item[data-id]' in fn

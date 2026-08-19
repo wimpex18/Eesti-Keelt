@@ -137,6 +137,18 @@ deterministic and the error history already exists.
   the exam is marked. The explanation says "обычно вторым", matching EKK
   (SÜ 90) and the 75.4 %, because an absolute rule would have the learner
   "correcting" good Estonian.
+- **The listening shelf, which had been unreachable.** Two of the seven library
+  sections — the harvested listening archive (54 items) and the 28
+  radio-course transcripts, 13 % of everything harvested — were indexed,
+  sectioned and covered by API tests, and could not be opened from the app.
+  The page could only ask the library by *skill*, and only ever asked for
+  `lugemine`. It cost more than hidden content: the readiness verdict measures
+  Kuulamine by library items opened, so that half of the evidence could never
+  move.
+
+  The list is now rendered from `/api/modes` — which returned exactly this and
+  had no caller — so adding a section to `SECTIONS` surfaces it without anyone
+  remembering the page.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
   TTS, ERR episode audio, rection and inflection type via `sonapi`.
 
