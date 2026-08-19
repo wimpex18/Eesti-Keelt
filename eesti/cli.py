@@ -962,17 +962,18 @@ def cmd_readiness(args: argparse.Namespace) -> int:
                   content=content_connect(config.CONTENT_DB))
 
     print(f"{args.level}: {r.verdict}")
-    print(f"  otsustada {r.days_to_decide} päeva pärast, "
-          f"eksam {r.days_to_sitting} päeva pärast\n")
+    print(f"  решение через {r.days_to_decide} дн., "
+          f"экзамен через {r.days_to_sitting} дн.\n")
     for part in r.parts:
         mark = {True: "+", False: "-", None: "?"}[part.touched]
         print(f"  [{mark}] {part.et:<13} {part.evidence}")
     if r.grammar:
         g = r.grammar
-        print(f"\n  grammatika: {g['mastered']}/{g['topics']} teemat, "
-              f"kontrolltöö {'tehtud' if g['checkpoint_passed'] else 'tegemata'}")
+        print(f"\n  грамматика: {g['mastered']}/{g['topics']} тем, "
+              f"контрольная "
+              f"{'сдана' if g['checkpoint_passed'] else 'не сдана'}")
     if r.reasons:
-        print("\n  miks mitte veel:")
+        print("\n  почему ещё нет:")
         for reason in r.reasons:
             print(f"    - {reason}")
     print("\n  " + r.to_dict()["caveat"])

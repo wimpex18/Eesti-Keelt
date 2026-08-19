@@ -94,10 +94,15 @@ class Comparison:
             "words": [asdict(w) for w in self.words],
             "extra": self.extra, "matched": self.matched, "total": self.total,
             "ratio": round(self.ratio, 3), "missed": self.missed,
+            # Russian, deliberately. This sentence exists to stop the learner
+            # reading a low score as "my pronunciation is bad" when the honest
+            # reading is "the recogniser may not know accented Estonian". In
+            # Estonian it would be unreadable to the person it protects, and a
+            # caveat nobody can read does the opposite of its job.
             "caveat": (
-                "See näitab, mida kõnetuvastus kuulis — mitte hääldushinnet. "
-                "Möödalask võib tähendada hääldust või seda, et mudel ei tunne "
-                "aktsendiga eesti keelt."
+                "Это то, что услышало распознавание речи, а не оценка "
+                "произношения. Промах может означать произношение — или то, "
+                "что модель плохо знает эстонский с акцентом."
             ),
         }
 

@@ -208,7 +208,7 @@ def notion_queue(row: QueueError) -> dict:
 
     added = queue(connect(NOTION_DB), entry)
     return {"queued": added, "tag": entry.tag,
-            "note": "Review with `cli notion`, send with `cli notion --push`."}
+            "note": "Проверь через `cli notion`, отправь `cli notion --push`."}
 
 
 @app.get("/api/notion/pending")

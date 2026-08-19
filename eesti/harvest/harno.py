@@ -254,7 +254,7 @@ def to_items(materials: list[Material]) -> list:
                 "format": m.fmt,
                 "external": True,
                 "official": True,
-                "note": "Ametlik eksamimaterjal — © Haridus- ja Noorteamet.",
+                "note": "Официальный экзаменационный материал — © Haridus- ja Noorteamet.",
             },
         )
         for m in materials

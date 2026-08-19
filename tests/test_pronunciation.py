@@ -62,7 +62,14 @@ class TestCompare:
         Estonian. The ratio must never appear without saying so."""
         got = compare("Tere", "tere").to_dict()
         assert got["caveat"]
-        assert "hääldushinnet" in got["caveat"]
+        assert "произношения" in got["caveat"]
+
+    def test_the_caveat_is_in_a_language_the_learner_reads(self):
+        """It was Estonian. The person it protects is a Russian speaker still
+        learning Estonian, so the sentence that stops them blaming their own
+        mouth for the recogniser's limits was unreadable to them."""
+        caveat = compare("Tere", "tere").to_dict()["caveat"]
+        assert any("\u0400" <= ch <= "\u04ff" for ch in caveat)
 
     def test_word_level_detail_is_the_output_not_a_percentage(self):
         got = compare("Ma lähen kooli", "ma lähen kohli").to_dict()

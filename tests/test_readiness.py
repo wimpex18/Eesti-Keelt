@@ -47,7 +47,9 @@ class TestItRefusesToPredict:
     def test_the_caveat_says_so_out_loud(self, progress):
         """It travels with the verdict, not in documentation someone may skip."""
         caveat = readiness("A2", progress=progress).to_dict()["caveat"]
-        assert "ei ennusta" in caveat
+        # Russian: the reader is a Russian speaker learning Estonian, and a
+        # caveat in the language they are still learning protects nobody.
+        assert "не прогноз" in caveat
 
 
 class TestAllFourParts:
@@ -59,7 +61,7 @@ class TestAllFourParts:
         """60% overall is not enough if one part is zero, so this must be the
         loudest thing the verdict says."""
         result = readiness("A2", progress=progress)
-        assert any("Puudutamata" in r for r in result.reasons)
+        assert any("Не тронутые" in r for r in result.reasons)
 
     def test_speaking_is_unknown_rather_than_zero(self, progress):
         """Nothing simulates a paired dialogue. Reporting that as 'no practice'
@@ -90,7 +92,7 @@ class TestTheVerdict:
 
         result = readiness("A2", progress=progress)
         assert result.verdict != "tõendid toetavad"
-        assert any("Puudutamata" in r for r in result.reasons)
+        assert any("Не тронутые" in r for r in result.reasons)
 
     def test_no_progress_database_means_unknown(self):
         """Absence of evidence is reported as such, not as a negative verdict."""

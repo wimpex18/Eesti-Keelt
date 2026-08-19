@@ -83,9 +83,24 @@ class Readiness:
     days_to_decide: int = 0
     days_to_sitting: int = 0
 
+    @property
+    def countdown(self) -> str:
+        """The one number that motivates without lying.
+
+        A streak rewards attendance and collapses the week someone falls ill.
+        A date does not move, does not judge, and does not reset — it is simply
+        true, and it is the fact that actually applies pressure.
+        """
+        if self.days_to_decide > 0:
+            return f"до решения {self.days_to_decide} дн."
+        if self.days_to_sitting > 0:
+            return f"до экзамена {self.days_to_sitting} дн."
+        return "дата прошла"
+
     def to_dict(self) -> dict:
         return {
             "level": self.level,
+            "countdown": self.countdown,
             "parts": [vars(p) for p in self.parts],
             "grammar": self.grammar,
             "vocabulary": self.vocabulary,
@@ -93,10 +108,13 @@ class Readiness:
             "reasons": self.reasons,
             "days_to_decide": self.days_to_decide,
             "days_to_sitting": self.days_to_sitting,
+            # Russian, because this is the sentence that stops a number
+            # being over-read six weeks before a registration deadline. A
+            # caveat the reader cannot read is not a caveat.
             "caveat": (
-                "See ei ennusta eksamitulemust — see näitab, mida on tehtud ja "
-                "mis on puudutamata. Rääkimist see hinnata ei saa: eksamil "
-                "räägitakse paaris."
+                "Это не прогноз результата экзамена — это то, что сделано, и "
+                "то, что не тронуто. Говорение (rääkimine) оценить нельзя: на "
+                "экзамене говорят в паре."
             ),
         }
 
@@ -170,7 +188,7 @@ def _parts(progress: sqlite3.Connection, level: str,
 
     def material(skill: str) -> str:
         n = official.get(skill, 0)
-        return f" · {n} ametlikku ülesannet" if n else ""
+        return f" · {n} офиц. заданий" if n else ""
 
     # Writing: corrections queued for the error log are the only durable trace
     # a writing check leaves, which makes them the honest count here.
@@ -185,30 +203,30 @@ def _parts(progress: sqlite3.Connection, level: str,
 
     out.append(Part(
         "kirjutamine", "Kirjutamine", "письмо",
-        evidence=f"{queued} parandust logitud" + material("kirjutamine"),
+        evidence=f"{queued} исправлений в логе" + material("kirjutamine"),
         touched=queued >= CONTACT if queued else False,
-        note="Eksamil on neli kirjutamisülesannet.",
+        note="На экзамене четыре задания по письму.",
     ))
     out.append(Part(
         "kuulamine", "Kuulamine", "аудирование",
-        evidence=f"{len(seen)} teksti avatud" + material("kuulamine"),
+        evidence=f"{len(seen)} текстов открыто" + material("kuulamine"),
         touched=len(seen) >= CONTACT,
     ))
     out.append(Part(
         "lugemine", "Lugemine", "чтение",
-        evidence=(f"{read['items']} teksti, {read['minutes']} minutit"
+        evidence=(f"{read['items']} текстов, {read['minutes']} мин"
                   + material("lugemine")),
         touched=read["items"] >= CONTACT,
     ))
     out.append(Part(
         "raakimine", "Rääkimine", "говорение",
-        evidence="ei ole mõõdetav" + material("raakimine"),
+        evidence="не измеряется" + material("raakimine"),
         # Not False. "We cannot tell" and "you have done none" are different
         # claims, and showing the first as the second would be a lie the learner
         # would reasonably act on.
         touched=None,
-        note="Eksamil räägitakse paaris — seda rakendus hinnata ei saa. "
-             "Harjuta küsimustepangaga ja TTS-iga.",
+        note="На экзамене говорят в паре — приложение это оценить не может. "
+             "Тренируйся с банком вопросов и TTS.",
     ))
     return out
 
@@ -231,16 +249,18 @@ def readiness(
     untouched = [p for p in parts if p.touched is False]
     if untouched:
         reasons.append(
-            "Puudutamata eksamiosa: " + ", ".join(p.et for p in untouched)
-            + ". Eksamil ei tohi ükski osa olla null."
+            "Не тронутые части экзамена: "
+            + ", ".join(f"{p.et} ({p.ru})" for p in untouched)
+            + ". Ни одна часть не может быть нулевой."
         )
     if grammar and grammar["outstanding"]:
         reasons.append(
-            f"{len(grammar['outstanding'])} teemat {level} tasemel on veel "
-            f"läbimata: " + ", ".join(grammar["outstanding"][:5])
+            f"Тем уровня {level} ещё не пройдено: "
+            f"{len(grammar['outstanding'])} — "
+            + ", ".join(grammar["outstanding"][:5])
         )
     if grammar and not grammar["checkpoint_passed"]:
-        reasons.append(f"{level} kontrolltöö on tegemata või läbimata.")
+        reasons.append(f"Контрольная работа {level} не сдана.")
 
     if not grammar:
         verdict = "teadmata"

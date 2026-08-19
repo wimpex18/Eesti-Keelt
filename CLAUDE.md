@@ -20,6 +20,35 @@ things: explain a correction in prose, and say what it heard in a recording.
 Everything else — drills, grading, the study order, the mastery gate — is code.
 See `docs/ai-boundaries.md`.
 
+## Which language a string is written in
+
+The learner is a **Russian speaker learning Estonian**. That single fact decides
+every user-facing string, and getting it wrong is not cosmetic.
+
+| Kind of text | Language | Why |
+|---|---|---|
+| UI labels — `Kirjutamine`, `Kuulamine`, `Rada` | **Estonian** | the interface is itself exposure, and these are the exam's own words |
+| Grammar terms — `osastav`, `omastav`, `täisminevik` | **Estonian** | they must be learned; a translation would have to be unlearned |
+| Everything explaining, warning, or justifying | **Russian** | this is where comprehension has to win |
+| Estonian example sentences and drill content | **Estonian** | it is the material |
+
+**The rule that makes it concrete: a caveat nobody can read is not a caveat.**
+Two strings in this app exist to stop the learner drawing a wrong conclusion —
+the pronunciation comparison ("a miss may be the recogniser, not your mouth")
+and the readiness verdict ("this is not a prediction"). Both were written in
+Estonian, and in Estonian they did the *opposite* of their job: the person they
+protect could not read them, so a low score read as "my pronunciation is bad"
+and a verdict read as a forecast.
+
+When a Russian sentence names an Estonian concept, keep the Estonian word and
+gloss it once: *"Говорение (rääkimine) оценить нельзя"*. That teaches the term
+instead of hiding it.
+
+**Still to translate** (audit 2026-08-19): the web UI's own body copy and
+section descriptions in `eesti/web/index.html`, `library.SECTIONS` descriptions,
+and `docs/*.md` remain Estonian or English. The published integration map is
+Russian. Nothing in `data/` needs translating — it is the study material.
+
 ## Where it runs
 
 | Half | Where | Why |
