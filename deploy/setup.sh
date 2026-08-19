@@ -39,7 +39,14 @@ REGION="${REGION:-europe-north1}"
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
 command -v gcloud >/dev/null || fail "gcloud not found. Run this in Cloud Shell."
-command -v gh     >/dev/null || fail "gh not found. Run this in Cloud Shell."
+
+# Cloud Shell usually ships the GitHub CLI, but not on every image, and a
+# missing tool three lines in is a bad place to stop.
+if ! command -v gh >/dev/null; then
+  echo "==> Installing the GitHub CLI (one-off, takes ~20s)"
+  sudo apt-get -qq update && sudo apt-get -qq install -y gh \
+    || fail "Could not install gh. Install it manually and re-run."
+fi
 
 echo "==> Finding the Cloud Run service '$SERVICE' in '$REGION'"
 # `|| true` so a wrong region gives the sentence below rather than a stack trace.
