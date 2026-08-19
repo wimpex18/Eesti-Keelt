@@ -904,6 +904,12 @@ def _state_paths() -> dict[str, Path]:
         "progress": Path(PROGRESS_DB),
         "review": Path(REVIEW_DB),
         "vocab": Path(VOCAB_DB),
+        # Queued corrections are learner data like any other. Leaving this out
+        # meant every error waiting for review evaporated on the next cold
+        # start -- and Cloud Run cold-starts after minutes of idling, so a queue
+        # whose whole purpose is to hold things until a person looks at them
+        # held nothing across a coffee break.
+        "notion": Path(NOTION_DB),
     }
 
 
@@ -976,6 +982,7 @@ LEARNER_ROWS = {
     "progress": "attempts",
     "review": "review_items",
     "vocab": "vocab_status",
+    "notion": "notion_queue",
 }
 
 

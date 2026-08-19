@@ -121,6 +121,11 @@
   .corr{border:1px solid var(--line);border-left:3px solid var(--accent);
     border-radius:8px;padding:12px;margin-top:12px;background:var(--bg)}
   .corr.objcase{border-left-color:var(--warn)}
+  .logbtn{margin-top:8px;background:none;border:1px solid var(--line);
+    border-radius:7px;padding:5px 10px;font:inherit;font-size:13px;
+    color:var(--muted);cursor:pointer}
+  .logbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .logbtn:disabled{cursor:default;opacity:.75}
   .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;
     text-transform:uppercase;padding:2px 7px;border-radius:5px;
     background:var(--accent-soft);color:var(--accent)}
@@ -502,17 +507,45 @@ async function runCheck() {
         const fix = c.correct
           ? `<del>${esc(c.wrong)}</del> → <ins>${esc(c.correct)}</ins>`
           : `<ins>${esc(c.wrong)}</ins>`;
+        // The "log it" button is the on-screen confirmation the Notion log
+        // depends on. That log's value is that it is curated -- three rows
+        // sharing a tag become the week's focus -- so a checker that pushed
+        // every suspicion would turn a picked record into a dump of model
+        // output and start the rule firing on noise. One click per error, made
+        // by a person, is the whole design.
         html += `<div class="corr ${c.tag === "obj-case" ? "objcase" : ""}">
           <span class="tag">${esc(c.tag)}</span>
           <div class="fix">${fix}</div>
-          <div class="why">${md(c.why)}</div></div>`;
+          <div class="why">${md(c.why)}</div>
+          ${c.correct ? `<button class="logbtn" type="button"
+            data-wrong="${esc(c.wrong)}" data-correct="${esc(c.correct)}"
+            data-why="${esc(c.why || "")}" data-tag="${esc(c.tag)}"
+            >+ Vigade logisse</button>` : ""}</div>`;
       }
     }
     html += `<div class="engine">mootor: <b>${esc(res.engine)}</b>${res.degraded ? " (piiratud režiim)" : ""}</div>`;
     out.innerHTML = html;
+    out.querySelectorAll(".logbtn").forEach(b => b.onclick = () => queueError(b));
   } catch (e) {
     out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Kontrolli"; }
+}
+
+/* Queue one correction for the Notion error log.
+   Queued, never sent: `cli notion` shows what would go and `--push` sends it,
+   so the log stays a record a person chose to keep. */
+async function queueError(btn) {
+  btn.disabled = true;
+  try {
+    const r = await (await api("/api/notion/queue", {
+      wrong: btn.dataset.wrong, correct: btn.dataset.correct,
+      why: btn.dataset.why, tag: btn.dataset.tag,
+    })).json();
+    btn.textContent = r.queued ? "✓ Logis" : "✓ Juba logis";
+  } catch (e) {
+    btn.textContent = "Ei õnnestunud";
+    btn.disabled = false;
+  }
 }
 $("#checkBtn").onclick = runCheck;
 $("#text").addEventListener("keydown", e => {

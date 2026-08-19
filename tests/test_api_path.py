@@ -195,11 +195,16 @@ class TestStateSnapshots:
         assert r.status_code == 403
 
     def test_export_returns_only_the_learners_databases(self, secured):
-        """Not the word list or the form index: those are baked into the image,
-        so shipping 58 MB would be copying nothing."""
+        """Not the word list, the form index or the harvested corpus: those are
+        baked in or pushed separately, so shipping them would be 58 MB of
+        copying something every container already has.
+
+        `notion` is here because it holds queued corrections waiting for a
+        person to review them. Leaving it out meant the queue was emptied by
+        every cold start -- silently, which is how it went unnoticed."""
         data = secured.get("/api/state/export",
                            headers={"x-state-token": "s3cret"}).json()
-        assert set(data["databases"]) == {"progress", "review", "vocab"}
+        assert set(data["databases"]) == {"progress", "review", "vocab", "notion"}
 
     def test_a_snapshot_round_trips(self, secured, tmp_path, monkeypatch):
         import base64
