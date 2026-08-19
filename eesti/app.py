@@ -259,10 +259,26 @@ def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) 
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
                 "words": len(( r["body"] or "").split()),
+                # Official exam tasks are indexed, not copied: they are HARNO's
+                # copyright and their scoring only works on their page. The UI
+                # needs to send the learner there rather than open a reader on
+                # an empty body.
+                **_pointer(r["meta"]),
             }
             for r in rows
         ]
     }
+
+
+def _pointer(meta: str | None) -> dict:
+    """`{"external": True, "url": ...}` for an indexed task, else `{}`."""
+    try:
+        data = json.loads(meta or "{}")
+    except ValueError:
+        return {}
+    if not data.get("external"):
+        return {}
+    return {"external": True, "url": data.get("url"), "note": data.get("note")}
 
 
 @app.get("/api/library/{item_id}")

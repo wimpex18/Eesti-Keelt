@@ -119,15 +119,20 @@ three of these were found at all:
 
 ## Next, in order
 
-1. **HARNO / EIS exam material.** `eis.harno.ee/publicitems` serves official
-   A2–C1 reading and listening tasks unauthenticated, and the per-task URLs are
-   enumerable. This is the closest thing to an official practice test, and it is
-   the part of exam preparation the generated drills cannot reach. Owner-only:
-   personal study is fine, redistribution is not, so it stays behind Access and
-   out of the repository.
-2. **A2 rehearsal readiness.** The optional sitting is 07.11.2026, decided by
+1. **A2 rehearsal readiness.** The optional sitting is 07.11.2026, decided by
    01.10.2026. The app is level-parameterised already; what is missing is an
    honest A2 checkpoint that says yes or no.
+
+The **official exam tasks are indexed** (`eesti/harvest/eis.py`): 23 published
+practice tasks, of which 7 A2 and 7 B1, split between reading and listening.
+Two corrections to the plan came out of probing rather than reading: `aine=R`
+(*Eesti keel teise keelena*) returns **nothing at all**, and `keeletase` is the
+filter that works; and the catalogue is 23 tasks, not an open-ended archive.
+
+They are stored as **pointers, never copies**. The task body lives in an iframe
+on HARNO's site, it is their copyright, and the scoring and immediate feedback
+that make a task worth doing only work there — so a scraped copy would be dead
+text *and* a redistribution risk, while a link buys everything.
 
 The Notion write-back landed (`eesti/notion.py`): confirmed errors queue
 locally and go to the existing `Vead` log only when `cli notion --push` is run,
