@@ -52,7 +52,11 @@ def test_it_reflects_progress(dbs):
 def test_every_connection_is_optional():
     """A learner who has never opened the library should see zero, not an app
     that refuses to render."""
-    assert overview() == {"sections": {}, "note": overview()["note"]}
+    got = overview()
+    assert got["sections"] == {}
+    # The caveat is unconditional: it explains why there is no total, and that
+    # is true with no data at all.
+    assert got["caveat"]
     partial = overview(progress=progress_connect(":memory:"))
     assert "rada" in partial["sections"]
     assert "sonavara" not in partial["sections"]
@@ -66,3 +70,21 @@ def test_library_availability_is_included_when_content_is_given(tmp_path):
     add_items(content, [Item("selges-keeles", "lugemine", body="Tekst.")])
     data = overview(content=content)
     assert data["sections"]["raamatukogu"]["available"]["lugemine"] == 1
+
+
+def test_the_caveat_is_in_russian():
+    """The project rule: Estonian for labels and grammar terms, Russian for
+    anything that has to be understood. This sentence is the whole reason
+    there is no single percentage — in Estonian it went unread."""
+    caveat = overview()["caveat"]
+    assert any("Ѐ" <= ch <= "ӿ" for ch in caveat)
+
+
+def test_the_resume_topic_is_named_not_just_keyed(dbs):
+    """`next` is an id because the practice endpoint takes an id. The screen
+    was printing that id — `kusisonad` — which is a database key, not
+    something a learner recognises."""
+    rada = overview(progress=dbs["progress"])["sections"]["rada"]
+    assert rada["next"]
+    assert rada["next_et"] and rada["next_et"] != rada["next"]
+    assert any("Ѐ" <= ch <= "ӿ" for ch in rada["next_ru"])

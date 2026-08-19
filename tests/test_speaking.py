@@ -7,6 +7,7 @@ scores anything. The tests protect that boundary as much as the behaviour.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -269,3 +270,45 @@ class TestBreaker:
 
     def test_the_timeout_is_not_four_times_generous(self):
         assert asr.TIMEOUT <= 60
+
+
+class TestThePageDoesNotPromiseWhatTheEngineCannotKeep:
+    """A privacy claim is a fact about the code, and it goes stale silently.
+
+    The page told the learner "salvestus jääb sinu seadmesse — midagi ei
+    laadita üles". That was true while recognition ran locally. Recognition
+    moved to Cloudflare and the sentence stayed, ending up directly beneath a
+    second notice that correctly said the opposite. Nothing failed: both
+    strings rendered.
+
+    A voice is biometric. Where it goes has to be stated once, accurately,
+    before the button is pressed."""
+
+    PAGE = Path(__file__).resolve().parent.parent / "eesti" / "web" / "index.html"
+
+    @pytest.fixture(scope="class")
+    def page(self) -> str:
+        return self.PAGE.read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("claim", [
+        "jääb sinu seadmesse",
+        "ei laadita üles",
+        "не покидает устройство",
+        "nothing is uploaded",
+    ])
+    def test_no_text_claims_the_recording_never_leaves(self, page, claim):
+        """The hosted engine is the primary one — this promise cannot be made
+        unconditionally. The local caveat is allowed, and is stated as a
+        condition ("локально … запись не покидает компьютер"), not a blanket."""
+        assert claim not in page, f"stale privacy claim on the page: {claim!r}"
+
+    def test_the_notice_names_where_the_audio_goes(self, page):
+        notice = page.split('id="recPrivacy"')[1][:500]
+        assert "Cloudflare" in notice
+
+    def test_the_notice_is_before_the_record_button_in_the_document(self, page):
+        """After it, it is a disclosure nobody read before deciding."""
+        assert page.index('id="recPrivacy"') > page.index('id="recBtn"')
+        # ...and inside the same panel, not on some other screen.
+        panel = page[page.index('id="tab-speak"'):]
+        assert panel.index('id="recPrivacy"') < panel.index("</section>")

@@ -33,18 +33,38 @@ def overview(
     content: sqlite3.Connection | None = None,
 ) -> dict:
     """The five sections, each with its own measure. No aggregate, on purpose."""
-    out: dict = {"sections": {}, "note": "no overall percentage — see the docstring"}
+    out: dict = {
+        "sections": {},
+        "note": "no overall percentage — see the docstring",
+        # Russian, like every other explanation: this sentence is the reason
+        # there is no single number, and it is worth nothing if unread.
+        "caveat": (
+            "Общего процента здесь нет: экзамен оценивает четыре части "
+            "отдельно, и ноль в одной из них — это провал независимо от "
+            "остальных. Сводная цифра спрятала бы именно то, что решает."
+        ),
+    }
 
     if progress is not None:
         from .progress import report, resume
 
+        from .curriculum import by_id
+
         rows = report(progress)
+        # `next` is an id, because that is what the practice endpoint takes.
+        # The screen showed it raw ("kusisonad"), which is a database key, not
+        # a thing a learner recognises. Resolve the names here so no caller has
+        # to know the curriculum to render one line.
+        nxt = resume(progress)
+        topic = by_id(nxt) if nxt else None
         out["sections"]["rada"] = {
             "et": "Rada",
             "mastered": sum(1 for r in rows if r.state == "mastered"),
             "total": len(rows),
             "available": sum(1 for r in rows if r.state in ("ready", "in progress")),
-            "next": resume(progress),
+            "next": nxt,
+            "next_et": topic.et if topic else None,
+            "next_ru": topic.ru if topic else None,
         }
 
     if vocabulary is not None and words is not None:

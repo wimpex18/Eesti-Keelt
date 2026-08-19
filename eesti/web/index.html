@@ -54,6 +54,44 @@
     overscroll-behavior-y:contain}
   .wrap{max-width:860px;margin:0 auto;
     padding:max(20px, env(safe-area-inset-top)) 20px calc(var(--nav-h) + 28px)}
+
+  /* Hidden by default and shown by the media query below. This declaration
+     has to come FIRST: it has the same specificity as the one inside the
+     query, and at equal specificity the later rule wins — so with the order
+     reversed the rail stayed invisible at every width while quietly fetching
+     and rendering its contents. */
+  .rail{display:none}
+
+  /* Desktop is not a wide phone.
+     Below this the layout is one column and the rail is hidden -- it is
+     context, and context is the first thing to cut when space is short. Above
+     it there is room for both, and leaving four fifths of a MacBook empty is
+     not restraint, it is an unfinished layout. The reading column stays near
+     720px because a 1400px line is unreadable; the space goes to things that
+     were otherwise behind a click. */
+  @media (min-width:1080px){
+    .wrap{max-width:1160px;
+      display:grid;grid-template-columns:minmax(0,1fr) 300px;
+      gap:0 32px;align-items:start;
+      padding-bottom:40px}
+    header, nav[data-mode-nav]{grid-column:1 / -1}
+    .panel{grid-column:1}
+    .rail{grid-column:2;grid-row:3 / span 40;position:sticky;top:20px;
+      display:flex;flex-direction:column;gap:12px}
+  }
+  .rail-card{background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;display:flex;
+    flex-direction:column;gap:8px}
+  .rail-card h3{margin:0;font-size:12px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);font-weight:600}
+  .rail-big{font-size:22px;font-weight:650;line-height:1.1;
+    font-variant-numeric:tabular-nums}
+  .rail-note{font-size:12.5px;color:var(--muted)}
+  .rail-row{display:flex;justify-content:space-between;gap:10px;
+    font-size:13.5px;align-items:baseline}
+  .rail-row b{font-variant-numeric:tabular-nums}
+  .rail a{color:var(--accent);text-decoration:none}
+  .rail a:hover{text-decoration:underline}
   header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
   h1{font-size:19px;margin:0;letter-spacing:-.02em;font-weight:650}
   .sub{color:var(--muted);font-size:12.5px}
@@ -341,7 +379,7 @@
   </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
-  <section class="panel" id="tab-write">
+  <section class="panel" id="tab-write" hidden>
     <textarea id="text" placeholder="Kirjuta või kleebi eestikeelne tekst…&#10;Näiteks: Ma lugesin eile raamatut läbi."></textarea>
     <div class="row">
       <button class="go" id="checkBtn">Kontrolli</button>
@@ -466,6 +504,11 @@
     </div>
     <div id="ttsOut"></div>
   </section>
+  <!-- Desktop only. Everything here is otherwise behind a click: the
+       countdown lives in the exam tab, the path list behind a disclosure, the
+       due count in a badge. On a laptop there is room to just show them. -->
+  <aside class="rail" id="rail" aria-label="Ülevaade"></aside>
+
 </div>
 
 <script>
@@ -478,10 +521,39 @@ const md = s => esc(s)
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
   .replace(/\*(.+?)\*/g, "<em>$1</em>");
 
-const TABS = ["write", "drill", "review", "read", "listen", "exam",
-              "vihikud"];
+/* Read off the document, never hand-maintained.
 
-const ON_OPEN = { exam: () => loadExam(), vihikud: () => loadVihikud() };
+   This was a literal list, and it had drifted: `path`, `speak` and `status`
+   were missing from it. Because `selectTab` only hides what the list names,
+   `#tab-path` was never hidden — it stayed on screen under every other tab —
+   and `#tab-speak` and `#tab-status` were never *un*hidden, so the speaking
+   practice and the progress view could not be opened at all. Three of ten
+   panels, and nothing failed: every tab still showed *a* panel, just the
+   wrong one. Deriving the set from the panels themselves makes adding a
+   section sufficient. */
+const TABS = [...document.querySelectorAll("section.panel[id^='tab-']")]
+  .map(s => s.id.slice("tab-".length));
+
+/* What each panel needs fetched the first time it is opened, rather than on
+   boot: a phone on a slow connection should not wait for four requests to
+   show one screen. `once` is for the panels whose contents do not change
+   during a session; the rest refresh on every open.
+
+   This was two mechanisms — this table and a separate document-level click
+   listener — which is how `speak` and `status` came to be wired for loading
+   while not being wired for showing. One table now. */
+const ON_OPEN = {
+  exam: () => loadExam(),
+  vihikud: () => loadVihikud(),
+  path: () => loadPath(),
+  status: () => loadStatus(),
+  speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
+};
+
+function once(fn) {
+  let done = false;
+  return () => { if (!done) { done = true; fn(); } };
+}
 
 function selectTab(button) {
   button.closest("nav").querySelectorAll("button").forEach(x =>
@@ -509,22 +581,6 @@ document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
 // The path is the default landing tab: it is the one screen that answers
 // "what do I do now" without the learner having to decide.
 selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
-
-// Panels that need a fetch load the first time they are opened, not on boot:
-// a phone on a slow connection should not wait for four requests to show one
-// screen.
-const loaded = new Set();
-document.addEventListener("click", e => {
-  const b = e.target.closest("nav button[data-tab]");
-  if (!b) return;
-  const tab = b.dataset.tab;
-  if (tab === "speak" && !loaded.has(tab)) {
-    loaded.add(tab);
-    loadSpeakQuestions().then(() => loadReadAloud("lause"));
-  }
-  if (tab === "status") loadStatus();
-  if (tab === "path") loadPath();
-});
 
 /* One fetch helper for both verbs. It was POST-only, which was fine while
    every call sent something; the exam view reads four endpoints that take no
@@ -631,6 +687,10 @@ async function mountAudio(host, url) {
    >=60 % *and* no part at zero, and an aggregate hides the untouched part that
    is the real risk.
 --------------------------------------------------------------------------- */
+/* A2 by default, not B1. The A2 sitting is the nearer decision -- 07.11.2026,
+   decided by 01.10.2026 -- and a countdown to the wrong exam is worse than
+   none. Changing the level here changes the rail too, so the two never
+   disagree about which exam is being prepared for. */
 let examLevel = "A2";
 
 const MARK = { true: ["yes", "✓"], false: ["no", "–"], null: ["unknown", "?"] };
@@ -702,6 +762,7 @@ document.querySelectorAll(".levels button").forEach(b => b.onclick = () => {
     x.setAttribute("aria-selected", x === b));
   examLevel = b.dataset.level;
   loadExam();
+  loadRail();
 });
 
 async function loadVihikud() {
@@ -710,6 +771,72 @@ async function loadVihikud() {
   $("#vihikudList").innerHTML = rows.length
     ? rows.map(linkRow).join("")
     : `<p class="empty">Töövihikuid pole veel imporditud.</p>`;
+}
+
+/* The rail: what a laptop has room for and a phone does not.
+
+   Nothing here is new information — it is the countdown from the exam tab, the
+   resume point from the path, and the due count from a badge, all of which
+   otherwise cost a click to see. On a 1440px screen four fifths of which was
+   empty, showing them is free.
+
+   Rendered once on load and refreshed after anything that could change it.
+   Failures are swallowed: the rail is context, and context must never be the
+   reason a lesson does not appear. */
+async function loadRail() {
+  const rail = $("#rail");
+  if (!rail || !matchMedia("(min-width:1080px)").matches) return;
+  try {
+    /* `await` inside the array would serialise these — the promises have to
+       be built first and awaited together. `soft` keeps the due count from
+       being able to empty the whole rail. */
+    const get = u => fetch(u).then(r => r.json());
+    const soft = u => get(u).catch(() => ({}));
+    const [ready, path, due] = await Promise.all([
+      get(`/api/readiness/${examLevel}`),
+      get("/api/curriculum"),
+      soft("/api/review/stats"),
+    ]);
+
+    const untouched = ready.parts.filter(p => p.touched === false);
+    /* `resume` is an id (`kusisonad`); the learner knows the topic by its
+       name. The path tab already resolves it this way. */
+    const next = (path.topics || []).find(t => t.id === path.resume);
+    rail.innerHTML = `
+      <div class="rail-card">
+        <h3>Eksamini</h3>
+        <div class="rail-big">${esc(ready.countdown || "")}</div>
+        <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
+      </div>
+      <div class="rail-card">
+        <h3>Rada</h3>
+        <div class="rail-row"><span>Läbitud</span>
+          <b>${path.mastered}/${path.total}</b></div>
+        ${next ? `<div class="rail-row"><span>Järgmine</span>
+          <b>${esc(next.et)}</b></div>` : ""}
+        ${due && due.due !== undefined ? `<div class="rail-row">
+          <span>Kordamist ootab</span><b>${due.due}</b></div>` : ""}
+      </div>
+      ${untouched.length ? `<div class="rail-card">
+        <h3>Puudutamata</h3>
+        ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
+          ${p.next_task && p.next_task.url
+            ? `<a href="${esc(p.next_task.url)}" target="_blank"
+                 rel="noopener">ava</a>` : ""}</div>`).join("")}
+        <div class="rail-note">Ükski osa ei tohi olla null.</div>
+      </div>` : ""}`;
+  } catch (e) {
+    rail.innerHTML = "";
+  }
+}
+loadRail();
+
+/* A phone has to hide the 36-topic path behind a disclosure; a laptop has
+   1500px of empty column below the fold. Opened once, on load only — if the
+   learner closes it, it stays closed. */
+if (matchMedia("(min-width:1080px)").matches) {
+  const all = $("#pathAll");
+  if (all) all.open = true;
 }
 
 async function runCheck() {
@@ -864,7 +991,8 @@ async function loadStatus() {
     if (s.rada) html += `<div class="corr"><span class="tag">Rada</span>
       <div class="fix">${s.rada.mastered}/${s.rada.total} teemat läbitud,
       ${s.rada.available} avatud</div>
-      <div class="why">Järgmine: ${esc(s.rada.next || "—")}</div></div>`;
+      <div class="why">Järgmine: ${esc(s.rada.next_et || "—")}${
+        s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
     if (s.sonavara) html += `<div class="corr"><span class="tag">Sõnavara</span>
       <div class="fix">${s.sonavara.known_in_top} sõna esimesest
       ${s.sonavara.top}-st</div><div class="why">` +
@@ -876,9 +1004,9 @@ async function loadStatus() {
     if (s.raamatukogu) html += `<div class="corr"><span class="tag">Raamatukogu</span>
       <div class="fix">${s.raamatukogu.items || 0} avatud,
       ${s.raamatukogu.minutes || 0} minutit</div></div>`;
-    html += `<div class="engine">Üldprotsenti ei ole: eksam hindab nelja osa
-      eraldi ja null ühes osas kukutab läbi, nii et koondnumber peidaks just
-      selle, mis otsustab.</div>`;
+    // The caveat comes from the API, in Russian, so it is written once and
+    // cannot drift out of step with what the numbers mean.
+    html += `<div class="engine">${esc(d.caveat || "")}</div>`;
     out.innerHTML = html;
   } catch (e) { out.textContent = e.message; }
 }
@@ -960,6 +1088,7 @@ function renderPracticeItem(it, topic, i) {
         `Harjutused läksid kordamise järjekorda.`;
       loadPath();
       refreshDueBadge();
+      loadRail();
     }
   };
   el.querySelector("button").onclick = grade;
@@ -969,7 +1098,9 @@ function renderPracticeItem(it, topic, i) {
 }
 
 $("#practiceBtn").onclick = startPractice;
-loadPath(); loadThemes();
+/* The path loads through ON_OPEN now, since it is the landing tab; calling
+   it here too would fetch the curriculum twice on every boot. */
+loadThemes();
 
 // ── speaking ────────────────────────────────────────────────────────
 // getUserMedia needs a secure context. On a phone that means HTTPS, which is
@@ -1159,13 +1290,20 @@ if (!canRecord) {
       $("#recState").textContent = "Mikrofoni ei saanud: " + e.message;
     }
   };
-  // Said once, plainly: this records, it does not score. Pronunciation scoring
-  // from audio is a research problem, and EKI already publishes free exercises.
+  /* Said once, plainly: this records, it does not score. Pronunciation
+     scoring from audio is a research problem, and EKI already publishes free
+     exercises.
+
+     It used to open by promising the recording never left the device, which
+     stopped being true when recognition moved to Cloudflare — and sat
+     directly under `#recPrivacy` saying the opposite. Where the audio goes is
+     that notice's job; this one is only about what the practice is worth. */
   $("#recNote").innerHTML =
-    "Salvestus jääb sinu seadmesse — midagi ei laadita üles ega hinnata. " +
-    "B1 rääkimiseksam on <b>paaris</b>: kaks kandidaati vastavad kordamööda ja " +
-    "seejärel räägivad omavahel, nii et üksi harjutades on mõtet vastuse " +
-    "ülesehitusel ja soravusel, mitte punktidel.";
+    "Здесь <b>не выставляют баллов</b> — произношение по записи не " +
+    "оценивается. <b>Rääkimiseksam</b> на B1 — <b>парный</b>: два кандидата " +
+    "отвечают по очереди, а затем разговаривают между собой. Поэтому в " +
+    "одиночку имеет смысл тренировать построение ответа и беглость, а не " +
+    "баллы.";
 }
 
 // ── review ──────────────────────────────────────────────────────────
@@ -1212,6 +1350,7 @@ function renderReview(it) {
       ${r.interval_days < 1 ? "täna" : `${Math.round(r.interval_days)} päeva pärast`}
       ${it.why_ru ? `<br><span class="why">${md(it.why_ru)}</span>` : ""}`;
     refreshDueBadge();
+    loadRail();
   });
   return el;
 }
