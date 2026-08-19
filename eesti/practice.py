@@ -83,6 +83,11 @@ def items_for(
         return numeral_drills(words, levels, count, seed, topics=(topic,),
                               only=countable if topic == "arvsonad" else None)
 
+    if generator == "punctuation":
+        from .punctuation import generate as comma_items
+
+        return comma_items(count=count, seed=seed, content=_content(content_db))
+
     if generator == "wordorder":
         from .wordorder import generate as wordorder_items
 

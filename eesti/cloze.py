@@ -204,9 +204,23 @@ def sentences(
         body = row[0] if not isinstance(row, sqlite3.Row) else row["body"]
         for sentence in split_sentences(body):
             sentence = sentence.strip()
+            if not _usable(sentence):
+                continue
             if min_words <= len(sentence.split()) <= max_words:
                 out.append(sentence)
     return out
+
+
+#: Selges keeles appends a glossary to some articles — `vöökiri = vöömuster` —
+#: and the splitter carries the tail into the preceding sentence. 0.7 % of the
+#: pool, which is small until one of them is the sentence a learner is asked to
+#: write down from hearing it. Filtered here rather than at harvest time so it
+#: applies to a `content.db` already pushed to a deployment.
+_GLOSS = re.compile(r"\s=\s")
+
+
+def _usable(sentence: str) -> bool:
+    return not _GLOSS.search(sentence)
 
 
 def naive_case_form(nominative: str, genitive: str, correct: str) -> str | None:
