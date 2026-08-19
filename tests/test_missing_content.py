@@ -86,9 +86,28 @@ class TestAvailable:
         (tmp_path / "empty.db").write_bytes(b"")
         assert available(tmp_path / "empty.db") is False
 
-    def test_a_real_library_is_available(self, tmp_path):
+    def test_a_schema_only_database_is_not_available(self, tmp_path):
+        """The one that matters. `connect` creates the database with its schema
+        on the very first request, so "the file exists and is non-empty" is true
+        of a deployment that has never been harvested -- which is exactly what
+        the first version of this reported, and exactly the mistake the snapshot
+        restore made before it."""
         from eesti.sources import available, connect
 
         path = tmp_path / "content.db"
         connect(path).close()
+        assert available(path) is False
+
+    def test_a_library_with_items_is_available(self, tmp_path):
+        from eesti.sources import Item, add_items, available, connect, register
+
+        path = tmp_path / "content.db"
+        conn = connect(path)
+        register(conn)
+        source = conn.execute("SELECT id FROM sources LIMIT 1").fetchone()["id"]
+        add_items(conn, [Item(
+            source_id=source, skill="lugemine", level="B1",
+            title="Proov", body="Ma lugesin raamatu läbi.",
+        )])
+        conn.close()
         assert available(path) is True
