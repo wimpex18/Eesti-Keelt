@@ -386,3 +386,27 @@ class TestAPointerIsALinkNotAPlayer:
         """Binding the handler to every row would put an expander on a link."""
         fn = page.split("async function loadListenLibrary")[1][:2000]
         assert '.lib-item[data-id]' in fn
+
+
+class TestNoTwoElementsShareAnId:
+    """`$("#x")` returns the first match, so a duplicated id does not error —
+    it silently binds a handler to the wrong element.
+
+    Adding a "Kontrolltöö" button as `#checkBtn` collided with the writing
+    panel's existing "Kontrolli" button. One of the two would have been dead
+    and the other repurposed, depending on which script line ran last, and
+    nothing would have said so."""
+
+    def test_every_id_in_the_markup_is_unique(self, page):
+        import collections
+
+        markup = page.split("<script>")[0]
+        counts = collections.Counter(re.findall(r'\bid="([^"]+)"', markup))
+        dupes = {i: n for i, n in counts.items() if n > 1}
+        assert not dupes, f"duplicated ids: {dupes}"
+
+    def test_the_two_check_buttons_are_distinct(self, page):
+        """Named because they are the pair that collided, and because
+        "Kontrolli" (check this writing) and "Kontrolltöö" (sit the level
+        checkpoint) are genuinely different things a learner does."""
+        assert 'id="checkBtn"' in page and 'id="checkpointBtn"' in page

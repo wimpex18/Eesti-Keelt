@@ -451,8 +451,15 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
 
     So this sorts by known-word coverage and puts the **instructional** band
     first: texts the learner can follow with effort, which is where a text
-    teaches rather than either boring or defeating them. Comfortable texts come
-    second, and anything below the threshold is not offered at all.
+    teaches rather than either boring or defeating them.
+
+    It ranks; it does not filter. This docstring used to end "anything below
+    the threshold is not offered at all", which the code has never done and
+    must not: a learner with 411 known words scores about 13 % on native-ish
+    news, so a threshold filter would hand them an empty list on the default
+    view and no way to tell an empty library from a high bar. The band is
+    reported honestly instead — `raske` says the text is above them without
+    hiding it.
     """
     from .difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
     from .library import browse
@@ -461,11 +468,20 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     rows = browse(content_db(), section, limit=120)
 
     scored = []
+    unmeasurable = 0
     for row in rows:
         if not (row["body"] or "").strip():
             continue
         profile = comprehensible(row["body"], known)
         if profile["total"] == 0:
+            # No lemmas resolved. Either the text is empty, or the word
+            # database is missing — `cli export` builds it and the image does
+            # so at build time, but a source checkout may not have it. Counted
+            # rather than silently dropped: every text failing this way
+            # produced "0 teksti · 411 слов знакомо", a contradiction with no
+            # explanation, which is the same shape as showing a zero that
+            # means "not measured yet".
+            unmeasurable += 1
             continue
         scored.append({
             "id": row["id"], "title": row["title"], "band": row["band"],
@@ -479,15 +495,25 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     scored.sort(key=lambda item: (
         0 if item["readability"] == "arendav" else 1, -item["coverage"]
     ))
+    note = (
+        "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
+        "читаются с усилием: именно там текст учит. Это словарное "
+        "покрытие, а не оценка понимания."
+    )
+    if not scored and unmeasurable:
+        note = (
+            "Словарная база не собрана, поэтому покрытие посчитать нельзя — "
+            "это не значит, что вы не знаете слов. Соберите её командой "
+            "`cli export`; в образе она собирается при сборке."
+        )
     return {
         "items": scored[:limit],
         "known_words": len(known),
         "threshold": INSTRUCTIONAL,
-        "note": (
-            "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
-            "читаются с усилием: именно там текст учит. Это словарное "
-            "покрытие, а не оценка понимания."
-        ),
+        # Distinguishes "the library is empty" from "nothing could be
+        # measured", which look identical in a list of length zero.
+        "unmeasurable": unmeasurable,
+        "note": note,
     }
 
 
@@ -548,13 +574,11 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
     }
 
 
-@app.get("/api/library/for/{topic}")
 def library_for_topic(topic: str, limit: int = 5) -> dict:
     """Reading that demonstrates one grammar topic, strongest first."""
     return {"topic": topic, "items": reading_for(topic, limit=limit)}
 
 
-@app.get("/api/grammar")
 def grammar_rules() -> dict:
     """Every rule the app drills, linked to its section in the EKK handbook.
 
@@ -565,7 +589,6 @@ def grammar_rules() -> dict:
     return {"rules": [describe_rule(tag) for tag in REFERENCES]}
 
 
-@app.get("/api/grammar/{tag}")
 def grammar_rule(tag: str) -> dict:
     rule = describe_rule(tag)
     if not rule["known"]:
@@ -573,7 +596,6 @@ def grammar_rule(tag: str) -> dict:
     return rule
 
 
-@app.get("/api/word/{lemma}")
 def word_card(lemma: str) -> dict:
     """A word in its three principal forms, as a dictionary would cite it."""
     result = principal_forms(lemma)
@@ -669,7 +691,6 @@ def mine(req: MineRequest) -> dict:
             "id": result.item_id, "kind": result.kind}
 
 
-@app.post("/api/review/failed")
 def review_failed(req: DrillFailed) -> dict:
     """Record a drill answered wrong: queue it and mark it missed in one step."""
     result = mining.from_failed_drill(
@@ -934,7 +955,6 @@ class KnownWords(BaseModel):
     long_known: bool = False
 
 
-@app.get("/api/vocab")
 def vocab_bands() -> dict:
     from .vocab import band_progress, summary
 
@@ -1132,7 +1152,6 @@ def dictation_answer(req: DictationAnswer) -> dict:
     return result.to_dict()
 
 
-@app.get("/api/dictation/stats")
 def dictation_stats() -> dict:
     from .dictation import stats
 

@@ -122,3 +122,57 @@ class TestTheReadinessCountIsPerPart:
                  client.get("/api/readiness/B1").json()["parts"]}
         assert parts["lugemine"]["touched"] is False
         assert "0 текстов" in parts["lugemine"]["evidence"]
+
+
+class TestTheRecommendationRanksRatherThanFilters:
+    """A learner with 411 known words scores about 13 % coverage on the
+    harvested news — nowhere near the 90 % instructional threshold. If that
+    threshold were a filter, the *default* reading view would be empty for a
+    real beginner, and an empty list cannot be told apart from an empty
+    library.
+
+    The docstring claimed a filter the code has never had. Fixed the docstring,
+    not the code."""
+
+    @pytest.fixture
+    def client(self, monkeypatch, tmp_path):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module, config
+        from eesti.sources import Item, add_items, connect, register
+
+        path = tmp_path / "content.db"
+        conn = connect(path)
+        register(conn)
+        add_items(conn, [
+            Item(source_id="selges-keeles", skill="lugemine", title=f"Tekst {i}",
+                 body="Ma elan Tallinnas ja töötan siin. Ta läks eile kooli.")
+            for i in range(4)
+        ])
+        conn.commit()
+        monkeypatch.setattr(config, "CONTENT_DB", str(path))
+        monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+        return TestClient(app_module.app)
+
+    def test_texts_are_offered_even_when_none_clears_the_threshold(self, client):
+        got = client.get("/api/reading/next?limit=5").json()
+        assert got["items"], "the default view must not fail closed"
+        assert all(i["coverage"] < got["threshold"] for i in got["items"])
+
+    def test_the_band_says_the_text_is_hard_rather_than_hiding_it(self, client):
+        got = client.get("/api/reading/next?limit=5").json()
+        assert {i["readability"] for i in got["items"]} <= {"raske", "arendav",
+                                                            "iseseisev"}
+
+    def test_the_docstring_no_longer_claims_a_filter(self):
+        from eesti.app import reading_next
+
+        doc = reading_next.__doc__ or ""
+        assert "It ranks; it does not filter." in doc
+
+    def test_unmeasurable_is_reported_separately_from_empty(self, client):
+        """"The library is empty" and "nothing could be measured" look
+        identical in a list of length zero, and only one of them is the
+        learner's problem."""
+        got = client.get("/api/reading/next?limit=5").json()
+        assert "unmeasurable" in got

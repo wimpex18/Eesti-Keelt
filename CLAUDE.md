@@ -217,6 +217,13 @@ in Cloud Shell and discover the project, service and region themselves.
   "can every section the API serves be reached?". 82 items — 13 % of the
   library — were indexed, sectioned, API-tested and unopenable. A one-way
   contract test finds typos; it does not find things nobody wired up.
+- **Count the orphans, do not fix them one at a time.** After the sixth
+  page/API drift bug, measuring showed **10 of 47 routes had no caller at
+  all** — 21 % of the surface. The worst was `POST /api/vocab/known`, the only
+  way a word can be marked known: its other caller is the CLI, which does not
+  exist on the deployment, so on the running app no word could ever become
+  known and every feature ordered by known vocabulary sat at zero for good.
+  `tests/test_route_inventory.py` now fails on a route nothing can reach.
 - **An endpoint with no caller is the same bug as a measurement with no
   writer.** `/api/modes` returned every section with its counts and its
   Russian note, and nothing called it — while the page hardcoded the one

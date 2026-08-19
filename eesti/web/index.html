@@ -486,6 +486,18 @@
     <!-- Filled from /api/readiness/{level}: the hand-written version said
          "349 teksti" and "pole veel" regardless of what had happened. -->
     <div id="readiness"></div>
+    <!-- The checkpoint: a mixed set across the whole level.
+         It was built and had no way in — the route existed, the generator
+         existed, and nothing in the app could start one. A drill session is
+         one topic at a time, which is how you practise; an exam is everything
+         at once, which is how you are tested, and only the second answers
+         "am I ready". -->
+    <div class="row" style="margin-top:18px">
+      <button class="go" id="checkpointBtn">Kontrolltöö</button>
+      <span class="hint" id="checkpointNote"></span>
+    </div>
+    <div id="checkpointOut"></div>
+
     <!-- Filled from /api/exam/{level}, grouped by what each thing is for. -->
     <div id="examMaterial"></div>
   </section>
@@ -1537,6 +1549,36 @@ function renderReview(it) {
   return el;
 }
 
+/* The end-of-level checkpoint.
+
+   Mixed across the level and interleaved by construction, so consecutive items
+   are never the same topic — that is the difference between practising and
+   being tested, and it is why this cannot just be a longer drill session.
+
+   Answers go through the same `/api/practice/answer` as everything else, so a
+   checkpoint counts towards mastery exactly as practice does. What it adds is
+   a verdict against `pass_mark` at the end. */
+async function runCheckpoint() {
+  const out = $("#checkpointOut"), note = $("#checkpointNote");
+  const btn = $("#checkpointBtn");
+  btn.disabled = true; out.innerHTML = ""; note.textContent = "Laen…";
+  try {
+    const d = await (await fetch(`/api/checkpoint/${examLevel}?count=15`)).json();
+    if (!d.items?.length) {
+      note.textContent = "Selle taseme jaoks pole veel ühtegi harjutust.";
+      return;
+    }
+    note.innerHTML = `${d.items.length} küsimust · läbimiseks ` +
+      `<b>${Math.round(d.pass_mark * 100)}%</b>` +
+      (d.ready === false ? " · <span class=\"hint\">tase pole veel läbitud</span>" : "");
+    d.items.forEach((it, i) =>
+      out.appendChild(renderPracticeItem(it, it.topic, i)));
+  } catch (e) {
+    note.textContent = "Viga: " + e.message;
+  } finally { btn.disabled = false; }
+}
+$("#checkpointBtn").onclick = runCheckpoint;
+
 // ── reading ─────────────────────────────────────────────────────────
 /* Reading list. Two different questions, and the selector picks which one.
 
@@ -1640,8 +1682,20 @@ $("#readerBody").addEventListener("click", async e => {
   card.innerHTML = `<span class="hint">…</span>`;
   const d = await (await fetch("/api/lookup/" + encodeURIComponent(word))).json();
   if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
+  /* Two different things to say about a word, and until now only one of them
+     could be said.
+
+     "Add to review" queues the grammar pattern behind it. "I know this"
+     records the lemma as known — and that was reachable only through
+     `POST /api/vocab/known`, which nothing called, and `cli vocab`, which does
+     not exist on the deployment. So on the running app no word could ever
+     become known, and everything downstream of that sat at zero for good: the
+     reading list's comprehensible-input ordering, dictation's easiest-first
+     ordering, the vocabulary line in the readiness verdict, and the "N of the
+     first 4000" counter. A whole pillar of the app with no input path. */
   const mineBtn = `<div class="row" style="margin-top:9px">
-      <button class="ghost" id="mineBtn">+ Kordamisse</button></div>
+      <button class="ghost" id="mineBtn">+ Kordamisse</button>
+      <button class="ghost" id="knowBtn">✓ Tean seda sõna</button></div>
     <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
     <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
@@ -1660,6 +1714,25 @@ $("#readerBody").addEventListener("click", async e => {
     note.className = "mine-note" + (r.queued ? "" : " no");
     note.textContent = r.reason;
     if (r.queued) refreshDueBadge();
+  };
+
+  // Marking a word known is an explicit act, never inferred from having read
+  // it -- meeting a word is not knowing it, and a counter that inflates itself
+  // measures reading rather than vocabulary.
+  card.querySelector("#knowBtn").onclick = async e => {
+    e.target.disabled = true;
+    const lemma = d.analyses[0]?.lemma || word;
+    const note = card.querySelector("#mineNote");
+    try {
+      await api("/api/vocab/known", {lemmas: [lemma]});
+      e.target.textContent = "✓ Teada";
+      note.className = "mine-note";
+      note.textContent = `«${lemma}» on nüüd teada — mõjutab soovitatud tekste.`;
+    } catch (err) {
+      note.className = "mine-note no";
+      note.textContent = err.message;
+      e.target.disabled = false;
+    }
   };
 });
 

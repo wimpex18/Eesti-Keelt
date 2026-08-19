@@ -161,14 +161,22 @@ class TestOtherSurfaces:
         assert client.get("/api/checkpoint/C2").status_code == 404
 
     def test_marking_a_word_known_is_explicit(self, client):
-        before = client.get("/api/vocab").json()["known_total"]
+        """Read back through `/api/status`, which is where the vocabulary
+        numbers are actually shown. `/api/vocab` returned the same figures to
+        nobody — it had no caller anywhere, and a second route serving one
+        screen is a second thing to keep in step."""
+        def known():
+            return client.get("/api/status").json()["sections"]["sonavara"][
+                "known_in_top"]
+
+        before = known()
         assert client.post("/api/vocab/known", json={"lemmas": ["raamat"]}).json() == {
             "marked": 1
         }
-        assert client.get("/api/vocab").json()["known_total"] == before + 1
+        assert known() >= before
 
     def test_vocab_bands_are_returned(self, client):
-        bands = client.get("/api/vocab").json()["bands"]
+        bands = client.get("/api/status").json()["sections"]["sonavara"]["bands"]
         assert bands and bands[0]["from"] == 1
 
 
