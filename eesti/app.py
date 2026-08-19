@@ -9,11 +9,17 @@ import base64
 import hmac
 import json
 import os
+import secrets
 import sqlite3
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    Response,
+)
 from pydantic import BaseModel, Field
 
 from .config import LEVELS
@@ -75,6 +81,42 @@ WEB = Path(__file__).parent / "web"
 app = FastAPI(title="Eesti-Keelt", docs_url="/api/docs")
 
 
+# Identifies this process. The Worker in front of the deployment reads it off
+# every response: when it changes, the container it was talking to has been
+# replaced and its disk is empty again, which is the cue to push the snapshot
+# back in. Cloud Run scales to zero and gives no shutdown hook the Worker can
+# see, so the boot id is how a restart is noticed at all.
+BOOT_ID = secrets.token_hex(8)
+
+PROXY_HEADER = "x-proxy-token"
+
+
+@app.middleware("http")
+async def _proxy_guard(request: Request, call_next):
+    """Keep the origin from becoming a way around the front door.
+
+    On Cloud Run the service is invoked unauthenticated -- that is what makes it
+    free -- so its `run.app` URL answers the whole internet. Cloudflare Access
+    sits in front of the *Worker*, not in front of that URL, so without this the
+    Access policy would guard one of two doors and the harvested material it
+    exists to protect would be a hostname guess away.
+
+    `PROXY_TOKEN` is a secret only the Worker holds. Unset, the guard is off,
+    because the default way to run this app is `cli serve` on a laptop and
+    demanding a token there would be ceremony. `/api/health` reports which of
+    the two it is, so "is the deployment actually closed?" has an answer you can
+    check rather than assume.
+    """
+    expected = os.environ.get("PROXY_TOKEN")
+    if expected and not hmac.compare_digest(
+        request.headers.get(PROXY_HEADER, ""), expected
+    ):
+        return JSONResponse({"detail": "not authorised"}, status_code=403)
+    response = await call_next(request)
+    response.headers["x-boot-id"] = BOOT_ID
+    return response
+
+
 def db():
     return connect()
 
@@ -113,6 +155,10 @@ def health() -> dict:
         "drillable_nouns": drillable,
         "rules": sorted({t.rule for t in TEMPLATES}),
         "voices": list(tts.VOICES),
+        "boot": BOOT_ID,
+        # Verifiable rather than assumed: on a deployment this must be true, and
+        # if it is false the origin is answering the open internet.
+        "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),
     }
 
 

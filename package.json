@@ -1,0 +1,14 @@
+{
+  "name": "eesti-keelt-worker",
+  "private": true,
+  "description": "Cloudflare Worker that fronts the Eesti-Keelt app on Cloud Run. The app itself is Python; this is only the doorman.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260819.1",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.124.0"
+  }
+}

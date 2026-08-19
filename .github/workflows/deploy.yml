@@ -1,0 +1,91 @@
+# Deploys the Worker that fronts the app.
+#
+# The app itself is not deployed here: it is a container image built by Cloud
+# Build from this repo's Dockerfile and run on Cloud Run. This workflow deploys
+# only the doorman in front of it, and hands it the secrets it needs.
+#
+# Nothing in this file contains a credential. Every value comes from repository
+# secrets, which is the one place they belong for CI.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "wrangler.jsonc"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Catch a broken Worker before it is the thing standing between the
+      # learner and the app, not after.
+      - run: npx tsc --noEmit
+
+      # Fail with a sentence rather than a stack trace. A missing secret here is
+      # the most likely reason this workflow ever goes red, and the fix is a
+      # settings page, not a code change.
+      - name: Check required secrets are set
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
+          STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
+        run: |
+          missing=""
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
+                      CLOUD_RUN_URL PROXY_TOKEN STATE_TOKEN; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            echo "See docs/deploy.md for what each one is."
+            exit 1
+          fi
+
+      # Secrets are pushed before the deploy so a first-ever deploy comes up
+      # configured rather than answering 503 until someone remembers.
+      - name: Push Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
+          STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          put() {
+            # Via stdin: a secret on a command line is a secret in the process
+            # table and in any shell trace.
+            printf '%s' "$2" | npx wrangler secret put "$1"
+          }
+          put CLOUD_RUN_URL "$CLOUD_RUN_URL"
+          put PROXY_TOKEN "$PROXY_TOKEN"
+          put STATE_TOKEN "$STATE_TOKEN"
+          # Optional: without it, grammar explanations fall back to offline
+          # Vabamorf evidence and everything else is unaffected.
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            put OPENROUTER_API_KEY "$OPENROUTER_API_KEY"
+          fi
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy

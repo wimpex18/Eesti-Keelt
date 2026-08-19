@@ -72,4 +72,8 @@ ENV EESTI_CONTENT_DB=/app/data/content/content.db
 # the container and creating a new one. Image is ~1.08 GB.
 
 EXPOSE 8080
-CMD ["python", "-m", "uvicorn", "eesti.app:app", "--host", "0.0.0.0", "--port", "8080"]
+# `$PORT` rather than a literal: Cloud Run injects the port it expects the
+# container to listen on, and a service configured with anything but 8080 would
+# otherwise fail its health check with a container that is running perfectly.
+# `exec` so uvicorn is PID 1 and gets Cloud Run's shutdown signal directly.
+CMD ["sh", "-c", "exec python -m uvicorn eesti.app:app --host 0.0.0.0 --port ${PORT:-8080}"]
