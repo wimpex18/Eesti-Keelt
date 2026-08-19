@@ -33,8 +33,8 @@
 set -euo pipefail
 
 REPO="wimpex18/Eesti-Keelt"
-SERVICE="${SERVICE:-eesti-keelt}"
-REGION="${REGION:-europe-north1}"
+# Both discovered below. Set SERVICE=... only if the project holds more
+# than one Cloud Run service.
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -48,14 +48,59 @@ if ! command -v gh >/dev/null; then
     || fail "Could not install gh. Install it manually and re-run."
 fi
 
-echo "==> Finding the Cloud Run service '$SERVICE' in '$REGION'"
-# `|| true` so a wrong region gives the sentence below rather than a stack trace.
+# A fresh Cloud Shell has no project selected, and every gcloud command then
+# fails with a message about "the [project] resource" that says nothing about
+# what to do. Sort it out here instead.
+echo "==> Checking which Google Cloud project is selected"
+PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
+if [ -z "$PROJECT" ] || [ "$PROJECT" = "(unset)" ]; then
+  mapfile -t PROJECTS < <(gcloud projects list --format='value(projectId)')
+  case "${#PROJECTS[@]}" in
+    0) fail "This account has no Google Cloud projects." ;;
+    1) PROJECT="${PROJECTS[0]}"
+       echo "    None selected; you have exactly one, using it: $PROJECT"
+       gcloud config set project "$PROJECT" >/dev/null 2>&1 ;;
+    *) echo "    No project selected, and you have several:"
+       printf '      %s\n' "${PROJECTS[@]}"
+       fail "Pick one, then re-run:
+    gcloud config set project THE_ONE_WITH_THE_APP
+    bash deploy/setup.sh" ;;
+  esac
+else
+  echo "    $PROJECT"
+fi
+
+# Rather than asking you which region you deployed to, ask Google. A Cloud Run
+# service is findable by name across every region at once, and guessing wrong
+# was the first thing that went wrong here.
+echo "==> Finding the Cloud Run service"
+SERVICES="$(gcloud run services list \
+  --format='value(metadata.name,metadata.labels."cloud.googleapis.com/location")' \
+  2>/dev/null || true)"
+[ -n "$SERVICES" ] || fail "No Cloud Run services in project '$PROJECT'.
+  If the app is in a different project:
+    gcloud config set project THE_OTHER_ONE && bash deploy/setup.sh"
+
+if [ -n "${SERVICE:-}" ]; then
+  MATCH="$(awk -v want="$SERVICE" '$1 == want {print; exit}' <<<"$SERVICES")"
+  [ -n "$MATCH" ] || fail "No service named '$SERVICE'. Found:
+$(sed 's/^/    /' <<<"$SERVICES")"
+elif [ "$(wc -l <<<"$SERVICES")" -eq 1 ]; then
+  MATCH="$SERVICES"
+else
+  fail "Several Cloud Run services here:
+$(sed 's/^/    /' <<<"$SERVICES")
+  Say which one:
+    SERVICE=the-right-name bash deploy/setup.sh"
+fi
+
+SERVICE="$(awk '{print $1}' <<<"$MATCH")"
+REGION="$(awk '{print $2}' <<<"$MATCH")"
+echo "    $SERVICE in $REGION"
+
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" \
         --format='value(status.url)' 2>/dev/null || true)"
-[ -n "$URL" ] || fail "No service '$SERVICE' in '$REGION'.
-  List what you have:  gcloud run services list
-  Then re-run with the right names, e.g.
-    SERVICE=my-service REGION=europe-west1 bash deploy/setup.sh"
+[ -n "$URL" ] || fail "Could not read the URL of '$SERVICE' in '$REGION'."
 echo "    $URL"
 
 echo "==> Checking you are signed in to GitHub"
