@@ -183,9 +183,14 @@ def _official(content, level: str) -> dict[str, int]:
 def _next_task(content, level: str, skill: str) -> dict | None:
     """One official task for this part, or None if there are none indexed.
 
-    The first by title, deliberately: HARNO numbers them, so "first" is the one
-    the exam board put first rather than whichever row SQLite happened to
-    return.
+    Restricted to actual **tasks**. Without that filter the first row by title
+    for A2 listening was a consultation workbook — which is study material, not
+    a rehearsal, and pointing someone at it under "you have never practised
+    listening" is worse than the count it replaced. Naming the wrong thing is a
+    stronger claim than naming nothing.
+
+    First by title otherwise: HARNO numbers them, so "first" is the one the
+    exam board put first rather than whichever row SQLite happened to return.
     """
     if content is None:
         return None
@@ -194,6 +199,7 @@ def _next_task(content, level: str, skill: str) -> dict | None:
             """SELECT i.title, i.meta FROM items i
                JOIN sources s ON s.id = i.source_id
                WHERE i.level = ? AND i.skill = ? AND s.id IN ('harno','eis')
+                 AND (i.meta LIKE '%"kind": "ulesanne"%' OR i.meta NOT LIKE '%"kind"%')
                ORDER BY i.title LIMIT 1""",
             (level, skill),
         ).fetchone()

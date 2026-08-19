@@ -128,3 +128,19 @@ class TestTheVerdictNamesSomething:
     ):
         result = readiness("B1", progress=progress)
         assert all(p.next_task is None for p in result.parts)
+
+    def test_it_names_a_task_and_not_a_workbook(self, progress, content):
+        """Found by reading the rendered page: the first row by title for A2
+        listening was a consultation workbook. That is study material, not a
+        rehearsal, and offering it under "you have never practised listening"
+        is worse than the count it replaced — naming the wrong thing is a
+        stronger claim than naming nothing."""
+        from eesti.readiness import _next_task
+        from eesti.sources import Item, add_items
+
+        # Sorts before "B1 Ku1 yl" alphabetically, exactly as the real one did.
+        add_items(content, [Item("harno", "kuulamine", level="B1",
+                                 title="A1 Konsultatsioon kuulamistest",
+                                 meta={"kind": "konsultatsioon"})])
+        named = _next_task(content, "B1", "kuulamine")
+        assert "Konsultatsioon" not in named["title"]
