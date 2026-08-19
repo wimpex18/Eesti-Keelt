@@ -296,3 +296,32 @@ def resume(conn: sqlite3.Connection) -> str | None:
         if topic.id in started:
             return topic.id
     return drillable[0].id
+
+
+def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
+    """Forget attempts, so a topic starts again from nothing.
+
+    Written because I needed it: smoke-testing the deployed app meant answering
+    two real questions, and those two attempts went into the learner's own
+    record. Two rows out of a ten-attempt mastery window is not nothing — it is
+    twenty percent of the evidence the gate is weighing.
+
+    Useful beyond that, though. A topic answered carelessly on a phone, or
+    drilled before its prerequisites were understood, leaves a window that says
+    "not mastered" for the next ten questions regardless of how well they go.
+    Being able to say "start this one over" is the honest fix; quietly adjusting
+    the threshold would not be.
+
+    Topic-scoped by default and never implicit: clearing everything requires
+    asking for everything.
+    """
+    with conn:
+        if topic:
+            attempts = conn.execute(
+                "DELETE FROM attempts WHERE topic = ?", (topic,)
+            ).rowcount
+            conn.execute("DELETE FROM topic_state WHERE topic = ?", (topic,))
+        else:
+            attempts = conn.execute("DELETE FROM attempts").rowcount
+            conn.execute("DELETE FROM topic_state")
+    return {"topic": topic, "attempts_removed": attempts}

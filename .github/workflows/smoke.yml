@@ -1,0 +1,92 @@
+# Checks the *deployed* app, not the code.
+#
+# Why this exists: Cloudflare Access closes the front door and PROXY_TOKEN
+# closes the origin, which is exactly right — and it means nobody working on
+# this repo can reach the running app to confirm it works. Three production
+# bugs in this project were found by asking the live deployment rather than
+# reading the code, so losing that ability outright would be a bad trade.
+#
+# The way back in is an Access **service token**: a credential minted for a
+# machine, allowed by its own policy, revocable on its own. It lives in GitHub
+# Actions secrets, which is where CI credentials belong — not in a chat, not in
+# an environment variable box, and not in anyone's hands.
+#
+# Setup, once:
+#   1. Zero Trust -> Access -> Service Auth -> Service Tokens -> Create.
+#   2. Add the pair as repository secrets CF_ACCESS_CLIENT_ID and
+#      CF_ACCESS_CLIENT_SECRET, plus WORKER_URL.
+#   3. On the Worker's Access application, add a policy:
+#      Action "Service Auth", Include -> Service Token -> the one you made.
+name: smoke
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [deploy]
+    types: [completed]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the deployment answers, and answers correctly
+        env:
+          URL: ${{ secrets.WORKER_URL }}
+          CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$CF_ID" ] || [ -z "$CF_SECRET" ]; then
+            echo "::warning::Smoke test not configured. Add WORKER_URL, \
+          CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET to run it."
+            exit 0
+          fi
+
+          auth=(-H "CF-Access-Client-Id: $CF_ID"
+                -H "CF-Access-Client-Secret: $CF_SECRET")
+          fail=0
+
+          # 1. The front door is shut to anyone without the token. This is the
+          #    check that matters most: everything else is a feature, this is
+          #    the licence obligation.
+          code="$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/health")"
+          if [ "$code" = "302" ] || [ "$code" = "403" ]; then
+            echo "closed to anonymous ...... OK ($code)"
+          else
+            echo "::error::Anonymous request returned $code — the app is OPEN."
+            fail=1
+          fi
+
+          # 2. It answers a request that carries the service token.
+          body="$(curl -s "${auth[@]}" "$URL/api/health")"
+          echo "$body" | grep -q '"words"' \
+            && echo "health .................. OK" \
+            || { echo "::error::health did not answer: ${body:0:200}"; fail=1; }
+
+          # 3. The origin guard is on. A deploy that silently dropped the
+          #    environment variables would look perfectly healthy above.
+          echo "$body" | grep -q '"origin_guarded":true' \
+            && echo "origin guarded .......... OK" \
+            || { echo "::error::origin_guarded is false — the run.app URL is open."; fail=1; }
+
+          # 4. The endpoints that returned 500 in production once already.
+          for path in /api/library /api/status /api/curriculum; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$URL$path")"
+            [ "$code" = "200" ] \
+              && echo "$(printf '%-24s' "$path") OK" \
+              || { echo "::error::$path returned $code"; fail=1; }
+          done
+
+          # 5. Speech is reachable. The microphone silently not working is the
+          #    kind of thing nobody notices until a speaking exercise.
+          curl -s "${auth[@]}" "$URL/api/asr" | grep -q '"ready":true' \
+            && echo "speech .................. OK" \
+            || echo "::warning::/api/asr reports not ready."
+
+          # 6. The reading library. A warning, not an error: an unharvested
+          #    deployment is a supported state.
+          library="$(curl -s "${auth[@]}" "$URL/api/health")"
+          echo "$library" | grep -q '"library":true' \
+            && echo "reading library ......... OK" \
+            || echo "::warning::No reading library — push a harvest."
+
+          exit $fail

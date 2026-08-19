@@ -79,7 +79,6 @@ jobs:
           CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
           PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
           STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           put() {
             # Via stdin: a secret on a command line is a secret in the process
@@ -91,11 +90,12 @@ jobs:
           fi
           put PROXY_TOKEN "$PROXY_TOKEN"
           put STATE_TOKEN "$STATE_TOKEN"
-          # Optional: without it, grammar explanations fall back to offline
-          # Vabamorf evidence and everything else is unaffected.
-          if [ -n "$OPENROUTER_API_KEY" ]; then
-            put OPENROUTER_API_KEY "$OPENROUTER_API_KEY"
-          fi
+          # OPENROUTER_API_KEY is deliberately NOT pushed here. It is read by
+          # eesti/providers/llm.py, which runs on Cloud Run -- the Worker never
+          # looks at it. Storing it here left the grammar checker permanently
+          # in offline mode while a secret sat where nothing could use it,
+          # which is all of the risk and none of the benefit.
+          # It belongs on the Cloud Run service: deploy/set-llm-key.sh.
 
       - name: Deploy
         env:

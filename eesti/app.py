@@ -259,10 +259,26 @@ def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) 
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
                 "words": len(( r["body"] or "").split()),
+                # Official exam tasks are indexed, not copied: they are HARNO's
+                # copyright and their scoring only works on their page. The UI
+                # needs to send the learner there rather than open a reader on
+                # an empty body.
+                **_pointer(r["meta"]),
             }
             for r in rows
         ]
     }
+
+
+def _pointer(meta: str | None) -> dict:
+    """`{"external": True, "url": ...}` for an indexed task, else `{}`."""
+    try:
+        data = json.loads(meta or "{}")
+    except ValueError:
+        return {}
+    if not data.get("external"):
+        return {}
+    return {"external": True, "url": data.get("url"), "note": data.get("note")}
 
 
 @app.get("/api/library/{item_id}")
@@ -888,6 +904,12 @@ def _state_paths() -> dict[str, Path]:
         "progress": Path(PROGRESS_DB),
         "review": Path(REVIEW_DB),
         "vocab": Path(VOCAB_DB),
+        # Queued corrections are learner data like any other. Leaving this out
+        # meant every error waiting for review evaporated on the next cold
+        # start -- and Cloud Run cold-starts after minutes of idling, so a queue
+        # whose whole purpose is to hold things until a person looks at them
+        # held nothing across a coffee break.
+        "notion": Path(NOTION_DB),
     }
 
 
@@ -904,6 +926,35 @@ def _require_state_token(request: Request) -> None:
         raise HTTPException(status_code=503, detail="STATE_TOKEN is not configured")
     if not hmac.compare_digest(request.headers.get("x-state-token", ""), expected):
         raise HTTPException(status_code=403, detail="bad state token")
+
+
+class ResetRequest(BaseModel):
+    topic: str | None = None
+    everything: bool = False
+
+
+@app.post("/api/progress/reset")
+def progress_reset(req: ResetRequest, request: Request) -> dict:
+    """Forget a topic's attempts.
+
+    Guarded by `STATE_TOKEN` rather than left open behind Access, for the same
+    reason the snapshot endpoints are: this destroys learner history, and a
+    misfired request from a page the learner has open should not be able to do
+    that. It is an operator action, not a UI button.
+
+    Clearing everything must be asked for explicitly. A missing `topic` is far
+    more likely to be a bug in a caller than a genuine wish to erase months of
+    work, so it is refused unless `everything` says otherwise.
+    """
+    _require_state_token(request)
+    from .progress import reset
+
+    if not req.topic and not req.everything:
+        raise HTTPException(
+            status_code=400,
+            detail="Pass a topic, or everything=true to clear all of it.",
+        )
+    return reset(progress_db(), req.topic)
 
 
 @app.get("/api/state/export")
@@ -931,6 +982,7 @@ LEARNER_ROWS = {
     "progress": "attempts",
     "review": "review_items",
     "vocab": "vocab_status",
+    "notion": "notion_queue",
 }
 
 

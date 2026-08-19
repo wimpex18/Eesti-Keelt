@@ -888,6 +888,39 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 NOTION_DB = "data/notion.db"
 
 
+def cmd_harvest_exam(args: argparse.Namespace) -> int:
+    """Index the exam board's own practice tasks.
+
+    Pointers, not copies: the tasks are copyright Haridus- ja Noorteamet, they
+    live in an iframe on their site, and the scoring and feedback that make them
+    worth doing only work there. A link buys everything a copy would, and holds
+    none of their material.
+    """
+    from . import config
+    from .harvest.eis import LEVELS, catalogue, to_items
+    from .sources import add_items, connect as content_connect, register
+
+    levels = tuple(args.levels.split(",")) if args.levels else LEVELS
+    tasks = catalogue(levels)
+    if not tasks:
+        print("EIS returned nothing. The catalogue is small and can change; "
+              "check https://eis.harno.ee/publicitems by hand before assuming "
+              "a bug.")
+        return 1
+
+    conn = content_connect(config.CONTENT_DB)
+    register(conn)
+    stored = add_items(conn, to_items(tasks))
+
+    by_level: dict[str, int] = {}
+    for task in tasks:
+        by_level[task.level] = by_level.get(task.level, 0) + 1
+    for level in sorted(by_level):
+        print(f"  {level}: {by_level[level]} tasks")
+    print(f"\nindexed {stored} official tasks (pointers only, (c) HARNO)")
+    return 0
+
+
 def cmd_notion(args: argparse.Namespace) -> int:
     """Review queued errors and, only if asked, push them to the `Vead` log.
 
@@ -1227,6 +1260,13 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_rections)
+
+    p = sub.add_parser(
+        "harvest-exam",
+        help="index the official EIS practice tasks (links, not copies)",
+    )
+    p.add_argument("--levels", help="comma-separated, default A2,B1,B2,C1")
+    p.set_defaults(func=cmd_harvest_exam)
 
     p = sub.add_parser(
         "notion",
