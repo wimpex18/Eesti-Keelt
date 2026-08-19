@@ -36,6 +36,7 @@ from .wordlist import connect
 REVIEW_DB = "data/review.db"
 PROGRESS_DB = "data/progress.db"
 VOCAB_DB = "data/vocab.db"
+NOTION_DB = "data/notion.db"
 
 
 def content_db():
@@ -179,6 +180,42 @@ def check(req: CheckRequest) -> dict:
     return grammar.check(req.text).to_dict()
 
 
+class QueueError(BaseModel):
+    wrong: str = Field(min_length=1, max_length=2000)
+    correct: str = Field(min_length=1, max_length=2000)
+    why: str = Field(default="", max_length=2000)
+    tag: str
+
+
+@app.post("/api/notion/queue")
+def notion_queue(row: QueueError) -> dict:
+    """Hold a confirmed error for the Notion log. Queued, never sent.
+
+    The `Vead` log is hand-curated, and its "three of a tag becomes this week's
+    focus" rule is what identified `obj-case` as the priority at all. Appending
+    every suspicion would turn a picked record into a dump and start that rule
+    firing on noise -- so this endpoint only ever queues. `cli notion --push`
+    is the one thing that writes, and it shows you the rows first.
+    """
+    from .notion import Row, connect, queue
+
+    try:
+        entry = Row(wrong=row.wrong, correct=row.correct, why=row.why, tag=row.tag)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    added = queue(connect(NOTION_DB), entry)
+    return {"queued": added, "tag": entry.tag,
+            "note": "Review with `cli notion`, send with `cli notion --push`."}
+
+
+@app.get("/api/notion/pending")
+def notion_pending() -> dict:
+    from .notion import connect, pending
+
+    return {"items": [dict(r) for r in pending(connect(NOTION_DB))]}
+
+
 @app.post("/api/drills")
 def drills(req: DrillRequest) -> dict:
     """Generate object-case drills. Fully offline."""
@@ -250,6 +287,12 @@ def library_item(item_id: str) -> dict:
         "audio_url": row["audio_url"],
         "profile": annotate(row["body"] or ""),
     }
+
+
+@app.get("/api/library/for/{topic}")
+def library_for_topic(topic: str, limit: int = 5) -> dict:
+    """Reading that demonstrates one grammar topic, strongest first."""
+    return {"topic": topic, "items": reading_for(topic, limit=limit)}
 
 
 @app.get("/api/grammar")
@@ -496,7 +539,23 @@ def practice_items(req: PracticeRequest) -> dict:
         "ru": meta.ru,
         "reference": describe_rule(meta.tag) if meta.tag else None,
         "items": [i.to_dict() for i in items],
+        # Something to read that is *about* this contrast, not merely at this
+        # level. This is the join that makes practice and the reading library
+        # one tool: a drill teaches the rule, a text shows it being used.
+        "reading": reading_for(topic),
     }
+
+
+def reading_for(topic: str, limit: int = 3) -> list[dict]:
+    """Texts that demonstrate a topic, or nothing if the corpus is unharvested."""
+    from .library import related
+
+    try:
+        return related(content_db(), topic, limit=limit)
+    except sqlite3.Error:
+        # An older content.db predates the link table. An empty reading list is
+        # the right degradation -- the practice items are the lesson.
+        return []
 
 
 @app.post("/api/practice/answer")
@@ -892,6 +951,71 @@ def _has_learner_data(path: Path, table: str) -> bool:
         # Unreadable or not a database: not something worth preserving, but not
         # something to overwrite blindly either.
         return True
+
+
+class ContentBlob(BaseModel):
+    database: str = Field(min_length=1)
+
+
+@app.post("/api/content/import")
+def content_import(blob: ContentBlob, request: Request) -> dict:
+    """Receive the harvested library, which cannot ship in the image.
+
+    Two facts collide here. The corpus is **owner-only** -- ERR transcripts are
+    © ERR, Selges keeles carries no reuse grant -- so it has no business inside
+    an image built from a public repository. And Cloud Run's disk is
+    **ephemeral**, so a file copied in by hand is gone at the next cold start.
+
+    So it travels the same road the learner's progress does: held by the Worker,
+    pushed in whenever a fresh instance appears. Harvest once on a laptop, push
+    once, and every container after that gets it without the harvest ever
+    running again -- which also keeps this app from re-scraping someone else's
+    server on every deploy.
+
+    Unlike the learner snapshot, this one **does** overwrite. The corpus is
+    derived from a harvest, not accumulated by the learner: there is no work in
+    it to lose, and refusing would make re-harvesting impossible.
+    """
+    _require_state_token(request)
+    from . import config
+
+    path = Path(config.CONTENT_DB)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(base64.b64decode(blob.database))
+
+    from .sources import connect as _connect
+
+    with _connect(path) as conn:
+        items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    return {"bytes": path.stat().st_size, "items": items}
+
+
+@app.get("/api/content/export")
+def content_export(request: Request) -> dict:
+    """Hand the library back, so the Worker can archive what was pushed here.
+
+    Cloudflare Access guards the Worker, and Access is an interactive login: a
+    script cannot satisfy it. So a harvest is pushed to *this* origin, which is
+    guarded by `PROXY_TOKEN` and reachable by a machine -- and the Worker picks
+    it up from here and keeps it, because this disk will not exist tomorrow.
+
+    `full` is opt-in because the answer is megabytes. Without it this is a
+    cheap "is there one, and how big", which is all the Worker needs to decide
+    whether to ask for the expensive version.
+    """
+    _require_state_token(request)
+    from . import config
+    from .sources import available
+
+    path = Path(config.CONTENT_DB)
+    present = available(path)
+    out = {
+        "present": present,
+        "bytes": path.stat().st_size if path.exists() else 0,
+    }
+    if present and request.query_params.get("full"):
+        out["database"] = base64.b64encode(path.read_bytes()).decode("ascii")
+    return out
 
 
 @app.post("/api/state/import")

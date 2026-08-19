@@ -47,6 +47,43 @@ interface Env {
   PROXY_TOKEN: string;
   /** Guards the snapshot endpoints on the app. */
   STATE_TOKEN: string;
+  /**
+   * Set to "1" to serve without Cloudflare Access. The escape hatch, not the
+   * default -- see `requireAccess`.
+   */
+  ALLOW_UNAUTHENTICATED?: string;
+}
+
+/**
+ * Refuse anything that did not come through Cloudflare Access.
+ *
+ * Access is configured in a dashboard, and a dashboard setting is a thing that
+ * can be switched off by accident, reset by a future change, or simply never
+ * have applied in the first place -- which is exactly what happened here: the
+ * policy was created, "Apply Access" was pressed, and an anonymous request kept
+ * returning 200 for a quarter of an hour.
+ *
+ * Nothing complained, because nothing was watching. That is the same failure
+ * shape as the `origin_guarded` flag on the Cloud Run side, and it gets the
+ * same answer: the protection is enforced in code, so losing it is a locked
+ * door rather than a silent opening.
+ *
+ * When Access is enabled, the runtime puts an identity on every request that
+ * passed it. When it is not, there is no identity, and this returns a page
+ * saying so. `ALLOW_UNAUTHENTICATED` exists for deliberately serving without
+ * Access, and is deliberately awkward: the default has to be the safe one,
+ * because the unsafe one is invisible.
+ */
+function requireAccess(env: Env, ctx: ExecutionContext): Response | null {
+  if (ctx.access || env.ALLOW_UNAUTHENTICATED === "1") return null;
+  return new Response(
+    "This app is not protected by Cloudflare Access, so it will not serve.\n\n" +
+      "Enable it: Workers & Pages -> eesti-keelt -> Access -> All traffic,\n" +
+      "with the 'Cloudflare account' policy.\n\n" +
+      "To serve without Access on purpose, set ALLOW_UNAUTHENTICATED=1.\n" +
+      "See docs/deploy.md.",
+    { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } },
+  );
 }
 
 /** Snapshot on a timer as well as after work, so a crash costs minutes at most. */
@@ -66,10 +103,21 @@ const SNAPSHOT_MIN_GAP_MS = 60 * 1000;
  * free-plan budget of 100,000 a day.
  */
 const CHUNK = 96 * 1024;
-const CHUNK_PREFIX = "snap/";
-const META_KEY = "snap-meta";
 
-interface SnapMeta {
+/**
+ * Two blobs live in this store and they are not the same kind of thing.
+ *
+ * `snap` is the learner's progress: written constantly, never overwritten on
+ * restore, and the thing the whole snapshot mechanism exists to protect.
+ *
+ * `corpus` is the harvested reading library: written once from a laptop,
+ * overwritten freely, and owner-only by licence -- which is why it cannot ship
+ * inside an image built from a public repository, and why it has to travel this
+ * way at all.
+ */
+type Blob = "snap" | "corpus";
+
+interface BlobMeta {
   chunks: number;
   bytes: number;
   at: number;
@@ -100,46 +148,116 @@ export class LearnerState extends DurableObject<Env> {
     };
   }
 
-  /** Read the snapshot back out of storage, or null if there isn't one. */
-  private async load(): Promise<string | null> {
-    const meta = await this.ctx.storage.get<SnapMeta>(META_KEY);
+  /** Read a blob back out of storage, or null if there isn't a whole one. */
+  private async load(blob: Blob): Promise<string | null> {
+    const meta = await this.ctx.storage.get<BlobMeta>(`${blob}-meta`);
     if (!meta) return null;
-    const parts = await this.ctx.storage.list<string>({ prefix: CHUNK_PREFIX });
+    const parts = await this.ctx.storage.list<string>({ prefix: `${blob}/` });
     if (parts.size !== meta.chunks) {
-      // A snapshot half-written by an interrupted save is worse than none: it
-      // would restore a truncated SQLite file over a working one.
+      // A blob half-written by an interrupted save is worse than none: it would
+      // restore a truncated SQLite file over a working one.
       return null;
     }
     let out = "";
     for (let i = 0; i < meta.chunks; i++) {
-      const part = parts.get(`${CHUNK_PREFIX}${i}`);
+      const part = parts.get(`${blob}/${i}`);
       if (part === undefined) return null;
       out += part;
     }
     return out;
   }
 
-  private async save(body: string): Promise<void> {
+  private async save(blob: Blob, body: string): Promise<void> {
     const chunks: Record<string, string> = {};
     for (let i = 0; i * CHUNK < body.length; i++) {
-      chunks[`${CHUNK_PREFIX}${i}`] = body.slice(i * CHUNK, (i + 1) * CHUNK);
+      chunks[`${blob}/${i}`] = body.slice(i * CHUNK, (i + 1) * CHUNK);
     }
     const count = Object.keys(chunks).length;
-    // Meta last, and deletes first: the meta key is what makes a snapshot
-    // readable, so writing it only after every chunk has landed means an
-    // interrupted save leaves the previous snapshot unreadable rather than
-    // leaving a mixture of two readable.
-    await this.ctx.storage.delete(META_KEY);
+    // Meta last, and deletes first: the meta key is what makes a blob readable,
+    // so writing it only after every chunk has landed means an interrupted save
+    // leaves the previous one unreadable rather than leaving a mixture of two
+    // readable.
+    await this.ctx.storage.delete(`${blob}-meta`);
     const stale = [
-      ...(await this.ctx.storage.list<string>({ prefix: CHUNK_PREFIX })),
+      ...(await this.ctx.storage.list<string>({ prefix: `${blob}/` })),
     ].map(([k]) => k);
     if (stale.length) await this.ctx.storage.delete(stale);
-    await this.ctx.storage.put(chunks);
-    await this.ctx.storage.put<SnapMeta>(META_KEY, {
+    // Storage writes are capped per call; a ten-megabyte corpus is a hundred
+    // chunks, so they go in batches rather than one enormous put.
+    const entries = Object.entries(chunks);
+    for (let i = 0; i < entries.length; i += 64) {
+      await this.ctx.storage.put(Object.fromEntries(entries.slice(i, i + 64)));
+    }
+    await this.ctx.storage.put<BlobMeta>(`${blob}-meta`, {
       chunks: count,
       bytes: body.length,
       at: Date.now(),
     });
+  }
+
+  /**
+   * Keep the harvested library alive across cold starts, in whichever
+   * direction is needed.
+   *
+   * The corpus cannot ship in the image -- it is owner-only by licence, and the
+   * image is built from a public repository -- and it cannot be uploaded
+   * through this Worker either, because Cloudflare Access is an interactive
+   * login that a script cannot satisfy. So it is pushed to the origin, which a
+   * machine *can* authenticate to, and archived from there.
+   *
+   * Which way it moves depends on who has it:
+   *
+   * - the container has one and this store does not  ->  **archive it**, which
+   *   is how a freshly pushed harvest becomes permanent
+   * - this store has one and the container does not  ->  **restore it**, which
+   *   is every cold start after that
+   *
+   * Both are no-ops once they agree, so this runs on every boot change without
+   * costing anything in the ordinary case.
+   */
+  private async syncCorpus(): Promise<void> {
+    let onContainer = false;
+    try {
+      const res = await fetch(this.origin("/api/content/export"), {
+        headers: this.headers(),
+      });
+      if (res.ok) {
+        onContainer = ((await res.json()) as { present?: boolean }).present ?? false;
+      }
+    } catch {
+      return;
+    }
+
+    const stored = await this.ctx.storage.get<BlobMeta>("corpus-meta");
+
+    if (onContainer && !stored) {
+      const res = await fetch(this.origin("/api/content/export?full=1"), {
+        headers: this.headers(),
+      });
+      if (res.ok) await this.save("corpus", await res.text());
+      return;
+    }
+
+    if (!onContainer && stored) {
+      const corpus = await this.load("corpus");
+      if (!corpus) return;
+      // The app takes `{database: "<base64>"}`; the archive holds the whole
+      // export envelope, which carries the same key.
+      await fetch(this.origin("/api/content/import"), {
+        method: "POST",
+        headers: this.headers({ "content-type": "application/json" }),
+        body: corpus,
+      });
+    }
+  }
+
+  /** Throw the archived library away, so the next push replaces it. */
+  async forgetCorpus(): Promise<void> {
+    await this.ctx.storage.delete("corpus-meta");
+    const stale = [
+      ...(await this.ctx.storage.list<string>({ prefix: "corpus/" })),
+    ].map(([k]) => k);
+    if (stale.length) await this.ctx.storage.delete(stale);
   }
 
   /**
@@ -169,7 +287,10 @@ export class LearnerState extends DurableObject<Env> {
     if (boot === this.lastBoot) return;
 
     this.lastBoot = boot;
-    const saved = await this.load();
+
+    await this.syncCorpus();
+
+    const saved = await this.load("snap");
     if (!saved) {
       // Nothing to restore yet — but a new instance is the moment to start the
       // clock, so the first session's work gets a snapshot too.
@@ -209,7 +330,7 @@ export class LearnerState extends DurableObject<Env> {
       // is empty work; overwriting a real snapshot with it would be the bug the
       // whole mechanism exists to prevent.
       if (!body || body.length < 32) return false;
-      await this.save(body);
+      await this.save("snap", body);
       this.lastSnapshot = Date.now();
       return true;
     } catch {
@@ -328,6 +449,9 @@ export default {
         { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } },
       );
     }
+
+    const denied = requireAccess(env, ctx);
+    if (denied) return denied;
 
     // The snapshot endpoints are the Worker's own back channel. Exposing them
     // through the proxy would let anyone past Access overwrite everything.

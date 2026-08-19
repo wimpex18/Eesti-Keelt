@@ -35,4 +35,7 @@
   //                   run.app URL would be a way around Cloudflare Access
   //   STATE_TOKEN     guards the snapshot endpoints
   //   OPENROUTER_API_KEY  optional: grammar explanations
+  //
+  // And one plain variable, only if you mean it:
+  //   ALLOW_UNAUTHENTICATED=1   serve without Cloudflare Access
 }

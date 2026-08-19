@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -884,6 +885,169 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+NOTION_DB = "data/notion.db"
+
+
+def cmd_notion(args: argparse.Namespace) -> int:
+    """Review queued errors and, only if asked, push them to the `Vead` log.
+
+    Dry-run by default, and that is the whole design. The Notion log's value is
+    that it is curated -- three rows sharing a tag become the focus of the week,
+    and that rule is what identified `obj-case` in the first place. A checker
+    that appended every suspicion would turn a hand-picked record into a dump of
+    model output and start the rule firing on noise.
+
+    So: this prints what would be sent. `--push` sends it.
+    """
+    from .notion import connect, mark_pushed, pending, push
+
+    conn = connect(NOTION_DB)
+    rows = pending(conn)
+    if not rows:
+        print("Nothing queued.")
+        return 0
+
+    print(f"{len(rows)} correction(s) queued for the Vead log:\n")
+    for row in rows:
+        print(f"  [{row['tag']}] {row['wrong']}  ->  {row['correct']}")
+        if row["why"]:
+            print(f"      {row['why'][:100]}")
+        print(f"      {row['on_date']}")
+
+    if not args.push:
+        print("\nNothing was sent. Re-run with --push to write these to Notion.")
+        return 0
+
+    sent = failed = 0
+    for row in rows:
+        ok, detail = push(
+            _row_of(row), token=os.environ.get("NOTION_TOKEN")
+        )
+        if ok:
+            mark_pushed(conn, row["id"])
+            sent += 1
+        else:
+            failed += 1
+            print(f"  kept queued: {row['wrong']} — {detail}")
+    print(f"\n{sent} pushed, {failed} still queued.")
+    return 1 if failed else 0
+
+
+def _row_of(record) -> "object":
+    from .notion import Row
+
+    return Row(
+        wrong=record["wrong"], correct=record["correct"], why=record["why"],
+        tag=record["tag"], on_date=record["on_date"],
+    )
+
+
+def cmd_link_topics(args: argparse.Namespace) -> int:
+    """Work out which harvested texts demonstrate which grammar topic.
+
+    Run after a harvest and before pushing: the links live inside content.db,
+    so the deployment gets them for free and no container ever repeats the work.
+
+    Slow -- every sentence goes through Vabamorf -- and that is the trade. The
+    alternative is deciding it per request, which would put a morphological
+    analysis of the whole corpus in front of a learner waiting for a page.
+    """
+    from . import config
+    from .library import link_topics
+    from .sources import connect as content_connect
+    from .wordlist import connect as wordlist_connect
+
+    content = content_connect(config.CONTENT_DB)
+    counts = link_topics(content, wordlist_connect())
+    if not counts:
+        print("No text demonstrated any topic often enough to be worth "
+              "offering. Has the corpus been harvested?")
+        return 1
+    for topic, n in sorted(counts.items(), key=lambda kv: -kv[1]):
+        print(f"  {topic:<16} {n} texts")
+    return 0
+
+
+def cmd_push_content(args: argparse.Namespace) -> int:
+    """Send the harvested library to the deployment, once.
+
+    The corpus cannot ride along in the image: ERR transcripts are © ERR and
+    Selges keeles carries no reuse grant, so putting them inside an image built
+    from a public repository would be redistribution. And Cloud Run's disk is
+    ephemeral, so copying the file in by hand lasts until the next cold start.
+
+    So it goes where the learner's progress already goes -- held by the Worker,
+    pushed into each fresh container. Harvest on a laptop, push once, and no
+    deploy ever re-scrapes anyone's server again.
+
+    The target is the **Cloud Run origin**, not the Worker. Cloudflare Access
+    guards the Worker and Access is an interactive login, which a script cannot
+    satisfy; the origin is guarded by `PROXY_TOKEN`, which a script can send.
+    The Worker archives the corpus from there on its next look, so this survives
+    the cold start that wipes the disk.
+
+    Both tokens are read from the environment rather than taken as arguments, so
+    they stay out of shell history and out of the process table.
+    """
+    import base64
+    import json
+    import os
+    import urllib.error
+    import urllib.request
+
+    from . import config
+
+    token = os.environ.get("STATE_TOKEN")
+    proxy = os.environ.get("PROXY_TOKEN")
+    if not (token and proxy):
+        print("STATE_TOKEN and PROXY_TOKEN must both be set. They are the "
+              "values the deployment already holds -- deploy/push-content.sh "
+              "reads them out of Cloud Run for you, so you never handle them.")
+        return 2
+
+    path = Path(args.database or config.CONTENT_DB)
+    if not path.exists():
+        print(f"{path} does not exist. Run `harvest` and `harvest-reading` first.")
+        return 2
+
+    from .sources import connect as content_connect
+
+    with content_connect(path) as conn:
+        items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    if not items:
+        print(f"{path} holds no items. Nothing to push.")
+        return 2
+
+    payload = json.dumps(
+        {"database": base64.b64encode(path.read_bytes()).decode("ascii")}
+    ).encode("utf-8")
+    print(f"pushing {path} — {items} items, {len(payload) / 1e6:.1f} MB encoded")
+
+    request = urllib.request.Request(
+        args.url.rstrip("/") + "/api/content/import",
+        data=payload,
+        method="POST",
+        headers={
+            "content-type": "application/json",
+            "x-state-token": token,
+            "x-proxy-token": proxy,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=300) as response:
+            print("stored:", response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        print(f"refused: {exc.code} {exc.read().decode('utf-8', 'replace')[:200]}")
+        return 1
+    except (urllib.error.URLError, OSError) as exc:
+        print(f"unreachable: {exc}")
+        return 1
+
+    print("The Worker will archive it on its next look, and every container "
+          "after that starts with it.")
+    return 0
+
+
 def cmd_rections(args: argparse.Namespace) -> int:
     """Fetch EKK's list of error-prone rections, once, and store it.
 
@@ -1059,6 +1223,29 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_rections)
+
+    p = sub.add_parser(
+        "notion",
+        help="review queued errors; --push writes them to the Vead log",
+    )
+    p.add_argument("--push", action="store_true",
+                   help="actually send them (needs NOTION_TOKEN)")
+    p.set_defaults(func=cmd_notion)
+
+    p = sub.add_parser(
+        "link-topics",
+        help="link harvested texts to the grammar topics they demonstrate",
+    )
+    p.set_defaults(func=cmd_link_topics)
+
+    p = sub.add_parser(
+        "push-content",
+        help="send the harvested library to the deployment (needs STATE_TOKEN)",
+    )
+    p.add_argument("--url", required=True,
+                   help="the Cloud Run URL, not the Worker's — see the docstring")
+    p.add_argument("--database", help="defaults to the configured content database")
+    p.set_defaults(func=cmd_push_content)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

@@ -58,6 +58,24 @@ CREATE TABLE IF NOT EXISTS items (
     added_on    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_items_skill ON items(skill, level);
+
+-- Which texts demonstrate which grammar topic, and how strongly.
+--
+-- Built, never hand-written: an item earns a row for a topic only if the
+-- topic's own generator can cut a valid exercise out of the text. So "this
+-- episode is about the completed-object contrast" is a claim the drill machinery
+-- has already checked, not a label someone typed.
+--
+-- Precomputed rather than derived per request, because deciding it means running
+-- Vabamorf over every sentence in the corpus. It lives inside content.db, so
+-- pushing a harvest carries the links with it.
+CREATE TABLE IF NOT EXISTS topic_items (
+    topic   TEXT NOT NULL,
+    item_id TEXT NOT NULL REFERENCES items(id),
+    hits    INTEGER NOT NULL,
+    PRIMARY KEY (topic, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_topic_items ON topic_items(topic, hits DESC);
 CREATE INDEX IF NOT EXISTS idx_items_src   ON items(source_id);
 """
 
@@ -163,13 +181,31 @@ REGISTRY: tuple[Source, ...] = (
 
 
 def available(path: Path | str) -> bool:
-    """Whether the harvested library is actually there.
+    """Whether the harvested library actually holds anything.
 
     Reported by `/api/health`, so "the reading list is empty" can be told apart
     from "the reading list is broken" without reading logs.
+
+    It asks for **rows**, not for a file. The first version asked whether the
+    file existed and was non-empty, which was true five minutes after deploying:
+    `connect` creates the database *with its schema* on the first request, so an
+    unharvested deployment reported a library it did not have.
+
+    That is the second time this exact mistake has been made here -- the
+    snapshot restore had it too, and `_has_learner_data` in `app.py` exists
+    because of it. The rule both landed on: **presence of a database is not
+    presence of data.**
     """
     target = Path(path)
-    return target.exists() and target.stat().st_size > 0
+    if not target.exists() or target.stat().st_size == 0:
+        return False
+    try:
+        with sqlite3.connect(f"file:{target}?mode=ro", uri=True) as conn:
+            return conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] > 0
+    except sqlite3.Error:
+        # No `items` table, or not a database at all. Either way there is
+        # nothing to read.
+        return False
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
