@@ -171,3 +171,37 @@ class TestTheDeepCheckIsOptIn:
         """`vabamorf-offline` answering is exactly the failure being checked
         for — an answer, with no explanation behind it."""
         assert "llm:*)" in workflow
+
+
+class TestTheScriptsCheckTheirOwnWork:
+    """`set-llm-key.sh` printed "Done" and told the operator to go and look.
+    A run of it left the service without the variable, and the only symptom
+    was corrections arriving without explanations — so nobody looked, and the
+    grammar checker sat in offline mode until the deployment was asked
+    directly."""
+
+    SET = ROOT / "deploy" / "set-llm-key.sh"
+    CHECK = ROOT / "deploy" / "check-service.sh"
+
+    def test_setting_the_key_verifies_it_landed(self):
+        body = self.SET.read_text(encoding="utf-8")
+        assert "spec.template.spec.containers[0].env.name" in body
+        assert "exit 1" in body.split("Verifying")[1]
+
+    def test_it_warns_when_traffic_is_on_an_older_revision(self):
+        """A variable set on the newest revision does nothing while an older
+        one serves — configured, verified, and still not in effect."""
+        body = self.SET.read_text(encoding="utf-8")
+        assert "update-traffic" in body
+
+    def test_neither_script_ever_reads_a_value(self):
+        """Names are enough to answer "is it set", and a value printed into a
+        Cloud Shell scrollback is a value leaked."""
+        for path in (self.SET, self.CHECK):
+            body = path.read_text(encoding="utf-8")
+            assert "env.value" not in body, f"{path.name} fetches a value"
+
+    def test_the_read_only_script_changes_nothing(self):
+        body = self.CHECK.read_text(encoding="utf-8")
+        for mutating in ("services update", "services delete", "services replace"):
+            assert mutating not in body.replace("update-traffic", ""), mutating

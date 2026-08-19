@@ -179,6 +179,27 @@ Set it where it belongs, without it touching your shell history:
 bash deploy/set-llm-key.sh
 ```
 
+The script now reads the variable's **name** back off the service afterwards
+and refuses to claim success if it is not there — because a run of it once
+ended with the key still absent, and the only symptom was corrections quietly
+arriving without explanations.
+
+To ask what a deployment is currently configured with, changing nothing:
+
+```bash
+bash deploy/check-service.sh
+```
+
+It lists every Cloud Run service in the project with the environment variable
+**names** it carries (never a value), flags the four whose absence is silent,
+and warns when traffic is still on an older revision than the one a variable
+was set on — which is the way a correctly-run `set-llm-key.sh` can still leave
+the app in offline mode.
+
+From outside, the same question is answered by `/api/engines`, and the `deep`
+input on the **smoke** workflow sends one real sentence through the chain to
+prove the key works rather than merely exists.
+
 `PROXY_TOKEN` and `STATE_TOKEN` are values you invent — any long random string,
 the same string in both places:
 
