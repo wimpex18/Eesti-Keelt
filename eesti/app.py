@@ -153,6 +153,26 @@ def index() -> str:
     return (WEB / "index.html").read_text(encoding="utf-8")
 
 
+def _bind_breaker() -> None:
+    """Point the provider breaker at the learner's database.
+
+    Without this the breaker is per-process, and on Cloud Run — which scales to
+    zero — that meant every cold container paid a dead provider's full timeout
+    twice before stepping over it. `progress.db` rather than a file of its own
+    so it rides the existing snapshot; the table is tiny and its lifetime is
+    the same as the deployment's.
+    """
+    from .providers import breaker
+
+    try:
+        breaker.bind(progress_db())
+    except Exception:  # noqa: BLE001 - an unbound breaker still works
+        pass
+
+
+_bind_breaker()
+
+
 def build_info() -> dict:
     """When this image was built, and from what commit if the builder said.
 
@@ -243,7 +263,67 @@ def notion_queue(row: QueueError) -> dict:
 def notion_pending() -> dict:
     from .notion import connect, pending
 
-    return {"items": [dict(r) for r in pending(connect(NOTION_DB))]}
+    return {
+        "items": [dict(r) for r in pending(connect(NOTION_DB))],
+        # Whether pressing "send" can possibly work, said before it is pressed
+        # rather than as a failure afterwards.
+        "can_push": bool(os.environ.get("NOTION_TOKEN")),
+    }
+
+
+class NotionPush(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=50)
+
+
+@app.post("/api/notion/push")
+def notion_push(req: NotionPush) -> dict:
+    """Send named rows to the `Vead` log. Nothing else, ever.
+
+    This was missing, and its absence was quiet in the worst way. Corrections
+    could be queued from the app but pushed only by `cli notion --push` — and
+    the CLI does not exist on the deployment: the container is ephemeral and
+    the learner is on a phone. So the queue filled and never drained, and the
+    readiness verdict counted queued rows as writing evidence, which measured
+    the queue rather than the log it is supposed to feed.
+
+    It takes **ids**, not "push everything". The `Vead` log's worth is that it
+    is curated — three rows sharing a tag become the focus of the week, and
+    that rule is what identified `obj-case` in the first place. An endpoint
+    that drained the queue wholesale would be the same mistake as appending
+    every suspicion, one step later. The page shows the rows and sends the ones
+    ticked.
+
+    A row that fails to send stays queued. The queue is the record until Notion
+    says it has one.
+    """
+    from .notion import Row, connect, mark_pushed, pending, push
+
+    if not os.environ.get("NOTION_TOKEN"):
+        raise HTTPException(
+            status_code=503,
+            detail="NOTION_TOKEN is not set on this service, so nothing can "
+                   "be sent. The rows stay queued.",
+        )
+
+    conn = connect(NOTION_DB)
+    by_id = {r["id"]: r for r in pending(conn)}
+    sent, failed = [], []
+    for row_id in req.ids:
+        row = by_id.get(row_id)
+        if row is None:
+            # Already pushed, or never queued. Not an error worth failing the
+            # whole request over, and worth naming so the page can drop it.
+            failed.append({"id": row_id, "detail": "not queued"})
+            continue
+        ok, detail = push(Row(wrong=row["wrong"], correct=row["correct"],
+                              why=row["why"], tag=row["tag"]))
+        if ok:
+            mark_pushed(conn, row_id)
+            sent.append(row_id)
+        else:
+            failed.append({"id": row_id, "detail": detail})
+    return {"sent": sent, "failed": failed,
+            "remaining": len(pending(conn))}
 
 
 @app.post("/api/drills")
@@ -772,9 +852,11 @@ def exam_readiness(level: str) -> dict:
 
     if level not in LEVELS:
         raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    from .notion import connect as notion_connect
+
     return readiness(
         level, progress=progress_db(), vocabulary=vocab_db(), words=db(),
-        content=content_db(),
+        content=content_db(), notion=notion_connect(NOTION_DB),
     ).to_dict()
 
 

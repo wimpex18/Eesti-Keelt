@@ -120,3 +120,48 @@ class TestContactThreshold:
         """An activity count cannot support more than 'they have done this at
         least a few times', so the number stays small and honest."""
         assert 1 < CONTACT <= 5
+
+
+class TestTheVerdictReadsOnlyWhatItIsGiven:
+    """`_parts` opened the Notion queue from `app.NOTION_DB` itself, so the
+    verdict depended on a module-level path no caller could redirect. A test
+    with its own fixtures still read the developer's real queue — the suite
+    reported one thing locally and another in CI, and it only ever passed
+    because that queue happened to be empty. Same shape as every other
+    path-frozen-at-import bug in this project."""
+
+    def test_writing_is_zero_when_no_queue_is_supplied(self, progress):
+        part = {p.id: p for p in readiness("A2", progress=progress).parts}
+        assert part["kirjutamine"].touched is False
+        assert part["kirjutamine"].evidence.startswith("0 ")
+
+    def test_it_counts_the_queue_it_is_handed(self, progress, tmp_path):
+        from eesti.notion import Row, connect, queue
+
+        notion = connect(tmp_path / "n.db")
+        for wrong in ("raamatut", "autot", "kirjat"):
+            queue(notion, Row(wrong=wrong, correct=wrong[:-1],
+                              why="täissihitis", tag="obj-case"))
+        part = {p.id: p for p in
+                readiness("A2", progress=progress, notion=notion).parts}
+        assert part["kirjutamine"].touched is True
+        assert "3 " in part["kirjutamine"].evidence
+
+    def test_queued_and_sent_are_different_facts(self, progress, tmp_path):
+        """While nothing could push, the distinction did not exist and the
+        evidence said "in the log" about rows that had never reached it. Only
+        a sent row is somewhere the "three of a tag" rule can see it."""
+        from eesti.notion import Row, connect, mark_pushed, pending, queue
+
+        notion = connect(tmp_path / "n.db")
+        for wrong in ("raamatut", "autot"):
+            queue(notion, Row(wrong=wrong, correct=wrong[:-1],
+                              why="täissihitis", tag="obj-case"))
+
+        def evidence():
+            return {p.id: p for p in readiness(
+                "A2", progress=progress, notion=notion).parts}["kirjutamine"].evidence
+
+        assert "ни одного" in evidence()
+        mark_pushed(notion, pending(notion)[0]["id"])
+        assert "1 в логе Vead" in evidence()

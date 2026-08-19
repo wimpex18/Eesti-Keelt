@@ -201,6 +201,21 @@ in Cloud Shell and discover the project, service and region themselves.
   cannot see that `[ x -gt 0 ] && n=$((n+1))` ends the step under `bash -e`
   when the count is zero. Run the shell you are shipping — against a stub if
   the real thing is not reachable.
+- **State that protects against restarts must survive one.** The provider
+  circuit breaker kept its failure counts in a module-level dict. Cloud Run
+  scales to zero, so every study session got a fresh process and an empty
+  breaker — and with a threshold of two, the first two requests of every
+  container lifetime paid a dead provider's full timeout. The thing it existed
+  to prevent was the thing it did.
+- **A path opened inside a function cannot be redirected by its caller.** The
+  readiness verdict opened the Notion queue from `app.NOTION_DB`, so a test
+  with its own fixtures read the developer's real data and the suite reported
+  differently locally than in CI. Pass the connection; never reach for a
+  module-level path.
+- **A queue with no drain is not a feature.** Corrections could be queued for
+  the error log from the app and sent only by a CLI that does not exist on the
+  deployment. The queue filled forever, and the verdict counted queued rows as
+  though they were in the log.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,

@@ -86,6 +86,9 @@
   .w-no{color:var(--warn);font-weight:600;text-decoration:underline;
     text-decoration-style:wavy;text-underline-offset:3px}
   #dictTyped{min-height:56px}
+  .qrow{display:flex;gap:9px;align-items:baseline;padding:6px 0;
+    border-bottom:1px solid var(--line);font-size:14px}
+  .qrow:last-of-type{border-bottom:0}
   .rail-card{background:var(--panel);border:1px solid var(--line);
     border-radius:12px;padding:14px 16px;display:flex;
     flex-direction:column;gap:8px}
@@ -393,6 +396,22 @@
       <span class="hint">Ctrl+Enter</span>
     </div>
     <div id="checkOut"></div>
+
+    <!-- The other half of the error log, which was missing.
+         Corrections could be queued from here but sent only by
+         `cli notion --push` — and the CLI does not exist on the deployment:
+         the container is ephemeral and the learner is on a phone. So the
+         queue filled and never drained. Sending is still an explicit act on
+         named rows, because the Vead log is worth having only while it stays
+         curated. -->
+    <details id="queueBox" style="margin-top:18px">
+      <summary>Vigade logi — ootab saatmist <span id="queueCount"></span></summary>
+      <div id="queueList"></div>
+      <div class="row">
+        <button class="go" id="queueSend">Saada valitud Notionisse</button>
+        <span class="hint" id="queueNote"></span>
+      </div>
+    </details>
   </section>
 
   <!-- ── Drills ────────────────────────────────────────────────────── -->
@@ -930,11 +949,57 @@ async function queueError(btn) {
       why: btn.dataset.why, tag: btn.dataset.tag,
     })).json();
     btn.textContent = r.queued ? "✓ Logis" : "✓ Juba logis";
+    loadQueue();
   } catch (e) {
     btn.textContent = "Ei õnnestunud";
     btn.disabled = false;
   }
 }
+/* Show what is waiting, and send only what is ticked.
+
+   `can_push` is read before the button is pressed rather than discovered as a
+   failure after: without NOTION_TOKEN on the service nothing can be sent, and
+   a button that looks live and 503s is worse than one that says why. */
+async function loadQueue() {
+  try {
+    const d = await (await fetch("/api/notion/pending")).json();
+    const rows = d.items || [];
+    $("#queueCount").textContent = rows.length ? `(${rows.length})` : "";
+    $("#queueBox").hidden = !rows.length;
+    $("#queueList").innerHTML = rows.map(r => `
+      <label class="qrow">
+        <input type="checkbox" value="${r.id}" checked>
+        <span><b>${esc(r.wrong)}</b> → <b>${esc(r.correct)}</b>
+          <span class="hint">${esc(r.tag)}</span></span>
+      </label>`).join("");
+    $("#queueSend").disabled = !d.can_push;
+    $("#queueNote").textContent = d.can_push
+      ? "Saadetakse ainult märgitud read."
+      : "NOTION_TOKEN puudub — read jäävad ootele.";
+  } catch { $("#queueBox").hidden = true; }
+}
+loadQueue();
+
+$("#queueSend").onclick = async () => {
+  const ids = [...$("#queueList").querySelectorAll("input:checked")]
+    .map(i => +i.value);
+  if (!ids.length) return;
+  const btn = $("#queueSend"); btn.disabled = true;
+  try {
+    const r = await (await api("/api/notion/push", {ids})).json();
+    // A row that failed stays queued, so reloading is the honest report of
+    // what is left. The outcome line goes AFTER the reload: written before it,
+    // `loadQueue` overwrote the one sentence saying what had just happened.
+    await loadQueue();
+    $("#queueNote").textContent =
+      `Saadetud ${r.sent.length}${r.failed.length
+        ? `, ebaõnnestus ${r.failed.length}` : ""}.`;
+    loadRail();
+  } catch (e) {
+    $("#queueNote").textContent = e.message;
+  } finally { btn.disabled = false; }
+};
+
 $("#checkBtn").onclick = runCheck;
 $("#text").addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCheck();
