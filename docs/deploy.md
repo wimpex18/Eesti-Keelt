@@ -151,6 +151,26 @@ the same string in both places:
 openssl rand -hex 32
 ```
 
+## The order that leaves no window open
+
+Cloudflare Access can only be switched on for a Worker that **already exists**.
+Deploy fully configured and the `workers.dev` URL is open for however long it
+takes to find the toggle — and the Worker itself supplies `PROXY_TOKEN`, so
+whoever reaches it is all the way in.
+
+So the first deploy goes out **closed**:
+
+1. Add every repository secret **except `CLOUD_RUN_URL`**, and run the deploy
+   workflow. The Worker exists and answers `503` to everyone, because it has
+   nowhere to forward to. The workflow says so with a warning rather than
+   failing.
+2. Workers & Pages → `eesti-keelt` → Settings → Domains & Routes → **enable
+   Cloudflare Access for `workers.dev`**, allowed email = your own.
+3. Add `CLOUD_RUN_URL` and re-run the workflow.
+
+The app is reachable for the first time in step 3, behind Access from the
+first request. Nothing was ever published waiting for a click.
+
 ## Deploying the Worker
 
 `.github/workflows/deploy.yml` does it on every push to `main` that touches the
