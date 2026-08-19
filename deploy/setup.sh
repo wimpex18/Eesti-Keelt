@@ -132,13 +132,29 @@ echo "==> Verifying the app came up with the guard on"
 code_without="$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/health")"
 code_with="$(curl -s -o /dev/null -w '%{http_code}' \
              -H "x-proxy-token: $PROXY_TOKEN" "$URL/api/health")"
+guarded="$(curl -s -H "x-proxy-token: $PROXY_TOKEN" "$URL/api/health" \
+           | grep -o '"origin_guarded":[a-z]*' || true)"
+
 if [ "$code_without" = "403" ] && [ "$code_with" = "200" ]; then
   echo "    OK: open request refused (403), authorised request served (200)."
+elif [ "$code_without" = "200" ] && [ "$guarded" = '"origin_guarded":false' ]; then
+  echo "    Not yet, and this is expected if the pull request is not merged."
+  echo ""
+  echo "    The environment variables are set, but the image currently running"
+  echo "    was built before the guard existed, so it does not read them. The"
+  echo "    guard starts working when Cloud Build rebuilds from main."
+  echo ""
+  echo "    After merging, wait for the build (10-15 min) and re-run:"
+  echo "      bash deploy/setup.sh"
+  echo "    It is safe to re-run: it rotates both tokens in both places."
+elif [ "$code_without" = "200" ]; then
+  echo "    WARNING: unauthorised=$code_without authorised=$code_with"
+  echo "    The app is serving the open internet and reports $guarded."
+  echo "    Do not enable the Worker until this reads 403."
 else
-  echo "    Not there yet: unauthorised=$code_without authorised=$code_with"
-  echo "    A new revision can take a minute. Re-check with:"
+  echo "    Unexpected: unauthorised=$code_without authorised=$code_with"
+  echo "    Re-check with:"
   echo "      curl -o /dev/null -w '%{http_code}\n' $URL/api/health"
-  echo "    Expect 403. Anything else means the guard is not active yet."
 fi
 
 cat <<'NEXT'
