@@ -71,13 +71,28 @@ jobs:
             && echo "health .................. OK" \
             || { echo "::error::health did not answer: ${body:0:200}"; fail=1; }
 
-          # 3. The origin guard is on. A deploy that silently dropped the
+          # 3. Which build is answering.
+          #
+          #    A Python change was merged, the Worker redeployed, and the new
+          #    endpoint was still missing from production — with no way to tell
+          #    whether the container build had not run yet, had failed, or was
+          #    never wired up. The Worker and the app deploy by different
+          #    routes, so "the deploy went green" says nothing about the app.
+          built="$(echo "$body" | sed -n 's/.*"built":"\([^"]*\)".*/\1/p')"
+          if [ -n "$built" ]; then
+            echo "image built .............. $built"
+          else
+            echo "::warning::The deployed image carries no build stamp — it \
+          predates one. Rebuild the container to date it."
+          fi
+
+          # 4. The origin guard is on. A deploy that silently dropped the
           #    environment variables would look perfectly healthy above.
           echo "$body" | grep -q '"origin_guarded":true' \
             && echo "origin guarded .......... OK" \
             || { echo "::error::origin_guarded is false — the run.app URL is open."; fail=1; }
 
-          # 4. The endpoints that returned 500 in production once already.
+          # 5. The endpoints that returned 500 in production once already.
           for path in /api/library /api/status /api/curriculum; do
             code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$URL$path")"
             [ "$code" = "200" ] \
@@ -85,13 +100,13 @@ jobs:
               || { echo "::error::$path returned $code"; fail=1; }
           done
 
-          # 5. Speech is reachable. The microphone silently not working is the
+          # 6. Speech is reachable. The microphone silently not working is the
           #    kind of thing nobody notices until a speaking exercise.
           curl -s "${auth[@]}" "$URL/api/asr" | grep -q '"ready":true' \
             && echo "speech .................. OK" \
             || echo "::warning::/api/asr reports not ready."
 
-          # 6. The grammar checker can actually explain. This is the check
+          # 7. The grammar checker can actually explain. This is the check
           #    that would have caught the LLM key being set on the Worker
           #    instead of on Cloud Run: the app stayed healthy, served offline
           #    mode, and because only an explained correction offers a "log
@@ -113,7 +128,7 @@ jobs:
           checker is in offline mode. Run deploy/set-llm-key.sh."
           fi
 
-          # 7. Opt-in: one real sentence through the whole chain.
+          # 8. Opt-in: one real sentence through the whole chain.
           #
           #    The check above reads configuration; this one proves the key
           #    actually works — a revoked or mistyped key is configured and
@@ -146,7 +161,7 @@ jobs:
             esac
           fi
 
-          # 8. The reading library. A warning, not an error: an unharvested
+          # 9. The reading library. A warning, not an error: an unharvested
           #    deployment is a supported state.
           library="$(curl -s "${auth[@]}" "$URL/api/health")"
           echo "$library" | grep -q '"library":true' \

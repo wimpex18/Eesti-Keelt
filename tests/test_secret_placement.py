@@ -205,3 +205,48 @@ class TestTheScriptsCheckTheirOwnWork:
         body = self.CHECK.read_text(encoding="utf-8")
         for mutating in ("services update", "services delete", "services replace"):
             assert mutating not in body.replace("update-traffic", ""), mutating
+
+
+class TestTheDeploymentSaysWhichBuildItIs:
+    """A Python change was merged, the Worker redeployed green, and the new
+    endpoint was still absent from production. Nothing could distinguish
+    "the container build has not run yet" from "the build failed" from "there
+    is no trigger" — the Worker and the app deploy by different routes, so a
+    green deploy workflow says nothing about the app.
+
+    The image stamps itself; health reports the stamp."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        return TestClient(app_module.app)
+
+    def test_health_carries_the_stamp(self, client):
+        got = client.get("/api/health").json()
+        assert "built" in got and "revision" in got
+
+    def test_a_source_checkout_says_so_rather_than_guessing(self, client):
+        """There is no image and no build here. `null` is the honest answer;
+        inventing a date would make the field useless for its one purpose."""
+        assert client.get("/api/health").json()["built"] is None
+
+    def test_the_stamp_is_written_after_the_code_is_copied(self):
+        """Written before, the layer cache would freeze it and the stamp would
+        outlive the code it describes — worse than not having one."""
+        body = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        runtime = body.split("# Runtime")[1]
+        assert runtime.index("COPY eesti/") < runtime.index("BUILD_INFO")
+
+    def test_the_commit_is_optional(self):
+        """A Cloud Build trigger configured against a plain Dockerfile passes
+        no build args. The timestamp alone answers the question that prompted
+        this, so requiring the commit would mean shipping nothing."""
+        body = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        assert 'ARG BUILD_REV=""' in body
+
+    def test_the_smoke_test_reports_it(self):
+        workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
+        assert '"built"' in workflow

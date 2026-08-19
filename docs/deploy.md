@@ -284,6 +284,25 @@ npx wrangler deploy
 Cloud Build trigger on `main` → builds this `Dockerfile` → deploys to Cloud Run.
 Set `PROXY_TOKEN` and `STATE_TOKEN` as environment variables on the service.
 
+**The Worker and the app deploy by different routes.** The `deploy` workflow
+going green means the *Worker* is current; it says nothing about the container.
+A Python change merged to `main` reaches the learner only once Cloud Build has
+rebuilt and redeployed the image — which takes 10–15 minutes, and which nothing
+in this repository can observe.
+
+So the image stamps itself. `/api/health` reports `built` (when the image was
+built) and `revision` (the commit, if the builder passed one), and the smoke
+test prints it. That is how you tell a stale image from a missing feature —
+a distinction that cost real time before the stamp existed.
+
+To include the commit, add a build arg on the trigger:
+
+```
+--build-arg BUILD_REV=$COMMIT_SHA
+```
+
+Without it the timestamp still answers the question that matters.
+
 The image builds the derived databases from the public CC-BY-SA wordlist, so it
 is reproducible from scratch and nothing owner-only is baked in. **The first
 build takes 10–15 minutes**: it installs EstNLTK (~170 MB) and generates the

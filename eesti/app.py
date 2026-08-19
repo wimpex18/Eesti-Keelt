@@ -153,6 +153,30 @@ def index() -> str:
     return (WEB / "index.html").read_text(encoding="utf-8")
 
 
+def build_info() -> dict:
+    """When this image was built, and from what commit if the builder said.
+
+    Read once and cached by the module-level call below: it is a file written
+    at image build time and it cannot change while the process runs.
+
+    Why it exists: a Python change was merged, the Worker redeployed, and the
+    new endpoint was still absent from production — with no way to tell whether
+    the container build had not run yet, had failed, or was never wired up.
+    Running from a source checkout there is no file and no build, which is
+    itself the honest answer.
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        return json.loads((Path("/app") / "BUILD_INFO").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"built": None, "revision": None}
+
+
+BUILD = build_info()
+
+
 @app.get("/api/health")
 def health() -> dict:
     conn = db()
@@ -173,6 +197,10 @@ def health() -> dict:
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
         "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),
+        # Which build is answering. `null` from a source checkout; on a
+        # deployment it is how you tell a stale image from a missing feature.
+        "built": BUILD.get("built"),
+        "revision": BUILD.get("revision") or None,
     }
 
 
