@@ -891,6 +891,39 @@ def manifest() -> Response:
     )
 
 
+@app.get("/api/engines")
+def grammar_engines() -> dict:
+    """Which grammar engines this deployment can actually use.
+
+    Configuration only — nothing here calls a provider, so it is free to poll
+    and costs no quota.
+
+    This exists because of a failure that was invisible from outside: the LLM
+    key was set as a *Worker* secret, while the code that reads it runs in the
+    Cloud Run container. Nothing errored. The checker quietly served offline
+    mode — object-case candidates and typos, no explanations — and since only
+    an explained correction offers a "log it" button, the whole Notion chain
+    was inert too. All the exposure of holding a key and none of the benefit.
+
+    `explains` is the question worth asking: an engine that cannot produce a
+    Russian explanation cannot teach, whatever else it does.
+    """
+    from .providers.grammar import build_chain
+
+    engines = [
+        {"name": p.name, "available": p.available(),
+         # Only an LLM writes the explanation; Vabamorf reports evidence and
+         # TartuNLP answers in Estonian with no language parameter.
+         "explains": p.name.startswith("llm:")}
+        for p in build_chain()
+    ]
+    return {
+        "engines": engines,
+        "explains": any(e["available"] and e["explains"] for e in engines),
+        "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
+    }
+
+
 @app.get("/api/asr")
 def asr_available() -> dict:
     """Which speech engines this deployment can use — shown in the UI as-is."""

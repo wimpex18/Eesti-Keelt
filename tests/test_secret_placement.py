@@ -75,3 +75,65 @@ def test_there_is_a_script_for_setting_them_where_they_belong():
     # Read without echo and passed on stdin: not in shell history, not in the
     # process table, never printed.
     assert "read -rs" in body
+
+
+class TestTheDeploymentCanSayWhetherTheKeyLanded:
+    """`test_the_workflow_does_not_push_the_llm_key_to_the_worker` above stops
+    the mistake being made again. This is the other half: a way to ask a
+    *running* deployment whether the key is where the code that reads it runs.
+
+    Without it the failure is invisible from outside — health is green, the
+    checker serves offline mode, and because only an explained correction
+    offers a "log it" button, the Notion chain is inert too."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        return TestClient(app_module.app)
+
+    def test_it_reports_every_engine_in_the_chain(self, client):
+        from eesti.providers.grammar import build_chain
+
+        got = client.get("/api/engines").json()
+        assert [e["name"] for e in got["engines"]] == [p.name for p in build_chain()]
+
+    def test_it_costs_no_quota(self, client, monkeypatch):
+        """Configuration only. If this ever called a provider it could not be
+        in the smoke test, which runs on every deploy."""
+        import urllib.request
+
+        def forbidden(*a, **k):  # pragma: no cover - the point is it is unused
+            raise AssertionError("/api/engines made a network call")
+
+        monkeypatch.setattr(urllib.request, "urlopen", forbidden)
+        assert client.get("/api/engines").status_code == 200
+
+    def test_explains_is_false_with_no_llm_key(self, client, monkeypatch):
+        """The exact production state that looked healthy: offline mode."""
+        from eesti.providers.llm import PROVIDERS
+
+        for p in PROVIDERS.values():
+            monkeypatch.delenv(p.key_env, raising=False)
+        assert client.get("/api/engines").json()["explains"] is False
+
+    def test_explains_is_true_once_the_key_is_on_this_process(self, client,
+                                                              monkeypatch):
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+        got = client.get("/api/engines").json()
+        assert got["explains"] is True
+
+    def test_only_an_llm_is_credited_with_explaining(self, client):
+        """Vabamorf reports evidence without judgement, and TartuNLP answers in
+        Estonian with no language parameter — neither can teach a Russian
+        speaker why the case was wrong."""
+        got = client.get("/api/engines").json()
+        for e in got["engines"]:
+            assert e["explains"] == e["name"].startswith("llm:")
+
+    def test_the_smoke_test_asks(self):
+        workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
+        assert "/api/engines" in workflow
+        assert '"explains":true' in workflow

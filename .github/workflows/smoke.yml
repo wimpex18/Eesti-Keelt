@@ -82,7 +82,20 @@ jobs:
             && echo "speech .................. OK" \
             || echo "::warning::/api/asr reports not ready."
 
-          # 6. The reading library. A warning, not an error: an unharvested
+          # 6. The grammar checker can actually explain. This is the check
+          #    that would have caught the LLM key being set on the Worker
+          #    instead of on Cloud Run: the app stayed healthy, served offline
+          #    mode, and because only an explained correction offers a "log
+          #    it" button, nothing ever reached the Notion log either. A
+          #    warning rather than an error — a deployment with no LLM key is
+          #    a legitimate choice; a key that is set and unreachable is not.
+          engines="$(curl -s "${auth[@]}" "$URL/api/engines")"
+          echo "$engines" | grep -q '"explains":true' \
+            && echo "grammar explains ........ OK" \
+            || echo "::warning::No engine can explain a correction — the \
+          grammar checker is in offline mode. Run deploy/set-llm-key.sh."
+
+          # 7. The reading library. A warning, not an error: an unharvested
           #    deployment is a supported state.
           library="$(curl -s "${auth[@]}" "$URL/api/health")"
           echo "$library" | grep -q '"library":true' \
