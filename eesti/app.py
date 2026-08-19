@@ -252,6 +252,12 @@ def library_item(item_id: str) -> dict:
     }
 
 
+@app.get("/api/library/for/{topic}")
+def library_for_topic(topic: str, limit: int = 5) -> dict:
+    """Reading that demonstrates one grammar topic, strongest first."""
+    return {"topic": topic, "items": reading_for(topic, limit=limit)}
+
+
 @app.get("/api/grammar")
 def grammar_rules() -> dict:
     """Every rule the app drills, linked to its section in the EKK handbook.
@@ -496,7 +502,23 @@ def practice_items(req: PracticeRequest) -> dict:
         "ru": meta.ru,
         "reference": describe_rule(meta.tag) if meta.tag else None,
         "items": [i.to_dict() for i in items],
+        # Something to read that is *about* this contrast, not merely at this
+        # level. This is the join that makes practice and the reading library
+        # one tool: a drill teaches the rule, a text shows it being used.
+        "reading": reading_for(topic),
     }
+
+
+def reading_for(topic: str, limit: int = 3) -> list[dict]:
+    """Texts that demonstrate a topic, or nothing if the corpus is unharvested."""
+    from .library import related
+
+    try:
+        return related(content_db(), topic, limit=limit)
+    except sqlite3.Error:
+        # An older content.db predates the link table. An empty reading list is
+        # the right degradation -- the practice items are the lesson.
+        return []
 
 
 @app.post("/api/practice/answer")

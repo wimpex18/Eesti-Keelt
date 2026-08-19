@@ -884,6 +884,32 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_link_topics(args: argparse.Namespace) -> int:
+    """Work out which harvested texts demonstrate which grammar topic.
+
+    Run after a harvest and before pushing: the links live inside content.db,
+    so the deployment gets them for free and no container ever repeats the work.
+
+    Slow -- every sentence goes through Vabamorf -- and that is the trade. The
+    alternative is deciding it per request, which would put a morphological
+    analysis of the whole corpus in front of a learner waiting for a page.
+    """
+    from . import config
+    from .library import link_topics
+    from .sources import connect as content_connect
+    from .wordlist import connect as wordlist_connect
+
+    content = content_connect(config.CONTENT_DB)
+    counts = link_topics(content, wordlist_connect())
+    if not counts:
+        print("No text demonstrated any topic often enough to be worth "
+              "offering. Has the corpus been harvested?")
+        return 1
+    for topic, n in sorted(counts.items(), key=lambda kv: -kv[1]):
+        print(f"  {topic:<16} {n} texts")
+    return 0
+
+
 def cmd_push_content(args: argparse.Namespace) -> int:
     """Send the harvested library to the deployment, once.
 
@@ -1139,6 +1165,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_rections)
+
+    p = sub.add_parser(
+        "link-topics",
+        help="link harvested texts to the grammar topics they demonstrate",
+    )
+    p.set_defaults(func=cmd_link_topics)
 
     p = sub.add_parser(
         "push-content",

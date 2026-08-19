@@ -58,6 +58,24 @@ CREATE TABLE IF NOT EXISTS items (
     added_on    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_items_skill ON items(skill, level);
+
+-- Which texts demonstrate which grammar topic, and how strongly.
+--
+-- Built, never hand-written: an item earns a row for a topic only if the
+-- topic's own generator can cut a valid exercise out of the text. So "this
+-- episode is about the completed-object contrast" is a claim the drill machinery
+-- has already checked, not a label someone typed.
+--
+-- Precomputed rather than derived per request, because deciding it means running
+-- Vabamorf over every sentence in the corpus. It lives inside content.db, so
+-- pushing a harvest carries the links with it.
+CREATE TABLE IF NOT EXISTS topic_items (
+    topic   TEXT NOT NULL,
+    item_id TEXT NOT NULL REFERENCES items(id),
+    hits    INTEGER NOT NULL,
+    PRIMARY KEY (topic, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_topic_items ON topic_items(topic, hits DESC);
 CREATE INDEX IF NOT EXISTS idx_items_src   ON items(source_id);
 """
 

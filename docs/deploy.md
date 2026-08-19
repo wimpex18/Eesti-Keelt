@@ -298,6 +298,7 @@ that starts afterwards.
 # on your laptop, once
 python -m eesti.cli harvest
 python -m eesti.cli harvest-reading
+python -m eesti.cli link-topics     # which texts demonstrate which topic
 
 # then in Cloud Shell, with data/content.db uploaded
 bash deploy/push-content.sh data/content.db
