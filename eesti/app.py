@@ -33,10 +33,12 @@ from .sources import connect as content_connect
 from .sources import query as content_query
 from .wordlist import connect
 
-REVIEW_DB = "data/review.db"
-PROGRESS_DB = "data/progress.db"
-VOCAB_DB = "data/vocab.db"
-NOTION_DB = "data/notion.db"
+from .config import (  # noqa: E402  -- re-exported; tests and CLI read these
+    NOTION_DB,
+    PROGRESS_DB,
+    REVIEW_DB,
+    VOCAB_DB,
+)
 
 
 def content_db():
@@ -608,6 +610,24 @@ def practice_answer(req: AnswerRequest) -> dict:
         "just_mastered": mastered_now and not was_mastered,
         "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",
     }
+
+
+@app.get("/api/readiness/{level}")
+def exam_readiness(level: str) -> dict:
+    """Evidence for and against sitting a level, with the reasons named.
+
+    Not a prediction. The pass rule is 60% overall *and* no part at zero, so
+    this reports every part separately — an aggregate would hide the untouched
+    part that is the actual risk.
+    """
+    from .readiness import readiness
+
+    if level not in LEVELS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    return readiness(
+        level, progress=progress_db(), vocabulary=vocab_db(), words=db(),
+        content=content_db(),
+    ).to_dict()
 
 
 @app.get("/api/checkpoint/{level}")

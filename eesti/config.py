@@ -36,3 +36,12 @@ PROVIDER_TIMEOUT = 5.0
 TARTUNLP_GRAMMAR = "https://api.tartunlp.ai/grammar/v2"
 TARTUNLP_TTS = "https://api.tartunlp.ai/text-to-speech/v2"
 TARTUNLP_TRANSLATE = "https://api.tartunlp.ai/translation/v2"
+
+
+# Learner databases. Here rather than in `app.py` because the CLI needs them
+# too, and importing the web application to learn a file path drags FastAPI and
+# every provider into a terminal command that wanted one string.
+REVIEW_DB = "data/review.db"
+PROGRESS_DB = "data/progress.db"
+VOCAB_DB = "data/vocab.db"
+NOTION_DB = "data/notion.db"

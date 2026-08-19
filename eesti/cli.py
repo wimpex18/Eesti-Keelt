@@ -900,24 +900,82 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     from .harvest.eis import LEVELS, catalogue, to_items
     from .sources import add_items, connect as content_connect, register
 
-    levels = tuple(args.levels.split(",")) if args.levels else LEVELS
-    tasks = catalogue(levels)
-    if not tasks:
-        print("EIS returned nothing. The catalogue is small and can change; "
-              "check https://eis.harno.ee/publicitems by hand before assuming "
-              "a bug.")
-        return 1
+    from .harvest import harno
 
+    levels = tuple(args.levels.split(",")) if args.levels else LEVELS
     conn = content_connect(config.CONTENT_DB)
     register(conn)
-    stored = add_items(conn, to_items(tasks))
+    stored = 0
 
-    by_level: dict[str, int] = {}
-    for task in tasks:
-        by_level[task.level] = by_level.get(task.level, 0) + 1
-    for level in sorted(by_level):
-        print(f"  {level}: {by_level[level]} tasks")
-    print(f"\nindexed {stored} official tasks (pointers only, (c) HARNO)")
+    # Two official sources, and they are not the same thing. EIS publishes
+    # interactive tasks that score themselves; harno.ee publishes the task PDFs
+    # and the listening audio. A learner wants both, for different sittings.
+    tasks = catalogue(levels)
+    if tasks:
+        stored += add_items(conn, to_items(tasks))
+        by_level: dict[str, int] = {}
+        for task in tasks:
+            by_level[task.level] = by_level.get(task.level, 0) + 1
+        print("EIS interactive tasks:")
+        for level in sorted(by_level):
+            print(f"  {level}: {by_level[level]}")
+    else:
+        print("EIS returned nothing — check https://eis.harno.ee/publicitems "
+              "by hand before assuming a bug.")
+
+    try:
+        materials = [m for m in harno.catalogue() if m.level in levels]
+    except Exception as exc:  # noqa: BLE001 - one source failing is not fatal
+        materials = []
+        print(f"\nharno.ee unavailable: {str(exc)[:100]}")
+    if materials:
+        stored += add_items(conn, harno.to_items(materials))
+        counts: dict[tuple[str, str], int] = {}
+        for m in materials:
+            counts[(m.level, m.skill)] = counts.get((m.level, m.skill), 0) + 1
+        print("\nharno.ee task material:")
+        for (level, skill), n in sorted(counts.items()):
+            print(f"  {level} {skill:<12} {n}")
+
+    print(f"\nindexed {stored} official items (pointers only, (c) HARNO)")
+    return 0 if stored else 1
+
+
+def cmd_readiness(args: argparse.Namespace) -> int:
+    """Say what the evidence shows about sitting a level, and what is missing.
+
+    Deliberately not a score. Nothing here has seen a graded exam, so a number
+    would be invented — and the number is exactly what someone facing a
+    registration deadline would most want to believe.
+    """
+    from .config import PROGRESS_DB, VOCAB_DB
+    from .progress import connect as progress_connect
+    from .readiness import readiness
+    from .vocab import connect as vocab_connect
+    from .wordlist import connect as words_connect
+
+    from . import config
+    from .sources import connect as content_connect
+
+    r = readiness(args.level, progress=progress_connect(PROGRESS_DB),
+                  vocabulary=vocab_connect(VOCAB_DB), words=words_connect(),
+                  content=content_connect(config.CONTENT_DB))
+
+    print(f"{args.level}: {r.verdict}")
+    print(f"  otsustada {r.days_to_decide} päeva pärast, "
+          f"eksam {r.days_to_sitting} päeva pärast\n")
+    for part in r.parts:
+        mark = {True: "+", False: "-", None: "?"}[part.touched]
+        print(f"  [{mark}] {part.et:<13} {part.evidence}")
+    if r.grammar:
+        g = r.grammar
+        print(f"\n  grammatika: {g['mastered']}/{g['topics']} teemat, "
+              f"kontrolltöö {'tehtud' if g['checkpoint_passed'] else 'tegemata'}")
+    if r.reasons:
+        print("\n  miks mitte veel:")
+        for reason in r.reasons:
+            print(f"    - {reason}")
+    print("\n  " + r.to_dict()["caveat"])
     return 0
 
 
@@ -933,6 +991,8 @@ def cmd_notion(args: argparse.Namespace) -> int:
     So: this prints what would be sent. `--push` sends it.
     """
     from .notion import connect, mark_pushed, pending, push
+
+    from .config import NOTION_DB
 
     conn = connect(NOTION_DB)
     rows = pending(conn)
@@ -1267,6 +1327,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--levels", help="comma-separated, default A2,B1,B2,C1")
     p.set_defaults(func=cmd_harvest_exam)
+
+    p = sub.add_parser(
+        "readiness", help="what the evidence says about sitting a level")
+    p.add_argument("--level", default="A2", choices=list(LEVELS))
+    p.set_defaults(func=cmd_readiness)
 
     p = sub.add_parser(
         "notion",

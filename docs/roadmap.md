@@ -119,27 +119,25 @@ three of these were found at all:
 
 ## Next, in order
 
-1. **A2 rehearsal readiness.** The optional sitting is 07.11.2026, decided by
-   01.10.2026. The app is level-parameterised already; what is missing is an
-   honest A2 checkpoint that says yes or no.
+1. **Use the readiness verdict.** It is built and it currently says "ei ole
+   veel" for both levels, with the reasons named. The next work is not more
+   features — it is study, and then watching the verdict change.
+2. **Whatever the verdict names.** It reports untouched exam parts first,
+   because ≥60 % overall with one part at zero is still a fail. That list is
+   the honest backlog.
 
-The **official exam tasks are indexed** (`eesti/harvest/eis.py`): 23 published
-practice tasks, of which 7 A2 and 7 B1, split between reading and listening.
-Two corrections to the plan came out of probing rather than reading: `aine=R`
-(*Eesti keel teise keelena*) returns **nothing at all**, and `keeletase` is the
-filter that works; and the catalogue is 23 tasks, not an open-ended archive.
+## The official material, and what is deliberately not done with it
 
-They are stored as **pointers, never copies**. The task body lives in an iframe
-on HARNO's site, it is their copyright, and the scoring and immediate feedback
-that make a task worth doing only work there — so a scraped copy would be dead
-text *and* a redistribution risk, while a link buys everything.
+Both official sources are indexed: **EIS** (23 interactive self-scoring tasks)
+and **harno.ee** (39 task PDFs and listening tracks, 17 A2 and 17 B1, every
+exam part covered). The readiness verdict counts them per part, so "practise
+listening" reads as "13 official B1 listening tasks, here they are".
 
-The Notion write-back landed (`eesti/notion.py`): confirmed errors queue
-locally and go to the existing `Vead` log only when `cli notion --push` is run,
-after showing what would be sent. The nine tags are pinned against the live
-database, because the log's "three of a tag is this week's focus" rule is what
-made `obj-case` the priority in the first place — an invented tag would never
-group, never reach three, and never become anyone's focus.
+All of it is **pointers**. `body` is empty and a test holds it there. Studying
+from HARNO's files is ordinary personal use; copying a hundred of a state
+agency's exam files into a database on a public deployment is not, and neither
+is using them as training data for a model. Linking gives the learner
+everything a copy would, and holds none of it.
 
 ## Known gaps, stated plainly
 
