@@ -52,6 +52,13 @@ def content_db():
     return content_connect(config.CONTENT_DB)
 
 
+def content_available() -> bool:
+    from . import config
+    from .sources import available
+
+    return available(config.CONTENT_DB)
+
+
 def review_db():
     return review.connect(REVIEW_DB)
 
@@ -156,6 +163,10 @@ def health() -> dict:
         "rules": sorted({t.rule for t in TEMPLATES}),
         "voices": list(tts.VOICES),
         "boot": BOOT_ID,
+        # Distinguishes "the reading list is empty" from "the reading list is
+        # broken" without going to the logs. The corpus is owner-only, so it is
+        # supplied at runtime and its absence is a supported state.
+        "library": content_available(),
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
         "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),
@@ -684,6 +695,43 @@ async def transcribe(request: Request) -> dict:
         from .pronunciation import compare
 
         result["comparison"] = compare(target, result["text"]).to_dict()
+    return result
+
+
+class TranscriptIn(BaseModel):
+    """A transcript the platform already produced. See `transcribe_text`."""
+
+    text: str = Field(default="", max_length=4000)
+    engine: str = Field(default="", max_length=120)
+    degraded: bool = False
+    note: str = Field(default="", max_length=400)
+
+
+@app.post("/api/transcribe/text")
+def transcribe_text(blob: TranscriptIn, request: Request) -> dict:
+    """Grade a transcript the Worker recognised, rather than recognising it here.
+
+    Cloudflare Workers AI is reachable two ways: over REST with an API token, or
+    through the Worker's own `AI` binding. The binding wins on every count that
+    matters here. It needs no token at all, so the origin never holds a
+    credential that can edit Workers; it runs recognition on the platform the
+    app is already fronted by; and it keeps the split this project is built on
+    intact -- **a model may say what it heard, and nothing else.**
+
+    Everything downstream of the transcript stays here and stays deterministic:
+    the target sentence is known, so `compare` is string alignment, not
+    judgement. That is the whole reason read-aloud can be scored honestly while
+    pronunciation cannot.
+
+    `/api/transcribe` remains for local `cli serve`, where there is no Worker and
+    the provider chain does the recognising.
+    """
+    result = blob.model_dump()
+    target = request.query_params.get("target", "")[:400]
+    if target and blob.text:
+        from .pronunciation import compare
+
+        result["comparison"] = compare(target, blob.text).to_dict()
     return result
 
 

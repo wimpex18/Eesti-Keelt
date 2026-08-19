@@ -20,6 +20,12 @@
 
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LearnerState"] }],
 
+  // Speech recognition, via the binding rather than the REST API. The binding
+  // needs no API token, so the Cloud Run origin never holds a credential that
+  // could edit Workers -- and Workers AI has a free daily allocation, which a
+  // learner reading sentences aloud does not approach.
+  "ai": { "binding": "AI" },
+
   "observability": { "enabled": true }
 
   // Secrets, set with `wrangler secret put` or by the deploy workflow, and
