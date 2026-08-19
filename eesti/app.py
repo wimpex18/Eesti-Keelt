@@ -33,10 +33,12 @@ from .sources import connect as content_connect
 from .sources import query as content_query
 from .wordlist import connect
 
-REVIEW_DB = "data/review.db"
-PROGRESS_DB = "data/progress.db"
-VOCAB_DB = "data/vocab.db"
-NOTION_DB = "data/notion.db"
+from .config import (  # noqa: E402  -- re-exported; tests and CLI read these
+    NOTION_DB,
+    PROGRESS_DB,
+    REVIEW_DB,
+    VOCAB_DB,
+)
 
 
 def content_db():
@@ -206,7 +208,7 @@ def notion_queue(row: QueueError) -> dict:
 
     added = queue(connect(NOTION_DB), entry)
     return {"queued": added, "tag": entry.tag,
-            "note": "Review with `cli notion`, send with `cli notion --push`."}
+            "note": "Проверь через `cli notion`, отправь `cli notion --push`."}
 
 
 @app.get("/api/notion/pending")
@@ -239,8 +241,33 @@ def drills(req: DrillRequest) -> dict:
     return {"drills": [d.to_dict() for d in items]}
 
 
+@app.get("/api/modes")
+def modes() -> dict:
+    """The three things a learner is ever doing, and what is in each.
+
+    One request instead of four: the client asks once and knows the whole
+    shelf, which is what makes a three-way switch cheap enough to be the
+    top-level navigation.
+    """
+    from .library import MODE_LABELS, MODES, sections as library_sections
+
+    conn = content_db()
+    return {
+        "modes": [
+            {
+                "id": mode,
+                "et": MODE_LABELS[mode][0],
+                "ru": MODE_LABELS[mode][1],
+                "sections": library_sections(conn, mode=mode),
+            }
+            for mode in MODES
+        ]
+    }
+
+
 @app.get("/api/library")
-def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) -> dict:
+def library(skill: str = "lugemine", level: str | None = None,
+            band: str | None = None, limit: int = 60) -> dict:
     """Harvested study material.
 
     `public_only` is deliberately NOT exposed as a parameter. This server is the
@@ -248,13 +275,14 @@ def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) 
     parameter would let a caller ask for owner-only material by guessing.
     """
     conn = content_db()
-    rows = content_query(conn, skill=skill, level=level, limit=limit)
+    rows = content_query(conn, skill=skill, level=level, band=band, limit=limit)
     return {
         "items": [
             {
                 "id": r["id"],
                 "title": r["title"],
                 "level": r["level"],
+                "band": r["band"],
                 "source": r["source_name"],
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
@@ -281,9 +309,77 @@ def _pointer(meta: str | None) -> dict:
     return {"external": True, "url": data.get("url"), "note": data.get("note")}
 
 
+@app.get("/api/reading/next")
+def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
+    """Texts to read next, ranked by how readable they are *for this learner*.
+
+    The reading research is specific about the mechanism: input works when it is
+    understood, and understanding is gated by how much of the vocabulary the
+    reader already has. A difficulty band cannot see that — it ranks texts
+    against each other and says nothing about who is reading.
+
+    So this sorts by known-word coverage and puts the **instructional** band
+    first: texts the learner can follow with effort, which is where a text
+    teaches rather than either boring or defeating them. Comfortable texts come
+    second, and anything below the threshold is not offered at all.
+    """
+    from .difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
+    from .library import browse
+
+    known = known_lemmas(vocab_db())
+    rows = browse(content_db(), section, limit=120)
+
+    scored = []
+    for row in rows:
+        if not (row["body"] or "").strip():
+            continue
+        profile = comprehensible(row["body"], known)
+        if profile["total"] == 0:
+            continue
+        scored.append({
+            "id": row["id"], "title": row["title"], "band": row["band"],
+            "source": row["source_name"], "audio_url": row["audio_url"],
+            **profile,
+        })
+
+    # Instructional first, then by coverage descending within each group. A
+    # learner with no vocabulary recorded yet has no instructional band at all,
+    # so the easiest available text leads instead of an empty list.
+    scored.sort(key=lambda item: (
+        0 if item["readability"] == "arendav" else 1, -item["coverage"]
+    ))
+    return {
+        "items": scored[:limit],
+        "known_words": len(known),
+        "threshold": INSTRUCTIONAL,
+        "note": (
+            "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
+            "читаются с усилием: именно там текст учит. Это словарное "
+            "покрытие, а не оценка понимания."
+        ),
+    }
+
+
 @app.get("/api/library/{item_id}")
-def library_item(item_id: str) -> dict:
-    """One item with its full text and a vocabulary profile."""
+def library_item(item_id: str, minutes: float = 0.0) -> dict:
+    """One item with its full text, a vocabulary profile, and a record that it
+    was opened.
+
+    That last part was missing, and it was load-bearing. `library.open_item`
+    exists to write two things — an exposure row and a vocabulary encounter per
+    lemma — and this endpoint, the only way the web app ever opens a text, did
+    a raw SELECT instead. So reading in the app fed nothing:
+
+    - `readiness` reported "0 текстов" for Lugemine however much was read
+    - `parts_touched` saw no contact, so every exam part stayed untouched
+    - `vocab_status` stayed empty, so `/api/reading/next` could never rank by
+      what the learner knows and said "слова ещё не отмечены" forever
+
+    Third time this project has built a measurement without its writer. The
+    recording is deliberately *encounter*, not knowledge: `record_encounter`
+    bumps a met-count and never promotes a word to known, because a word
+    skimmed past is not a word learned.
+    """
     conn = content_db()
     row = conn.execute(
         """SELECT i.*, s.name AS source_name, s.licence
@@ -293,14 +389,30 @@ def library_item(item_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
+
+    from .library import open_item
+
+    # Never let bookkeeping cost the learner the text they asked for.
+    try:
+        opened = open_item(conn, item_id, progress=progress_db(),
+                           vocabulary=vocab_db(), minutes=minutes)
+    except Exception:  # noqa: BLE001 - reading must work with no databases
+        opened = {"lemmas": 0}
+
     return {
         "id": row["id"],
         "title": row["title"],
+        "met_lemmas": opened.get("lemmas", 0),
         "body": row["body"],
         "level": row["level"],
         "source": row["source_name"],
         "licence": row["licence"],
         "audio_url": row["audio_url"],
+        "band": row["band"],
+        # The reader needs to know *what kind of thing* this is before it can
+        # decide between a text, a player and an embed.
+        "meta": json.loads(row["meta"] or "{}"),
+        "url": json.loads(row["meta"] or "{}").get("url"),
         "profile": annotate(row["body"] or ""),
     }
 
@@ -610,6 +722,34 @@ def practice_answer(req: AnswerRequest) -> dict:
     }
 
 
+@app.get("/api/exam/{level}")
+def exam(level: str) -> dict:
+    """The whole exam section for one level, in one request."""
+    from .library import exam_material
+
+    if level not in LEVELS + ("B2", "C1"):
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    return exam_material(content_db(), level)
+
+
+@app.get("/api/readiness/{level}")
+def exam_readiness(level: str) -> dict:
+    """Evidence for and against sitting a level, with the reasons named.
+
+    Not a prediction. The pass rule is 60% overall *and* no part at zero, so
+    this reports every part separately — an aggregate would hide the untouched
+    part that is the actual risk.
+    """
+    from .readiness import readiness
+
+    if level not in LEVELS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    return readiness(
+        level, progress=progress_db(), vocabulary=vocab_db(), words=db(),
+        content=content_db(),
+    ).to_dict()
+
+
 @app.get("/api/checkpoint/{level}")
 def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> dict:
     """A mixed set across a whole level — interleaved by construction."""
@@ -691,6 +831,25 @@ ICON_SVG = (
 )
 
 
+@app.get("/vendor/{name}")
+def vendor(name: str) -> FileResponse:
+    """Third-party browser libraries, served from here rather than a CDN.
+
+    One of them is load-bearing: 44 of the 91 audio items are HLS streams,
+    which Safari plays natively and Chrome and Firefox do not. Without hls.js
+    half the listening library is silently silent on a laptop.
+
+    Served locally because the rest of this app already refuses to depend on
+    someone else's uptime for a lesson, and a CDN is exactly that dependency in
+    a smaller package.
+    """
+    path = (WEB / "vendor" / name).resolve()
+    # Path traversal: `name` comes from the URL.
+    if path.parent != (WEB / "vendor").resolve() or not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type="application/javascript")
+
+
 @app.get("/icon.svg")
 def icon_svg() -> Response:
     return Response(ICON_SVG, media_type="image/svg+xml",
@@ -732,6 +891,39 @@ def manifest() -> Response:
     )
 
 
+@app.get("/api/engines")
+def grammar_engines() -> dict:
+    """Which grammar engines this deployment can actually use.
+
+    Configuration only — nothing here calls a provider, so it is free to poll
+    and costs no quota.
+
+    This exists because of a failure that was invisible from outside: the LLM
+    key was set as a *Worker* secret, while the code that reads it runs in the
+    Cloud Run container. Nothing errored. The checker quietly served offline
+    mode — object-case candidates and typos, no explanations — and since only
+    an explained correction offers a "log it" button, the whole Notion chain
+    was inert too. All the exposure of holding a key and none of the benefit.
+
+    `explains` is the question worth asking: an engine that cannot produce a
+    Russian explanation cannot teach, whatever else it does.
+    """
+    from .providers.grammar import build_chain
+
+    engines = [
+        {"name": p.name, "available": p.available(),
+         # Only an LLM writes the explanation; Vabamorf reports evidence and
+         # TartuNLP answers in Estonian with no language parameter.
+         "explains": p.name.startswith("llm:")}
+        for p in build_chain()
+    ]
+    return {
+        "engines": engines,
+        "explains": any(e["available"] and e["explains"] for e in engines),
+        "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
+    }
+
+
 @app.get("/api/asr")
 def asr_available() -> dict:
     """Which speech engines this deployment can use — shown in the UI as-is."""
@@ -744,9 +936,20 @@ def asr_available() -> dict:
 async def transcribe(request: Request) -> dict:
     """Transcribe a recording. Optional everywhere: no engine is still a 200.
 
-    The audio is not stored. A voice is biometric where text is disposable, so
-    the local engine is preferred and nothing is written to disk beyond the
-    temporary file whisper.cpp needs.
+    **Where the voice goes, stated plainly.** This docstring used to say the
+    local engine was preferred and nothing left the machine. That stopped being
+    true when recognition moved to the Worker's Workers AI binding: on the
+    deployment there is no local engine, and the recording is sent to
+    Cloudflare. Describing a privacy posture the code no longer has is worse
+    than never having described one.
+
+    What is still true: the audio is **not stored** — not here, not in the
+    Worker, not in any database. It is held in memory for one request and the
+    transcript is what survives.
+
+    The original reasoning stands and is why this is worth saying out loud: text
+    is disposable and a voice is biometric. Running `cli serve` locally with
+    whisper.cpp keeps it on your own machine; the hosted app cannot.
     """
     from .providers import asr
 

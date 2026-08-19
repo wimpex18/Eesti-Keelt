@@ -186,7 +186,7 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
     words = sum(p.word_count for p in posts)
     bands: dict[str, int] = {}
     for item in items:
-        bands[item.level or "?"] = bands.get(item.level or "?", 0) + 1
+        bands[item.band or "?"] = bands.get(item.band or "?", 0) + 1
     print(f"  {len(items)} texts, {words:,} words, 100% Estonian")
     print(f"  difficulty: {bands}")
     return 0
@@ -900,24 +900,83 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     from .harvest.eis import LEVELS, catalogue, to_items
     from .sources import add_items, connect as content_connect, register
 
-    levels = tuple(args.levels.split(",")) if args.levels else LEVELS
-    tasks = catalogue(levels)
-    if not tasks:
-        print("EIS returned nothing. The catalogue is small and can change; "
-              "check https://eis.harno.ee/publicitems by hand before assuming "
-              "a bug.")
-        return 1
+    from .harvest import harno
 
+    levels = tuple(args.levels.split(",")) if args.levels else LEVELS
     conn = content_connect(config.CONTENT_DB)
     register(conn)
-    stored = add_items(conn, to_items(tasks))
+    stored = 0
 
-    by_level: dict[str, int] = {}
-    for task in tasks:
-        by_level[task.level] = by_level.get(task.level, 0) + 1
-    for level in sorted(by_level):
-        print(f"  {level}: {by_level[level]} tasks")
-    print(f"\nindexed {stored} official tasks (pointers only, (c) HARNO)")
+    # Two official sources, and they are not the same thing. EIS publishes
+    # interactive tasks that score themselves; harno.ee publishes the task PDFs
+    # and the listening audio. A learner wants both, for different sittings.
+    tasks = catalogue(levels)
+    if tasks:
+        stored += add_items(conn, to_items(tasks))
+        by_level: dict[str, int] = {}
+        for task in tasks:
+            by_level[task.level] = by_level.get(task.level, 0) + 1
+        print("EIS interactive tasks:")
+        for level in sorted(by_level):
+            print(f"  {level}: {by_level[level]}")
+    else:
+        print("EIS returned nothing — check https://eis.harno.ee/publicitems "
+              "by hand before assuming a bug.")
+
+    try:
+        materials = [m for m in harno.catalogue() if m.level in levels]
+    except Exception as exc:  # noqa: BLE001 - one source failing is not fatal
+        materials = []
+        print(f"\nharno.ee unavailable: {str(exc)[:100]}")
+    if materials:
+        stored += add_items(conn, harno.to_items(materials))
+        counts: dict[tuple[str, str], int] = {}
+        for m in materials:
+            counts[(m.level, m.skill)] = counts.get((m.level, m.skill), 0) + 1
+        print("\nharno.ee task material:")
+        for (level, skill), n in sorted(counts.items()):
+            print(f"  {level} {skill:<12} {n}")
+
+    print(f"\nindexed {stored} official items (pointers only, (c) HARNO)")
+    return 0 if stored else 1
+
+
+def cmd_readiness(args: argparse.Namespace) -> int:
+    """Say what the evidence shows about sitting a level, and what is missing.
+
+    Deliberately not a score. Nothing here has seen a graded exam, so a number
+    would be invented — and the number is exactly what someone facing a
+    registration deadline would most want to believe.
+    """
+    from .config import PROGRESS_DB, VOCAB_DB
+    from .progress import connect as progress_connect
+    from .readiness import readiness
+    from .vocab import connect as vocab_connect
+    from .wordlist import connect as words_connect
+
+    from . import config
+    from .sources import connect as content_connect
+
+    r = readiness(args.level, progress=progress_connect(PROGRESS_DB),
+                  vocabulary=vocab_connect(VOCAB_DB), words=words_connect(),
+                  content=content_connect(config.CONTENT_DB))
+
+    print(f"{args.level}: {r.verdict}")
+    print(f"  решение через {r.days_to_decide} дн., "
+          f"экзамен через {r.days_to_sitting} дн.\n")
+    for part in r.parts:
+        mark = {True: "+", False: "-", None: "?"}[part.touched]
+        print(f"  [{mark}] {part.et:<13} {part.evidence}")
+    if r.grammar:
+        g = r.grammar
+        print(f"\n  грамматика: {g['mastered']}/{g['topics']} тем, "
+              f"контрольная "
+              f"{'сдана' if g['checkpoint_passed'] else 'не сдана'}")
+    if r.reasons:
+        print("\n  почему ещё нет:")
+        for reason in r.reasons:
+            print(f"    - {reason}")
+    print("\n  " + r.to_dict()["caveat"])
     return 0
 
 
@@ -933,6 +992,8 @@ def cmd_notion(args: argparse.Namespace) -> int:
     So: this prints what would be sent. `--push` sends it.
     """
     from .notion import connect, mark_pushed, pending, push
+
+    from .config import NOTION_DB
 
     conn = connect(NOTION_DB)
     rows = pending(conn)
@@ -973,6 +1034,37 @@ def _row_of(record) -> "object":
         wrong=record["wrong"], correct=record["correct"], why=record["why"],
         tag=record["tag"], on_date=record["on_date"],
     )
+
+
+def cmd_harvest_news(args: argparse.Namespace) -> int:
+    """Fetch ERR's simplified weekly news.
+
+    The only live source in this project. Everything else read is frozen -- the
+    radio courses ended in 2019, Selges keeles is a fixed set -- and will say
+    the same thing in spring 2027. This keeps producing sentences about things
+    that happened this month, which is what a reading exam is made of.
+
+    Re-runnable: items are keyed by content hash, so a weekly `--limit 5` costs
+    five requests and updates nothing that has not changed.
+    """
+    from . import config
+    from .harvest import lihtsad
+    from .sources import add_items, connect as content_connect, register
+
+    issues = lihtsad.harvest(limit=args.limit)
+    if not issues:
+        print("Nothing fetched. The feed is at news.err.ee/k/lihtsad-uudised — "
+              "check it by hand before assuming a bug.")
+        return 1
+
+    conn = content_connect(config.CONTENT_DB)
+    register(conn)
+    stored = add_items(conn, lihtsad.to_items(issues))
+    words = sum(i.word_count for i in issues)
+    newest = max((i.published or "") for i in issues)[:10]
+    print(f"  {len(issues)} issues, {words:,} words, newest {newest}")
+    print(f"\nstored {stored} items (owner-only, (c) ERR)")
+    return 0
 
 
 def cmd_link_topics(args: argparse.Namespace) -> int:
@@ -1269,12 +1361,25 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_harvest_exam)
 
     p = sub.add_parser(
+        "readiness", help="what the evidence says about sitting a level")
+    p.add_argument("--level", default="A2", choices=list(LEVELS))
+    p.set_defaults(func=cmd_readiness)
+
+    p = sub.add_parser(
         "notion",
         help="review queued errors; --push writes them to the Vead log",
     )
     p.add_argument("--push", action="store_true",
                    help="actually send them (needs NOTION_TOKEN)")
     p.set_defaults(func=cmd_notion)
+
+    p = sub.add_parser(
+        "harvest-news",
+        help="fetch ERR Lihtsad uudised — the live weekly reading feed",
+    )
+    p.add_argument("--limit", type=int, default=20,
+                   help="how many recent issues (default 20)")
+    p.set_defaults(func=cmd_harvest_news)
 
     p = sub.add_parser(
         "link-topics",

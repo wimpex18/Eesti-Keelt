@@ -109,10 +109,14 @@ def test_a_multi_skill_section_reaches_every_skill(content):
     speaking task was ever reachable."""
     from eesti.sources import Item, add_items
 
+    # `kind` is required now that sections filter on purpose as well as skill:
+    # the exam section holds tasks, not samples or workbooks.
     add_items(content, [
-        Item("harno", "kirjutamine", body=f"w{i}", title=f"W{i}") for i in range(8)
+        Item("harno", "kirjutamine", body=f"w{i}", title=f"W{i}",
+             meta={"kind": "ulesanne"}) for i in range(8)
     ] + [
-        Item("harno", "raakimine", body=f"s{i}", title=f"S{i}") for i in range(3)
+        Item("harno", "raakimine", body=f"s{i}", title=f"S{i}",
+             meta={"kind": "ulesanne"}) for i in range(3)
     ])
     skills = {r["skill"] for r in browse(content, "eksam", limit=5)}
     assert skills == {"kirjutamine", "raakimine"}

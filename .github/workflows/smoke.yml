@@ -21,6 +21,14 @@ name: smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      deep:
+        description: >-
+          Also send one sentence through the grammar chain. Costs one LLM
+          request of a 50/day free tier, so it is opt-in rather than run on
+          every deploy.
+        type: boolean
+        default: false
   workflow_run:
     workflows: [deploy]
     types: [completed]
@@ -34,6 +42,7 @@ jobs:
           URL: ${{ secrets.WORKER_URL }}
           CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          DEEP: ${{ inputs.deep }}
         run: |
           if [ -z "$URL" ] || [ -z "$CF_ID" ] || [ -z "$CF_SECRET" ]; then
             echo "::warning::Smoke test not configured. Add WORKER_URL, \
@@ -82,7 +91,62 @@ jobs:
             && echo "speech .................. OK" \
             || echo "::warning::/api/asr reports not ready."
 
-          # 6. The reading library. A warning, not an error: an unharvested
+          # 6. The grammar checker can actually explain. This is the check
+          #    that would have caught the LLM key being set on the Worker
+          #    instead of on Cloud Run: the app stayed healthy, served offline
+          #    mode, and because only an explained correction offers a "log
+          #    it" button, nothing ever reached the Notion log either. A
+          #    warning rather than an error — a deployment with no LLM key is
+          #    a legitimate choice; a key that is set and unreachable is not.
+          code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" \
+                    "$URL/api/engines")"
+          if [ "$code" = "404" ]; then
+            # The running image predates this endpoint. Saying "offline mode"
+            # here would be a guess, and a misleading warning is worse than
+            # none.
+            echo "::notice::/api/engines not in the deployed image yet."
+          elif curl -s "${auth[@]}" "$URL/api/engines" | grep -q '"explains":true'
+          then
+            echo "grammar explains ........ OK"
+          else
+            echo "::warning::No engine can explain a correction — the grammar \
+          checker is in offline mode. Run deploy/set-llm-key.sh."
+          fi
+
+          # 7. Opt-in: one real sentence through the whole chain.
+          #
+          #    The check above reads configuration; this one proves the key
+          #    actually works — a revoked or mistyped key is configured and
+          #    useless. It costs a request of a 50/day free tier, which is why
+          #    it is not on the automatic path.
+          #
+          #    The sentence is the learner's documented weakness: "Ma lugesin
+          #    raamatut labi" — a completed action, so the object should be
+          #    genitive `raamatu`, not partitive `raamatut`.
+          if [ "$DEEP" = "true" ]; then
+            answer="$(curl -s "${auth[@]}" -X POST "$URL/api/check" \
+              -H 'Content-Type: application/json' \
+              -d '{"text":"Ma lugesin raamatut läbi."}')"
+            field() { echo "$answer" \
+              | sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p"; }
+            engine="$(field engine)"
+            case "$engine" in
+              llm:*) echo "grammar chain ........... OK (answered by $engine)" ;;
+              "")    echo "::error::/api/check did not answer: ${answer:0:200}"
+                     fail=1 ;;
+              # The chain records why each provider was passed over, and the
+              # distinction decides what to do: "unavailable" means the key is
+              # not on this process at all (run deploy/set-llm-key.sh), while
+              # an exception name means it is there and the call failed — a
+              # revoked key, a rate limit, a model id that no longer exists.
+              # The note holds only provider names and exception *types*, never
+              # a response body, so it is safe to print.
+              *)     echo "::warning::Answered by '$engine' — no explanation \
+          behind it. Chain said: $(field note)" ;;
+            esac
+          fi
+
+          # 8. The reading library. A warning, not an error: an unharvested
           #    deployment is a supported state.
           library="$(curl -s "${auth[@]}" "$URL/api/health")"
           echo "$library" | grep -q '"library":true' \

@@ -326,7 +326,17 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
     listening views select on `skill`, and an episode serves both, so it is filed
     under `lugemine` with its audio attached rather than duplicated into two rows.
     """
+    from ..difficulty import rank
     from ..sources import Item
+
+    # Only the episodes that carry a transcript can be ranked; two thirds of
+    # this archive is audio with no text, and banding those would be sorting
+    # nothing.
+    with_text = {
+        e.url: e.body
+        for eps in harvested.values() for e in eps if e.word_count > 100
+    }
+    bands = rank(with_text)
 
     items = []
     for series, episodes in harvested.items():
@@ -339,6 +349,7 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
                     # listening material and nothing else.
                     skill="grammatika" if episode.word_count > 100 else "kuulamine",
                     title=episode.title,
+                    band=bands.get(episode.url),
                     # An audio-only episode falls back to the teacher's label,
                     # so the library shows what it is about instead of a blank.
                     body=episode.body or episode.summary,

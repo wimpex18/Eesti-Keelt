@@ -75,3 +75,133 @@ def test_there_is_a_script_for_setting_them_where_they_belong():
     # Read without echo and passed on stdin: not in shell history, not in the
     # process table, never printed.
     assert "read -rs" in body
+
+
+class TestTheDeploymentCanSayWhetherTheKeyLanded:
+    """`test_the_workflow_does_not_push_the_llm_key_to_the_worker` above stops
+    the mistake being made again. This is the other half: a way to ask a
+    *running* deployment whether the key is where the code that reads it runs.
+
+    Without it the failure is invisible from outside — health is green, the
+    checker serves offline mode, and because only an explained correction
+    offers a "log it" button, the Notion chain is inert too."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        return TestClient(app_module.app)
+
+    def test_it_reports_every_engine_in_the_chain(self, client):
+        from eesti.providers.grammar import build_chain
+
+        got = client.get("/api/engines").json()
+        assert [e["name"] for e in got["engines"]] == [p.name for p in build_chain()]
+
+    def test_it_costs_no_quota(self, client, monkeypatch):
+        """Configuration only. If this ever called a provider it could not be
+        in the smoke test, which runs on every deploy."""
+        import urllib.request
+
+        def forbidden(*a, **k):  # pragma: no cover - the point is it is unused
+            raise AssertionError("/api/engines made a network call")
+
+        monkeypatch.setattr(urllib.request, "urlopen", forbidden)
+        assert client.get("/api/engines").status_code == 200
+
+    def test_explains_is_false_with_no_llm_key(self, client, monkeypatch):
+        """The exact production state that looked healthy: offline mode."""
+        from eesti.providers.llm import PROVIDERS
+
+        for p in PROVIDERS.values():
+            monkeypatch.delenv(p.key_env, raising=False)
+        assert client.get("/api/engines").json()["explains"] is False
+
+    def test_explains_is_true_once_the_key_is_on_this_process(self, client,
+                                                              monkeypatch):
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+        got = client.get("/api/engines").json()
+        assert got["explains"] is True
+
+    def test_only_an_llm_is_credited_with_explaining(self, client):
+        """Vabamorf reports evidence without judgement, and TartuNLP answers in
+        Estonian with no language parameter — neither can teach a Russian
+        speaker why the case was wrong."""
+        got = client.get("/api/engines").json()
+        for e in got["engines"]:
+            assert e["explains"] == e["name"].startswith("llm:")
+
+    def test_the_smoke_test_asks(self):
+        workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
+        assert "/api/engines" in workflow
+        assert '"explains":true' in workflow
+
+
+class TestTheDeepCheckIsOptIn:
+    """The configuration check cannot tell a working key from a revoked one.
+    Sending one real sentence can — but it spends a request of a 50/day free
+    tier, so it belongs on a manual switch, not on every deploy."""
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
+
+    @pytest.fixture(scope="class")
+    def workflow(self) -> str:
+        return self.WORKFLOW.read_text(encoding="utf-8")
+
+    def test_it_does_not_run_automatically(self, workflow):
+        import yaml
+
+        parsed = yaml.safe_load(workflow)
+        # `on:` parses as the boolean True in YAML 1.1.
+        triggers = parsed.get("on", parsed.get(True))
+        assert triggers["workflow_dispatch"]["inputs"]["deep"]["default"] is False
+
+    def test_it_is_guarded_by_the_switch(self, workflow):
+        assert 'if [ "$DEEP" = "true" ]' in workflow
+
+    def test_it_probes_the_documented_weakness(self, workflow):
+        """If one sentence is going to cost a request, it should be the one
+        this whole app is pointed at: a completed object that must be genitive
+        `raamatu`, not partitive `raamatut`."""
+        assert "raamatut" in workflow
+
+    def test_only_an_llm_engine_counts_as_a_pass(self, workflow):
+        """`vabamorf-offline` answering is exactly the failure being checked
+        for — an answer, with no explanation behind it."""
+        assert "llm:*)" in workflow
+
+
+class TestTheScriptsCheckTheirOwnWork:
+    """`set-llm-key.sh` printed "Done" and told the operator to go and look.
+    A run of it left the service without the variable, and the only symptom
+    was corrections arriving without explanations — so nobody looked, and the
+    grammar checker sat in offline mode until the deployment was asked
+    directly."""
+
+    SET = ROOT / "deploy" / "set-llm-key.sh"
+    CHECK = ROOT / "deploy" / "check-service.sh"
+
+    def test_setting_the_key_verifies_it_landed(self):
+        body = self.SET.read_text(encoding="utf-8")
+        assert "spec.template.spec.containers[0].env.name" in body
+        assert "exit 1" in body.split("Verifying")[1]
+
+    def test_it_warns_when_traffic_is_on_an_older_revision(self):
+        """A variable set on the newest revision does nothing while an older
+        one serves — configured, verified, and still not in effect."""
+        body = self.SET.read_text(encoding="utf-8")
+        assert "update-traffic" in body
+
+    def test_neither_script_ever_reads_a_value(self):
+        """Names are enough to answer "is it set", and a value printed into a
+        Cloud Shell scrollback is a value leaked."""
+        for path in (self.SET, self.CHECK):
+            body = path.read_text(encoding="utf-8")
+            assert "env.value" not in body, f"{path.name} fetches a value"
+
+    def test_the_read_only_script_changes_nothing(self):
+        body = self.CHECK.read_text(encoding="utf-8")
+        for mutating in ("services update", "services delete", "services replace"):
+            assert mutating not in body.replace("update-traffic", ""), mutating

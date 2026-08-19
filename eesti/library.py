@@ -41,29 +41,90 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 
+#: The three things a learner is ever doing. Every section belongs to exactly
+#: one, and material that answers none of the three questions has no home here.
+#:
+#:   õppimine  — "what am I learning today?"
+#:   kordamine — "what am I forgetting?"
+#:   eksam     — "am I ready?"
+MODES = ("oppimine", "kordamine", "eksam")
+
+MODE_LABELS = {
+    "oppimine": ("Õppimine", "обучение"),
+    "kordamine": ("Kordamine", "повторение"),
+    "eksam": ("Eksam", "экзамен"),
+}
+
+
 @dataclass(frozen=True)
 class Section:
     id: str
     et: str
     ru: str
     skills: tuple[str, ...]
+    #: Russian. The label is Estonian because the interface is exposure; the
+    #: sentence explaining what a section *is* has to be readable by someone
+    #: still learning that language.
     note: str
+    mode: str = "oppimine"
+    #: Which `meta.kind` values belong here. Empty means "any".
+    #:
+    #: Skill alone was not enough once the official material arrived. HARNO
+    #: publishes samples, videos, workbooks and information sheets that all
+    #: carry the same skill as a task but are a completely different activity —
+    #: and 25 of them landed in no section at all, present in the database and
+    #: absent from the app.
+    kinds: tuple[str, ...] = ()
+    #: Exclude these kinds even when the skill matches.
+    not_kinds: tuple[str, ...] = ()
 
 
 # Sections group by *what the learner does with the material*, which is not the
 # same as where it came from: the ERR radio courses are Russian-language grammar
 # lessons and belong with grammar, not with listening practice.
 SECTIONS: tuple[Section, ...] = (
+    # -- Õppimine ----------------------------------------------------------
     Section("lugemine", "Lugemine", "чтение", ("lugemine",),
-            "Simplified Estonian texts, sorted into relative difficulty bands."),
+            "Простые эстонские тексты, отсортированные по относительной "
+            "сложности. Плюс живая еженедельная лента ERR.",
+            mode="oppimine", not_kinds=("ulesanne", "sooritusnaidis",
+                                        "konsultatsioon", "teave", "video",
+                                        "kirjeldus")),
     Section("kuulamine", "Kuulamine", "аудирование", ("kuulamine",),
-            "Audio without transcripts — exposure, not a curriculum step. Plus "
-            "TTS on any text at 0.7x."),
+            "Аудио без расшифровки — это контакт с языком, а не шаг программы. "
+            "Плюс TTS на любой текст со скоростью 0.7.",
+            mode="oppimine", not_kinds=("ulesanne", "sooritusnaidis",
+                                        "konsultatsioon", "teave", "video",
+                                        "kirjeldus")),
     Section("saated", "Saated", "передачи", ("grammatika",),
-            "The radio courses that do have transcripts: 28 lessons, Russian "
-            "explanation with Estonian examples."),
-    Section("eksam", "Eksamimaterjalid", "экзамен", ("kirjutamine", "raakimine"),
-            "Official task material. Owner-only, always."),
+            "Радиокурсы, у которых есть расшифровка: 28 уроков, объяснение "
+            "по-русски с эстонскими примерами.",
+            mode="oppimine"),
+
+    # -- Kordamine ---------------------------------------------------------
+    # The only official material that is *not* exam preparation. A consultation
+    # workbook, especially the computer-fillable variant, is homework.
+    Section("vihikud", "Töövihikud", "тетради",
+            ("lugemine", "kuulamine", "kirjutamine", "raakimine", "eksam"),
+            "Официальные консультационные тетради, в том числе заполняемые на "
+            "компьютере. Это домашняя работа, а не экзамен.",
+            mode="kordamine", kinds=("konsultatsioon",)),
+
+    # -- Eksam -------------------------------------------------------------
+    Section("naidised", "Sooritusnäidised", "образцы работ",
+            ("lugemine", "kuulamine", "kirjutamine", "raakimine", "eksam"),
+            "Настоящие экзаменационные работы с оценкой и комментариями. "
+            "Единственное, что показывает, как выглядит сдача.",
+            mode="eksam", kinds=("sooritusnaidis",)),
+    Section("eksam", "Eksamiülesanded", "задания экзамена",
+            ("lugemine", "kuulamine", "kirjutamine", "raakimine"),
+            "Официальные задания по частям экзамена. Только для владельца.",
+            mode="eksam", kinds=("ulesanne",)),
+    Section("eksamiinfo", "Eksamist", "об экзамене",
+            ("lugemine", "kuulamine", "kirjutamine", "raakimine", "eksam"),
+            "Видео об экзамене, описания уровней CEFR, информационный лист "
+            "и регистрация.",
+            mode="eksam", kinds=("video", "kirjeldus", "teave")),
 )
 
 _BY_ID = {s.id: s for s in SECTIONS}
@@ -92,22 +153,65 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def sections(content: sqlite3.Connection, public_only: bool = False) -> list[dict]:
-    """Every section with how much material is actually in it."""
+def _kind_clause(section: Section) -> tuple[str, list]:
+    """SQL restricting to a section's purpose, read out of `meta.kind`.
+
+    `meta` is a JSON blob rather than a column, so the value has to be read out
+    of it. SQLite's `json_extract` does that properly; the first version matched
+    a substring including the space after the colon, which meant any change to
+    how `meta` is serialised -- a different separator, a re-encode by another
+    tool -- would silently stop matching and empty a whole section.
+
+    `json_extract` is available in every SQLite that ships with a supported
+    Python, but a corpus file could still predate it, so a failure falls back to
+    the substring form rather than taking the library down.
+    """
+    kinds, not_kinds = section.kinds, section.not_kinds
+    if not (kinds or not_kinds):
+        return "", []
+
+    sql, params = "", []
+    if kinds:
+        marks = ",".join("?" * len(kinds))
+        sql += f" AND json_extract(i.meta, '$.kind') IN ({marks})"
+        params += list(kinds)
+    for kind in not_kinds:
+        # `IS NOT` rather than `!=`: an item with no `kind` at all must survive
+        # an exclusion, and SQL comparison with NULL is never true.
+        sql += " AND json_extract(i.meta, '$.kind') IS NOT ?"
+        params.append(kind)
+    return sql, params
+
+
+def sections(content: sqlite3.Connection, public_only: bool = False,
+             mode: str | None = None) -> list[dict]:
+    """Every section with how much material is actually in it.
+
+    `mode` narrows to one of the three things a learner is doing. Without it
+    the whole shelf is returned, which is what the overview wants.
+    """
     out = []
     for section in SECTIONS:
+        if mode is not None and section.mode != mode:
+            continue
         marks = ",".join("?" * len(section.skills))
         sql = (
             f"SELECT COUNT(*), COALESCE(SUM(i.audio_url IS NOT NULL), 0)"
             f" FROM items i JOIN sources s ON s.id = i.source_id"
             f" WHERE i.skill IN ({marks})"
         )
+        params = list(section.skills)
         if public_only:
             sql += " AND s.redistributable = 1"
-        total, with_audio = content.execute(sql, section.skills).fetchone()
+        kind_sql, kind_params = _kind_clause(section)
+        sql += kind_sql
+        params += kind_params
+        total, with_audio = content.execute(sql, params).fetchone()
+        et, ru = MODE_LABELS[section.mode]
         out.append({
             "id": section.id, "et": section.et, "ru": section.ru,
             "items": total, "with_audio": with_audio, "note": section.note,
+            "mode": section.mode, "mode_et": et, "mode_ru": ru,
         })
     return out
 
@@ -116,6 +220,7 @@ def browse(
     content: sqlite3.Connection,
     section: str,
     level: str | None = None,
+    band: str | None = None,
     limit: int = 20,
     public_only: bool = False,
 ) -> list[sqlite3.Row]:
@@ -126,12 +231,36 @@ def browse(
     five, every speaking task was unreachable. Sections are dealt round-robin
     so each skill in a section is represented.
     """
-    from .sources import query
+    meta = by_id(section)
+    kind_sql, kind_params = _kind_clause(meta)
 
-    per_skill = [
-        query(content, skill=skill, level=level, public_only=public_only, limit=limit)
-        for skill in by_id(section).skills
-    ]
+    def rows_for(skill: str) -> list[sqlite3.Row]:
+        # `redistributable` travels with every row: the licence gate reads it,
+        # and a query that silently stopped returning it would make the gate
+        # raise rather than refuse — which is the wrong direction to fail.
+        sql = ("SELECT i.*, s.name AS source_name, s.licence,"
+               " s.redistributable"
+               " FROM items i JOIN sources s ON s.id = i.source_id"
+               " WHERE i.skill = ?")
+        params: list = [skill]
+        # Two different claims, deliberately separate. `level` is CEFR and only
+        # official material carries it; `band` is difficulty relative to a
+        # source and is the only thing harvested prose can honestly offer.
+        if level:
+            sql += " AND i.level = ?"
+            params.append(level)
+        if band:
+            sql += " AND i.band = ?"
+            params.append(band)
+        if public_only:
+            sql += " AND s.redistributable = 1"
+        sql += kind_sql
+        params += kind_params
+        sql += " LIMIT ?"
+        params.append(limit)
+        return content.execute(sql, params).fetchall()
+
+    per_skill = [rows_for(skill) for skill in meta.skills]
     out: list[sqlite3.Row] = []
     while any(per_skill) and len(out) < limit:
         for rows in per_skill:
@@ -391,3 +520,80 @@ def related(
         sql += " AND s.redistributable = 1"
     sql += " ORDER BY t.hits DESC, i.id LIMIT ?"
     return [dict(r) for r in content.execute(sql, (topic, limit)).fetchall()]
+
+
+def exam_material(content: sqlite3.Connection, level: str,
+                  public_only: bool = False) -> dict:
+    """Everything official for one level, grouped by what it is for.
+
+    One request instead of four. The exam view needs the annotated sample, the
+    intro video, the level descriptor and the tasks split by part, and asking
+    for each separately made the section the slowest screen in the app for no
+    reason — they all come from one table.
+
+    Grouping by `kind` rather than listing flat is the point. A sample
+    performance, a workbook and a reading task are three different activities
+    that happen to share a level, and a single list buries the one thing a
+    learner who has never sat the exam most needs to see.
+    """
+    import json as _json
+
+    sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
+                    s.name AS source_name, s.licence
+             FROM items i JOIN sources s ON s.id = i.source_id
+             WHERE i.level = ? AND s.id IN ('harno', 'eis')"""
+    params: list = [level]
+    if public_only:
+        sql += " AND s.redistributable = 1"
+    sql += " ORDER BY i.skill, i.title"
+
+    by_kind: dict[str, list[dict]] = {}
+    for row in content.execute(sql, params).fetchall():
+        try:
+            meta = _json.loads(row["meta"] or "{}")
+        except ValueError:
+            meta = {}
+        by_kind.setdefault(meta.get("kind") or "ulesanne", []).append({
+            "id": row["id"], "title": row["title"], "skill": row["skill"],
+            "url": meta.get("url"), "format": meta.get("format"),
+            "audio_url": row["audio_url"], "source": row["source_name"],
+        })
+
+    tasks = by_kind.pop("ulesanne", [])
+    by_part: dict[str, list[dict]] = {}
+    for task in tasks:
+        by_part.setdefault(task["skill"], []).append(task)
+
+    return {
+        "level": level,
+        # First, because it is what a learner who has never sat the exam needs
+        # before anything else: what a pass actually looks like.
+        "sooritusnaidis": by_kind.pop("sooritusnaidis", []),
+        "video": by_kind.pop("video", []),
+        "kirjeldus": by_kind.pop("kirjeldus", []),
+        "teave": by_kind.pop("teave", []),
+        "ulesanded": by_part,
+        "muu": [item for items in by_kind.values() for item in items],
+    }
+
+
+def parts_touched(progress: sqlite3.Connection,
+                  content: sqlite3.Connection) -> dict[str, int]:
+    """How many items the learner has opened, per exam part.
+
+    `exposure` records what was opened; `items` knows which part each belongs
+    to. Joining them is what turns "you have opened 14 texts" into "you have
+    never opened a listening task" — and the second is the one the exam's
+    no-part-may-be-zero rule actually punishes.
+
+    Two databases, so the join is done here rather than in SQL: progress is the
+    learner's and travels in the snapshot, content is the corpus and does not.
+    """
+    seen = seen_items(progress)
+    if not seen:
+        return {}
+    counts: dict[str, int] = {}
+    for row in content.execute("SELECT id, skill FROM items").fetchall():
+        if row["id"] in seen:
+            counts[row["skill"]] = counts.get(row["skill"], 0) + 1
+    return counts

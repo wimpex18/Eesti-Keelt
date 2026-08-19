@@ -54,6 +54,44 @@
     overscroll-behavior-y:contain}
   .wrap{max-width:860px;margin:0 auto;
     padding:max(20px, env(safe-area-inset-top)) 20px calc(var(--nav-h) + 28px)}
+
+  /* Hidden by default and shown by the media query below. This declaration
+     has to come FIRST: it has the same specificity as the one inside the
+     query, and at equal specificity the later rule wins — so with the order
+     reversed the rail stayed invisible at every width while quietly fetching
+     and rendering its contents. */
+  .rail{display:none}
+
+  /* Desktop is not a wide phone.
+     Below this the layout is one column and the rail is hidden -- it is
+     context, and context is the first thing to cut when space is short. Above
+     it there is room for both, and leaving four fifths of a MacBook empty is
+     not restraint, it is an unfinished layout. The reading column stays near
+     720px because a 1400px line is unreadable; the space goes to things that
+     were otherwise behind a click. */
+  @media (min-width:1080px){
+    .wrap{max-width:1160px;
+      display:grid;grid-template-columns:minmax(0,1fr) 300px;
+      gap:0 32px;align-items:start;
+      padding-bottom:40px}
+    header, nav[data-mode-nav]{grid-column:1 / -1}
+    .panel{grid-column:1}
+    .rail{grid-column:2;grid-row:3 / span 40;position:sticky;top:20px;
+      display:flex;flex-direction:column;gap:12px}
+  }
+  .rail-card{background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;display:flex;
+    flex-direction:column;gap:8px}
+  .rail-card h3{margin:0;font-size:12px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);font-weight:600}
+  .rail-big{font-size:22px;font-weight:650;line-height:1.1;
+    font-variant-numeric:tabular-nums}
+  .rail-note{font-size:12.5px;color:var(--muted)}
+  .rail-row{display:flex;justify-content:space-between;gap:10px;
+    font-size:13.5px;align-items:baseline}
+  .rail-row b{font-variant-numeric:tabular-nums}
+  .rail a{color:var(--accent);text-decoration:none}
+  .rail a:hover{text-decoration:underline}
   header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
   h1{font-size:19px;margin:0;letter-spacing:-.02em;font-weight:650}
   .sub{color:var(--muted);font-size:12.5px}
@@ -161,6 +199,33 @@
   #wordCard .pair{margin-top:7px;font-size:13.5px}
   #wordCard .pair b{color:var(--accent)}
   audio{width:100%;margin-top:12px}
+  /* 16:9 without magic padding — `aspect-ratio` is universally supported now
+     and survives a phone rotating better than a percentage hack. */
+  .video{margin-top:12px;aspect-ratio:16/9;width:100%}
+  .exam-head{display:flex;justify-content:space-between;align-items:center;
+    gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .levels{display:flex;gap:4px}
+  .levels button{background:none;border:1px solid var(--line);border-radius:8px;
+    padding:6px 14px;font:inherit;font-size:14px;color:var(--muted);cursor:pointer}
+  .levels button[aria-selected="true"]{background:var(--accent-soft);
+    border-color:transparent;color:var(--accent);font-weight:600}
+  /* The one motivating number that is true: a date does not reset when you
+     fall ill, which is exactly why a streak does. */
+  .countdown{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .part-row{display:flex;gap:10px;align-items:baseline;padding:9px 0;
+    border-bottom:1px solid var(--line)}
+  .part-row:last-child{border-bottom:0}
+  .part-mark{width:1.2em;flex:none;text-align:center;font-weight:600}
+  .part-mark.yes{color:var(--good)} .part-mark.no{color:var(--warn)}
+  .part-mark.unknown{color:var(--muted)}
+  .part-body{flex:1;min-width:0}
+  .part-name{font-weight:600}
+  .part-ev{font-size:13px;color:var(--muted)}
+  .part-next{font-size:13px;margin-top:3px}
+  .kindgroup{margin-top:18px}
+  .kindgroup h3{font-size:15px;margin:0 0 6px}
+  .kindgroup .why{font-size:13px;color:var(--muted);margin:0 0 8px}
+  .video iframe{width:100%;height:100%;border:0;border-radius:10px}
   .topic{display:flex;gap:10px;align-items:baseline;padding:4px 0;font-size:14px}
   .topic .st{font-size:11px;text-transform:uppercase;letter-spacing:.04em;
     min-width:74px;color:var(--muted)}
@@ -215,6 +280,7 @@
          timed, scored and unaided. Mixing the two hides which one you can do. -->
     <div class="modes" role="tablist" aria-label="Režiim">
       <button role="tab" aria-selected="true"  data-mode="learn">Õppimine</button>
+      <button role="tab" aria-selected="false" data-mode="revise">Kordamine</button>
       <button role="tab" aria-selected="false" data-mode="exam">Eksam</button>
     </div>
   </header>
@@ -227,7 +293,13 @@
     <button role="tab" aria-selected="false" data-tab="listen"><span class="ico" aria-hidden="true">♪</span><span class="lbl">Kuulamine</span></button>
     <button role="tab" aria-selected="false" data-tab="speak"><span class="ico" aria-hidden="true">◉</span><span class="lbl">Rääkimine</span></button>
     <button role="tab" aria-selected="false" data-tab="write"><span class="ico" aria-hidden="true">✎</span><span class="lbl">Kirjutamine</span></button>
-    <button role="tab" aria-selected="false" data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl">Kordamine</span><span id="dueBadge" class="badge" hidden></span></button>
+  </nav>
+
+  <!-- "What am I forgetting?" — the only mode where the app, not the learner,
+       decides what comes next. -->
+  <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine">
+    <button role="tab" aria-selected="true"  data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl">Järjekord</span><span id="dueBadge" class="badge" hidden></span></button>
+    <button role="tab" aria-selected="false" data-tab="vihikud"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Töövihikud</span></button>
   </nav>
 
   <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam">
@@ -287,6 +359,13 @@
       <button class="go" id="recBtn">● Salvesta vastus</button>
       <span class="hint" id="recState">Mikrofon vajab HTTPS-i või localhost'i.</span>
     </div>
+    <!-- Said before the button is pressed, not in a policy page. Text is
+         disposable; a voice is biometric, and the learner is entitled to know
+         it leaves the device before they decide to record. -->
+    <p class="hint" id="recPrivacy">Запись отправляется в Cloudflare для
+      распознавания речи и <strong>нигде не сохраняется</strong> — ни здесь, ни
+      там. Остаётся только текст. Локально (<code>cli serve</code> +
+      whisper.cpp) запись не покидает компьютер.</p>
     <audio id="recPlayback" controls hidden></audio>
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
@@ -300,7 +379,7 @@
   </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
-  <section class="panel" id="tab-write">
+  <section class="panel" id="tab-write" hidden>
     <textarea id="text" placeholder="Kirjuta või kleebi eestikeelne tekst…&#10;Näiteks: Ma lugesin eile raamatut läbi."></textarea>
     <div class="row">
       <button class="go" id="checkBtn">Kontrolli</button>
@@ -337,30 +416,33 @@
 
   <!-- ── Exam ──────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-exam" hidden>
+    <div class="exam-head">
+      <div class="levels" role="tablist" aria-label="Tase">
+        <button role="tab" aria-selected="true"  data-level="A2">A2</button>
+        <button role="tab" aria-selected="false" data-level="B1">B1</button>
+      </div>
+      <span id="countdown" class="countdown"></span>
+    </div>
+
     <p class="hint" style="margin-top:0">
-      B1 tasemeeksam — neli osa, igaüks 25 punkti. Sooritatud, kui kokku
+      Neli osa, igaüks 25 punkti. Sooritatud, kui kokku
       <strong>≥ 60 punkti</strong> ja <strong>ükski osa pole 0</strong>.
     </p>
-    <table class="exam-table">
-      <thead><tr><th>Osa</th><th>Aeg</th><th>Punktid</th><th>Seis</th></tr></thead>
-      <tbody>
-        <tr><td>Kirjutamine</td><td>35 min</td><td>25</td><td class="ok">kontroll töötab</td></tr>
-        <tr><td>Kuulamine</td><td>30–35 min</td><td>25</td><td class="part">materjal olemas</td></tr>
-        <tr><td>Lugemine</td><td>50 min</td><td>25</td><td class="ok">349 teksti</td></tr>
-        <tr><td>Rääkimine</td><td>15 min</td><td>25</td><td class="no">pole veel</td></tr>
-      </tbody>
-    </table>
-    <p class="hint">
-      Rääkimine on <strong>paarisülesanne</strong> — vestlus teise eksaminandiga
-      ja rollimäng. Üksi salvestamine seda ei asenda, seetõttu on see viimane.
-    </p>
-    <p class="hint">
-      Ametlikud HARNO materjalid on autoriõigusega: isiklikuks õppimiseks jah,
-      avalikult jagamiseks ei. Neid hoitakse eraldi ega jagata.
-    </p>
+
+    <!-- Filled from /api/readiness/{level}: the hand-written version said
+         "349 teksti" and "pole veel" regardless of what had happened. -->
+    <div id="readiness"></div>
+    <!-- Filled from /api/exam/{level}, grouped by what each thing is for. -->
+    <div id="examMaterial"></div>
   </section>
 
-  <!-- ── Review (spaced repetition) ────────────────────────────────── -->
+  <section class="panel" id="tab-vihikud" hidden>
+    <h2>Töövihikud</h2>
+    <p class="hint">Официальные консультационные тетради, в том числе
+      заполняемые на компьютере. Это домашняя работа, а не экзамен.</p>
+    <div id="vihikudList" class="lib-list"></div>
+  </section>
+
   <section class="panel" id="tab-review" hidden>
     <p class="hint" style="margin-top:0">
       Vead ja loetud sõnad tulevad siia. Ajastus: FSRS — mida raskem, seda tihedamini.
@@ -375,8 +457,11 @@
   <!-- ── Reading ───────────────────────────────────────────────────── -->
   <section class="panel" id="tab-read" hidden>
     <div class="row" style="margin-top:0">
-      <label>Raskus
+      <label>Valik
         <select id="readLevel">
+          <!-- Default, because it is the only option that knows anything about
+               *this* reader. The rest rank texts against each other. -->
+          <option value="soovitatud">soovitatud sulle</option>
           <option value="">kõik</option>
           <option value="kergem">kergem</option>
           <option value="keskmine">keskmine</option>
@@ -419,6 +504,11 @@
     </div>
     <div id="ttsOut"></div>
   </section>
+  <!-- Desktop only. Everything here is otherwise behind a click: the
+       countdown lives in the exam tab, the path list behind a disclosure, the
+       due count in a badge. On a laptop there is room to just show them. -->
+  <aside class="rail" id="rail" aria-label="Ülevaade"></aside>
+
 </div>
 
 <script>
@@ -431,12 +521,48 @@ const md = s => esc(s)
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
   .replace(/\*(.+?)\*/g, "<em>$1</em>");
 
-const TABS = ["write", "drill", "review", "read", "listen", "exam"];
+/* Read off the document, never hand-maintained.
+
+   This was a literal list, and it had drifted: `path`, `speak` and `status`
+   were missing from it. Because `selectTab` only hides what the list names,
+   `#tab-path` was never hidden — it stayed on screen under every other tab —
+   and `#tab-speak` and `#tab-status` were never *un*hidden, so the speaking
+   practice and the progress view could not be opened at all. Three of ten
+   panels, and nothing failed: every tab still showed *a* panel, just the
+   wrong one. Deriving the set from the panels themselves makes adding a
+   section sufficient. */
+const TABS = [...document.querySelectorAll("section.panel[id^='tab-']")]
+  .map(s => s.id.slice("tab-".length));
+
+/* What each panel needs fetched the first time it is opened, rather than on
+   boot: a phone on a slow connection should not wait for four requests to
+   show one screen. `once` is for the panels whose contents do not change
+   during a session; the rest refresh on every open.
+
+   This was two mechanisms — this table and a separate document-level click
+   listener — which is how `speak` and `status` came to be wired for loading
+   while not being wired for showing. One table now. */
+const ON_OPEN = {
+  exam: () => loadExam(),
+  vihikud: () => loadVihikud(),
+  path: () => loadPath(),
+  status: () => loadStatus(),
+  speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
+};
+
+function once(fn) {
+  let done = false;
+  return () => { if (!done) { done = true; fn(); } };
+}
 
 function selectTab(button) {
   button.closest("nav").querySelectorAll("button").forEach(x =>
     x.setAttribute("aria-selected", x === button));
-  TABS.forEach(t => $("#tab-" + t).hidden = (t !== button.dataset.tab));
+  const tab = button.dataset.tab;
+  TABS.forEach(t => $("#tab-" + t).hidden = (t !== tab));
+  // Fetched when opened rather than on page load: the exam view is two
+  // requests and most sessions never go near it.
+  ON_OPEN[tab]?.();
 }
 
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => selectTab(b));
@@ -456,26 +582,18 @@ document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
 // "what do I do now" without the learner having to decide.
 selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
 
-// Panels that need a fetch load the first time they are opened, not on boot:
-// a phone on a slow connection should not wait for four requests to show one
-// screen.
-const loaded = new Set();
-document.addEventListener("click", e => {
-  const b = e.target.closest("nav button[data-tab]");
-  if (!b) return;
-  const tab = b.dataset.tab;
-  if (tab === "speak" && !loaded.has(tab)) {
-    loaded.add(tab);
-    loadSpeakQuestions().then(() => loadReadAloud("lause"));
+/* One fetch helper for both verbs. It was POST-only, which was fine while
+   every call sent something; the exam view reads four endpoints that take no
+   body, and POSTing to them would have produced 405s that looked like the
+   feature simply not working. */
+async function api(path, body, method) {
+  const verb = method || (body === undefined || body === null ? "GET" : "POST");
+  const init = { method: verb };
+  if (verb !== "GET" && verb !== "HEAD") {
+    init.headers = { "Content-Type": "application/json" };
+    init.body = JSON.stringify(body ?? {});
   }
-  if (tab === "status") loadStatus();
-  if (tab === "path") loadPath();
-});
-
-async function api(path, body) {
-  const r = await fetch(path, {
-    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
-  });
+  const r = await fetch(path, init);
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   return r;
 }
@@ -488,6 +606,239 @@ fetch("/api/health").then(r => r.json()).then(h => {
 });
 
 // ── writing check ───────────────────────────────────────────────────
+/* ---------------------------------------------------------------------------
+   Audio, including the half of it that Chrome cannot play unaided.
+
+   Forty-four of the ninety-one audio items are HLS streams (`.m3u8`) from ERR.
+   Safari plays those natively; Chrome, Firefox and Edge do not. Setting
+   `<audio src="...m3u8">` therefore worked on the phone and failed **silently**
+   on the laptop — no error, no message, just a player that never starts.
+
+   So: native first where the browser has it, hls.js otherwise, and the library
+   is fetched only when an HLS stream is actually opened. A learner who never
+   touches the radio archive never downloads it.
+--------------------------------------------------------------------------- */
+const isHls = url => /\.m3u8(\?|$)/i.test(url || "");
+let hlsReady = null;
+
+function loadHls() {
+  if (hlsReady) return hlsReady;
+  hlsReady = new Promise((resolve, reject) => {
+    const tag = document.createElement("script");
+    tag.src = "/vendor/hls.light.min.js";
+    tag.onload = () => resolve(window.Hls);
+    tag.onerror = () => reject(new Error("hls.js ei laadinud"));
+    document.head.appendChild(tag);
+  });
+  return hlsReady;
+}
+
+/* Video: the four official level-introduction films, embedded rather than
+   linked. `youtube-nocookie.com` because an app behind a private login should
+   not hand a third party a tracking cookie on page load, and the embed works
+   identically without one. */
+const YT = /(?:youtu\.be\/|v=)([\w-]{6,})/;
+
+function mountVideo(host, url) {
+  const id = (url || "").match(YT)?.[1];
+  if (!id) { host.innerHTML = ""; return; }
+  host.innerHTML = `<div class="video"><iframe
+    src="https://www.youtube-nocookie.com/embed/${esc(id)}"
+    title="Eksami tutvustav video" loading="lazy" allowfullscreen
+    referrerpolicy="no-referrer"></iframe></div>`;
+}
+
+async function mountAudio(host, url) {
+  host.innerHTML = "";
+  if (!url) return;
+
+  const el = document.createElement("audio");
+  el.controls = true;
+  el.preload = "none";
+  host.appendChild(el);
+
+  const native = el.canPlayType("application/vnd.apple.mpegurl");
+  if (!isHls(url) || native) { el.src = url; return; }
+
+  try {
+    const Hls = await loadHls();
+    if (!Hls || !Hls.isSupported()) throw new Error("HLS pole toetatud");
+    const hls = new Hls({ enableWorker: false });
+    hls.loadSource(url);
+    hls.attachMedia(el);
+    // Free the stream when the panel is replaced, or a long session
+    // accumulates one buffering player per episode opened.
+    host._hls?.destroy();
+    host._hls = hls;
+  } catch (e) {
+    // Say so rather than showing a dead player. Russian: this is an
+    // explanation, and the reader is still learning Estonian.
+    host.innerHTML = `<div class="banner">Аудио не воспроизводится в этом
+      браузере (поток HLS). Откройте в Safari или обновите страницу.</div>`;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Exam view. Two requests, both live.
+
+   The panel this replaces was a hand-written table that said "349 teksti" and
+   "pole veel" whatever had actually happened. Everything here is computed:
+   the readiness verdict reports four parts separately because the pass rule is
+   >=60 % *and* no part at zero, and an aggregate hides the untouched part that
+   is the real risk.
+--------------------------------------------------------------------------- */
+/* A2 by default, not B1. The A2 sitting is the nearer decision -- 07.11.2026,
+   decided by 01.10.2026 -- and a countdown to the wrong exam is worse than
+   none. Changing the level here changes the rail too, so the two never
+   disagree about which exam is being prepared for. */
+let examLevel = "A2";
+
+const MARK = { true: ["yes", "✓"], false: ["no", "–"], null: ["unknown", "?"] };
+
+async function loadExam() {
+  const [ready, material] = await Promise.all([
+    (await api(`/api/readiness/${examLevel}`, null, "GET")).json(),
+    (await api(`/api/exam/${examLevel}`, null, "GET")).json(),
+  ]);
+
+  $("#countdown").textContent = ready.countdown || "";
+
+  let html = `<div class="parts">`;
+  for (const part of ready.parts) {
+    const [cls, glyph] = MARK[String(part.touched)];
+    html += `<div class="part-row">
+      <span class="part-mark ${cls}">${glyph}</span>
+      <span class="part-body">
+        <span class="part-name">${esc(part.et)}</span>
+        <span class="part-ev"> · ${esc(part.evidence)}</span>
+        ${part.next_task ? `<div class="part-next">→ ${part.next_task.url
+            ? `<a href="${esc(part.next_task.url)}" target="_blank"
+                 rel="noopener">${esc(part.next_task.title)}</a>`
+            : esc(part.next_task.title)}</div>` : ""}
+      </span></div>`;
+  }
+  html += `</div>`;
+
+  if (ready.reasons.length) {
+    html += `<ul class="hint" style="margin-top:12px">` +
+      ready.reasons.map(r => `<li>${esc(r)}</li>`).join("") + `</ul>`;
+  }
+  html += `<p class="hint">${esc(ready.caveat)}</p>`;
+  $("#readiness").innerHTML = html;
+
+  // Material, grouped by what each thing is for. The sample performance leads
+  // because it is the only artefact that shows what a pass looks like.
+  const groups = [
+    ["sooritusnaidis", "Sooritusnäidis",
+     "Настоящая работа с оценкой и комментариями."],
+    ["video", "Tutvustav video", "Как проходит экзамен."],
+    ["kirjeldus", "Tasemekirjeldus", "Что требуется на этом уровне."],
+    ["teave", "Teave", "Информационный лист и регистрация."],
+  ];
+  let out = "";
+  for (const [key, title, why] of groups) {
+    const items = material[key] || [];
+    if (!items.length) continue;
+    out += `<div class="kindgroup"><h3>${esc(title)}</h3>
+      <p class="why">${esc(why)}</p>` + items.map(linkRow).join("") + `</div>`;
+  }
+  for (const [part, items] of Object.entries(material.ulesanded || {})) {
+    out += `<div class="kindgroup"><h3>${esc(part)} — ${items.length}</h3>` +
+      items.map(linkRow).join("") + `</div>`;
+  }
+  $("#examMaterial").innerHTML = out ||
+    `<p class="empty">Ametlikku materjali pole veel imporditud.</p>`;
+}
+
+/* Official material is a pointer, never a copy: the row links to HARNO's own
+   file rather than opening a reader on an empty body. */
+const linkRow = it => `<div class="lib-item">
+  <a href="${esc(it.url || "#")}" target="_blank" rel="noopener">${esc(it.title)}</a>
+  <span class="lib-meta">${esc(it.format || "")}${
+    it.audio_url ? " · ♪" : ""}</span></div>`;
+
+document.querySelectorAll(".levels button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".levels button").forEach(x =>
+    x.setAttribute("aria-selected", x === b));
+  examLevel = b.dataset.level;
+  loadExam();
+  loadRail();
+});
+
+async function loadVihikud() {
+  const d = await (await api("/api/library?skill=eksam&limit=40", null, "GET")).json();
+  const rows = (d.items || []).filter(i => i.external);
+  $("#vihikudList").innerHTML = rows.length
+    ? rows.map(linkRow).join("")
+    : `<p class="empty">Töövihikuid pole veel imporditud.</p>`;
+}
+
+/* The rail: what a laptop has room for and a phone does not.
+
+   Nothing here is new information — it is the countdown from the exam tab, the
+   resume point from the path, and the due count from a badge, all of which
+   otherwise cost a click to see. On a 1440px screen four fifths of which was
+   empty, showing them is free.
+
+   Rendered once on load and refreshed after anything that could change it.
+   Failures are swallowed: the rail is context, and context must never be the
+   reason a lesson does not appear. */
+async function loadRail() {
+  const rail = $("#rail");
+  if (!rail || !matchMedia("(min-width:1080px)").matches) return;
+  try {
+    /* `await` inside the array would serialise these — the promises have to
+       be built first and awaited together. `soft` keeps the due count from
+       being able to empty the whole rail. */
+    const get = u => fetch(u).then(r => r.json());
+    const soft = u => get(u).catch(() => ({}));
+    const [ready, path, due] = await Promise.all([
+      get(`/api/readiness/${examLevel}`),
+      get("/api/curriculum"),
+      soft("/api/review/stats"),
+    ]);
+
+    const untouched = ready.parts.filter(p => p.touched === false);
+    /* `resume` is an id (`kusisonad`); the learner knows the topic by its
+       name. The path tab already resolves it this way. */
+    const next = (path.topics || []).find(t => t.id === path.resume);
+    rail.innerHTML = `
+      <div class="rail-card">
+        <h3>Eksamini</h3>
+        <div class="rail-big">${esc(ready.countdown || "")}</div>
+        <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
+      </div>
+      <div class="rail-card">
+        <h3>Rada</h3>
+        <div class="rail-row"><span>Läbitud</span>
+          <b>${path.mastered}/${path.total}</b></div>
+        ${next ? `<div class="rail-row"><span>Järgmine</span>
+          <b>${esc(next.et)}</b></div>` : ""}
+        ${due && due.due !== undefined ? `<div class="rail-row">
+          <span>Kordamist ootab</span><b>${due.due}</b></div>` : ""}
+      </div>
+      ${untouched.length ? `<div class="rail-card">
+        <h3>Puudutamata</h3>
+        ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
+          ${p.next_task && p.next_task.url
+            ? `<a href="${esc(p.next_task.url)}" target="_blank"
+                 rel="noopener">ava</a>` : ""}</div>`).join("")}
+        <div class="rail-note">Ükski osa ei tohi olla null.</div>
+      </div>` : ""}`;
+  } catch (e) {
+    rail.innerHTML = "";
+  }
+}
+loadRail();
+
+/* A phone has to hide the 36-topic path behind a disclosure; a laptop has
+   1500px of empty column below the fold. Opened once, on load only — if the
+   learner closes it, it stays closed. */
+if (matchMedia("(min-width:1080px)").matches) {
+  const all = $("#pathAll");
+  if (all) all.open = true;
+}
+
 async function runCheck() {
   const text = $("#text").value.trim();
   if (!text) return;
@@ -640,7 +991,8 @@ async function loadStatus() {
     if (s.rada) html += `<div class="corr"><span class="tag">Rada</span>
       <div class="fix">${s.rada.mastered}/${s.rada.total} teemat läbitud,
       ${s.rada.available} avatud</div>
-      <div class="why">Järgmine: ${esc(s.rada.next || "—")}</div></div>`;
+      <div class="why">Järgmine: ${esc(s.rada.next_et || "—")}${
+        s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
     if (s.sonavara) html += `<div class="corr"><span class="tag">Sõnavara</span>
       <div class="fix">${s.sonavara.known_in_top} sõna esimesest
       ${s.sonavara.top}-st</div><div class="why">` +
@@ -652,9 +1004,9 @@ async function loadStatus() {
     if (s.raamatukogu) html += `<div class="corr"><span class="tag">Raamatukogu</span>
       <div class="fix">${s.raamatukogu.items || 0} avatud,
       ${s.raamatukogu.minutes || 0} minutit</div></div>`;
-    html += `<div class="engine">Üldprotsenti ei ole: eksam hindab nelja osa
-      eraldi ja null ühes osas kukutab läbi, nii et koondnumber peidaks just
-      selle, mis otsustab.</div>`;
+    // The caveat comes from the API, in Russian, so it is written once and
+    // cannot drift out of step with what the numbers mean.
+    html += `<div class="engine">${esc(d.caveat || "")}</div>`;
     out.innerHTML = html;
   } catch (e) { out.textContent = e.message; }
 }
@@ -736,6 +1088,7 @@ function renderPracticeItem(it, topic, i) {
         `Harjutused läksid kordamise järjekorda.`;
       loadPath();
       refreshDueBadge();
+      loadRail();
     }
   };
   el.querySelector("button").onclick = grade;
@@ -745,7 +1098,9 @@ function renderPracticeItem(it, topic, i) {
 }
 
 $("#practiceBtn").onclick = startPractice;
-loadPath(); loadThemes();
+/* The path loads through ON_OPEN now, since it is the landing tab; calling
+   it here too would fetch the curriculum twice on every boot. */
+loadThemes();
 
 // ── speaking ────────────────────────────────────────────────────────
 // getUserMedia needs a secure context. On a phone that means HTTPS, which is
@@ -935,13 +1290,20 @@ if (!canRecord) {
       $("#recState").textContent = "Mikrofoni ei saanud: " + e.message;
     }
   };
-  // Said once, plainly: this records, it does not score. Pronunciation scoring
-  // from audio is a research problem, and EKI already publishes free exercises.
+  /* Said once, plainly: this records, it does not score. Pronunciation
+     scoring from audio is a research problem, and EKI already publishes free
+     exercises.
+
+     It used to open by promising the recording never left the device, which
+     stopped being true when recognition moved to Cloudflare — and sat
+     directly under `#recPrivacy` saying the opposite. Where the audio goes is
+     that notice's job; this one is only about what the practice is worth. */
   $("#recNote").innerHTML =
-    "Salvestus jääb sinu seadmesse — midagi ei laadita üles ega hinnata. " +
-    "B1 rääkimiseksam on <b>paaris</b>: kaks kandidaati vastavad kordamööda ja " +
-    "seejärel räägivad omavahel, nii et üksi harjutades on mõtet vastuse " +
-    "ülesehitusel ja soravusel, mitte punktidel.";
+    "Здесь <b>не выставляют баллов</b> — произношение по записи не " +
+    "оценивается. <b>Rääkimiseksam</b> на B1 — <b>парный</b>: два кандидата " +
+    "отвечают по очереди, а затем разговаривают между собой. Поэтому в " +
+    "одиночку имеет смысл тренировать построение ответа и беглость, а не " +
+    "баллы.";
 }
 
 // ── review ──────────────────────────────────────────────────────────
@@ -988,30 +1350,73 @@ function renderReview(it) {
       ${r.interval_days < 1 ? "täna" : `${Math.round(r.interval_days)} päeva pärast`}
       ${it.why_ru ? `<br><span class="why">${md(it.why_ru)}</span>` : ""}`;
     refreshDueBadge();
+    loadRail();
   });
   return el;
 }
 
 // ── reading ─────────────────────────────────────────────────────────
+/* Reading list. Two different questions, and the selector picks which one.
+
+   "soovitatud" asks /api/reading/next, which ranks by how much of each text
+   *this* learner already has words for and puts the instructional band first —
+   the reading research is specific that input works when it is understood, and
+   a difficulty band cannot see who is reading.
+
+   The others filter on `band`, which is difficulty relative to a source. That
+   used to be sent as `level`; when the two scales were separated into their own
+   columns this select went on sending the old one and quietly returned zero
+   texts for every difficulty. */
 async function loadLibrary() {
-  const level = $("#readLevel").value;
-  const q = new URLSearchParams({skill: "lugemine", limit: "80"});
-  if (level) q.set("level", level);
+  const choice = $("#readLevel").value;
   const list = $("#libList"); list.innerHTML = "";
   $("#reader").hidden = true;
+  $("#libList").hidden = false;
+
   try {
-    const {items} = await (await fetch("/api/library?" + q)).json();
-    $("#libCount").textContent = `${items.length} teksti`;
-    if (!items.length) { list.innerHTML = `<p class="empty">Tekste pole. Käivita <code>cli harvest-reading</code>.</p>`; return; }
+    let items, note = "";
+    let measured = true;
+    if (choice === "soovitatud") {
+      const d = await (await fetch("/api/reading/next?limit=25")).json();
+      items = d.items;
+      // With nothing marked known, every text scores 0 % — true, and it reads
+      // as "you know nothing" rather than "we have not measured yet". Suppress
+      // the number until there is a vocabulary to measure against, and say why.
+      measured = d.known_words > 0;
+      note = measured
+        ? `${d.known_words} слов знакомо`
+        : "Слова ещё не отмечены — показаны самые простые тексты.";
+    } else {
+      const q = new URLSearchParams({skill: "lugemine", limit: "80"});
+      if (choice) q.set("band", choice);
+      items = (await (await fetch("/api/library?" + q)).json()).items;
+    }
+
+    $("#libCount").textContent =
+      `${items.length} teksti${note ? " · " + note : ""}`;
+    if (!items.length) {
+      list.innerHTML = `<p class="empty">Tekste pole. Käivita
+        <code>cli harvest-reading</code>.</p>`;
+      return;
+    }
     for (const it of items) {
       const el = document.createElement("div");
       el.className = "lib-item";
+      // Coverage only appears where it was actually computed. Showing "0 %"
+      // for a list that never measured it would read as "you know nothing".
+      const cover = (measured && it.coverage !== undefined)
+        ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
+      const size = it.words !== undefined ? `${it.words} sõna`
+        : (it.total !== undefined ? `${it.total} sõna` : "");
       el.innerHTML = `<h4>${esc(it.title)}</h4>
-        <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}${it.words} sõna${it.audio_url ? " · ♪" : ""}</span>`;
+        <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
+          it.audio_url ? " · ♪" : ""}${cover}</span>`;
       el.onclick = () => openItem(it.id);
       list.appendChild(el);
     }
-  } catch (e) { list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`; }
+  } catch (e) {
+    list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+  }
 }
 $("#loadLib").onclick = loadLibrary;
 $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
@@ -1022,8 +1427,13 @@ async function openItem(id) {
   $("#reader").hidden = false;
   $("#readerTitle").textContent = d.title;
   $("#readerMeta").textContent = `${esc(d.source)} · ${esc(d.licence)}`;
-  $("#readerAudio").innerHTML = d.audio_url
-    ? `<audio controls preload="none" src="${esc(d.audio_url)}"></audio>` : "";
+  // An item is a text, a recording or a film; the reader shows whichever it
+  // has rather than assuming audio.
+  if (d.meta?.kind === "video" || YT.test(d.url || "")) {
+    mountVideo($("#readerAudio"), d.url || d.audio_url);
+  } else {
+    mountAudio($("#readerAudio"), d.audio_url);
+  }
 
   const p = d.profile || {};
   // Coverage is the number that decides whether a text is worth your time:
@@ -1082,7 +1492,8 @@ $("#speakBtn").onclick = async () => {
       text, voice: $("#voice").value, speed: +$("#speed").value
     });
     const url = URL.createObjectURL(await r.blob());
-    out.innerHTML = `<audio controls autoplay src="${url}"></audio>`;
+    await mountAudio(out, url);
+    out.querySelector("audio")?.play().catch(() => {});
   } catch (e) {
     out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Loe ette"; }

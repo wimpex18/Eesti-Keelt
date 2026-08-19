@@ -152,7 +152,7 @@ def to_items(tasks: list[Task]) -> list:
                 "url": task.url,
                 "external": True,
                 "official": True,
-                "note": "Ametlik harjutusülesanne — lahendatakse EIS-i lehel.",
+                "note": "Официальное тренировочное задание — решается на сайте EIS.",
             },
         )
         for task in tasks
