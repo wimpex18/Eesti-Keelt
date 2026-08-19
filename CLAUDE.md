@@ -174,5 +174,20 @@ in Cloud Shell and discover the project, service and region themselves.
   be pointed anywhere else, and three bugs in a row came from that.
 - **A third party being down must never fail the build.** EKI, HuggingFace and
   EIS are all optional at build and test time, loudly.
+- **Never hand-maintain a list of things that already exist somewhere.**
+  `TABS` was a literal list of the panel names and it drifted from the panels
+  themselves: three of ten were missing, so one panel never hid and two never
+  showed. Nothing failed — every click still produced *a* panel. Derive the
+  list from the thing it describes, and if it cannot be derived, test that the
+  two sides correspond in **both** directions.
+- **A true sentence goes stale silently.** The speaking screen promised the
+  recording never left the device. That was true; then recognition moved to
+  Cloudflare and the sentence stayed, sitting under a second notice that said
+  the opposite. Claims about privacy, cost and provenance are facts about the
+  code — pin them with a test that fails when the code changes.
 - **Check production by asking it.** Three bugs were found that way after the
   full suite was green.
+- **Open the app in a browser at the size it will be used.** The phone was
+  checked for months; one look at 1440px found a layout that used a fifth of
+  the screen and three panels that could not be opened at all. Both sizes,
+  every tab.
