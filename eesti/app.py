@@ -241,6 +241,30 @@ def drills(req: DrillRequest) -> dict:
     return {"drills": [d.to_dict() for d in items]}
 
 
+@app.get("/api/modes")
+def modes() -> dict:
+    """The three things a learner is ever doing, and what is in each.
+
+    One request instead of four: the client asks once and knows the whole
+    shelf, which is what makes a three-way switch cheap enough to be the
+    top-level navigation.
+    """
+    from .library import MODE_LABELS, MODES, sections as library_sections
+
+    conn = content_db()
+    return {
+        "modes": [
+            {
+                "id": mode,
+                "et": MODE_LABELS[mode][0],
+                "ru": MODE_LABELS[mode][1],
+                "sections": library_sections(conn, mode=mode),
+            }
+            for mode in MODES
+        ]
+    }
+
+
 @app.get("/api/library")
 def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) -> dict:
     """Harvested study material.

@@ -44,10 +44,32 @@ When a Russian sentence names an Estonian concept, keep the Estonian word and
 gloss it once: *"Говорение (rääkimine) оценить нельзя"*. That teaches the term
 instead of hiding it.
 
-**Still to translate** (audit 2026-08-19): the web UI's own body copy and
-section descriptions in `eesti/web/index.html`, `library.SECTIONS` descriptions,
-and `docs/*.md` remain Estonian or English. The published integration map is
-Russian. Nothing in `data/` needs translating — it is the study material.
+**Done so far:** the readiness verdict and its reasons, the pronunciation
+caveat, `library.SECTIONS` descriptions, the source notes on official material,
+and the published integration map.
+
+**Still Estonian or English** (audit 2026-08-19): the web UI's own body copy in
+`eesti/web/index.html` and `docs/*.md`. Nothing in `data/` needs translating —
+it is the study material.
+
+## The three sections
+
+Everything the learner does answers one of three questions, and every library
+section belongs to exactly one (`library.MODES`):
+
+| Mode | The question | What lives there |
+|---|---|---|
+| `oppimine` | "what am I learning today?" | generated drills, Selges keeles, the live ERR news feed, radio courses |
+| `kordamine` | "what am I forgetting?" | the FSRS queue, failed items, official consultation workbooks |
+| `eksam` | "am I ready?" | readiness verdict, annotated sample performances, official tasks, EIS, intro videos |
+
+Sections filter on **skill and purpose** (`meta.kind`), not skill alone. Skill
+alone held only while everything was reading or listening practice; the official
+material broke it, because HARNO publishes samples, videos and workbooks that
+carry the same skill as a task while being a completely different activity.
+Twenty-five items ended up in no section at all — present in the database,
+absent from the app, silently. `tests/test_sections.py` has the orphan check
+that would have caught it.
 
 ## Where it runs
 
@@ -103,6 +125,7 @@ origin), and a git-ignored `.env` (local).
 python -m eesti.cli serve            # local app on :8000
 python -m eesti.cli harvest          # ERR language archives
 python -m eesti.cli harvest-reading  # Selges keeles
+python -m eesti.cli harvest-news     # ERR Lihtsad uudised — the live feed
 python -m eesti.cli harvest-exam     # official EIS tasks (pointers)
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion

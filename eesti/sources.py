@@ -33,7 +33,15 @@ from pathlib import Path
 
 # Skills map to the four exam parts, so progress can be tracked the way the exam
 # scores it — 25 points each, and no part may be zero.
-SKILLS = ("lugemine", "kuulamine", "kirjutamine", "raakimine", "grammatika")
+#
+# Two are not exam parts. `grammatika` is the radio courses: Russian-language
+# lessons about Estonian, which belong with grammar rather than with listening
+# practice. `eksam` is material that belongs to a *level as a whole* rather than
+# to one part — the annotated sample performance, the intro video, the CEFR
+# descriptor, the information sheet. Forcing those into one of the four would
+# have put the sample answer for writing into the writing practice list.
+SKILLS = ("lugemine", "kuulamine", "kirjutamine", "raakimine", "grammatika",
+          "eksam")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sources (

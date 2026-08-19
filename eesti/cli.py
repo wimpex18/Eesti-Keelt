@@ -1036,6 +1036,37 @@ def _row_of(record) -> "object":
     )
 
 
+def cmd_harvest_news(args: argparse.Namespace) -> int:
+    """Fetch ERR's simplified weekly news.
+
+    The only live source in this project. Everything else read is frozen -- the
+    radio courses ended in 2019, Selges keeles is a fixed set -- and will say
+    the same thing in spring 2027. This keeps producing sentences about things
+    that happened this month, which is what a reading exam is made of.
+
+    Re-runnable: items are keyed by content hash, so a weekly `--limit 5` costs
+    five requests and updates nothing that has not changed.
+    """
+    from . import config
+    from .harvest import lihtsad
+    from .sources import add_items, connect as content_connect, register
+
+    issues = lihtsad.harvest(limit=args.limit)
+    if not issues:
+        print("Nothing fetched. The feed is at news.err.ee/k/lihtsad-uudised — "
+              "check it by hand before assuming a bug.")
+        return 1
+
+    conn = content_connect(config.CONTENT_DB)
+    register(conn)
+    stored = add_items(conn, lihtsad.to_items(issues))
+    words = sum(i.word_count for i in issues)
+    newest = max((i.published or "") for i in issues)[:10]
+    print(f"  {len(issues)} issues, {words:,} words, newest {newest}")
+    print(f"\nstored {stored} items (owner-only, (c) ERR)")
+    return 0
+
+
 def cmd_link_topics(args: argparse.Namespace) -> int:
     """Work out which harvested texts demonstrate which grammar topic.
 
@@ -1341,6 +1372,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--push", action="store_true",
                    help="actually send them (needs NOTION_TOKEN)")
     p.set_defaults(func=cmd_notion)
+
+    p = sub.add_parser(
+        "harvest-news",
+        help="fetch ERR Lihtsad uudised — the live weekly reading feed",
+    )
+    p.add_argument("--limit", type=int, default=20,
+                   help="how many recent issues (default 20)")
+    p.set_defaults(func=cmd_harvest_news)
 
     p = sub.add_parser(
         "link-topics",
