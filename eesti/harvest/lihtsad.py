@@ -151,7 +151,13 @@ def harvest(limit: int | None = None) -> list[Issue]:
 
 def to_items(issues: list[Issue]) -> list:
     """Reading material. Owner-only: © ERR, personal study."""
+    from ..difficulty import rank
     from ..sources import Item
+
+    # Ranked within this feed, not against the whole library: a news item and a
+    # radio transcript are different registers, and pooling them would sort by
+    # register rather than by difficulty.
+    bands = rank({issue.url: issue.body for issue in issues})
 
     return [
         Item(
@@ -161,6 +167,7 @@ def to_items(issues: list[Issue]) -> list:
             # simpler than the newsroom's usual output, but "simplified" is not
             # a level and this app does not invent one.
             level=None,
+            band=bands.get(issue.url, "keskmine"),
             title=issue.title,
             body=issue.body,
             meta={

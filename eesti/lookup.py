@@ -87,6 +87,29 @@ def lookup(word: str) -> dict:
     return {"word": word, "found": True, "analyses": out}
 
 
+def lemmas_in(text: str) -> list[str]:
+    """Distinct lemmas a passage uses, for coverage arithmetic.
+
+    Lemmas rather than surface forms: a learner who knows `raamat` knows it in
+    `raamatut` too, and counting forms would make every inflected text look
+    harder than it is — which in Estonian is most of them.
+    """
+    conn = _db()
+    if conn is None:
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+    for word in {w.lower() for w in WORD_RE.findall(text)}:
+        row = conn.execute(
+            "SELECT lemma FROM forms WHERE form = ? LIMIT 1", (word,)
+        ).fetchone()
+        lemma = row["lemma"] if row else word
+        if lemma not in seen:
+            seen.add(lemma)
+            found.append(lemma)
+    return found
+
+
 def annotate(text: str, levels: tuple[str, ...] = ("A1", "A2", "B1")) -> dict:
     """Vocabulary profile of a passage: which words are at or above your level.
 

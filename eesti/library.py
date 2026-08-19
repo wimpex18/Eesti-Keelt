@@ -208,6 +208,7 @@ def browse(
     content: sqlite3.Connection,
     section: str,
     level: str | None = None,
+    band: str | None = None,
     limit: int = 20,
     public_only: bool = False,
 ) -> list[sqlite3.Row]:
@@ -230,9 +231,15 @@ def browse(
                " FROM items i JOIN sources s ON s.id = i.source_id"
                " WHERE i.skill = ?")
         params: list = [skill]
+        # Two different claims, deliberately separate. `level` is CEFR and only
+        # official material carries it; `band` is difficulty relative to a
+        # source and is the only thing harvested prose can honestly offer.
         if level:
             sql += " AND i.level = ?"
             params.append(level)
+        if band:
+            sql += " AND i.band = ?"
+            params.append(band)
         if public_only:
             sql += " AND s.redistributable = 1"
         sql += kind_sql

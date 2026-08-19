@@ -71,6 +71,32 @@ Twenty-five items ended up in no section at all — present in the database,
 absent from the app, silently. `tests/test_sections.py` has the orphan check
 that would have caught it.
 
+## Two scales, never one
+
+A text carries **two different claims** and they must not share a column:
+
+| Field | Means | Who has it |
+|---|---|---|
+| `level` | CEFR — A2, B1, B2, C1 | only official HARNO / EIS material, where the exam board said so |
+| `band` | difficulty relative to its own source — `kergem` / `keskmine` / `raskem` | all harvested prose |
+
+They lived in one column, and a learner filtering `B1` got only exam material —
+349 reading texts and 20 news issues invisible to the one filter anybody uses.
+
+**Do not derive CEFR from vocabulary coverage.** It was tried: 342 of 349
+deliberately-simplified news items came out as B2, because only 6.2 % of the
+160 316 lemmas carry a CEFR tag at all. The scale is not calibrated and no
+threshold on it can be.
+
+What *is* computable is **comprehensibility for one learner** — the share of a
+text's lemmas that learner has met (`difficulty.comprehensible`). That is the
+mechanism the reading research actually names: input works when it is
+understood, and understanding is gated by known vocabulary. `/api/reading/next`
+ranks by it and puts the instructional band first, because that is where a text
+teaches rather than bores or defeats.
+
+It is vocabulary coverage, not comprehension, and the field names say so.
+
 ## Where it runs
 
 | Half | Where | Why |

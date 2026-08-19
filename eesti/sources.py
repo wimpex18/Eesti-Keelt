@@ -58,7 +58,20 @@ CREATE TABLE IF NOT EXISTS items (
     id          TEXT PRIMARY KEY,    -- content hash: ingestion is idempotent
     source_id   TEXT NOT NULL REFERENCES sources(id),
     skill       TEXT NOT NULL,
+    -- CEFR, and CEFR only. NULL means nobody credible has said what level this
+    -- text is, which is the honest answer for harvested prose.
     level       TEXT,                -- A1..C1, NULL if unknown
+    -- Relative difficulty within its own source: kergem | keskmine | raskem.
+    --
+    -- A separate column because it is a separate claim. Selges keeles bands
+    -- were being written into `level`, so a learner filtering "B1" got only
+    -- exam material and none of the 349 reading texts -- two scales in one
+    -- column, and the one anybody would filter on returned the wrong half.
+    --
+    -- Absolute CEFR is deliberately *not* derived for these: only 6.2% of
+    -- lemmas carry a CEFR tag, and an earlier attempt rated 342 of 349
+    -- deliberately-simplified news items as B2.
+    band        TEXT,
     title       TEXT,
     body        TEXT,                -- transcript / passage / task text
     audio_url   TEXT,
@@ -106,6 +119,7 @@ class Item:
     body: str = ""
     title: str = ""
     level: str | None = None
+    band: str | None = None
     audio_url: str | None = None
     meta: dict = field(default_factory=dict)
 
@@ -216,6 +230,18 @@ def available(path: Path | str) -> bool:
         return False
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns that older content databases do not have.
+
+    The corpus is pushed to the deployment as a file, so a learner can be
+    carrying a database built before a column existed. Failing to open it would
+    lose the whole reading library over one `ALTER TABLE`.
+    """
+    have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
+    if "band" not in have:
+        conn.execute("ALTER TABLE items ADD COLUMN band TEXT")
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
     """Open the content library, degrading to empty rather than failing.
 
@@ -236,6 +262,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
         target.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(target)
         conn.executescript(SCHEMA)
+        _migrate(conn)
     except (OSError, sqlite3.Error):
         conn = sqlite3.connect(":memory:")
         conn.executescript(SCHEMA)
@@ -269,10 +296,10 @@ def add_items(conn: sqlite3.Connection, items: list[Item]) -> int:
     with conn:
         conn.executemany(
             "INSERT OR REPLACE INTO items"
-            " (id,source_id,skill,level,title,body,audio_url,meta,added_on)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " (id,source_id,skill,level,band,title,body,audio_url,meta,added_on)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
             [
-                (i.id, i.source_id, i.skill, i.level, i.title, i.body,
+                (i.id, i.source_id, i.skill, i.level, i.band, i.title, i.body,
                  i.audio_url, json.dumps(i.meta, ensure_ascii=False), today)
                 for i in items
             ],
@@ -296,6 +323,7 @@ def query(
     conn: sqlite3.Connection,
     skill: str | None = None,
     level: str | None = None,
+    band: str | None = None,
     public_only: bool = False,
     limit: int = 50,
 ) -> list[sqlite3.Row]:
@@ -312,6 +340,9 @@ def query(
     if level:
         where.append("i.level = ?")
         params.append(level)
+    if band:
+        where.append("i.band = ?")
+        params.append(band)
     if public_only:
         where.append("s.redistributable = 1")
     params.append(limit)

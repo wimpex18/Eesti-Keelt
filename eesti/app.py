@@ -266,7 +266,8 @@ def modes() -> dict:
 
 
 @app.get("/api/library")
-def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) -> dict:
+def library(skill: str = "lugemine", level: str | None = None,
+            band: str | None = None, limit: int = 60) -> dict:
     """Harvested study material.
 
     `public_only` is deliberately NOT exposed as a parameter. This server is the
@@ -274,13 +275,14 @@ def library(skill: str = "lugemine", level: str | None = None, limit: int = 60) 
     parameter would let a caller ask for owner-only material by guessing.
     """
     conn = content_db()
-    rows = content_query(conn, skill=skill, level=level, limit=limit)
+    rows = content_query(conn, skill=skill, level=level, band=band, limit=limit)
     return {
         "items": [
             {
                 "id": r["id"],
                 "title": r["title"],
                 "level": r["level"],
+                "band": r["band"],
                 "source": r["source_name"],
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
@@ -305,6 +307,57 @@ def _pointer(meta: str | None) -> dict:
     if not data.get("external"):
         return {}
     return {"external": True, "url": data.get("url"), "note": data.get("note")}
+
+
+@app.get("/api/reading/next")
+def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
+    """Texts to read next, ranked by how readable they are *for this learner*.
+
+    The reading research is specific about the mechanism: input works when it is
+    understood, and understanding is gated by how much of the vocabulary the
+    reader already has. A difficulty band cannot see that — it ranks texts
+    against each other and says nothing about who is reading.
+
+    So this sorts by known-word coverage and puts the **instructional** band
+    first: texts the learner can follow with effort, which is where a text
+    teaches rather than either boring or defeating them. Comfortable texts come
+    second, and anything below the threshold is not offered at all.
+    """
+    from .difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
+    from .library import browse
+
+    known = known_lemmas(vocab_db())
+    rows = browse(content_db(), section, limit=120)
+
+    scored = []
+    for row in rows:
+        if not (row["body"] or "").strip():
+            continue
+        profile = comprehensible(row["body"], known)
+        if profile["total"] == 0:
+            continue
+        scored.append({
+            "id": row["id"], "title": row["title"], "band": row["band"],
+            "source": row["source_name"], "audio_url": row["audio_url"],
+            **profile,
+        })
+
+    # Instructional first, then by coverage descending within each group. A
+    # learner with no vocabulary recorded yet has no instructional band at all,
+    # so the easiest available text leads instead of an empty list.
+    scored.sort(key=lambda item: (
+        0 if item["readability"] == "arendav" else 1, -item["coverage"]
+    ))
+    return {
+        "items": scored[:limit],
+        "known_words": len(known),
+        "threshold": INSTRUCTIONAL,
+        "note": (
+            "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
+            "читаются с усилием: именно там текст учит. Это словарное "
+            "покрытие, а не оценка понимания."
+        ),
+    }
 
 
 @app.get("/api/library/{item_id}")

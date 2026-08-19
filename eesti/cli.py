@@ -186,7 +186,7 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
     words = sum(p.word_count for p in posts)
     bands: dict[str, int] = {}
     for item in items:
-        bands[item.level or "?"] = bands.get(item.level or "?", 0) + 1
+        bands[item.band or "?"] = bands.get(item.band or "?", 0) + 1
     print(f"  {len(items)} texts, {words:,} words, 100% Estonian")
     print(f"  difficulty: {bands}")
     return 0

@@ -122,38 +122,15 @@ def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
 
 
 def rank_difficulty(posts: list[Post]) -> dict[str, str]:
-    """Order the corpus by difficulty, relative to itself.
+    """Order this corpus by difficulty, relative to itself.
 
-    An earlier version tried to assign an absolute CEFR level from vocabulary
-    coverage and rated 342 of 349 deliberately-simplified news items as B2 —
-    obviously wrong. The cause is structural: only 9 951 of 160 316 lemmas
-    (6.2 %) carry a CEFR tag, so "share of words at A1-A2" systematically
-    undercounts. Measured across this corpus, coverage runs 0.25-0.87 with a
-    median of 0.53, nowhere near the 0.85 an "A2 text" would need.
-
-    So this does not claim a CEFR level. It ranks posts against each other and
-    splits them into thirds, which is all that is needed for the real job:
-    letting the reader start with the easier texts. Labels are Estonian and
-    deliberately relative — `kergem` / `keskmine` / `raskem`.
+    The reasoning, and the failed attempt it replaces, now live in
+    `eesti/difficulty.py` — every prose source needs the same treatment, and
+    the news feed and radio transcripts were getting no band at all.
     """
-    from ..lookup import annotate
+    from ..difficulty import rank
 
-    scored = []
-    for post in posts:
-        profile = annotate(post.body, levels=("A1", "A2"))
-        scored.append((post.url, profile.get("coverage", 0.0)))
-
-    ranked = sorted(scored, key=lambda pair: -pair[1])
-    third = max(1, len(ranked) // 3)
-    bands = {}
-    for index, (url, _) in enumerate(ranked):
-        if index < third:
-            bands[url] = "kergem"
-        elif index < 2 * third:
-            bands[url] = "keskmine"
-        else:
-            bands[url] = "raskem"
-    return bands
+    return rank({post.url: post.body for post in posts})
 
 
 def to_items(posts: list[Post]) -> list:
@@ -166,8 +143,12 @@ def to_items(posts: list[Post]) -> list:
             skill="lugemine",
             title=post.title,
             body=post.body,
-            # A relative difficulty band, not a CEFR claim — see rank_difficulty.
-            level=bands.get(post.url, "keskmine"),
+            # No CEFR claim: nobody credible has rated these, and the one
+            # attempt to derive it rated 342 of 349 simplified items as B2.
+            level=None,
+            # A relative band, in its own column. It lived in `level` until a
+            # learner filtering "B1" got only exam material and none of these.
+            band=bands.get(post.url, "keskmine"),
             meta={
                 "url": post.url,
                 "words": post.word_count,
