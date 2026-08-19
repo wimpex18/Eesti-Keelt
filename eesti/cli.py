@@ -884,6 +884,86 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_push_content(args: argparse.Namespace) -> int:
+    """Send the harvested library to the deployment, once.
+
+    The corpus cannot ride along in the image: ERR transcripts are © ERR and
+    Selges keeles carries no reuse grant, so putting them inside an image built
+    from a public repository would be redistribution. And Cloud Run's disk is
+    ephemeral, so copying the file in by hand lasts until the next cold start.
+
+    So it goes where the learner's progress already goes -- held by the Worker,
+    pushed into each fresh container. Harvest on a laptop, push once, and no
+    deploy ever re-scrapes anyone's server again.
+
+    The target is the **Cloud Run origin**, not the Worker. Cloudflare Access
+    guards the Worker and Access is an interactive login, which a script cannot
+    satisfy; the origin is guarded by `PROXY_TOKEN`, which a script can send.
+    The Worker archives the corpus from there on its next look, so this survives
+    the cold start that wipes the disk.
+
+    Both tokens are read from the environment rather than taken as arguments, so
+    they stay out of shell history and out of the process table.
+    """
+    import base64
+    import json
+    import os
+    import urllib.error
+    import urllib.request
+
+    from . import config
+
+    token = os.environ.get("STATE_TOKEN")
+    proxy = os.environ.get("PROXY_TOKEN")
+    if not (token and proxy):
+        print("STATE_TOKEN and PROXY_TOKEN must both be set. They are the "
+              "values the deployment already holds -- deploy/push-content.sh "
+              "reads them out of Cloud Run for you, so you never handle them.")
+        return 2
+
+    path = Path(args.database or config.CONTENT_DB)
+    if not path.exists():
+        print(f"{path} does not exist. Run `harvest` and `harvest-reading` first.")
+        return 2
+
+    from .sources import connect as content_connect
+
+    with content_connect(path) as conn:
+        items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    if not items:
+        print(f"{path} holds no items. Nothing to push.")
+        return 2
+
+    payload = json.dumps(
+        {"database": base64.b64encode(path.read_bytes()).decode("ascii")}
+    ).encode("utf-8")
+    print(f"pushing {path} — {items} items, {len(payload) / 1e6:.1f} MB encoded")
+
+    request = urllib.request.Request(
+        args.url.rstrip("/") + "/api/content/import",
+        data=payload,
+        method="POST",
+        headers={
+            "content-type": "application/json",
+            "x-state-token": token,
+            "x-proxy-token": proxy,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=300) as response:
+            print("stored:", response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        print(f"refused: {exc.code} {exc.read().decode('utf-8', 'replace')[:200]}")
+        return 1
+    except (urllib.error.URLError, OSError) as exc:
+        print(f"unreachable: {exc}")
+        return 1
+
+    print("The Worker will archive it on its next look, and every container "
+          "after that starts with it.")
+    return 0
+
+
 def cmd_rections(args: argparse.Namespace) -> int:
     """Fetch EKK's list of error-prone rections, once, and store it.
 
@@ -1059,6 +1139,15 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_rections)
+
+    p = sub.add_parser(
+        "push-content",
+        help="send the harvested library to the deployment (needs STATE_TOKEN)",
+    )
+    p.add_argument("--url", required=True,
+                   help="the Cloud Run URL, not the Worker's — see the docstring")
+    p.add_argument("--database", help="defaults to the configured content database")
+    p.set_defaults(func=cmd_push_content)
 
     p = sub.add_parser("curriculum", help="show the A1-B1 syllabus and study path")
     p.add_argument("--level", choices=list(LEVELS))

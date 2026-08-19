@@ -894,6 +894,71 @@ def _has_learner_data(path: Path, table: str) -> bool:
         return True
 
 
+class ContentBlob(BaseModel):
+    database: str = Field(min_length=1)
+
+
+@app.post("/api/content/import")
+def content_import(blob: ContentBlob, request: Request) -> dict:
+    """Receive the harvested library, which cannot ship in the image.
+
+    Two facts collide here. The corpus is **owner-only** -- ERR transcripts are
+    © ERR, Selges keeles carries no reuse grant -- so it has no business inside
+    an image built from a public repository. And Cloud Run's disk is
+    **ephemeral**, so a file copied in by hand is gone at the next cold start.
+
+    So it travels the same road the learner's progress does: held by the Worker,
+    pushed in whenever a fresh instance appears. Harvest once on a laptop, push
+    once, and every container after that gets it without the harvest ever
+    running again -- which also keeps this app from re-scraping someone else's
+    server on every deploy.
+
+    Unlike the learner snapshot, this one **does** overwrite. The corpus is
+    derived from a harvest, not accumulated by the learner: there is no work in
+    it to lose, and refusing would make re-harvesting impossible.
+    """
+    _require_state_token(request)
+    from . import config
+
+    path = Path(config.CONTENT_DB)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(base64.b64decode(blob.database))
+
+    from .sources import connect as _connect
+
+    with _connect(path) as conn:
+        items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    return {"bytes": path.stat().st_size, "items": items}
+
+
+@app.get("/api/content/export")
+def content_export(request: Request) -> dict:
+    """Hand the library back, so the Worker can archive what was pushed here.
+
+    Cloudflare Access guards the Worker, and Access is an interactive login: a
+    script cannot satisfy it. So a harvest is pushed to *this* origin, which is
+    guarded by `PROXY_TOKEN` and reachable by a machine -- and the Worker picks
+    it up from here and keeps it, because this disk will not exist tomorrow.
+
+    `full` is opt-in because the answer is megabytes. Without it this is a
+    cheap "is there one, and how big", which is all the Worker needs to decide
+    whether to ask for the expensive version.
+    """
+    _require_state_token(request)
+    from . import config
+    from .sources import available
+
+    path = Path(config.CONTENT_DB)
+    present = available(path)
+    out = {
+        "present": present,
+        "bytes": path.stat().st_size if path.exists() else 0,
+    }
+    if present and request.query_params.get("full"):
+        out["database"] = base64.b64encode(path.read_bytes()).decode("ascii")
+    return out
+
+
 @app.post("/api/state/import")
 def state_import(blob: StateBlob, request: Request) -> dict:
     """Restore a snapshot into a fresh container.

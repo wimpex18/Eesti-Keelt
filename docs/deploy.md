@@ -282,18 +282,47 @@ One consequence worth knowing: the origin cannot see the binding, so its
 `/api/asr` reports every hosted engine as absent. The Worker corrects that one
 field on the way past — it is the only place that knows.
 
-## The reading library needs one manual step
+## The reading library: harvested once, pushed once
 
-The harvested corpus is **not** in the image, for two reasons: re-running the
-ERR and Selges keeles harvest on every build would hammer someone else's server
-for no reason, and that material is owner-only, so it has no business inside a
-distributable image.
+The corpus is **not** in the image, for two reasons that both matter.
+Re-running the ERR and Selges keeles harvest on every build would hammer
+someone else's server for nothing; and that material is owner-only by licence,
+so it has no business inside an image built from a public repository.
 
-Harvest once locally, then supply `content.db` at runtime via `EESTI_CONTENT_DB`
-(the `Dockerfile` declares `/app/data/content`). Without it the reading library
-is simply empty and everything else works — the generators that need corpus
-sentences return nothing rather than failing, which is the same degradation the
-CLI has.
+Cloud Run's disk is ephemeral too, so a file copied into a container is gone at
+the next cold start. It therefore travels the same road as the learner's
+progress: pushed once, archived by the Worker, handed back to every container
+that starts afterwards.
+
+```bash
+# on your laptop, once
+python -m eesti.cli harvest
+python -m eesti.cli harvest-reading
+
+# then in Cloud Shell, with data/content.db uploaded
+bash deploy/push-content.sh data/content.db
+```
+
+**Why the push targets Cloud Run and not the Worker.** Cloudflare Access guards
+the Worker, and Access is an interactive login — a script cannot satisfy one.
+The origin is guarded by `PROXY_TOKEN`, which a script *can* send. So the
+harvest goes to the origin, and the Worker archives it from there.
+
+`push-content.sh` reads both tokens straight out of the running Cloud Run
+service, so you never see or type either one.
+
+The Worker then keeps the two in step, in whichever direction is needed:
+
+| Container | Archive | What happens |
+|---|---|---|
+| has one | empty | **archived** — a fresh push becomes permanent |
+| empty | has one | **restored** — every cold start after that |
+| agree | agree | nothing |
+
+Without a corpus the reading library is simply empty and everything else works
+— the generators that need corpus sentences return nothing rather than failing,
+which is the same degradation the CLI has. `/api/health` reports `library` so
+the two are distinguishable.
 
 ## What it costs
 
