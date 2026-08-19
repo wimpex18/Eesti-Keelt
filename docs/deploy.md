@@ -151,25 +151,41 @@ the same string in both places:
 openssl rand -hex 32
 ```
 
-## The order that leaves no window open
+## One script does the wiring
 
-Cloudflare Access can only be switched on for a Worker that **already exists**.
-Deploy fully configured and the `workers.dev` URL is open for however long it
-takes to find the toggle — and the Worker itself supplies `PROXY_TOKEN`, so
-whoever reaches it is all the way in.
+`deploy/setup.sh`, run once in **Google Cloud Shell** — the terminal icon in the
+Cloud Console. Cloud Shell is already signed in to your Google account and ships
+`gcloud`, `openssl` and `gh`, so there is nothing to install and no password to
+type.
 
-So the first deploy goes out **closed**:
+```bash
+git clone https://github.com/wimpex18/Eesti-Keelt.git
+cd Eesti-Keelt
+bash deploy/setup.sh
+```
 
-1. Add every repository secret **except `CLOUD_RUN_URL`**, and run the deploy
-   workflow. The Worker exists and answers `503` to everyone, because it has
-   nowhere to forward to. The workflow says so with a warning rather than
-   failing.
-2. Workers & Pages → `eesti-keelt` → Settings → Domains & Routes → **enable
-   Cloudflare Access for `workers.dev`**, allowed email = your own.
-3. Add `CLOUD_RUN_URL` and re-run the workflow.
+It generates both tokens, sets them on the Cloud Run service, looks the service
+URL up rather than asking you for it, stores all three as GitHub Actions
+secrets, and then checks the guard actually took effect: an unauthorised request
+to the app must come back **403**, an authorised one **200**. It prints nothing
+secret and writes nothing to disk.
 
-The app is reachable for the first time in step 3, behind Access from the
-first request. Nothing was ever published waiting for a click.
+Only the two Cloudflare values are left by hand, because minting a credential is
+not something a script should do on your behalf.
+
+## The window between deploying and enabling Access
+
+Cloudflare Access can only be switched on for a Worker that **already exists**,
+so there is a gap between the deploy finishing and the toggle being flipped —
+and the Worker supplies `PROXY_TOKEN` itself, so anyone who reaches it in that
+gap is all the way in. The hostname is not published anywhere, and the gap is
+however long it takes you to click, so the practical answer is: **enable Access
+as soon as the deploy workflow goes green**, before opening the app yourself.
+
+If you would rather the gap be exactly zero, the workflow allows it:
+`CLOUD_RUN_URL` is the only secret it does not require. Deploy without it and
+the Worker answers 503 to everyone; enable Access; then add the secret and
+re-run. The app is reachable for the first time already behind Access.
 
 ## Deploying the Worker
 
