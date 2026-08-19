@@ -89,11 +89,20 @@ jobs:
           #    it" button, nothing ever reached the Notion log either. A
           #    warning rather than an error — a deployment with no LLM key is
           #    a legitimate choice; a key that is set and unreachable is not.
-          engines="$(curl -s "${auth[@]}" "$URL/api/engines")"
-          echo "$engines" | grep -q '"explains":true' \
-            && echo "grammar explains ........ OK" \
-            || echo "::warning::No engine can explain a correction — the \
-          grammar checker is in offline mode. Run deploy/set-llm-key.sh."
+          code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" \
+                    "$URL/api/engines")"
+          if [ "$code" = "404" ]; then
+            # The running image predates this endpoint. Saying "offline mode"
+            # here would be a guess, and a misleading warning is worse than
+            # none.
+            echo "::notice::/api/engines not in the deployed image yet."
+          elif curl -s "${auth[@]}" "$URL/api/engines" | grep -q '"explains":true'
+          then
+            echo "grammar explains ........ OK"
+          else
+            echo "::warning::No engine can explain a correction — the grammar \
+          checker is in offline mode. Run deploy/set-llm-key.sh."
+          fi
 
           # 7. The reading library. A warning, not an error: an unharvested
           #    deployment is a supported state.
