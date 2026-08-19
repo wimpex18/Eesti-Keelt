@@ -243,3 +243,36 @@ class TestTheListeningTabHasAnExercise:
         nothing. The same rule the practice loop follows."""
         check = page.split('$("#dictCheck").onclick')[1][:700]
         assert "/api/dictation/answer" in check
+
+
+class TestATwoChoiceItemIsAnsweredByChoosing:
+    """Word order is the one topic whose unit is the whole sequence, so its
+    items carry `choices` instead of a blank. Everything downstream is
+    unchanged — the chosen sentence is submitted as the answer and the server
+    grades it the same way — which is what lets it reach mastery and the review
+    queue without a loop of its own."""
+
+    def test_the_renderer_has_a_branch_for_them(self, page):
+        assert "it.choices && it.choices.length" in page
+
+    def test_the_chosen_sentence_is_what_gets_submitted(self, page):
+        fn = page.split("function renderPracticeItem")[1]
+        assert "given: input ? input.value : picked" in fn
+
+    def test_the_typed_path_still_exists_for_every_other_item(self, page):
+        fn = page.split("function renderPracticeItem")[1]
+        assert 'input type="text"' in fn
+        assert 'e.key === "Enter"' in fn
+
+    def test_a_correct_choice_does_not_echo_the_question(self, page):
+        """The blank-filling verdict fills `____` from the prompt. A choice
+        item's prompt is a question with no blank, so that path printed
+        "✓ õige — Kumb lause on õige?" back at the learner."""
+        fn = page.split("verdict.innerHTML = res.correct")[1][:600]
+        assert "choices.length" in fn
+
+    def test_choosing_locks_both_buttons(self, page):
+        """Otherwise the second click would submit a second answer for an item
+        already graded, and the accuracy gate would count it."""
+        fn = page.split("const lock = ()")[1][:300]
+        assert "disabled = true" in fn

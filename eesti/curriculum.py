@@ -170,7 +170,12 @@ _B1: tuple[Topic, ...] = (
                "sonapi already returns the rection of any verb."),
     Topic("sonajark", "B1", "sõnajärg", "порядок слов",
           requires=("lauseehitus",), tag="word-order",
-          note="Largest single error class in the learner corpus (11.4 %)."),
+          generator="wordorder",
+          note="11.4 % of all EVKK marks and 19.3 % of the marks these nine "
+               "tags cover — second only to vocabulary either way, and until "
+               "now the largest tag with no drill at all. Items are attested "
+               "learner corrections, never generated: see eesti/wordorder.py "
+               "for the measurement that ruled generation out."),
     Topic("uhendverbid", "B1", "ühendverbid", "фразовые глаголы",
           requires=("verb-form", "obj-case")),
     Topic("liitsonad", "B1", "liitsõnad", "сложные слова",

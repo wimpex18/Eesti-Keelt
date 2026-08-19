@@ -147,6 +147,17 @@ REGISTRY: tuple[Source, ...] = (
         "Simplified Estonian news for learners, audio + text. Weekly, ongoing.",
     ),
     Source(
+        "taltech-gec", "TalTechNLP grammar_et (learner corrections)", "file",
+        "no licence stated — personal study only", False,
+        "https://huggingface.co/datasets/TalTechNLP/grammar_et",
+        "1 000 (learner wrote, native corrected) sentence pairs from the "
+        "Estonian Native LLM Benchmark. 47 of them are pure re-orderings, "
+        "which is the only sound source of word-order drills this project "
+        "has: correctness is attested rather than inferred. The dataset card "
+        "states no licence at all, so it is treated as ungranted — same "
+        "posture as ERR and HARNO, and never baked into the image.",
+    ),
+    Source(
         "harno", "HARNO tasemeeksami materjalid", "file",
         "© Haridus- ja Noorteamet — personal study only", False,
         "https://harno.ee/eesti-keele-tasemeeksamid",

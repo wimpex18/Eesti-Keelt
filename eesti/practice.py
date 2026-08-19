@@ -83,6 +83,14 @@ def items_for(
         return numeral_drills(words, levels, count, seed, topics=(topic,),
                               only=countable if topic == "arvsonad" else None)
 
+    if generator == "wordorder":
+        from .wordorder import generate as wordorder_items
+
+        # Reads the content store, where the pairs are ingested, so the items
+        # reach a deployment the same way the reading library does.
+        return wordorder_items(count=count, seed=seed,
+                               content=_content(content_db))
+
     if generator == "corpus_cloze":
         from .cloze import case_clozes, negation_clozes, sentences
 

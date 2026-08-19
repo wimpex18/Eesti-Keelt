@@ -86,6 +86,16 @@
   .w-no{color:var(--warn);font-weight:600;text-decoration:underline;
     text-decoration-style:wavy;text-underline-offset:3px}
   #dictTyped{min-height:56px}
+  /* Two whole sentences, stacked. Side by side they would wrap into an
+     unreadable pair on a phone, and reading both is the exercise. */
+  .choices{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .choice{text-align:left;background:var(--bg);border:1px solid var(--line);
+    border-radius:10px;padding:10px 13px;font:inherit;font-size:14.5px;
+    color:var(--ink);cursor:pointer;line-height:1.45}
+  .choice:hover:not(:disabled){border-color:var(--accent)}
+  .choice.picked{border-color:var(--accent);background:var(--accent-soft)}
+  .choice:disabled{cursor:default;opacity:.75}
+  .choice.picked:disabled{opacity:1}
   .qrow{display:flex;gap:9px;align-items:baseline;padding:6px 0;
     border-bottom:1px solid var(--line);font-size:14px}
   .qrow:last-of-type{border-bottom:0}
@@ -1153,22 +1163,47 @@ function renderPracticeItem(it, topic, i) {
   el.className = "drill";
   el.innerHTML = `
     <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    ${it.choices && it.choices.length ? `
+    <!-- Word order is the one topic whose unit is the whole sequence, so it
+         is answered by choosing a sentence rather than typing a word.
+         Everything after this point is unchanged: the chosen sentence is
+         submitted as the answer, the server grades it by the same string
+         comparison, and it reaches mastery and the review queue by the same
+         path as every other item. -->
+    <div class="choices">
+      ${it.choices.map(c =>
+        `<button class="choice" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
+    </div>
+    <div class="row" style="margin-top:0">
+      <span class="hint">${esc(it.hint || "")}</span>
+    </div>` : `
     <div class="row" style="margin-top:0">
       <input type="text" size="18" placeholder="?">
       <button class="ghost">Kontrolli</button>
       <span class="hint">${esc(it.hint || it.lemma || "")}${it.level ? " · " + esc(it.level) : ""}</span>
-    </div>
+    </div>`}
     <div class="verdict"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const choices = [...el.querySelectorAll(".choice")];
+  // One holder for "what was answered", whichever shape the item took, so the
+  // submit path below stays single.
+  let picked = "";
+  const lock = () => {
+    if (input) input.disabled = true;
+    choices.forEach(b => b.disabled = true);
+  };
+  const locked = () => (input ? input.disabled : choices[0]?.disabled);
+
   const grade = async () => {
-    if (input.disabled) return;
-    input.disabled = true;
+    if (locked()) return;
+    lock();
     let res;
     try {
       // The server grades and records: the client must not be the judge of
       // whether a topic has been mastered.
       res = await (await api("/api/practice/answer", {
-        topic, prompt: it.prompt, answer: it.answer, given: input.value,
+        topic, prompt: it.prompt, answer: it.answer,
+        given: input ? input.value : picked,
         distractor: it.distractor || "", lemma: it.lemma || "",
         label: it.hint || "", why_ru: it.why_ru || "",
       })).json();
@@ -1177,8 +1212,16 @@ function renderPracticeItem(it, topic, i) {
     }
     pathAnswered++; if (res.correct) pathCorrect++;
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
+    // A choice item's prompt is a question with no blank in it, so filling the
+    // blank echoed "Kumb lause on õige?" back at the learner instead of
+    // showing the sentence they got right. The rule is worth seeing either
+    // way here: on a right answer it says *why* it was right, which for word
+    // order is the whole lesson.
     verdict.innerHTML = res.correct
-      ? `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`
+      ? (choices.length
+          ? `✓ õige — <strong>${esc(it.answer)}</strong><br>
+             <span class="why">${md(it.why_ru || "")}</span>`
+          : `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
       : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, mitte <em>${esc(it.distractor)}</em>` : ""}<br>
          <span class="why">${md(it.why_ru || "")}</span>`;
     let line = `${pathCorrect}/${pathAnswered} õiget`;
@@ -1193,9 +1236,19 @@ function renderPracticeItem(it, topic, i) {
       loadRail();
     }
   };
-  el.querySelector("button").onclick = grade;
-  input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
-  if (i === 0) setTimeout(() => input.focus(), 0);
+  if (choices.length) {
+    // Clicking a sentence both records the choice and submits it: a separate
+    // "check" step would be one tap of ceremony on a phone for no decision.
+    choices.forEach(b => b.onclick = () => {
+      picked = b.dataset.choice;
+      b.classList.add("picked");
+      grade();
+    });
+  } else {
+    el.querySelector("button").onclick = grade;
+    input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
+    if (i === 0) setTimeout(() => input.focus(), 0);
+  }
   return el;
 }
 

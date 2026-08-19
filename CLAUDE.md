@@ -212,6 +212,20 @@ in Cloud Shell and discover the project, service and region themselves.
   with its own fixtures read the developer's real data and the suite reported
   differently locally than in CI. Pass the connection; never reach for a
   module-level path.
+- **Measure before generating a distractor.** The obvious word-order drill —
+  swap two constituents, offer the swap as wrong — was abandoned after
+  measuring 1 000 native sentences: 75.4 % follow the rule, not ~100 %, and
+  the exceptions were mostly the classifier failing to tell a fronted
+  adverbial from an adverb modifying the subject. That is syntax, and this
+  project has morphology. A distractor that is sometimes correct Estonian
+  teaches the opposite of the rule.
+- **Attested beats inferred.** Where a learner wrote it and a native fixed it,
+  correctness is given and needs no analysis to defend. It is why the
+  word-order items are 47 real corrections rather than thousands of generated
+  ones.
+- **Do not state a rule harder than the handbook does.** EKK says the finite
+  verb is *usually* second and calls inversion a means of emphasis. An
+  explanation saying "always" would have the learner correcting good Estonian.
 - **A queue with no drain is not a feature.** Corrections could be queued for
   the error log from the app and sent only by a CLI that does not exist on the
   deployment. The queue filled forever, and the verdict counted queued rows as
