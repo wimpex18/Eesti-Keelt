@@ -36,6 +36,7 @@ from .wordlist import connect
 REVIEW_DB = "data/review.db"
 PROGRESS_DB = "data/progress.db"
 VOCAB_DB = "data/vocab.db"
+NOTION_DB = "data/notion.db"
 
 
 def content_db():
@@ -177,6 +178,42 @@ def health() -> dict:
 def check(req: CheckRequest) -> dict:
     """Grammar check through the provider chain."""
     return grammar.check(req.text).to_dict()
+
+
+class QueueError(BaseModel):
+    wrong: str = Field(min_length=1, max_length=2000)
+    correct: str = Field(min_length=1, max_length=2000)
+    why: str = Field(default="", max_length=2000)
+    tag: str
+
+
+@app.post("/api/notion/queue")
+def notion_queue(row: QueueError) -> dict:
+    """Hold a confirmed error for the Notion log. Queued, never sent.
+
+    The `Vead` log is hand-curated, and its "three of a tag becomes this week's
+    focus" rule is what identified `obj-case` as the priority at all. Appending
+    every suspicion would turn a picked record into a dump and start that rule
+    firing on noise -- so this endpoint only ever queues. `cli notion --push`
+    is the one thing that writes, and it shows you the rows first.
+    """
+    from .notion import Row, connect, queue
+
+    try:
+        entry = Row(wrong=row.wrong, correct=row.correct, why=row.why, tag=row.tag)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    added = queue(connect(NOTION_DB), entry)
+    return {"queued": added, "tag": entry.tag,
+            "note": "Review with `cli notion`, send with `cli notion --push`."}
+
+
+@app.get("/api/notion/pending")
+def notion_pending() -> dict:
+    from .notion import connect, pending
+
+    return {"items": [dict(r) for r in pending(connect(NOTION_DB))]}
 
 
 @app.post("/api/drills")

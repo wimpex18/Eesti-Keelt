@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -884,6 +885,63 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+NOTION_DB = "data/notion.db"
+
+
+def cmd_notion(args: argparse.Namespace) -> int:
+    """Review queued errors and, only if asked, push them to the `Vead` log.
+
+    Dry-run by default, and that is the whole design. The Notion log's value is
+    that it is curated -- three rows sharing a tag become the focus of the week,
+    and that rule is what identified `obj-case` in the first place. A checker
+    that appended every suspicion would turn a hand-picked record into a dump of
+    model output and start the rule firing on noise.
+
+    So: this prints what would be sent. `--push` sends it.
+    """
+    from .notion import connect, mark_pushed, pending, push
+
+    conn = connect(NOTION_DB)
+    rows = pending(conn)
+    if not rows:
+        print("Nothing queued.")
+        return 0
+
+    print(f"{len(rows)} correction(s) queued for the Vead log:\n")
+    for row in rows:
+        print(f"  [{row['tag']}] {row['wrong']}  ->  {row['correct']}")
+        if row["why"]:
+            print(f"      {row['why'][:100]}")
+        print(f"      {row['on_date']}")
+
+    if not args.push:
+        print("\nNothing was sent. Re-run with --push to write these to Notion.")
+        return 0
+
+    sent = failed = 0
+    for row in rows:
+        ok, detail = push(
+            _row_of(row), token=os.environ.get("NOTION_TOKEN")
+        )
+        if ok:
+            mark_pushed(conn, row["id"])
+            sent += 1
+        else:
+            failed += 1
+            print(f"  kept queued: {row['wrong']} — {detail}")
+    print(f"\n{sent} pushed, {failed} still queued.")
+    return 1 if failed else 0
+
+
+def _row_of(record) -> "object":
+    from .notion import Row
+
+    return Row(
+        wrong=record["wrong"], correct=record["correct"], why=record["why"],
+        tag=record["tag"], on_date=record["on_date"],
+    )
+
+
 def cmd_link_topics(args: argparse.Namespace) -> int:
     """Work out which harvested texts demonstrate which grammar topic.
 
@@ -1165,6 +1223,14 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_rections)
+
+    p = sub.add_parser(
+        "notion",
+        help="review queued errors; --push writes them to the Vead log",
+    )
+    p.add_argument("--push", action="store_true",
+                   help="actually send them (needs NOTION_TOKEN)")
+    p.set_defaults(func=cmd_notion)
 
     p = sub.add_parser(
         "link-topics",

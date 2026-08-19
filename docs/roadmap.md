@@ -119,20 +119,22 @@ three of these were found at all:
 
 ## Next, in order
 
-1. **Notion write-back** to the existing `Vead` database, so confirmed errors
-   join the hand-curated log rather than living in a parallel one. The schema
-   is confirmed and the nine tags are fixed; nothing is built yet. Nothing
-   writes without on-screen confirmation — the log's value is that it is
-   curated.
-2. **HARNO / EIS exam material.** `eis.harno.ee/publicitems` serves official
+1. **HARNO / EIS exam material.** `eis.harno.ee/publicitems` serves official
    A2–C1 reading and listening tasks unauthenticated, and the per-task URLs are
    enumerable. This is the closest thing to an official practice test, and it is
    the part of exam preparation the generated drills cannot reach. Owner-only:
    personal study is fine, redistribution is not, so it stays behind Access and
    out of the repository.
-3. **A2 rehearsal readiness.** The optional sitting is 07.11.2026, decided by
+2. **A2 rehearsal readiness.** The optional sitting is 07.11.2026, decided by
    01.10.2026. The app is level-parameterised already; what is missing is an
    honest A2 checkpoint that says yes or no.
+
+The Notion write-back landed (`eesti/notion.py`): confirmed errors queue
+locally and go to the existing `Vead` log only when `cli notion --push` is run,
+after showing what would be sent. The nine tags are pinned against the live
+database, because the log's "three of a tag is this week's focus" rule is what
+made `obj-case` the priority in the first place — an invented tag would never
+group, never reach three, and never become anyone's focus.
 
 ## Known gaps, stated plainly
 
