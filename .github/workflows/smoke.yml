@@ -127,14 +127,22 @@ jobs:
             answer="$(curl -s "${auth[@]}" -X POST "$URL/api/check" \
               -H 'Content-Type: application/json' \
               -d '{"text":"Ma lugesin raamatut läbi."}')"
-            engine="$(echo "$answer" \
-              | sed -n 's/.*"engine":"\([^"]*\)".*/\1/p')"
+            field() { echo "$answer" \
+              | sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p"; }
+            engine="$(field engine)"
             case "$engine" in
               llm:*) echo "grammar chain ........... OK (answered by $engine)" ;;
               "")    echo "::error::/api/check did not answer: ${answer:0:200}"
                      fail=1 ;;
+              # The chain records why each provider was passed over, and the
+              # distinction decides what to do: "unavailable" means the key is
+              # not on this process at all (run deploy/set-llm-key.sh), while
+              # an exception name means it is there and the call failed — a
+              # revoked key, a rate limit, a model id that no longer exists.
+              # The note holds only provider names and exception *types*, never
+              # a response body, so it is safe to print.
               *)     echo "::warning::Answered by '$engine' — no explanation \
-          behind it. The key is set but not usable, or the LLM refused." ;;
+          behind it. Chain said: $(field note)" ;;
             esac
           fi
 
