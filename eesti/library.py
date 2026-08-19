@@ -256,6 +256,82 @@ def _demonstrations(topic: str, sents: list[str], words) -> int:
                            count=len(sents), seed=0))
 
 
+#: Grammar terms a teacher used to label a lesson, mapped to the topic they name.
+#:
+#: This is a different kind of evidence from `_demonstrations`, and a stronger
+#: one. That function asks "can a drill be cut from this text?"; this reads what
+#: the person who made the lesson said it was about. Two thirds of the ERR
+#: archive is audio with no transcript, so there is nothing to analyse — but
+#: every episode carries a one-line label, and lessons 22 and 23 of the second
+#: course are *precisely* the completed and incomplete object contrast.
+#:
+#: Estonian terms are matched because they are unambiguous. The two Russian
+#: phrases are here because the object-case lessons name the contrast only in
+#: Russian, and those are the two episodes that matter most.
+LABEL_TOPICS: dict[str, tuple[str, ...]] = {
+    "obj-case": ("падеж дополнения",),
+    "osastav": ("osastav",),
+    "gen-stem": ("omastav",),
+    "kohakaanded": ("kohakäänded", "sisekohakäänded", "väliskohakäänded",
+                    "sisseütlev", "alaleütlev", "seesütlev"),
+    "rektsioon": ("rektsioon",),
+    "taisminevik": ("täisminevik",),
+    "enneminevik": ("enneminevik",),
+    "lihtminevik": ("lihtminevik",),
+    "mitmus": ("mitmuse",),
+    "umbisikuline": ("umbisikuline", "безличная форма"),
+    "kaskiv": ("повелительное наклонение", "käskiv"),
+    "tingiv": ("условное наклонение", "tingiv"),
+    "ma-da-inf": ("инфинитив", "infinitiiv"),
+    "vordlusastmed": ("võrdlusastmed",),
+}
+
+
+def labelled_topics(text: str) -> list[str]:
+    """Topics a lesson label names outright."""
+    lowered = (text or "").casefold()
+    return [topic for topic, terms in LABEL_TOPICS.items()
+            if any(term in lowered for term in terms)]
+
+
+def link_labelled(content: sqlite3.Connection) -> dict:
+    """Link episodes to the topic their own label names.
+
+    Runs alongside `link_topics` rather than instead of it: a transcript is
+    evidence a text *uses* a form, a label is evidence a lesson *teaches* it,
+    and the second is what you want when a topic keeps going wrong.
+
+    Scored above any derived link, because a teacher saying "this lesson is
+    about the object case in completed actions" outranks a program noticing
+    three genitive objects went past.
+    """
+    LABEL_HITS = 999
+    found = []
+    for row in content.execute(
+        "SELECT id, title, body, meta FROM items"
+    ).fetchall():
+        import json as _json
+
+        try:
+            meta = _json.loads(row["meta"] or "{}")
+        except ValueError:
+            meta = {}
+        label = f"{meta.get('summary') or ''} {row['title'] or ''}"
+        for topic in labelled_topics(label):
+            found.append((topic, row["id"], LABEL_HITS))
+
+    with content:
+        content.executemany(
+            "INSERT OR REPLACE INTO topic_items (topic, item_id, hits)"
+            " VALUES (?,?,?)", found,
+        )
+
+    counts: dict[str, int] = {}
+    for topic, _, _ in found:
+        counts[topic] = counts.get(topic, 0) + 1
+    return counts
+
+
 def link_topics(content: sqlite3.Connection, words, topics=LINKABLE) -> dict:
     """Work out which texts demonstrate which topic, and store it.
 

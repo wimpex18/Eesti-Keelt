@@ -98,3 +98,73 @@ class TestLicence:
         assert related(corpus, "obj-case", limit=5)          # owner sees them
         public = related(corpus, "obj-case", limit=5, public_only=True)
         assert all(r["licence"] for r in public)
+
+
+class TestLessonLabels:
+    """Two thirds of the ERR archive is audio with no transcript.
+
+    Those episodes looked like empty rows, and the first version of this feature
+    skipped them entirely — there is nothing to analyse. But every one carries
+    the teacher's own one-line label saying which grammar point it teaches, and
+    lessons 22 and 23 of the second course are precisely the completed and
+    incomplete object contrast: the documented weakness this app exists for.
+
+    A label is stronger evidence than a derived link. "This lesson is about the
+    object case in completed actions" is someone stating the subject; three
+    genitive objects going past in a news article is a program noticing a
+    pattern. So labels outrank, and they are read, never guessed.
+    """
+
+    def test_the_object_case_lessons_are_recognised(self):
+        from eesti.library import labelled_topics
+
+        assert labelled_topics(
+            "Урок 22. Падеж дополнения в законченном действии."
+        ) == ["obj-case"]
+        assert labelled_topics(
+            "Урок 23. Падеж дополнения в незаконченном действии."
+        ) == ["obj-case"]
+
+    def test_a_lesson_naming_two_topics_is_linked_to_both(self):
+        from eesti.library import labelled_topics
+
+        found = labelled_topics(
+            "Урок 8. Полное прошедшее время/Täisminevik и "
+            "Предпрошедшее время/Enneminevik глаголов."
+        )
+        assert set(found) == {"taisminevik", "enneminevik"}
+
+    def test_an_estonian_term_is_matched_on_its_own(self):
+        from eesti.library import labelled_topics
+
+        assert labelled_topics("Урок 27. Rektsioon. Управление.") == ["rektsioon"]
+
+    def test_an_unrelated_label_names_nothing(self):
+        """Matching loosely would fill every topic with irrelevant audio."""
+        from eesti.library import labelled_topics
+
+        assert labelled_topics("Урок 30. Проверочная работа.") == []
+
+    def test_every_labelled_topic_is_a_real_curriculum_topic(self):
+        """A typo here would create a link nothing can ever ask for."""
+        from eesti.curriculum import TOPICS
+        from eesti.library import LABEL_TOPICS
+
+        assert set(LABEL_TOPICS) <= {t.id for t in TOPICS}
+
+    def test_a_labelled_episode_outranks_a_demonstrating_text(self, corpus, words):
+        """Ordering is the whole point: when obj-case keeps going wrong, the
+        lesson about it should come before an article that happens to use it."""
+        from eesti.library import link_labelled, link_topics, related
+
+        corpus.execute(
+            "UPDATE items SET meta = ? WHERE title = ?",
+            ('{"summary": "Урок 22. Падеж дополнения в законченном действии."}',
+             "Tervitused"),
+        )
+        corpus.commit()
+        link_topics(corpus, words, topics=("obj-case",))
+        link_labelled(corpus)
+
+        ranked = related(corpus, "obj-case", limit=5)
+        assert ranked[0]["title"] == "Tervitused"
