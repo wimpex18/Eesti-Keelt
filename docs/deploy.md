@@ -173,6 +173,24 @@ secret and writes nothing to disk.
 Only the two Cloudflare values are left by hand, because minting a credential is
 not something a script should do on your behalf.
 
+## Before the first deploy: open the Workers page once
+
+A Cloudflare account has no `*.workers.dev` subdomain until somebody opens the
+Workers section of the dashboard, and until it does, `wrangler deploy` fails
+with:
+
+```
+✘ [ERROR] You need a workers.dev subdomain in order to proceed. [code: 10063]
+```
+
+It is not a permissions problem and no amount of retrying fixes it. Open
+**Workers & Pages** in the dashboard once — the subdomain is created on that
+first visit — then re-run the deploy workflow.
+
+Worth knowing what this failure does *not* mean: the run that hit it had already
+uploaded every secret and bundled the Worker successfully. Only the final upload
+failed, so a re-run after the click is all that is needed.
+
 ## The window between deploying and enabling Access
 
 Cloudflare Access can only be switched on for a Worker that **already exists**,
