@@ -3,36 +3,30 @@
   "name": "eesti-keelt",
   "main": "deploy/worker.ts",
   "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
 
-  // The Worker is a doorman, not the app: it forwards every request to the
-  // container. That is the whole point — the Python process needs Vabamorf,
-  // which cannot run in a Worker.
-  "containers": [
-    {
-      "class_name": "EestiApp",
-      "image": "./Dockerfile",
-      // standard-1 rather than basic: EstNLTK's Vabamorf wants more than the
-      // 1 GiB `basic` provides once the form index is loaded, and the derived
-      // databases are ~58 MB on top of an ~800 MB image.
-      "instance_type": "standard-1",
-      // One learner. Capping this makes a runaway impossible rather than
-      // merely unlikely.
-      "max_instances": 2
-    }
-  ],
-
+  // The Worker is a doorman, not the app. The FastAPI process runs on Google
+  // Cloud Run, because it needs Vabamorf — a compiled C++ Python extension that
+  // cannot run in a Worker. Cloudflare Containers would have hosted it here,
+  // but they require the Workers Paid plan; Cloud Run's always-free tier runs
+  // the same image for nothing. See docs/deploy.md.
+  //
+  // Everything below is therefore free-plan only: a Worker, and one
+  // SQLite-backed Durable Object, which Cloudflare made available on the
+  // Workers Free plan in April 2025.
   "durable_objects": {
-    "bindings": [{ "name": "EESTI_APP", "class_name": "EestiApp" }]
+    "bindings": [{ "name": "LEARNER_STATE", "class_name": "LearnerState" }]
   },
 
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EestiApp"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LearnerState"] }],
 
   "observability": { "enabled": true }
 
-  // Secrets, set with `wrangler secret put` and never committed:
-  //   STATE_TOKEN            guards the snapshot endpoints
-  //   CLOUDFLARE_API_TOKEN   Workers AI, for speech recognition
-  //   CLOUDFLARE_ACCOUNT_ID
-  //   OPENROUTER_API_KEY     grammar explanations (optional)
-  // See docs/deploy.md.
+  // Secrets, set with `wrangler secret put` or by the deploy workflow, and
+  // never committed:
+  //   CLOUD_RUN_URL   https://<service>-<hash>.<region>.run.app
+  //   PROXY_TOKEN     shared with the Cloud Run service; without it the
+  //                   run.app URL would be a way around Cloudflare Access
+  //   STATE_TOKEN     guards the snapshot endpoints
+  //   OPENROUTER_API_KEY  optional: grammar explanations
 }

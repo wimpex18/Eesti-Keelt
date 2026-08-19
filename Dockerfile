@@ -25,8 +25,22 @@ COPY eesti/ ./eesti/
 RUN python -m eesti.cli fetch-data \
  && python -m eesti.cli build \
  && python -m eesti.cli export \
- && python -m eesti.cli rections \
  && rm -rf data/raw
+
+# EKK's rection table is fetched separately and is allowed to fail.
+#
+# It is the one build step that depends on a third party being willing to talk
+# to a datacenter IP, and EKI already returned 403 to a GitHub Actions runner
+# on this exact URL. Chained with `&&` it would take the whole image down with
+# it — so a build machine having a bad afternoon would cost the entire deploy.
+#
+# The cost of it failing is one topic: `rektsioon` reports "run `cli rections`
+# once" and the other twenty generators are untouched. That is the right trade
+# against an unbuildable image, and it is the same rule the rest of the app
+# follows — own the core, let every third party be optional.
+RUN python -m eesti.cli rections || \
+    echo "WARNING: EKK rection table unavailable at build time; \
+run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 
 # ---------------------------------------------------------------------------
 # Runtime
@@ -58,4 +72,8 @@ ENV EESTI_CONTENT_DB=/app/data/content/content.db
 # the container and creating a new one. Image is ~1.08 GB.
 
 EXPOSE 8080
-CMD ["python", "-m", "uvicorn", "eesti.app:app", "--host", "0.0.0.0", "--port", "8080"]
+# `$PORT` rather than a literal: Cloud Run injects the port it expects the
+# container to listen on, and a service configured with anything but 8080 would
+# otherwise fail its health check with a container that is running perfectly.
+# `exec` so uvicorn is PID 1 and gets Cloud Run's shutdown signal directly.
+CMD ["sh", "-c", "exec python -m uvicorn eesti.app:app --host 0.0.0.0 --port ${PORT:-8080}"]

@@ -16,3 +16,7 @@ data/exam/
 
 .env
 deploy/ca-bundle.crt
+
+# Worker toolchain — installed, not committed.
+node_modules/
+.wrangler/
