@@ -321,6 +321,13 @@
       <button class="go" id="recBtn">● Salvesta vastus</button>
       <span class="hint" id="recState">Mikrofon vajab HTTPS-i või localhost'i.</span>
     </div>
+    <!-- Said before the button is pressed, not in a policy page. Text is
+         disposable; a voice is biometric, and the learner is entitled to know
+         it leaves the device before they decide to record. -->
+    <p class="hint" id="recPrivacy">Запись отправляется в Cloudflare для
+      распознавания речи и <strong>нигде не сохраняется</strong> — ни здесь, ни
+      там. Остаётся только текст. Локально (<code>cli serve</code> +
+      whisper.cpp) запись не покидает компьютер.</p>
     <audio id="recPlayback" controls hidden></audio>
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>

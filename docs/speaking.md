@@ -129,3 +129,30 @@ self-hosts TalTech's models, which is what `est-asr-pipeline` and `tekstiks.ee`
 are. This app rents the platform it already runs on and keeps the self-hosted
 route available, which is the same shape as every other provider chain here:
 **own the core, rent nothing you cannot lose.**
+
+
+## Where the voice goes
+
+Worth stating plainly, because the answer changed and the code went on claiming
+the old one.
+
+The original plan kept ASR **local** for a specific reason: text is disposable
+and a voice is biometric, and `neurokone.ee` renders no data-protection policy
+at all without JavaScript. That reasoning was sound and it still is.
+
+It did not survive the move to a hosted app. There is no local engine on Cloud
+Run, so recognition runs on **Cloudflare Workers AI** through the Worker's
+binding, and the recording leaves the device. `/api/transcribe`'s docstring
+went on saying "the local engine is preferred and nothing is written to disk"
+for some time after that stopped being true — which is worse than never having
+said it.
+
+What holds now:
+
+- The audio is **not stored**: not on the origin, not in the Worker, not in any
+  database. It exists in memory for one request; the transcript is what
+  survives.
+- The learner is told **before** pressing record, in the speaking panel, in
+  Russian. A disclosure in a document nobody opens is not a disclosure.
+- Running `cli serve` locally with whisper.cpp keeps the voice on the machine.
+  That option is real and it is the private one; the hosted app cannot match it.

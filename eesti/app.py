@@ -875,9 +875,20 @@ def asr_available() -> dict:
 async def transcribe(request: Request) -> dict:
     """Transcribe a recording. Optional everywhere: no engine is still a 200.
 
-    The audio is not stored. A voice is biometric where text is disposable, so
-    the local engine is preferred and nothing is written to disk beyond the
-    temporary file whisper.cpp needs.
+    **Where the voice goes, stated plainly.** This docstring used to say the
+    local engine was preferred and nothing left the machine. That stopped being
+    true when recognition moved to the Worker's Workers AI binding: on the
+    deployment there is no local engine, and the recording is sent to
+    Cloudflare. Describing a privacy posture the code no longer has is worse
+    than never having described one.
+
+    What is still true: the audio is **not stored** — not here, not in the
+    Worker, not in any database. It is held in memory for one request and the
+    transcript is what survives.
+
+    The original reasoning stands and is why this is worth saying out loud: text
+    is disposable and a voice is biometric. Running `cli serve` locally with
+    whisper.cpp keeps it on your own machine; the hosted app cannot.
     """
     from .providers import asr
 
