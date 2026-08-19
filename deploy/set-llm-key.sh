@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 #
-# Give the Cloud Run service a grammar-explanation key. Run in Cloud Shell.
+# Give the Cloud Run service one of the keys it reads. Run in Cloud Shell.
 #
-#   bash deploy/set-llm-key.sh
+#   bash deploy/set-llm-key.sh                 # OPENROUTER_API_KEY, the default
+#   bash deploy/set-llm-key.sh NOTION_TOKEN    # or any other key in env.py
+#
+# The name is narrower than the job: it was written for the grammar key and
+# kept when it grew, because that name is what the smoke warning and the docs
+# tell you to run.
 #
 # Why this exists as its own script: the key is read by
 # eesti/providers/llm.py, which runs in the *container*, not in the Worker.
@@ -17,11 +22,28 @@
 set -euo pipefail
 
 VAR="${1:-OPENROUTER_API_KEY}"
-case "$VAR" in
-  OPENROUTER_API_KEY|GROQ_API_KEY|ANTHROPIC_API_KEY|CLOUDFLARE_API_TOKEN) ;;
-  *) echo "ERROR: $VAR is not a key this app reads. See eesti/env.py." >&2
-     exit 1 ;;
-esac
+
+# The allowed list is read out of eesti/env.py, not written here.
+#
+# It used to be four names hardcoded in this file, and it had already drifted:
+# `check-service.sh` reported NOTION_TOKEN missing and told you what its
+# absence costs, and then this script refused to set it. Two lists of the same
+# thing become two different lists; the app's own KNOWN_KEYS is the one that
+# decides.
+#
+# Parsed with sed rather than imported, because Cloud Shell has no virtualenv
+# and `import eesti` would drag in the whole dependency tree to read a dict.
+KEYS_FILE="$(dirname "$0")/../eesti/env.py"
+KNOWN="$(sed -n '/^KNOWN_KEYS = {/,/^}/p' "$KEYS_FILE" \
+         | sed -n 's/^ *"\([A-Z0-9_]*\)".*/\1/p')"
+[ -n "$KNOWN" ] || { echo "ERROR: could not read KNOWN_KEYS from $KEYS_FILE" >&2
+                     exit 1; }
+
+if ! grep -qx "$VAR" <<<"$KNOWN"; then
+  echo "ERROR: $VAR is not a key this app reads. It knows:" >&2
+  sed 's/^/  /' <<<"$KNOWN" >&2
+  exit 1
+fi
 
 command -v gcloud >/dev/null || { echo "ERROR: run this in Cloud Shell." >&2; exit 1; }
 

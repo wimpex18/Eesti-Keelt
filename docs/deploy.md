@@ -184,6 +184,17 @@ and refuses to claim success if it is not there — because a run of it once
 ended with the key still absent, and the only symptom was corrections quietly
 arriving without explanations.
 
+The same script sets any key the app reads, not only the grammar one — the
+allowed names come from `eesti/env.py`, so there is no second list to drift:
+
+```bash
+bash deploy/set-llm-key.sh NOTION_TOKEN
+```
+
+`NOTION_TOKEN` is what lets confirmed corrections actually reach the `Vead`
+database. Without it they queue in the app and the send button says so rather
+than failing when pressed.
+
 To ask what a deployment is currently configured with, changing nothing:
 
 ```bash
