@@ -147,6 +147,14 @@ REGISTRY: tuple[Source, ...] = (
         "makes it a fixed corpus — harvest once.",
     ),
     Source(
+        "evkk", "EVKK — eesti vahekeele korpus (TLU)", "harvest",
+        "taxonomy + counts stored; no explicit reuse licence on the corpus", False,
+        "https://evkk.tlu.ee/vers1",
+        "51k linguist-annotated errors in learner Estonian. Only the public "
+        "error taxonomy and its counts are stored, to weight the curriculum by "
+        "what learners actually get wrong. The learner texts are not fetched.",
+    ),
+    Source(
         "generated", "Genereeritud harjutused", "generated",
         "own work", True, None,
         "Drills built from Vabamorf forms. Unlimited, deterministic.",

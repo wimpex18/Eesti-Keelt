@@ -8,6 +8,7 @@ DATA = ROOT / "data"
 RAW = DATA / "raw"
 CACHE = DATA / "cache"
 DB_PATH = Path(os.environ.get("EESTI_DB", DATA / "eesti.db"))
+CONTENT_DB = Path(os.environ.get("EESTI_CONTENT_DB", DATA / "content.db"))
 
 # The levels this tool targets. A2 matters as much as B1: the optional A2
 # rehearsal sitting is 07.11.2026 (decide by 01.10.2026).

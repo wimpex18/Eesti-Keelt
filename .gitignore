@@ -6,7 +6,8 @@ __pycache__/
 # Local data caches — large, regenerable, or third-party licensed.
 data/raw/
 data/cache/
-data/eesti.db
+# Runtime databases — all generated, none belong in the repo.
+data/*.db
 audio-cache/
 
 # HARNO exam material is copyright Haridus- ja Noorteamet.
@@ -14,3 +15,4 @@ audio-cache/
 data/exam/
 
 .env
+deploy/ca-bundle.crt

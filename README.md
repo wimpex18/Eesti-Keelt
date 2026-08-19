@@ -33,7 +33,13 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 Terminal use, if you prefer:
 
 ```bash
-.venv/bin/python -m eesti.cli drill -n 10 --rules negation
+.venv/bin/python -m eesti.cli placement         # find where to start, once
+.venv/bin/python -m eesti.cli practice          # graded session, picks up where you left off
+.venv/bin/python -m eesti.cli practice --topic lihtminevik --theme reisimine
+.venv/bin/python -m eesti.cli review            # interleaved review of whatever is due
+.venv/bin/python -m eesti.cli checkpoint --level A1   # mixed end-of-level quiz
+.venv/bin/python -m eesti.cli status            # where you stand, section by section
+.venv/bin/python -m eesti.cli progress --todo   # what is left, in study order
 .venv/bin/python -m eesti.cli check "Ma lugesin eile raamatut läbi."
 ```
 
@@ -62,6 +68,24 @@ grammar terms (`osastav`, `omastav`) so the exam vocabulary sticks.
 | `verb-form` | irregular stem | *Ma **lähen** kooli* — not *minen* |
 
 Grading is deterministic — no model involved, so it is right every time and free.
+
+Beyond the templates, drills are also generated **from real Estonian**: the 349
+harvested texts give 2 073 usable sentences, and blanking one word in a sentence
+a native wrote removes both the semantic pool to maintain and any doubt about
+whether the answer is right.
+
+```bash
+.venv/bin/python -m eesti.cli cloze -n 5 --topics kohakaanded --answers
+```
+
+The catch is that an authentic sentence does not always *have* one right answer.
+Blank the object in *"Ta luges raamatut"* and ask genitive-or-partitive and you
+are asserting the genitive is wrong — which depends on telicity, and Estonian
+often licenses both. So an item ships only where the form is forced: either the
+prompt **names the case** (*"Ma elan ____ (Tallinn, seesütlev)"* — morphology
+decides, and nothing is claimed about which case the sentence needed), or a
+**trigger makes it obligatory**, which for the object is negation and nothing
+else. 1 138 case items and 28 negation items, covering five curriculum topics.
 
 The verb drills exploit a useful property: **the form a learner builds by naive
 rule is the mistake they actually make.** Estonian cites verbs as `minema`, and
@@ -139,10 +163,10 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 33 passed
+.venv/bin/python -m pytest tests/ -q     # 412 passed
 ```
 
-Three gates:
+Five gates:
 
 1. **Planted errors are caught** — the obj-case regression set.
 2. **Correct sentences are left alone.** A checker that flagged every partitive
@@ -150,12 +174,24 @@ Three gates:
    object at all must produce no candidates.
 3. **Owner-only material cannot leak.** A public query must never return an item
    from a source that is not redistributable.
+4. **Nothing touches the network.** `tests/test_offline.py` blocks sockets and
+   runs every generator. The dependency-free claim at the top of this file is
+   the project's main architectural bet, and it was quietly false until CI
+   caught a drill fetching a page from EKI mid-lesson.
+5. **The syllabus graph stays sound.** No topic may be scheduled before a topic
+   it depends on, and every declared topic must appear in the derived path
+   exactly once — a dropped edge silently removes topics from the course.
 
 ## Deliberately not built
 
-- **Pronunciation scoring** — forced alignment yields timings, not correctness,
-  and EKI already publishes free
+- **Scoring the audio itself** — forced alignment yields timings, not
+  correctness, and EKI already publishes free
   [pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/).
+  What the speaking tab *does* do: **read a known sentence aloud** and see, word
+  by word, which words the recogniser heard — deterministic, because the target
+  is known — or **answer an exam question** and get the transcript through the
+  same grammar chain that checks your writing. See
+  [`docs/speaking.md`](docs/speaking.md) for the line between the two.
 - **A dictionary / flashcard app** — Sõnaveeb, Sõnastik and Anki do it better.
 - **A notes system** — Notion stays the system of record.
 
@@ -183,18 +219,41 @@ git-ignored; fetch it yourself.
 
 ## Docs
 
-**Start here:** [`docs/roadmap.md`](docs/roadmap.md) — what is built, what is
+**Start here:** [`docs/curriculum-plan.md`](docs/curriculum-plan.md) — the
+A1→B1 grammar syllabus, what the research says about practice schedules, and the
+sequenced plan for covering it.
+
+Also: [`docs/app-structure.md`](docs/app-structure.md) — path vs library, and
+how progress is measured · [`docs/roadmap.md`](docs/roadmap.md) — what is built, what is
 next, and what the 2026 competitors do that is worth copying.
 
 - [`docs/setup.md`](docs/setup.md) — which API key, how to get it, where it goes
-- [`docs/architecture.md`](docs/architecture.md) — how this deploys to Cloudflare
-  when Vabamorf cannot run there, plus stack and practice decisions
+- [`docs/content-sources.md`](docs/content-sources.md) — where grammar and
+  vocabulary come from, and why neither is stored per-word
+- [`docs/deploy.md`](docs/deploy.md) — Cloudflare Containers, why not Workers,
+  and the ephemeral-disk problem that would otherwise eat your progress
+- [`docs/architecture.md`](docs/architecture.md) — stack and practice decisions
 - [`docs/source-audit.md`](docs/source-audit.md) — every source and technique
   from research, against what is actually built
+- [`docs/source-gaps.md`](docs/source-gaps.md) — what was discovered but never
+  wired up, including the learner corpus and the Estonian-adapted LLM
 - [`docs/grammar-scope.md`](docs/grammar-scope.md) — what is drillable beyond
   nouns, and where Estonian grammar data actually comes from
 - [`docs/ai-strategy.md`](docs/ai-strategy.md) — which jobs justify an LLM,
-  model options, and the eval results
+  model options, and the eval results ·
+  [`docs/ai-boundaries.md`](docs/ai-boundaries.md) — where models are used,
+  where they are deliberately not, and the one place the speech and grammar
+  chains collided
+- [`docs/speaking.md`](docs/speaking.md) — Estonian ASR options, what can
+  honestly be checked, and what cannot
+
+## On a phone
+
+The web app is responsive and installable: a bottom tab bar under 720px, safe-area
+insets for the notch and home indicator, 16px inputs so iOS does not zoom on
+focus, and a web manifest so "Add to Home Screen" gives an app window rather than
+a Safari tab. `getUserMedia` needs a secure context, which the Cloudflare
+deployment provides and `serve` on localhost also satisfies.
 
 ## Roadmap
 

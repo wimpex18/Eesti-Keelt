@@ -111,3 +111,16 @@ python -m eesti.cli keys  # prints only the last 4 characters
 Add any of them as repository secrets the same way. The provider chain tries each
 in order and skips the ones that are missing, so adding a key is the entire
 configuration step.
+
+## Speech recognition (optional)
+
+The speaking tab records and plays back with no key at all. For a transcript,
+the cheapest and best-fitting route is the one the app already deploys to:
+
+    CLOUDFLARE_API_TOKEN   # already needed for the Workers AI eval
+    CLOUDFLARE_ACCOUNT_ID
+
+That runs `@cf/openai/whisper-large-v3-turbo` with the language pinned to
+Estonian, at $0.00051 per audio minute. `OPENROUTER_API_KEY` and `HF_TOKEN` work
+as fallbacks. See [`docs/speaking.md`](speaking.md) for why an Estonian LLM
+cannot do this job and which Estonian speech model would, if anyone hosted it.

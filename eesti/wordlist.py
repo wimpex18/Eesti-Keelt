@@ -51,7 +51,13 @@ class Word:
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
-    path = Path(path or DB_PATH)
+    # Resolved at call time, not import time. Where the database lives is
+    # configuration, and configuration frozen into a module constant at import
+    # cannot be redirected — which is how a whole class of tests ended up
+    # silently depending on the developer's own build.
+    from . import config
+
+    path = Path(path or config.DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row

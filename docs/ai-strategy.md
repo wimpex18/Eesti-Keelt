@@ -220,3 +220,9 @@ sentence cards testing a grammar point *in context*, not a rule in the abstract.
    follows the error log automatically.
 3. **Later** — spaced repetition (FSRS) over items previously failed.
 4. **Optional** — a free-tier provider for prompt generation, behind the same chain.
+
+## Boundaries
+
+Where models are used and where they are deliberately not — plus the one place
+the speech and grammar chains collided, and the rule that resolved it — is
+audited in [`ai-boundaries.md`](ai-boundaries.md).

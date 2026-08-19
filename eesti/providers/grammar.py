@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Protocol
 
 from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR
+from . import breaker
 
 SYSTEM_PROMPT = """\
 You are an Estonian teacher correcting a Russian-speaking learner preparing for \
@@ -57,41 +58,34 @@ class GrammarResult:
     corrections: list[Correction] = field(default_factory=list)
     degraded: bool = False
     note: str = ""
+    # True when the input was not typed by the learner — a speech transcript,
+    # where the recogniser may have introduced the "error" being reported.
+    # Advisory results are shown and never recorded: they must not reach the
+    # Notion log or the review queue, because a curated error log is only worth
+    # keeping if everything in it actually happened.
+    advisory: bool = False
 
     def to_dict(self) -> dict:
         return {
             "engine": self.engine,
             "degraded": self.degraded,
+            "advisory": self.advisory,
             "note": self.note,
             "corrections": [c.to_dict() for c in self.corrections],
         }
 
 
-# Circuit breaker. A research endpoint that is down tends to stay down for
-# hours, and paying its timeout on every single check makes the tool feel broken.
-# After a few consecutive failures we skip it for a while and retry later.
-_BREAKER_THRESHOLD = 2
-_BREAKER_COOLDOWN = 900.0  # seconds
-_failures: dict[str, tuple[int, float]] = {}
-
-
-def _breaker_open(name: str) -> bool:
-    count, last = _failures.get(name, (0, 0.0))
-    return count >= _BREAKER_THRESHOLD and (time.monotonic() - last) < _BREAKER_COOLDOWN
-
-
-def _record_failure(name: str) -> None:
-    count, _ = _failures.get(name, (0, 0.0))
-    _failures[name] = (count + 1, time.monotonic())
-
-
-def _record_success(name: str) -> None:
-    _failures.pop(name, None)
+# The circuit breaker moved to `breaker.py` when the speech chain needed the same
+# thing: two copies of a stateful mechanism drift into two behaviours. These
+# names stay as thin aliases so existing callers and tests keep working.
+_breaker_open = breaker.is_open
+_record_failure = breaker.record_failure
+_record_success = breaker.record_success
 
 
 def reset_breakers() -> None:
     """Clear breaker state — used by tests and by an explicit 'retry now'."""
-    _failures.clear()
+    breaker.reset()
 
 
 class GrammarProvider(Protocol):
@@ -256,6 +250,69 @@ class VabamorfFallback:
                 "CLOUDFLARE_API_TOKEN или ANTHROPIC_API_KEY."
             ),
         )
+
+
+# Tags whose evidence a speech transcript cannot support.
+#
+# `vocab` is raised when Vabamorf does not recognise a word. On writing that is
+# a spelling mistake. On a transcript it is overwhelmingly the *recogniser*
+# inventing a word — a learner who says `kooli` correctly and is heard as
+# `kohli` would be told they made a vocabulary error, and then an object-case
+# error on top of the invented word. Two mistakes reported, none made.
+#
+# So a transcript drops them. The remaining tags are about the *shape* of what
+# was said, which survives a mis-heard word or two; `vocab` is about the word
+# itself, which is exactly what the recogniser may have got wrong.
+SPEECH_UNSUPPORTED_TAGS = frozenset({"vocab"})
+
+
+def unrecognised_words(text: str) -> set[str]:
+    """Tokens Vabamorf does not know — on a transcript, the recogniser's inventions."""
+    from ..morph import misspellings
+
+    return {item["text"].casefold() for item in misspellings(text)}
+
+
+def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
+    """Re-read a written-text check as what it is when the input was spoken.
+
+    An ASR transcript is evidence about two things at once — what the learner
+    said, and what the model heard — and nothing here can separate them. So:
+
+    1. **Corrections anchored on a word Vabamorf does not recognise are dropped
+       entirely**, whatever their tag. The first version only dropped the
+       `vocab` ones, which was half a fix: a learner who says *kooli* correctly
+       and is heard as *kohli* stopped being told they had a vocabulary error,
+       and was still told the invented word was in the wrong case. If a token is
+       not a word, nothing about that token is worth reporting.
+    2. What remains is marked `advisory`, so nothing downstream files it as a
+       confirmed error — it must never reach the Notion log or seed the review
+       queue, because a curated error log is only worth keeping if everything in
+       it actually happened.
+
+    The unknown-word set is recomputed from the text rather than read off the
+    `vocab` corrections, because an LLM provider may not emit those at all and
+    the rule has to hold for every engine in the chain.
+    """
+    unknown = unrecognised_words(text) if text else {
+        c.wrong.casefold() for c in result.corrections
+        if c.tag in SPEECH_UNSUPPORTED_TAGS
+    }
+    kept = [
+        c for c in result.corrections
+        if c.tag not in SPEECH_UNSUPPORTED_TAGS
+        and c.wrong.casefold().strip(".,!?;:") not in unknown
+    ]
+    return GrammarResult(
+        result.engine,
+        kept,
+        degraded=result.degraded,
+        advisory=True,
+        note=(
+            "Транскрипция речи: распознавание могло услышать не то, что ты "
+            "сказал. Подсказки — не подтверждённые ошибки."
+        ),
+    )
 
 
 # Preference order for LLM providers. Free tiers first — at a few checks a day

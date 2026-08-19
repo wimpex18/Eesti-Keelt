@@ -236,3 +236,15 @@ carry it too).
 - **Licence hygiene.** Wordlist CC-BY-SA-4.0, Ekilex CC-BY-4.0, Vabamorf/TalTech
   models permissive. HARNO exam material is copyright — git-ignored, never
   redistributed.
+
+## Correction: the Cloudflare plan changed
+
+This document's original deploy plan — export to D1, serve from a Worker — was
+written when the app looked things up. It now *generates*: `cloze`,
+`conjugation`, `patterns` and `verbs` all call Vabamorf at request time, and
+Vabamorf is a compiled C++ extension that cannot run in a Worker.
+
+The deploy is therefore **Cloudflare Containers**, with a Worker in front for
+routing and for snapshotting the learner's state — container disk is ephemeral,
+so without that a ten-minute idle period would reset all progress. See
+[`deploy.md`](deploy.md).

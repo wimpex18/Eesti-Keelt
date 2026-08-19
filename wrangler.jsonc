@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "eesti-keelt",
+  "main": "deploy/worker.ts",
+  "compatibility_date": "2026-08-01",
+
+  // The Worker is a doorman, not the app: it forwards every request to the
+  // container. That is the whole point — the Python process needs Vabamorf,
+  // which cannot run in a Worker.
+  "containers": [
+    {
+      "class_name": "EestiApp",
+      "image": "./Dockerfile",
+      // standard-1 rather than basic: EstNLTK's Vabamorf wants more than the
+      // 1 GiB `basic` provides once the form index is loaded, and the derived
+      // databases are ~58 MB on top of an ~800 MB image.
+      "instance_type": "standard-1",
+      // One learner. Capping this makes a runaway impossible rather than
+      // merely unlikely.
+      "max_instances": 2
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [{ "name": "EESTI_APP", "class_name": "EestiApp" }]
+  },
+
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EestiApp"] }],
+
+  "observability": { "enabled": true }
+
+  // Secrets, set with `wrangler secret put` and never committed:
+  //   STATE_TOKEN            guards the snapshot endpoints
+  //   CLOUDFLARE_API_TOKEN   Workers AI, for speech recognition
+  //   CLOUDFLARE_ACCOUNT_ID
+  //   OPENROUTER_API_KEY     grammar explanations (optional)
+  // See docs/deploy.md.
+}

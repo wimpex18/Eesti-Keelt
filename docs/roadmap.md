@@ -22,6 +22,40 @@ Two findings recur across current reviews:
    The reason given is context: a word met in a real sentence reloads the scene
    on recall. Cards built from a curriculum have no scene to reload.
 
+## The grammar half of the market
+
+The four above are vocabulary tools, which is most of the market and not most of
+this project's problem. The apps that actually teach *structure* work differently
+and are worth separating out.
+
+| App | The idea worth stealing |
+|---|---|
+| **Babbel** | Grammar is introduced **inside a dialogue**, then drilled — never as a standalone rules page. CEFR-aligned A1→B2 with an explicit syllabus you can see. |
+| **Busuu** | Per-skill CEFR tracking A1→C1, and an explicit **placement test** so you enter where you are rather than at lesson 1. |
+| **Clozemaster** | Cloze deletion over **sentences from a real corpus**, not authored examples. Grammar practice as a side effect of context. |
+| **British Council** | Each grammar point ships with a short reference, then graded practice at two difficulties. The reference and the exercise are the same unit. |
+
+Three of these change something concrete here:
+
+1. **Cloze from the corpus, not from templates.** Every drill in this app comes
+   from a template I wrote, which caps variety at my imagination and produced
+   sentences like *"Ma ostsin haigla ära"* until semantic pools were added. There
+   are **349 harvested Selges keeles texts** on disk, in real Estonian, already
+   lemmatised and case-labelled by Vabamorf. Blanking the object in an authentic
+   sentence gives a drill whose answer is *known correct because a native wrote
+   it* — and no pool of plausible objects to maintain. Template drills stay for
+   the contrasts the corpus does not happen to contain.
+2. **Placement before lesson 1**, not as an afterthought. Already step 4 of the
+   curriculum plan; Busuu's version is the argument for it not slipping.
+3. **The reference and the exercise are one unit.** Done: every cloze item
+   carries its EKK section, so the rule is on the same screen as the exercise
+   rather than a page away. Items whose topic has no tagged rule report *no*
+   reference rather than a nearby-looking one.
+
+Babbel's dialogue framing is the one deliberately skipped: it needs authored
+conversations, which is exactly the hand-written lesson prose `curriculum-plan.md`
+rules out.
+
 ## What this project can do that they cannot
 
 Every one of those apps builds a **vocabulary** card, because a general-purpose
@@ -42,23 +76,40 @@ deterministic and the error history already exists.
   retrievability per item; needs 20–30 % fewer reviews than SM-2 for the same
   retention. Re-adding an item keeps its schedule, so meeting a word again does
   not wipe the memory model built for it.
+- **The loop is closed** (`eesti/mining.py`). A drill answered wrong enqueues
+  itself *already marked missed*, so FSRS schedules it soon rather than treating
+  it as fresh. Clicking a word in the reader queues the **grammar pattern**
+  behind it with the sentence as context — LingQ's move, but producing an
+  object-case card rather than a translation.
+
+  Words with nothing to teach are **refused with a reason**: `kino` has an
+  identical genitive and partitive, so there is no contrast to drill, and a card
+  that cannot be got wrong wastes the scarcest resource in spaced repetition.
+- **Known-word tracking** (`eesti/vocab.py`) — Lute's 1-5 status model, but held
+  **per lemma** rather than per surface form, because `raamat` and `raamatut`
+  are not two things to learn. The library orders by what is comprehensible now
+  instead of by a static difficulty band.
+- **Corpus cloze** (`eesti/cloze.py`) — Clozemaster's idea against the 349
+  harvested texts: 1 138 case items and 28 negation items whose answers are
+  correct because a native wrote them, with no semantic pool to maintain. The
+  hard part was refusing the unsound ones — see `curriculum-plan.md` for the
+  two routes by which an authentic sentence gets a unique answer.
+- **Learner-corpus weighting** (`eesti/harvest/evkk.py`) — 51 467 annotated
+  errors ranking the nine tags by what learners of Estonian actually get wrong,
+  as a counterweight to a single error log.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
-  TTS, ERR episode audio.
+  TTS, ERR episode audio, rection and inflection type via `sonapi`.
 
 ## Next, in order
 
-1. **Close the loop: failed drill → review queue.** The scheduler exists but
-   nothing feeds it automatically yet. A drill answered wrong should enqueue
-   itself; that alone turns practice into a system.
-2. **Click-to-mine from the reader.** LingQ's move, with the twist above: clicking
-   an unknown word in a text queues the *grammar* drill for it, carrying the
-   sentence as context.
-3. **Known-word tracking.** The reader already computes coverage per text; record
-   which words have actually been met, and order the library by what is
-   comprehensible *now* rather than by a static difficulty band.
-4. **Notion write-back** to the existing `Vead` database, so confirmed errors
+1. **The curriculum path** — `curriculum-plan.md` steps 1-9, starting with the
+   topic model. This is the largest remaining piece and the one the whole
+   "learn Estonian, not just pass the exam" scope depends on.
+2. **Cloudflare deploy** — Workers/Pages behind Access. Also what makes the
+   microphone work on the phone: `getUserMedia` needs a secure context.
+3. **Notion write-back** to the existing `Vead` database, so confirmed errors
    join the hand-curated log rather than living in a parallel one.
-5. **Cloudflare deploy** — Workers + D1 + Pages behind Access. Access is not
+4. **Cloudflare deploy detail** — Workers + D1 + Pages behind Access. Access is not
    optional: it is what keeps the owner-only material (HARNO, ERR) private on a
    public URL.
 

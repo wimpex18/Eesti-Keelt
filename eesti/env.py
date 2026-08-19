@@ -22,6 +22,7 @@ KNOWN_KEYS = {
     "GROQ_API_KEY": "Groq — fastest inference, generous free tier.",
     "CLOUDFLARE_API_TOKEN": "Workers AI — runs inside Cloudflare, 10k neurons/day.",
     "CLOUDFLARE_ACCOUNT_ID": "Required alongside CLOUDFLARE_API_TOKEN.",
+    "HF_TOKEN": "Hugging Face — the only hosted route to EstLLM (Estonian-adapted).",
     "ANTHROPIC_API_KEY": "Anthropic — paid, quality backstop.",
     "NOTION_TOKEN": "Notion — push confirmed errors to the Vead database.",
 }

@@ -33,7 +33,13 @@ KNOWN_FORMS = [
 
 # Words where the two cases coincide: no drill is possible, and the tool must
 # not pretend otherwise.
-IDENTICAL_CASES = ["maja", "kool", "õun", "kiri", "film"]
+IDENTICAL_CASES = ["maja", "õun", "kiri", "film"]
+
+# Words with more than one valid paradigm, which is a different reason to refuse
+# them: `kool` synthesises both *kooli* (school) and *koola* (cola), `reis* both
+# *reisi* (journey) and *reie* (thigh). Morphology cannot choose; only meaning
+# can, so nothing is reported.
+AMBIGUOUS_PARADIGMS = ["kool", "reis", "kott", "juht"]
 
 
 @pytest.mark.parametrize("lemma,genitive,partitive", KNOWN_FORMS)
@@ -47,6 +53,19 @@ def test_case_forms_match_reference(lemma, genitive, partitive):
 def test_identical_cases_are_not_drillable(lemma):
     forms = case_forms(lemma)
     assert forms["genitive"] == forms["partitive"]
+    assert not has_distinct_object_cases(lemma)
+
+
+@pytest.mark.parametrize("lemma", AMBIGUOUS_PARADIGMS)
+def test_words_with_two_paradigms_report_nothing(lemma):
+    """Zero candidates and several candidates are the same situation.
+
+    The previous tiebreak — fewest competing lemma readings — got `kool` right
+    and `reis` exactly wrong, returning the thigh's paradigm because the rarer
+    word is the less ambiguous one. A drill built on that would have taught a
+    confidently wrong answer.
+    """
+    assert case_forms(lemma) == {}
     assert not has_distinct_object_cases(lemma)
 
 

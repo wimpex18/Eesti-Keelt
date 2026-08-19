@@ -87,6 +87,20 @@ PROVIDERS: dict[str, Provider] = {
         "@cf/openai/gpt-oss-120b",
         "10,000 neurons/day free, shared across all models.",
     ),
+    # Hugging Face's router is OpenAI-compatible, which is the only hosted way
+    # to reach EstLLM — an Estonian-adapted Llama 3.1 8B (~35B tokens of
+    # continued Estonian pretraining, then instruction tuning). It is reported
+    # to beat the multilingual base it came from on Estonian tasks, which is
+    # exactly the gap a general free model showed at 0.50/0.50 on our eval.
+    # Not served by OpenRouter, so it needs this lane or self-hosting.
+    "huggingface": Provider(
+        "huggingface",
+        "https://router.huggingface.co/v1",
+        "HF_TOKEN",
+        "tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125",
+        "Free tier is small and per-model availability varies; a model may need "
+        "a warm-up request before it answers.",
+    ),
     "anthropic": Provider(
         "anthropic",
         "https://api.anthropic.com/v1",
