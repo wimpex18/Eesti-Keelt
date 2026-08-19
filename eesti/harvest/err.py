@@ -86,6 +86,16 @@ class Episode:
     body: str          # plain-text transcript
     audio_url: str | None
     published: str | None
+    #: The teacher's own one-line label for the lesson, e.g.
+    #: "Урок 22. Падеж дополнения в законченном действии."
+    #:
+    #: This is the most valuable field on an audio-only episode and it was
+    #: being thrown away. Two thirds of the archive has no transcript at all,
+    #: which made those episodes look like empty rows -- but every one of them
+    #: says, in the teacher's words, which grammar point it teaches. Lesson 22
+    #: and lesson 23 of the second course are the completed and incomplete
+    #: object contrast: the documented weakness this whole app was built for.
+    summary: str = ""
 
     @property
     def word_count(self) -> int:
@@ -193,6 +203,7 @@ def parse_episode(html: str, url: str) -> Episode | None:
         body=text,
         audio_url=audio,
         published=str(published) if published else None,
+        summary=" ".join(_TAG_RE.sub(" ", content.get("lead") or "").split()),
     )
 
 
@@ -328,7 +339,9 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
                     # listening material and nothing else.
                     skill="grammatika" if episode.word_count > 100 else "kuulamine",
                     title=episode.title,
-                    body=episode.body,
+                    # An audio-only episode falls back to the teacher's label,
+                    # so the library shows what it is about instead of a blank.
+                    body=episode.body or episode.summary,
                     audio_url=episode.audio_url,
                     meta={
                         "series": series,
@@ -338,6 +351,8 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
                         "has_audio": bool(episode.audio_url),
                         "estonian_words": episode.estonian_word_count,
                         "estonian_share": episode.estonian_share,
+                        "summary": episode.summary,
+                        "transcript": bool(episode.body),
                     },
                 )
             )

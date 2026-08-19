@@ -953,12 +953,16 @@ def cmd_link_topics(args: argparse.Namespace) -> int:
     analysis of the whole corpus in front of a learner waiting for a page.
     """
     from . import config
-    from .library import link_topics
+    from .library import link_labelled, link_topics
     from .sources import connect as content_connect
     from .wordlist import connect as wordlist_connect
 
     content = content_connect(config.CONTENT_DB)
     counts = link_topics(content, wordlist_connect())
+    # After the derived links, never before: a lesson label outranks anything
+    # inferred from a transcript, and `link_topics` clears the table.
+    for topic, n in link_labelled(content).items():
+        counts[topic] = counts.get(topic, 0) + n
     if not counts:
         print("No text demonstrated any topic often enough to be worth "
               "offering. Has the corpus been harvested?")
