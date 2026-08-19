@@ -122,13 +122,30 @@ deploy.
 few minutes of answers. The alternative is moving learner state to D1, which is
 a real rewrite of the storage layer and is not worth it for that.
 
-## Access is not optional
+## Access is not optional, and the Worker enforces it
 
 `browse(..., public_only=True)` returns **0** owner-only items, which is the app
 being honest; it is not what keeps the URL private. **Cloudflare Access is.**
 
-Zero Trust → Access → Applications → Self-hosted → the Worker's hostname → one
-policy allowing your own email. Set it up before the first deploy, not after.
+Access tab on the Worker → **All traffic** → the **Cloudflare account** policy,
+which means "members of this account" and on a one-person account means you.
+Not **Email domain**: that grants everyone at the domain, and on a `gmail.com`
+address it grants the internet.
+
+But a dashboard setting is a thing that can be switched off by accident, reset
+by a later change, or never have applied at all — which is what happened on the
+first attempt here. The policy was created, *Apply Access* was pressed, and an
+anonymous request kept returning 200 for a quarter of an hour. Nothing
+complained, because nothing was watching.
+
+So the Worker **refuses every request that did not come through Access**. The
+runtime attaches an identity to requests that passed it; without one, the Worker
+answers 403 with the instructions rather than the app. Losing the policy is now
+a locked door instead of a silent opening.
+
+`ALLOW_UNAUTHENTICATED=1` serves without Access on purpose. It is deliberately
+awkward, because the default has to be the safe one — the unsafe one is
+invisible.
 
 ## Secrets, and where each one lives
 

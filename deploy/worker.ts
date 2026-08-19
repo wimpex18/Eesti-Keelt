@@ -47,6 +47,43 @@ interface Env {
   PROXY_TOKEN: string;
   /** Guards the snapshot endpoints on the app. */
   STATE_TOKEN: string;
+  /**
+   * Set to "1" to serve without Cloudflare Access. The escape hatch, not the
+   * default -- see `requireAccess`.
+   */
+  ALLOW_UNAUTHENTICATED?: string;
+}
+
+/**
+ * Refuse anything that did not come through Cloudflare Access.
+ *
+ * Access is configured in a dashboard, and a dashboard setting is a thing that
+ * can be switched off by accident, reset by a future change, or simply never
+ * have applied in the first place -- which is exactly what happened here: the
+ * policy was created, "Apply Access" was pressed, and an anonymous request kept
+ * returning 200 for a quarter of an hour.
+ *
+ * Nothing complained, because nothing was watching. That is the same failure
+ * shape as the `origin_guarded` flag on the Cloud Run side, and it gets the
+ * same answer: the protection is enforced in code, so losing it is a locked
+ * door rather than a silent opening.
+ *
+ * When Access is enabled, the runtime puts an identity on every request that
+ * passed it. When it is not, there is no identity, and this returns a page
+ * saying so. `ALLOW_UNAUTHENTICATED` exists for deliberately serving without
+ * Access, and is deliberately awkward: the default has to be the safe one,
+ * because the unsafe one is invisible.
+ */
+function requireAccess(env: Env, ctx: ExecutionContext): Response | null {
+  if (ctx.access || env.ALLOW_UNAUTHENTICATED === "1") return null;
+  return new Response(
+    "This app is not protected by Cloudflare Access, so it will not serve.\n\n" +
+      "Enable it: Workers & Pages -> eesti-keelt -> Access -> All traffic,\n" +
+      "with the 'Cloudflare account' policy.\n\n" +
+      "To serve without Access on purpose, set ALLOW_UNAUTHENTICATED=1.\n" +
+      "See docs/deploy.md.",
+    { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } },
+  );
 }
 
 /** Snapshot on a timer as well as after work, so a crash costs minutes at most. */
@@ -328,6 +365,9 @@ export default {
         { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } },
       );
     }
+
+    const denied = requireAccess(env, ctx);
+    if (denied) return denied;
 
     // The snapshot endpoints are the Worker's own back channel. Exposing them
     // through the proxy would let anyone past Access overwrite everything.
