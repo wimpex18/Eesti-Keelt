@@ -768,11 +768,29 @@ def practice_items(req: PracticeRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     meta = by_id(topic)
+    # An empty list is not self-explanatory, and the page can only print what
+    # it is given: without a reason it showed a bare "midagi ei tulnud".
+    #
+    # The generators that draw on the harvested corpus produce nothing when the
+    # corpus has not been supplied, which is a supported state and a completely
+    # different problem from a generator that is broken. Say which it is, and
+    # in Russian, because it is an instruction the learner has to act on.
+    detail = None
+    if not items:
+        needs_corpus = meta.generator in ("corpus_cloze", "ekk_rection", "wordorder")
+        detail = (
+            "Для этой темы нужен текстовый корпус, а он ещё не загружен на "
+            "сервер — задания появятся после `deploy/push-content.sh`."
+            if needs_corpus else
+            f"Генератор «{meta.generator}» ничего не вернул для этой темы."
+        )
+
     return {
         "topic": topic,
         "level": meta.level,
         "et": meta.et,
         "ru": meta.ru,
+        "detail": detail,
         "reference": describe_rule(meta.tag) if meta.tag else None,
         "items": [i.to_dict() for i in items],
         # Something to read that is *about* this contrast, not merely at this

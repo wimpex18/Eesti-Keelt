@@ -321,3 +321,54 @@ class TestStateSnapshots:
             headers={"x-state-token": "s3cret"},
         ).json()
         assert got["restored"] == [] and not target.exists()
+
+
+class TestAnEmptyTopicSaysWhy:
+    """Comparing two content.db files exposed this: with the older one,
+    `sonajark` returned 200 with zero items and no `detail`, and the page can
+    only print what it is given — so the learner saw a bare "midagi ei tulnud".
+
+    "The corpus has not been uploaded yet" and "the generator is broken" are
+    different problems and only one of them is the learner's to fix."""
+
+    @pytest.fixture
+    def client(self, monkeypatch, tmp_path):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module, config
+
+        # A content store with the schema and nothing in it: exactly what a
+        # deployment looks like before `push-content.sh` has been run.
+        from eesti.sources import connect
+
+        connect(tmp_path / "content.db")
+        monkeypatch.setattr(config, "CONTENT_DB", str(tmp_path / "content.db"))
+        monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+        return TestClient(app_module.app)
+
+    def test_a_corpus_topic_names_the_missing_corpus(self, client):
+        got = client.post("/api/practice",
+                          json={"topic": "sonajark", "count": 5}).json()
+        assert got["items"] == []
+        assert "push-content" in got["detail"]
+
+    def test_the_reason_is_in_russian(self, client):
+        """It is an instruction to act on, not a label."""
+        detail = client.post("/api/practice",
+                             json={"topic": "sonajark", "count": 5}).json()["detail"]
+        assert any("Ѐ" <= ch <= "ӿ" for ch in detail)
+
+    def test_a_topic_that_needs_no_corpus_does_not_blame_the_corpus(self, client):
+        """`kusisonad` is generated from closed-class patterns and works with
+        no corpus at all — telling the learner to upload one would be wrong."""
+        got = client.post("/api/practice",
+                          json={"topic": "kusisonad", "count": 5}).json()
+        assert got["items"], "this topic should work without a corpus"
+        assert got["detail"] is None
+
+    def test_detail_is_always_present_in_the_payload(self, client):
+        """The page reads `res.detail`; a key that only sometimes exists is a
+        key the page cannot rely on."""
+        got = client.post("/api/practice",
+                          json={"topic": "kusisonad", "count": 5}).json()
+        assert "detail" in got
