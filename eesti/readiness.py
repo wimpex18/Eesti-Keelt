@@ -265,9 +265,14 @@ def _parts(progress: sqlite3.Connection, level: str,
     ))
     out.append(Part(
         "lugemine", "Lugemine", "чтение",
-        evidence=(f"{read['items']} текстов, {read['minutes']} мин"
-                  + material("lugemine")),
-        touched=read["items"] >= CONTACT,
+        # Per part, like the others. `exposure` counts every item opened, so
+        # a learner who had only ever played listening tasks was credited with
+        # reading -- which is exactly the confusion the no-part-may-be-zero
+        # rule punishes. Minutes stay from `exposure`: they are read time in
+        # total and no part-level figure exists.
+        evidence=(f"{touched.get('lugemine', 0)} текстов, "
+                  f"{read['minutes']} мин" + material("lugemine")),
+        touched=touched.get("lugemine", 0) >= CONTACT,
         next_task=_next_task(content, level, "lugemine"),
     ))
     out.append(Part(

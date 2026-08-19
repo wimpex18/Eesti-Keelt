@@ -361,8 +361,25 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
 
 
 @app.get("/api/library/{item_id}")
-def library_item(item_id: str) -> dict:
-    """One item with its full text and a vocabulary profile."""
+def library_item(item_id: str, minutes: float = 0.0) -> dict:
+    """One item with its full text, a vocabulary profile, and a record that it
+    was opened.
+
+    That last part was missing, and it was load-bearing. `library.open_item`
+    exists to write two things — an exposure row and a vocabulary encounter per
+    lemma — and this endpoint, the only way the web app ever opens a text, did
+    a raw SELECT instead. So reading in the app fed nothing:
+
+    - `readiness` reported "0 текстов" for Lugemine however much was read
+    - `parts_touched` saw no contact, so every exam part stayed untouched
+    - `vocab_status` stayed empty, so `/api/reading/next` could never rank by
+      what the learner knows and said "слова ещё не отмечены" forever
+
+    Third time this project has built a measurement without its writer. The
+    recording is deliberately *encounter*, not knowledge: `record_encounter`
+    bumps a met-count and never promotes a word to known, because a word
+    skimmed past is not a word learned.
+    """
     conn = content_db()
     row = conn.execute(
         """SELECT i.*, s.name AS source_name, s.licence
@@ -372,9 +389,20 @@ def library_item(item_id: str) -> dict:
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
+
+    from .library import open_item
+
+    # Never let bookkeeping cost the learner the text they asked for.
+    try:
+        opened = open_item(conn, item_id, progress=progress_db(),
+                           vocabulary=vocab_db(), minutes=minutes)
+    except Exception:  # noqa: BLE001 - reading must work with no databases
+        opened = {"lemmas": 0}
+
     return {
         "id": row["id"],
         "title": row["title"],
+        "met_lemmas": opened.get("lemmas", 0),
         "body": row["body"],
         "level": row["level"],
         "source": row["source_name"],

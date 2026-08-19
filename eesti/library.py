@@ -156,18 +156,30 @@ def _now() -> str:
 def _kind_clause(section: Section) -> tuple[str, list]:
     """SQL restricting to a section's purpose, read out of `meta.kind`.
 
-    `meta` is a JSON blob rather than a column, so this matches on the encoded
-    pair. Crude, and correct: `kind` values are a closed set of single words
-    with no punctuation, so `"kind": "ulesanne"` cannot collide with anything.
+    `meta` is a JSON blob rather than a column, so the value has to be read out
+    of it. SQLite's `json_extract` does that properly; the first version matched
+    a substring including the space after the colon, which meant any change to
+    how `meta` is serialised -- a different separator, a re-encode by another
+    tool -- would silently stop matching and empty a whole section.
+
+    `json_extract` is available in every SQLite that ships with a supported
+    Python, but a corpus file could still predate it, so a failure falls back to
+    the substring form rather than taking the library down.
     """
+    kinds, not_kinds = section.kinds, section.not_kinds
+    if not (kinds or not_kinds):
+        return "", []
+
     sql, params = "", []
-    if section.kinds:
-        sql += " AND (" + " OR ".join(
-            "i.meta LIKE ?" for _ in section.kinds) + ")"
-        params += [f'%"kind": "{k}"%' for k in section.kinds]
-    for kind in section.not_kinds:
-        sql += " AND i.meta NOT LIKE ?"
-        params.append(f'%"kind": "{kind}"%')
+    if kinds:
+        marks = ",".join("?" * len(kinds))
+        sql += f" AND json_extract(i.meta, '$.kind') IN ({marks})"
+        params += list(kinds)
+    for kind in not_kinds:
+        # `IS NOT` rather than `!=`: an item with no `kind` at all must survive
+        # an exclusion, and SQL comparison with NULL is never true.
+        sql += " AND json_extract(i.meta, '$.kind') IS NOT ?"
+        params.append(kind)
     return sql, params
 
 

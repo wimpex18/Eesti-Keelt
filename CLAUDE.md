@@ -163,6 +163,10 @@ in Cloud Shell and discover the project, service and region themselves.
 
 ## Habits this codebase has earned the hard way
 
+- **A measurement without its writer measures nothing.** Three times now: the
+  vocabulary table nothing ever wrote to, the snapshot restore that always
+  refused, and `/api/library/{id}` reading without recording. When you add a
+  reader, find the writer; when you add a writer, check something calls it.
 - **Presence of a database is not presence of data.** Two separate bugs came
   from checking that a file existed: the first request creates it *with its
   schema*, so an empty deployment looked full. Count rows.
