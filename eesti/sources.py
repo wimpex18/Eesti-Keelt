@@ -162,10 +162,40 @@ REGISTRY: tuple[Source, ...] = (
 )
 
 
+def available(path: Path | str) -> bool:
+    """Whether the harvested library is actually there.
+
+    Reported by `/api/health`, so "the reading list is empty" can be told apart
+    from "the reading list is broken" without reading logs.
+    """
+    target = Path(path)
+    return target.exists() and target.stat().st_size > 0
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+    """Open the content library, degrading to empty rather than failing.
+
+    The harvested corpus is deliberately not in the image -- it is owner-only by
+    licence -- and everything else is documented to keep working without it. On
+    Cloud Run that promise broke: `EESTI_CONTENT_DB` points inside a directory
+    the `VOLUME` declaration was supposed to provide, Cloud Run ignores
+    `VOLUME`, and SQLite cannot create a database in a directory that is not
+    there. `/api/library` and `/api/status` both returned 500 in production
+    while every test passed, because every test had a writable path.
+
+    So: make the directory if we can, and if we still cannot open the file, hand
+    back an empty in-memory library. An absent corpus is a supported state; a
+    500 on the status page is not.
+    """
+    target = Path(path)
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(target)
+        conn.executescript(SCHEMA)
+    except (OSError, sqlite3.Error):
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(SCHEMA)
     conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
     return conn
 
 

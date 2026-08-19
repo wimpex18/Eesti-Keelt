@@ -52,6 +52,13 @@ def content_db():
     return content_connect(config.CONTENT_DB)
 
 
+def content_available() -> bool:
+    from . import config
+    from .sources import available
+
+    return available(config.CONTENT_DB)
+
+
 def review_db():
     return review.connect(REVIEW_DB)
 
@@ -156,6 +163,10 @@ def health() -> dict:
         "rules": sorted({t.rule for t in TEMPLATES}),
         "voices": list(tts.VOICES),
         "boot": BOOT_ID,
+        # Distinguishes "the reading list is empty" from "the reading list is
+        # broken" without going to the logs. The corpus is owner-only, so it is
+        # supplied at runtime and its absence is a supported state.
+        "library": content_available(),
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
         "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),
