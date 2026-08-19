@@ -947,7 +947,14 @@ def grammar_engines() -> dict:
     ]
     return {
         "engines": engines,
-        "explains": any(e["available"] and e["explains"] for e in engines),
+        # Deliberately NOT called `explains`: each engine carries a field of
+        # that name too, and a smoke check grepping the body for
+        # `"explains":true` matched a per-engine one on a provider that was
+        # not available — reporting the chain healthy while it was in offline
+        # mode, and sending me looking for a traffic split that did not exist.
+        # A summary field that shares a name with a per-item field is a trap
+        # for every line-oriented reader.
+        "can_explain": any(e["available"] and e["explains"] for e in engines),
         "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
     }
 

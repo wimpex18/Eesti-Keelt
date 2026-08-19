@@ -78,7 +78,7 @@ jobs:
           #    whether the container build had not run yet, had failed, or was
           #    never wired up. The Worker and the app deploy by different
           #    routes, so "the deploy went green" says nothing about the app.
-          built="$(echo "$body" | sed -n 's/.*"built":"\([^"]*\)".*/\1/p')"
+          built="$(jq -r '.built // ""' <<<"$body")"
           if [ -n "$built" ]; then
             echo "image built .............. $built"
           else
@@ -113,28 +113,31 @@ jobs:
           #    it" button, nothing ever reached the Notion log either. A
           #    warning rather than an error — a deployment with no LLM key is
           #    a legitimate choice; a key that is set and unreachable is not.
-          #    Asked five times, not once. Production answered this question
-          #    two ways within a minute — /api/engines reported an LLM
-          #    configured while /api/check fell through to offline mode — which
-          #    is not a contradiction but a traffic split: two revisions
-          #    serving, only one carrying the key. A single request reports
-          #    whichever instance it landed on, so a split looks like a flake
-          #    and gets re-run until it passes.
+          #    Read with jq, not grep. Grepping the body for
+          #    `"explains":true` matched a *per-engine* field on a provider
+          #    that was not available, so the chain was reported healthy while
+          #    it was in offline mode — and the contradiction with the deep
+          #    check below sent me looking for a traffic split that did not
+          #    exist. The summary field is `can_explain` now, and jq reads
+          #    exactly the field asked for.
+          #
+          #    Asked five times because Cloud Run can serve two revisions at
+          #    once during a rollout, and a single request reports whichever
+          #    instance it reached — a real split would read as a flake and be
+          #    re-run until it passed.
           yes_n=0; no_n=0; gone_n=0
           for _ in 1 2 3 4 5; do
             out="$(curl -s -w '\n%{http_code}' "${auth[@]}" "$URL/api/engines")"
             case "$(tail -1 <<<"$out")" in
               404) gone_n=$((gone_n + 1)) ;;
-              200) grep -q '"explains":true' <<<"$out" \
-                     && yes_n=$((yes_n + 1)) || no_n=$((no_n + 1)) ;;
+              200) if [ "$(sed '$d' <<<"$out" | jq -r '.can_explain')" = true ]
+                   then yes_n=$((yes_n + 1)); else no_n=$((no_n + 1)); fi ;;
             esac
           done
 
           # Counted with `if`, not `[ ... ] && x`: the shell runs with -e, and
           # an && list whose test fails returns non-zero, which would end the
-          # step. And written plainly rather than as one arithmetic
-          # expression -- the clever version parsed as a command
-          # substitution and ran the comparison as a command.
+          # step.
           kinds=0
           if [ "$yes_n"  -gt 0 ]; then kinds=$((kinds + 1)); fi
           if [ "$no_n"   -gt 0 ]; then kinds=$((kinds + 1)); fi
@@ -173,8 +176,7 @@ jobs:
             answer="$(curl -s "${auth[@]}" -X POST "$URL/api/check" \
               -H 'Content-Type: application/json' \
               -d '{"text":"Ma lugesin raamatut läbi."}')"
-            field() { echo "$answer" \
-              | sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p"; }
+            field() { jq -r --arg k "$1" '.[$k] // ""' <<<"$answer"; }
             engine="$(field engine)"
             case "$engine" in
               llm:*) echo "grammar chain ........... OK (answered by $engine)" ;;

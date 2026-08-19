@@ -188,11 +188,19 @@ in Cloud Shell and discover the project, service and region themselves.
 - **Check production by asking it.** Three bugs were found that way after the
   full suite was green — and a fourth: the grammar checker running in offline
   mode with the key apparently set.
-- **Ask production more than once.** It answered the same question two ways in
-  a minute: one endpoint reported an LLM configured, another fell through to
-  offline mode. Two revisions were serving and only one carried the key. A
-  single request reports whichever instance it reached, so a split reads as a
-  flake and gets re-run until it passes.
+- **Never give a summary field the same name as a per-item field.** The check
+  read the response with `grep -q '"explains":true'`. Every engine in the list
+  carries `explains`, and it is true for each LLM provider whether or not that
+  provider is available — so the grep matched an unavailable one and reported
+  the chain healthy while production was in offline mode. It also contradicted
+  a second check in the same run, and a whole round went into diagnosing a
+  traffic split that did not exist. The field is `can_explain` now, and the
+  workflow reads JSON with `jq`, not with pattern matching.
+- **`bash -n` is not a syntax check.** It passed a condition that parsed at
+  runtime as a command substitution and tried to execute a comparison. It also
+  cannot see that `[ x -gt 0 ] && n=$((n+1))` ends the step under `bash -e`
+  when the count is zero. Run the shell you are shipping — against a stub if
+  the real thing is not reachable.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,
