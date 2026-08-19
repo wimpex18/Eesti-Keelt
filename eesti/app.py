@@ -694,6 +694,16 @@ def practice_answer(req: AnswerRequest) -> dict:
     }
 
 
+@app.get("/api/exam/{level}")
+def exam(level: str) -> dict:
+    """The whole exam section for one level, in one request."""
+    from .library import exam_material
+
+    if level not in LEVELS + ("B2", "C1"):
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    return exam_material(content_db(), level)
+
+
 @app.get("/api/readiness/{level}")
 def exam_readiness(level: str) -> dict:
     """Evidence for and against sitting a level, with the reasons named.

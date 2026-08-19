@@ -508,3 +508,80 @@ def related(
         sql += " AND s.redistributable = 1"
     sql += " ORDER BY t.hits DESC, i.id LIMIT ?"
     return [dict(r) for r in content.execute(sql, (topic, limit)).fetchall()]
+
+
+def exam_material(content: sqlite3.Connection, level: str,
+                  public_only: bool = False) -> dict:
+    """Everything official for one level, grouped by what it is for.
+
+    One request instead of four. The exam view needs the annotated sample, the
+    intro video, the level descriptor and the tasks split by part, and asking
+    for each separately made the section the slowest screen in the app for no
+    reason — they all come from one table.
+
+    Grouping by `kind` rather than listing flat is the point. A sample
+    performance, a workbook and a reading task are three different activities
+    that happen to share a level, and a single list buries the one thing a
+    learner who has never sat the exam most needs to see.
+    """
+    import json as _json
+
+    sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
+                    s.name AS source_name, s.licence
+             FROM items i JOIN sources s ON s.id = i.source_id
+             WHERE i.level = ? AND s.id IN ('harno', 'eis')"""
+    params: list = [level]
+    if public_only:
+        sql += " AND s.redistributable = 1"
+    sql += " ORDER BY i.skill, i.title"
+
+    by_kind: dict[str, list[dict]] = {}
+    for row in content.execute(sql, params).fetchall():
+        try:
+            meta = _json.loads(row["meta"] or "{}")
+        except ValueError:
+            meta = {}
+        by_kind.setdefault(meta.get("kind") or "ulesanne", []).append({
+            "id": row["id"], "title": row["title"], "skill": row["skill"],
+            "url": meta.get("url"), "format": meta.get("format"),
+            "audio_url": row["audio_url"], "source": row["source_name"],
+        })
+
+    tasks = by_kind.pop("ulesanne", [])
+    by_part: dict[str, list[dict]] = {}
+    for task in tasks:
+        by_part.setdefault(task["skill"], []).append(task)
+
+    return {
+        "level": level,
+        # First, because it is what a learner who has never sat the exam needs
+        # before anything else: what a pass actually looks like.
+        "sooritusnaidis": by_kind.pop("sooritusnaidis", []),
+        "video": by_kind.pop("video", []),
+        "kirjeldus": by_kind.pop("kirjeldus", []),
+        "teave": by_kind.pop("teave", []),
+        "ulesanded": by_part,
+        "muu": [item for items in by_kind.values() for item in items],
+    }
+
+
+def parts_touched(progress: sqlite3.Connection,
+                  content: sqlite3.Connection) -> dict[str, int]:
+    """How many items the learner has opened, per exam part.
+
+    `exposure` records what was opened; `items` knows which part each belongs
+    to. Joining them is what turns "you have opened 14 texts" into "you have
+    never opened a listening task" — and the second is the one the exam's
+    no-part-may-be-zero rule actually punishes.
+
+    Two databases, so the join is done here rather than in SQL: progress is the
+    learner's and travels in the snapshot, content is the corpus and does not.
+    """
+    seen = seen_items(progress)
+    if not seen:
+        return {}
+    counts: dict[str, int] = {}
+    for row in content.execute("SELECT id, skill FROM items").fetchall():
+        if row["id"] in seen:
+            counts[row["skill"]] = counts.get(row["skill"], 0) + 1
+    return counts

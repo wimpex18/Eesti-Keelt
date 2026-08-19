@@ -70,6 +70,10 @@ class Part:
     #: cannot tell — which is different from "none" and must not be shown as it.
     touched: bool | None
     note: str = ""
+    #: The specific thing to open next. Counting official tasks tells a learner
+    #: the shelf is stocked; naming one tells them what to do this evening, and
+    #: only the second changes what happens.
+    next_task: dict | None = None
 
 
 @dataclass
@@ -176,6 +180,36 @@ def _official(content, level: str) -> dict[str, int]:
     return {r["skill"]: r["n"] for r in rows}
 
 
+def _next_task(content, level: str, skill: str) -> dict | None:
+    """One official task for this part, or None if there are none indexed.
+
+    The first by title, deliberately: HARNO numbers them, so "first" is the one
+    the exam board put first rather than whichever row SQLite happened to
+    return.
+    """
+    if content is None:
+        return None
+    try:
+        row = content.execute(
+            """SELECT i.title, i.meta FROM items i
+               JOIN sources s ON s.id = i.source_id
+               WHERE i.level = ? AND i.skill = ? AND s.id IN ('harno','eis')
+               ORDER BY i.title LIMIT 1""",
+            (level, skill),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    if row is None:
+        return None
+    import json as _json
+
+    try:
+        meta = _json.loads(row["meta"] or "{}")
+    except ValueError:
+        meta = {}
+    return {"title": row["title"], "url": meta.get("url")}
+
+
 def _parts(progress: sqlite3.Connection, level: str,
            content=None) -> list[Part]:
     from .library import exposure, seen_items
@@ -185,6 +219,14 @@ def _parts(progress: sqlite3.Connection, level: str,
     seen = seen_items(progress)
     read = exposure(progress)
     official = _official(content, level)
+
+    # Opened items, counted per exam part rather than in total. "You have
+    # opened 14 texts" and "you have never opened a listening task" are
+    # different facts, and only the second is what the no-part-may-be-zero rule
+    # punishes.
+    from .library import parts_touched
+
+    touched = parts_touched(progress, content) if content is not None else {}
 
     def material(skill: str) -> str:
         n = official.get(skill, 0)
@@ -206,17 +248,21 @@ def _parts(progress: sqlite3.Connection, level: str,
         evidence=f"{queued} исправлений в логе" + material("kirjutamine"),
         touched=queued >= CONTACT if queued else False,
         note="На экзамене четыре задания по письму.",
+        next_task=_next_task(content, level, "kirjutamine"),
     ))
     out.append(Part(
         "kuulamine", "Kuulamine", "аудирование",
-        evidence=f"{len(seen)} текстов открыто" + material("kuulamine"),
-        touched=len(seen) >= CONTACT,
+        evidence=(f"{touched.get('kuulamine', 0)} заданий открыто"
+                  + material("kuulamine")),
+        touched=touched.get("kuulamine", 0) >= CONTACT,
+        next_task=_next_task(content, level, "kuulamine"),
     ))
     out.append(Part(
         "lugemine", "Lugemine", "чтение",
         evidence=(f"{read['items']} текстов, {read['minutes']} мин"
                   + material("lugemine")),
         touched=read["items"] >= CONTACT,
+        next_task=_next_task(content, level, "lugemine"),
     ))
     out.append(Part(
         "raakimine", "Rääkimine", "говорение",
@@ -227,6 +273,7 @@ def _parts(progress: sqlite3.Connection, level: str,
         touched=None,
         note="На экзамене говорят в паре — приложение это оценить не может. "
              "Тренируйся с банком вопросов и TTS.",
+        next_task=_next_task(content, level, "raakimine"),
     ))
     return out
 
@@ -253,6 +300,12 @@ def readiness(
             + ", ".join(f"{p.et} ({p.ru})" for p in untouched)
             + ". Ни одна часть не может быть нулевой."
         )
+        # Name the thing to open, not the size of the shelf.
+        first = next((p for p in untouched if p.next_task), None)
+        if first:
+            reasons.append(
+                f"Начни с: {first.next_task['title']} ({first.et})."
+            )
     if grammar and grammar["outstanding"]:
         reasons.append(
             f"Тем уровня {level} ещё не пройдено: "
