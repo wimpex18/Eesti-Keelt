@@ -30,7 +30,26 @@ NOMINATIVE_SG = "sg n"
 OBJECT_POS = frozenset({"S", "A", "P", "N", "Y"})  # noun, adj, pronoun, numeral, abbrev
 
 _TOKEN_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
-_SENT_RE = re.compile(r"(?<=[.!?])\s+")
+# A sentence boundary is a `.`/`!`/`?` followed by space — *except* after a
+# bare number, because that is how Estonian writes an ordinal. `28. augustil`,
+# `Balti riikide 100. aastapäev`, `Eesti on 12. riik` were all being cut in
+# half, which put 7 % truncated sentences and 5 % orphaned tails into the
+# corpus pool. Harmless for a cloze that blanks one word; not harmless for
+# dictation, where the learner is asked to write down "Maailmameister selgub
+# pühapäeval, 28." and has no way to know what was cut off.
+#
+# The rule that covers both, and is simpler than special-casing digits: a
+# sentence never *continues* with a lowercase word, so a period followed by one
+# was not a boundary. `28. augustil` and `12. riik` stay whole; `Locked Shields
+# 2018. Seal osales…` still splits, because `Seal` is capitalised and a year
+# can genuinely end a sentence.
+# The terminator may be followed by a closing quote — Estonian writes „…” and
+# ERR uses it constantly — so the boundary is looked for after that too. Two
+# lookbehinds rather than one alternation, because Python needs each to be a
+# fixed width.
+_SENT_RE = re.compile(
+    r"(?:(?<=[.!?])|(?<=[.!?][”\"»’\')\]]))\s+(?![a-zäöüõšž])"
+)
 
 
 def tokenize(text: str) -> list[str]:

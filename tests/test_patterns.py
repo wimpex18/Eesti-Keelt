@@ -167,3 +167,41 @@ def test_all_items_file_against_a_real_curriculum_topic(words):
     )
     for item in items:
         assert by_id(item.topic).generator == "patterns"
+
+
+class TestSentenceSplittingDoesNotCutEstonianOrdinals:
+    """`28. augustil` is "on the 28th of August", not two sentences. The
+    splitter broke on every one, which put truncated sentences and orphaned
+    tails into the corpus every generator draws on.
+
+    The rule is not a digit special case: a sentence never *continues* with a
+    lowercase word, so a period followed by one was never a boundary."""
+
+    def split(self, text):
+        from eesti.morph import split_sentences
+
+        return split_sentences(text)
+
+    def test_an_ordinal_does_not_end_a_sentence(self):
+        assert len(self.split(
+            "Maailmameister selgub pühapäeval, 28. augustil toimub festival.")) == 1
+
+    def test_a_year_can_still_end_one(self):
+        """`2018. Seal` is two sentences — the follower is capitalised."""
+        assert len(self.split(
+            "Õppuse nimi on Locked Shields 2018. Seal osales palju riike.")) == 2
+
+    def test_ordinary_sentences_still_split(self):
+        assert len(self.split("Ma elan siin. Ta läks kooli.")) == 2
+        assert len(self.split("Kas sa tuled? Jah, tulen.")) == 2
+
+    def test_a_closing_quote_does_not_hide_the_boundary(self):
+        """Estonian writes „…” and ERR uses it constantly; the terminator is
+        then not the last character before the space."""
+        assert len(self.split("Ta ütles: „Ma tulen.” Siis läks ära.")) == 2
+        assert len(self.split('Ta ütles: "Ma tulen." Siis läks ära.')) == 2
+
+    def test_the_quote_survives_the_split(self):
+        """Consuming it in the split pattern would have deleted it."""
+        got = self.split("Ta ütles: „Ma tulen.” Siis läks ära.")
+        assert "”" in got[0]
