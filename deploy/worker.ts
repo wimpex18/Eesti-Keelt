@@ -39,6 +39,8 @@ import { DurableObject } from "cloudflare:workers";
 
 interface Env {
   LEARNER_STATE: DurableObjectNamespace<LearnerState>;
+  /** Workers AI, for speech recognition. See `transcribe`. */
+  AI?: Ai;
   /** Base URL of the Cloud Run service, e.g. https://eesti-keelt-xxxx.run.app */
   CLOUD_RUN_URL: string;
   /** Shared secret proving a request came through this Worker. */
@@ -223,6 +225,97 @@ export class LearnerState extends DurableObject<Env> {
   }
 }
 
+/**
+ * Whisper, on the platform the app is already fronted by.
+ *
+ * Recognition happens here rather than on the origin for one reason worth
+ * stating: the binding needs no API token. Calling Workers AI over REST from
+ * Cloud Run would mean putting a Cloudflare credential on the origin, and the
+ * only token template that covers Workers can also edit them — far more
+ * authority than "turn this audio into words" deserves.
+ *
+ * What it does NOT do is decide anything. The transcript goes straight to the
+ * app, which compares it against a target it already knows. A model says what
+ * it heard; nothing else in this app is a model's opinion.
+ */
+const WHISPER = "@cf/openai/whisper-large-v3-turbo";
+
+async function transcribe(
+  request: Request,
+  env: Env,
+  url: URL,
+): Promise<Response> {
+  if (!env.AI) {
+    return Response.json(
+      { text: "", engine: "", degraded: true, note: "no speech engine" },
+      { status: 200 },
+    );
+  }
+
+  const audio = await request.arrayBuffer();
+  if (audio.byteLength === 0) {
+    return Response.json({ detail: "no audio" }, { status: 400 });
+  }
+  if (audio.byteLength > 12_000_000) {
+    return Response.json({ detail: "recording too long" }, { status: 413 });
+  }
+
+  // The question being answered, or the sentence being read. A few seconds of
+  // accented Estonian is exactly what a recogniser guesses wrong on, and the
+  // topic's own vocabulary is a free hint.
+  const context = (
+    url.searchParams.get("q") ||
+    url.searchParams.get("target") ||
+    ""
+  ).slice(0, 220);
+
+  let text = "";
+  let note = "";
+  try {
+    const out = (await env.AI.run(WHISPER, {
+      audio: base64(audio),
+      task: "transcribe",
+      // Pinned, not guessed: Whisper reaches for a bigger language otherwise.
+      language: "et",
+      vad_filter: true,
+      // Whisper repeats itself on silence; these are its documented guards.
+      condition_on_previous_text: false,
+      ...(context ? { initial_prompt: context } : {}),
+    })) as { text?: string };
+    text = (out.text ?? "").trim();
+  } catch (error) {
+    note = error instanceof Error ? error.message.slice(0, 200) : String(error);
+  }
+
+  // Hand the transcript to the app, which owns every judgement made about it.
+  const target = url.searchParams.get("target") ?? "";
+  const graded = new URL("/api/transcribe/text", env.CLOUD_RUN_URL);
+  if (target) graded.searchParams.set("target", target);
+  return fetch(graded, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-proxy-token": env.PROXY_TOKEN,
+    },
+    body: JSON.stringify({
+      text,
+      engine: text ? `Workers AI (${WHISPER})` : "",
+      degraded: !text,
+      note,
+    }),
+  });
+}
+
+/** ArrayBuffer -> base64, in chunks so a long recording does not blow the stack. */
+function base64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
 function stub(env: Env) {
   return env.LEARNER_STATE.get(env.LEARNER_STATE.idFromName("singleton"));
 }
@@ -241,6 +334,11 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/state/")) {
       return new Response("not found", { status: 404 });
+    }
+
+    // Speech is answered here, not forwarded: see `transcribe`.
+    if (url.pathname === "/api/transcribe" && request.method === "POST") {
+      return transcribe(request, env, url);
     }
 
     const learner = stub(env);
@@ -274,6 +372,19 @@ export default {
     // Durable Object already holds.
     if (request.method !== "GET" && request.method !== "HEAD") {
       ctx.waitUntil(learner.snapshot());
+    }
+
+    // The origin cannot see the AI binding, so it reports every hosted engine
+    // as absent and the UI hides the microphone. Correct the one fact this
+    // Worker knows better than the app does.
+    if (url.pathname === "/api/asr" && env.AI && response.ok) {
+      const engines = (await response.json()) as Record<string, unknown>;
+      return Response.json({
+        ...engines,
+        cloudflare: true,
+        ready: true,
+        hosted: true,
+      });
     }
     return response;
   },

@@ -239,6 +239,32 @@ the offline steps it would take the whole image down with it. It runs in its own
 layer and logs a warning. The cost is one topic — `rektsioon` says "run `cli
 rections` once" — against an unbuildable image.
 
+## Speech runs on the Worker, not the origin
+
+Cloudflare Workers AI is reachable two ways: over REST with an API token, or
+through the Worker's own `AI` binding. This uses the binding, and the reason is
+authority rather than convenience — the only token template that covers Workers
+can also **edit** them, which is far more than "turn this audio into words"
+deserves to hold on the origin.
+
+So `POST /api/transcribe` is answered by the Worker: Whisper
+(`@cf/openai/whisper-large-v3-turbo`), `language` pinned to `et` rather than
+guessed, and the question being answered passed as `initial_prompt` because a
+few seconds of accented Estonian is exactly what a recogniser guesses wrong on.
+
+The transcript then goes to `POST /api/transcribe/text` on the app, which owns
+every judgement made about it. **A model says what it heard; nothing else in
+this app is a model's opinion.** The target sentence is known, so the comparison
+is string alignment, and it never travels without the caveat saying a miss may
+be the recogniser rather than the learner.
+
+`/api/transcribe` still works locally under `cli serve`, where there is no
+Worker and the provider chain does the recognising.
+
+One consequence worth knowing: the origin cannot see the binding, so its
+`/api/asr` reports every hosted engine as absent. The Worker corrects that one
+field on the way past — it is the only place that knows.
+
 ## The reading library needs one manual step
 
 The harvested corpus is **not** in the image, for two reasons: re-running the

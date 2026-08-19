@@ -698,6 +698,43 @@ async def transcribe(request: Request) -> dict:
     return result
 
 
+class TranscriptIn(BaseModel):
+    """A transcript the platform already produced. See `transcribe_text`."""
+
+    text: str = Field(default="", max_length=4000)
+    engine: str = Field(default="", max_length=120)
+    degraded: bool = False
+    note: str = Field(default="", max_length=400)
+
+
+@app.post("/api/transcribe/text")
+def transcribe_text(blob: TranscriptIn, request: Request) -> dict:
+    """Grade a transcript the Worker recognised, rather than recognising it here.
+
+    Cloudflare Workers AI is reachable two ways: over REST with an API token, or
+    through the Worker's own `AI` binding. The binding wins on every count that
+    matters here. It needs no token at all, so the origin never holds a
+    credential that can edit Workers; it runs recognition on the platform the
+    app is already fronted by; and it keeps the split this project is built on
+    intact -- **a model may say what it heard, and nothing else.**
+
+    Everything downstream of the transcript stays here and stays deterministic:
+    the target sentence is known, so `compare` is string alignment, not
+    judgement. That is the whole reason read-aloud can be scored honestly while
+    pronunciation cannot.
+
+    `/api/transcribe` remains for local `cli serve`, where there is no Worker and
+    the provider chain does the recognising.
+    """
+    result = blob.model_dump()
+    target = request.query_params.get("target", "")[:400]
+    if target and blob.text:
+        from .pronunciation import compare
+
+        result["comparison"] = compare(target, blob.text).to_dict()
+    return result
+
+
 @app.get("/api/speaking/readaloud")
 def read_aloud(kind: str = "lause", n: int = 8, levels: str = "A1,A2,B1",
                seed: int | None = None) -> dict:
