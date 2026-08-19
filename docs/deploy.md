@@ -159,7 +159,25 @@ variable box that says it is visible to others.
 | `CLOUD_RUN_URL` | — | ✅ repo secret | where the Worker forwards |
 | `CLOUDFLARE_API_TOKEN` | — | ✅ repo secret | deploys the Worker |
 | `CLOUDFLARE_ACCOUNT_ID` | — | ✅ repo secret | ditto |
-| `OPENROUTER_API_KEY` | ✅ env var | optional | grammar explanations; optional |
+| `OPENROUTER_API_KEY` | ✅ env var | — | grammar explanations; **Cloud Run only** |
+
+**Which half reads which is not a detail.** The Worker and the container read
+different variables, and putting one in the wrong half fails silently — nothing
+errors, the value simply is not there, and the feature drops into its fallback.
+
+That happened with `OPENROUTER_API_KEY`. It is read by `eesti/providers/llm.py`,
+which runs in the container; it was stored as a Worker secret, where nothing
+reads it. The grammar checker sat permanently in offline mode, so no correction
+carried a fix, no "log it" button rendered, and nothing ever reached the Notion
+log — a whole chain inert because a credential was one hop from the process that
+needed it. And it was the worse half of the trade: all the exposure of holding a
+key, none of the benefit.
+
+Set it where it belongs, without it touching your shell history:
+
+```bash
+bash deploy/set-llm-key.sh
+```
 
 `PROXY_TOKEN` and `STATE_TOKEN` are values you invent — any long random string,
 the same string in both places:
