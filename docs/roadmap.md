@@ -199,25 +199,28 @@ three of these were found at all:
 
 ## Next, in order
 
+0. **Redeploy.** Everything in the current branch ships in the image and
+   nothing needs a content push. Until that happens the running app still
+   serves the invented paradigms.
 1. **Use the readiness verdict.** It is built and it currently says "ei ole
-   veel" for both levels, with the reasons named. The next work is not more
-   features — it is study, and then watching the verdict change.
+   veel" for both levels, with the reasons named. As of 2026-08-20 those
+   reasons for A2 are: no exam part touched at all, 0 of 7 A2 topics mastered,
+   and the A2 checkpoint unattempted — with 42 days to the 01.10 registration
+   deadline. The next work is not more features. It is study, and then
+   watching those three numbers move.
 2. **Whatever the verdict names.** It reports untouched exam parts first,
    because ≥60 % overall with one part at zero is still a fail. That list is
    the honest backlog.
 
-### Blocked on an upload, not on code
+### The upload happened — this is no longer blocked
 
-`content.db` has not been pushed to the deployment. Three things are empty in
-production until it is, and all three exist and are tested:
+`content.db` is on the deployment. The smoke run of 2026-08-19T22:48Z reports
+`reading library ......... OK`, which is `"library":true` from `/api/health`,
+so the three things that rode on it are live: the 349-text reading library,
+dictation's sentence pool, and the 47 attested word-order items.
 
-| | |
-|---|---|
-| the reading library | 349 texts, the whole Lugemine part |
-| dictation | draws its sentences from the same corpus |
-| word order | 47 attested items ride `content.db` too |
-
-`bash deploy/push-content.sh data/content.db`, from Cloud Shell.
+Re-run `bash deploy/push-content.sh data/content.db` from Cloud Shell only
+after a *new* harvest. Nothing in the current branch needs it — see below.
 
 ### Tags with no drill, and whether that is a gap
 
@@ -242,9 +245,12 @@ everything a copy would, and holds none of it.
 
 ## Known gaps, stated plainly
 
-- **The reading library is empty in production** until a harvest is pushed.
-  The mechanism exists (`deploy/push-content.sh`); the harvest has not been run
-  and uploaded.
+- **The deployment is running an image from before the current branch.** The
+  last smoke run checked image `2026-08-19T22:02:22Z` against commit `25814b3`,
+  which predates the export fixes. Until it is rebuilt, the word card there
+  still prints `kool, koola, koola` and the other 319 invented paradigms. The
+  fix rides the image — `RUN python -m eesti.cli export` at build time — so a
+  redeploy is all it needs, with no content push.
 - **A crash between snapshots loses a few minutes of answers.** The alternative
   is moving learner state to D1, which is a real rewrite of the storage layer
   and is not worth it for that.
