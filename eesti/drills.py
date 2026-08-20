@@ -176,17 +176,47 @@ def generate(
             "no usable templates — run `python -m eesti.cli build` to index forms."
         )
 
-    # Enumerate every valid (frame, noun) pairing and sample without replacement,
-    # so a ten-item set does not repeat the same sentence twice.
-    pairings = [
-        (tpl, word)
-        for tpl in usable
-        for word in POOLS[tpl.pool]
-        if word in forms
-    ]
-    rng.shuffle(pairings)
-    if count > len(pairings):  # small pools: allow reuse rather than short-changing
-        pairings *= (count // len(pairings)) + 1
+    # Enumerate every valid (frame, noun) pairing, then take them a frame at a
+    # time rather than at random.
+    #
+    # Sampling the flat list uniformly looked right and read badly: the noun is
+    # blanked, so two pairings that share a frame are the *same sentence* on
+    # screen. Measured over twelve seeds, a ten-item set held only 5-8 distinct
+    # prompts and one sentence could appear five times, out of twelve frames
+    # available -- the docstring above promised the opposite and no test had
+    # ever looked. Found by reading a screenshot of the drill, not by an
+    # assertion.
+    #
+    # Round-robin over the frames instead: shuffle the nouns within each frame,
+    # shuffle the order of the frames, then deal one item from each in turn. A
+    # set of ten across twelve frames now repeats no sentence at all, and where
+    # count exceeds the frames available the repeats are spread evenly rather
+    # than clustered.
+    by_frame: dict[str, list] = {}
+    for tpl in usable:
+        pool = [(tpl, word) for word in POOLS[tpl.pool] if word in forms]
+        if pool:
+            rng.shuffle(pool)
+            by_frame.setdefault(tpl.frame, []).extend(pool)
+
+    queues = list(by_frame.values())
+    rng.shuffle(queues)
+    pairings = []
+    round_ = 0
+    while len(pairings) < count:
+        drawn = 0
+        for q in queues:
+            if round_ < len(q):
+                pairings.append(q[round_])
+                drawn += 1
+                if len(pairings) == count:
+                    break
+        if drawn == 0:  # every frame exhausted: reuse rather than short-change
+            round_ = 0
+            if not any(queues):
+                break
+            continue
+        round_ += 1
 
     drills: list[Drill] = []
     for tpl, word in pairings[:count]:

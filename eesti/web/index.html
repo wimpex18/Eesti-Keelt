@@ -734,9 +734,16 @@ function selectTab(button) {
   ON_OPEN[tab]?.();
 }
 
-document.querySelectorAll("nav button").forEach(b => b.onclick = () => selectTab(b));
+document.querySelectorAll("nav button").forEach(
+  b => b.onclick = () => { selectTab(b); rememberPlace(); });
 
-document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
+function selectMode(m) {
+  // Re-tapping the mode you are already in used to bounce you to that mode's
+  // first tab -- so pressing Eksam while reading Edenemine threw you back to
+  // Ülevaade. Harmless-looking until the tab lives in history, at which point
+  // it also pushed an entry and made Back land somewhere the learner had never
+  // chosen. Staying put is both the better behaviour and the honest one.
+  if (m.getAttribute("aria-selected") === "true") return;
   document.querySelectorAll(".modes button").forEach(x =>
     x.setAttribute("aria-selected", x === m));
   document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
@@ -745,11 +752,55 @@ document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
   // Land on the mode's first tab, so switching never shows a blank panel.
   selectTab(document.querySelector(
     `nav[data-mode-nav="${m.dataset.mode}"] button`));
-});
+}
+
+document.querySelectorAll(".modes button").forEach(
+  m => m.onclick = () => { selectMode(m); rememberPlace(); });
+
+/* Where you are is in the URL.
+   ────────────────────────────
+   Until now it was nowhere. The page never touched `location`, so a refresh
+   dropped the learner back on Rada whatever they had been doing, `#status`
+   did nothing, and the browser's Back left the app altogether -- worst on a
+   phone, where Back is a system gesture rather than a button somebody chose.
+
+   The hash rather than a path: this is one static file served at `/`, and a
+   real path would 404 on reload unless the server learned to route.
+
+   `pushState` per tab change, not `replaceState`. The first version replaced,
+   to avoid building a stack of entries -- and that kept the worst half of the
+   bug, because Back still left the app. Returning to the previous tab is what
+   Back means in a tabbed interface, and on a phone Back is a system gesture
+   rather than a button somebody chose to press. Re-selecting the tab already
+   showing pushes nothing, so tapping the same icon twice does not cost an
+   entry. A `hashchange` listener then handles Back, Forward and a pasted link
+   through one code path. */
+function rememberPlace() {
+  const tab = [...document.querySelectorAll("section.panel")]
+    .find(s => !s.hidden)?.id.replace("tab-", "");
+  if (tab && location.hash !== "#" + tab) history.pushState(null, "", "#" + tab);
+}
+
+function goToPlace(tab) {
+  const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${tab}"]`);
+  if (!button) return false;
+  const mode = button.closest("nav").dataset.modeNav;
+  selectMode(document.querySelector(`.modes button[data-mode="${mode}"]`));
+  selectTab(button);
+  return true;
+}
+
+addEventListener("hashchange", () => goToPlace(location.hash.slice(1)));
 
 // The path is the default landing tab: it is the one screen that answers
-// "what do I do now" without the learner having to decide.
-selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
+// "what do I do now" without the learner having to decide. A hash naming a
+// real tab wins over it; anything else falls back rather than showing nothing.
+if (!goToPlace(location.hash.slice(1))) {
+  selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
+  // Replace, never push: the landing tab must not become an extra Back step
+  // between the learner and the page they arrived from.
+  history.replaceState(null, "", "#path");
+}
 
 /* One fetch helper for both verbs. It was POST-only, which was fine while
    every call sent something; the exam view reads four endpoints that take no
@@ -1011,7 +1062,14 @@ if (matchMedia("(min-width:1080px)").matches) {
 
 async function runCheck() {
   const text = $("#text").value.trim();
-  if (!text) return;
+  /* Clicking Kontrolli with an empty box used to do nothing at all -- no
+     message, no change, indistinguishable from a dead button. Say what is
+     missing, in the language the explanations are written in. */
+  if (!text) {
+    $("#checkOut").innerHTML =
+      `<p class="hint">Вставь эстонский текст — тогда проверю.</p>`;
+    return;
+  }
   const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Kontrollin…";
   const out = $("#checkOut"); out.innerHTML = "";
   try {
@@ -1202,7 +1260,11 @@ async function loadPath() {
       `${p.mastered}/${p.total} teemat${next ? " · " + next.level : ""}`;
 
     $("#pathList").innerHTML = p.topics.map(t => {
-      const blocked = t.blocked_by.length ? ` ← ${t.blocked_by.join(", ")}` : "";
+      /* Names, not ids — the API resolves them now. Kept tolerant of an older
+         payload so a stale cached page degrades to the previous behaviour
+         rather than printing "undefined". */
+      const needs = t.blocked_by || [];
+      const blocked = needs.length ? ` ← ${needs.join(", ")}` : "";
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
       const testOut = t.state === "ready" || t.state === "in progress"
         ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta</button>` : "";
@@ -1733,11 +1795,23 @@ async function loadLibrary() {
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
+  /* A failed request must say what the server said. Reading `.items` off an
+     error payload threw, and the catch below printed the TypeError itself:
+     the learner was shown "Viga: Cannot read properties of undefined (reading
+     'length')". The drill and the writing check both surface `detail`
+     correctly; this path was the odd one out. */
+  const ask = async (url) => {
+    const r = await fetch(url);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.detail || `${r.status} ${r.statusText}`);
+    return body;
+  };
+
   try {
     let items, note = "";
     let measured = true;
     if (choice === "soovitatud") {
-      const d = await (await fetch("/api/reading/next?limit=25")).json();
+      const d = await ask("/api/reading/next?limit=25");
       items = d.items;
       // With nothing marked known, every text scores 0 % — true, and it reads
       // as "you know nothing" rather than "we have not measured yet". Suppress
@@ -1749,7 +1823,7 @@ async function loadLibrary() {
     } else {
       const q = new URLSearchParams({skill: "lugemine", limit: "80"});
       if (choice) q.set("band", choice);
-      items = (await (await fetch("/api/library?" + q)).json()).items;
+      items = (await ask("/api/library?" + q)).items;
     }
 
     $("#libCount").textContent =

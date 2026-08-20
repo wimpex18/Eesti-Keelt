@@ -442,3 +442,30 @@ in Cloud Shell and discover the project, service and region themselves.
   arbitrary, and the guard test written alongside it is what caught that. Two
   numbers have to mirror reality for the defect to appear at all: the limit
   must be smaller than one band, as 60 is smaller than 116.
+- **Look at the screen, not only at its geometry.** A full UAT pass with
+  assertions on visibility, overflow and hit-testing found five defects and
+  cleared three false alarms. Then reading the *screenshots* found four more in
+  minutes, none of which any assertion could have caught: database keys in the
+  path labels (`astmevaheldus ← gen-stem`), the same sentence three times in
+  one drill, a raw JS TypeError shown to the learner, and a silent button. A
+  measurement answers the question you thought to ask; a picture answers the
+  ones you did not.
+- **When reviewing a selection step, look at the set and not at the items.**
+  Two unrelated-looking bugs were one shape: the reading filter let recency
+  fill the whole limit with a single band, and the drill generator let uniform
+  sampling cluster ten items onto five frames. Every individual row was valid
+  and correct in both cases, which is exactly why every existing test passed.
+  Ask what the *collection* looks like — how many distinct bands, how many
+  distinct sentences — because that is the property the learner experiences.
+- **A tab that is not in the URL is a tab the browser cannot help with.**
+  Refresh lost the learner's place, `#status` did nothing, and Back left the
+  app — one missing mechanism, three symptoms. The first fix used
+  `replaceState` to avoid a history stack and kept the worst symptom: Back
+  still left. In a tabbed interface Back means "the tab before", and on a phone
+  Back is a system gesture rather than a button somebody chose. `pushState` per
+  change, `replaceState` for the landing tab, and re-selecting the current tab
+  pushes nothing.
+- **Re-tapping the thing you are already on should do nothing.** Clicking the
+  active mode reset it to its first tab, which was a mild annoyance for months
+  and became a real bug the moment the tab lived in history: it pushed an entry
+  the learner never chose, so Back landed somewhere they had never been.

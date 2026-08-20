@@ -38,17 +38,46 @@ under *unconfirmed* rather than as a defect.
 
 ## Defects
 
-| id | Severity | Summary | Regression test |
-|---|---|---|---|
-| **QA-1** | Medium-High | `kõik` shows only one band — two thirds of the corpus unreachable | `test_library.py::TestBrowsingEverything` (xfail, strict) + E2E |
-| **QA-2** | Medium | No UI state survives a reload; no deep link; Back leaves the app | `test_e2e_journeys.py::TestDiscoveredDefects` (xfail, strict) |
-| **QA-2b** | Low | Chosen exam level resets to A2 on reload | as above |
-| **QA-3** | Low | Empty answer silently consumes a drill item and scores it wrong | none yet — see *unresolved* |
-| **QA-4** | Low | Empty writing submission gives no feedback at all | none yet — see *unresolved* |
+Round 1 found five by driving the app; **round 2 found four more by looking at
+screenshots of it**, which is the finding about the method rather than the
+product. Geometry assertions cannot see a repeated sentence, a database key in
+a label, or a stack trace where a message should be.
 
-Full reproduction steps live in the QA report for this session; the tests
-carry the reasoning in their `reason=` strings so it survives without the
-chat log.
+| id | Severity | Summary | State |
+|---|---|---|---|
+| **QA-1** | Medium-High | `kõik` showed one band — two thirds of the corpus unreachable | **fixed** — bands interleaved |
+| **QA-2** | Medium | No UI state survived a reload; no deep link; Back left the app | **fixed** — hash routing |
+| **QA-5** | Medium | Path printed database keys: `astmevaheldus ← gen-stem` | **fixed** — resolved in the API |
+| **QA-6** | Medium | A 10-item drill held 5–8 distinct sentences, one repeated ×5 | **fixed** — round-robin over frames |
+| **QA-8** | Low-Med | Reading failure showed a raw JS TypeError to the learner | **fixed** — reads `detail` |
+| **QA-4** | Low | Empty writing submission gave no feedback at all | **fixed** — says what is missing |
+| **QA-2b** | Low | Exam level resets to A2 on reload | open (xfail) |
+| **QA-3** | Low | Empty answer silently consumes a drill item and scores it wrong | open |
+| **QA-7** | Medium | ARIA tabs pattern half-implemented | open |
+
+### QA-7 in full, because it is the one still open that a person would feel
+
+The page declares `role="tab"` on 15 buttons inside 5 `role="tablist"`
+containers, and then implements none of the rest of the pattern: no
+`aria-controls` on any tab, no `role="tabpanel"` on any of the 10 panels, and
+**arrow keys do not move between tabs**. A screen reader announces a tab list,
+which tells its user to expect arrow-key navigation and an associated panel;
+they get neither. Announcing a pattern you do not honour is worse than plain
+buttons, which promise nothing.
+
+What *is* right, and was checked: `lang="et"`, exactly one `h1`, every visible
+input labelled, every image with `alt`, a visible focus ring on every control,
+and a tab order that follows the reading order.
+
+### The two that turned out to be one shape
+
+QA-1 and QA-6 look unrelated — a filter and a drill generator — and are the
+same bug twice: **plenty of material, and a selection step that shows a narrow
+slice of it.** QA-1 let recency ordering fill the whole limit with one band;
+QA-6 let uniform random sampling cluster ten items onto five frames. Both were
+invisible to every existing test because each individual row returned was
+perfectly valid. When reviewing a selection step, ask what the *set* looks
+like, not whether the items are correct.
 
 ## Not defects — checked and cleared
 
@@ -74,6 +103,24 @@ the next person should not pay for it twice.
 - **Two `test_export_quality` failures on a fresh checkout.** Stale local
   `data/edge.db`; `python -m eesti.cli export` clears them. Already recorded
   in `docs/status.md`.
+- **Text apparently running under the mobile navigation bar.** The Russian
+  caveat at the foot of Edenemine looked clipped in a screenshot. It was not:
+  the screenshot was taken at scroll 0. At full scroll the paragraph clears the
+  bar. **A screenshot taken before scrolling is not evidence of clipping** —
+  scroll first, then look.
+- **`kook · A1` offering `koogu` in a drill.** Stale local `data/eesti.db`,
+  the same class as the `edge.db` one. Vabamorf returns two paradigms for
+  *kook* (the cake, `koogi`; a hooked pole, `koogu`) and current `case_forms`
+  correctly refuses ambiguous words. The deployed image rebuilds the dataset,
+  so it does not ship — but see the coverage gap below.
+
+## The gap that has no test either way
+
+`test_export_quality` guards `edge.db`, the dataset exported to Cloudflare.
+The FastAPI app serves its drills from `eesti.db.object_cases`, and **nothing
+guards that table.** A stale copy teaches a wrong paradigm with a straight
+face. It does not ship today only because the Dockerfile rebuilds from
+scratch; that is a property of the build, not a test.
 
 ## Blocked / not testable here
 
@@ -95,8 +142,15 @@ the next person should not pay for it twice.
 - **Real dictation grading accuracy** — one empty submission only.
 - **Review scheduling over time.** FSRS intervals cannot be observed in one
   session; grading was exercised, spacing was not.
-- **Cross-browser.** Chromium only. No Firefox, no WebKit, no real iOS Safari
-  — which matters, because Safari is the likely phone browser here.
+- **Cross-browser.** Chromium only — it is the only engine in
+  `/opt/pw-browsers`, so WebKit would need `playwright install webkit` and
+  network. This matters more than it sounds: Safari is the likely phone
+  browser here, and it is the engine most likely to differ on `<details>`,
+  sticky positioning and hash handling — all three of which this app now
+  depends on.
+- **Dark mode was checked and passes.** Rendered at `color_scheme=dark`,
+  screenshotted and read: the token palette holds, verdict colours stay
+  legible, and no element resolves to text-on-its-own-background.
 - **Offline / flaky-network behaviour** of the page itself.
 - **Keyboard-only navigation and screen readers.** `role="tab"` is present;
   focus order and announcements were not audited.

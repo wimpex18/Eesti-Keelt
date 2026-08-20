@@ -242,9 +242,16 @@ class TestBrowsingEverything:
         return conn
 
     def test_the_fixture_really_is_ordered_by_band(self, banded):
-        """Guard the guard: if `add_items` ever stops preserving order this
-        test would pass for the wrong reason."""
-        newest = [r["band"] for r in query(banded, skill="lugemine", limit=4)]
+        """Guard the guard.
+
+        The defect needs the newest rows to be one band; if the fixture ever
+        stops arranging that, every test below would pass for the wrong reason
+        -- which is exactly what the first version of this fixture did. Asked
+        of the table directly rather than through `query`, because `query` is
+        now the thing under test and interleaves on purpose.
+        """
+        newest = [r[0] for r in banded.execute(
+            "SELECT band FROM items ORDER BY added_on DESC LIMIT 4")]
         assert set(newest) == {"kergem"}, newest
 
     def test_asking_for_one_band_returns_only_that_band(self, banded):
@@ -252,15 +259,18 @@ class TestBrowsingEverything:
             rows = query(banded, skill="lugemine", band=band, limit=50)
             assert rows and {r["band"] for r in rows} == {band}
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "QA-1: unfiltered browsing is truncated to whichever band was harvested "
-        "last. `ORDER BY added_on DESC LIMIT n` reaches the limit before it "
-        "reaches the other bands, so `kõik` shows the same list as `kergem`."))
     def test_browsing_unfiltered_reaches_every_band(self, banded):
         # The limit must be smaller than a single band, which is the real
         # ratio: the page asks for 60 and the newest band holds 116. A limit
         # wider than one band hides the defect, which is why the number here
         # is 3 against batches of 4 rather than something round.
         rows = query(banded, skill="lugemine", band=None, limit=3)
-        assert len({r["band"] for r in rows}) > 1, \
+        assert {r["band"] for r in rows} == {"kergem", "keskmine", "raskem"}, \
             f"'kõik' surfaced only {[r['band'] for r in rows]}"
+
+    def test_a_specific_band_still_comes_newest_first(self, banded):
+        """Interleaving is for the unfiltered view only; asking for one band
+        has nothing to interleave and must keep plain recency."""
+        rows = query(banded, skill="lugemine", band="kergem", limit=4)
+        dates = [r["added_on"] for r in rows]
+        assert dates == sorted(dates, reverse=True)

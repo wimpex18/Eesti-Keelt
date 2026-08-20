@@ -897,6 +897,17 @@ def curriculum_path() -> dict:
 
     progress = progress_db()
     rows = report(progress)
+    # `blocked_by` holds topic ids, and the page printed them straight onto the
+    # screen: "astmevaheldus <- gen-stem". `gen-stem` is a database key; the
+    # thing the learner has to go and study is called `omastava tüvi`, and the
+    # whole point of an Estonian label here is that the term is what gets
+    # learned. Eleven rows read that way.
+    #
+    # Resolved here rather than in the page, because this is the third time the
+    # same bug has been fixed in a different place -- `kusisonad` on this very
+    # panel, then `obj-case` in the review queue. A page that has to know how to
+    # turn ids into names will eventually meet an id nobody taught it about.
+    names = {r.topic: r.et for r in rows}
     return {
         "resume": resume(progress),
         "mastered": sum(1 for r in rows if r.state == "mastered"),
@@ -905,7 +916,11 @@ def curriculum_path() -> dict:
             {
                 "id": r.topic, "level": r.level, "et": r.et, "state": r.state,
                 "attempts": r.attempts, "accuracy": r.accuracy,
-                "blocked_by": list(r.blocked_by),
+                # Ids kept as well: the page needs them to link, and a caller
+                # that wants to match on identity must not have to reverse a
+                # display string to get it back.
+                "blocked_by": [names.get(b, b) for b in r.blocked_by],
+                "blocked_by_ids": list(r.blocked_by),
             }
             for r in rows
         ],

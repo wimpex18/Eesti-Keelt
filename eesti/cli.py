@@ -641,6 +641,11 @@ def cmd_progress(args: argparse.Namespace) -> int:
 
     progress = connect(learner_db(args, "progress_db"))
     rows = report(progress)
+    # Same substitution the API makes: `blocked_by` holds ids, and a learner
+    # reading "<- gen-stem" has been shown a database key rather than the name
+    # of the thing they have to study. The terminal prints the topic id in its
+    # own column already, so nothing is lost by naming the prerequisite.
+    names = {row.topic: row.et for row in rows}
     level = None
     for row in rows:
         if args.todo and row.state in ("mastered", "locked"):
@@ -649,7 +654,8 @@ def cmd_progress(args: argparse.Namespace) -> int:
             level = row.level
             print(f"\n{level}")
         acc = f"{row.accuracy:.0%}" if row.accuracy is not None else "  -"
-        blocked = f"  <- {', '.join(row.blocked_by)}" if row.blocked_by else ""
+        blocked = (f"  <- {', '.join(names.get(b, b) for b in row.blocked_by)}"
+                   if row.blocked_by else "")
         print(f"  {row.state:<12} {row.topic:<16} {row.et[:30]:<32}"
               f" n={row.attempts:<4} {acc:>4}{blocked}")
 

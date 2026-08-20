@@ -183,7 +183,16 @@ MODES = ("learn", "revise", "exam")
 
 
 def open_tab(page, mode: str, tab: str) -> None:
-    page.click(f'button[data-mode="{mode}"]')
+    """Switch mode only when the mode is not already showing.
+
+    A learner moving from Lugemine to Kirjutamine taps one button, not two.
+    Clicking the mode every time made the helper walk a path no user walks,
+    and once the open tab lived in the URL that difference showed up as a
+    history entry nobody had chosen.
+    """
+    if page.get_attribute(f'button[data-mode="{mode}"]', "aria-selected") != "true":
+        page.click(f'button[data-mode="{mode}"]')
+        page.wait_for_timeout(200)
     page.click(f'nav[data-mode-nav="{mode}"] button[data-tab="{tab}"]')
     page.wait_for_timeout(400)
 
@@ -344,11 +353,16 @@ class TestWriting:
     """The writing check must answer with no provider key at all -- offline
     degradation is a feature here, not a failure."""
 
-    def test_an_empty_submission_does_nothing(self, page):
+    def test_an_empty_submission_says_what_is_missing(self, page):
+        """QA-4, fixed. It used to return silently, which is indistinguishable
+        from a dead button. The message is Russian because that is the language
+        every explanation in this app is written in."""
         open_tab(page, "learn", "write")
         page.click("#checkBtn")
         page.wait_for_timeout(800)
-        assert page.locator("#checkOut").inner_text().strip() == ""
+        said = page.locator("#checkOut").inner_text().strip()
+        assert said, "empty submit still gives no feedback"
+        assert any("Ѐ" <= ch <= "ӿ" for ch in said), f"not in Russian: {said!r}"
         assert not page.locator("#checkBtn").is_disabled(), "empty submit locked the button"
 
     def test_a_real_sentence_gets_an_answer_without_any_key(self, page):
@@ -456,21 +470,49 @@ class TestDiscoveredDefects:
     rot silently and a plain failure would train everyone to ignore red.
     """
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "QA-2: no UI state survives a reload. Picking Kordamine/Järjekord and "
-        "refreshing lands back on Õppimine/Rada. The page never touches "
-        "history or the hash, so there is also no deep link and the browser's "
-        "Back leaves the app entirely -- worst on a phone, where Back is a "
-        "system gesture."))
     def test_a_reload_keeps_you_where_you_were(self, page):
+        """QA-2, fixed: the open tab is in the hash, so a refresh returns to
+        it instead of dropping the learner on Rada."""
         open_tab(page, "exam", "status")
         assert page.is_visible("#tab-status")
         page.reload(wait_until="networkidle")
         page.wait_for_timeout(800)
         assert page.is_visible("#tab-status"), "reload lost the learner's place"
 
+    def test_a_pasted_link_opens_that_tab(self, page, live_server):
+        """Deep linking, which the page had no way to express before."""
+        page.goto(live_server + "/#drill", wait_until="networkidle")
+        page.wait_for_timeout(800)
+        assert page.is_visible("#tab-drill")
+        assert page.get_attribute(
+            'nav[data-mode-nav="exam"] button[data-tab="drill"]',
+            "aria-selected") == "true", "the tab opened but its button is not selected"
+
+    def test_back_returns_to_the_previous_tab_not_out_of_the_app(self, page):
+        """The half of QA-2 that matters most on a phone, where Back is a
+        system gesture: it used to leave the app entirely."""
+        open_tab(page, "learn", "read")
+        open_tab(page, "learn", "write")
+        assert page.is_visible("#tab-write")
+        page.go_back()
+        page.wait_for_timeout(600)
+        assert page.is_visible("#tab-read"), "Back did not return to the previous tab"
+        page.go_forward()
+        page.wait_for_timeout(600)
+        assert page.is_visible("#tab-write")
+
+    def test_an_unknown_hash_falls_back_rather_than_showing_nothing(self, page, live_server):
+        page.goto(live_server + "/#not-a-tab", wait_until="networkidle")
+        page.wait_for_timeout(600)
+        shown = page.eval_on_selector_all(
+            "section.panel", "els=>els.filter(e=>!e.hasAttribute('hidden')).map(e=>e.id)")
+        assert shown == ["tab-path"], shown
+
     @pytest.mark.xfail(strict=True, reason=(
-        "QA-2b: the exam level is UI-only state, so a reload resets B1 to A2."))
+        "QA-2b: still open. The tab is in the hash now, but the chosen exam "
+        "level is not -- it is UI-only state, so a reload resets B1 to A2. "
+        "Deliberately left: the level belongs in the learner's record rather "
+        "than the URL, which is a bigger change than routing."))
     def test_the_chosen_exam_level_survives_a_reload(self, page):
         open_tab(page, "exam", "exam")
         page.click('#tab-exam button[data-level="B1"]')
@@ -480,13 +522,9 @@ class TestDiscoveredDefects:
         assert page.get_attribute(
             '#tab-exam button[data-level="B1"]', "aria-selected") == "true"
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "QA-1: the 'kõik' option is indistinguishable from 'kergem'. It sends "
-        "band='' (correctly no filter), but `ORDER BY added_on DESC LIMIT 60` "
-        "returns 60 kergem rows because the harvest wrote that band last -- so "
-        "the option a learner picks to browse everything hides two thirds of "
-        "the corpus. Same shape as the 82 indexed-but-unreachable items."))
     def test_choosing_all_shows_more_than_one_difficulty(self, page):
+        """QA-1, fixed: unfiltered browsing interleaves the bands instead of
+        letting the newest harvest fill the whole limit."""
         open_tab(page, "learn", "read")
         page.select_option("#readLevel", "")
         page.click("#loadLib")
