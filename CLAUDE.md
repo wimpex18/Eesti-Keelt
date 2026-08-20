@@ -287,6 +287,14 @@ in Cloud Shell and discover the project, service and region themselves.
   `next(iter(synthesize(...)))` — the exact naive version that function
   replaced — and shipped `kool, koola, koola` to the word card. The drill path
   was right and the card path was wrong for as long as both existed.
+- **A class-scoped fixture outruns the function-scoped redirect.** pytest
+  builds higher-scoped fixtures first, so a `scope="class"` fixture calling
+  `connect()` with no argument reads the *real* `config.DB_PATH` — the autouse
+  redirect in `conftest` has not run yet. On a machine with a built word list
+  it quietly used 160 316 real lemmas and passed; on CI it created an empty
+  `data/eesti.db`, exported nothing, and left the phantom file behind to fail
+  two unrelated tests later in the run. One mistake, five failures, three of
+  them in files it never touched. Pass the path explicitly.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the

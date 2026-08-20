@@ -17,6 +17,11 @@ Deliberately not covered here: anything that writes to a third party or needs
 the network (`harvest*`, `push-content`, `notion --push`, `eval`, `models`,
 `fetch-*`, `rections`, `serve`). Those are the operator's, and a test suite
 that fetches ERR on every run is a test suite that hammers someone's server.
+
+`evkk` was in the list by mistake and CI caught it: it fetches the EVKK
+taxonomy from `elle.tlu.ee`, which timed out on a runner. A third party being
+down must never fail the build — that rule is why the exclusion exists, and
+including `evkk` broke it on the first run.
 """
 
 from __future__ import annotations
@@ -45,7 +50,6 @@ READ_ONLY = [
     (["readiness", "--level", "A2"], 0),
     (["notion"], 0),
     (["placement"], 0),
-    (["evkk"], 0),
     (["drill", "-n", "2"], 0),
     (["cloze", "-n", "2"], 0),
     (["conjugate", "-n", "2"], 0),

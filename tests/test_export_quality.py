@@ -155,12 +155,25 @@ class TestTheExportRunsEndToEnd:
     """
 
     @pytest.fixture(scope="class")
-    def built(self, tmp_path_factory, request):
+    def built(self, tmp_path_factory, fixture_data):
+        """Built from the fixture word list, named explicitly.
+
+        The first version called `connect()` with no argument and let it read
+        `config.DB_PATH`. A class-scoped fixture is set up *before* the
+        function-scoped autouse redirect in `conftest`, so it got the real
+        path -- and `sqlite3.connect` on a path with no file creates one. On a
+        machine with a built word list the export quietly used 160 316 real
+        lemmas; on CI it created an empty `data/eesti.db`, exported nothing,
+        and left the phantom file behind to break two unrelated theme tests.
+
+        Pass the connection; never reach for a module-level path. Same lesson
+        as the readiness verdict reading the developer's real Notion queue.
+        """
         from eesti.export import export
         from eesti.wordlist import connect
 
         dest = tmp_path_factory.mktemp("edge") / "edge.db"
-        stats = export(connect(), dest_path=dest)
+        stats = export(connect(fixture_data["words"]), dest_path=dest)
         conn = sqlite3.connect(dest)
         conn.row_factory = sqlite3.Row
         return stats, conn, dest
@@ -204,22 +217,23 @@ class TestTheExportRunsEndToEnd:
             "SELECT 1 FROM object_cases WHERE lemma = ?", ("lugema",)
         ).fetchone() is None
 
-    def test_it_is_idempotent(self, tmp_path):
+    def test_it_is_idempotent(self, tmp_path, fixture_data):
         """The Dockerfile reruns it on every build; a second run must not
         double the table or fail on the existing file."""
         from eesti.export import export
         from eesti.wordlist import connect
 
         dest = tmp_path / "edge.db"
-        first = export(connect(), dest_path=dest)
-        second = export(connect(), dest_path=dest)
+        first = export(connect(fixture_data["words"]), dest_path=dest)
+        second = export(connect(fixture_data["words"]), dest_path=dest)
         assert first["forms"] == second["forms"]
         assert first["object_cases"] == second["object_cases"]
 
-    def test_the_frequency_cap_actually_caps(self, tmp_path):
+    def test_the_frequency_cap_actually_caps(self, tmp_path, fixture_data):
         from eesti.export import export
         from eesti.wordlist import connect
 
-        small = export(connect(), dest_path=tmp_path / "a.db", max_freq_rank=1)
-        big = export(connect(), dest_path=tmp_path / "b.db", max_freq_rank=25_000)
+        words = connect(fixture_data["words"])
+        small = export(words, dest_path=tmp_path / "a.db", max_freq_rank=1)
+        big = export(words, dest_path=tmp_path / "b.db", max_freq_rank=25_000)
         assert small["lemmas"] <= big["lemmas"]
