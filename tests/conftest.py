@@ -149,17 +149,29 @@ def _build_edge(path) -> None:
 
 
 def _build_content(path) -> None:
-    conn = sqlite3.connect(path)
-    conn.executescript(
-        "CREATE TABLE IF NOT EXISTS items ("
-        " id TEXT PRIMARY KEY, source_id TEXT, skill TEXT, level TEXT,"
-        " title TEXT, body TEXT, audio_url TEXT, meta TEXT, added_on TEXT);"
-    )
-    conn.executemany(
-        "INSERT OR REPLACE INTO items (id,source_id,skill,body) VALUES (?,?,?,?)",
-        [(str(i), "selges-keeles", "lugemine", body) for i, body in enumerate(TEXTS)],
-    )
-    conn.commit()
+    """A content database built by the app's own opener, not by hand.
+
+    This used to write one `CREATE TABLE items` of its own. That is a second
+    copy of a schema `eesti/sources.py` already owns, and it had drifted:
+    `sources` was missing entirely, so anything reading the library through
+    `library.sections` — the `library` and `status` commands, `/api/library` —
+    hit "no such table: sources" against a fixture that looked complete.
+
+    Using the real opener means the fixture cannot drift from the schema again,
+    and a test that passes here is testing the shape production actually has.
+    """
+    from eesti.sources import Item, add_items, connect as open_content, register
+
+    conn = open_content(path)
+    # `register` first: `add_items` refuses an unregistered source, which is
+    # the licence gate and must not be bypassed even here.
+    register(conn)
+    add_items(conn, [
+        Item(source_id="selges-keeles", skill="lugemine",
+             title=f"Fixture {i}", body=body, level=None, band="keskmine",
+             meta={"words": len(body.split())})
+        for i, body in enumerate(TEXTS)
+    ])
     conn.close()
 
 

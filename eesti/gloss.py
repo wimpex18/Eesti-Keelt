@@ -111,11 +111,15 @@ def connect(path: Path | str) -> sqlite3.Connection:
     Not a file of its own: a gloss is a fact about a word this learner met, it
     is small, and putting it anywhere outside the snapshot would reproduce the
     exact bug this module exists to fix.
+
+    Delegates to `vocab.connect` so the file has exactly one opener and comes
+    back complete whichever module asked for it. Two openers, each applying
+    half the schema, is how the glossed-word count went missing on a fresh
+    container instead of reading zero.
     """
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
-    return conn
+    from .vocab import connect as open_vocab
+
+    return open_vocab(path)
 
 
 def _now() -> str:

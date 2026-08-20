@@ -260,6 +260,18 @@ in Cloud Shell and discover the project, service and region themselves.
   every read-only command now runs in the suite with stdin at EOF, so the next
   refactor that renames something out from under a command fails here instead
   of the first time the operator types it. 0 % → 54 %.
+- **A fixture that hand-rolls a schema is a second schema.** `conftest`
+  wrote its own `CREATE TABLE items` for the content database. It had drifted
+  twice over: no `sources` table at all, and no `added_on NOT NULL`. So the
+  fixture looked complete while `library.sections` — and therefore
+  `/api/library`, `/api/status` and two CLI commands — could never run against
+  it. Build fixtures with the app's own opener and writer, and a test that
+  passes is testing the shape production has.
+- **Verify "it works in CI" in a clean worktree, not in your build.** The
+  suite was green locally and red in CI for the ordinary reason: `data/` is
+  git-ignored, so the developer has a corpus and CI does not. `git worktree
+  add` gives exactly CI's tree in one command — cheaper than a round trip
+  through Actions, and it found both remaining failures.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the

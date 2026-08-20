@@ -31,6 +31,46 @@ WORDLIST_BASE = (
 WORDLIST_FILES = ("est_words_160k.tsv",)
 
 
+def content_db(args: argparse.Namespace) -> sqlite3.Connection | None:
+    """The harvested library, resolved at call time and never invented.
+
+    Three commands carried `default="data/content.db"` in their argparse
+    definition. That is a literal, so it ignored `EESTI_CONTENT_DB` -- which is
+    exactly how the Dockerfile points the app at its content volume -- and no
+    caller or test could redirect it.
+
+    Worse, `sqlite3.connect` on a path that does not exist *creates* an empty
+    file. So a missing corpus did not report a missing corpus: it reported
+    `no such table: items`, three frames deep. That is the third time this
+    project has been bitten by presence of a database being read as presence
+    of data.
+
+    Returns None, having said why, when there is no corpus to read.
+    """
+    import sqlite3
+
+    from . import config
+    from .sources import connect as open_content
+
+    path = Path(getattr(args, "content_db", None) or config.CONTENT_DB)
+    if not path.exists():
+        print(f"no content database at {path} — run `cli harvest-reading` "
+              f"first, or set EESTI_CONTENT_DB")
+        return None
+    # The app's own opener, so the CLI sees the schema production has rather
+    # than whatever `sqlite3.connect` leaves behind on a path with no file.
+    conn = open_content(path)
+    try:
+        rows = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    except sqlite3.OperationalError:
+        print(f"{path} has no items table — run `cli harvest-reading`")
+        return None
+    if not rows:
+        print(f"{path} is empty — run `cli harvest-reading` first")
+        return None
+    return conn
+
+
 def cmd_fetch_data(args: argparse.Namespace) -> int:
     RAW.mkdir(parents=True, exist_ok=True)
     for name in WORDLIST_FILES:
@@ -383,11 +423,12 @@ def cmd_cloze(args: argparse.Namespace) -> int:
     from .cloze import case_clozes, negation_clozes, rection_clozes, sentences
     from .wordlist import connect as wordlist_connect
 
-    content = sqlite3.connect(args.content_db)
-    content.row_factory = sqlite3.Row
+    content = content_db(args)
+    if content is None:
+        return 1
     sents = sentences(content)
     if not sents:
-        print(f"no texts in {args.content_db} — run `cli harvest-reading` first")
+        print("no usable sentences in the corpus — run `cli harvest-reading`")
         return 1
 
     words = wordlist_connect()
@@ -754,8 +795,9 @@ def cmd_library(args: argparse.Namespace) -> int:
     from .library import browse, exposure, sections
     from .progress import connect as progress_connect
 
-    content = sqlite3.connect(args.content_db)
-    content.row_factory = sqlite3.Row
+    content = content_db(args)
+    if content is None:
+        return 1
 
     if not args.section:
         for row in sections(content):
@@ -830,8 +872,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     from .vocab import connect as vocab_connect
     from .wordlist import connect as wordlist_connect
 
-    content = sqlite3.connect(args.content_db)
-    content.row_factory = sqlite3.Row
+    # A missing corpus must not take the whole status page down: every other
+    # section still has something true to say.
+    content = content_db(args)
     data = overview(
         progress=progress_connect(args.progress_db),
         reviews=review_connect(args.review_db),
@@ -1288,7 +1331,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="rection only: CEFR levels of the governing word")
     p.add_argument("--answers", action="store_true", help="show answers")
     p.add_argument("--seed", type=int)
-    p.add_argument("--content-db", default="data/content.db")
+    p.add_argument("--content-db", default=None,
+                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
     p.set_defaults(func=cmd_cloze)
 
     p = sub.add_parser("conjugate", help="drill tenses, moods, infinitives, voice")
@@ -1348,7 +1392,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-n", "--count", type=int, default=15)
     p.add_argument("--seen", action="store_true", help="record these as opened")
     p.add_argument("--minutes", type=float, default=0.0)
-    p.add_argument("--content-db", default="data/content.db")
+    p.add_argument("--content-db", default=None,
+                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
     p.add_argument("--progress-db", default="data/progress.db")
     p.add_argument("--vocab-db", default="data/vocab.db")
     p.set_defaults(func=cmd_library)
@@ -1361,7 +1406,8 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_vocab)
 
     p = sub.add_parser("status", help="where you stand, section by section")
-    p.add_argument("--content-db", default="data/content.db")
+    p.add_argument("--content-db", default=None,
+                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
     p.add_argument("--progress-db", default="data/progress.db")
     p.add_argument("--review-db", default="data/review.db")
     p.add_argument("--vocab-db", default="data/vocab.db")
