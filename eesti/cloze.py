@@ -63,11 +63,12 @@ from __future__ import annotations
 import random
 import re
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 from estnltk.vabamorf.morf import synthesize
 
 from .config import LEVELS
+from .item import BLANK, GradedItem
 from .morph import _readings, analyze, case_forms, split_sentences
 
 # Vabamorf case tags -> the Estonian name (what the exam uses) and a Russian
@@ -121,13 +122,31 @@ _CLAUSE_RE = re.compile(
     re.IGNORECASE,
 )
 
-BLANK = "____"
+# Re-exported, not redefined. `item.BLANK` is the one definition; a second
+# literal here is the same duplication as the four private `_TAG_RE`s that
+# gave one line of input three different answers.
 _WORD_RE = re.compile(r"\w", re.UNICODE)
 
 
 @dataclass(frozen=True)
-class Cloze:
-    """One item. Same surface as `drills.Drill`, plus where it came from."""
+class Cloze(GradedItem):
+    """One item. Same surface as `drills.Drill`, plus where it came from.
+
+    It said "same surface" and meant it literally: this class predated
+    `item.GradedItem` and carried its own copy of `check`, `solution`,
+    `reference` and `to_dict` — the five methods that mixin exists to keep
+    identical across generators. Four of the five had already drifted apart in
+    one way or another, and the fifth was simply missing, which is how a cloze
+    item reached the page with no case in its instruction row.
+
+    Measured over 425 real items before removing the copies: `check` graded
+    the same for every answer (`lower` and `casefold` differ on no Estonian
+    letter), `reference` returned the same object for all 425, and no prompt
+    could open with the blank — the round-trip gate rejects a capitalised
+    common noun, so the mixin's sentence-initial capitalisation is a defence
+    rather than a change. `hint` is still overridden, because for rection the
+    case is the question and the em dash says so.
+    """
 
     prompt: str          # the sentence with one word replaced by ____
     answer: str          # the form the native speaker used
@@ -171,36 +190,6 @@ class Cloze:
         and changing how an answer is graded does not belong in a layout fix.
         """
         return f"{self.governor}?" if self.governor else self.case_et
-
-    @property
-    def reference(self) -> dict | None:
-        """The handbook section for this item's topic, shipped with the item.
-
-        Every grammar app that teaches well puts the reference and the exercise
-        on the same screen; the ones that make you go and find the rule are the
-        ones people stop using. `grammar.py` already knows where EKK defines
-        each rule, so the only thing missing was carrying it here.
-
-        None where the topic has no tagged rule — a case-production item on the
-        rare cases is not a rule with a section, it is a paradigm.
-        """
-        from .curriculum import by_id
-        from .grammar import describe
-
-        tag = by_id(self.topic).tag
-        return describe(tag) if tag else None
-
-    def to_dict(self) -> dict:
-        return asdict(self) | {"hint": self.hint, "label": self.label,
-                               "reference": self.reference}
-
-    def check(self, given: str) -> bool:
-        """Deterministic, like every other grader here. No model, no network."""
-        return given.strip().lower() == self.answer.lower()
-
-    @property
-    def solution(self) -> str:
-        return self.prompt.replace(BLANK, self.answer)
 
 
 def sentences(

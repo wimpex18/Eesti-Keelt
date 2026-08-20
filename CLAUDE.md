@@ -294,6 +294,15 @@ in Cloud Shell and discover the project, service and region themselves.
   on the card. Give each role its own treatment, and colour by **role, not by
   language**: the rule explanation is Russian too, so painting all Russian
   alike would have made the rule and the meaning identical.
+- **When a fix needs a method the mixin already has, the copy is the bug.**
+  `Cloze` said "same surface as `drills.Drill`" and meant it literally: it
+  predated `item.GradedItem` and carried its own `check`, `solution`,
+  `reference` and `to_dict`. That went unnoticed for months because everything
+  worked — until the page needed `label` and cloze items came back with no
+  case in the instruction row. Adding `label` alone would have left five
+  copies where there should be none. Measure the copies against the original
+  before deleting them (425 real items: identical grading, identical
+  references, no reachable difference), then delete them.
 - **A database key on screen is a bug even when it renders.** `overview.py`
   had already fixed this once for the path panel — `kusisonad` is not a thing a
   learner recognises — and the review queue was still printing `obj-case`

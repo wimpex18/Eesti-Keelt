@@ -209,3 +209,86 @@ class TestTheWordCardPutsMeaningWithTheWord:
 
     def test_nothing_still_inserts_before_the_note(self):
         assert '#mineNote").before(' not in PAGE
+
+
+class TestEveryGeneratorSharesOneDefinition:
+    """`item.GradedItem` exists because each generator kept its own copy of the
+    same five methods, and copies drift. `Cloze` predated the mixin and was
+    still carrying all five — which is how a cloze item reached the page with
+    no case in its instruction row, months after every other generator had been
+    unified.
+
+    A one-off fix would have been `label`. The bug was the copies."""
+
+    @staticmethod
+    def _shaped():
+        """Every dataclass that is an exercise item."""
+        import dataclasses
+        import importlib
+        import inspect
+
+        found = []
+        for name in ("cloze", "drills", "conjugation", "patterns",
+                     "punctuation", "wordorder"):
+            module = importlib.import_module(f"eesti.{name}")
+            for cls in vars(module).values():
+                if (inspect.isclass(cls) and dataclasses.is_dataclass(cls)
+                        and cls.__module__ == module.__name__):
+                    fields = {f.name for f in dataclasses.fields(cls)}
+                    if {"prompt", "answer", "lemma", "topic"} <= fields:
+                        found.append(cls)
+        return found
+
+    def test_there_are_generators_to_check(self):
+        assert len(self._shaped()) >= 5
+
+    def test_every_item_class_uses_the_mixin(self):
+        from eesti.item import GradedItem
+
+        rogue = [c.__name__ for c in self._shaped()
+                 if not issubclass(c, GradedItem)]
+        assert not rogue, f"carrying private copies of the item surface: {rogue}"
+
+    def test_none_of_them_reimplements_grading(self):
+        """`check`, `solution`, `reference` and `to_dict` are the four that must
+        not vary. `hint` and `label` legitimately do — rection asks the case
+        rather than naming it."""
+        for cls in self._shaped():
+            own = {n for n in ("check", "solution", "reference", "to_dict")
+                   if n in vars(cls)}
+            assert not own, f"{cls.__name__} reimplements {sorted(own)}"
+
+    def test_every_item_class_names_the_form_it_asks_for(self):
+        for cls in self._shaped():
+            assert "label" in dir(cls), f"{cls.__name__} has no label"
+
+    def test_there_is_one_blank(self):
+        """A second literal is the same duplication as the four private tag
+        regexes that gave one line of input three different answers."""
+        from eesti import cloze, item
+
+        assert cloze.BLANK is item.BLANK
+
+    def test_cloze_grades_exactly_as_it_did(self):
+        """Measured over 425 real items before the copies were removed:
+        `lower` and `casefold` differ on no Estonian answer, and no prompt can
+        open with the blank because the round-trip gate rejects a capitalised
+        common noun."""
+        from eesti.cloze import Cloze
+
+        item = Cloze(prompt="Ma ostsin ____.", answer="kleidi", distractor="kleiti",
+                     lemma="kleit", case="sg g", case_et="omastav",
+                     rule="case-form", why_ru="", topic="obj-case", level="A2",
+                     source_id="x")
+        assert item.check("  KLEIDI ") and not item.check("kleiti")
+        assert item.solution == "Ma ostsin kleidi."
+
+    def test_rection_still_asks_rather_than_tells(self):
+        from eesti.cloze import Cloze
+
+        item = Cloze(prompt="Ma ____ sellega.", answer="kohanen", distractor="",
+                     lemma="kohanema", case="sg kom", case_et="kaasaütlev",
+                     rule="rection", why_ru="", topic="rektsioon", level="B1",
+                     source_id="x", governor="millega")
+        assert item.hint == "kohanema — millega?"
+        assert "kaasaütlev" not in item.hint
