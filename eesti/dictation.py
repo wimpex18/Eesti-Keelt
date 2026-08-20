@@ -101,6 +101,25 @@ def _writable(sentence: str) -> bool:
     return not sentence[:1].islower()
 
 
+def voice_for(sentence: str) -> str:
+    """Which TTS voice reads this sentence.
+
+    Always `mari` until now, and the exam is not one person. HARNO's listening
+    tasks use several speakers, and a learner who has only ever parsed one voice
+    has practised that voice rather than Estonian — the same reason the reading
+    library is ranked by comprehensibility rather than served in one register.
+
+    Deterministic from the sentence, not random: replaying must sound identical,
+    or the exercise changes underneath the learner between attempts. Same
+    sentence, same speaker, every time; different sentences spread across all
+    twelve.
+    """
+    from .providers.tts import VOICES
+
+    digest = hashlib.sha1(sentence.strip().encode("utf-8")).digest()
+    return VOICES[digest[0] % len(VOICES)]
+
+
 def key_of(text: str) -> str:
     """Stable id for a sentence, so a repeat is recognisable as one."""
     from .pronunciation import normalise
@@ -122,6 +141,8 @@ class Passage:
             "text": self.text, "key": self.key, "words": self.words,
             "coverage": self.coverage, "band": self.band,
             "source": self.source_id,
+            # Who reads it. The exam is not one person; see `voice_for`.
+            "voice": voice_for(self.text),
         }
 
 

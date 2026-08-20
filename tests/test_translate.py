@@ -148,3 +148,44 @@ class TestTheEndpointAndItsPosture:
         page = (Path(__file__).resolve().parent.parent
                 / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
         assert "/api/translate" in page
+
+
+class TestBackTranslationInTheWritingCheck:
+    """A grammar chain says whether the Estonian is well formed. It cannot say
+    whether it means what was intended, and that second failure is the more
+    common and the far more invisible one for a learner.
+
+    `Ma käisin arstiga` is perfect Estonian and means you went *with* a doctor.
+    Nothing in the chain flags it; reading it back in Russian does.
+    """
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        return TestClient(app_module.app)
+
+    def test_the_check_carries_what_the_text_says(self, client, monkeypatch):
+        monkeypatch.setattr(
+            t, "translate",
+            lambda *a, **k: t.Translation("Ma käisin arstiga.",
+                                          "Я ходил с врачом.", "rus"))
+        got = client.post("/api/check", json={"text": "Ma käisin arstiga."}).json()
+        assert got["back_translation"] == "Я ходил с врачом."
+
+    def test_a_dead_translator_does_not_break_the_check(self, client, monkeypatch):
+        """The grammar check is the feature; this is an addition to it."""
+        monkeypatch.setattr(t, "translate", lambda *a, **k: None)
+        got = client.post("/api/check", json={"text": "Ma käisin arstiga."})
+        assert got.status_code == 200
+        assert got.json()["back_translation"] is None
+        assert "corrections" in got.json()
+
+    def test_the_page_renders_it(self):
+        from pathlib import Path
+
+        page = (Path(__file__).resolve().parent.parent
+                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        assert "res.back_translation" in page

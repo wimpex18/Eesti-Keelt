@@ -225,3 +225,50 @@ class TestNothingUnwritableIsServed:
     def test_none_are_served(self, content):
         for p in dictation.choose(content, count=20, seed=3):
             assert dictation._writable(p.text)
+
+
+class TestTheExamIsNotOnePerson:
+    """Dictation always used `mari`. HARNO's listening tasks use several
+    speakers, and a learner who has only ever parsed one voice has practised
+    that voice rather than Estonian — the same reason the reading library is
+    ranked by comprehensibility rather than served in one register."""
+
+    def test_a_sentence_always_gets_the_same_voice(self):
+        """Replaying must sound identical, or the exercise changes underneath
+        the learner between attempts."""
+        from eesti.dictation import voice_for
+
+        assert voice_for("Ma lugesin raamatut.") == voice_for("Ma lugesin raamatut.")
+        assert voice_for(" Ma lugesin raamatut. ") == voice_for("Ma lugesin raamatut.")
+
+    def test_different_sentences_spread_across_the_speakers(self):
+        from eesti.dictation import voice_for
+        from eesti.providers.tts import VOICES
+
+        sentences = [f"Lause number {n} on siin." for n in range(60)]
+        used = {voice_for(s) for s in sentences}
+        assert len(used) >= len(VOICES) // 2, f"only {len(used)} voices in 60 sentences"
+
+    def test_every_voice_it_picks_is_one_the_api_has(self):
+        from eesti.dictation import voice_for
+        from eesti.providers.tts import VOICES
+
+        for n in range(200):
+            assert voice_for(f"Lause {n}.") in VOICES
+
+    def test_the_passage_carries_it_to_the_page(self):
+        from eesti.dictation import Passage, voice_for
+
+        passage = Passage(text="Ma lugesin raamatut.", key="k", words=3,
+                          coverage=1.0, band="kergem", source_id="x")
+        assert passage.to_dict()["voice"] == voice_for("Ma lugesin raamatut.")
+
+    def test_the_page_sends_it(self):
+        from pathlib import Path
+
+        page = (Path(__file__).resolve().parent.parent
+                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        # Anchored on the dictation call specifically: the speaking tab calls
+        # `/api/speak` too and comes first in the file.
+        block = page.split("dictNow.text", 1)[1][:300]
+        assert "dictNow.voice" in block

@@ -30,7 +30,8 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Writing** | Grammar check through the provider chain, corrections queued for the Notion error log with an explicit send step. |
 | **Speaking** | Question bank in the exam's paired shape, TTS voicing the other side, links out to EKI's own pronunciation exercises. |
 | **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. |
-| **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. |
+| **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. Sentence-level translation from TartuNLP, on request only. |
+| **Back-translation** | The writing check reads your Estonian back in Russian, so a sentence that is well formed but says the wrong thing is visible. |
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 

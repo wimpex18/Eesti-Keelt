@@ -116,3 +116,35 @@ class TestTheEvalGateCanActuallyRun:
     def test_it_still_runs_on_a_schedule_and_on_demand(self):
         head = self._workflow().split("jobs:", 1)[0]
         assert "schedule:" in head and "workflow_dispatch:" in head
+
+
+class TestTheModelIsSwitchableWithoutADeploy:
+    """Trying a different model was a code change and a redeploy. That is a high
+    price for an experiment whose whole point is that the answer is unknown —
+    and this project ran the wrong model in production for weeks precisely
+    because switching it meant editing a constant."""
+
+    def test_the_default_is_used_when_nothing_is_set(self, monkeypatch):
+        monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
+        p = llm.PROVIDERS["openrouter"]
+        assert p.model == p.default_model
+
+    def test_an_override_wins(self, monkeypatch):
+        monkeypatch.setenv("OPENROUTER_MODEL", "some/other:free")
+        assert llm.PROVIDERS["openrouter"].model == "some/other:free"
+
+    def test_a_dash_in_the_name_becomes_an_underscore(self, monkeypatch):
+        """`workers-ai` cannot be an environment variable name."""
+        monkeypatch.setenv("WORKERS_AI_MODEL", "@cf/meta/llama-3.1-8b-instruct")
+        assert llm.PROVIDERS["workers-ai"].model == "@cf/meta/llama-3.1-8b-instruct"
+
+    def test_the_local_lane_pairs_with_its_url_variable(self, monkeypatch):
+        """`LOCAL_LLM_MODEL` beside `LOCAL_LLM_URL`, rather than a second naming
+        convention sitting next to the first."""
+        monkeypatch.setenv("LOCAL_LLM_MODEL", "hf.co/x/y:Q4_K_M")
+        assert llm.PROVIDERS["local"].model == "hf.co/x/y:Q4_K_M"
+
+    def test_an_empty_override_falls_back_rather_than_calling_nothing(self, monkeypatch):
+        monkeypatch.setenv("OPENROUTER_MODEL", "")
+        p = llm.PROVIDERS["openrouter"]
+        assert p.model == p.default_model

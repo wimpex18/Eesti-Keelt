@@ -50,6 +50,27 @@ class Provider:
     free_note: str = ""
 
     @property
+    def model(self) -> str:
+        """The model to call, overridable per provider from the environment.
+
+        `OPENROUTER_MODEL`, `GROQ_MODEL`, `LOCAL_LLM_MODEL` and so on. Trying a
+        different model was a code change and a redeploy until now, which is a
+        high price for an experiment whose whole point is that the answer is
+        unknown — and this project has already run the wrong model in production
+        for weeks because switching it meant editing a constant.
+        """
+        # `local` reads LOCAL_LLM_MODEL, to pair with LOCAL_LLM_URL rather than
+        # inventing a second naming convention next to it. Everything else is
+        # NAME_MODEL, with dashes normalised: WORKERS_AI_MODEL.
+        names = ["LOCAL_LLM_MODEL"] if self.name == "local" else []
+        names.append(f"{self.name.upper().replace('-', '_')}_MODEL")
+        for name in names:
+            value = os.environ.get(name)
+            if value:
+                return value
+        return self.default_model
+
+    @property
     def api_key(self) -> str | None:
         return os.environ.get(self.key_env) if self.key_env else None
 
@@ -131,8 +152,7 @@ PROVIDERS: dict[str, Provider] = {
         "local",
         os.environ.get("LOCAL_LLM_URL", "http://localhost:11434/v1"),
         "",  # no key: the server is yours
-        os.environ.get("LOCAL_LLM_MODEL", "hf.co/mradermacher/"
-                       "Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M"),
+        "hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M",
         "Free and private. Only reachable where the server is: localhost for "
         "`cli serve`, or a tunnel for the deployment.",
     ),
@@ -196,7 +216,7 @@ def complete(
         raise RuntimeError(f"{provider.key_env} is not set")
 
     payload: dict = {
-        "model": model or provider.default_model,
+        "model": model or provider.model,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},

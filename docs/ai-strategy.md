@@ -171,6 +171,36 @@ limit. If it stops, the earlier score was measuring the prompt.
 **If no free model clears ~0.8 precision even with evidence,** the honest
 conclusion is that this one job — and only this job — is worth cents a month.
 
+## What each service is actually for
+
+Re-probed 2026-08-20. The split the whole provider design rests on has not
+moved in six months:
+
+| Service | State | Job in this app |
+|---|---|---|
+| TartuNLP **translation** | 200 in 1.0 s | sentence crutch in the reader; back-translation in the writing check |
+| TartuNLP **TTS** | 200 in 1.1 s | every piece of listening audio, 12 voices at 0.7× |
+| TartuNLP **grammar** | **500 after 60.7 s** | first in the chain, always skipped |
+| ELLE CEFR predictor | 500 | unused |
+| OpenRouter | live | the grammar chain's working lane |
+| Local (EstLLM) | off unless served | first when a server is named |
+
+**The grammar endpoint has failed identically since the first research round** —
+500 after roughly a minute, then and now. `PROVIDER_TIMEOUT` is 5 s, so the app
+never waits for that minute; the breaker then skips it for 15 minutes after two
+failures. It stays first because it is free and Estonian-specific and this
+project's architecture assumes research APIs come back. The measured cost of
+that optimism is 10 s on the first writing check of a session.
+
+**Translation is the one to use, and it is used for two different things.** A
+crutch in the reader, on request and never automatic. And a *back-translation*
+in the writing check, which is the more interesting one: a grammar chain says
+whether the Estonian is well formed and cannot say whether it means what was
+intended. `Ma käisin arstiga` is perfect Estonian and says you went **with** a
+doctor. Nothing flags it. Reading it back does — and it works with no LLM key
+at all, which is the only feedback in this app that survives a fully offline
+deployment.
+
 ## Competitive landscape
 
 What the 2026 AI language apps do, and what they leave open:
