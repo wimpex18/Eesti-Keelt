@@ -253,6 +253,13 @@ in Cloud Shell and discover the project, service and region themselves.
   only; the per-meaning key carries Russian, which is the language this app
   explains everything in. Reading the obvious one threw away the field that
   mattered most, and the card looked complete while doing it.
+- **`--help` proves the parser, never the body.** `cli.py` is the largest
+  module here and had 0 % coverage — nothing had ever imported it, while six
+  routes were deleted, four generators were unified and `Cloze` was rebuilt
+  underneath it. Nothing was broken, which is only knowable by running it:
+  every read-only command now runs in the suite with stdin at EOF, so the next
+  refactor that renames something out from under a command fails here instead
+  of the first time the operator types it. 0 % → 54 %.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the
