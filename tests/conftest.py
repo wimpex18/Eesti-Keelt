@@ -216,12 +216,18 @@ def fixture_data(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
-def _redirect_data(monkeypatch, fixture_data):
-    """Point every database at the fixtures, for every test.
+def _redirect_data(monkeypatch, tmp_path, fixture_data):
+    """Point every database at a fixture or a scratch file, for every test.
 
     Autouse rather than opt-in: the failure mode is a test that *accidentally*
     reads real data and passes, which no one notices until CI. Making the safe
     thing automatic is the only version of this that works.
+
+    It said "every database" and redirected three. The learner's own four --
+    progress, review, vocabulary, queued corrections -- were left pointing at
+    `data/`, so running the suite on a machine where somebody actually studies
+    wrote into their record of what they had practised. Reading the
+    developer's data makes a test lie; writing to it loses their work.
     """
     from eesti import config, lookup
 
@@ -229,6 +235,19 @@ def _redirect_data(monkeypatch, fixture_data):
     monkeypatch.setattr(config, "CONTENT_DB", fixture_data["content"])
     monkeypatch.setattr(config, "CACHE", fixture_data["cache"])
     monkeypatch.setattr(lookup, "EDGE_DB", fixture_data["edge"])
+
+    # Writable, per-test, and never the real ones. Redirected on `config` for
+    # the CLI, which resolves at call time, and on `app` as well, which binds
+    # its own copies at import.
+    scratch = tmp_path / "live"
+    scratch.mkdir(exist_ok=True)
+    from eesti import app as app_module
+
+    for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
+        target = str(scratch / f"{name.split('_')[0].lower()}.db")
+        monkeypatch.setattr(config, name, target)
+        monkeypatch.setattr(app_module, name, target, raising=False)
+
     lookup._db.cache_clear()
     yield
     lookup._db.cache_clear()

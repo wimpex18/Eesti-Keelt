@@ -99,7 +99,18 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 
 
 def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
-    """Import the word list TSV. Idempotent — safe to re-run after a refresh."""
+    """Import the word list TSV. Idempotent — safe to re-run after a refresh.
+
+    "Idempotent" used to be true of `words` and false of everything derived
+    from it. This replaced the word list and left `object_cases` untouched, and
+    `index_object_cases` skips any word it already has — so a refresh could
+    neither drop a cached paradigm for a word upstream had removed, nor
+    recompute one whose part of speech had been corrected. The cache was
+    write-once for the life of the database.
+
+    So the derived table goes too. Rebuilding it costs 2.4 s over 2 575 words,
+    which is not worth a stale answer about what a word means.
+    """
     raw_dir = Path(raw_dir or RAW)
     src = raw_dir / "est_words_160k.tsv"
     if not src.exists():
@@ -130,6 +141,8 @@ def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
             "VALUES (?,?,?,?)",
             rows,
         )
+        # Derived from the rows above, so it cannot outlive them.
+        conn.execute("DELETE FROM object_cases")
     return len(rows)
 
 

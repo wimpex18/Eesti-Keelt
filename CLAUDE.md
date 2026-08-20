@@ -302,6 +302,15 @@ in Cloud Shell and discover the project, service and region themselves.
   reported it as loaded. Same failure as the `explains` grep: the check said
   healthy while production was offline. Strip `export `, validate the name,
   and never announce a key you did not set.
+- **A derived cache must not outlive the thing it derives from.**
+  `wordlist.build` replaced `words` and left `object_cases` — its own Vabamorf
+  cache, keyed on those very words — untouched, while `index_object_cases`
+  skips anything already cached. So the cache was write-once for the life of
+  the database: a refresh could neither drop a paradigm for a word upstream
+  had removed nor recompute one whose part of speech had been corrected. The
+  docstring said "idempotent — safe to re-run after a refresh", and that was
+  true of the table it named and false of everything downstream. Rebuilding
+  costs 2.4 s.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the
