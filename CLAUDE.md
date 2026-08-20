@@ -217,6 +217,19 @@ in Cloud Shell and discover the project, service and region themselves.
   "can every section the API serves be reached?". 82 items — 13 % of the
   library — were indexed, sectioned, API-tested and unopenable. A one-way
   contract test finds typos; it does not find things nobody wired up.
+- **The same job written twice becomes two behaviours.** Four harvesters each
+  had a private `_TAG_RE`; on one line of input they gave three answers, and
+  every difference reached the learner — undecoded entities in 27 000 words of
+  transcript, two words joined into one, and a space before every full stop
+  that the punctuation drill then showed as correct. The copies were the bug,
+  not any of the three symptoms.
+- **A rule in a docstring is not a rule.** `sonapi.py` said "single lookups
+  only" because Sõnaveeb asks not to be batched. Nothing stopped a loop. It is
+  a one-second minimum between live requests now, and cache hits stay free.
+- **Coverage finds what review does not.** Reading the least-covered modules
+  found a module with no importer at all, three cleaning defects, and a
+  documented rule with no enforcement. None of them were visible from the
+  features that use them.
 - **Count the orphans, do not fix them one at a time.** After the sixth
   page/API drift bug, measuring showed **10 of 47 routes had no caller at
   all** — 21 % of the surface. The worst was `POST /api/vocab/known`, the only

@@ -22,6 +22,7 @@ words, the answer is the Ekilex API with a key, not a loop over this.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -31,7 +32,22 @@ from pathlib import Path
 from ..config import CACHE
 
 BASE = "https://api.sonapi.ee/v2"
-TIMEOUT = 20.0
+
+#: Short on purpose: this runs inside a request the learner is waiting on, and
+#: an enrichment is never worth making a word card slow. Twenty seconds was the
+#: value while nothing called this module at all.
+TIMEOUT = 4.0
+
+#: Minimum seconds between two *live* requests. Cache hits are free and are not
+#: throttled.
+#:
+#: The module has always said "single lookups only" because Sõnaveeb's
+#: maintainers ask people not to batch it. That was a comment, and a comment
+#: does not stop `for word in words: lookup(word)` from running as fast as
+#: Python can issue requests. This makes the promise something the code keeps:
+#: a caller who loops gets throttled rather than obeyed.
+MIN_INTERVAL = 1.0
+_last_request = 0.0
 
 
 @dataclass(frozen=True)
@@ -52,6 +68,16 @@ class WordInfo:
         return tuple(p.strip() for p in self.rection.split(",") if p.strip())
 
 
+def _wait_turn() -> None:
+    """Hold the caller back to one live request a second."""
+    global _last_request
+
+    since = time.monotonic() - _last_request
+    if since < MIN_INTERVAL:
+        time.sleep(MIN_INTERVAL - since)
+    _last_request = time.monotonic()
+
+
 def _cache_path(word: str, cache_dir: Path | None) -> Path:
     safe = urllib.parse.quote(word, safe="")
     return Path(cache_dir or CACHE) / "sonapi" / f"{safe}.json"
@@ -63,6 +89,7 @@ def fetch(word: str, cache_dir: Path | None = None) -> dict | None:
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8")) or None
 
+    _wait_turn()
     url = f"{BASE}/{urllib.parse.quote(word)}"
     try:
         with urllib.request.urlopen(url, timeout=TIMEOUT) as resp:

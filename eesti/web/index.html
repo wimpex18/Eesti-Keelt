@@ -1716,6 +1716,33 @@ $("#readerBody").addEventListener("click", async e => {
     if (r.queued) refreshDueBadge();
   };
 
+  /* Rection and inflection type, from Sõnaveeb.
+
+     Fetched separately and appended when it arrives: this is the only call in
+     the app that leaves the machine while the learner is waiting, and a word
+     card must not be slower, or emptier, because a third party is having a bad
+     afternoon. Nothing here is awaited before the card is usable. */
+  // The LEMMA, not the word as it appears in the text. Sõnaveeb is a
+  // dictionary: it knows `jätkuma`, not `jätkuvad`, and sending the surface
+  // form returned "found: false" for every inflected word — which in Estonian
+  // is most of them, so the enrichment looked like it simply never worked.
+  const enrichLemma = d.analyses[0]?.lemma || word;
+  fetch("/api/enrich/" + encodeURIComponent(enrichLemma))
+    .then(r => r.json())
+    .then(x => {
+      if (!x.found || (!x.governs?.length && !x.inflection_type)) return;
+      const extra = document.createElement("div");
+      extra.className = "pair";
+      extra.innerHTML =
+        (x.governs?.length
+          ? `rektsioon: <b>${esc(x.governs.join(", "))}</b>` : "") +
+        (x.inflection_type
+          ? `${x.governs?.length ? " · " : ""}muuttüüp <b>${esc(String(x.inflection_type))}</b>`
+          : "");
+      card.querySelector("#mineNote").before(extra);
+    })
+    .catch(() => {});
+
   // Marking a word known is an explicit act, never inferred from having read
   // it -- meeting a word is not knowing it, and a counter that inflates itself
   // measures reading rather than vocabulary.

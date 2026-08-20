@@ -610,6 +610,43 @@ def lookup_word(word: str) -> dict:
     return lookup(word)
 
 
+@app.get("/api/enrich/{word}")
+def enrich_word(word: str) -> dict:
+    """The two things Vabamorf cannot say: what the word governs, and its type.
+
+    `providers/sonapi.py` has always existed for exactly this — its own
+    docstring says it "enriches a word the learner is actually looking at" —
+    and nothing had ever called it. Sixty-two statements, zero coverage, no
+    importer: the module-level version of an endpoint with no caller.
+
+    Rection is the `rektsioon` error tag directly: which case a verb governs is
+    a list, not a rule, and no amount of morphology derives it. The
+    inflection type is the muuttüüp the Notion "Nomenid A–F" page already
+    tracks.
+
+    Deliberately a **second** request rather than part of `/api/lookup`. This
+    one leaves the machine, and a word card must not wait on a third party or
+    disappear when one is down. An empty object is the honest answer to "the
+    lookup did not come back", and the page simply adds nothing.
+    """
+    from .providers import sonapi
+
+    try:
+        info = sonapi.lookup(word)
+    except Exception:  # noqa: BLE001 - enrichment is never worth an error page
+        return {"word": word, "found": False}
+    if info is None:
+        return {"word": word, "found": False}
+    return {
+        "word": word,
+        "found": True,
+        "governs": list(info.governs),
+        "inflection_type": info.inflection_type,
+        "definition": info.definition,
+        "examples": list(info.examples[:2]),
+    }
+
+
 class ReviewAdd(BaseModel):
     kind: str
     lemma: str
