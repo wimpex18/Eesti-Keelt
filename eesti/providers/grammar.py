@@ -347,6 +347,24 @@ def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarP
     ]
 
 
+def _why(exc: BaseException) -> str:
+    """Name a failure precisely enough to act on it.
+
+    The type alone is not actionable. `HTTPError` covers a 429 (wait, the free
+    tier is spent), a 401 (the key is dead, replace it) and a 502 (the provider
+    is having a moment) — three different jobs for the operator, printed
+    identically. A live deployment reported `llm:openrouter: HTTPError` and
+    nothing in the note could say which of the three it was.
+
+    The status code only. Never a response body: the note is printed into CI
+    logs, and a provider that echoes the request on error would put the
+    learner's own sentence there.
+    """
+    if isinstance(exc, urllib.error.HTTPError):
+        return f"HTTPError {exc.code}"
+    return type(exc).__name__
+
+
 def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarResult:
     """Run the chain, returning the first provider that answers.
 
@@ -370,9 +388,9 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             return result
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
             _record_failure(provider.name)
-            tried.append(f"{provider.name}: {type(exc).__name__}")
+            tried.append(f"{provider.name}: {_why(exc)}")
         except Exception as exc:  # bad JSON, SDK errors — never fatal
             _record_failure(provider.name)
-            tried.append(f"{provider.name}: {type(exc).__name__}")
+            tried.append(f"{provider.name}: {_why(exc)}")
 
     return GrammarResult("none", [], degraded=True, note="; ".join(tried))
