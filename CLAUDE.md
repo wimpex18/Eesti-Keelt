@@ -311,6 +311,17 @@ in Cloud Shell and discover the project, service and region themselves.
   docstring said "idempotent — safe to re-run after a refresh", and that was
   true of the table it named and false of everything downstream. Rebuilding
   costs 2.4 s.
+- **A connection bound at import cannot be redirected either.** The rule was
+  already written for *paths*; a connection is worse, because it captures the
+  path and keeps it. `app.py` calls `_bind_breaker()` at module scope, so the
+  circuit breaker held an open handle to the real `data/progress.db` from the
+  first moment anything imported the app — and every `breaker.reset()` in the
+  suite wrote to the learner's own study record. Reading a developer's data
+  makes a test lie; writing to it loses their work.
+- **"Every database" meant three of seven.** `conftest` redirected the word
+  list, the corpus and the form index, and left progress, review, vocabulary
+  and the correction queue pointing at `data/`. The docstring said "every".
+  Count them.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the

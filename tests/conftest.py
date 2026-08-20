@@ -248,6 +248,17 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
         monkeypatch.setattr(config, name, target)
         monkeypatch.setattr(app_module, name, target, raising=False)
 
+    # `app.py` calls `_bind_breaker()` at *import* time, so the circuit breaker
+    # holds a connection to the real `data/progress.db` from the first moment
+    # anything imports the app -- before any redirect can apply, and for the
+    # rest of the session, because it lives in a module global. Every
+    # `breaker.reset()` in the suite then wrote to the learner's own database.
+    # Drop it; the tests that exercise the breaker bind their own store.
+    from eesti.providers import breaker
+
+    breaker.bind(None)
+    breaker.reset()
+
     lookup._db.cache_clear()
     yield
     lookup._db.cache_clear()
