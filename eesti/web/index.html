@@ -175,10 +175,13 @@
     min-height:44px;transition:transform .06s ease, opacity .15s ease}
   button.go:active{transform:scale(.98)}
   button.go:disabled{opacity:.55;cursor:default;transform:none}
-  button.ghost{background:none;border:1px solid var(--line);color:var(--ink);
+  button.ghost,a.ghost{background:none;border:1px solid var(--line);color:var(--ink);
     padding:9px 15px;border-radius:var(--radius-sm);font:inherit;cursor:pointer;
     min-height:40px}
-  button.ghost:active{background:var(--bg)}
+  button.ghost:active,a.ghost:active{background:var(--bg)}
+  /* A link shaped like a button: outbound study material sits beside the
+     app's own controls and should not look like a lesser thing. */
+  a.ghost{display:inline-flex;align-items:center;text-decoration:none}
   select,input[type=text],input[type=number]{padding:10px 11px;border:1px solid var(--line);
     border-radius:var(--radius-sm);background:var(--bg);color:var(--ink);font:inherit;
     /* 16px stops iOS Safari zooming the page when a field is focused. */
@@ -407,6 +410,23 @@
     <audio id="recPlayback" controls hidden></audio>
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
+
+    <!-- The two things this panel deliberately does not build.
+         Pronunciation scoring is a research problem, and EKI already publishes
+         free pronunciation exercises — using them is a better use of the hour
+         than a number this app would have to invent. The situational phrase
+         collections are the same story: they exist, by level, from the people
+         who set the exam, and copying them here would be scraping a site whose
+         maintainers asked not to be scraped. So: links, not copies. -->
+    <div style="margin-top:16px">
+      <div class="hint">Hääldus ja olmefraasid — EKI enda tasuta harjutused:</div>
+      <div class="row" style="margin-top:6px">
+        <a class="ghost" href="https://sonaveeb.ee/pronunciation-exercises/"
+           target="_blank" rel="noopener">Hääldusharjutused →</a>
+        <a class="ghost" href="https://sonaveeb.ee/learn" target="_blank"
+           rel="noopener">Väljendid A1–B1 →</a>
+      </div>
+    </div>
   </section>
 
   <!-- ── Progress ──────────────────────────────────────────────────
@@ -1730,16 +1750,31 @@ $("#readerBody").addEventListener("click", async e => {
   fetch("/api/enrich/" + encodeURIComponent(enrichLemma))
     .then(r => r.json())
     .then(x => {
-      if (!x.found || (!x.governs?.length && !x.inflection_type)) return;
-      const extra = document.createElement("div");
-      extra.className = "pair";
-      extra.innerHTML =
-        (x.governs?.length
-          ? `rektsioon: <b>${esc(x.governs.join(", "))}</b>` : "") +
-        (x.inflection_type
-          ? `${x.governs?.length ? " · " : ""}muuttüüp <b>${esc(String(x.inflection_type))}</b>`
-          : "");
-      card.querySelector("#mineNote").before(extra);
+      if (!x.found) return;
+      const bits = [];
+      if (x.governs?.length) bits.push(`rektsioon: <b>${esc(x.governs.join(", "))}</b>`);
+      if (x.inflection_type) bits.push(`muuttüüp <b>${esc(String(x.inflection_type))}</b>`);
+      // The gloss, in the language this app explains things in. The API had
+      // carried it all along under a key the provider never read, so the card
+      // showed a muuttüüp number to someone who did not yet know the word.
+      if (x.russian?.length) bits.push(`<b>${esc(x.russian.join(", "))}</b>`);
+      if (bits.length) {
+        const extra = document.createElement("div");
+        extra.className = "pair";
+        extra.innerHTML = bits.join(" · ");
+        card.querySelector("#mineNote").before(extra);
+      }
+      // Out to the real dictionary. Three fields is a reminder; the paradigm,
+      // the audio and the rest live in Sõnaveeb, which this app deliberately
+      // does not reimplement.
+      if (x.sonaveeb) {
+        const out = document.createElement("div");
+        out.className = "hint";
+        out.style.marginTop = "6px";
+        out.innerHTML = `<a href="${esc(x.sonaveeb)}" target="_blank" rel="noopener">`
+          + `Sõnaveebis →</a>`;
+        card.querySelector("#mineNote").before(out);
+      }
     })
     .catch(() => {});
 

@@ -644,6 +644,17 @@ def enrich_word(word: str) -> dict:
         "inflection_type": info.inflection_type,
         "definition": info.definition,
         "examples": list(info.examples[:2]),
+        # The language policy says explanations are in Russian, and the API has
+        # carried Russian glosses all along — under the per-meaning key the
+        # module never read. Three at most: a word card is a reminder, not an
+        # entry.
+        "russian": list(info.russian[:3]),
+        # The dictionary this app deliberately does not rebuild. Sõnaveeb has
+        # the full paradigm, audio, and every translation; sending the learner
+        # there is the honest answer to "I want more than three fields", and it
+        # costs one link rather than a scraper the maintainers asked us not to
+        # write.
+        "sonaveeb": sonapi.entry_url(info.word),
     }
 
 

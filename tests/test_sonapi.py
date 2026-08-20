@@ -114,3 +114,155 @@ class TestThePageAsksAboutTheLemma:
 
         paths = {r.path for r in app.routes if hasattr(r, "path")}
         assert "/api/enrich/{word}" in paths and "/api/lookup/{word}" in paths
+
+
+class TestTheRussianGlossIsRead:
+    """The API returns translations twice, and the obvious one is the worse one.
+
+    Top level: `[{"from":"et","to":"en","translations":["book"]}]` — English,
+    and only English. Per meaning: `{"rus":[{"words":"книга","weight":1}],
+    "eng":[…]}`. The module read the top level, so an app whose stated language
+    policy is Russian threw away every Russian gloss the service had.
+    """
+
+    PAYLOAD = {
+        "estonianWord": "raamat",
+        "translations": [{"from": "et", "to": "en", "translations": ["book"]}],
+        "searchResult": [{
+            "wordClasses": ["noomen"],
+            "wordForms": [{"inflectionType": 2, "code": "SgN", "value": "raamat"}],
+            "meanings": [{
+                "definition": "köidetud lehtede kogum",
+                "examples": ["Loen raamatut."],
+                "translations": {
+                    "rus": [{"words": "книга", "weight": 1},
+                            {"words": "книжка", "weight": 0.8}],
+                    "fra": [{"words": "livre", "weight": 1}],
+                },
+            }],
+        }],
+    }
+
+    def _info(self, tmp_path):
+        import json
+
+        (tmp_path / "sonapi").mkdir(parents=True)
+        (tmp_path / "sonapi" / "raamat.json").write_text(
+            json.dumps(self.PAYLOAD, ensure_ascii=False), encoding="utf-8")
+        return sonapi.lookup("raamat", cache_dir=tmp_path)
+
+    def test_russian_comes_through(self, tmp_path):
+        assert self._info(tmp_path).russian == ("книга", "книжка")
+
+    def test_codes_are_normalised_to_two_letters(self, tmp_path):
+        """One source says `rus`, the other says `ru`. A caller asks once."""
+        keys = set(self._info(tmp_path).translations)
+        assert keys == {"ru", "fr", "en"}, keys
+
+    def test_the_top_level_still_fills_gaps(self, tmp_path):
+        """English is only at the top level for this word; dropping the
+        fallback would trade one missing language for another."""
+        assert self._info(tmp_path).translations["en"] == ("book",)
+
+    def test_a_word_with_no_translations_is_not_an_error(self, tmp_path):
+        import json
+
+        (tmp_path / "sonapi").mkdir(parents=True)
+        (tmp_path / "sonapi" / "xx.json").write_text(
+            json.dumps({"searchResult": [{"meanings": [{}]}]}), encoding="utf-8")
+        info = sonapi.lookup("xx", cache_dir=tmp_path)
+        assert info is not None and info.russian == ()
+
+
+class TestTheDictionaryIsLinkedNotRebuilt:
+    """"Don't rebuild what exists" is a plan decision, and Sõnaveeb is the
+    named example. A link is how you honour it without a scraper the
+    maintainers explicitly asked nobody to write."""
+
+    def test_the_entry_url_is_sonaveebs_own_search_path(self):
+        assert sonapi.entry_url("lugema") == (
+            "https://sonaveeb.ee/search/unif/dlall/dsall/lugema")
+
+    def test_diacritics_survive(self):
+        assert "%C3%B5" in sonapi.entry_url("õppima")
+
+    def test_the_endpoint_hands_the_link_out(self, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        monkeypatch.setattr(sonapi, "lookup", lambda w, **k: sonapi.WordInfo(
+            word="lugema", word_classes=(), rection="mida", inflection_type="28",
+            definition=None, examples=(),
+            translations={"ru": ("читать", "прочитать")}))
+        got = TestClient(app_module.app).get("/api/enrich/lugema").json()
+        assert got["russian"] == ["читать", "прочитать"]
+        assert got["sonaveeb"].endswith("/lugema")
+
+
+class TestWhatTheAppLinksRatherThanBuilds:
+    """Pronunciation scoring is explicitly not being built, on the grounds
+    that EKI already publishes free exercises. That is only a decision if the
+    learner can reach them; until now the app linked neither them nor the
+    situational phrase collections the speaking bank was meant to draw on."""
+
+    @staticmethod
+    def _page() -> str:
+        from pathlib import Path
+
+        return (Path(__file__).resolve().parent.parent
+                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+
+    def test_the_speaking_panel_links_ekis_pronunciation_exercises(self):
+        page = self._page()
+        panel = page.split('id="tab-speak"')[1].split("</section>")[0]
+        assert "sonaveeb.ee/pronunciation-exercises" in panel
+
+    def test_it_links_the_situational_phrase_collections(self):
+        page = self._page()
+        panel = page.split('id="tab-speak"')[1].split("</section>")[0]
+        assert "sonaveeb.ee/learn" in panel
+
+    def test_outbound_links_do_not_hand_over_the_opener(self):
+        for chunk in self._page().split("sonaveeb.ee/")[1:]:
+            assert 'rel="noopener"' in chunk[:200]
+
+    def test_the_word_card_shows_the_russian_gloss(self):
+        page = self._page()
+        assert "x.russian" in page and "x.sonaveeb" in page
+
+
+class TestTheThrottleHoldsUnderConcurrency:
+    """A sync FastAPI route runs in a threadpool. Two enrichments arriving
+    together read `_last_request` before either writes it, both conclude no
+    wait is needed, and fire at once — so the throttle held only while nothing
+    was happening, which is the one time nobody needed it."""
+
+    def test_threads_are_spaced_too(self, monkeypatch, tmp_path):
+        import threading
+
+        fired: list[float] = []
+        lock = threading.Lock()
+
+        def fake_open(url, timeout=None):
+            with lock:
+                fired.append(time.monotonic())
+            raise sonapi.urllib.error.HTTPError(url, 404, "nope", {}, None)
+
+        monkeypatch.setattr(sonapi.urllib.request, "urlopen", fake_open)
+        monkeypatch.setattr(sonapi, "MIN_INTERVAL", 0.2)
+        monkeypatch.setattr(sonapi, "_last_request", 0.0)
+
+        threads = [threading.Thread(target=sonapi.fetch, args=(w,),
+                                    kwargs={"cache_dir": tmp_path})
+                   for w in ("aa", "bb", "cc")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        fired.sort()
+        assert len(fired) == 3
+        gaps = [b - a for a, b in zip(fired, fired[1:])]
+        assert all(g >= 0.15 for g in gaps), gaps
+

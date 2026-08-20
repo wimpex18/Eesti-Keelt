@@ -47,6 +47,15 @@ not correctness; converting that into feedback is a research project; and EKI
 already publishes free
 [pronunciation exercises](https://sonaveeb.ee/pronunciation-exercises/).
 
+"Use it, don't build it" is only a decision if the learner can reach it, and for
+a long time this was a line in a document with no link on the page. The panel
+now ends with two outbound links — EKI's pronunciation exercises and the
+[A1–B1 situational phrase collections](https://sonaveeb.ee/learn) — which is
+also how the plan's "seeded from `sonaveeb.ee/learn` dialogues" gets honoured
+without scraping a site whose maintainers asked nobody to scrape it. The
+question bank stays hand-written to the exam's shape; the phrase material stays
+where its authors put it.
+
 ## Estonian speech recognition, probed rather than assumed
 
 Checked directly in August 2026, because the last round of this research found

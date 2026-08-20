@@ -22,6 +22,7 @@ words, the answer is the Ekilex API with a key, not a loop over this.
 from __future__ import annotations
 
 import json
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -49,6 +50,20 @@ TIMEOUT = 4.0
 MIN_INTERVAL = 1.0
 _last_request = 0.0
 
+#: `_last_request` is read, compared and written, and FastAPI runs a sync route
+#: in a threadpool — so two enrichments arriving together would both read the
+#: same stale stamp, both decide no wait was needed, and issue at once. The
+#: throttle would then be a thing that holds only when nothing is happening,
+#: which is the one time it does not matter. Serialising the read-sleep-write
+#: makes the spacing hold under concurrency too.
+_turn = threading.Lock()
+
+
+#: The API mixes two- and three-letter codes between its two translation
+#: sources. Normalised so a caller asks for one thing.
+_LANG = {"rus": "ru", "eng": "en", "fra": "fr", "deu": "de", "ukr": "uk",
+         "fin": "fi", "lav": "lv", "lit": "lt"}
+
 
 @dataclass(frozen=True)
 class WordInfo:
@@ -59,6 +74,11 @@ class WordInfo:
     definition: str | None
     examples: tuple[str, ...]
     translations: dict[str, tuple[str, ...]]
+
+    @property
+    def russian(self) -> tuple[str, ...]:
+        """What the word means, for the person actually using this app."""
+        return self.translations.get("ru", ())
 
     @property
     def governs(self) -> tuple[str, ...]:
@@ -72,10 +92,11 @@ def _wait_turn() -> None:
     """Hold the caller back to one live request a second."""
     global _last_request
 
-    since = time.monotonic() - _last_request
-    if since < MIN_INTERVAL:
-        time.sleep(MIN_INTERVAL - since)
-    _last_request = time.monotonic()
+    with _turn:
+        since = time.monotonic() - _last_request
+        if since < MIN_INTERVAL:
+            time.sleep(MIN_INTERVAL - since)
+        _last_request = time.monotonic()
 
 
 def _cache_path(word: str, cache_dir: Path | None) -> Path:
@@ -125,10 +146,28 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
         (f.get("inflectionType") for f in forms if f.get("inflectionType")), None
     )
 
+    # Two translation sources come back, and the obvious one is the worse one.
+    #
+    # The top-level `translations` holds English only:
+    #     [{"from": "et", "to": "en", "translations": ["book"]}]
+    #
+    # Each meaning carries its own, in three-letter codes and weighted:
+    #     {"rus": [{"words": "книга", "weight": 1}, …], "eng": […], "fra": […]}
+    #
+    # This app is for a Russian speaker and says so in its language policy, so
+    # reading only the top level threw away the field that mattered most.
+    # Per-meaning first, top-level as a fallback for anything it lacks.
     translations: dict[str, tuple[str, ...]] = {}
+    for code, entries in (meaning.get("translations") or {}).items():
+        words = tuple(
+            e["words"] for e in entries
+            if isinstance(e, dict) and e.get("words")
+        )
+        if words:
+            translations[_LANG.get(code, code)] = words
     for entry in payload.get("translations") or []:
-        target = entry.get("to")
-        if target:
+        target = _LANG.get(entry.get("to") or "", entry.get("to"))
+        if target and target not in translations:
             translations[target] = tuple(entry.get("translations") or ())
 
     return WordInfo(
@@ -140,3 +179,19 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
         examples=tuple(meaning.get("examples") or ()),
         translations=translations,
     )
+
+
+#: Sõnaveeb's own search URL. `dlall`/`dsall` are its "all dictionaries, all
+#: sources" defaults — the same path the site builds when you type a word in.
+SEARCH = "https://sonaveeb.ee/search/unif/dlall/dsall/{word}"
+
+
+def entry_url(word: str) -> str:
+    """Where to send a learner who wants more than the three fields above.
+
+    The plan is explicit that this app does not rebuild the dictionary —
+    Sõnaveeb, Sõnastik and Anki already do it better. A link honours that:
+    the full paradigm, the audio and every translation are one tap away, and
+    nothing here has to fetch, cache or redistribute any of it.
+    """
+    return SEARCH.format(word=urllib.parse.quote(word))

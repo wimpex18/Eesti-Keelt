@@ -151,6 +151,15 @@ deterministic and the error history already exists.
   remembering the page.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
   TTS, ERR episode audio, rection and inflection type via `sonapi`.
+- **Word card enrichment, finished.** `sonapi` returned two translation sets and
+  the module read the wrong one: the top level carries English only, while each
+  meaning carries `rus`/`eng`/`fra` weighted. An app whose language policy is
+  Russian was showing a muuttüüp number to someone who did not yet know the
+  word. Per-meaning is read first now, top-level fills gaps, and the card ends
+  with a link out to Sõnaveeb for the paradigm and audio this app deliberately
+  does not rebuild. The speaking panel links EKI's pronunciation exercises and
+  the A1–B1 phrase collections for the same reason — "use it, don't build it"
+  is only a decision once the learner can reach it.
 
 ## Deployed, and verified against the running app
 

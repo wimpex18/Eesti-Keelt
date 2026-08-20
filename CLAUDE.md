@@ -140,8 +140,11 @@ origin), and a git-ignored `.env` (local).
   redistributed.
 - **ERR transcripts** and **Selges keeles** — owner-only, `redistributable = 0`,
   behind Access. Roughly 421 items.
-- **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only and
-  deliberately has no bulk helper. The enriched word list removes any need.
+- **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only,
+  throttled to one live request a second under a lock, and deliberately has no
+  bulk helper. The enriched word list removes any need. Where more than three
+  fields are wanted, **link to Sõnaveeb** (`sonapi.entry_url`) rather than
+  fetching more — the same posture as HARNO.
 - `data/*.db` and `data/exam/` are git-ignored. Runtime databases are never
   committed.
 
@@ -225,7 +228,14 @@ in Cloud Shell and discover the project, service and region themselves.
   not any of the three symptoms.
 - **A rule in a docstring is not a rule.** `sonapi.py` said "single lookups
   only" because Sõnaveeb asks not to be batched. Nothing stopped a loop. It is
-  a one-second minimum between live requests now, and cache hits stay free.
+  a one-second minimum between live requests now, and cache hits stay free —
+  under a lock, because a sync FastAPI route runs in a threadpool and two
+  unlocked readers would both see the same stale stamp and fire together.
+- **Read the whole response before deciding which field is the good one.**
+  `sonapi` returns translations twice. The obvious top-level key is English
+  only; the per-meaning key carries Russian, which is the language this app
+  explains everything in. Reading the obvious one threw away the field that
+  mattered most, and the card looked complete while doing it.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the
