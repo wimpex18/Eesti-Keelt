@@ -602,6 +602,15 @@
       <div id="readerAudio"></div>
       <p class="hint" id="readerProfile"></p>
       <div id="readerBody" class="prose"></div>
+      <!-- A crutch, offered rather than shown. Select a sentence you are stuck
+           on and ask; nothing translates on its own, because a reader handed
+           Russian reads the Russian and the whole reading design rests on
+           working at the edge of what is understood. -->
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="xlBtn">Tõlgi valitud lause</button>
+        <span class="hint" id="xlHint">vali tekstist lause</span>
+      </div>
+      <div id="xlOut" class="gloss-late" hidden></div>
       <div id="wordCard" hidden></div>
     </div>
   </section>
@@ -1783,6 +1792,30 @@ async function openItem(id) {
     m => `<w class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
   $("#wordCard").hidden = true;
 }
+
+/* Translate whatever the learner has selected in the text.
+
+   `/api/translate` is TartuNLP's Estonian NMT: free, keyless, and the one
+   endpoint on that host that has never been down -- its grammar sibling has
+   failed every probe since the first research round. Nothing here feeds the
+   drill loop or the verdict; a machine translation is evidence about a model,
+   not about the learner. */
+$("#xlBtn").onclick = async () => {
+  const picked = (window.getSelection?.().toString() || "").trim();
+  const out = $("#xlOut"), hint = $("#xlHint");
+  if (!picked) { hint.textContent = "vali tekstist lause"; out.hidden = true; return; }
+  hint.textContent = "tõlgin…";
+  out.hidden = true;
+  try {
+    const r = await (await api("/api/translate", {text: picked.slice(0, 1200)})).json();
+    if (!r.ok) { hint.textContent = r.detail || "ei õnnestunud"; return; }
+    out.textContent = r.text;
+    out.hidden = false;
+    hint.textContent = "TartuNLP";
+  } catch (err) {
+    hint.textContent = err.message;
+  }
+};
 
 $("#readerBody").addEventListener("click", async e => {
   if (e.target.tagName !== "W") return;

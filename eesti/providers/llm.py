@@ -51,10 +51,19 @@ class Provider:
 
     @property
     def api_key(self) -> str | None:
-        return os.environ.get(self.key_env)
+        return os.environ.get(self.key_env) if self.key_env else None
 
     @property
     def available(self) -> bool:
+        """A provider is available when it has what it needs to be called.
+
+        For a hosted provider that is a key. For a self-hosted one there is no
+        key to have, so availability is a deliberate opt-in: set `LOCAL_LLM_URL`
+        and the lane turns on. Treating "no key" as "unavailable" would have
+        made a keyless provider permanently invisible.
+        """
+        if not self.key_env:
+            return bool(os.environ.get("LOCAL_LLM_URL"))
         return bool(self.api_key)
 
 
@@ -67,7 +76,18 @@ PROVIDERS: dict[str, Provider] = {
         "openrouter",
         "https://openrouter.ai/api/v1",
         "OPENROUTER_API_KEY",
-        "nvidia/nemotron-3-super-120b-a12b:free",
+        # Was `nvidia/nemotron-3-super-120b-a12b:free`, which this project's own
+        # eval scored 0.50 recall / 0.50 precision -- and failed in the harmful
+        # direction, flagging `Ma ostsin uue auto` and `Ma sõin suppi`, both
+        # correct, while missing both irregular-verb errors. A learner following
+        # it would be taught that correct Estonian is wrong.
+        #
+        # Gemma is what the research picked as the replacement and what
+        # `.github/workflows/eval.yml` has defaulted to since: the OmniGEC study
+        # (arXiv 2509.14504) found Gemma's largest multilingual GEC gain was on
+        # Estonian, +8.25 GLEU. Unmeasured here until the eval is re-run against
+        # it -- the point of switching is to be able to measure it.
+        "google/gemma-4-26b-a4b-it:free",
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
@@ -87,19 +107,34 @@ PROVIDERS: dict[str, Provider] = {
         "@cf/openai/gpt-oss-120b",
         "10,000 neurons/day free, shared across all models.",
     ),
-    # Hugging Face's router is OpenAI-compatible, which is the only hosted way
-    # to reach EstLLM — an Estonian-adapted Llama 3.1 8B (~35B tokens of
-    # continued Estonian pretraining, then instruction tuning). It is reported
-    # to beat the multilingual base it came from on Estonian tasks, which is
-    # exactly the gap a general free model showed at 0.50/0.50 on our eval.
-    # Not served by OpenRouter, so it needs this lane or self-hosting.
-    "huggingface": Provider(
-        "huggingface",
-        "https://router.huggingface.co/v1",
-        "HF_TOKEN",
-        "tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125",
-        "Free tier is small and per-model availability varies; a model may need "
-        "a warm-up request before it answers.",
+    # EstLLM, run by you rather than by anyone else.
+    #
+    # This lane used to point at `router.huggingface.co` on the theory that it
+    # was "the only hosted way to reach EstLLM". Probed on 2026-08-20: the
+    # router serves 132 models and **not one Estonian one**, and every Estonian
+    # model -- EstLLM, gec-llm, Llammas, TalTech's verbatim Whisper -- has an
+    # empty `inferenceProviderMapping`. Nobody hosts any of them. The lane could
+    # never have answered, and it was not in `LLM_PREFERENCE` either, so nothing
+    # ever tried it and nothing ever noticed.
+    #
+    # The model is still the right idea: a general model failing Estonian object
+    # case is exactly what an Estonian-adapted one should fix. It just needs a
+    # machine instead of a key. GGUF builds exist (`mradermacher/
+    # Llama-3.1-EstLLM-8B-Instruct-1125-GGUF`, Q4_K_M ~4.9 GB), and Ollama,
+    # LM Studio and llama.cpp all expose an OpenAI-compatible `/v1`. So the lane
+    # points at whatever is serving on `LOCAL_LLM_URL`.
+    #
+    # Keyless on purpose: a local server has nothing to authenticate. See
+    # docs/local-llm.md for the Mac mini setup and the tunnel, if the deployment
+    # is to reach it rather than just `cli serve`.
+    "local": Provider(
+        "local",
+        os.environ.get("LOCAL_LLM_URL", "http://localhost:11434/v1"),
+        "",  # no key: the server is yours
+        os.environ.get("LOCAL_LLM_MODEL", "hf.co/mradermacher/"
+                       "Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M"),
+        "Free and private. Only reachable where the server is: localhost for "
+        "`cli serve`, or a tunnel for the deployment.",
     ),
     "anthropic": Provider(
         "anthropic",
@@ -112,6 +147,10 @@ PROVIDERS: dict[str, Provider] = {
 
 
 def _base_url(provider: Provider) -> str:
+    # Resolved at call time so a URL set after import still takes effect --
+    # the same rule the rest of this project follows for paths.
+    if provider.name == "local":
+        return os.environ.get("LOCAL_LLM_URL", provider.base_url).rstrip("/")
     if "{account_id}" in provider.base_url:
         account = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
         if not account:

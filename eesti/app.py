@@ -621,6 +621,40 @@ def lookup_word(word: str) -> dict:
     return lookup(word)
 
 
+class TranslateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=1200)
+    target: str = "rus"
+
+
+@app.post("/api/translate")
+def translate_sentence(req: TranslateRequest) -> dict:
+    """Translate one Estonian sentence, on request and never on its own.
+
+    The endpoint the app has had configured since the first week and never
+    called: `TARTUNLP_TRANSLATE` sat in `config.py` with no caller anywhere,
+    which is the same defect as a measurement with no writer.
+
+    It is worth having for the thing `gloss.py` cannot do. A word gloss says
+    what `süütamine` means; it does not unpick `Neist 52 on kasvatatud Eestis`
+    for someone who knows every word in it. Sentence-level help is a different
+    tool and this is the free, Estonian-trained, keyless one.
+
+    Deliberately a POST and deliberately not attached to anything that renders
+    automatically. A reader handed Russian reads the Russian, and this app's
+    whole reading design rests on working at the edge of what is understood
+    rather than past it. The learner asks; nothing offers.
+    """
+    from .providers.translate import translate
+
+    got = translate(req.text, target=req.target)
+    if got is None:
+        # A crutch that is briefly absent, not an error page.
+        return {"ok": False, "text": None,
+                "detail": "Перевод сейчас недоступен — попробуйте ещё раз."}
+    return {"ok": True, "text": got.text, "target": got.target,
+            "engine": got.engine}
+
+
 @app.get("/api/enrich/{word}")
 def enrich_word(word: str) -> dict:
     """The two things Vabamorf cannot say: what the word governs, and its type.

@@ -315,10 +315,20 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
     )
 
 
-# Preference order for LLM providers. Free tiers first — at a few checks a day
-# they are ample — with a paid model last as the quality backstop. Any provider
-# whose key is unset is skipped, so this degrades by configuration alone.
-LLM_PREFERENCE = ("openrouter", "groq", "workers-ai", "anthropic")
+# Preference order for LLM providers. Any provider that is not configured is
+# skipped, so this degrades by configuration alone.
+#
+# `local` is first when it is switched on, and switched off by default. That
+# order is not a guess about quality: it is the one lane running a model built
+# for Estonian, and Estonian object case is the specific thing every general
+# model here has been measured failing. It is also free, private and unmetered,
+# so when it is available there is no argument for asking anyone else first.
+#
+# `huggingface` used to be in this list's place in `PROVIDERS` and was never in
+# this list at all -- defined, unreachable, and unnoticed for exactly that
+# reason. Anything added to `PROVIDERS` and not to this tuple is dead weight;
+# a test now asserts the two agree.
+LLM_PREFERENCE = ("local", "openrouter", "groq", "workers-ai", "anthropic")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
