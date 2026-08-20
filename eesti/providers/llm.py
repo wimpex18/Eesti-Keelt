@@ -97,18 +97,36 @@ PROVIDERS: dict[str, Provider] = {
         "openrouter",
         "https://openrouter.ai/api/v1",
         "OPENROUTER_API_KEY",
-        # Was `nvidia/nemotron-3-super-120b-a12b:free`, which this project's own
-        # eval scored 0.50 recall / 0.50 precision -- and failed in the harmful
-        # direction, flagging `Ma ostsin uue auto` and `Ma sõin suppi`, both
-        # correct, while missing both irregular-verb errors. A learner following
-        # it would be taught that correct Estonian is wrong.
+        # Chosen on evidence rather than on an eval, because the eval needs a
+        # key this repository must never hold. Three things decided it.
         #
-        # Gemma is what the research picked as the replacement and what
-        # `.github/workflows/eval.yml` has defaulted to since: the OmniGEC study
-        # (arXiv 2509.14504) found Gemma's largest multilingual GEC gain was on
-        # Estonian, +8.25 GLEU. Unmeasured here until the eval is re-run against
-        # it -- the point of switching is to be able to measure it.
-        "google/gemma-4-26b-a4b-it:free",
+        # 1. **Active parameters, not total.** The Estonian benchmark work
+        #    (Lillepalu & Alumäe, LREC 2026) frames weak Estonian as either
+        #    less training data *or* "less model capacity dedicated to that
+        #    language". Of the eight free models that accept the
+        #    `response_format` this client sends, active capacity runs:
+        #    gemma-4-31b **30.7B dense**, dots-3-note 16B, nemotron-3-super
+        #    12B, gemma-4-26b-a4b **3.8B**, gpt-oss-20b 3.6B.
+        #
+        #    `nvidia/nemotron-3-super-120b-a12b:free` -- 12B active -- is the
+        #    one this project measured at 0.50 recall / 0.50 precision, failing
+        #    in the harmful direction: it flagged `Ma ostsin uue auto` and
+        #    `Ma sõin suppi`, both correct. `gemma-4-26b-a4b:free` was picked as
+        #    its replacement and is a **downgrade** on this axis at 3.8B active,
+        #    which is the opposite of what a low-resource language needs.
+        #
+        # 2. **Gemma lineage.** The OmniGEC study (arXiv 2509.14504) found
+        #    Gemma's largest multilingual GEC gain was on Estonian, +8.25 GLEU.
+        #
+        # 3. **It takes the parameter we send.** `structured_outputs` and
+        #    `response_format` are different capabilities; this client sends
+        #    the latter, and gemma-4-31b accepts it.
+        #
+        # Still unmeasured on this project's own eval, and said plainly rather
+        # than implied: this is the best-evidenced choice available without a
+        # key, not a result. `docs/ai-strategy.md` has the paid upgrade, which
+        # costs about $0.20 a month and is what the evidence actually favours.
+        "google/gemma-4-31b-it:free",
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
@@ -213,7 +231,10 @@ def complete(
     """One chat completion. Returns the assistant's text."""
     provider = PROVIDERS[provider_name]
     if not provider.available:
-        raise RuntimeError(f"{provider.key_env} is not set")
+        raise RuntimeError(
+            f"{provider.key_env} is not set" if provider.key_env
+            else f"{provider.name}: LOCAL_LLM_URL is not set"
+        )
 
     payload: dict = {
         "model": model or provider.model,
@@ -227,13 +248,17 @@ def complete(
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
 
+    # A keyless lane -- a local server -- has nothing to authenticate, and
+    # `Bearer None` is a header that happens to work only because Ollama
+    # ignores it. Send it when there is a key and not when there is not.
+    headers = {"Content-Type": "application/json"}
+    if provider.api_key:
+        headers["Authorization"] = f"Bearer {provider.api_key}"
+
     req = urllib.request.Request(
         f"{_base_url(provider)}/chat/completions",
         data=json.dumps(payload).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {provider.api_key}",
-        },
+        headers=headers,
     )
 
     for attempt in range(RETRIES):

@@ -148,3 +148,75 @@ class TestTheModelIsSwitchableWithoutADeploy:
         monkeypatch.setenv("OPENROUTER_MODEL", "")
         p = llm.PROVIDERS["openrouter"]
         assert p.model == p.default_model
+
+
+class TestTheKeylessLaneSendsNoAuthorisation:
+    """`Bearer None` is a header that happens to work only because Ollama
+    ignores it. A local server has nothing to authenticate."""
+
+    def test_a_keyless_provider_sends_no_authorization_header(self, monkeypatch):
+        monkeypatch.setenv("LOCAL_LLM_URL", "http://localhost:11434/v1")
+        sent = {}
+
+        class Fake:
+            def read(self):
+                import json as j
+                return j.dumps({"choices": [{"message": {"content": "{}"}}]}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def capture(request, *a, **k):
+            sent["headers"] = dict(request.headers)
+            return Fake()
+
+        monkeypatch.setattr(llm.urllib.request, "urlopen", capture)
+        monkeypatch.setattr(llm, "_throttle", lambda: None)
+        llm.complete("local", "sys", "user")
+        assert not any(k.lower() == "authorization" for k in sent["headers"])
+
+    def test_a_keyed_provider_still_sends_one(self, monkeypatch):
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+        sent = {}
+
+        class Fake:
+            def read(self):
+                import json as j
+                return j.dumps({"choices": [{"message": {"content": "{}"}}]}).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def capture(request, *a, **k):
+            sent["headers"] = dict(request.headers)
+            return Fake()
+
+        monkeypatch.setattr(llm.urllib.request, "urlopen", capture)
+        monkeypatch.setattr(llm, "_throttle", lambda: None)
+        llm.complete("openrouter", "sys", "user")
+        assert any(k.lower() == "authorization" for k in sent["headers"])
+
+    def test_an_unconfigured_keyless_lane_says_what_to_set(self, monkeypatch):
+        monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
+        with pytest.raises(RuntimeError, match="LOCAL_LLM_URL"):
+            llm.complete("local", "sys", "user")
+
+
+class TestTheModelChoiceIsDefensibleWithoutAnEval:
+    """Picked on evidence, because the eval needs a key this repo must never
+    hold. The axis that decided it is *active* parameters: the Estonian
+    benchmark work frames weak Estonian as either less training data or less
+    model capacity dedicated to the language."""
+
+    def test_it_is_not_the_model_that_was_measured_failing(self):
+        assert "nemotron-3-super" not in llm.PROVIDERS["openrouter"].default_model
+
+    def test_it_is_not_the_small_active_moe_that_replaced_it(self):
+        """`gemma-4-26b-a4b` is 3.8B active — fewer than the 12B-active model
+        that scored 0.50/0.50, which is the wrong direction entirely."""
+        assert "a4b" not in llm.PROVIDERS["openrouter"].default_model
+
+    def test_the_workflow_offers_the_same_model_first(self):
+        from pathlib import Path
+
+        workflow = (Path(__file__).resolve().parent.parent
+                    / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8")
+        assert llm.PROVIDERS["openrouter"].default_model in workflow
