@@ -13,28 +13,45 @@ on:
         options: [openrouter, groq, workers-ai, anthropic]
       model:
         description: Model to score
-        default: "google/gemma-4-26b-a4b-it:free"
+        default: "google/gemma-4-31b-it:free"
         type: choice
         options:
-          # Only free models that support structured outputs — the checker needs
-          # JSON, and a model that cannot produce it fails for the wrong reason.
-          # Gemma first: the OmniGEC work found it gained most on Estonian GEC.
-          - google/gemma-4-26b-a4b-it:free
+          # Only models that accept `response_format`, which is what the client
+          # sends — a model that cannot produce JSON fails for the wrong reason.
+          # Note that is a *different* capability from `structured_outputs`,
+          # which this list used to filter on and which excluded gemma-4-31b.
+          #
+          # Ordered by active parameters, because that is the axis a
+          # low-resource language actually rides on: 30.7B dense, 16B, 12B,
+          # 3.8B, 3.6B. The 12B one is the model measured at 0.50/0.50.
+          - google/gemma-4-31b-it:free
           - dots-studio/dots-3-note-preview:free
-          - openai/gpt-oss-20b:free
           - nvidia/nemotron-3-super-120b-a12b:free
-          - nvidia/nemotron-nano-9b-v2:free
+          - google/gemma-4-26b-a4b-it:free
+          - openai/gpt-oss-20b:free
+          # Paid, and what the evidence actually favours: the Estonian
+          # benchmark found commercial models excel. ~$0.05-0.21 a month at ten
+          # checks a day. Needs credit on the OpenRouter account.
+          - google/gemini-2.5-flash-lite
+          - google/gemini-3.7-flash
       evidence:
         description: >-
           Attach Vabamorf's case analysis (as the real app does). Tests whether
           the model's weakness is judgement or morphology.
         default: false
         type: boolean
-  pull_request:
-    paths:
-      - "eesti/evals/**"
-      - "eesti/providers/**"
-      - ".github/workflows/eval.yml"
+  # Weekly, and on demand. NOT on every pull request that touches a provider.
+  #
+  # It was, and on 2026-08-20 that meant 16 runs in one day -- roughly 288
+  # requests against OpenRouter's 50/day free tier. The eval then measured
+  # nothing and said so, which is the honest-skip design working, but a gate
+  # that cannot run is not a gate. 39 runs on 18 Aug, same story.
+  #
+  # A model's score changes when the model changes, not when a docstring in
+  # `providers/` does. Weekly catches a provider silently swapping a model
+  # under a `:free` alias; `workflow_dispatch` covers a deliberate switch.
+  schedule:
+    - cron: "17 6 * * 1"
 
 jobs:
   eval:

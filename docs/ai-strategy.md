@@ -171,6 +171,103 @@ limit. If it stops, the earlier score was measuring the prompt.
 **If no free model clears ~0.8 precision even with evidence,** the honest
 conclusion is that this one job — and only this job — is worth cents a month.
 
+## Which model, and why, without running the eval
+
+Updated 2026-08-20. The eval needs an API key, and this repository must never
+hold one, so this is the best-evidenced choice available rather than a measured
+result. Said plainly because the difference matters.
+
+**The axis that decides it is active parameters, not total.** The Estonian
+benchmark work (Lillepalu & Alumäe, LREC 2026 — 6 base models, 26 open
+instruction-tuned, plus commercial) frames weak Estonian as either less training
+data *or* "less model capacity dedicated to that language". Of the eight free
+models on OpenRouter that accept the `response_format` this client sends:
+
+| Free model | Active parameters |
+|---|---|
+| `google/gemma-4-31b-it:free` | **30.7B dense** |
+| `dots-studio/dots-3-note-preview:free` | 16B of 280B |
+| `nvidia/nemotron-3-super-120b-a12b:free` | 12B of 120B |
+| `google/gemma-4-26b-a4b-it:free` | 3.8B of 25.2B |
+| `openai/gpt-oss-20b:free` | 3.6B of 21B |
+
+The 12B one is the model this project measured at **0.50/0.50**. The 3.8B one
+was picked as its replacement on the strength of the OmniGEC result, which is a
+**downgrade on this axis** — the opposite of what a low-resource language needs.
+That was caught by reading the architectures rather than the model names.
+
+So the default is **`google/gemma-4-31b-it:free`**: the most active capacity of
+any free option, Gemma lineage (OmniGEC found Gemma's largest multilingual GEC
+gain was on Estonian, +8.25 GLEU), and it accepts the parameter we send.
+
+One trap worth recording: **`structured_outputs` and `response_format` are
+different capabilities.** The eval workflow filtered its model list on the
+first and this client sends the second, which is how the largest dense free
+model came to be excluded from consideration entirely.
+
+### The paid upgrade, which is what the evidence actually favours
+
+The Estonian benchmark's finding is that **commercial models excel** — Claude
+3.7 Sonnet aligned closely enough with human ratings to be used as the judge.
+This project's own rule already anticipated that: *"If no free model clears ~0.8
+precision even with evidence, the honest conclusion is that this one job — and
+only this job — is worth cents a month."*
+
+It is cents. At roughly 600 input and 250 output tokens per check, ten checks a
+day:
+
+| Model | Cost/month |
+|---|---|
+| `google/gemini-2.5-flash-lite` | **$0.05** |
+| `openai/gpt-5-nano` | $0.04 |
+| `google/gemini-3.7-flash` | $0.21 |
+
+One environment variable, no deploy:
+
+```
+OPENROUTER_MODEL=google/gemini-2.5-flash-lite
+```
+
+It needs credit on the OpenRouter account, which is why it is not the default —
+a default that fails for an account without credit would degrade silently to
+Workers AI and look like nothing had changed.
+
+**Running the eval, if it is ever wanted.** Nothing needs installing: the
+`eval` workflow has a `workflow_dispatch` trigger, so it runs from the Actions
+tab with the model picked from a dropdown, using the key already in repository
+secrets. Locally it is `python -m eesti.cli eval --provider openrouter` with a
+key in `.env`.
+
+## What each service is actually for
+
+Re-probed 2026-08-20. The split the whole provider design rests on has not
+moved in six months:
+
+| Service | State | Job in this app |
+|---|---|---|
+| TartuNLP **translation** | 200 in 1.0 s | sentence crutch in the reader; back-translation in the writing check |
+| TartuNLP **TTS** | 200 in 1.1 s | every piece of listening audio, 12 voices at 0.7× |
+| TartuNLP **grammar** | **500 after 60.7 s** | first in the chain, always skipped |
+| ELLE CEFR predictor | 500 | unused |
+| OpenRouter | live | the grammar chain's working lane |
+| Local (EstLLM) | off unless served | first when a server is named |
+
+**The grammar endpoint has failed identically since the first research round** —
+500 after roughly a minute, then and now. `PROVIDER_TIMEOUT` is 5 s, so the app
+never waits for that minute; the breaker then skips it for 15 minutes after two
+failures. It stays first because it is free and Estonian-specific and this
+project's architecture assumes research APIs come back. The measured cost of
+that optimism is 10 s on the first writing check of a session.
+
+**Translation is the one to use, and it is used for two different things.** A
+crutch in the reader, on request and never automatic. And a *back-translation*
+in the writing check, which is the more interesting one: a grammar chain says
+whether the Estonian is well formed and cannot say whether it means what was
+intended. `Ma käisin arstiga` is perfect Estonian and says you went **with** a
+doctor. Nothing flags it. Reading it back does — and it works with no LLM key
+at all, which is the only feedback in this app that survives a fully offline
+deployment.
+
 ## Competitive landscape
 
 What the 2026 AI language apps do, and what they leave open:

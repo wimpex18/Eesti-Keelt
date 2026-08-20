@@ -154,9 +154,30 @@ And two become explicit investigations rather than footnotes:
 | **D** | Pursue EVKK access | real learner errors beat invented ones |
 | **E** | Test EstLLM | the strongest candidate for the model problem |
 
-**All five are done.** A–C landed with the ERR reseed, `providers/sonapi.py` and
-`evals/external.py`; D is `harvest/evkk.py`; E is the `huggingface` provider
-entry pointing at `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`.
+**A–D are done.** A–C landed with the ERR reseed, `providers/sonapi.py` and
+`evals/external.py`; D is `harvest/evkk.py`.
+
+**E was not.** This said "all five are done" and gave, as evidence for *Test
+EstLLM*, "the `huggingface` provider entry pointing at
+`tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`". Adding a config entry is not
+testing a model, and one real attempt would have failed immediately:
+
+- the entry was in `PROVIDERS` and **not** in `LLM_PREFERENCE`, so the grammar
+  chain never reached it;
+- and it pointed at `router.huggingface.co`, which on 2026-08-20 served 132
+  models and **not one Estonian one**. EstLLM, `gec-llm`, Llammas and TalTech's
+  verbatim Whisper all have an empty `inferenceProviderMapping`. Nobody hosts
+  any of them.
+
+The project had already learned this for the Whisper model — `docs/speaking.md`
+says "nobody hosts it" — and never ran the same check on the text model.
+
+**E is now done properly, by a different route.** GGUF builds of EstLLM exist,
+so the model runs on hardware you own rather than on an API nobody offers. The
+lane points at `LOCAL_LLM_URL` and speaks OpenAI-compatible HTTP, which Ollama,
+LM Studio and llama.cpp all serve. See `local-llm.md`. Whether it is *better*
+than a hosted general model on Estonian object case is still unmeasured — that
+is what the eval is for, and it is the honest state to leave this in.
 
 Only D changed the plan, and it changed it in one place: **step 2's generator
 order** now starts with `rektsioon` rather than noun declension, because the

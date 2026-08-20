@@ -602,6 +602,15 @@
       <div id="readerAudio"></div>
       <p class="hint" id="readerProfile"></p>
       <div id="readerBody" class="prose"></div>
+      <!-- A crutch, offered rather than shown. Select a sentence you are stuck
+           on and ask; nothing translates on its own, because a reader handed
+           Russian reads the Russian and the whole reading design rests on
+           working at the edge of what is understood. -->
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="xlBtn">Tõlgi valitud lause</button>
+        <span class="hint" id="xlHint">vali tekstist lause</span>
+      </div>
+      <div id="xlOut" class="gloss-late" hidden></div>
       <div id="wordCard" hidden></div>
     </div>
   </section>
@@ -1009,6 +1018,23 @@ async function runCheck() {
     const res = await (await api("/api/check", {text})).json();
     let html = "";
     if (res.degraded && res.note) html += `<div class="banner">${esc(res.note)}</div>`;
+    /* What the text actually says, read back in Russian.
+
+       A grammar chain tells you whether your Estonian is well formed. It cannot
+       tell you whether it says what you meant, and for a learner that second
+       failure is the more common and the far more invisible one: `Ma käisin
+       arstiga` is perfect Estonian and means you went *with* a doctor. Nothing
+       flags it. Reading it back does.
+
+       TartuNLP's NMT rather than the LLM: Estonian-trained, free, keyless, and
+       on the one endpoint of theirs that has never been down. Absent rather
+       than blocking when it is. */
+    if (res.back_translation) {
+      html += `<div class="corr"><span class="tag">Mida sa ütlesid</span>
+        <div class="gloss-late">${esc(res.back_translation)}</div>
+        <div class="why">Обратный перевод (TartuNLP). Грамматика может быть
+        верной, а смысл — не тем, который ты имел в виду.</div></div>`;
+    }
     if (!res.corrections.length) {
       html += `<p class="empty">Kõik on õige — vigu ei leitud.</p>`;
     } else {
@@ -1784,6 +1810,30 @@ async function openItem(id) {
   $("#wordCard").hidden = true;
 }
 
+/* Translate whatever the learner has selected in the text.
+
+   `/api/translate` is TartuNLP's Estonian NMT: free, keyless, and the one
+   endpoint on that host that has never been down -- its grammar sibling has
+   failed every probe since the first research round. Nothing here feeds the
+   drill loop or the verdict; a machine translation is evidence about a model,
+   not about the learner. */
+$("#xlBtn").onclick = async () => {
+  const picked = (window.getSelection?.().toString() || "").trim();
+  const out = $("#xlOut"), hint = $("#xlHint");
+  if (!picked) { hint.textContent = "vali tekstist lause"; out.hidden = true; return; }
+  hint.textContent = "tõlgin…";
+  out.hidden = true;
+  try {
+    const r = await (await api("/api/translate", {text: picked.slice(0, 1200)})).json();
+    if (!r.ok) { hint.textContent = r.detail || "ei õnnestunud"; return; }
+    out.textContent = r.text;
+    out.hidden = false;
+    hint.textContent = "TartuNLP";
+  } catch (err) {
+    hint.textContent = err.message;
+  }
+};
+
 $("#readerBody").addEventListener("click", async e => {
   if (e.target.tagName !== "W") return;
   const word = e.target.textContent;
@@ -1931,7 +1981,12 @@ async function loadDictation() {
 
 async function dictAudio() {
   if (dictUrl) return dictUrl;
-  const r = await api("/api/speak", {text: dictNow.text, speed: 0.7});
+  // The voice comes with the sentence and is fixed for it, so replaying sounds
+  // the same while different sentences bring different speakers -- which is what
+  // the exam does and what one voice never trains.
+  const r = await api("/api/speak",
+                      {text: dictNow.text, speed: 0.7,
+                       ...(dictNow.voice ? {voice: dictNow.voice} : {})});
   dictUrl = URL.createObjectURL(await r.blob());
   return dictUrl;
 }

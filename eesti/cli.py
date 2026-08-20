@@ -330,7 +330,7 @@ def cmd_models(args: argparse.Namespace) -> int:
             f"  {m['id']:52} ctx={str(m.get('context_length')):9}"
             f" json={'structured_outputs' in params}"
         )
-    default = PROVIDERS[args.provider].default_model
+    default = PROVIDERS[args.provider].model
     present = any(m.get("id") == default for m in models)
     print(f"\npinned default {default!r}: {'PRESENT' if present else 'ABSENT — fix it'}")
     return 0
