@@ -8,6 +8,7 @@ import pytest
 
 from eesti import library
 from eesti.library import SECTIONS, browse, exposure, mark_seen, sections
+from eesti.sources import query
 from eesti.progress import connect as progress_connect
 
 
@@ -196,3 +197,70 @@ class TestOpeningRecordsVocabulary:
             "SELECT MAX(met_count) FROM vocab_status"
         ).fetchone()[0]
         assert met >= 2
+
+
+class TestBrowsingEverything:
+    """`kõik` — no band filter — is the option a learner picks to see the whole
+    shelf, and it is the one that shows least of it.
+
+    Found in a browser on 2026-08-20: choosing `kõik` returned a list
+    indistinguishable from `kergem`. The `WHERE` clause is right (`if band:`
+    correctly treats the empty string as "no filter"); the loss is downstream,
+    in `ORDER BY added_on DESC LIMIT n`. The harvesters wrote one band last, so
+    the newest `n` rows are all that band and the other two never survive the
+    limit. On the real corpus — 117 raskem, 116 keskmine, 116 kergem — the
+    unfiltered first 60 were 60 kergem, hiding two thirds of the library behind
+    a filter that looks like it is doing nothing.
+
+    This is the shape the project has already paid for twice: material that is
+    indexed, sectioned, API-tested and unreachable from the page.
+    """
+
+    @pytest.fixture
+    def banded(self, tmp_path):
+        """Three bands, written in a fixed order so the newest rows are all one
+        band — reproducing the harvest ordering rather than hoping for it."""
+        from eesti.sources import Item, add_items, connect, register
+
+        conn = connect(tmp_path / "bands.db")
+        register(conn)
+        # `add_items` stamps `added_on` itself, and one test run stamps every
+        # batch within the same second -- which does not reproduce anything.
+        # The dates are therefore set explicitly, standing in for three harvest
+        # runs on three different days, which is how the real corpus got here.
+        for day, band in enumerate(("raskem", "keskmine", "kergem"), start=1):
+            add_items(conn, [
+                Item("selges-keeles", "lugemine", body=f"Tekst {band} {i}.",
+                     title=f"{band} {i}", band=band)
+                for i in range(4)
+            ])
+            with conn:
+                conn.execute(
+                    "UPDATE items SET added_on=? WHERE band=?",
+                    (f"2026-0{day}-01T00:00:00+00:00", band),
+                )
+        return conn
+
+    def test_the_fixture_really_is_ordered_by_band(self, banded):
+        """Guard the guard: if `add_items` ever stops preserving order this
+        test would pass for the wrong reason."""
+        newest = [r["band"] for r in query(banded, skill="lugemine", limit=4)]
+        assert set(newest) == {"kergem"}, newest
+
+    def test_asking_for_one_band_returns_only_that_band(self, banded):
+        for band in ("kergem", "keskmine", "raskem"):
+            rows = query(banded, skill="lugemine", band=band, limit=50)
+            assert rows and {r["band"] for r in rows} == {band}
+
+    @pytest.mark.xfail(strict=True, reason=(
+        "QA-1: unfiltered browsing is truncated to whichever band was harvested "
+        "last. `ORDER BY added_on DESC LIMIT n` reaches the limit before it "
+        "reaches the other bands, so `kõik` shows the same list as `kergem`."))
+    def test_browsing_unfiltered_reaches_every_band(self, banded):
+        # The limit must be smaller than a single band, which is the real
+        # ratio: the page asks for 60 and the newest band holds 116. A limit
+        # wider than one band hides the defect, which is why the number here
+        # is 3 against batches of 4 rather than something round.
+        rows = query(banded, skill="lugemine", band=None, limit=3)
+        assert len({r["band"] for r in rows}) > 1, \
+            f"'kõik' surfaced only {[r['band'] for r in rows]}"

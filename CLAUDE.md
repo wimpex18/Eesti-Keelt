@@ -420,3 +420,25 @@ in Cloud Shell and discover the project, service and region themselves.
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,
   every tab.
+- **A bounding box is not visibility.** A layout assertion that filters on
+  `getBoundingClientRect().height > 0` reports six phantom "controls trapped
+  under the navigation" on the phone, because Chromium gives descendants of a
+  collapsed `<details>` a real rect while they are unrendered and unhittable.
+  `checkVisibility()` is the question being asked; `elementFromPoint` at the
+  element's own centre is the one that matters for "can a thumb reach this".
+  The first UAT pass produced four suspected mobile defects and three of them
+  were the measurement, not the app.
+- **A filter that silently shows one slice is worse than one that errors.**
+  `kõik` on the reading list sends no band filter, which is correct, and then
+  `ORDER BY added_on DESC LIMIT 60` returns 60 rows of whichever band was
+  harvested last — so the option that means "everything" showed a third of the
+  corpus and looked identical to `kergem`. A limit applied after an ordering
+  that correlates with the thing being browsed is a filter bug wearing a
+  pagination costume. Third time this shape has cost real content: 82
+  unreachable items, the `level`/`band` rename, now this.
+- **Reproduce the ordering before trusting the reproduction.** The first
+  fixture for that bug inserted three bands and passed for the wrong reason —
+  `add_items` stamps every batch inside the same second, so "newest" was
+  arbitrary, and the guard test written alongside it is what caught that. Two
+  numbers have to mirror reality for the defect to appear at all: the limit
+  must be smaller than one band, as 60 is smaller than 116.
