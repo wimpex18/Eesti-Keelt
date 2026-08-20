@@ -1,6 +1,7 @@
 # Where version 1.0 stands
 
-Written 2026-08-20, at the close of the first build. This is the honest
+Written 2026-08-20 at the close of the first build, and revised the same day
+after the deployment was actually asked how it was doing. This is the honest
 inventory: what works, what was never built, what is knowingly broken, and what
 the original research plan promised and did not deliver.
 
@@ -35,7 +36,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-42 API routes, every one with a caller. 1 089 tests.
+42 API routes, every one with a caller. 1 141 tests.
 
 ## What was never built
 
@@ -74,7 +75,9 @@ Nothing here is severe enough to block use. All of it is real.
 | **`_bind_breaker()` runs at import** | `app.py` binds the circuit breaker to `progress.db` at module scope, so the path is resolved before anything can redirect it. The test suite works around it; production is fine because the path is fixed. It is still the anti-pattern this project has a written habit about. |
 | **`wordlist.connect` invents an empty database** | Open a path with no file and you get a file, schema and all, with zero rows — the same shape as the content-database bug fixed in `cli.content_db`, which reported a missing corpus as `no such table: items`. `cli build` needs the create, so the fix is a separate read-only opener rather than a refusal. |
 | **`sonapi`'s raw payload cache is still ephemeral** | The *glosses* are durable now (`gloss.py`, in `vocab.db`, in the snapshot). The raw JSON underneath still lives in `data/cache/` and evaporates on every cold start. Harmless — the gloss store answers first and the network is never reached — but it means the cache directory is doing nothing on the deployment. |
-| **The local `content.db` is partial** | 349 Selges keeles items only. The ERR transcripts, news issues and exam pointers were lost to a container rollback during this session and not re-harvested. The **deployed** database is the complete one; the last smoke run confirms `"library":true`. Re-run the harvesters before trusting local numbers about the corpus. |
+| **The local `content.db` is partial** | 349 Selges keeles items only. The ERR transcripts, news issues and exam pointers were lost to a container rollback and not re-harvested. The **deployed** database is the complete one; the last smoke run confirms `"library":true`. Re-run the harvesters before trusting local numbers about the corpus. |
+| **The container rolls the checkout back** | Twice in one session, once taking a committed-but-unpushed commit, and once reverting a session that had already pushed — leaving `origin/main` pointing at `Initialise repository` while GitHub held the full history. Nothing was lost either time, but a local `git log` is **not** evidence about the repository. `git ls-remote origin` is. Recover with `git fetch origin --prune && git reset --hard origin/<branch>` — **and then rebuild the derived artefacts**. The rollback also restores a stale `data/edge.db`, which presents as two failing export-quality tests (`kool` still carrying `koola, koola`) that look exactly like a code regression and are not one: CI passes on the same commit because it builds the dataset fresh. `python -m eesti.cli export` fixes it. |
+| **The grammar checker is in offline mode on the deployment** | Found 2026-08-20 by the deep smoke check, after the v1.0 image shipped. The chain reports `llm:openrouter: HTTPError` — the key *is* on the process and the call fails, which is a different problem from `unavailable`. Writing still flags object-case candidates and typos, but no correction carries an explanation, so no "log it" button renders and **nothing reaches the Notion log**. Same inert chain as the original key-on-the-Worker bug, from a different cause. PR #18 makes the note name the status code, which decides whether it is a 429 (self-healing) or a 401 (needs a new key on Cloud Run). |
 | **`evkk` reaches the network** | The CLI command fetches the EVKK taxonomy from `elle.tlu.ee` and has no offline path. It is excluded from the test suite for that reason. |
 
 ## Tech debt, stated as debt
@@ -122,13 +125,23 @@ The rest sits at 90 % or above. `wordlist.py` finished at 94 %, `gloss.py` at
 
 ## What to do first in the next sprint
 
-1. **Redeploy.** The running image predates the export fixes, so the deployed
-   word card still prints `kool, koola, koola` and 319 other invented
-   paradigms. No content push needed; the fix is baked at image build.
+**Done since this list was written:** the redeploy. It was item 1 — the running
+image predated the export fixes, so the deployed word card still printed
+`kool, koola, koola` and 319 other invented paradigms. PR #17 merged at 12:21
+on 2026-08-20 and Cloud Build had the new image serving by 12:24, confirmed by
+the build stamp on `/api/health` rather than assumed from a green workflow.
+
+1. **Merge #18, then run the deep smoke check and read the status code.** The
+   grammar checker is in offline mode on the deployment right now. A 429 means
+   the free tier is spent and it recovers on its own; a 401 means the key is
+   dead and every writing check stays unexplained until it is replaced. Until
+   the code is known, neither waiting nor rotating the key is justified.
 2. **Re-harvest locally** so `content.db` is whole again and local measurements
    mean something.
 3. **Study.** The verdict's three numbers for A2 — no exam part touched, 0 of 7
    topics mastered, checkpoint unattempted — do not move on their own, and they
-   are what decides A2-then-B1 against B1-alone next year.
+   are what decides A2-then-B1 against B1-alone next year. This is the item
+   that has been at number three through two sprints while the code around it
+   got better; the app now has more features than it has practice history.
 4. Then, if a build is wanted: the 13 topics with no generator, largest gap
    first.

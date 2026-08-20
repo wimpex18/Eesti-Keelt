@@ -121,6 +121,8 @@ the cheapest and best-fitting route is the one the app already deploys to:
     CLOUDFLARE_ACCOUNT_ID
 
 That runs `@cf/openai/whisper-large-v3-turbo` with the language pinned to
-Estonian, at $0.00051 per audio minute. `OPENROUTER_API_KEY` and `HF_TOKEN` work
-as fallbacks. See [`docs/speaking.md`](speaking.md) for why an Estonian LLM
+Estonian, at $0.00051 per audio minute. `OPENROUTER_API_KEY` works as a
+fallback. (`HF_TOKEN` no longer does: the HuggingFace lane pointed at a router
+that serves no Estonian model, and was replaced by `LOCAL_LLM_URL` — a server
+you run yourself. See [`docs/local-llm.md`](local-llm.md).) See [`docs/speaking.md`](speaking.md) for why an Estonian LLM
 cannot do this job and which Estonian speech model would, if anyone hosted it.

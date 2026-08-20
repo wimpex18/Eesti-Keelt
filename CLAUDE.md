@@ -173,7 +173,7 @@ python -m eesti.cli harvest-news     # ERR Lihtsad uudised — the live feed
 python -m eesti.cli harvest-exam     # official EIS tasks (pointers)
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion
-pytest tests/ -q                     # 503 tests
+pytest tests/ -q                     # 1 141 tests
 ```
 
 `deploy/setup.sh`, `deploy/push-content.sh`, `deploy/reset-progress.sh` all run
@@ -214,6 +214,24 @@ in Cloud Shell and discover the project, service and region themselves.
   a second check in the same run, and a whole round went into diagnosing a
   traffic split that did not exist. The field is `can_explain` now, and the
   workflow reads JSON with `jq`, not with pattern matching.
+- **A configuration check cannot see a call that fails.** `can_explain` was the
+  fix for the `explains` grep above, and it is a correct field honestly read —
+  and on 2026-08-20 it still printed `grammar explains ........ OK` while the
+  deployed chain was falling through to `vabamorf-offline` on every request.
+  Renaming fixed the ambiguity; it could not fix the category. The field
+  reports that a key is on the process, and no field of that kind can report
+  that the provider answers. Only sending one real sentence does, which is what
+  the `deep` input exists for. Two checks in one run disagreeing is the signal
+  — and the first instinct, last time, was to invent a traffic split rather
+  than doubt the cheaper check.
+- **The local checkout is not evidence about the repository.** The container
+  rolled this working tree back twice: once taking a committed-but-unpushed
+  commit, and once leaving `origin/main` pointing at `Initialise repository`
+  with one commit in it, hours after the real history had been pushed. Both
+  times a local `git log` described a repository that did not exist, and the
+  second time it nearly produced a confident report that a committed document
+  had gone missing. `git ls-remote origin` is the truth; recover with
+  `git fetch origin --prune && git reset --hard origin/<branch>`.
 - **`bash -n` is not a syntax check.** It passed a condition that parsed at
   runtime as a command substitution and tried to execute a comparison. It also
   cannot see that `[ x -gt 0 ] && n=$((n+1))` ends the step under `bash -e`

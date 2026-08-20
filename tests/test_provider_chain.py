@@ -18,6 +18,7 @@ abandoned; `PROVIDER_TIMEOUT` is 5 s for exactly that reason.
 
 from __future__ import annotations
 
+import io
 import urllib.error
 
 import pytest
@@ -87,6 +88,43 @@ class TestFallback:
         got = check("tekst", [Provider("tartunlp", fails=a_500()),
                               Provider("llm", answer=[])])
         assert "tartunlp" in got.note
+
+    def test_the_note_carries_the_status_code_not_just_the_type(self):
+        """A live deployment reported `llm:openrouter: HTTPError` and the note
+        could not say which one. 429 means the free tier is spent and it will
+        work again tomorrow; 401 means the key is dead and study is broken
+        until it is replaced; 502 is the provider's bad minute. One word for
+        three different jobs."""
+        for code in (401, 429, 502):
+            # The breaker opens after two failures on one name, so without
+            # this the third code is skipped rather than called.
+            breaker.reset()
+            got = check("tekst", [
+                Provider("llm:openrouter", fails=urllib.error.HTTPError(
+                    "https://openrouter.ai/api/v1/chat/completions", code,
+                    "boom", {}, None)),
+                Provider("vabamorf-offline", answer=[]),
+            ])
+            assert f"llm:openrouter: HTTPError {code}" in got.note
+
+    def test_the_note_never_carries_a_response_body(self):
+        """It is printed into CI logs. A provider that echoes the request on
+        error would put the learner's own sentence there."""
+        body = io.BytesIO(b"secret-ish: the learner's sentence")
+        got = check("Ma lugesin raamatut labi", [
+            Provider("llm:openrouter", fails=urllib.error.HTTPError(
+                "https://openrouter.ai/api/v1/chat/completions", 400,
+                "Bad Request", {}, body)),
+            Provider("vabamorf-offline", answer=[]),
+        ])
+        assert "secret-ish" not in got.note
+        assert "raamatut" not in got.note
+
+    def test_a_failure_with_no_code_still_names_its_type(self):
+        """URLError and TimeoutError have no status; the type is all there is."""
+        got = check("tekst", [Provider("tartunlp", fails=TimeoutError()),
+                              Provider("llm", answer=[])])
+        assert "tartunlp: TimeoutError" in got.note
 
     def test_an_unavailable_provider_is_never_called(self):
         """`available()` is the cheap check; calling anyway costs the timeout."""

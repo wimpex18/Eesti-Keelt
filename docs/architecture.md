@@ -94,9 +94,10 @@ the grammar logic. Preference order, skipping any whose key is unset:
 `:free` id is the worst case because the paid one with the same name keeps
 working, so the name still looks right while every call 404s. Verified live in
 August 2026: `openai/gpt-oss-120b:free` is **absent** from OpenRouter's catalogue
-while `openai/gpt-oss-120b` still exists. The pinned default
-`nvidia/nemotron-3-super-120b-a12b:free` is present and advertises
-`structured_outputs`.
+while `openai/gpt-oss-120b` still exists. The pinned default is
+`google/gemma-4-31b-it:free`, re-verified present on 2026-08-20 and advertising
+`response_format` — which is the capability the client actually sends, and a
+*different* one from `structured_outputs`.
 
 ```bash
 python -m eesti.cli models --provider openrouter   # re-probe the catalogue

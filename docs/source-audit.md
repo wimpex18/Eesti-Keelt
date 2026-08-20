@@ -18,15 +18,17 @@ built. Kept honest: "verified" means called and observed, not read about.
 | **TartuNLP translation** | optional gloss | 200 in < 2 s |
 | **OpenRouter** | LLM lane | catalogue probed live: 412 models, 15 `:free` |
 
-### Verified available, not yet wired
+### Verified available — all now wired
 
-| Source | Why it earns a place | Status |
+Every row in this table once read "pending". They are done; the table is kept
+because *what* each one is for is still worth knowing.
+
+| Source | Why it earns a place | Where it lives |
 |---|---|---|
-| **`api.sonapi.ee`** | muuttüüp (inflection type) + **`rection`** — the `rektsioon` tag directly — plus definitions and examples | verified 200; registered in `sources.py`; single-lookup only |
-| **HARNO exam material** | the best exam material that exists: per-task PDFs for every skill + listening MP3s, consultation workbooks re-uploaded 2026-01 | registered **owner-only**; fetch script pending |
-| **EIS `publicitems`** | official A2–C1 reading/listening tasks with feedback, no login | verified 200, plain HTML form, `aine=R`; harvester pending |
-
-| **ERR Lihtsad uudised** | simplified Estonian, audio + text, **weekly and ongoing** | verified live (7 Aug 2026); harvester pending |
+| **`api.sonapi.ee`** | muuttüüp (inflection type) + **`rection`** — the `rektsioon` tag directly — plus definitions and examples | `providers/sonapi.py`, read by `gloss.py`, `rection.py`, `curriculum.py` and `app.py`. Single-lookup only, one live request a second under a lock, answers kept forever in `vocab.db` so a word is asked about **once, ever**. |
+| **HARNO exam material** | the best exam material that exists: per-task PDFs for every skill + listening MP3s, consultation workbooks re-uploaded 2026-01 | `harvest/harno.py`, via `cli harvest-exam`. Owner-only, **pointers only** — `body` is empty and a test asserts it. |
+| **EIS `publicitems`** | official A2–C1 reading/listening tasks with feedback, no login | `harvest/eis.py`, via `cli harvest-exam`. Same pointer-only posture. |
+| **ERR Lihtsad uudised** | simplified Estonian, audio + text, **weekly and ongoing** | `harvest/lihtsad.py`, via `cli harvest-news` — the one genuinely live feed in the app. |
 
 ### Rejected, with reasons
 

@@ -204,9 +204,17 @@ three of these were found at all:
 
 ## Next, in order
 
-0. **Redeploy.** Everything in the current branch ships in the image and
-   nothing needs a content push. Until that happens the running app still
-   serves the invented paradigms.
+0. ~~**Redeploy.**~~ **Done 2026-08-20.** PR #17 merged at 12:21 and Cloud
+   Build had the new image serving by 12:24 — confirmed by the `built` stamp on
+   `/api/health`, not assumed from a green workflow. The invented paradigms are
+   gone from the running app.
+
+   It also surfaced the thing now at the top of this list: the deep smoke check
+   found the **grammar checker in offline mode on the deployment**
+   (`llm:openrouter: HTTPError` — the key is present and the call fails).
+   Writing still flags candidates and typos, but no correction carries an
+   explanation, so nothing reaches the Notion log. PR #18 makes the note name
+   the status code, which is what decides between waiting and replacing a key.
 1. **Use the readiness verdict.** It is built and it says "ei ole veel" for
    both levels, with the reasons named. As of 2026-08-20 those reasons for A2
    are: no exam part touched at all, 0 of 7 A2 topics mastered, and the
