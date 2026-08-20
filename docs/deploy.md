@@ -292,8 +292,32 @@ npx wrangler deploy
 
 ## Deploying the app
 
-Cloud Build trigger on `main` → builds this `Dockerfile` → deploys to Cloud Run.
-Set `PROXY_TOKEN` and `STATE_TOKEN` as environment variables on the service.
+**Merging to `main` is the deploy.** There is no command to run. Cloud Build
+triggers on `main`, builds this `Dockerfile` — including `RUN python -m
+eesti.cli export`, which is where the generated dataset comes from — and
+deploys the result to Cloud Run. `PROXY_TOKEN` and `STATE_TOKEN` are
+environment variables on the service, set once by `deploy/setup.sh`.
+
+### `setup.sh` is not a deploy command
+
+It is one-time wiring, and re-running it takes the app down until a second
+thing happens. It rotates both tokens into Cloud Run and GitHub Actions
+secrets — but **not** into the Cloudflare Worker, which receives them from the
+`deploy` workflow through `wrangler secret put`. Until that workflow runs, the
+Worker offers the old `PROXY_TOKEN` to an origin that has already changed it
+and every request 403s.
+
+The workflow fires on a push to `main` touching `deploy/**`, `wrangler.jsonc`,
+`package*.json` or itself. A token rotation touches none of those, so after
+rotating, trigger it yourself:
+
+```
+gh workflow run deploy.yml --repo wimpex18/Eesti-Keelt
+```
+
+This was written down because it was got wrong: `setup.sh` was recommended as
+the way to ship a Python change, which would have rotated the tokens, skipped
+the Worker, and deployed nothing.
 
 **The Worker and the app deploy by different routes.** The `deploy` workflow
 going green means the *Worker* is current; it says nothing about the container.
