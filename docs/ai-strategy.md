@@ -79,11 +79,23 @@ still looks right while every call 404s. Verified live —
 `openai/gpt-oss-120b:free` is **absent** from OpenRouter while
 `openai/gpt-oss-120b` persists. `python -m eesti.cli models` re-probes.
 
-Free ids with `structured_outputs` (needed for the JSON contract), largest first:
-`dots-studio/dots-3-note-preview:free` (512 K ctx),
-`google/gemma-4-26b-a4b-it:free` (262 K),
-`nvidia/nemotron-3-super-120b-a12b:free` (262 K, the pinned default),
-`openai/gpt-oss-20b:free` (131 K), `nvidia/nemotron-nano-9b-v2:free` (128 K).
+Free ids that accept **`response_format`** — which is what `complete()` actually
+sends — ordered by **active** parameters, which is the axis a low-resource
+language rides on:
+
+| Free id | Active parameters | Context |
+|---|---|---|
+| **`google/gemma-4-31b-it:free`** — the pinned default | **30.7B dense** | 262 K |
+| `dots-studio/dots-3-note-preview:free` | 16B of 280B | 512 K |
+| `nvidia/nemotron-3-super-120b-a12b:free` | 12B of 120B | 262 K |
+| `google/gemma-4-26b-a4b-it:free` | 3.8B of 25.2B | 262 K |
+| `openai/gpt-oss-20b:free` | 3.6B of 21B | 131 K |
+
+**`structured_outputs` and `response_format` are different capabilities**, and
+filtering on the first is how the largest dense free model came to be excluded
+from consideration entirely. `gemma-4-31b` advertises `response_format` and not
+`structured_outputs`; the client has always sent the former. Re-verified against
+OpenRouter's public catalogue on 2026-08-20 — 414 models, no key required.
 
 ## Testing the "it knows other languages, so it knows Estonian" hypothesis
 
@@ -133,16 +145,20 @@ model rather than our impatience.
 
 ### The candidates that remain
 
-Of the 15 free models on OpenRouter, only **five support structured outputs** —
-and a model that cannot return JSON fails the checker for the wrong reason:
+A model that cannot return JSON fails the checker for the wrong reason, so the
+list is the free ids accepting `response_format`:
 
-| Model | Context | Why it is on the list |
+| Model | Active | Why it is on the list |
 |---|---|---|
-| **`google/gemma-4-26b-a4b-it:free`** | 262 K | **Try first.** The OmniGEC study (arXiv 2509.14504) found Gemma's largest multilingual GEC gain was **on Estonian** — +8.25 GLEU — and Gemma-3 gained +26 GLEU on Latvian, the neighbouring low-resource Baltic language. |
-| `dots-studio/dots-3-note-preview:free` | 512 K | largest free context |
-| `openai/gpt-oss-20b:free` | 131 K | small but instruction-tuned |
-| `nvidia/nemotron-3-super-120b-a12b:free` | 262 K | **scored 0.50/0.50 — tested, insufficient** |
-| `nvidia/nemotron-nano-9b-v2:free` | 128 K | smallest; likely worse |
+| **`google/gemma-4-31b-it:free`** | **30.7B dense** | **The pinned default.** The most active parameters of any free id here, and Gemma is the family with the Estonian evidence behind it. |
+| `dots-studio/dots-3-note-preview:free` | 16B of 280B | next most active; largest context |
+| `nvidia/nemotron-3-super-120b-a12b:free` | 12B of 120B | **scored 0.50/0.50 — tested, insufficient** |
+| `google/gemma-4-26b-a4b-it:free` | 3.8B of 25.2B | **was briefly the default, and that was a downgrade.** Chosen on the OmniGEC result for the Gemma family — which is real: largest multilingual GEC gain **on Estonian**, +8.25 GLEU, and +26 GLEU on Latvian. But it is MoE, and 3.8B active is *fewer* than the 12B that already failed. A family result does not survive a change of architecture. |
+| `openai/gpt-oss-20b:free` | 3.6B of 21B | smallest; likely worse |
+
+**The lesson that cost a round:** model names carry family reputation, and
+architectures carry the capability. Read the active-parameter count before
+believing a benchmark that was run on a sibling.
 
 Two things worth knowing about the search for a better model. **Qwen is probably
 not the answer** despite its 119-language pretraining: a Baltic/Nordic evaluation

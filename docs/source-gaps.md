@@ -26,7 +26,13 @@ integration.
 These are the real misses. Each was discovered, judged valuable, and then not
 connected.
 
-### 1. `grammar_et` — 1 000 error/correct pairs, fetched, unused
+### 1. `grammar_et` — 1 000 error/correct pairs, fetched, unused — fixed ✅
+
+**Resolved.** It is the source of the `word-order` drill: 1 000 native-corrected
+pairs filtered to the 47 corrections that only *re-order* — same words, different
+sequence, which is the signature of a word-order error and needs no annotation
+layer. Attested rather than generated, and that was a measurement: see
+`docs/status.md` for why generating them was refused.
 
 Downloaded in the same commit as `inflection_et` and referenced **only by a
 well-formedness test**. It is a real Estonian GEC benchmark, twenty times the
@@ -56,14 +62,23 @@ Result: **72 episodes — 28 with transcripts (filed `grammatika`) and 44
 audio-only (filed `kuulamine`)**. Fewer than hoped for reading, considerably
 more for listening.
 
-### 3. `api.sonapi.ee` — verified, registered, never called
+### 3. `api.sonapi.ee` — verified, registered, never called — fixed ✅
+
+**Resolved.** `providers/sonapi.py` is called by `gloss.py`, `rection.py`,
+`curriculum.py` and `app.py`. Single-lookup only, one live request a second
+under a lock, and every answer kept in `vocab.db` so a word is asked about once,
+ever — the restraint is about their server, not their licence.
 
 It returns **`rection`** (`lugema` → *"mida, kust, kellele"*), which is the
 `rektsioon` error tag directly, plus `inflectionType` — the muuttüüp number the
 Notion "Nomenid A–F" page already tracks. Both are things the curriculum plan
 lists as missing, sitting behind an endpoint confirmed working weeks ago.
 
-### 4. HARNO and EIS — registered owner-only, never fetched
+### 4. HARNO and EIS — registered owner-only, never fetched — fixed ✅
+
+**Resolved.** `harvest/harno.py` and `harvest/eis.py`, both via
+`cli harvest-exam`: 39 HARNO items and 23 EIS tasks, indexed as **pointers
+only** — `body` is empty and a test asserts it.
 
 The best exam material that exists: per-task PDFs for every skill and level, and
 directly downloadable B1 listening MP3s. `eis.harno.ee/publicitems` serves
@@ -111,7 +126,14 @@ to protect it, and the site publishes **no reuse licence**, so the texts are
 other people's writing with no permission attached. Counts about a published
 taxonomy are facts; the texts are not. Registered owner-only either way.
 
-### 7. EstLLM — an Estonian-adapted Llama, open weights
+### 7. EstLLM — an Estonian-adapted Llama, open weights — lane built ✅
+
+**Partly resolved.** Nobody hosts it: HuggingFace's router serves 132 models and
+not one Estonian one, and every Estonian model has an empty
+`inferenceProviderMapping`. So the `huggingface` lane became `local` — pointed
+at `LOCAL_LLM_URL`, keyless, off unless set, first in the chain when on. GGUF
+builds exist (`Q4_K_M` ≈ 4.9 GB). `docs/local-llm.md` has the setup. Open in the
+sense that nothing runs there yet.
 
 `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`: Llama 3.1 8B with ~35B tokens of
 continued Estonian pretraining plus instruction tuning. **Not gated**, Llama 3.1

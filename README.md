@@ -102,7 +102,7 @@ is worth your time.
 
 **Kuulamine** — any text becomes Estonian audio via TartuNLP TTS (12 voices),
 default 0.7× for learners. Cached on disk, so replay is instant and offline.
-Plus 28 ERR radio episodes with audio.
+Plus 72 ERR radio episodes: 28 carrying transcripts, 44 audio-only.
 
 ## What the reading material actually is
 
@@ -163,7 +163,7 @@ the gold form is `täis pudeli` while Vabamorf offers `täie pudeli`.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/ -q     # 412 passed
+.venv/bin/python -m pytest tests/ -q     # 1 141 passed
 ```
 
 Five gates:
@@ -255,9 +255,18 @@ focus, and a web manifest so "Add to Home Screen" gives an app window rather tha
 a Safari tab. `getUserMedia` needs a secure context, which the Cloudflare
 deployment provides and `serve` on localhost also satisfies.
 
-## Roadmap
+## Where this actually stands
 
-Phase 2 (reading + listening) and phase 3 (speaking) are scoped but not built:
-harvesting the ~170 ERR Raadio 4 episodes that pair transcripts with audio, the
-weekly *Lihtsad uudised* feed, and a question bank shaped like the real — and
-notably **paired** — B1 speaking exam.
+All three phases are built. Reading, listening (dictation, TTS, episode audio),
+the weekly *Lihtsad uudised* feed and a question bank shaped like the real —
+and notably **paired** — B1 speaking exam all shipped in version 1.0.
+
+`docs/status.md` is the honest inventory and the file to trust: what works,
+what was never built (13 curriculum topics still have no generator; local ASR
+was replaced by Cloudflare Workers AI), what is knowingly broken, and what to
+do next. `docs/roadmap.md` says *why* things were chosen.
+
+One correction worth carrying here, because this file stated it wrongly for
+months: the ERR archive is **72 episodes, not ~170**. That figure was
+extrapolated from the single series that has transcripts. Only the 2010 series
+carries them; the 2015 and 2019 series are audio with a blurb.

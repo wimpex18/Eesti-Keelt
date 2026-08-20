@@ -330,6 +330,34 @@ built) and `revision` (the commit, if the builder passed one), and the smoke
 test prints it. That is how you tell a stale image from a missing feature —
 a distinction that cost real time before the stamp existed.
 
+### Nothing checks an app-only merge on its own
+
+The `smoke` workflow runs on `workflow_run` after **`deploy`**, and `deploy`
+fires only on a push to `main` touching `deploy/`, `wrangler.jsonc`,
+`package*.json` or itself. A pure Python change touches none of those. So the
+Worker is untouched (correctly), `deploy` never runs, and **smoke never runs
+either** — the container is rebuilt and redeployed with nothing asking whether
+it works.
+
+That is the automatic path being honest rather than broken: the Worker did not
+change, so there is nothing for the Worker workflow to do. But it means the
+verification step is manual, and has to be remembered:
+
+```
+Actions -> smoke -> Run workflow -> main
+```
+
+Wait for the build stamp to move past the merge time before believing the
+result; run it too early and it reports on the *previous* image and hands back
+a green that means nothing. Ten to fifteen minutes is the usual window.
+
+Use `deep: true` when a provider or model changed. The plain run reads
+`can_explain`, which is **configuration** — it sees a key on the process and
+cannot see a call that fails. On 2026-08-20 the plain check said
+`grammar explains ........ OK` and the deep check, four minutes later in the
+same session, found the chain falling through to `vabamorf-offline`. Both were
+correct about different questions.
+
 To include the commit, add a build arg on the trigger:
 
 ```
