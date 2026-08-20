@@ -198,3 +198,30 @@ class TestTheVerdictMoves:
 
     def test_no_dictations_leaves_the_evidence_line_alone(self, progress):
         assert "диктант" not in self.part(progress).evidence
+
+
+class TestNothingUnwritableIsServed:
+    """The first sentence the rebuilt corpus offered was
+    "Saaremaa sadamas kestab kruiisihooaeg 3." — a fragment. Estonian writes
+    ordinals as `3.`, and the sentence splitter treated that as a full stop,
+    cutting 7.2 % of the pool short and orphaning another 4.7 % as lowercase
+    tails. A learner cannot write down a sentence whose ending was removed,
+    and has no way to know it was."""
+
+    def test_a_sentence_cut_at_an_ordinal_is_refused(self):
+        assert not dictation._writable("Maailmameister selgub pühapäeval, 28.")
+        assert not dictation._writable("Visiit on seotud Balti riikide 100.")
+
+    def test_a_tail_fragment_is_refused(self):
+        assert not dictation._writable("riik, kui rääkida pressivabadusest.")
+
+    def test_an_ordinary_sentence_is_kept(self):
+        assert dictation._writable("Eesti muusikaartistid said auhindu.")
+
+    def test_a_sentence_may_still_contain_a_number(self):
+        """Only a *trailing* bare ordinal is the signature of a bad cut."""
+        assert dictation._writable("Rakvere linnavolikogus on kokku 21 kohta.")
+
+    def test_none_are_served(self, content):
+        for p in dictation.choose(content, count=20, seed=3):
+            assert dictation._writable(p.text)

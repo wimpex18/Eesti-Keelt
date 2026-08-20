@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import hashlib
 import random
+import re
 import sqlite3
 from dataclasses import dataclass, field
 
@@ -81,6 +82,23 @@ CREATE TABLE IF NOT EXISTS dictation (
 );
 CREATE INDEX IF NOT EXISTS idx_dictation_key ON dictation(key, id);
 """
+
+
+#: A sentence ending in a bare number is one the splitter cut at an Estonian
+#: ordinal — `28.` is "28th", not a full stop. Fixing the splitter took the
+#: rate from 7.2 % of the pool to 2.4 %; the rest genuinely end in a number,
+#: and either way the learner is being asked to write down a sentence whose
+#: ending was removed. Harmless in a cloze that blanks one word, unfair here.
+_TRUNCATED = re.compile(r"\b\d+\.$")
+
+
+def _writable(sentence: str) -> bool:
+    """Can this reasonably be written down from hearing it once?"""
+    sentence = sentence.strip()
+    if not sentence or _TRUNCATED.search(sentence):
+        return False
+    # A lowercase opening means this is the tail of a bad split.
+    return not sentence[:1].islower()
 
 
 def key_of(text: str) -> str:
@@ -174,8 +192,9 @@ def choose(
     """
     from .cloze import sentences
 
-    pool = sentences(content, source_id=source_id,
-                     min_words=MIN_WORDS, max_words=MAX_WORDS)
+    pool = [s for s in sentences(content, source_id=source_id,
+                                 min_words=MIN_WORDS, max_words=MAX_WORDS)
+            if _writable(s)]
     if not pool:
         return []
 

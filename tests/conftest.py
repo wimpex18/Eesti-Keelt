@@ -149,17 +149,29 @@ def _build_edge(path) -> None:
 
 
 def _build_content(path) -> None:
-    conn = sqlite3.connect(path)
-    conn.executescript(
-        "CREATE TABLE IF NOT EXISTS items ("
-        " id TEXT PRIMARY KEY, source_id TEXT, skill TEXT, level TEXT,"
-        " title TEXT, body TEXT, audio_url TEXT, meta TEXT, added_on TEXT);"
-    )
-    conn.executemany(
-        "INSERT OR REPLACE INTO items (id,source_id,skill,body) VALUES (?,?,?,?)",
-        [(str(i), "selges-keeles", "lugemine", body) for i, body in enumerate(TEXTS)],
-    )
-    conn.commit()
+    """A content database built by the app's own opener, not by hand.
+
+    This used to write one `CREATE TABLE items` of its own. That is a second
+    copy of a schema `eesti/sources.py` already owns, and it had drifted:
+    `sources` was missing entirely, so anything reading the library through
+    `library.sections` — the `library` and `status` commands, `/api/library` —
+    hit "no such table: sources" against a fixture that looked complete.
+
+    Using the real opener means the fixture cannot drift from the schema again,
+    and a test that passes here is testing the shape production actually has.
+    """
+    from eesti.sources import Item, add_items, connect as open_content, register
+
+    conn = open_content(path)
+    # `register` first: `add_items` refuses an unregistered source, which is
+    # the licence gate and must not be bypassed even here.
+    register(conn)
+    add_items(conn, [
+        Item(source_id="selges-keeles", skill="lugemine",
+             title=f"Fixture {i}", body=body, level=None, band="keskmine",
+             meta={"words": len(body.split())})
+        for i, body in enumerate(TEXTS)
+    ])
     conn.close()
 
 
@@ -204,12 +216,18 @@ def fixture_data(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
-def _redirect_data(monkeypatch, fixture_data):
-    """Point every database at the fixtures, for every test.
+def _redirect_data(monkeypatch, tmp_path, fixture_data):
+    """Point every database at a fixture or a scratch file, for every test.
 
     Autouse rather than opt-in: the failure mode is a test that *accidentally*
     reads real data and passes, which no one notices until CI. Making the safe
     thing automatic is the only version of this that works.
+
+    It said "every database" and redirected three. The learner's own four --
+    progress, review, vocabulary, queued corrections -- were left pointing at
+    `data/`, so running the suite on a machine where somebody actually studies
+    wrote into their record of what they had practised. Reading the
+    developer's data makes a test lie; writing to it loses their work.
     """
     from eesti import config, lookup
 
@@ -217,6 +235,30 @@ def _redirect_data(monkeypatch, fixture_data):
     monkeypatch.setattr(config, "CONTENT_DB", fixture_data["content"])
     monkeypatch.setattr(config, "CACHE", fixture_data["cache"])
     monkeypatch.setattr(lookup, "EDGE_DB", fixture_data["edge"])
+
+    # Writable, per-test, and never the real ones. Redirected on `config` for
+    # the CLI, which resolves at call time, and on `app` as well, which binds
+    # its own copies at import.
+    scratch = tmp_path / "live"
+    scratch.mkdir(exist_ok=True)
+    from eesti import app as app_module
+
+    for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
+        target = str(scratch / f"{name.split('_')[0].lower()}.db")
+        monkeypatch.setattr(config, name, target)
+        monkeypatch.setattr(app_module, name, target, raising=False)
+
+    # `app.py` calls `_bind_breaker()` at *import* time, so the circuit breaker
+    # holds a connection to the real `data/progress.db` from the first moment
+    # anything imports the app -- before any redirect can apply, and for the
+    # rest of the session, because it lives in a module global. Every
+    # `breaker.reset()` in the suite then wrote to the learner's own database.
+    # Drop it; the tests that exercise the breaker bind their own store.
+    from eesti.providers import breaker
+
+    breaker.bind(None)
+    breaker.reset()
+
     lookup._db.cache_clear()
     yield
     lookup._db.cache_clear()

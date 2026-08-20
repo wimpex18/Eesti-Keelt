@@ -63,10 +63,12 @@ from __future__ import annotations
 import random
 import re
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 from estnltk.vabamorf.morf import synthesize
 
+from .config import LEVELS
+from .item import BLANK, GradedItem
 from .morph import _readings, analyze, case_forms, split_sentences
 
 # Vabamorf case tags -> the Estonian name (what the exam uses) and a Russian
@@ -120,13 +122,31 @@ _CLAUSE_RE = re.compile(
     re.IGNORECASE,
 )
 
-BLANK = "____"
+# Re-exported, not redefined. `item.BLANK` is the one definition; a second
+# literal here is the same duplication as the four private `_TAG_RE`s that
+# gave one line of input three different answers.
 _WORD_RE = re.compile(r"\w", re.UNICODE)
 
 
 @dataclass(frozen=True)
-class Cloze:
-    """One item. Same surface as `drills.Drill`, plus where it came from."""
+class Cloze(GradedItem):
+    """One item. Same surface as `drills.Drill`, plus where it came from.
+
+    It said "same surface" and meant it literally: this class predated
+    `item.GradedItem` and carried its own copy of `check`, `solution`,
+    `reference` and `to_dict` — the five methods that mixin exists to keep
+    identical across generators. Four of the five had already drifted apart in
+    one way or another, and the fifth was simply missing, which is how a cloze
+    item reached the page with no case in its instruction row.
+
+    Measured over 425 real items before removing the copies: `check` graded
+    the same for every answer (`lower` and `casefold` differ on no Estonian
+    letter), `reference` returned the same object for all 425, and no prompt
+    could open with the blank — the round-trip gate rejects a capitalised
+    common noun, so the mixin's sentence-initial capitalisation is a defence
+    rather than a change. `hint` is still overridden, because for rection the
+    case is the question and the em dash says so.
+    """
 
     prompt: str          # the sentence with one word replaced by ____
     answer: str          # the form the native speaker used
@@ -156,33 +176,20 @@ class Cloze:
         return f"{self.lemma}, {self.case_et}"
 
     @property
-    def reference(self) -> dict | None:
-        """The handbook section for this item's topic, shipped with the item.
+    def label(self) -> str:
+        """The half of `hint` that is not the word — what to produce.
 
-        Every grammar app that teaches well puts the reference and the exercise
-        on the same screen; the ones that make you go and find the rule are the
-        ones people stop using. `grammar.py` already knows where EKK defines
-        each rule, so the only thing missing was carrying it here.
+        Every other generator gets this from `item.GradedItem`; this class
+        predates the mixin and still carries its own copy of the whole surface,
+        which is precisely the drift `eesti/item.py` was written to stop. It
+        went unnoticed until the page needed the two halves apart and cloze
+        items came back with the case missing.
 
-        None where the topic has no tagged rule — a case-production item on the
-        rare cases is not a rule with a section, it is a paradigm.
+        Not folded into the mixin here because `check` and `solution` also
+        differ (`lower` against `casefold`, no sentence-initial capitalisation),
+        and changing how an answer is graded does not belong in a layout fix.
         """
-        from .curriculum import by_id
-        from .grammar import describe
-
-        tag = by_id(self.topic).tag
-        return describe(tag) if tag else None
-
-    def to_dict(self) -> dict:
-        return asdict(self) | {"hint": self.hint, "reference": self.reference}
-
-    def check(self, given: str) -> bool:
-        """Deterministic, like every other grader here. No model, no network."""
-        return given.strip().lower() == self.answer.lower()
-
-    @property
-    def solution(self) -> str:
-        return self.prompt.replace(BLANK, self.answer)
+        return f"{self.governor}?" if self.governor else self.case_et
 
 
 def sentences(
@@ -204,9 +211,23 @@ def sentences(
         body = row[0] if not isinstance(row, sqlite3.Row) else row["body"]
         for sentence in split_sentences(body):
             sentence = sentence.strip()
+            if not _usable(sentence):
+                continue
             if min_words <= len(sentence.split()) <= max_words:
                 out.append(sentence)
     return out
+
+
+#: Selges keeles appends a glossary to some articles — `vöökiri = vöömuster` —
+#: and the splitter carries the tail into the preceding sentence. 0.7 % of the
+#: pool, which is small until one of them is the sentence a learner is asked to
+#: write down from hearing it. Filtered here rather than at harvest time so it
+#: applies to a `content.db` already pushed to a deployment.
+_GLOSS = re.compile(r"\s=\s")
+
+
+def _usable(sentence: str) -> bool:
+    return not _GLOSS.search(sentence)
 
 
 def naive_case_form(nominative: str, genitive: str, correct: str) -> str | None:
@@ -329,6 +350,65 @@ def _level_of(conn: sqlite3.Connection | None, lemma: str) -> str | None:
     return row[0] if row else None
 
 
+#: CEFR levels above the ones this app targets. A word the word list *says* is
+#: B2 is not what an A2 learner should be inflecting.
+_ABOVE = ("B2", "C1", "C2")
+
+
+def _above_level(level: str | None, levels: tuple[str, ...]) -> bool:
+    """Is this word's tag a claim that it is too hard?
+
+    The asymmetry matters, and it is the same one the reading library uses: a
+    tag of B2 is evidence, absence of a tag is not. Only 6.2 % of the 160 316
+    lemmas carry a CEFR tag at all, so treating "untagged" as "too hard" would
+    throw away 36 % of the corpus targets for no reason anyone could defend.
+
+    Measured over 272 generated `osastav` items: 57 % tagged A1-B1, 36 %
+    untagged, and 7 % tagged B2 or C1 -- `hooldustöö`, `riigivisiit`. It is
+    those 7 % this drops.
+    """
+    if level is None:
+        return False
+    return level in _ABOVE and level not in levels
+
+
+def _ease(conn: sqlite3.Connection | None, tokens) -> float:
+    """Share of a sentence's content words that the word list calls A1 or A2.
+
+    `difficulty.score` is the same measurement and says in its own docstring
+    that ordering is what it is for. It is not reused directly because it runs
+    a second Vabamorf pass -- 14.3 s over the 2 038-sentence pool, inside a
+    request the learner is waiting on. Here the analysis is already in hand, so
+    the same number costs one indexed query.
+
+    Ordering, never a threshold. The scale is uncalibrated -- that is the whole
+    lesson of `eesti/difficulty.py` -- so this decides which authentic sentence
+    comes first, and nothing at all about what level it is.
+    """
+    if conn is None:
+        return 0.0
+    lemmas = {t.lemma for t in tokens if t.pos in ("S", "V", "A")}
+    if not lemmas:
+        return 0.0
+    marks = ",".join("?" * len(lemmas))
+    row = conn.execute(
+        f"""SELECT COUNT(*) FROM words
+            WHERE word IN ({marks}) AND proficiency IN ('A1', 'A2')""",
+        list(lemmas),
+    ).fetchone()
+    return (row[0] or 0) / len(lemmas)
+
+
+#: How many candidates to gather before keeping the easiest `count`.
+#:
+#: The pool was shuffled and the first `count` hits were shipped, so a practice
+#: set was a random sample of authentic sentences -- which is how "Neid pakkuvad
+#: ettevõted peavad esitama oma pakkumised enne jaanuari ____" reached an A1
+#: topic. Three times is enough to have a real choice without walking the whole
+#: corpus on every request.
+OVERSAMPLE = 3
+
+
 def case_clozes(
     sents: list[str],
     topics: tuple[str, ...] | None = None,
@@ -338,12 +418,19 @@ def case_clozes(
     source_id: str = "selges-keeles",
     require_contrast: bool = True,
     only: frozenset[str] | None = None,
+    levels: tuple[str, ...] = LEVELS,
 ) -> list[Cloze]:
     """Case-production items: the sentence is real, the case is named, produce the form.
 
     The prompt gives the lemma and the case, so the answer is forced by
     morphology alone and nothing is being claimed about which case the sentence
     *needed*. That is what makes an authentic sentence safe to drill.
+
+    `levels` gates the **target word**, and candidates are ordered so the
+    easiest sentences are drilled first. Both used to be missing: `levels` was
+    threaded from `items_for` into this module and then dropped, taking effect
+    only when a theme happened to be chosen, so the default run of every corpus
+    topic drilled B2 nouns inside newspaper prose.
     """
     wanted: set[str] = set()
     for topic in topics or tuple(TOPIC_CASES):
@@ -354,15 +441,20 @@ def case_clozes(
     pool = list(sents)
     rng.shuffle(pool)
 
-    out: list[Cloze] = []
+    out: list[tuple[float, Cloze]] = []
     seen: set[tuple[str, str]] = set()
     for sentence in pool:
-        if len(out) >= count:
+        if len(out) >= count * OVERSAMPLE:
             break
-        for token in analyze(sentence):
+        tokens = analyze(sentence)
+        ease = _ease(words, tokens)
+        for token in tokens:
             if token.pos != "S" or token.form not in wanted:
                 continue
             if only is not None and token.lemma not in only:
+                continue
+            level = _level_of(words, token.lemma)
+            if _above_level(level, levels):
                 continue
             if (token.lemma, token.form) in seen:
                 continue
@@ -384,8 +476,7 @@ def case_clozes(
                 continue
 
             case_et, case_ru = CASES[token.form]
-            out.append(
-                Cloze(
+            out.append((ease, Cloze(
                     prompt=_blank(sentence, token.start, token.end),
                     answer=token.text,
                     distractor=wrong,
@@ -395,13 +486,17 @@ def case_clozes(
                     rule="case-form",
                     why_ru=_why(token.lemma, token.form, token.text, wrong, forms),
                     topic=by_case[token.form],
-                    level=_level_of(words, token.lemma),
+                    level=level,
                     source_id=source_id,
-                )
+                ))
             )
             seen.add((token.lemma, token.form))
             break  # one item per sentence, so a text is not drilled to death
-    return out
+
+    # Easiest first. `sorted` is stable, so within one ease score the shuffled
+    # order survives and a set is not the same ten sentences every time.
+    out.sort(key=lambda pair: -pair[0])
+    return [item for _, item in out[:count]]
 
 
 def negation_clozes(
@@ -410,6 +505,7 @@ def negation_clozes(
     count: int = 10,
     seed: int | None = None,
     source_id: str = "selges-keeles",
+    levels: tuple[str, ...] = LEVELS,
 ) -> list[Cloze]:
     """The one object-case rule a corpus sentence can settle on its own.
 
@@ -422,12 +518,13 @@ def negation_clozes(
     pool = list(sents)
     rng.shuffle(pool)
 
-    out: list[Cloze] = []
+    out: list[tuple[float, Cloze]] = []
     seen: set[str] = set()
     for sentence in pool:
-        if len(out) >= count:
+        if len(out) >= count * OVERSAMPLE:
             break
         tokens = analyze(sentence)
+        ease = _ease(words, tokens)
         negators = [
             t for t in tokens
             if t.lemma in NEGATORS or t.text.lower() in _CONTRACTED
@@ -437,6 +534,9 @@ def negation_clozes(
 
         for token in tokens:
             if token.pos != "S" or token.form != "sg p" or token.lemma in seen:
+                continue
+            level = _level_of(words, token.lemma)
+            if _above_level(level, levels):
                 continue
             # The negator must govern *this* noun: same clause, and before it,
             # which is where Estonian puts it.
@@ -453,8 +553,7 @@ def negation_clozes(
             if not _synthesises_back(token.lemma, "sg p", token.text):
                 continue
 
-            out.append(
-                Cloze(
+            out.append((ease, Cloze(
                     prompt=_blank(sentence, token.start, token.end),
                     answer=token.text,
                     distractor=forms["genitive"],
@@ -467,13 +566,15 @@ def negation_clozes(
                         f"*{token.text}*, не *{forms['genitive']}*."
                     ),
                     topic="obj-case",
-                    level=_level_of(words, token.lemma),
+                    level=level,
                     source_id=source_id,
-                )
+                ))
             )
             seen.add(token.lemma)
             break
-    return out
+
+    out.sort(key=lambda pair: -pair[0])
+    return [item for _, item in out[:count]]
 
 
 # ---------------------------------------------------------------------------

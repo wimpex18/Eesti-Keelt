@@ -78,6 +78,17 @@ def vocab_db():
     return vocab.connect(VOCAB_DB)
 
 
+def gloss_db():
+    """Word meanings, in `vocab.db` so the state snapshot carries them.
+
+    Anywhere else and the store would evaporate on every Cloud Run cold start,
+    which is the bug it exists to fix — see `eesti/gloss.py`.
+    """
+    from . import gloss
+
+    return gloss.connect(VOCAB_DB)
+
+
 # Generated items are not stored, so an answer arrives without the question. The
 # client sends the item back with the answer and the server re-grades it, which
 # keeps the API stateless — but it also means the client could send an item it
@@ -374,16 +385,39 @@ def modes() -> dict:
 
 
 @app.get("/api/library")
-def library(skill: str = "lugemine", level: str | None = None,
-            band: str | None = None, limit: int = 60) -> dict:
-    """Harvested study material.
+def library(skill: str = "lugemine", section: str | None = None,
+            level: str | None = None, band: str | None = None,
+            limit: int = 60) -> dict:
+    """Harvested study material, by skill or by section.
+
+    `section` exists because a skill is not a shelf. A section also carries the
+    `kind` filters that keep an exam task out of the reading list and a
+    consultation workbook out of the exam list, and asking by skill alone
+    silently ignores them.
+
+    It was added after finding that two of the seven sections — 82 items, the
+    entire harvested listening archive and the 28 radio-course transcripts —
+    could not be reached from the page at all. They were indexed, sectioned and
+    covered by API tests; the page just never asked, because it could only ask
+    by skill and it only ever asked for `lugemine`.
 
     `public_only` is deliberately NOT exposed as a parameter. This server is the
     single-user local one; the public deployment sets it, and making it a query
     parameter would let a caller ask for owner-only material by guessing.
     """
     conn = content_db()
-    rows = content_query(conn, skill=skill, level=level, band=band, limit=limit)
+    if section is not None:
+        from .library import browse
+
+        try:
+            rows = browse(conn, section=section, level=level, band=band,
+                          limit=limit)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=404, detail=f"unknown section {section!r}") from exc
+    else:
+        rows = content_query(conn, skill=skill, level=level, band=band,
+                             limit=limit)
     return {
         "items": [
             {
@@ -428,8 +462,15 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
 
     So this sorts by known-word coverage and puts the **instructional** band
     first: texts the learner can follow with effort, which is where a text
-    teaches rather than either boring or defeating them. Comfortable texts come
-    second, and anything below the threshold is not offered at all.
+    teaches rather than either boring or defeating them.
+
+    It ranks; it does not filter. This docstring used to end "anything below
+    the threshold is not offered at all", which the code has never done and
+    must not: a learner with 411 known words scores about 13 % on native-ish
+    news, so a threshold filter would hand them an empty list on the default
+    view and no way to tell an empty library from a high bar. The band is
+    reported honestly instead — `raske` says the text is above them without
+    hiding it.
     """
     from .difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
     from .library import browse
@@ -438,11 +479,20 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     rows = browse(content_db(), section, limit=120)
 
     scored = []
+    unmeasurable = 0
     for row in rows:
         if not (row["body"] or "").strip():
             continue
         profile = comprehensible(row["body"], known)
         if profile["total"] == 0:
+            # No lemmas resolved. Either the text is empty, or the word
+            # database is missing — `cli export` builds it and the image does
+            # so at build time, but a source checkout may not have it. Counted
+            # rather than silently dropped: every text failing this way
+            # produced "0 teksti · 411 слов знакомо", a contradiction with no
+            # explanation, which is the same shape as showing a zero that
+            # means "not measured yet".
+            unmeasurable += 1
             continue
         scored.append({
             "id": row["id"], "title": row["title"], "band": row["band"],
@@ -456,15 +506,25 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     scored.sort(key=lambda item: (
         0 if item["readability"] == "arendav" else 1, -item["coverage"]
     ))
+    note = (
+        "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
+        "читаются с усилием: именно там текст учит. Это словарное "
+        "покрытие, а не оценка понимания."
+    )
+    if not scored and unmeasurable:
+        note = (
+            "Словарная база не собрана, поэтому покрытие посчитать нельзя — "
+            "это не значит, что вы не знаете слов. Соберите её командой "
+            "`cli export`; в образе она собирается при сборке."
+        )
     return {
         "items": scored[:limit],
         "known_words": len(known),
         "threshold": INSTRUCTIONAL,
-        "note": (
-            "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
-            "читаются с усилием: именно там текст учит. Это словарное "
-            "покрытие, а не оценка понимания."
-        ),
+        # Distinguishes "the library is empty" from "nothing could be
+        # measured", which look identical in a list of length zero.
+        "unmeasurable": unmeasurable,
+        "note": note,
     }
 
 
@@ -525,13 +585,11 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
     }
 
 
-@app.get("/api/library/for/{topic}")
 def library_for_topic(topic: str, limit: int = 5) -> dict:
     """Reading that demonstrates one grammar topic, strongest first."""
     return {"topic": topic, "items": reading_for(topic, limit=limit)}
 
 
-@app.get("/api/grammar")
 def grammar_rules() -> dict:
     """Every rule the app drills, linked to its section in the EKK handbook.
 
@@ -542,7 +600,6 @@ def grammar_rules() -> dict:
     return {"rules": [describe_rule(tag) for tag in REFERENCES]}
 
 
-@app.get("/api/grammar/{tag}")
 def grammar_rule(tag: str) -> dict:
     rule = describe_rule(tag)
     if not rule["known"]:
@@ -550,7 +607,6 @@ def grammar_rule(tag: str) -> dict:
     return rule
 
 
-@app.get("/api/word/{lemma}")
 def word_card(lemma: str) -> dict:
     """A word in its three principal forms, as a dictionary would cite it."""
     result = principal_forms(lemma)
@@ -563,6 +619,56 @@ def word_card(lemma: str) -> dict:
 def lookup_word(word: str) -> dict:
     """Analyse one word: lemma, case, CEFR level, and its object-case pair."""
     return lookup(word)
+
+
+@app.get("/api/enrich/{word}")
+def enrich_word(word: str) -> dict:
+    """The two things Vabamorf cannot say: what the word governs, and its type.
+
+    `providers/sonapi.py` has always existed for exactly this — its own
+    docstring says it "enriches a word the learner is actually looking at" —
+    and nothing had ever called it. Sixty-two statements, zero coverage, no
+    importer: the module-level version of an endpoint with no caller.
+
+    Rection is the `rektsioon` error tag directly: which case a verb governs is
+    a list, not a rule, and no amount of morphology derives it. The
+    inflection type is the muuttüüp the Notion "Nomenid A–F" page already
+    tracks.
+
+    Deliberately a **second** request rather than part of `/api/lookup`. This
+    one leaves the machine, and a word card must not wait on a third party or
+    disappear when one is down. An empty object is the honest answer to "the
+    lookup did not come back", and the page simply adds nothing.
+    """
+    from . import gloss
+    from .providers import sonapi
+
+    # Through the store, so a word is asked about once and then never again.
+    # `sonapi`'s own cache is on the container's disk, which Cloud Run throws
+    # away every time it scales to zero -- so the module that promises not to
+    # hammer Sõnaveeb was re-requesting the same words every session.
+    kept = gloss.remember(gloss_db(), word)
+    if kept is None or not kept.found:
+        return {"word": word, "found": False}
+    return {
+        "word": word,
+        "found": True,
+        "governs": [p.strip() for p in (kept.rection or "").split(",") if p.strip()],
+        "inflection_type": kept.inflection_type,
+        "definition": kept.definition,
+        "examples": [],
+        # The language policy says explanations are in Russian, and the API has
+        # carried Russian glosses all along — under the per-meaning key the
+        # module never read. Three at most: a word card is a reminder, not an
+        # entry.
+        "russian": list(kept.russian[:3]),
+        # The dictionary this app deliberately does not rebuild. Sõnaveeb has
+        # the full paradigm, audio, and every translation; sending the learner
+        # there is the honest answer to "I want more than three fields", and it
+        # costs one link rather than a scraper the maintainers asked us not to
+        # write.
+        "sonaveeb": sonapi.entry_url(kept.lemma),
+    }
 
 
 class ReviewAdd(BaseModel):
@@ -589,13 +695,20 @@ def review_queue(limit: int = 20, kind: str | None = None) -> dict:
     return {
         "items": [
             {
-                "id": i.id, "kind": i.kind, "lemma": i.lemma,
+                "id": i.id, "kind": i.kind, "kind_et": _topic_name(i.kind),
+                "lemma": i.lemma,
                 "prompt": i.prompt, "answer": i.answer,
                 "distractor": i.distractor, "why_ru": i.why_ru,
                 "context": i.context, "reps": i.reps, "lapses": i.lapses,
             }
             for i in items
-        ]
+        ],
+        # The queue is where the same words come back by design, so it is the
+        # place a missing meaning compounds: an item can be answered correctly
+        # from the form alone, review after review, without the word ever
+        # meaning anything. Local store only -- twenty items would be twenty
+        # live lookups.
+        "glosses": _glosses_for([i.lemma for i in items]),
     }
 
 
@@ -646,7 +759,6 @@ def mine(req: MineRequest) -> dict:
             "id": result.item_id, "kind": result.kind}
 
 
-@app.post("/api/review/failed")
 def review_failed(req: DrillFailed) -> dict:
     """Record a drill answered wrong: queue it and mark it missed in one step."""
     result = mining.from_failed_drill(
@@ -768,18 +880,76 @@ def practice_items(req: PracticeRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     meta = by_id(topic)
+    # An empty list is not self-explanatory, and the page can only print what
+    # it is given: without a reason it showed a bare "midagi ei tulnud".
+    #
+    # The generators that draw on the harvested corpus produce nothing when the
+    # corpus has not been supplied, which is a supported state and a completely
+    # different problem from a generator that is broken. Say which it is, and
+    # in Russian, because it is an instruction the learner has to act on.
+    detail = None
+    if not items:
+        needs_corpus = meta.generator in ("corpus_cloze", "ekk_rection", "wordorder")
+        detail = (
+            "Для этой темы нужен текстовый корпус, а он ещё не загружен на "
+            "сервер — задания появятся после `deploy/push-content.sh`."
+            if needs_corpus else
+            f"Генератор «{meta.generator}» ничего не вернул для этой темы."
+        )
+
     return {
         "topic": topic,
         "level": meta.level,
         "et": meta.et,
         "ru": meta.ru,
+        "detail": detail,
         "reference": describe_rule(meta.tag) if meta.tag else None,
         "items": [i.to_dict() for i in items],
+        # What the words in this set mean, from the local store only.
+        #
+        # A B1 object-case set comes back on lemmas like `etendus`, `luuletus`
+        # and `rahakott`. A learner can inflect those correctly without knowing
+        # one of them, and then has practised morphology on a token -- which is
+        # half of what the exercise looks like it is teaching.
+        #
+        # Local reads only: a live lookup per item would be the batch request
+        # `sonapi` refuses to have a helper for, and would make a practice set
+        # wait on a third party. Words not yet stored are simply not glossed,
+        # and get filled one at a time as each item is answered.
+        "glosses": _glosses_for([i.lemma for i in items]),
         # Something to read that is *about* this contrast, not merely at this
         # level. This is the join that makes practice and the reading library
         # one tool: a drill teaches the rule, a text shows it being used.
         "reading": reading_for(topic),
     }
+
+
+def _topic_name(kind: str) -> str:
+    """A curriculum id turned into words a learner recognises.
+
+    `obj-case` and `kusisonad` are database keys. The path panel already
+    resolves them -- `overview.py` does it for exactly this reason -- and the
+    review queue was still printing the raw id beside every card.
+    """
+    from .curriculum import by_id
+
+    try:
+        return by_id(kind).et
+    except KeyError:
+        # `vocab`, and anything queued before a topic was renamed. The raw
+        # string is a worse label than a real name and a better one than blank.
+        return kind
+
+
+def _glosses_for(lemmas: list[str]) -> dict[str, list[str]]:
+    """Russian for whatever is already known locally. Never fetches."""
+    from . import gloss
+
+    try:
+        found = gloss.stored_many(gloss_db(), lemmas)
+    except sqlite3.Error:
+        return {}
+    return {k: list(g.russian) for k, g in found.items() if g.russian}
 
 
 def reading_for(topic: str, limit: int = 3) -> list[dict]:
@@ -819,10 +989,25 @@ def practice_answer(req: AnswerRequest) -> dict:
 
         seed_mastered(review_db(), req.topic)
 
+    # One lookup, for the one word the learner just spent thought on. This is
+    # the "word in front of the learner" case `sonapi` exists for, and it is
+    # also the right moment pedagogically: the meaning lands straight after the
+    # struggle with the form, not before it as a hint.
+    meaning: list[str] = []
+    if req.lemma:
+        from . import gloss
+
+        try:
+            kept = gloss.remember(gloss_db(), req.lemma)
+            meaning = list(kept.russian) if kept else []
+        except Exception:  # noqa: BLE001 - a gloss is never worth failing a grade
+            meaning = []
+
     return {
         "correct": correct,
         "answer": req.answer,
         "why_ru": req.why_ru,
+        "russian": meaning,
         "accuracy": accuracy(progress, req.topic),
         "mastered": mastered_now,
         "just_mastered": mastered_now and not was_mastered,
@@ -874,6 +1059,18 @@ def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> di
         "pass_mark": PASS_MARK,
         "topics": topics_at(level),
         "items": [i.to_dict() for i in items],
+        # What the words in this set mean, from the local store only.
+        #
+        # A B1 object-case set comes back on lemmas like `etendus`, `luuletus`
+        # and `rahakott`. A learner can inflect those correctly without knowing
+        # one of them, and then has practised morphology on a token -- which is
+        # half of what the exercise looks like it is teaching.
+        #
+        # Local reads only: a live lookup per item would be the batch request
+        # `sonapi` refuses to have a helper for, and would make a practice set
+        # wait on a third party. Words not yet stored are simply not glossed,
+        # and get filled one at a time as each item is answered.
+        "glosses": _glosses_for([i.lemma for i in items]),
     }
 
 
@@ -893,7 +1090,6 @@ class KnownWords(BaseModel):
     long_known: bool = False
 
 
-@app.get("/api/vocab")
 def vocab_bands() -> dict:
     from .vocab import band_progress, summary
 
@@ -1091,7 +1287,6 @@ def dictation_answer(req: DictationAnswer) -> dict:
     return result.to_dict()
 
 
-@app.get("/api/dictation/stats")
 def dictation_stats() -> dict:
     from .dictation import stats
 

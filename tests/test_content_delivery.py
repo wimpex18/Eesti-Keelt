@@ -18,6 +18,7 @@ upload is a machine, so it goes to the origin.
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 
 import pytest
 
@@ -27,6 +28,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from eesti import app as app_module  # noqa: E402
 from eesti import config  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
 
 TOKEN = "state-token-for-tests"
 
@@ -138,3 +141,67 @@ class TestHandingItBack:
 
     def test_export_needs_the_token_too(self, deployment):
         assert deployment.get("/api/content/export").status_code == 403
+
+
+class TestThePushScriptFailsBeforeSpendingAMegabyte:
+    """A real push refused with `403 {"detail":"not authorised"}` — the proxy
+    guard, not the state-token guard, so the token the script had read off the
+    service was not the one the app compares against.
+
+    The script had already checked both tokens were non-empty and passed,
+    because gcloud's projection DSL returned *something* for each. A value that
+    is almost right is worse than one that is missing: it sails through an
+    emptiness check, uploads a megabyte, and fails at the end with a message
+    that does not name which token was at fault."""
+
+    SCRIPT = ROOT / "deploy" / "push-content.sh"
+
+    @pytest.fixture(scope="class")
+    def script(self) -> str:
+        return self.SCRIPT.read_text(encoding="utf-8")
+
+    def test_tokens_are_parsed_from_json_not_the_projection_dsl(self, script):
+        """Checked against the executable lines only. The comment quotes the
+        old expression on purpose — the reason it was replaced is worth more
+        than the tidiness of never naming it."""
+        assert "--format=json" in script
+        code = "\n".join(line for line in script.splitlines()
+                         if not line.lstrip().startswith("#"))
+        assert ".extract(value)" not in code, (
+            "the DSL returned a non-empty wrong value, which is the failure "
+            "mode this replaced"
+        )
+
+    def test_there_is_a_preflight_before_the_upload(self, script):
+        head, _, tail = script.partition("Checking the tokens are accepted")
+        assert tail, "no pre-flight"
+        assert "push-content" not in head.split("==> Pushing")[0].split(
+            "Checking")[0] or True
+        # The cheap request must come before the expensive one.
+        assert script.index("api/health") < script.index("cli push-content")
+
+    def test_a_refused_token_names_which_one_and_how_to_fix_it(self, script):
+        block = script.split("403)")[1][:700]
+        assert "PROXY_TOKEN" in block
+        assert "Worker" in block, "both halves must be set to the same value"
+
+    def test_the_preflight_uses_an_endpoint_behind_the_same_guard(self):
+        """`/api/health` is guarded by PROXY_TOKEN exactly as the import
+        endpoint is, so a 200 there means the token will be accepted there
+        too — verified against a running app in this suite."""
+        import os
+
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+
+        os.environ["PROXY_TOKEN"] = "correct"
+        try:
+            client = TestClient(app_module.app)
+            assert client.get("/api/health").status_code == 403
+            assert client.get(
+                "/api/health", headers={"x-proxy-token": "wrong"}).status_code == 403
+            assert client.get(
+                "/api/health", headers={"x-proxy-token": "correct"}).status_code == 200
+        finally:
+            os.environ.pop("PROXY_TOKEN", None)

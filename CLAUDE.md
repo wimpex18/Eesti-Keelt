@@ -3,6 +3,18 @@
 Estonian A2/B1 exam preparation, built for one learner. Read `docs/` for the
 reasoning; this file is what a fresh session needs in the first minute.
 
+## Where things stand
+
+**Version 1.0 closed 2026-08-20.** `docs/status.md` is the inventory: what
+works, the 13 curriculum topics with no generator, the known bugs, the tech
+debt, and what the research plan promised and did not deliver. Read it before
+planning a sprint.
+
+**No exam is booked.** The 2026 A2 rehearsal was declined in favour of another
+year of study; the sitting is planned for 2027, A2-then-B1 or B1-alone, and
+`readiness.TARGET` is `None` until one is chosen. Do not reintroduce a
+countdown to a date nobody has picked.
+
 ## What this is
 
 A **learn → practise → check** loop, not a checker. Drills are *generated* from
@@ -140,8 +152,14 @@ origin), and a git-ignored `.env` (local).
   redistributed.
 - **ERR transcripts** and **Selges keeles** — owner-only, `redistributable = 0`,
   behind Access. Roughly 421 items.
-- **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only and
-  deliberately has no bulk helper. The enriched word list removes any need.
+- **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only,
+  throttled to one live request a second under a lock, and deliberately has no
+  bulk helper. Where more than three fields are wanted, **link to Sõnaveeb**
+  (`sonapi.entry_url`) rather than fetching more — the same posture as HARNO.
+  Answers are kept in `vocab.db` (`eesti/gloss.py`) so a word is asked about
+  **once, ever**, capped by `DAILY_BUDGET` per day; the store is one learner's,
+  behind Access, never redistributed. Ekilex is CC-BY-4.0, so the copy is
+  permitted — the restraint is about their server, not their licence.
 - `data/*.db` and `data/exam/` are git-ignored. Runtime databases are never
   committed.
 
@@ -212,6 +230,134 @@ in Cloud Shell and discover the project, service and region themselves.
   with its own fixtures read the developer's real data and the suite reported
   differently locally than in CI. Pass the connection; never reach for a
   module-level path.
+- **Check the contract in both directions.** `test_ui_contract.py` had asked
+  "does every endpoint the page calls exist?" since it was written, and never
+  "can every section the API serves be reached?". 82 items — 13 % of the
+  library — were indexed, sectioned, API-tested and unopenable. A one-way
+  contract test finds typos; it does not find things nobody wired up.
+- **The same job written twice becomes two behaviours.** Four harvesters each
+  had a private `_TAG_RE`; on one line of input they gave three answers, and
+  every difference reached the learner — undecoded entities in 27 000 words of
+  transcript, two words joined into one, and a space before every full stop
+  that the punctuation drill then showed as correct. The copies were the bug,
+  not any of the three symptoms.
+- **A rule in a docstring is not a rule.** `sonapi.py` said "single lookups
+  only" because Sõnaveeb asks not to be batched. Nothing stopped a loop. It is
+  a one-second minimum between live requests now, and cache hits stay free —
+  under a lock, because a sync FastAPI route runs in a threadpool and two
+  unlocked readers would both see the same stale stamp and fire together.
+- **A cache that protects someone else must outlive a restart too.** `sonapi`
+  kept its answers in `data/cache/`, which is git-ignored, is not the content
+  volume, and is not in the state snapshot. Cloud Run scales to zero, so every
+  cold start re-requested every word the learner looked at — and spaced
+  repetition guarantees the same words come back. The module whose one loud
+  rule is "single lookups only, they ask not to be batched" had storage that
+  made it re-ask forever. Same shape as the circuit breaker's module-level
+  dict, and worse, because the state existed to protect a third party.
+- **"Don't rebuild what exists" needs re-testing once the thing exists.** It
+  was right about paradigms and flashcards and wrong about meaning. The app
+  knew 160 316 words and could not say what one of them meant, so a B1
+  object-case drill on `etendus` or `rahakott` trained morphology on a token
+  the learner could not translate. A plan decision made before anything was
+  wired is a hypothesis; check it against what the app actually lacks.
+- **Read the whole response before deciding which field is the good one.**
+  `sonapi` returns translations twice. The obvious top-level key is English
+  only; the per-meaning key carries Russian, which is the language this app
+  explains everything in. Reading the obvious one threw away the field that
+  mattered most, and the card looked complete while doing it.
+- **`--help` proves the parser, never the body.** `cli.py` is the largest
+  module here and had 0 % coverage — nothing had ever imported it, while six
+  routes were deleted, four generators were unified and `Cloze` was rebuilt
+  underneath it. Nothing was broken, which is only knowable by running it:
+  every read-only command now runs in the suite with stdin at EOF, so the next
+  refactor that renames something out from under a command fails here instead
+  of the first time the operator types it. 0 % → 54 %.
+- **A fixture that hand-rolls a schema is a second schema.** `conftest`
+  wrote its own `CREATE TABLE items` for the content database. It had drifted
+  twice over: no `sources` table at all, and no `added_on NOT NULL`. So the
+  fixture looked complete while `library.sections` — and therefore
+  `/api/library`, `/api/status` and two CLI commands — could never run against
+  it. Build fixtures with the app's own opener and writer, and a test that
+  passes is testing the shape production has.
+- **Verify "it works in CI" in a clean worktree, not in your build.** The
+  suite was green locally and red in CI for the ordinary reason: `data/` is
+  git-ignored, so the developer has a corpus and CI does not. `git worktree
+  add` gives exactly CI's tree in one command — cheaper than a round trip
+  through Actions, and it found both remaining failures.
+- **A synthesiser answers the question you ask, not the one you meant.**
+  Vabamorf refuses to decline a verb, which quietly implied it would refuse for
+  anything with no paradigm. It does not: asked for the genitive of the adverb
+  `alguses` it returns `algusese`, of `dna` it returns `dnad`, of the
+  imperative `õpi` a full declension. 319 of 7 256 exported paradigms were
+  invented that way and `/api/lookup` printed them in the same citation format
+  as `raamat, raamatu, raamatut`. Gate on part of speech before asking —
+  `wordlist.declines`.
+- **Two callers of one linguistic fact will not stay in step by themselves.**
+  `morph.case_forms` round-trips every candidate and refuses when several
+  survive; its docstring names `kool` (which naively yields the *cola*
+  paradigm) and `reis` (the thigh, not the journey) as why. `export.py` did
+  `next(iter(synthesize(...)))` — the exact naive version that function
+  replaced — and shipped `kool, koola, koola` to the word card. The drill path
+  was right and the card path was wrong for as long as both existed.
+- **A class-scoped fixture outruns the function-scoped redirect.** pytest
+  builds higher-scoped fixtures first, so a `scope="class"` fixture calling
+  `connect()` with no argument reads the *real* `config.DB_PATH` — the autouse
+  redirect in `conftest` has not run yet. On a machine with a built word list
+  it quietly used 160 316 real lemmas and passed; on CI it created an empty
+  `data/eesti.db`, exported nothing, and left the phantom file behind to fail
+  two unrelated tests later in the run. One mistake, five failures, three of
+  them in files it never touched. Pass the path explicitly.
+- **A key that looks set and is not costs more than a missing one.** A `.env`
+  line reading `export OPENROUTER_API_KEY=sk-...` — what you get from copying
+  any shell instruction — set a variable literally named
+  `"export OPENROUTER_API_KEY"`, which nothing can read back, and `load()`
+  reported it as loaded. Same failure as the `explains` grep: the check said
+  healthy while production was offline. Strip `export `, validate the name,
+  and never announce a key you did not set.
+- **A derived cache must not outlive the thing it derives from.**
+  `wordlist.build` replaced `words` and left `object_cases` — its own Vabamorf
+  cache, keyed on those very words — untouched, while `index_object_cases`
+  skips anything already cached. So the cache was write-once for the life of
+  the database: a refresh could neither drop a paradigm for a word upstream
+  had removed nor recompute one whose part of speech had been corrected. The
+  docstring said "idempotent — safe to re-run after a refresh", and that was
+  true of the table it named and false of everything downstream. Rebuilding
+  costs 2.4 s.
+- **A connection bound at import cannot be redirected either.** The rule was
+  already written for *paths*; a connection is worse, because it captures the
+  path and keeps it. `app.py` calls `_bind_breaker()` at module scope, so the
+  circuit breaker held an open handle to the real `data/progress.db` from the
+  first moment anything imported the app — and every `breaker.reset()` in the
+  suite wrote to the learner's own study record. Reading a developer's data
+  makes a test lie; writing to it loses their work.
+- **"Every database" meant three of seven.** `conftest` redirected the word
+  list, the corpus and the form index, and left progress, review, vocabulary
+  and the correction queue pointing at `data/`. The docstring said "every".
+  Count them.
+- **A comment recording a fixed bug is not a test.** `parse_episode` carried
+  three of them — entities never decoded, `.m3u8` audio rejected so two whole
+  archives looked empty, and a transcript required so the audio-only series was
+  discarded — with nothing to stop any of the three coming back. The harvesters
+  are excluded from the suite because they talk to third parties, and that is
+  right for `fetch`; their *parsers* are pure functions over a string and are
+  where every bug these modules have had actually lived. Test those with
+  synthetic markup: real ERR and Selges keeles text is owner-only and must not
+  be committed, and only the shape is being parsed anyway.
+- **Coverage finds what review does not.** Reading the least-covered modules
+  found a module with no importer at all, three cleaning defects, and a
+  documented rule with no enforcement. None of them were visible from the
+  features that use them.
+- **Count the orphans, do not fix them one at a time.** After the sixth
+  page/API drift bug, measuring showed **10 of 47 routes had no caller at
+  all** — 21 % of the surface. The worst was `POST /api/vocab/known`, the only
+  way a word can be marked known: its other caller is the CLI, which does not
+  exist on the deployment, so on the running app no word could ever become
+  known and every feature ordered by known vocabulary sat at zero for good.
+  `tests/test_route_inventory.py` now fails on a route nothing can reach.
+- **An endpoint with no caller is the same bug as a measurement with no
+  writer.** `/api/modes` returned every section with its counts and its
+  Russian note, and nothing called it — while the page hardcoded the one
+  section it knew about.
 - **Measure before generating a distractor.** The obvious word-order drill —
   swap two constituents, offer the swap as wrong — was abandoned after
   measuring 1 000 native sentences: 75.4 % follow the rule, not ~100 %, and
@@ -230,6 +376,28 @@ in Cloud Shell and discover the project, service and region themselves.
   the error log from the app and sent only by a CLI that does not exist on the
   deployment. The queue filled forever, and the verdict counted queued rows as
   though they were in the log.
+- **A store is not a feature until the screen has a shape for it.** The gloss
+  layer landed and the screen got the leftovers: one 12px grey line reading
+  `protsent, osastav — процент · A2` — the word to operate on, the form to
+  produce, what the word means and its CEFR level, four roles joined by three
+  separators at one weight, with the new information the least visible thing
+  on the card. Give each role its own treatment, and colour by **role, not by
+  language**: the rule explanation is Russian too, so painting all Russian
+  alike would have made the rule and the meaning identical.
+- **When a fix needs a method the mixin already has, the copy is the bug.**
+  `Cloze` said "same surface as `drills.Drill`" and meant it literally: it
+  predated `item.GradedItem` and carried its own `check`, `solution`,
+  `reference` and `to_dict`. That went unnoticed for months because everything
+  worked — until the page needed `label` and cloze items came back with no
+  case in the instruction row. Adding `label` alone would have left five
+  copies where there should be none. Measure the copies against the original
+  before deleting them (425 real items: identical grading, identical
+  references, no reachable difference), then delete them.
+- **A database key on screen is a bug even when it renders.** `overview.py`
+  had already fixed this once for the path panel — `kusisonad` is not a thing a
+  learner recognises — and the review queue was still printing `obj-case`
+  beside every card. Resolve ids where the API answers, not in each page that
+  happens to show one.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,

@@ -31,6 +31,70 @@ WORDLIST_BASE = (
 WORDLIST_FILES = ("est_words_160k.tsv",)
 
 
+def content_db(args: argparse.Namespace) -> sqlite3.Connection | None:
+    """The harvested library, resolved at call time and never invented.
+
+    Three commands carried `default="data/content.db"` in their argparse
+    definition. That is a literal, so it ignored `EESTI_CONTENT_DB` -- which is
+    exactly how the Dockerfile points the app at its content volume -- and no
+    caller or test could redirect it.
+
+    Worse, `sqlite3.connect` on a path that does not exist *creates* an empty
+    file. So a missing corpus did not report a missing corpus: it reported
+    `no such table: items`, three frames deep. That is the third time this
+    project has been bitten by presence of a database being read as presence
+    of data.
+
+    Returns None, having said why, when there is no corpus to read.
+    """
+    import sqlite3
+
+    from . import config
+    from .sources import connect as open_content
+
+    path = Path(getattr(args, "content_db", None) or config.CONTENT_DB)
+    if not path.exists():
+        print(f"no content database at {path} — run `cli harvest-reading` "
+              f"first, or set EESTI_CONTENT_DB")
+        return None
+    # The app's own opener, so the CLI sees the schema production has rather
+    # than whatever `sqlite3.connect` leaves behind on a path with no file.
+    conn = open_content(path)
+    try:
+        rows = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    except sqlite3.OperationalError:
+        print(f"{path} has no items table — run `cli harvest-reading`")
+        return None
+    if not rows:
+        print(f"{path} is empty — run `cli harvest-reading` first")
+        return None
+    return conn
+
+
+#: The learner's own databases, and where each falls back to when the flag is
+#: not given. Literals in argparse defaults meant these could not be redirected
+#: -- so the test suite wrote into the real `data/progress.db`, which on a
+#: machine where somebody actually studies is their record of what they have
+#: practised. Same defect as `--content-db`, with more at stake.
+_LEARNER_DBS = ("progress_db", "review_db", "vocab_db", "notion_db")
+
+
+def content_path(args: argparse.Namespace) -> str:
+    """Where a harvest writes. Same resolution as `content_db`, for the
+    commands that create the library rather than read it."""
+    from . import config
+
+    return str(getattr(args, "db", None) or config.CONTENT_DB)
+
+
+def learner_db(args: argparse.Namespace, which: str) -> str:
+    """Path for one of the learner's databases, resolved at call time."""
+    from . import config
+
+    return str(getattr(args, which, None)
+               or getattr(config, which.upper()))
+
+
 def cmd_fetch_data(args: argparse.Namespace) -> int:
     RAW.mkdir(parents=True, exist_ok=True)
     for name in WORDLIST_FILES:
@@ -153,7 +217,7 @@ def cmd_harvest(args: argparse.Namespace) -> int:
     from .sources import add_items, connect, register
 
     result = harvest(max_pages=args.max_pages)
-    conn = connect(args.db)
+    conn = connect(content_path(args))
     register(conn)
     items = to_items(result)
     add_items(conn, items)
@@ -162,7 +226,7 @@ def cmd_harvest(args: argparse.Namespace) -> int:
         words = sum(e.word_count for e in episodes)
         audio = sum(1 for e in episodes if e.audio_url)
         print(f"  {series}: {len(episodes)} episodes, {words:,} words, {audio} with audio")
-    print(f"\nstored {len(items)} items in {args.db} (owner-only, (c) ERR)")
+    print(f"\nstored {len(items)} items in {content_path(args)} (owner-only, (c) ERR)")
     return 0
 
 
@@ -177,7 +241,7 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
     from .sources import add_items, clear_source, connect, register
 
     posts = fetch(limit=args.limit)
-    conn = connect(args.db)
+    conn = connect(content_path(args))
     register(conn)
     clear_source(conn, "selges-keeles")
     items = to_items(posts)
@@ -206,13 +270,13 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
     from .wordorder import SOURCE_ID, ingest, items
 
     path = args.file or (DATA / "raw" / "bench" / "grammar_et.json")
-    conn = connect(args.db)
+    conn = connect(content_path(args))
     added = ingest(conn, path)
     if not added:
         print(f"Nothing ingested. Is {path} there? Run `cli fetch-bench` first.")
         return 1
     got = items(conn, limit=1000)
-    print(f"  {added} word-order items into {args.db} as {SOURCE_ID!r}")
+    print(f"  {added} word-order items into {content_path(args)} as {SOURCE_ID!r}")
     for rule, n in Counter(i.rule for i in got).most_common():
         print(f"    {rule:10} {n}")
     print("  Ungranted source: push with deploy/push-content.sh, never commit.")
@@ -316,7 +380,7 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     rest = unmapped(marks)
     total = sum(weights.values()) + rest
 
-    conn = connect(args.db)
+    conn = connect(content_path(args))
     register(conn)
     store(conn, marks)
 
@@ -383,11 +447,12 @@ def cmd_cloze(args: argparse.Namespace) -> int:
     from .cloze import case_clozes, negation_clozes, rection_clozes, sentences
     from .wordlist import connect as wordlist_connect
 
-    content = sqlite3.connect(args.content_db)
-    content.row_factory = sqlite3.Row
+    content = content_db(args)
+    if content is None:
+        return 1
     sents = sentences(content)
     if not sents:
-        print(f"no texts in {args.content_db} — run `cli harvest-reading` first")
+        print("no usable sentences in the corpus — run `cli harvest-reading`")
         return 1
 
     words = wordlist_connect()
@@ -505,8 +570,8 @@ def cmd_practice(args: argparse.Namespace) -> int:
     from .progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy, connect,
                            is_mastered, record, resume)
 
-    progress = connect(args.progress_db)
-    reviews = review.connect(args.review_db)
+    progress = connect(learner_db(args, "progress_db"))
+    reviews = review.connect(learner_db(args, "review_db"))
     topic = args.topic or resume(progress)
     if topic is None:
         print("nothing available to practise — every unlocked topic is mastered.")
@@ -574,7 +639,7 @@ def cmd_progress(args: argparse.Namespace) -> int:
     """Where you stand on every topic, in study order."""
     from .progress import connect, report, resume
 
-    progress = connect(args.progress_db)
+    progress = connect(learner_db(args, "progress_db"))
     rows = report(progress)
     level = None
     for row in rows:
@@ -614,7 +679,7 @@ def cmd_placement(args: argparse.Namespace) -> int:
     from .placement import PROBE_ITEMS, PROBE_REQUIRED, entry_points, sweep
     from .progress import connect
 
-    progress = connect(args.progress_db)
+    progress = connect(learner_db(args, "progress_db"))
     print(
         f"Placement: {PROBE_ITEMS} items per topic, all {PROBE_REQUIRED} correct "
         "to skip it.\nA miss skips what depends on that topic, not the whole "
@@ -649,7 +714,7 @@ def cmd_test_out(args: argparse.Namespace) -> int:
     from .placement import PROBE_REQUIRED, probe
     from .progress import connect
 
-    progress = connect(args.progress_db)
+    progress = connect(learner_db(args, "progress_db"))
     meta = by_id(args.topic)
     print(f"\nTest-out: {meta.level}  {meta.et}")
 
@@ -676,8 +741,8 @@ def cmd_review(args: argparse.Namespace) -> int:
     from . import handoff, review
     from .progress import connect as progress_connect
 
-    reviews = review.connect(args.review_db)
-    progress = progress_connect(args.progress_db)
+    reviews = review.connect(learner_db(args, "review_db"))
+    progress = progress_connect(learner_db(args, "progress_db"))
 
     # Catch topics mastered before the handoff existed, or in a session that
     # ended early, so nothing sits outside the review pool forever.
@@ -754,8 +819,9 @@ def cmd_library(args: argparse.Namespace) -> int:
     from .library import browse, exposure, sections
     from .progress import connect as progress_connect
 
-    content = sqlite3.connect(args.content_db)
-    content.row_factory = sqlite3.Row
+    content = content_db(args)
+    if content is None:
+        return 1
 
     if not args.section:
         for row in sections(content):
@@ -781,8 +847,8 @@ def cmd_library(args: argparse.Namespace) -> int:
         from .library import open_item
         from .vocab import connect as vocab_connect
 
-        progress = progress_connect(args.progress_db)
-        vocabulary = vocab_connect(args.vocab_db)
+        progress = progress_connect(learner_db(args, "progress_db"))
+        vocabulary = vocab_connect(learner_db(args, "vocab_db"))
         met = sum(
             open_item(content, row["id"], progress, vocabulary, args.minutes)["lemmas"]
             for row in rows
@@ -799,7 +865,7 @@ def cmd_vocab(args: argparse.Namespace) -> int:
                         set_status, summary)
     from .wordlist import connect as wordlist_connect
 
-    vocabulary = connect(args.vocab_db)
+    vocabulary = connect(learner_db(args, "vocab_db"))
     words = wordlist_connect()
 
     if args.know:
@@ -830,12 +896,13 @@ def cmd_status(args: argparse.Namespace) -> int:
     from .vocab import connect as vocab_connect
     from .wordlist import connect as wordlist_connect
 
-    content = sqlite3.connect(args.content_db)
-    content.row_factory = sqlite3.Row
+    # A missing corpus must not take the whole status page down: every other
+    # section still has something true to say.
+    content = content_db(args)
     data = overview(
-        progress=progress_connect(args.progress_db),
-        reviews=review_connect(args.review_db),
-        vocabulary=vocab_connect(args.vocab_db),
+        progress=progress_connect(learner_db(args, "progress_db")),
+        reviews=review_connect(learner_db(args, "review_db")),
+        vocabulary=vocab_connect(learner_db(args, "vocab_db")),
         words=wordlist_connect(),
         content=content,
     )
@@ -875,8 +942,8 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     from .progress import connect as progress_connect
     from .review import connect as review_connect
 
-    progress = progress_connect(args.progress_db)
-    reviews = review_connect(args.review_db)
+    progress = progress_connect(learner_db(args, "progress_db"))
+    reviews = review_connect(learner_db(args, "review_db"))
 
     topics = topics_at(args.level)
     if not topics:
@@ -1271,12 +1338,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("harvest", help="crawl ERR language archives (one time)")
     p.add_argument("--max-pages", type=int, default=300)
-    p.add_argument("--db", default="data/content.db")
+    p.add_argument("--db", default=None)
     p.set_defaults(func=cmd_harvest)
 
     p = sub.add_parser("harvest-reading", help="harvest simplified Estonian texts")
     p.add_argument("--limit", type=int)
-    p.add_argument("--db", default="data/content.db")
+    p.add_argument("--db", default=None)
     p.set_defaults(func=cmd_harvest_reading)
 
     p = sub.add_parser("cloze", help="drill on real harvested sentences")
@@ -1288,7 +1355,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="rection only: CEFR levels of the governing word")
     p.add_argument("--answers", action="store_true", help="show answers")
     p.add_argument("--seed", type=int)
-    p.add_argument("--content-db", default="data/content.db")
+    p.add_argument("--content-db", default=None,
+                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
     p.set_defaults(func=cmd_cloze)
 
     p = sub.add_parser("conjugate", help="drill tenses, moods, infinitives, voice")
@@ -1312,30 +1380,30 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--theme", help="drill this topic over a themed word set")
     p.add_argument("-n", "--count", type=int, default=10)
     p.add_argument("--seed", type=int)
-    p.add_argument("--progress-db", default="data/progress.db")
-    p.add_argument("--review-db", default="data/review.db")
+    p.add_argument("--progress-db", default=None)
+    p.add_argument("--review-db", default=None)
     p.set_defaults(func=cmd_practice)
 
     p = sub.add_parser("progress", help="where you stand on every topic")
     p.add_argument("--todo", action="store_true", help="hide mastered and locked")
-    p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--progress-db", default=None)
     p.set_defaults(func=cmd_progress)
 
     p = sub.add_parser("placement", help="find where to start in the syllabus")
     p.add_argument("--seed", type=int)
-    p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--progress-db", default=None)
     p.set_defaults(func=cmd_placement)
 
     p = sub.add_parser("test-out", help="skip one topic by demonstrating it")
     p.add_argument("--topic", required=True)
     p.add_argument("--seed", type=int)
-    p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--progress-db", default=None)
     p.set_defaults(func=cmd_test_out)
 
     p = sub.add_parser("review", help="interleaved review of whatever is due")
     p.add_argument("-n", "--count", type=int, default=20)
-    p.add_argument("--review-db", default="data/review.db")
-    p.add_argument("--progress-db", default="data/progress.db")
+    p.add_argument("--review-db", default=None)
+    p.add_argument("--progress-db", default=None)
     p.set_defaults(func=cmd_review)
 
     p = sub.add_parser("themes", help="themed word sets a topic can be drilled over")
@@ -1348,23 +1416,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-n", "--count", type=int, default=15)
     p.add_argument("--seen", action="store_true", help="record these as opened")
     p.add_argument("--minutes", type=float, default=0.0)
-    p.add_argument("--content-db", default="data/content.db")
-    p.add_argument("--progress-db", default="data/progress.db")
-    p.add_argument("--vocab-db", default="data/vocab.db")
+    p.add_argument("--content-db", default=None,
+                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
+    p.add_argument("--progress-db", default=None)
+    p.add_argument("--vocab-db", default=None)
     p.set_defaults(func=cmd_library)
 
     p = sub.add_parser("vocab", help="words you know, by frequency band")
     p.add_argument("--know", nargs="*", help="mark these lemmas as known")
     p.add_argument("--long-known", action="store_true",
                    help="mark as well known rather than newly known")
-    p.add_argument("--vocab-db", default="data/vocab.db")
+    p.add_argument("--vocab-db", default=None)
     p.set_defaults(func=cmd_vocab)
 
     p = sub.add_parser("status", help="where you stand, section by section")
-    p.add_argument("--content-db", default="data/content.db")
-    p.add_argument("--progress-db", default="data/progress.db")
-    p.add_argument("--review-db", default="data/review.db")
-    p.add_argument("--vocab-db", default="data/vocab.db")
+    p.add_argument("--content-db", default=None,
+                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
+    p.add_argument("--progress-db", default=None)
+    p.add_argument("--review-db", default=None)
+    p.add_argument("--vocab-db", default=None)
     p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("checkpoint", help="mixed end-of-level quiz")
@@ -1372,8 +1442,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-n", "--count", type=int, default=15)
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int)
-    p.add_argument("--progress-db", default="data/progress.db")
-    p.add_argument("--review-db", default="data/review.db")
+    p.add_argument("--progress-db", default=None)
+    p.add_argument("--review-db", default=None)
     p.set_defaults(func=cmd_checkpoint)
 
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
@@ -1431,12 +1501,12 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_curriculum)
 
     p = sub.add_parser("evkk", help="rank error tags by real learner-corpus data")
-    p.add_argument("--db", default="data/content.db")
+    p.add_argument("--db", default=None)
     p.set_defaults(func=cmd_evkk)
 
     p = sub.add_parser("wordorder",
                        help="ingest attested word-order corrections into content.db")
-    p.add_argument("--db", default="data/content.db")
+    p.add_argument("--db", default=None)
     p.add_argument("--file", default=None,
                    help="grammar_et.json (default: the fetch-bench location)")
     p.set_defaults(func=cmd_wordorder)

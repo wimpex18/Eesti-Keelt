@@ -19,7 +19,6 @@ no permission, not open permission.
 
 from __future__ import annotations
 
-import html as _html
 import json
 import re
 import time
@@ -35,8 +34,6 @@ POLITE_DELAY = 0.4
 TIMEOUT = 90.0
 RETRIES = 3
 
-_TAG_RE = re.compile(r"<[^>]+>")
-_URL_RE = re.compile(r"https?://\S+")
 _LATIN_RE = re.compile(r"[A-Za-zÕÄÖÜõäöüŠŽšž]+")
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]+")
 
@@ -61,19 +58,15 @@ class Post:
 
 
 def _clean(markup: str) -> str:
-    """Strip tags, decode entities, drop URLs.
+    """Markup to prose. See `eesti/harvest/clean.py` for what and why.
 
-    Entities must be decoded here, not in the UI: the reader escapes what it
-    renders, so an undecoded "&#8211;" arrives as the literal text "&amp;#8211;".
-    Decoding twice is deliberate — WordPress double-encodes some entities.
-
-    URLs are removed because the reader makes every word clickable for lookup,
-    and the fragments of a link ("kultuur", "err", "ee") are not Estonian words.
+    This module's own version was the most complete of the four and is where
+    the shared one came from — including decoding entities twice, which
+    WordPress makes necessary.
     """
-    text = _TAG_RE.sub(" ", markup)
-    text = _html.unescape(_html.unescape(text))
-    text = _URL_RE.sub(" ", text)
-    return " ".join(text.split())
+    from .clean import text
+
+    return text(markup)
 
 
 def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:

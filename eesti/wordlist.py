@@ -42,6 +42,39 @@ CREATE TABLE IF NOT EXISTS object_cases (
 """
 
 
+#: Parts of speech that actually take case endings in Estonian.
+#:
+#: Nouns, adjectives, numerals, pronouns and proper nouns decline; adverbs,
+#: interjections, adpositions and conjunctions do not. `adjg` is the
+#: genitive-only adjective class (`eri`, `puht`), which by definition has no
+#: paradigm to build.
+DECLINABLE = frozenset({"s", "adj", "num", "pron", "prop"})
+
+
+def declines(pos: str | None) -> bool:
+    """Can this word take a case ending at all?
+
+    Vabamorf will synthesise a genitive for anything you hand it, including
+    words that have none. Ask it for the genitive of `alguses` -- an adverb,
+    itself the inessive of `algus` -- and it returns `algusese`, which is not
+    an Estonian word. The synthesiser is not wrong; it is being asked the wrong
+    question, and the only thing that can stop that is knowing the part of
+    speech first.
+
+    An untagged word counts as **not** declinable, which inverts the rule used
+    for CEFR levels elsewhere in this project, and deliberately. There, an
+    absent tag meant "nobody rated this" and dropping it would have lost real
+    words. Here an absent tag correlates with the entry not being a lemma at
+    all -- the untagged set is acronyms (`dna`, `nato`, `who`), genitive forms
+    filed as headwords (`kahe`, `linna`, `panga`) and verb imperatives (`küsi`,
+    `õpi`) -- and the cost of keeping them is printing a non-word to a learner
+    in the same citation format as `raamat, raamatu, raamatut`.
+    """
+    if not pos:
+        return False
+    return bool({p.strip() for p in pos.split(",")} & DECLINABLE)
+
+
 @dataclass(frozen=True)
 class Word:
     word: str
@@ -66,7 +99,18 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 
 
 def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
-    """Import the word list TSV. Idempotent — safe to re-run after a refresh."""
+    """Import the word list TSV. Idempotent — safe to re-run after a refresh.
+
+    "Idempotent" used to be true of `words` and false of everything derived
+    from it. This replaced the word list and left `object_cases` untouched, and
+    `index_object_cases` skips any word it already has — so a refresh could
+    neither drop a cached paradigm for a word upstream had removed, nor
+    recompute one whose part of speech had been corrected. The cache was
+    write-once for the life of the database.
+
+    So the derived table goes too. Rebuilding it costs 2.4 s over 2 575 words,
+    which is not worth a stale answer about what a word means.
+    """
     raw_dir = Path(raw_dir or RAW)
     src = raw_dir / "est_words_160k.tsv"
     if not src.exists():
@@ -97,6 +141,8 @@ def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
             "VALUES (?,?,?,?)",
             rows,
         )
+        # Derived from the rows above, so it cannot outlive them.
+        conn.execute("DELETE FROM object_cases")
     return len(rows)
 
 

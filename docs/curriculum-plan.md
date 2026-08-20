@@ -353,8 +353,35 @@ sentence-level machinery rather than form generation — `kirjavahemargid`,
 `uhildumine`, `liitsonad`. Those are honest gaps, listed here so they are not
 mistaken for oversights.
 
-**`sonajark` has since been closed** (`eesti/wordorder.py`), and how it was
-closed is the point. Form generation could not do it: Estonian word order is
+**`kirjavahemargid` has since been closed too** (`eesti/punctuation.py`), and
+by the *opposite* method — which is the point. Attested corrections failed on
+volume: only 6 of the 1 000 pairs differ by punctuation alone. But four of the
+six are one rule, and measuring it across 1 349 native texts showed it is
+categorical where word order is not:
+
+| | preceded by a comma |
+|---|---|
+| `sest` | 99.0 % (105 occurrences) |
+| `et` | 95.9 % (637) |
+| `nagu` | 63.9 % (36) |
+| `kui` | 37.8 % (331) |
+
+`kui` is also the comparative and `nagu` also a preposition, so neither is a
+rule and both are excluded. Every exception to `et`/`sest` turned out to be
+systematic — a coordinating conjunction in front (`ja et`), a fixed collocation
+(`ilma et`, `nii et`), or a sentence start. Excluding those, deleting the comma
+produces provably wrong Estonian, so this topic *can* be generated. The
+decision was the measurement, not a preference.
+
+**`uhildumine` and `liitsonad` stay open**, and now with numbers rather than a
+feeling: the corpus holds **4** compound join/split corrections, and agreement
+errors cannot be separated from the rest by any surface signal. Neither has
+enough attested material, and neither has a categorical rule that survives
+measurement. They need a parser or a bigger learner corpus; nothing else is
+claimed.
+
+**`sonajark` was closed first** (`eesti/wordorder.py`), and how it was closed is
+the point. Form generation could not do it: Estonian word order is
 flexible enough that a generated distractor is sometimes correct Estonian —
 measured at 75.4 % inversion, not ~100 %, in the one shape a generator could
 have targeted. The items are attested learner corrections instead, so

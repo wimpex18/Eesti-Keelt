@@ -1,5 +1,10 @@
 # Roadmap — what to build next, and why
 
+> **Version 1.0 closed on 2026-08-20.** For the honest inventory — what works,
+> what was never built, what is knowingly broken, and what the research plan
+> promised and did not deliver — see **[status.md](status.md)**. This file is
+> the reasoning behind the choices; that one is the state they left things in.
+
 Informed by what the 2026 language apps do well, what their users complain about,
 and what this project can do that they structurally cannot.
 
@@ -137,8 +142,48 @@ deterministic and the error history already exists.
   the exam is marked. The explanation says "обычно вторым", matching EKK
   (SÜ 90) and the 75.4 %, because an absolute rule would have the learner
   "correcting" good Estonian.
+- **The listening shelf, which had been unreachable.** Two of the seven library
+  sections — the harvested listening archive (54 items) and the 28
+  radio-course transcripts, 13 % of everything harvested — were indexed,
+  sectioned and covered by API tests, and could not be opened from the app.
+  The page could only ask the library by *skill*, and only ever asked for
+  `lugemine`. It cost more than hidden content: the readiness verdict measures
+  Kuulamine by library items opened, so that half of the evidence could never
+  move.
+
+  The list is now rendered from `/api/modes` — which returned exactly this and
+  had no caller — so adding a section to `SECTIONS` surfaces it without anyone
+  remembering the page.
 - Reading library (349 texts), object-case and verb-form drills, writing check,
   TTS, ERR episode audio, rection and inflection type via `sonapi`.
+- **Word card enrichment, finished.** `sonapi` returned two translation sets and
+  the module read the wrong one: the top level carries English only, while each
+  meaning carries `rus`/`eng`/`fra` weighted. An app whose language policy is
+  Russian was showing a muuttüüp number to someone who did not yet know the
+  word. Per-meaning is read first now, top-level fills gaps, and the card ends
+  with a link out to Sõnaveeb for the paradigm and audio this app deliberately
+  does not rebuild. The speaking panel links EKI's pronunciation exercises and
+  the A1–B1 phrase collections for the same reason — "use it, don't build it"
+  is only a decision once the learner can reach it.
+- **A meaning layer, which the app had never had.** 160 316 words, a CEFR level
+  and a full paradigm for each, and no way to say what any of them meant — so a
+  B1 object-case drill on `etendus`, `luuletus` or `rahakott` was morphology
+  practice on a token. `eesti/gloss.py` stores each Sõnaveeb answer in
+  `vocab.db`, which the snapshot carries, and the meaning now shows on the word
+  card, in the hint of a practice item, on the verdict after answering, and in
+  the review queue. It also fixes a worse bug in the other direction: the old
+  cache lived on the container's disk, so Cloud Run emptied it on every cold
+  start and the app re-requested the same words forever. Asked once, ever, and
+  capped per day — a stricter reading of "do not batch them" than before.
+- **And a screen shaped for it.** The instruction under a drill was one grey
+  run-on carrying four different things; it is now a row where the word, the
+  form to produce, the meaning and the level each read as what they are. The
+  meaning has its own colour token — by role rather than by language, because
+  the rule explanation is Russian as well and must stay distinct from it. The
+  review queue stopped printing curriculum ids at the learner, the word card
+  puts the meaning with the word instead of under the buttons, and the count
+  of glossed words appears under Sõnavara, which is where `gloss.stats` got
+  the reader it had been written without.
 
 ## Deployed, and verified against the running app
 
@@ -159,25 +204,32 @@ three of these were found at all:
 
 ## Next, in order
 
-1. **Use the readiness verdict.** It is built and it currently says "ei ole
-   veel" for both levels, with the reasons named. The next work is not more
-   features — it is study, and then watching the verdict change.
+0. **Redeploy.** Everything in the current branch ships in the image and
+   nothing needs a content push. Until that happens the running app still
+   serves the invented paradigms.
+1. **Use the readiness verdict.** It is built and it says "ei ole veel" for
+   both levels, with the reasons named. As of 2026-08-20 those reasons for A2
+   are: no exam part touched at all, 0 of 7 A2 topics mastered, and the
+   checkpoint unattempted. There is **no countdown any more** — the 2026
+   sitting was declined, the exam is planned for 2027, and no date is chosen.
+   The next work is not more features. It is study, and then watching those
+   three numbers move, because they are what decides A2-then-B1 against
+   B1-alone.
 2. **Whatever the verdict names.** It reports untouched exam parts first,
    because ≥60 % overall with one part at zero is still a fail. That list is
    the honest backlog.
+3. **The 13 topics with no generator**, if a build is wanted rather than a
+   study month. Listed in `status.md`.
 
-### Blocked on an upload, not on code
+### The upload happened — this is no longer blocked
 
-`content.db` has not been pushed to the deployment. Three things are empty in
-production until it is, and all three exist and are tested:
+`content.db` is on the deployment. The smoke run of 2026-08-19T22:48Z reports
+`reading library ......... OK`, which is `"library":true` from `/api/health`,
+so the three things that rode on it are live: the 349-text reading library,
+dictation's sentence pool, and the 47 attested word-order items.
 
-| | |
-|---|---|
-| the reading library | 349 texts, the whole Lugemine part |
-| dictation | draws its sentences from the same corpus |
-| word order | 47 attested items ride `content.db` too |
-
-`bash deploy/push-content.sh data/content.db`, from Cloud Shell.
+Re-run `bash deploy/push-content.sh data/content.db` from Cloud Shell only
+after a *new* harvest. Nothing in the current branch needs it — see below.
 
 ### Tags with no drill, and whether that is a gap
 
@@ -202,9 +254,12 @@ everything a copy would, and holds none of it.
 
 ## Known gaps, stated plainly
 
-- **The reading library is empty in production** until a harvest is pushed.
-  The mechanism exists (`deploy/push-content.sh`); the harvest has not been run
-  and uploaded.
+- **The deployment is running an image from before the current branch.** The
+  last smoke run checked image `2026-08-19T22:02:22Z` against commit `25814b3`,
+  which predates the export fixes. Until it is rebuilt, the word card there
+  still prints `kool, koola, koola` and the other 319 invented paradigms. The
+  fix rides the image — `RUN python -m eesti.cli export` at build time — so a
+  redeploy is all it needs, with no content push.
 - **A crash between snapshots loses a few minutes of answers.** The alternative
   is moving learner state to D1, which is a real rewrite of the storage layer
   and is not worth it for that.

@@ -344,3 +344,43 @@ class TestTheSummaryFieldCannotBeConfusedForAPerEngineOne:
         block = workflow.split("Asked five times")[1][:800]
         assert "jq -r" in block
         assert "grep" not in block
+
+
+class TestTheKeyListIsNotHandMaintained:
+    """`check-service.sh` reported NOTION_TOKEN missing and said what its
+    absence costs; `set-llm-key.sh` then refused to set it, because it carried
+    its own hardcoded list of four names. Two lists of the same thing become
+    two different lists — the same failure as the hand-written tab list, one
+    layer down."""
+
+    SET = ROOT / "deploy" / "set-llm-key.sh"
+
+    def test_the_script_reads_the_apps_own_list(self):
+        body = self.SET.read_text(encoding="utf-8")
+        assert "KNOWN_KEYS" in body, "the allowed names must come from env.py"
+
+    def test_no_hardcoded_alternation_of_key_names(self):
+        body = self.SET.read_text(encoding="utf-8")
+        assert "OPENROUTER_API_KEY|GROQ_API_KEY" not in body
+
+    def test_every_key_the_app_reads_can_be_set(self):
+        """Including the ones that are not LLM keys. The script's name is
+        narrower than its job, which is a naming wart, not a limit."""
+        import re
+        import subprocess
+
+        from eesti.env import KNOWN_KEYS
+
+        body = self.SET.read_text(encoding="utf-8")
+        # Run the same extraction the script runs, against the same file.
+        script = re.search(r"sed -n '(/\^KNOWN_KEYS[^']*)'", body)
+        assert script, "the extraction command changed shape"
+        got = subprocess.run(
+            ["sh", "-c",
+             f"sed -n '{script.group(1)}' {ROOT / 'eesti' / 'env.py'} "
+             r"""| sed -n 's/^ *"\([A-Z0-9_]*\)".*/\1/p'"""],
+            capture_output=True, text=True, check=True).stdout.split()
+        assert set(got) == set(KNOWN_KEYS), (
+            f"the script would accept {sorted(got)}, the app reads "
+            f"{sorted(KNOWN_KEYS)}"
+        )

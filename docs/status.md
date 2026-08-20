@@ -1,0 +1,133 @@
+# Where version 1.0 stands
+
+Written 2026-08-20, at the close of the first build. This is the honest
+inventory: what works, what was never built, what is knowingly broken, and what
+the original research plan promised and did not deliver.
+
+Read `roadmap.md` for *why* things were chosen and `CLAUDE.md` for the habits
+that came out of getting them wrong.
+
+## The decision this version closes on
+
+**No exam in 2026.** The optional A2 rehearsal (register by 01.10.2026, sit
+07.11.2026) was considered and declined on 2026-08-20. The plan is independent
+study plus a tutor through the winter, and a sitting in 2027 — either A2 and
+then B1, or B1 alone, whenever the evidence supports it.
+
+The app reflects that: `readiness.TARGET` is `None`, the countdown reads
+*"экзамен ещё не выбран"*, and `EXAMPLE_TARGET` keeps the calendar shape so
+setting a 2027 date is one line. Both levels stay first-class, because *which*
+of those two routes to take is precisely what the readiness verdict is for.
+
+## What works
+
+| | |
+|---|---|
+| **Drills** | 23 of 36 curriculum topics generate items. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
+| **Grading** | Deterministic everywhere. No model decides whether an answer is right. |
+| **Reading** | 349 Selges keeles texts, click-to-look-up, known-word tracking, comprehensibility ordering. |
+| **Listening** | Dictation from the corpus, TTS on any text at 0.7×, ERR episode audio. |
+| **Writing** | Grammar check through the provider chain, corrections queued for the Notion error log with an explicit send step. |
+| **Speaking** | Question bank in the exam's paired shape, TTS voicing the other side, links out to EKI's own pronunciation exercises. |
+| **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. |
+| **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. |
+| **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
+| **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
+
+42 API routes, every one with a caller. 1 089 tests.
+
+## What was never built
+
+### 13 curriculum topics have no generator
+
+`tahestik`, `lauseehitus`, `asesonad`, `pohivormid`, `astmevaheldus`, `eitus`,
+`kaassonad`, `sidesonad`, `maarsonad`, `tulevik`, `uhildumine`, `uhendverbid`,
+`liitsonad`.
+
+They appear in the syllabus and in the path, and practising them opens nothing.
+Some are deliberate — `astmevaheldus` is reference material whose contrast is
+already drilled through `gen-stem`, where the stem is actually chosen. Most are
+simply not done. `uhildumine`, `uhendverbid` and `liitsonad` were investigated
+as candidates for the attested-corrections treatment that made `word-order`
+work, and the corpus did not have enough marked examples.
+
+### Local ASR
+
+The plan called for `faster-whisper` with TalTech's verbatim fine-tune, run
+locally so a voice never leaves the machine. What shipped is Cloudflare Workers
+AI. That is a real deviation and the privacy note on the speaking screen says
+so plainly rather than pretending otherwise. The local route still has the
+better privacy story and nobody hosts the model.
+
+### Pronunciation scoring
+
+Deliberately never attempted — forced alignment gives timings, not correctness,
+and EKI publishes free exercises. The app links them instead.
+
+## Known bugs and rough edges
+
+Nothing here is severe enough to block use. All of it is real.
+
+| | |
+|---|---|
+| **`_bind_breaker()` runs at import** | `app.py` binds the circuit breaker to `progress.db` at module scope, so the path is resolved before anything can redirect it. The test suite works around it; production is fine because the path is fixed. It is still the anti-pattern this project has a written habit about. |
+| **`wordlist.connect` invents an empty database** | Open a path with no file and you get a file, schema and all, with zero rows — the same shape as the content-database bug fixed in `cli.content_db`, which reported a missing corpus as `no such table: items`. `cli build` needs the create, so the fix is a separate read-only opener rather than a refusal. |
+| **`sonapi`'s raw payload cache is still ephemeral** | The *glosses* are durable now (`gloss.py`, in `vocab.db`, in the snapshot). The raw JSON underneath still lives in `data/cache/` and evaporates on every cold start. Harmless — the gloss store answers first and the network is never reached — but it means the cache directory is doing nothing on the deployment. |
+| **The local `content.db` is partial** | 349 Selges keeles items only. The ERR transcripts, news issues and exam pointers were lost to a container rollback during this session and not re-harvested. The **deployed** database is the complete one; the last smoke run confirms `"library":true`. Re-run the harvesters before trusting local numbers about the corpus. |
+| **`evkk` reaches the network** | The CLI command fetches the EVKK taxonomy from `elle.tlu.ee` and has no offline path. It is excluded from the test suite for that reason. |
+
+## Tech debt, stated as debt
+
+- **The harvesters' fetch halves are untested**, by choice: a suite that
+  re-crawls ERR on every run is a suite that hammers someone else's server.
+  Their *parsers* are covered. The line is drawn at the network boundary and
+  that is where it should stay.
+- **`providers/llm.py` and `providers/asr.py` sit at 67 % and 72 %** for the
+  same reason. Going further means mocking HTTP for its own sake.
+- **`cli.py` is 52 %.** The uncovered half is the write and network commands —
+  harvest, push-content, notion --push, eval, models, rections, serve. Every
+  read-only command runs in the suite.
+- **`Cloze` still overrides `hint` and `label`.** Legitimate — for rection the
+  case *is* the question — but it is the last place an item class differs from
+  the mixin, and worth re-checking if a fifth generator appears.
+- **Two `_state_paths()` writers use `write_bytes`** on paths read from module
+  globals. Correct today; the same shape as the breaker binding.
+
+## Coverage, for what it is worth
+
+**81 % overall**, 5 458 statements. Chased deliberately during this build and
+stopped deliberately: it found nine real defects, and the number itself was
+never the goal.
+
+Sixteen modules are at 100 %, including every one touched by a defect this
+round — `export.py`, `env.py`, `item.py`, `overview.py`, `progress.py`,
+`review.py`, `harvest/clean.py`, `config.py`, `grammar.py`, `handoff.py`,
+`mining.py`, `speaking.py`.
+
+Everything below 90 %, and why:
+
+| | | |
+|---|---|---|
+| `evals/fetch.py` | 0 % | downloads benchmark datasets; nothing else in the app calls it |
+| `evals/external.py` | 47 % | eval tooling, exercised by CI's separate `eval` job |
+| `cli.py` | 52 % | the uncovered half is the write and network commands; every read-only one runs in the suite |
+| `harvest/selges.py`, `harvest/err.py` | 57 %, 59 % | parsers covered, fetchers deliberately not |
+| `providers/llm.py`, `evals/gec.py`, `providers/asr.py` | 67–72 % | network clients |
+| `rection.py`, `harvest/evkk.py`, `harvest/lihtsad.py`, `providers/tts.py` | 80–84 % | network at the edges |
+| `providers/grammar.py`, `sources.py`, `wordorder.py`, `app.py`, `providers/sonapi.py`, `difficulty.py`, `readiness.py` | 86–89 % | error paths and degradation branches |
+
+The rest sits at 90 % or above. `wordlist.py` finished at 94 %, `gloss.py` at
+99 %.
+
+## What to do first in the next sprint
+
+1. **Redeploy.** The running image predates the export fixes, so the deployed
+   word card still prints `kool, koola, koola` and 319 other invented
+   paradigms. No content push needed; the fix is baked at image build.
+2. **Re-harvest locally** so `content.db` is whole again and local measurements
+   mean something.
+3. **Study.** The verdict's three numbers for A2 — no exam part touched, 0 of 7
+   topics mastered, checkpoint unattempted — do not move on their own, and they
+   are what decides A2-then-B1 against B1-alone next year.
+4. Then, if a build is wanted: the 13 topics with no generator, largest gap
+   first.

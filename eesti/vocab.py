@@ -51,9 +51,25 @@ CREATE INDEX IF NOT EXISTS idx_vocab_status ON vocab_status(status);
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
+    """Open `vocab.db` with **both** of its schemas applied.
+
+    Two modules keep tables in this one file: word status here, and word
+    meanings in `eesti/gloss.py`. They are one store because they are one
+    fact -- what this learner knows about words -- and because the state
+    snapshot ships whole files.
+
+    Whichever module opens the file first has to leave it complete. It did
+    not: a fresh container ran `vocab.connect` for the status page, got
+    `vocab_status` and nothing else, and the glossed-word count came back
+    missing rather than zero -- so the line vanished from the screen until
+    some unrelated word lookup happened to create the table. Absent and zero
+    say different things, and the learner was shown the one that says nothing.
+    """
+    from . import gloss
+
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
+    conn.executescript(SCHEMA + gloss.SCHEMA)
     return conn
 
 

@@ -47,7 +47,6 @@ ordering, not the absolute numbers.
 
 from __future__ import annotations
 
-import html as _html
 import re
 import time
 import urllib.request
@@ -66,7 +65,7 @@ _ROW_RE = re.compile(
     r"(.*?)</a>\s*<span>(\d+)</span>",
     re.S,
 )
-_TAG_RE = re.compile(r"<[^>]+>")
+from .clean import text as _clean_markup
 
 
 @dataclass(frozen=True)
@@ -90,7 +89,9 @@ def parse(page: str) -> list[Mark]:
     marks: list[Mark] = []
     for m in _ROW_RE.finditer(page):
         path = tuple(p for p in m.group(1).split("/") if p)
-        name = _html.unescape(_TAG_RE.sub("", m.group(2)))
+        # Was `sub("")`, which turned `<p>Esimene</p><p>Teine</p>` into the
+        # single word `EsimeneTeine`.
+        name = _clean_markup(m.group(2))
         name = re.sub(r"\s+", " ", name).strip()
         # A handful of nodes carry no label and render their own id. They are
         # empty placeholders; keeping them would put ids in a report of names.

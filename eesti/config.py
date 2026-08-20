@@ -10,8 +10,11 @@ CACHE = DATA / "cache"
 DB_PATH = Path(os.environ.get("EESTI_DB", DATA / "eesti.db"))
 CONTENT_DB = Path(os.environ.get("EESTI_CONTENT_DB", DATA / "content.db"))
 
-# The levels this tool targets. A2 matters as much as B1: the optional A2
-# rehearsal sitting is 07.11.2026 (decide by 01.10.2026).
+# The levels this tool targets. A2 still matters as much as B1: the 2026 A2
+# rehearsal was declined (2026-08-20) in favour of another year's study, and
+# the exam is now planned for 2027 — A2 then B1, or B1 alone. Which of those
+# it turns out to be is exactly what the readiness verdict is for, so both
+# levels stay first-class and no date is hardcoded anywhere.
 LEVELS = ("A1", "A2", "B1")
 
 # Error tags — these MUST stay identical to the fixed multi_select options in

@@ -83,6 +83,11 @@ def items_for(
         return numeral_drills(words, levels, count, seed, topics=(topic,),
                               only=countable if topic == "arvsonad" else None)
 
+    if generator == "punctuation":
+        from .punctuation import generate as comma_items
+
+        return comma_items(count=count, seed=seed, content=_content(content_db))
+
     if generator == "wordorder":
         from .wordorder import generate as wordorder_items
 
@@ -95,11 +100,16 @@ def items_for(
         from .cloze import case_clozes, negation_clozes, sentences
 
         sents = sentences(_content(content_db))
+        # `levels` reaches the generator now. It was accepted here, threaded
+        # this far and then dropped: `only` is None unless a theme is chosen,
+        # so the default run of every corpus topic drilled whatever noun the
+        # sentence happened to contain -- B2 `hooldustöö` inside an A1 topic.
         if topic == "obj-case":
-            return negation_clozes(sents, words=words, count=count, seed=seed)
+            return negation_clozes(sents, words=words, count=count, seed=seed,
+                                   levels=levels)
         return case_clozes(
             sents, topics=(topic,), words=words, count=count, seed=seed,
-            only=nouns,
+            only=nouns, levels=levels,
         )
 
     if generator == "ekk_rection":
