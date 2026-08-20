@@ -30,6 +30,23 @@
 #
 # Nothing is printed. Nothing is written to a file. Re-running it rotates both
 # tokens in both places at once, which is the only safe way to rotate them.
+#
+# THIS IS NOT A DEPLOY COMMAND, and re-running it casually takes the app down.
+#
+# It writes the new tokens to Cloud Run and to GitHub Actions secrets. It does
+# NOT write them to the Cloudflare Worker -- the Worker gets them from the
+# `deploy` workflow, via `wrangler secret put`. So between rotating and that
+# workflow running, the Worker presents the old PROXY_TOKEN to an origin that
+# has already changed it, and every request 403s.
+#
+# The workflow only fires on a push to `main` touching deploy/, wrangler.jsonc,
+# package*.json or itself -- none of which a token rotation changes. So after
+# running this, trigger it by hand:
+#
+#   gh workflow run deploy.yml --repo wimpex18/Eesti-Keelt
+#
+# To ship a code change, merge to `main` and wait: Cloud Build rebuilds the
+# image and redeploys Cloud Run on its own. See docs/deploy.md.
 set -euo pipefail
 
 REPO="wimpex18/Eesti-Keelt"
