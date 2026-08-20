@@ -79,4 +79,12 @@ class GradedItem:
         return describe(tag) if tag else None
 
     def to_dict(self) -> dict:
-        return asdict(self) | {"hint": self.hint, "reference": self.reference}
+        # `label` alongside `hint`, because the page needs the two halves apart.
+        # `hint` glues lemma and label into one string, and a screen that renders
+        # them at one weight, beside a gloss and a level, is four different kinds
+        # of information in a single grey run-on.
+        return asdict(self) | {
+            "hint": self.hint,
+            "label": self.label,
+            "reference": self.reference,
+        }

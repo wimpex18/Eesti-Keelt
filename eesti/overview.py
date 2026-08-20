@@ -25,6 +25,18 @@ from __future__ import annotations
 import sqlite3
 
 
+def _gloss_line(vocabulary) -> dict:
+    """Glossed-word counts, or nothing at all if the store is not there yet."""
+    from . import gloss
+
+    try:
+        info = gloss.stats(vocabulary)
+    except Exception:  # noqa: BLE001 - an older vocab.db predates the table
+        return {}
+    return {"glossed": info["with_russian"],
+            "gloss_budget_left": info["budget_left"]}
+
+
 def overview(
     progress: sqlite3.Connection | None = None,
     reviews: sqlite3.Connection | None = None,
@@ -76,6 +88,12 @@ def overview(
             "bands": bands,
             "known_in_top": sum(b["known"] for b in bands),
             "top": bands[-1]["to"] if bands else 0,
+            # How many words the app can now translate. `gloss.stats` was
+            # written with no reader, which is the same defect as a measurement
+            # with no writer. This is the honest place for it: the store fills
+            # at the learner's own pace, so it is a fact about their reading,
+            # not about the app's inventory.
+            **_gloss_line(vocabulary),
         }
 
     if reviews is not None:

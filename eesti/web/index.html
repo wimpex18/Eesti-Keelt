@@ -23,6 +23,21 @@
     --bg:#f7f7f5; --panel:#fff; --ink:#1b1b19; --muted:#6b6b66;
     --line:#e3e3de; --accent:#1c6b52; --accent-soft:#e6f2ec;
     --warn:#9a5b00; --warn-soft:#fdf3e3; --bad:#a32c2c; --good:#1c6b52;
+    /* What a word MEANS -- and only that.
+
+       A verdict carries three different answers at once: what the right form
+       was, why the rule made it right, and what the word is. The first two
+       already had colours; the third arrived as more grey prose and read as
+       part of the rule. It is not: the rule is about this sentence, the gloss
+       is about the word, and the learner needs them apart.
+
+       Deliberately not "Russian text" -- the rule explanation is Russian too
+       and stays muted. Colouring by language would make the rule and the
+       meaning look identical, which is the confusion this exists to remove.
+
+       Slate, because it has to sit beside the accent without competing:
+       green already means "this is the target form". */
+    --gloss:#4c6382;
     --radius:16px; --radius-sm:11px;
     --shadow:0 1px 2px rgba(16,18,20,.05), 0 8px 24px -12px rgba(16,18,20,.16);
     --nav-h:calc(58px + env(safe-area-inset-bottom));
@@ -36,12 +51,14 @@
       --bg:#16171a; --panel:#1e2024; --ink:#e9e9e6; --muted:#9a9a94;
       --line:#2e3138; --accent:#5fbf9b; --accent-soft:#1b302a;
       --warn:#e0a758; --warn-soft:#2e2618; --bad:#e88b8b; --good:#5fbf9b;
+      --gloss:#9db8d8;
     }
   }
   :root[data-theme="dark"]{
     --bg:#16171a; --panel:#1e2024; --ink:#e9e9e6; --muted:#9a9a94;
     --line:#2e3138; --accent:#5fbf9b; --accent-soft:#1b302a;
     --warn:#e0a758; --warn-soft:#2e2618; --bad:#e88b8b; --good:#5fbf9b;
+    --gloss:#9db8d8;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
   }
   *{box-sizing:border-box}
@@ -212,6 +229,24 @@
   .prompt{font-size:17px;margin-bottom:10px}
   .prompt .blank{color:var(--accent);font-weight:700}
   .hint{font-size:12px;color:var(--muted)}
+  /* The instruction under a drill.
+
+     It was one 12px grey run-on -- "protsent, osastav — процент · A2" -- with
+     three different separators and four kinds of information at one weight:
+     the word you operate on, the form to produce, what the word means, and
+     where it sits on the CEFR scale. Each has a different job, so each gets a
+     different treatment; the one that carries meaning was the hardest to see. */
+  .task{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
+    font-size:12.5px;line-height:1.5}
+  .task .word{color:var(--ink);font-weight:600;font-size:13.5px}
+  .task .form{color:var(--accent);font-size:10.5px;font-weight:650;
+    text-transform:uppercase;letter-spacing:.07em}
+  .task .gloss{color:var(--gloss);font-size:13px}
+  .task .lvl{color:var(--muted);font-size:10px;border:1px solid var(--line);
+    border-radius:999px;padding:0 6px;letter-spacing:.04em}
+  /* A meaning that arrived with the grade rather than with the item. */
+  .gloss-late{color:var(--gloss);font-size:13px;display:block;margin-top:5px}
+  .gloss-late b{font-weight:600;color:var(--ink)}
   .verdict{margin-top:10px;font-size:14px}
   .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
   .score{font-size:13px;color:var(--muted);margin-top:16px}
@@ -1168,7 +1203,15 @@ async function loadStatus() {
       <div class="fix">${s.sonavara.known_in_top} sõna esimesest
       ${s.sonavara.top}-st</div><div class="why">` +
       s.sonavara.bands.map(b =>
-        `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") + `</div></div>`;
+        `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") +
+      // Two different facts, kept apart. "known" is what the learner declared
+      // they know; this is what the app can translate for them. The second
+      // grows on its own as they study, so it is not an achievement and is not
+      // presented as one.
+      (s.sonavara.glossed != null
+        ? `<div class="gloss-late">${s.sonavara.glossed} слов с переводом
+           <span class="hint">(пополняется само · сегодня осталось
+           ${s.sonavara.gloss_budget_left})</span></div>` : "") + `</div></div>`;
     if (s.kordamine) html += `<div class="corr"><span class="tag">Kordamine</span>
       <div class="fix">${s.kordamine.due} kordamiseks,
       ${s.kordamine.scheduled} kokku</div></div>`;
@@ -1218,6 +1261,32 @@ async function startPractice() {
   } finally { btn.disabled = false; btn.textContent = "Harjuta"; }
 }
 
+/* The instruction under a drill, as separable parts rather than one string.
+
+   `it.hint` still exists and still glues them together: it is what the answer
+   POST sends, and the fallback for a shape with no lemma -- question words and
+   word order, where the word itself is the answer and naming it would print
+   the solution above the prompt. */
+function taskLine(it, ru, opts) {
+  const bits = [];
+  if (it.lemma) bits.push(`<span class="word">${esc(it.lemma)}</span>`);
+  const form = it.label || (it.lemma ? "" : it.hint || "");
+  // The same string plays two roles. In a practice set it is the instruction
+  // -- "produce the osastav" -- and earns the accent. In the review queue it
+  // is which topic the card came from, which is provenance, not a task, and
+  // rendering "TÄISSIHITIS JA OSASIHITIS" in accented capitals made the label
+  // wider and louder than the word it described.
+  const quiet = !!(opts && opts.quiet);
+  if (form && !quiet) bits.push(`<span class="form">${esc(form)}</span>`);
+  if (ru && ru.length)
+    bits.push(`<span class="gloss">${esc(ru.slice(0, 2).join(", "))}</span>`);
+  // Chips last, and in the quiet shape the meaning comes before the topic:
+  // what the word is matters more than which lesson filed it.
+  if (form && quiet) bits.push(`<span class="lvl">${esc(form)}</span>`);
+  if (it.level) bits.push(`<span class="lvl">${esc(it.level)}</span>`);
+  return `<span class="task">${bits.join("")}</span>`;
+}
+
 function renderPracticeItem(it, topic, i, glosses) {
   /* What the word means, when the app already knows.
 
@@ -1243,12 +1312,12 @@ function renderPracticeItem(it, topic, i, glosses) {
         `<button class="choice" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
     </div>
     <div class="row" style="margin-top:0">
-      <span class="hint">${esc(it.hint || "")}</span>
+      ${taskLine(it, ru)}
     </div>` : `
     <div class="row" style="margin-top:0">
       <input type="text" size="18" placeholder="?">
       <button class="ghost">Kontrolli</button>
-      <span class="hint">${esc(it.hint || it.lemma || "")}${ru.length ? " — " + esc(ru.slice(0, 2).join(", ")) : ""}${it.level ? " · " + esc(it.level) : ""}</span>
+      ${taskLine(it, ru)}
     </div>`}
     <div class="verdict"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
@@ -1297,7 +1366,7 @@ function renderPracticeItem(it, topic, i, glosses) {
        learner" case rather than a batch — and after wrestling with the form is
        when it sticks. Only shown when the hint above did not already carry it. */
     if (res.russian?.length && !ru.length) {
-      verdict.innerHTML += `<br><span class="why">${esc(it.lemma)} — `
+      verdict.innerHTML += `<span class="gloss-late"><b>${esc(it.lemma)}</b> — `
         + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
     }
     let line = `${pathCorrect}/${pathAnswered} õiget`;
@@ -1570,7 +1639,9 @@ function renderReview(it, glosses) {
       <button class="ghost" data-r="again">Ei mäleta</button>
       <button class="ghost" data-r="hard">Raske</button>
       <button class="go" data-r="good">Teadsin</button>
-      <span class="hint">${esc(it.lemma)}${ru.length ? " — " + esc(ru.slice(0, 2).join(", ")) : ""}${it.lapses ? ` · ${it.lapses}× eksinud` : ""}</span>
+      ${taskLine({lemma: it.lemma, label: it.kind_et || it.kind || "", level: ""},
+                 ru, {quiet: true})}${
+        it.lapses ? `<span class="hint">${it.lapses}× eksinud</span>` : ""}
     </div>
     <div class="verdict"></div>`;
   const verdict = el.querySelector(".verdict");
@@ -1731,7 +1802,12 @@ $("#readerBody").addEventListener("click", async e => {
      reading list's comprehensible-input ordering, dictation's easiest-first
      ordering, the vocabulary line in the readiness verdict, and the "N of the
      first 4000" counter. A whole pillar of the app with no input path. */
-  const mineBtn = `<div class="row" style="margin-top:9px">
+  // An anchor the late-arriving enrichment can insert *before*. It used to
+  // insert before `#mineNote`, which sits under the buttons -- so what the word
+  // means appeared below "+ Kordamisse", after the actions rather than with the
+  // word they act on.
+  const mineBtn = `<div id="cardExtra"></div>
+    <div class="row" style="margin-top:9px">
       <button class="ghost" id="mineBtn">+ Kordamisse</button>
       <button class="ghost" id="knowBtn">✓ Tean seda sõna</button></div>
     <div id="mineNote"></div>`;
@@ -1775,12 +1851,14 @@ $("#readerBody").addEventListener("click", async e => {
       // The gloss, in the language this app explains things in. The API had
       // carried it all along under a key the provider never read, so the card
       // showed a muuttüüp number to someone who did not yet know the word.
-      if (x.russian?.length) bits.push(`<b>${esc(x.russian.join(", "))}</b>`);
+      if (x.russian?.length)
+        bits.push(`<span class="gloss">${esc(x.russian.join(", "))}</span>`);
+      const slot = card.querySelector("#cardExtra");
       if (bits.length) {
         const extra = document.createElement("div");
         extra.className = "pair";
         extra.innerHTML = bits.join(" · ");
-        card.querySelector("#mineNote").before(extra);
+        slot.append(extra);
       }
       // Out to the real dictionary. Three fields is a reminder; the paradigm,
       // the audio and the rest live in Sõnaveeb, which this app deliberately
@@ -1791,7 +1869,7 @@ $("#readerBody").addEventListener("click", async e => {
         out.style.marginTop = "6px";
         out.innerHTML = `<a href="${esc(x.sonaveeb)}" target="_blank" rel="noopener">`
           + `Sõnaveebis →</a>`;
-        card.querySelector("#mineNote").before(out);
+        slot.append(out);
       }
     })
     .catch(() => {});

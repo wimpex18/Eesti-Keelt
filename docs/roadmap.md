@@ -170,6 +170,15 @@ deterministic and the error history already exists.
   cache lived on the container's disk, so Cloud Run emptied it on every cold
   start and the app re-requested the same words forever. Asked once, ever, and
   capped per day — a stricter reading of "do not batch them" than before.
+- **And a screen shaped for it.** The instruction under a drill was one grey
+  run-on carrying four different things; it is now a row where the word, the
+  form to produce, the meaning and the level each read as what they are. The
+  meaning has its own colour token — by role rather than by language, because
+  the rule explanation is Russian as well and must stay distinct from it. The
+  review queue stopped printing curriculum ids at the learner, the word card
+  puts the meaning with the word instead of under the buttons, and the count
+  of glossed words appears under Sõnavara, which is where `gloss.stats` got
+  the reader it had been written without.
 
 ## Deployed, and verified against the running app
 

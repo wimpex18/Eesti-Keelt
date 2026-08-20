@@ -157,6 +157,22 @@ class Cloze:
         return f"{self.lemma}, {self.case_et}"
 
     @property
+    def label(self) -> str:
+        """The half of `hint` that is not the word — what to produce.
+
+        Every other generator gets this from `item.GradedItem`; this class
+        predates the mixin and still carries its own copy of the whole surface,
+        which is precisely the drift `eesti/item.py` was written to stop. It
+        went unnoticed until the page needed the two halves apart and cloze
+        items came back with the case missing.
+
+        Not folded into the mixin here because `check` and `solution` also
+        differ (`lower` against `casefold`, no sentence-initial capitalisation),
+        and changing how an answer is graded does not belong in a layout fix.
+        """
+        return f"{self.governor}?" if self.governor else self.case_et
+
+    @property
     def reference(self) -> dict | None:
         """The handbook section for this item's topic, shipped with the item.
 
@@ -175,7 +191,8 @@ class Cloze:
         return describe(tag) if tag else None
 
     def to_dict(self) -> dict:
-        return asdict(self) | {"hint": self.hint, "reference": self.reference}
+        return asdict(self) | {"hint": self.hint, "label": self.label,
+                               "reference": self.reference}
 
     def check(self, given: str) -> bool:
         """Deterministic, like every other grader here. No model, no network."""

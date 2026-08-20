@@ -286,6 +286,19 @@ in Cloud Shell and discover the project, service and region themselves.
   the error log from the app and sent only by a CLI that does not exist on the
   deployment. The queue filled forever, and the verdict counted queued rows as
   though they were in the log.
+- **A store is not a feature until the screen has a shape for it.** The gloss
+  layer landed and the screen got the leftovers: one 12px grey line reading
+  `protsent, osastav — процент · A2` — the word to operate on, the form to
+  produce, what the word means and its CEFR level, four roles joined by three
+  separators at one weight, with the new information the least visible thing
+  on the card. Give each role its own treatment, and colour by **role, not by
+  language**: the rule explanation is Russian too, so painting all Russian
+  alike would have made the rule and the meaning identical.
+- **A database key on screen is a bug even when it renders.** `overview.py`
+  had already fixed this once for the path panel — `kusisonad` is not a thing a
+  learner recognises — and the review queue was still printing `obj-case`
+  beside every card. Resolve ids where the API answers, not in each page that
+  happens to show one.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,

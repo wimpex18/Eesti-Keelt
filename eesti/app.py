@@ -695,7 +695,8 @@ def review_queue(limit: int = 20, kind: str | None = None) -> dict:
     return {
         "items": [
             {
-                "id": i.id, "kind": i.kind, "lemma": i.lemma,
+                "id": i.id, "kind": i.kind, "kind_et": _topic_name(i.kind),
+                "lemma": i.lemma,
                 "prompt": i.prompt, "answer": i.answer,
                 "distractor": i.distractor, "why_ru": i.why_ru,
                 "context": i.context, "reps": i.reps, "lapses": i.lapses,
@@ -921,6 +922,23 @@ def practice_items(req: PracticeRequest) -> dict:
         # one tool: a drill teaches the rule, a text shows it being used.
         "reading": reading_for(topic),
     }
+
+
+def _topic_name(kind: str) -> str:
+    """A curriculum id turned into words a learner recognises.
+
+    `obj-case` and `kusisonad` are database keys. The path panel already
+    resolves them -- `overview.py` does it for exactly this reason -- and the
+    review queue was still printing the raw id beside every card.
+    """
+    from .curriculum import by_id
+
+    try:
+        return by_id(kind).et
+    except KeyError:
+        # `vocab`, and anything queued before a topic was renamed. The raw
+        # string is a worse label than a real name and a better one than blank.
+        return kind
 
 
 def _glosses_for(lemmas: list[str]) -> dict[str, list[str]]:
