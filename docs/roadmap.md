@@ -1,5 +1,10 @@
 # Roadmap — what to build next, and why
 
+> **Version 1.0 closed on 2026-08-20.** For the honest inventory — what works,
+> what was never built, what is knowingly broken, and what the research plan
+> promised and did not deliver — see **[status.md](status.md)**. This file is
+> the reasoning behind the choices; that one is the state they left things in.
+
 Informed by what the 2026 language apps do well, what their users complain about,
 and what this project can do that they structurally cannot.
 
@@ -202,15 +207,19 @@ three of these were found at all:
 0. **Redeploy.** Everything in the current branch ships in the image and
    nothing needs a content push. Until that happens the running app still
    serves the invented paradigms.
-1. **Use the readiness verdict.** It is built and it currently says "ei ole
-   veel" for both levels, with the reasons named. As of 2026-08-20 those
-   reasons for A2 are: no exam part touched at all, 0 of 7 A2 topics mastered,
-   and the A2 checkpoint unattempted — with 42 days to the 01.10 registration
-   deadline. The next work is not more features. It is study, and then
-   watching those three numbers move.
+1. **Use the readiness verdict.** It is built and it says "ei ole veel" for
+   both levels, with the reasons named. As of 2026-08-20 those reasons for A2
+   are: no exam part touched at all, 0 of 7 A2 topics mastered, and the
+   checkpoint unattempted. There is **no countdown any more** — the 2026
+   sitting was declined, the exam is planned for 2027, and no date is chosen.
+   The next work is not more features. It is study, and then watching those
+   three numbers move, because they are what decides A2-then-B1 against
+   B1-alone.
 2. **Whatever the verdict names.** It reports untouched exam parts first,
    because ≥60 % overall with one part at zero is still a fail. That list is
    the honest backlog.
+3. **The 13 topics with no generator**, if a build is wanted rather than a
+   study month. Listed in `status.md`.
 
 ### The upload happened — this is no longer blocked
 

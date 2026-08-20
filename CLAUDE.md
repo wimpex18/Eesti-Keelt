@@ -3,6 +3,18 @@
 Estonian A2/B1 exam preparation, built for one learner. Read `docs/` for the
 reasoning; this file is what a fresh session needs in the first minute.
 
+## Where things stand
+
+**Version 1.0 closed 2026-08-20.** `docs/status.md` is the inventory: what
+works, the 13 curriculum topics with no generator, the known bugs, the tech
+debt, and what the research plan promised and did not deliver. Read it before
+planning a sprint.
+
+**No exam is booked.** The 2026 A2 rehearsal was declined in favour of another
+year of study; the sitting is planned for 2027, A2-then-B1 or B1-alone, and
+`readiness.TARGET` is `None` until one is chosen. Do not reintroduce a
+countdown to a date nobody has picked.
+
 ## What this is
 
 A **learn → practise → check** loop, not a checker. Drills are *generated* from
