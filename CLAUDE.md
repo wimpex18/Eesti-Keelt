@@ -322,6 +322,15 @@ in Cloud Shell and discover the project, service and region themselves.
   list, the corpus and the form index, and left progress, review, vocabulary
   and the correction queue pointing at `data/`. The docstring said "every".
   Count them.
+- **A comment recording a fixed bug is not a test.** `parse_episode` carried
+  three of them — entities never decoded, `.m3u8` audio rejected so two whole
+  archives looked empty, and a transcript required so the audio-only series was
+  discarded — with nothing to stop any of the three coming back. The harvesters
+  are excluded from the suite because they talk to third parties, and that is
+  right for `fetch`; their *parsers* are pure functions over a string and are
+  where every bug these modules have had actually lived. Test those with
+  synthetic markup: real ERR and Selges keeles text is owner-only and must not
+  be committed, and only the shape is being parsed anyway.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the
