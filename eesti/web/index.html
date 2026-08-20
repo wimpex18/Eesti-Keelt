@@ -724,9 +724,57 @@ function once(fn) {
   return () => { if (!done) { done = true; fn(); } };
 }
 
+/* The tab pattern, finished.
+   ─────────────────────────
+   The page has declared `role="tab"` on fifteen buttons inside five
+   `role="tablist"` containers since it was written, and implemented none of
+   the rest of it: no `aria-controls`, no `role="tabpanel"`, and arrow keys
+   that did nothing. A screen reader announced a tab list, which tells its user
+   to expect exactly those two things, and the widget delivered neither.
+   Claiming a pattern you do not honour is worse than plain buttons, which
+   promise nothing -- the same rule this codebase already applies to a privacy
+   notice or a caveat.
+
+   Wired here from `data-tab` rather than typed into fifteen elements, because
+   a hand-maintained copy of a list that already exists is how `TABS` drifted
+   from the panels it described. */
+document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
+  const panel = document.getElementById("tab-" + b.dataset.tab);
+  if (!panel) return;
+  b.id = b.id || "tabbtn-" + b.dataset.tab;
+  b.setAttribute("aria-controls", panel.id);
+  panel.setAttribute("role", "tabpanel");
+  panel.setAttribute("aria-labelledby", b.id);
+});
+
+/* Arrow keys move between tabs, which is the half of the pattern a sighted
+   keyboard user feels too. Home/End jump to the ends. `roving tabindex` keeps
+   Tab itself moving *past* the tab strip rather than through every tab in it,
+   which is what the pattern asks for and what makes a ten-tab bar bearable to
+   tab through. */
+document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
+  nav.addEventListener("keydown", e => {
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const tabs = [...nav.querySelectorAll("button[data-tab]")];
+    const here = tabs.indexOf(document.activeElement);
+    if (here < 0) return;
+    e.preventDefault();
+    const next = e.key === "Home" ? 0
+      : e.key === "End" ? tabs.length - 1
+      : e.key === "ArrowRight" ? (here + 1) % tabs.length
+      : (here - 1 + tabs.length) % tabs.length;
+    tabs[next].focus();
+    tabs[next].click();
+  });
+});
+
 function selectTab(button) {
-  button.closest("nav").querySelectorAll("button").forEach(x =>
-    x.setAttribute("aria-selected", x === button));
+  button.closest("nav").querySelectorAll("button").forEach(x => {
+    x.setAttribute("aria-selected", x === button);
+    // Roving tabindex: only the selected tab is in the Tab order.
+    x.tabIndex = x === button ? 0 : -1;
+  });
   const tab = button.dataset.tab;
   TABS.forEach(t => $("#tab-" + t).hidden = (t !== tab));
   // Fetched when opened rather than on page load: the exam view is two
@@ -734,9 +782,16 @@ function selectTab(button) {
   ON_OPEN[tab]?.();
 }
 
-document.querySelectorAll("nav button").forEach(b => b.onclick = () => selectTab(b));
+document.querySelectorAll("nav button").forEach(
+  b => b.onclick = () => { selectTab(b); rememberPlace(); });
 
-document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
+function selectMode(m) {
+  // Re-tapping the mode you are already in used to bounce you to that mode's
+  // first tab -- so pressing Eksam while reading Edenemine threw you back to
+  // Ülevaade. Harmless-looking until the tab lives in history, at which point
+  // it also pushed an entry and made Back land somewhere the learner had never
+  // chosen. Staying put is both the better behaviour and the honest one.
+  if (m.getAttribute("aria-selected") === "true") return;
   document.querySelectorAll(".modes button").forEach(x =>
     x.setAttribute("aria-selected", x === m));
   document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
@@ -745,11 +800,43 @@ document.querySelectorAll(".modes button").forEach(m => m.onclick = () => {
   // Land on the mode's first tab, so switching never shows a blank panel.
   selectTab(document.querySelector(
     `nav[data-mode-nav="${m.dataset.mode}"] button`));
-});
+}
 
-// The path is the default landing tab: it is the one screen that answers
-// "what do I do now" without the learner having to decide.
-selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
+document.querySelectorAll(".modes button").forEach(
+  m => m.onclick = () => { selectMode(m); rememberPlace(); });
+
+/* Where you are is in the URL.
+   ────────────────────────────
+   Until now it was nowhere. The page never touched `location`, so a refresh
+   dropped the learner back on Rada whatever they had been doing, `#status`
+   did nothing, and the browser's Back left the app altogether -- worst on a
+   phone, where Back is a system gesture rather than a button somebody chose.
+
+   The hash rather than a path: this is one static file served at `/`, and a
+   real path would 404 on reload unless the server learned to route.
+
+   `pushState` per tab change, not `replaceState`. The first version replaced,
+   to avoid building a stack of entries -- and that kept the worst half of the
+   bug, because Back still left the app. Returning to the previous tab is what
+   Back means in a tabbed interface, and on a phone Back is a system gesture
+   rather than a button somebody chose to press. Re-selecting the tab already
+   showing pushes nothing, so tapping the same icon twice does not cost an
+   entry. A `hashchange` listener then handles Back, Forward and a pasted link
+   through one code path. */
+function rememberPlace() {
+  const tab = [...document.querySelectorAll("section.panel")]
+    .find(s => !s.hidden)?.id.replace("tab-", "");
+  if (tab && location.hash !== "#" + tab) history.pushState(null, "", "#" + tab);
+}
+
+function goToPlace(tab) {
+  const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${tab}"]`);
+  if (!button) return false;
+  const mode = button.closest("nav").dataset.modeNav;
+  selectMode(document.querySelector(`.modes button[data-mode="${mode}"]`));
+  selectTab(button);
+  return true;
+}
 
 /* One fetch helper for both verbs. It was POST-only, which was fine while
    every call sent something; the exam view reads four endpoints that take no
@@ -861,11 +948,28 @@ async function mountAudio(host, url) {
    whose evidence is worth watching first, not a countdown target. Changing
    the level here changes the rail too, so the two never disagree about which
    exam is being prepared for. */
+/* Remembered across reloads. The level is a choice about which exam is being
+   prepared for, and losing it on every refresh made the whole panel read as if
+   nothing had been decided. `localStorage` rather than the learner's database:
+   this is a preference about a view, not evidence about study, and the record
+   in `progress.db` is for things that were actually done. Falls back to A2 if
+   storage is unavailable or holds something that is no longer a level. */
+const LEVELS_UI = ["A2", "B1"];
 let examLevel = "A2";
+try {
+  const saved = localStorage.getItem("examLevel");
+  if (LEVELS_UI.includes(saved)) examLevel = saved;
+} catch (e) { /* private mode, or storage disabled: the default is fine */ }
 
 const MARK = { true: ["yes", "✓"], false: ["no", "–"], null: ["unknown", "?"] };
 
 async function loadExam() {
+  // The buttons are authored with A2 selected; if a level was remembered, the
+  // strip has to agree with the variable before anything is fetched, or the
+  // panel shows B1 data under a highlighted A2.
+  document.querySelectorAll("#tab-exam button[data-level]").forEach(x =>
+    x.setAttribute("aria-selected", x.dataset.level === examLevel));
+
   const [ready, material] = await Promise.all([
     (await api(`/api/readiness/${examLevel}`, null, "GET")).json(),
     (await api(`/api/exam/${examLevel}`, null, "GET")).json(),
@@ -931,6 +1035,7 @@ document.querySelectorAll(".levels button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".levels button").forEach(x =>
     x.setAttribute("aria-selected", x === b));
   examLevel = b.dataset.level;
+  try { localStorage.setItem("examLevel", examLevel); } catch (e) { /* see above */ }
   loadExam();
   loadRail();
 });
@@ -1011,7 +1116,14 @@ if (matchMedia("(min-width:1080px)").matches) {
 
 async function runCheck() {
   const text = $("#text").value.trim();
-  if (!text) return;
+  /* Clicking Kontrolli with an empty box used to do nothing at all -- no
+     message, no change, indistinguishable from a dead button. Say what is
+     missing, in the language the explanations are written in. */
+  if (!text) {
+    $("#checkOut").innerHTML =
+      `<p class="hint">Вставь эстонский текст — тогда проверю.</p>`;
+    return;
+  }
   const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Kontrollin…";
   const out = $("#checkOut"); out.innerHTML = "";
   try {
@@ -1169,6 +1281,17 @@ function renderDrill(d, i) {
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
   const grade = () => {
     if (input.disabled) return;
+    /* An empty box is not an answer. Submitting one used to lock the item and
+       score it wrong, and the first item is focused on load, so a single stray
+       Enter burned a question and counted it against the accuracy that gates
+       mastery. Ask again instead; the learner can still see the answer by
+       giving a wrong one deliberately. */
+    if (!input.value.trim()) {
+      verdict.className = "verdict";
+      verdict.innerHTML = `<span class="hint">Kirjuta vorm — siis kontrollin.</span>`;
+      input.focus();
+      return;
+    }
     const ok = input.value.trim().toLowerCase() === d.answer.toLowerCase();
     input.disabled = true;
     answered++; if (ok) correct++;
@@ -1202,7 +1325,11 @@ async function loadPath() {
       `${p.mastered}/${p.total} teemat${next ? " · " + next.level : ""}`;
 
     $("#pathList").innerHTML = p.topics.map(t => {
-      const blocked = t.blocked_by.length ? ` ← ${t.blocked_by.join(", ")}` : "";
+      /* Names, not ids — the API resolves them now. Kept tolerant of an older
+         payload so a stale cached page degrades to the previous behaviour
+         rather than printing "undefined". */
+      const needs = t.blocked_by || [];
+      const blocked = needs.length ? ` ← ${needs.join(", ")}` : "";
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
       const testOut = t.state === "ready" || t.state === "in progress"
         ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta</button>` : "";
@@ -1733,11 +1860,23 @@ async function loadLibrary() {
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
+  /* A failed request must say what the server said. Reading `.items` off an
+     error payload threw, and the catch below printed the TypeError itself:
+     the learner was shown "Viga: Cannot read properties of undefined (reading
+     'length')". The drill and the writing check both surface `detail`
+     correctly; this path was the odd one out. */
+  const ask = async (url) => {
+    const r = await fetch(url);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.detail || `${r.status} ${r.statusText}`);
+    return body;
+  };
+
   try {
     let items, note = "";
     let measured = true;
     if (choice === "soovitatud") {
-      const d = await (await fetch("/api/reading/next?limit=25")).json();
+      const d = await ask("/api/reading/next?limit=25");
       items = d.items;
       // With nothing marked known, every text scores 0 % — true, and it reads
       // as "you know nothing" rather than "we have not measured yet". Suppress
@@ -1749,7 +1888,7 @@ async function loadLibrary() {
     } else {
       const q = new URLSearchParams({skill: "lugemine", limit: "80"});
       if (choice) q.set("band", choice);
-      items = (await (await fetch("/api/library?" + q)).json()).items;
+      items = (await ask("/api/library?" + q)).items;
     }
 
     $("#libCount").textContent =
@@ -2130,6 +2269,35 @@ $("#speakBtn").onclick = async () => {
     out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Loe ette"; }
 };
+
+/* ── Opening the first panel ──────────────────────────────────────────────
+   Last in the file, and that position is the fix for a real bug rather than
+   tidiness.
+
+   Opening a tab runs its `ON_OPEN` loader, and landing on an exam-mode hash
+   runs `loadExam()`, which reads `examLevel`. That is a `let` declared some
+   two hundred lines further down, so calling it from here threw
+   "Cannot access 'examLevel' before initialization" -- a temporal dead zone,
+   in both engines, silent in normal use because the loader is `async` and the
+   failure surfaced as an unhandled rejection rather than a visible error.
+   WebKit reported it loudly, which is how it was found at all, and is why
+   Safari is now in the browser suite.
+
+   Moving one declaration would have fixed this one instance and left the trap
+   armed for the next loader that touches a later `let`. Bootstrapping at the
+   end of the script means every declaration above it has already run,
+   whichever panel the URL asks for. */
+addEventListener("hashchange", () => goToPlace(location.hash.slice(1)));
+
+// The path is the default landing tab: it is the one screen that answers
+// "what do I do now" without the learner having to decide. A hash naming a
+// real tab wins over it; anything else falls back rather than showing nothing.
+if (!goToPlace(location.hash.slice(1))) {
+  selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
+  // Replace, never push: the landing tab must not become an extra Back step
+  // between the learner and the page they arrived from.
+  history.replaceState(null, "", "#path");
+}
 </script>
 </body>
 </html>

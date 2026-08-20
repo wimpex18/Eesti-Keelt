@@ -237,3 +237,90 @@ class TestTheExportRunsEndToEnd:
         small = export(words, dest_path=tmp_path / "a.db", max_freq_rank=1)
         big = export(words, dest_path=tmp_path / "b.db", max_freq_rank=25_000)
         assert small["lemmas"] <= big["lemmas"]
+
+
+class TestAgainstTheDatabaseTheAppActuallyServes:
+    """`edge.db` is the export; `eesti.db` is what the running app reads.
+
+    The class above guards the dataset shipped to Cloudflare. The FastAPI app
+    generates its drills from `eesti.db.object_cases` — a different table,
+    written by `wordlist.index_object_cases` — and **nothing guarded that one**.
+    Found during the UAT pass, from the other end: a drill offered
+    `kook · A1` and marked the answer `koogu`, pairing the genitive of *kook*
+    the hooked pole with the partitive of *kook* the cake. `case_forms` refuses
+    ambiguous words precisely so this cannot happen, and the local database
+    predated that fix.
+
+    It does not ship — the Dockerfile rebuilds the dataset from scratch — but
+    that is a property of the build, not a test, and it is exactly the kind of
+    thing that stops being true quietly. So: same questions, asked of the table
+    the learner's answers are actually graded against.
+    """
+
+    @pytest.fixture(scope="class")
+    def served(self):
+        from eesti import config
+
+        path = config.DATA / "eesti.db"
+        if not path.exists():
+            pytest.skip("no eesti.db — run `cli build`")
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            if conn.execute("SELECT 1 FROM object_cases LIMIT 1").fetchone() is None:
+                pytest.skip("eesti.db has no object_cases rows")
+        except sqlite3.OperationalError:
+            pytest.skip("eesti.db predates object_cases")
+        return conn
+
+    def test_no_ambiguous_word_carries_a_paradigm(self, served):
+        """A word with two real paradigms has no single right answer, so it
+        must not be drilled at all. `kool` (school / cola), `reis` (journey /
+        thigh) and `kook` (cake / hooked pole) are the three that have actually
+        reached a learner."""
+        wrong = []
+        for word in ("kool", "reis", "kook"):
+            row = served.execute(
+                "SELECT word, genitive, partitive FROM object_cases WHERE word = ?",
+                (word,),
+            ).fetchone()
+            if row is not None:
+                wrong.append(f"{row['word']}: {row['genitive']}/{row['partitive']}")
+        assert not wrong, (
+            "ambiguous words indexed with a single paradigm — rebuild with "
+            f"`python -m eesti.cli build`: {wrong}")
+
+    def test_the_words_that_are_right_are_present(self, served):
+        """The other half: refusing everything would also pass the test above."""
+        for word, gen, par in (("raamat", "raamatu", "raamatut"),
+                               ("supp", "supi", "suppi")):
+            row = served.execute(
+                "SELECT genitive, partitive FROM object_cases WHERE word = ?",
+                (word,),
+            ).fetchone()
+            assert row is not None, f"{word} missing from the served paradigms"
+            assert (row["genitive"], row["partitive"]) == (gen, par), dict(row)
+
+    def test_every_served_paradigm_round_trips_through_the_analyser(self, served):
+        """Spot-check the table against Vabamorf itself rather than against a
+        list of words somebody remembered. A sample, because the table has
+        thousands of rows and this is a guard, not a rebuild."""
+        from eesti.morph import case_forms
+
+        rows = served.execute(
+            "SELECT word, genitive, partitive FROM object_cases"
+            " WHERE distinct_ = 1 ORDER BY word LIMIT 40"
+        ).fetchall()
+        if not rows:
+            pytest.skip("no distinct paradigms indexed")
+        disagreed = []
+        for row in rows:
+            forms = case_forms(row["word"])
+            if not forms:
+                disagreed.append(f"{row['word']}: served, but ambiguous now")
+            elif (forms["genitive"], forms["partitive"]) != (
+                    row["genitive"], row["partitive"]):
+                disagreed.append(
+                    f"{row['word']}: served {row['genitive']}/{row['partitive']},"
+                    f" analyser says {forms['genitive']}/{forms['partitive']}")
+        assert not disagreed, disagreed

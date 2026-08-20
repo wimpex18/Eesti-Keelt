@@ -11,6 +11,7 @@ change.
 
 import pytest
 
+from eesti.drills import generate
 from eesti.morph import (
     analyze,
     case_forms,
@@ -191,3 +192,52 @@ class TestVerbForms:
             assert drill.answer.lower() != drill.distractor.lower()
             assert drill.check(drill.answer)
             assert not drill.check(drill.distractor)
+
+
+class TestASetDoesNotRepeatItself:
+    """The noun is blanked, so two items sharing a frame are the same sentence
+    on screen.
+
+    `generate`'s docstring promised "a ten-item set does not repeat the same
+    sentence twice" and the flat uniform sample did not deliver it: measured
+    over twelve seeds, a ten-item set held 5-8 distinct prompts and one
+    sentence could appear five times, from a pool of twelve frames. Nothing
+    failed -- every item was individually valid and gradeable -- which is why
+    it survived until somebody looked at a screenshot of the drill.
+    """
+
+    @pytest.fixture
+    def words(self, fixture_data):
+        """The shared fixture wordlist, never `connect()` with no argument.
+
+        Two traps in one line, both already paid for in this repo: a bare
+        `connect()` reads the developer's built database and fails in CI where
+        nothing builds it, and a *class*-scoped fixture runs before the autouse
+        redirect, so it would read real data even here.
+        """
+        from eesti.wordlist import connect
+        return connect(fixture_data["words"])
+
+    def test_a_ten_item_set_repeats_no_sentence(self, words):
+        from collections import Counter
+
+        for seed in range(8):
+            prompts = Counter(d.prompt for d in generate(words, count=10, seed=seed))
+            assert max(prompts.values()) == 1, (
+                f"seed {seed}: {prompts.most_common(1)[0][0]!r} appeared "
+                f"{max(prompts.values())} times in one set")
+
+    def test_more_items_than_frames_spreads_the_repeats(self, words):
+        """Twice the frames means every frame twice -- not one frame six times
+        and five frames never."""
+        from collections import Counter
+
+        counts = Counter(d.prompt for d in generate(words, count=24, seed=1))
+        assert max(counts.values()) - min(counts.values()) <= 1, dict(counts)
+
+    def test_the_same_seed_still_reproduces_the_same_set(self, words):
+        """Determinism is the property the whole app rests on; a diversity fix
+        that reached for the global RNG would quietly break it."""
+        first = [(d.prompt, d.answer) for d in generate(words, count=10, seed=7)]
+        second = [(d.prompt, d.answer) for d in generate(words, count=10, seed=7)]
+        assert first == second

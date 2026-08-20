@@ -360,12 +360,35 @@ def query(
     if public_only:
         where.append("s.redistributable = 1")
     params.append(limit)
+
+    # Newest-first is right for a live feed and wrong for browsing everything.
+    # The harvesters write one band per run, so the newest `limit` rows are all
+    # one band: with 117 raskem / 116 keskmine / 116 kergem indexed, asking
+    # unfiltered for 60 returned 60 kergem, and the `kõik` option showed a list
+    # identical to `kergem` while hiding two thirds of the library. The filter
+    # was never wrong -- the limit reached its count before the ordering
+    # reached another band.
+    #
+    # So when no band is asked for, rank within each band and interleave: the
+    # newest of every band, then the second newest of every band, and so on.
+    # Recency still orders what the learner sees inside a band, and no band can
+    # be crowded out by another's harvest schedule. A specific band keeps the
+    # plain newest-first ordering, because there is nothing to interleave.
+    if band:
+        order = "ORDER BY i.added_on DESC"
+        select, tail = "SELECT i.*, s.name AS source_name, s.licence, s.redistributable", ""
+    else:
+        select = ("SELECT i.*, s.name AS source_name, s.licence, s.redistributable,"
+                  " ROW_NUMBER() OVER (PARTITION BY i.band ORDER BY i.added_on DESC)"
+                  " AS _rank")
+        order = "ORDER BY _rank, i.added_on DESC"
+        tail = ""
     return list(
         conn.execute(
-            f"""SELECT i.*, s.name AS source_name, s.licence, s.redistributable
+            f"""{select}
                 FROM items i JOIN sources s ON s.id = i.source_id
                 WHERE {' AND '.join(where)}
-                ORDER BY i.added_on DESC LIMIT ?""",
+                {order} LIMIT ?{tail}""",
             params,
         )
     )

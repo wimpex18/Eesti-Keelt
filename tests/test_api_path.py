@@ -15,15 +15,19 @@ pytest.importorskip("httpx", reason="TestClient needs httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from eesti import app as app_module  # noqa: E402
+from eesti import app as app_module
+from eesti import config as _config  # noqa: E402
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     """A client with its own learner state, so tests never touch data/."""
     monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(_config, "PROGRESS_DB", str(tmp_path / "p.db"))
     monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(_config, "REVIEW_DB", str(tmp_path / "r.db"))
     monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(_config, "VOCAB_DB", str(tmp_path / "v.db"))
     return TestClient(app_module.app)
 
 
@@ -232,11 +236,17 @@ class TestStateSnapshots:
                            headers={"x-state-token": "s3cret"}).json()
         assert blob["databases"]["progress"], "nothing was captured to restore"
 
-        # A fresh container: new, empty paths.
+        # A fresh container: new, empty paths. Redirected on `config`, which is
+        # the single place the application resolves these from -- `app` used to
+        # keep its own copies, and having two names for one file is how a
+        # restore came to land somewhere the app did not read.
+        from eesti import config as config_module
+
         fresh = {name: tmp_path / f"{name}.db" for name in ("progress", "review", "vocab")}
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(fresh["progress"]))
-        monkeypatch.setattr(app_module, "REVIEW_DB", str(fresh["review"]))
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(fresh["vocab"]))
+        for key, name in (("progress", "PROGRESS_DB"), ("review", "REVIEW_DB"),
+                          ("vocab", "VOCAB_DB")):
+            monkeypatch.setattr(config_module, name, str(fresh[key]))
+            monkeypatch.setattr(app_module, name, str(fresh[key]), raising=False)
 
         restored = secured.post(
             "/api/state/import", json={"databases": blob["databases"]},
@@ -270,7 +280,7 @@ class TestStateSnapshots:
         )
         conn.commit()
         monkeypatch.setattr(app_module, "PROGRESS_DB", str(live))
-
+        monkeypatch.setattr(_config, "PROGRESS_DB", str(live))
         before = live.read_bytes()
         got = secured.post(
             "/api/state/import",
@@ -294,7 +304,7 @@ class TestStateSnapshots:
         progress_connect(empty)                 # schema only, no attempts
         assert empty.stat().st_size > 0
         monkeypatch.setattr(app_module, "PROGRESS_DB", str(empty))
-
+        monkeypatch.setattr(_config, "PROGRESS_DB", str(empty))
         snapshot = tmp_path / "snap.db"
         conn = progress_connect(snapshot)
         conn.execute(
@@ -324,6 +334,7 @@ class TestStateSnapshots:
 
         target = tmp_path / "vocab.db"
         monkeypatch.setattr(app_module, "VOCAB_DB", str(target))
+        monkeypatch.setattr(_config, "VOCAB_DB", str(target))
         got = secured.post(
             "/api/state/import", json={"databases": {"vocab": ""}},
             headers={"x-state-token": "s3cret"},
@@ -352,6 +363,7 @@ class TestAnEmptyTopicSaysWhy:
         connect(tmp_path / "content.db")
         monkeypatch.setattr(config, "CONTENT_DB", str(tmp_path / "content.db"))
         monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+        monkeypatch.setattr(_config, "PROGRESS_DB", str(tmp_path / "p.db"))
         return TestClient(app_module.app)
 
     def test_a_corpus_topic_names_the_missing_corpus(self, client):

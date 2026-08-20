@@ -18,6 +18,8 @@ snapshotted or listed as deliberately excluded.
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 
 from eesti import app as app_module
@@ -102,10 +104,18 @@ class TestWordMeaningsTravelToo:
         from fastapi.testclient import TestClient
 
         monkeypatch.setenv("STATE_TOKEN", "test-token")
+        # Redirected on `config`, which is now the single place the app reads
+        # these from. It used to be patched on `app` instead, because `app`
+        # kept its own copies bound at import -- and that split is exactly the
+        # bug that was fixed: `_state_paths()` read one set and the database
+        # helpers the other, so a restore could land in a different file from
+        # the one the app then opened.
+        from eesti import config as config_module
+
         for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
-            monkeypatch.setattr(
-                app_module, name,
-                str(tmp_path / f"{name.split('_')[0].lower()}.db"))
+            target = str(tmp_path / f"{name.split('_')[0].lower()}.db")
+            monkeypatch.setattr(config_module, name, target)
+            monkeypatch.setattr(app_module, name, target, raising=False)
         return TestClient(app_module.app)
 
     @staticmethod
@@ -161,3 +171,73 @@ class TestWordMeaningsTravelToo:
         pathlib.Path(app_module.VOCAB_DB).unlink()
         client.post("/api/state/import", headers=head, json=snapshot.json())
         assert gloss.spent_today(gloss.connect(app_module.VOCAB_DB)) == spent
+
+
+class TestOnePlaceDecidesWhereTheDatabasesAre:
+    """`app.py` used to keep its own copies of the four learner paths, bound at
+    import from `config`.
+
+    Two names for one file is a fork waiting to happen, and it forked: the
+    database helpers read `app`'s copies while `_state_paths()` — the snapshot
+    — read the same names, so redirecting one without the other pointed the
+    restore at a different file from the one the app then opened. Nothing
+    failed in production, because nothing redirects them there; it failed in
+    tests, silently, by writing somewhere real.
+
+    Both now resolve `config` when called. These tests exist so the next reader
+    who adds a fifth database is told where it belongs.
+    """
+
+    def test_the_snapshot_follows_a_redirect_of_config_alone(self, tmp_path,
+                                                             monkeypatch):
+        from eesti import app as app_module
+        from eesti import config as config_module
+
+        for name, stem in (("PROGRESS_DB", "p"), ("REVIEW_DB", "r"),
+                           ("VOCAB_DB", "v"), ("NOTION_DB", "n")):
+            monkeypatch.setattr(config_module, name, str(tmp_path / f"{stem}.db"))
+
+        paths = app_module._state_paths()
+        assert set(paths) == {"progress", "review", "vocab", "notion"}
+        for path in paths.values():
+            assert path.parent == tmp_path, f"{path} ignored the redirect"
+
+    def test_the_database_helpers_follow_the_same_redirect(self, tmp_path,
+                                                           monkeypatch):
+        """The other half. If these read a different source from the snapshot,
+        a restore lands in a file nothing reads."""
+        from eesti import app as app_module
+        from eesti import config as config_module
+
+        for name, stem in (("PROGRESS_DB", "p"), ("REVIEW_DB", "r"),
+                           ("VOCAB_DB", "v")):
+            monkeypatch.setattr(config_module, name, str(tmp_path / f"{stem}.db"))
+
+        opened = []
+        for helper in (app_module.progress_db, app_module.review_db,
+                       app_module.vocab_db, app_module.gloss_db):
+            conn = helper()
+            row = conn.execute("PRAGMA database_list").fetchone()
+            opened.append(pathlib.Path(row[2]).parent)
+        assert set(opened) == {tmp_path}, opened
+
+    def test_importing_the_app_opens_no_database(self):
+        """The breaker used to bind at import, which resolved `progress.db`
+        before anything could redirect it — the anti-pattern this project has
+        a written habit about, and one the test suite had to work around."""
+        import importlib
+        import sqlite3
+
+        opened = []
+        real = sqlite3.connect
+
+        def watched(target, *args, **kwargs):
+            opened.append(str(target))
+            return real(target, *args, **kwargs)
+
+        sqlite3.connect = watched
+        try:
+            importlib.reload(importlib.import_module("eesti.app"))
+        finally:
+            sqlite3.connect = real
+        assert not opened, f"import opened databases: {opened}"

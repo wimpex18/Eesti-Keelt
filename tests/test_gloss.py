@@ -42,6 +42,25 @@ def conn(tmp_path):
     return gloss.connect(tmp_path / "v.db")
 
 
+
+def _redirect(monkeypatch, app_module, tmp_path):
+    """Point the learner databases at a scratch directory, on both names.
+
+    `config` is the single source the application reads; `app` keeps copies
+    that several tests here write through. Setting them together means a test
+    cannot write to one file while the endpoint under test reads another --
+    which is precisely what happened when the application stopped reading its
+    own copies.
+    """
+    from eesti import config as config_module
+
+    for name, stem in (("VOCAB_DB", "v"), ("PROGRESS_DB", "p"),
+                       ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
+        target = str(tmp_path / f"{stem}.db")
+        monkeypatch.setattr(config_module, name, target)
+        monkeypatch.setattr(app_module, name, target, raising=False)
+
+
 class TestAWordIsAskedAboutOnce:
     def test_a_stored_word_never_reaches_the_network(self, conn, monkeypatch):
         gloss.save(conn, "kleit", info())
@@ -174,9 +193,12 @@ class TestThePracticeSetShowsWhatTheWordsMean:
         # Redirected, because a path opened inside a function cannot be pointed
         # anywhere else by its caller -- and a test that writes into the
         # developer's real vocab.db reports differently in CI.
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
-        monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+        #
+        # On `config` *and* on `app`. `config` is what the application reads
+        # now; the copies on `app` are kept in step because tests in this file
+        # write their fixtures through `app_module.VOCAB_DB`, and two names for
+        # one file that disagree is the bug this consolidation removed.
+        _redirect(monkeypatch, app_module, tmp_path)
         return TestClient(app_module.app)
 
     def test_a_practice_set_never_waits_on_sonaveeb(self, client, monkeypatch):
@@ -274,9 +296,7 @@ class TestTheReviewQueueIsGlossedToo:
 
         from eesti import app as app_module
 
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-        monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+        _redirect(monkeypatch, app_module, tmp_path)
         return TestClient(app_module.app)
 
     def test_the_queue_carries_glosses(self, client):

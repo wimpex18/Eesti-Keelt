@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS breaker (
 
 _failures: dict[str, tuple[int, float]] = {}
 _store: sqlite3.Connection | None = None
+
+#: Set by `bind_later`. Called at most once, the first time the breaker needs
+#: storage -- which is what keeps the database path out of import time.
+_opener = None
 _loaded = False
 
 
@@ -66,20 +70,56 @@ def bind(conn: sqlite3.Connection | None) -> None:
     that refused to work unbound would make every caller responsible for
     storage it does not care about.
     """
-    global _store, _loaded
+    global _store, _loaded, _opener
     _store = conn
+    _opener = None
     _loaded = False
     if conn is not None:
         conn.executescript(SCHEMA)
 
 
+def bind_later(opener) -> None:
+    """Bind to whatever `opener()` returns, the first time storage is needed.
+
+    `app.py` used to call `bind(progress_db())` at module scope, which opened
+    the database -- and so resolved its path -- at import. This project has a
+    written habit about exactly that: a module-level constant cannot be pointed
+    anywhere else, and three bugs in a row came from it. The test suite had to
+    work around this one by re-binding after the fact.
+
+    Deferring the call is the whole fix. Nothing about the breaker's behaviour
+    changes; it simply learns its path at the moment it first has something to
+    remember, by which time a caller has had every chance to redirect it.
+    """
+    global _store, _loaded, _opener
+    _store = None
+    _loaded = False
+    _opener = opener
+
+
+def _conn() -> sqlite3.Connection | None:
+    """The store, opening it on first need. Never raises: an unbound breaker
+    still works, it just forgets across restarts."""
+    global _store, _opener
+    if _store is None and _opener is not None:
+        opener, _opener = _opener, None
+        try:
+            conn = opener()
+            conn.executescript(SCHEMA)
+            _store = conn
+        except Exception:  # noqa: BLE001 - storage is an optimisation, not a need
+            _store = None
+    return _store
+
+
 def _load() -> None:
     global _loaded
-    if _loaded or _store is None:
+    store = _conn()
+    if _loaded or store is None:
         return
     _loaded = True
     try:
-        for row in _store.execute("SELECT name, failures, last FROM breaker"):
+        for row in store.execute("SELECT name, failures, last FROM breaker"):
             # Memory wins: it is this process's own, more recent evidence.
             _failures.setdefault(row[0], (row[1], row[2]))
     except sqlite3.Error:
@@ -105,14 +145,15 @@ def record_failure(name: str) -> None:
     count, _ = _failures.get(name, (0, 0.0))
     now = time.time()
     _failures[name] = (count + 1, now)
-    if _store is not None:
+    store = _conn()
+    if store is not None:
         try:
-            _store.execute(
+            store.execute(
                 "INSERT INTO breaker (name, failures, last) VALUES (?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET failures = ?, last = ?",
                 (name, count + 1, now, count + 1, now),
             )
-            _store.commit()
+            store.commit()
         except sqlite3.Error:
             pass  # a breaker that cannot write is still a working breaker
 
@@ -120,10 +161,11 @@ def record_failure(name: str) -> None:
 def record_success(name: str) -> None:
     _load()
     _failures.pop(name, None)
-    if _store is not None:
+    store = _conn()
+    if store is not None:
         try:
-            _store.execute("DELETE FROM breaker WHERE name = ?", (name,))
-            _store.commit()
+            store.execute("DELETE FROM breaker WHERE name = ?", (name,))
+            store.commit()
         except sqlite3.Error:
             pass
 
@@ -133,10 +175,11 @@ def reset() -> None:
     global _loaded
     _failures.clear()
     _loaded = True          # nothing to load; the caller means "try again now"
-    if _store is not None:
+    store = _conn()
+    if store is not None:
         try:
-            _store.execute("DELETE FROM breaker")
-            _store.commit()
+            store.execute("DELETE FROM breaker")
+            store.commit()
         except sqlite3.Error:
             pass
 

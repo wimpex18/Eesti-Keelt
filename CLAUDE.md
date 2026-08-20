@@ -420,3 +420,97 @@ in Cloud Shell and discover the project, service and region themselves.
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,
   every tab.
+- **A bounding box is not visibility.** A layout assertion that filters on
+  `getBoundingClientRect().height > 0` reports six phantom "controls trapped
+  under the navigation" on the phone, because Chromium gives descendants of a
+  collapsed `<details>` a real rect while they are unrendered and unhittable.
+  `checkVisibility()` is the question being asked; `elementFromPoint` at the
+  element's own centre is the one that matters for "can a thumb reach this".
+  The first UAT pass produced four suspected mobile defects and three of them
+  were the measurement, not the app.
+- **A filter that silently shows one slice is worse than one that errors.**
+  `kõik` on the reading list sends no band filter, which is correct, and then
+  `ORDER BY added_on DESC LIMIT 60` returns 60 rows of whichever band was
+  harvested last — so the option that means "everything" showed a third of the
+  corpus and looked identical to `kergem`. A limit applied after an ordering
+  that correlates with the thing being browsed is a filter bug wearing a
+  pagination costume. Third time this shape has cost real content: 82
+  unreachable items, the `level`/`band` rename, now this.
+- **Reproduce the ordering before trusting the reproduction.** The first
+  fixture for that bug inserted three bands and passed for the wrong reason —
+  `add_items` stamps every batch inside the same second, so "newest" was
+  arbitrary, and the guard test written alongside it is what caught that. Two
+  numbers have to mirror reality for the defect to appear at all: the limit
+  must be smaller than one band, as 60 is smaller than 116.
+- **Look at the screen, not only at its geometry.** A full UAT pass with
+  assertions on visibility, overflow and hit-testing found five defects and
+  cleared three false alarms. Then reading the *screenshots* found four more in
+  minutes, none of which any assertion could have caught: database keys in the
+  path labels (`astmevaheldus ← gen-stem`), the same sentence three times in
+  one drill, a raw JS TypeError shown to the learner, and a silent button. A
+  measurement answers the question you thought to ask; a picture answers the
+  ones you did not.
+- **When reviewing a selection step, look at the set and not at the items.**
+  Two unrelated-looking bugs were one shape: the reading filter let recency
+  fill the whole limit with a single band, and the drill generator let uniform
+  sampling cluster ten items onto five frames. Every individual row was valid
+  and correct in both cases, which is exactly why every existing test passed.
+  Ask what the *collection* looks like — how many distinct bands, how many
+  distinct sentences — because that is the property the learner experiences.
+- **A tab that is not in the URL is a tab the browser cannot help with.**
+  Refresh lost the learner's place, `#status` did nothing, and Back left the
+  app — one missing mechanism, three symptoms. The first fix used
+  `replaceState` to avoid a history stack and kept the worst symptom: Back
+  still left. In a tabbed interface Back means "the tab before", and on a phone
+  Back is a system gesture rather than a button somebody chose. `pushState` per
+  change, `replaceState` for the landing tab, and re-selecting the current tab
+  pushes nothing.
+- **Re-tapping the thing you are already on should do nothing.** Clicking the
+  active mode reset it to its first tab, which was a mild annoyance for months
+  and became a real bug the moment the tab lived in history: it pushed an entry
+  the learner never chose, so Back landed somewhere they had never been.
+- **Install the engine your learner actually uses.** WebKit was a documented
+  gap for months on the grounds that it "would need a download". One
+  `playwright install webkit` later, the first run found the worst defect of
+  the whole QA pass: landing on an exam-mode link threw
+  `Cannot access 'examLevel' before initialization`. Both engines had it —
+  Chromium raised it as an *unhandled rejection* nobody had subscribed to,
+  WebKit as a page error where it could be seen. The panel rendered anyway, so
+  every visibility assertion passed in both. A second engine is not redundancy;
+  it is a second reporter, and they do not report the same things.
+- **Listen for unhandled rejections, not only for errors.** Every loader here
+  is `async`, so a throw inside one never reaches `window.onerror`. A test
+  harness that subscribes only to `pageerror` is deaf to the entire async half
+  of the application, which is most of it.
+- **Bootstrap last.** The line that opens the first panel belongs at the end of
+  the script, not in the middle where the routing happens to be written.
+  Opening a panel runs its loader, and a loader may touch anything declared
+  anywhere in the file; from the middle, everything below is in the temporal
+  dead zone. Moving the one variable that broke would have fixed one instance
+  and left the trap set for the next loader.
+- **A fix can be the next bug's cause.** Hash routing was the fix for "refresh
+  loses your place"; it created the dead-zone crash by making the exam loader
+  reachable at load time, and it turned a months-old annoyance — re-tapping the
+  active mode resets its tab — into a history entry the learner never chose.
+  Re-run the whole pass after a fix, not just the test that failed.
+- **Two names for one file is a fork waiting to happen.** `app.py` kept its own
+  copies of the four learner database paths, bound at import from `config`.
+  The entry in `status.md` called that "correct today, the same shape as the
+  breaker binding" — and it was already worse than that: `_state_paths()` and
+  the database helpers both read the copies, so redirecting one name without
+  the other pointed a restore at a file the app never opened. It failed only in
+  tests, silently, by writing somewhere real. When a value has two homes, the
+  question is not whether they agree now but what happens the first time one
+  moves.
+- **Fixing a latent pattern surfaces who depended on it.** Consolidating those
+  paths onto `config` broke twelve test redirects that patched `app` alone.
+  That is not a reason to leave the pattern; it is the measurement of how far
+  it had spread. The fix is to pair them and pin the invariant with a test that
+  redirects `config` and demands both the snapshot and the helpers follow.
+- **Not every documented bug is a bug.** `sonapi`'s file cache was on the list
+  for evaporating on cold starts. Following the callers showed every runtime
+  path goes through the durable gloss store, and the only user of the file
+  cache is `cli rections` — which runs inside the Docker build, where a cache
+  that lives for one build is exactly right. It was downgraded with the reason
+  written down, rather than moved to make a list shorter. A fix nobody needs is
+  still a change that can break something.

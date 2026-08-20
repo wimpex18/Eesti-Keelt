@@ -25,7 +25,8 @@ pytest.importorskip("httpx", reason="TestClient needs httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from eesti import app as app_module  # noqa: E402
+from eesti import app as app_module
+from eesti import config as _config  # noqa: E402
 from eesti.library import exposure, parts_touched  # noqa: E402
 from eesti.progress import connect as progress_connect  # noqa: E402
 
@@ -56,9 +57,13 @@ def client(tmp_path, monkeypatch):
 
     monkeypatch.setattr(config, "CONTENT_DB", str(content_path))
     monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(_config, "PROGRESS_DB", str(tmp_path / "p.db"))
     monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(_config, "VOCAB_DB", str(tmp_path / "v.db"))
     monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(_config, "REVIEW_DB", str(tmp_path / "r.db"))
     monkeypatch.setattr(app_module, "NOTION_DB", str(tmp_path / "n.db"))
+    monkeypatch.setattr(_config, "NOTION_DB", str(tmp_path / "n.db"))
     monkeypatch.delenv("PROXY_TOKEN", raising=False)
     return TestClient(app_module.app)
 
@@ -152,6 +157,7 @@ class TestTheRecommendationRanksRatherThanFilters:
         conn.commit()
         monkeypatch.setattr(config, "CONTENT_DB", str(path))
         monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+        monkeypatch.setattr(_config, "VOCAB_DB", str(tmp_path / "v.db"))
         return TestClient(app_module.app)
 
     def test_texts_are_offered_even_when_none_clears_the_threshold(self, client):

@@ -62,20 +62,28 @@ def content_available() -> bool:
     return available(config.CONTENT_DB)
 
 
+# Every learner database is resolved from `config` when opened, never from a
+# copy bound here at import. `app.py` used to hold its own module globals for
+# these four, so redirecting them meant patching two modules that could drift
+# apart -- and they did: `_state_paths()` read one set and these helpers the
+# other, so a snapshot could restore into a different file from the one the
+# app then read. One source, read at call time.
 def review_db():
-    return review.connect(REVIEW_DB)
+    from . import config
+
+    return review.connect(config.REVIEW_DB)
 
 
 def progress_db():
-    from . import progress
+    from . import config, progress
 
-    return progress.connect(PROGRESS_DB)
+    return progress.connect(config.PROGRESS_DB)
 
 
 def vocab_db():
-    from . import vocab
+    from . import config, vocab
 
-    return vocab.connect(VOCAB_DB)
+    return vocab.connect(config.VOCAB_DB)
 
 
 def gloss_db():
@@ -84,9 +92,9 @@ def gloss_db():
     Anywhere else and the store would evaporate on every Cloud Run cold start,
     which is the bug it exists to fix — see `eesti/gloss.py`.
     """
-    from . import gloss
+    from . import config, gloss
 
-    return gloss.connect(VOCAB_DB)
+    return gloss.connect(config.VOCAB_DB)
 
 
 # Generated items are not stored, so an answer arrives without the question. The
@@ -172,13 +180,18 @@ def _bind_breaker() -> None:
     twice before stepping over it. `progress.db` rather than a file of its own
     so it rides the existing snapshot; the table is tiny and its lifetime is
     the same as the deployment's.
+
+    Registered rather than opened. This used to call `progress_db()` here, at
+    module scope, which resolved the database path at *import* — the exact
+    anti-pattern this project has a written habit about, and the reason the
+    test suite had to re-bind after the fact to stop the breaker reaching for
+    the learner's real file. The breaker now opens it the first time it has
+    something to remember, by which point any caller has had its chance to
+    point the path somewhere else.
     """
     from .providers import breaker
 
-    try:
-        breaker.bind(progress_db())
-    except Exception:  # noqa: BLE001 - an unbound breaker still works
-        pass
+    breaker.bind_later(progress_db)
 
 
 _bind_breaker()
@@ -897,6 +910,17 @@ def curriculum_path() -> dict:
 
     progress = progress_db()
     rows = report(progress)
+    # `blocked_by` holds topic ids, and the page printed them straight onto the
+    # screen: "astmevaheldus <- gen-stem". `gen-stem` is a database key; the
+    # thing the learner has to go and study is called `omastava tüvi`, and the
+    # whole point of an Estonian label here is that the term is what gets
+    # learned. Eleven rows read that way.
+    #
+    # Resolved here rather than in the page, because this is the third time the
+    # same bug has been fixed in a different place -- `kusisonad` on this very
+    # panel, then `obj-case` in the review queue. A page that has to know how to
+    # turn ids into names will eventually meet an id nobody taught it about.
+    names = {r.topic: r.et for r in rows}
     return {
         "resume": resume(progress),
         "mastered": sum(1 for r in rows if r.state == "mastered"),
@@ -905,7 +929,11 @@ def curriculum_path() -> dict:
             {
                 "id": r.topic, "level": r.level, "et": r.et, "state": r.state,
                 "attempts": r.attempts, "accuracy": r.accuracy,
-                "blocked_by": list(r.blocked_by),
+                # Ids kept as well: the page needs them to link, and a caller
+                # that wants to match on identity must not have to reverse a
+                # display string to get it back.
+                "blocked_by": [names.get(b, b) for b in r.blocked_by],
+                "blocked_by_ids": list(r.blocked_by),
             }
             for r in rows
         ],
@@ -1531,16 +1559,26 @@ STATE_DATABASES = ("progress", "review", "vocab")
 
 
 def _state_paths() -> dict[str, Path]:
+    """Every database the snapshot carries, resolved when asked.
+
+    Read from `config` rather than from this module's own copies. The copies
+    are bound at import, so redirecting the databases meant patching them in
+    two places -- `config` for the CLI and `app` for the web application -- and
+    the test suite carries a comment saying exactly that. One source, read at
+    call time, is the same correction already applied to the circuit breaker.
+    """
+    from . import config
+
     return {
-        "progress": Path(PROGRESS_DB),
-        "review": Path(REVIEW_DB),
-        "vocab": Path(VOCAB_DB),
+        "progress": Path(config.PROGRESS_DB),
+        "review": Path(config.REVIEW_DB),
+        "vocab": Path(config.VOCAB_DB),
         # Queued corrections are learner data like any other. Leaving this out
         # meant every error waiting for review evaporated on the next cold
         # start -- and Cloud Run cold-starts after minutes of idling, so a queue
         # whose whole purpose is to hold things until a person looks at them
         # held nothing across a coffee break.
-        "notion": Path(NOTION_DB),
+        "notion": Path(config.NOTION_DB),
     }
 
 
