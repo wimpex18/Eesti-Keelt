@@ -10,6 +10,7 @@ or into a log.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from .config import ROOT
@@ -28,8 +29,24 @@ KNOWN_KEYS = {
 }
 
 
+#: A POSIX environment-variable name. Anything else cannot be read back by
+#: `os.environ.get(...)`, so setting it is worse than skipping it.
+_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def load(path: Path | None = None, override: bool = False) -> list[str]:
-    """Read KEY=value lines into the environment. Returns the names it set."""
+    """Read KEY=value lines into the environment. Returns the names it set.
+
+    Only names it actually set. That distinction is the point: a line reading
+    `export OPENROUTER_API_KEY=sk-...` -- which is what you get from copying
+    any shell instruction -- used to set a variable literally called
+    `"export OPENROUTER_API_KEY"`, report it as loaded, and leave the real key
+    unset. The grammar chain then ran in offline mode with the key apparently
+    configured, which is a confusion this project has already paid for once.
+
+    So `export ` is stripped, and a name that is not a legal environment
+    variable is skipped rather than set and announced.
+    """
     path = Path(path or ENV_FILE)
     if not path.exists():
         return []
@@ -40,8 +57,11 @@ def load(path: Path | None = None, override: bool = False) -> list[str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        key, value = key.strip(), value.strip().strip('"').strip("'")
-        if not value:
+        key = key.strip()
+        if key.startswith("export "):
+            key = key[len("export "):].strip()
+        value = value.strip().strip('"').strip("'")
+        if not value or not _NAME.match(key):
             continue
         if override or key not in os.environ:
             os.environ[key] = value

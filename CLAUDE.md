@@ -295,6 +295,13 @@ in Cloud Shell and discover the project, service and region themselves.
   `data/eesti.db`, exported nothing, and left the phantom file behind to fail
   two unrelated tests later in the run. One mistake, five failures, three of
   them in files it never touched. Pass the path explicitly.
+- **A key that looks set and is not costs more than a missing one.** A `.env`
+  line reading `export OPENROUTER_API_KEY=sk-...` — what you get from copying
+  any shell instruction — set a variable literally named
+  `"export OPENROUTER_API_KEY"`, which nothing can read back, and `load()`
+  reported it as loaded. Same failure as the `explains` grep: the check said
+  healthy while production was offline. Strip `export `, validate the name,
+  and never announce a key you did not set.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the
