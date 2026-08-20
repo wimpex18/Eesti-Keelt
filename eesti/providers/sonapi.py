@@ -159,10 +159,22 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
     # Per-meaning first, top-level as a fallback for anything it lacks.
     translations: dict[str, tuple[str, ...]] = {}
     for code, entries in (meaning.get("translations") or {}).items():
-        words = tuple(
-            e["words"] for e in entries
+        # Two shapes hide in one field. `words` is usually a single word, but
+        # sometimes a comma-joined list of synonyms -- `lavastus` returned
+        # "театральное представление,театральная постановка" as one entry. Both
+        # are split, so a caller taking the first three gets three words rather
+        # than one word and one paragraph.
+        #
+        # `dict.fromkeys` rather than a set: the list is weighted, so its order
+        # is the API's own confidence ranking and a set would throw that away.
+        # Repeats are real -- `hääl` came back as "голос, тон, голос".
+        words = tuple(dict.fromkeys(
+            part
+            for e in entries
             if isinstance(e, dict) and e.get("words")
-        )
+            for part in (p.strip() for p in str(e["words"]).split(","))
+            if part
+        ))
         if words:
             translations[_LANG.get(code, code)] = words
     for entry in payload.get("translations") or []:

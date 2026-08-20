@@ -68,14 +68,27 @@ class TestTheTimeoutSuitsARequestPath:
         assert sonapi.TIMEOUT <= 5.0
 
 
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    """A client whose stores are its own.
+
+    Without the redirect these tests wrote glosses into the developer's real
+    `data/vocab.db` -- and then read them back, so "the service is down" still
+    returned found:true because an earlier test in the same file had cached the
+    word. A path opened inside a function cannot be redirected by its caller;
+    the caller has to point the module constant somewhere else.
+    """
+    from fastapi.testclient import TestClient
+
+    from eesti import app as app_module
+
+    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    return TestClient(app_module.app)
+
+
 class TestTheEndpointNeverBreaksTheWordCard:
-    @pytest.fixture
-    def client(self):
-        from fastapi.testclient import TestClient
-
-        from eesti import app as app_module
-
-        return TestClient(app_module.app)
 
     def test_an_unknown_word_is_not_an_error(self, client, monkeypatch):
         monkeypatch.setattr(sonapi, "lookup", lambda w, **k: None)
@@ -186,16 +199,12 @@ class TestTheDictionaryIsLinkedNotRebuilt:
     def test_diacritics_survive(self):
         assert "%C3%B5" in sonapi.entry_url("õppima")
 
-    def test_the_endpoint_hands_the_link_out(self, monkeypatch):
-        from fastapi.testclient import TestClient
-
-        from eesti import app as app_module
-
+    def test_the_endpoint_hands_the_link_out(self, client, monkeypatch):
         monkeypatch.setattr(sonapi, "lookup", lambda w, **k: sonapi.WordInfo(
             word="lugema", word_classes=(), rection="mida", inflection_type="28",
             definition=None, examples=(),
             translations={"ru": ("читать", "прочитать")}))
-        got = TestClient(app_module.app).get("/api/enrich/lugema").json()
+        got = client.get("/api/enrich/lugema").json()
         assert got["russian"] == ["читать", "прочитать"]
         assert got["sonaveeb"].endswith("/lugema")
 

@@ -142,9 +142,12 @@ origin), and a git-ignored `.env` (local).
   behind Access. Roughly 421 items.
 - **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only,
   throttled to one live request a second under a lock, and deliberately has no
-  bulk helper. The enriched word list removes any need. Where more than three
-  fields are wanted, **link to Sõnaveeb** (`sonapi.entry_url`) rather than
-  fetching more — the same posture as HARNO.
+  bulk helper. Where more than three fields are wanted, **link to Sõnaveeb**
+  (`sonapi.entry_url`) rather than fetching more — the same posture as HARNO.
+  Answers are kept in `vocab.db` (`eesti/gloss.py`) so a word is asked about
+  **once, ever**, capped by `DAILY_BUDGET` per day; the store is one learner's,
+  behind Access, never redistributed. Ekilex is CC-BY-4.0, so the copy is
+  permitted — the restraint is about their server, not their licence.
 - `data/*.db` and `data/exam/` are git-ignored. Runtime databases are never
   committed.
 
@@ -231,6 +234,20 @@ in Cloud Shell and discover the project, service and region themselves.
   a one-second minimum between live requests now, and cache hits stay free —
   under a lock, because a sync FastAPI route runs in a threadpool and two
   unlocked readers would both see the same stale stamp and fire together.
+- **A cache that protects someone else must outlive a restart too.** `sonapi`
+  kept its answers in `data/cache/`, which is git-ignored, is not the content
+  volume, and is not in the state snapshot. Cloud Run scales to zero, so every
+  cold start re-requested every word the learner looked at — and spaced
+  repetition guarantees the same words come back. The module whose one loud
+  rule is "single lookups only, they ask not to be batched" had storage that
+  made it re-ask forever. Same shape as the circuit breaker's module-level
+  dict, and worse, because the state existed to protect a third party.
+- **"Don't rebuild what exists" needs re-testing once the thing exists.** It
+  was right about paradigms and flashcards and wrong about meaning. The app
+  knew 160 316 words and could not say what one of them meant, so a B1
+  object-case drill on `etendus` or `rahakott` trained morphology on a token
+  the learner could not translate. A plan decision made before anything was
+  wired is a hypothesis; check it against what the app actually lacks.
 - **Read the whole response before deciding which field is the good one.**
   `sonapi` returns translations twice. The obvious top-level key is English
   only; the per-meaning key carries Russian, which is the language this app

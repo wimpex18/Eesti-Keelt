@@ -160,6 +160,16 @@ deterministic and the error history already exists.
   does not rebuild. The speaking panel links EKI's pronunciation exercises and
   the A1–B1 phrase collections for the same reason — "use it, don't build it"
   is only a decision once the learner can reach it.
+- **A meaning layer, which the app had never had.** 160 316 words, a CEFR level
+  and a full paradigm for each, and no way to say what any of them meant — so a
+  B1 object-case drill on `etendus`, `luuletus` or `rahakott` was morphology
+  practice on a token. `eesti/gloss.py` stores each Sõnaveeb answer in
+  `vocab.db`, which the snapshot carries, and the meaning now shows on the word
+  card, in the hint of a practice item, on the verdict after answering, and in
+  the review queue. It also fixes a worse bug in the other direction: the old
+  cache lived on the container's disk, so Cloud Run emptied it on every cold
+  start and the app re-requested the same words forever. Asked once, ever, and
+  capped per day — a stricter reading of "do not batch them" than before.
 
 ## Deployed, and verified against the running app
 

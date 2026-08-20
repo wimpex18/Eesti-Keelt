@@ -1211,13 +1211,22 @@ async function startPractice() {
       head += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
     head += `</div>`;
     out.innerHTML = head;
-    res.items.forEach((it, i) => out.appendChild(renderPracticeItem(it, res.topic, i)));
+    res.items.forEach((it, i) =>
+      out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {})));
   } catch (e) {
     out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Harjuta"; }
 }
 
-function renderPracticeItem(it, topic, i) {
+function renderPracticeItem(it, topic, i, glosses) {
+  /* What the word means, when the app already knows.
+
+     A B1 object-case set draws lemmas like `etendus`, `luuletus` and
+     `rahakott`. The morphology can be got right without knowing any of them,
+     and then the exercise has taught half of what it appears to teach. The
+     gloss comes from the local store, so it is either instantly there or
+     absent — a practice set never waits on a dictionary. */
+  const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
   el.innerHTML = `
@@ -1239,7 +1248,7 @@ function renderPracticeItem(it, topic, i) {
     <div class="row" style="margin-top:0">
       <input type="text" size="18" placeholder="?">
       <button class="ghost">Kontrolli</button>
-      <span class="hint">${esc(it.hint || it.lemma || "")}${it.level ? " · " + esc(it.level) : ""}</span>
+      <span class="hint">${esc(it.hint || it.lemma || "")}${ru.length ? " — " + esc(ru.slice(0, 2).join(", ")) : ""}${it.level ? " · " + esc(it.level) : ""}</span>
     </div>`}
     <div class="verdict"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
@@ -1283,6 +1292,14 @@ function renderPracticeItem(it, topic, i) {
           : `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
       : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, mitte <em>${esc(it.distractor)}</em>` : ""}<br>
          <span class="why">${md(it.why_ru || "")}</span>`;
+    /* The meaning arrives with the grade, not before it. `/api/practice/answer`
+       looks up at most this one word, which is the "word in front of the
+       learner" case rather than a batch — and after wrestling with the form is
+       when it sticks. Only shown when the hint above did not already carry it. */
+    if (res.russian?.length && !ru.length) {
+      verdict.innerHTML += `<br><span class="why">${esc(it.lemma)} — `
+        + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
+    }
     let line = `${pathCorrect}/${pathAnswered} õiget`;
     if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% viimasest ${res.gate.split("/")[1]}-st`;
     $("#pathScore").textContent = line;
@@ -1534,15 +1551,16 @@ refreshDueBadge();
 
 $("#loadReview").onclick = async () => {
   const out = $("#reviewOut"); out.innerHTML = "";
-  const {items} = await (await fetch("/api/review?limit=20")).json();
+  const {items, glosses} = await (await fetch("/api/review?limit=20")).json();
   if (!items.length) {
     out.innerHTML = `<p class="empty">Praegu pole midagi korrata. Tee harjutusi või loe tekste.</p>`;
     return;
   }
-  for (const it of items) out.appendChild(renderReview(it));
+  for (const it of items) out.appendChild(renderReview(it, glosses || {}));
 };
 
-function renderReview(it) {
+function renderReview(it, glosses) {
+  const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
   el.innerHTML = `
@@ -1552,7 +1570,7 @@ function renderReview(it) {
       <button class="ghost" data-r="again">Ei mäleta</button>
       <button class="ghost" data-r="hard">Raske</button>
       <button class="go" data-r="good">Teadsin</button>
-      <span class="hint">${esc(it.lemma)}${it.lapses ? ` · ${it.lapses}× eksinud` : ""}</span>
+      <span class="hint">${esc(it.lemma)}${ru.length ? " — " + esc(ru.slice(0, 2).join(", ")) : ""}${it.lapses ? ` · ${it.lapses}× eksinud` : ""}</span>
     </div>
     <div class="verdict"></div>`;
   const verdict = el.querySelector(".verdict");
