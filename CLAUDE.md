@@ -272,6 +272,21 @@ in Cloud Shell and discover the project, service and region themselves.
   git-ignored, so the developer has a corpus and CI does not. `git worktree
   add` gives exactly CI's tree in one command — cheaper than a round trip
   through Actions, and it found both remaining failures.
+- **A synthesiser answers the question you ask, not the one you meant.**
+  Vabamorf refuses to decline a verb, which quietly implied it would refuse for
+  anything with no paradigm. It does not: asked for the genitive of the adverb
+  `alguses` it returns `algusese`, of `dna` it returns `dnad`, of the
+  imperative `õpi` a full declension. 319 of 7 256 exported paradigms were
+  invented that way and `/api/lookup` printed them in the same citation format
+  as `raamat, raamatu, raamatut`. Gate on part of speech before asking —
+  `wordlist.declines`.
+- **Two callers of one linguistic fact will not stay in step by themselves.**
+  `morph.case_forms` round-trips every candidate and refuses when several
+  survive; its docstring names `kool` (which naively yields the *cola*
+  paradigm) and `reis` (the thigh, not the journey) as why. `export.py` did
+  `next(iter(synthesize(...)))` — the exact naive version that function
+  replaced — and shipped `kool, koola, koola` to the word card. The drill path
+  was right and the card path was wrong for as long as both existed.
 - **Coverage finds what review does not.** Reading the least-covered modules
   found a module with no importer at all, three cleaning defects, and a
   documented rule with no enforcement. None of them were visible from the

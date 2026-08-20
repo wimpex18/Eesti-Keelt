@@ -42,6 +42,39 @@ CREATE TABLE IF NOT EXISTS object_cases (
 """
 
 
+#: Parts of speech that actually take case endings in Estonian.
+#:
+#: Nouns, adjectives, numerals, pronouns and proper nouns decline; adverbs,
+#: interjections, adpositions and conjunctions do not. `adjg` is the
+#: genitive-only adjective class (`eri`, `puht`), which by definition has no
+#: paradigm to build.
+DECLINABLE = frozenset({"s", "adj", "num", "pron", "prop"})
+
+
+def declines(pos: str | None) -> bool:
+    """Can this word take a case ending at all?
+
+    Vabamorf will synthesise a genitive for anything you hand it, including
+    words that have none. Ask it for the genitive of `alguses` -- an adverb,
+    itself the inessive of `algus` -- and it returns `algusese`, which is not
+    an Estonian word. The synthesiser is not wrong; it is being asked the wrong
+    question, and the only thing that can stop that is knowing the part of
+    speech first.
+
+    An untagged word counts as **not** declinable, which inverts the rule used
+    for CEFR levels elsewhere in this project, and deliberately. There, an
+    absent tag meant "nobody rated this" and dropping it would have lost real
+    words. Here an absent tag correlates with the entry not being a lemma at
+    all -- the untagged set is acronyms (`dna`, `nato`, `who`), genitive forms
+    filed as headwords (`kahe`, `linna`, `panga`) and verb imperatives (`küsi`,
+    `õpi`) -- and the cost of keeping them is printing a non-word to a learner
+    in the same citation format as `raamat, raamatu, raamatut`.
+    """
+    if not pos:
+        return False
+    return bool({p.strip() for p in pos.split(",")} & DECLINABLE)
+
+
 @dataclass(frozen=True)
 class Word:
     word: str

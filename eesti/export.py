@@ -30,6 +30,8 @@ from pathlib import Path
 from estnltk.vabamorf.morf import synthesize
 
 from .config import DATA
+from .morph import case_forms
+from .wordlist import declines
 
 # The 28 nominal case/number combinations. Object case needs sg g / sg p, but
 # exporting all of them means the locative drills (loc-case) need no re-export.
@@ -137,10 +139,41 @@ def export(
                     seen.add((form, tag))
                     form_rows.append((form, lemma, tag))
 
-        gen = next(iter(synthesize(lemma, "sg g") or []), None)
-        par = next(iter(synthesize(lemma, "sg p") or []), None)
-        if gen and par:
-            oc_rows.append((lemma, gen, par, int(gen != par)))
+        # Only words that decline get a citation form.
+        #
+        # Vabamorf refuses a genitive for a verb, so verbs never reached this
+        # table -- and that quietly suggested the synthesiser would refuse for
+        # anything else that has no paradigm. It does not. Asked for the
+        # genitive of the adverb `alguses` it answers `algusese`; of `dna`,
+        # `dnad`; of the imperative `õpi`, a full declension. 319 of 7 256
+        # drillable entries were invented that way, and `/api/lookup` printed
+        # them to the learner as confidently as `raamat, raamatu, raamatut`.
+        #
+        # `wordlist.nouns_at_level` already gated the *drill* path on part of
+        # speech. This path never did, so the same job had two behaviours.
+        if declines(pos):
+            # `morph.case_forms`, not a raw synthesise.
+            #
+            # `next(iter(synthesize(...)))` takes whichever candidate Vabamorf
+            # happens to list first, and for an ambiguous string that is often
+            # a different word's paradigm. The table shipped `kool, koola,
+            # koola` -- the declension of *koola*, cola, for the word "school"
+            # -- and `reis, reie, reit`, which is *reis* the thigh rather than
+            # *reis* the journey. `/api/lookup` printed both to the learner in
+            # citation format.
+            #
+            # `case_forms` round-trips each candidate through analysis and
+            # requires exactly one survivor, refusing when several read back.
+            # Its docstring names `kool` and `reis` as the reason it exists.
+            # This module reimplemented the naive version it replaced.
+            #
+            # Refusing costs entries -- `kolmas` has two genuinely attested
+            # partitives, `kolmat` and `kolmandat` -- and that is the trade the
+            # rule already makes everywhere else: no citation beats a wrong one.
+            forms = case_forms(lemma)
+            if forms:
+                gen, par = forms["genitive"], forms["partitive"]
+                oc_rows.append((lemma, gen, par, int(gen != par)))
 
     with dest:
         dest.executemany("INSERT OR REPLACE INTO words VALUES (?,?,?,?)", word_rows)
