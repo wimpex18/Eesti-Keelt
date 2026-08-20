@@ -30,7 +30,6 @@ paragraph text, which would otherwise put `aria-label` into a reading exercise.
 
 from __future__ import annotations
 
-import html as _html
 import re
 import time
 import urllib.request
@@ -48,7 +47,7 @@ _ARTICLE_RE = re.compile(r"news\.err\.ee/(\d{6,})/")
 _LD_RE = re.compile(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', re.S)
 _PARA_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.S)
 _STRIP_RE = re.compile(r"<(script|style|nav|header|footer)[^>]*>.*?</\1>", re.S)
-_TAG_RE = re.compile(r"<[^>]+>")
+from .clean import text as _clean_markup
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 
 #: The standing English introduction, present on every issue.
@@ -106,7 +105,7 @@ def parse_issue(html: str, url: str) -> Issue | None:
     title, published = _headline(html)
     clean = _STRIP_RE.sub(" ", html)
     paragraphs = [
-        " ".join(_html.unescape(_TAG_RE.sub(" ", p)).split())
+        _clean_markup(p)
         for p in _PARA_RE.findall(clean)
     ]
     body = "\n\n".join(p for p in paragraphs if _usable(p))

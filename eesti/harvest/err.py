@@ -72,7 +72,7 @@ POLITE_DELAY = 1.0
 USER_AGENT = "Eesti-Keelt/0.1 (personal language study; one-time archive fetch)"
 
 _PCD_RE = re.compile(r"window\.pageControlData\s*=\s*(\{.*?\});\s*\n", re.S)
-_TAG_RE = re.compile(r"<[^>]+>")
+from .clean import text as _clean_markup
 _LATIN_RE = re.compile(r"[A-Za-zÕÄÖÜõäöüŠŽšž]+")
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]+")
 # A run of Latin-script words with Estonian-legal punctuation between them.
@@ -184,7 +184,9 @@ def parse_episode(html: str, url: str) -> Episode | None:
     """
     content = _page_data(html).get("mainContent") or {}
     body_html = content.get("body") or ""
-    text = " ".join(_TAG_RE.sub(" ", body_html).split())
+    # Never decoded entities before, so `&#8211;` reached the reader as
+    # literal characters in 27 000 words of transcript.
+    text = _clean_markup(body_html)
 
     # Two audio shapes across the archives: the 2010 series serves plain MP3s,
     # while the 2015 and 2019 series serve HLS streams (.m3u8). Accepting only
@@ -203,7 +205,7 @@ def parse_episode(html: str, url: str) -> Episode | None:
         body=text,
         audio_url=audio,
         published=str(published) if published else None,
-        summary=" ".join(_TAG_RE.sub(" ", content.get("lead") or "").split()),
+        summary=_clean_markup(content.get("lead") or ""),
     )
 
 
