@@ -21,8 +21,8 @@ an enumerable A2–C1 catalogue. Probed directly:
   `Kuulamine`.
 - A1 and C2 are empty.
 
-Small, then, but not thin: seven official A2 tasks is a real rehearsal for the
-07.11.2026 sitting.
+Small, then, but not thin: seven official A2 tasks is a real rehearsal for
+whichever sitting is chosen.
 
 ## Why this indexes rather than copies
 

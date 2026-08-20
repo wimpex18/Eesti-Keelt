@@ -2,10 +2,20 @@
 
 ## The question this exists to answer, and the date on it
 
-The A2 sitting is **07.11.2026** and the decision is due **01.10.2026**. That is
-a real deadline with a real cost either way: sitting too early wastes a fee and
-a morning, sitting too late means the B1 attempt in spring 2027 has no rehearsal
-behind it.
+**There is no target sitting right now, and that is a decision rather than an
+omission.** The November 2026 A2 rehearsal was declined on 2026-08-20: the plan
+is independent study plus a tutor through the winter, and an exam in 2027 —
+either A2 and then B1, or B1 alone, whenever the evidence says ready.
+
+So the countdown is off. That matters more than it sounds. A date that has been
+declined is not a motivator, it is a reproach: every load of the app would have
+shown "до регистрации N дн." toward a sitting the learner had already reasoned
+their way out of. The honest version says no date is chosen and reports the
+same evidence, which is what actually decides when to sit.
+
+Set `TARGET` when a session is chosen and the countdown comes back. HARNO runs
+quarterly and closes registration about five weeks ahead, so the shape of the
+calendar is known even when the date is not.
 
 ## What this refuses to do
 
@@ -40,16 +50,28 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import date
 
-#: From the Notion plan, and from HARNO's own exam calendar: Q4 2026 closes
-#: registration on 01.10 and runs the exams 07.11-15.11.
+#: The sitting being prepared for, or None while none is chosen.
 #:
-#: `DECIDE_BY` is therefore **not** a personal checkpoint that can slip. It is
-#: the day registration closes: after it, the November sitting is gone until
-#: the next quarter whatever the learner decides. This was displayed as "до
-#: решения", which reads like a self-imposed deadline — the one date in this
-#: app where a soft word could cost an entire sitting.
-DECIDE_BY = date(2026, 10, 1)
-SITTING = date(2026, 11, 7)
+#: `(registration_closes, sitting)`. When set, `registration_closes` is **not**
+#: a personal checkpoint that can slip — it is the day HARNO closes the list,
+#: after which that sitting is gone until the next quarter whatever the learner
+#: decides. It was once displayed as "до решения", which reads like a
+#: self-imposed deadline: the one date in this app where a soft word could cost
+#: an entire sitting.
+#:
+#: None as of 2026-08-20. The Q4 2026 A2 rehearsal (register by 01.10, sit
+#: 07.11) was considered and declined in favour of another year's study, so
+#: counting down to it would be counting down to a decision already made.
+TARGET: tuple[date, date] | None = None
+
+#: What the last considered session looked like, kept so setting a new one is
+#: a matter of copying the shape rather than re-reading HARNO's calendar:
+#: registration closes roughly five weeks before the sitting, quarterly.
+EXAMPLE_TARGET = (date(2026, 10, 1), date(2026, 11, 7))
+
+
+def _target() -> tuple[date | None, date | None]:
+    return TARGET if TARGET else (None, None)
 
 #: The four parts, 25 points each, in the order the exam runs them.
 PARTS = (
@@ -90,8 +112,8 @@ class Readiness:
     vocabulary: dict
     verdict: str
     reasons: list[str] = field(default_factory=list)
-    days_to_decide: int = 0
-    days_to_sitting: int = 0
+    days_to_decide: int | None = None
+    days_to_sitting: int | None = None
 
     @property
     def countdown(self) -> str:
@@ -101,11 +123,42 @@ class Readiness:
         A date does not move, does not judge, and does not reset — it is simply
         true, and it is the fact that actually applies pressure.
         """
+        if self.days_to_decide is None:
+            # No session chosen. Saying so beats counting down to one that was
+            # declined, and beats an empty box that reads like a bug.
+            return "экзамен ещё не выбран"
         if self.days_to_decide > 0:
             return f"до регистрации {self.days_to_decide} дн."
         if self.days_to_sitting > 0:
             return f"до экзамена {self.days_to_sitting} дн."
         return "дата прошла"
+
+    def _deadline(self) -> dict | None:
+        """The registration date, or None while no session is chosen.
+
+        None rather than a placeholder: a caller that renders whatever it is
+        given would otherwise print a date nobody is working toward.
+        """
+        decide, sitting = _target()
+        if decide is None or sitting is None:
+            return {
+                "registration": None,
+                "sitting": None,
+                "note": (
+                    "Сессия пока не выбрана. Экзамен планируется в 2027 году — "
+                    "A2, затем B1, либо сразу B1. Дата ставится в "
+                    "`readiness.TARGET`, и обратный отсчёт вернётся."
+                ),
+            }
+        return {
+            "registration": decide.isoformat(),
+            "sitting": sitting.isoformat(),
+            "note": (
+                f"Регистрация на экзамен закрывается {decide:%d.%m.%Y}. "
+                f"Экзамен {sitting:%d.%m.%Y}. Это не личный дедлайн: после "
+                f"{decide:%d.%m.%Y} записаться на эту сессию уже нельзя."
+            ),
+        }
 
     def to_dict(self) -> dict:
         return {
@@ -127,17 +180,10 @@ class Readiness:
                 "экзамене говорят в паре."
             ),
             # The deadline is external and hard, and the countdown alone does
-            # not say so. Registration for the November sitting closes on
-            # 01.10.2026; after that the date is not a choice any more.
-            "deadline": {
-                "registration": DECIDE_BY.isoformat(),
-                "sitting": SITTING.isoformat(),
-                "note": (
-                    f"Регистрация на экзамен закрывается {DECIDE_BY:%d.%m.%Y}. "
-                    f"Экзамен {SITTING:%d.%m.%Y}. Это не личный дедлайн: после "
-                    f"{DECIDE_BY:%d.%m.%Y} записаться на эту сессию уже нельзя."
-                ),
-            },
+            # not say so — registration closes weeks before a sitting, and
+            # after it the date is not a choice any more. None while no
+            # session is chosen; see `_deadline`.
+            "deadline": self._deadline(),
         }
 
 
@@ -352,6 +398,7 @@ def readiness(
 ) -> Readiness:
     """Evidence for and against sitting `level`, with the reasons named."""
     today = today or date.today()
+    decide, sitting = _target()
     grammar = _grammar(progress, level) if progress is not None else {}
     parts = (_parts(progress, level, content, notion)
              if progress is not None else [])
@@ -396,6 +443,6 @@ def readiness(
         vocabulary=vocab,
         verdict=verdict,
         reasons=reasons,
-        days_to_decide=(DECIDE_BY - today).days,
-        days_to_sitting=(SITTING - today).days,
+        days_to_decide=(decide - today).days if decide else None,
+        days_to_sitting=(sitting - today).days if sitting else None,
     )
