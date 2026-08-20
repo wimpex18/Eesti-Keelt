@@ -135,10 +135,31 @@ def live_server(tmp_path_factory) -> str:
             proc.kill()
 
 
-@pytest.fixture(scope="session")
-def _pw(chromium_path):
+def _engines() -> list[str]:
+    """Which engines this machine can actually drive.
+
+    Chromium is always expected; WebKit is included only when installed, so
+    the suite still runs on a machine that has not fetched it. WebKit is not
+    decoration: it is Safari's engine, this app is used on a phone, and the
+    first WebKit run found a real error both engines had -- Chromium reported
+    it as an unhandled rejection nobody was listening for, WebKit raised it
+    where it could be seen.
+    """
+    root = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
+    engines = ["chromium"]
+    if root.is_dir() and any(root.glob("webkit-*")):
+        engines.append("webkit")
+    return engines
+
+
+@pytest.fixture(scope="session", params=_engines())
+def _pw(request, chromium_path):
     with sync_playwright() as p:
-        browser = p.chromium.launch(executable_path=chromium_path)
+        if request.param == "webkit":
+            browser = p.webkit.launch()
+        else:
+            browser = p.chromium.launch(executable_path=chromium_path)
+        browser.engine_name = request.param
         yield browser
         browser.close()
 
@@ -171,6 +192,7 @@ def page(request, _pw, live_server):
           lambda r: r.status >= 500 and pg.failed_requests.append(f"{r.status} {r.url}"))
     pg.goto(live_server, wait_until="networkidle")
     pg.viewport_name = request.param
+    pg.engine_name = getattr(_pw, "engine_name", "chromium")
     yield pg
     context.close()
 
@@ -286,6 +308,19 @@ class TestTheGrammarDrill:
         item.locator("button").click()
         page.wait_for_timeout(400)
         assert item.locator(".verdict").inner_text() == first
+
+    def test_an_empty_answer_does_not_consume_the_item(self, page):
+        """QA-3, fixed. The first item is focused on load, so one stray Enter
+        used to lock a question, score it wrong, and count that against the
+        accuracy which gates mastery."""
+        self._start(page)
+        item = page.locator("#drillOut .drill").nth(2)
+        item.locator("input").press("Enter")
+        page.wait_for_timeout(500)
+        assert not item.locator("input").is_disabled(), "empty answer locked the item"
+        assert item.locator(".verdict").inner_text().strip(), "no nudge shown"
+        assert "✗" not in item.locator(".verdict").inner_text()
+        assert page.locator("#score").inner_text().strip() == "", "empty answer was scored"
 
     def test_the_score_counts_only_answered_items(self, page):
         self._start(page)
@@ -405,6 +440,57 @@ class TestTheExamOverview:
             "no Cyrillic on the readiness screen — the caveat is unreadable to its reader"
 
 
+class TestTheTabsKeyboardPattern:
+    """QA-7, fixed. The page declared `role="tab"` on every navigation button
+    and implemented none of the rest: no `aria-controls`, no `role="tabpanel"`,
+    arrow keys inert. A screen reader announces a tab list, which tells its
+    user to expect exactly those things."""
+
+    def test_every_tab_points_at_the_panel_it_opens(self, page):
+        wiring = page.evaluate("""()=>{
+          const tabs=[...document.querySelectorAll('[role="tab"][data-tab]')];
+          return tabs.map(t=>({tab:t.dataset.tab,
+            controls:t.getAttribute('aria-controls'),
+            panelRole:document.getElementById('tab-'+t.dataset.tab)?.getAttribute('role'),
+            labelled:document.getElementById('tab-'+t.dataset.tab)?.getAttribute('aria-labelledby')}));}""")
+        assert wiring, "no tabs found"
+        for w in wiring:
+            assert w["controls"] == f"tab-{w['tab']}", w
+            assert w["panelRole"] == "tabpanel", w
+            assert w["labelled"], w
+
+    def test_arrow_keys_move_between_tabs(self, page):
+        page.click('nav[data-mode-nav="learn"] button[data-tab="path"]')
+        page.wait_for_timeout(300)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(400)
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == "read"
+        assert page.is_visible("#tab-read"), "focus moved but the panel did not"
+        page.keyboard.press("ArrowLeft")
+        page.wait_for_timeout(400)
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == "path"
+
+    def test_home_and_end_reach_the_ends(self, page):
+        page.click('nav[data-mode-nav="learn"] button[data-tab="listen"]')
+        page.wait_for_timeout(300)
+        page.keyboard.press("End")
+        page.wait_for_timeout(400)
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == "write"
+        page.keyboard.press("Home")
+        page.wait_for_timeout(400)
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == "path"
+
+    def test_only_the_selected_tab_is_in_the_tab_order(self, page):
+        """Roving tabindex: Tab should step past the strip, not through ten
+        buttons inside it."""
+        page.click('nav[data-mode-nav="learn"] button[data-tab="read"]')
+        page.wait_for_timeout(300)
+        order = page.eval_on_selector_all(
+            'nav[data-mode-nav="learn"] button[data-tab]',
+            "els=>els.map(e=>[e.dataset.tab, e.tabIndex])")
+        assert [t for t, i in order if i == 0] == ["read"], order
+
+
 class TestMobileLayout:
     """Everything here is a phone-only failure mode. They run at both sizes on
     purpose: a rule that only holds on one is the bug, not the test."""
@@ -501,6 +587,30 @@ class TestDiscoveredDefects:
         page.wait_for_timeout(600)
         assert page.is_visible("#tab-write")
 
+    def test_deep_linking_to_any_tab_raises_nothing(self, page, live_server):
+        """The bug the hash routing itself introduced, and the reason Safari
+        is in this suite.
+
+        Opening a tab runs its `ON_OPEN` loader. Landing directly on an
+        exam-mode hash ran `loadExam()` before `let examLevel` had been
+        evaluated -- a temporal dead zone, in *both* engines. It stayed
+        invisible because the loader is `async`, so the failure arrived as an
+        unhandled rejection rather than an error anybody had subscribed to;
+        the panel still rendered, so every visibility assertion passed.
+
+        Hence both halves here: visit each tab by URL, and demand silence.
+        """
+        page.add_init_script(
+            "window.addEventListener('unhandledrejection',"
+            " e => console.error('UNHANDLED: ' + e.reason))")
+        for mode in MODES:
+            for tab in advertised_tabs(page, mode):
+                page.errors.clear()
+                page.goto(f"{live_server}/#{tab}", wait_until="networkidle")
+                page.wait_for_timeout(700)
+                assert page.is_visible(f"#tab-{tab}"), f"#{tab} did not open"
+                assert not page.errors, f"#{tab} on {page.engine_name}: {page.errors}"
+
     def test_an_unknown_hash_falls_back_rather_than_showing_nothing(self, page, live_server):
         page.goto(live_server + "/#not-a-tab", wait_until="networkidle")
         page.wait_for_timeout(600)
@@ -508,19 +618,21 @@ class TestDiscoveredDefects:
             "section.panel", "els=>els.filter(e=>!e.hasAttribute('hidden')).map(e=>e.id)")
         assert shown == ["tab-path"], shown
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "QA-2b: still open. The tab is in the hash now, but the chosen exam "
-        "level is not -- it is UI-only state, so a reload resets B1 to A2. "
-        "Deliberately left: the level belongs in the learner's record rather "
-        "than the URL, which is a bigger change than routing."))
     def test_the_chosen_exam_level_survives_a_reload(self, page):
+        """QA-2b, fixed. The level is a preference about a view, so it lives in
+        localStorage rather than the learner's database, which is for things
+        that were actually done."""
         open_tab(page, "exam", "exam")
         page.click('#tab-exam button[data-level="B1"]')
-        page.wait_for_timeout(600)
+        page.wait_for_timeout(800)
         page.reload(wait_until="networkidle")
         open_tab(page, "exam", "exam")
+        page.wait_for_timeout(800)
         assert page.get_attribute(
             '#tab-exam button[data-level="B1"]', "aria-selected") == "true"
+        assert page.get_attribute(
+            '#tab-exam button[data-level="A2"]', "aria-selected") == "false", \
+            "both levels highlighted at once"
 
     def test_choosing_all_shows_more_than_one_difficulty(self, page):
         """QA-1, fixed: unfiltered browsing interleaves the bands instead of

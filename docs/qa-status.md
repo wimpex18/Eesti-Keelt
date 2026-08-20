@@ -35,6 +35,10 @@ under *unconfirmed* rather than as a defect.
 | API validation & errors | ✅ | — | 404 / 422 / 400, no 500s |
 | Horizontal overflow | ✅ | ✅ | every tab, both sizes |
 | Tap-target floor (32 px) | n/a | ✅ | navigation buttons |
+| **Safari / WebKit** | ✅ | ✅ | whole suite runs on both engines |
+| Dark mode | ✅ | — | rendered, screenshotted and read |
+| Injected API failures | ✅ | — | drills, check, reading all 500-ed |
+| Keyboard & ARIA | ✅ | — | focus order, roving tabindex, arrow keys |
 
 ## Defects
 
@@ -49,21 +53,50 @@ a label, or a stack trace where a message should be.
 | **QA-2** | Medium | No UI state survived a reload; no deep link; Back left the app | **fixed** — hash routing |
 | **QA-5** | Medium | Path printed database keys: `astmevaheldus ← gen-stem` | **fixed** — resolved in the API |
 | **QA-6** | Medium | A 10-item drill held 5–8 distinct sentences, one repeated ×5 | **fixed** — round-robin over frames |
+| **QA-7** | Medium | ARIA tabs pattern half-implemented, arrow keys inert | **fixed** — wiring derived, roving tabindex |
 | **QA-8** | Low-Med | Reading failure showed a raw JS TypeError to the learner | **fixed** — reads `detail` |
+| **QA-9** | **High** | `ReferenceError: Cannot access 'examLevel' before initialization` on any exam-mode deep link | **fixed** — bootstrap moved to end of script |
+| **QA-2b** | Low | Exam level reset to A2 on reload | **fixed** — localStorage |
+| **QA-3** | Low | Empty answer consumed a drill item and scored it wrong | **fixed** — nudges instead |
 | **QA-4** | Low | Empty writing submission gave no feedback at all | **fixed** — says what is missing |
-| **QA-2b** | Low | Exam level resets to A2 on reload | open (xfail) |
-| **QA-3** | Low | Empty answer silently consumes a drill item and scores it wrong | open |
-| **QA-7** | Medium | ARIA tabs pattern half-implemented | open |
 
-### QA-7 in full, because it is the one still open that a person would feel
+All ten are fixed. Nothing is left `xfail`.
 
-The page declares `role="tab"` on 15 buttons inside 5 `role="tablist"`
-containers, and then implements none of the rest of the pattern: no
+### QA-9, the one Safari found
+
+Installing WebKit was worth it on the first run. Landing directly on an
+exam-mode hash threw `ReferenceError: Cannot access 'examLevel' before
+initialization` — the routing bootstrap ran `loadExam()` from a position in the
+file above `let examLevel`, a temporal dead zone.
+
+Three things make it the most interesting defect of the whole pass:
+
+1. **It was a regression the QA-2 fix introduced.** Before routing existed the
+   first panel was always Rada, so the exam loader never ran that early.
+2. **Both engines had it.** Chromium was not immune — the loader is `async`, so
+   the failure arrived as an *unhandled rejection*, and nothing was listening
+   for those. WebKit reported it as a page error where it could be seen.
+3. **Every visibility assertion still passed**, because the panel rendered
+   anyway. Only the error channel knew.
+
+The fix is positional rather than a moved declaration: the bootstrap now runs
+at the end of the script, so every declaration exists whichever panel the URL
+asks for. Moving `examLevel` alone would have fixed this instance and left the
+trap armed for the next loader.
+
+### QA-7 in full, because it is the one a person would have felt
+
+The page declared `role="tab"` on 15 buttons inside 5 `role="tablist"`
+containers, and implemented none of the rest of the pattern: no
 `aria-controls` on any tab, no `role="tabpanel"` on any of the 10 panels, and
-**arrow keys do not move between tabs**. A screen reader announces a tab list,
-which tells its user to expect arrow-key navigation and an associated panel;
-they get neither. Announcing a pattern you do not honour is worse than plain
-buttons, which promise nothing.
+**arrow keys that did nothing**. A screen reader announces a tab list, which
+tells its user to expect arrow-key navigation and an associated panel; they got
+neither. Announcing a pattern you do not honour is worse than plain buttons,
+which promise nothing.
+
+Now wired from `data-tab` at load rather than typed into fifteen elements, with
+Arrow/Home/End moving and activating, and a roving `tabindex` so Tab steps past
+the strip instead of through every button in it.
 
 What *is* right, and was checked: `lang="et"`, exactly one `h1`, every visible
 input labelled, every image with `alt`, a visible focus ring on every control,
@@ -142,12 +175,7 @@ scratch; that is a property of the build, not a test.
 - **Real dictation grading accuracy** — one empty submission only.
 - **Review scheduling over time.** FSRS intervals cannot be observed in one
   session; grading was exercised, spacing was not.
-- **Cross-browser.** Chromium only — it is the only engine in
-  `/opt/pw-browsers`, so WebKit would need `playwright install webkit` and
-  network. This matters more than it sounds: Safari is the likely phone
-  browser here, and it is the engine most likely to differ on `<details>`,
-  sticky positioning and hash handling — all three of which this app now
-  depends on.
+- **Firefox.** Not installed. Chromium and WebKit both run now.
 - **Dark mode was checked and passes.** Rendered at `color_scheme=dark`,
   screenshotted and read: the token palette holds, verdict colours stay
   legible, and no element resolves to text-on-its-own-background.
@@ -159,8 +187,13 @@ scratch; that is a property of the build, not a test.
 ## Running the browser suite
 
 ```bash
-python -m pytest tests/test_e2e_journeys.py -q      # ~2.5 min, both viewports
+python -m pytest tests/test_e2e_journeys.py -q   # both engines x both viewports
 ```
+
+132 tests: Chromium and WebKit, desktop and phone. WebKit is included only when
+`playwright install webkit` has been run — the suite drops to Chromium alone
+rather than failing, but **run it with WebKit before believing a release**: the
+worst defect of this whole pass was invisible without it.
 
 It **skips** rather than fails without Playwright, a Chromium binary or a
 built dataset, and it is deliberately not wired into CI — the standing

@@ -469,3 +469,27 @@ in Cloud Shell and discover the project, service and region themselves.
   active mode reset it to its first tab, which was a mild annoyance for months
   and became a real bug the moment the tab lived in history: it pushed an entry
   the learner never chose, so Back landed somewhere they had never been.
+- **Install the engine your learner actually uses.** WebKit was a documented
+  gap for months on the grounds that it "would need a download". One
+  `playwright install webkit` later, the first run found the worst defect of
+  the whole QA pass: landing on an exam-mode link threw
+  `Cannot access 'examLevel' before initialization`. Both engines had it —
+  Chromium raised it as an *unhandled rejection* nobody had subscribed to,
+  WebKit as a page error where it could be seen. The panel rendered anyway, so
+  every visibility assertion passed in both. A second engine is not redundancy;
+  it is a second reporter, and they do not report the same things.
+- **Listen for unhandled rejections, not only for errors.** Every loader here
+  is `async`, so a throw inside one never reaches `window.onerror`. A test
+  harness that subscribes only to `pageerror` is deaf to the entire async half
+  of the application, which is most of it.
+- **Bootstrap last.** The line that opens the first panel belongs at the end of
+  the script, not in the middle where the routing happens to be written.
+  Opening a panel runs its loader, and a loader may touch anything declared
+  anywhere in the file; from the middle, everything below is in the temporal
+  dead zone. Moving the one variable that broke would have fixed one instance
+  and left the trap set for the next loader.
+- **A fix can be the next bug's cause.** Hash routing was the fix for "refresh
+  loses your place"; it created the dead-zone crash by making the exam loader
+  reachable at load time, and it turned a months-old annoyance — re-tapping the
+  active mode resets its tab — into a history entry the learner never chose.
+  Re-run the whole pass after a fix, not just the test that failed.
