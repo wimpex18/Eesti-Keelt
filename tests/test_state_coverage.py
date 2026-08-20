@@ -87,3 +87,77 @@ def test_each_learner_table_exists_in_its_schema(name, table, tmp_path):
     ).fetchone()
     assert found, f"{name}: no table {table!r}"
     conn.close()
+
+
+class TestWordMeaningsTravelToo:
+    """`gloss.py` says its store "lives in `vocab.db`, which the state snapshot
+    carries". That is the whole reason the table is there rather than in a file
+    of its own — a gloss store outside the snapshot would be emptied on every
+    cold start, and the module exists because `sonapi`'s disk cache already
+    was. A claim like that is a fact about the code, so it gets a test.
+    """
+
+    @pytest.fixture
+    def client(self, tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        monkeypatch.setenv("STATE_TOKEN", "test-token")
+        for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
+            monkeypatch.setattr(
+                app_module, name,
+                str(tmp_path / f"{name.split('_')[0].lower()}.db"))
+        return TestClient(app_module.app)
+
+    @staticmethod
+    def _save_one():
+        from eesti import gloss
+        from eesti.providers import sonapi
+
+        conn = gloss.connect(app_module.VOCAB_DB)
+        gloss.save(conn, "kleit", sonapi.WordInfo(
+            word="kleit", word_classes=(), rection=None, inflection_type="2",
+            definition=None, examples=(), translations={"ru": ("платье",)}))
+        return conn
+
+    def test_a_gloss_survives_the_container_being_replaced(self, client):
+        import pathlib
+
+        from eesti import gloss
+
+        self._save_one()
+        head = {"x-state-token": "test-token"}
+        snapshot = client.get("/api/state/export", headers=head)
+        assert snapshot.status_code == 200
+        assert "vocab" in snapshot.json()["databases"]
+
+        # What Cloud Run does when it scales to zero.
+        for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
+            path = pathlib.Path(getattr(app_module, name))
+            if path.exists():
+                path.unlink()
+        assert gloss.stats(gloss.connect(app_module.VOCAB_DB))["words"] == 0
+
+        restored = client.post("/api/state/import", headers=head,
+                               json=snapshot.json())
+        assert restored.status_code == 200
+        kept = gloss.stored(gloss.connect(app_module.VOCAB_DB), "kleit")
+        assert kept is not None and kept.russian == ("платье",)
+
+    def test_the_daily_budget_survives_too(self, client):
+        """Otherwise a restart hands back a fresh allowance, and the cap that
+        makes "never batch them" arithmetic rather than a promise stops being
+        one."""
+        import pathlib
+
+        from eesti import gloss
+
+        conn = self._save_one()
+        gloss._spend(conn)
+        spent = gloss.spent_today(conn)
+        assert spent >= 1
+
+        head = {"x-state-token": "test-token"}
+        snapshot = client.get("/api/state/export", headers=head)
+        pathlib.Path(app_module.VOCAB_DB).unlink()
+        client.post("/api/state/import", headers=head, json=snapshot.json())
+        assert gloss.spent_today(gloss.connect(app_module.VOCAB_DB)) == spent
