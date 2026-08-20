@@ -98,6 +98,32 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     return conn
 
 
+def available(path: Path | None = None) -> bool:
+    """True when there is a word list here with words actually in it.
+
+    `connect` creates: `sqlite3.connect` makes the file, and the schema follows,
+    so opening a path that holds nothing hands back a complete-looking database
+    with zero rows. That is this project's oldest recurring bug -- twice already
+    it made an empty deployment look full -- and the rule written down for it is
+    "presence of a database is not presence of data. Count rows."
+
+    `connect` keeps creating, because `cli build` has to be able to make the
+    file. So the answer is a separate question rather than a refusal: ask this
+    before trusting what a fresh path contains.
+    """
+    from . import config
+
+    target = Path(path or config.DB_PATH)
+    if not target.exists():
+        return False
+    try:
+        with sqlite3.connect(f"file:{target}?mode=ro", uri=True) as conn:
+            return conn.execute("SELECT 1 FROM words LIMIT 1").fetchone() is not None
+    except sqlite3.Error:
+        # No file, no table, or not a database at all -- all the same answer.
+        return False
+
+
 def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
     """Import the word list TSV. Idempotent — safe to re-run after a refresh.
 

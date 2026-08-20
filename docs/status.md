@@ -72,13 +72,13 @@ Nothing here is severe enough to block use. All of it is real.
 
 | | |
 |---|---|
-| **`_bind_breaker()` runs at import** | `app.py` binds the circuit breaker to `progress.db` at module scope, so the path is resolved before anything can redirect it. The test suite works around it; production is fine because the path is fixed. It is still the anti-pattern this project has a written habit about. |
-| **`wordlist.connect` invents an empty database** | Open a path with no file and you get a file, schema and all, with zero rows — the same shape as the content-database bug fixed in `cli.content_db`, which reported a missing corpus as `no such table: items`. `cli build` needs the create, so the fix is a separate read-only opener rather than a refusal. |
-| **`sonapi`'s raw payload cache is still ephemeral** | The *glosses* are durable now (`gloss.py`, in `vocab.db`, in the snapshot). The raw JSON underneath still lives in `data/cache/` and evaporates on every cold start. Harmless — the gloss store answers first and the network is never reached — but it means the cache directory is doing nothing on the deployment. |
+| ~~**`_bind_breaker()` runs at import**~~ | **Fixed 2026-08-20.** `breaker.bind_later(progress_db)` registers an opener instead of a connection, and the breaker opens it the first time it has something to remember. Importing `eesti.app` now opens no database at all, which is asserted. The conftest workaround that dropped the binding is no longer load-bearing. |
+| ~~**`wordlist.connect` invents an empty database**~~ | **Fixed 2026-08-20**, exactly as this entry proposed: `wordlist.available()` opens read-only and counts a row, and `cli.words_db()` is the twin of `cli.content_db()` — it declines with "run `cli fetch-data` and then `cli build`" instead of handing back a convincing empty database. `connect` still creates, because `cli build` must be able to. |
+| **`sonapi`'s raw payload cache is ephemeral** — *and that is correct* | Re-examined 2026-08-20 and **downgraded from a bug**. Every path that can reach Sõnaveeb from the running app goes through `gloss.remember`, which is durable and in the snapshot; `sonapi.entry_url` builds a string and touches nothing. The only caller of the file cache is `cli rections`, which runs **in the Docker build**, where a cache that lives for one build is exactly right. Nothing re-requests anything on a cold start. Left alone deliberately rather than moved for tidiness. |
 | **The local `content.db` is partial** | 349 Selges keeles items only. The ERR transcripts, news issues and exam pointers were lost to a container rollback and not re-harvested. The **deployed** database is the complete one; the last smoke run confirms `"library":true`. Re-run the harvesters before trusting local numbers about the corpus. |
 | **The container rolls the checkout back** | Twice in one session, once taking a committed-but-unpushed commit, and once reverting a session that had already pushed — leaving `origin/main` pointing at `Initialise repository` while GitHub held the full history. Nothing was lost either time, but a local `git log` is **not** evidence about the repository. `git ls-remote origin` is. Recover with `git fetch origin --prune && git reset --hard origin/<branch>` — **and then rebuild the derived artefacts**. The rollback also restores a stale `data/edge.db`, which presents as two failing export-quality tests (`kool` still carrying `koola, koola`) that look exactly like a code regression and are not one: CI passes on the same commit because it builds the dataset fresh. `python -m eesti.cli export` fixes it. |
 | **The grammar checker is in offline mode on the deployment** | Found 2026-08-20 by the deep smoke check, after the v1.0 image shipped. The chain reports `llm:openrouter: HTTPError` — the key *is* on the process and the call fails, which is a different problem from `unavailable`. Writing still flags object-case candidates and typos, but no correction carries an explanation, so no "log it" button renders and **nothing reaches the Notion log**. Same inert chain as the original key-on-the-Worker bug, from a different cause. PR #18 makes the note name the status code, which decides whether it is a 429 (self-healing) or a 401 (needs a new key on Cloud Run). |
-| **`evkk` reaches the network** | The CLI command fetches the EVKK taxonomy from `elle.tlu.ee` and has no offline path. It is excluded from the test suite for that reason. |
+| **`evkk` reaches the network** — now fails like a citizen | Still one live request, and still excluded from the suite: it fetches from `elle.tlu.ee`, and a suite that depends on a research host is a suite that goes red on somebody else's Tuesday. **Fixed 2026-08-20:** it no longer dies with a traceback when that host is down. It says what happened, names the cache path a saved copy can be dropped at, and returns 1. A parse that yields nothing is reported too, rather than writing an empty taxonomy over a good one. |
 
 ## Tech debt, stated as debt
 
@@ -94,8 +94,14 @@ Nothing here is severe enough to block use. All of it is real.
 - **`Cloze` still overrides `hint` and `label`.** Legitimate — for rection the
   case *is* the question — but it is the last place an item class differs from
   the mixin, and worth re-checking if a fifth generator appears.
-- **Two `_state_paths()` writers use `write_bytes`** on paths read from module
-  globals. Correct today; the same shape as the breaker binding.
+- ~~**Two `_state_paths()` writers use `write_bytes`** on paths read from module
+  globals.~~ **Fixed 2026-08-20**, and it was not as harmless as this entry
+  said. `app.py` kept its own copies of the four learner paths, bound at
+  import, and both `_state_paths()` and the database helpers read them — so
+  redirecting one name without the other pointed a restore at a file the app
+  never opened. Everything resolves `config` at call time now, twelve test
+  redirects were paired up to match, and two tests pin it: the snapshot and the
+  helpers must both follow a redirect of `config` alone.
 
 ## Coverage, for what it is worth
 

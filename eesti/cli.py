@@ -31,6 +31,28 @@ WORDLIST_BASE = (
 WORDLIST_FILES = ("est_words_160k.tsv",)
 
 
+def words_db(path=None) -> sqlite3.Connection | None:
+    """The word list, and never an empty one invented on the spot.
+
+    The twin of `content_db`, for the same reason and the fourth instance of
+    the same bug: `wordlist.connect` creates the file and applies the schema,
+    so a wrong or unbuilt path hands back a database that looks complete and
+    holds nothing. Downstream that surfaces as a drill generator reporting "no
+    usable templates" or a lookup finding no word -- both of which read as
+    "this feature is broken" rather than "nothing has been built here yet".
+
+    Returns None, having said what to run, when there is no word list.
+    """
+    from .wordlist import available
+    from .wordlist import connect as wordlist_connect
+
+    if not available(path):
+        print("no word list built — run `python -m eesti.cli fetch-data`"
+              " and then `python -m eesti.cli build`")
+        return None
+    return wordlist_connect(path)
+
+
 def content_db(args: argparse.Namespace) -> sqlite3.Connection | None:
     """The harvested library, resolved at call time and never invented.
 
@@ -375,7 +397,24 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     from .harvest.evkk import fetch, store, tag_weights, unmapped
     from .sources import connect, register
 
-    marks = fetch(cache=CACHE / "evkk_marks.html")
+    # A third party being down must never look like a crash. `fetch` raises
+    # when there is no cached copy and `elle.tlu.ee` cannot be reached -- which
+    # is a Tuesday for these research hosts, and the reason this command is
+    # excluded from the test suite. Say what happened and what would fix it,
+    # and leave with a code rather than a traceback.
+    try:
+        marks = fetch(cache=CACHE / "evkk_marks.html")
+    except RuntimeError as exc:
+        print(f"EVKK taxonomy unavailable: {exc}")
+        print("It is one cached request. Retry when elle.tlu.ee answers, or "
+              "drop a saved copy of the taxonomy page at "
+              f"{CACHE / 'evkk_marks.html'} to work offline.")
+        return 1
+    if not marks:
+        print("EVKK returned nothing parseable — the page shape may have "
+              "changed. Nothing was written.")
+        return 1
+
     weights = tag_weights(marks)
     rest = unmapped(marks)
     total = sum(weights.values()) + rest
@@ -455,7 +494,9 @@ def cmd_cloze(args: argparse.Namespace) -> int:
         print("no usable sentences in the corpus — run `cli harvest-reading`")
         return 1
 
-    words = wordlist_connect()
+    words = words_db()
+    if words is None:
+        return 1
     topics = tuple(args.topics.split(",")) if args.topics else None
     if args.rule == "rection":
         from .rection import at_levels, load

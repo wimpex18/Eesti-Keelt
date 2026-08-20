@@ -493,3 +493,24 @@ in Cloud Shell and discover the project, service and region themselves.
   reachable at load time, and it turned a months-old annoyance — re-tapping the
   active mode resets its tab — into a history entry the learner never chose.
   Re-run the whole pass after a fix, not just the test that failed.
+- **Two names for one file is a fork waiting to happen.** `app.py` kept its own
+  copies of the four learner database paths, bound at import from `config`.
+  The entry in `status.md` called that "correct today, the same shape as the
+  breaker binding" — and it was already worse than that: `_state_paths()` and
+  the database helpers both read the copies, so redirecting one name without
+  the other pointed a restore at a file the app never opened. It failed only in
+  tests, silently, by writing somewhere real. When a value has two homes, the
+  question is not whether they agree now but what happens the first time one
+  moves.
+- **Fixing a latent pattern surfaces who depended on it.** Consolidating those
+  paths onto `config` broke twelve test redirects that patched `app` alone.
+  That is not a reason to leave the pattern; it is the measurement of how far
+  it had spread. The fix is to pair them and pin the invariant with a test that
+  redirects `config` and demands both the snapshot and the helpers follow.
+- **Not every documented bug is a bug.** `sonapi`'s file cache was on the list
+  for evaporating on cold starts. Following the callers showed every runtime
+  path goes through the durable gloss store, and the only user of the file
+  cache is `cli rections` — which runs inside the Docker build, where a cache
+  that lives for one build is exactly right. It was downgraded with the reason
+  written down, rather than moved to make a list shorter. A fix nobody needs is
+  still a change that can break something.
