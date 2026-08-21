@@ -97,6 +97,41 @@ from consideration entirely. `gemma-4-31b` advertises `response_format` and not
 `structured_outputs`; the client has always sent the former. Re-verified against
 OpenRouter's public catalogue on 2026-08-20 — 414 models, no key required.
 
+
+## The 429, and what it actually was
+
+The deployment reported `llm:openrouter: HTTPError 429` on three consecutive
+days (20–21 Aug 2026). It was read as "the free tier is spent, it recovers
+overnight", and when it did not recover the diagnosis was wrong twice over.
+
+**The limits.** OpenRouter's free variants (`:free`) allow **20 requests a
+minute** and **50 a day** below $10 of lifetime credit — 1 000 a day once $10
+has ever been purchased, and that unlock is permanent even if the balance later
+drops. Nothing here was a broken key.
+
+**The part that made it self-sustaining: a failed attempt still counts against
+the daily quota.** This client retried a 429 three times, so a single grammar
+check that met the daily cap spent **three** of the fifty being told the same
+thing, and made the learner wait 5 s then 10 s to arrive at the answer the
+first call already had. Ten checks a day would have spent 30 of the 50 on
+failures alone. The eval overrun on 20 Aug (16 runs, ~18 requests each) opened
+the hole; the retry policy is what kept it open.
+
+**Two limits wear one status code and only one is worth sleeping through.** The
+per-minute cap clears on its own; the daily cap does not, and retrying it is
+pure cost. The provider is the only thing that knows which it was, and says so
+in `Retry-After` (or `X-RateLimit-Reset`). `complete()` now retries a 429 only
+when the provider states a wait under `RETRY_CEILING` (60 s), and otherwise
+falls straight through to the next provider — which is what a chain is for.
+
+Cost of a rate-limited check, before and after: **3 requests and 15 seconds →
+1 request and no wait.**
+
+**If it is still 429 after this**, the arithmetic says the quota is genuinely
+being consumed by something, and the next step is `GET /api/v1/auth/key` with
+the key, which reports usage and limits directly. That needs the key, so it is
+an operator step in Cloud Shell, not something this repository can do.
+
 ## Testing the "it knows other languages, so it knows Estonian" hypothesis
 
 That hypothesis is reasonable and it is testable, so `eesti/evals/gec.py` tests it

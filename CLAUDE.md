@@ -445,6 +445,15 @@ in Cloud Shell and discover the project, service and region themselves.
   keep every downstream feature looking correct. When you add a state, find
   the thing that sets it; when you find a state nobody sets, decide whether to
   wire it or drop it, and write down which.
+- **A retry can be the thing that keeps the failure alive.** The deployment
+  sat at `HTTPError 429` for three days and the reading was "free tier spent,
+  it will clear". OpenRouter counts *failed* attempts against the daily quota,
+  and this client retried a 429 three times — so every rate-limited check
+  spent three of the fifty confirming it was rate-limited, and cost the learner
+  fifteen seconds doing it. Two different limits wear that one status code and
+  only the per-minute one is worth waiting out. Before adding a retry, ask what
+  the failed attempt costs and whether the server has told you which failure it
+  was; `Retry-After` is that answer.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,
