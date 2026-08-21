@@ -1373,7 +1373,7 @@ $("#queueSend").onclick = async () => {
     await loadQueue();
     $("#queueNote").textContent =
       `Отправлено ${r.sent.length}${r.failed.length
-        ? `, ebaõnnestus ${r.failed.length}` : ""}.`;
+        ? `, не прошло ${r.failed.length}` : ""}.`;
     loadRail();
   } catch (e) {
     $("#queueNote").textContent = e.message;
@@ -2547,7 +2547,7 @@ async function loadListenLibrary() {
            </a>`
         : `<div class="lib-item" data-id="${esc(it.id)}">
              <h4>${esc(it.title)}</h4>
-             <span class="lib-meta">${it.words ? it.words + " sõna" : "heli"}${
+             <span class="lib-meta">${it.words ? it.words + " слов" : "аудио"}${
                it.audio_url ? " · ♪" : ""}${it.level ? " · " + esc(it.level) : ""}</span>
              <div class="lib-open" hidden></div>
            </div>`).join("");

@@ -183,6 +183,14 @@ class TestEverySentenceOnThePageIsReadable:
 
     Run against the page as it stood before the translation work, this flags 22
     strings -- including *both* microphone variants.
+
+    **What it cannot see**, stated so the green tick is not read as more than
+    it is: a run built around an interpolation. `` `, ebaõnnestus ${n}.` `` is
+    one word once the `${...}` is blanked, far below any threshold that does
+    not also flag every label. Two strings escaped that way and were found by
+    reading the diff, not by this test. Distinguishing a short Estonian
+    fragment from a short Estonian *label* needs judgement, and a word list
+    that encoded that judgement would be the hand-maintained list this replaced.
     """
 
     def test_no_sentence_is_written_in_a_language_the_learner_cannot_read(self, page):
