@@ -427,14 +427,25 @@ def readiness(
     if grammar and not grammar["checkpoint_passed"]:
         reasons.append(f"Контрольная работа {level} не сдана.")
 
+    # The verdict reads next to its own reasons, and those have been Russian
+    # since the language rule was written down -- so the app was rendering
+    # "A2 · ei ole veel" above a paragraph of Russian explaining why. The
+    # verdict is a judgement about the learner, which is exactly the category
+    # `CLAUDE.md` puts in Russian: this is where comprehension has to win.
+    #
+    # The Estonian is kept beside it rather than dropped. `tõendid toetavad`
+    # is the phrase that would appear on nothing official, but the level names
+    # and part names around it are exam vocabulary, and a verdict that reads as
+    # a foreign island in its own card is worse than one that teaches its own
+    # two words.
     if not grammar:
-        verdict = "teadmata"
+        verdict = "неизвестно"
     elif not reasons:
-        verdict = "tõendid toetavad"
+        verdict = "данные говорят «да»"
     elif untouched or len(reasons) > 1:
-        verdict = "ei ole veel"
+        verdict = "ещё нет"
     else:
-        verdict = "peaaegu"
+        verdict = "почти"
 
     return Readiness(
         level=level,

@@ -169,15 +169,29 @@
   nav .ico{display:none}
 
   @media (max-width:719px){
+    /* Seven bilingual tabs do not fit 390px: the last one was clipped off the
+       right edge, which the page-level overflow check does not see because the
+       bar itself is the thing being cut. The gloss is dropped *here only* --
+       every other surface still carries it, and the icons plus the Estonian
+       word are what a thumb aims at. */
+    nav[data-mode-nav] button .ru{display:none}
     nav{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;gap:0;
       background:color-mix(in srgb, var(--panel) 88%, transparent);
       backdrop-filter:saturate(1.6) blur(14px);
       -webkit-backdrop-filter:saturate(1.6) blur(14px);
       border-top:1px solid var(--line);overflow:visible;
       padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-    nav button{flex:1 1 0;flex-direction:column;gap:2px;padding:5px 2px;
-      font-size:10.5px;letter-spacing:.01em;border-radius:12px;min-height:48px;
-      justify-content:center}
+    /* `min-width:0` is what actually makes `flex:1 1 0` share the bar. Without
+       it a flex item will not shrink below its content, so the longest label
+       (`Kirjutamine`) pushed the row past the viewport and the last tab was
+       clipped off the right edge — invisible to a page-level overflow check,
+       because the bar is the thing being cut rather than the document.
+       Latent until Harjutused made this nav seven tabs wide. */
+    nav button{flex:1 1 0;min-width:0;flex-direction:column;gap:2px;
+      padding:5px 1px;font-size:10.5px;letter-spacing:.01em;border-radius:12px;
+      min-height:48px;justify-content:center}
+    nav .lbl{max-width:100%;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap}
     nav button[aria-selected="true"]{background:none;box-shadow:none;color:var(--accent)}
     nav .ico{display:block;font-size:19px;line-height:1}
     nav .lbl{display:block}
@@ -285,6 +299,16 @@
   #vocCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
+  .ru{display:block;font-size:11px;font-weight:400;color:var(--muted);
+    letter-spacing:0;text-transform:none;margin-top:1px}
+  /* Inside a filled button the muted grey is nearly invisible on the accent.
+     Inherit the button's own colour and lean on opacity instead, so the gloss
+     stays secondary without becoming unreadable. */
+  button.primary .ru, button.go .ru{color:currentColor;opacity:.72}
+  i.ru{display:inline;font-size:11.5px;font-style:normal;margin-left:5px}
+  h3 .ru{display:inline;font-size:11px;margin-left:6px;text-transform:none}
+  nav button .ru{font-size:10.5px;line-height:1.15}
+  .st .ru, .lv .ru{display:none}
   #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
@@ -425,8 +449,8 @@
     </div>
     <div id="pathHead" class="banner" hidden></div>
     <div class="row" style="margin-top:0">
-      <button class="go" id="practiceBtn">Harjuta</button>
-      <label>Teema
+      <button class="go" id="practiceBtn">Harjuta<span class="ru">тренировка</span></button>
+      <label>Teema <i class="ru">тема</i>
         <select id="theme"><option value="">kõik sõnad</option></select>
       </label>
       <span class="hint" id="pathScore"></span>
@@ -460,7 +484,7 @@
 
     <div class="rec">
       <button class="go" id="recBtn">● Salvesta vastus</button>
-      <span class="hint" id="recState">Mikrofon vajab HTTPS-i või localhost'i.</span>
+      <span class="hint" id="recState">Микрофону нужен HTTPS или localhost.</span>
     </div>
     <!-- Said before the button is pressed, not in a policy page. Text is
          disposable; a voice is biometric, and the learner is entitled to know
@@ -481,7 +505,7 @@
          who set the exam, and copying them here would be scraping a site whose
          maintainers asked not to be scraped. So: links, not copies. -->
     <div style="margin-top:16px">
-      <div class="hint">Hääldus ja olmefraasid — EKI enda tasuta harjutused:</div>
+      <div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
       <div class="row" style="margin-top:6px">
         <a class="ghost" href="https://sonaveeb.ee/pronunciation-exercises/"
            target="_blank" rel="noopener">Hääldusharjutused →</a>
@@ -495,14 +519,14 @@
        Five measures, no aggregate: the exam scores four parts separately and
        fails you for a zero in any one. -->
   <section class="panel" id="tab-status" hidden>
-    <div id="statusOut" class="empty">Laen…</div>
+    <div id="statusOut" class="empty">Загружаю…</div>
   </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
   <section class="panel" id="tab-write" hidden>
     <textarea id="text" placeholder="Kirjuta või kleebi eestikeelne tekst…&#10;Näiteks: Ma lugesin eile raamatut läbi."></textarea>
     <div class="row">
-      <button class="go" id="checkBtn">Kontrolli</button>
+      <button class="go" id="checkBtn">Kontrolli<span class="ru">проверить</span></button>
       <span class="hint">Ctrl+Enter</span>
     </div>
     <div id="checkOut"></div>
@@ -515,7 +539,7 @@
          named rows, because the Vead log is worth having only while it stays
          curated. -->
     <details id="queueBox" style="margin-top:18px">
-      <summary>Vigade logi — ootab saatmist <span id="queueCount"></span></summary>
+      <summary>Журнал ошибок — ожидает отправки <span id="queueCount"></span></summary>
       <div id="queueList"></div>
       <div class="row">
         <button class="go" id="queueSend">Saada valitud Notionisse</button>
@@ -527,7 +551,7 @@
   <!-- ── Drills ────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-drill" hidden>
     <div class="row" style="margin-top:0">
-      <label>Reegel
+      <label>Reegel <i class="ru">правило</i>
         <select id="rule">
           <option value="">kõik</option>
           <option value="negation">eitus → partitiiv</option>
@@ -536,15 +560,15 @@
           <option value="verb-form">ebareeglipärased verbid</option>
         </select>
       </label>
-      <label>Raskus
+      <label>Raskus <i class="ru">уровень</i>
         <select id="level">
           <option value="A1,A2,B1">A1–B1</option>
           <option value="A1,A2">A1–A2</option>
           <option value="B1">B1</option>
         </select>
       </label>
-      <label>Arv <input type="number" id="count" value="10" min="1" max="30" style="width:70px"></label>
-      <button class="go" id="drillBtn">Alusta</button>
+      <label>Arv <i class="ru">количество</i> <input type="number" id="count" value="10" min="1" max="30" style="width:70px"></label>
+      <button class="go" id="drillBtn">Alusta<span class="ru">начать</span></button>
     </div>
     <div id="drillOut"></div>
     <div class="score" id="score"></div>
@@ -596,7 +620,7 @@
       Vead ja loetud sõnad tulevad siia. Ajastus: FSRS — mida raskem, seda tihedamini.
     </p>
     <div class="row" style="margin-top:0">
-      <button class="go" id="loadReview">Alusta kordamist</button>
+      <button class="go" id="loadReview">Alusta kordamist<span class="ru">начать повторение</span></button>
       <span class="hint" id="reviewStats"></span>
     </div>
     <div id="reviewOut"></div>
@@ -614,7 +638,7 @@
        vocabulary the exam draws on. -->
   <section class="panel" id="tab-sonad" hidden>
     <div class="row" style="margin-top:0">
-      <label>Tase
+      <label>Tase <i class="ru">уровень</i>
         <select id="vocLevel">
           <option value="">kõik</option>
           <option value="A1">A1</option>
@@ -624,7 +648,7 @@
           <option value="C1">C1</option>
         </select>
       </label>
-      <label>Sõnaliik
+      <label>Sõnaliik <i class="ru">часть речи</i>
         <select id="vocPos">
           <option value="">kõik</option>
           <option value="s">nimisõna</option>
@@ -633,7 +657,7 @@
           <option value="adv">määrsõna</option>
         </select>
       </label>
-      <label>Olek
+      <label>Olek <i class="ru">статус</i>
         <select id="vocStatus">
           <option value="">kõik</option>
           <option value="new">uued</option>
@@ -641,7 +665,7 @@
           <option value="known">tean</option>
         </select>
       </label>
-      <button id="vocBtn" class="primary">Näita</button>
+      <button id="vocBtn" class="primary">Näita<span class="ru">показать</span></button>
     </div>
     <p class="note" id="vocNote">
       Список слов по уровню и части речи, начиная с самых частотных.
@@ -651,14 +675,14 @@
     </p>
     <div id="vocOut" aria-live="polite"></div>
     <div class="row" id="vocMore" hidden>
-      <button id="vocMoreBtn">Veel sõnu</button>
+      <button id="vocMoreBtn">Veel sõnu<span class="ru">ещё слова</span></button>
     </div>
   </section>
 
   <!-- ── Reading ───────────────────────────────────────────────────── -->
   <section class="panel" id="tab-read" hidden>
     <div class="row" style="margin-top:0">
-      <label>Valik
+      <label>Valik <i class="ru">подборка</i>
         <select id="readLevel">
           <!-- Default, because it is the only option that knows anything about
                *this* reader. The rest rank texts against each other. -->
@@ -669,7 +693,7 @@
           <option value="raskem">raskem</option>
         </select>
       </label>
-      <button class="go" id="loadLib">Lae tekstid</button>
+      <button class="go" id="loadLib">Lae tekstid<span class="ru">загрузить тексты</span></button>
       <span class="hint" id="libCount"></span>
     </div>
     <div id="libList"></div>
@@ -708,7 +732,7 @@
       <div class="row" style="margin-top:0">
         <button class="go" id="dictPlay">▶ Kuula</button>
         <button class="ghost" id="dictNext">Järgmine</button>
-        <span class="hint" id="dictState">Kuula ja kirjuta üles.</span>
+        <span class="hint" id="dictState">Прослушай и запиши услышанное.</span>
       </div>
       <textarea id="dictTyped" rows="2"
         placeholder="Kirjuta, mida kuulsid…"></textarea>
@@ -736,19 +760,19 @@
 
     <h3 style="margin:22px 0 6px;font-size:15px">Mis tahes tekst → heli</h3>
     <p class="hint" style="margin-top:0">
-      Aeglasem kõne (0.7×) sobib kuulamisharjutuseks.
+      Замедленная речь (0.7×) удобна для тренировки аудирования.
     </p>
     <textarea id="ttsText" placeholder="Kleebi tekst õpikust või artiklist…"></textarea>
     <div class="row">
-      <label>Hääl <select id="voice"></select></label>
-      <label>Kiirus
+      <label>Hääl <i class="ru">голос</i> <select id="voice"></select></label>
+      <label>Kiirus <i class="ru">скорость</i>
         <select id="speed">
           <option value="0.7" selected>0.7× (õppijale)</option>
           <option value="0.85">0.85×</option>
           <option value="1">1× (tavaline)</option>
         </select>
       </label>
-      <button class="go" id="speakBtn">Loe ette</button>
+      <button class="go" id="speakBtn">Loe ette<span class="ru">озвучить</span></button>
     </div>
     <div id="ttsOut"></div>
   </section>
@@ -955,7 +979,7 @@ async function api(path, body, method) {
 // ── health ──────────────────────────────────────────────────────────
 fetch("/api/health").then(r => r.json()).then(h => {
   $("#stats").textContent =
-    `${h.words.toLocaleString("et")} sõna · ${h.drillable_nouns.toLocaleString("et")} harjutatavat nimisõna`;
+    `${h.words.toLocaleString("ru")} слов · ${h.drillable_nouns.toLocaleString("ru")} существительных для упражнений`;
   $("#voice").innerHTML = h.voices.map(v => `<option${v === "mari" ? " selected" : ""}>${v}</option>`).join("");
 });
 
@@ -1119,7 +1143,7 @@ async function loadExam() {
       items.map(linkRow).join("") + `</div>`;
   }
   $("#examMaterial").innerHTML = out ||
-    `<p class="empty">Ametlikku materjali pole veel imporditud.</p>`;
+    `<p class="empty">Официальные материалы ещё не загружены.</p>`;
 }
 
 /* Official material is a pointer, never a copy: the row links to HARNO's own
@@ -1143,7 +1167,7 @@ async function loadVihikud() {
   const rows = (d.items || []).filter(i => i.external);
   $("#vihikudList").innerHTML = rows.length
     ? rows.map(linkRow).join("")
-    : `<p class="empty">Töövihikuid pole veel imporditud.</p>`;
+    : `<p class="empty">Тетради ещё не загружены.</p>`;
 }
 
 /* The rail: what a laptop has room for and a phone does not.
@@ -1177,26 +1201,26 @@ async function loadRail() {
     const next = (path.topics || []).find(t => t.id === path.resume);
     rail.innerHTML = `
       <div class="rail-card">
-        <h3>Eksamini</h3>
+        <h3>Eksamini<span class="ru">до экзамена</span></h3>
         <div class="rail-big">${esc(ready.countdown || "")}</div>
         <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
       </div>
       <div class="rail-card">
-        <h3>Rada</h3>
-        <div class="rail-row"><span>Läbitud</span>
+        <h3>Rada<span class="ru">путь</span></h3>
+        <div class="rail-row"><span>Läbitud <i class="ru">пройдено</i></span>
           <b>${path.mastered}/${path.total}</b></div>
-        ${next ? `<div class="rail-row"><span>Järgmine</span>
+        ${next ? `<div class="rail-row"><span>Järgmine <i class="ru">следующая</i></span>
           <b>${esc(next.et)}</b></div>` : ""}
         ${due && due.due !== undefined ? `<div class="rail-row">
-          <span>Kordamist ootab</span><b>${due.due}</b></div>` : ""}
+          <span>Kordamist ootab <i class="ru">к повторению</i></span><b>${due.due}</b></div>` : ""}
       </div>
       ${untouched.length ? `<div class="rail-card">
-        <h3>Puudutamata</h3>
+        <h3>Puudutamata<span class="ru">не начато</span></h3>
         ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
           ${p.next_task && p.next_task.url
             ? `<a href="${esc(p.next_task.url)}" target="_blank"
                  rel="noopener">ava</a>` : ""}</div>`).join("")}
-        <div class="rail-note">Ükski osa ei tohi olla null.</div>
+        <div class="rail-note">Ни одна часть не должна быть нулём.</div>
       </div>` : ""}`;
   } catch (e) {
     rail.innerHTML = "";
@@ -1222,7 +1246,7 @@ async function runCheck() {
       `<p class="hint">Вставь эстонский текст — тогда проверю.</p>`;
     return;
   }
-  const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Kontrollin…";
+  const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Проверяю…";
   const out = $("#checkOut"); out.innerHTML = "";
   try {
     const res = await (await api("/api/check", {text})).json();
@@ -1246,7 +1270,7 @@ async function runCheck() {
         верной, а смысл — не тем, который ты имел в виду.</div></div>`;
     }
     if (!res.corrections.length) {
-      html += `<p class="empty">Kõik on õige — vigu ei leitud.</p>`;
+      html += `<p class="empty">Всё верно — ошибок не найдено.</p>`;
     } else {
       // Object-case errors first: that is the documented priority gap.
       const sorted = [...res.corrections].sort(
@@ -1315,8 +1339,8 @@ async function loadQueue() {
       </label>`).join("");
     $("#queueSend").disabled = !d.can_push;
     $("#queueNote").textContent = d.can_push
-      ? "Saadetakse ainult märgitud read."
-      : "NOTION_TOKEN puudub — read jäävad ootele.";
+      ? "Отправляются только отмеченные строки."
+      : "NOTION_TOKEN не задан — строки останутся в очереди.";
   } catch { $("#queueBox").hidden = true; }
 }
 loadQueue();
@@ -1418,7 +1442,7 @@ async function loadPath() {
     ring.style.setProperty("--pct", pct);
     ring.querySelector("span").textContent = pct + "%";
     const next = p.topics.find(t => t.id === p.resume);
-    $("#pathNow").textContent = next ? next.et : "Kõik avatud teemad läbitud";
+    $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
     $("#pathOf").textContent =
       `${p.mastered}/${p.total} teemat${next ? " · " + next.level : ""}`;
 
@@ -1432,7 +1456,7 @@ async function loadPath() {
       const testOut = t.state === "ready" || t.state === "in progress"
         ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta</button>` : "";
       return `<div class="topic ${t.state.replace(" ", "-")}">
-        <span class="st">${esc(t.state)}</span>
+        <span class="st">${esc(RU[t.state] || t.state)}</span>
         <span class="lv">${esc(t.level)}</span>
         <span>${esc(t.et)}${esc(blocked)}${acc}</span>
         ${testOut}</div>`;
@@ -1493,7 +1517,7 @@ async function loadThemes() {
 async function startPractice() {
   const out = $("#practiceOut"); out.innerHTML = "";
   pathAnswered = 0; pathCorrect = 0; $("#pathScore").textContent = "";
-  const btn = $("#practiceBtn"); btn.disabled = true; btn.textContent = "Laen…";
+  const btn = $("#practiceBtn"); btn.disabled = true; btn.textContent = "Загружаю…";
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;
@@ -1773,7 +1797,7 @@ if (!canRecord) {
     ? "See brauser ei toeta salvestamist."
     : "Mikrofon vajab HTTPS-i (või localhost'i).";
 } else {
-  $("#recState").textContent = "Vasta valjusti ja kuula end üle.";
+  $("#recState").textContent = "Ответь вслух и прослушай себя.";
   $("#recBtn").onclick = async () => {
     if (recording) {
       recorder.stop(); return;
@@ -1931,7 +1955,7 @@ function renderReview(it, glosses) {
 async function runCheckpoint() {
   const out = $("#checkpointOut"), note = $("#checkpointNote");
   const btn = $("#checkpointBtn");
-  btn.disabled = true; out.innerHTML = ""; note.textContent = "Laen…";
+  btn.disabled = true; out.innerHTML = ""; note.textContent = "Загружаю…";
   try {
     const d = await (await api(`/api/checkpoint/${examLevel}?count=15`, null, "GET")).json();
     if (!d.items?.length) {
@@ -2253,6 +2277,60 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+
+/* ── Russian alongside Estonian ──────────────────────────────────────
+   The learner reads Russian and is learning Estonian, and the interface has
+   to serve both facts at once.
+
+   `CLAUDE.md` keeps UI labels in Estonian on purpose: `Kirjutamine` and
+   `Kuulamine` are the words printed on the exam paper, and a learner who has
+   only ever seen "Письмо" has to translate under time pressure on the day. So
+   the Estonian stays and the Russian goes *beside* it — the label teaches, the
+   gloss makes it usable.
+
+   Anything that explains, warns or instructs is Russian outright, because the
+   same document says a caveat nobody can read is not a caveat. Two of those
+   were still Estonian — the "no part may be zero" note and the dictation
+   instruction — and three were **English** (`REFERENCE`, `READY`, `LOCKED`),
+   which serves neither language.
+
+   Never glossed: the words in Sõnavara, the grammar topic names on the path,
+   and the speaker names. Those are the material, not the chrome. */
+const RU = {
+  // modes and tabs — the exam's own words, so glossed rather than replaced
+  "Õppimine": "обучение", "Kordamine": "повторение", "Eksam": "экзамен",
+  "Rada": "путь", "Harjutused": "упражнения", "Lugemine": "чтение",
+  "Sõnavara": "словарь", "Kuulamine": "аудирование",
+  "Rääkimine": "говорение", "Kirjutamine": "письмо",
+  "Järjekord": "очередь", "Töövihikud": "тетради",
+  "Ülevaade": "обзор", "Edenemine": "прогресс",
+  // rail
+  "Eksamini": "до экзамена", "Puudutamata": "не начато",
+  "Läbitud": "пройдено", "Järgmine": "следующая", "Kordamist ootab": "к повторению",
+  // path states — these were English
+  "reference": "справка", "ready": "можно", "locked": "закрыто",
+  "done": "пройдено", "review": "повторить",
+};
+
+/* Attach a small Russian gloss to an element without disturbing its label. */
+function gloss(el, ru) {
+  if (!el || !ru || el.querySelector(".ru")) return;
+  const s = document.createElement("span");
+  s.className = "ru";
+  s.textContent = ru;
+  el.append(s);
+}
+
+/* Tabs and mode buttons carry their gloss under the Estonian word. Applied to
+   the DOM rather than written into each button, so a tab added later gets one
+   by being in `RU` -- the same reason the tab list itself is derived. */
+function glossChrome() {
+  document.querySelectorAll("nav[data-mode-nav] button[data-tab] .lbl")
+    .forEach(el => gloss(el, RU[el.textContent.trim()]));
+  document.querySelectorAll("#modes button[data-mode], .modes button[data-mode]")
+    .forEach(el => gloss(el, RU[el.textContent.trim()]));
+}
+
 // ── vocabulary: the list the app never had ──────────────────────────
 /* Lookup answers "what is this word"; nothing answered "which words should I
    learn". Those are different questions and only the second one is askable by
@@ -2476,7 +2554,7 @@ async function openListenItem(row) {
   const out = row.querySelector(".lib-open");
   if (!out.hidden) { out.hidden = true; out.innerHTML = ""; return; }
   out.hidden = false;
-  out.innerHTML = `<span class="hint">Laen…</span>`;
+  out.innerHTML = `<span class="hint">Загружаю…</span>`;
   try {
     const d = await (await api("/api/library/" + row.dataset.id, null, "GET")).json();
     out.innerHTML = "";
@@ -2534,6 +2612,7 @@ addEventListener("hashchange", () => goToPlace(location.hash.slice(1)));
 // The path is the default landing tab: it is the one screen that answers
 // "what do I do now" without the learner having to decide. A hash naming a
 // real tab wins over it; anything else falls back rather than showing nothing.
+glossChrome();
 if (!goToPlace(location.hash.slice(1))) {
   selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
   // Replace, never push: the landing tab must not become an extra Back step

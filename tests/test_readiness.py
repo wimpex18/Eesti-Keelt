@@ -78,7 +78,7 @@ class TestAllFourParts:
 
 class TestTheVerdict:
     def test_an_empty_record_is_not_ready(self, progress):
-        assert readiness("A2", progress=progress).verdict == "ei ole veel"
+        assert readiness("A2", progress=progress).verdict == "ещё нет"
 
     def test_mastery_alone_does_not_make_it_ready(self, progress):
         """Every A2 grammar topic mastered and no listening ever done is exactly
@@ -91,12 +91,12 @@ class TestTheVerdict:
                 record(progress, _Item(topic.id, f"i{i}"), correct=True)
 
         result = readiness("A2", progress=progress)
-        assert result.verdict != "tõendid toetavad"
+        assert result.verdict != "данные говорят «да»"
         assert any("Не тронутые" in r for r in result.reasons)
 
     def test_no_progress_database_means_unknown(self):
         """Absence of evidence is reported as such, not as a negative verdict."""
-        assert readiness("A2").verdict == "teadmata"
+        assert readiness("A2").verdict == "неизвестно"
 
 
 @pytest.fixture
