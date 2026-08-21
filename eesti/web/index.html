@@ -645,8 +645,9 @@
     </div>
     <p class="note" id="vocNote">
       Список слов по уровню и части речи, начиная с самых частотных.
-      Нажми на слово — откроется карточка. «Tean» убирает слово из подсказок
-      при чтении, но не удаляет его из списка.
+      Нажми на слово — откроется карточка. «Tean seda sõna» отмечает слово
+      выученным, «Pole vaja» убирает его из предложений совсем — это разные
+      вещи, и счётчик выученных считает только первое.
     </p>
     <div id="vocOut" aria-live="polite"></div>
     <div class="row" id="vocMore" hidden>
@@ -2113,7 +2114,8 @@ async function showWordCard(word, card, contextFor) {
   const mineBtn = `<div id="cardExtra"></div>
     <div class="row" style="margin-top:9px">
       <button class="ghost" id="mineBtn">+ Kordamisse</button>
-      <button class="ghost" id="knowBtn">✓ Tean seda sõna</button></div>
+      <button class="ghost" id="knowBtn">✓ Tean seda sõna</button>
+      <button class="ghost" id="skipBtn" title="Не тратить время на это слово">⊘ Pole vaja</button></div>
     <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
     <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
@@ -2180,6 +2182,32 @@ async function showWordCard(word, card, contextFor) {
   // Marking a word known is an explicit act, never inferred from having read
   // it -- meeting a word is not knowing it, and a counter that inflates itself
   // measures reading rather than vocabulary.
+  /* "Not worth my time" — the action a vocabulary list needs and a reader does
+     not. Browsing B1 nouns turns up `riigivisiit` and `seinamaaling`: real
+     words, correctly listed, and not what this learner is going to spend a
+     morning on. Without this they return on every page and the "still to
+     learn" count never means anything.
+
+     Stored as `eiran` rather than as `tean`, because "I know this" and "this
+     is not for me" are different facts and collapsing them would make the
+     known-word count — which orders the reading list and feeds the verdict —
+     quietly wrong. */
+  card.querySelector("#skipBtn").onclick = async e => {
+    e.target.disabled = true;
+    const lemma = d.analyses[0]?.lemma || word;
+    const note = card.querySelector("#mineNote");
+    try {
+      await api("/api/vocab/known", {lemmas: [lemma], status: "ignore"});
+      e.target.textContent = "⊘ Jäetud";
+      note.className = "mine-note";
+      note.textContent = `«${lemma}» больше не будет предлагаться.`;
+    } catch (err) {
+      note.className = "mine-note no";
+      note.textContent = err.message;
+      e.target.disabled = false;
+    }
+  };
+
   card.querySelector("#knowBtn").onclick = async e => {
     e.target.disabled = true;
     const lemma = d.analyses[0]?.lemma || word;

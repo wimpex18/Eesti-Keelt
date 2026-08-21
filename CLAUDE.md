@@ -436,6 +436,15 @@ in Cloud Shell and discover the project, service and region themselves.
   line, because the same rule that applies to a stale cache applies to a stale
   sentence. A doc may still record a past figure — it just has to say "at the
   time of writing", which the check honours.
+- **A value nothing can set is a value that does not exist.** The vocabulary
+  ladder had five statuses and three of them — `tuttav`, `eiran`,
+  `teadsin ammu` — had no writer anywhere: modelled, stored, counted by the
+  overview, unreachable from any control. This is the third costume of the
+  same bug (a measurement with no writer, an endpoint with no caller), and the
+  tell is identical: nothing fails, because the two statuses that *are* set
+  keep every downstream feature looking correct. When you add a state, find
+  the thing that sets it; when you find a state nobody sets, decide whether to
+  wire it or drop it, and write down which.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,

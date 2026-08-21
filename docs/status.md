@@ -31,12 +31,15 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Writing** | Grammar check through the provider chain, corrections queued for the Notion error log with an explicit send step. |
 | **Speaking** | Question bank in the exam's paired shape, TTS voicing the other side, links out to EKI's own pronunciation exercises. |
 | **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. Intervals expand as they should — measured 2026-08-21 at the due date: 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. |
-| **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. Sentence-level translation from TartuNLP, on request only. |
+| **Vocabulary** | `Sõnavara` lists the wordlist by CEFR level, part of speech and what you have marked, commonest first. Same word card as the reader, so a word chosen here and a word met while reading are one thing. |
+| **Meaning** | **294 Russian glosses ship with the app** (`data/seed_glossary.tsv`), covering 81 % of the words drills actually use — measured 0 % before. Written for this project, never scraped. Sõnaveeb enriches on demand with senses, rection and muuttüüp; the seed is a baseline, not a ceiling. Sentence-level translation from TartuNLP, on request only. |
+| **Rules** | **22 of 23 drillable topics link to the handbook** (was 5). Every section number read off the EKK rather than inferred — a summarising fetch of the same page returned numbers shifted by one. `kusisonad` has none: no section covering question words was found, and a wrong link is worse than none. |
 | **Back-translation** | The writing check reads your Estonian back in Russian, so a sentence that is well formed but says the wrong thing is visible. |
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
+| **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 283 tests: 1 218 in-process and 65 browser journeys.
+49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 309 tests: 1 244 in-process and 65 browser journeys.
 
 ## What a learner still cannot do
 
@@ -129,6 +132,29 @@ Worth knowing for its own sake: `Sõnavara` was *already specified* in that
 document — "vocabulary by frequency band, Speakly-style" — before it was built.
 It was built frequency-ordered by independent reasoning, which converged, but
 the specification was sitting there unread.
+
+### Three of the five word statuses had no writer
+
+`vocab` models five: `õpin`, `tuttav`, `tean`, `eiran`, `teadsin ammu`. Two
+were reachable — `õpin` set automatically on the first encounter while reading,
+`tean` by the word card's button. The other three were modelled, stored and
+counted by the overview, and there was nowhere a learner could click to set
+them. Same shape as a measurement with no writer and an endpoint with no
+caller, which this project has now met three times in three different costumes.
+
+Fixed for `eiran` and `teadsin ammu` on 2026-08-21: the word card carries
+**Pole vaja**, and `POST /api/vocab/known` takes an explicit `status`. `eiran`
+is the one a vocabulary list needs and a reader does not — browsing B1 nouns
+turns up `riigivisiit` and `seinamaaling`, real words that this learner is not
+going to spend a morning on, and without a way to say so they return on every
+page and the "still to learn" count never means anything.
+
+`tuttav` is still unreachable, deliberately. It sits between met and known,
+which is exactly the granularity LingQ's four levels are reported as being too
+fine to judge; the boundary that carries weight here is *settled*, and `tuttav`
+is on the same side of it as `õpin`. It stays in the model because removing a
+stored value is a migration, and earns its place only if something ever needs
+to distinguish "seen twice" from "seen once".
 
 ## Known bugs and rough edges
 

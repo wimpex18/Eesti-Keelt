@@ -1234,6 +1234,13 @@ def status() -> dict:
 class KnownWords(BaseModel):
     lemmas: list[str] = Field(min_length=1, max_length=200)
     long_known: bool = False
+    #: `known` (default), `long_known`, or `ignore`. The ladder has five values
+    #: and until now only two had any writer: `õpin`, set automatically on the
+    #: first encounter while reading, and `tean`, set by the button. `eiran`,
+    #: `teadsin ammu` and `tuttav` were modelled, stored, counted — and
+    #: unreachable, which is this project's most recurring bug wearing another
+    #: hat.
+    status: str | None = None
 
 
 def vocab_bands() -> dict:
@@ -1282,14 +1289,37 @@ def vocab_browse(
 
 @app.post("/api/vocab/known")
 def vocab_known(req: KnownWords) -> dict:
-    """Marking a word known is an explicit act — never inferred from reading."""
-    from .vocab import KNOWN, WELL_KNOWN, set_status
+    """Settle a word: known, long known, or not worth studying.
+
+    Marking a word known is an explicit act — never inferred from reading. A
+    word skimmed past is not a word learned, and a counter that inflates itself
+    measures reading rather than vocabulary.
+
+    `ignore` is the one a vocabulary list needs and a reader does not. Browsing
+    B1 nouns turns up `riigivisiit` and `seinamaaling`: real words, correctly
+    listed, and not what this learner is going to spend a morning on. Without a
+    way to say so they come back on every page and the "still to learn" count
+    never means anything. All three are *settled* — the app stops proposing
+    them — and they stay distinguishable, because "I know this" and "this is
+    not for me" are different facts about a learner.
+    """
+    from .vocab import IGNORED, KNOWN, WELL_KNOWN, set_status
+
+    choice = (req.status or "").strip().lower()
+    if choice and choice not in ("known", "long_known", "ignore"):
+        raise HTTPException(
+            422, f"status must be known, long_known or ignore, not {choice!r}")
+    if choice == "ignore":
+        status_ = IGNORED
+    elif choice == "long_known" or req.long_known:
+        status_ = WELL_KNOWN
+    else:
+        status_ = KNOWN
 
     vocabulary = vocab_db()
-    status_ = WELL_KNOWN if req.long_known else KNOWN
     for lemma in req.lemmas:
         set_status(vocabulary, lemma.strip().lower(), status_)
-    return {"marked": len(req.lemmas)}
+    return {"marked": len(req.lemmas), "status": status_}
 
 
 @app.get("/api/speaking")
