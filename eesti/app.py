@@ -1184,6 +1184,43 @@ def vocab_bands() -> dict:
     return {"bands": band_progress(vocabulary, db()), **summary(vocabulary)}
 
 
+@app.get("/api/vocab")
+def vocab_browse(
+    level: str | None = None,
+    pos: str | None = None,
+    status: str | None = None,
+    limit: int = 60,
+    offset: int = 0,
+) -> dict:
+    """Browse the wordlist. The app could look a word up and could not list any.
+
+    A learner cannot ask for a word they have not met, which is precisely the
+    set worth studying, so lookup-only made 160 316 words reachable only by
+    somebody who already knew what was in there. Filters are level, part of
+    speech and what the learner has already marked.
+
+    Needs the built wordlist: `words_db()` declines with an instruction rather
+    than handing back an empty database that looks like an empty vocabulary.
+    """
+    from . import vocab as vocab_mod
+    from .cli import words_db
+
+    words = words_db()
+    if words is None:
+        raise HTTPException(
+            503,
+            "Словарь ещё не собран на этом сервере — запусти "
+            "`python -m eesti.cli fetch-data`, затем `python -m eesti.cli build`.",
+        )
+    try:
+        return vocab_mod.browse(
+            words, vocab_db(), level=level, pos=pos, status=status,
+            limit=max(1, min(limit, 200)), offset=max(0, offset),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 @app.post("/api/vocab/known")
 def vocab_known(req: KnownWords) -> dict:
     """Marking a word known is an explicit act — never inferred from reading."""
