@@ -277,15 +277,15 @@ def _why(
     if tag == "sg g":
         return (
             f"**{case_et}** — {case_ru}. Словарная форма *{lemma}* здесь не "
-            f"подходит: нужна основа омастава *{correct}*."
+            f"подходит: нужна основа генитива — **omastav** *{correct}*."
         )
     if tag == "sg p":
         return (
-            f"**{case_et}** — {case_ru}. Здесь *{correct}*, а не омастав "
+            f"**{case_et}** — {case_ru}. Здесь *{correct}*, а не **omastav** "
             f"*{wrong}*."
         )
     return (
-        f"**{case_et}** — {case_ru}. Падеж строится от основы омастава "
+        f"**{case_et}** — {case_ru}. Падеж строится от основы генитива — **omastav** "
         f"(*{forms['genitive']}*), а не от словарной формы: *{correct}*, "
         f"не *{wrong}*."
     )

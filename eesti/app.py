@@ -1418,7 +1418,9 @@ def manifest() -> Response:
             "display": "standalone",
             "background_color": "#f7f7f5",
             "theme_color": "#1c6b52",
-            "lang": "et",
+            # Russian: the install prompt and the page it opens are written
+            # in the language the learner reads, not the one being learned.
+            "lang": "ru",
             "icons": [
                 {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml",
                  "purpose": "any"},
