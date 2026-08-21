@@ -39,7 +39,10 @@ def info(word="kleit", ru=("платье",), rection=None, itype="2"):
 
 @pytest.fixture
 def conn(tmp_path):
-    return gloss.connect(tmp_path / "v.db")
+    # Without the shipped glossary: these tests are about the store's own
+    # mechanics, and 294 rows they did not write would make every count assert
+    # against a number that moves whenever the glossary grows.
+    return gloss.connect(tmp_path / "v.db", seed_glosses=False)
 
 
 
@@ -253,6 +256,26 @@ class TestThePracticeSetShowsWhatTheWordsMean:
         got = client.post("/api/practice/answer", json={
             "topic": "osastav", "prompt": "Ma ostsin ____.", "answer": "kleiti",
             "given": "kleiti", "lemma": "kleit"})
+        assert got.status_code == 200
+        assert got.json()["correct"] is True
+
+        # It used to assert `russian == []` here, and that is no longer the
+        # right guarantee: `kleit` is in the shipped glossary, so a dead
+        # dictionary now costs the learner nothing at all rather than costing
+        # them the translation. The grade was never at risk either way.
+        assert got.json()["russian"] == ["платье"]
+
+    def test_an_unseeded_word_degrades_quietly(self, client, monkeypatch):
+        """The other half: a word the glossary does not carry still shows no
+        translation rather than an error, which is what the dead-dictionary
+        path has always promised."""
+        def boom(*a, **k):
+            raise OSError("refused")
+
+        monkeypatch.setattr(sonapi, "lookup", boom)
+        got = client.post("/api/practice/answer", json={
+            "topic": "osastav", "prompt": "Ma ostsin ____.", "answer": "seinamaalingut",
+            "given": "seinamaalingut", "lemma": "seinamaaling"})
         assert got.status_code == 200
         assert got.json()["correct"] is True and got.json()["russian"] == []
 

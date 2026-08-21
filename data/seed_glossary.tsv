@@ -1,0 +1,313 @@
+# Russian glosses for the words that actually appear in generated drills.
+#
+# Written for this project, from knowledge of Estonian -- NOT scraped. Sõnaveeb
+# asks not to be batched, and `sonapi` is deliberately single-lookup only, so
+# there is no licence-clean way to fetch 300 words and no intention of finding
+# one. This file is the alternative: it ships with the app, needs no network,
+# and belongs to us.
+#
+# Why it exists: measured across every generator, 0 % of drill lemmas had a
+# stored translation on a fresh deployment. The gloss store fills on demand,
+# one word at a time, so `etendus` stays untranslated until somebody looks it
+# up -- and a B1 object-case drill on a word the learner cannot translate
+# teaches morphology on a token. CLAUDE.md names that failure; this closes it
+# for the words it actually happens on.
+#
+# A Sõnaveeb answer is richer (senses, rection, muuttüüp) and still wins: this
+# only fills `russian`, and the word card fetches the rest on demand.
+#
+# lemma<TAB>russian
+aasta	год
+aeg	время
+aitama	помогать
+ajaleht	газета
+ajama	гнать, вести
+aken	окно
+alustama	начинать
+amet	должность, профессия
+andma	давать
+apteek	аптека
+armastama	любить
+arst	врач
+artikkel	статья
+aruanne	отчёт
+arutama	обсуждать
+arvama	думать, полагать
+arvuti	компьютер
+astuma	шагать, вступать
+auto	машина, автомобиль
+avama	открывать
+buss	автобус
+direktor	директор
+dokument	документ
+eesmärk	цель
+elama	жить
+elulookirjeldus	биография, резюме
+ema	мать
+emakeel	родной язык
+esimene	первый
+esitama	представлять, подавать
+etendus	спектакль
+euro	евро
+haigla	больница
+hakkama	начинать
+hammas	зуб
+harjutama	тренировать(ся)
+helistama	звонить
+hind	цена
+hoiatama	предупреждать
+hoidma	держать, хранить
+hommik	утро
+hoolitsema	заботиться
+hävitama	уничтожать
+hüppama	прыгать
+igatsema	скучать, тосковать
+ilm	погода
+inglane	англичанин
+inimene	человек
+internetiühendus	интернет-соединение
+isa	отец
+istuma	сидеть
+jaam	вокзал, станция
+jalgratas	велосипед
+jalutama	гулять
+jooksma	бежать
+jooma	пить
+joon	линия, черта
+juhtuma	случаться
+juua	пить
+jälgima	следить, наблюдать
+järv	озеро
+jätkama	продолжать
+jätma	оставлять
+jääma	оставаться
+jäätis	мороженое
+jõgi	река
+jõudma	успевать, добираться
+kaduma	исчезать
+kaheksas	восьмой
+kainus	трезвость
+kaitsma	защищать
+kandma	носить
+kannatama	страдать, терпеть
+kaotama	терять
+karjuma	кричать
+kartma	бояться
+kasutama	использовать
+kasvama	расти
+kate	покрытие, чехол
+keel	язык
+kevad	весна
+kiirustama	спешить
+kilomeeter	километр
+kingad	обувь
+kingitus	подарок
+kirik	церковь
+kirjutama	писать
+kleit	платье
+kodakondsus	гражданство
+kohtama	встречать
+kohtuma	встречаться
+kohus	суд
+kolima	переезжать
+kolmas	третий
+kontrollima	проверять
+kool	школа
+koondis	сборная
+korraldama	организовывать
+korter	квартира
+kutsuma	звать, приглашать
+kuu	месяц; луна
+kuues	шестой
+kuulama	слушать
+käima	ходить
+käituma	вести себя
+kõndima	идти пешком
+köök	кухня
+külmuma	замерзать
+kümnes	десятый
+küsima	спрашивать
+küsitlus	опрос
+laev	корабль
+lahendus	решение
+lahkuma	уходить, покидать
+langema	падать
+laps	ребёнок
+laskma	пускать, позволять
+laud	стол
+leib	хлеб
+leidma	находить
+lendama	лететь
+lennuk	самолёт
+leping	договор
+leppima	мириться, соглашаться
+liige	член (организации)
+liikuma	двигаться
+linn	город
+lootma	надеяться
+lubama	разрешать, обещать
+lugema	читать
+lumi	снег
+luuletus	стихотворение
+lõpetama	заканчивать
+lõppema	заканчиваться
+lööma	бить, ударять
+magama	спать
+maja	дом
+maksma	платить, стоить
+meeldima	нравиться
+mees	мужчина
+meeter	метр
+meri	море
+mets	лес
+minema	идти, уходить
+minut	минута
+muretsema	беспокоиться
+muutma	менять, изменять
+muutuma	меняться
+mäletama	помнить
+mõtlema	думать
+müüma	продавать
+naerma	смеяться
+naine	женщина
+neljas	четвёртый
+nimi	имя
+nädal	неделя
+nägema	видеть
+näitama	показывать
+olema	быть
+olukord	ситуация, положение
+ootama	ждать
+oskama	уметь
+ostma	покупать
+otsima	искать
+otsustama	решать
+paistma	светить, казаться
+pakkuma	предлагать
+palk	зарплата
+panema	класть, ставить
+pangakaart	банковская карта
+parandama	чинить, исправлять
+pere	семья
+pesema	мыть, стирать
+pidama	должен; держать
+pilet	билет
+poeg	сын
+politsei	полиция
+pood	магазин
+president	президент
+projekt	проект
+protsent	процент
+publik	публика
+puhkus	отпуск
+päev	день
+päike	солнце
+pääsema	попадать, спасаться
+päästma	спасать
+püsima	держаться, оставаться
+püüdma	пытаться, ловить
+raamat	книга
+raha	деньги
+rahakott	кошелёк
+rahvas	народ
+reis	поездка
+riided	одежда
+riik	государство
+rong	поезд
+rääkima	говорить
+ründama	нападать
+saade	передача
+saama	получать, мочь
+saar	остров
+sadama	идти (об осадках)
+seadus	закон
+seisma	стоять
+seitsmes	седьмой
+seletama	объяснять
+soovima	желать
+sulama	таять
+sulgema	закрывать
+supp	суп
+surema	умирать
+suvi	лето
+särk	рубашка
+sõber	друг
+sõitja	пассажир
+sõitma	ехать
+sõna	слово
+söök	еда
+sööma	есть, кушать
+sügis	осень
+sündima	рождаться
+tahtma	хотеть
+talv	зима
+tapma	убивать
+tase	уровень
+teadma	знать
+teatama	сообщать
+tee	дорога; чай
+teenima	зарабатывать, служить
+tegelema	заниматься
+tegema	делать
+teine	второй, другой
+telefon	телефон
+telekanal	телеканал
+tool	стул
+tooma	приносить
+trammiliin	трамвайная линия
+tuba	комната
+tulema	приходить
+tulevik	будущее
+tulistama	стрелять
+tund	час; урок
+tundma	чувствовать, знать (кого-то)
+tunne	чувство
+tunnistama	признавать, свидетельствовать
+turg	рынок
+turist	турист
+tuul	ветер
+tähendama	значить, означать
+täitma	наполнять, выполнять
+tänama	благодарить
+tänav	улица
+tõmbama	тянуть
+tõusma	подниматься
+töö	работа
+töötama	работать
+tütar	дочь
+uks	дверь
+unustama	забывать
+uskuma	верить
+uurima	исследовать, изучать
+vaatama	смотреть
+vabandama	извиняться
+vahetama	менять, обменивать
+vajama	нуждаться
+valetama	врать
+valima	выбирать
+vastama	отвечать
+vastutama	отвечать (за что-то)
+vend	брат
+vesi	вода
+video	видео
+vihkama	ненавидеть
+vihm	дождь
+viies	пятый
+viima	относить, вести
+viskama	бросать
+võima	мочь
+võitlema	бороться
+võitma	побеждать, выигрывать
+võti	ключ
+võtma	брать
+ärkama	просыпаться
+õde	сестра
+õhtu	вечер
+õpetaja	учитель
+õpetama	учить, преподавать
+õpilane	ученик
+õppima	учиться
+öö	ночь
+üheksas	девятый
+üliõpilane	студент
+ütlema	говорить, сказать

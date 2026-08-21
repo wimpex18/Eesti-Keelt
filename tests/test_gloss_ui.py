@@ -164,7 +164,9 @@ class TestTheCountHasAReader:
         from eesti.wordlist import connect as wordlist_connect
 
         path = tmp_path / "v.db"
-        store = gloss.connect(path)
+        # Without the shipped glossary: this asserts that *one* saved gloss is
+        # counted, and 294 seeded rows would make the number about the file.
+        store = gloss.connect(path, seed_glosses=False)
         gloss.save(store, "kleit", sonapi.WordInfo(
             word="kleit", word_classes=(), rection=None, inflection_type="2",
             definition=None, examples=(), translations={"ru": ("платье",)}))

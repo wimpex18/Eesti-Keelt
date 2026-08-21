@@ -947,6 +947,23 @@ def themes_list() -> dict:
     return {"themes": [{"id": k, **v} for k, v in coverage(db()).items()]}
 
 
+def _topic_reference(meta) -> dict | None:
+    """The handbook link for a topic, by error tag or by topic id.
+
+    Same fallback as `GradedItem.reference`, and here for the same reason: the
+    empty-topic message promises a rule to read, and most topics have no error
+    tag to find one by.
+    """
+    from .grammar import describe as describe_rule
+
+    if meta.tag:
+        found = describe_rule(meta.tag)
+        if found.get("known"):
+            return found
+    found = describe_rule(meta.id)
+    return found if found.get("known") else None
+
+
 @app.post("/api/practice")
 def practice_items(req: PracticeRequest) -> dict:
     """Items for one topic — the topic you are on, unless you name another."""
@@ -984,7 +1001,7 @@ def practice_items(req: PracticeRequest) -> dict:
     # page keep offering the EKK reference, so the topic still teaches
     # something instead of dead-ending.
     if meta.generator is None:
-        reference = describe_rule(meta.tag) if meta.tag else None
+        reference = _topic_reference(meta)
         # Only 1 of the 13 (`astmevaheldus`) carries an EKK reference, so the
         # sentence has to be conditional. Promising "the rule is linked below"
         # with nothing below it is a worse message than the English one it
@@ -1032,7 +1049,7 @@ def practice_items(req: PracticeRequest) -> dict:
         "et": meta.et,
         "ru": meta.ru,
         "detail": detail,
-        "reference": describe_rule(meta.tag) if meta.tag else None,
+        "reference": _topic_reference(meta),
         "items": [i.to_dict() for i in items],
         # What the words in this set mean, from the local store only.
         #

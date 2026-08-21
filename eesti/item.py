@@ -75,8 +75,16 @@ class GradedItem:
         from .curriculum import by_id
         from .grammar import describe
 
+        # The error tag first -- its entry is written for somebody who got the
+        # thing wrong. Failing that, the topic's own id: 18 of the 23 drillable
+        # topics carry no tag, because tags are the fixed nine the Notion log
+        # validates against and that set must not grow to accommodate a link.
         tag = by_id(self.topic).tag
-        return describe(tag) if tag else None
+        found = describe(tag) if tag else None
+        if found and found.get("known"):
+            return found
+        by_topic = describe(self.topic)
+        return by_topic if by_topic.get("known") else found
 
     def to_dict(self) -> dict:
         # `label` alongside `hint`, because the page needs the two halves apart.
