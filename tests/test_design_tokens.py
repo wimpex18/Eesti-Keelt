@@ -69,9 +69,18 @@ class TestBothThemesDefineTheSameTokens:
     which is the unreadable-artifact bug: text painted with an unresolved
     colour falls back to `inherit` and can land on its own background."""
 
-    def _block(self, css: str, opener: str) -> set[str]:
+    #: A token that *paints* has to exist in both palettes. One that measures
+    #: -- a length, a duration, an easing curve -- is theme-neutral and is
+    #: declared once. Classified by what the value is rather than by a list of
+    #: names to keep updated, which is the mistake this file is about: the
+    #: first version filtered on `radius|nav-h|ease|quick` and failed the
+    #: moment a spacing scale was added, on tokens that were never colours.
+    COLOURISH = re.compile(r"#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|color-mix\(")
+
+    def _block(self, css: str, opener: str) -> dict[str, str]:
         start = css.index(opener)
-        return set(re.findall(r"(--[a-z0-9-]+)\s*:", css[start:css.index("}", start)]))
+        body = css[start:css.index("}", start)]
+        return dict(re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;}]+)", body))
 
     def test_the_dark_palettes_cover_what_light_defines(self, css):
         light = self._block(css, ":root{\n")
@@ -80,22 +89,20 @@ class TestBothThemesDefineTheSameTokens:
         stamped = self._block(css, ':root[data-theme="dark"]{')
         queried = self._block(css, ':root:not([data-theme="light"]){')
 
-        # Only colours must be restated; geometry and easing are theme-neutral.
-        def colourish(names):
-            return {n for n in names if not re.search(
-                r"radius|nav-h|ease|quick", n)}
+        paints = {n for n, v in light.items() if self.COLOURISH.search(v)}
+        assert paints, "no colour tokens found -- the check would be vacuous"
 
         for name, block in (("data-theme=dark", stamped),
                             ("prefers-color-scheme:dark", queried)):
-            missing = sorted(colourish(light) - colourish(block))
+            missing = sorted(paints - set(block))
             assert not missing, (
                 f"{name} leaves these at their light values: {missing}")
 
     def test_the_two_dark_palettes_agree(self, css):
         """They are written twice, so they can drift. An explicit dark choice
         and a dark OS must produce the same page."""
-        stamped = self._block(css, ':root[data-theme="dark"]{')
-        queried = self._block(css, ':root:not([data-theme="light"]){')
+        stamped = set(self._block(css, ':root[data-theme="dark"]{'))
+        queried = set(self._block(css, ':root:not([data-theme="light"]){'))
         assert stamped == queried, (
             "the two dark palettes define different tokens: "
             f"only stamped={sorted(stamped - queried)}, "

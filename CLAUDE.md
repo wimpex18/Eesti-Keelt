@@ -605,3 +605,32 @@ in Cloud Shell and discover the project, service and region themselves.
   as their reward. The earlier fix for "the path badges are English" looked at
   a screen and glossed what was on it, which is why the two states that only
   appear *after* you do something were the two it missed.
+- **A reset copied to where it does not apply deletes what it was protecting.**
+  Thirteen elements carried an inline `margin-top:0`, all saying the same
+  thing: "I am the first child of this panel and its padding is already the
+  space above me." Four of the thirteen were **not** first children, and there
+  the idiom silently changed meaning from "remove the margin I do not need" to
+  "remove the margin I do need" — the Harjuta row jammed against the progress
+  ring, the pass rule against the level buttons, the review row against its
+  hint, a listening hint against its heading. The reported symptom was one of
+  the four. The fix is one `.panel > :first-child{margin-top:0}`, which cannot
+  be copied onto something that is not first, and the other three came back on
+  their own. Spacing lives on a scale now (`--s1`…`--s6`), because eleven
+  hand-chosen margins is how a page gets to the point where "a bit more room
+  here" means inventing a twelfth.
+- **A grid whose children are placed by row number breaks when you add a
+  child.** `.wrap` is a two-column grid on the desktop and `.rail` is pinned
+  at `grid-row:3 / span 40`, which silently assumes header, nav, panels in
+  that order. Adding one `<span>` at the top level — a group marker beside the
+  tab bar — made it a grid item, pushed every row down, and opened a 500px
+  void between the header and the tabs. Nothing about the span was wrong; the
+  coupling was. Anything added at the top level of `.wrap` has to be placed
+  deliberately, and a marker belongs inside the thing it marks anyway.
+- **`display:flex` on a parent changes what `display:block` means in a child.**
+  Giving `.modes button` `display:inline-flex` to seat an icon turned its
+  `.ru` gloss — a block that had been stacking *under* the Estonian label —
+  into a flex item sitting *beside* it. The control went from 330px to 534px
+  and pushed a 390px phone 164px sideways. The nav tabs were untouched by the
+  same change because their gloss lives inside `.lbl` rather than directly on
+  the button. Before making a container flex, look at what its children were
+  relying on the normal flow to do.
