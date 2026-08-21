@@ -248,3 +248,126 @@ def negation_drills(
             prompt=prompt, answer=answer, distractor=distractor, lemma=verb,
             label_et="eitus " + tense, why_ru=why, topic="eitus", level=None))
     return out
+
+# ---------------------------------------------------------------------------
+# Agreement (ühildumine)
+# ---------------------------------------------------------------------------
+
+#: Cases in which an Estonian adjective genuinely agrees with its noun.
+#:
+#: **Deliberately not all of them.** In the terminative, essive, abessive and
+#: comitative the attribute stays in the *genitive* -- `suure majani`, not
+#: `suureni majani` -- and Vabamorf will cheerfully synthesise the agreeing
+#: form anyway, because that form exists as a word. Generating those four would
+#: produce fluent, confident, wrong Estonian, which is worse than not drilling
+#: them at all.
+#:
+#: The handbook's own example is `selle halli kivini` (terminative, attribute
+#: in the genitive). This list is the conservative half: excluded cases are
+#: never generated, so an error in the exception list cannot reach a learner.
+AGREEING_CASES = (
+    ("sg n", "ainsuse nimetav"), ("sg g", "ainsuse omastav"),
+    ("sg p", "ainsuse osastav"), ("sg in", "sisseütlev"),
+    ("sg ill", "sisseütlev"), ("sg el", "seestütlev"),
+    ("sg all", "alaleütlev"), ("sg ad", "alalütlev"),
+    ("sg abl", "alaltütlev"), ("sg tr", "saav"),
+    ("pl n", "mitmuse nimetav"), ("pl p", "mitmuse osastav"),
+)
+
+
+def agreement_drills(
+    conn: sqlite3.Connection,
+    levels: tuple[str, ...] = LEVELS,
+    count: int = 10,
+    seed: int | None = None,
+    only: frozenset[str] | None = None,
+) -> list[FormDrill]:
+    """Put the adjective into the case its noun is already in.
+
+    The error this drills is specific to a Russian speaker. Russian adjectives
+    agree too, so the *concept* transfers and the learner is not warned by it
+    feeling strange -- what does not transfer is that Estonian marks the
+    adjective with the same case ending as the noun, across fourteen cases.
+    The usual mistake is to leave the adjective in the nominative, which is why
+    that is the distractor.
+
+    The noun is shown already inflected, so the question is agreement and not
+    whether the learner can decline the noun -- that is `pohivormid` and
+    `kohakaanded`, and asking two things at once makes a wrong answer
+    uninformative.
+    """
+    marks = ",".join("?" * len(levels))
+    adjectives = [
+        r[0] for r in conn.execute(
+            "SELECT word FROM words"
+            f" WHERE proficiency IN ({marks})"
+            "   AND (',' || REPLACE(pos, ' ', '') || ',') LIKE '%,adj,%'"
+            " ORDER BY (freq_rank IS NULL OR freq_rank = 0), freq_rank", levels)
+    ]
+    nouns = [
+        r[0] for r in conn.execute(
+            "SELECT c.word FROM object_cases c JOIN words w ON w.word = c.word"
+            f" WHERE w.proficiency IN ({marks})"
+            "   AND (',' || REPLACE(w.pos, ' ', '') || ',') LIKE '%,s,%'"
+            # Nouns only, never a word that is also an adjective. `hea` is
+            # tagged `adj,s`, and pairing it as the noun produced
+            # `kohutavaks heaks` -- an adjective modifying an adjective, which
+            # is not the construction being taught.
+            "   AND (',' || REPLACE(w.pos, ' ', '') || ',') NOT LIKE '%,adj,%'"
+            " ORDER BY (w.freq_rank IS NULL OR w.freq_rank = 0), w.freq_rank",
+            levels)
+    ]
+    if only is not None:
+        nouns = [n for n in nouns if n in only]
+    if not adjectives or not nouns:
+        return []
+
+    rnd = random.Random(seed)
+    adj_pool = adjectives[:max(count * 8, 80)]
+    noun_pool = nouns[:max(count * 8, 80)]
+    rnd.shuffle(adj_pool)
+    rnd.shuffle(noun_pool)
+
+    from .morph import synthesize
+
+    out: list[FormDrill] = []
+    seen: set[tuple[str, str, str]] = set()
+    # Sampled rather than zipped. `zip` gave exactly one attempt per adjective,
+    # so a short word list -- or a run where the agreeing form happens to equal
+    # the citation form -- returned far fewer items than were asked for, and
+    # the caller has no way to tell "nothing to generate" from "gave up early".
+    for _ in range(count * 40):
+        if len(out) >= count:
+            break
+        adjective = rnd.choice(adj_pool)
+        noun = rnd.choice(noun_pool)
+        spec, case_et = rnd.choice(AGREEING_CASES)
+        if (adjective, noun, spec) in seen:
+            continue
+        seen.add((adjective, noun, spec))
+        try:
+            adj_form = list(synthesize(adjective, spec))
+            noun_form = list(synthesize(noun, spec))
+            base = list(synthesize(adjective, "sg n"))
+        except Exception:  # noqa: BLE001 - an unanalysable word is skipped
+            continue
+        if not adj_form or not noun_form or not base:
+            continue
+        # Nothing is being asked if the agreeing form is the citation form.
+        if adj_form[0] == base[0]:
+            continue
+        out.append(FormDrill(
+            prompt=f"{BLANK} {noun_form[0]}",
+            answer=adj_form[0],
+            distractor=base[0],
+            lemma=adjective,
+            label_et=f"ühildumine: {case_et}",
+            why_ru=(
+                f"Прилагательное принимает тот же падеж, что и существительное: "
+                f"«{noun_form[0]}» стоит в форме «{case_et}», значит и "
+                f"«{base[0]}» становится «{adj_form[0]}». В русском согласование "
+                f"тоже есть, но окончания другие — и именно поэтому его легко "
+                f"забыть."
+            ),
+            topic="uhildumine", level=None))
+    return out

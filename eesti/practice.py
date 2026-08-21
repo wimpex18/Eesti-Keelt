@@ -84,11 +84,15 @@ def items_for(
                               only=countable if topic == "arvsonad" else None)
 
     if generator == "forms":
-        from .forms import negation_drills, principal_forms
+        from .forms import (agreement_drills, negation_drills,
+                            principal_forms)
 
         if topic == "eitus":
             return negation_drills(words, levels=levels, count=count,
                                    seed=seed, only=verbs)
+        if topic == "uhildumine":
+            return agreement_drills(words, levels=levels, count=count,
+                                    seed=seed, only=nouns)
         return principal_forms(words, levels=levels, count=count, seed=seed,
                                only=nouns)
 

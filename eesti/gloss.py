@@ -105,7 +105,7 @@ class Gloss:
         }
 
 
-def connect(path: Path | str) -> sqlite3.Connection:
+def connect(path: Path | str, *, seed_glosses: bool = True) -> sqlite3.Connection:
     """Open the store. Lives in `vocab.db`, which the state snapshot carries.
 
     Not a file of its own: a gloss is a fact about a word this learner met, it
@@ -119,7 +119,26 @@ def connect(path: Path | str) -> sqlite3.Connection:
     """
     from .vocab import connect as open_vocab
 
-    return open_vocab(path)
+    conn = open_vocab(path)
+    # Load the shipped glosses if this store has never had them. Keyed on the
+    # marker rather than on the table being empty, so a store that already
+    # holds Sõnaveeb answers still receives the seed on upgrade -- "empty"
+    # would have skipped exactly the stores that have been used.
+    #
+    # A loader nothing calls is this project's oldest recurring bug, so it is
+    # wired into the one opener rather than left for a caller to remember.
+    # `seed_glosses=False` is for tests about the store's own mechanics --
+    # saving, de-duplicating, counting -- which should not have 294 rows they
+    # did not put there. Production never passes it.
+    if seed_glosses:
+        try:
+            if not conn.execute(
+                    "SELECT 1 FROM word_gloss WHERE fetched = 'seed' LIMIT 1"
+            ).fetchone():
+                seed(conn)
+        except Exception:  # noqa: BLE001 - a missing seed must never block the app
+            pass
+    return conn
 
 
 def _now() -> str:
@@ -217,6 +236,15 @@ def _spend(conn: sqlite3.Connection) -> None:
         )
 
 
+def _is_seed(conn: sqlite3.Connection, lemma: str) -> bool:
+    """Whether the stored row came from the shipped glossary rather than a
+    live answer. Kept as a query rather than a field on `Gloss`, because it is
+    a fact about provenance and every caller of `Gloss` cares about meaning."""
+    row = conn.execute(
+        "SELECT fetched FROM word_gloss WHERE lemma = ?", (lemma,)).fetchone()
+    return bool(row) and row[0] == "seed"
+
+
 def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     """The one place a live lookup may happen: a word in front of the learner.
 
@@ -231,10 +259,16 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
         return None
 
     hit = stored(conn, lemma)
-    if hit is not None:
+    # A seeded row is a baseline, not a ceiling. It carries the Russian and
+    # nothing else -- no senses, no rection, no muuttüüp -- so returning it here
+    # would mean 294 of the commonest words could *never* gain the rest, and
+    # seeding would have quietly made the word card worse for exactly the words
+    # it appears on most. Ask anyway, budget permitting, and keep the seed as
+    # the fallback if the answer does not come.
+    if hit is not None and not _is_seed(conn, lemma):
         return hit
     if budget_left(conn) <= 0:
-        return None
+        return hit
 
     from .providers import sonapi
 
@@ -242,8 +276,11 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     try:                                   # into a flood
         info = sonapi.lookup(lemma)
     except Exception:  # noqa: BLE001 - a third party being down is not an error
-        return None
-    return save(conn, lemma, info)
+        # `hit` rather than None: for a seeded word we already have the Russian,
+        # and showing nothing because Sõnaveeb is having a bad minute would be a
+        # step backwards from where the seed left us.
+        return hit
+    return save(conn, lemma, info) or hit
 
 
 def stats(conn: sqlite3.Connection) -> dict:
@@ -260,3 +297,50 @@ def stats(conn: sqlite3.Connection) -> dict:
         "budget_left": budget_left(conn),
         "daily_budget": DAILY_BUDGET,
     }
+
+#: Glosses that ship with the app, for the words drills actually use.
+#:
+#: Measured across every generator: 0 % of drill lemmas had a translation on a
+#: fresh deployment, because the store fills one word at a time on demand. A
+#: learner drilling `etendus` got morphology on a token they could not
+#: translate -- the failure CLAUDE.md names and nothing had closed.
+#:
+#: Written for this project rather than fetched. Sõnaveeb asks not to be
+#: batched and `sonapi` has no bulk helper by design, so seeding from it was
+#: never an option and this is not a workaround for one.
+SEED = Path(__file__).resolve().parent.parent / "data" / "seed_glossary.tsv"
+
+
+def seed(conn: sqlite3.Connection, path: Path | str | None = None) -> int:
+    """Load the shipped glosses. Returns how many rows were newly written.
+
+    `INSERT OR IGNORE`, so a Sõnaveeb answer already in the store always wins:
+    it carries senses, rection and muuttüüp, and this file carries one line.
+    Idempotent, so it can run on every start without cost.
+
+    Marked `fetched = 'seed'` so the two sources stay distinguishable -- a
+    later session asking "where did this translation come from" gets an answer
+    rather than assuming Sõnaveeb said it.
+    """
+    src = Path(path) if path else SEED
+    if not src.exists():
+        return 0
+    rows = []
+    for line in src.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        lemma, _, russian = line.partition("\t")
+        lemma, russian = lemma.strip(), russian.strip()
+        if lemma and russian:
+            rows.append((lemma, russian, "seed"))
+    if not rows:
+        return 0
+    conn.executescript(SCHEMA)
+    before = conn.execute("SELECT COUNT(*) FROM word_gloss").fetchone()[0]
+    with conn:
+        conn.executemany(
+            "INSERT OR IGNORE INTO word_gloss (lemma, russian, fetched)"
+            " VALUES (?, ?, ?)", rows)
+    return conn.execute(
+        "SELECT COUNT(*) FROM word_gloss").fetchone()[0] - before

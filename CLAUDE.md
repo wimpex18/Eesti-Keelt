@@ -6,7 +6,7 @@ reasoning; this file is what a fresh session needs in the first minute.
 ## Where things stand
 
 **Version 1.0 closed 2026-08-20.** `docs/status.md` is the inventory: what
-works, the 11 curriculum topics with no generator, the known bugs, the tech
+works, the 10 curriculum topics with no generator, the known bugs, the tech
 debt, and what the research plan promised and did not deliver. Read it before
 planning a sprint.
 
@@ -436,6 +436,24 @@ in Cloud Shell and discover the project, service and region themselves.
   line, because the same rule that applies to a stale cache applies to a stale
   sentence. A doc may still record a past figure — it just has to say "at the
   time of writing", which the check honours.
+- **A value nothing can set is a value that does not exist.** The vocabulary
+  ladder had five statuses and three of them — `tuttav`, `eiran`,
+  `teadsin ammu` — had no writer anywhere: modelled, stored, counted by the
+  overview, unreachable from any control. This is the third costume of the
+  same bug (a measurement with no writer, an endpoint with no caller), and the
+  tell is identical: nothing fails, because the two statuses that *are* set
+  keep every downstream feature looking correct. When you add a state, find
+  the thing that sets it; when you find a state nobody sets, decide whether to
+  wire it or drop it, and write down which.
+- **A retry can be the thing that keeps the failure alive.** The deployment
+  sat at `HTTPError 429` for three days and the reading was "free tier spent,
+  it will clear". OpenRouter counts *failed* attempts against the daily quota,
+  and this client retried a 429 three times — so every rate-limited check
+  spent three of the fifty confirming it was rate-limited, and cost the learner
+  fifteen seconds doing it. Two different limits wear that one status code and
+  only the per-minute one is worth waiting out. Before adding a retry, ask what
+  the failed attempt costs and whether the server has told you which failure it
+  was; `Retry-After` is that answer.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,

@@ -28,6 +28,7 @@ DEFAULT_TIMEOUT = 60.0
 # row — a real run lost two cases to HTTP 429. Pace requests and retry the
 # transient failures, or the score measures our impatience rather than the model.
 MIN_INTERVAL = 3.5
+
 RETRIES = 3
 _last_call = 0.0
 
@@ -219,6 +220,38 @@ def probe(provider_name: str, model: str) -> bool:
         return False
 
 
+#: The longest `Retry-After` worth sleeping through mid-request. Above this the
+#: 429 is a daily cap rather than a per-minute one, and the right move is to
+#: fall through the chain rather than to spend more quota confirming it.
+RETRY_CEILING = 60.0
+
+
+def _retry_after(exc) -> float | None:
+    """Seconds the provider asks us to wait, or None if it did not say.
+
+    `Retry-After` is either a count of seconds or an HTTP date; OpenRouter also
+    sends `X-RateLimit-Reset` as a Unix timestamp in milliseconds. Read all
+    three rather than only the easy one -- guessing here is what costs quota.
+    """
+    import email.utils
+
+    raw = exc.headers.get("Retry-After") if exc.headers else None
+    if raw:
+        raw = raw.strip()
+        if raw.replace(".", "", 1).isdigit():
+            return float(raw)
+        stamp = email.utils.parsedate_to_datetime(raw)
+        if stamp is not None:
+            import datetime as _dt
+
+            now = _dt.datetime.now(stamp.tzinfo or _dt.timezone.utc)
+            return max(0.0, (stamp - now).total_seconds())
+    reset = exc.headers.get("X-RateLimit-Reset") if exc.headers else None
+    if reset and reset.strip().isdigit():
+        return max(0.0, int(reset) / 1000.0 - time.time())
+    return None
+
+
 def complete(
     provider_name: str,
     system: str,
@@ -268,13 +301,33 @@ def complete(
                 body = json.loads(resp.read())
             return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as exc:
-            # 429 and 5xx are the provider having a moment; 4xx otherwise is us.
-            retryable = exc.code == 429 or exc.code >= 500
-            if not retryable or attempt == RETRIES - 1:
+            if attempt == RETRIES - 1:
                 raise
-            # Honour Retry-After when the provider sends one.
-            delay = exc.headers.get("Retry-After")
-            time.sleep(float(delay) if delay and delay.isdigit() else 5 * (attempt + 1))
+            if exc.code == 429:
+                # Two different 429s wear one status code, and retrying is
+                # right for exactly one of them.
+                #
+                # OpenRouter's free tier allows 20 requests a minute and 50 a
+                # day, and **a failed attempt still counts against the daily
+                # quota**. So when the daily cap is what was hit, every retry
+                # spends another of the 50 to be told the same thing, and the
+                # learner waits 5s then 10s to arrive at the answer the first
+                # call already gave. Three requests and fifteen seconds for one
+                # guaranteed failure -- and the whole point of a provider chain
+                # is that falling through to the next one is cheap.
+                #
+                # The provider is the only thing that knows which cap it was,
+                # and it says so in `Retry-After`. A short wait is the
+                # per-minute cap and worth sleeping through; a long one, or none
+                # at all, is not something to spend quota guessing about.
+                wait = _retry_after(exc)
+                if wait is None or wait > RETRY_CEILING:
+                    raise
+                time.sleep(wait)
+                continue
+            if exc.code < 500:
+                raise          # 4xx that is not 429 is us, not them
+            time.sleep(5 * (attempt + 1))
         except (TimeoutError, OSError):
             if attempt == RETRIES - 1:
                 raise

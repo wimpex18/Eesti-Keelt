@@ -124,9 +124,14 @@ class TestWordMeaningsTravelToo:
         from eesti.providers import sonapi
 
         conn = gloss.connect(app_module.VOCAB_DB)
-        gloss.save(conn, "kleit", sonapi.WordInfo(
-            word="kleit", word_classes=(), rection=None, inflection_type="2",
-            definition=None, examples=(), translations={"ru": ("платье",)}))
+        # Deliberately a word the shipped glossary does NOT carry. With a
+        # seeded word such as `kleit`, the assertion at the end would pass
+        # whether or not the snapshot restored anything -- the seed supplies
+        # that translation on any fresh open.
+        gloss.save(conn, "seinamaaling", sonapi.WordInfo(
+            word="seinamaaling", word_classes=(), rection=None,
+            inflection_type="2", definition=None, examples=(),
+            translations={"ru": ("настенная роспись",)}))
         return conn
 
     def test_a_gloss_survives_the_container_being_replaced(self, client):
@@ -145,13 +150,17 @@ class TestWordMeaningsTravelToo:
             path = pathlib.Path(getattr(app_module, name))
             if path.exists():
                 path.unlink()
-        assert gloss.stats(gloss.connect(app_module.VOCAB_DB))["words"] == 0
+        # The wipe is proved by the *saved* word being gone, not by a total of
+        # zero: reopening the store reloads the shipped glossary, which is
+        # correct and would make a count assertion fail for the wrong reason.
+        assert gloss.stored(
+            gloss.connect(app_module.VOCAB_DB), "seinamaaling") is None
 
         restored = client.post("/api/state/import", headers=head,
                                json=snapshot.json())
         assert restored.status_code == 200
-        kept = gloss.stored(gloss.connect(app_module.VOCAB_DB), "kleit")
-        assert kept is not None and kept.russian == ("платье",)
+        kept = gloss.stored(gloss.connect(app_module.VOCAB_DB), "seinamaaling")
+        assert kept is not None and kept.russian == ("настенная роспись",)
 
     def test_the_daily_budget_survives_too(self, client):
         """Otherwise a restart hands back a fresh allowance, and the cap that

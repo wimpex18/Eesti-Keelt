@@ -24,19 +24,22 @@ of those two routes to take is precisely what the readiness verdict is for.
 
 | | |
 |---|---|
-| **Drills** | 25 of 36 curriculum topics generate items — **23 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
+| **Drills** | 26 of 36 curriculum topics generate items — **24 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Deterministic everywhere. No model decides whether an answer is right. |
 | **Reading** | 349 Selges keeles texts, click-to-look-up, known-word tracking, comprehensibility ordering. |
 | **Listening** | Dictation from the corpus, TTS on any text at 0.7×, ERR episode audio. |
 | **Writing** | Grammar check through the provider chain, corrections queued for the Notion error log with an explicit send step. |
 | **Speaking** | Question bank in the exam's paired shape, TTS voicing the other side, links out to EKI's own pronunciation exercises. |
 | **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. Intervals expand as they should — measured 2026-08-21 at the due date: 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. |
-| **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. Sentence-level translation from TartuNLP, on request only. |
+| **Vocabulary** | `Sõnavara` lists the wordlist by CEFR level, part of speech and what you have marked, commonest first. Same word card as the reader, so a word chosen here and a word met while reading are one thing. |
+| **Meaning** | **294 Russian glosses ship with the app** (`data/seed_glossary.tsv`), covering 81 % of the words drills actually use — measured 0 % before. Written for this project, never scraped. Sõnaveeb enriches on demand with senses, rection and muuttüüp; the seed is a baseline, not a ceiling. Sentence-level translation from TartuNLP, on request only. |
+| **Rules** | **22 of 23 drillable topics link to the handbook** (was 5). Every section number read off the EKK rather than inferred — a summarising fetch of the same page returned numbers shifted by one. `kusisonad` has none: no section covering question words was found, and a wrong link is worse than none. |
 | **Back-translation** | The writing check reads your Estonian back in Russian, so a sentence that is well formed but says the wrong thing is visible. |
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
+| **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 283 tests: 1 218 in-process and 65 browser journeys.
+49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 309 tests: 1 244 in-process and 65 browser journeys.
 
 ## What a learner still cannot do
 
@@ -78,14 +81,14 @@ from an installed app.
 
 ## What was never built
 
-### 11 curriculum topics have no generator
+### 10 curriculum topics have no generator
 
 ```
 tahestik  lauseehitus  asesonad  astmevaheldus  kaassonad  sidesonad
-maarsonad  tulevik  uhildumine  uhendverbid  liitsonad
+maarsonad  tulevik  uhendverbid  liitsonad
 ```
 
-It was 13 until 2026-08-21, when `pohivormid` and `eitus` got one. **Do not
+It was 13 that morning: `pohivormid`, `eitus` and `uhildumine` were built on 2026-08-21. **Do not
 maintain this list by hand** — it is `[t.id for t in TOPICS if not t.generator]`,
 and the version above is a snapshot for reading, not the source. A test that
 kept its own copy of the same set went stale the moment those two landed.
@@ -97,6 +100,27 @@ the stem is actually chosen. Most are simply not done. `uhildumine`,
 `uhendverbid` and `liitsonad` were investigated as candidates for the
 attested-corrections treatment that made `word-order` work, and the corpus did
 not have enough marked examples.
+
+### Pronouns will not be generated from Vabamorf
+
+`asesonad` is A1, closed-class and looks like the easiest remaining topic —
+thirty-five words, decline them, done. Measured, and refused:
+
+```
+mina  → genitive "mina"    (correct: minu)
+keegi → genitive "kee"     (correct: kellegi)
+iga   → genitive "ea"      (that is `iga` meaning *age*, a different word)
+```
+
+The short forms `ma`, `sa`, `ta`, `me`, `te` synthesise to nothing at all.
+Estonian pronouns are suppletive and Vabamorf's paradigms for them are not
+usable as an answer key, so a generated pronoun drill would be confidently
+wrong several times a page — the `kool, koola, koola` failure again, in a
+place where every item is a word the learner uses constantly.
+
+If it is built, it needs a hand-written table of about thirty words, which is
+the same shape as `data/seed_glossary.tsv` and now a proven pattern. It is not
+a generation problem.
 
 ### Local ASR
 
@@ -129,6 +153,29 @@ Worth knowing for its own sake: `Sõnavara` was *already specified* in that
 document — "vocabulary by frequency band, Speakly-style" — before it was built.
 It was built frequency-ordered by independent reasoning, which converged, but
 the specification was sitting there unread.
+
+### Three of the five word statuses had no writer
+
+`vocab` models five: `õpin`, `tuttav`, `tean`, `eiran`, `teadsin ammu`. Two
+were reachable — `õpin` set automatically on the first encounter while reading,
+`tean` by the word card's button. The other three were modelled, stored and
+counted by the overview, and there was nowhere a learner could click to set
+them. Same shape as a measurement with no writer and an endpoint with no
+caller, which this project has now met three times in three different costumes.
+
+Fixed for `eiran` and `teadsin ammu` on 2026-08-21: the word card carries
+**Pole vaja**, and `POST /api/vocab/known` takes an explicit `status`. `eiran`
+is the one a vocabulary list needs and a reader does not — browsing B1 nouns
+turns up `riigivisiit` and `seinamaaling`, real words that this learner is not
+going to spend a morning on, and without a way to say so they return on every
+page and the "still to learn" count never means anything.
+
+`tuttav` is still unreachable, deliberately. It sits between met and known,
+which is exactly the granularity LingQ's four levels are reported as being too
+fine to judge; the boundary that carries weight here is *settled*, and `tuttav`
+is on the same side of it as `õpin`. It stays in the model because removing a
+stored value is a migration, and earns its place only if something ever needs
+to distinguish "seen twice" from "seen once".
 
 ## Known bugs and rough edges
 

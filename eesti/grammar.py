@@ -37,7 +37,7 @@ EKK_BASE = "https://arhiiv.eki.ee/books/ekk09/index.php"
 # section order. An earlier version of this table had six of seven entries
 # pointing at a real page with the wrong section on it — which is worse than no
 # link, because it looks checked.
-MORFOLOOGIA, SUNTAKS = 3, 5
+ORTOGRAAFIA, MORFOLOOGIA, SUNTAKS = 2, 3, 5
 
 
 @dataclass(frozen=True)
@@ -139,9 +139,203 @@ REFERENCES: dict[str, Reference] = {
 }
 
 
+
+# ---------------------------------------------------------------------------
+# Topic references
+#
+# The nine entries above are keyed by *error tag* -- the fixed set the Notion
+# log validates against (`config.TAGS`), which must not grow. These are keyed
+# by **topic id** instead, so a curriculum topic can carry a handbook link
+# without inventing a tenth error tag.
+#
+# Measured before this was written: of the 23 topics that generate exercises,
+# only 5 carried a reference. A learner who got an item wrong received an
+# explanation and no way to read the underlying rule.
+#
+# **Every section number below was read off the handbook, not inferred.** That
+# matters more than it sounds: a summarising fetch of the same page returned
+# numbers shifted by one, which would have made `M 51` point at the partitive
+# instead of the genitive. Two of them were checked against entries that were
+# already correct, and it was the summary that was wrong. `M 77` is another
+# trap -- it is *Oleviku kesksõna*, the present participle, not the present
+# tense, which is `M 85`.
+# ---------------------------------------------------------------------------
+
+TOPIC_REFERENCES: dict[str, Reference] = {
+    "pohivormid": Reference(
+        tag="pohivormid", et_term="nimisõna põhivormid",
+        ru_term="основные формы имени",
+        ekk_section="M 50", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Три формы, которые даёт словарь: **nimetav** (M 50), **omastav** "
+            "(M 51) и **osastav** (M 52). Все остальные падежи строятся от "
+            "основы омастава, поэтому эти три надо знать вместе."
+        ),
+    ),
+    "osastav": Reference(
+        tag="osastav", et_term="osastav kääne", ru_term="частичный падеж",
+        ekk_section="M 52", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Osastav отвечает за неполный охват: часть количества, незавершённое "
+            "действие и **любое отрицание**. Это тот падеж, который в русском "
+            "чаще всего не имеет прямого соответствия."
+        ),
+    ),
+    "mitmus": Reference(
+        tag="mitmus", et_term="mitmus", ru_term="множественное число",
+        ekk_section="M 67", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Множественное число строится от основы омастава: *raamat → "
+            "raamatu → raamatud*. Отсюда же короткая форма множественного "
+            "(vokaalmitmus, M 69)."
+        ),
+    ),
+    "harvad-kaanded": Reference(
+        tag="harvad-kaanded", et_term="saav, rajav, olev, ilmaütlev, kaasaütlev",
+        ru_term="редкие падежи",
+        ekk_section="M 60", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Пять падежей, идущих подряд в справочнике: **saav** (M 60), "
+            "**rajav** (M 61), **olev** (M 62), **ilmaütlev** (M 63) и "
+            "**kaasaütlev** (M 64). Все — от основы омастава."
+        ),
+    ),
+    "olevik": Reference(
+        tag="olevik", et_term="olevik", ru_term="настоящее время",
+        ekk_section="M 85", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Настоящее время. Личные окончания добавляются к основе настоящего "
+            "времени, а она не всегда выводится из ma-инфинитива: *minema → "
+            "lähen*."
+        ),
+    ),
+    "lihtminevik": Reference(
+        tag="lihtminevik", et_term="lihtminevik", ru_term="простое прошедшее",
+        ekk_section="M 86", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Простое прошедшее (имперфект) — основное повествовательное время. "
+            "Показатель -si-/-s-, но у многих глаголов меняется основа."
+        ),
+    ),
+    "taisminevik": Reference(
+        tag="taisminevik", et_term="täisminevik", ru_term="перфект",
+        ekk_section="M 87", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Перфект: **olema** в настоящем + причастие на -nud. Говорит о "
+            "результате, который важен сейчас."
+        ),
+    ),
+    "enneminevik": Reference(
+        tag="enneminevik", et_term="enneminevik", ru_term="плюсквамперфект",
+        ekk_section="M 88", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Предпрошедшее: **olema** в прошедшем + причастие на -nud. "
+            "Действие, завершившееся раньше другого прошедшего."
+        ),
+    ),
+    "tingiv": Reference(
+        tag="tingiv", et_term="tingiv kõneviis", ru_term="условное наклонение",
+        ekk_section="M 92", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Условное наклонение с показателем **-ksi-/-ks**: *ma teeksin* — "
+            "«я бы сделал». Одна форма покрывает и вежливую просьбу."
+        ),
+    ),
+    "kaskiv": Reference(
+        tag="kaskiv", et_term="käskiv kõneviis", ru_term="повелительное наклонение",
+        ekk_section="M 93", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Повелительное наклонение. Форма 2 л. ед. ч. — это основа без "
+            "окончания (*tee!*), остальные лица берут -ge-/-gu-."
+        ),
+    ),
+    "kesksonad": Reference(
+        tag="kesksonad", et_term="kesksõnad", ru_term="причастия",
+        ekk_section="M 76", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Четыре причастия: настоящего и прошедшего времени, личное и "
+            "безличное — *tegev, teinud, tehtav, tehtud*. Причастие на -nud "
+            "нужно для перфекта и для отрицания в прошедшем."
+        ),
+    ),
+    "umbisikuline": Reference(
+        tag="umbisikuline", et_term="umbisikuline tegumood",
+        ru_term="безличный залог",
+        ekk_section="M 83", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Безличная форма: действие есть, деятель не назван — *tehakse*, "
+            "*tehti*. Ближе к русскому «делают», чем к пассиву."
+        ),
+    ),
+    "vordlusastmed": Reference(
+        tag="vordlusastmed", et_term="võrdlusastmed", ru_term="степени сравнения",
+        ekk_section="M 100", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Три степени: **algvõrre** (M 100), **keskvõrre** (M 101) и "
+            "**ülivõrre** (M 102). Сравнительная строится от основы омастава "
+            "плюс -m: *suur → suure → suurem*."
+        ),
+    ),
+    "eitus": Reference(
+        tag="eitus", et_term="eitus", ru_term="отрицание",
+        ekk_section="SÜ 30", chapter=SUNTAKS, subsection=2,
+        summary_ru=(
+            "Отрицание — это **kõneliik** сказуемого. После **ei** глагол "
+            "теряет личное окончание (*ostan → ei osta*), а в прошедшем "
+            "ставится форма на -nud. И отрицание всегда требует osastav у "
+            "дополнения."
+        ),
+    ),
+    "arvsonad": Reference(
+        tag="arvsonad", et_term="põhiarvsõnad", ru_term="количественные числительные",
+        ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,
+        summary_ru=(
+            "Как числительные записываются и склоняются. Считаемое слово после "
+            "числительного больше единицы стоит в **osastav**: *kaks raamatut*."
+        ),
+    ),
+    "jargarvud": Reference(
+        tag="jargarvud", et_term="järgarvsõnad", ru_term="порядковые числительные",
+        ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,
+        summary_ru=(
+            "Порядковое числительное цифрами пишется **с точкой**: *3. koht*, "
+            "*21. sajand*. Точка и есть показатель порядка — без неё это "
+            "количественное."
+        ),
+    ),
+    "kirjavahemargid": Reference(
+        tag="kirjavahemargid", et_term="koma", ru_term="запятая",
+        ekk_section="O 56", chapter=ORTOGRAAFIA, subsection=11,
+        summary_ru=(
+            "Запятая в эстонском ставится по грамматике, а не по интонации: "
+            "**каждое** придаточное отделяется запятой, в том числе после "
+            "*et*, *kui*, *sest*. Это ближе к русскому правилу, чем к "
+            "английскому."
+        ),
+    ),
+    "uhildumine": Reference(
+        tag="uhildumine", et_term="omadussõnaline täiend",
+        ru_term="согласование определения",
+        ekk_section="SÜ 98", chapter=SUNTAKS, subsection=3,
+        summary_ru=(
+            "Прилагательное принимает тот же падеж и число, что и "
+            "существительное: *suures majas*, *ilusaid päevi*. "
+            "**Исключение:** в rajav, olev, ilmaütlev и kaasaütlev определение "
+            "остаётся в omastav — *suure majani*, *suure majaga*, а не "
+            "*suureni majani*."
+        ),
+    ),
+}
+
+
 def reference_for(tag: str) -> Reference | None:
-    """The handbook entry for an error tag, or None if we have no mapping."""
-    return REFERENCES.get(tag)
+    """The handbook entry for an error tag or a topic id, or None.
+
+    Error tags are looked up first, because that is the older and narrower set
+    and the two do not collide -- `obj-case` is both a tag and a topic id, and
+    the tag's entry is the one written for a learner who got it wrong.
+    """
+    return REFERENCES.get(tag) or TOPIC_REFERENCES.get(tag)
 
 
 def describe(tag: str) -> dict:

@@ -102,7 +102,10 @@ class TestTheEndpointNeverBreaksTheWordCard:
             raise OSError("connection refused")
 
         monkeypatch.setattr(sonapi, "lookup", boom)
-        got = client.get("/api/enrich/lugema")
+        # A word the shipped glossary does not carry. `lugema` used to be here
+        # and is seeded now, so the store answered and the dead service was
+        # never reached -- which tested the seed rather than this path.
+        got = client.get("/api/enrich/seinamaaling")
         assert got.status_code == 200 and got.json()["found"] is False
 
 

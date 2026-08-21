@@ -192,9 +192,11 @@ class TestOtherSurfaces:
                 "known_in_top"]
 
         before = known()
-        assert client.post("/api/vocab/known", json={"lemmas": ["raamat"]}).json() == {
-            "marked": 1
-        }
+        # Asserts the fields this test is about rather than the whole dict: the
+        # response gained `status` when `eiran` became reachable, and an exact
+        # comparison fails on an addition that breaks nothing.
+        body = client.post("/api/vocab/known", json={"lemmas": ["raamat"]}).json()
+        assert body["marked"] == 1
         assert known() >= before
 
     def test_vocab_bands_are_returned(self, client):
