@@ -204,6 +204,24 @@ def page(request, _pw, live_server):
 MODES = ("learn", "revise", "exam")
 
 
+def mode_of(page, tab: str) -> str:
+    """Which mode's navigation offers this tab, asked of the page.
+
+    `open_tab(page, "exam", "drill")` was hardcoded, and when free practice
+    moved out of the exam mode and into Õppimine on 2026-08-21 it broke twelve
+    journeys at once. The rest of this file already derives its tab lists for
+    exactly that reason; this closes the last place that did not.
+    """
+    owner = page.evaluate(
+        """(t) => {
+             const b = document.querySelector(
+               `nav[data-mode-nav] button[data-tab="${t}"]`);
+             return b ? b.closest("nav").dataset.modeNav : null;
+           }""", tab)
+    assert owner, f"no navigation offers a {tab!r} tab"
+    return owner
+
+
 def open_tab(page, mode: str, tab: str) -> None:
     """Switch mode only when the mode is not already showing.
 
@@ -273,7 +291,7 @@ class TestTheGrammarDrill:
     in this class needs the network, the app's central property has broken."""
 
     def _start(self, page):
-        open_tab(page, "exam", "drill")
+        open_tab(page, mode_of(page, "drill"), "drill")
         page.click("#drillBtn")
         page.wait_for_selector("#drillOut .drill", timeout=15000)
 
@@ -460,25 +478,42 @@ class TestTheTabsKeyboardPattern:
             assert w["labelled"], w
 
     def test_arrow_keys_move_between_tabs(self, page):
-        page.click('nav[data-mode-nav="learn"] button[data-tab="path"]')
+        """The *neighbour* is read off the page, not named here.
+
+        This asserted `path -> read`, which stopped being true the moment a tab
+        was inserted between them. What the test is about is that ArrowRight
+        moves one tab and takes the panel with it; which tab that happens to be
+        is a fact about the navigation, and the navigation is right there to
+        ask."""
+        order = page.evaluate(
+            """()=>[...document.querySelectorAll(
+                 'nav[data-mode-nav="learn"] button[data-tab]')]
+                 .map(b=>b.dataset.tab)""")
+        first, second = order[0], order[1]
+
+        page.click(f'nav[data-mode-nav="learn"] button[data-tab="{first}"]')
         page.wait_for_timeout(300)
         page.keyboard.press("ArrowRight")
         page.wait_for_timeout(400)
-        assert page.evaluate("()=>document.activeElement.dataset.tab") == "read"
-        assert page.is_visible("#tab-read"), "focus moved but the panel did not"
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == second
+        assert page.is_visible(f"#tab-{second}"), "focus moved but the panel did not"
         page.keyboard.press("ArrowLeft")
         page.wait_for_timeout(400)
-        assert page.evaluate("()=>document.activeElement.dataset.tab") == "path"
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == first
 
     def test_home_and_end_reach_the_ends(self, page):
-        page.click('nav[data-mode-nav="learn"] button[data-tab="listen"]')
+        order = page.evaluate(
+            """()=>[...document.querySelectorAll(
+                 'nav[data-mode-nav="learn"] button[data-tab]')]
+                 .map(b=>b.dataset.tab)""")
+        page.click(f'nav[data-mode-nav="learn"] button[data-tab="{order[1]}"]')
         page.wait_for_timeout(300)
         page.keyboard.press("End")
         page.wait_for_timeout(400)
-        assert page.evaluate("()=>document.activeElement.dataset.tab") == "write"
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == order[-1]
         page.keyboard.press("Home")
         page.wait_for_timeout(400)
-        assert page.evaluate("()=>document.activeElement.dataset.tab") == "path"
+        assert page.evaluate("()=>document.activeElement.dataset.tab") == order[0]
 
     def test_only_the_selected_tab_is_in_the_tab_order(self, page):
         """Roving tabindex: Tab should step past the strip, not through ten
@@ -570,8 +605,12 @@ class TestDiscoveredDefects:
         page.goto(live_server + "/#drill", wait_until="networkidle")
         page.wait_for_timeout(800)
         assert page.is_visible("#tab-drill")
+        # Which nav owns the tab is asked of the page: free practice moved from
+        # Eksam to Õppimine, and a hardcoded mode here would assert on where the
+        # tab used to live rather than on deep linking, which is the subject.
+        owner = mode_of(page, "drill")
         assert page.get_attribute(
-            'nav[data-mode-nav="exam"] button[data-tab="drill"]',
+            f'nav[data-mode-nav="{owner}"] button[data-tab="drill"]',
             "aria-selected") == "true", "the tab opened but its button is not selected"
 
     def test_back_returns_to_the_previous_tab_not_out_of_the_app(self, page):

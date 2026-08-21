@@ -24,7 +24,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 
 | | |
 |---|---|
-| **Drills** | 23 of 36 curriculum topics generate items — **21 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
+| **Drills** | 25 of 36 curriculum topics generate items — **23 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Deterministic everywhere. No model decides whether an answer is right. |
 | **Reading** | 349 Selges keeles texts, click-to-look-up, known-word tracking, comprehensibility ordering. |
 | **Listening** | Dictation from the corpus, TTS on any text at 0.7×, ERR episode audio. |
@@ -103,6 +103,25 @@ better privacy story and nobody hosts the model.
 
 Deliberately never attempted — forced alignment gives timings, not correctness,
 and EKI publishes free exercises. The app links them instead.
+
+### The documentation described a structure that was never built
+
+`docs/app-structure.md` had a top-level `Raamatukogu`, put `Kordamine` inside
+`Õppimine`, and listed no `Rääkimine`, `Kirjutamine` or free-practice tab. None
+of that matched the app. It was a plan being read as a map, and it had been
+that way long enough that its "Built" section asserted `pohivormid` could not
+gate — true when written, false since the generator landed.
+
+Rewritten 2026-08-21 from `index.html` and `library.py` rather than from
+intent, and it now carries the three things this project keeps needing and not
+having written down: **which screens are graded by code and which by a model**
+(only two involve a model, and neither decides correctness), **where the modules
+overlap**, and **why `Sõnavara` sits where it does**.
+
+Worth knowing for its own sake: `Sõnavara` was *already specified* in that
+document — "vocabulary by frequency band, Speakly-style" — before it was built.
+It was built frequency-ordered by independent reasoning, which converged, but
+the specification was sitting there unread.
 
 ## Known bugs and rough edges
 
