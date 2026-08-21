@@ -223,8 +223,10 @@ are correct because a native wrote them (see `roadmap.md`). Prefer the corpus
 where it has the pattern; fall back to templates where it does not.
 
 **Comparison, numerals and question words are built** — `eesti/patterns.py`,
-`cli patterns`. That finishes every generator step 2 named. **21 of 36 topics**
-now have practice.
+`cli patterns`. That finishes every generator step 2 named, and took the count
+to **21 of 36** at the time of writing. It is **25 of 36** now; `status.md`
+carries the current figure and this one is left as the record of what this step
+achieved.
 
 Each needed a different treatment, and the interesting one is comparison.
 Vabamorf will not synthesise it: ask for the comparative of `suur` and it
@@ -314,8 +316,9 @@ published simplified news. Mining it would have taught the mistake as the answer
 **The corpus half is built** — `eesti/cloze.py`, `python -m eesti.cli cloze`.
 2 073 usable sentences yield **1 138 case items and 28 negation items** across
 five topics, so `gen-stem`, `osastav`, `kohakaanded`, `harvad-kaanded` and
-`mitmus` all gained a generator at once. With rection, the verb topics and the closed classes, generators go
-**2 → 21 of 36**.
+`mitmus` all gained a generator at once. With rection, the verb topics and the
+closed classes, generators went **2 → 21 of 36** — and later to 25, when
+`pohivormid` and `eitus` were built from the wordlist rather than the corpus.
 
 The design problem was not extraction, it was **deciding when an authentic
 sentence has one right answer.** Blank the object in *"Ta luges raamatut"* and

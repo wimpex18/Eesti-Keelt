@@ -104,6 +104,25 @@ settles it — because it is one card, `showWordCard()`, with two callers. The
 split matches what LingQ settled on: a vocabulary page for picking, a review
 session for returning.
 
+**The exam taxonomy is expressed twice.** `library.SECTIONS` declares which
+`kind` values belong to `naidised`, `eksam` and `eksamiinfo`; `exam_material`
+groups the same five values again for the exam screen, which never reads
+`SECTIONS`. They are not merged because they answer different questions —
+`SECTIONS` drives browsing, `exam_material` returns one level's material in a
+single request grouped by activity — but it is exactly the shape that produced
+the `TABS` bug: a hand-kept list beside the thing it describes, where nothing
+fails when they drift because both halves still return *something*. Checked in
+both directions by `test_sections.py`; they agree today.
+
+**Not every section has a tab, and that is deliberate.** Seven sections, eleven
+tabs, and the mapping is not one to one. `lugemine` and `vihikud` have tabs of
+their own; the rest of `oppimine` is rendered inside Kuulamine from
+`/api/modes`, so adding a section surfaces it without anyone editing the page;
+the three `eksam` sections are reached through `exam_material`. The rule is
+that a section is reachable by *some* route, and `test_ui_contract.py` checks
+that in both directions — one-way contract tests find typos, not things nobody
+wired up.
+
 **`Lugemine` and `Sõnavara` are two doors to the same store.** Reading records
 an encounter for every word met; Sõnavara lists those words with their status.
 This is the LingQ model and is the point, not a duplication — but it means the
@@ -140,7 +159,7 @@ them is how progress bars start lying.
 | **Rada** | topics mastered / total, plus current position | Mastery is binary per topic; a percentage of a syllabus is honest. |
 | **Sõnavara** | words known within each frequency band | Speakly's insight: "1 200 of the top 2 000" means something; "12 % of Estonian" does not. |
 | **Kordamine** | due today, and retention | The FSRS numbers already exist. |
-| **Raamatukogu** | texts read, minutes listened | Exposure counts, and should not pretend to be mastery. |
+| **Lugemine · Kuulamine** | texts read, dictations taken and words heard correctly | Exposure counts and should not pretend to be mastery — but dictation *is* scored, so it is reported separately from minutes played. |
 | **Eksam** | per-part readiness | The exam scores four parts separately and fails you for a zero in any. |
 
 **No single "overall progress" number.** Four skills scored separately, with a

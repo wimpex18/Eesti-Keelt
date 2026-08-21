@@ -262,7 +262,7 @@ the weekly *Lihtsad uudised* feed and a question bank shaped like the real —
 and notably **paired** — B1 speaking exam all shipped in version 1.0.
 
 `docs/status.md` is the honest inventory and the file to trust: what works,
-what was never built (13 curriculum topics still have no generator; local ASR
+what was never built (11 curriculum topics still have no generator; local ASR
 was replaced by Cloudflare Workers AI), what is knowingly broken, and what to
 do next. `docs/roadmap.md` says *why* things were chosen.
 

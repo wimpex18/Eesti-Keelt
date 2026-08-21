@@ -61,13 +61,19 @@ because *what* each one is for is still worth knowing.
 Scoring is 25 points each, pass ≥ 60 % overall **and no part at zero** — so a tool
 that perfects one part and ignores another can still fail you.
 
+This table was written before version 1.0 and described the app as it stood
+then — "no player UI yet", "no reader UI yet", "not built" — for three parts
+that all shipped. Corrected 2026-08-21 against the running app. **`status.md`
+is the live inventory**; this is kept only because the *ordering* argument
+below still holds.
+
 | Part | State |
 |---|---|
-| **Kirjutamine** | working — check + Russian explanations + obj-case priority |
-| **Grammatika** | working — generated drills, 3 rules, 7 256 drillable lemmas |
-| **Kuulamine** | partial — TTS on any text; 28 ERR episodes with audio harvested; no player UI yet |
-| **Lugemine** | material ready — 27 087 words of transcript stored; no reader UI yet |
-| **Rääkimine** | not built — and deliberately last (the real task is **paired**) |
+| **Kirjutamine** | working — check + Russian explanations + obj-case priority, plus back-translation |
+| **Harjutused** | working — generated drills over 4 rules; 1 672 nouns carry a distinct genitive/partitive |
+| **Kuulamine** | working — dictation graded word-by-word, TTS on any text at 0.7×, 12 voices |
+| **Lugemine** | working — 349 texts, click-to-look-up, ranked by known-word coverage |
+| **Rääkimine** | working — the exam's paired question bank with TTS voicing the other side; deliberately not scored |
 
 ## Next, in order
 

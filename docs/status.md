@@ -36,7 +36,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-42 API routes, every one with a caller. 1 141 tests.
+49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 283 tests: 1 218 in-process and 65 browser journeys.
 
 ## What a learner still cannot do
 
@@ -78,18 +78,25 @@ from an installed app.
 
 ## What was never built
 
-### 13 curriculum topics have no generator
+### 11 curriculum topics have no generator
 
-`tahestik`, `lauseehitus`, `asesonad`, `pohivormid`, `astmevaheldus`, `eitus`,
-`kaassonad`, `sidesonad`, `maarsonad`, `tulevik`, `uhildumine`, `uhendverbid`,
-`liitsonad`.
+```
+tahestik  lauseehitus  asesonad  astmevaheldus  kaassonad  sidesonad
+maarsonad  tulevik  uhildumine  uhendverbid  liitsonad
+```
 
-They appear in the syllabus and in the path, and practising them opens nothing.
-Some are deliberate — `astmevaheldus` is reference material whose contrast is
-already drilled through `gen-stem`, where the stem is actually chosen. Most are
-simply not done. `uhildumine`, `uhendverbid` and `liitsonad` were investigated
-as candidates for the attested-corrections treatment that made `word-order`
-work, and the corpus did not have enough marked examples.
+It was 13 until 2026-08-21, when `pohivormid` and `eitus` got one. **Do not
+maintain this list by hand** — it is `[t.id for t in TOPICS if not t.generator]`,
+and the version above is a snapshot for reading, not the source. A test that
+kept its own copy of the same set went stale the moment those two landed.
+
+They appear in the syllabus and in the path, and practising them opens a
+message saying so rather than nothing. Some are deliberate — `astmevaheldus` is
+reference material whose contrast is already drilled through `gen-stem`, where
+the stem is actually chosen. Most are simply not done. `uhildumine`,
+`uhendverbid` and `liitsonad` were investigated as candidates for the
+attested-corrections treatment that made `word-order` work, and the corpus did
+not have enough marked examples.
 
 ### Local ASR
 
@@ -206,10 +213,15 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    are what decides A2-then-B1 against B1-alone next year. This is the item
    that has been at number three through two sprints while the code around it
    got better; the app now has more features than it has practice history.
-4. **Build the vocabulary browser.** Largest user-visible gap, all the data
-   already exists, and it is the one that makes the wordlist usable rather
-   than merely present.
-5. **Say the empty-topic message in Russian.** Small, and it is a live
-   violation of the rule this project states in its own first document.
-6. Then, if more is wanted: the 13 topics with no generator, `eitus` and
-   `pohivormid` first — both are A2 exam material, and the rest can wait.
+4. ~~**Build the vocabulary browser.**~~ Done 2026-08-21 — `Sõnavara`, by CEFR
+   level and part of speech, commonest first.
+5. ~~**Say the empty-topic message in Russian.**~~ Done 2026-08-21, and it is a
+   200 with a reason rather than a 400 carrying an exception.
+6. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
+   were the two named here and are built. Of what is left, none is A2 exam
+   material in the way those two were, so this is now a genuine "if more is
+   wanted" rather than a gap.
+7. **Decide whether five word statuses are four too many.** LingQ ships four
+   and its users report that as already hard to judge; only the *settled*
+   boundary is load-bearing here. Cheaper to resolve before anything else
+   reads the ladder.

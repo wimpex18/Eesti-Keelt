@@ -6,7 +6,7 @@ reasoning; this file is what a fresh session needs in the first minute.
 ## Where things stand
 
 **Version 1.0 closed 2026-08-20.** `docs/status.md` is the inventory: what
-works, the 13 curriculum topics with no generator, the known bugs, the tech
+works, the 11 curriculum topics with no generator, the known bugs, the tech
 debt, and what the research plan promised and did not deliver. Read it before
 planning a sprint.
 
@@ -173,7 +173,7 @@ python -m eesti.cli harvest-news     # ERR Lihtsad uudised — the live feed
 python -m eesti.cli harvest-exam     # official EIS tasks (pointers)
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion
-pytest tests/ -q                     # 1 141 tests
+pytest tests/ -q                     # 1 283 (65 need a browser)
 ```
 
 `deploy/setup.sh`, `deploy/push-content.sh`, `deploy/reset-progress.sh` all run
@@ -424,6 +424,18 @@ in Cloud Shell and discover the project, service and region themselves.
   card expands 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. The defect report
   was already written when the second test was run. Anything scheduled in time
   has to be tested by advancing time, not by repeating the call.
+- **A document is a measurement, and measurements need writers too.** Every
+  count in `docs/` was taken by hand, once. Four were wrong on the same day —
+  13 topics without a generator when there were 11, 42 API routes when there
+  were 49, 1 141 tests when there were 1 283, 21 of 36 topics with practice
+  when it was 25 — and every one had been true when written. Worse, one
+  document drew a *structure* the app never had (a top-level `Raamatukogu`,
+  `Kordamine` nested inside `Õppimine`, no speaking or writing tab) and a later
+  session planned against it as if it were a map. `tests/test_docs_match_code.py`
+  now derives each of those claims from the code and fails naming the file and
+  line, because the same rule that applies to a stale cache applies to a stale
+  sentence. A doc may still record a past figure — it just has to say "at the
+  time of writing", which the check honours.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,
