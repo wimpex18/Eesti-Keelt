@@ -264,11 +264,19 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    level and part of speech, commonest first.
 5. ~~**Say the empty-topic message in Russian.**~~ Done 2026-08-21, and it is a
    200 with a reason rather than a 400 carrying an exception.
-6. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
+6. ~~**Put the interface in a language the learner reads.**~~ Done 2026-08-21.
+   Labels and grammar terms stay Estonian and carry a Russian gloss; everything
+   that explains, warns or instructs is Russian — including the states a
+   screenshot never reaches, which is where most of it was hiding: drill and
+   dictation verdicts, review grading, empty states, error banners, `aria-label`s
+   and the server-side `detail` messages that surface in the banner. The rule is
+   enforced by a derived check rather than a list of forbidden strings, because
+   the list had an entry that was never in the code and passed for months.
+7. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
    were the two named here and are built. Of what is left, none is A2 exam
    material in the way those two were, so this is now a genuine "if more is
    wanted" rather than a gap.
-7. **Decide whether five word statuses are four too many.** LingQ ships four
+8. **Decide whether five word statuses are four too many.** LingQ ships four
    and its users report that as already hard to judge; only the *settled*
    boundary is load-bearing here. Cheaper to resolve before anything else
    reads the ladder.

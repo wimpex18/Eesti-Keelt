@@ -121,7 +121,7 @@ def comparison_drills(
             answer, wrong = comparative, positive
             label, why = (
                 "keskvõrre",
-                f"**Keskvõrre** строится от основы омастава + **-m**: "
+                f"**Keskvõrre** строится от основы генитива (omastav) + **-m**: "
                 f"*{positive}* → **{comparative}**. Сравнение вводится через *kui*.",
             )
         else:

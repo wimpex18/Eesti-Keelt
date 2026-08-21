@@ -88,7 +88,7 @@ REFERENCES: dict[str, Reference] = {
         tag="gen-stem", et_term="omastava tüvi", ru_term="основа генитива",
         ekk_section="M 51", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
-            "Все падежи кроме nimetav и osastav строятся от **основы омастава**. "
+            "Все падежи кроме nimetav и osastav строятся от **основы генитива**. "
             "Зная omastav, ты знаешь почти всё слово."
         ),
     ),
@@ -169,7 +169,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
         summary_ru=(
             "Три формы, которые даёт словарь: **nimetav** (M 50), **omastav** "
             "(M 51) и **osastav** (M 52). Все остальные падежи строятся от "
-            "основы омастава, поэтому эти три надо знать вместе."
+            "основы генитива, поэтому эти три надо знать вместе."
         ),
     ),
     "osastav": Reference(
@@ -185,7 +185,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
         tag="mitmus", et_term="mitmus", ru_term="множественное число",
         ekk_section="M 67", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
-            "Множественное число строится от основы омастава: *raamat → "
+            "Множественное число строится от основы генитива (omastav): *raamat → "
             "raamatu → raamatud*. Отсюда же короткая форма множественного "
             "(vokaalmitmus, M 69)."
         ),
@@ -197,7 +197,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
         summary_ru=(
             "Пять падежей, идущих подряд в справочнике: **saav** (M 60), "
             "**rajav** (M 61), **olev** (M 62), **ilmaütlev** (M 63) и "
-            "**kaasaütlev** (M 64). Все — от основы омастава."
+            "**kaasaütlev** (M 64). Все — от основы генитива (omastav)."
         ),
     ),
     "olevik": Reference(
@@ -272,7 +272,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
         ekk_section="M 100", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Три степени: **algvõrre** (M 100), **keskvõrre** (M 101) и "
-            "**ülivõrre** (M 102). Сравнительная строится от основы омастава "
+            "**ülivõrre** (M 102). Сравнительная строится от основы генитива (omastav) "
             "плюс -m: *suur → suure → suurem*."
         ),
     ),

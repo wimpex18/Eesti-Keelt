@@ -6,9 +6,12 @@ back sooner than a right one, and lapses must be counted so struggling items can
 be surfaced.
 """
 
+import sqlite3
+
 import pytest
 
-from eesti.review import add, connect, due, grade, item_id, stats
+from eesti.review import (add, connect, due, grade, item_id,
+                          repair_explanations, stats)
 
 
 @pytest.fixture()
@@ -79,3 +82,82 @@ def test_unknown_item_and_bad_rating_are_rejected(db):
 
 def test_item_id_is_stable(db):
     assert item_id("obj-case", "raamat", "completed") == "obj-case:raamat:completed"
+
+
+class TestExplanationsAlreadyInTheQueueAreRepaired:
+    """A generator fix does not reach rows that were written before it.
+
+    `omastav` was stored as **омастав** in the `why_ru` of every item the
+    affected drills queued. Correcting `cloze.py` and `grammar.py` fixes what
+    is generated next and nothing that is already scheduled -- and this is a
+    spaced-repetition queue, so those items are not stale, they are guaranteed
+    to come back and teach the wrong spelling again. Same shape as the seed
+    glossary and the sonapi cache: state that outlives the process needs the
+    fix applied where it sits.
+    """
+
+    def test_a_stored_transliteration_is_rewritten(self, tmp_path):
+        db = tmp_path / "review.db"
+        conn = connect(db)
+        add(
+            conn, kind="osastav", lemma="reegel", tag="sg p",
+            prompt="Ma tean ____.", answer="reeglit", distractor="reegli",
+            why_ru="**osastav** — частичный. Здесь *reeglit*, а не омастав *reegli*.",
+        )
+        conn.commit()
+        conn.close()
+
+        # A later process opens the same file: the repair runs on connect.
+        conn = connect(db)
+        why = conn.execute("SELECT why_ru FROM review_items").fetchone()[0]
+        assert "омастав" not in why
+        assert "**omastav**" in why
+
+    def test_it_is_idempotent(self, tmp_path):
+        """Running on every connect means it runs constantly. The replaced form
+        must not itself match, or the text would grow on each open."""
+        db = tmp_path / "review.db"
+        conn = connect(db)
+        add(
+            conn, kind="mitmus", lemma="raamat", tag="pl n",
+            prompt="____", answer="raamatud", distractor="raamat",
+            why_ru="Множественное число строится от основы омастава.",
+        )
+        conn.commit()
+        conn.close()
+
+        connect(db).close()
+        conn = connect(db)
+        why = conn.execute("SELECT why_ru FROM review_items").fetchone()[0]
+        assert why == "Множественное число строится от основы генитива (omastav)."
+        assert repair_explanations(conn) == 0
+
+    def test_untouched_rows_are_left_alone(self, tmp_path):
+        db = tmp_path / "review.db"
+        conn = connect(db)
+        add(conn, kind="osastav", lemma="kass", tag="sg p",
+                   prompt="____", answer="kassi", distractor="kass",
+                   why_ru="**osastav** — частичный.")
+        conn.commit()
+        assert repair_explanations(conn) == 0
+
+    def test_it_does_not_write_when_there_is_nothing_to_repair(self, tmp_path):
+        """Running on every `connect` is only safe if the common case is a
+        read. The first version issued the UPDATE unconditionally, which made
+        every open of the queue a writer -- including the read-only ones behind
+        `GET /api/status` -- and the next connection got `database is locked`.
+        """
+        db = tmp_path / "review.db"
+        conn = connect(db)
+        add(conn, kind="osastav", lemma="kass", tag="sg p", prompt="____",
+            answer="kassi", distractor="kass", why_ru="**osastav** — частичный.")
+        conn.commit()
+        conn.close()
+
+        conn = connect(db)
+        writes = []
+        conn.set_trace_callback(
+            lambda sql: writes.append(sql) if sql.lstrip()[:6].upper() in
+            ("UPDATE", "INSERT", "DELETE") else None)
+        assert repair_explanations(conn) == 0
+        assert not writes, f"repair wrote to a clean queue: {writes}"

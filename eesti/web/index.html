@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="et">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <!-- viewport-fit=cover lets the layout reach under the iPhone's notch and home
@@ -169,15 +169,36 @@
   nav .ico{display:none}
 
   @media (max-width:719px){
+    /* Seven bilingual tabs do not fit 390px: the last one was clipped off the
+       right edge, which the page-level overflow check does not see because the
+       bar itself is the thing being cut. So the gloss is dropped here -- but
+       only for the tabs the learner is not on.
+
+       One tab is selected at a time, and giving that one alone the width of
+       two buys enough room for the longest gloss (`аудирование`) without
+       taking the bar past the viewport. The learner always sees the Russian
+       for where they are, which is the tab whose name they are least likely to
+       know; the other six stay Estonian and stay thumb-sized. */
+    nav[data-mode-nav] button .ru{display:none}
+    nav[data-mode-nav] button[aria-selected="true"]{flex:2.2 1 0}
+    nav[data-mode-nav] button[aria-selected="true"] .ru{display:block}
     nav{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;gap:0;
       background:color-mix(in srgb, var(--panel) 88%, transparent);
       backdrop-filter:saturate(1.6) blur(14px);
       -webkit-backdrop-filter:saturate(1.6) blur(14px);
       border-top:1px solid var(--line);overflow:visible;
       padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-    nav button{flex:1 1 0;flex-direction:column;gap:2px;padding:5px 2px;
-      font-size:10.5px;letter-spacing:.01em;border-radius:12px;min-height:48px;
-      justify-content:center}
+    /* `min-width:0` is what actually makes `flex:1 1 0` share the bar. Without
+       it a flex item will not shrink below its content, so the longest label
+       (`Kirjutamine`) pushed the row past the viewport and the last tab was
+       clipped off the right edge — invisible to a page-level overflow check,
+       because the bar is the thing being cut rather than the document.
+       Latent until Harjutused made this nav seven tabs wide. */
+    nav button{flex:1 1 0;min-width:0;flex-direction:column;gap:2px;
+      padding:5px 1px;font-size:10.5px;letter-spacing:.01em;border-radius:12px;
+      min-height:48px;justify-content:center}
+    nav .lbl{max-width:100%;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap}
     nav button[aria-selected="true"]{background:none;box-shadow:none;color:var(--accent)}
     nav .ico{display:block;font-size:19px;line-height:1}
     nav .lbl{display:block}
@@ -285,6 +306,16 @@
   #vocCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
+  .ru{display:block;font-size:11px;font-weight:400;color:var(--muted);
+    letter-spacing:0;text-transform:none;margin-top:1px}
+  /* Inside a filled button the muted grey is nearly invisible on the accent.
+     Inherit the button's own colour and lean on opacity instead, so the gloss
+     stays secondary without becoming unreadable. */
+  button.primary .ru, button.go .ru{color:currentColor;opacity:.72}
+  i.ru{display:inline;font-size:11.5px;font-style:normal;margin-left:5px}
+  h3 .ru{display:inline;font-size:11px;margin-left:6px;text-transform:none}
+  nav button .ru{font-size:10.5px;line-height:1.15}
+  .st .ru, .lv .ru{display:none}
   #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
@@ -336,7 +367,14 @@
   .topic.locked{opacity:.45}
   .topic .lv{color:var(--muted);font-size:12px}
   .topic button{font-size:12px;padding:2px 8px;min-height:32px}
-  label{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+  label{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;
+    /* `min-width:auto` again -- the same trap the bottom nav fell into. A
+       `<select>` is as wide as its widest option, and `ebareeglipärased
+       verbid` is wider than a 320px phone. The label would not shrink below
+       it, so the drill row pushed the whole page sideways at <=360px while
+       the bar itself measured clean. */
+    min-width:0;max-width:100%}
+  label select{min-width:0;max-width:100%}
 
   /* Segmented control, iOS-style: two states, both visible, one obviously on. */
   .modes{display:inline-flex;background:var(--bg);border:1px solid var(--line);
@@ -381,7 +419,7 @@
     <!-- Mode, then skill. The split is not by content but by CONDITIONS: the
          same passage is study material untimed with lookups, and an exam task
          timed, scored and unaided. Mixing the two hides which one you can do. -->
-    <div class="modes" role="tablist" aria-label="Režiim">
+    <div class="modes" role="tablist" aria-label="Režiim — режим">
       <button role="tab" aria-selected="true"  data-mode="learn">Õppimine</button>
       <button role="tab" aria-selected="false" data-mode="revise">Kordamine</button>
       <button role="tab" aria-selected="false" data-mode="exam">Eksam</button>
@@ -390,7 +428,7 @@
 
   <!-- Six destinations. On a phone this bar is fixed to the bottom, so the
        labels are short enough to survive 390px and each button clears 48px. -->
-  <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine">
+  <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Rada</span></button>
     <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">✦</span><span class="lbl">Harjutused</span></button>
     <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Lugemine</span></button>
@@ -402,12 +440,12 @@
 
   <!-- "What am I forgetting?" — the only mode where the app, not the learner,
        decides what comes next. -->
-  <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine">
+  <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine — повторение">
     <button role="tab" aria-selected="true"  data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl">Järjekord</span><span id="dueBadge" class="badge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="vihikud"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Töövihikud</span></button>
   </nav>
 
-  <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam">
+  <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
     <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl">Ülevaade</span></button>    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Edenemine</span></button>
   </nav>
 
@@ -425,8 +463,8 @@
     </div>
     <div id="pathHead" class="banner" hidden></div>
     <div class="row" style="margin-top:0">
-      <button class="go" id="practiceBtn">Harjuta</button>
-      <label>Teema
+      <button class="go" id="practiceBtn">Harjuta<span class="ru">тренировка</span></button>
+      <label>Teema <i class="ru">тема</i>
         <select id="theme"><option value="">kõik sõnad</option></select>
       </label>
       <span class="hint" id="pathScore"></span>
@@ -446,12 +484,12 @@
        you hear yourself back — so that is what this is, and it says so. -->
   <section class="panel" id="tab-speak" hidden>
     <div class="row" style="margin-top:0">
-      <select id="speakMode" aria-label="Harjutus">
+      <select id="speakMode" aria-label="Harjutus — упражнение">
         <option value="lause">Loe ette — laused</option>
         <option value="sona">Loe ette — sõnad</option>
         <option value="vastus">Vasta küsimusele</option>
       </select>
-      <select id="speakTopic" aria-label="Teema"></select>
+      <select id="speakTopic" aria-label="Teema — тема"></select>
       <button class="ghost" id="speakPlay">Kuula ette</button>
       <button class="ghost" id="speakNext" hidden>Järgmine</button>
     </div>
@@ -460,7 +498,7 @@
 
     <div class="rec">
       <button class="go" id="recBtn">● Salvesta vastus</button>
-      <span class="hint" id="recState">Mikrofon vajab HTTPS-i või localhost'i.</span>
+      <span class="hint" id="recState">Микрофону нужен HTTPS или localhost.</span>
     </div>
     <!-- Said before the button is pressed, not in a policy page. Text is
          disposable; a voice is biometric, and the learner is entitled to know
@@ -481,7 +519,7 @@
          who set the exam, and copying them here would be scraping a site whose
          maintainers asked not to be scraped. So: links, not copies. -->
     <div style="margin-top:16px">
-      <div class="hint">Hääldus ja olmefraasid — EKI enda tasuta harjutused:</div>
+      <div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
       <div class="row" style="margin-top:6px">
         <a class="ghost" href="https://sonaveeb.ee/pronunciation-exercises/"
            target="_blank" rel="noopener">Hääldusharjutused →</a>
@@ -495,14 +533,14 @@
        Five measures, no aggregate: the exam scores four parts separately and
        fails you for a zero in any one. -->
   <section class="panel" id="tab-status" hidden>
-    <div id="statusOut" class="empty">Laen…</div>
+    <div id="statusOut" class="empty">Загружаю…</div>
   </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
   <section class="panel" id="tab-write" hidden>
-    <textarea id="text" placeholder="Kirjuta või kleebi eestikeelne tekst…&#10;Näiteks: Ma lugesin eile raamatut läbi."></textarea>
+    <textarea id="text" placeholder="Напиши или вставь эстонский текст…&#10;Например: Ma lugesin eile raamatut läbi."></textarea>
     <div class="row">
-      <button class="go" id="checkBtn">Kontrolli</button>
+      <button class="go" id="checkBtn">Kontrolli<span class="ru">проверить</span></button>
       <span class="hint">Ctrl+Enter</span>
     </div>
     <div id="checkOut"></div>
@@ -515,7 +553,7 @@
          named rows, because the Vead log is worth having only while it stays
          curated. -->
     <details id="queueBox" style="margin-top:18px">
-      <summary>Vigade logi — ootab saatmist <span id="queueCount"></span></summary>
+      <summary>Журнал ошибок — ожидает отправки <span id="queueCount"></span></summary>
       <div id="queueList"></div>
       <div class="row">
         <button class="go" id="queueSend">Saada valitud Notionisse</button>
@@ -527,7 +565,7 @@
   <!-- ── Drills ────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-drill" hidden>
     <div class="row" style="margin-top:0">
-      <label>Reegel
+      <label>Reegel <i class="ru">правило</i>
         <select id="rule">
           <option value="">kõik</option>
           <option value="negation">eitus → partitiiv</option>
@@ -536,15 +574,15 @@
           <option value="verb-form">ebareeglipärased verbid</option>
         </select>
       </label>
-      <label>Raskus
+      <label>Raskus <i class="ru">уровень</i>
         <select id="level">
           <option value="A1,A2,B1">A1–B1</option>
           <option value="A1,A2">A1–A2</option>
           <option value="B1">B1</option>
         </select>
       </label>
-      <label>Arv <input type="number" id="count" value="10" min="1" max="30" style="width:70px"></label>
-      <button class="go" id="drillBtn">Alusta</button>
+      <label>Arv <i class="ru">количество</i> <input type="number" id="count" value="10" min="1" max="30" style="width:70px"></label>
+      <button class="go" id="drillBtn">Alusta<span class="ru">начать</span></button>
     </div>
     <div id="drillOut"></div>
     <div class="score" id="score"></div>
@@ -553,7 +591,7 @@
   <!-- ── Exam ──────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-exam" hidden>
     <div class="exam-head">
-      <div class="levels" role="tablist" aria-label="Tase">
+      <div class="levels" role="tablist" aria-label="Tase — уровень">
         <button role="tab" aria-selected="true"  data-level="A2">A2</button>
         <button role="tab" aria-selected="false" data-level="B1">B1</button>
       </div>
@@ -561,8 +599,8 @@
     </div>
 
     <p class="hint" style="margin-top:0">
-      Neli osa, igaüks 25 punkti. Sooritatud, kui kokku
-      <strong>≥ 60 punkti</strong> ja <strong>ükski osa pole 0</strong>.
+      Четыре части (osad), в каждой 25 баллов. Сдано, если в сумме
+      <strong>≥ 60 баллов</strong> и <strong>ни одна часть не равна 0</strong>.
     </p>
 
     <!-- Filled from /api/readiness/{level}: the hand-written version said
@@ -593,10 +631,11 @@
 
   <section class="panel" id="tab-review" hidden>
     <p class="hint" style="margin-top:0">
-      Vead ja loetud sõnad tulevad siia. Ajastus: FSRS — mida raskem, seda tihedamini.
+      Сюда попадают ошибки и прочитанные слова. Интервалы считает FSRS —
+      чем труднее, тем чаще.
     </p>
     <div class="row" style="margin-top:0">
-      <button class="go" id="loadReview">Alusta kordamist</button>
+      <button class="go" id="loadReview">Alusta kordamist<span class="ru">начать повторение</span></button>
       <span class="hint" id="reviewStats"></span>
     </div>
     <div id="reviewOut"></div>
@@ -614,7 +653,7 @@
        vocabulary the exam draws on. -->
   <section class="panel" id="tab-sonad" hidden>
     <div class="row" style="margin-top:0">
-      <label>Tase
+      <label>Tase <i class="ru">уровень</i>
         <select id="vocLevel">
           <option value="">kõik</option>
           <option value="A1">A1</option>
@@ -624,7 +663,7 @@
           <option value="C1">C1</option>
         </select>
       </label>
-      <label>Sõnaliik
+      <label>Sõnaliik <i class="ru">часть речи</i>
         <select id="vocPos">
           <option value="">kõik</option>
           <option value="s">nimisõna</option>
@@ -633,7 +672,7 @@
           <option value="adv">määrsõna</option>
         </select>
       </label>
-      <label>Olek
+      <label>Olek <i class="ru">статус</i>
         <select id="vocStatus">
           <option value="">kõik</option>
           <option value="new">uued</option>
@@ -641,7 +680,7 @@
           <option value="known">tean</option>
         </select>
       </label>
-      <button id="vocBtn" class="primary">Näita</button>
+      <button id="vocBtn" class="primary">Näita<span class="ru">показать</span></button>
     </div>
     <p class="note" id="vocNote">
       Список слов по уровню и части речи, начиная с самых частотных.
@@ -651,14 +690,14 @@
     </p>
     <div id="vocOut" aria-live="polite"></div>
     <div class="row" id="vocMore" hidden>
-      <button id="vocMoreBtn">Veel sõnu</button>
+      <button id="vocMoreBtn">Veel sõnu<span class="ru">ещё слова</span></button>
     </div>
   </section>
 
   <!-- ── Reading ───────────────────────────────────────────────────── -->
   <section class="panel" id="tab-read" hidden>
     <div class="row" style="margin-top:0">
-      <label>Valik
+      <label>Valik <i class="ru">подборка</i>
         <select id="readLevel">
           <!-- Default, because it is the only option that knows anything about
                *this* reader. The rest rank texts against each other. -->
@@ -669,7 +708,7 @@
           <option value="raskem">raskem</option>
         </select>
       </label>
-      <button class="go" id="loadLib">Lae tekstid</button>
+      <button class="go" id="loadLib">Lae tekstid<span class="ru">загрузить тексты</span></button>
       <span class="hint" id="libCount"></span>
     </div>
     <div id="libList"></div>
@@ -708,10 +747,10 @@
       <div class="row" style="margin-top:0">
         <button class="go" id="dictPlay">▶ Kuula</button>
         <button class="ghost" id="dictNext">Järgmine</button>
-        <span class="hint" id="dictState">Kuula ja kirjuta üles.</span>
+        <span class="hint" id="dictState">Прослушай и запиши услышанное.</span>
       </div>
       <textarea id="dictTyped" rows="2"
-        placeholder="Kirjuta, mida kuulsid…"></textarea>
+        placeholder="Запиши, что услышал…"></textarea>
       <div class="row">
         <button class="go" id="dictCheck">Kontrolli</button>
         <span class="hint" id="dictScore"></span>
@@ -736,26 +775,26 @@
 
     <h3 style="margin:22px 0 6px;font-size:15px">Mis tahes tekst → heli</h3>
     <p class="hint" style="margin-top:0">
-      Aeglasem kõne (0.7×) sobib kuulamisharjutuseks.
+      Замедленная речь (0.7×) удобна для тренировки аудирования.
     </p>
-    <textarea id="ttsText" placeholder="Kleebi tekst õpikust või artiklist…"></textarea>
+    <textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
     <div class="row">
-      <label>Hääl <select id="voice"></select></label>
-      <label>Kiirus
+      <label>Hääl <i class="ru">голос</i> <select id="voice"></select></label>
+      <label>Kiirus <i class="ru">скорость</i>
         <select id="speed">
           <option value="0.7" selected>0.7× (õppijale)</option>
           <option value="0.85">0.85×</option>
           <option value="1">1× (tavaline)</option>
         </select>
       </label>
-      <button class="go" id="speakBtn">Loe ette</button>
+      <button class="go" id="speakBtn">Loe ette<span class="ru">озвучить</span></button>
     </div>
     <div id="ttsOut"></div>
   </section>
   <!-- Desktop only. Everything here is otherwise behind a click: the
        countdown lives in the exam tab, the path list behind a disclosure, the
        due count in a badge. On a laptop there is room to just show them. -->
-  <aside class="rail" id="rail" aria-label="Ülevaade"></aside>
+  <aside class="rail" id="rail" aria-label="Ülevaade — обзор"></aside>
 
 </div>
 
@@ -955,7 +994,7 @@ async function api(path, body, method) {
 // ── health ──────────────────────────────────────────────────────────
 fetch("/api/health").then(r => r.json()).then(h => {
   $("#stats").textContent =
-    `${h.words.toLocaleString("et")} sõna · ${h.drillable_nouns.toLocaleString("et")} harjutatavat nimisõna`;
+    `${h.words.toLocaleString("ru")} слов · ${h.drillable_nouns.toLocaleString("ru")} существительных для упражнений`;
   $("#voice").innerHTML = h.voices.map(v => `<option${v === "mari" ? " selected" : ""}>${v}</option>`).join("");
 });
 
@@ -981,7 +1020,7 @@ function loadHls() {
     const tag = document.createElement("script");
     tag.src = "/vendor/hls.light.min.js";
     tag.onload = () => resolve(window.Hls);
-    tag.onerror = () => reject(new Error("hls.js ei laadinud"));
+    tag.onerror = () => reject(new Error("Плеер не загрузился."));
     document.head.appendChild(tag);
   });
   return hlsReady;
@@ -998,7 +1037,7 @@ function mountVideo(host, url) {
   if (!id) { host.innerHTML = ""; return; }
   host.innerHTML = `<div class="video"><iframe
     src="https://www.youtube-nocookie.com/embed/${esc(id)}"
-    title="Eksami tutvustav video" loading="lazy" allowfullscreen
+    title="Eksami tutvustav video — вводное видео об экзамене" loading="lazy" allowfullscreen
     referrerpolicy="no-referrer"></iframe></div>`;
 }
 
@@ -1016,7 +1055,7 @@ async function mountAudio(host, url) {
 
   try {
     const Hls = await loadHls();
-    if (!Hls || !Hls.isSupported()) throw new Error("HLS pole toetatud");
+    if (!Hls || !Hls.isSupported()) throw new Error("Этот браузер не умеет играть такой поток.");
     const hls = new Hls({ enableWorker: false });
     hls.loadSource(url);
     hls.attachMedia(el);
@@ -1119,7 +1158,7 @@ async function loadExam() {
       items.map(linkRow).join("") + `</div>`;
   }
   $("#examMaterial").innerHTML = out ||
-    `<p class="empty">Ametlikku materjali pole veel imporditud.</p>`;
+    `<p class="empty">Официальные материалы ещё не загружены.</p>`;
 }
 
 /* Official material is a pointer, never a copy: the row links to HARNO's own
@@ -1143,7 +1182,7 @@ async function loadVihikud() {
   const rows = (d.items || []).filter(i => i.external);
   $("#vihikudList").innerHTML = rows.length
     ? rows.map(linkRow).join("")
-    : `<p class="empty">Töövihikuid pole veel imporditud.</p>`;
+    : `<p class="empty">Тетради ещё не загружены.</p>`;
 }
 
 /* The rail: what a laptop has room for and a phone does not.
@@ -1177,26 +1216,26 @@ async function loadRail() {
     const next = (path.topics || []).find(t => t.id === path.resume);
     rail.innerHTML = `
       <div class="rail-card">
-        <h3>Eksamini</h3>
+        <h3>Eksamini<span class="ru">до экзамена</span></h3>
         <div class="rail-big">${esc(ready.countdown || "")}</div>
         <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
       </div>
       <div class="rail-card">
-        <h3>Rada</h3>
-        <div class="rail-row"><span>Läbitud</span>
+        <h3>Rada<span class="ru">путь</span></h3>
+        <div class="rail-row"><span>Läbitud <i class="ru">пройдено</i></span>
           <b>${path.mastered}/${path.total}</b></div>
-        ${next ? `<div class="rail-row"><span>Järgmine</span>
+        ${next ? `<div class="rail-row"><span>Järgmine <i class="ru">следующая</i></span>
           <b>${esc(next.et)}</b></div>` : ""}
         ${due && due.due !== undefined ? `<div class="rail-row">
-          <span>Kordamist ootab</span><b>${due.due}</b></div>` : ""}
+          <span>Kordamist ootab <i class="ru">к повторению</i></span><b>${due.due}</b></div>` : ""}
       </div>
       ${untouched.length ? `<div class="rail-card">
-        <h3>Puudutamata</h3>
+        <h3>Puudutamata<span class="ru">не начато</span></h3>
         ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
           ${p.next_task && p.next_task.url
             ? `<a href="${esc(p.next_task.url)}" target="_blank"
                  rel="noopener">ava</a>` : ""}</div>`).join("")}
-        <div class="rail-note">Ükski osa ei tohi olla null.</div>
+        <div class="rail-note">Ни одна часть не должна быть нулём.</div>
       </div>` : ""}`;
   } catch (e) {
     rail.innerHTML = "";
@@ -1222,7 +1261,7 @@ async function runCheck() {
       `<p class="hint">Вставь эстонский текст — тогда проверю.</p>`;
     return;
   }
-  const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Kontrollin…";
+  const btn = $("#checkBtn"); btn.disabled = true; btn.textContent = "Проверяю…";
   const out = $("#checkOut"); out.innerHTML = "";
   try {
     const res = await (await api("/api/check", {text})).json();
@@ -1240,13 +1279,13 @@ async function runCheck() {
        on the one endpoint of theirs that has never been down. Absent rather
        than blocking when it is. */
     if (res.back_translation) {
-      html += `<div class="corr"><span class="tag">Mida sa ütlesid</span>
+      html += `<div class="corr"><span class="tag">Mida sa ütlesid <i class="ru">что ты сказал</i></span>
         <div class="gloss-late">${esc(res.back_translation)}</div>
         <div class="why">Обратный перевод (TartuNLP). Грамматика может быть
         верной, а смысл — не тем, который ты имел в виду.</div></div>`;
     }
     if (!res.corrections.length) {
-      html += `<p class="empty">Kõik on õige — vigu ei leitud.</p>`;
+      html += `<p class="empty">Всё верно — ошибок не найдено.</p>`;
     } else {
       // Object-case errors first: that is the documented priority gap.
       const sorted = [...res.corrections].sort(
@@ -1268,14 +1307,14 @@ async function runCheck() {
           ${c.correct ? `<button class="logbtn" type="button"
             data-wrong="${esc(c.wrong)}" data-correct="${esc(c.correct)}"
             data-why="${esc(c.why || "")}" data-tag="${esc(c.tag)}"
-            >+ Vigade logisse</button>` : ""}</div>`;
+            >+ Vigade logisse <i class="ru">в журнал ошибок</i></button>` : ""}</div>`;
       }
     }
-    html += `<div class="engine">mootor: <b>${esc(res.engine)}</b>${res.degraded ? " (piiratud režiim)" : ""}</div>`;
+    html += `<div class="engine">движок: <b>${esc(res.engine)}</b>${res.degraded ? " (ограниченный режим)" : ""}</div>`;
     out.innerHTML = html;
     out.querySelectorAll(".logbtn").forEach(b => b.onclick = () => queueError(b));
   } catch (e) {
-    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Kontrolli"; }
 }
 
@@ -1289,10 +1328,10 @@ async function queueError(btn) {
       wrong: btn.dataset.wrong, correct: btn.dataset.correct,
       why: btn.dataset.why, tag: btn.dataset.tag,
     })).json();
-    btn.textContent = r.queued ? "✓ Logis" : "✓ Juba logis";
+    btn.textContent = r.queued ? "✓ В журнале" : "✓ Уже в журнале";
     loadQueue();
   } catch (e) {
-    btn.textContent = "Ei õnnestunud";
+    btn.textContent = "Не вышло";
     btn.disabled = false;
   }
 }
@@ -1315,8 +1354,8 @@ async function loadQueue() {
       </label>`).join("");
     $("#queueSend").disabled = !d.can_push;
     $("#queueNote").textContent = d.can_push
-      ? "Saadetakse ainult märgitud read."
-      : "NOTION_TOKEN puudub — read jäävad ootele.";
+      ? "Отправляются только отмеченные строки."
+      : "NOTION_TOKEN не задан — строки останутся в очереди.";
   } catch { $("#queueBox").hidden = true; }
 }
 loadQueue();
@@ -1333,8 +1372,8 @@ $("#queueSend").onclick = async () => {
     // `loadQueue` overwrote the one sentence saying what had just happened.
     await loadQueue();
     $("#queueNote").textContent =
-      `Saadetud ${r.sent.length}${r.failed.length
-        ? `, ebaõnnestus ${r.failed.length}` : ""}.`;
+      `Отправлено ${r.sent.length}${r.failed.length
+        ? `, не прошло ${r.failed.length}` : ""}.`;
     loadRail();
   } catch (e) {
     $("#queueNote").textContent = e.message;
@@ -1361,7 +1400,7 @@ $("#drillBtn").onclick = async () => {
     const {drills} = await (await api("/api/drills", body)).json();
     drills.forEach((d, i) => out.appendChild(renderDrill(d, i)));
   } catch (e) {
-    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 };
 
@@ -1386,7 +1425,7 @@ function renderDrill(d, i) {
        giving a wrong one deliberately. */
     if (!input.value.trim()) {
       verdict.className = "verdict";
-      verdict.innerHTML = `<span class="hint">Kirjuta vorm — siis kontrollin.</span>`;
+      verdict.innerHTML = `<span class="hint">Впиши форму — тогда проверю.</span>`;
       input.focus();
       return;
     }
@@ -1395,10 +1434,10 @@ function renderDrill(d, i) {
     answered++; if (ok) correct++;
     verdict.className = "verdict " + (ok ? "ok" : "no");
     verdict.innerHTML = ok
-      ? `✓ õige — <strong>${esc(d.prompt.replace("____", d.answer))}</strong>`
-      : `✗ <strong>${esc(d.answer)}</strong>, mitte <em>${esc(d.distractor)}</em><br>
+      ? `✓ õige <i class="ru">верно</i> — <strong>${esc(d.prompt.replace("____", d.answer))}</strong>`
+      : `✗ <strong>${esc(d.answer)}</strong>, а не <em>${esc(d.distractor)}</em><br>
          <span class="why">${md(d.why_ru)}</span>`;
-    $("#score").textContent = `${correct}/${answered} õiget`;
+    $("#score").textContent = `${correct}/${answered} верных`;
   };
   el.querySelector("button").onclick = grade;
   input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
@@ -1418,9 +1457,9 @@ async function loadPath() {
     ring.style.setProperty("--pct", pct);
     ring.querySelector("span").textContent = pct + "%";
     const next = p.topics.find(t => t.id === p.resume);
-    $("#pathNow").textContent = next ? next.et : "Kõik avatud teemad läbitud";
+    $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
     $("#pathOf").textContent =
-      `${p.mastered}/${p.total} teemat${next ? " · " + next.level : ""}`;
+      `${p.mastered}/${p.total} тем${next ? " · " + next.level : ""}`;
 
     $("#pathList").innerHTML = p.topics.map(t => {
       /* Names, not ids — the API resolves them now. Kept tolerant of an older
@@ -1430,9 +1469,9 @@ async function loadPath() {
       const blocked = needs.length ? ` ← ${needs.join(", ")}` : "";
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
       const testOut = t.state === "ready" || t.state === "in progress"
-        ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta</button>` : "";
+        ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta <i class="ru">решать</i></button>` : "";
       return `<div class="topic ${t.state.replace(" ", "-")}">
-        <span class="st">${esc(t.state)}</span>
+        <span class="st">${esc(RU[t.state] || t.state)}</span>
         <span class="lv">${esc(t.level)}</span>
         <span>${esc(t.et)}${esc(blocked)}${acc}</span>
         ${testOut}</div>`;
@@ -1447,13 +1486,13 @@ async function loadStatus() {
     const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";
     if (s.rada) html += `<div class="corr"><span class="tag">Rada</span>
-      <div class="fix">${s.rada.mastered}/${s.rada.total} teemat läbitud,
-      ${s.rada.available} avatud</div>
-      <div class="why">Järgmine: ${esc(s.rada.next_et || "—")}${
+      <div class="fix">${s.rada.mastered}/${s.rada.total} тем пройдено,
+      ${s.rada.available} открыто</div>
+      <div class="why">Следующая: ${esc(s.rada.next_et || "—")}${
         s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
     if (s.sonavara) html += `<div class="corr"><span class="tag">Sõnavara</span>
-      <div class="fix">${s.sonavara.known_in_top} sõna esimesest
-      ${s.sonavara.top}-st</div><div class="why">` +
+      <div class="fix">${s.sonavara.known_in_top} слов из первых
+      ${s.sonavara.top}</div><div class="why">` +
       s.sonavara.bands.map(b =>
         `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") +
       // Two different facts, kept apart. "known" is what the learner declared
@@ -1465,11 +1504,11 @@ async function loadStatus() {
            <span class="hint">(пополняется само · сегодня осталось
            ${s.sonavara.gloss_budget_left})</span></div>` : "") + `</div></div>`;
     if (s.kordamine) html += `<div class="corr"><span class="tag">Kordamine</span>
-      <div class="fix">${s.kordamine.due} kordamiseks,
-      ${s.kordamine.scheduled} kokku</div></div>`;
+      <div class="fix">${s.kordamine.due} к повторению,
+      ${s.kordamine.scheduled} всего</div></div>`;
     if (s.raamatukogu) html += `<div class="corr"><span class="tag">Raamatukogu</span>
-      <div class="fix">${s.raamatukogu.items || 0} avatud,
-      ${s.raamatukogu.minutes || 0} minutit</div></div>`;
+      <div class="fix">${s.raamatukogu.items || 0} открыто,
+      ${s.raamatukogu.minutes || 0} минут</div></div>`;
     // The caveat comes from the API, in Russian, so it is written once and
     // cannot drift out of step with what the numbers mean.
     html += `<div class="engine">${esc(d.caveat || "")}</div>`;
@@ -1493,7 +1532,7 @@ async function loadThemes() {
 async function startPractice() {
   const out = $("#practiceOut"); out.innerHTML = "";
   pathAnswered = 0; pathCorrect = 0; $("#pathScore").textContent = "";
-  const btn = $("#practiceBtn"); btn.disabled = true; btn.textContent = "Laen…";
+  const btn = $("#practiceBtn"); btn.disabled = true; btn.textContent = "Загружаю…";
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;
@@ -1503,7 +1542,7 @@ async function startPractice() {
       // An empty topic is still a topic. The 13 with no generator carry an EKK
       // reference, and dropping it here left the learner with a sentence
       // explaining that nothing would happen and nowhere to go instead.
-      let msg = `<div class="banner">${esc(res.detail || "midagi ei tulnud")}`;
+      let msg = `<div class="banner">${esc(res.detail || "ничего не пришло")}`;
       if (res.reference && res.reference.known)
         msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
       out.innerHTML = msg + `</div>`;
@@ -1518,7 +1557,7 @@ async function startPractice() {
     res.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {})));
   } catch (e) {
-    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Harjuta"; }
 }
 
@@ -1611,16 +1650,16 @@ function renderPracticeItem(it, topic, i, glosses) {
     pathAnswered++; if (res.correct) pathCorrect++;
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
     // A choice item's prompt is a question with no blank in it, so filling the
-    // blank echoed "Kumb lause on õige?" back at the learner instead of
+    // blank echoed "Какое предложение верное?" back at the learner instead of
     // showing the sentence they got right. The rule is worth seeing either
     // way here: on a right answer it says *why* it was right, which for word
     // order is the whole lesson.
     verdict.innerHTML = res.correct
       ? (choices.length
-          ? `✓ õige — <strong>${esc(it.answer)}</strong><br>
+          ? `✓ õige <i class="ru">верно</i> — <strong>${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
-          : `✓ õige — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
-      : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, mitte <em>${esc(it.distractor)}</em>` : ""}<br>
+          : `✓ õige <i class="ru">верно</i> — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
+      : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, а не <em>${esc(it.distractor)}</em>` : ""}<br>
          <span class="why">${md(it.why_ru || "")}</span>`;
     /* The meaning arrives with the grade, not before it. `/api/practice/answer`
        looks up at most this one word, which is the "word in front of the
@@ -1630,13 +1669,13 @@ function renderPracticeItem(it, topic, i, glosses) {
       verdict.innerHTML += `<span class="gloss-late"><b>${esc(it.lemma)}</b> — `
         + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
     }
-    let line = `${pathCorrect}/${pathAnswered} õiget`;
-    if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% viimasest ${res.gate.split("/")[1]}-st`;
+    let line = `${pathCorrect}/${pathAnswered} верных`;
+    if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $("#pathScore").textContent = line;
     if (res.just_mastered) {
       $("#pathHead").innerHTML =
-        `✓ <strong>${esc(topic)}</strong> läbitud — avab järgmised teemad. ` +
-        `Harjutused läksid kordamise järjekorda.`;
+        `✓ <strong>${esc(topic)}</strong> пройдено — открывает следующие темы. ` +
+        `Упражнения ушли в очередь повторения.`;
       loadPath();
       refreshDueBadge();
       loadRail();
@@ -1696,7 +1735,7 @@ function showReadAloud() {
   const it = readAloud[readIdx];
   if (!it) return;
   $("#speakPrompt").innerHTML =
-    `${esc(it.text)}<div class="why" style="margin-top:8px">Loe valjusti ette.
+    `${esc(it.text)}<div class="why" style="margin-top:8px">Прочитай вслух.
      ${it.level ? esc(it.level) : ""}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
@@ -1756,24 +1795,24 @@ $("#speakTopic").addEventListener("change", showSpeakQuestion);
 $("#speakPlay").onclick = async () => {
   const text = currentTarget() || currentQuestion();
   if (!text) return;
-  const btn = $("#speakPlay"); btn.disabled = true; btn.textContent = "Sünteesin…";
+  const btn = $("#speakPlay"); btn.disabled = true; btn.textContent = "Синтезирую…";
   try {
     const r = await api("/api/speak", {text, speed: 0.85});
     const el = $("#speakModel");
     el.src = URL.createObjectURL(await r.blob());
     el.hidden = false; el.play().catch(() => {});
   } catch (e) {
-    $("#recNote").textContent = "Kõnesüntees ei vastanud: " + e.message;
+    $("#recNote").textContent = "Синтез речи не ответил: " + e.message;
   } finally { btn.disabled = false; btn.textContent = "Kuula ette"; }
 };
 
 if (!canRecord) {
   $("#recBtn").disabled = true;
   $("#recState").textContent = window.isSecureContext
-    ? "See brauser ei toeta salvestamist."
-    : "Mikrofon vajab HTTPS-i (või localhost'i).";
+    ? "Этот браузер не умеет записывать звук."
+    : "Микрофону нужен HTTPS (или localhost).";
 } else {
-  $("#recState").textContent = "Vasta valjusti ja kuula end üle.";
+  $("#recState").textContent = "Ответь вслух и прослушай себя.";
   $("#recBtn").onclick = async () => {
     if (recording) {
       recorder.stop(); return;
@@ -1791,14 +1830,14 @@ if (!canRecord) {
         el.hidden = false;
         recording = false;
         $("#recBtn").textContent = "● Salvesta vastus";
-        $("#recState").textContent = "Kuula end üle ja võrdle näidisega.";
+        $("#recState").textContent = "Прослушай себя и сравни с образцом.";
         // Transcription is enrichment: the recording and the playback are the
         // exercise, and they already happened. Nothing here can fail in a way
         // that costs the learner their answer.
         if (!asrReady) return;
         const heard = $("#recHeard");
         heard.hidden = false;
-        heard.innerHTML = `<span class="tag">Kuuldi</span><div class="fix">…</div>`;
+        heard.innerHTML = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="fix">…</div>`;
         try {
           const target = currentTarget();
           const params = new URLSearchParams();
@@ -1809,10 +1848,10 @@ if (!canRecord) {
           });
           const t = await r.json();
           if (!t.text) {
-            heard.innerHTML = `<span class="tag">Kuuldi</span><div class="why">${esc(t.note || "ei tuvastanud")}</div>`;
+            heard.innerHTML = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="why">${esc(t.note || "не разобрал")}</div>`;
             return;
           }
-          let html = `<span class="tag">Kuuldi</span><div class="fix">${esc(t.text)}</div>`;
+          let html = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="fix">${esc(t.text)}</div>`;
           if (t.comparison) {
             const c = t.comparison;
             // Word by word, because "7/9" is actionable and "78%" is not: the
@@ -1820,19 +1859,19 @@ if (!canRecord) {
             html += `<div class="fix">` + c.words.map(w =>
               w.ok ? `<ins>${esc(w.target)}</ins>`
                    : `<del>${esc(w.target)}</del>`).join(" ") + `</div>`;
-            html += `<div class="why">${c.matched}/${c.total} sõna tuvastati.
-              ${c.missed.length ? "Korda: <b>" + c.missed.map(esc).join(", ") + "</b>. " : ""}
+            html += `<div class="why">${c.matched}/${c.total} слов распознано.
+              ${c.missed.length ? "Повтори: <b>" + c.missed.map(esc).join(", ") + "</b>. " : ""}
               ${esc(c.caveat)}</div>`;
           } else {
-            html += `<div class="why">Mootor: ${esc(t.engine)}.</div>`;
+            html += `<div class="why">Движок: ${esc(t.engine)}.</div>`;
             // An open answer is text once transcribed, so it goes through the
             // same grammar check as writing.
             try {
               const fb = await (await api("/api/speaking/feedback", {
                 transcript: t.text, question: currentQuestion(),
               })).json();
-              html += `<div class="why">${fb.words} sõna` +
-                (fb.pace_wpm ? ` · ${fb.pace_wpm} sõna/min` : "") + `</div>`;
+              html += `<div class="why">${fb.words} слов` +
+                (fb.pace_wpm ? ` · ${fb.pace_wpm} слов/мин` : "") + `</div>`;
               if (fb.corrections.length) html += fb.corrections.map(c =>
                 `<div class="why">✗ <del>${esc(c.wrong)}</del> →
                  <ins>${esc(c.correct)}</ins> — ${esc(c.why || "")}</div>`).join("");
@@ -1840,15 +1879,15 @@ if (!canRecord) {
           }
           heard.innerHTML = html;
         } catch (e) {
-          heard.innerHTML = `<span class="tag">Kuuldi</span><div class="why">${esc(e.message)}</div>`;
+          heard.innerHTML = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="why">${esc(e.message)}</div>`;
         }
       };
       recorder.start();
       recording = true;
       $("#recBtn").textContent = "■ Lõpeta";
-      $("#recState").innerHTML = `<span class="dot"></span> Salvestan…`;
+      $("#recState").innerHTML = `<span class="dot"></span> Записываю…`;
     } catch (e) {
-      $("#recState").textContent = "Mikrofoni ei saanud: " + e.message;
+      $("#recState").textContent = "Микрофон не открылся: " + e.message;
     }
   };
   /* Said once, plainly: this records, it does not score. Pronunciation
@@ -1874,7 +1913,7 @@ async function refreshDueBadge() {
     const b = $("#dueBadge");
     b.hidden = !s.due; b.textContent = s.due || "";
     $("#reviewStats").textContent =
-      `${s.due} kordamiseks · ${s.total} kokku`;
+      `${s.due} к повторению · ${s.total} всего`;
   } catch {}
 }
 refreshDueBadge();
@@ -1883,7 +1922,7 @@ $("#loadReview").onclick = async () => {
   const out = $("#reviewOut"); out.innerHTML = "";
   const {items, glosses} = await (await api("/api/review?limit=20", null, "GET")).json();
   if (!items.length) {
-    out.innerHTML = `<p class="empty">Praegu pole midagi korrata. Tee harjutusi või loe tekste.</p>`;
+    out.innerHTML = `<p class="empty">Сейчас повторять нечего. Порешай упражнения или почитай тексты.</p>`;
     return;
   }
   for (const it of items) out.appendChild(renderReview(it, glosses || {}));
@@ -1897,12 +1936,12 @@ function renderReview(it, glosses) {
     <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.context ? `<div class="rev-ctx">${esc(it.context)}</div>` : ""}
     <div class="row" style="margin-top:8px">
-      <button class="ghost" data-r="again">Ei mäleta</button>
-      <button class="ghost" data-r="hard">Raske</button>
-      <button class="go" data-r="good">Teadsin</button>
+      <button class="ghost" data-r="again">Ei mäleta <i class="ru">не помню</i></button>
+      <button class="ghost" data-r="hard">Raske <i class="ru">трудно</i></button>
+      <button class="go" data-r="good">Teadsin <i class="ru">знал</i></button>
       ${taskLine({lemma: it.lemma, label: it.kind_et || it.kind || "", level: ""},
                  ru, {quiet: true})}${
-        it.lapses ? `<span class="hint">${it.lapses}× eksinud</span>` : ""}
+        it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
     <div class="verdict"></div>`;
   const verdict = el.querySelector(".verdict");
@@ -1910,8 +1949,7 @@ function renderReview(it, glosses) {
     el.querySelectorAll("button[data-r]").forEach(x => x.disabled = true);
     const r = await (await api("/api/review/grade", {id: it.id, rating: b.dataset.r})).json();
     verdict.className = "verdict ok";
-    verdict.innerHTML = `<strong>${esc(it.answer)}</strong> — järgmine kord
-      ${r.interval_days < 1 ? "täna" : `${Math.round(r.interval_days)} päeva pärast`}
+    verdict.innerHTML = `<strong>${esc(it.answer)}</strong> — снова ${r.interval_days < 1 ? "сегодня" : `через ${Math.round(r.interval_days)} дн.`}
       ${it.why_ru ? `<br><span class="why">${md(it.why_ru)}</span>` : ""}`;
     refreshDueBadge();
     loadRail();
@@ -1931,20 +1969,20 @@ function renderReview(it, glosses) {
 async function runCheckpoint() {
   const out = $("#checkpointOut"), note = $("#checkpointNote");
   const btn = $("#checkpointBtn");
-  btn.disabled = true; out.innerHTML = ""; note.textContent = "Laen…";
+  btn.disabled = true; out.innerHTML = ""; note.textContent = "Загружаю…";
   try {
     const d = await (await api(`/api/checkpoint/${examLevel}?count=15`, null, "GET")).json();
     if (!d.items?.length) {
-      note.textContent = "Selle taseme jaoks pole veel ühtegi harjutust.";
+      note.textContent = "Для этого уровня упражнений пока нет.";
       return;
     }
-    note.innerHTML = `${d.items.length} küsimust · läbimiseks ` +
+    note.innerHTML = `${d.items.length} вопросов · для прохода ` +
       `<b>${Math.round(d.pass_mark * 100)}%</b>` +
-      (d.ready === false ? " · <span class=\"hint\">tase pole veel läbitud</span>" : "");
+      (d.ready === false ? " · <span class=\"hint\">уровень ещё не пройден</span>" : "");
     d.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, it.topic, i)));
   } catch (e) {
-    note.textContent = "Viga: " + e.message;
+    note.textContent = "Ошибка: " + e.message;
   } finally { btn.disabled = false; }
 }
 $("#checkpointBtn").onclick = runCheckpoint;
@@ -1999,9 +2037,9 @@ async function loadLibrary() {
     }
 
     $("#libCount").textContent =
-      `${items.length} teksti${note ? " · " + note : ""}`;
+      `${items.length} текстов${note ? " · " + note : ""}`;
     if (!items.length) {
-      list.innerHTML = `<p class="empty">Tekste pole. Käivita
+      list.innerHTML = `<p class="empty">Текстов нет. Запусти
         <code>cli harvest-reading</code>.</p>`;
       return;
     }
@@ -2012,8 +2050,8 @@ async function loadLibrary() {
       // for a list that never measured it would read as "you know nothing".
       const cover = (measured && it.coverage !== undefined)
         ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
-      const size = it.words !== undefined ? `${it.words} sõna`
-        : (it.total !== undefined ? `${it.total} sõna` : "");
+      const size = it.words !== undefined ? `${it.words} слов`
+        : (it.total !== undefined ? `${it.total} слов` : "");
       el.innerHTML = `<h4>${esc(it.title)}</h4>
         <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
           it.audio_url ? " · ♪" : ""}${cover}</span>`;
@@ -2021,7 +2059,7 @@ async function loadLibrary() {
       list.appendChild(el);
     }
   } catch (e) {
-    list.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+    list.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 }
 $("#loadLib").onclick = loadLibrary;
@@ -2045,7 +2083,7 @@ async function openItem(id) {
   // Coverage is the number that decides whether a text is worth your time:
   // not how long it is, but how much of it you can already handle.
   $("#readerProfile").textContent = p.coverage != null
-    ? `Sõnavara: ${Math.round(p.coverage * 100)}% sinu tasemel · ${p.unique} eri sõna`
+    ? `Знакомых слов: ${Math.round(p.coverage * 100)}% · ${p.unique} разных слов`
     : "";
 
   const hard = new Set((p.hard_words || []).map(w => w.toLowerCase()));
@@ -2066,12 +2104,12 @@ async function openItem(id) {
 $("#xlBtn").onclick = async () => {
   const picked = (window.getSelection?.().toString() || "").trim();
   const out = $("#xlOut"), hint = $("#xlHint");
-  if (!picked) { hint.textContent = "vali tekstist lause"; out.hidden = true; return; }
-  hint.textContent = "tõlgin…";
+  if (!picked) { hint.textContent = "выдели предложение в тексте"; out.hidden = true; return; }
+  hint.textContent = "перевожу…";
   out.hidden = true;
   try {
     const r = await (await api("/api/translate", {text: picked.slice(0, 1200)})).json();
-    if (!r.ok) { hint.textContent = r.detail || "ei õnnestunud"; return; }
+    if (!r.ok) { hint.textContent = r.detail || "не вышло"; return; }
     out.textContent = r.text;
     out.hidden = false;
     hint.textContent = "TartuNLP";
@@ -2095,7 +2133,7 @@ async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = `<span class="hint">…</span>`;
   const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
-  if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
+  if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — не найдено</span>`; return; }
   /* Two different things to say about a word, and until now only one of them
      could be said.
 
@@ -2216,7 +2254,7 @@ async function showWordCard(word, card, contextFor) {
       await api("/api/vocab/known", {lemmas: [lemma]});
       e.target.textContent = "✓ Teada";
       note.className = "mine-note";
-      note.textContent = `«${lemma}» on nüüd teada — mõjutab soovitatud tekste.`;
+      note.textContent = `«${lemma}» теперь известно — влияет на подбор текстов.`;
     } catch (err) {
       note.className = "mine-note no";
       note.textContent = err.message;
@@ -2253,6 +2291,61 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+
+/* ── Russian alongside Estonian ──────────────────────────────────────
+   The learner reads Russian and is learning Estonian, and the interface has
+   to serve both facts at once.
+
+   `CLAUDE.md` keeps UI labels in Estonian on purpose: `Kirjutamine` and
+   `Kuulamine` are the words printed on the exam paper, and a learner who has
+   only ever seen "Письмо" has to translate under time pressure on the day. So
+   the Estonian stays and the Russian goes *beside* it — the label teaches, the
+   gloss makes it usable.
+
+   Anything that explains, warns or instructs is Russian outright, because the
+   same document says a caveat nobody can read is not a caveat. Two of those
+   were still Estonian — the "no part may be zero" note and the dictation
+   instruction — and three were **English** (`REFERENCE`, `READY`, `LOCKED`),
+   which serves neither language.
+
+   Never glossed: the words in Sõnavara, the grammar topic names on the path,
+   and the speaker names. Those are the material, not the chrome. */
+const RU = {
+  // modes and tabs — the exam's own words, so glossed rather than replaced
+  "Õppimine": "обучение", "Kordamine": "повторение", "Eksam": "экзамен",
+  "Rada": "путь", "Harjutused": "упражнения", "Lugemine": "чтение",
+  "Sõnavara": "словарь", "Kuulamine": "аудирование",
+  "Rääkimine": "говорение", "Kirjutamine": "письмо",
+  "Järjekord": "очередь", "Töövihikud": "тетради",
+  "Ülevaade": "обзор", "Edenemine": "прогресс",
+  // rail
+  "Eksamini": "до экзамена", "Puudutamata": "не начато",
+  "Läbitud": "пройдено", "Järgmine": "следующая", "Kordamist ootab": "к повторению",
+  // path states — these were English
+  "reference": "справка", "ready": "можно", "locked": "закрыто",
+  "done": "пройдено", "review": "повторить",
+};
+
+/* Attach a small Russian gloss to an element without disturbing its label. */
+function gloss(el, ru) {
+  if (!el || !ru || el.querySelector(".ru")) return;
+  const s = document.createElement("span");
+  s.className = "ru";
+  s.lang = "ru";
+  s.textContent = ru;
+  el.append(s);
+}
+
+/* Tabs and mode buttons carry their gloss under the Estonian word. Applied to
+   the DOM rather than written into each button, so a tab added later gets one
+   by being in `RU` -- the same reason the tab list itself is derived. */
+function glossChrome() {
+  document.querySelectorAll("nav[data-mode-nav] button[data-tab] .lbl")
+    .forEach(el => { el.lang = "et"; gloss(el, RU[el.textContent.trim()]); });
+  document.querySelectorAll("#modes button[data-mode], .modes button[data-mode]")
+    .forEach(el => { el.lang = "et"; gloss(el, RU[el.textContent.trim()]); });
+}
+
 // ── vocabulary: the list the app never had ──────────────────────────
 /* Lookup answers "what is this word"; nothing answered "which words should I
    learn". Those are different questions and only the second one is askable by
@@ -2286,13 +2379,13 @@ async function loadVocab(append) {
   vocOffset = append ? vocOffset + 60 : 0;
   q.set("limit", "60");
   q.set("offset", String(vocOffset));
-  if (!append) out.innerHTML = `<p class="hint">laen…</p>`;
+  if (!append) out.innerHTML = `<p class="hint">загружаю…</p>`;
   try {
     const d = await (await api("/api/vocab?" + q, null, "GET")).json();
     if (!d.items.length && !append) {
       // An empty result is a real answer here, not a failure: filtering B2
       // verbs down to "known" legitimately finds nothing early on.
-      out.innerHTML = `<p class="hint">Selle valikuga sõnu ei ole.</p>`;
+      out.innerHTML = `<p class="hint">С этим фильтром слов нет.</p>`;
       more.hidden = true;
       return;
     }
@@ -2356,7 +2449,7 @@ async function loadDictation() {
     state.textContent = d.note || "";
     if (!dictNow) $("#dictState").textContent = d.note || "";
   } catch (e) {
-    state.textContent = "Ei saanud lauset: " + e.message;
+    state.textContent = "Не удалось получить предложение: " + e.message;
   }
 }
 
@@ -2382,7 +2475,7 @@ $("#dictPlay").onclick = async () => {
     const el = out.querySelector("audio");
     el.currentTime = 0; el.play().catch(() => {});
   } catch (e) {
-    $("#dictState").textContent = "Heli ei tulnud: " + e.message;
+    $("#dictState").textContent = "Звук не пришёл: " + e.message;
   } finally { btn.disabled = false; }
 };
 
@@ -2402,15 +2495,15 @@ $("#dictCheck").onclick = async () => {
         ? `<span class="w-ok">${esc(w.target)}</span>`
         : `<span class="w-no">${esc(w.target)}</span>`).join(" ") +
       `</div>
-      <div class="why">Õigesti: ${esc(r.text)}</div>${r.extra.length
-        ? `<div class="why">Lisaks kirjutatud: ${esc(r.extra.join(" "))}</div>` : ""}
+      <div class="why">Правильно: ${esc(r.text)}</div>${r.extra.length
+        ? `<div class="why">Лишнее: ${esc(r.extra.join(" "))}</div>` : ""}
       </div>`;
     $("#dictScore").textContent =
-      `${r.matched}/${r.total} sõna${r.correct ? " · läbitud" : ""}`;
+      `${r.matched}/${r.total} слов${r.correct ? " · пройдено" : ""}`;
     // The verdict counts dictations, so the rail is now out of date.
     loadRail();
   } catch (e) {
-    $("#dictScore").textContent = "Viga: " + e.message;
+    $("#dictScore").textContent = "Ошибка: " + e.message;
   } finally { btn.disabled = false; }
 };
 
@@ -2454,7 +2547,7 @@ async function loadListenLibrary() {
            </a>`
         : `<div class="lib-item" data-id="${esc(it.id)}">
              <h4>${esc(it.title)}</h4>
-             <span class="lib-meta">${it.words ? it.words + " sõna" : "heli"}${
+             <span class="lib-meta">${it.words ? it.words + " слов" : "аудио"}${
                it.audio_url ? " · ♪" : ""}${it.level ? " · " + esc(it.level) : ""}</span>
              <div class="lib-open" hidden></div>
            </div>`).join("");
@@ -2462,7 +2555,7 @@ async function loadListenLibrary() {
         row.onclick = () => openListenItem(row));
     }
   } catch (e) {
-    box.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+    box.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 }
 
@@ -2476,7 +2569,7 @@ async function openListenItem(row) {
   const out = row.querySelector(".lib-open");
   if (!out.hidden) { out.hidden = true; out.innerHTML = ""; return; }
   out.hidden = false;
-  out.innerHTML = `<span class="hint">Laen…</span>`;
+  out.innerHTML = `<span class="hint">Загружаю…</span>`;
   try {
     const d = await (await api("/api/library/" + row.dataset.id, null, "GET")).json();
     out.innerHTML = "";
@@ -2490,7 +2583,7 @@ async function openListenItem(row) {
     // Opening one is contact with the language, and the verdict counts it.
     loadRail();
   } catch (e) {
-    out.innerHTML = `<span class="hint">Ei saanud avada: ${esc(e.message)}</span>`;
+    out.innerHTML = `<span class="hint">Не удалось открыть: ${esc(e.message)}</span>`;
   }
 }
 
@@ -2498,7 +2591,7 @@ async function openListenItem(row) {
 $("#speakBtn").onclick = async () => {
   const text = $("#ttsText").value.trim();
   if (!text) return;
-  const btn = $("#speakBtn"); btn.disabled = true; btn.textContent = "Sünteesin…";
+  const btn = $("#speakBtn"); btn.disabled = true; btn.textContent = "Синтезирую…";
   const out = $("#ttsOut"); out.innerHTML = "";
   try {
     const r = await api("/api/speak", {
@@ -2508,7 +2601,7 @@ $("#speakBtn").onclick = async () => {
     await mountAudio(out, url);
     out.querySelector("audio")?.play().catch(() => {});
   } catch (e) {
-    out.innerHTML = `<div class="banner">Viga: ${esc(e.message)}</div>`;
+    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; btn.textContent = "Loe ette"; }
 };
 
@@ -2534,6 +2627,7 @@ addEventListener("hashchange", () => goToPlace(location.hash.slice(1)));
 // The path is the default landing tab: it is the one screen that answers
 // "what do I do now" without the learner having to decide. A hash naming a
 // real tab wins over it; anything else falls back rather than showing nothing.
+glossChrome();
 if (!goToPlace(location.hash.slice(1))) {
   selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
   // Replace, never push: the landing tab must not become an extra Back step

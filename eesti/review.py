@@ -79,10 +79,63 @@ class ReviewItem:
     lapses: int
 
 
+# One-time repair of explanations already in the queue.
+#
+# `omastav` was being written as **омастав** -- a spelling in neither language,
+# which a learner can look up nowhere. Fixing the generators corrects what is
+# produced from now on and reaches none of the rows already stored, and this is
+# a spaced-repetition queue: those items are guaranteed to come back. So the
+# text is repaired where it sits. Idempotent -- the replaced form contains no
+# match, so a second run changes nothing.
+REPAIRS = (
+    ("основы омастава", "основы генитива (omastav)"),
+    ("основа омастава", "основа генитива (omastav)"),
+    ("а не омастав ", "а не **omastav** "),
+)
+
+
+def repair_explanations(conn: sqlite3.Connection) -> int:
+    """Rewrite stored `why_ru` that transliterated an Estonian grammar term.
+
+    Looks before it writes. Running the UPDATE unconditionally turned every
+    open of the queue -- including the read-only ones behind `GET /api/status`
+    -- into a writer, and a second connection anywhere in the process then got
+    `database is locked`. There is nothing to repair on all but the first open,
+    so the write happens once and every later open pays only the check.
+
+    That check is a `LIKE '%...%'`, which cannot use an index and scans the
+    table -- fine against one learner's queue, and cheap next to the lock
+    contention it removes, but it is a scan and not a lookup.
+    """
+    total = 0
+    for bad, good in REPAIRS:
+        hit = conn.execute(
+            "SELECT 1 FROM review_items WHERE why_ru LIKE '%' || ? || '%' LIMIT 1",
+            (bad,),
+        ).fetchone()
+        if hit is None:
+            continue
+        cur = conn.execute(
+            "UPDATE review_items SET why_ru = replace(why_ru, ?, ?) "
+            "WHERE why_ru LIKE '%' || ? || '%'",
+            (bad, good, bad),
+        )
+        total += cur.rowcount or 0
+    if total:
+        conn.commit()
+    return total
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    try:
+        repair_explanations(conn)
+    except sqlite3.OperationalError:
+        # Another connection holds the write lock. This is maintenance, not the
+        # caller's errand -- it runs on the next open instead of failing a read.
+        pass
     return conn
 
 
