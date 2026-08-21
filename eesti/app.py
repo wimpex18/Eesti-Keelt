@@ -956,7 +956,50 @@ def practice_items(req: PracticeRequest) -> dict:
 
     topic = req.topic or resume(progress_db())
     if topic is None:
-        return {"topic": None, "items": [], "detail": "nothing unlocked to practise"}
+        return {"topic": None, "items": [],
+                "detail": "Пока нечего повторять — начни с «Rada»."}
+
+    # `by_id` raises KeyError on a topic that does not exist, and this lookup
+    # sits above the try/except that used to catch it -- so moving it here
+    # turned an unknown topic from a 400 into a 500. Guarded on its own, since
+    # "no such topic" is a different answer from "no generator for it".
+    try:
+        meta = by_id(topic)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=f"no such topic: {topic}") from exc
+
+    # 13 of the 36 topics have no generator. They are in the syllabus and in
+    # the path, so practising them is a thing a learner will try, and what came
+    # back was a 400 carrying a Python exception message:
+    #
+    #     'tahestik' has no generator — see step 2 of docs/curriculum-plan.md
+    #
+    # English, naming a file the learner does not have, rendered by the page as
+    # "Viga: ...". Two rules broken at once -- explanations are in Russian, and
+    # a message nobody can read is not a message.
+    #
+    # It is also not an error. The request was valid and the answer is "there
+    # is no exercise for this yet", which is the same shape as a topic whose
+    # corpus has not been uploaded: 200, no items, and a reason. That lets the
+    # page keep offering the EKK reference, so the topic still teaches
+    # something instead of dead-ending.
+    if meta.generator is None:
+        reference = describe_rule(meta.tag) if meta.tag else None
+        # Only 1 of the 13 (`astmevaheldus`) carries an EKK reference, so the
+        # sentence has to be conditional. Promising "the rule is linked below"
+        # with nothing below it is a worse message than the English one it
+        # replaced -- it sends the learner looking for something that is not
+        # there.
+        detail = (
+            "Упражнений по этой теме пока нет — она есть в программе, но "
+            "генератор для неё ещё не написан."
+        )
+        if reference and reference.get("known"):
+            detail += " Правило можно прочитать по ссылке ниже."
+        return {
+            "topic": topic, "level": meta.level, "et": meta.et, "ru": meta.ru,
+            "items": [], "detail": detail, "reference": reference, "glosses": {},
+        }
 
     try:
         items = items_for(
@@ -966,7 +1009,6 @@ def practice_items(req: PracticeRequest) -> dict:
     except (ValueError, RuntimeError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    meta = by_id(topic)
     # An empty list is not self-explanatory, and the page can only print what
     # it is given: without a reason it showed a bare "midagi ei tulnud".
     #
@@ -1184,6 +1226,43 @@ def vocab_bands() -> dict:
     return {"bands": band_progress(vocabulary, db()), **summary(vocabulary)}
 
 
+@app.get("/api/vocab")
+def vocab_browse(
+    level: str | None = None,
+    pos: str | None = None,
+    status: str | None = None,
+    limit: int = 60,
+    offset: int = 0,
+) -> dict:
+    """Browse the wordlist. The app could look a word up and could not list any.
+
+    A learner cannot ask for a word they have not met, which is precisely the
+    set worth studying, so lookup-only made 160 316 words reachable only by
+    somebody who already knew what was in there. Filters are level, part of
+    speech and what the learner has already marked.
+
+    Needs the built wordlist: `words_db()` declines with an instruction rather
+    than handing back an empty database that looks like an empty vocabulary.
+    """
+    from . import vocab as vocab_mod
+    from .cli import words_db
+
+    words = words_db()
+    if words is None:
+        raise HTTPException(
+            503,
+            "Словарь ещё не собран на этом сервере — запусти "
+            "`python -m eesti.cli fetch-data`, затем `python -m eesti.cli build`.",
+        )
+    try:
+        return vocab_mod.browse(
+            words, vocab_db(), level=level, pos=pos, status=status,
+            limit=max(1, min(limit, 200)), offset=max(0, offset),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 @app.post("/api/vocab/known")
 def vocab_known(req: KnownWords) -> dict:
     """Marking a word known is an explicit act — never inferred from reading."""
@@ -1261,6 +1340,24 @@ def icon_png() -> Response:
     if png.exists():
         return FileResponse(png, media_type="image/png")
     return Response(ICON_SVG, media_type="image/svg+xml")
+
+
+@app.get("/sw.js")
+def service_worker() -> Response:
+    """Served from the root so its scope covers the whole app.
+
+    A worker served from a subdirectory can only control that subdirectory,
+    which for a single-page app means it controls nothing.
+
+    `no-cache` on the worker itself: browsers re-check it on navigation, and a
+    worker pinned by HTTP caching is one that cannot be replaced -- the failure
+    mode where a bad worker outlives the deploy that fixed it.
+    """
+    return Response(
+        (WEB / "sw.js").read_text(encoding="utf-8"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/manifest.webmanifest")

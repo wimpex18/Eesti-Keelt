@@ -1,0 +1,125 @@
+/* Service worker: makes the installed app start, and say something useful
+   when there is no connection.
+
+   What this deliberately does NOT do is pretend the app works offline. Drills
+   are generated on the server -- `POST /api/practice` runs Vabamorf against
+   the wordlist -- so no amount of caching puts an exercise on the screen
+   without a connection. The manifest already made the app installable; what
+   was missing was any behaviour once installed, so an installed copy failed
+   exactly like a browser tab with the network off, which is the worst of both.
+
+   Three rules, and the second two matter more than the first:
+
+   1. **Shell is cache-first.** The page, its icons and its manifest change
+      only when the app is redeployed, so serving them from disk is both faster
+      and what lets the app open at all on a dead connection.
+
+   2. **The API is never cached. Not once, not stale-while-revalidate.**
+      Every endpoint here is either the learner's own state (progress, review
+      queue, vocabulary status) or freshly generated (drills, dictation). A
+      cached `/api/review` would show a due count that is already wrong; a
+      cached `/api/practice` would serve the same ten items forever and the
+      mastery gate would count them. Study data has to be true, and a drill
+      that is quietly a day old is worse than a drill that is unavailable.
+
+   3. **Nothing that is not a clean 200 from this origin is stored.**
+      Cloudflare Access guards this app, and a signed-out request gets a 302 to
+      a login page. Caching that would pin the login redirect in front of the
+      app until the cache was cleared -- from the learner's side, an app that
+      had permanently broken itself. */
+
+const VERSION = "v1";
+const SHELL = `shell-${VERSION}`;
+
+/* `/` is listed rather than `/index.html`: it is what the manifest's
+   `start_url` opens and what a navigation requests. */
+const ASSETS = ["/", "/manifest.webmanifest", "/icon.svg", "/icon.png"];
+
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(SHELL);
+    // Individually, not `addAll`: that rejects the whole install if one asset
+    // 404s, and a worker that fails to install leaves the app with no offline
+    // behaviour at all because one icon was renamed.
+    await Promise.all(ASSETS.map(async url => {
+      try {
+        const res = await fetch(url, {cache: "reload"});
+        if (res.ok && !res.redirected) await cache.put(url, res);
+      } catch (err) { /* offline during install: nothing to cache, carry on */ }
+    }));
+    // Take over on the next load rather than waiting for every tab to close.
+    // Safe here because the worker holds no state a previous version could be
+    // mid-way through.
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    // Drop caches from earlier versions, or a redeploy leaves the previous
+    // shell on disk forever and the app boots into last week's page.
+    const names = await caches.keys();
+    await Promise.all(
+      names.filter(n => n !== SHELL).map(n => caches.delete(n)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", event => {
+  const {request} = event;
+  const url = new URL(request.url);
+
+  // Only this origin, only GET. A POST is an action -- answering a drill,
+  // marking a word known -- and replaying one from a cache would record
+  // something the learner did not do.
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
+
+  // Rule 2. Let the API go to the network untouched, including its failures:
+  // the page already knows how to render an error, and a stale success would
+  // be indistinguishable from a real one.
+  if (url.pathname.startsWith("/api/")) return;
+
+  // A navigation is the case that decides whether the app opens at all.
+  if (request.mode === "navigate") {
+    event.respondWith((async () => {
+      try {
+        return await fetch(request);
+      } catch (err) {
+        const cached = await caches.match("/");
+        return cached || new Response(
+          OFFLINE_PAGE, {status: 503, headers: {"Content-Type": "text/html; charset=utf-8"}});
+      }
+    })());
+    return;
+  }
+
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    try {
+      const res = await fetch(request);
+      // Rule 3: only a clean, unredirected 200 from this origin is kept.
+      if (res.ok && !res.redirected && res.type === "basic") {
+        const cache = await caches.open(SHELL);
+        cache.put(request, res.clone());
+      }
+      return res;
+    } catch (err) {
+      return new Response("", {status: 504});
+    }
+  })());
+});
+
+/* Shown only if the shell itself was never cached -- a first run with no
+   connection. In Russian, because it is the one thing on screen and it has to
+   be read. */
+const OFFLINE_PAGE = `<!doctype html><html lang="ru"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Нет соединения</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;min-height:100vh;
+display:grid;place-items:center;background:#f7f7f5;color:#1a1a19;padding:24px}
+div{max-width:32ch;text-align:center}h1{font-size:19px;margin:0 0 8px}
+p{margin:0;color:#5d5d57}</style>
+<div><h1>Нет соединения</h1>
+<p>Упражнения создаются на сервере, поэтому без интернета их не открыть.
+Попробуй ещё раз, когда связь появится.</p></div>`;

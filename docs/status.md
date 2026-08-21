@@ -24,34 +24,79 @@ of those two routes to take is precisely what the readiness verdict is for.
 
 | | |
 |---|---|
-| **Drills** | 23 of 36 curriculum topics generate items. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
+| **Drills** | 25 of 36 curriculum topics generate items — **23 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Deterministic everywhere. No model decides whether an answer is right. |
 | **Reading** | 349 Selges keeles texts, click-to-look-up, known-word tracking, comprehensibility ordering. |
 | **Listening** | Dictation from the corpus, TTS on any text at 0.7×, ERR episode audio. |
 | **Writing** | Grammar check through the provider chain, corrections queued for the Notion error log with an explicit send step. |
 | **Speaking** | Question bank in the exam's paired shape, TTS voicing the other side, links out to EKI's own pronunciation exercises. |
-| **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. |
+| **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. Intervals expand as they should — measured 2026-08-21 at the due date: 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. |
 | **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. Sentence-level translation from TartuNLP, on request only. |
 | **Back-translation** | The writing check reads your Estonian back in Russian, so a sentence that is well formed but says the wrong thing is visible. |
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-42 API routes, every one with a caller. 1 141 tests.
+49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 283 tests: 1 218 in-process and 65 browser journeys.
+
+## What a learner still cannot do
+
+Measured 2026-08-21 against the running app, not inferred from the code.
+
+### There is no way to browse vocabulary
+
+`/api/lookup/{word}` and `/api/enrich/{word}` take a word you can already
+spell. Nothing answers *"show me the B1 nouns I have not met"* or *"show me the
+words for this topic"*. The data for it is all present and already paid for —
+160 316 words, CEFR tags on 9 951 of them, `vocab.db` recording every word the
+learner has met, and Russian glosses in the gloss store — and the word card
+that would display an entry is built and working. What is missing is the list:
+one endpoint that selects by level or topic, and a screen to show it.
+
+This is the largest user-visible gap in the app. Every competitor named in the
+research has it, and it is the feature that turns a 160 000-word dataset into
+something a person can work through.
+
+### The 13 empty topics answer in English, pointing at a developer document
+
+Practising `tahestik` returns:
+
+    'tahestik' has no generator — see step 2 of docs/curriculum-plan.md
+
+The learner reads Russian; `docs/curriculum-plan.md` is not on their machine
+and would not help if it were. `sonajark` gets this right in the same
+situation — *"Для этой темы нужен текстовый корпус…"* — so the app already
+knows how to say it. Same rule as the readiness verdict and the pronunciation
+caveat: a message nobody can read is not a message.
+
+### The PWA installs and then needs the network
+
+`manifest.webmanifest` is served and the app is installable, but there is no
+service worker, so an installed copy still fails without a connection. Half of
+a claim is worse than none of it — the offline core exists (drills, grading and
+the wordlist need no network by design) and nothing lets a learner reach it
+from an installed app.
 
 ## What was never built
 
-### 13 curriculum topics have no generator
+### 11 curriculum topics have no generator
 
-`tahestik`, `lauseehitus`, `asesonad`, `pohivormid`, `astmevaheldus`, `eitus`,
-`kaassonad`, `sidesonad`, `maarsonad`, `tulevik`, `uhildumine`, `uhendverbid`,
-`liitsonad`.
+```
+tahestik  lauseehitus  asesonad  astmevaheldus  kaassonad  sidesonad
+maarsonad  tulevik  uhildumine  uhendverbid  liitsonad
+```
 
-They appear in the syllabus and in the path, and practising them opens nothing.
-Some are deliberate — `astmevaheldus` is reference material whose contrast is
-already drilled through `gen-stem`, where the stem is actually chosen. Most are
-simply not done. `uhildumine`, `uhendverbid` and `liitsonad` were investigated
-as candidates for the attested-corrections treatment that made `word-order`
-work, and the corpus did not have enough marked examples.
+It was 13 until 2026-08-21, when `pohivormid` and `eitus` got one. **Do not
+maintain this list by hand** — it is `[t.id for t in TOPICS if not t.generator]`,
+and the version above is a snapshot for reading, not the source. A test that
+kept its own copy of the same set went stale the moment those two landed.
+
+They appear in the syllabus and in the path, and practising them opens a
+message saying so rather than nothing. Some are deliberate — `astmevaheldus` is
+reference material whose contrast is already drilled through `gen-stem`, where
+the stem is actually chosen. Most are simply not done. `uhildumine`,
+`uhendverbid` and `liitsonad` were investigated as candidates for the
+attested-corrections treatment that made `word-order` work, and the corpus did
+not have enough marked examples.
 
 ### Local ASR
 
@@ -65,6 +110,25 @@ better privacy story and nobody hosts the model.
 
 Deliberately never attempted — forced alignment gives timings, not correctness,
 and EKI publishes free exercises. The app links them instead.
+
+### The documentation described a structure that was never built
+
+`docs/app-structure.md` had a top-level `Raamatukogu`, put `Kordamine` inside
+`Õppimine`, and listed no `Rääkimine`, `Kirjutamine` or free-practice tab. None
+of that matched the app. It was a plan being read as a map, and it had been
+that way long enough that its "Built" section asserted `pohivormid` could not
+gate — true when written, false since the generator landed.
+
+Rewritten 2026-08-21 from `index.html` and `library.py` rather than from
+intent, and it now carries the three things this project keeps needing and not
+having written down: **which screens are graded by code and which by a model**
+(only two involve a model, and neither decides correctness), **where the modules
+overlap**, and **why `Sõnavara` sits where it does**.
+
+Worth knowing for its own sake: `Sõnavara` was *already specified* in that
+document — "vocabulary by frequency band, Speakly-style" — before it was built.
+It was built frequency-ordered by independent reasoning, which converged, but
+the specification was sitting there unread.
 
 ## Known bugs and rough edges
 
@@ -149,5 +213,15 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    are what decides A2-then-B1 against B1-alone next year. This is the item
    that has been at number three through two sprints while the code around it
    got better; the app now has more features than it has practice history.
-4. Then, if a build is wanted: the 13 topics with no generator, largest gap
-   first.
+4. ~~**Build the vocabulary browser.**~~ Done 2026-08-21 — `Sõnavara`, by CEFR
+   level and part of speech, commonest first.
+5. ~~**Say the empty-topic message in Russian.**~~ Done 2026-08-21, and it is a
+   200 with a reason rather than a 400 carrying an exception.
+6. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
+   were the two named here and are built. Of what is left, none is A2 exam
+   material in the way those two were, so this is now a genuine "if more is
+   wanted" rather than a gap.
+7. **Decide whether five word statuses are four too many.** LingQ ships four
+   and its users report that as already hard to judge; only the *settled*
+   boundary is load-bearing here. Cheaper to resolve before anything else
+   reads the ladder.

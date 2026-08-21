@@ -226,8 +226,10 @@ three of these were found at all:
 2. **Whatever the verdict names.** It reports untouched exam parts first,
    because ≥60 % overall with one part at zero is still a fail. That list is
    the honest backlog.
-3. **The 13 topics with no generator**, if a build is wanted rather than a
-   study month. Listed in `status.md`.
+3. **The topics with no generator**, if a build is wanted rather than a study
+   month. Counted and listed in `status.md` — deliberately not repeated here,
+   because the number moves (13 → 11 on 2026-08-21) and two files claiming it
+   is two files that can disagree.
 
 ### The upload happened — this is no longer blocked
 

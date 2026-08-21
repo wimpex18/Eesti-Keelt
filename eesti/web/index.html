@@ -267,9 +267,36 @@
   .prose w{cursor:pointer;border-bottom:1px dotted transparent}
   .prose w:hover{border-bottom-color:var(--accent);color:var(--accent)}
   .prose w.hard{background:var(--warn-soft);border-radius:3px;padding:0 1px}
+  .vocgrid{display:grid;gap:7px;margin-top:12px;
+    grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .vocword{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;
+    text-align:left;padding:9px 11px;border:1px solid var(--line);
+    border-radius:9px;background:var(--panel);color:var(--fg);cursor:pointer;
+    font:inherit;min-height:44px}
+  .vocword:hover{border-color:var(--accent)}
+  .vocword .w{font-weight:650}
+  .vocword .lv{font-size:12px;color:var(--muted);border:1px solid var(--line);
+    border-radius:5px;padding:0 5px}
+  .vocword .pair{font-size:12.5px;color:var(--muted)}
+  .vocword .gloss{font-size:12.5px;color:var(--gloss);width:100%}
+  /* A settled word stays in the list -- it is still vocabulary -- but stops
+     competing for attention with the words still to learn. */
+  .vocword.settled{opacity:.62}
+  #vocCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
+    border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
+    box-shadow:0 4px 18px rgba(0,0,0,.13)}
   #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
+  /* Sticky cards must clear the fixed bottom navigation, not the viewport
+     edge. Both carry their actions at the foot, and those were the part that
+     vanished behind the bar on a phone. Placed *after* the card rules on
+     purpose: an id selector in an earlier media block loses to an id selector
+     further down, which is how the first attempt at this silently did nothing.
+  */
+  @media (max-width:719px){
+    #wordCard, #vocCard{bottom:calc(var(--nav-h) + 12px)}
+  }
   #wordCard .lemma{font-size:16px;font-weight:700}
   #wordCard .tags{font-size:13px;color:var(--muted);margin-top:3px}
   #wordCard .pair{margin-top:7px;font-size:13.5px}
@@ -365,7 +392,9 @@
        labels are short enough to survive 390px and each button clears 48px. -->
   <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine">
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Rada</span></button>
+    <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">✦</span><span class="lbl">Harjutused</span></button>
     <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Lugemine</span></button>
+    <button role="tab" aria-selected="false" data-tab="sonad"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Sõnavara</span></button>
     <button role="tab" aria-selected="false" data-tab="listen"><span class="ico" aria-hidden="true">♪</span><span class="lbl">Kuulamine</span></button>
     <button role="tab" aria-selected="false" data-tab="speak"><span class="ico" aria-hidden="true">◉</span><span class="lbl">Rääkimine</span></button>
     <button role="tab" aria-selected="false" data-tab="write"><span class="ico" aria-hidden="true">✎</span><span class="lbl">Kirjutamine</span></button>
@@ -379,9 +408,7 @@
   </nav>
 
   <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam">
-    <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl">Ülevaade</span></button>
-    <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">⌗</span><span class="lbl">Grammatika</span></button>
-    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Edenemine</span></button>
+    <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl">Ülevaade</span></button>    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Edenemine</span></button>
   </nav>
 
   <!-- ── The path ──────────────────────────────────────────────────
@@ -575,6 +602,58 @@
     <div id="reviewOut"></div>
   </section>
 
+  <!-- ── Vocabulary ────────────────────────────────────────────────────
+       The app could look a word up and could not list any, so the 160 316-word
+       dataset was reachable only by somebody who already knew what was in it —
+       which is the one person who does not need it. Ordered commonest-first,
+       because for "what should I learn next" that is the ordering that pays.
+
+       Level is CEFR and only ~6.2 % of the wordlist carries one. That is fine
+       here and would not be fine as a difficulty score: this is a filter onto
+       the tagged minority, and the tagged minority is exactly the A1–B1
+       vocabulary the exam draws on. -->
+  <section class="panel" id="tab-sonad" hidden>
+    <div class="row" style="margin-top:0">
+      <label>Tase
+        <select id="vocLevel">
+          <option value="">kõik</option>
+          <option value="A1">A1</option>
+          <option value="A2" selected>A2</option>
+          <option value="B1">B1</option>
+          <option value="B2">B2</option>
+          <option value="C1">C1</option>
+        </select>
+      </label>
+      <label>Sõnaliik
+        <select id="vocPos">
+          <option value="">kõik</option>
+          <option value="s">nimisõna</option>
+          <option value="v">tegusõna</option>
+          <option value="adj">omadussõna</option>
+          <option value="adv">määrsõna</option>
+        </select>
+      </label>
+      <label>Olek
+        <select id="vocStatus">
+          <option value="">kõik</option>
+          <option value="new">uued</option>
+          <option value="learning">õpin</option>
+          <option value="known">tean</option>
+        </select>
+      </label>
+      <button id="vocBtn" class="primary">Näita</button>
+    </div>
+    <p class="note" id="vocNote">
+      Список слов по уровню и части речи, начиная с самых частотных.
+      Нажми на слово — откроется карточка. «Tean» убирает слово из подсказок
+      при чтении, но не удаляет его из списка.
+    </p>
+    <div id="vocOut" aria-live="polite"></div>
+    <div class="row" id="vocMore" hidden>
+      <button id="vocMoreBtn">Veel sõnu</button>
+    </div>
+  </section>
+
   <!-- ── Reading ───────────────────────────────────────────────────── -->
   <section class="panel" id="tab-read" hidden>
     <div class="row" style="margin-top:0">
@@ -715,6 +794,7 @@ const ON_OPEN = {
   vihikud: () => loadVihikud(),
   path: () => loadPath(),
   status: () => loadStatus(),
+  sonad: once(() => loadVocab(false)),
   listen: once(() => { loadDictation(); loadListenLibrary(); }),
   speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
 };
@@ -849,7 +929,24 @@ async function api(path, body, method) {
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(body ?? {});
   }
-  const r = await fetch(path, init);
+  let r;
+  try {
+    r = await fetch(path, init);
+  } catch (err) {
+    /* A failed fetch throws a TypeError whose message is the browser's own
+       English string -- "Failed to fetch" in Chrome, "NetworkError when
+       attempting to fetch resource" in Firefox. Every caller renders
+       `err.message` into a banner, so with no connection the app told a
+       Russian-speaking learner "Failed to fetch".
+
+       Made reachable by the service worker: before it, losing the connection
+       gave the browser's own offline page and the app never got to speak. Now
+       the shell loads and this is what it says, so it has to say something
+       true and readable. */
+    throw new Error(
+      "Нет соединения с сервером. Упражнения создаются на сервере, "
+      + "поэтому без интернета их не открыть.");
+  }
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   return r;
 }
@@ -1205,7 +1302,7 @@ async function queueError(btn) {
    a button that looks live and 503s is worse than one that says why. */
 async function loadQueue() {
   try {
-    const d = await (await fetch("/api/notion/pending")).json();
+    const d = await (await api("/api/notion/pending", null, "GET")).json();
     const rows = d.items || [];
     $("#queueCount").textContent = rows.length ? `(${rows.length})` : "";
     $("#queueBox").hidden = !rows.length;
@@ -1313,7 +1410,7 @@ let pathTopic = null, pathAnswered = 0, pathCorrect = 0;
 
 async function loadPath() {
   try {
-    const p = await (await fetch("/api/curriculum")).json();
+    const p = await (await api("/api/curriculum", null, "GET")).json();
     pathTopic = p.resume;
     const pct = p.total ? Math.round(p.mastered / p.total * 100) : 0;
     const ring = $("#pathRing");
@@ -1346,7 +1443,7 @@ async function loadPath() {
 async function loadStatus() {
   const out = $("#statusOut");
   try {
-    const d = await (await fetch("/api/status")).json();
+    const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";
     if (s.rada) html += `<div class="corr"><span class="tag">Rada</span>
       <div class="fix">${s.rada.mastered}/${s.rada.total} teemat läbitud,
@@ -1386,7 +1483,7 @@ $("#pathList").addEventListener("click", e => {
 
 async function loadThemes() {
   try {
-    const {themes} = await (await fetch("/api/themes")).json();
+    const {themes} = await (await api("/api/themes", null, "GET")).json();
     $("#theme").innerHTML = '<option value="">kõik sõnad</option>' +
       themes.map(t => `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("");
   } catch {}
@@ -1401,7 +1498,16 @@ async function startPractice() {
     if (pathTopic) body.topic = pathTopic;
     const theme = $("#theme").value; if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
-    if (!res.items.length) { out.innerHTML = `<div class="banner">${esc(res.detail || "midagi ei tulnud")}</div>`; return; }
+    if (!res.items.length) {
+      // An empty topic is still a topic. The 13 with no generator carry an EKK
+      // reference, and dropping it here left the learner with a sentence
+      // explaining that nothing would happen and nowhere to go instead.
+      let msg = `<div class="banner">${esc(res.detail || "midagi ei tulnud")}`;
+      if (res.reference && res.reference.known)
+        msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
+      out.innerHTML = msg + `</div>`;
+      return;
+    }
     pathTopic = res.topic;
     let head = `<div class="banner"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
     if (res.reference && res.reference.known)
@@ -1577,7 +1683,7 @@ function speakMode() { return $("#speakMode").value; }
 
 async function loadReadAloud(kind) {
   try {
-    const {items} = await (await fetch(`/api/speaking/readaloud?kind=${kind}&n=12`)).json();
+    const {items} = await (await api(`/api/speaking/readaloud?kind=${kind}&n=12`, null, "GET")).json();
     readAloud = items; readIdx = 0;
     $("#speakTopic").hidden = true;
     $("#speakNext").hidden = false;
@@ -1628,7 +1734,7 @@ function currentQuestion() {
 
 async function loadSpeakQuestions() {
   try {
-    const {questions} = await (await fetch("/api/speaking")).json();
+    const {questions} = await (await api("/api/speaking", null, "GET")).json();
     $("#speakTopic").innerHTML = questions
       .map((q, i) => `<option value="${i}">${esc(q.topic)}</option>`).join("");
     window.__speak = questions;
@@ -1763,7 +1869,7 @@ if (!canRecord) {
 // ── review ──────────────────────────────────────────────────────────
 async function refreshDueBadge() {
   try {
-    const s = await (await fetch("/api/review/stats")).json();
+    const s = await (await api("/api/review/stats", null, "GET")).json();
     const b = $("#dueBadge");
     b.hidden = !s.due; b.textContent = s.due || "";
     $("#reviewStats").textContent =
@@ -1774,7 +1880,7 @@ refreshDueBadge();
 
 $("#loadReview").onclick = async () => {
   const out = $("#reviewOut"); out.innerHTML = "";
-  const {items, glosses} = await (await fetch("/api/review?limit=20")).json();
+  const {items, glosses} = await (await api("/api/review?limit=20", null, "GET")).json();
   if (!items.length) {
     out.innerHTML = `<p class="empty">Praegu pole midagi korrata. Tee harjutusi või loe tekste.</p>`;
     return;
@@ -1826,7 +1932,7 @@ async function runCheckpoint() {
   const btn = $("#checkpointBtn");
   btn.disabled = true; out.innerHTML = ""; note.textContent = "Laen…";
   try {
-    const d = await (await fetch(`/api/checkpoint/${examLevel}?count=15`)).json();
+    const d = await (await api(`/api/checkpoint/${examLevel}?count=15`, null, "GET")).json();
     if (!d.items?.length) {
       note.textContent = "Selle taseme jaoks pole veel ühtegi harjutust.";
       return;
@@ -1921,7 +2027,7 @@ $("#loadLib").onclick = loadLibrary;
 $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
 
 async function openItem(id) {
-  const d = await (await fetch("/api/library/" + id)).json();
+  const d = await (await api("/api/library/" + id, null, "GET")).json();
   $("#libList").hidden = true;
   $("#reader").hidden = false;
   $("#readerTitle").textContent = d.title;
@@ -1973,13 +2079,21 @@ $("#xlBtn").onclick = async () => {
   }
 };
 
-$("#readerBody").addEventListener("click", async e => {
-  if (e.target.tagName !== "W") return;
-  const word = e.target.textContent;
-  const card = $("#wordCard");
+/* One word card, two callers.
+
+   It was written inside the reader's click handler and bound to `#readerBody`
+   for its mining context. The vocabulary list needs exactly the same card, and
+   copying it would have been the fourth time in this project that one job was
+   written twice -- which is the bug, not any of the symptoms it produces.
+
+   `contextFor` is the only part that genuinely differs: the reader can hand
+   mining the sentence the word appeared in, and a word list has no sentence to
+   give. It returns null there, and the queue records the word without context
+   rather than inventing one. */
+async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = `<span class="hint">…</span>`;
-  const d = await (await fetch("/api/lookup/" + encodeURIComponent(word))).json();
+  const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
   if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
   /* Two different things to say about a word, and until now only one of them
      could be said.
@@ -2011,9 +2125,8 @@ $("#readerBody").addEventListener("click", async e => {
   // context — not a translation. Refusals explain themselves.
   card.querySelector("#mineBtn").onclick = async e => {
     e.target.disabled = true;
-    const sentence = ($("#readerBody").textContent.match(
-      new RegExp("[^.!?]*" + word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.!?]*[.!?]")) || [])[0];
-    const r = await (await api("/api/mine", {word, context: sentence ? sentence.trim() : null})).json();
+    const sentence = contextFor ? contextFor(word) : null;
+    const r = await (await api("/api/mine", {word, context: sentence || null})).json();
     const note = card.querySelector("#mineNote");
     note.className = "mine-note" + (r.queued ? "" : " no");
     note.textContent = r.reason;
@@ -2082,6 +2195,107 @@ $("#readerBody").addEventListener("click", async e => {
       e.target.disabled = false;
     }
   };
+}
+
+// The reader supplies the sentence around the word; the vocabulary list, which
+// has no sentence, passes nothing and the card behaves identically otherwise.
+$("#readerBody").addEventListener("click", e => {
+  if (e.target.tagName !== "W") return;
+  showWordCard(e.target.textContent, $("#wordCard"), w =>
+    (($("#readerBody").textContent.match(new RegExp(
+      "[^.!?]*" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.!?]*[.!?]"))
+      || [])[0] || "").trim() || null);
+});
+
+
+
+/* Register the service worker.
+
+   The manifest made the app installable months ago and nothing backed it up,
+   so an installed copy failed exactly like a browser tab with no signal. This
+   does not make the app work offline -- drills are generated on the server --
+   it makes it *open*, and say why it cannot do more.
+
+   Failure here is silent on purpose: an app that refuses to start because a
+   progressive enhancement did not register would be a worse app than one with
+   no worker at all. */
+if ("serviceWorker" in navigator) {
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
+// ── vocabulary: the list the app never had ──────────────────────────
+/* Lookup answers "what is this word"; nothing answered "which words should I
+   learn". Those are different questions and only the second one is askable by
+   somebody who does not yet know the vocabulary.
+
+   Commonest-first, because that is the ordering that pays for a learner
+   choosing what to study next. Status comes from the same ladder the reader
+   writes to, so a word marked known here stops being highlighted there. */
+let vocOffset = 0;
+
+function vocRow(it) {
+  const pair = it.genitive
+    ? `<span class="pair">${esc(it.genitive)} / ${esc(it.partitive)}</span>` : "";
+  const ru = it.russian ? `<span class="gloss">${esc(it.russian)}</span>` : "";
+  const settled = it.status >= 5;
+  return `<button class="vocword${settled ? " settled" : ""}" data-word="${esc(it.word)}">
+    <span class="w">${esc(it.word)}</span>
+    ${it.level ? `<span class="lv">${esc(it.level)}</span>` : ""}
+    ${pair}${ru}
+    ${settled ? `<span class="lv">${esc(it.status_name)}</span>` : ""}
+  </button>`;
+}
+
+async function loadVocab(append) {
+  const out = $("#vocOut"), more = $("#vocMore");
+  const q = new URLSearchParams();
+  const lvl = $("#vocLevel").value, pos = $("#vocPos").value, st = $("#vocStatus").value;
+  if (lvl) q.set("level", lvl);
+  if (pos) q.set("pos", pos);
+  if (st) q.set("status", st);
+  vocOffset = append ? vocOffset + 60 : 0;
+  q.set("limit", "60");
+  q.set("offset", String(vocOffset));
+  if (!append) out.innerHTML = `<p class="hint">laen…</p>`;
+  try {
+    const d = await (await api("/api/vocab?" + q, null, "GET")).json();
+    if (!d.items.length && !append) {
+      // An empty result is a real answer here, not a failure: filtering B2
+      // verbs down to "known" legitimately finds nothing early on.
+      out.innerHTML = `<p class="hint">Selle valikuga sõnu ei ole.</p>`;
+      more.hidden = true;
+      return;
+    }
+    const html = d.items.map(vocRow).join("");
+    if (append) {
+      // Into the grid, not after it: appending to `#vocOut` would start a
+      // second column set that does not line up with the first.
+      const grid = out.querySelector(".vocgrid");
+      (grid || out).insertAdjacentHTML("beforeend", html);
+    } else {
+      out.innerHTML = `<div class="vocgrid">${html}</div>`;
+    }
+    more.hidden = !d.more;
+  } catch (err) {
+    out.innerHTML = `<p class="mine-note no">${esc(err.message)}</p>`;
+    more.hidden = true;
+  }
+}
+
+$("#vocBtn").onclick = () => loadVocab(false);
+$("#vocMoreBtn").onclick = () => loadVocab(true);
+$("#vocOut").addEventListener("click", e => {
+  const b = e.target.closest(".vocword");
+  if (!b) return;
+  let card = $("#vocCard");
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "vocCard";
+    $("#tab-sonad").append(card);
+  }
+  showWordCard(b.dataset.word, card, null);
 });
 
 // ── listening: dictation ────────────────────────────────────────────
@@ -2101,7 +2315,7 @@ let dictNow = null, dictUrl = null;
 async function loadDictation() {
   const state = $("#dictState");
   try {
-    const d = await (await fetch("/api/dictation/next?count=1")).json();
+    const d = await (await api("/api/dictation/next?count=1", null, "GET")).json();
     $("#dictCaveat").innerHTML = md(d.caveat || "");
     dictNow = (d.passages || [])[0] || null;
     if (dictUrl) { URL.revokeObjectURL(dictUrl); dictUrl = null; }
@@ -2183,7 +2397,7 @@ async function loadListenLibrary() {
   const box = $("#listenLib");
   if (!box) return;
   try {
-    const {modes} = await (await fetch("/api/modes")).json();
+    const {modes} = await (await api("/api/modes", null, "GET")).json();
     const learn = (modes || []).find(m => m.id === "oppimine");
     // Everything in this mode except reading, which has its own tab.
     const wanted = (learn?.sections || []).filter(
@@ -2236,7 +2450,7 @@ async function openListenItem(row) {
   out.hidden = false;
   out.innerHTML = `<span class="hint">Laen…</span>`;
   try {
-    const d = await (await fetch("/api/library/" + row.dataset.id)).json();
+    const d = await (await api("/api/library/" + row.dataset.id, null, "GET")).json();
     out.innerHTML = "";
     if (d.audio_url) await mountAudio(out, d.audio_url);
     if (d.body && d.body.trim()) {

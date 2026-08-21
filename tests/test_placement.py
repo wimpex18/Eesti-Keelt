@@ -78,9 +78,9 @@ class TestProbe:
         assert result.passed and not result.ran and result.skipped
 
     def test_a_topic_with_no_generator_is_reported_not_crashed(self, db):
-        result = probe(db, "pohivormid", perfect)
+        result = probe(db, "lauseehitus", perfect)
         assert not result.ran and "no generator" in result.skipped
-        assert not is_mastered(db, "pohivormid")
+        assert not is_mastered(db, "lauseehitus")
 
     def test_passing_is_recorded_as_placement_not_practice(self, db):
         probe(db, "kusisonad", perfect, seed=1)
@@ -103,9 +103,18 @@ class TestSweep:
         shaky on nouns is an ordinary way to be."""
         verbs = {"olevik", "verb-form", "lihtminevik", "ma-da-inf", "kusisonad"}
         results = sweep(db, knows(verbs), seed=1)
+        reached = {r.topic for r in results}
         asked = {r.topic for r in results if r.ran}
-        assert "gen-stem" in asked          # the noun branch was probed
-        assert asked & {"olevik", "verb-form"}   # and so was the verb branch
+
+        # The noun branch is entered at `pohivormid` now, not `gen-stem`.
+        # `pohivormid` gained a generator, so it stopped being a free-pass
+        # reference topic and became the prerequisite it was always declared to
+        # be -- which is the point of building one. It is *reached* rather than
+        # *asked* here only because the shared fixture wordlist carries no
+        # `object_cases` rows for it to draw on; `cli build` populates those on
+        # any real deployment.
+        assert {"pohivormid", "gen-stem"} & reached, sorted(reached)
+        assert asked & {"olevik", "verb-form"}   # and the verb branch was asked
         assert {"olevik", "verb-form"} <= mastered(db)
 
     def test_a_failure_prunes_what_depends_on_it(self, db):
@@ -147,7 +156,14 @@ class TestSweep:
     def test_candidates_are_drillable_and_unblocked(self, db):
         for topic in candidates(db):
             assert topic.generator is not None
-            assert set(topic.requires) <= {"pohivormid", "lauseehitus"} | mastered(db)
+            # Derived, not listed. This was the literal set
+            # `{"pohivormid", "lauseehitus"}` -- a hand-kept copy of "topics
+            # that cannot gate because nothing can drill them", which went
+            # stale the moment `pohivormid` got a generator. `reference_topics`
+            # is where that set actually lives.
+            from eesti.progress import reference_topics
+
+            assert set(topic.requires) <= reference_topics() | mastered(db)
 
     def test_level_filter_is_honoured(self, db):
         assert all(t.level == "A1" for t in candidates(db, levels=("A1",)))

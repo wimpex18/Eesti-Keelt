@@ -119,3 +119,55 @@ class TestLanguage:
     def test_every_section_has_a_russian_name_too(self):
         for section in SECTIONS:
             assert section.ru and section.et
+
+
+class TestTheExamTaxonomyIsStatedOnce:
+    """Exam material is grouped twice, by two different code paths.
+
+    `library.SECTIONS` declares which `kind` values belong to `naidised`,
+    `eksam` and `eksamiinfo`; `library.exam_material` groups the same values
+    again for the exam screen, which does not read `SECTIONS` at all. Two
+    expressions of one taxonomy, and they agree today — checked, not assumed.
+
+    They are not merged because they answer different questions: `SECTIONS`
+    drives browsing by section, `exam_material` returns one level's material in
+    a single request grouped by activity. But this is precisely the shape that
+    produced the `TABS` bug — a hand-kept list beside the thing it describes,
+    where nothing failed when they drifted because both halves still returned
+    *something*. So the correspondence is asserted in both directions, which is
+    what this project's own rule prescribes when a list cannot be derived away.
+    """
+
+    @staticmethod
+    def _declared() -> set[str]:
+        from eesti.library import SECTIONS
+
+        return {k for s in SECTIONS if s.mode == "eksam" for k in s.kinds}
+
+    @staticmethod
+    def _grouped() -> set[str]:
+        import re
+        from pathlib import Path
+
+        from eesti import library
+
+        src = Path(library.__file__).read_text(encoding="utf-8")
+        body = src[src.index("def exam_material"):]
+        end = body.find("\ndef ", 10)
+        if end != -1:
+            body = body[:end]
+        known = ("sooritusnaidis", "ulesanne", "video", "kirjeldus", "teave",
+                 "konsultatsioon")
+        return set(re.findall("|".join(known), body))
+
+    def test_every_kind_the_exam_screen_groups_belongs_to_a_section(self):
+        """Otherwise the exam screen shows material that browsing cannot find."""
+        assert self._grouped() <= self._declared(), (
+            f"grouped but unsectioned: {sorted(self._grouped() - self._declared())}")
+
+    def test_every_kind_a_section_claims_is_grouped_by_the_exam_screen(self):
+        """And the other direction: a section nothing renders is 25 items
+        present in the database and absent from the app, which has happened
+        here once already."""
+        assert self._declared() <= self._grouped(), (
+            f"sectioned but ungrouped: {sorted(self._declared() - self._grouped())}")

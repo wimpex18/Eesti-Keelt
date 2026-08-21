@@ -214,3 +214,153 @@ def summary(conn: sqlite3.Connection) -> dict:
         "known_total": sum(v for k, v in counts.items() if k in (KNOWN, WELL_KNOWN)),
         "tracked": sum(counts.values()),
     }
+
+
+#: What a browse request may filter on. `level` is CEFR and only ~6.2 % of the
+#: 160 316 words carry one, so a level filter is a filter onto the tagged
+#: minority -- which is the right minority, because it is exactly the A1-B1
+#: vocabulary the exam is drawn from.
+LEVELS = ("A1", "A2", "B1", "B2", "C1")
+
+#: Parts of speech worth offering. The wordlist's `pos` column also carries
+#: compound tags (`adj,s`, `adv,postp`) for words that are two things; a filter
+#: matches the tag as one of the comma-separated parts rather than by equality,
+#: or `adj` would silently hide the 52 B1 words tagged `adj,s`.
+POS_NAMES = {
+    "s": "nimisõna",
+    "v": "tegusõna",
+    "adj": "omadussõna",
+    "adv": "määrsõna",
+}
+
+
+def browse(
+    words: sqlite3.Connection,
+    store: sqlite3.Connection,
+    *,
+    level: str | None = None,
+    pos: str | None = None,
+    status: str | None = None,
+    limit: int = 60,
+    offset: int = 0,
+) -> dict:
+    """List vocabulary the learner can work through, newest-first by usefulness.
+
+    The app could look a word up and could not list any. That made the wordlist
+    a thing you could query only if you already knew what to ask for, which is
+    the one situation a learner is not in.
+
+    Ordered by frequency rank, because for a learner deciding what to study
+    next, "commonest first" is the ordering that pays. Ties and untagged ranks
+    sort last rather than first, so a word nobody has ranked never displaces a
+    word somebody has.
+
+    Both connections are passed in. `words` holds the wordlist and the case
+    contrasts, `store` holds this learner's statuses and glosses; they are
+    different databases with different lifetimes, and a function that opened
+    either one itself could not be pointed at a fixture.
+    """
+    where, args = [], []
+    if level:
+        if level not in LEVELS:
+            raise ValueError(f"level must be one of {LEVELS}")
+        where.append("w.proficiency = ?")
+        args.append(level)
+    if pos:
+        # `pos` is a comma-separated tag list; match a whole element of it.
+        where.append(
+            "(',' || REPLACE(w.pos, ' ', '') || ',') LIKE '%,' || ? || ',%'")
+        args.append(pos)
+
+    sql = (
+        "SELECT w.word, w.proficiency, w.pos, w.freq_rank,"
+        "       c.genitive, c.partitive, c.distinct_"
+        "  FROM words w"
+        "  LEFT JOIN object_cases c ON c.word = w.word"
+        + (" WHERE " + " AND ".join(where) if where else "")
+        # Unranked is 0 in this dataset, not NULL -- 147 823 of 160 316 words
+        # carry it, including 597 of the 2 509 at B1. Sorting on the raw column
+        # puts every unranked word *first*, which is the exact opposite of
+        # "commonest first" and produces a page of a-words. Both spellings of
+        # "no rank" sort last.
+        + " ORDER BY (w.freq_rank IS NULL OR w.freq_rank = 0),"
+          " w.freq_rank, w.word"
+    )
+
+    # Status lives in the other database, so it cannot be a SQL filter here.
+    # Read a window, annotate, then filter -- and keep reading windows until
+    # the page is full, or a status filter would return a short page and look
+    # like the end of the list.
+    wanted = None
+    if status is not None:
+        wanted = {
+            "new": {UNKNOWN},
+            "learning": {LEARNING, FAMILIAR},
+            "known": {KNOWN, WELL_KNOWN},
+        }.get(status)
+        if wanted is None:
+            raise ValueError("status must be new, learning or known")
+
+    out: list[dict] = []
+    seen = 0
+    chunk = max(limit * 4, 200)
+    while len(out) < limit + offset:
+        rows = words.execute(
+            sql + " LIMIT ? OFFSET ?", (*args, chunk, seen)).fetchall()
+        if not rows:
+            break
+        seen += len(rows)
+        marks = statuses(store, [r[0] for r in rows])
+        glosses = _glosses(store, [r[0] for r in rows])
+        for word, prof, part, rank, gen, par, distinct in rows:
+            mark = marks.get(word, UNKNOWN)
+            if wanted is not None and mark not in wanted:
+                continue
+            out.append({
+                "word": word,
+                "level": prof or None,
+                "pos": part or None,
+                "pos_name": POS_NAMES.get((part or "").split(",")[0]),
+                "freq_rank": rank,
+                "status": mark,
+                "status_name": STATUS_NAMES.get(mark, "uus"),
+                "russian": glosses.get(word, ""),
+                # Only worth showing where the two forms differ: that contrast
+                # is the whole of `obj-case`, and where they coincide there is
+                # nothing to notice.
+                "genitive": gen if distinct else None,
+                "partitive": par if distinct else None,
+            })
+    page = out[offset:offset + limit]
+    return {
+        "items": page,
+        "count": len(page),
+        "offset": offset,
+        # `more` is honest about what was actually read rather than claiming a
+        # total: counting every match would mean scanning 160 316 rows and
+        # joining the other database on each request, to render one word.
+        "more": len(out) > offset + limit,
+        "level": level,
+        "pos": pos,
+        "status": status,
+    }
+
+
+def _glosses(store: sqlite3.Connection, lemmas: list[str]) -> dict[str, str]:
+    """Russian for the words we already asked Sõnaveeb about. Never fetches:
+    browsing a page of sixty words must not become sixty live lookups against
+    a service that asks not to be batched."""
+    if not lemmas:
+        return {}
+    marks = ",".join("?" * len(lemmas))
+    # `word_gloss.russian` packs several senses into one column separated by
+    # \x1f, which `gloss.stored()` splits back into a tuple. Handing the raw
+    # column to a template renders the separator as tofu: the phone showed
+    # "мейл\x1fимейл\x1fэлектронное письмо". Split it here, where the storage
+    # convention is already known, rather than teaching the page about it.
+    return {
+        row[0]: ", ".join(w for w in row[1].split("\x1f") if w)
+        for row in store.execute(
+            f"SELECT lemma, russian FROM word_gloss WHERE lemma IN ({marks})"
+            " AND russian <> ''", lemmas)
+    }

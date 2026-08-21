@@ -83,6 +83,15 @@ def items_for(
         return numeral_drills(words, levels, count, seed, topics=(topic,),
                               only=countable if topic == "arvsonad" else None)
 
+    if generator == "forms":
+        from .forms import negation_drills, principal_forms
+
+        if topic == "eitus":
+            return negation_drills(words, levels=levels, count=count,
+                                   seed=seed, only=verbs)
+        return principal_forms(words, levels=levels, count=count, seed=seed,
+                               only=nouns)
+
     if generator == "punctuation":
         from .punctuation import generate as comma_items
 
