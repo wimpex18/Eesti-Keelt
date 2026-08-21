@@ -405,7 +405,7 @@
     <!-- Mode, then skill. The split is not by content but by CONDITIONS: the
          same passage is study material untimed with lookups, and an exam task
          timed, scored and unaided. Mixing the two hides which one you can do. -->
-    <div class="modes" role="tablist" aria-label="Režiim">
+    <div class="modes" role="tablist" aria-label="Režiim — режим">
       <button role="tab" aria-selected="true"  data-mode="learn">Õppimine</button>
       <button role="tab" aria-selected="false" data-mode="revise">Kordamine</button>
       <button role="tab" aria-selected="false" data-mode="exam">Eksam</button>
@@ -414,7 +414,7 @@
 
   <!-- Six destinations. On a phone this bar is fixed to the bottom, so the
        labels are short enough to survive 390px and each button clears 48px. -->
-  <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine">
+  <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Rada</span></button>
     <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">✦</span><span class="lbl">Harjutused</span></button>
     <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Lugemine</span></button>
@@ -426,12 +426,12 @@
 
   <!-- "What am I forgetting?" — the only mode where the app, not the learner,
        decides what comes next. -->
-  <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine">
+  <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine — повторение">
     <button role="tab" aria-selected="true"  data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl">Järjekord</span><span id="dueBadge" class="badge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="vihikud"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Töövihikud</span></button>
   </nav>
 
-  <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam">
+  <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
     <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl">Ülevaade</span></button>    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Edenemine</span></button>
   </nav>
 
@@ -470,12 +470,12 @@
        you hear yourself back — so that is what this is, and it says so. -->
   <section class="panel" id="tab-speak" hidden>
     <div class="row" style="margin-top:0">
-      <select id="speakMode" aria-label="Harjutus">
+      <select id="speakMode" aria-label="Harjutus — упражнение">
         <option value="lause">Loe ette — laused</option>
         <option value="sona">Loe ette — sõnad</option>
         <option value="vastus">Vasta küsimusele</option>
       </select>
-      <select id="speakTopic" aria-label="Teema"></select>
+      <select id="speakTopic" aria-label="Teema — тема"></select>
       <button class="ghost" id="speakPlay">Kuula ette</button>
       <button class="ghost" id="speakNext" hidden>Järgmine</button>
     </div>
@@ -577,7 +577,7 @@
   <!-- ── Exam ──────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-exam" hidden>
     <div class="exam-head">
-      <div class="levels" role="tablist" aria-label="Tase">
+      <div class="levels" role="tablist" aria-label="Tase — уровень">
         <button role="tab" aria-selected="true"  data-level="A2">A2</button>
         <button role="tab" aria-selected="false" data-level="B1">B1</button>
       </div>
@@ -735,7 +735,7 @@
         <span class="hint" id="dictState">Прослушай и запиши услышанное.</span>
       </div>
       <textarea id="dictTyped" rows="2"
-        placeholder="Kirjuta, mida kuulsid…"></textarea>
+        placeholder="Запиши, что услышал…"></textarea>
       <div class="row">
         <button class="go" id="dictCheck">Kontrolli</button>
         <span class="hint" id="dictScore"></span>
@@ -762,7 +762,7 @@
     <p class="hint" style="margin-top:0">
       Замедленная речь (0.7×) удобна для тренировки аудирования.
     </p>
-    <textarea id="ttsText" placeholder="Kleebi tekst õpikust või artiklist…"></textarea>
+    <textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
     <div class="row">
       <label>Hääl <i class="ru">голос</i> <select id="voice"></select></label>
       <label>Kiirus <i class="ru">скорость</i>
@@ -779,7 +779,7 @@
   <!-- Desktop only. Everything here is otherwise behind a click: the
        countdown lives in the exam tab, the path list behind a disclosure, the
        due count in a badge. On a laptop there is room to just show them. -->
-  <aside class="rail" id="rail" aria-label="Ülevaade"></aside>
+  <aside class="rail" id="rail" aria-label="Ülevaade — обзор"></aside>
 
 </div>
 
@@ -1022,7 +1022,7 @@ function mountVideo(host, url) {
   if (!id) { host.innerHTML = ""; return; }
   host.innerHTML = `<div class="video"><iframe
     src="https://www.youtube-nocookie.com/embed/${esc(id)}"
-    title="Eksami tutvustav video" loading="lazy" allowfullscreen
+    title="Eksami tutvustav video — вводное видео об экзамене" loading="lazy" allowfullscreen
     referrerpolicy="no-referrer"></iframe></div>`;
 }
 

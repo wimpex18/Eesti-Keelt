@@ -594,7 +594,7 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
         (item_id,),
     ).fetchone()
     if row is None:
-        raise HTTPException(status_code=404, detail="not found")
+        raise HTTPException(status_code=404, detail="Этот материал не найден — возможно, он ещё не загружен на сервер.")
 
     from .library import open_item
 
@@ -649,7 +649,7 @@ def word_card(lemma: str) -> dict:
     """A word in its three principal forms, as a dictionary would cite it."""
     result = principal_forms(lemma)
     if not result.get("found"):
-        raise HTTPException(status_code=404, detail=f"{lemma!r} not found")
+        raise HTTPException(status_code=404, detail=f"«{lemma}» — такого слова в словаре нет.")
     return result
 
 
@@ -854,7 +854,7 @@ def speak(req: SpeakRequest) -> FileResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
-            status_code=503, detail=f"TTS unavailable: {type(exc).__name__}"
+            status_code=503, detail=f"Синтез речи сейчас недоступен ({type(exc).__name__}). Попробуй позже."
         ) from exc
     return FileResponse(path, media_type="audio/wav", filename="eesti.wav")
 
@@ -1555,9 +1555,9 @@ async def transcribe(request: Request) -> dict:
 
     audio = await request.body()
     if not audio:
-        raise HTTPException(status_code=400, detail="no audio")
+        raise HTTPException(status_code=400, detail="Запись пустая — ничего не записалось.")
     if len(audio) > 12_000_000:
-        raise HTTPException(status_code=413, detail="recording too long")
+        raise HTTPException(status_code=413, detail="Запись слишком длинная. Скажи короче — до пары предложений.")
     mime = request.headers.get("content-type", "audio/wav").split(";")[0]
     # The question being answered, passed through as Whisper's initial_prompt:
     # a few seconds of accented Estonian is exactly what a recogniser guesses
