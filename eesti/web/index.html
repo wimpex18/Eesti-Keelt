@@ -930,7 +930,24 @@ async function api(path, body, method) {
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(body ?? {});
   }
-  const r = await fetch(path, init);
+  let r;
+  try {
+    r = await fetch(path, init);
+  } catch (err) {
+    /* A failed fetch throws a TypeError whose message is the browser's own
+       English string -- "Failed to fetch" in Chrome, "NetworkError when
+       attempting to fetch resource" in Firefox. Every caller renders
+       `err.message` into a banner, so with no connection the app told a
+       Russian-speaking learner "Failed to fetch".
+
+       Made reachable by the service worker: before it, losing the connection
+       gave the browser's own offline page and the app never got to speak. Now
+       the shell loads and this is what it says, so it has to say something
+       true and readable. */
+    throw new Error(
+      "Нет соединения с сервером. Упражнения создаются на сервере, "
+      + "поэтому без интернета их не открыть.");
+  }
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
   return r;
 }
@@ -1286,7 +1303,7 @@ async function queueError(btn) {
    a button that looks live and 503s is worse than one that says why. */
 async function loadQueue() {
   try {
-    const d = await (await fetch("/api/notion/pending")).json();
+    const d = await (await api("/api/notion/pending", null, "GET")).json();
     const rows = d.items || [];
     $("#queueCount").textContent = rows.length ? `(${rows.length})` : "";
     $("#queueBox").hidden = !rows.length;
@@ -1394,7 +1411,7 @@ let pathTopic = null, pathAnswered = 0, pathCorrect = 0;
 
 async function loadPath() {
   try {
-    const p = await (await fetch("/api/curriculum")).json();
+    const p = await (await api("/api/curriculum", null, "GET")).json();
     pathTopic = p.resume;
     const pct = p.total ? Math.round(p.mastered / p.total * 100) : 0;
     const ring = $("#pathRing");
@@ -1427,7 +1444,7 @@ async function loadPath() {
 async function loadStatus() {
   const out = $("#statusOut");
   try {
-    const d = await (await fetch("/api/status")).json();
+    const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";
     if (s.rada) html += `<div class="corr"><span class="tag">Rada</span>
       <div class="fix">${s.rada.mastered}/${s.rada.total} teemat läbitud,
@@ -1467,7 +1484,7 @@ $("#pathList").addEventListener("click", e => {
 
 async function loadThemes() {
   try {
-    const {themes} = await (await fetch("/api/themes")).json();
+    const {themes} = await (await api("/api/themes", null, "GET")).json();
     $("#theme").innerHTML = '<option value="">kõik sõnad</option>' +
       themes.map(t => `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("");
   } catch {}
@@ -1482,7 +1499,16 @@ async function startPractice() {
     if (pathTopic) body.topic = pathTopic;
     const theme = $("#theme").value; if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
-    if (!res.items.length) { out.innerHTML = `<div class="banner">${esc(res.detail || "midagi ei tulnud")}</div>`; return; }
+    if (!res.items.length) {
+      // An empty topic is still a topic. The 13 with no generator carry an EKK
+      // reference, and dropping it here left the learner with a sentence
+      // explaining that nothing would happen and nowhere to go instead.
+      let msg = `<div class="banner">${esc(res.detail || "midagi ei tulnud")}`;
+      if (res.reference && res.reference.known)
+        msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
+      out.innerHTML = msg + `</div>`;
+      return;
+    }
     pathTopic = res.topic;
     let head = `<div class="banner"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
     if (res.reference && res.reference.known)
@@ -1658,7 +1684,7 @@ function speakMode() { return $("#speakMode").value; }
 
 async function loadReadAloud(kind) {
   try {
-    const {items} = await (await fetch(`/api/speaking/readaloud?kind=${kind}&n=12`)).json();
+    const {items} = await (await api(`/api/speaking/readaloud?kind=${kind}&n=12`, null, "GET")).json();
     readAloud = items; readIdx = 0;
     $("#speakTopic").hidden = true;
     $("#speakNext").hidden = false;
@@ -1709,7 +1735,7 @@ function currentQuestion() {
 
 async function loadSpeakQuestions() {
   try {
-    const {questions} = await (await fetch("/api/speaking")).json();
+    const {questions} = await (await api("/api/speaking", null, "GET")).json();
     $("#speakTopic").innerHTML = questions
       .map((q, i) => `<option value="${i}">${esc(q.topic)}</option>`).join("");
     window.__speak = questions;
@@ -1844,7 +1870,7 @@ if (!canRecord) {
 // ── review ──────────────────────────────────────────────────────────
 async function refreshDueBadge() {
   try {
-    const s = await (await fetch("/api/review/stats")).json();
+    const s = await (await api("/api/review/stats", null, "GET")).json();
     const b = $("#dueBadge");
     b.hidden = !s.due; b.textContent = s.due || "";
     $("#reviewStats").textContent =
@@ -1855,7 +1881,7 @@ refreshDueBadge();
 
 $("#loadReview").onclick = async () => {
   const out = $("#reviewOut"); out.innerHTML = "";
-  const {items, glosses} = await (await fetch("/api/review?limit=20")).json();
+  const {items, glosses} = await (await api("/api/review?limit=20", null, "GET")).json();
   if (!items.length) {
     out.innerHTML = `<p class="empty">Praegu pole midagi korrata. Tee harjutusi või loe tekste.</p>`;
     return;
@@ -1907,7 +1933,7 @@ async function runCheckpoint() {
   const btn = $("#checkpointBtn");
   btn.disabled = true; out.innerHTML = ""; note.textContent = "Laen…";
   try {
-    const d = await (await fetch(`/api/checkpoint/${examLevel}?count=15`)).json();
+    const d = await (await api(`/api/checkpoint/${examLevel}?count=15`, null, "GET")).json();
     if (!d.items?.length) {
       note.textContent = "Selle taseme jaoks pole veel ühtegi harjutust.";
       return;
@@ -2002,7 +2028,7 @@ $("#loadLib").onclick = loadLibrary;
 $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
 
 async function openItem(id) {
-  const d = await (await fetch("/api/library/" + id)).json();
+  const d = await (await api("/api/library/" + id, null, "GET")).json();
   $("#libList").hidden = true;
   $("#reader").hidden = false;
   $("#readerTitle").textContent = d.title;
@@ -2068,7 +2094,7 @@ $("#xlBtn").onclick = async () => {
 async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = `<span class="hint">…</span>`;
-  const d = await (await fetch("/api/lookup/" + encodeURIComponent(word))).json();
+  const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
   if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — ei leitud</span>`; return; }
   /* Two different things to say about a word, and until now only one of them
      could be said.
@@ -2183,6 +2209,23 @@ $("#readerBody").addEventListener("click", e => {
 });
 
 
+
+/* Register the service worker.
+
+   The manifest made the app installable months ago and nothing backed it up,
+   so an installed copy failed exactly like a browser tab with no signal. This
+   does not make the app work offline -- drills are generated on the server --
+   it makes it *open*, and say why it cannot do more.
+
+   Failure here is silent on purpose: an app that refuses to start because a
+   progressive enhancement did not register would be a worse app than one with
+   no worker at all. */
+if ("serviceWorker" in navigator) {
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 // ── vocabulary: the list the app never had ──────────────────────────
 /* Lookup answers "what is this word"; nothing answered "which words should I
    learn". Those are different questions and only the second one is askable by
@@ -2218,13 +2261,7 @@ async function loadVocab(append) {
   q.set("offset", String(vocOffset));
   if (!append) out.innerHTML = `<p class="hint">laen…</p>`;
   try {
-    const r = await fetch("/api/vocab?" + q);
-    const d = await r.json();
-    if (!r.ok) {
-      out.innerHTML = `<p class="mine-note no">${esc(d.detail || "ei õnnestunud")}</p>`;
-      more.hidden = true;
-      return;
-    }
+    const d = await (await api("/api/vocab?" + q, null, "GET")).json();
     if (!d.items.length && !append) {
       // An empty result is a real answer here, not a failure: filtering B2
       // verbs down to "known" legitimately finds nothing early on.
@@ -2279,7 +2316,7 @@ let dictNow = null, dictUrl = null;
 async function loadDictation() {
   const state = $("#dictState");
   try {
-    const d = await (await fetch("/api/dictation/next?count=1")).json();
+    const d = await (await api("/api/dictation/next?count=1", null, "GET")).json();
     $("#dictCaveat").innerHTML = md(d.caveat || "");
     dictNow = (d.passages || [])[0] || null;
     if (dictUrl) { URL.revokeObjectURL(dictUrl); dictUrl = null; }
@@ -2361,7 +2398,7 @@ async function loadListenLibrary() {
   const box = $("#listenLib");
   if (!box) return;
   try {
-    const {modes} = await (await fetch("/api/modes")).json();
+    const {modes} = await (await api("/api/modes", null, "GET")).json();
     const learn = (modes || []).find(m => m.id === "oppimine");
     // Everything in this mode except reading, which has its own tab.
     const wanted = (learn?.sections || []).filter(
@@ -2414,7 +2451,7 @@ async function openListenItem(row) {
   out.hidden = false;
   out.innerHTML = `<span class="hint">Laen…</span>`;
   try {
-    const d = await (await fetch("/api/library/" + row.dataset.id)).json();
+    const d = await (await api("/api/library/" + row.dataset.id, null, "GET")).json();
     out.innerHTML = "";
     if (d.audio_url) await mountAudio(out, d.audio_url);
     if (d.body && d.body.trim()) {

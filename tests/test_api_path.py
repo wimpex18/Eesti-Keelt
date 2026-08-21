@@ -80,10 +80,28 @@ class TestPractice:
         assert data["items"]
         assert {i["lemma"] for i in data["items"]} <= allowed
 
-    def test_a_topic_with_no_generator_is_a_400_not_a_500(self, client):
-        r = client.post("/api/practice", json={"topic": "pohivormid"})
+    def test_a_topic_with_no_generator_answers_in_russian_rather_than_erroring(
+            self, client):
+        """It used to be a 400 carrying a Python exception message -- English,
+        naming `docs/curriculum-plan.md`, rendered by the page as `Viga: ...`.
+
+        The request is valid and the answer is "there is no exercise for this
+        yet", which is the same shape as a topic whose corpus has not been
+        uploaded: 200, no items, and a readable reason."""
+        r = client.post("/api/practice", json={"topic": "lauseehitus"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["items"] == []
+        assert "docs/" not in body["detail"]
+        assert any("Ѐ" <= ch <= "ӿ" for ch in body["detail"]), body["detail"]
+
+    def test_an_unknown_topic_is_still_an_error(self, client):
+        """Distinct from the above: `lauseehitus` exists and has no drill;
+        `nonesuch` is not a topic at all. Guarding the lookup is what keeps
+        these two apart -- moving it above the try once turned this into a
+        500."""
+        r = client.post("/api/practice", json={"topic": "nonesuch"})
         assert r.status_code == 400
-        assert "generator" in r.json()["detail"]
 
     def test_an_unknown_topic_is_a_400(self, client):
         assert client.post("/api/practice", json={"topic": "nonesuch"}).status_code == 400

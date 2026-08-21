@@ -140,15 +140,30 @@ class TestReachability:
         assert drillable <= reached
 
     def test_topics_without_practice_do_not_gate(self, db):
+        """`lauseehitus` rather than `pohivormid`: the latter was the example
+        here until it got a generator, at which point it stopped being a
+        reference topic and started being a real gate -- which is the point of
+        having built one."""
         from eesti.curriculum import by_id
 
-        assert by_id("pohivormid").generator is None
-        assert "pohivormid" in unlocked(db)
+        assert by_id("lauseehitus").generator is None
+        assert "lauseehitus" in unlocked(db)
 
     def test_they_are_shown_as_reference_not_hidden(self, db):
         states = {r.topic: r.state for r in report(db)}
-        assert states["pohivormid"] == "reference"
+        assert states["lauseehitus"] == "reference"
         assert states["olevik"] == "ready"
+
+    def test_a_topic_that_gains_a_generator_becomes_a_gate(self, db):
+        """The other half of the same rule, and a real change in the path:
+        `pohivormid` was passed over silently because nothing could drill it,
+        so `gen-stem` unlocked without it. It is drillable now, so it gates --
+        which is what a prerequisite is for."""
+        from eesti.curriculum import by_id
+
+        assert by_id("pohivormid").generator == "forms"
+        states = {r.topic: r.state for r in report(db)}
+        assert states["pohivormid"] != "reference"
 
 
 class TestResume:

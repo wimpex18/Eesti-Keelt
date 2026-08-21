@@ -103,7 +103,7 @@ class TestSeedOnMastery:
         ).fetchone()[0] == before
 
     def test_a_topic_with_no_generator_seeds_nothing_rather_than_raising(self, reviews):
-        assert handoff.seed_mastered(reviews, "pohivormid") == []
+        assert handoff.seed_mastered(reviews, "lauseehitus") == []
 
 
 class TestPendingHandoffs:
