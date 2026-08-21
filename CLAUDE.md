@@ -573,3 +573,35 @@ in Cloud Shell and discover the project, service and region themselves.
   that lives for one build is exactly right. It was downgraded with the reason
   written down, rather than moved to make a list shorter. A fix nobody needs is
   still a change that can break something.
+- **`textContent =` on a decorated element deletes the decoration.** Every
+  async button here does the same dance: `btn.textContent = "Проверяю…"` while
+  the request is in flight, then `btn.textContent = "Kontrolli"` to restore.
+  That assignment replaces *every* child — and once the buttons carried a
+  Russian gloss, the gloss was one of those children. So the first click on
+  `Kontrolli` or `Harjuta`, the two most-used controls in the app, permanently
+  removed the only word on them the learner can read, and it stayed gone until
+  a reload. Nothing failed; the button still worked; the label was still
+  correct Estonian. It is the same shape as a measurement with no writer — an
+  addition that the code already there quietly undoes — and it is invisible to
+  any test that renders the page without clicking anything. `setLabel` writes
+  the text and puts the span back.
+- **A `var()` with no definition is a declaration that does nothing, silently.**
+  Two of them had been in the stylesheet for as long as anyone had looked:
+  `.vocword{color:var(--fg)}` — the token is `--ink` — and
+  `.topic.mastered .st{color:var(--ok)}`, where `--ok` has never existed. The
+  second is the worse one, because the selector *does* match: `mastered` is a
+  real state, so the single row in the path list that represents finished work
+  was coloured by a rule that resolved to nothing. Neither is visible in review
+  (`var(--ok)` reads as correct until you go looking for the definition) and
+  neither is visible in a screenshot, because the element is present and sized
+  and simply takes the inherited colour. `tests/test_design_tokens.py` asks the
+  sheet whether every token it reads is a token it writes.
+- **A hand-written map of states drifts from the code that emits them, and it
+  drifts silently.** `progress.TopicProgress.state` returns five strings. The
+  page's `RU` map glossed `reference`, `ready` and `locked` — the three an
+  account with *no progress* displays — and carried `done` and `review`, which
+  nothing has ever emitted. So `mastered` and `in progress` reached the screen
+  as raw English: a learner who finished a topic was shown the word `mastered`
+  as their reward. The earlier fix for "the path badges are English" looked at
+  a screen and glossed what was on it, which is why the two states that only
+  appear *after* you do something were the two it missed.
