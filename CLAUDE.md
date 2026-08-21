@@ -573,3 +573,64 @@ in Cloud Shell and discover the project, service and region themselves.
   that lives for one build is exactly right. It was downgraded with the reason
   written down, rather than moved to make a list shorter. A fix nobody needs is
   still a change that can break something.
+- **`textContent =` on a decorated element deletes the decoration.** Every
+  async button here does the same dance: `btn.textContent = "Проверяю…"` while
+  the request is in flight, then `btn.textContent = "Kontrolli"` to restore.
+  That assignment replaces *every* child — and once the buttons carried a
+  Russian gloss, the gloss was one of those children. So the first click on
+  `Kontrolli` or `Harjuta`, the two most-used controls in the app, permanently
+  removed the only word on them the learner can read, and it stayed gone until
+  a reload. Nothing failed; the button still worked; the label was still
+  correct Estonian. It is the same shape as a measurement with no writer — an
+  addition that the code already there quietly undoes — and it is invisible to
+  any test that renders the page without clicking anything. `setLabel` writes
+  the text and puts the span back.
+- **A `var()` with no definition is a declaration that does nothing, silently.**
+  Two of them had been in the stylesheet for as long as anyone had looked:
+  `.vocword{color:var(--fg)}` — the token is `--ink` — and
+  `.topic.mastered .st{color:var(--ok)}`, where `--ok` has never existed. The
+  second is the worse one, because the selector *does* match: `mastered` is a
+  real state, so the single row in the path list that represents finished work
+  was coloured by a rule that resolved to nothing. Neither is visible in review
+  (`var(--ok)` reads as correct until you go looking for the definition) and
+  neither is visible in a screenshot, because the element is present and sized
+  and simply takes the inherited colour. `tests/test_design_tokens.py` asks the
+  sheet whether every token it reads is a token it writes.
+- **A hand-written map of states drifts from the code that emits them, and it
+  drifts silently.** `progress.TopicProgress.state` returns five strings. The
+  page's `RU` map glossed `reference`, `ready` and `locked` — the three an
+  account with *no progress* displays — and carried `done` and `review`, which
+  nothing has ever emitted. So `mastered` and `in progress` reached the screen
+  as raw English: a learner who finished a topic was shown the word `mastered`
+  as their reward. The earlier fix for "the path badges are English" looked at
+  a screen and glossed what was on it, which is why the two states that only
+  appear *after* you do something were the two it missed.
+- **A reset copied to where it does not apply deletes what it was protecting.**
+  Thirteen elements carried an inline `margin-top:0`, all saying the same
+  thing: "I am the first child of this panel and its padding is already the
+  space above me." Four of the thirteen were **not** first children, and there
+  the idiom silently changed meaning from "remove the margin I do not need" to
+  "remove the margin I do need" — the Harjuta row jammed against the progress
+  ring, the pass rule against the level buttons, the review row against its
+  hint, a listening hint against its heading. The reported symptom was one of
+  the four. The fix is one `.panel > :first-child{margin-top:0}`, which cannot
+  be copied onto something that is not first, and the other three came back on
+  their own. Spacing lives on a scale now (`--s1`…`--s6`), because eleven
+  hand-chosen margins is how a page gets to the point where "a bit more room
+  here" means inventing a twelfth.
+- **A grid whose children are placed by row number breaks when you add a
+  child.** `.wrap` is a two-column grid on the desktop and `.rail` is pinned
+  at `grid-row:3 / span 40`, which silently assumes header, nav, panels in
+  that order. Adding one `<span>` at the top level — a group marker beside the
+  tab bar — made it a grid item, pushed every row down, and opened a 500px
+  void between the header and the tabs. Nothing about the span was wrong; the
+  coupling was. Anything added at the top level of `.wrap` has to be placed
+  deliberately, and a marker belongs inside the thing it marks anyway.
+- **`display:flex` on a parent changes what `display:block` means in a child.**
+  Giving `.modes button` `display:inline-flex` to seat an icon turned its
+  `.ru` gloss — a block that had been stacking *under* the Estonian label —
+  into a flex item sitting *beside* it. The control went from 330px to 534px
+  and pushed a 390px phone 164px sideways. The nav tabs were untouched by the
+  same change because their gloss lives inside `.lbl` rather than directly on
+  the button. Before making a container flex, look at what its children were
+  relying on the normal flow to do.

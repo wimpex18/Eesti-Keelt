@@ -300,3 +300,60 @@ class TestAGrammarTermIsNeverTransliterated:
         """
         assert len(estonian_terms()) >= 10
         assert len(prose_files()) == len(_PROSE)
+
+def glossed_button_labels(page: str) -> dict[str, str]:
+    """Each button that carries a Russian gloss, and its Estonian label."""
+    out = {}
+    for m in re.finditer(
+            r'<button[^>]*\bid="([^"]+)"[^>]*>([^<]*)<span class="ru">', page):
+        label = " ".join(m.group(2).split())
+        if label:
+            out[m.group(1)] = label
+    return out
+
+
+class TestAGlossSurvivesTheButtonBeingUsed:
+    """`el.textContent = "..."` replaces every child of the element.
+
+    On a glossed button the Russian span *is* one of those children, so the
+    progress-and-restore dance every async button does --
+
+        btn.textContent = "Проверяю…";   ...   btn.textContent = "Kontrolli";
+
+    -- destroyed the gloss on the first click and never put it back. It
+    affected `Kontrolli` and `Harjuta`, the two most-used controls in the app:
+    the learner pressed the primary button once and the only word on it they
+    could read was gone until they reloaded the page.
+
+    Nothing failed and nothing looked broken, which is why it survived the
+    translation pass that added the glosses in the first place. `setLabel`
+    re-appends the span; this checks nobody goes back to the raw assignment.
+    """
+
+    def test_no_restore_assignment_wipes_a_gloss(self, page):
+        labels = glossed_button_labels(page)
+        assert labels, "no glossed buttons found -- the check would be vacuous"
+        script = page[page.index("<script>"):]
+        offenders = [
+            f"{bid} (restores {label!r})"
+            for bid, label in labels.items()
+            if re.search(rf'\.textContent\s*=\s*["\u0060]{re.escape(label)}["\u0060]',
+                         script)
+        ]
+        assert not offenders, (
+            "these set .textContent back to the Estonian label, which drops "
+            f"the gloss span with it -- use setLabel(): {offenders}")
+
+    def test_the_helper_puts_the_gloss_back(self, page):
+        block = page[page.index("function setLabel("):]
+        block = block[:block.index("\n}")]
+        assert "querySelector(\".ru\")" in block
+        assert "append(ru)" in block, (
+            "setLabel must re-attach the gloss after replacing the text")
+
+    def test_every_labelled_button_carries_one(self, page):
+        """The glosses were added to the buttons on the screens somebody
+        happened to open; ten others never got one."""
+        bare = re.findall(r'<button(?![^>]*\baria-)[^>]*\bid="([^"]+)"[^>]*>'
+                          r'([A-ZÕÄÖÜ][^<]{2,40})</button>', page)
+        assert not bare, f"button with an Estonian label and no gloss: {bare}"

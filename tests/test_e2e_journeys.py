@@ -684,3 +684,47 @@ class TestDiscoveredDefects:
             "#libList .lib-item .lib-meta",
             "els=>[...new Set(els.map(e=>e.textContent.split('·')[0].trim()))]")
         assert len(bands) > 1, f"'kõik' returned only {bands}"
+
+class TestEveryMarkIsActuallyDrawn:
+    """An icon with no dimensions is not a small icon, it is no icon.
+
+    The nav marks were sized by `nav[data-mode-nav] .ico svg{width:16px}`
+    inside `@media (min-width:720px)`. Below that width the `<svg>` had no
+    width and no height and collapsed to 0x0, so the phone bar — the one this
+    app is mostly used in — showed seven bare words. Nothing threw, nothing
+    overflowed, and the desktop was perfect, so every check that existed
+    passed.
+
+    It is the same defect as an `<svg>` with no size rule at all rendering at
+    the default 300x150, which had already been found and written down once;
+    it just wears the opposite symptom when the parent gives it no basis to
+    grow into. Both are only visible if something asks how big the thing
+    actually came out.
+    """
+
+    def test_every_tab_mark_has_a_real_size(self, page):
+        sizes = page.evaluate("""() =>
+            [...document.querySelectorAll('nav[data-mode-nav] button[data-tab]')]
+              .map(b => {
+                const nav = b.closest('nav');
+                if (nav.hidden) return null;
+                const s = b.querySelector('.ico svg');
+                if (!s) return {tab: b.dataset.tab, w: null, h: null};
+                const r = s.getBoundingClientRect();
+                return {tab: b.dataset.tab, w: Math.round(r.width),
+                        h: Math.round(r.height)};
+              }).filter(Boolean)""")
+        assert sizes, "no visible tabs found -- the check would be vacuous"
+        bad = [s for s in sizes if not s["w"] or not s["h"]]
+        assert not bad, (
+            f"marks with no size at {page.viewport_name}: {bad}")
+
+    def test_the_marks_are_not_absurdly_large(self, page):
+        """The other end of the same mistake: an unsized `<svg>` falls back to
+        300x150, which would push the bar off the screen."""
+        big = page.evaluate("""() =>
+            [...document.querySelectorAll('.ico svg, .part-mark svg, .st svg')]
+              .map(s => { const r = s.getBoundingClientRect();
+                          return Math.round(Math.max(r.width, r.height)); })
+              .filter(v => v > 40)""")
+        assert not big, f"oversized marks at {page.viewport_name}: {big}"

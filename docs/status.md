@@ -272,11 +272,30 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    and the server-side `detail` messages that surface in the banner. The rule is
    enforced by a derived check rather than a list of forbidden strings, because
    the list had an entry that was never in the code and passed for months.
-7. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
+7. ~~**Make the interface answer when it is touched.**~~ Done 2026-08-21.
+   Cards lift on hover, tabs take the accent, and the five path states are
+   told apart by colour and by shape instead of sharing one grey. The pass
+   found four things that were not cosmetic: `mastered` and `in progress`
+   reached the screen as raw English, two CSS rules read custom properties
+   that have never existed (one of them the rule colouring finished topics),
+   the Russian gloss on `Kontrolli` and `Harjuta` was destroyed by the first
+   click, and `[data-theme]` was read by the stylesheet with nothing anywhere
+   able to set it.
+8. ~~**Give spacing a scale and the navigation a shape.**~~ Done 2026-08-21.
+   Eleven hand-chosen vertical margins became a six-step scale; the
+   `margin-top:0` idiom became one `:first-child` rule, which restored four
+   gaps where the idiom had been copied onto elements that were not first.
+   Skills and modes are told apart by form — outlined filter pills against a
+   segmented switch — with a mark for each of the eighteen destinations, a
+   Home control, and a press that moves. Three regressions found by measuring
+   rather than looking: a top-level element broke the desktop grid, a flex
+   parent moved a gloss from under its label to beside it, and a test scoped
+   itself to the head and passed on nothing.
+9. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
    were the two named here and are built. Of what is left, none is A2 exam
    material in the way those two were, so this is now a genuine "if more is
    wanted" rather than a gap.
-8. **Decide whether five word statuses are four too many.** LingQ ships four
+10. **Decide whether five word statuses are four too many.** LingQ ships four
    and its users report that as already hard to judge; only the *settled*
    boundary is load-bearing here. Cheaper to resolve before anything else
    reads the ladder.
