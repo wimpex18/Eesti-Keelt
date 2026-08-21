@@ -24,19 +24,57 @@ of those two routes to take is precisely what the readiness verdict is for.
 
 | | |
 |---|---|
-| **Drills** | 23 of 36 curriculum topics generate items. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
+| **Drills** | 23 of 36 curriculum topics generate items — **21 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Deterministic everywhere. No model decides whether an answer is right. |
 | **Reading** | 349 Selges keeles texts, click-to-look-up, known-word tracking, comprehensibility ordering. |
 | **Listening** | Dictation from the corpus, TTS on any text at 0.7×, ERR episode audio. |
 | **Writing** | Grammar check through the provider chain, corrections queued for the Notion error log with an explicit send step. |
 | **Speaking** | Question bank in the exam's paired shape, TTS voicing the other side, links out to EKI's own pronunciation exercises. |
-| **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. |
+| **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. Intervals expand as they should — measured 2026-08-21 at the due date: 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. |
 | **Meaning** | Russian glosses from Sõnaveeb, stored per word, shown on drills, review cards and the word card. Sentence-level translation from TartuNLP, on request only. |
 | **Back-translation** | The writing check reads your Estonian back in Russian, so a sentence that is well formed but says the wrong thing is visible. |
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
 42 API routes, every one with a caller. 1 141 tests.
+
+## What a learner still cannot do
+
+Measured 2026-08-21 against the running app, not inferred from the code.
+
+### There is no way to browse vocabulary
+
+`/api/lookup/{word}` and `/api/enrich/{word}` take a word you can already
+spell. Nothing answers *"show me the B1 nouns I have not met"* or *"show me the
+words for this topic"*. The data for it is all present and already paid for —
+160 316 words, CEFR tags on 9 951 of them, `vocab.db` recording every word the
+learner has met, and Russian glosses in the gloss store — and the word card
+that would display an entry is built and working. What is missing is the list:
+one endpoint that selects by level or topic, and a screen to show it.
+
+This is the largest user-visible gap in the app. Every competitor named in the
+research has it, and it is the feature that turns a 160 000-word dataset into
+something a person can work through.
+
+### The 13 empty topics answer in English, pointing at a developer document
+
+Practising `tahestik` returns:
+
+    'tahestik' has no generator — see step 2 of docs/curriculum-plan.md
+
+The learner reads Russian; `docs/curriculum-plan.md` is not on their machine
+and would not help if it were. `sonajark` gets this right in the same
+situation — *"Для этой темы нужен текстовый корпус…"* — so the app already
+knows how to say it. Same rule as the readiness verdict and the pronunciation
+caveat: a message nobody can read is not a message.
+
+### The PWA installs and then needs the network
+
+`manifest.webmanifest` is served and the app is installable, but there is no
+service worker, so an installed copy still fails without a connection. Half of
+a claim is worse than none of it — the offline core exists (drills, grading and
+the wordlist need no network by design) and nothing lets a learner reach it
+from an installed app.
 
 ## What was never built
 
@@ -149,5 +187,10 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    are what decides A2-then-B1 against B1-alone next year. This is the item
    that has been at number three through two sprints while the code around it
    got better; the app now has more features than it has practice history.
-4. Then, if a build is wanted: the 13 topics with no generator, largest gap
-   first.
+4. **Build the vocabulary browser.** Largest user-visible gap, all the data
+   already exists, and it is the one that makes the wordlist usable rather
+   than merely present.
+5. **Say the empty-topic message in Russian.** Small, and it is a live
+   violation of the rule this project states in its own first document.
+6. Then, if more is wanted: the 13 topics with no generator, `eitus` and
+   `pohivormid` first — both are A2 exam material, and the rest can wait.

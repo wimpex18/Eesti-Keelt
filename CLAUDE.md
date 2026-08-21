@@ -416,6 +416,14 @@ in Cloud Shell and discover the project, service and region themselves.
   learner recognises — and the review queue was still printing `obj-case`
   beside every card. Resolve ids where the API answers, not in each page that
   happens to show one.
+- **A scheduler tested without time passing measures nothing.** Grading one
+  FSRS card five times in the same second showed the interval frozen at two
+  days, which reads exactly like a broken spaced-repetition system — and is
+  the algorithm working: FSRS deliberately gives almost no stability gain for
+  a card reviewed long before it is due. Reviewed *at* the due date the same
+  card expands 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. The defect report
+  was already written when the second test was run. Anything scheduled in time
+  has to be tested by advancing time, not by repeating the call.
 - **Open the app in a browser at the size it will be used.** The phone was
   checked for months; one look at 1440px found a layout that used a fifth of
   the screen and three panels that could not be opened at all. Both sizes,
