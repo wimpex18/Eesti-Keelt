@@ -161,7 +161,7 @@ _A2: tuple[Topic, ...] = (
 # --------------------------------------------------------------------------
 _B1: tuple[Topic, ...] = (
     Topic("uhildumine", "B1", "ühildumine", "согласование",
-          requires=("mitmus", "kohakaanded")),
+          requires=("mitmus", "kohakaanded"), generator="forms"),
     Topic("enneminevik", "B1", "enneminevik", "плюсквамперфект",
           requires=("taisminevik", "lihtminevik"), generator="conjugation"),
     Topic("umbisikuline", "B1", "umbisikuline tegumood", "безличный залог",

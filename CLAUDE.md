@@ -6,7 +6,7 @@ reasoning; this file is what a fresh session needs in the first minute.
 ## Where things stand
 
 **Version 1.0 closed 2026-08-20.** `docs/status.md` is the inventory: what
-works, the 11 curriculum topics with no generator, the known bugs, the tech
+works, the 10 curriculum topics with no generator, the known bugs, the tech
 debt, and what the research plan promised and did not deliver. Read it before
 planning a sprint.
 

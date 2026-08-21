@@ -313,6 +313,18 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "английскому."
         ),
     ),
+    "uhildumine": Reference(
+        tag="uhildumine", et_term="omadussõnaline täiend",
+        ru_term="согласование определения",
+        ekk_section="SÜ 98", chapter=SUNTAKS, subsection=3,
+        summary_ru=(
+            "Прилагательное принимает тот же падеж и число, что и "
+            "существительное: *suures majas*, *ilusaid päevi*. "
+            "**Исключение:** в rajav, olev, ilmaütlev и kaasaütlev определение "
+            "остаётся в omastav — *suure majani*, *suure majaga*, а не "
+            "*suureni majani*."
+        ),
+    ),
 }
 
 

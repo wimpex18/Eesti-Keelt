@@ -38,7 +38,7 @@ and that is the only rule the top level obeys:
 
 ```
 Õppimine — "what am I learning today?"
-├── Rada          the path: 25 of 36 grammar topics, prerequisite-ordered, mastery-gated
+├── Rada          the path: 26 of 36 grammar topics, prerequisite-ordered, mastery-gated
 ├── Harjutused    the same generators, free choice of rule, nothing recorded
 ├── Lugemine      349 Estonian texts, ranked by how much of each you already know
 ├── Sõnavara      the wordlist by CEFR level and part of speech, commonest first

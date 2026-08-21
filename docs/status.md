@@ -24,7 +24,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 
 | | |
 |---|---|
-| **Drills** | 25 of 36 curriculum topics generate items — **23 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
+| **Drills** | 26 of 36 curriculum topics generate items — **24 on a checkout with no harvested corpus**, measured 2026-08-21 by asking `/api/practice` for every topic in `/api/curriculum` rather than by counting generators. Object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Deterministic everywhere. No model decides whether an answer is right. |
 | **Reading** | 349 Selges keeles texts, click-to-look-up, known-word tracking, comprehensibility ordering. |
 | **Listening** | Dictation from the corpus, TTS on any text at 0.7×, ERR episode audio. |
@@ -81,14 +81,14 @@ from an installed app.
 
 ## What was never built
 
-### 11 curriculum topics have no generator
+### 10 curriculum topics have no generator
 
 ```
 tahestik  lauseehitus  asesonad  astmevaheldus  kaassonad  sidesonad
-maarsonad  tulevik  uhildumine  uhendverbid  liitsonad
+maarsonad  tulevik  uhendverbid  liitsonad
 ```
 
-It was 13 until 2026-08-21, when `pohivormid` and `eitus` got one. **Do not
+It was 13 that morning: `pohivormid`, `eitus` and `uhildumine` were built on 2026-08-21. **Do not
 maintain this list by hand** — it is `[t.id for t in TOPICS if not t.generator]`,
 and the version above is a snapshot for reading, not the source. A test that
 kept its own copy of the same set went stale the moment those two landed.
@@ -100,6 +100,27 @@ the stem is actually chosen. Most are simply not done. `uhildumine`,
 `uhendverbid` and `liitsonad` were investigated as candidates for the
 attested-corrections treatment that made `word-order` work, and the corpus did
 not have enough marked examples.
+
+### Pronouns will not be generated from Vabamorf
+
+`asesonad` is A1, closed-class and looks like the easiest remaining topic —
+thirty-five words, decline them, done. Measured, and refused:
+
+```
+mina  → genitive "mina"    (correct: minu)
+keegi → genitive "kee"     (correct: kellegi)
+iga   → genitive "ea"      (that is `iga` meaning *age*, a different word)
+```
+
+The short forms `ma`, `sa`, `ta`, `me`, `te` synthesise to nothing at all.
+Estonian pronouns are suppletive and Vabamorf's paradigms for them are not
+usable as an answer key, so a generated pronoun drill would be confidently
+wrong several times a page — the `kool, koola, koola` failure again, in a
+place where every item is a word the learner uses constantly.
+
+If it is built, it needs a hand-written table of about thirty words, which is
+the same shape as `data/seed_glossary.tsv` and now a proven pattern. It is not
+a generation problem.
 
 ### Local ASR
 
