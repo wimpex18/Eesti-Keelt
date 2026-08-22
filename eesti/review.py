@@ -165,12 +165,31 @@ def add(
 
     That last part matters: meeting `raamatut` again in another text must not
     reset the memory model built from earlier reviews.
+
+    What it does *not* mean is that the card is frozen. Returning early on an
+    existing id kept the text as well as the schedule, so a meaning card built
+    from a one-word seed gloss stayed a one-word card for ever, even after
+    Sõnaveeb supplied richer senses -- and re-mining still said "lisatud
+    kordamisse" as though something had happened. The schedule is a fact about
+    the learner; the prompt and answer are renderings of what the app currently
+    knows, and those are refreshed.
+
+    `context` is neither: it is the sentence the word was first met in, which a
+    later encounter does not improve. It is only filled if it was empty.
     """
     key = item_id(kind, lemma, tag)
     existing = conn.execute(
-        "SELECT 1 FROM review_items WHERE id = ?", (key,)
+        "SELECT context FROM review_items WHERE id = ?", (key,)
     ).fetchone()
     if existing:
+        with conn:
+            conn.execute(
+                """UPDATE review_items
+                      SET prompt = ?, answer = ?, distractor = ?, why_ru = ?,
+                          context = COALESCE(context, ?)
+                    WHERE id = ?""",
+                (prompt, answer, distractor, why_ru, context, key),
+            )
         return key
 
     card = Card()

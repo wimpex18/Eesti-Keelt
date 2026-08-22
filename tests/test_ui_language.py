@@ -23,6 +23,7 @@ teaches and the interface is still usable.
 
 from __future__ import annotations
 
+import ast
 import html
 import re
 from pathlib import Path
@@ -234,15 +235,45 @@ _TO_CYRILLIC = str.maketrans({
     "õ": "о", "ä": "а", "ö": "о", "ü": "ю", "š": "ш", "ž": "ж",
 })
 
-# The modules that carry Russian explanation prose.
-_PROSE = ("grammar.py", "cloze.py", "patterns.py", "drills.py", "curriculum.py",
-          "forms.py", "readiness.py")
+#: The modules that carry Russian explanation prose -- found rather than
+#: listed. The first version was a hand-written tuple of seven filenames, and
+#: `mining.py` was not among them; a Cyrillic `омастав` went into its refusal
+#: message and this check, which exists for exactly that, said nothing. A list
+#: of the files to look at is the same kind of second list as the strings it
+#: replaced. Any module with Cyrillic in it is prose, and prose is what this
+#: is about.
+#: What the learner can actually read: the string literals. A comment saying
+#: "`omastav` was being written as **омастав**" is this file's own history
+#: written down, and a `REPAIRS` table has to contain the misspelling it
+#: rewrites -- neither reaches a screen. Scanning the raw text flagged both and
+#: would have kept flagging every future note about the bug.
+def _literals(path: Path) -> str:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+    # The repair table is search-and-replace data, not prose. Its strings have
+    # to be collected and subtracted: `ast.walk` flattens the tree, so skipping
+    # the assignment node still visits every constant inside it.
+    exempt = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                getattr(t, "id", "") == "REPAIRS" for t in node.targets):
+            exempt |= {n.value for n in ast.walk(node)
+                       if isinstance(n, ast.Constant)
+                       and isinstance(n.value, str)}
+
+    return "\n".join(
+        n.value for n in ast.walk(tree)
+        if isinstance(n, ast.Constant) and isinstance(n.value, str)
+        and n.value not in exempt
+    ).lower()
 
 
-def prose_files() -> list[Path]:
-    """The prose modules, resolved and asserted to exist."""
+def _prose_modules() -> list[Path]:
     root = Path(__file__).resolve().parents[1] / "eesti"
-    return [root / name for name in _PROSE if (root / name).exists()]
+    return sorted(
+        p for p in root.glob("*.py")
+        if CYRILLIC.search(p.read_text(encoding="utf-8"))
+    )
 
 
 def estonian_terms() -> set[str]:
@@ -278,9 +309,9 @@ class TestAGrammarTermIsNeverTransliterated:
 
     def test_no_estonian_term_appears_in_cyrillic_letters(self):
         found = []
-        for path in prose_files():
+        for path in _prose_modules():
             name = path.name
-            source = path.read_text(encoding="utf-8").lower()
+            source = _literals(path)
             for term in estonian_terms():
                 # The stem, so declined Russian endings ("омастава") still hit.
                 stem = term.translate(_TO_CYRILLIC)[:-1]
@@ -299,7 +330,7 @@ class TestAGrammarTermIsNeverTransliterated:
         was written to catch. Assert on both sides of the search.
         """
         assert len(estonian_terms()) >= 10
-        assert len(prose_files()) == len(_PROSE)
+        assert len(_prose_modules()) >= 8
 
 def glossed_button_labels(page: str) -> dict[str, str]:
     """Each button that carries a Russian gloss, and its Estonian label."""

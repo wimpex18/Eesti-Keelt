@@ -634,3 +634,56 @@ in Cloud Shell and discover the project, service and region themselves.
   same change because their gloss lives inside `.lbl` rather than directly on
   the button. Before making a container flex, look at what its children were
   relying on the normal flow to do.
+- **A decision that was right about its own case gets applied to everything.**
+  `mining.from_reading` queues the object-case contrast behind a word met while
+  reading, and refuses words that have no contrast — a card that cannot be got
+  wrong wastes review time, which is the scarcest thing in spaced repetition.
+  Correct, and it was being applied to a third of the vocabulary it does not
+  describe: **31.3 % of A1–B1 words have identical genitive and partitive**
+  (791 of 2 531; A1 35.8 %, A2 34.9 %, B1 28.5 %). All of them were refused
+  with "pole midagi harjutada" — telling the learner there was nothing to
+  practise about a word they had just clicked *because they did not know it*.
+  The refusal message even said "omastav ja osastav on samad" when the real
+  reason was often "we do not know what this word means yet". The module
+  docstring argued the case honestly and only for the words it had in mind;
+  nothing checked how many words it was actually deciding for. Measure the
+  share of inputs a rule refuses before trusting the rule.
+- **The schema had already declared the missing feature.** `review_items.kind`
+  has read `-- curriculum topic id, or 'vocab'` since the file was written, and
+  nothing had ever inserted a `vocab` row. That is the third costume of the same
+  bug — after the measurement with no writer, the endpoint with no caller, and
+  `[data-theme]` with no control — and the most useful, because a declared-but-
+  unwritten value is a note from a past session saying *this is the shape of the
+  thing that is missing*. Grep the schemas for values nothing produces.
+- **The test that prevents a bug can have the bug's own shape in it.**
+  `test_ui_language` catches an Estonian grammar term written in Cyrillic —
+  written after `omastav` shipped as **омастав** in nine places. Fixing a
+  *different* finding, `омастав` was typed straight back into
+  `mining.py`, and the check said nothing: its list of modules to scan was a
+  hand-written tuple of seven filenames and `mining.py` was not on it. A
+  guard against a hand-maintained list, implemented as a hand-maintained
+  list. Deriving it — any module with Cyrillic in it is prose — found a real
+  one hiding behind the old list on the first run: `speaking.py` told the
+  learner *"это прошедшее время, лихтминевик"*. Two refinements it then
+  needed, both about what the learner can actually read: a **comment**
+  explaining the bug and the `REPAIRS` search-and-replace table both have to
+  contain the misspelling, so the scan reads string literals via `ast` and
+  subtracts the repair table.
+- **Keeping the schedule is not the same as freezing the card.**
+  `review.add` returns early on an existing id so that meeting a word again
+  does not reset the memory model — correct, and it kept the *text* too. A
+  meaning card built from a one-word seed gloss stayed one word for ever,
+  even after Sõnaveeb supplied richer senses, and re-mining still reported
+  "lisatud kordamisse" as though something had happened. The schedule is a
+  fact about the learner and must survive; the prompt and answer are
+  renderings of what the app currently knows and should be refreshed.
+  `context` is neither — it is the sentence the word was first met in, which
+  a later encounter does not improve, so it is only filled if empty.
+- **A refusal is a sentence the learner reads, and it must be true of the
+  word in front of them.** `from_reading`'s refusal said "omastav ja osastav
+  on samad" for every word it turned down — including adverbs and
+  conjunctions, which have neither form. It also told the learner to "open
+  the word card", where the only button that could act on the advice had just
+  disabled itself and was never re-enabled. Refusal paths get the same
+  scrutiny as success paths: they are more likely to be read closely, because
+  something has just not worked.

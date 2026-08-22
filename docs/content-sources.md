@@ -133,3 +133,47 @@ The second is the interesting one for this app: an official Estonian-Russian
 dictionary and the exam board's own level vocabulary, both openly licensed. Worth
 fetching if the learner wants glosses for words they have not met yet rather than
 only the ones they have.
+
+## What Estly does, and what it means for this app
+
+`estly.ee` is the closest thing to a competitor, checked 2026-08-21. Free,
+non-profit, built largely by one person (Joosep Wong, who wrote it while
+preparing for B1 and passed on the first attempt). Same audience as this app
+and then some: expats and Russian speakers in Estonia, with the interface in
+English and translations into Russian, Finnish, German, Chinese and Japanese.
+
+**It is a vocabulary product, not an exam product**, and the distinction is
+sharper than the shared word "exam" suggests:
+
+| | Estly | this app |
+|---|---|---|
+| Core | 12 000 words A1–C1, six exercise types per 10-word session | learn → practise → check on *grammar*, aimed at `obj-case` |
+| "Exam" | 25 audio questions, one attempt per 7 days, generates a certificate with your name on it | the four real *tasemeeksam* parts, HARNO material by pointer, ≥60 % and no part at zero |
+| Scheduling | session-based, XP and hearts | FSRS over the items you actually got wrong |
+| Motivation | streak counter, levels, 1v1 duel | none, deliberately |
+
+Their exam **makes no claim to be the state exam** and does not use HARNO
+material; it is a vocabulary quiz with a certificate at the end. So the two
+products do not compete where it looks like they do.
+
+**Where they are genuinely ahead: the vocabulary loop.** Six exercise types on
+the same ten words — flashcards, match pairs, multiple choice, fill the blank,
+listen and spell, type the word — against a `Sõnavara` here that could list
+words and open a card but never *drill* one. Their flashcard also shows the
+principal forms as chips (`sadama` → `sadada`, `sajab`), which is exactly what
+`lookup.principal_forms` produces.
+
+**What was taken:** the flashcard, as a `kind="vocab"` review card — front, a
+reveal, then the same three FSRS ratings. It closed a measured hole rather
+than adding a feature: 31.3 % of A1–B1 words have identical genitive and
+partitive, and every one of them was being refused with "pole midagi
+harjutada" because the app only knew how to build grammar cards.
+
+**What was not, and why.** The hearts, the XP bar, the streak counter and the
+duel. `review.py` opens by citing the finding that people abandon streak-based
+apps once the streak stops improving the skill they came for — that is the
+reason this queue schedules by difficulty rather than by attendance, and
+bolting a streak onto it would argue with its own scheduler. Their certificate
+is worth avoiding for a sharper reason: this app tells a learner what the exam
+board will measure, and issuing a certificate of its own would blur exactly the
+line `readiness.py` exists to keep clear.

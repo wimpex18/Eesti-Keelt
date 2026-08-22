@@ -291,11 +291,18 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    rather than looking: a top-level element broke the desktop grid, a flex
    parent moved a gloss from under its label to beside it, and a test scoped
    itself to the head and passed on nothing.
-9. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
+9. ~~**Give a word with no grammar to teach somewhere to go.**~~ Done
+   2026-08-21, after looking at `estly.ee` (see `docs/content-sources.md`).
+   31.3 % of A1–B1 words have identical genitive and partitive and were being
+   refused with "pole midagi harjutada"; they get a `kind="vocab"` meaning card
+   now — the kind `review.py`'s schema declared and nothing had ever written —
+   rendered as a flashcard with a reveal step, because rating recall before
+   seeing the answer makes `Teadsin` a guess about a guess.
+10. **The 11 topics that still have no generator.** `eitus` and `pohivormid`
    were the two named here and are built. Of what is left, none is A2 exam
    material in the way those two were, so this is now a genuine "if more is
    wanted" rather than a gap.
-10. **Decide whether five word statuses are four too many.** LingQ ships four
+11. **Decide whether five word statuses are four too many.** LingQ ships four
    and its users report that as already hard to judge; only the *settled*
    boundary is load-bearing here. Cheaper to resolve before anything else
    reads the ladder.

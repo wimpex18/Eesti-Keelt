@@ -11,9 +11,22 @@ Vabamorf can say `raamatut` is the partitive of `raamat` and that the genitive
 would be `raamatu` — so the card that gets queued is the object-case contrast in
 the sentence you actually met, not a translation to memorise.
 
-Words with nothing to teach are refused rather than queued. If a noun's genitive
-and partitive are identical there is no contrast to drill, and a card that cannot
-be got wrong wastes review time — the scarcest thing in spaced repetition.
+Words with no *grammar* to teach still have a meaning. If a noun's genitive and
+partitive are identical there is no contrast to drill — a card that cannot be got
+wrong wastes review time, the scarcest thing in spaced repetition — so those used
+to be refused outright, with a message telling the learner there was nothing to
+practise about a word they had just said they did not know.
+
+That is 31.3 % of A1–B1 words (791 of 2 531, measured against `object_cases`):
+A1 35.8 %, A2 34.9 %, B1 28.5 %. The reasoning above was right about the words it
+was written for and was being applied to a third of the vocabulary it does not
+describe. Those get a **meaning** card now — `kind="vocab"`, which the review
+schema has documented since it was written and which nothing had ever produced.
+
+The card is only queued when a Russian gloss is already in the local store. A
+meaning card with no meaning on it cannot be graded, and fetching one here would
+put a third party's server in the learner's click path, which `gloss.remember`
+exists to keep out of.
 """
 
 from __future__ import annotations
@@ -70,7 +83,7 @@ def from_reading(
 
     found = lookup(word)
     if not found.get("found"):
-        return MineResult(False, f"«{word}» ei ole sõnastikus")
+        return MineResult(False, f"«{word}» — такого слова в словаре нет")
 
     analyses = found["analyses"]
     # Prefer a reading that actually carries an object-case contrast.
@@ -80,10 +93,7 @@ def from_reading(
     lemma = best["lemma"]
 
     if not best.get("object_case_contrast"):
-        return MineResult(
-            False,
-            f"«{lemma}»: omastav ja osastav on samad — pole midagi harjutada",
-        )
+        return _meaning_card(conn, lemma, context, best)
 
     genitive, partitive = best["genitive"], best["partitive"]
     item = review.add(
@@ -102,3 +112,57 @@ def from_reading(
         context=context,
     )
     return MineResult(True, f"«{lemma}» lisatud kordamisse", item, "obj-case")
+
+
+def _meaning_card(
+    conn: sqlite3.Connection, lemma: str, context: str | None,
+    analysis: dict | None = None,
+) -> MineResult:
+    """A card for what a word means, when there is no case contrast to drill.
+
+    Reads the local gloss store only. `gloss.remember` is the one call allowed
+    to leave the machine and it belongs to the word card, where the learner is
+    already waiting on it -- not here, where this runs behind a click that
+    should feel instant.
+    """
+    from . import config, gloss
+
+    analysis = analysis or {}
+
+    with gloss.connect(config.VOCAB_DB) as g:
+        known = gloss.stored(g, lemma)
+
+    russian = list(known.russian) if known else []
+    if not russian:
+        # Two different absences, and saying the wrong one is worse than saying
+        # nothing. A noun whose forms coincide has no contrast; an adverb or a
+        # conjunction has no genitive or partitive *at all*, and telling the
+        # learner that `kiiresti`'s omastav equals its osastav states something
+        # untrue about a word that has neither.
+        declines = bool(analysis.get("genitive") and analysis.get("partitive"))
+        why = ("**omastav** и **osastav** совпадают"
+               if declines else "это слово не склоняется")
+        return MineResult(
+            False,
+            f"«{lemma}»: {why}, а перевод пока неизвестен. "
+            f"Он подгрузится сам — попробуй ещё раз чуть позже.",
+        )
+
+    meaning = ", ".join(russian[:3])
+    item = review.add(
+        conn,
+        kind="vocab",
+        lemma=lemma,
+        tag="meaning",
+        prompt=f"«{lemma}» — mida see tähendab?",
+        answer=meaning,
+        distractor=None,
+        # Nothing. `why_ru` is the Russian explanation slot and renders as
+        # such; Sõnaveeb's `definition` is **Estonian**, so putting it here
+        # printed `filmide näitamise asutus…` under a heading promising
+        # Russian. The answer is already the explanation on a meaning card.
+        why_ru=None,
+        source="reading",
+        context=context,
+    )
+    return MineResult(True, f"«{lemma}» lisatud kordamisse", item, "vocab")

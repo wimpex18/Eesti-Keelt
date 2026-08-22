@@ -635,6 +635,32 @@
     .navmark{margin-right:2px;vertical-align:middle}
   }
 
+  /* ── The flashcard ───────────────────────────────────────────────
+     One word, given the room to be the whole card. The thing Estly gets
+     right is that a vocabulary card has exactly one job and should look
+     like it: no competing rows, no metadata above the word, nothing to
+     read before the thing being recalled.
+
+     `clamp` rather than a fixed size -- `kirjavahemärgid` is 16 characters
+     and would run off a 320px phone at any size chosen for `kool`. */
+  .flashcard{padding:var(--s5) var(--s4);text-align:center}
+  .fc-face{display:flex;align-items:center;justify-content:center;
+    gap:var(--s3);min-height:96px}
+  .fc-word{font-size:clamp(28px, 8vw, 44px);font-weight:650;
+    letter-spacing:-.02em;line-height:1.15;overflow-wrap:anywhere}
+  .fc-say{width:32px;height:32px;flex:none}
+  .flashcard .row{justify-content:center}
+  .flashcard .rev-ctx{text-align:center}
+  .fc-meaning{font-size:19px;font-weight:600;color:var(--gloss);
+    margin-top:var(--s2)}
+  .flashcard .why{margin-top:var(--s2)}
+  /* The reveal is the moment the card exists for. Enough motion to read as
+     an answer arriving, not enough to wait for. */
+  .fc-back{animation:fc-reveal 180ms var(--ease) both}
+  @keyframes fc-reveal{from{opacity:0;transform:translateY(-4px)}
+                       to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.fc-back{animation:none}}
+
   /* ── Tactile press ───────────────────────────────────────────────
      A button that only changes colour on `:active` reports that it noticed
      the click; one that moves reports that it took it. The depth is a
@@ -2232,7 +2258,105 @@ $("#loadReview").onclick = async () => {
   for (const it of items) out.appendChild(renderReview(it, glosses || {}));
 };
 
+/* A meaning card is a flashcard, and a flashcard has a front and a back.
+
+   The grammar cards here rate first and reveal after, which is fine when the
+   prompt already names what is being asked ("omastav või osastav?") -- the
+   learner is rating a decision they have made. A meaning card cannot work that
+   way: "do I know what `kool` means" is only answerable honestly once the
+   answer is on screen, and rating blind turns `Teadsin` into a guess about a
+   guess.
+
+   So this one reveals, then rates. The same three buttons and the same FSRS
+   call underneath -- only the order changes, and only for this kind.
+
+   Taken from what Estly does well with flashcards. Not taken: the hearts, the
+   XP bar and the streak counter around them. `review.py` opens by citing the
+   finding that people abandon streak apps once the streak stops improving the
+   skill they came for, and that is the whole reason this queue schedules by
+   difficulty rather than by attendance. */
+function renderVocabCard(it) {
+  const el = document.createElement("div");
+  el.className = "drill flashcard";
+  el.innerHTML = `
+    <div class="fc-face">
+      <span class="fc-word" lang="et">${esc(it.lemma)}</span>
+      <button class="iconbtn fc-say" type="button"
+              title="Kuula — прослушать" aria-label="Kuula — прослушать"></button>
+    </div>
+    ${it.context ? `<div class="rev-ctx" lang="et">${esc(it.context)}</div>` : ""}
+    <div class="row">
+      <button class="go fc-show">Näita <i class="ru">показать</i></button>
+      ${it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
+    </div>
+    <div class="fc-note hint" hidden></div>
+    <div class="fc-back" hidden>
+      <div class="fc-meaning">${esc(it.answer)}</div>
+      ${it.why_ru ? `<div class="why">${md(it.why_ru)}</div>` : ""}
+      <div class="row">
+        <button class="ghost" data-r="again">Ei mäleta <i class="ru">не помню</i></button>
+        <button class="ghost" data-r="hard">Raske <i class="ru">трудно</i></button>
+        <button class="go" data-r="good">Teadsin <i class="ru">знал</i></button>
+      </div>
+    </div>
+    <div class="verdict"></div>`;
+
+  el.querySelector(".fc-say").innerHTML = navIcon(
+    '<path d="M11 5 6.5 9H3v6h3.5L11 19z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'
+    + '<path d="M18.5 5.5a9 9 0 0 1 0 13"/>');
+  el.querySelector(".fc-say").onclick = () => speakWord(it.lemma, msg => {
+    const note = el.querySelector(".fc-note");
+    note.textContent = msg;
+    note.hidden = false;
+  });
+  el.querySelector(".fc-show").onclick = e => {
+    e.target.closest(".row").hidden = true;
+    el.querySelector(".fc-back").hidden = false;
+  };
+  wireGrading(el, it);
+  return el;
+}
+
+/* One place that grades, so the two card shapes cannot drift apart in what
+   they send or what they say afterwards. */
+function wireGrading(el, it) {
+  const verdict = el.querySelector(".verdict");
+  el.querySelectorAll("button[data-r]").forEach(b => b.onclick = async () => {
+    el.querySelectorAll("button[data-r]").forEach(x => x.disabled = true);
+    const r = await (await api("/api/review/grade",
+                               {id: it.id, rating: b.dataset.r})).json();
+    verdict.className = "verdict ok";
+    verdict.innerHTML =
+      `<strong>${esc(it.answer)}</strong> — снова ${r.interval_days < 1
+        ? "сегодня" : `через ${Math.round(r.interval_days)} дн.`}` +
+      (it.why_ru && !el.classList.contains("flashcard")
+        ? `<br><span class="why">${md(it.why_ru)}</span>` : "");
+    refreshDueBadge();
+    loadRail();
+  });
+}
+
+async function speakWord(word, onError) {
+  /* An empty catch here would be the pronunciation-privacy mistake again in
+     miniature: the button appears to work, nothing happens, and the learner
+     has no way to tell a dead synthesiser from a silent word. The URL is
+     revoked once the clip ends -- a review session plays dozens, and each one
+     pins its blob in memory until the page is closed. */
+  let url = null;
+  try {
+    const r = await api("/api/speak", {text: word, speed: 0.9});
+    url = URL.createObjectURL(await r.blob());
+    const audio = new Audio(url);
+    audio.onended = audio.onerror = () => { URL.revokeObjectURL(url); url = null; };
+    await audio.play();
+  } catch (e) {
+    if (url) URL.revokeObjectURL(url);
+    if (onError) onError("Звук не пришёл: " + e.message);
+  }
+}
+
 function renderReview(it, glosses) {
+  if (it.kind === "vocab") return renderVocabCard(it);
   const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
@@ -2248,16 +2372,7 @@ function renderReview(it, glosses) {
         it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
     <div class="verdict"></div>`;
-  const verdict = el.querySelector(".verdict");
-  el.querySelectorAll("button[data-r]").forEach(b => b.onclick = async () => {
-    el.querySelectorAll("button[data-r]").forEach(x => x.disabled = true);
-    const r = await (await api("/api/review/grade", {id: it.id, rating: b.dataset.r})).json();
-    verdict.className = "verdict ok";
-    verdict.innerHTML = `<strong>${esc(it.answer)}</strong> — снова ${r.interval_days < 1 ? "сегодня" : `через ${Math.round(r.interval_days)} дн.`}
-      ${it.why_ru ? `<br><span class="why">${md(it.why_ru)}</span>` : ""}`;
-    refreshDueBadge();
-    loadRail();
-  });
+  wireGrading(el, it);
   return el;
 }
 
@@ -2475,6 +2590,12 @@ async function showWordCard(word, card, contextFor) {
     note.className = "mine-note" + (r.queued ? "" : " no");
     note.textContent = r.reason;
     if (r.queued) refreshDueBadge();
+    // A refusal is often temporary: the commonest one is "we do not know what
+    // this word means yet", and the meaning arrives moments later from the
+    // enrichment call this same card fires. Leaving the button disabled made
+    // the advice to try again impossible to follow -- the only control that
+    // could act on it was the one that had just switched itself off.
+    else e.target.disabled = false;
   };
 
   /* Rection and inflection type, from Sõnaveeb.

@@ -728,3 +728,67 @@ class TestEveryMarkIsActuallyDrawn:
                           return Math.round(Math.max(r.width, r.height)); })
               .filter(v => v > 40)""")
         assert not big, f"oversized marks at {page.viewport_name}: {big}"
+
+class TestTheMeaningCardIsAFlashcard:
+    """The whole vocabulary feature was reachable by no test.
+
+    `renderVocabCard`, `wireGrading`, `speakWord` and the `kind === "vocab"`
+    dispatch could all be deleted and the suite stayed green -- a feature with
+    no caller in the test suite, which is the same shape as a measurement with
+    no writer. It needs a browser because the thing worth asserting is the
+    order: the ratings must not be reachable until the answer is on screen,
+    and that is layout, not markup.
+    """
+
+    #: A word per viewport. `live_server` is session-scoped, so both
+    #: parametrisations share one `review.db` -- and `review.add` keeps an
+    #: existing item's schedule by design, so the run that grades a card leaves
+    #: it not-due for the run after it. Two words, no ordering coupling. Both
+    #: have identical genitive and partitive and a shipped Russian gloss, which
+    #: is exactly the pair of conditions a meaning card needs.
+    WORD = {"desktop": ("maja", "дом"), "phone": ("tool", "стул")}
+
+    def _queue_a_meaning_card(self, page, live_server):
+        word, _ = self.WORD[page.viewport_name]
+        return page.evaluate("""async ([base, word]) => {
+            const r = await fetch(base + "/api/mine", {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({word, context: "See on " + word + "."}),
+            });
+            return await r.json();
+        }""", [live_server, word])
+
+    def test_reveal_then_rate(self, page, live_server):
+        """One flow, not two tests.
+
+        `review.add` keeps an existing item's schedule on purpose, so a card
+        graded by an earlier test is no longer due for the next one -- split
+        across two tests and two viewports, the fourth run found an empty
+        queue. The reveal and the grade are one sequence; asserting them
+        together is both more honest and free of the ordering coupling.
+        """
+        word, meaning = self.WORD[page.viewport_name]
+        queued = self._queue_a_meaning_card(page, live_server)
+        assert queued["queued"] and queued["kind"] == "vocab", queued
+
+        page.click('.modes button[data-mode="revise"]')
+        page.click("#loadReview")
+        page.wait_for_selector(".flashcard", timeout=15000)
+
+        card = page.locator(".flashcard").first
+        assert card.locator(".fc-word").inner_text().strip() == word
+        # The answer, and every rating, must be out of reach before the reveal.
+        assert card.locator(".fc-back").is_hidden()
+        assert card.locator("button[data-r]").first.is_hidden()
+
+        card.locator(".fc-show").click()
+        page.wait_for_timeout(300)
+        assert card.locator(".fc-back").is_visible()
+        assert meaning in card.locator(".fc-meaning").inner_text()
+        assert card.locator("button[data-r]").first.is_visible()
+
+        card.locator('button[data-r="good"]').click()
+        page.wait_for_selector(".flashcard .verdict.ok", timeout=15000)
+        verdict = card.locator(".verdict").inner_text()
+        assert meaning in verdict and "снова" in verdict, verdict
+        assert not page.errors, page.errors
