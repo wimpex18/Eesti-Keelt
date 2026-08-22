@@ -55,7 +55,7 @@ BANK: tuple[Question, ...] = (
              "Что делаете для здоровья: спорт, еда, сон.",
              "vestlus"),
     Question("Reisimine", "Rääkige ühest reisist, mis teile meelde on jäänud.",
-             "Расскажите о поездке — это прошедшее время, лихтминевик.",
+             "Расскажите о поездке — это прошедшее время, **lihtminevik**.",
              "vestlus"),
     Question("Poes", "Te tahate sõbraga koos kingitust osta. Leppige kokku, "
                      "mida te ostate ja kui palju te kulutate.",
