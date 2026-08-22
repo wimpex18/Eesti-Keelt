@@ -308,15 +308,27 @@ def browse(
     # Read a window, annotate, then filter -- and keep reading windows until
     # the page is full, or a status filter would return a short page and look
     # like the end of the list.
+    # `known` stays both settled-positive rungs, so an existing caller keeps
+    # its meaning; the two narrower names are additions, not a redefinition.
+    #
+    # `ignored` is the one that had to exist. A learner can mark a word "Pole
+    # vaja" and it leaves every drill and every sentence -- and there was no
+    # filter that could list one again, so the decision was irreversible in
+    # practice through the only surface that makes it. A writer with no reader
+    # is the same defect as a reader with no writer, which this project has now
+    # found in both directions.
     wanted = None
     if status is not None:
         wanted = {
             "new": {UNKNOWN},
             "learning": {LEARNING},
             "known": {KNOWN, WELL_KNOWN},
+            "well_known": {WELL_KNOWN},
+            "ignored": {IGNORED},
         }.get(status)
         if wanted is None:
-            raise ValueError("status must be new, learning or known")
+            raise ValueError(
+                "status must be new, learning, known, well_known or ignored")
 
     out: list[dict] = []
     seen = 0

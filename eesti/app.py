@@ -901,6 +901,7 @@ class _Answered:
 @app.get("/api/curriculum")
 def curriculum_path() -> dict:
     """The whole syllabus in study order, with where the learner stands on each."""
+    from .practice import theme_slot
     from .progress import report, resume
 
     progress = progress_db()
@@ -929,6 +930,18 @@ def curriculum_path() -> dict:
                 # display string to get it back.
                 "blocked_by": [names.get(b, b) for b in r.blocked_by],
                 "blocked_by_ids": list(r.blocked_by),
+                # Whether the Teema control does anything on this topic.
+                #
+                # It is offered beside every topic, and on seven of the
+                # twenty-six drillable ones a theme is inapplicable rather than
+                # ignored -- question words, comparatives, ordinals, commas,
+                # word order, the rection table and obj-case have no lemma to
+                # narrow. Choosing one there changed nothing, said nothing, and
+                # looked exactly like choosing one that worked.
+                #
+                # Read from the same function the generator dispatch reads, so
+                # the page cannot promise a filter the drill will not apply.
+                "themed": theme_slot(r.topic) is not None if r.drillable else False,
             }
             for r in rows
         ],
