@@ -173,6 +173,30 @@ log — a whole chain inert because a credential was one hop from the process th
 needed it. And it was the worse half of the trade: all the exposure of holding a
 key, none of the benefit.
 
+### Every `deploy/` script runs from a clone
+
+Cloud Shell arrives signed in, with `gcloud` and `openssl` — and without this
+repository. Its home directory is also reclaimed after a long enough gap, so a
+clone made months ago may not be there now. That makes the first command of a
+session `git`, not `bash`: run from the home directory, the instruction below
+answers
+
+```
+bash: deploy/set-llm-key.sh: No such file or directory
+```
+
+which reads like a missing script and is a missing checkout.
+
+```bash
+cd ~
+git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || true
+cd Eesti-Keelt && git pull
+```
+
+Both lines are safe to re-run, and the `git pull` matters as much as the clone:
+the scripts read their allowed key names out of `eesti/env.py`, so a stale
+checkout refuses a key the current app knows about.
+
 Set it where it belongs, without it touching your shell history:
 
 ```bash
@@ -215,7 +239,8 @@ so the two are unlikely to run out on the same afternoon.
 1. Sign in at **`console.groq.com`** with Google or GitHub.
 2. Open **API Keys** (`console.groq.com/keys`) and create one. Copy it: the
    value is shown once.
-3. In **Google Cloud Shell**, in this repository:
+3. In **Google Cloud Shell**, from the clone — see *Every `deploy/` script
+   runs from a clone* above if it is not there:
 
    ```bash
    bash deploy/set-llm-key.sh GROQ_API_KEY
