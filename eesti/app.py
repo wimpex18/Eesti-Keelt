@@ -30,6 +30,7 @@ from .providers import grammar
 from .providers import tts
 from . import mining, review
 from .sources import connect as content_connect
+from .sources import count as content_count
 from .sources import query as content_query
 from .wordlist import connect
 
@@ -425,7 +426,7 @@ def modes() -> dict:
 @app.get("/api/library")
 def library(skill: str = "lugemine", section: str | None = None,
             level: str | None = None, band: str | None = None,
-            limit: int = 60) -> dict:
+            limit: int = 60, offset: int = 0) -> dict:
     """Harvested study material, by skill or by section.
 
     `section` exists because a skill is not a shelf. A section also carries the
@@ -446,17 +447,27 @@ def library(skill: str = "lugemine", section: str | None = None,
     conn = content_db()
     if section is not None:
         from .library import browse
+        from .library import count as section_count
 
         try:
             rows = browse(conn, section=section, level=level, band=band,
                           limit=limit)
+            total = section_count(conn, section=section, level=level, band=band)
         except KeyError as exc:
             raise HTTPException(
                 status_code=404, detail=f"unknown section {section!r}") from exc
     else:
         rows = content_query(conn, skill=skill, level=level, band=band,
-                             limit=limit)
+                             limit=limit, offset=offset)
+        total = content_count(conn, skill=skill, level=level, band=band)
     return {
+        # How many there are, not how many came back. The page printed
+        # `len(items)` as the library size, so a `limit` of 80 against 349
+        # indexed texts read as "80 текстов" -- a page size in the clothes of a
+        # total, and 269 texts that nothing could reach.
+        "total": total,
+        "limit": limit,
+        "offset": offset,
         "items": [
             {
                 "id": r["id"],
@@ -512,9 +523,17 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     """
     from .difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
     from .library import browse
+    from .library import count as section_count
 
     known = known_lemmas(vocab_db())
-    rows = browse(content_db(), section, limit=120)
+    # The whole shelf, not a slice of it. This read `limit=120` against 349
+    # indexed texts, so 229 of them could never be recommended however well
+    # they fitted -- which defeats the one thing this endpoint exists to do,
+    # since ranking a fixed arbitrary subset by *this learner's* vocabulary is
+    # not ranking the library by it. Measured before changing: scoring all 349
+    # takes 0.14 s against 0.05 s for 120. The cap was buying 90 milliseconds.
+    conn = content_db()
+    rows = browse(conn, section, limit=max(1, section_count(conn, section)))
 
     scored = []
     unmeasurable = 0
@@ -901,6 +920,7 @@ class _Answered:
 @app.get("/api/curriculum")
 def curriculum_path() -> dict:
     """The whole syllabus in study order, with where the learner stands on each."""
+    from .practice import theme_slot
     from .progress import report, resume
 
     progress = progress_db()
@@ -929,6 +949,18 @@ def curriculum_path() -> dict:
                 # display string to get it back.
                 "blocked_by": [names.get(b, b) for b in r.blocked_by],
                 "blocked_by_ids": list(r.blocked_by),
+                # Whether the Teema control does anything on this topic.
+                #
+                # It is offered beside every topic, and on seven of the
+                # twenty-six drillable ones a theme is inapplicable rather than
+                # ignored -- question words, comparatives, ordinals, commas,
+                # word order, the rection table and obj-case have no lemma to
+                # narrow. Choosing one there changed nothing, said nothing, and
+                # looked exactly like choosing one that worked.
+                #
+                # Read from the same function the generator dispatch reads, so
+                # the page cannot promise a filter the drill will not apply.
+                "themed": theme_slot(r.topic) is not None if r.drillable else False,
             }
             for r in rows
         ],
@@ -1013,6 +1045,8 @@ def practice_items(req: PracticeRequest) -> dict:
             "items": [], "detail": detail, "reference": reference, "glosses": {},
         }
 
+    from .practice import theme_slot
+
     try:
         items = items_for(
             topic, count=req.count, levels=tuple(req.levels), seed=req.seed,
@@ -1028,15 +1062,31 @@ def practice_items(req: PracticeRequest) -> dict:
     # corpus has not been supplied, which is a supported state and a completely
     # different problem from a generator that is broken. Say which it is, and
     # in Russian, because it is an instruction the learner has to act on.
+    #
+    # Three reasons for an empty list, and they need three different sentences.
+    # The word theme is the one that was missing, and it is the commonest:
+    # measured across the whole grid, **31 of 198 topic x theme pairs return
+    # fewer than three items and 6 return none**, because a corpus cloze needs
+    # a sentence that contains a theme noun, which is much rarer than the noun
+    # existing. The learner was told the generator had failed, which is untrue
+    # and unactionable -- the fix is one click, without the theme.
     detail = None
+    theme_emptied = False
     if not items:
         needs_corpus = meta.generator in ("corpus_cloze", "ekk_rection", "wordorder")
-        detail = (
-            "Для этой темы нужен текстовый корпус, а он ещё не загружен на "
-            "сервер — задания появятся после `deploy/push-content.sh`."
-            if needs_corpus else
-            f"Генератор «{meta.generator}» ничего не вернул для этой темы."
-        )
+        if req.theme and theme_slot(topic):
+            theme_emptied = True
+            detail = (
+                "По этой словарной теме заданий не нашлось — слов темы в "
+                "нужной форме слишком мало. Правило то же, попробуй без темы."
+            )
+        elif needs_corpus:
+            detail = (
+                "Для этой темы нужен текстовый корпус, а он ещё не загружен на "
+                "сервер — задания появятся после `deploy/push-content.sh`."
+            )
+        else:
+            detail = f"Генератор «{meta.generator}» ничего не вернул для этой темы."
 
     return {
         "topic": topic,
@@ -1044,6 +1094,14 @@ def practice_items(req: PracticeRequest) -> dict:
         "et": meta.et,
         "ru": meta.ru,
         "detail": detail,
+        # Whether the word theme is what emptied the set, so the page can offer
+        # the retry rather than leave the learner to guess which of the three
+        # controls to change.
+        "theme_emptied": theme_emptied,
+        # What was actually applied. The page guards the control now, but the
+        # contract must answer for itself: a caller that sends a theme to a
+        # closed-class topic had no way to learn it was dropped.
+        "theme": req.theme if (req.theme and theme_slot(topic)) else None,
         "reference": _topic_reference(meta),
         "items": [i.to_dict() for i in items],
         # What the words in this set mean, from the local store only.

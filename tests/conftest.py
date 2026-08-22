@@ -262,3 +262,22 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     lookup._db.cache_clear()
     yield
     lookup._db.cache_clear()
+
+
+@pytest.fixture(scope="session")
+def page() -> str:
+    """The single-page app's source, for tests that check page↔API contracts."""
+    from pathlib import Path
+
+    return (Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+            ).read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def client():
+    """A TestClient over the real app, on the redirected fixture databases."""
+    from fastapi.testclient import TestClient
+
+    from eesti.app import app
+
+    return TestClient(app)

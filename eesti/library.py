@@ -269,6 +269,45 @@ def browse(
     return out
 
 
+def count(
+    content: sqlite3.Connection,
+    section: str,
+    level: str | None = None,
+    band: str | None = None,
+    public_only: bool = False,
+) -> int:
+    """How many items a section holds, ignoring `browse`'s page size.
+
+    `browse` takes a `limit` and the caller printed the length of what came
+    back. That reads as a total and is not one: the reading shelf answered "80
+    текстов" against 349 indexed, with no way to see the number was a cap and
+    no way to reach the rest.
+
+    Built from `browse`'s own filters rather than beside them -- a count
+    computed from different conditions than the rows it counts is worse than no
+    count, because it looks authoritative.
+    """
+    meta = by_id(section)
+    kind_sql, kind_params = _kind_clause(meta)
+    total = 0
+    for skill in meta.skills:
+        sql = ("SELECT COUNT(*) FROM items i JOIN sources s ON s.id = i.source_id"
+               " WHERE i.skill = ?")
+        params: list = [skill]
+        if level:
+            sql += " AND i.level = ?"
+            params.append(level)
+        if band:
+            sql += " AND i.band = ?"
+            params.append(band)
+        if public_only:
+            sql += " AND s.redistributable = 1"
+        sql += kind_sql
+        params += kind_params
+        total += content.execute(sql, params).fetchone()[0]
+    return total
+
+
 def mark_seen(progress: sqlite3.Connection, item_id: str, minutes: float = 0.0) -> None:
     """Record that material was opened. Not a pass, and never treated as one."""
     progress.executescript(SCHEMA)

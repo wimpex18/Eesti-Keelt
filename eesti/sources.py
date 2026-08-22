@@ -333,19 +333,14 @@ def clear_source(conn: sqlite3.Connection, source_id: str) -> int:
     return cur.rowcount
 
 
-def query(
-    conn: sqlite3.Connection,
-    skill: str | None = None,
-    level: str | None = None,
-    band: str | None = None,
-    public_only: bool = False,
-    limit: int = 50,
-) -> list[sqlite3.Row]:
-    """Fetch study items.
+def _filters(
+    skill: str | None, level: str | None, band: str | None, public_only: bool,
+) -> tuple[list[str], list]:
+    """The WHERE shared by `query` and `count`.
 
-    `public_only=True` is what a public, unauthenticated request must use. It is
-    a filter on the source's licence, not on anything about the item, so a new
-    source cannot leak by forgetting to tag its items.
+    Written once because the two must never disagree: a count computed from a
+    different set of conditions than the rows it counts is a number that looks
+    authoritative and is not.
     """
     where, params = ["1=1"], []
     if skill:
@@ -359,7 +354,53 @@ def query(
         params.append(band)
     if public_only:
         where.append("s.redistributable = 1")
+    return where, params
+
+
+def count(
+    conn: sqlite3.Connection,
+    skill: str | None = None,
+    level: str | None = None,
+    band: str | None = None,
+    public_only: bool = False,
+) -> int:
+    """How many items match, ignoring any page size.
+
+    `query` takes a `limit`, and the page printed the number of rows it got
+    back as though it were the number of rows there are. Asking for 80 of 349
+    reading texts produced "80 текстов" -- a page size wearing the clothes of a
+    total, with no way to tell and no way to reach the other 269.
+
+    That is the second half of a bug this file already carries the first half
+    of: the comment below explains how the limit used to hide two thirds of the
+    library behind one band. The ordering was fixed then; the cap was not.
+    """
+    where, params = _filters(skill, level, band, public_only)
+    return conn.execute(
+        f"""SELECT COUNT(*) FROM items i JOIN sources s ON s.id = i.source_id
+             WHERE {' AND '.join(where)}""",
+        params,
+    ).fetchone()[0]
+
+
+def query(
+    conn: sqlite3.Connection,
+    skill: str | None = None,
+    level: str | None = None,
+    band: str | None = None,
+    public_only: bool = False,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[sqlite3.Row]:
+    """Fetch study items.
+
+    `public_only=True` is what a public, unauthenticated request must use. It is
+    a filter on the source's licence, not on anything about the item, so a new
+    source cannot leak by forgetting to tag its items.
+    """
+    where, params = _filters(skill, level, band, public_only)
     params.append(limit)
+    params.append(offset)
 
     # Newest-first is right for a live feed and wrong for browsing everything.
     # The harvesters write one band per run, so the newest `limit` rows are all
@@ -388,7 +429,7 @@ def query(
             f"""{select}
                 FROM items i JOIN sources s ON s.id = i.source_id
                 WHERE {' AND '.join(where)}
-                {order} LIMIT ?{tail}""",
+                {order} LIMIT ? OFFSET ?{tail}""",
             params,
         )
     )

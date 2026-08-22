@@ -131,11 +131,33 @@ PROVIDERS: dict[str, Provider] = {
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
+    # This entry is rule 1 above, demonstrated on itself. It was pinned to
+    # `llama-3.3-70b-versatile` and probed against the live catalogue in August
+    # 2026; Groq announced that id's deprecation for the free and developer
+    # tiers on **2026-08-16**, and the pin was stale six days later, on the
+    # first day a key was ever put behind it. A withdrawn id that enterprise
+    # accounts keep does not 404 -- the resource exists and this account may not
+    # have it -- so it answers **403**, which reads as a permissions problem and
+    # sent the first diagnosis at the key rather than at the model.
+    #
+    # `openai/gpt-oss-120b` rather than `qwen/qwen3.6-27b`, and the reason is
+    # not capability. Qwen is the better fit on the axis the OpenRouter comment
+    # above spends four paragraphs on -- 27B dense against roughly 5B active --
+    # and Groq lists it as **preview**, "for evaluation purposes only", which is
+    # a documented promise to withdraw it. This lane exists to answer on the
+    # days the primary cannot; pinning it to something that announces its own
+    # impermanence rebuilds the failure being fixed here. Production tier wins
+    # for a backstop, and it is the model the `workers-ai` lane already runs, so
+    # falling through does not also change models.
+    #
+    # The active-parameter objection stands and is not settled by this choice.
+    # `GROQ_MODEL` is why it does not have to be: trying qwen against the eval
+    # is an environment variable, not a redeploy.
     "groq": Provider(
         "groq",
         "https://api.groq.com/openai/v1",
         "GROQ_API_KEY",
-        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
         "Generous free tier, fastest inference. Rate-limited per model.",
     ),
     # Runs inside Cloudflare, so an edge deployment pays no egress and needs no

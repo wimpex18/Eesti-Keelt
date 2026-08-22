@@ -200,6 +200,25 @@
      listening hint under its heading -- where "reset the margin I do not need"
      silently became "delete the space I do need". The reported crowding on
      the path screen was one of the four. */
+  /* ── Flow spacing ──────────────────────────────────────────────────
+     Every gap between two stacked things in a panel comes from here, and
+     nothing has to remember to bring its own.
+
+     It was the other way round: spacing hung off individual components as
+     `margin-top`, so any element whose type had no rule sat flush against its
+     neighbour. `.row` carried one and `textarea` did not, which is why the
+     dictation box touched the ▶ Kuula row above it with no gap at all -- a
+     defect no test could see and one screenshot makes obvious.
+
+     `:not(:empty)` is the whole trick. A panel is full of containers that are
+     empty until something is rendered into them -- `#practiceOut`, `#libList`,
+     `#dictOut`, `#vocOut` -- and giving those a margin stacks phantom gaps
+     into the middle of a page. They earn their spacing the moment they hold
+     something.
+
+     Components may still override with a later rule; this only decides what
+     happens when nobody said otherwise. */
+  .panel > * + *:not(:empty){margin-top:var(--s4)}
   .panel > :first-child{margin-top:0}
   .panel{background:var(--panel);border:1px solid var(--line);
     border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
@@ -273,15 +292,48 @@
     border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
   .row{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;
     margin-top:var(--s3)}
-  button.go{background:var(--accent);color:#fff;border:0;padding:11px 20px;
-    border-radius:var(--radius-sm);font:inherit;font-weight:600;cursor:pointer;
-    min-height:44px;transition:transform .06s ease, opacity .15s ease}
-  button.go:active{transform:scale(.98)}
-  button.go:disabled{opacity:.55;cursor:default;transform:none}
-  button.ghost,a.ghost{background:none;border:1px solid var(--line);color:var(--ink);
-    padding:9px 15px;border-radius:var(--radius-sm);font:inherit;cursor:pointer;
-    min-height:40px}
+  /* On a phone a filter bar is a column, not a squeezed row. Each label takes
+     the full width and its select fills what is left, so three filters line up
+     on one right edge instead of ending wherever their longest option happens
+     to fall -- which is what made the Sõnavara filters look misaligned rather
+     than merely stacked. */
+  @media (max-width: 560px){
+    .row > label{flex:1 1 100%;display:flex;align-items:center;gap:var(--s2)}
+    .row > label > select{flex:1;min-width:0}
+  }
+  /* ── Buttons ───────────────────────────────────────────────────────
+     Metrics first and shared by all of them; colour is the only thing the
+     variants disagree about.
+
+     Two bugs lived in the gap between those two ideas. `.go` was 11/20 at 44px
+     and `.ghost` 9/15 at 40px, so a row holding one of each -- which is most
+     rows in this app -- was visibly ragged, and the green one read as
+     oversized next to it because it *was*. And `.primary` had no base rule at
+     all: it appeared only in the hover and border-bottom rules further down,
+     as though it were an alias of `.go`, so `Näita` in Sõnavara rendered as a
+     bare operating-system button wearing a 3px green underline. A class the
+     markup uses and the stylesheet never defines is the same bug as an
+     endpoint with no caller, and this page had three of them. */
+  button.go, button.primary, button.ghost, a.ghost{
+    padding:10px 17px;border-radius:var(--radius-sm);font:inherit;
+    cursor:pointer;min-height:42px;text-align:center;
+    transition:transform .06s ease, opacity .15s ease}
+  /* Not a flex container, and that is deliberate. Making the shared rule
+     `flex-direction:column` centred the two-line labels beautifully and
+     blockified every inline child -- so `<i class="ru">решать</i>`, which is
+     inline everywhere else on the page, became a second line inside the small
+     `harjuta` buttons on the path and doubled their height. A button's own
+     `text-align:center` already centres both shapes; `span.ru{display:block}`
+     is what stacks the ones meant to stack. */
+  button.go, button.primary{background:var(--accent);color:#fff;border:0;
+    font-weight:600}
+  button.ghost, a.ghost{background:none;border:1px solid var(--line);
+    color:var(--ink)}
+  button.go:active, button.primary:active{transform:scale(.98)}
+  button.go:disabled, button.primary:disabled{opacity:.55;cursor:default;
+    transform:none}
   button.ghost:active,a.ghost:active{background:var(--bg)}
+  button.ghost:disabled,select:disabled{opacity:.5;cursor:default}
   /* A link shaped like a button: outbound study material sits beside the
      app's own controls and should not look like a lesser thing. */
   a.ghost{display:inline-flex;align-items:center;text-decoration:none}
@@ -316,6 +368,11 @@
   .prompt{font-size:17px;margin-bottom:10px}
   .prompt .blank{color:var(--accent);font-weight:700}
   .hint{font-size:12px;color:var(--muted)}
+  /* The paragraph that explains a control, as opposed to `.hint`, which
+     annotates one. Louder than a hint because it is meant to be read once and
+     understood, quieter than body text because it is not the content. */
+  .note{font-size:13px;line-height:1.6;color:var(--muted);max-width:62ch}
+  .note b{color:var(--ink);font-weight:600}
   /* The instruction under a drill.
 
      It was one 12px grey run-on -- "protsent, osastav — процент · A2" -- with
@@ -347,6 +404,10 @@
     margin-top:var(--s2);background:var(--bg);cursor:pointer;display:flex;gap:var(--s3);
     align-items:baseline;justify-content:space-between;flex-wrap:wrap}
   .lib-item:hover{border-color:var(--accent)}
+  /* Indexed, never copied: HARNO's own tasks open on their site. Dashed, so
+     the list says which rows leave the app before one is clicked. */
+  .lib-item.external{border-style:dashed}
+  .lib-item.external .lib-meta{color:var(--accent)}
   a.lib-item{text-decoration:none;color:inherit}
   .lib-item h4{margin:0;font-size:14.5px;font-weight:600}
   .lib-meta{font-size:12px;color:var(--muted);white-space:nowrap}
@@ -785,14 +846,22 @@
     <div id="pathHead" class="banner" hidden></div>
     <div class="row">
       <button class="go" id="practiceBtn">Harjuta<span class="ru">тренировка</span></button>
-      <label>Teema <i class="ru">тема</i>
-        <select id="theme"><option value="">kõik sõnad</option></select>
+      <label>Sõnavara teema <i class="ru">на каких словах</i>
+        <select id="wordTheme"><option value="">kõik sõnad</option></select>
       </label>
       <span class="hint" id="pathScore"></span>
     </div>
+    <!-- Two axes, and the page never said there were two. `Rada` chooses the
+         rule; `Sõnavara teema` chooses the words the rule is drilled over. The
+         list below does not react to the select, which is correct and looked
+         broken. -->
+    <p class="note" id="themeNote"></p>
     <div id="practiceOut"></div>
-    <details id="pathAll" style="margin-top:var(--s5)">
-      <summary>Kogu rada</summary>
+    <details id="pathAll">
+      <summary>Kogu rada <i class="ru">все темы по порядку</i></summary>
+      <p class="note">Порядок правил, а не список упражнений: тема открывается,
+        когда пройдены те, на которых она стоит. Выбор <b>sõnavara teema</b>
+        выше на этот список не влияет — это разные вещи.</p>
       <div id="pathList"></div>
     </details>
   </section>
@@ -999,6 +1068,8 @@
           <option value="new">uued</option>
           <option value="learning">õpin</option>
           <option value="known">tean</option>
+          <option value="well_known">teadsin ammu</option>
+          <option value="ignored">eiran</option>
         </select>
       </label>
       <button id="vocBtn" class="primary">Näita<span class="ru">показать</span></button>
@@ -1011,7 +1082,7 @@
     </p>
     <div id="vocOut" aria-live="polite"></div>
     <div class="row" id="vocMore" hidden>
-      <button id="vocMoreBtn">Veel sõnu<span class="ru">ещё слова</span></button>
+      <button class="ghost" id="vocMoreBtn">Veel sõnu<span class="ru">ещё слова</span></button>
     </div>
   </section>
 
@@ -1030,9 +1101,17 @@
         </select>
       </label>
       <button class="go" id="loadLib">Lae tekstid<span class="ru">загрузить тексты</span></button>
-      <span class="hint" id="libCount"></span>
     </div>
+    <!-- Out of the control row on purpose. It sat inside it, and `.row` wraps,
+         so the count rendered to the right of the button when it was short
+         ("80 текстов") and dropped onto its own line when it was long ("25
+         текстов · Слова ещё не отмечены…"). The same number moved around the
+         screen depending on what it said. -->
+    <p class="hint" id="libCount"></p>
     <div id="libList"></div>
+    <div class="row" id="libMore" hidden>
+      <button class="ghost" id="libMoreBtn">Veel tekste<span class="ru">ещё тексты</span></button>
+    </div>
     <div id="reader" hidden>
       <div class="row" style="margin-top:var(--s4)">
         <button class="ghost" id="backToLib">← Nimekirja<span class="ru">к списку</span></button>
@@ -1777,6 +1856,52 @@ function renderDrill(d, i) {
 
 // ── the path ────────────────────────────────────────────────────────
 let pathTopic = null, pathAnswered = 0, pathCorrect = 0;
+/* id -> what /api/curriculum said about it. Kept so the Teema control can ask
+   whether the topic it is about to filter can be filtered at all. */
+let pathMeta = {};
+
+/* Does choosing a word theme change anything on the current topic?
+
+   Seven of the twenty-six drillable topics have no lemma to vary -- question
+   words, comparatives, ordinals, commas, word order, the rection table and
+   obj-case -- and the select was offered on all of them. Picking `Kodu ja
+   elamine` on `küsisõnad` produced exactly the same ten drills, with no error
+   and no note, which is indistinguishable from the app ignoring the click.
+
+   `themed` comes from `practice.theme_slot`, the same function the generator
+   dispatch reads, so this cannot promise a filter the drill will not apply. */
+function themeApplies() {
+  const meta = pathMeta[pathTopic];
+  // Unknown topic (a stale page, or before the first load) errs towards
+  // offering the control: a filter that silently does nothing is the bug being
+  // fixed, and a filter withheld from a topic that supports it is the same bug
+  // pointing the other way.
+  return !meta || meta.themed !== false;
+}
+
+/* The note under the row, and the state of the select itself. */
+function paintThemeNote() {
+  const sel = $("#wordTheme"), note = $("#themeNote");
+  if (!sel || !note) return;
+  const meta = pathMeta[pathTopic];
+  const name = meta ? meta.et : null;
+  if (themeApplies()) {
+    sel.disabled = false;
+    note.innerHTML = `<b>Rada</b> выбирает <b>правило</b>, а
+      <b>sõnavara teema</b> — <b>слова</b>, на которых это правило
+      отрабатывается. Оси независимые: список тем ниже от этого выбора не
+      меняется.`;
+  } else {
+    // Reset rather than leave a stale value behind a disabled control: a
+    // selection nothing reads is the same lie in a quieter form.
+    sel.value = "";
+    sel.disabled = true;
+    note.innerHTML = `У темы ${name ? "<b>" + esc(name) + "</b>" : "этой"}
+      нет слов, которые можно заменить — это закрытый список форм, а не
+      словарная тема. Выбор слов здесь ничего не изменил бы, поэтому он
+      выключен.`;
+  }
+}
 
 async function loadPath() {
   try {
@@ -1790,6 +1915,8 @@ async function loadPath() {
     $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
     $("#pathOf").textContent =
       `${p.mastered}/${p.total} тем${next ? " · " + next.level : ""}`;
+    p.topics.forEach(t => { pathMeta[t.id] = t; });
+    paintThemeNote();
 
     $("#pathList").innerHTML = p.topics.map(t => {
       /* Names, not ids — the API resolves them now. Kept tolerant of an older
@@ -1798,6 +1925,7 @@ async function loadPath() {
       const needs = t.blocked_by || [];
       const blocked = needs.length ? ` ← ${needs.join(", ")}` : "";
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
+      pathMeta[t.id] = t;
       const testOut = t.state === "ready" || t.state === "in progress"
         ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta <i class="ru">решать</i></button>` : "";
       return `<div class="topic ${t.state.replace(" ", "-")}">
@@ -1848,13 +1976,18 @@ async function loadStatus() {
 
 $("#pathList").addEventListener("click", e => {
   const b = e.target.closest("button[data-topic]");
-  if (b) { pathTopic = b.dataset.topic; $("#pathAll").open = false; startPractice(); }
+  if (b) {
+    pathTopic = b.dataset.topic;
+    $("#pathAll").open = false;
+    paintThemeNote();
+    startPractice();
+  }
 });
 
 async function loadThemes() {
   try {
     const {themes} = await (await api("/api/themes", null, "GET")).json();
-    $("#theme").innerHTML = '<option value="">kõik sõnad</option>' +
+    $("#wordTheme").innerHTML = '<option value="">kõik sõnad</option>' +
       themes.map(t => `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("");
   } catch {}
 }
@@ -1866,7 +1999,8 @@ async function startPractice() {
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;
-    const theme = $("#theme").value; if (theme) body.theme = theme;
+    const theme = themeApplies() ? $("#wordTheme").value : "";
+    if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
     if (!res.items.length) {
       // An empty topic is still a topic. The 13 with no generator carry an EKK
@@ -1876,10 +2010,27 @@ async function startPractice() {
       if (res.reference && res.reference.known)
         msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
       out.innerHTML = msg + `</div>`;
+      /* Measured across the whole grid: 31 of 198 topic x theme pairs return
+         fewer than three items and 6 return none, because a corpus cloze needs
+         a sentence *containing* a theme noun, which is far rarer than the noun
+         existing. The learner picked a legitimate combination and hit a dead
+         end; the way out is one click, so it is a button and not a sentence. */
+      if (res.theme_emptied) {
+        const again = document.createElement("button");
+        again.className = "ghost";
+        again.innerHTML = 'Proovi ilma teemata<span class="ru">без темы</span>';
+        again.onclick = () => { $("#wordTheme").value = ""; startPractice(); };
+        out.appendChild(again);
+      }
       return;
     }
     pathTopic = res.topic;
+    paintThemeNote();
     let head = `<div class="banner"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
+    /* A short set is not a broken one, but it is not the ten that were asked
+       for either, and silence there reads as "this topic only has three". */
+    if (res.theme && res.items.length < 10)
+      head += ` · <span class="hint">по этой теме нашлось ${res.items.length}</span>`;
     if (res.reference && res.reference.known)
       head += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
     head += `</div>`;
@@ -2418,9 +2569,14 @@ $("#checkpointBtn").onclick = runCheckpoint;
    used to be sent as `level`; when the two scales were separated into their own
    columns this select went on sending the old one and quietly returned zero
    texts for every difficulty. */
-async function loadLibrary() {
+/* How many rows are already on screen, so `Veel tekste` asks for the next
+   page rather than the same one. Reset by every fresh load. */
+let libShown = 0;
+
+async function loadLibrary(append = false) {
   const choice = $("#readLevel").value;
-  const list = $("#libList"); list.innerHTML = "";
+  const list = $("#libList");
+  if (!append) { list.innerHTML = ""; libShown = 0; }
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
@@ -2439,6 +2595,7 @@ async function loadLibrary() {
   try {
     let items, note = "";
     let measured = true;
+    let total = null, more = false;
     if (choice === "soovitatud") {
       const d = await ask("/api/reading/next?limit=25");
       items = d.items;
@@ -2450,38 +2607,61 @@ async function loadLibrary() {
         ? `${d.known_words} слов знакомо`
         : "Слова ещё не отмечены — показаны самые простые тексты.";
     } else {
-      const q = new URLSearchParams({skill: "lugemine", limit: "80"});
+      const q = new URLSearchParams({
+        skill: "lugemine", limit: "80", offset: String(libShown)});
       if (choice) q.set("band", choice);
-      items = (await ask("/api/library?" + q)).items;
+      const d = await ask("/api/library?" + q);
+      items = d.items;
+      total = d.total;
+      more = libShown + items.length < d.total;
     }
+    libShown += items.length;
 
-    $("#libCount").textContent =
-      `${items.length} текстов${note ? " · " + note : ""}`;
-    if (!items.length) {
+    /* The number said `items.length`, which is the page size and not the
+       library size: 80 came back against 349 indexed, so the screen read "80
+       текстов" and the other 269 could not be reached at all. `total` comes
+       from the server counting the same filter it selected on. */
+    $("#libCount").textContent = total != null && total > libShown
+      ? `показано ${libShown} из ${total}${note ? " · " + note : ""}`
+      : `${libShown} текстов${note ? " · " + note : ""}`;
+    $("#libMore").hidden = !more;
+    if (!items.length && !append) {
       list.innerHTML = `<p class="empty">Текстов нет. Запусти
         <code>cli harvest-reading</code>.</p>`;
       return;
     }
     for (const it of items) {
       const el = document.createElement("div");
-      el.className = "lib-item";
+      el.className = "lib-item" + (it.external ? " external" : "");
       // Coverage only appears where it was actually computed. Showing "0 %"
       // for a list that never measured it would read as "you know nothing".
       const cover = (measured && it.coverage !== undefined)
         ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
       const size = it.words !== undefined ? `${it.words} слов`
         : (it.total !== undefined ? `${it.total} слов` : "");
-      el.innerHTML = `<h4>${esc(it.title)}</h4>
-        <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
-          it.audio_url ? " · ♪" : ""}${cover}</span>`;
-      el.onclick = () => openItem(it.id);
+      /* HARNO's own tasks are indexed, never copied -- their `body` is empty
+         by licence and a test asserts it. The list rendered them like any
+         other text, so "Lugemine 1 (A2-tase)" advertised **0 слов** and opened
+         a reader on nothing. The API has said `external` and carried the url
+         since it was written; the page had never read either. */
+      if (it.external) {
+        el.innerHTML = `<h4>${esc(it.title)}</h4>
+          <span class="lib-meta">HARNO · задание на сайте экзамена ↗</span>`;
+        el.onclick = () => window.open(it.url, "_blank", "noopener");
+      } else {
+        el.innerHTML = `<h4>${esc(it.title)}</h4>
+          <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
+            it.audio_url ? " · ♪" : ""}${cover}</span>`;
+        el.onclick = () => openItem(it.id);
+      }
       list.appendChild(el);
     }
   } catch (e) {
     list.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 }
-$("#loadLib").onclick = loadLibrary;
+$("#loadLib").onclick = () => loadLibrary(false);
+$("#libMoreBtn").onclick = () => loadLibrary(true);
 $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
 
 async function openItem(id) {
@@ -2754,7 +2934,13 @@ const RU = {
      the raw word `mastered`, and one in flight rendered `in progress`.
      `tests/test_path_states.py` now checks the two lists against each
      other in both directions. */
-  "reference": "справка", "ready": "можно", "locked": "закрыто",
+  /* Each answers "can I do this now, and if not, why not?". The first set
+     answered a different question and two of them answered none: `можно` said
+     permission where the learner wanted to know what to press, and `закрыто`
+     said a door was shut without saying that it opens by itself once the
+     topics it names are done. `справка` read as a help page rather than as a
+     rule with no exercises behind it. */
+  "reference": "теория", "ready": "открыто", "locked": "откроется позже",
   "in progress": "в работе", "mastered": "пройдено",
 };
 
