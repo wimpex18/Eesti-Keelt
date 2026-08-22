@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -347,6 +348,41 @@ def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarP
     ]
 
 
+#: A machine-readable error identifier — `model_decommissioned`,
+#: `invalid_api_key`, `rate_limit_exceeded`. Deliberately narrow: no spaces, no
+#: capitals, no non-ASCII, and short. A learner's sentence cannot take this
+#: shape, which is what makes reading this one field compatible with the rule
+#: below that a response body never reaches the note.
+_ERROR_CODE = re.compile(r"^[a-z][a-z0-9_.-]{2,39}$")
+
+
+def _error_code(exc: urllib.error.HTTPError) -> str:
+    """The provider's own name for the failure, or "" if it did not give one.
+
+    Every OpenAI-compatible provider in the chain answers a 4xx with
+    `{"error": {"code": ..., "type": ...}}`, and that identifier is the
+    difference between a status code and an instruction. Anything that is not
+    such an identifier — prose, HTML from a proxy sitting in front of the API, a
+    body that echoes the request — fails the pattern and is dropped rather than
+    trimmed, because a truncated sentence is still a sentence.
+
+    Reading is capped and never raises: this runs on the failure path, and an
+    error while explaining an error would replace a useful note with none.
+    """
+    try:
+        body = json.loads(exc.read(4096) or b"{}")
+        error = body.get("error")
+        if not isinstance(error, dict):
+            return ""
+        for key in ("code", "type"):
+            value = error.get(key)
+            if isinstance(value, str) and _ERROR_CODE.match(value):
+                return value
+    except Exception:
+        pass
+    return ""
+
+
 def _why(exc: BaseException) -> str:
     """Name a failure precisely enough to act on it.
 
@@ -356,12 +392,22 @@ def _why(exc: BaseException) -> str:
     identically. A live deployment reported `llm:openrouter: HTTPError` and
     nothing in the note could say which of the three it was.
 
-    The status code only. Never a response body: the note is printed into CI
-    logs, and a provider that echoes the request on error would put the
-    learner's own sentence there.
+    The status code was that fix, and it was the same fix one level too shallow.
+    On 2026-08-22 a freshly-set Groq key reported `HTTPError 403` on its first
+    call. 403 is *permissions*, so the diagnosis went to the key — and the key
+    was fine: the pinned model id had been deprecated for free accounts six days
+    earlier, and a withdrawn id that enterprise accounts still hold does not
+    404, it forbids. The provider had named the cause in its body, and the note
+    dropped it, so the answer came from a web search instead of from the run
+    that hit it.
+
+    Never a response *body*: the note is printed into CI logs, and the text
+    being checked is the learner's own writing. `_error_code` reads one field
+    and only when it is an identifier, which is a shape prose cannot take.
     """
     if isinstance(exc, urllib.error.HTTPError):
-        return f"HTTPError {exc.code}"
+        code = _error_code(exc)
+        return f"HTTPError {exc.code} ({code})" if code else f"HTTPError {exc.code}"
     return type(exc).__name__
 
 

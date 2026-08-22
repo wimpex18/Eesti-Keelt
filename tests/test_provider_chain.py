@@ -19,12 +19,13 @@ abandoned; `PROVIDER_TIMEOUT` is 5 s for exactly that reason.
 from __future__ import annotations
 
 import io
+import io
 import urllib.error
 
 import pytest
 
 from eesti.config import PROVIDER_TIMEOUT
-from eesti.providers import breaker
+from eesti.providers import breaker, grammar
 from eesti.providers.grammar import Correction, GrammarResult, check
 
 
@@ -312,3 +313,82 @@ class TestTheBreakerSurvivesTheProcess:
             breaker.record_failure("tartunlp")
         assert breaker.is_open("tartunlp")
         breaker.bind(None)
+
+
+class TestWhatTheNoteSays:
+    """The note is the only channel between a failing provider and the operator.
+
+    It has now been widened twice for the same reason. First `HTTPError` alone
+    could not distinguish "wait" from "replace the key"; the status code fixed
+    that. Then `HTTPError 403` sent a diagnosis at a key that was fine, because
+    the real cause was a model id deprecated six days earlier — and the provider
+    had named it, in a field the note dropped.
+
+    The constraint that shaped the fix: the note is printed into CI logs, and
+    the text being checked is the learner's own writing.
+    """
+
+    @staticmethod
+    def _http(code: int, body: bytes | None):
+        return urllib.error.HTTPError(
+            "https://api.groq.com/openai/v1/chat/completions", code, "Forbidden",
+            {}, io.BytesIO(body) if body is not None else None)
+
+    def test_the_providers_own_error_name_reaches_the_note(self):
+        """The 403 this was written for: valid key, withdrawn model."""
+        exc = self._http(403, b'{"error":{"code":"model_decommissioned",'
+                              b'"message":"llama-3.3-70b-versatile has been '
+                              b'decommissioned"}}')
+        assert grammar._why(exc) == "HTTPError 403 (model_decommissioned)"
+
+    def test_type_is_read_when_there_is_no_code(self):
+        """Providers disagree about which field carries the identifier."""
+        exc = self._http(401, b'{"error":{"type":"invalid_api_key"}}')
+        assert grammar._why(exc) == "HTTPError 401 (invalid_api_key)"
+
+    def test_the_learners_sentence_cannot_reach_the_note(self):
+        """The whole reason bodies were banned. Prose has spaces, capitals and
+        non-ASCII; an identifier has none of them."""
+        exc = self._http(400, '{"error":{"code":"Ma lugesin raamatut läbi.",'
+                              '"message":"Ma lugesin raamatut läbi."}}'
+                              .encode())
+        assert grammar._why(exc) == "HTTPError 400"
+
+    def test_html_from_something_in_front_of_the_api_is_dropped(self):
+        """A proxy 403 is not a provider 403, and its body is a whole page."""
+        exc = self._http(403, b"<!DOCTYPE html><title>Attention Required</title>")
+        assert grammar._why(exc) == "HTTPError 403"
+
+    def test_no_body_at_all_still_names_the_status(self):
+        """`fp` is None on a synthesised error and on some proxies. Explaining a
+        failure must never fail."""
+        assert grammar._why(self._http(500, None)) == "HTTPError 500"
+
+    def test_a_non_http_failure_is_unchanged(self):
+        assert grammar._why(TimeoutError()) == "TimeoutError"
+
+    def test_the_note_carries_it_through_the_chain(self):
+        """The unit above is only useful if `check` still puts it in the note —
+        this project has shipped a correct function nothing called."""
+        exc = self._http(403, b'{"error":{"code":"model_decommissioned"}}')
+        got = check("tekst", [Provider("llm:groq", fails=exc),
+                              Provider("vabamorf", answer=[])])
+        assert "llm:groq: HTTPError 403 (model_decommissioned)" in got.note
+
+
+class TestThePinnedModels:
+    """Rule 1 of `llm.py`: never pin a model id without probing it.
+
+    The rule was written down and then broken by the file that states it. A test
+    cannot probe a catalogue without a key, so it checks the one thing it can:
+    that no id withdrawn on a date already known is still pinned here.
+    """
+
+    def test_no_provider_pins_a_model_known_to_be_withdrawn(self):
+        from eesti.providers.llm import PROVIDERS
+
+        # Announced deprecated by Groq for free and developer tiers on
+        # 2026-08-16; observed live as HTTPError 403 on 2026-08-22.
+        withdrawn = {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}
+        pinned = {p.name: p.default_model for p in PROVIDERS.values()}
+        assert not (set(pinned.values()) & withdrawn), pinned
