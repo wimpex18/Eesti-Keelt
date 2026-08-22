@@ -131,3 +131,66 @@ class TestFrequencyBands:
         ).fetchone()[0]
         set_status(vocab, word, IGNORED)
         assert band_progress(vocab, words)[0]["known"] == 0
+
+
+class TestEveryRungOnTheLadderCanBeReached:
+    """A status nothing can set is a status that does not exist.
+
+    `FAMILIAR` (3, `tuttav`) sat in `STATUS_NAMES` between "met it" and "know
+    it" with **no writer anywhere**: no endpoint set it, no encounter produced
+    it, and the store held zero rows at that value. Its one reader was an
+    `in (LEARNING, FAMILIAR)` whose second term could never be true, so nothing
+    misbehaved and nothing pointed at it.
+
+    Same shape as the measurement with no writer, the endpoint with no caller,
+    `[data-theme]` with nothing setting it, and `kind="vocab"` that no code
+    produced — four found in four sprints, which is why this one is a test
+    rather than a note.
+    """
+
+    #: How each rung is reached. `LEARNING` comes from meeting a word while
+    #: reading; the settled three are choices the learner makes on the card.
+    WRITERS = {
+        "LEARNING": "record_encounter",
+        "KNOWN": "set_status",
+        "IGNORED": "set_status",
+        "WELL_KNOWN": "set_status",
+    }
+
+    def test_every_named_status_has_a_way_in(self):
+        from eesti import vocab
+
+        named = {name for name, value in vars(vocab).items()
+                 if name.isupper() and isinstance(value, int)
+                 and value in vocab.STATUS_NAMES}
+        assert named == set(self.WRITERS), (
+            "a rung was added or removed without saying how it is reached: "
+            f"{sorted(named ^ set(self.WRITERS))}")
+
+    def test_the_writers_exist(self):
+        from eesti import vocab
+
+        for rung, writer in self.WRITERS.items():
+            assert hasattr(vocab, writer), f"{rung} names a writer that is gone"
+
+    def test_each_one_round_trips_through_its_writer(self, tmp_path):
+        """The check that matters: not that a name exists, but that setting it
+        and reading it back gives the value asked for."""
+        from eesti import vocab
+
+        conn = vocab.connect(tmp_path / "vocab.db")
+        vocab.record_encounter(conn, ["kohtuma"])
+        assert vocab.statuses(conn, ["kohtuma"])["kohtuma"] == vocab.LEARNING
+
+        for value in (vocab.KNOWN, vocab.IGNORED, vocab.WELL_KNOWN):
+            vocab.set_status(conn, "kohtuma", value)
+            assert vocab.statuses(conn, ["kohtuma"])["kohtuma"] == value
+
+    def test_a_settled_word_is_one_the_app_stops_proposing(self):
+        """`SETTLED` is the boundary the whole ladder exists to draw, and the
+        code reads it as a threshold rather than by equality."""
+        from eesti import vocab
+
+        assert vocab.SETTLED == {vocab.KNOWN, vocab.IGNORED, vocab.WELL_KNOWN}
+        assert all(v >= vocab.KNOWN for v in vocab.SETTLED)
+        assert vocab.LEARNING < vocab.KNOWN

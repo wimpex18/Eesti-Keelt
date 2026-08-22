@@ -687,3 +687,30 @@ in Cloud Shell and discover the project, service and region themselves.
   disabled itself and was never re-enabled. Refusal paths get the same
   scrutiny as success paths: they are more likely to be read closely, because
   something has just not worked.
+- **A value nothing can produce is the bug this repo keeps having.** Four in
+  four sprints, each in a different disguise: a measurement with no writer, an
+  endpoint with no caller, `[data-theme]` read by the stylesheet and set by
+  nothing, `kind="vocab"` declared in a schema and never inserted, and now
+  `FAMILIAR` — a rung on the vocabulary ladder with no writer, no stored rows,
+  and one reader that ORed it with a value that *is* written. None of them
+  broke anything, which is the whole difficulty: the other branch keeps
+  working, so the feature looks finished. The general check is cheap and now
+  exists for the ladder — assert every named value round-trips through a named
+  writer. Worth doing for any enumeration before adding to it.
+- **The section that says what is missing goes stale fastest, and it is the one
+  that steers the next session.** `docs/status.md`'s "What a learner still
+  cannot do" listed three gaps; all three were built within a day and the
+  section stayed as written for a further sprint. A fresh session reading it
+  would have rebuilt `Sõnavara` — reasonably, and for nothing. Delete an entry
+  the moment it ships, and check the section against the code before trusting
+  it, the same way a claim about privacy or provenance gets pinned with a test.
+- **A cheap check that reports on configuration must not be worded like a
+  check on behaviour.** `grammar explains ........ OK` printed in the same
+  smoke run where the deep check reported `vabamorf-offline` and
+  `llm:openrouter: HTTPError 429`. `/api/engines` reads configuration and says
+  so in its own docstring — a provider whose free tier is spent still answers
+  `can_explain: true`. The earlier fix here was grep-versus-jq, which was a
+  real and different bug; this one is the wording. Two checks in one run
+  contradicting each other has already cost a debugging round chasing a Cloud
+  Run traffic split that did not exist. Name what was verified: "configured
+  (live call unproven)".

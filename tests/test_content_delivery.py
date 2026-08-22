@@ -20,6 +20,8 @@ from __future__ import annotations
 import base64
 from pathlib import Path
 
+import argparse
+
 import pytest
 
 pytest.importorskip("httpx", reason="TestClient needs httpx")
@@ -205,3 +207,67 @@ class TestThePushScriptFailsBeforeSpendingAMegabyte:
                 "/api/health", headers={"x-proxy-token": "correct"}).status_code == 200
         finally:
             os.environ.pop("PROXY_TOKEN", None)
+
+
+class TestThePushWarnsAboutAnUnlinkedCorpus:
+    """`topic_items` is the join, and nothing fills it on its own.
+
+    `library.related()` reads it and `/api/practice` returns the result as the
+    `reading` beside every drill — "the join that makes practice and the
+    reading library one tool", in that endpoint's own words. The only thing
+    that writes it is `cli link-topics`, run by hand: no harvest calls it, no
+    deploy step calls it. So a freshly harvested corpus pushes with the table
+    empty and every drill offers nothing to read, silently.
+
+    Found with the table at **0 rows** locally against 349 items, which is
+    exactly the shape the item-count check on the line above was added to
+    catch — applied to one table and not to the other.
+    """
+
+    def _corpus(self, tmp_path, *, links: int):
+        """Built by the app's own opener, like `conftest._build_content`.
+
+        Three hand-written INSERTs here failed on three different NOT NULL
+        columns in a row — `sources.kind`, then `items.added_on` — which is the
+        drift that docstring warns about, reproduced immediately.
+        """
+        from eesti.sources import Item, add_items, connect, register
+
+        path = tmp_path / "content.db"
+        conn = connect(path)
+        register(conn)
+        add_items(conn, [Item(source_id="selges-keeles", skill="lugemine",
+                              title="Tekst", body="sõna sõna", level=None,
+                              band="keskmine", meta={})])
+        item_id = conn.execute("SELECT id FROM items").fetchone()[0]
+        for n in range(links):
+            conn.execute("INSERT INTO topic_items (topic, item_id, hits) "
+                         "VALUES (?, ?, 1)", (f"topic{n}", item_id))
+        conn.commit()
+        conn.close()
+        return path
+
+    def _push(self, tmp_path, monkeypatch, *, links: int, capsys):
+        from eesti import cli
+
+        monkeypatch.setenv("STATE_TOKEN", "t")
+        monkeypatch.setenv("PROXY_TOKEN", "p")
+        path = self._corpus(tmp_path, links=links)
+        args = argparse.Namespace(database=str(path), url=None)
+        # Stop before the upload: what is under test is the check, not the POST.
+        monkeypatch.setattr(
+            cli, "_post_content", lambda *a, **k: 0, raising=False)
+        try:
+            cli.cmd_push_content(args)
+        except Exception:
+            pass
+        return capsys.readouterr().out
+
+    def test_it_says_so_when_nothing_is_linked(self, tmp_path, monkeypatch, capsys):
+        out = self._push(tmp_path, monkeypatch, links=0, capsys=capsys)
+        assert "no topic links" in out, out
+        assert "link-topics" in out, "the warning must name the fix"
+
+    def test_it_stays_quiet_when_the_corpus_is_linked(self, tmp_path, monkeypatch, capsys):
+        out = self._push(tmp_path, monkeypatch, links=3, capsys=capsys)
+        assert "no topic links" not in out, out

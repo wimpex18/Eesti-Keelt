@@ -25,11 +25,28 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-UNKNOWN, LEARNING, FAMILIAR, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 3, 5, 98, 99
+# Four rungs, not five. `FAMILIAR` (3, `tuttav`) sat between "met it" and
+# "know it" and **nothing ever wrote it**: no endpoint set it, no encounter
+# produced it, and the vocabulary store held zero rows at that value. Its only
+# reader was `coverage`, in an `in (LEARNING, FAMILIAR)` where the second term
+# could never be true.
+#
+# The question this settles -- "are five statuses four too many?" -- turned out
+# to be the wrong shape. The code never compares a status to five values; it
+# uses two thresholds, `>= 1` for *met* in `difficulty` and `>= 5` for
+# *settled* in the vocabulary list, so the number of named rungs costs nothing
+# structurally. What LingQ's users complain about is being made to *choose*
+# among four, and here the learner only ever chooses among the three settled
+# ones -- `LEARNING` is assigned by meeting a word, not by judging it.
+#
+# So the three settled values stay: "I know this", "I knew this long ago" and
+# "this is not for me" are different facts, they are cheap, and each has an
+# input path. `FAMILIAR` went because it encoded nothing, not because five was
+# one too many.
+UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 5, 98, 99
 
 STATUS_NAMES = {
     LEARNING: "õpin",
-    FAMILIAR: "tuttav",
     KNOWN: "tean",
     IGNORED: "eiran",
     WELL_KNOWN: "teadsin ammu",
@@ -139,7 +156,7 @@ def coverage(conn: sqlite3.Connection, lemmas: list[str]) -> dict:
     by_lemma = statuses(conn, unique)
     counted = [w for w in unique if by_lemma[w] != IGNORED]
     known = [w for w in counted if by_lemma[w] in (KNOWN, WELL_KNOWN)]
-    learning = [w for w in counted if by_lemma[w] in (LEARNING, FAMILIAR)]
+    learning = [w for w in counted if by_lemma[w] == LEARNING]
 
     return {
         "total": len(counted),
@@ -295,7 +312,7 @@ def browse(
     if status is not None:
         wanted = {
             "new": {UNKNOWN},
-            "learning": {LEARNING, FAMILIAR},
+            "learning": {LEARNING},
             "known": {KNOWN, WELL_KNOWN},
         }.get(status)
         if wanted is None:

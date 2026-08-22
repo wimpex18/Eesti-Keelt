@@ -1284,9 +1284,26 @@ def cmd_push_content(args: argparse.Namespace) -> int:
 
     with content_connect(path) as conn:
         items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+        links = conn.execute("SELECT COUNT(*) FROM topic_items").fetchone()[0]
     if not items:
         print(f"{path} holds no items. Nothing to push.")
         return 2
+    # The same "count the rows" check the line above makes, applied to the
+    # other table that has to be populated for the corpus to do its job.
+    #
+    # `topic_items` is what `library.related()` reads, and `/api/practice`
+    # returns it as the `reading` beside every drill -- "the join that makes
+    # practice and the reading library one tool". Nothing fills it except
+    # `cli link-topics`, run by hand: no harvest calls it and no deploy step
+    # does, so a freshly harvested corpus pushes with the table empty, the
+    # drill's `reading` list comes back `[]`, and nothing anywhere says why.
+    #
+    # A warning and not a refusal: the texts are worth serving on their own,
+    # and a corpus whose linking genuinely found nothing is a legitimate state.
+    if not links:
+        print(f"  WARNING: {path} has {items} items but no topic links, so no "
+              "drill will offer anything to read.\n"
+              "           Run `python -m eesti.cli link-topics` and push again.")
 
     payload = json.dumps(
         {"database": base64.b64encode(path.read_bytes()).decode("ascii")}

@@ -623,11 +623,6 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
     }
 
 
-def library_for_topic(topic: str, limit: int = 5) -> dict:
-    """Reading that demonstrates one grammar topic, strongest first."""
-    return {"topic": topic, "items": reading_for(topic, limit=limit)}
-
-
 def grammar_rules() -> dict:
     """Every rule the app drills, linked to its section in the EKK handbook.
 

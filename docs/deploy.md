@@ -173,6 +173,30 @@ log — a whole chain inert because a credential was one hop from the process th
 needed it. And it was the worse half of the trade: all the exposure of holding a
 key, none of the benefit.
 
+### Every `deploy/` script runs from a clone
+
+Cloud Shell arrives signed in, with `gcloud` and `openssl` — and without this
+repository. Its home directory is also reclaimed after a long enough gap, so a
+clone made months ago may not be there now. That makes the first command of a
+session `git`, not `bash`: run from the home directory, the instruction below
+answers
+
+```
+bash: deploy/set-llm-key.sh: No such file or directory
+```
+
+which reads like a missing script and is a missing checkout.
+
+```bash
+cd ~
+git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || true
+cd Eesti-Keelt && git pull
+```
+
+Both lines are safe to re-run, and the `git pull` matters as much as the clone:
+the scripts read their allowed key names out of `eesti/env.py`, so a stale
+checkout refuses a key the current app knows about.
+
 Set it where it belongs, without it touching your shell history:
 
 ```bash
@@ -194,6 +218,64 @@ bash deploy/set-llm-key.sh NOTION_TOKEN
 `NOTION_TOKEN` is what lets confirmed corrections actually reach the `Vead`
 database. Without it they queue in the app and the send button says so rather
 than failing when pressed.
+
+### Set a second grammar key. One is not enough.
+
+Measured on 2026-08-22 with the deep smoke check: the live chain answered
+`vabamorf-offline`, because `llm:openrouter` returned **HTTPError 429** and
+`groq`, `workers-ai` and `anthropic` were all `unavailable` — no key at all.
+
+So the chain is built for redundancy across five providers and has none. One
+50-a-day free tier is the entire grammar checker, and when it is spent every
+writing check drops to offline mode: object-case candidates and typos, no
+explanations, and no "log it" button, so nothing reaches the error log either.
+A 429 recovers on its own; what does not recover on its own is having nowhere
+to fall back to.
+
+**Groq is the one to add.** Free, no card, and a free tier of roughly 100
+requests a day per model — about double OpenRouter's, and spent independently,
+so the two are unlikely to run out on the same afternoon.
+
+1. Sign in at **`console.groq.com`** with Google or GitHub.
+2. Open **API Keys** (`console.groq.com/keys`) and create one. Copy it: the
+   value is shown once.
+3. In **Google Cloud Shell**, from the clone — see *Every `deploy/` script
+   runs from a clone* above if it is not there:
+
+   ```bash
+   bash deploy/set-llm-key.sh GROQ_API_KEY
+   ```
+
+   The input is hidden, so the key never reaches your shell history or the
+   process table, and the script reads the variable's name back off the service
+   afterwards rather than assuming the write worked.
+4. Confirm by running the **smoke** workflow with `deep: true`, and read the
+   deep line rather than the cheap one — see below.
+
+**Why not Cloudflare Workers AI**, given the Worker already uses it: the Worker
+reaches it through an `AI` *binding*, which needs no token. The container
+cannot see that binding and would need REST access — a token *and*
+`CLOUDFLARE_ACCOUNT_ID`, so two variables and a permissions screen against
+Groq's one. Worth having as a third key, not as the second.
+
+`HF_TOKEN` is a different kind of bet: the only hosted route to EstLLM, an
+Estonian-adapted Llama that may explain Estonian better than a general free
+model. Small free tier, and a model may need a warm-up request. Add it for
+quality, not for redundancy.
+
+### The cheap check cannot tell you the key works
+
+`grammar explains ........ configured` means exactly that: `/api/engines` reads
+configuration and calls nobody, so a provider whose quota is spent still
+reports `can_explain: true`.
+
+Only the deep check proves the chain answers, because only it sends a sentence.
+Run the **smoke** workflow with **`deep: true`**. It costs one request of the
+free tier, which is why it is opt-in.
+
+This mattered once: the cheap line printed `OK` in the same run where the deep
+line reported `vabamorf-offline`, and two checks contradicting each other sent
+somebody looking for a Cloud Run traffic split that did not exist.
 
 To ask what a deployment is currently configured with, changing nothing:
 

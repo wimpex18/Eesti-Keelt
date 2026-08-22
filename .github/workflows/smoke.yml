@@ -156,7 +156,20 @@ jobs:
           --region REGION --to-latest"
             fail=1
           elif [ "$yes_n" = 5 ]; then
-            echo "grammar explains ........ OK"
+            # "configured", not "OK". `/api/engines` says so itself --
+            # "configuration only, nothing here calls a provider" -- so a
+            # provider whose free tier is spent still answers `can_explain:
+            # true` and still cannot explain anything.
+            #
+            # This check printed OK in the same run where the deep check below
+            # reported `vabamorf-offline` and `llm:openrouter: HTTPError 429`.
+            # The two contradicting each other has already cost one debugging
+            # round, chasing a Cloud Run traffic split that did not exist; the
+            # fix then was to read `can_explain` with jq instead of grepping a
+            # per-engine field, which was a real bug and not this one. Naming
+            # what was actually verified is what stops it recurring.
+            echo "grammar explains ........ configured (live call unproven \
+          — re-run with deep:true to send one sentence through)"
           else
             echo "::warning::No engine can explain a correction — the grammar \
           checker is in offline mode. Run deploy/set-llm-key.sh."
