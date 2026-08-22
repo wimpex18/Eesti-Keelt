@@ -24,16 +24,8 @@ import re
 
 import pytest
 
-from fastapi.testclient import TestClient
-
-from eesti.app import app
 from eesti.curriculum import TOPICS, by_id
 from eesti.practice import THEME_SLOTS, theme_slot
-
-
-@pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
 
 
 @pytest.fixture(scope="module")
@@ -129,3 +121,57 @@ class TestThePageActsOnIt:
         select?". The answer is no, and nothing said so."""
         assert 'id="themeNote"' in page
         assert "Kogu rada" in page
+
+
+class TestTheDeadEnd:
+    """A legitimate choice that leads nowhere, measured rather than guessed.
+
+    Across the whole grid — 18 themed topics by 11 themes — **31 of 198 pairs
+    return fewer than three items and 6 return none**. A corpus cloze needs a
+    sentence *containing* a theme noun, which is far rarer than the noun
+    existing, so the corpus topics are worst: `mitmus × kodu`, `mitmus × ilm`,
+    `kohakaanded × riided` all come back empty.
+
+    The learner was told "Генератор «corpus_cloze» ничего не вернул" — which is
+    untrue and, worse, unactionable. The generator is fine. The way out is one
+    click, so it is a button.
+    """
+
+    def test_the_grid_still_has_dead_ends(self):
+        """If this ever stops being true the message below is dead code, and a
+        message nobody can reach is the thing this file exists to catch."""
+        from eesti.practice import items_for
+
+        empty = 0
+        for topic, theme in (("mitmus", "kodu"), ("mitmus", "ilm"),
+                             ("kohakaanded", "riided")):
+            if not items_for(topic, count=10, seed=1, theme=theme):
+                empty += 1
+        assert empty, "no dead end left — the retry path is unreachable"
+
+    def test_an_emptied_theme_is_not_reported_as_a_broken_generator(self, client):
+        body = client.post("/api/practice",
+                           json={"topic": "mitmus", "theme": "kodu", "count": 10}).json()
+        if body["items"]:
+            pytest.skip("this pair is no longer empty on the fixture corpus")
+        assert body["theme_emptied"] is True
+        assert "генератор" not in (body["detail"] or "").lower()
+
+    def test_a_theme_that_worked_is_not_flagged(self, client):
+        body = client.post("/api/practice",
+                           json={"topic": "pohivormid", "count": 10}).json()
+        assert body["theme_emptied"] is False
+
+    def test_the_response_says_which_theme_was_applied(self, client):
+        """The page guards the control, but the contract must answer for
+        itself: a caller sending a theme to a closed-class topic had no way to
+        learn it had been dropped."""
+        dropped = client.post(
+            "/api/practice",
+            json={"topic": "kusisonad", "theme": "kodu", "count": 5}).json()
+        assert dropped["theme"] is None, "a dropped theme is reported as applied"
+
+    def test_the_page_offers_the_way_out(self, page):
+        assert "res.theme_emptied" in page
+        assert "Proovi ilma teemata" in page
+        assert '$("#wordTheme").value = ""' in page

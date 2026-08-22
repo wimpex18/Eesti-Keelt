@@ -1109,6 +1109,9 @@
          screen depending on what it said. -->
     <p class="hint" id="libCount"></p>
     <div id="libList"></div>
+    <div class="row" id="libMore" hidden>
+      <button class="ghost" id="libMoreBtn">Veel tekste<span class="ru">ещё тексты</span></button>
+    </div>
     <div id="reader" hidden>
       <div class="row" style="margin-top:var(--s4)">
         <button class="ghost" id="backToLib">← Nimekirja<span class="ru">к списку</span></button>
@@ -2007,11 +2010,27 @@ async function startPractice() {
       if (res.reference && res.reference.known)
         msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
       out.innerHTML = msg + `</div>`;
+      /* Measured across the whole grid: 31 of 198 topic x theme pairs return
+         fewer than three items and 6 return none, because a corpus cloze needs
+         a sentence *containing* a theme noun, which is far rarer than the noun
+         existing. The learner picked a legitimate combination and hit a dead
+         end; the way out is one click, so it is a button and not a sentence. */
+      if (res.theme_emptied) {
+        const again = document.createElement("button");
+        again.className = "ghost";
+        again.innerHTML = 'Proovi ilma teemata<span class="ru">без темы</span>';
+        again.onclick = () => { $("#wordTheme").value = ""; startPractice(); };
+        out.appendChild(again);
+      }
       return;
     }
     pathTopic = res.topic;
     paintThemeNote();
     let head = `<div class="banner"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
+    /* A short set is not a broken one, but it is not the ten that were asked
+       for either, and silence there reads as "this topic only has three". */
+    if (res.theme && res.items.length < 10)
+      head += ` · <span class="hint">по этой теме нашлось ${res.items.length}</span>`;
     if (res.reference && res.reference.known)
       head += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
     head += `</div>`;
@@ -2550,9 +2569,14 @@ $("#checkpointBtn").onclick = runCheckpoint;
    used to be sent as `level`; when the two scales were separated into their own
    columns this select went on sending the old one and quietly returned zero
    texts for every difficulty. */
-async function loadLibrary() {
+/* How many rows are already on screen, so `Veel tekste` asks for the next
+   page rather than the same one. Reset by every fresh load. */
+let libShown = 0;
+
+async function loadLibrary(append = false) {
   const choice = $("#readLevel").value;
-  const list = $("#libList"); list.innerHTML = "";
+  const list = $("#libList");
+  if (!append) { list.innerHTML = ""; libShown = 0; }
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
@@ -2571,6 +2595,7 @@ async function loadLibrary() {
   try {
     let items, note = "";
     let measured = true;
+    let total = null, more = false;
     if (choice === "soovitatud") {
       const d = await ask("/api/reading/next?limit=25");
       items = d.items;
@@ -2582,14 +2607,25 @@ async function loadLibrary() {
         ? `${d.known_words} слов знакомо`
         : "Слова ещё не отмечены — показаны самые простые тексты.";
     } else {
-      const q = new URLSearchParams({skill: "lugemine", limit: "80"});
+      const q = new URLSearchParams({
+        skill: "lugemine", limit: "80", offset: String(libShown)});
       if (choice) q.set("band", choice);
-      items = (await ask("/api/library?" + q)).items;
+      const d = await ask("/api/library?" + q);
+      items = d.items;
+      total = d.total;
+      more = libShown + items.length < d.total;
     }
+    libShown += items.length;
 
-    $("#libCount").textContent =
-      `${items.length} текстов${note ? " · " + note : ""}`;
-    if (!items.length) {
+    /* The number said `items.length`, which is the page size and not the
+       library size: 80 came back against 349 indexed, so the screen read "80
+       текстов" and the other 269 could not be reached at all. `total` comes
+       from the server counting the same filter it selected on. */
+    $("#libCount").textContent = total != null && total > libShown
+      ? `показано ${libShown} из ${total}${note ? " · " + note : ""}`
+      : `${libShown} текстов${note ? " · " + note : ""}`;
+    $("#libMore").hidden = !more;
+    if (!items.length && !append) {
       list.innerHTML = `<p class="empty">Текстов нет. Запусти
         <code>cli harvest-reading</code>.</p>`;
       return;
@@ -2624,7 +2660,8 @@ async function loadLibrary() {
     list.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 }
-$("#loadLib").onclick = loadLibrary;
+$("#loadLib").onclick = () => loadLibrary(false);
+$("#libMoreBtn").onclick = () => loadLibrary(true);
 $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidden = false; };
 
 async function openItem(id) {

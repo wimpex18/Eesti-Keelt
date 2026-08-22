@@ -212,3 +212,85 @@ class TestTheVocabularyFilters:
         table = source[source.index("wanted = {"):source.index("}.get(status)")]
         for rung in ("KNOWN", "IGNORED", "WELL_KNOWN", "LEARNING", "UNKNOWN"):
             assert rung in table, f"{rung} cannot be listed"
+
+
+class TestNoCountIsAPageSize:
+    """A page size wearing the clothes of a total.
+
+    The Lugemine tab said "80 текстов" against 349 indexed. 80 was the `limit`
+    it had asked for. There was no paging, so 269 texts — 77 % of the reading
+    library — could not be reached from the app at all, and nothing on screen
+    suggested there was more. Two lies in one number: the count was wrong and
+    the list was truncated.
+
+    `/api/reading/next` had the same cap one layer in: it ranked the first 120
+    rows, so 229 texts could never be recommended however well they fitted the
+    learner's vocabulary. That one defeats the endpoint's whole purpose —
+    ranking a fixed arbitrary subset by *this reader's* words is not ranking
+    the library by them. Scoring all 349 measured at 0.14 s against 0.05 s.
+    """
+
+    def test_the_page_asks_for_a_total_and_prints_it(self, page):
+        assert "d.total" in page
+        assert "показано" in page, "the count still claims to be a total"
+
+    def test_the_page_can_reach_the_rest(self, page):
+        assert 'id="libMoreBtn"' in page
+        assert "offset: String(libShown)" in page
+
+    def test_the_total_is_the_shelf_and_not_the_page(self, client):
+        """Compared against a direct count, not against `len(items)`.
+
+        `total >= len(items)` was the first version of this and it passed with
+        `"total": len(rows)` still in place — the defect it exists to catch.
+        A fixture small enough to fit in one page makes the two identical, so
+        the assertion has to name the other source of the number.
+        """
+        import sqlite3
+
+        from eesti import config, sources
+
+        conn = sqlite3.connect(config.CONTENT_DB)
+        conn.row_factory = sqlite3.Row
+        expected = sources.count(conn, skill="lugemine")
+
+        # Below the shelf size on purpose. Asked with a limit the fixture
+        # fits inside, `len(rows)` and the real count are the same number and
+        # nothing here can tell them apart -- which is how the first version of
+        # this test passed with `"total": len(rows)` still in the response.
+        assert expected > 2, "fixture shelf too small to distinguish page from total"
+        body = client.get("/api/library?skill=lugemine&limit=2").json()
+        assert body["limit"] == 2
+        assert len(body["items"]) == 2
+        assert body["total"] == expected > len(body["items"])
+
+    def test_offset_moves_the_window(self, client):
+        first = client.get("/api/library?skill=lugemine&limit=2").json()["items"]
+        second = client.get(
+            "/api/library?skill=lugemine&limit=2&offset=2").json()["items"]
+        assert len(first) == 2 and second, "fixture too small to page"
+        assert {i["id"] for i in first}.isdisjoint({i["id"] for i in second})
+
+    def test_the_count_and_the_rows_share_their_filters(self):
+        """A count built beside a query rather than from it is a number that
+        looks authoritative and answers a different question."""
+        import inspect
+
+        from eesti import sources
+
+        for fn in (sources.query, sources.count):
+            assert "_filters(" in inspect.getsource(fn), fn.__name__
+
+    def test_the_ranking_covers_the_whole_shelf(self):
+        """No literal cap: the number of rows scored comes from counting them."""
+        import inspect
+
+        from eesti.app import reading_next
+
+        code = "\n".join(
+            line for line in inspect.getsource(reading_next).splitlines()
+            if not line.lstrip().startswith("#"))
+        assert "section_count(conn, section)" in code
+        # Checked against the code with comments stripped, because the comment
+        # explaining the fix necessarily quotes the thing being forbidden.
+        assert "limit=120" not in code
