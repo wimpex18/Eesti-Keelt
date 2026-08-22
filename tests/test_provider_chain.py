@@ -348,16 +348,29 @@ class TestWhatTheNoteSays:
 
     def test_the_learners_sentence_cannot_reach_the_note(self):
         """The whole reason bodies were banned. Prose has spaces, capitals and
-        non-ASCII; an identifier has none of them."""
+        non-ASCII; an identifier has none of them.
+
+        The note says `no-code` rather than nothing, because "the provider gave
+        no identifier" and "there was no provider response to read" are
+        different facts. What matters here is unchanged and asserted twice
+        below: not one character of the sentence survives.
+        """
         exc = self._http(400, '{"error":{"code":"Ma lugesin raamatut läbi.",'
                               '"message":"Ma lugesin raamatut läbi."}}'
                               .encode())
-        assert grammar._why(exc) == "HTTPError 400"
+        note = grammar._why(exc)
+        assert note == "HTTPError 400 (no-code)"
+        assert "raamat" not in note and "lugesin" not in note
 
-    def test_html_from_something_in_front_of_the_api_is_dropped(self):
-        """A proxy 403 is not a provider 403, and its body is a whole page."""
+    def test_html_from_a_proxy_is_named_as_such_not_quoted(self):
+        """A proxy 403 is not a provider 403, and knowing which is the whole
+        diagnosis: one means fix the request, the other means the request never
+        arrived. The body is a whole HTML page, so none of it is repeated —
+        only the fact that it was not the provider's JSON."""
         exc = self._http(403, b"<!DOCTYPE html><title>Attention Required</title>")
-        assert grammar._why(exc) == "HTTPError 403"
+        note = grammar._why(exc)
+        assert note == "HTTPError 403 (non-json)"
+        assert "html" not in note.lower() and "Attention" not in note
 
     def test_no_body_at_all_still_names_the_status(self):
         """`fp` is None on a synthesised error and on some proxies. Explaining a

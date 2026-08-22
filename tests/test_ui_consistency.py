@@ -294,3 +294,34 @@ class TestNoCountIsAPageSize:
         # Checked against the code with comments stripped, because the comment
         # explaining the fix necessarily quotes the thing being forbidden.
         assert "limit=120" not in code
+
+
+class TestTheDeploymentMarker:
+    """The smoke check has to say which *code* is running, not when it built.
+
+    A merge landed at 16:10, the image stamp read 16:13, and the failure the
+    merge was supposed to fix was still there. Stale image, or fix live and
+    something else wrong? A timestamp cannot answer that, and `revision` is
+    null because the Cloud Build trigger passes no `BUILD_REV` — so the two
+    readings stayed open and an hour went into deciding which.
+
+    The marker is a behaviour only the newer code has. It has to keep matching
+    something the API actually returns, or it degrades into a warning that
+    fires forever.
+    """
+
+    @staticmethod
+    def _smoke() -> str:
+        return (PAGE.parents[2] / ".github" / "workflows" / "smoke.yml"
+                ).read_text(encoding="utf-8")
+
+    def test_the_smoke_check_reads_the_marker(self):
+        smoke = self._smoke()
+        assert len(smoke) > 2000, "smoke.yml not found — this test checks nothing"
+        assert 'has("total")' in smoke
+
+    def test_the_marker_is_a_field_the_api_still_returns(self, client):
+        """The half that rots. A marker naming a field that has since been
+        renamed reports every healthy deployment as stale."""
+        body = client.get("/api/library?skill=lugemine&limit=1").json()
+        assert "total" in body
