@@ -252,6 +252,28 @@ so the two are unlikely to run out on the same afternoon.
 4. Confirm by running the **smoke** workflow with `deep: true`, and read the
    deep line rather than the cheap one — see below.
 
+**If that run says `llm:groq: HTTPError 403`, the key is fine.** This happened
+on the first key ever set here, and 403 means *permissions*, so an hour went
+into the key before anything looked at the model. Groq deprecated the pinned id
+`llama-3.3-70b-versatile` for free and developer tiers on **2026-08-16**, six
+days earlier. A withdrawn id that enterprise accounts still hold does not 404 —
+the model exists, this account may not have it — so it forbids.
+
+The three cases are now told apart by the note itself, which reads the
+provider's own error name: `HTTPError 401 (invalid_api_key)` is a dead key,
+`HTTPError 429 (rate_limit_exceeded)` is a spent tier that recovers on its own,
+and `HTTPError 403 (model_decommissioned)` is a stale pin — a code change, not
+an operator action. If it is a stale pin and you want the app working before
+that lands, `GROQ_MODEL` on the Cloud Run service overrides the pin:
+
+```bash
+bash deploy/set-llm-key.sh GROQ_MODEL
+```
+
+Current ids are at `console.groq.com/docs/models`. Prefer one listed
+**production**; a **preview** id is documented as temporary and will do this
+again.
+
 **Why not Cloudflare Workers AI**, given the Worker already uses it: the Worker
 reaches it through an `AI` *binding*, which needs no token. The container
 cannot see that binding and would need REST access — a token *and*
