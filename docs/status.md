@@ -43,41 +43,41 @@ of those two routes to take is precisely what the readiness verdict is for.
 
 ## What a learner still cannot do
 
-Measured 2026-08-21 against the running app, not inferred from the code.
+Measured 2026-08-22 against the code, not inferred from the last time this
+section was written.
 
-### There is no way to browse vocabulary
+**This section listed three things on 2026-08-21 and all three were built
+within the day** — the vocabulary browser, the empty-topic message, and the
+service worker. It stayed as written for a further sprint, which means the one
+section a fresh session reads to decide what to build was describing an app
+three days out of date. Rebuilding `Sõnavara` from it would have been a
+reasonable thing to do and a complete waste. Check this section against the
+code before trusting it; better, delete an entry the moment it ships.
 
-`/api/lookup/{word}` and `/api/enrich/{word}` take a word you can already
-spell. Nothing answers *"show me the B1 nouns I have not met"* or *"show me the
-words for this topic"*. The data for it is all present and already paid for —
-160 316 words, CEFR tags on 9 951 of them, `vocab.db` recording every word the
-learner has met, and Russian glosses in the gloss store — and the word card
-that would display an entry is built and working. What is missing is the list:
-one endpoint that selects by level or topic, and a screen to show it.
+### The reading library is not joined to the practice
 
-This is the largest user-visible gap in the app. Every competitor named in the
-research has it, and it is the feature that turns a 160 000-word dataset into
-something a person can work through.
+`library.related()` selects the texts that demonstrate a grammar topic, and
+`/api/practice` returns them alongside the drill — "the join that makes
+practice and the reading library one tool", as the comment there says. It
+reads `topic_items`, and that table is **empty**: `cli link-topics` fills it
+and has not been run since the corpus was last rebuilt. The reader returns
+`[]`, the practice response carries an empty `reading` list, and nothing
+anywhere says so.
 
-### The 13 empty topics answer in English, pointing at a developer document
+Unknown on the deployment. The smoke check verifies `/api/library` *answers*;
+it does not count rows in the join, which is the same "presence of a database
+is not presence of data" mistake in a new place.
 
-Practising `tahestik` returns:
+### Only one grammar provider is actually configured
 
-    'tahestik' has no generator — see step 2 of docs/curriculum-plan.md
+The chain is built for redundancy across five providers and has none: the deep
+smoke check on 2026-08-22 read `llm:openrouter: HTTPError 429` with `groq`,
+`workers-ai` and `anthropic` all `unavailable` — no key. So the writing check
+falls to `vabamorf-offline` whenever the one free tier is spent, which for a
+50/day allowance is a normal Tuesday rather than an incident.
 
-The learner reads Russian; `docs/curriculum-plan.md` is not on their machine
-and would not help if it were. `sonajark` gets this right in the same
-situation — *"Для этой темы нужен текстовый корпус…"* — so the app already
-knows how to say it. Same rule as the readiness verdict and the pronunciation
-caveat: a message nobody can read is not a message.
-
-### The PWA installs and then needs the network
-
-`manifest.webmanifest` is served and the app is installable, but there is no
-service worker, so an installed copy still fails without a connection. Half of
-a claim is worse than none of it — the offline core exists (drills, grading and
-the wordlist need no network by design) and nothing lets a learner reach it
-from an installed app.
+Nothing to fix in code: a second key is an operator action, and adding one
+would make the chain do what it was designed to do.
 
 ## What was never built
 
@@ -248,18 +248,51 @@ image predated the export fixes, so the deployed word card still printed
 on 2026-08-20 and Cloud Build had the new image serving by 12:24, confirmed by
 the build stamp on `/api/health` rather than assumed from a green workflow.
 
-1. **Merge #18, then run the deep smoke check and read the status code.** The
-   grammar checker is in offline mode on the deployment right now. A 429 means
-   the free tier is spent and it recovers on its own; a 401 means the key is
-   dead and every writing check stays unexplained until it is replaced. Until
-   the code is known, neither waiting nor rotating the key is justified.
+1. ~~**Run the deep smoke check and read the status code.**~~ Answered
+   2026-08-22, run #27 against the live deployment: **429**. The key is alive,
+   the free tier is spent, and it recovers on its own — so neither waiting nor
+   rotating it was ever the question, and nothing needs doing.
+
+   Two things the run showed that the question did not ask. `grammar explains
+   ........ OK` printed in the *same run* where the deep check reported
+   `vabamorf-offline`: `/api/engines` reads configuration and says so in its
+   own docstring, so a provider with a spent quota answers `can_explain: true`
+   and cannot explain anything. That contradiction cost a debugging round once
+   before; the cheap check says "configured (live call unproven)" now.
+
+   And the chain has no redundancy to fall back on — `groq`, `workers-ai` and
+   `anthropic` are all `unavailable`, meaning no key. One 50/day free tier is
+   the whole grammar checker. **A second provider key is the highest-value
+   operator action available**, and it is an operator action: no code change
+   would help, and a credential must never come through this session.
 2. **Re-harvest locally** so `content.db` is whole again and local measurements
-   mean something.
-3. **Study.** The verdict's three numbers for A2 — no exam part touched, 0 of 7
-   topics mastered, checkpoint unattempted — do not move on their own, and they
-   are what decides A2-then-B1 against B1-alone next year. This is the item
-   that has been at number three through two sprints while the code around it
-   got better; the app now has more features than it has practice history.
+   mean something. Still open, and now measured: local holds 349 Selges keeles
+   texts and **nothing else** — no ERR radio, no Lihtsad uudised, no HARNO, no
+   EIS. Any local number about the library is a number about one source.
+
+   `cli link-topics` was also overdue and has been run: `topic_items` went
+   from **0 rows to 470**, which is the join `/api/practice` returns as the
+   `reading` beside every drill. Nothing runs it automatically — not a harvest,
+   not a deploy — so `push-content` now warns when a corpus has items and no
+   links, and names the command that fixes it.
+3. **Study.** Counted on 2026-08-22: **7 attempts, all on one topic**
+   (`osastav`, 6 correct), 3 items in the review queue, 17 words with a status.
+   That is the entire practice history behind 36 topics, 160 316 words, a
+   349-text library, 1 400-odd tests and eight merged pull requests.
+
+   This has been item 3 through four sprints. Every one of those sprints
+   shipped code and none of them moved this number, and the reason is that
+   nothing in this list *can* move it — it is the only item whose bottleneck is
+   not the software. The verdict's A2 numbers (no exam part touched, 0 of 7
+   topics mastered, checkpoint unattempted) are what decide A2-then-B1 against
+   B1-alone in 2027, and they are inputs the app records rather than outputs it
+   produces.
+
+   **The honest conclusion for whoever picks this file up next: the app is not
+   short of features.** It is short of use. A tenth feature is easier to build
+   than a first hour of practice and is worth considerably less, and four
+   sprints of evidence now say so. Before adding anything, check whether this
+   number has moved; if it has not, the right change is probably none.
 4. ~~**Build the vocabulary browser.**~~ Done 2026-08-21 — `Sõnavara`, by CEFR
    level and part of speech, commonest first.
 5. ~~**Say the empty-topic message in Russian.**~~ Done 2026-08-21, and it is a
@@ -302,7 +335,22 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    were the two named here and are built. Of what is left, none is A2 exam
    material in the way those two were, so this is now a genuine "if more is
    wanted" rather than a gap.
-11. **Decide whether five word statuses are four too many.** LingQ ships four
-   and its users report that as already hard to judge; only the *settled*
-   boundary is load-bearing here. Cheaper to resolve before anything else
-   reads the ladder.
+11. ~~**Decide whether five word statuses are four too many.**~~ Decided
+   2026-08-22: **four rungs, and the question was the wrong shape.**
+
+   The code never compares a status against five values. It uses two
+   thresholds — `>= 1` for *met* in `difficulty`, `>= 5` for *settled* in the
+   vocabulary list — so the number of named rungs costs nothing structurally.
+   And what LingQ's users complain about is being made to *choose* among four;
+   here the learner only ever chooses among the three settled ones, because
+   `LEARNING` is assigned by meeting a word rather than by judging it.
+
+   What was actually wrong was one rung: `FAMILIAR` (3, `tuttav`) had **no
+   writer at all**, no stored rows, and a single reader that ORed it with a
+   value that is written. It is gone. The three settled values stay — "I know
+   this", "I knew this long ago" and "this is not for me" are different facts,
+   each with an input path.
+
+   `tests/test_vocab.py` now asserts every named rung round-trips through a
+   named writer, because this was the fourth unreachable value found in four
+   sprints.
