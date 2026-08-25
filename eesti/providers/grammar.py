@@ -348,6 +348,11 @@ def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarP
     ]
 
 
+#: `non-json` and `no-code` are this module's own words for "the provider did
+#: not give one", and are deliberately shaped like the thing they stand in for
+#: so the note reads the same either way. They are the two answers that used to
+#: be silence.
+#:
 #: A machine-readable error identifier — `model_decommissioned`,
 #: `invalid_api_key`, `rate_limit_exceeded`. Deliberately narrow: no spaces, no
 #: capitals, no non-ASCII, and short. A learner's sentence cannot take this
@@ -370,17 +375,35 @@ def _error_code(exc: urllib.error.HTTPError) -> str:
     error while explaining an error would replace a useful note with none.
     """
     try:
-        body = json.loads(exc.read(4096) or b"{}")
-        error = body.get("error")
-        if not isinstance(error, dict):
-            return ""
-        for key in ("code", "type"):
-            value = error.get(key)
-            if isinstance(value, str) and _ERROR_CODE.match(value):
-                return value
+        raw = exc.read(4096)
     except Exception:
-        pass
-    return ""
+        return ""
+    if not raw:
+        # No body at all -- a synthesised error, or a proxy that sent none.
+        # There is nothing to report, and reporting the absence as `no-code`
+        # would add a word to every 500 while saying less than the silence.
+        return ""
+    try:
+        body = json.loads(raw or b"{}")
+    except Exception:
+        # Not the provider's JSON at all. Almost always something in *front* of
+        # the API -- Groq, OpenRouter and Cloudflare all sit behind proxies that
+        # answer 403 with an HTML challenge page, and that is a completely
+        # different diagnosis from the API itself refusing. Saying nothing here
+        # made the two identical, and an ambiguous note is what sent an hour
+        # into deciding whether a deployment was even running the new code.
+        return "non-json"
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return "no-code"
+    for key in ("code", "type"):
+        value = error.get(key)
+        if isinstance(value, str) and _ERROR_CODE.match(value):
+            return value
+    # JSON, shaped like an error, and the identifier fields hold prose. Reported
+    # as an absence rather than trimmed: a truncated sentence is still a
+    # sentence, and this note is printed into CI logs.
+    return "no-code"
 
 
 def _why(exc: BaseException) -> str:

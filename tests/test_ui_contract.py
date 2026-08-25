@@ -98,8 +98,17 @@ class TestQueryParametersAreAccepted:
 
     def test_the_difficulty_filter_uses_the_column_it_lives_in(self, page):
         """`band`, not `level`. They were one column and are now two, and the
-        page kept sending the name that no longer selects anything."""
-        loader = page.split("async function loadLibrary")[1][:1600]
+        page kept sending the name that no longer selects anything.
+
+        Sliced to the end of the function, not to a fixed 1 600 characters.
+        The magic number silently narrowed as the function grew: adding a
+        comment above the line pushed `q.set("band"` out of the window, and the
+        test failed against code that was entirely correct. A window that has
+        to be re-tuned whenever the code is edited is a window that will one
+        day be widened past the next function instead.
+        """
+        after = page.split("async function loadLibrary")[1]
+        loader = after.split("\nasync function ")[0].split("\nfunction ")[0]
         assert 'q.set("band"' in loader
         assert 'q.set("level"' not in loader
 

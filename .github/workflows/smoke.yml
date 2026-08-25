@@ -100,6 +100,30 @@ jobs:
               || { echo "::error::$path returned $code"; fail=1; }
           done
 
+          # 5b. Which *code* is answering, as opposed to when it was built.
+          #
+          #     A timestamp cannot answer the question anybody actually has,
+          #     which is "does the running image contain the change I merged?".
+          #     It came up immediately: a merge landed at 16:10 and the stamp
+          #     read 16:13, and a failure that the merge was supposed to fix
+          #     was still there. Stale image, or fix live and something else
+          #     wrong? The stamp cannot say, and `revision` is null because
+          #     the Cloud Build trigger passes no BUILD_REV.
+          #
+          #     So ask for a *behaviour* only the newer code has. `total` was
+          #     added to /api/library when the page turned out to be printing
+          #     its page size as the library size; an image without it predates
+          #     that merge. This is a marker, not a feature test -- when it
+          #     stops discriminating, move it to whatever shipped most
+          #     recently rather than deleting it.
+          lib="$(curl -s "${auth[@]}" "$URL/api/library?skill=lugemine&limit=1")"
+          if [ "$(jq -r 'has("total")' <<<"$lib")" = true ]; then
+            echo "image carries /api/library total ($(jq -r '.total' <<<"$lib") texts)"
+          else
+            echo "::warning::/api/library has no \`total\` — the running image \
+          predates that merge, so anything else merged with it is not live either."
+          fi
+
           # 6. Speech is reachable. The microphone silently not working is the
           #    kind of thing nobody notices until a speaking exercise.
           curl -s "${auth[@]}" "$URL/api/asr" | grep -q '"ready":true' \

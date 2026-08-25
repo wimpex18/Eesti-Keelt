@@ -194,10 +194,24 @@ def _grammar(progress: sqlite3.Connection, level: str) -> dict:
 
     topics = [t for t in TOPICS if t.level == level and t.generator]
     mastered = [t.id for t in topics if is_mastered(progress, t.id)]
+    left = [t for t in topics if t.id not in mastered]
     return {
         "topics": len(topics),
         "mastered": len(mastered),
-        "outstanding": [t.id for t in topics if t.id not in mastered],
+        # Names, not ids. `uhildumine` and `sonajark` are database keys with
+        # the diacritics stripped; the things a learner has to go and study are
+        # called **ühildumine** and **sõnajärg**, and the whole point of an
+        # Estonian label in this app is that the term itself gets learned.
+        #
+        # This is the fourth place the same bug has been fixed -- `kusisonad`
+        # on the path panel, `obj-case` in the review queue, `blocked_by` in
+        # `/api/curriculum` -- and it is the one that reached furthest, because
+        # `reasons` puts the list straight onto the readiness screen. Resolved
+        # here for the same reason as the others: a page that has to turn ids
+        # into names will eventually meet an id nobody taught it about.
+        "outstanding": [t.et for t in left],
+        # Kept as well, for a caller that needs identity rather than a label.
+        "outstanding_ids": [t.id for t in left],
         "checkpoint_passed": level in passed_levels(progress),
     }
 
