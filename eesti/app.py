@@ -856,7 +856,18 @@ def review_failed(req: DrillFailed) -> dict:
 
 @app.get("/api/review/stats")
 def review_stats() -> dict:
-    return review.stats(review_db())
+    """Queue size, and the words that keep coming back wrong.
+
+    `kind` is a topic id. `/api/review` has sent `kind_et` beside every item
+    since it was written, for the documented reason that a page which turns ids
+    into names will eventually meet an id nobody taught it about -- and this
+    endpoint sent the bare id, so the struggling list showed `osastav` where
+    the topic is called `osastav kääne`. Resolved here, beside the other one.
+    """
+    body = review.stats(review_db())
+    for row in body.get("struggling", []):
+        row["kind_et"] = _topic_name(row.get("kind"))
+    return body
 
 
 @app.post("/api/speak")
