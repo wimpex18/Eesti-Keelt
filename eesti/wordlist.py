@@ -1,8 +1,8 @@
 """Offline vocabulary layer built from the enriched Ekilex word list.
 
 Source: github.com/KristjanPikhof/Estonian-Wordlist-Enriched-Ekilex (CC-BY-SA-4.0,
-snapshot 2026-04-01), derived from Ekilex — the same database behind Sonaveeb and
-the Sonastik app. Using it means we never scrape Sonaveeb, whose maintainers
+snapshot 2026-04-01), derived from Ekilex — the same database behind Sõnaveeb and
+the Sõnastik app. Using it means we never scrape Sõnaveeb, whose maintainers
 explicitly ask people not to batch-request it.
 
 Only the two small TSVs are indexed. The 79 MB inflected-forms file is
@@ -19,7 +19,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import DB_PATH, LEVELS, RAW
+from .config import LEVELS
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS words (
@@ -137,7 +137,9 @@ def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
     So the derived table goes too. Rebuilding it costs 2.4 s over 2 575 words,
     which is not worth a stale answer about what a word means.
     """
-    raw_dir = Path(raw_dir or RAW)
+    from . import config
+
+    raw_dir = Path(raw_dir or config.RAW)
     src = raw_dir / "est_words_160k.tsv"
     if not src.exists():
         raise FileNotFoundError(
