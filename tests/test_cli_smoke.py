@@ -27,6 +27,7 @@ including `evkk` broke it on the first run.
 from __future__ import annotations
 
 import contextlib
+import csv
 import io
 import sys
 
@@ -119,6 +120,36 @@ class TestTheCommandsThatOnlyReadStillRun:
         code, out, err = run(argv)
         assert code == expected, f"{' '.join(argv)} -> {code}\n{err[:400]}"
         assert out.strip(), f"{' '.join(argv)} printed nothing at all"
+
+    def test_build_reports_the_redirected_database_path(self, monkeypatch, tmp_path):
+        """The command must describe the same DB path it actually builds.
+
+        `wordlist.connect()` resolves `config.DB_PATH` at call time, but the CLI
+        banner used an import-time copy. Tests redirect the database for safety;
+        the old banner still pointed at the real learner database and made the
+        destructive target ambiguous.
+        """
+        from eesti import config
+
+        raw = tmp_path / "raw"
+        raw.mkdir()
+        fields = ["word", "freq_rank", "proficiency", "pos"]
+        with (raw / "est_words_160k.tsv").open(
+            "w", encoding="utf-8", newline=""
+        ) as fh:
+            writer = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
+            writer.writeheader()
+            writer.writerow({
+                "word": "raamat", "freq_rank": "200",
+                "proficiency": "A1", "pos": "s",
+            })
+        db_path = tmp_path / "built.db"
+        monkeypatch.setattr(config, "DB_PATH", db_path)
+        monkeypatch.setattr(config, "RAW", raw)
+
+        code, out, err = run(["build"])
+        assert code == 0, err[:400]
+        assert f"Importing word list into {db_path}" in out
 
     def test_a_refusal_is_a_code_not_a_crash(self):
         """`checkpoint` before the level is finished must decline and say why,

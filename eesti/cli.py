@@ -1,6 +1,6 @@
 """Command line entry points.
 
-    python -m eesti.cli fetch-data    # download the word list (one time, ~82 MB)
+    python -m eesti.cli fetch-data    # download the word list (one time, ~2.8 MB)
     python -m eesti.cli build         # import + index object cases
     python -m eesti.cli drill -n 10   # practise in the terminal
     python -m eesti.cli check "..."   # grammar check a sentence
@@ -15,7 +15,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from .config import DB_PATH, LEVELS, RAW
+from .config import LEVELS
 
 # Named here rather than imported at module load so the CLI stays importable
 # without the provider dependencies installed.
@@ -118,9 +118,11 @@ def learner_db(args: argparse.Namespace, which: str) -> str:
 
 
 def cmd_fetch_data(args: argparse.Namespace) -> int:
-    RAW.mkdir(parents=True, exist_ok=True)
+    from . import config
+
+    config.RAW.mkdir(parents=True, exist_ok=True)
     for name in WORDLIST_FILES:
-        dest = RAW / name
+        dest = config.RAW / name
         if dest.exists() and not args.force:
             print(f"  {name}: already present ({dest.stat().st_size:,} bytes)")
             continue
@@ -135,7 +137,9 @@ def cmd_build(args: argparse.Namespace) -> int:
     from .wordlist import build, connect, index_object_cases
 
     conn = connect()
-    print(f"Importing word list into {DB_PATH} ...")
+    from . import config
+
+    print(f"Importing word list into {config.DB_PATH} ...")
     print(f"  {build(conn):,} words")
     print("Indexing object cases with Vabamorf (genitive vs partitive) ...")
     stats = index_object_cases(conn, levels=tuple(args.levels))
