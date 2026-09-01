@@ -297,6 +297,36 @@ more than it is worth:
   in the browser suite is implicitly budgeted around that being paid before the
   assertion; under load it is what pushes a 20 s `wait_for_selector` over.
 
+### The checkpoint under-delivered, and the fixture that hid it
+
+`checkpoint.build` promised `count` items and returned however many the first
+pass produced. It asked each topic for `count // topics + 1`, dealt every pool
+to exhaustion and stopped: against a thin word list A1 asked for 12 and got 8,
+silently. A thin word list is not a test artefact — it is what a deployment
+looks like before content is pushed, and `/api/checkpoint/{level}?count=15` is
+a promise the learner sees as a quiz length. It asks again now, doubling, until
+it has what was asked for or nothing new comes back; each pass deals
+round-robin, so the no-two-in-a-row interleaving holds across the seam and not
+merely within a pass. Cost measured: 9–24 ms once Vabamorf is warm.
+
+The test that caught it had been failing on `main` too, but only in isolation —
+it passed or failed depending on what ran before it, which is why adding one
+unrelated test file surfaced it.
+
+Behind that was the reason it was invisible: **a full run leaves an empty
+`data/eesti.db` behind** — 0 rows, correct schema. `real_wordlist` gated on
+`exists()`, so on the *next* run two curated-content tests stopped skipping and
+checked Estonian against an empty lexicon. Two failures, in a file nothing had
+touched, reading exactly like a regression. The fixture counts a row now
+(`wordlist.available`), which is this project's oldest rule written into the
+fixture that existed to honour it.
+
+**The phantom's creator is not pinned.** It is intermittent, predates this
+work, appears in no single test file run alone, and an in-process
+`sqlite3.connect` spy never catches it — which points at a subprocess, though
+importing the app in one does not reproduce it. Making the gate honest closes
+the failure it causes either way; finding the writer is still open.
+
 ### Dependencies, checked 2026-09-01
 
 | | |
