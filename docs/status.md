@@ -297,6 +297,27 @@ more than it is worth:
   in the browser suite is implicitly budgeted around that being paid before the
   assertion; under load it is what pushes a 20 s `wait_for_selector` over.
 
+### Dependencies, checked 2026-09-01
+
+| | |
+|---|---|
+| `estnltk` | **1.7.4 → 1.7.5.** The one pin that is an answer key: a drill's correct answer is whatever `synthesize()` returns. Taken only after measuring — 2 600 forms (400 nouns × 4 cases, 200 verbs × 5 forms, A1–B1 by frequency) identical under both, and `cli build` indexing the same 2 416 object cases and 1 671 drillable nouns. Do that again before moving it. |
+| `httpx` → `httpx2` | Starlette's TestClient warns on every import that plain `httpx` is deprecated for it. Nothing in `eesti/` imports either — the app's own HTTP is urllib — so this is a test dependency that happens to live in `requirements.txt`. |
+| `typescript` | **5 → 7**, verified by running `tsc --noEmit` over `deploy/worker.ts` on 7.0.2: clean. |
+| `wrangler`, `@cloudflare/workers-types` | Floors raised to what was installed and tested. Both were already inside their caret ranges, so this records the tested state rather than changing it. |
+| GitHub Actions | `checkout@v4 → v7`, `setup-python@v5 → v7`, `setup-node@v4 → v7` — three majors behind, all runtime bumps. CI proves these; nothing else can. |
+| `fastapi`, `uvicorn`, `fsrs`, `pytest`, `playwright`, `pydantic` | Already latest. |
+
+**pytest 10 will remove class-scoped fixtures declared as instance methods.**
+Seven test files had them; they are `@classmethod` now, and the suite passes
+with `-W error::pytest.PytestRemovedIn10Warning`. That was a deprecation with a
+removal date, not a style note.
+
+**Python stays 3.11.** `estnltk` 1.7.5 ships wheels for 3.11 through 3.14, so a
+runtime bump is *possible* — but it changes the deployed image, and the only
+honest verification is a redeploy plus the smoke check, which is an operator
+action. 3.11 is supported until October 2027; there is no forcing function yet.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
