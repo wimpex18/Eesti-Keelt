@@ -200,3 +200,219 @@ class TestWhatIsRecordedAboutProvenance:
 
     def test_the_incumbent_estonian_model_is_still_named(self):
         assert asr.ESTONIAN_MODEL == "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
+
+
+def _script(step: dict) -> str:
+    """A workflow step's shell, without its comments.
+
+    Both assertions below search a step's `run:` for a construct, and both were
+    written to pass against a comment. The comment above the key check quotes
+    the old `cli keys | grep` so the reader knows what changed, and the comment
+    above the sentinel names `(provider default)` — so a naive search finds the
+    prose, reports the construct present, and stays green when the code that
+    was supposed to contain it is deleted. Both of those actually happened.
+    """
+    return "\n".join(line for line in step["run"].splitlines()
+                     if not line.lstrip().startswith("#"))
+
+
+class TestTheEvalCanActuallySelectTheEstonianLane:
+    """`eval.yml` is the only place a key is ever spent, so a lane it cannot
+    select is a lane that can never produce a number.
+
+    Its `options:` list is hand-maintained because Actions YAML cannot read
+    `llm.PROVIDERS` — which makes it the third instance of this repository's
+    most-repeated bug, after `huggingface` sitting in `PROVIDERS` and in no
+    chain, and `cli/build.py` offering a `huggingface` that did not exist while
+    omitting `local`. It cannot be derived, so it is checked in both
+    directions, the way `api.ROUTERS` is.
+    """
+
+    #: The one provider deliberately absent from the workflow, with its reason.
+    #: No runner has an Ollama server on `LOCAL_LLM_URL`, and offering a choice
+    #: that cannot work is exactly the failure this list guards against.
+    NOT_IN_CI = {"local": "needs a server on LOCAL_LLM_URL; no runner has one"}
+
+    @staticmethod
+    def _workflow() -> dict:
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        # PyYAML reads the `on:` key as the boolean True (YAML 1.1), which is
+        # the kind of detail that makes a hand-written string search look
+        # simpler than it is.
+        return yaml.safe_load(path.read_text(encoding="utf-8"))[True]
+
+    @classmethod
+    def _providers(cls) -> list[str]:
+        return cls._workflow()["workflow_dispatch"]["inputs"]["provider"]["options"]
+
+    def test_every_option_is_a_real_provider(self):
+        from eesti.providers import llm
+
+        unknown = sorted(set(self._providers()) - set(llm.PROVIDERS))
+        assert not unknown, (
+            f"{unknown} can be selected in the eval workflow and would raise "
+            f"KeyError on the runner")
+
+    def test_every_provider_is_selectable_unless_it_is_excluded(self):
+        from eesti.providers import llm
+
+        missing = sorted(set(llm.PROVIDERS) - set(self._providers())
+                         - set(self.NOT_IN_CI))
+        assert not missing, (
+            f"{missing} exist in the client and cannot be scored by the only "
+            f"workflow that spends a key — add them, or document the exclusion")
+
+    def test_the_exclusion_is_still_an_exclusion(self):
+        """If `local` ever becomes selectable, this dict is stale and the
+        reason in it is a lie."""
+        for name in self.NOT_IN_CI:
+            assert name not in self._providers()
+
+    def test_the_estonian_lane_is_selectable(self):
+        assert "huggingface" in self._providers()
+
+
+class TestTheEstonianLaneCanActuallyBeCalled:
+    @staticmethod
+    def _job() -> dict:
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        return yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"]["eval"]
+
+    def test_the_token_reaches_the_runner(self):
+        """Selectable and keyless is the worst of both: the provider appears in
+        the menu and reports "no key configured" with the secret sitting in
+        Actions."""
+        env = self._job()["env"]
+        assert "HF_TOKEN" in env
+        assert "secrets.HF_TOKEN" in env["HF_TOKEN"]
+
+    def test_every_provider_option_has_its_key_plumbed(self):
+        """Derived from the options rather than listed again here — a second
+        hand-written list beside the first is how the first one drifted."""
+        import yaml
+
+        from pathlib import Path
+
+        from eesti.providers import llm
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        options = doc[True]["workflow_dispatch"]["inputs"]["provider"]["options"]
+        env = doc["jobs"]["eval"]["env"]
+        for name in options:
+            key = llm.PROVIDERS[name].key_env
+            assert not key or key in env, (
+                f"{name} can be selected but {key} never reaches the runner")
+
+    def test_the_app_and_the_eval_agree_on_the_estonian_model(self):
+        """The same assertion that already guards the OpenRouter pin, and it
+        exists because the workflow and the app once disagreed — so the number
+        in CI was about neither."""
+        from pathlib import Path
+
+        from eesti.providers import llm
+
+        text = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8")
+        assert llm.PROVIDERS["huggingface"].default_model in text
+
+    def test_a_model_can_be_left_to_the_provider(self):
+        """Every other id in that list is OpenRouter's. Without a sentinel the
+        workflow always passed one, so any non-OpenRouter lane was scored
+        against an id it has never heard of."""
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        options = doc[True]["workflow_dispatch"]["inputs"]["model"]["options"]
+        assert "(provider default)" in options
+
+        step = next(s for s in doc["jobs"]["eval"]["steps"]
+                    if s.get("id") == "score")
+        code = _script(step)
+        assert "(provider default)" in code, (
+            "the sentinel is offered but nothing strips it, so it would be "
+            "sent as a literal model id")
+
+    def test_the_key_check_asks_about_the_selected_provider(self):
+        """It asked `cli keys | grep ✓` — "is *some* lane configured". With an
+        OpenRouter key set and huggingface selected, the eval ran, every call
+        failed, and it reported rc=2: rate limit or provider outage. That
+        blames a third party for a missing secret."""
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        step = next(s for s in doc["jobs"]["eval"]["steps"]
+                    if s.get("id") == "score")
+        code = _script(step)
+        assert "PROVIDERS['$PROVIDER'].available" in code
+        assert "keys | grep" not in code
+
+
+class TestAPartialCatalogueDoesNotReadAsABrokenPin:
+    """`cli models` ends with PRESENT / ABSENT — fix it, and the eval workflow
+    runs it as its "is the pinned id still there" step.
+
+    That verdict comes from the provider's own listing, which for the HF router
+    is ~135 warm models rather than an inventory: a model reachable through an
+    inference-provider mapping is routable without being in it. EstLLM is
+    exactly that, so the honest answer is that this endpoint cannot say.
+    """
+
+    def test_the_router_is_marked_as_a_partial_catalogue(self):
+        from eesti.cli.build import PARTIAL_CATALOGUE
+
+        assert "huggingface" in PARTIAL_CATALOGUE
+
+    def test_openrouter_is_not(self):
+        """The whole reason the verdict exists: OpenRouter withdraws `:free`
+        ids silently while the paid one keeps the name."""
+        from eesti.cli.build import PARTIAL_CATALOGUE
+
+        assert "openrouter" not in PARTIAL_CATALOGUE
+
+    def test_it_does_not_tell_you_to_fix_a_working_pin(self, capsys, monkeypatch):
+        import argparse
+
+        from eesti.cli import build
+
+        monkeypatch.setattr(build, "_providers", lambda: ("huggingface",))
+        monkeypatch.setattr("eesti.providers.llm.list_models",
+                            lambda provider, timeout=30.0: [{"id": "someone/else"}])
+        build.cmd_models(argparse.Namespace(
+            provider="huggingface", all=False, limit=5))
+        said = capsys.readouterr().out
+        assert "ABSENT" not in said
+        assert "NOT ANSWERABLE HERE" in said
+
+    def test_a_complete_catalogue_still_gets_a_verdict(self, capsys, monkeypatch):
+        import argparse
+
+        from eesti.cli import build
+        from eesti.providers import llm
+
+        monkeypatch.setattr("eesti.providers.llm.list_models",
+                            lambda provider, timeout=30.0: [{"id": "someone/else"}])
+        build.cmd_models(argparse.Namespace(
+            provider="openrouter", all=False, limit=5))
+        said = capsys.readouterr().out
+        assert "ABSENT — fix it" in said
+        assert llm.PROVIDERS["openrouter"].default_model in said

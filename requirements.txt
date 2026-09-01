@@ -18,3 +18,12 @@ fsrs>=6.0                # FSRS-6 spaced repetition (MIT)
 # on it. Nothing in `eesti/` imports either -- the app's own HTTP goes through
 # urllib (`eesti/net.py` and `providers/`), so this is here for the tests.
 httpx2
+
+# Reading the workflow files in tests. It was already importable and already
+# imported -- but only because `uvicorn[standard]` happens to pull it in as an
+# extra, which is a dependency on somebody else's packaging decision. This
+# project has already paid for that shape once: a test that passed here and
+# failed in CI because `playwright` was undeclared. Nine tests now read
+# `.github/workflows/*.yml`, so it is declared. No new weight in the image --
+# it is the same wheel uvicorn was already installing.
+PyYAML>=6.0

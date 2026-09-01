@@ -10,12 +10,28 @@ on:
         description: Provider to score
         default: openrouter
         type: choice
-        options: [openrouter, groq, workers-ai, anthropic]
+        # Hand-maintained, because Actions YAML cannot read `llm.PROVIDERS` --
+        # so a test asserts the two agree in both directions. That test exists
+        # because this exact shape of list has now drifted twice: `huggingface`
+        # was once in `PROVIDERS` and in no chain, and `cli/build.py` offered a
+        # `huggingface` that did not exist while omitting `local`.
+        #
+        # `local` is deliberately absent and is the one documented exclusion: no
+        # runner has an Ollama server on `LOCAL_LLM_URL`, and offering a choice
+        # that cannot work is the bug this list is guarding against.
+        options: [openrouter, groq, workers-ai, huggingface, anthropic]
       model:
         description: Model to score
         default: "google/gemma-4-31b-it:free"
         type: choice
         options:
+          # Every id below the sentinel is OpenRouter's. Picking one of them
+          # with a different provider selected sends an id that provider has
+          # never heard of -- so the sentinel passes no `--model` at all and
+          # lets the provider's own default stand. Without it the expression
+          # further down always sent a model, which for any non-OpenRouter lane
+          # was the wrong one.
+          - (provider default)
           # Only models that accept `response_format`, which is what the client
           # sends — a model that cannot produce JSON fails for the wrong reason.
           # Note that is a *different* capability from `structured_outputs`,
@@ -34,6 +50,10 @@ on:
           # checks a day. Needs credit on the OpenRouter account.
           - google/gemini-2.5-flash-lite
           - google/gemini-3.7-flash
+          # huggingface. The Estonian-adapted model this project has wanted from
+          # the start, routed to featherless-ai. Select `huggingface` above with
+          # this, or with `(provider default)` -- they are the same id.
+          - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125
       evidence:
         description: >-
           Attach Vabamorf's case analysis (as the real app does). Tests whether
@@ -63,6 +83,9 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # The EstLLM lane. Without this line the provider could be selected and
+      # would report "no key configured" with the secret sitting right there.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@v7
 
@@ -88,9 +111,21 @@ jobs:
       - name: Score the model on Estonian
         id: score
         run: |
-          if ! python -m eesti.cli keys | grep -q '✓'; then
+          # The key for *this* provider, not any key at all. `cli keys | grep ✓`
+          # answered "is some lane configured", so selecting `huggingface` with
+          # only an OpenRouter key set ran the eval, failed every call, and
+          # reported rc=2 -- "rate limit or provider outage", blaming a third
+          # party for a missing secret. `available` is the same property the
+          # grammar chain uses to decide whether a lane can be called.
+          if ! python -c "
+          import sys
+          from eesti import env
+          from eesti.providers.llm import PROVIDERS
+          env.load()
+          sys.exit(0 if PROVIDERS['$PROVIDER'].available else 1)
+          "; then
             echo "SKIPPED=1" >> "$GITHUB_OUTPUT"
-            echo "no provider key configured — nothing was measured" > eval.txt
+            echo "no key configured for $PROVIDER — nothing was measured" > eval.txt
             exit 0
           fi
 
@@ -99,8 +134,13 @@ jobs:
           # success. pipefail keeps it.
           set -o pipefail
           rc=0
+          # `(provider default)` is the sentinel, not an id: passing no
+          # --model lets the provider's own default stand.
+          MODEL='${{ inputs.model }}'
+          [ "$MODEL" = "(provider default)" ] && MODEL=""
+
           python -m eesti.cli eval --provider "$PROVIDER" \
-            ${{ inputs.model && format('--model {0}', inputs.model) || '' }} \
+            ${MODEL:+--model "$MODEL"} \
             ${{ inputs.evidence && '--evidence' || '' }} \
             | tee eval.txt || rc=$?
           echo "RC=$rc" >> "$GITHUB_OUTPUT"
@@ -120,8 +160,10 @@ jobs:
               echo
               echo "> **Not run — no API key configured.**"
               echo "> The model-id check passed, but **no model was scored**."
-              echo "> Add \`OPENROUTER_API_KEY\` under Settings → Secrets and"
-              echo "> variables → Actions, then re-run this workflow."
+              echo "> Add the key for \`$PROVIDER\` under Settings → Secrets"
+              echo "> and variables → Actions, then re-run this workflow."
+              echo "> (\`HF_TOKEN\` for huggingface, \`OPENROUTER_API_KEY\` for"
+              echo "> openrouter, and so on — \`python -m eesti.cli keys\` lists them.)"
             elif [ "${{ steps.score.outputs.RC }}" = "2" ]; then
               echo
               echo "> **Could not measure.** Every call failed — rate limit or"

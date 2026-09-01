@@ -12,6 +12,11 @@ import urllib.request
 
 from ..config import LEVELS
 
+#: Providers whose model listing is a selection rather than an inventory, so
+#: "the pinned id is not in the list" does not mean the pin is broken.
+PARTIAL_CATALOGUE = frozenset({"huggingface"})
+
+
 def _providers() -> tuple[str, ...]:
     """Every provider the client actually knows, asked at parser-build time.
 
@@ -157,10 +162,26 @@ def cmd_models(args: argparse.Namespace) -> int:
             f" json={'structured_outputs' in params}"
         )
     default = PROVIDERS[args.provider].model
+    if args.provider in PARTIAL_CATALOGUE:
+        # Some catalogues are not an inventory of what is callable. The HF
+        # router's `/v1/models` returns ~135 warm models; a model reachable
+        # through an inference-provider mapping is routable without appearing
+        # there at all -- `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` is
+        # mapped to featherless-ai and is absent from that list.
+        #
+        # So "ABSENT -- fix it" here would be a false alarm on the one lane
+        # this project most wants to run, printed by the very step the eval
+        # workflow uses to sanity-check a pin. The question this command exists
+        # to answer -- has the id been silently withdrawn? -- is a real question
+        # for OpenRouter's `:free` aliases and is one this endpoint cannot
+        # answer. Saying so beats answering it wrongly.
+        print(f"\npinned default {default!r}: NOT ANSWERABLE HERE — "
+              f"{args.provider} lists warm models only, not everything routable. "
+              f"Check https://huggingface.co/{default}")
+        return 0
     present = any(m.get("id") == default for m in models)
     print(f"\npinned default {default!r}: {'PRESENT' if present else 'ABSENT — fix it'}")
     return 0
-
 
 def cmd_eval(args: argparse.Namespace) -> int:
     """Score a model on Estonian grammar.
