@@ -235,3 +235,70 @@ class TestCodeIsNeverServedStale:
         that goes offline before opening a panel would have nothing. The
         install step still puts them there."""
         assert "/js/main.js" in source and "/app.css" in source
+
+
+class TestTheCacheVersionIsDerived:
+    """The version string is the only thing that retires an old shell.
+
+    `activate` deletes every cache whose name is not the current one, so while
+    `VERSION` was a literal somebody had to remember to edit, a redeploy that
+    did not edit it kept the previous `index.html` on disk for ever — and that
+    page names the modules it loads. A hand-bumped version is a hand-maintained
+    list of one.
+    """
+
+    @pytest.fixture
+    def served(self, client):
+        return client.get("/sw.js").text
+
+    def test_the_file_still_declares_the_line_that_gets_stamped(self, source):
+        from eesti.api.assets import _VERSION_LINE
+
+        assert _VERSION_LINE in source
+
+    def test_a_source_checkout_says_dev(self, served):
+        """No build info, nothing to retire: the file on disk is the file being
+        served."""
+        assert 'const VERSION = "dev";' in served
+
+    def test_a_build_stamps_its_revision(self, client, monkeypatch):
+        from eesti.api import deps
+
+        monkeypatch.setattr(deps, "BUILD", {"built": "2026-09-01", "revision": "abc1234"})
+        assert 'const VERSION = "abc1234";' in client.get("/sw.js").text
+
+    def test_the_build_date_is_the_fallback(self, client, monkeypatch):
+        from eesti.api import deps
+
+        monkeypatch.setattr(deps, "BUILD", {"built": "2026-09-01T10:00:00Z", "revision": None})
+        assert 'const VERSION = "2026-09-01T10:00:00Z";' in client.get("/sw.js").text
+
+    def test_a_renamed_line_fails_loudly(self, monkeypatch):
+        """A silent no-op here brings back exactly the bug this prevents."""
+        from eesti.api import assets
+
+        monkeypatch.setattr(assets, "_VERSION_LINE", 'const VERSION = "moved";')
+        with pytest.raises(RuntimeError, match="cache version"):
+            assets.worker_source()
+
+    def test_two_builds_do_not_share_a_cache(self, client, monkeypatch):
+        from eesti.api import deps
+
+        monkeypatch.setattr(deps, "BUILD", {"revision": "aaa", "built": None})
+        first = client.get("/sw.js").text
+        monkeypatch.setattr(deps, "BUILD", {"revision": "bbb", "built": None})
+        assert client.get("/sw.js").text != first
+
+
+class TestTheOfflineShellTracksDeploys:
+    def test_a_successful_navigation_updates_the_cached_page(self, source):
+        """Without this the cached shell is whatever `install` fetched and
+        never changes again inside one version, so the page served offline can
+        name modules the deployment has since renamed."""
+        branch = source[source.index('request.mode === "navigate"'):][:800]
+        assert "cache.put(\"/\"" in branch, (
+            "the navigation branch does not refresh the cached shell")
+
+    def test_it_still_only_stores_a_clean_answer(self, source):
+        branch = source[source.index('request.mode === "navigate"'):][:800]
+        assert "res.ok && !res.redirected && res.type === \"basic\"" in branch

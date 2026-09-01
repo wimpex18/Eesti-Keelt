@@ -159,8 +159,9 @@ class TestThePushScriptFailsBeforeSpendingAMegabyte:
     SCRIPT = ROOT / "deploy" / "push-content.sh"
 
     @pytest.fixture(scope="class")
-    def script(self) -> str:
-        return self.SCRIPT.read_text(encoding="utf-8")
+    @classmethod
+    def script(cls) -> str:
+        return cls.SCRIPT.read_text(encoding="utf-8")
 
     def test_tokens_are_parsed_from_json_not_the_projection_dsl(self, script):
         """Checked against the executable lines only. The comment quotes the

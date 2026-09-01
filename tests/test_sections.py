@@ -171,3 +171,71 @@ class TestTheExamTaxonomyIsStatedOnce:
         here once already."""
         assert self._declared() <= self._grouped(), (
             f"sectioned but ungrouped: {sorted(self._declared() - self._grouped())}")
+
+
+class TestEverySourceIdIsRegistered:
+    """The ledger has to cover every source the code names.
+
+    `sources.REGISTRY` is this project's licence record — "licensing is a
+    column, not a convention" — and `add_items` refuses a row whose source is
+    not in it. That gate only covers rows going into `items`, though, and a
+    source id is written in two other places: `Cloze.source_id`, which records
+    which corpus a drill sentence was cut from, and the harvesters' own
+    `clear_source` calls.
+
+    Asking which ids the code actually writes is how `ekk` turned up: the
+    handbook every rule explanation links to, whose rection table is fetched
+    once and stored, was the one third party with no entry in the ledger.
+    """
+
+    @staticmethod
+    def _written_ids() -> dict[str, set[str]]:
+        import collections
+        import re
+        from pathlib import Path
+
+        pattern = re.compile(
+            r'source_id\s*=\s*["\']([a-z0-9-]+)["\']'
+            r'|clear_source\([^,]+,\s*["\']([a-z0-9-]+)["\']')
+        found = collections.defaultdict(set)
+        root = Path(__file__).resolve().parents[1] / "eesti"
+        for path in sorted(root.rglob("*.py")):
+            for match in pattern.finditer(path.read_text(encoding="utf-8")):
+                sid = match.group(1) or match.group(2)
+                found[sid].add(path.name)
+        return found
+
+    def test_there_are_ids_to_check(self):
+        assert len(self._written_ids()) >= 5
+
+    def test_every_id_the_code_writes_is_in_the_registry(self):
+        from eesti.sources import REGISTRY
+
+        known = {s.id for s in REGISTRY}
+        unknown = {sid: sorted(where) for sid, where in self._written_ids().items()
+                   if sid not in known}
+        assert not unknown, (
+            f"these source ids are written by the code and have no licence "
+            f"entry: {unknown}. Add them to `sources.REGISTRY` — a row nobody "
+            f"can name the licence of is a row nobody can reason about later.")
+
+    def test_every_registered_source_states_a_licence(self):
+        from eesti.sources import REGISTRY
+
+        silent = [s.id for s in REGISTRY if not s.licence.strip()]
+        assert not silent, f"registered with no licence stated: {silent}"
+
+    def test_nothing_ungranted_is_marked_redistributable(self):
+        """The posture that keeps owner-only material owner-only. A source
+        whose licence says it is unknown or personal-study cannot also claim to
+        be shareable."""
+        from eesti.sources import REGISTRY
+
+        for source in REGISTRY:
+            ungranted = any(word in source.licence.lower() for word in
+                            ("personal study", "no licence", "unknown",
+                             "not reproduced"))
+            if ungranted:
+                assert not source.redistributable, (
+                    f"{source.id} states {source.licence!r} and is flagged "
+                    f"redistributable")

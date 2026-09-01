@@ -38,7 +38,17 @@
       app until the cache was cleared -- from the learner's side, an app that
       had permanently broken itself. */
 
-const VERSION = "v1";
+/* Stamped by the server with the running build's revision -- see
+   `api/assets.py::service_worker`. The literal below is what a source checkout
+   uses, and what the tests read.
+
+   It has to be derived, not typed. The cache name is the only thing that
+   retires an old shell: `activate` deletes every cache that is not the current
+   one, so a redeploy that did not also edit this line left the previous
+   `index.html` in the cache for ever -- and that page names the modules it
+   loads. A hand-bumped version is a hand-maintained list of one, and this
+   project has an entry in `docs/lessons.md` about every other one it has had. */
+const VERSION = "dev";
 const SHELL = `shell-${VERSION}`;
 
 /* `/` is listed rather than `/index.html`: it is what the manifest's
@@ -110,7 +120,16 @@ self.addEventListener("fetch", event => {
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       try {
-        return await fetch(request);
+        const res = await fetch(request);
+        // Keep the offline copy current. Without this the cached shell is
+        // whatever `install` happened to fetch and never changes again inside
+        // one version -- so the page served with no connection could name
+        // modules the deployment has since renamed.
+        if (res.ok && !res.redirected && res.type === "basic") {
+          const cache = await caches.open(SHELL);
+          cache.put("/", res.clone());
+        }
+        return res;
       } catch (err) {
         const cached = await caches.match("/");
         return cached || new Response(

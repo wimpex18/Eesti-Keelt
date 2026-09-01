@@ -113,24 +113,54 @@ def build(level: str, count: int = DEFAULT_ITEMS, seed: int | None = None) -> li
     if not topics:
         return []
 
+    # Asked for `count` per topic-share, and asked again if that was not
+    # enough. One pass used to be the whole implementation, and it under-
+    # delivered in silence: `per` items are requested from each topic, every
+    # pool is dealt to exhaustion, and a level whose topics are thin then
+    # returns fewer than the caller asked for with nothing to say so. Measured
+    # against the fixture word list, A1 asked for 12 and got 8 -- and a thin
+    # word list is not a test artefact, it is what a deployment looks like
+    # before content is pushed.
+    #
+    # Each pass deals round-robin, so the interleaving holds across the whole
+    # set and not merely within a pass; `seen` keeps a bigger request from
+    # re-offering what the smaller one already gave.
     per = max(1, count // len(topics) + 1)
-    pools: dict[str, list] = {}
-    for topic in topics:
-        try:
-            got = items_for(topic, count=per, seed=seed)
-        except (ValueError, RuntimeError):
-            continue
-        if got:
-            pools[topic] = got
-
     out: list = []
-    while pools and len(out) < count:
-        for topic in list(pools):
-            if len(out) >= count:
-                break
-            out.append(pools[topic].pop(0))
-            if not pools[topic]:
-                del pools[topic]
+    seen: set[tuple[str, str]] = set()
+    ceiling = max(count * 8, 64)
+
+    while len(out) < count and per <= ceiling:
+        pools: dict[str, list] = {}
+        for topic in topics:
+            try:
+                got = items_for(topic, count=per, seed=seed)
+            except (ValueError, RuntimeError):
+                continue
+            fresh = [i for i in got if (i.topic, i.prompt) not in seen]
+            if fresh:
+                pools[topic] = fresh
+
+        added = 0
+        while pools and len(out) < count:
+            for topic in list(pools):
+                if len(out) >= count:
+                    break
+                # Never twice in a row from one topic: that is the whole point
+                # of dealing rather than drawing, and a later pass must not
+                # undo it at the seam.
+                if out and len(pools) > 1 and out[-1].topic == topic:
+                    continue
+                item = pools[topic].pop(0)
+                out.append(item)
+                seen.add((item.topic, item.prompt))
+                added += 1
+                if not pools[topic]:
+                    del pools[topic]
+
+        if not added:
+            break
+        per *= 2
     return out
 
 

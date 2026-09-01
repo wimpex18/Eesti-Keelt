@@ -67,6 +67,7 @@ four Estonian research APIs returning 500 while their docs looked healthy.
 | **OpenRouter** | 38 audio-input models; one **free** (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`), Gemini Flash from ~$0.00000004/audio-token | multilingual | free tier exists |
 | Hugging Face `openai/whisper-large-v3` | five providers | generic | free tier |
 | **TalTech `whisper-large-v3-turbo-et-verbatim-2604`** | MIT, ungated, 1 400 h verbatim Estonian + ~4 000 h broadcast news. GGML build published 2026-06-17 (1.6 GB) | **best** | **nobody hosts it** — `inferenceProviderMapping` is empty |
+| **TalTech `Voxtral-Mini-3B-2507-estonian`** | Apache-2.0, published 2026-08-25. An audio-*understanding* model, not a Whisper — it takes an instruction with the audio. GGUF by a third party (`mradermacher`), not by TalTech | reports 5.05 % WER, on ten recordings, which the card says not to read as a benchmark | **nobody hosts it** — re-probed 2026-09-01, mapping empty |
 | `api.tartunlp.ai/speech-to-text` | 404 | — | dead since 2024 |
 | `tekstiks.ee` | up, free non-commercial, but a SvelteKit app with no documented API | good | — |
 | Browser Web Speech API | free, no infrastructure | not reliably supported in Safari or Chrome | — |
@@ -90,9 +91,18 @@ So the chain is ordered by **where the app actually runs**:
    question being answered so the vocabulary is biased to the topic.
 2. **OpenRouter**, using an audio-capable model, free tier included.
 3. **Hugging Face**, generic Whisper.
-4. **Local whisper.cpp**, last — kept as a bonus for whoever runs `serve` on
-   their own laptop, where it is both the most accurate at Estonian and the only
-   option where the voice never leaves the machine.
+4. **Local whisper.cpp**, then **local Voxtral** — kept as a bonus for whoever
+   runs `serve` on their own laptop, where they are both accurate at Estonian
+   and the only options where the voice never leaves the machine.
+
+whisper.cpp goes in front of Voxtral, and the reason is evidence rather than
+preference. Both are TalTech and both are Estonian; the difference is what is
+known about them. The verbatim Whisper has the published Estonian track record.
+Voxtral's card reports 5.05 % WER and says in the same paragraph that the
+validation set is ten recordings and "should not be treated as a broad estimate
+of Estonian ASR quality". Neither is measured on this project's own material,
+nobody has said anything about the new one — 48 downloads, no likes, no
+discussion — and **being newer is not a result**. Turn one off to compare them.
 
 A *failing* engine falls through to the next rather than ending the attempt.
 That differs from the grammar chain on purpose: grammar degrades to an offline
@@ -121,6 +131,27 @@ curl -L -o ~/models/et-verbatim.bin \
 export WHISPER_CPP_BIN=$(which whisper-cli)
 export WHISPER_CPP_MODEL=~/models/et-verbatim.bin
 ```
+
+Or TalTech's Estonian Voxtral, through llama.cpp's multimodal CLI —
+`llama-server` cannot do this yet, since an OpenAI-shaped
+`/v1/audio/transcriptions` is an open feature request upstream rather than a
+merged endpoint:
+
+```bash
+huggingface-cli download mradermacher/Voxtral-Mini-3B-2507-estonian-GGUF \
+  Voxtral-Mini-3B-2507-estonian.Q4_K_M.gguf \
+  Voxtral-Mini-3B-2507-estonian.mmproj-f16.gguf --local-dir ~/models/voxtral-et
+
+export VOXTRAL_BIN=$(which llama-mtmd-cli)
+export VOXTRAL_MODEL_PATH=~/models/voxtral-et/Voxtral-Mini-3B-2507-estonian.Q4_K_M.gguf
+export VOXTRAL_MMPROJ=~/models/voxtral-et/Voxtral-Mini-3B-2507-estonian.mmproj-f16.gguf
+```
+
+All three variables or none. The `mmproj` file is the audio encoder: without it
+the binary still loads and still answers, about audio it never received — a
+confident transcript of nothing, which is the worst failure available here — so
+the lane refuses to start rather than half-start. `docs/local-llm.md` has what
+is actually known about the model.
 
 ## With nothing configured
 

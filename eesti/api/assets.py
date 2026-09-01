@@ -100,6 +100,38 @@ def icon_png() -> Response:
     return Response(ICON_SVG, media_type="image/svg+xml")
 
 
+#: The line `sw.js` declares its cache version on. Replaced when the worker is
+#: served; asserted rather than assumed, because a silent no-op here brings
+#: back the stale-shell bug it exists to prevent.
+_VERSION_LINE = 'const VERSION = "dev";'
+
+
+def build_version() -> str:
+    """What to name this build's cache.
+
+    The commit if the image build wrote one, else the build timestamp, else
+    `dev` -- which is the honest answer from a source checkout, where the file
+    on disk is the file being served and nothing needs retiring.
+    """
+    from .deps import BUILD
+
+    revision = (BUILD.get("revision") or "").strip()
+    built = (BUILD.get("built") or "").strip()
+    return (revision or built or "dev")[:40]
+
+
+def worker_source() -> str:
+    """`sw.js` with the running build stamped into its cache name."""
+    source = (WEB / "sw.js").read_text(encoding="utf-8")
+    if _VERSION_LINE not in source:
+        raise RuntimeError(
+            f"sw.js no longer declares {_VERSION_LINE!r}; the cache version "
+            f"would silently stop being stamped and old shells would never "
+            f"be retired")
+    version = build_version()
+    return source.replace(_VERSION_LINE, f'const VERSION = "{version}";', 1)
+
+
 @router.get("/sw.js")
 def service_worker() -> Response:
     """Served from the root so its scope covers the whole app.
@@ -110,10 +142,16 @@ def service_worker() -> Response:
     `no-cache` on the worker itself: browsers re-check it on navigation, and a
     worker pinned by HTTP caching is one that cannot be replaced -- the failure
     mode where a bad worker outlives the deploy that fixed it.
+
+    The cache name is stamped here rather than typed into the file. `activate`
+    deletes every cache that is not the current one, so the version string is
+    the only thing that retires a shell: left at a hand-edited literal, a
+    redeploy that forgot to bump it kept serving the previous `index.html` from
+    disk -- and that page names the modules it loads. Deriving it from the build
+    means a new image is a new cache, always, with nothing to remember.
     """
     return Response(
-        (WEB / "sw.js").read_text(encoding="utf-8"),
-        media_type="application/javascript",
+        worker_source(), media_type="application/javascript",
         headers={"Cache-Control": "no-cache"},
     )
 

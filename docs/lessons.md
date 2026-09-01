@@ -183,6 +183,42 @@ and so does a second copy of one job.
 A green suite is a claim about the code, and these are the ways that claim
 has been false.
 
+- **In-process is a blind spot, and it hid a bug for three commits.** An
+  empty `data/eesti.db` kept appearing and nothing could be shown to make it.
+  Eight CLI commands were creating it — `wordlist.connect()` makes the file and
+  applies the schema, so *reading* the lexicon manufactured one — and
+  `test_cli_smoke` runs every one of those commands and could never catch it,
+  because it calls `cli.main()` in-process where the autouse fixture redirects
+  the path. The spy could not see it either: a monkeypatched `sqlite3.connect`
+  does not cross an interpreter boundary. What worked was `sys.addaudithook`
+  in a `sitecustomize.py` on `PYTHONPATH` — inherited by every subprocess —
+  and, faster still, running the eight commands by hand instead of the suite.
+  When a suite that exercises the culprit stays green, suspect the harness, not
+  the absence of a bug.
+
+- **Reproduce with the real argument form.** `cli readiness A2` looked clean in
+  the manual hunt and `cli readiness --level A2` created the file: argparse
+  rejected the first before any code ran, and "no phantom" was recorded as
+  evidence of innocence. The regression test derives its command list from
+  `test_cli_smoke.READ_ONLY` rather than restating it, which caught five
+  creators the hand-written hunt had missed.
+
+- **Test the property, not the source text, when the same call can be right or
+  wrong.** The first guard here grepped `eesti/cli/` for `wordlist.connect` and
+  flagged four files — including `cli build` and `cli export`, which open the
+  word list to *write* it and must keep creating. A grep cannot tell a reader
+  from a builder. Running every read-only command against an unbuilt path and
+  asserting no file appears can, and it is the behaviour that actually matters.
+
+- **A guard that asks `exists()` is defeated by the thing it guards against.**
+  `cli serve` refuses to start without a database, and an empty word list
+  satisfied `exists()` — so it served the whole app with a zero-word lexicon:
+  every drill empty, every lookup missing, no message anywhere. The browser
+  fixture had the same gate, where a phantom would have unskipped ~140
+  journeys against an empty lexicon. Count rows. It is the same rule as
+  "presence of a database is not presence of data", and it has now cost three
+  separate guards.
+
 - **`--help` proves the parser, never the body.** `cli.py` is the largest
   module here and had 0 % coverage — nothing had ever imported it, while six
   routes were deleted, four generators were unified and `Cloze` was rebuilt

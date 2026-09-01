@@ -297,6 +297,207 @@ more than it is worth:
   in the browser suite is implicitly budgeted around that being paid before the
   assertion; under load it is what pushes a 20 s `wait_for_selector` over.
 
+### The checkpoint under-delivered, and the fixture that hid it
+
+`checkpoint.build` promised `count` items and returned however many the first
+pass produced. It asked each topic for `count // topics + 1`, dealt every pool
+to exhaustion and stopped: against a thin word list A1 asked for 12 and got 8,
+silently. A thin word list is not a test artefact — it is what a deployment
+looks like before content is pushed, and `/api/checkpoint/{level}?count=15` is
+a promise the learner sees as a quiz length. It asks again now, doubling, until
+it has what was asked for or nothing new comes back; each pass deals
+round-robin, so the no-two-in-a-row interleaving holds across the seam and not
+merely within a pass. Cost measured: 9–24 ms once Vabamorf is warm.
+
+The test that caught it had been failing on `main` too, but only in isolation —
+it passed or failed depending on what ran before it, which is why adding one
+unrelated test file surfaced it.
+
+Behind that was the reason it was invisible: **a full run leaves an empty
+`data/eesti.db` behind** — 0 rows, correct schema. `real_wordlist` gated on
+`exists()`, so on the *next* run two curated-content tests stopped skipping and
+checked Estonian against an empty lexicon. Two failures, in a file nothing had
+touched, reading exactly like a regression. The fixture counts a row now
+(`wordlist.available`), which is this project's oldest rule written into the
+fixture that existed to honour it.
+
+**Found, after three commits of it being open.** It was never the test suite.
+
+`python -m eesti.cli status`, `themes`, `vocab`, `readiness`, `drill`,
+`conjugate`, `patterns` and `placement` — typed by a person before
+`cli build` — each read the lexicon through `wordlist.connect()`, which creates
+the file and applies the schema. So *reading* the word list manufactured one:
+zero rows, complete schema, indistinguishable from a real build to anything
+asking `exists()`.
+
+Why it took so long is the useful part, and all three reasons are the same
+mistake in different costumes:
+
+- **`test_cli_smoke` runs all eight commands, in-process**, where the autouse
+  fixture redirects `config.DB_PATH`. A suite that exercised every culprit could
+  never show the bug.
+- **An in-process `sqlite3.connect` spy cannot see a subprocess.** `PYTHONPATH`
+  is inherited; a monkeypatched attribute is not. The hunt is committed as
+  `tests/phantom/` — the same audit hook, injected so it loads everywhere.
+- **The evidence arrived one run late.** `real_wordlist` gated on `exists()`, so
+  the run that created the file was fine and the *next* one failed, in an
+  unrelated file, looking like a regression.
+
+Two suspects were eliminated rather than searched. Five full runs under the
+subprocess-wide hook recorded **not one read-write open of that path** — so
+nothing in `pytest tests/` does it. And the uvicorn subprocess is ruled out by
+construction: `live_server` skips when the word list is absent, which is the
+only condition in which the file could be created; when it is present there is
+nothing to create.
+
+**It reached further than the CLI.** `practice.items_for` — library code behind
+`/api/practice`, placement, the checkpoint and the handoff — opened the word
+list the same way. On a deployment where content had not been pushed, the first
+learner to ask for a drill created a convincing empty lexicon on the server.
+That one raises now, and the route already turns it into a 400 carrying the
+text; returning no items would have read as "this topic is broken" rather than
+"nothing has been built here".
+
+**The fix is a helper that already existed.** `cli/_helpers.words_db` asks
+`available()` first and says what to run, and its docstring already called this
+"the fourth instance of the same bug". Eight commands bypassed it.
+
+Two guards were themselves defeated by the phantom, both asking existence where
+they meant rows:
+
+- `cli serve` refuses to start without a database — and an empty word list
+  satisfied `exists()`, so it served the whole app with a zero-word lexicon:
+  every drill empty, every lookup missing, no message anywhere.
+- `test_e2e_journeys.live_server` gated the same way, so a phantom would have
+  unskipped the entire browser suite against an empty lexicon — around 140
+  failures that look like a regression and are a missing build.
+
+The regression test asks the property of **every** command in
+`test_cli_smoke.READ_ONLY`, derived from that list rather than written again,
+as real subprocesses. A source grep cannot express it: `cli build` and
+`cli export` open the word list to write it and must keep creating. Writing the
+check that way immediately caught five creators beyond the three the manual
+hunt had found — including `readiness`, which the hand-run hunt had reported
+clean because the argument was typed as `readiness A2` rather than
+`readiness --level A2` and argparse rejected it before the code ran.
+
+The conftest guard from the previous commit stays. It is now a trap for the
+next instance rather than the only evidence for this one.
+
+### The two Estonian models are wired, and neither is adopted
+
+Both were recorded on 2026-09-01 as existing and left there. An option nobody
+can reach is an option nobody can measure, so both now have a lane; neither has
+a number, and nothing was reordered in front of an incumbent on the strength of
+being new.
+
+**EstLLM, hosted.** `huggingface` is back in `PROVIDERS` — the same lane that
+was deleted in August after the probe found the router serving 132 models and
+not one Estonian one. It is second in `LLM_PREFERENCE`, directly behind `local`
+and ahead of every general-purpose model, and that is the *same* argument
+rather than a new one: it runs the same Estonian-adapted weights, on hardware
+somebody else owns. `HF_TOKEN` is already this deployment's vocabulary, since
+`providers/asr.py` reads it for hosted Whisper.
+
+What is **not** verified: that a request completes. The HF router answers 401
+before it routes, so an unauthenticated probe returns 401 for a real id and a
+made-up one alike and proves nothing. Only a call with a token settles it, and
+this repository must never hold one. `cli eval --provider huggingface` is the
+command that turns the lane into a number.
+
+Wiring it uncovered a drifted list. `cli/build.py` held a hand-written
+`_PROVIDERS` tuple that had gone wrong in both directions at once: it offered
+`huggingface` when no such provider existed, so `--provider huggingface` was an
+accepted choice that could only raise `KeyError`; and it omitted `local`, so the
+one lane running an Estonian-adapted model was the one lane the eval could not
+score — on the command whose whole job is to find out whether a model is any
+good at Estonian. It is derived from `llm.PROVIDERS` now. Unlike `api.ROUTERS`
+and `cli.GROUPS` it carries no ordering decision, so there was nothing to keep
+by hand.
+
+**Voxtral, local.** `TalTechNLP/Voxtral-Mini-3B-2507-estonian`, Apache-2.0,
+published 2026-08-25, hosted by nobody (re-probed 2026-09-01). It is an
+audio-*understanding* model rather than a Whisper, so whisper.cpp cannot run it
+and the prompt is load-bearing — asked nothing in particular it will return a
+summary, a subtitle track or a news story, all of which it was trained to
+produce from the same recording. It shells out to llama.cpp's multimodal CLI,
+because an OpenAI-shaped `/v1/audio/transcriptions` on llama.cpp is an open
+feature request rather than a merged endpoint.
+
+It sits **behind** whisper.cpp. Its card reports 5.05 % WER and says in the same
+paragraph that the validation set is ten recordings and should not be read as an
+estimate of Estonian ASR quality. Nobody has said anything about it — 48
+downloads, zero likes, no discussion found — which is itself worth recording,
+because "new model, must be better" is the reasoning this project's eval exists
+to refuse.
+
+One earlier claim corrected: the note called it "TalTech's Estonian Voxtral with
+GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
+`mradermacher`'s. Whoever pulls them is trusting a converter as well as a
+trainer.
+
+### Third-party sources, re-probed 2026-09-01
+
+Every endpoint the code actually calls answers: ERR's two archives, HARNO,
+EIS's public items, Sõnaveeb (`api.sonapi.ee/v2`), TartuNLP's TTS and
+translation (both `/v2`), the Selges keeles WordPress API, EVKK's taxonomy, the
+Ekilex word list on GitHub raw, and EKK SÜ 64. No API version has moved; there
+is nothing to migrate to.
+
+Two registry URLs answer non-200 and both are fine: the Ekilex *repository
+page* is 403 to an unauthenticated fetch while the raw data file it exists for
+is 200, and `api.sonapi.ee/v2/` with no word is 404 while `v2/raamat` is 200.
+Worth writing down, because "the link check went red" would otherwise be
+rediscovered as a problem twice a year.
+
+**The one claim that had gone stale was ours, not theirs.** `docs/local-llm.md`
+recorded, correctly, that on 2026-08-20 nobody hosted any Estonian model. On
+2026-09-01 the exact model this project pins is served by featherless-ai,
+status `live`. Three weeks. The note also said "this is not a gap that is about
+to close", which is the sort of sentence that should not be written about
+somebody else's roadmap.
+
+Two Estonian models exist now that did not: a 70B EstLLM (2026-08-17, ~40 GB at
+Q4 — a bigger machine, not a Mac mini) and TalTech's Estonian Voxtral
+(2026-08-25) with GGUF builds, which is the first real candidate for the
+speaking lane's recogniser. Neither is measured on this project's eval and
+neither is adopted for being new.
+
+### Dependencies, checked 2026-09-01
+
+| | |
+|---|---|
+| `estnltk` | **1.7.4 → 1.7.5.** The one pin that is an answer key: a drill's correct answer is whatever `synthesize()` returns. Taken only after measuring — 2 600 forms (400 nouns × 4 cases, 200 verbs × 5 forms, A1–B1 by frequency) identical under both, and `cli build` indexing the same 2 416 object cases and 1 671 drillable nouns. Do that again before moving it. |
+| `httpx` → `httpx2` | Starlette's TestClient warns on every import that plain `httpx` is deprecated for it. Nothing in `eesti/` imports either — the app's own HTTP is urllib — so this is a test dependency that happens to live in `requirements.txt`. |
+| `typescript` | **5 → 7**, verified by running `tsc --noEmit` over `deploy/worker.ts` on 7.0.2: clean. |
+| `wrangler`, `@cloudflare/workers-types` | Floors raised to what was installed and tested. Both were already inside their caret ranges, so this records the tested state rather than changing it. |
+| GitHub Actions | `checkout@v4 → v7`, `setup-python@v5 → v7`, `setup-node@v4 → v7` — three majors behind, all runtime bumps. CI proves these; nothing else can. |
+| `fastapi`, `uvicorn`, `fsrs`, `pytest`, `playwright`, `pydantic` | Already latest. |
+
+**pytest 10 will remove class-scoped fixtures declared as instance methods.**
+Seven test files had them; they are `@classmethod` now, and the suite passes
+with `-W error::pytest.PytestRemovedIn10Warning`. That was a deprecation with a
+removal date, not a style note.
+
+**Python moves to 3.13**, on evidence rather than on the wheel list:
+
+- CI runs a **matrix**, 3.11 and 3.13, `fail-fast: false`. The 3.13 leg passes
+  the whole suite *and* the morphology gate against TalTech's native gold
+  forms — not merely the unit tests.
+- Locally, on a real 3.13.7: `pip install -r requirements.txt`, then the
+  image's own pipeline. `cli build` produced the same numbers as 3.11 —
+  160 316 words, checked=2575 indexed=2416, 1 671 drillable nouns — and
+  `cli export` completed. Vabamorf's compiled extension is the whole risk, and
+  it synthesises identically.
+- The Dockerfile's two stages are `python:3.13-slim`. 3.11 stays in the CI
+  matrix because it is what the image shipped until now.
+
+**What is still unverified, and only a deploy can check:** the image itself was
+not built here — this container has a Docker CLI and no daemon. The wheel is
+`manylinux_2_28`, which Debian slim satisfies comfortably, and CI installs the
+same requirements on 3.13; but "the deps install on ubuntu-latest" is not "the
+image builds". `deploy.yml` is what will say, and the smoke check after it.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

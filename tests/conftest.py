@@ -20,6 +20,7 @@ say so.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -185,12 +186,23 @@ def real_wordlist():
     `kingad` a word?" — and a fixture cannot answer that about itself. They opt
     out of the redirect and skip loudly where the build is absent, which is what
     CI sees.
+
+    "Absent" means *no words in it*, not "no file". This asked `exists()`, which
+    is this project's oldest recurring bug written into the very fixture that
+    exists to avoid it: something in a full run leaves an empty `data/eesti.db`
+    behind — 0 rows, correct schema — and on the *next* run these tests then
+    stopped skipping and checked curated Estonian against an empty lexicon.
+    Two failures, in a file nothing had touched, that read exactly like a
+    regression. Counting a row makes an empty phantom skip, which is the honest
+    answer for it.
     """
     import sqlite3 as _sqlite3
     from pathlib import Path
 
+    from eesti.wordlist import available
+
     real = Path("data/eesti.db")
-    if not real.exists():
+    if not available(real):
         pytest.skip("needs the full wordlist — run `cli fetch-data && cli build`")
     conn = _sqlite3.connect(f"file:{real}?mode=ro", uri=True)
     conn.row_factory = _sqlite3.Row
@@ -198,6 +210,227 @@ def real_wordlist():
         yield conn
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# What this machine has, said out loud
+# ---------------------------------------------------------------------------
+#
+# The same command reports very different runs depending on state that is
+# invisible in its output: `data/` is git-ignored, so a machine with a built
+# word list runs tests that a fresh checkout skips, and a machine without
+# Playwright skips the browser journeys entirely. Both print "passed".
+#
+# That cost a real mistake in the session that split this repository up: a
+# browser run reported "144 skipped" after the dataset had been deleted, and
+# the comparison it was being used for measured nothing. A skip is a fine
+# answer; a skip nobody can see in the result is not.
+
+
+def dataset_state() -> dict[str, object]:
+    """Which optional inputs are present, and how much they hold.
+
+    Read-only and failure-proof by construction: `available()` opens read-only
+    and counts a row, because presence of a database is not presence of data --
+    opening one to look would *create* it, which is this project's oldest
+    recurring bug.
+    """
+    from pathlib import Path
+
+    state: dict[str, object] = {"words": 0, "corpus": 0, "browsers": []}
+    try:
+        from eesti import config
+        from eesti.sources import available as corpus_available
+        from eesti.wordlist import available as words_available
+
+        if words_available(config.DB_PATH):
+            conn = sqlite3.connect(f"file:{config.DB_PATH}?mode=ro", uri=True)
+            state["words"] = conn.execute("SELECT COUNT(*) FROM words").fetchone()[0]
+            conn.close()
+        if corpus_available(config.CONTENT_DB):
+            conn = sqlite3.connect(f"file:{config.CONTENT_DB}?mode=ro", uri=True)
+            state["corpus"] = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+            conn.close()
+    except Exception:  # noqa: BLE001 - a header must never break a run
+        pass
+
+    try:
+        import importlib.util
+
+        # Both halves matter and they fail differently: no `playwright` package
+        # is "the journeys cannot run at all", an empty browser directory is
+        # "they can run and have nothing to run in". Either way the suite
+        # skips, so the line says the same thing -- but the directory scan is
+        # its own function because it is the part worth testing, and testing it
+        # through this branch would have meant a test that only runs where
+        # playwright happens to be installed. Which is the failure this whole
+        # report exists to stop.
+        if importlib.util.find_spec("playwright") is not None:
+            state["browsers"] = installed_engines()
+    except Exception:  # noqa: BLE001
+        pass
+    return state
+
+
+def installed_engines(root: "Path | None" = None) -> list[str]:
+    """Which browser engines Playwright has unpacked, named once each.
+
+    `chromium-1194` and `chromium_headless_shell-1194` sit beside each other
+    and are one engine, not two.
+    """
+    import os
+    from pathlib import Path
+
+    root = Path(root or os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
+    found = set()
+    try:
+        for path in root.glob("*-*"):
+            for engine in ("chromium", "webkit", "firefox"):
+                if path.name.startswith(engine):
+                    found.add(engine)
+    except OSError:
+        return []
+    return sorted(found)
+
+
+def describe_dataset(state: dict[str, object]) -> str:
+    """One line naming what will and will not run."""
+    words, corpus, browsers = state["words"], state["corpus"], state["browsers"]
+    parts = [
+        f"word list: {words:,} words" if words
+        else "word list: absent (some tests skip -- `cli fetch-data && cli build`)",
+        f"corpus: {corpus:,} items" if corpus
+        else "corpus: absent (reading journeys skip -- `cli harvest-reading`)",
+        f"browsers: {', '.join(browsers)}" if browsers
+        else "browsers: none (the journey suite skips entirely)",
+    ]
+    return "eesti | " + " | ".join(parts)
+
+
+# --------------------------------------------------------------------------
+# The phantom word list.
+#
+# Something in a full run leaves an empty `data/eesti.db` behind: zero rows,
+# complete schema. `wordlist.connect()` is how -- it takes `config.DB_PATH` when
+# called with no argument, and `sqlite3.connect` creates the file before
+# `executescript` fills in the schema, so any read that skips `available()`
+# manufactures a convincing-looking empty database as a side effect.
+#
+# The cost was never the file. It was that `real_wordlist` gated on `exists()`,
+# so the *next* run stopped skipping two curated-content tests and checked
+# Estonian against an empty lexicon: two failures in a file nobody had touched,
+# looking exactly like a regression, one run after the run that caused them.
+# The gate counts rows now, which closes that.
+#
+# What stayed open is which caller writes it, and the reason the earlier spy
+# never found out is half the answer. No test in this process can do it: the
+# autouse fixture below redirects `config.DB_PATH` for every one of them. And a
+# monkeypatch of `sqlite3.connect` in this interpreter is invisible in another
+# one, which is where the suite's subprocesses run. Confirmed directly -- a
+# subprocess calling `wordlist.connect()` from the repo root creates the file,
+# because `config.DB_PATH` is anchored to the repo root and inherits nothing.
+#
+# So this does not try to find the writer. It makes the run *say* when it
+# happened, in the run that did it rather than the one after, and hands over the
+# stack that did it when the call was in-process. An audit hook rather than a
+# monkeypatch because audit hooks are per-interpreter too but fire beneath
+# every caller including C-level ones, and because it cannot be un-patched by
+# anything under test. Measured at no detectable cost on a 145-test slice.
+
+_PHANTOM: dict = {"existed": None, "stack": None}
+
+
+def _watch_for_the_phantom() -> None:
+    import sys
+    import traceback
+
+    from eesti import config
+
+    target = Path(config.DB_PATH).resolve()
+    _PHANTOM["existed"] = target.exists()
+    if _PHANTOM["existed"]:
+        return  # a real word list; nothing that opens it is creating it
+
+    def hook(event, args):
+        if event != "sqlite3.connect" or _PHANTOM["stack"] is not None:
+            return
+        try:
+            raw = str(args[0])
+        except Exception:
+            return
+        # A read-only URI cannot create anything, and `wordlist.available` --
+        # which this very file calls to build the header -- opens exactly that
+        # way. Without this line the first stack captured is the checker asking
+        # whether the file is there, reported as the thing that made it.
+        if "mode=ro" in raw:
+            return
+        opened = raw.replace("file:", "").split("?")[0]
+        # The absolute path, not the basename. The session fixture builds its
+        # own word list and calls it `eesti.db` too, so a name match captures a
+        # stack from an innocent fixture and then prints it as the culprit --
+        # a diagnostic that confidently names the wrong caller is worse than
+        # none. `config.DB_PATH` is anchored to the repo root, so a subprocess
+        # in another working directory still resolves to this same path.
+        try:
+            if Path(opened).resolve() != target:
+                return
+        except OSError:
+            return
+        _PHANTOM["stack"] = "".join(traceback.format_stack()[:-1])
+
+    sys.addaudithook(hook)
+
+
+def pytest_sessionstart(session) -> None:
+    """Arm the watcher here, not in `pytest_report_header`.
+
+    It was armed from the header, and under `-q` -- the command every document
+    in this repository names -- pytest never calls that hook, so the guard was
+    off in exactly the runs it was written for. That is the same mistake the
+    header itself was written to fix, made one function further down.
+    """
+    _watch_for_the_phantom()
+
+
+def pytest_report_header(config) -> str:
+    """Printed before the run, so the result can never be read out of context."""
+    return describe_dataset(dataset_state())
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
+    """The same line at the end, because `-q` hides the header.
+
+    `pytest tests/ -q` is the command every document in this repository names,
+    and under `-q` the header above is not printed at all -- so the one place
+    the run's context would have been visible is the one place it was not.
+    """
+    skipped = terminalreporter.stats.get("skipped", [])
+    line = describe_dataset(dataset_state())
+    if skipped:
+        line += f" | {len(skipped)} skipped"
+    terminalreporter.write_line(line)
+    _report_the_phantom(terminalreporter)
+
+
+def _report_the_phantom(terminalreporter) -> None:
+    """Say it in the run that created it, not in the run that trips over it."""
+    from eesti import config
+    from eesti import wordlist
+
+    target = Path(config.DB_PATH)
+    if _PHANTOM["existed"] is not False or not target.exists():
+        return
+    if wordlist.available(target):
+        return  # a build ran during the session; that is a real word list
+    terminalreporter.write_line(
+        f"eesti | this run created an EMPTY {target} (0 rows, full schema). "
+        f"The next run will stop skipping tests that need a real word list and "
+        f"they will fail there instead of here. Delete it, and fix the caller:",
+        red=True)
+    terminalreporter.write_line(
+        _PHANTOM["stack"] or
+        "  no in-process stack -- a subprocess opened it. Re-run with "
+        "PYTHONPATH pointing at a sitecustomize that installs the same hook.")
 
 
 @pytest.fixture(scope="session")

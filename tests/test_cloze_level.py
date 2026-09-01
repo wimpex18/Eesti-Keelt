@@ -96,7 +96,8 @@ class TestAgainstTheRealCorpus:
     """The measurement that found this, run as an assertion."""
 
     @pytest.fixture(scope="class")
-    def fixtures(self):
+    @classmethod
+    def fixtures(cls):
         from eesti import config
         from eesti.wordlist import connect
 

@@ -288,7 +288,8 @@ class TestThePageDoesNotPromiseWhatTheEngineCannotKeep:
 
 
     @pytest.fixture(scope="class")
-    def page(self) -> str:
+    @classmethod
+    def page(cls) -> str:
         return markup_and_script()
 
     @pytest.mark.parametrize("claim", [

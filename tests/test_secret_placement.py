@@ -147,8 +147,9 @@ class TestTheDeepCheckIsOptIn:
     WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
 
     @pytest.fixture(scope="class")
-    def workflow(self) -> str:
-        return self.WORKFLOW.read_text(encoding="utf-8")
+    @classmethod
+    def workflow(cls) -> str:
+        return cls.WORKFLOW.read_text(encoding="utf-8")
 
     def test_it_does_not_run_automatically(self, workflow):
         import yaml
@@ -267,8 +268,9 @@ class TestASplitDeploymentIsNotAFlake:
     WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
 
     @pytest.fixture(scope="class")
-    def workflow(self) -> str:
-        return self.WORKFLOW.read_text(encoding="utf-8")
+    @classmethod
+    def workflow(cls) -> str:
+        return cls.WORKFLOW.read_text(encoding="utf-8")
 
     def test_it_asks_more_than_once(self, workflow):
         block = workflow.split("Asked five times")[1][:900]

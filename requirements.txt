@@ -1,8 +1,29 @@
-estnltk==1.7.4        # Vabamorf: offline morphology + synthesis (the core)
+# Vabamorf: offline morphology + synthesis (the core). Pinned exactly, because
+# this is the answer key: a drill's correct answer is whatever synthesize()
+# returns, so a version change is a change to what the learner is marked
+# against. 1.7.4 -> 1.7.5 was taken after measuring it -- 2 600 forms (400
+# nouns x 4 cases, 200 verbs x 5 forms, all A1-B1 by frequency) synthesised
+# identically under both, and `cli build` indexed the same 2 416 object cases
+# and the same 1 671 drillable nouns. Do the same before moving it again.
+estnltk==1.7.5
 fastapi>=0.115        # local web app
 uvicorn[standard]>=0.30
 
 # Optional — the grammar checker degrades gracefully without it.
 # anthropic>=0.40
 fsrs>=6.0                # FSRS-6 spaced repetition (MIT)
-httpx
+
+# Starlette's TestClient transport. It asks for `httpx2` now and warns on every
+# import that plain `httpx` is deprecated for this use; the whole suite passes
+# on it. Nothing in `eesti/` imports either -- the app's own HTTP goes through
+# urllib (`eesti/net.py` and `providers/`), so this is here for the tests.
+httpx2
+
+# Reading the workflow files in tests. It was already importable and already
+# imported -- but only because `uvicorn[standard]` happens to pull it in as an
+# extra, which is a dependency on somebody else's packaging decision. This
+# project has already paid for that shape once: a test that passed here and
+# failed in CI because `playwright` was undeclared. Nine tests now read
+# `.github/workflows/*.yml`, so it is declared. No new weight in the image --
+# it is the same wheel uvicorn was already installing.
+PyYAML>=6.0

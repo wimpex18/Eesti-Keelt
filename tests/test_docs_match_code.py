@@ -172,3 +172,70 @@ class TestTheModeStructure:
         assert not invented, (
             f"the structure diagram names sections the app does not have: "
             f"{sorted(invented)}")
+
+
+class TestEveryFileTheDocsPointAtExists:
+    """A pointer to a file that is not there sends the reader nowhere.
+
+    `roadmap.md` said "see `sources.md`" for why a monologue recorder trains
+    the wrong thing. There has never been a `sources.md`; the argument is in
+    `speaking.md`. Nothing catches that kind of rot — a stale *pointer* reads
+    exactly like a live one, and only somebody following it finds out.
+
+    Backticked filenames are the form this project uses for a reference, so
+    that is what gets checked. Names that are deliberately not files live in
+    `NOT_A_FILE` with a reason, the same posture `test_route_inventory` takes
+    towards a route with no caller: an entry is a decision, not a snooze.
+    """
+
+    #: Cited in backticks, correctly, and not a path in this repository.
+    NOT_A_FILE = {
+        "Search/search_results.html": "a path on EVKK's server, in the note "
+                                      "about what their search returns",
+        "cli.py": "history: it was one module before the split, and the "
+                  "lessons and status entries about it name what it was",
+        "eesti/cli.py": "history, as above — the Was/Is table in status.md and "
+                        "the docstring in test_cli_smoke.py both name the old "
+                        "path deliberately",
+        "stack-2026.md": "history: architecture.md records that it was merged "
+                         "from that file, which is why the name appears",
+    }
+
+    @staticmethod
+    def _citations() -> dict[str, set[str]]:
+        import collections
+
+        found = collections.defaultdict(set)
+        pattern = re.compile(
+            r"`([A-Za-z0-9_./-]+\.(?:md|py|js|css|html|sh|ts|yml|json|tsv))`")
+        for path in sorted(ROOT.glob("*.md")) + sorted(ROOT.glob("docs/*.md")):
+            for match in pattern.finditer(path.read_text(encoding="utf-8")):
+                found[match.group(1)].add(path.relative_to(ROOT).as_posix())
+        return found
+
+    def test_there_are_citations_to_check(self):
+        assert len(self._citations()) > 40
+
+    def test_every_cited_file_exists(self):
+        missing = {
+            name: sorted(where)
+            for name, where in self._citations().items()
+            if name not in self.NOT_A_FILE
+            and not (ROOT / name).exists()
+            and not list(ROOT.glob(f"**/{name}"))
+        }
+        assert not missing, (
+            f"the docs point at files that are not there: {missing}. Fix the "
+            f"pointer, or add the name to NOT_A_FILE with the reason it is not "
+            f"a path.")
+
+    def test_the_exemptions_are_still_needed(self):
+        """An exemption for a name nobody cites any more is a stale note that
+        would silently excuse a future typo of the same name."""
+        cited = set(self._citations())
+        stale = sorted(set(self.NOT_A_FILE) - cited)
+        assert not stale, f"NOT_A_FILE names nothing cites: {stale}"
+
+    def test_every_exemption_says_why(self):
+        for name, reason in self.NOT_A_FILE.items():
+            assert len(reason) > 25, f"{name} is exempt without a reason"

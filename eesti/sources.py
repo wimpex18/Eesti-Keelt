@@ -132,6 +132,23 @@ class Item:
 
 # The registry. Every source this app is allowed to touch, with the licence that
 # governs it. Adding a source means making a licence decision, deliberately.
+#: The licence ledger. Two kinds of entry live here, and the difference is worth
+#: knowing before reading a "nothing produces this" as a gap:
+#:
+#: * **Corpus producers** — `err-r4`, `err-lihtsad`, `harno`, `eis`,
+#:   `selges-keeles`, `oma-materjal`. A harvester (or `cli ingest`) writes rows
+#:   into `items` carrying the id, and `add_items` refuses any id not listed
+#:   here. That refusal is the gate.
+#: * **Provenance records** — `ekilex-wordlist` (fills `words`), `taltech-gec`
+#:   (the attested word-order corrections), `evkk` (an error taxonomy),
+#:   `sonapi` and `tartunlp-tts` (live APIs, answers cached not archived),
+#:   `ekk` (linked to, with 62 lexical facts stored), `generated` (drills, which
+#:   are computed and never stored). Nothing writes `items` for these, and that
+#:   is correct: they are here because this project touches them and every
+#:   third party it touches has to have its licence written down.
+#:
+#: `tests/test_sections.py` checks the ledger covers every source id the code
+#: writes; it cannot check the second kind, which is why they are named here.
 REGISTRY: tuple[Source, ...] = (
     Source(
         "err-r4", "ERR Raadio 4 keeleõppesaated", "harvest",
@@ -207,6 +224,21 @@ REGISTRY: tuple[Source, ...] = (
         "51k linguist-annotated errors in learner Estonian. Only the public "
         "error taxonomy and its counts are stored, to weight the curriculum by "
         "what learners actually get wrong. The learner texts are not fetched.",
+    ),
+    Source(
+        "ekk", "Eesti keele käsiraamat (EKI)", "file",
+        "© Eesti Keele Instituut — linked to, not reproduced", False,
+        "https://arhiiv.eki.ee/books/ekk09/index.php",
+        "The handbook this project points at instead of restating grammar. Two "
+        "uses, both deliberate: every rule explanation links to its section "
+        "rather than paraphrasing it, and SÜ 64 — the handbook's own list of "
+        "rections people get wrong — is fetched once for 62 lexical facts "
+        "(headword, correct frame, marked wrong frame). EKK's example "
+        "sentences are **not** stored; rection drills are built over the "
+        "harvested corpus instead, so nothing of the prose is reproduced and "
+        "the sentences sit at the learner's level rather than the handbook's. "
+        "It was the one third party the app uses that this ledger did not "
+        "record, found by asking which source ids the code writes.",
     ),
     Source(
         "oma-materjal", "Oma materjal — käsitsi lisatud", "file",

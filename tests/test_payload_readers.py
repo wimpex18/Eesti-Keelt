@@ -148,7 +148,8 @@ class TestTheFieldsThisWasWrittenFor:
     }
 
     @pytest.fixture(scope="class")
-    def screen(self, live_server, chromium_path):
+    @classmethod
+    def screen(cls, live_server, chromium_path):
         """Every stubbed panel's rendered text, in one browser session.
 
         Run on a thread of its own. `TestClient` leaves an asyncio event loop
@@ -160,7 +161,7 @@ class TestTheFieldsThisWasWrittenFor:
         from concurrent.futures import ThreadPoolExecutor
 
         with ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(self._drive, live_server, chromium_path).result()
+            return pool.submit(cls._drive, live_server, chromium_path).result()
 
     @classmethod
     def _drive(cls, live_server: str, chromium_path: str) -> dict:

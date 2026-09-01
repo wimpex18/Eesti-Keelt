@@ -317,11 +317,18 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 # model here has been measured failing. It is also free, private and unmetered,
 # so when it is available there is no argument for asking anyone else first.
 #
-# `huggingface` used to be in this list's place in `PROVIDERS` and was never in
-# this list at all -- defined, unreachable, and unnoticed for exactly that
-# reason. Anything added to `PROVIDERS` and not to this tuple is dead weight;
-# a test now asserts the two agree.
-LLM_PREFERENCE = ("local", "openrouter", "groq", "workers-ai", "anthropic")
+# `huggingface` is second, and it is the same argument rather than a new one:
+# that lane runs the *same* Estonian-adapted model as `local`, hosted. What
+# separates them is who pays and who can read the request -- not the model. So
+# every general-purpose lane stays behind both.
+#
+# This entry is also the reason the rule below exists. `huggingface` was once in
+# `PROVIDERS` and never in this tuple: defined, unreachable, and unnoticed for
+# exactly that reason. Anything added to `PROVIDERS` and not to this tuple is
+# dead weight; a test asserts the two agree, which is what forced this line to
+# be edited when the provider came back.
+LLM_PREFERENCE = ("local", "huggingface", "openrouter", "groq", "workers-ai",
+                  "anthropic")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:

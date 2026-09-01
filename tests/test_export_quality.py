@@ -93,7 +93,8 @@ class TestAgainstTheBuiltDataset:
     dataset has not been built — it is 47 MB and git-ignored."""
 
     @pytest.fixture(scope="class")
-    def edge(self):
+    @classmethod
+    def edge(cls):
         from eesti import config
 
         path = config.DATA / "edge.db"
@@ -155,7 +156,8 @@ class TestTheExportRunsEndToEnd:
     """
 
     @pytest.fixture(scope="class")
-    def built(self, tmp_path_factory, fixture_data):
+    @classmethod
+    def built(cls, tmp_path_factory, fixture_data):
         """Built from the fixture word list, named explicitly.
 
         The first version called `connect()` with no argument and let it read
@@ -258,7 +260,8 @@ class TestAgainstTheDatabaseTheAppActuallyServes:
     """
 
     @pytest.fixture(scope="class")
-    def served(self):
+    @classmethod
+    def served(cls):
         from eesti import config
 
         path = config.DATA / "eesti.db"
