@@ -32,12 +32,17 @@ from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read th
     review_db,
     vocab_db,
 )
-from .config import (  # noqa: F401  -- re-exported; see `api.deps` for the rule
-    NOTION_DB,
-    PROGRESS_DB,
-    REVIEW_DB,
-    VOCAB_DB,
-)
+# The four learner database paths are deliberately NOT re-exported here.
+#
+# They were, and `docs/lessons.md` has the entry: two names for one file is a
+# fork waiting to happen. It happened twice. `app.py` first kept its own copies
+# bound at import, so `_state_paths()` read one set and the database helpers
+# the other and a restore could land in a file the app never opened. That was
+# fixed by importing them from `config` -- which left a second *name* for each
+# path, and ten test fixtures patching both, and one loop that deletes files
+# reading whichever name it happened to be given.
+#
+# Everything reads `eesti.config` now, at call time, including the tests.
 
 # Generated items are not stored, so an answer arrives without the question. The
 # client sends the item back with the answer and the server re-grades it, which

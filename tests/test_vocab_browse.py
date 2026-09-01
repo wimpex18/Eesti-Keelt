@@ -198,7 +198,6 @@ class TestSettlingAWord:
                            ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
             target = str(tmp_path / f"{stem}.db")
             monkeypatch.setattr(config_module, name, target)
-            monkeypatch.setattr(app_module, name, target, raising=False)
         return TestClient(app_module.app)
 
     def _status(self, client, lemma):

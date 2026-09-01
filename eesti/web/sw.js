@@ -10,9 +10,19 @@
 
    Three rules, and the second two matter more than the first:
 
-   1. **Shell is cache-first.** The page, its icons and its manifest change
-      only when the app is redeployed, so serving them from disk is both faster
-      and what lets the app open at all on a dead connection.
+   1. **The shell is cached, but code is never served stale.** The icons and
+      the manifest are cache-first: they change when the app is redeployed and
+      almost never otherwise. The page, the stylesheet and the ES modules are
+      *network-first with a cached fallback* -- fetched fresh when there is a
+      connection, served from disk when there is not.
+
+      That distinction is load-bearing, and it was not needed until the app
+      stopped being one file. While every line of JavaScript lived inside
+      `index.html`, the navigation branch below fetched it fresh on every load
+      and staleness was impossible. Split into `/app.css` and `/js/*.js`, with
+      no build step to put a hash in the filename, cache-first would mean a
+      redeploy that did not also edit this file served last week's code against
+      this week's markup -- for ever, because the URLs never change.
 
    2. **The API is never cached. Not once, not stale-while-revalidate.**
       Every endpoint here is either the learner's own state (progress, review
@@ -105,6 +115,27 @@ self.addEventListener("fetch", event => {
         const cached = await caches.match("/");
         return cached || new Response(
           OFFLINE_PAGE, {status: 503, headers: {"Content-Type": "text/html; charset=utf-8"}});
+      }
+    })());
+    return;
+  }
+
+  // The page's own code. Fresh when online, cached when not -- see rule 1.
+  // `/app.css` and `/js/*.js` are unhashed URLs, so this is the only thing
+  // standing between a redeploy and a permanently stale app.
+  if (url.pathname === "/app.css" || url.pathname.startsWith("/js/")) {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(request);
+        if (res.ok && !res.redirected && res.type === "basic") {
+          const cache = await caches.open(SHELL);
+          cache.put(request, res.clone());
+        }
+        return res;
+      } catch (err) {
+        // Offline: the copy from the last successful load is exactly right.
+        const cached = await caches.match(request);
+        return cached || new Response("", {status: 504});
       }
     })());
     return;

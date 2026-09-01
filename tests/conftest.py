@@ -250,7 +250,6 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
-        monkeypatch.setattr(app_module, name, target, raising=False)
 
     # `app.py` calls `_bind_breaker()` at *import* time, so the circuit breaker
     # holds a connection to the real `data/progress.db` from the first moment

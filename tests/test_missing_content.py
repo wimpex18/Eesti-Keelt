@@ -25,6 +25,7 @@ pytest.importorskip("httpx", reason="TestClient needs httpx")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from eesti import app as app_module  # noqa: E402
+from eesti import config as config_db
 from eesti import config  # noqa: E402
 
 
@@ -41,9 +42,9 @@ def no_corpus(tmp_path, monkeypatch):
     blocker = tmp_path / "not-a-directory"
     blocker.write_text("")
     monkeypatch.setattr(config, "CONTENT_DB", str(blocker / "content.db"))
-    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
-    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
-    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
     monkeypatch.delenv("PROXY_TOKEN", raising=False)
     return TestClient(app_module.app)
 

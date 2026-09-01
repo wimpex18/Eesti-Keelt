@@ -26,6 +26,7 @@ pytest.importorskip("httpx", reason="TestClient needs httpx")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from eesti import app as app_module
+from eesti import config as config_db
 from eesti import config as _config  # noqa: E402
 from eesti.library import exposure, parts_touched  # noqa: E402
 from eesti.progress import connect as progress_connect  # noqa: E402
@@ -56,13 +57,13 @@ def client(tmp_path, monkeypatch):
     conn.close()
 
     monkeypatch.setattr(config, "CONTENT_DB", str(content_path))
-    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
     monkeypatch.setattr(_config, "PROGRESS_DB", str(tmp_path / "p.db"))
-    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
     monkeypatch.setattr(_config, "VOCAB_DB", str(tmp_path / "v.db"))
-    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
     monkeypatch.setattr(_config, "REVIEW_DB", str(tmp_path / "r.db"))
-    monkeypatch.setattr(app_module, "NOTION_DB", str(tmp_path / "n.db"))
+    monkeypatch.setattr(config_db, "NOTION_DB", str(tmp_path / "n.db"))
     monkeypatch.setattr(_config, "NOTION_DB", str(tmp_path / "n.db"))
     monkeypatch.delenv("PROXY_TOKEN", raising=False)
     return TestClient(app_module.app)
@@ -77,7 +78,7 @@ def a_text(client) -> str:
 class TestOpeningATextRecordsIt:
     def test_exposure_is_written(self, client):
         client.get(f"/api/library/{a_text(client)}?minutes=3")
-        got = exposure(progress_connect(app_module.PROGRESS_DB))
+        got = exposure(progress_connect(config_db.PROGRESS_DB))
         assert got["items"] == 1
         assert got["minutes"] == 3.0
 
@@ -93,7 +94,7 @@ class TestOpeningATextRecordsIt:
         from eesti import config
 
         client.get(f"/api/library/{a_text(client)}")
-        got = parts_touched(progress_connect(app_module.PROGRESS_DB),
+        got = parts_touched(progress_connect(config_db.PROGRESS_DB),
                             content_connect(config.CONTENT_DB))
         assert got.get("lugemine", 0) >= 1
 
@@ -156,7 +157,7 @@ class TestTheRecommendationRanksRatherThanFilters:
         ])
         conn.commit()
         monkeypatch.setattr(config, "CONTENT_DB", str(path))
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+        monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
         monkeypatch.setattr(_config, "VOCAB_DB", str(tmp_path / "v.db"))
         return TestClient(app_module.app)
 

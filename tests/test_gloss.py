@@ -26,6 +26,7 @@ import sqlite3
 import pytest
 
 from eesti import gloss
+from eesti import config as config_db
 from eesti.providers import sonapi
 
 from pagesrc import markup_and_script
@@ -63,7 +64,6 @@ def _redirect(monkeypatch, app_module, tmp_path):
                        ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
         target = str(tmp_path / f"{stem}.db")
         monkeypatch.setattr(config_module, name, target)
-        monkeypatch.setattr(app_module, name, target, raising=False)
 
 
 class TestAWordIsAskedAboutOnce:
@@ -202,7 +202,7 @@ class TestThePracticeSetShowsWhatTheWordsMean:
         #
         # On `config` *and* on `app`. `config` is what the application reads
         # now; the copies on `app` are kept in step because tests in this file
-        # write their fixtures through `app_module.VOCAB_DB`, and two names for
+        # write their fixtures through `config_db.VOCAB_DB`, and two names for
         # one file that disagree is the bug this consolidation removed.
         _redirect(monkeypatch, app_module, tmp_path)
         return TestClient(app_module.app)
@@ -221,7 +221,7 @@ class TestThePracticeSetShowsWhatTheWordsMean:
     def test_a_stored_gloss_reaches_the_set(self, client, tmp_path, monkeypatch):
         from eesti import app as app_module
 
-        conn = gloss.connect(app_module.VOCAB_DB)
+        conn = gloss.connect(config_db.VOCAB_DB)
         first = client.post(
             "/api/practice", json={"count": 3, "topic": "osastav"}).json()
         lemma = first["items"][0]["lemma"]
@@ -330,7 +330,7 @@ class TestTheReviewQueueIsGlossedToo:
         client.post("/api/review", json={
             "kind": "obj-case", "lemma": "kleit", "prompt": "Ma ostsin ____.",
             "answer": "kleidi"})
-        gloss.save(gloss.connect(app_module.VOCAB_DB), "kleit",
+        gloss.save(gloss.connect(config_db.VOCAB_DB), "kleit",
                    info(ru=("платье",)))
         got = client.get("/api/review?limit=20").json()
         assert got["glosses"]["kleit"] == ["платье"]

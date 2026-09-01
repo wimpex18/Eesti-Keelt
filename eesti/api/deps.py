@@ -136,6 +136,21 @@ def _bind_breaker() -> None:
     breaker.bind_later(progress_db)
 
 
+# Called here, at import, and that placement is the whole point: the breaker
+# has to be pointed at the learner's database before anything asks it whether a
+# provider is dead. Registering an *opener* is what makes that safe -- no path
+# is resolved until the breaker first has something to remember.
+#
+# It was lost for one commit in the split that made this module: the call is a
+# bare expression with no name, and the tool that carved `app.py` up moved
+# functions, classes and assignments. Nothing failed. The breaker fell back to
+# a module-level dict, which on Cloud Run means every cold container pays a
+# dead provider's full timeout twice -- the exact thing the durable store
+# exists to prevent, and invisible to the suite because `conftest` unbinds it
+# deliberately.
+_bind_breaker()
+
+
 def build_info() -> dict:
     """When this image was built, and from what commit if the builder said.
 

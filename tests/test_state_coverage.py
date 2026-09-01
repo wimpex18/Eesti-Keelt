@@ -23,6 +23,7 @@ import pathlib
 import pytest
 
 from eesti import app as app_module
+from eesti import config as config_db
 from eesti.api import state as state_module
 
 #: Databases that must NOT travel, with the reason. Anything else is a bug.
@@ -37,11 +38,19 @@ EXCLUDED = {
 
 
 def _declared_databases() -> dict[str, str]:
-    """`{constant name: path}` for every database path the app declares."""
+    """`{constant name: path}` for every database path the app declares.
+
+    From `config`, which is where they are declared. It read `vars(app_module)`
+    while `app.py` re-exported the four learner paths -- a second name for each
+    file, agreeing with the first only for as long as every fixture remembered
+    to patch both. The re-exports are gone; this reads the one declaration.
+    """
+    from eesti import config
+
     return {
-        name: value
-        for name, value in vars(app_module).items()
-        if name.endswith("_DB") and isinstance(value, str)
+        name: str(value)
+        for name, value in vars(config).items()
+        if name.endswith("_DB") and isinstance(value, (str, pathlib.Path))
     }
 
 
@@ -58,7 +67,7 @@ def test_every_declared_database_is_snapshotted_or_excluded():
 
 def test_the_notion_queue_is_one_of_them():
     """Named explicitly, because it is the one that was missed."""
-    assert str(app_module.NOTION_DB) in {
+    assert str(config_db.NOTION_DB) in {
         str(p) for p in state_module._state_paths().values()
     }
 
@@ -116,7 +125,6 @@ class TestWordMeaningsTravelToo:
         for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
             target = str(tmp_path / f"{name.split('_')[0].lower()}.db")
             monkeypatch.setattr(config_module, name, target)
-            monkeypatch.setattr(app_module, name, target, raising=False)
         return TestClient(app_module.app)
 
     @staticmethod
@@ -124,7 +132,7 @@ class TestWordMeaningsTravelToo:
         from eesti import gloss
         from eesti.providers import sonapi
 
-        conn = gloss.connect(app_module.VOCAB_DB)
+        conn = gloss.connect(config_db.VOCAB_DB)
         # Deliberately a word the shipped glossary does NOT carry. With a
         # seeded word such as `kleit`, the assertion at the end would pass
         # whether or not the snapshot restored anything -- the seed supplies
@@ -147,20 +155,27 @@ class TestWordMeaningsTravelToo:
         assert "vocab" in snapshot.json()["databases"]
 
         # What Cloud Run does when it scales to zero.
+        #
+        # `config`, and it matters more here than anywhere: this loop deletes
+        # files. Read off `app` it named whatever `app` last re-exported, which
+        # was only ever the redirected path because a fixture patched a second
+        # copy of the same four names -- and on a machine where somebody
+        # actually studies, the unredirected version of this loop deletes their
+        # record of what they have practised.
         for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
-            path = pathlib.Path(getattr(app_module, name))
+            path = pathlib.Path(getattr(config_db, name))
             if path.exists():
                 path.unlink()
         # The wipe is proved by the *saved* word being gone, not by a total of
         # zero: reopening the store reloads the shipped glossary, which is
         # correct and would make a count assertion fail for the wrong reason.
         assert gloss.stored(
-            gloss.connect(app_module.VOCAB_DB), "seinamaaling") is None
+            gloss.connect(config_db.VOCAB_DB), "seinamaaling") is None
 
         restored = client.post("/api/state/import", headers=head,
                                json=snapshot.json())
         assert restored.status_code == 200
-        kept = gloss.stored(gloss.connect(app_module.VOCAB_DB), "seinamaaling")
+        kept = gloss.stored(gloss.connect(config_db.VOCAB_DB), "seinamaaling")
         assert kept is not None and kept.russian == ("настенная роспись",)
 
     def test_the_daily_budget_survives_too(self, client):
@@ -178,9 +193,9 @@ class TestWordMeaningsTravelToo:
 
         head = {"x-state-token": "test-token"}
         snapshot = client.get("/api/state/export", headers=head)
-        pathlib.Path(app_module.VOCAB_DB).unlink()
+        pathlib.Path(config_db.VOCAB_DB).unlink()
         client.post("/api/state/import", headers=head, json=snapshot.json())
-        assert gloss.spent_today(gloss.connect(app_module.VOCAB_DB)) == spent
+        assert gloss.spent_today(gloss.connect(config_db.VOCAB_DB)) == spent
 
 
 class TestOnePlaceDecidesWhereTheDatabasesAre:
@@ -251,3 +266,21 @@ class TestOnePlaceDecidesWhereTheDatabasesAre:
         finally:
             sqlite3.connect = real
         assert not opened, f"import opened databases: {opened}"
+
+
+def test_the_app_does_not_declare_its_own_copy_of_a_database_path():
+    """One name per file.
+
+    `app.py` re-exported the four learner paths so that fixtures could patch
+    them there. That made a second name for each file, agreeing with the first
+    only while every fixture remembered to patch both -- and one of them was a
+    loop that *deletes* files, which unredirected deletes the learner's record
+    of what they have practised.
+    """
+    from eesti import app as app_mod
+
+    copies = sorted(name for name, value in vars(app_mod).items()
+                    if name.endswith("_DB") and isinstance(value, (str, pathlib.Path)))
+    assert not copies, (
+        f"`eesti.app` declares {copies}; `eesti.config` is where these live, "
+        f"and `api/deps.py` reads them when it opens the file")

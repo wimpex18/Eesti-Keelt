@@ -16,17 +16,18 @@ pytest.importorskip("httpx", reason="TestClient needs httpx")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from eesti import app as app_module
+from eesti import config as config_db
 from eesti import config as _config  # noqa: E402
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     """A client with its own learner state, so tests never touch data/."""
-    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
     monkeypatch.setattr(_config, "PROGRESS_DB", str(tmp_path / "p.db"))
-    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
     monkeypatch.setattr(_config, "REVIEW_DB", str(tmp_path / "r.db"))
-    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
     monkeypatch.setattr(_config, "VOCAB_DB", str(tmp_path / "v.db"))
     return TestClient(app_module.app)
 
@@ -266,7 +267,6 @@ class TestStateSnapshots:
         for key, name in (("progress", "PROGRESS_DB"), ("review", "REVIEW_DB"),
                           ("vocab", "VOCAB_DB")):
             monkeypatch.setattr(config_module, name, str(fresh[key]))
-            monkeypatch.setattr(app_module, name, str(fresh[key]), raising=False)
 
         restored = secured.post(
             "/api/state/import", json={"databases": blob["databases"]},
@@ -299,7 +299,7 @@ class TestStateSnapshots:
             " VALUES ('olevik','k',1,'x','now')"
         )
         conn.commit()
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(live))
+        monkeypatch.setattr(config_db, "PROGRESS_DB", str(live))
         monkeypatch.setattr(_config, "PROGRESS_DB", str(live))
         before = live.read_bytes()
         got = secured.post(
@@ -323,7 +323,7 @@ class TestStateSnapshots:
         empty = tmp_path / "progress.db"
         progress_connect(empty)                 # schema only, no attempts
         assert empty.stat().st_size > 0
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(empty))
+        monkeypatch.setattr(config_db, "PROGRESS_DB", str(empty))
         monkeypatch.setattr(_config, "PROGRESS_DB", str(empty))
         snapshot = tmp_path / "snap.db"
         conn = progress_connect(snapshot)
@@ -353,7 +353,7 @@ class TestStateSnapshots:
         from eesti import app as app_module
 
         target = tmp_path / "vocab.db"
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(target))
+        monkeypatch.setattr(config_db, "VOCAB_DB", str(target))
         monkeypatch.setattr(_config, "VOCAB_DB", str(target))
         got = secured.post(
             "/api/state/import", json={"databases": {"vocab": ""}},
@@ -382,7 +382,7 @@ class TestAnEmptyTopicSaysWhy:
 
         connect(tmp_path / "content.db")
         monkeypatch.setattr(config, "CONTENT_DB", str(tmp_path / "content.db"))
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+        monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
         monkeypatch.setattr(_config, "PROGRESS_DB", str(tmp_path / "p.db"))
         return TestClient(app_module.app)
 

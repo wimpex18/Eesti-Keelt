@@ -12,6 +12,7 @@ Four roles, four treatments, and one token for the one that was missing.
 
 from __future__ import annotations
 
+from eesti import config as config_db
 import re
 from pathlib import Path
 
@@ -138,8 +139,8 @@ class TestTheQueueDoesNotPrintDatabaseKeys:
 
         from eesti import app as app_module
 
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-        monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+        monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
+        monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
         client = TestClient(app_module.app)
         client.post("/api/review", json={
             "kind": "obj-case", "lemma": "kleit", "prompt": "Ma ostsin ____.",

@@ -405,3 +405,50 @@ class TestThePinnedModels:
         withdrawn = {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}
         pinned = {p.name: p.default_model for p in PROVIDERS.values()}
         assert not (set(pinned.values()) & withdrawn), pinned
+
+
+class TestImportingTheAppBindsTheBreaker:
+    """The binding is an import-time side effect, and it went missing once.
+
+    `api/deps.py` ends with `_bind_breaker()`. It is a bare expression with no
+    name, which is how the tool that split `app.py` into routers dropped it:
+    functions, classes and assignments moved, and this did not. Nothing failed.
+    The breaker kept working from a module-level dict — and a module-level dict
+    is precisely what it was written to stop using, because Cloud Run scales to
+    zero and every cold container then pays a dead provider's full timeout
+    twice before stepping over it.
+
+    Checked in a subprocess because this suite deliberately unbinds the breaker
+    (`conftest`, autouse) so that tests cannot write to the learner's real
+    `data/progress.db`. In-process, the state this asserts has already been
+    taken apart on purpose.
+    """
+
+    @staticmethod
+    def _ask(expression: str) -> str:
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        code = ("from eesti import app  # noqa: F401\n"
+                "from eesti.providers import breaker\n"
+                f"print({expression})\n")
+        done = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True,
+            cwd=Path(__file__).resolve().parents[1])
+        assert done.returncode == 0, done.stderr[-2000:]
+        return done.stdout.strip()
+
+    def test_an_opener_is_registered(self):
+        assert self._ask("breaker._opener is not None") == "True"
+
+    def test_it_is_the_learners_progress_database(self):
+        """`progress.db` rather than a file of its own, so the breaker's state
+        rides the existing state snapshot across a cold start."""
+        assert self._ask("breaker._opener.__name__") == "progress_db"
+
+    def test_no_connection_is_opened_at_import(self):
+        """Registering an opener is what makes binding at import safe: a
+        connection here would resolve the path at import, which is the habit
+        this project has paid for three times."""
+        assert self._ask("breaker._store is None") == "True"

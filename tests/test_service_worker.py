@@ -191,3 +191,47 @@ class TestThePrecacheListAndThePageAgree:
         stale = [a for a in self._precached(source)
                  if a.startswith("/js/") and not (JS_DIR / Path(a).name).exists()]
         assert not stale, f"precached files that no longer exist: {stale}"
+
+
+class TestCodeIsNeverServedStale:
+    """The rule the split made necessary.
+
+    While every line of JavaScript was inside `index.html`, the navigation
+    branch fetched it fresh on every load and staleness was impossible. As
+    `/app.css` and `/js/*.js` -- unhashed URLs, because there is no build step
+    to put a hash in a filename -- cache-first would serve last week's code
+    against this week's markup until somebody remembered to bump `VERSION` in
+    this file. For ever, silently, and only for the people who had already
+    installed the app.
+    """
+
+    @staticmethod
+    def _code_branch(source: str) -> str:
+        start = source.index('url.pathname === "/app.css"')
+        return source[start:start + 900]
+
+    def test_the_page_code_is_matched_before_the_cache_first_branch(self, source):
+        code_at = source.index('url.pathname === "/app.css"')
+        cache_first_at = source.index("const cached = await caches.match(request);\n    if (cached) return cached;")
+        assert code_at < cache_first_at, (
+            "the cache-first branch answers first, so app code is served stale")
+
+    def test_it_asks_the_network_first(self, source):
+        branch = self._code_branch(source)
+        assert branch.index("await fetch(request)") < branch.index("caches.match"), (
+            "app code must be fetched before the cache is consulted")
+
+    def test_a_successful_answer_replaces_what_was_cached(self, source):
+        assert "cache.put(request, res.clone())" in self._code_branch(source)
+
+    def test_offline_still_gets_the_last_good_copy(self, source):
+        """Network-first must not mean network-only: an installed app has to
+        open with no connection, which is the whole reason for the worker."""
+        branch = self._code_branch(source)
+        assert "catch" in branch and "caches.match(request)" in branch
+
+    def test_the_modules_are_still_precached(self, source):
+        """Network-first fills the cache on a successful load, but a first run
+        that goes offline before opening a panel would have nothing. The
+        install step still puts them there."""
+        assert "/js/main.js" in source and "/app.css" in source

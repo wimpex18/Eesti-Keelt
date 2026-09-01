@@ -171,7 +171,7 @@ class TestTheThemeAttributeHasAWriter:
         css = styles()
         assert "[data-theme=" in css, "the stylesheet no longer reads it"
         assert ("dataset.theme" in page
-                or 'setAttribute("data-theme"' in script), (
+                or 'setAttribute("data-theme"' in page), (
             "the stylesheet branches on an attribute nothing writes")
 
     def test_system_stays_reachable(self, page):

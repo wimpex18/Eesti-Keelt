@@ -12,6 +12,7 @@ the Notion "Nomenid A–F" page already tracks.
 
 from __future__ import annotations
 
+from eesti import config as config_db
 import time
 
 import pytest
@@ -84,9 +85,9 @@ def client(tmp_path, monkeypatch):
 
     from eesti import app as app_module
 
-    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
-    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
     return TestClient(app_module.app)
 
 
