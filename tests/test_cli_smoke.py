@@ -249,3 +249,76 @@ class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
         monkeypatch.setattr(config, "DB_PATH", tmp_path / "missing.db")
         code, out, err = run(["serve"])
         assert code == 1 and "build" in err
+
+
+class TestEveryCommandGroupIsRegistered:
+    """`cli.GROUPS` is the other hand-maintained list this split created.
+
+    Like `api.ROUTERS` it cannot be a glob — its order is the order `--help`
+    lists the commands in, and that is a choice — so a module added to the
+    package and forgotten here would take its commands with it. Nothing would
+    fail: every *other* command would still work, which is exactly how `TABS`
+    hid three missing panels.
+    """
+
+    @staticmethod
+    def _registrable() -> dict[str, object]:
+        import importlib
+        import pkgutil
+
+        out = {}
+        for info in pkgutil.iter_modules(cli.__path__):
+            if info.name == "__main__":
+                # Running it is its whole job; importing it is not a thing to
+                # do here. It is guarded, which is why this is a skip and not
+                # a process exit.
+                continue
+            module = importlib.import_module(f"eesti.cli.{info.name}")
+            if hasattr(module, "register"):
+                out[info.name] = module
+        return out
+
+    def test_there_are_groups_to_check(self):
+        assert len(self._registrable()) >= 5
+
+    def test_every_group_in_the_package_is_registered(self):
+        missing = sorted(name for name, module in self._registrable().items()
+                         if module not in cli.GROUPS)
+        assert not missing, (
+            f"{missing} define commands that `main` never adds: nothing fails, "
+            f"the commands simply do not exist")
+
+    def test_every_registered_group_is_a_module_of_the_package(self):
+        known = set(self._registrable().values())
+        assert all(group in known for group in cli.GROUPS)
+
+    def test_every_command_reaches_a_handler_that_exists(self):
+        """The end of the chain: each subparser's `func` must be callable, and
+        `eesti.cli.cmd_x` must be the same object, since the re-export is
+        derived rather than written out."""
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        for group in cli.GROUPS:
+            group.register(sub)
+        for name, sub_parser in sub.choices.items():
+            func = sub_parser.get_default("func")
+            assert callable(func), f"{name} has no handler"
+            assert getattr(cli, func.__name__, None) is func, (
+                f"eesti.cli.{func.__name__} is not the function {name} runs")
+
+
+class TestImportingThePackageRunsNothing:
+    """`eesti/cli/__main__.py` used to call `main()` at import.
+
+    That is correct for `python -m eesti.cli` and a trap for anything that
+    walks the package -- importing the module exited the process doing the
+    walking, with an argparse usage message and no clue where it came from.
+    """
+
+    def test_importing_main_module_does_not_parse_arguments(self):
+        import importlib
+
+        module = importlib.import_module("eesti.cli.__main__")
+        assert module.main is cli.main

@@ -253,6 +253,33 @@ different timeouts** (45 s, 60 s, 90 s) and two retry styles. The two that were
 identical are merged; the rest differ in ways that may be deliberate, and
 changing them is a behaviour decision rather than a cleanup.
 
+### Things the code already knew, that nothing had said out loud
+
+Each of these was true, relied on, and written down nowhere. They are the
+expensive kind: not a gap somebody forgot to fill, but a fact the code depends
+on that no one has to learn until it breaks. Each now has a check.
+
+| The unstated fact | What holds it now |
+|---|---|
+| **Registration order is behaviour.** `/api/library` and `/api/library/{item_id}` answer correctly because of the order they were declared in — invisible while every route lived in one file. | `test_route_inventory.TestTheOrderThatIsBehaviour` asks the app for both. |
+| **The page's single file was doing work.** Every screen's buttons were wired because the code was *in the file*. Split into modules, "these must be loaded" became a claim somebody has to make, and two screens silently stopped being wired. | `test_ui_contract.TestEveryModuleIsReachableFromTheEntryPoint`. |
+| **`browse` and `count` must agree.** The docstring asserted it; nothing tested it, and the two filter chains were separate copies. | `test_library.TestBrowseAndCountAgree`, over seven filter combinations. |
+| **Two modules must pick the same verbs.** `conjugation.py` chose what to drill and `verbs.py` chose what counts as irregular, from two copies of one query. | `test_conjugation.TestOneAnswerAboutWhichVerbsAreReady`. |
+| **A "read" function that writes.** `library.seen_items` runs `executescript(SCHEMA)`; a caller dropping the *value* would have dropped the schema creation too, on any path that ran before `exposure()`. | Written down here; the deletion that prompted it checked first. |
+| **`api.ROUTERS` and `cli.GROUPS` cannot be derived** — order is a choice — so they are the two hand-maintained lists this refactor created, in a repository whose most-repeated bug is exactly that. | Both directions checked: every module with a `router`/`register` is in the list, and every entry comes from the package. |
+
+Two more that are recorded rather than enforced, because the check would cost
+more than it is worth:
+
+- **The suite's result depends on undeclared local state.** The same command
+  reports 1 451 passed, or 1 440 with eleven more skips, or "144 skipped" for
+  the browser journeys, depending on whether `data/` holds a built word list —
+  which is git-ignored and invisible in the output. A comparison of two runs is
+  only meaningful if both had the same `data/`.
+- **Vabamorf's first synthesis in a process costs about 1.7 s.** Every timeout
+  in the browser suite is implicitly budgeted around that being paid before the
+  assertion; under load it is what pushes a 20 s `wait_for_selector` over.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

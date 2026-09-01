@@ -274,3 +274,50 @@ class TestBrowsingEverything:
         rows = query(banded, skill="lugemine", band="kergem", limit=4)
         dates = [r["added_on"] for r in rows]
         assert dates == sorted(dates, reverse=True)
+
+
+class TestBrowseAndCountAgree:
+    """The invariant `_filters` exists for, asked of the app rather than read.
+
+    `count`'s docstring has always said it is "built from `browse`'s own
+    filters rather than beside them"; until this was extracted it was *beside*
+    them — the same three clauses written twice, in two functions whose only
+    contract is that they agree. Sharing the code makes drift harder; this
+    makes it fail.
+
+    Why it matters: a count computed from different conditions than the rows it
+    counts is worse than no count, because it looks authoritative. The reading
+    shelf said "80 текстов" against 349 indexed once already.
+    """
+
+    @staticmethod
+    def _both(content, section, **filters):
+        from eesti.library import browse, count
+
+        rows = browse(content, section, limit=100, **filters)
+        return len(rows), count(content, section, **filters)
+
+    @pytest.mark.parametrize("filters", [
+        {},
+        {"level": "kerge"},
+        {"level": "raske"},
+        {"public_only": True},
+        {"level": "kerge", "public_only": True},
+        {"band": "keskmine"},
+        {"level": "does-not-exist"},
+    ], ids=lambda f: ",".join(f"{k}={v}" for k, v in f.items()) or "no-filter")
+    def test_the_number_matches_the_rows(self, content, filters):
+        shown, total = self._both(content, "lugemine", **filters)
+        assert shown == total, (
+            f"browse returned {shown} rows and count claims {total} with "
+            f"{filters or 'no filters'}")
+
+    def test_it_holds_for_a_section_covering_several_skills(self, content):
+        """Sections deal round-robin across their skills, which is where the
+        two could most easily diverge."""
+        for section in ("vihikud", "eksam", "naidised"):
+            shown, total = self._both(content, section)
+            assert shown == total, section
+
+    def test_a_filter_that_matches_nothing_agrees_too(self, content):
+        assert self._both(content, "lugemine", level="B2") == (0, 0)
