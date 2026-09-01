@@ -36,7 +36,7 @@ def notion_queue(row: QueueError) -> dict:
     firing on noise -- so this endpoint only ever queues. `cli notion --push`
     is the one thing that writes, and it shows you the rows first.
     """
-    from ..notion import Row, connect, queue
+    from ..notion import Row, queue
 
     try:
         entry = Row(wrong=row.wrong, correct=row.correct, why=row.why, tag=row.tag)
@@ -50,7 +50,7 @@ def notion_queue(row: QueueError) -> dict:
 
 @router.get("/api/notion/pending")
 def notion_pending() -> dict:
-    from ..notion import connect, pending
+    from ..notion import pending
 
     return {
         "items": [dict(r) for r in pending(notion_db())],
@@ -85,7 +85,7 @@ def notion_push(req: NotionPush) -> dict:
     A row that fails to send stays queued. The queue is the record until Notion
     says it has one.
     """
-    from ..notion import Row, connect, mark_pushed, pending, push
+    from ..notion import Row, mark_pushed, pending, push
 
     if not os.environ.get("NOTION_TOKEN"):
         raise HTTPException(

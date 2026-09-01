@@ -8,6 +8,8 @@ resolved ids for itself. Resolve them where the API answers.
 
 from __future__ import annotations
 
+import sqlite3
+
 from .deps import content_db, gloss_db
 
 

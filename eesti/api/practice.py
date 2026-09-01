@@ -6,27 +6,17 @@ error: "there is no generator for this topic yet" and "the corpus has not been
 uploaded" are different states and the learner is told which.
 """
 
-
 from __future__ import annotations
-
-
-import sqlite3
-
 
 from fastapi import APIRouter, HTTPException
 
-
 from pydantic import BaseModel, Field
-
 
 from ..config import LEVELS
 
-
 from ..drills import generate, generate_verb_drills
 
-
-from .deps import content_db, db, gloss_db, progress_db, review_db
-
+from .deps import db, gloss_db, progress_db, review_db
 
 from .render import _glosses_for, _topic_reference, reading_for
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from ..lookup import annotate, lookup
+from ..lookup import lookup
 from ..providers import grammar
 from .deps import gloss_db
 

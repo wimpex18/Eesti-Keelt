@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parent.parent
 #: Where a route may legitimately be called from.
 CONSUMERS = {
     "page": ("eesti/web/index.html",),
-    "cli": ("eesti/cli.py",),
+    "cli": ("eesti/cli/*.py",),
     "worker": ("deploy/worker.ts",),
     "scripts": ("deploy/*.sh",),
     "ci": (".github/workflows/*.yml",),
@@ -147,4 +147,5 @@ def test_the_only_other_writer_is_the_cli(sources):
     got = subprocess.run(
         ["grep", "-rln", "--include=*.py", "set_status", "eesti/"],
         capture_output=True, text=True, cwd=ROOT).stdout.split()
-    assert sorted(got) == ["eesti/api/vocab.py", "eesti/cli.py", "eesti/vocab.py"]
+    assert sorted(got) == ["eesti/api/vocab.py", "eesti/cli/report.py",
+                           "eesti/vocab.py"]

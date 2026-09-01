@@ -37,7 +37,6 @@ def exam_readiness(level: str) -> dict:
 
     if level not in LEVELS:
         raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
-    from ..notion import connect as notion_connect
 
     return readiness(
         level, progress=progress_db(), vocabulary=vocab_db(), words=db(),
