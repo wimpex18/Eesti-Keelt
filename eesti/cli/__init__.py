@@ -22,6 +22,12 @@ from __future__ import annotations
 import argparse
 
 from . import assess, build, harvest, ops, report, study
+from ._helpers import (  # noqa: F401  -- part of `eesti.cli`'s surface
+    content_db,
+    content_path,
+    learner_db,
+    words_db,
+)
 
 #: Registration order, which is the order `--help` lists the commands in.
 #: Build what the app runs on, fill the library, practise, be measured, look at

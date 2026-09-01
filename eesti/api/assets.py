@@ -35,6 +35,32 @@ ICON_SVG = (
 )
 
 
+#: What the page loads besides itself, by extension. Anything not here is not
+#: served, so a stray file in `eesti/web/` cannot be fetched by guessing.
+STATIC_TYPES = {".css": "text/css", ".js": "text/javascript"}
+
+
+@router.get("/app.css")
+def stylesheet() -> FileResponse:
+    """The stylesheet, which used to be 703 lines inside the page."""
+    return FileResponse(WEB / "app.css", media_type="text/css")
+
+
+@router.get("/js/{name}")
+def script(name: str) -> FileResponse:
+    """One ES module of the app.
+
+    Same guard as `/vendor/{name}` and for the same reason: the name comes from
+    the URL, so the resolved path is checked against the directory it must be
+    in rather than trusted to stay inside it.
+    """
+    path = (WEB / "js" / name).resolve()
+    if (path.parent != (WEB / "js").resolve() or not path.is_file()
+            or path.suffix not in STATIC_TYPES):
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type=STATIC_TYPES[path.suffix])
+
+
 @router.get("/vendor/{name}")
 def vendor(name: str) -> FileResponse:
     """Third-party browser libraries, served from here rather than a CDN.

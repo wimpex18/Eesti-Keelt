@@ -28,6 +28,8 @@ import pytest
 from eesti import gloss
 from eesti.providers import sonapi
 
+from pagesrc import markup_and_script
+
 
 def info(word="kleit", ru=("платье",), rection=None, itype="2"):
     return sonapi.WordInfo(
@@ -297,8 +299,7 @@ class TestThePageShowsIt:
     def _page() -> str:
         from pathlib import Path
 
-        return (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        return markup_and_script()
 
     def test_the_practice_item_is_handed_the_gloss_map(self):
         page = self._page()
@@ -344,7 +345,6 @@ class TestTheReviewQueueIsGlossedToo:
     def test_the_page_reads_the_map(self):
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         assert "function renderReview(it, glosses)" in page
         assert "renderReview(it, glosses || {})" in page

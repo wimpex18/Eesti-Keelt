@@ -39,7 +39,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 309 tests: 1 244 in-process and 65 browser journeys.
+51 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 432 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
 
 ## What a learner still cannot do
 
@@ -177,6 +177,43 @@ is on the same side of it as `õpin`. It stays in the model because removing a
 stored value is a migration, and earns its place only if something ever needs
 to distinguish "seen twice" from "seen once".
 
+## The four biggest files were split, 2026-09-01
+
+Nothing here changed behaviour; the point was that every change had to be made
+in one of four files.
+
+| Was | Is |
+|---|---|
+| `CLAUDE.md`, 716 lines | 218 lines that route, plus `docs/lessons.md` (the 73 habits, grouped) and `docs/ui-language.md` |
+| `eesti/app.py`, 1 975 lines | 79 lines of assembly, plus `eesti/api/` — twelve routers, `deps.py`, `render.py` |
+| `eesti/cli.py`, 1 620 lines | `eesti/cli/` — six command groups, each registering its own subparsers, plus `_helpers.py` |
+| `eesti/web/index.html`, 3 506 lines | 474 lines of markup, `app.css`, and fourteen ES modules under `web/js/` |
+| `eesti/library.py`, 638 lines | 456 lines of shelf, plus `eesti/topiclinks.py` — which texts demonstrate which grammar topic |
+
+Four things were found doing it, none of them by the 1 374 tests that were
+green before and after:
+
+- **`cli serve` raised `NameError`.** `cmd_serve` read a bare `DB_PATH` that
+  was never imported, so the command every document here tells you to run died
+  before reaching uvicorn. `--help` proves the parser, and `serve` is the one
+  command the read-only smoke list cannot run because it blocks.
+- **`GET /api/vocab` had no test at all** — `POST /api/vocab/known` did. The
+  whole `Sõnavara` screen answered 500 for the length of one commit, and a
+  browser found it in twenty seconds.
+- **Eight dead names.** Six functions in `app.py` with no decorator and no
+  caller (the leftovers of six deleted routes), and two constants in `cli.py`,
+  one of them a hardcoded `data/notion.db` shadowed by the config import beside
+  it.
+- **Two page modules were never imported.** `write.js` and `reading.js`
+  export nothing anybody calls — they wire their screen's buttons when they
+  evaluate — so in a module graph they simply did not run. `Kirjutamine`
+  opened, looked complete, and every control on it was dead, with no console
+  error. The browser suite caught it; `test_ui_contract` fails on an
+  unreachable module now.
+- **`eesti/api/render.py` needed `sqlite3` that nothing imported** — inside two
+  `except sqlite3.Error` handlers, which would have turned a degradation path
+  into a crash. Found by pyflakes, which nothing had run over this code.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
@@ -199,7 +236,7 @@ Nothing here is severe enough to block use. All of it is real.
   that is where it should stay.
 - **`providers/llm.py` and `providers/asr.py` sit at 67 % and 72 %** for the
   same reason. Going further means mocking HTTP for its own sake.
-- **`cli.py` is 52 %.** The uncovered half is the write and network commands —
+- **The CLI is 52 %.** The uncovered half is the write and network commands —
   harvest, push-content, notion --push, eval, models, rections, serve. Every
   read-only command runs in the suite.
 - **`Cloze` still overrides `hint` and `label`.** Legitimate — for rection the
@@ -231,11 +268,11 @@ Everything below 90 %, and why:
 |---|---|---|
 | `evals/fetch.py` | 0 % | downloads benchmark datasets; nothing else in the app calls it |
 | `evals/external.py` | 47 % | eval tooling, exercised by CI's separate `eval` job |
-| `cli.py` | 52 % | the uncovered half is the write and network commands; every read-only one runs in the suite |
+| `eesti/cli/` | 52 % | the uncovered half is the write and network commands; every read-only one runs in the suite |
 | `harvest/selges.py`, `harvest/err.py` | 57 %, 59 % | parsers covered, fetchers deliberately not |
 | `providers/llm.py`, `evals/gec.py`, `providers/asr.py` | 67–72 % | network clients |
 | `rection.py`, `harvest/evkk.py`, `harvest/lihtsad.py`, `providers/tts.py` | 80–84 % | network at the edges |
-| `providers/grammar.py`, `sources.py`, `wordorder.py`, `app.py`, `providers/sonapi.py`, `difficulty.py`, `readiness.py` | 86–89 % | error paths and degradation branches |
+| `providers/grammar.py`, `sources.py`, `wordorder.py`, `eesti/api/`, `providers/sonapi.py`, `difficulty.py`, `readiness.py` | 86–89 % | error paths and degradation branches |
 
 The rest sits at 90 % or above. `wordlist.py` finished at 94 %, `gloss.py` at
 99 %.

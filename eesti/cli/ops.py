@@ -113,7 +113,7 @@ def cmd_push_content(args: argparse.Namespace) -> int:
     # The same "count the rows" check the line above makes, applied to the
     # other table that has to be populated for the corpus to do its job.
     #
-    # `topic_items` is what `library.related()` reads, and `/api/practice`
+    # `topic_items` is what `topiclinks.related()` reads, and `/api/practice`
     # returns it as the `reading` beside every drill -- "the join that makes
     # practice and the reading library one tool". Nothing fills it except
     # `cli link-topics`, run by hand: no harvest calls it and no deploy step

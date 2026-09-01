@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 #: Where a route may legitimately be called from.
 CONSUMERS = {
-    "page": ("eesti/web/index.html",),
+    "page": ("eesti/web/index.html", "eesti/web/js/*.js"),
     "cli": ("eesti/cli/*.py",),
     "worker": ("deploy/worker.ts",),
     "scripts": ("deploy/*.sh",),

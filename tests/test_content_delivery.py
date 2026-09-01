@@ -212,7 +212,7 @@ class TestThePushScriptFailsBeforeSpendingAMegabyte:
 class TestThePushWarnsAboutAnUnlinkedCorpus:
     """`topic_items` is the join, and nothing fills it on its own.
 
-    `library.related()` reads it and `/api/practice` returns the result as the
+    `topiclinks.related()` reads it and `/api/practice` returns the result as the
     `reading` beside every drill — "the join that makes practice and the
     reading library one tool", in that endpoint's own words. The only thing
     that writes it is `cli link-topics`, run by hand: no harvest calls it, no

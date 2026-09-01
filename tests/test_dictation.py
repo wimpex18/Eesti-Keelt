@@ -16,6 +16,8 @@ import pytest
 from eesti import dictation
 from eesti.progress import connect as progress_connect
 
+from pagesrc import markup_and_script
+
 
 @pytest.fixture
 def content(tmp_path):
@@ -266,8 +268,7 @@ class TestTheExamIsNotOnePerson:
     def test_the_page_sends_it(self):
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         # Anchored on the dictation call specifically: the speaking tab calls
         # `/api/speak` too and comes first in the file.
         block = page.split("dictNow.text", 1)[1][:300]

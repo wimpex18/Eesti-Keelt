@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from eesti.library import MIN_HITS, link_topics, related
+from eesti.topiclinks import MIN_HITS, link_topics, related
 from eesti.sources import Item, add_items, connect, register
 
 
@@ -116,7 +116,7 @@ class TestLessonLabels:
     """
 
     def test_the_object_case_lessons_are_recognised(self):
-        from eesti.library import labelled_topics
+        from eesti.topiclinks import labelled_topics
 
         assert labelled_topics(
             "Урок 22. Падеж дополнения в законченном действии."
@@ -126,7 +126,7 @@ class TestLessonLabels:
         ) == ["obj-case"]
 
     def test_a_lesson_naming_two_topics_is_linked_to_both(self):
-        from eesti.library import labelled_topics
+        from eesti.topiclinks import labelled_topics
 
         found = labelled_topics(
             "Урок 8. Полное прошедшее время/Täisminevik и "
@@ -135,27 +135,27 @@ class TestLessonLabels:
         assert set(found) == {"taisminevik", "enneminevik"}
 
     def test_an_estonian_term_is_matched_on_its_own(self):
-        from eesti.library import labelled_topics
+        from eesti.topiclinks import labelled_topics
 
         assert labelled_topics("Урок 27. Rektsioon. Управление.") == ["rektsioon"]
 
     def test_an_unrelated_label_names_nothing(self):
         """Matching loosely would fill every topic with irrelevant audio."""
-        from eesti.library import labelled_topics
+        from eesti.topiclinks import labelled_topics
 
         assert labelled_topics("Урок 30. Проверочная работа.") == []
 
     def test_every_labelled_topic_is_a_real_curriculum_topic(self):
         """A typo here would create a link nothing can ever ask for."""
         from eesti.curriculum import TOPICS
-        from eesti.library import LABEL_TOPICS
+        from eesti.topiclinks import LABEL_TOPICS
 
         assert set(LABEL_TOPICS) <= {t.id for t in TOPICS}
 
     def test_a_labelled_episode_outranks_a_demonstrating_text(self, corpus, words):
         """Ordering is the whole point: when obj-case keeps going wrong, the
         lesson about it should come before an article that happens to use it."""
-        from eesti.library import link_labelled, link_topics, related
+        from eesti.topiclinks import link_labelled, link_topics, related
 
         corpus.execute(
             "UPDATE items SET meta = ? WHERE title = ?",

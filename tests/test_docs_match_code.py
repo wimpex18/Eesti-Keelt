@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from pagesrc import markup_and_script
+
 ROOT = Path(__file__).resolve().parents[1]
 
 #: Documents whose job is to state the current state. `CLAUDE.md` is not one of
@@ -156,7 +158,7 @@ class TestTheModeStructure:
 
     @staticmethod
     def _page_tabs() -> set[str]:
-        html = (ROOT / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        html = markup_and_script()
         return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl">([^<]+)',
                               html, re.S))
 

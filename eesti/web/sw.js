@@ -32,8 +32,25 @@ const VERSION = "v1";
 const SHELL = `shell-${VERSION}`;
 
 /* `/` is listed rather than `/index.html`: it is what the manifest's
-   `start_url` opens and what a navigation requests. */
-const ASSETS = ["/", "/manifest.webmanifest", "/icon.svg", "/icon.png"];
+   `start_url` opens and what a navigation requests.
+
+   The stylesheet and the modules are listed too, and they have to be: the page
+   is cached shell-first, so an offline open that could not fetch `/app.css`
+   and `/js/*.js` would paint an unstyled document with no behaviour -- worse
+   than the offline notice, because it looks like the app.
+
+   This list and the page's own `<link>`/`<script src>` tags are two halves of
+   one fact, and `tests/test_service_worker.py` checks them against each other
+   in both directions. A hand-kept list that drifts from the thing it describes
+   is the failure mode this project keeps paying for; here it cannot drift
+   silently. */
+const ASSETS = [
+  "/", "/manifest.webmanifest", "/icon.svg", "/icon.png", "/app.css",
+  "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js",
+  "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
+  "/js/vocab.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
+  "/js/exam.js", "/js/write.js",
+];
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {

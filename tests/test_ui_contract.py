@@ -29,12 +29,13 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from eesti import app as app_module  # noqa: E402
 
-PAGE = Path(__file__).resolve().parent.parent / "eesti" / "web" / "index.html"
+from pagesrc import JS, markup, markup_and_script, scripts, styles
+
 
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 @pytest.fixture
@@ -149,22 +150,24 @@ class TestTheDesktopRail:
     fetching and rendering into itself."""
 
     def test_the_hiding_rule_comes_before_the_query_that_undoes_it(self, page):
-        hide = page.index(".rail{display:none}")
-        query = page.index("@media (min-width:1080px)")
+        css = styles()
+        hide = css.index(".rail{display:none}")
+        query = css.index("@media (min-width:1080px)")
         assert hide < query, (
             "`.rail{display:none}` must precede the media query; at equal "
             "specificity the later declaration wins and the rail disappears"
         )
 
     def test_the_query_turns_the_rail_back_on(self, page):
-        block = page[page.index("@media (min-width:1080px)"):][:700]
+        css = styles()
+        block = css[css.index("@media (min-width:1080px)"):][:700]
         assert "display:flex" in block.split(".rail{")[1]
 
     def test_the_countdown_follows_the_level_the_learner_picked(self, page):
         """Hardcoding a level here would have shown B1's countdown while the
         rest of the page was on A2 — and A2 is the nearer decision."""
         fn = page.split("async function loadRail")[1][:900]
-        assert "/api/readiness/${examLevel}" in fn
+        assert "/api/readiness/${examLevel()}" in fn
         assert "/api/readiness/B1" not in fn
         assert "/api/readiness/A2" not in fn
 
@@ -424,3 +427,52 @@ class TestNoTwoElementsShareAnId:
         "Kontrolli" (check this writing) and "Kontrolltöö" (sit the level
         checkpoint) are genuinely different things a learner does."""
         assert 'id="checkBtn"' in page and 'id="checkpointBtn"' in page
+
+
+class TestEveryModuleIsReachableFromTheEntryPoint:
+    """A module nobody imports is a module that never runs.
+
+    The page loads exactly one file — `<script type="module" src="/js/main.js">`
+    — and everything else arrives through its import graph. `write.js` and
+    `reading.js` export nothing anybody calls: they wire their screen's buttons
+    when they evaluate. Left out of the graph they simply did not run, and the
+    failure was silent in the worst way — `Kirjutamine` opened, looked complete,
+    and every control on it was dead, with no console error.
+
+    Same shape as a route with no caller and a measurement with no writer, so
+    it gets the same kind of check.
+    """
+
+    @staticmethod
+    def _graph() -> dict[str, set[str]]:
+        edges = {}
+        for path in scripts():
+            src = path.read_text(encoding="utf-8")
+            edges[path.stem] = (set(re.findall(r'from "\./(\w+)\.js"', src))
+                                | set(re.findall(r'import "\./(\w+)\.js"', src)))
+        return edges
+
+    def test_the_page_loads_exactly_one_module(self):
+        entries = re.findall(r'<script type="module" src="([^"]+)"', markup())
+        assert entries == ["/js/main.js"], entries
+
+    def test_every_module_is_reachable(self):
+        edges = self._graph()
+        assert "main" in edges, "no entry point on disk"
+        seen, stack = set(), ["main"]
+        while stack:
+            name = stack.pop()
+            if name in seen:
+                continue
+            seen.add(name)
+            stack += sorted(edges.get(name, ()))
+        orphans = sorted(set(edges) - seen)
+        assert not orphans, (
+            f"nothing imports {orphans} — on the page these files never "
+            f"evaluate, so whatever they wire up is dead and says nothing")
+
+    def test_no_module_imports_something_that_is_not_there(self):
+        edges = self._graph()
+        for name, deps in edges.items():
+            missing = sorted(d for d in deps if not (JS / f"{d}.js").exists())
+            assert not missing, f"{name}.js imports {missing}, which do not exist"

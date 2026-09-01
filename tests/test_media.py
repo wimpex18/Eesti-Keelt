@@ -19,14 +19,15 @@ from pathlib import Path
 
 import pytest
 
+from pagesrc import markup_and_script
+
 ROOT = Path(__file__).resolve().parent.parent
-PAGE = ROOT / "eesti" / "web" / "index.html"
 VENDOR = ROOT / "eesti" / "web" / "vendor"
 
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 class TestHlsFallback:

@@ -27,7 +27,8 @@ from pathlib import Path
 
 import pytest
 
-PAGE = Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+from pagesrc import markup_and_script, styles
+
 
 #: Properties the browser defines for us. `--pct` is declared with `@property`
 #: and set from JavaScript; it has an `initial-value`, so it always resolves.
@@ -36,8 +37,7 @@ DECLARED_ELSEWHERE = {"--pct"}
 
 @pytest.fixture(scope="module")
 def css() -> str:
-    page = PAGE.read_text(encoding="utf-8")
-    return page[page.index("<style>"):page.index("</style>")]
+    return styles()
 
 
 def defined_tokens(css: str) -> set[str]:
@@ -150,7 +150,10 @@ class TestTheRingCanActuallyAnimate:
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    """The page and its modules. The theme mechanism spans both: the stylesheet
+    branches on `[data-theme]`, the inline head script restores it before the
+    first paint, and `chrome.js` cycles it."""
+    return markup_and_script()
 
 
 class TestTheThemeAttributeHasAWriter:
@@ -165,10 +168,9 @@ class TestTheThemeAttributeHasAWriter:
     """
 
     def test_something_sets_what_the_stylesheet_reads(self, page):
-        css = page[page.index("<style>"):page.index("</style>")]
+        css = styles()
         assert "[data-theme=" in css, "the stylesheet no longer reads it"
-        script = page[page.index("</style>"):]
-        assert ("dataset.theme" in script
+        assert ("dataset.theme" in page
                 or 'setAttribute("data-theme"' in script), (
             "the stylesheet branches on an attribute nothing writes")
 

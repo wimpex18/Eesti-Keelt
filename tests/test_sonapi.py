@@ -18,6 +18,8 @@ import pytest
 
 from eesti.providers import sonapi
 
+from pagesrc import markup_and_script
+
 
 class TestSingleLookupsOnlyIsEnforced:
     """Sõnaveeb's maintainers ask people not to batch it, and the module has
@@ -118,8 +120,7 @@ class TestThePageAsksAboutTheLemma:
     def test_the_page_sends_the_lemma(self):
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         block = page.split("/api/enrich/")[0][-400:]
         assert "analyses[0]?.lemma" in block
 
@@ -222,8 +223,7 @@ class TestWhatTheAppLinksRatherThanBuilds:
     def _page() -> str:
         from pathlib import Path
 
-        return (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        return markup_and_script()
 
     def test_the_speaking_panel_links_ekis_pronunciation_exercises(self):
         page = self._page()

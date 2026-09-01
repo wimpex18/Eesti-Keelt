@@ -23,6 +23,8 @@ import sqlite3
 
 import pytest
 
+from pagesrc import markup_and_script
+
 # Everyday A1-B1 vocabulary, chosen to exercise every generator: verbs for
 # conjugation, adjectives with attested comparatives, countable nouns for the
 # numeral and object-case drills, and nouns whose genitive and partitive differ.
@@ -271,8 +273,7 @@ def page() -> str:
     """The single-page app's source, for tests that check page↔API contracts."""
     from pathlib import Path
 
-    return (Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
-            ).read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 @pytest.fixture

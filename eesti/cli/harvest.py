@@ -206,7 +206,7 @@ def cmd_link_topics(args: argparse.Namespace) -> int:
     analysis of the whole corpus in front of a learner waiting for a page.
     """
     from .. import config
-    from ..library import link_labelled, link_topics
+    from ..topiclinks import link_labelled, link_topics
     from ..sources import connect as content_connect
     from ..wordlist import connect as wordlist_connect
 

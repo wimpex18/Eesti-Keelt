@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .deps import vocab_db
+from .deps import db, vocab_db
 
 router = APIRouter()
 
@@ -42,13 +42,18 @@ def vocab_browse(
     somebody who already knew what was in there. Filters are level, part of
     speech and what the learner has already marked.
 
-    Needs the built wordlist: `words_db()` declines with an instruction rather
-    than handing back an empty database that looks like an empty vocabulary.
+    Needs the built wordlist, and asks whether one exists rather than opening
+    the path and trusting it: `wordlist.connect` creates the file and applies
+    the schema, so an unbuilt path hands back a complete-looking database with
+    no words in it, which reads as "the vocabulary is empty" rather than
+    "nothing has been built here". This used to borrow `cli.words_db` for that
+    -- the web app reaching into the command line tool for a database opener,
+    and printing its instruction to the server log where nobody reads it.
     """
     from .. import vocab as vocab_mod
-    from ..cli import words_db
+    from ..wordlist import available
 
-    words = words_db()
+    words = db() if available() else None
     if words is None:
         raise HTTPException(
             503,
