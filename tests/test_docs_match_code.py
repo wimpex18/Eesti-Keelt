@@ -34,6 +34,11 @@ ROOT = Path(__file__).resolve().parents[1]
 #: sentence "13 topics without a generator when there were 11" as a claim that
 #: there are 13, and failed on the very habit written to prevent it.
 #:
+#: `docs/lessons.md` is excluded for exactly that reason and no other: it is
+#: where those habits now live, moved out of `CLAUDE.md` verbatim. Every number
+#: in it is a record of what was measured when the bug was found, which is the
+#: point of the entry.
+#:
 #: `curriculum-plan.md` and `roadmap.md` are excluded for the same reason from
 #: the other direction: they narrate what a build step achieved, which is a
 #: record of a past state by construction.

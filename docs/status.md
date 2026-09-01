@@ -5,7 +5,7 @@ after the deployment was actually asked how it was doing. This is the honest
 inventory: what works, what was never built, what is knowingly broken, and what
 the original research plan promised and did not deliver.
 
-Read `roadmap.md` for *why* things were chosen and `CLAUDE.md` for the habits
+Read `roadmap.md` for *why* things were chosen and `lessons.md` for the habits
 that came out of getting them wrong.
 
 ## The decision this version closes on
