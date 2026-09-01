@@ -9,7 +9,13 @@
 # ---------------------------------------------------------------------------
 # Builder: produce the derived databases, then throw the toolchain away.
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim AS builder
+# 3.13, and only after CI ran the whole suite on it. estnltk publishes wheels
+# for 3.11 through 3.14, but a wheel existing is not the same as Vabamorf's
+# compiled extension and everything above it behaving -- so `tests.yml` runs a
+# 3.11 and a 3.13 leg, and the 3.13 leg passes the morphology gate against
+# TalTech's native gold forms, not merely the unit tests. 3.11 stays in that
+# matrix because it is what this image shipped until now.
+FROM python:3.13-slim AS builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -45,7 +51,7 @@ run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 # ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

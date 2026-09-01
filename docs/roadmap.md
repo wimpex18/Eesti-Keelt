@@ -284,4 +284,4 @@ everything a copy would, and holds none of it.
 - **Our own scheduler.** FSRS is trained on ~700M reviews. Rolling one would be
   strictly worse.
 - **Speaking practice as a solo loop.** The B1 exam's speaking task is *paired*;
-  a monologue recorder trains the wrong thing (see `sources.md`).
+  a monologue recorder trains the wrong thing (see `speaking.md`).

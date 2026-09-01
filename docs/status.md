@@ -370,10 +370,24 @@ Seven test files had them; they are `@classmethod` now, and the suite passes
 with `-W error::pytest.PytestRemovedIn10Warning`. That was a deprecation with a
 removal date, not a style note.
 
-**Python stays 3.11.** `estnltk` 1.7.5 ships wheels for 3.11 through 3.14, so a
-runtime bump is *possible* — but it changes the deployed image, and the only
-honest verification is a redeploy plus the smoke check, which is an operator
-action. 3.11 is supported until October 2027; there is no forcing function yet.
+**Python moves to 3.13**, on evidence rather than on the wheel list:
+
+- CI runs a **matrix**, 3.11 and 3.13, `fail-fast: false`. The 3.13 leg passes
+  the whole suite *and* the morphology gate against TalTech's native gold
+  forms — not merely the unit tests.
+- Locally, on a real 3.13.7: `pip install -r requirements.txt`, then the
+  image's own pipeline. `cli build` produced the same numbers as 3.11 —
+  160 316 words, checked=2575 indexed=2416, 1 671 drillable nouns — and
+  `cli export` completed. Vabamorf's compiled extension is the whole risk, and
+  it synthesises identically.
+- The Dockerfile's two stages are `python:3.13-slim`. 3.11 stays in the CI
+  matrix because it is what the image shipped until now.
+
+**What is still unverified, and only a deploy can check:** the image itself was
+not built here — this container has a Docker CLI and no daemon. The wheel is
+`manylinux_2_28`, which Debian slim satisfies comfortably, and CI installs the
+same requirements on 3.13; but "the deps install on ubuntu-latest" is not "the
+image builds". `deploy.yml` is what will say, and the smoke check after it.
 
 ## Known bugs and rough edges
 
