@@ -39,10 +39,13 @@ def page() -> str:
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
-    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
-    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-    monkeypatch.setattr(app_module, "NOTION_DB", str(tmp_path / "n.db"))
+    # Redirected on `config`: every database in the app is resolved from there
+    # when it is opened, and `eesti.app` only re-exports the names.
+    from eesti import config
+
+    for name, stem in (("PROGRESS_DB", "p"), ("REVIEW_DB", "r"),
+                       ("VOCAB_DB", "v"), ("NOTION_DB", "n")):
+        monkeypatch.setattr(config, name, str(tmp_path / f"{stem}.db"))
     monkeypatch.delenv("PROXY_TOKEN", raising=False)
     return TestClient(app_module.app)
 
@@ -75,9 +78,11 @@ def api_paths(page: str) -> set[str]:
 class TestEveryEndpointThePageCallsExists:
     def test_no_call_is_to_a_route_that_does_not_exist(self, page):
         """A typo or a renamed route shows as an empty panel, never an error."""
+        from eesti import api
+
         routes = {
-            re.sub(r"\{[^}]+\}", "{x}", r.path).rstrip("/")
-            for r in app_module.app.routes if hasattr(r, "path")
+            re.sub(r"\{[^}]+\}", "{x}", path).rstrip("/")
+            for path in api.paths(app_module.app)
         }
         for path in api_paths(page):
             assert path in routes, f"the page calls {path}, which is not a route"

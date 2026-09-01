@@ -128,8 +128,13 @@ class TestTheQueueCanActuallyBeDrained:
         from fastapi.testclient import TestClient
 
         from eesti import app as app_module
+        from eesti import config
 
-        monkeypatch.setattr(app_module, "NOTION_DB", str(tmp_path / "n.db"))
+        # On `config`, which is where the queue is resolved from when it is
+        # opened. Patching `app.NOTION_DB` used to work because the routes
+        # closed over a copy bound at import; that copy is gone, and a patch
+        # nothing reads is a test that quietly stops testing.
+        monkeypatch.setattr(config, "NOTION_DB", str(tmp_path / "n.db"))
         return TestClient(app_module.app)
 
     def queue_one(self, client, wrong="raamatut"):

@@ -171,7 +171,7 @@ class TestTheRecommendationRanksRatherThanFilters:
                                                             "iseseisev"}
 
     def test_the_docstring_no_longer_claims_a_filter(self):
-        from eesti.app import reading_next
+        from eesti.api.library import reading_next
 
         doc = reading_next.__doc__ or ""
         assert "It ranks; it does not filter." in doc

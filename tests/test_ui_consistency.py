@@ -285,7 +285,7 @@ class TestNoCountIsAPageSize:
         """No literal cap: the number of rows scored comes from counting them."""
         import inspect
 
-        from eesti.app import reading_next
+        from eesti.api.library import reading_next
 
         code = "\n".join(
             line for line in inspect.getsource(reading_next).splitlines()

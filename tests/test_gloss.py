@@ -102,8 +102,9 @@ class TestAWordIsAskedAboutOnce:
         """`vocab.db` is in STATE_DATABASES. Any other file and the store would
         reproduce exactly the bug it was written to fix."""
         from eesti import app as app_module
+        from eesti.api import state as state_module
 
-        assert "vocab" in app_module.STATE_DATABASES
+        assert "vocab" in state_module.STATE_DATABASES
         assert app_module.gloss_db.__doc__ and "snapshot" in app_module.gloss_db.__doc__
 
 

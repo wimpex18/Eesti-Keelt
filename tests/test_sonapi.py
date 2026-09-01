@@ -126,9 +126,9 @@ class TestThePageAsksAboutTheLemma:
     def test_it_is_fetched_separately_from_the_card(self):
         """The card must be usable before a third party answers, so this
         cannot be part of `/api/lookup`."""
-        from eesti.app import app
+        from eesti import api
 
-        paths = {r.path for r in app.routes if hasattr(r, "path")}
+        paths = set(api.paths())
         assert "/api/enrich/{word}" in paths and "/api/lookup/{word}" in paths
 
 

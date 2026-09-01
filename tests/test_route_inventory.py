@@ -78,10 +78,24 @@ def sources() -> dict[str, str]:
 
 @pytest.fixture(scope="module")
 def routes() -> list[str]:
+    """Every `/api/` path the app serves.
+
+    From `eesti.api.paths()`, not from `app.routes`. FastAPI keeps an included
+    router as one lazy `_IncludedRouter` entry, so the obvious walk --
+    `{r.path for r in app.routes if hasattr(r, "path")}` -- returns four paths
+    and raises nothing. This check would then have passed by measuring almost
+    nothing, which is the exact failure it exists to catch in the app.
+    """
+    from eesti import api
     from eesti.app import app
 
-    return sorted({r.path for r in app.routes
-                   if hasattr(r, "path") and r.path.startswith("/api/")})
+    return sorted(p for p in api.paths(app) if p.startswith("/api/"))
+
+
+def test_the_inventory_is_not_empty(routes):
+    """The guard on the guard: every assertion below is over `routes`, so a
+    change that makes it short makes them all pass."""
+    assert len(routes) > 40, f"only {len(routes)} routes found -- the walk broke"
 
 
 def callers(path: str, sources: dict[str, str]) -> list[str]:
@@ -133,4 +147,4 @@ def test_the_only_other_writer_is_the_cli(sources):
     got = subprocess.run(
         ["grep", "-rln", "--include=*.py", "set_status", "eesti/"],
         capture_output=True, text=True, cwd=ROOT).stdout.split()
-    assert sorted(got) == ["eesti/app.py", "eesti/cli.py", "eesti/vocab.py"]
+    assert sorted(got) == ["eesti/api/vocab.py", "eesti/cli.py", "eesti/vocab.py"]

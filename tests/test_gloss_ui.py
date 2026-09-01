@@ -120,13 +120,13 @@ class TestTheQueueDoesNotPrintDatabaseKeys:
     than the word it described."""
 
     def test_the_endpoint_resolves_the_name(self):
-        from eesti.app import _topic_name
+        from eesti.api.render import _topic_name
 
         assert _topic_name("obj-case") == "täissihitis ja osasihitis"
         assert _topic_name("osastav") == "osastav kääne"
 
     def test_an_unknown_kind_is_not_an_error(self):
-        from eesti.app import _topic_name
+        from eesti.api.render import _topic_name
 
         assert _topic_name("vocab") == "vocab"
 

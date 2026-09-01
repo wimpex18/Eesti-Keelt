@@ -110,9 +110,28 @@ class TestCurriculumCounts:
 
 
 class TestApiSurface:
+    @staticmethod
+    def _declared() -> int:
+        """Route decorators across the API package.
+
+        It read `app.py` alone while every handler was declared there. The
+        routes live in `eesti/api/*.py` now, one module per thing the learner
+        is doing, so the count is taken across the package -- a glob rather
+        than a list of module names, or this check acquires the drift it
+        exists to catch.
+        """
+        modules = sorted((ROOT / "eesti" / "api").glob("*.py"))
+        assert modules, "no API modules found -- this check would measure zero"
+        return sum(len(re.findall(r"@router\.(?:get|post)",
+                                  m.read_text(encoding="utf-8")))
+                   for m in modules)
+
+    def test_the_count_is_not_zero(self):
+        """Every assertion below compares against this number."""
+        assert self._declared() > 40
+
     def test_route_count(self):
-        source = (ROOT / "eesti" / "app.py").read_text(encoding="utf-8")
-        actual = len(re.findall(r"@app\.(?:get|post)", source))
+        actual = self._declared()
         for doc, line, value, text in _claims(r"(\d+) API routes"):
             assert int(value) == actual, (
                 f"{doc.relative_to(ROOT)}:{line} says {value} API routes; "
