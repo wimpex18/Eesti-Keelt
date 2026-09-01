@@ -173,11 +173,19 @@ PROVIDERS: dict[str, Provider] = {
     #
     # This lane used to point at `router.huggingface.co` on the theory that it
     # was "the only hosted way to reach EstLLM". Probed on 2026-08-20: the
-    # router serves 132 models and **not one Estonian one**, and every Estonian
-    # model -- EstLLM, gec-llm, Llammas, TalTech's verbatim Whisper -- has an
-    # empty `inferenceProviderMapping`. Nobody hosts any of them. The lane could
-    # never have answered, and it was not in `LLM_PREFERENCE` either, so nothing
-    # ever tried it and nothing ever noticed.
+    # router served 132 models and **not one Estonian one**, and every Estonian
+    # model had an empty `inferenceProviderMapping`. The lane could never have
+    # answered, and it was not in `LLM_PREFERENCE` either, so nothing ever tried
+    # it and nothing ever noticed.
+    #
+    # Re-probed 2026-09-01, because a claim about somebody else's
+    # infrastructure is a measurement and measurements go stale: the pinned
+    # model, `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`, is now served by
+    # **featherless-ai**, status `live`. That is three weeks, not the "not a gap
+    # about to close" the note assumed. It does not change this lane -- a hosted
+    # route needs an HF token and a third party's pricing, where a local server
+    # needs neither -- but it does mean the option exists, and `docs/local-llm.md`
+    # records it rather than leaving the old answer standing.
     #
     # The model is still the right idea: a general model failing Estonian object
     # case is exactly what an Estonian-adapted one should fix. It just needs a

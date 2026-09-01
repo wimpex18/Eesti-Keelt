@@ -327,6 +327,33 @@ work, appears in no single test file run alone, and an in-process
 importing the app in one does not reproduce it. Making the gate honest closes
 the failure it causes either way; finding the writer is still open.
 
+### Third-party sources, re-probed 2026-09-01
+
+Every endpoint the code actually calls answers: ERR's two archives, HARNO,
+EIS's public items, Sõnaveeb (`api.sonapi.ee/v2`), TartuNLP's TTS and
+translation (both `/v2`), the Selges keeles WordPress API, EVKK's taxonomy, the
+Ekilex word list on GitHub raw, and EKK SÜ 64. No API version has moved; there
+is nothing to migrate to.
+
+Two registry URLs answer non-200 and both are fine: the Ekilex *repository
+page* is 403 to an unauthenticated fetch while the raw data file it exists for
+is 200, and `api.sonapi.ee/v2/` with no word is 404 while `v2/raamat` is 200.
+Worth writing down, because "the link check went red" would otherwise be
+rediscovered as a problem twice a year.
+
+**The one claim that had gone stale was ours, not theirs.** `docs/local-llm.md`
+recorded, correctly, that on 2026-08-20 nobody hosted any Estonian model. On
+2026-09-01 the exact model this project pins is served by featherless-ai,
+status `live`. Three weeks. The note also said "this is not a gap that is about
+to close", which is the sort of sentence that should not be written about
+somebody else's roadmap.
+
+Two Estonian models exist now that did not: a 70B EstLLM (2026-08-17, ~40 GB at
+Q4 — a bigger machine, not a Mac mini) and TalTech's Estonian Voxtral
+(2026-08-25) with GGUF builds, which is the first real candidate for the
+speaking lane's recogniser. Neither is measured on this project's eval and
+neither is adopted for being new.
+
 ### Dependencies, checked 2026-09-01
 
 | | |

@@ -12,19 +12,41 @@ speaks directly to this project's own measurement: a 120B *general* model scored
 **0.50 recall / 0.50 precision** on Estonian object case and failed in the
 harmful direction, flagging correct Estonian as wrong.
 
-So the model is the right idea. The distribution is the problem:
+So the model is the right idea. The distribution was the problem — and it has
+partly stopped being one, which is worth stating loudly because this table said
+otherwise for months:
 
-| Model | Hosted by an inference provider |
+| Model | Hosted, re-probed 2026-09-01 |
 |---|---|
-| `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` | none |
-| `TartuNLP/gec-llm` | none |
-| `tartuNLP/Llammas-base` | none |
-| `TalTechNLP/whisper-large-v3-turbo-et-verbatim` | none |
+| `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` | **featherless-ai, status `live`, task `conversational`** |
+| `tartuNLP/Llama-3.1-EstLLM-70B-Instruct-0826` | none *(new: published 2026-08-17)* |
+| `tartuNLP/Apertus-EstLLM-8B-Instruct-0326` | none |
+| `TalTechNLP/Voxtral-Mini-3B-2507-estonian` | none *(new: published 2026-08-25)* |
 
-Hugging Face's router serves 132 models and not one Estonian one. OpenRouter
-carries no Baltic-specialist model at all. This is not a gap that is about to
-close: Estonian is a 1.1-million-speaker language and hosted inference follows
-demand.
+The August probe found "nobody hosts any of them" and that was true when it was
+written. It is not true now: the exact model this project pins is served by an
+inference provider through Hugging Face. **A claim about somebody else's
+infrastructure is a measurement, and measurements go stale silently** — this
+one did, in the direction that would have kept the project from noticing an
+option it had been waiting for.
+
+What that changes: reaching EstLLM no longer strictly requires a machine. It
+requires an HF token and a paid third party instead, which is a different
+trade, not obviously a better one — the local lane stays the default because it
+is free, private, and answers to nobody's pricing page. What it does mean is
+that the sentence "this is not a gap that is about to close" was wrong within
+three weeks, and the honest version is that nobody should plan around either
+state lasting.
+
+**Two models exist now that did not when this was written.** A 70B EstLLM
+(2026-08-17) — the same lineage, roughly nine times the weights, and out of
+reach of a Mac mini at ~40 GB for Q4; a machine with 64 GB could run it. And
+TalTech's Estonian Voxtral (2026-08-25), an Estonian-finetuned speech model
+with GGUF builds, which is the first serious answer to the speaking lane's
+open question — the app's recogniser is Cloudflare's Whisper today, and
+`docs/speaking.md` says plainly that a miss may be the recogniser rather than
+the learner's mouth. Neither is measured on this project's eval, and neither is
+being adopted on the strength of being new.
 
 **What does exist is quantised weights**, and an 8B model is small. That makes a
 Mac mini a perfectly reasonable place to run it.

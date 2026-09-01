@@ -8,11 +8,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      # Two Pythons, and the pair is the point. 3.11 is what the Dockerfile
+      # ships and therefore what the learner actually runs; 3.13 is where this
+      # is going, and running it here is the only honest way to find out
+      # whether Vabamorf's compiled extension and everything above it survive
+      # the move. `fail-fast: false` so a break on one does not hide the other.
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    name: test (py${{ matrix.python-version }})
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install

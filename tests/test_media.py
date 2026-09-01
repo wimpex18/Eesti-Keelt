@@ -100,3 +100,37 @@ class TestTheVendorRoute:
     def test_it_refuses_to_leave_its_directory(self, client, attack):
         """`name` comes straight off the URL."""
         assert client.get(f"/vendor/{attack}").status_code in (404, 400)
+
+
+class TestTheVendoredPlayerSaysWhatItIs:
+    """A vendored bundle with no recorded version cannot be audited.
+
+    `hls.light.min.js` sat here for months at **1.5.20** with nothing anywhere
+    saying so — not a filename, not a comment, not a lockfile. The only way to
+    find out was to grep the minified source for something that looked like a
+    semver, which is not a process. It is 1.7.1 now, with the version written
+    beside it and checked against what the bundle actually contains.
+
+    It is load-bearing: 44 of the 91 audio items are HLS streams, which Safari
+    plays natively and Chrome and Firefox do not.
+    """
+
+    VERSION = ROOT / "eesti" / "web" / "vendor" / "hls.js.version"
+    BUNDLE = ROOT / "eesti" / "web" / "vendor" / "hls.light.min.js"
+
+    def test_the_version_is_recorded(self):
+        assert self.VERSION.exists(), (
+            "nothing records which hls.js this is; the next person has to grep "
+            "a minified bundle for a semver-shaped string")
+        assert re.fullmatch(r"\d+\.\d+\.\d+", self.VERSION.read_text().strip())
+
+    def test_the_bundle_agrees_with_the_record(self):
+        """The record is only worth having if it describes the file beside it."""
+        recorded = self.VERSION.read_text(encoding="utf-8").strip()
+        source = self.BUNDLE.read_text(encoding="utf-8", errors="replace")
+        assert f'"{recorded}"' in source, (
+            f"the file records {recorded} and the bundle does not contain that "
+            f"version string")
+
+    def test_the_page_asks_for_it_by_the_path_that_is_served(self, page):
+        assert "/vendor/hls.light.min.js" in page
