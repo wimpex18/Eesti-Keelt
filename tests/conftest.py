@@ -200,6 +200,100 @@ def real_wordlist():
         conn.close()
 
 
+# ---------------------------------------------------------------------------
+# What this machine has, said out loud
+# ---------------------------------------------------------------------------
+#
+# The same command reports very different runs depending on state that is
+# invisible in its output: `data/` is git-ignored, so a machine with a built
+# word list runs tests that a fresh checkout skips, and a machine without
+# Playwright skips the browser journeys entirely. Both print "passed".
+#
+# That cost a real mistake in the session that split this repository up: a
+# browser run reported "144 skipped" after the dataset had been deleted, and
+# the comparison it was being used for measured nothing. A skip is a fine
+# answer; a skip nobody can see in the result is not.
+
+
+def dataset_state() -> dict[str, object]:
+    """Which optional inputs are present, and how much they hold.
+
+    Read-only and failure-proof by construction: `available()` opens read-only
+    and counts a row, because presence of a database is not presence of data --
+    opening one to look would *create* it, which is this project's oldest
+    recurring bug.
+    """
+    from pathlib import Path
+
+    state: dict[str, object] = {"words": 0, "corpus": 0, "browsers": []}
+    try:
+        from eesti import config
+        from eesti.sources import available as corpus_available
+        from eesti.wordlist import available as words_available
+
+        if words_available(config.DB_PATH):
+            conn = sqlite3.connect(f"file:{config.DB_PATH}?mode=ro", uri=True)
+            state["words"] = conn.execute("SELECT COUNT(*) FROM words").fetchone()[0]
+            conn.close()
+        if corpus_available(config.CONTENT_DB):
+            conn = sqlite3.connect(f"file:{config.CONTENT_DB}?mode=ro", uri=True)
+            state["corpus"] = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+            conn.close()
+    except Exception:  # noqa: BLE001 - a header must never break a run
+        pass
+
+    try:
+        import importlib.util
+        import os
+
+        if importlib.util.find_spec("playwright") is not None:
+            root = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
+            found = set()
+            for path in root.glob("*-*"):
+                for engine in ("chromium", "webkit", "firefox"):
+                    # `chromium_headless_shell-1194` is the same engine, not a
+                    # third browser: report engines, not directories.
+                    if path.name.startswith(engine):
+                        found.add(engine)
+            state["browsers"] = sorted(found)
+    except Exception:  # noqa: BLE001
+        pass
+    return state
+
+
+def describe_dataset(state: dict[str, object]) -> str:
+    """One line naming what will and will not run."""
+    words, corpus, browsers = state["words"], state["corpus"], state["browsers"]
+    parts = [
+        f"word list: {words:,} words" if words
+        else "word list: absent (some tests skip -- `cli fetch-data && cli build`)",
+        f"corpus: {corpus:,} items" if corpus
+        else "corpus: absent (reading journeys skip -- `cli harvest-reading`)",
+        f"browsers: {', '.join(browsers)}" if browsers
+        else "browsers: none (the journey suite skips entirely)",
+    ]
+    return "eesti | " + " | ".join(parts)
+
+
+def pytest_report_header(config) -> str:
+    """Printed before the run, so the result can never be read out of context."""
+    return describe_dataset(dataset_state())
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
+    """The same line at the end, because `-q` hides the header.
+
+    `pytest tests/ -q` is the command every document in this repository names,
+    and under `-q` the header above is not printed at all -- so the one place
+    the run's context would have been visible is the one place it was not.
+    """
+    skipped = terminalreporter.stats.get("skipped", [])
+    line = describe_dataset(dataset_state())
+    if skipped:
+        line += f" | {len(skipped)} skipped"
+    terminalreporter.write_line(line)
+
+
 @pytest.fixture(scope="session")
 def fixture_data(tmp_path_factory):
     """Built once per session — Vabamorf synthesis is not free."""
