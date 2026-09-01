@@ -48,8 +48,6 @@ ordering, not the absolute numbers.
 from __future__ import annotations
 
 import re
-import time
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -103,21 +101,13 @@ def parse(page: str) -> list[Mark]:
 
 def fetch(cache: Path | None = None) -> list[Mark]:
     """One request, cached. The taxonomy is a published standard, not a feed."""
+    from .. import net
+
     if cache is not None and cache.exists():
         return parse(cache.read_text(encoding="utf-8"))
 
-    req = urllib.request.Request(TAXONOMY_URL, headers={"User-Agent": UA})
-    last: Exception | None = None
-    for attempt in range(RETRIES):
-        try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-                page = resp.read().decode("utf-8", errors="replace")
-            break
-        except Exception as exc:  # noqa: BLE001 - retry anything, then give up
-            last = exc
-            time.sleep(2 ** attempt)
-    else:
-        raise RuntimeError(f"EVKK taxonomy unreachable: {last}")
+    page = net.get(TAXONOMY_URL, "EVKK taxonomy", timeout=TIMEOUT,
+                   retries=RETRIES, ua=UA)
 
     if cache is not None:
         cache.parent.mkdir(parents=True, exist_ok=True)

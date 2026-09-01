@@ -207,12 +207,6 @@ def parse_episode(html: str, url: str) -> Episode | None:
         published=str(published) if published else None,
         summary=_clean_markup(content.get("lead") or ""),
     )
-
-
-def fetch_episode(url: str) -> Episode | None:
-    return parse_episode(_get(url), url)
-
-
 _LDJSON_RE = re.compile(
     r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', re.S
 )

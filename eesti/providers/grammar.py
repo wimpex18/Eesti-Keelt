@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
@@ -82,13 +81,6 @@ class GrammarResult:
 _breaker_open = breaker.is_open
 _record_failure = breaker.record_failure
 _record_success = breaker.record_success
-
-
-def reset_breakers() -> None:
-    """Clear breaker state — used by tests and by an explicit 'retry now'."""
-    breaker.reset()
-
-
 class GrammarProvider(Protocol):
     name: str
 

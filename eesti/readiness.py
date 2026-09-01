@@ -296,10 +296,9 @@ def _next_task(content, level: str, skill: str) -> dict | None:
 
 def _parts(progress: sqlite3.Connection, level: str,
            content=None, notion=None) -> list[Part]:
-    from .library import exposure, seen_items
+    from .library import exposure
 
     out: list[Part] = []
-    seen = seen_items(progress)
     read = exposure(progress)
     official = _official(content, level)
 

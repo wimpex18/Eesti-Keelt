@@ -195,6 +195,36 @@ def nouns_at_level(
     return [Word(**dict(r)) for r in cur]
 
 
+def verbs_at_level(
+    conn: sqlite3.Connection, levels: tuple[str, ...] = LEVELS, limit: int = 400
+) -> list[tuple[str, str]]:
+    """Verbs tagged at the given CEFR levels, most frequent first.
+
+    The twin of `nouns_at_level`, and here for the reason that one is here:
+    this query was written out twice, identically, in `conjugation.py` and
+    `verbs.py` -- two modules that must agree about which verbs a learner is
+    ready for, with nothing to keep them in step. One of them changing the
+    `pos` test or the frequency ordering would have changed which verbs the
+    drill offered and not which verbs the form model considered irregular.
+
+    Frequency order matters more for verbs than for nouns: a learner meets
+    *saama* and *tegema* every day and *sarnanema* almost never, so drilling
+    the conditional is worth far more on the first than the second.
+    """
+    marks = ",".join("?" * len(levels))
+    return [
+        (row[0], row[1])
+        for row in conn.execute(
+            f"""SELECT word, proficiency FROM words
+                WHERE proficiency IN ({marks})
+                  AND (','||COALESCE(pos,'')||',') LIKE '%,v,%'
+                ORDER BY (freq_rank IS NULL OR freq_rank = 0), freq_rank
+                LIMIT ?""",
+            (*levels, limit),
+        )
+    ]
+
+
 def index_object_cases(
     conn: sqlite3.Connection, levels: tuple[str, ...] = LEVELS, limit: int = 5000
 ) -> dict[str, int]:

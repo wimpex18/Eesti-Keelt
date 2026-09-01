@@ -24,7 +24,6 @@ import re
 import time
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime
 
 API = "https://public-api.wordpress.com/rest/v1.1/sites/{site}/posts/"
 SITE = "selgeskeeles.wordpress.com"

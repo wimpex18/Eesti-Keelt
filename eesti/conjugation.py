@@ -152,22 +152,12 @@ def verbs_at_levels(
 ) -> list[tuple[str, str]]:
     """Level-appropriate verbs, most frequent first.
 
-    Frequency order matters more here than for nouns: a learner meets *saama*
-    and *tegema* every day and *sarnanema* almost never, so drilling the
-    conditional is worth far more on the first than the second.
+    The query lives in `wordlist.py`, beside `nouns_at_level`, because
+    `verbs.py` asked the same question with its own copy of the same SQL.
     """
-    marks = ",".join("?" * len(levels))
-    return [
-        (row[0], row[1])
-        for row in conn.execute(
-            f"""SELECT word, proficiency FROM words
-                WHERE proficiency IN ({marks})
-                  AND (','||COALESCE(pos,'')||',') LIKE '%,v,%'
-                ORDER BY (freq_rank IS NULL OR freq_rank = 0), freq_rank
-                LIMIT ?""",
-            (*levels, limit),
-        )
-    ]
+    from .wordlist import verbs_at_level
+
+    return verbs_at_level(conn, levels, limit)
 
 
 def _one(lemma: str, tag: str) -> str | None:

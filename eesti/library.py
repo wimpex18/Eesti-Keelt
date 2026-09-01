@@ -216,6 +216,34 @@ def sections(content: sqlite3.Connection, public_only: bool = False,
     return out
 
 
+def _filters(level: str | None, band: str | None,
+             public_only: bool) -> tuple[str, list]:
+    """The conditions `browse` and `count` must both apply.
+
+    `count`'s docstring has said "built from `browse`'s own filters rather
+    than beside them" since it was written, and it was written beside them:
+    the same three clauses appeared twice, in the same order, in two functions
+    whose whole contract is that they agree. A count computed from different
+    conditions than the rows it counts is worse than no count, because it looks
+    authoritative -- so the filters are one thing now, and the docstring is
+    true.
+
+    Two different claims stay deliberately separate. `level` is CEFR and only
+    official material carries it; `band` is difficulty relative to a source and
+    is the only thing harvested prose can honestly offer.
+    """
+    sql, params = "", []
+    if level:
+        sql += " AND i.level = ?"
+        params.append(level)
+    if band:
+        sql += " AND i.band = ?"
+        params.append(band)
+    if public_only:
+        sql += " AND s.redistributable = 1"
+    return sql, params
+
+
 def browse(
     content: sqlite3.Connection,
     section: str,
@@ -243,17 +271,9 @@ def browse(
                " FROM items i JOIN sources s ON s.id = i.source_id"
                " WHERE i.skill = ?")
         params: list = [skill]
-        # Two different claims, deliberately separate. `level` is CEFR and only
-        # official material carries it; `band` is difficulty relative to a
-        # source and is the only thing harvested prose can honestly offer.
-        if level:
-            sql += " AND i.level = ?"
-            params.append(level)
-        if band:
-            sql += " AND i.band = ?"
-            params.append(band)
-        if public_only:
-            sql += " AND s.redistributable = 1"
+        where, filter_params = _filters(level, band, public_only)
+        sql += where
+        params += filter_params
         sql += kind_sql
         params += kind_params
         sql += " LIMIT ?"
@@ -294,14 +314,9 @@ def count(
         sql = ("SELECT COUNT(*) FROM items i JOIN sources s ON s.id = i.source_id"
                " WHERE i.skill = ?")
         params: list = [skill]
-        if level:
-            sql += " AND i.level = ?"
-            params.append(level)
-        if band:
-            sql += " AND i.band = ?"
-            params.append(band)
-        if public_only:
-            sql += " AND s.redistributable = 1"
+        where, filter_params = _filters(level, band, public_only)
+        sql += where
+        params += filter_params
         sql += kind_sql
         params += kind_params
         total += content.execute(sql, params).fetchone()[0]

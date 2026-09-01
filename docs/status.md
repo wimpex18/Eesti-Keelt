@@ -214,6 +214,45 @@ green before and after:
   `except sqlite3.Error` handlers, which would have turned a degradation path
   into a crash. Found by pyflakes, which nothing had run over this code.
 
+### The dead code, and what was decided about each
+
+Five functions had no caller anywhere in the repository — not in `eesti/`, not
+in the tests, not in `deploy/` or the workflows. This is the shape this project
+keeps meeting, so each got a decision rather than a shrug:
+
+| | |
+|---|---|
+| `difficulty.band_counts` | **Dropped.** Its docstring said "for the reading view" and the reading view never asked. A four-line `GROUP BY` if it is ever wanted. |
+| `harvest/err.fetch_episode` | **Dropped.** A one-line wrapper over `parse_episode(_get(url), url)`; `harvest()` calls those two directly. |
+| `notion.from_correction` | **Dropped.** It mapped a `grammar.Correction` to a `Row` and nothing produced one on that path — the page posts flat fields. It also relabelled an unknown tag to `vocab` silently, where `/api/notion/queue` rejects it with a 400, which is the better of the two behaviours and the one in use. |
+| `providers/grammar.reset_breakers` | **Dropped.** A one-line wrapper over `breaker.reset()`; the tests call that directly and there is no "retry now" control. |
+| `sources.ingest_file` | **Kept, and it is a gap.** It is the only code that can put a textbook chapter or a tutor's handout into the corpus — "feed it files" — and nothing can call it: no CLI command, no route. Wiring it is a feature decision, not cleanup, so it is written down here instead of deleted. |
+
+Two computed values nobody read went with them: `progress.report` called
+`mastered(conn)` into a variable it never used, and `readiness._parts` called
+`seen_items(progress)` the same way. Both are pure reads; the schema the second
+one creates is created again by `exposure()` on the next line, which is why
+dropping it is safe and worth checking before doing.
+
+### Three jobs that were written twice
+
+- **`library.browse` and `library.count`.** `count`'s docstring said it was
+  "built from `browse`'s own filters rather than beside them" and it was beside
+  them — the same three clauses, in the same order, in two functions whose only
+  contract is that they agree. One `_filters()` now, and the docstring is true.
+- **The verb query.** `conjugation.py` and `verbs.py` each held the same SQL for
+  "level-appropriate verbs, most frequent first". It is `wordlist.verbs_at_level`
+  now, beside its noun twin.
+- **The retrying fetch.** `rection.py` and `harvest/evkk.py` had the same loop
+  character for character, with the same constants. It is `eesti/net.py`, which
+  has the first tests this logic has ever had. One deliberate difference: it no
+  longer sleeps after the *final* attempt, which only delayed the exception.
+
+Not consolidated, and worth knowing: **six modules fetch over HTTP with three
+different timeouts** (45 s, 60 s, 90 s) and two retry styles. The two that were
+identical are merged; the rest differ in ways that may be deliberate, and
+changing them is a behaviour decision rather than a cleanup.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

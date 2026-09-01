@@ -70,17 +70,6 @@ def rank(texts: dict[str, str]) -> dict[str, str]:
         else:
             out[key] = "raskem"
     return out
-
-
-def band_counts(conn) -> dict[str, int]:
-    """How much material sits in each band, for the reading view."""
-    rows = conn.execute(
-        "SELECT COALESCE(band, '(määramata)') b, COUNT(*) FROM items"
-        " WHERE body <> '' GROUP BY b"
-    ).fetchall()
-    return {row[0]: row[1] for row in rows}
-
-
 # ---------------------------------------------------------------------------
 # Comprehensible input: is this text readable *by this learner*?
 # ---------------------------------------------------------------------------
