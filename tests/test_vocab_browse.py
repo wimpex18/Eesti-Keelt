@@ -22,6 +22,8 @@ import pytest
 
 from eesti import vocab
 
+from pagesrc import markup_and_script
+
 
 @pytest.fixture
 def words(tmp_path):
@@ -196,7 +198,6 @@ class TestSettlingAWord:
                            ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
             target = str(tmp_path / f"{stem}.db")
             monkeypatch.setattr(config_module, name, target)
-            monkeypatch.setattr(app_module, name, target, raising=False)
         return TestClient(app_module.app)
 
     def _status(self, client, lemma):
@@ -269,7 +270,51 @@ class TestSettlingAWord:
         status that does not exist for the learner."""
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parents[1]
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         assert '"ignore"' in page, "the page cannot reach `eiran`"
         assert "#skipBtn" in page and "#knowBtn" in page
+
+
+class TestTheBrowseRouteItself:
+    """`GET /api/vocab` is the whole `Sõnavara` screen, and nothing tested it.
+
+    Everything in this file exercised `vocab.browse` directly or posted to
+    `/api/vocab/known`; the route that *reads* the ladder had no caller in the
+    suite at all. So when it lost the helper it imported, 1 400 tests stayed
+    green and the screen answered 500 -- found by opening the app in a browser,
+    which is the habit this project already has written down twice.
+    """
+
+    @pytest.fixture
+    def client(self, tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+        from eesti import config as config_module
+
+        for name, stem in (("VOCAB_DB", "v"), ("PROGRESS_DB", "p"),
+                           ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
+            monkeypatch.setattr(config_module, name, str(tmp_path / f"{stem}.db"))
+        return TestClient(app_module.app)
+
+    def test_it_answers_with_words(self, client):
+        got = client.get("/api/vocab?limit=5")
+        assert got.status_code == 200, got.text
+        body = got.json()
+        assert body["items"], "the ladder came back empty"
+        assert {"word", "level", "status"} <= set(body["items"][0])
+
+    def test_the_filters_are_accepted(self, client):
+        for query in ("level=A1", "pos=noun", "status=known", "limit=3&offset=1"):
+            got = client.get(f"/api/vocab?{query}")
+            assert got.status_code == 200, f"{query}: {got.text}"
+
+    def test_without_a_built_word_list_it_says_what_to_run(self, client, monkeypatch, tmp_path):
+        """The branch that made the route reach into the CLI in the first
+        place: an unbuilt path must not answer with an empty vocabulary."""
+        from eesti import config as config_module
+
+        monkeypatch.setattr(config_module, "DB_PATH", tmp_path / "nothing.db")
+        got = client.get("/api/vocab")
+        assert got.status_code == 503
+        assert "build" in got.json()["detail"]

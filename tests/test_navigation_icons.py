@@ -27,17 +27,20 @@ from pathlib import Path
 
 import pytest
 
-PAGE = Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+from pagesrc import markup, markup_and_script, styles
+
 
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 @pytest.fixture(scope="module")
 def css(page) -> str:
-    return page[page.index("<style>"):page.index("</style>")]
+    # The stylesheet is `eesti/web/app.css` now, not a `<style>` block in the
+    # page. Same text, one fewer slice.
+    return styles()
 
 
 def map_keys(page: str, name: str) -> set[str]:
@@ -45,19 +48,20 @@ def map_keys(page: str, name: str) -> set[str]:
     return set(re.findall(r"^\s*([a-z]+):\s*'", block[:block.index("\n};")], re.M))
 
 
-def _markup(page: str) -> str:
+def _markup(_page: str) -> str:
     """The authored HTML only.
 
-    Scanning the whole file picks up `data-tab="${tab}"` out of the selector
-    strings in the script, which is not a destination — it is the code that
-    goes looking for one.
+    Scanning the whole app picks up `data-tab="${tab}"` out of the selector
+    strings in the modules, which is not a destination — it is the code that
+    goes looking for one. So this reads `index.html` and nothing else, and
+    still strips the one inline script in it.
 
     Strips the script blocks rather than truncating at the first one: the
     theme is applied by a small inline script immediately after `<body>`, so
     cutting at `index("<script>")` leaves the head and nothing else, and every
     check below passes on an empty set.
     """
-    return re.sub(r"<script>.*?</script>", "", page, flags=re.S)
+    return re.sub(r"<script>.*?</script>", "", markup(), flags=re.S)
 
 
 def markup_tabs(page: str) -> set[str]:

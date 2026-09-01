@@ -32,11 +32,15 @@ from __future__ import annotations
 
 import re
 import time
-import urllib.request
 from dataclasses import dataclass
 
 FEED = "https://news.err.ee/k/lihtsad-uudised"
 TIMEOUT = 45.0
+
+#: The value this module has always sent. Kept as it was rather than
+#: standardised: what a server has been seeing is not a detail to change
+#: while consolidating how the request is made.
+UA = "Mozilla/5.0 (compatible; eesti-keelt)"
 #: Somebody else's newsroom, and this runs weekly at most.
 POLITE_DELAY = 1.0
 
@@ -69,11 +73,12 @@ class Issue:
 
 
 def _get(url: str) -> str:
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "Mozilla/5.0 (compatible; eesti-keelt)"}
-    )
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-        return response.read().decode("utf-8", "replace")
+    """One attempt. `harvest` catches `OSError` per issue, so a dead URL costs
+    that issue and not the run -- which is why `net.Unreachable` is an
+    `OSError`."""
+    from .. import net
+
+    return net.get(url, "ERR Lihtsad uudised", timeout=TIMEOUT, retries=1, ua=UA)
 
 
 def _usable(paragraph: str) -> bool:

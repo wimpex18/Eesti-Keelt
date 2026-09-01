@@ -162,14 +162,3 @@ def push(row: Row, token: str | None = None) -> tuple[bool, str]:
         return False, f"{exc.code} {exc.read().decode('utf-8', 'replace')[:200]}"
     except (urllib.error.URLError, OSError) as exc:
         return False, str(exc)[:200]
-
-
-def from_correction(correction, on_date: str = "") -> Row:
-    """Build a row from a `grammar.Correction`, tag and all."""
-    return Row(
-        wrong=correction.wrong,
-        correct=correction.right,
-        why=getattr(correction, "why_ru", "") or getattr(correction, "why", ""),
-        tag=correction.tag if correction.tag in TAGS else "vocab",
-        on_date=on_date,
-    )

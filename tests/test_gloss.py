@@ -26,7 +26,10 @@ import sqlite3
 import pytest
 
 from eesti import gloss
+from eesti import config as config_db
 from eesti.providers import sonapi
+
+from pagesrc import markup_and_script
 
 
 def info(word="kleit", ru=("платье",), rection=None, itype="2"):
@@ -61,7 +64,6 @@ def _redirect(monkeypatch, app_module, tmp_path):
                        ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
         target = str(tmp_path / f"{stem}.db")
         monkeypatch.setattr(config_module, name, target)
-        monkeypatch.setattr(app_module, name, target, raising=False)
 
 
 class TestAWordIsAskedAboutOnce:
@@ -102,8 +104,9 @@ class TestAWordIsAskedAboutOnce:
         """`vocab.db` is in STATE_DATABASES. Any other file and the store would
         reproduce exactly the bug it was written to fix."""
         from eesti import app as app_module
+        from eesti.api import state as state_module
 
-        assert "vocab" in app_module.STATE_DATABASES
+        assert "vocab" in state_module.STATE_DATABASES
         assert app_module.gloss_db.__doc__ and "snapshot" in app_module.gloss_db.__doc__
 
 
@@ -199,7 +202,7 @@ class TestThePracticeSetShowsWhatTheWordsMean:
         #
         # On `config` *and* on `app`. `config` is what the application reads
         # now; the copies on `app` are kept in step because tests in this file
-        # write their fixtures through `app_module.VOCAB_DB`, and two names for
+        # write their fixtures through `config_db.VOCAB_DB`, and two names for
         # one file that disagree is the bug this consolidation removed.
         _redirect(monkeypatch, app_module, tmp_path)
         return TestClient(app_module.app)
@@ -218,7 +221,7 @@ class TestThePracticeSetShowsWhatTheWordsMean:
     def test_a_stored_gloss_reaches_the_set(self, client, tmp_path, monkeypatch):
         from eesti import app as app_module
 
-        conn = gloss.connect(app_module.VOCAB_DB)
+        conn = gloss.connect(config_db.VOCAB_DB)
         first = client.post(
             "/api/practice", json={"count": 3, "topic": "osastav"}).json()
         lemma = first["items"][0]["lemma"]
@@ -296,8 +299,7 @@ class TestThePageShowsIt:
     def _page() -> str:
         from pathlib import Path
 
-        return (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        return markup_and_script()
 
     def test_the_practice_item_is_handed_the_gloss_map(self):
         page = self._page()
@@ -328,7 +330,7 @@ class TestTheReviewQueueIsGlossedToo:
         client.post("/api/review", json={
             "kind": "obj-case", "lemma": "kleit", "prompt": "Ma ostsin ____.",
             "answer": "kleidi"})
-        gloss.save(gloss.connect(app_module.VOCAB_DB), "kleit",
+        gloss.save(gloss.connect(config_db.VOCAB_DB), "kleit",
                    info(ru=("платье",)))
         got = client.get("/api/review?limit=20").json()
         assert got["glosses"]["kleit"] == ["платье"]
@@ -343,7 +345,6 @@ class TestTheReviewQueueIsGlossedToo:
     def test_the_page_reads_the_map(self):
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         assert "function renderReview(it, glosses)" in page
         assert "renderReview(it, glosses || {})" in page

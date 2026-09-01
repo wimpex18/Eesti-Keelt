@@ -24,12 +24,21 @@ from pathlib import Path
 
 import pytest
 
-PAGE = Path(__file__).resolve().parent.parent / "eesti" / "web" / "index.html"
+from pagesrc import everything
+
 
 
 @pytest.fixture(scope="module")
 def css() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    """The stylesheet *and* the markup.
+
+    Four of the five checks here are about one CSS rule; the fifth is about
+    the two `<nav>` elements that rule exists to hide, and the point of the
+    file is that they are one fact. `everything()` keeps them in one string,
+    with the stylesheet last, so the ordering assertion below still compares
+    two positions inside the CSS.
+    """
+    return everything()
 
 
 def test_hidden_beats_the_display_rules(css):

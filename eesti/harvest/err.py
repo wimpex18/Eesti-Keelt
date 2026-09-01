@@ -40,7 +40,6 @@ import hashlib
 import json
 import re
 import time
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -170,9 +169,16 @@ def _page_data(html: str) -> dict:
 
 
 def _get(url: str, timeout: float = 45.0) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    """One attempt, because this walks a series.
+
+    `retries=1` keeps exactly the behaviour this had: a crawl over ~170 pages
+    that retried each one three times would turn a bad afternoon on ERR's side
+    into a very long one, and `crawl_series` already skips a page it cannot
+    read.
+    """
+    from .. import net
+
+    return net.get(url, "ERR", timeout=timeout, retries=1, ua=USER_AGENT)
 
 
 def parse_episode(html: str, url: str) -> Episode | None:
@@ -207,12 +213,6 @@ def parse_episode(html: str, url: str) -> Episode | None:
         published=str(published) if published else None,
         summary=_clean_markup(content.get("lead") or ""),
     )
-
-
-def fetch_episode(url: str) -> Episode | None:
-    return parse_episode(_get(url), url)
-
-
 _LDJSON_RE = re.compile(
     r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', re.S
 )

@@ -30,7 +30,8 @@ from pathlib import Path
 
 import pytest
 
-PAGE = Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+from pagesrc import markup_and_script
+
 
 
 CYRILLIC = re.compile(r"[\u0400-\u04ff]")
@@ -87,7 +88,7 @@ def cyrillic(s: str) -> bool:
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 class TestTheExamsOwnWordsSurvive:

@@ -23,6 +23,8 @@ import sqlite3
 
 import pytest
 
+from pagesrc import markup_and_script
+
 # Everyday A1-B1 vocabulary, chosen to exercise every generator: verbs for
 # conjugation, adjectives with attested comparatives, countable nouns for the
 # numeral and object-case drills, and nouns whose genitive and partitive differ.
@@ -236,9 +238,11 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     monkeypatch.setattr(config, "CACHE", fixture_data["cache"])
     monkeypatch.setattr(lookup, "EDGE_DB", fixture_data["edge"])
 
-    # Writable, per-test, and never the real ones. Redirected on `config` for
-    # the CLI, which resolves at call time, and on `app` as well, which binds
-    # its own copies at import.
+    # Writable, per-test, and never the real ones. `config` is the one place
+    # these are read from -- every helper in `eesti/api/deps.py` resolves them
+    # when it opens the file. `app` is redirected too because it re-exports the
+    # four names and a couple of tests read them back off it; nothing in the
+    # application reads that copy.
     scratch = tmp_path / "live"
     scratch.mkdir(exist_ok=True)
     from eesti import app as app_module
@@ -246,7 +250,6 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
-        monkeypatch.setattr(app_module, name, target, raising=False)
 
     # `app.py` calls `_bind_breaker()` at *import* time, so the circuit breaker
     # holds a connection to the real `data/progress.db` from the first moment
@@ -269,8 +272,7 @@ def page() -> str:
     """The single-page app's source, for tests that check page↔API contracts."""
     from pathlib import Path
 
-    return (Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
-            ).read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 @pytest.fixture

@@ -239,7 +239,6 @@ def report(conn: sqlite3.Connection) -> list[TopicProgress]:
     from .curriculum import TOPICS, blocked_by, order
 
     done = unlocked(conn)
-    earned = mastered(conn)
     counts = {
         r[0]: r[1] for r in conn.execute(
             "SELECT topic, COUNT(*) FROM attempts GROUP BY topic"

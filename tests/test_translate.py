@@ -20,6 +20,8 @@ import pytest
 
 from eesti.providers import translate as t
 
+from pagesrc import markup_and_script
+
 
 class FakeResponse:
     def __init__(self, payload):
@@ -134,8 +136,7 @@ class TestTheEndpointAndItsPosture:
         understood rather than past it."""
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         assert '"/api/translate"' in page
         # The only call site is behind a button the learner presses.
         before = page.split('"/api/translate"', 1)[0]
@@ -145,8 +146,7 @@ class TestTheEndpointAndItsPosture:
         """The bug being fixed: `TARTUNLP_TRANSLATE` was configured with none."""
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         assert "/api/translate" in page
 
 
@@ -186,6 +186,5 @@ class TestBackTranslationInTheWritingCheck:
     def test_the_page_renders_it(self):
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         assert "res.back_translation" in page

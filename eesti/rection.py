@@ -47,8 +47,6 @@ from __future__ import annotations
 
 import html as _html
 import re
-import time
-import urllib.request
 from dataclasses import dataclass
 
 from .grammar import EKK_BASE
@@ -175,21 +173,13 @@ def fetch(cache=None) -> list[Rection]:
     """One request, cached. The handbook is a book; it does not change weekly."""
     from pathlib import Path
 
+    from . import net
+
     if cache is not None and Path(cache).exists():
         return parse(Path(cache).read_text(encoding="utf-8"))
 
-    req = urllib.request.Request(SOURCE_URL, headers={"User-Agent": UA})
-    last: Exception | None = None
-    for attempt in range(RETRIES):
-        try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-                page = resp.read().decode("utf-8", errors="replace")
-            break
-        except Exception as exc:  # noqa: BLE001
-            last = exc
-            time.sleep(2 ** attempt)
-    else:
-        raise RuntimeError(f"EKK SÜ 64 unreachable: {last}")
+    page = net.get(SOURCE_URL, "EKK SÜ 64", timeout=TIMEOUT,
+                   retries=RETRIES, ua=UA)
 
     if cache is not None:
         Path(cache).parent.mkdir(parents=True, exist_ok=True)

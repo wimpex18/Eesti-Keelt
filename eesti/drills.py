@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import random
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Literal
 
 from .config import LEVELS

@@ -25,8 +25,10 @@ from pathlib import Path
 
 import pytest
 
+from pagesrc import markup, markup_and_script, scripts
+
 SW = Path(__file__).resolve().parents[1] / "eesti" / "web" / "sw.js"
-PAGE = Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+JS_DIR = SW.parent / "js"
 
 
 @pytest.fixture(scope="module")
@@ -62,13 +64,13 @@ class TestItIsServedAtAllAndFromTheRoot:
         assert "no-cache" in client.get("/sw.js").headers.get("cache-control", "")
 
     def test_the_page_registers_it(self):
-        page = PAGE.read_text(encoding="utf-8")
+        page = markup_and_script()
         assert "serviceWorker" in page and "/sw.js" in page
 
     def test_registration_failure_is_survivable(self):
         """An app that refuses to start because an enhancement did not register
         is worse than one with no worker."""
-        page = PAGE.read_text(encoding="utf-8")
+        page = markup_and_script()
         block = page[page.index('navigator.serviceWorker.register'):][:120]
         assert ".catch(" in block
 
@@ -135,7 +137,101 @@ class TestTheOfflineTextIsReadable:
         app told a Russian-speaking learner exactly that. Made reachable by the
         worker: before it, the browser's offline page showed instead and the
         app never got to speak."""
-        page = PAGE.read_text(encoding="utf-8")
+        page = markup_and_script()
         block = page[page.index("async function api("):][:1400]
         assert "catch" in block
         assert any("Ѐ" <= ch <= "ӿ" for ch in block)
+
+
+class TestThePrecacheListAndThePageAgree:
+    """The shell list and the page's own tags are two halves of one fact.
+
+    The app was one file until this split; now the page pulls a stylesheet and
+    fourteen ES modules, and the worker has to precache them or an offline open
+    paints an unstyled document with no behaviour -- which looks like the app
+    having broken itself rather than like being offline.
+
+    A list of filenames kept by hand is exactly what this project has been
+    bitten by (`TABS`: three of ten panels missing, and nothing failed because
+    every click still produced *a* panel). It cannot be derived here -- the
+    worker is a static file a browser fetches, with no build step to generate
+    it -- so the two sides are checked against each other in both directions,
+    which is the rule for when derivation is impossible.
+    """
+
+    @staticmethod
+    def _precached(source: str) -> set[str]:
+        block = re.search(r"const ASSETS = \[(.*?)\];", source, re.S).group(1)
+        return set(re.findall(r'"([^"]+)"', block))
+
+    @staticmethod
+    def _requested() -> set[str]:
+        page = markup()
+        return set(re.findall(r'<link rel="stylesheet" href="([^"]+)"', page)) | \
+               set(re.findall(r'<script type="module" src="([^"]+)"', page))
+
+    def test_there_is_something_to_compare(self, source):
+        assert self._precached(source) and self._requested()
+
+    def test_everything_the_page_asks_for_is_precached(self, source):
+        missing = self._requested() - self._precached(source)
+        assert not missing, (
+            f"the page loads {sorted(missing)}, which the worker does not "
+            f"cache -- an installed copy opens without them")
+
+    def test_every_module_on_disk_is_precached(self, source):
+        """`main.js` is the only file the page names; the rest arrive through
+        its imports, so the page cannot be the whole answer."""
+        missing = {f"/js/{p.name}" for p in scripts()} - self._precached(source)
+        assert not missing, f"modules the worker will not cache: {sorted(missing)}"
+
+    def test_nothing_precached_has_gone_away(self, source):
+        """The other direction: a module renamed or merged leaves a URL in the
+        list that 404s, and the install swallows it silently."""
+        stale = [a for a in self._precached(source)
+                 if a.startswith("/js/") and not (JS_DIR / Path(a).name).exists()]
+        assert not stale, f"precached files that no longer exist: {stale}"
+
+
+class TestCodeIsNeverServedStale:
+    """The rule the split made necessary.
+
+    While every line of JavaScript was inside `index.html`, the navigation
+    branch fetched it fresh on every load and staleness was impossible. As
+    `/app.css` and `/js/*.js` -- unhashed URLs, because there is no build step
+    to put a hash in a filename -- cache-first would serve last week's code
+    against this week's markup until somebody remembered to bump `VERSION` in
+    this file. For ever, silently, and only for the people who had already
+    installed the app.
+    """
+
+    @staticmethod
+    def _code_branch(source: str) -> str:
+        start = source.index('url.pathname === "/app.css"')
+        return source[start:start + 900]
+
+    def test_the_page_code_is_matched_before_the_cache_first_branch(self, source):
+        code_at = source.index('url.pathname === "/app.css"')
+        cache_first_at = source.index("const cached = await caches.match(request);\n    if (cached) return cached;")
+        assert code_at < cache_first_at, (
+            "the cache-first branch answers first, so app code is served stale")
+
+    def test_it_asks_the_network_first(self, source):
+        branch = self._code_branch(source)
+        assert branch.index("await fetch(request)") < branch.index("caches.match"), (
+            "app code must be fetched before the cache is consulted")
+
+    def test_a_successful_answer_replaces_what_was_cached(self, source):
+        assert "cache.put(request, res.clone())" in self._code_branch(source)
+
+    def test_offline_still_gets_the_last_good_copy(self, source):
+        """Network-first must not mean network-only: an installed app has to
+        open with no connection, which is the whole reason for the worker."""
+        branch = self._code_branch(source)
+        assert "catch" in branch and "caches.match(request)" in branch
+
+    def test_the_modules_are_still_precached(self, source):
+        """Network-first fills the cache on a successful load, but a first run
+        that goes offline before opening a panel would have nothing. The
+        install step still puts them there."""
+        assert "/js/main.js" in source and "/app.css" in source

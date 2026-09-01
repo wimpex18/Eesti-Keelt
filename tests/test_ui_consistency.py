@@ -28,25 +28,35 @@ from pathlib import Path
 
 import pytest
 
-PAGE = Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+from pagesrc import markup_and_script, styles
+
+ROOT = Path(__file__).resolve().parents[1]
+
 
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    text = PAGE.read_text(encoding="utf-8")
+    text = markup_and_script()
     assert len(text) > 50_000, "page unexpectedly small — every check below would pass vacuously"
     return text
 
 
 @pytest.fixture(scope="module")
 def style(page: str) -> str:
-    return page[page.index("<style>"):page.index("</style>")]
+    # The stylesheet is `eesti/web/app.css` now, not a `<style>` block in the
+    # page. Same text, one fewer slice.
+    return styles()
 
 
 @pytest.fixture(scope="module")
 def markup(page: str) -> str:
-    """Everything after the stylesheet: the body, and the scripts in it."""
-    return page[page.index("</style>"):]
+    """The body and the modules -- everything that is not the stylesheet.
+
+    It used to be `page[page.index("</style>"):]`, which is what "not the
+    stylesheet" meant while the CSS was a block inside the page. It is
+    `app.css` now, so `page` is already that.
+    """
+    return page
 
 
 def static_classes(markup: str) -> set[str]:
@@ -285,7 +295,7 @@ class TestNoCountIsAPageSize:
         """No literal cap: the number of rows scored comes from counting them."""
         import inspect
 
-        from eesti.app import reading_next
+        from eesti.api.library import reading_next
 
         code = "\n".join(
             line for line in inspect.getsource(reading_next).splitlines()
@@ -312,7 +322,7 @@ class TestTheDeploymentMarker:
 
     @staticmethod
     def _smoke() -> str:
-        return (PAGE.parents[2] / ".github" / "workflows" / "smoke.yml"
+        return (ROOT / ".github" / "workflows" / "smoke.yml"
                 ).read_text(encoding="utf-8")
 
     def test_the_smoke_check_reads_the_marker(self):

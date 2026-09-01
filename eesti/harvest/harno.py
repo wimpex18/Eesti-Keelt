@@ -40,12 +40,16 @@ from __future__ import annotations
 
 import re
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass
 
 PAGE = "https://harno.ee/eesti-keele-tasemeeksamid"
 BASE = "https://harno.ee"
 TIMEOUT = 45.0
+
+#: The value this module has always sent. Kept as it was rather than
+#: standardised: what a server has been seeing is not a detail to change
+#: while consolidating how the request is made.
+UA = "Mozilla/5.0 (compatible; eesti-keelt)"
 
 LEVELS = ("A2", "B1", "B2", "C1")
 
@@ -190,11 +194,10 @@ def _panels(html: str) -> list[tuple[str, str]]:
 
 
 def _fetch(url: str = PAGE) -> str:
-    request = urllib.request.Request(
-        url, headers={"User-Agent": "Mozilla/5.0 (compatible; eesti-keelt)"}
-    )
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-        return response.read().decode("utf-8", "replace")
+    """One page, one attempt: the exam catalogue is read once per harvest."""
+    from .. import net
+
+    return net.get(url, "HARNO exam page", timeout=TIMEOUT, retries=1, ua=UA)
 
 
 def catalogue(html: str | None = None) -> list[Material]:

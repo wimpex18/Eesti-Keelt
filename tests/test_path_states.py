@@ -26,7 +26,8 @@ from pathlib import Path
 
 import pytest
 
-PAGE = Path(__file__).resolve().parents[1] / "eesti" / "web" / "index.html"
+from pagesrc import markup_and_script, styles
+
 
 
 def emitted_states() -> set[str]:
@@ -47,7 +48,7 @@ def _object_keys(page: str, name: str) -> set[str]:
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    return PAGE.read_text(encoding="utf-8")
+    return markup_and_script()
 
 
 @pytest.fixture(scope="module")
@@ -108,7 +109,7 @@ class TestEveryStateIsMarked:
     def test_each_state_gets_its_own_colour(self, page, states):
         """`locked` is the exception: it is dimmed as a whole row rather than
         recoloured, because it is the one state that is not a thing to do."""
-        css = page[page.index("<style>"):page.index("</style>")]
+        css = styles()
         for state in sorted(states):
             cls = state.replace(" ", "-")
             assert f".topic.{cls}" in css, (

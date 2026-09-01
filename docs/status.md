@@ -5,7 +5,7 @@ after the deployment was actually asked how it was doing. This is the honest
 inventory: what works, what was never built, what is knowingly broken, and what
 the original research plan promised and did not deliver.
 
-Read `roadmap.md` for *why* things were chosen and `CLAUDE.md` for the habits
+Read `roadmap.md` for *why* things were chosen and `lessons.md` for the habits
 that came out of getting them wrong.
 
 ## The decision this version closes on
@@ -39,7 +39,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-49 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 309 tests: 1 244 in-process and 65 browser journeys.
+51 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 432 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
 
 ## What a learner still cannot do
 
@@ -177,6 +177,126 @@ is on the same side of it as `õpin`. It stays in the model because removing a
 stored value is a migration, and earns its place only if something ever needs
 to distinguish "seen twice" from "seen once".
 
+## The four biggest files were split, 2026-09-01
+
+Nothing here changed behaviour; the point was that every change had to be made
+in one of four files.
+
+| Was | Is |
+|---|---|
+| `CLAUDE.md`, 716 lines | 218 lines that route, plus `docs/lessons.md` (the 73 habits, grouped) and `docs/ui-language.md` |
+| `eesti/app.py`, 1 975 lines | 79 lines of assembly, plus `eesti/api/` — twelve routers, `deps.py`, `render.py` |
+| `eesti/cli.py`, 1 620 lines | `eesti/cli/` — six command groups, each registering its own subparsers, plus `_helpers.py` |
+| `eesti/web/index.html`, 3 506 lines | 474 lines of markup, `app.css`, and fourteen ES modules under `web/js/` |
+| `eesti/library.py`, 638 lines | 456 lines of shelf, plus `eesti/topiclinks.py` — which texts demonstrate which grammar topic |
+
+Four things were found doing it, none of them by the 1 374 tests that were
+green before and after:
+
+- **`cli serve` raised `NameError`.** `cmd_serve` read a bare `DB_PATH` that
+  was never imported, so the command every document here tells you to run died
+  before reaching uvicorn. `--help` proves the parser, and `serve` is the one
+  command the read-only smoke list cannot run because it blocks.
+- **`GET /api/vocab` had no test at all** — `POST /api/vocab/known` did. The
+  whole `Sõnavara` screen answered 500 for the length of one commit, and a
+  browser found it in twenty seconds.
+- **Eight dead names.** Six functions in `app.py` with no decorator and no
+  caller (the leftovers of six deleted routes), and two constants in `cli.py`,
+  one of them a hardcoded `data/notion.db` shadowed by the config import beside
+  it.
+- **Two page modules were never imported.** `write.js` and `reading.js`
+  export nothing anybody calls — they wire their screen's buttons when they
+  evaluate — so in a module graph they simply did not run. `Kirjutamine`
+  opened, looked complete, and every control on it was dead, with no console
+  error. The browser suite caught it; `test_ui_contract` fails on an
+  unreachable module now.
+- **`eesti/api/render.py` needed `sqlite3` that nothing imported** — inside two
+  `except sqlite3.Error` handlers, which would have turned a degradation path
+  into a crash. Found by pyflakes, which nothing had run over this code.
+
+### The dead code, and what was decided about each
+
+Five functions had no caller anywhere in the repository — not in `eesti/`, not
+in the tests, not in `deploy/` or the workflows. This is the shape this project
+keeps meeting, so each got a decision rather than a shrug:
+
+| | |
+|---|---|
+| `difficulty.band_counts` | **Dropped.** Its docstring said "for the reading view" and the reading view never asked. A four-line `GROUP BY` if it is ever wanted. |
+| `harvest/err.fetch_episode` | **Dropped.** A one-line wrapper over `parse_episode(_get(url), url)`; `harvest()` calls those two directly. |
+| `notion.from_correction` | **Dropped.** It mapped a `grammar.Correction` to a `Row` and nothing produced one on that path — the page posts flat fields. It also relabelled an unknown tag to `vocab` silently, where `/api/notion/queue` rejects it with a 400, which is the better of the two behaviours and the one in use. |
+| `providers/grammar.reset_breakers` | **Dropped.** A one-line wrapper over `breaker.reset()`; the tests call that directly and there is no "retry now" control. |
+| `sources.ingest_file` | **Kept, and now wired.** It was the only code that could put a textbook chapter or a tutor's handout into the corpus, with nothing able to call it. `cli ingest <file>` calls it: a JSON array of items, or any text file as one passage. It defaults to a new registry source, `oma-materjal`, marked **not redistributable** — this project cannot know what licence a file dropped into it carries, and somebody else's textbook gets the same posture as HARNO's exam papers. An unregistered source is refused before the file is read, saying what to use instead. |
+
+Two computed values nobody read went with them: `progress.report` called
+`mastered(conn)` into a variable it never used, and `readiness._parts` called
+`seen_items(progress)` the same way. Both are pure reads; the schema the second
+one creates is created again by `exposure()` on the next line, which is why
+dropping it is safe and worth checking before doing.
+
+### Three jobs that were written twice
+
+- **`library.browse` and `library.count`.** `count`'s docstring said it was
+  "built from `browse`'s own filters rather than beside them" and it was beside
+  them — the same three clauses, in the same order, in two functions whose only
+  contract is that they agree. One `_filters()` now, and the docstring is true.
+- **The verb query.** `conjugation.py` and `verbs.py` each held the same SQL for
+  "level-appropriate verbs, most frequent first". It is `wordlist.verbs_at_level`
+  now, beside its noun twin.
+- **The retrying fetch.** `rection.py` and `harvest/evkk.py` had the same loop
+  character for character, with the same constants. It is `eesti/net.py`, which
+  has the first tests this logic has ever had. One deliberate difference: it no
+  longer sleeps after the *final* attempt, which only delayed the exception.
+
+**All six now go through `eesti/net.py`.** They had three timeouts (45 s, 60 s,
+90 s), two retry styles and two User-Agent strings between them, one of which
+was no User-Agent at all. Each keeps its own timeout, its own attempt count and
+the User-Agent it has always sent — those differ for reasons (paging a whole
+WordPress archive is not reading one page), and consolidating *how* a request is
+made must not quietly standardise *what each host is given*. A test holds each
+of those numbers, and another fails on any module under `harvest/` that opens
+its own connection.
+
+The one thing that had to be designed rather than moved is the failure. Callers
+already caught two different exception types and both were right: `lihtsad`
+catches `OSError` per issue, so one dead URL costs one issue rather than the
+run, and the EVKK command catches `RuntimeError` to turn a research host being
+down into a sentence instead of a traceback. `net.Unreachable` inherits from
+both, so every existing handler still catches — a single base would have broken
+one of them silently, on the one day the handler exists for.
+
+The provider calls (`providers/*`, `notion.py`, `cli push-content`) stay
+separate on purpose: they are POSTs with a circuit breaker and rate limits to
+tell apart, which is a different job, and `docs/lessons.md` has the entry about
+a retry there keeping a failure alive.
+
+### Things the code already knew, that nothing had said out loud
+
+Each of these was true, relied on, and written down nowhere. They are the
+expensive kind: not a gap somebody forgot to fill, but a fact the code depends
+on that no one has to learn until it breaks. Each now has a check.
+
+| The unstated fact | What holds it now |
+|---|---|
+| **Registration order is behaviour.** `/api/library` and `/api/library/{item_id}` answer correctly because of the order they were declared in — invisible while every route lived in one file. | `test_route_inventory.TestTheOrderThatIsBehaviour` asks the app for both. |
+| **The page's single file was doing work.** Every screen's buttons were wired because the code was *in the file*. Split into modules, "these must be loaded" became a claim somebody has to make, and two screens silently stopped being wired. | `test_ui_contract.TestEveryModuleIsReachableFromTheEntryPoint`. |
+| **`browse` and `count` must agree.** The docstring asserted it; nothing tested it, and the two filter chains were separate copies. | `test_library.TestBrowseAndCountAgree`, over seven filter combinations. |
+| **Two modules must pick the same verbs.** `conjugation.py` chose what to drill and `verbs.py` chose what counts as irregular, from two copies of one query. | `test_conjugation.TestOneAnswerAboutWhichVerbsAreReady`. |
+| **A "read" function that writes.** `library.seen_items` runs `executescript(SCHEMA)`; a caller dropping the *value* would have dropped the schema creation too, on any path that ran before `exposure()`. | Written down here; the deletion that prompted it checked first. |
+| **`api.ROUTERS` and `cli.GROUPS` cannot be derived** — order is a choice — so they are the two hand-maintained lists this refactor created, in a repository whose most-repeated bug is exactly that. | Both directions checked: every module with a `router`/`register` is in the list, and every entry comes from the package. |
+
+Two more that are recorded rather than enforced, because the check would cost
+more than it is worth:
+
+- **The suite's result depends on undeclared local state.** The same command
+  reports 1 451 passed, or 1 440 with eleven more skips, or "144 skipped" for
+  the browser journeys, depending on whether `data/` holds a built word list —
+  which is git-ignored and invisible in the output. A comparison of two runs is
+  only meaningful if both had the same `data/`.
+- **Vabamorf's first synthesis in a process costs about 1.7 s.** Every timeout
+  in the browser suite is implicitly budgeted around that being paid before the
+  assertion; under load it is what pushes a 20 s `wait_for_selector` over.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
@@ -199,7 +319,7 @@ Nothing here is severe enough to block use. All of it is real.
   that is where it should stay.
 - **`providers/llm.py` and `providers/asr.py` sit at 67 % and 72 %** for the
   same reason. Going further means mocking HTTP for its own sake.
-- **`cli.py` is 52 %.** The uncovered half is the write and network commands —
+- **The CLI is 52 %.** The uncovered half is the write and network commands —
   harvest, push-content, notion --push, eval, models, rections, serve. Every
   read-only command runs in the suite.
 - **`Cloze` still overrides `hint` and `label`.** Legitimate — for rection the
@@ -231,11 +351,11 @@ Everything below 90 %, and why:
 |---|---|---|
 | `evals/fetch.py` | 0 % | downloads benchmark datasets; nothing else in the app calls it |
 | `evals/external.py` | 47 % | eval tooling, exercised by CI's separate `eval` job |
-| `cli.py` | 52 % | the uncovered half is the write and network commands; every read-only one runs in the suite |
+| `eesti/cli/` | 52 % | the uncovered half is the write and network commands; every read-only one runs in the suite |
 | `harvest/selges.py`, `harvest/err.py` | 57 %, 59 % | parsers covered, fetchers deliberately not |
 | `providers/llm.py`, `evals/gec.py`, `providers/asr.py` | 67–72 % | network clients |
 | `rection.py`, `harvest/evkk.py`, `harvest/lihtsad.py`, `providers/tts.py` | 80–84 % | network at the edges |
-| `providers/grammar.py`, `sources.py`, `wordorder.py`, `app.py`, `providers/sonapi.py`, `difficulty.py`, `readiness.py` | 86–89 % | error paths and degradation branches |
+| `providers/grammar.py`, `sources.py`, `wordorder.py`, `eesti/api/`, `providers/sonapi.py`, `difficulty.py`, `readiness.py` | 86–89 % | error paths and degradation branches |
 
 The rest sits at 90 % or above. `wordlist.py` finished at 94 %, `gloss.py` at
 99 %.

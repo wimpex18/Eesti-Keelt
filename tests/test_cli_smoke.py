@@ -1,6 +1,6 @@
 """The 907 statements nothing had ever imported.
 
-`eesti/cli.py` is the largest module in the project and sat at **0 % coverage**
+`eesti/cli.py` was the largest module in the project and sat at **0 % coverage**
 — no test had ever imported it, while the app underneath it was refactored
 heavily: six API routes removed, four generators unified onto a mixin, a whole
 gloss layer added, `Cloze` rebuilt on `GradedItem`.
@@ -8,7 +8,8 @@ gloss layer added, `Cloze` rebuilt on `GradedItem`.
 Nothing was broken, as it turns out. That is the point of writing this now
 rather than after something is: a command body that calls a function which was
 renamed away fails at *run* time, and until this file existed the only way to
-find out was to run it by hand.
+find out was to run it by hand. (It is `eesti/cli/`, a package, since; these
+checks scan every module in it rather than one file.)
 
 `--help` is not enough — it proves the parser and never executes the body. So
 these run the commands that only read, and assert they come back clean.
@@ -59,6 +60,25 @@ READ_ONLY = [
 ]
 
 
+def _package_source() -> str:
+    """Every module of the CLI package, concatenated.
+
+    It read one file, which was right while `cli.py` was one file. A glob
+    rather than a list of module names: a hand-maintained list of the things
+    to scan is how the *other* derived check in this suite went blind to a
+    module (`test_ui_language`, and it took a real defect with it).
+    """
+    from pathlib import Path
+
+    root = Path(cli.__file__).parent
+    return "\n".join(p.read_text(encoding="utf-8") for p in sorted(root.glob("*.py")))
+
+
+def test_the_source_scan_finds_the_package():
+    """The guard on the guard: both checks below are regex over this text."""
+    assert len(_package_source()) > 40_000
+
+
 def run(argv: list[str], stdin: str = "") -> tuple[int, str, str]:
     """Run a command with captured streams and a closed stdin.
 
@@ -86,8 +106,8 @@ class TestEveryCommandIsReachable:
         import re
         from pathlib import Path
 
-        source = (Path(cli.__file__)).read_text(encoding="utf-8")
-        return re.findall(r'sub\.add_parser\("([a-z0-9-]+)"', source)
+        source = _package_source()
+        return re.findall(r'sub\.add_parser\(\s*\n?\s*"([a-z0-9-]+)"', source)
 
     def test_there_are_commands_to_check(self):
         assert len(self._registered()) >= 25
@@ -104,7 +124,7 @@ class TestEveryCommandIsReachable:
         import re
         from pathlib import Path
 
-        source = Path(cli.__file__).read_text(encoding="utf-8")
+        source = _package_source()
         handlers = set(re.findall(r"set_defaults\(func=(cmd_\w+)\)", source))
         missing = [h for h in handlers if not hasattr(cli, h)]
         assert not missing, f"registered but undefined: {missing}"
@@ -189,3 +209,116 @@ class TestTheCommandsUseTheSameEnginesAsTheApp:
                      ["conjugate", "-n", "3"], ["patterns", "-n", "3"]):
             code, out, _ = run(argv)
             assert code == 0 and out.strip()
+
+
+class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
+    """`serve`, and the shape of bug it was hiding.
+
+    `cmd_serve` referenced a bare `DB_PATH` that was never imported into the
+    module, so `python -m eesti.cli serve` -- the command every document in
+    this repository tells you to run -- raised `NameError` before it reached
+    uvicorn. Every test passed: `--help` proves the parser and never the body,
+    and `serve` is excluded from `READ_ONLY` above because it blocks forever.
+
+    A command that cannot be run in a suite can still be *entered*, with the
+    thing it would block on replaced. That is enough to catch a name that does
+    not resolve, which is the whole failure class here.
+    """
+
+    def test_serve_reaches_uvicorn(self, monkeypatch, tmp_path):
+        from eesti import config
+        from eesti.cli import ops
+
+        called = {}
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "eesti.db")
+        (tmp_path / "eesti.db").write_bytes(b"")
+        monkeypatch.setitem(
+            __import__("sys").modules, "uvicorn",
+            type("uvicorn", (), {"run": staticmethod(
+                lambda *a, **k: called.update(app=a[0], **k))})())
+        assert ops.cmd_serve(__import__("argparse").Namespace(
+            host="127.0.0.1", port=8000, reload=False)) == 0
+        assert called["app"] == "eesti.app:app"
+
+    def test_serve_refuses_without_a_word_list(self, monkeypatch, tmp_path):
+        """The message it prints instead, which is the branch that ran first
+        and still raised."""
+        from eesti import config
+        from eesti.cli import ops
+
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "missing.db")
+        code, out, err = run(["serve"])
+        assert code == 1 and "build" in err
+
+
+class TestEveryCommandGroupIsRegistered:
+    """`cli.GROUPS` is the other hand-maintained list this split created.
+
+    Like `api.ROUTERS` it cannot be a glob — its order is the order `--help`
+    lists the commands in, and that is a choice — so a module added to the
+    package and forgotten here would take its commands with it. Nothing would
+    fail: every *other* command would still work, which is exactly how `TABS`
+    hid three missing panels.
+    """
+
+    @staticmethod
+    def _registrable() -> dict[str, object]:
+        import importlib
+        import pkgutil
+
+        out = {}
+        for info in pkgutil.iter_modules(cli.__path__):
+            if info.name == "__main__":
+                # Running it is its whole job; importing it is not a thing to
+                # do here. It is guarded, which is why this is a skip and not
+                # a process exit.
+                continue
+            module = importlib.import_module(f"eesti.cli.{info.name}")
+            if hasattr(module, "register"):
+                out[info.name] = module
+        return out
+
+    def test_there_are_groups_to_check(self):
+        assert len(self._registrable()) >= 5
+
+    def test_every_group_in_the_package_is_registered(self):
+        missing = sorted(name for name, module in self._registrable().items()
+                         if module not in cli.GROUPS)
+        assert not missing, (
+            f"{missing} define commands that `main` never adds: nothing fails, "
+            f"the commands simply do not exist")
+
+    def test_every_registered_group_is_a_module_of_the_package(self):
+        known = set(self._registrable().values())
+        assert all(group in known for group in cli.GROUPS)
+
+    def test_every_command_reaches_a_handler_that_exists(self):
+        """The end of the chain: each subparser's `func` must be callable, and
+        `eesti.cli.cmd_x` must be the same object, since the re-export is
+        derived rather than written out."""
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers(dest="command")
+        for group in cli.GROUPS:
+            group.register(sub)
+        for name, sub_parser in sub.choices.items():
+            func = sub_parser.get_default("func")
+            assert callable(func), f"{name} has no handler"
+            assert getattr(cli, func.__name__, None) is func, (
+                f"eesti.cli.{func.__name__} is not the function {name} runs")
+
+
+class TestImportingThePackageRunsNothing:
+    """`eesti/cli/__main__.py` used to call `main()` at import.
+
+    That is correct for `python -m eesti.cli` and a trap for anything that
+    walks the package -- importing the module exited the process doing the
+    walking, with an argparse usage message and no clue where it came from.
+    """
+
+    def test_importing_main_module_does_not_parse_arguments(self):
+        import importlib
+
+        module = importlib.import_module("eesti.cli.__main__")
+        assert module.main is cli.main

@@ -33,8 +33,9 @@ import pytest
 
 from test_e2e_journeys import chromium_path, live_server  # noqa: F401
 
+from pagesrc import markup_and_script
+
 ROOT = Path(__file__).resolve().parents[1]
-PAGE = ROOT / "eesti" / "web" / "index.html"
 
 #: Endpoints whose whole payload is meant for the page, and the GET that
 #: exercises each. Kept small and explicit: a list that tried to cover every
@@ -69,7 +70,7 @@ NOT_FOR_THE_PAGE = {
 
 @pytest.fixture(scope="module")
 def page() -> str:
-    text = PAGE.read_text(encoding="utf-8")
+    text = markup_and_script()
     assert len(text) > 50_000, "page unexpectedly small — nothing would be checked"
     return text
 

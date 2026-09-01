@@ -90,16 +90,14 @@ def irregular_verbs(
     Ordered by frequency, so the verbs a learner meets constantly — minema,
     tegema, saama — come first. Those are also the most irregular, which is not
     a coincidence: high-frequency verbs resist regularisation.
+
+    Which verbs count as level-appropriate is `wordlist.verbs_at_level`, not a
+    second copy of its SQL here: this module and `conjugation.py` have to agree
+    about that, and two identical queries agree only until one is edited.
     """
-    marks = ",".join("?" * len(levels))
-    rows = conn.execute(
-        f"""SELECT word, proficiency FROM words
-            WHERE proficiency IN ({marks})
-              AND (','||COALESCE(pos,'')||',') LIKE '%,v,%'
-            ORDER BY (freq_rank IS NULL OR freq_rank = 0), freq_rank
-            LIMIT ?""",
-        (*levels, limit),
-    ).fetchall()
+    from .wordlist import verbs_at_level
+
+    rows = verbs_at_level(conn, levels, limit)
 
     out: list[VerbForm] = []
     for word, level in rows:

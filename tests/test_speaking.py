@@ -14,6 +14,8 @@ import pytest
 from eesti import speaking
 from eesti.providers import asr
 
+from pagesrc import markup_and_script
+
 
 class TestQuestionBank:
     def test_it_covers_all_three_exam_task_shapes(self):
@@ -284,11 +286,10 @@ class TestThePageDoesNotPromiseWhatTheEngineCannotKeep:
     A voice is biometric. Where it goes has to be stated once, accurately,
     before the button is pressed."""
 
-    PAGE = Path(__file__).resolve().parent.parent / "eesti" / "web" / "index.html"
 
     @pytest.fixture(scope="class")
     def page(self) -> str:
-        return self.PAGE.read_text(encoding="utf-8")
+        return markup_and_script()
 
     @pytest.mark.parametrize("claim", [
         "jääb sinu seadmesse",

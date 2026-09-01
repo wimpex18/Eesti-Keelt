@@ -96,17 +96,17 @@ class TestAgainstTheLiveCatalogue:
 
 class TestTheApiTellsTheUiToLinkOut:
     def test_a_pointer_is_flagged(self):
-        from eesti.app import _pointer
+        from eesti.api.library import _pointer
 
         meta = json.dumps({"external": True, "url": "https://example.org/x"})
         assert _pointer(meta)["external"] is True
 
     def test_an_ordinary_text_is_not(self):
-        from eesti.app import _pointer
+        from eesti.api.library import _pointer
 
         assert _pointer(json.dumps({"series": "keelekodi"})) == {}
 
     def test_broken_meta_does_not_take_the_library_down(self):
-        from eesti.app import _pointer
+        from eesti.api.library import _pointer
 
         assert _pointer("{not json") == {}

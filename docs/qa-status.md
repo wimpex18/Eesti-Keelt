@@ -199,4 +199,4 @@ It **skips** rather than fails without Playwright, a Chromium binary or a
 built dataset, and it is deliberately not wired into CI — the standing
 decision is not to put a browser in the build. That means it only protects
 anything if somebody runs it; run it before a release, and after any change
-to `eesti/web/index.html`.
+to `eesti/web/` — the page, the stylesheet or any module under `web/js/`.

@@ -158,6 +158,29 @@ single-user tool, that is said plainly.
 in 2026: async-first, native Pydantic v2, OpenAPI for free. Pydantic v2 is 5–50×
 faster than v1 on validation-heavy endpoints. Already in use here.
 
+**The HTTP surface is one module per thing the learner is doing.** `app.py` is
+the assembly — the application object, the origin guard, and the names the CLI
+and the tests import — and every route lives in `eesti/api/`:
+
+| Module | Answers |
+|---|---|
+| `api/deps.py` | the databases and the facts about this process, all resolved at call time |
+| `api/render.py` | ids, lemmas and topics turned into what a learner reads |
+| `api/assets.py` | the page, the icons, the manifest, the service worker, the vendored player |
+| `api/health.py` | is there a word list, is the origin guarded, which build is answering |
+| `api/grammar.py`, `api/practice.py`, `api/review.py`, `api/vocab.py` | check, drill, revise, browse |
+| `api/library.py`, `api/speech.py`, `api/exam.py` | material, sound, readiness |
+| `api/notion.py`, `api/state.py` | the error log, and the snapshot that survives a cold start |
+
+Below them, `library.py` is the shelf and `topiclinks.py` is the join that
+decides which texts demonstrate which grammar topic — one database, two jobs.
+
+Routers are registered in the order they were written in, because registration
+order decides which route answers when two patterns could match one URL. The
+inventory is derived by `eesti.api.paths()` rather than by walking `app.routes`:
+FastAPI keeps an included router as a single lazy entry, so the obvious walk
+returns four paths and no error.
+
 **Tooling — adopt.** Two changes are clearly worth making:
 
 | Replace | With | Why |
@@ -189,8 +212,15 @@ toolchain alongside the Python one that must exist anyway.
 
 **Recommended path, in order of when to escalate:**
 
-1. **Now — vanilla HTML/CSS/JS in one file.** ~270 lines, zero build step, loads
-   instantly, no `node_modules`. Correct for the current scope.
+1. **Now — vanilla HTML, CSS and ES modules, no build step.** The page grew
+   to 3 506 lines in one file, which is where "one file" stopped paying: it is
+   `index.html` (the markup and the pre-paint theme script), `app.css`, and
+   fourteen ES modules under `web/js/` — one per screen, plus `core.js`,
+   `router.js`, `chrome.js`, `media.js` and a `state.js` holding the one value
+   two screens share. `main.js` imports them all and bootstraps last, which is
+   the position that keeps a loader from reaching a declaration that has not
+   run yet. Still zero build step and no `node_modules`: the browser resolves
+   the imports, and the service worker precaches the list.
 2. **If the UI outgrows one file — Vite + React 19 + TypeScript.** The consensus
    pick for dashboards and internal tools: instant HMR, fast builds, no framework
    opinions. Vite also wins the client-side metrics (bundle size, TTI) that

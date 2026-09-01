@@ -12,11 +12,14 @@ the Notion "Nomenid A–F" page already tracks.
 
 from __future__ import annotations
 
+from eesti import config as config_db
 import time
 
 import pytest
 
 from eesti.providers import sonapi
+
+from pagesrc import markup_and_script
 
 
 class TestSingleLookupsOnlyIsEnforced:
@@ -82,9 +85,9 @@ def client(tmp_path, monkeypatch):
 
     from eesti import app as app_module
 
-    monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-    monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
-    monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
     return TestClient(app_module.app)
 
 
@@ -118,17 +121,16 @@ class TestThePageAsksAboutTheLemma:
     def test_the_page_sends_the_lemma(self):
         from pathlib import Path
 
-        page = (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        page = markup_and_script()
         block = page.split("/api/enrich/")[0][-400:]
         assert "analyses[0]?.lemma" in block
 
     def test_it_is_fetched_separately_from_the_card(self):
         """The card must be usable before a third party answers, so this
         cannot be part of `/api/lookup`."""
-        from eesti.app import app
+        from eesti import api
 
-        paths = {r.path for r in app.routes if hasattr(r, "path")}
+        paths = set(api.paths())
         assert "/api/enrich/{word}" in paths and "/api/lookup/{word}" in paths
 
 
@@ -222,8 +224,7 @@ class TestWhatTheAppLinksRatherThanBuilds:
     def _page() -> str:
         from pathlib import Path
 
-        return (Path(__file__).resolve().parent.parent
-                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        return markup_and_script()
 
     def test_the_speaking_panel_links_ekis_pronunciation_exercises(self):
         page = self._page()

@@ -39,8 +39,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 #: Where a route may legitimately be called from.
 CONSUMERS = {
-    "page": ("eesti/web/index.html",),
-    "cli": ("eesti/cli.py",),
+    "page": ("eesti/web/index.html", "eesti/web/js/*.js"),
+    "cli": ("eesti/cli/*.py",),
     "worker": ("deploy/worker.ts",),
     "scripts": ("deploy/*.sh",),
     "ci": (".github/workflows/*.yml",),
@@ -78,10 +78,24 @@ def sources() -> dict[str, str]:
 
 @pytest.fixture(scope="module")
 def routes() -> list[str]:
+    """Every `/api/` path the app serves.
+
+    From `eesti.api.paths()`, not from `app.routes`. FastAPI keeps an included
+    router as one lazy `_IncludedRouter` entry, so the obvious walk --
+    `{r.path for r in app.routes if hasattr(r, "path")}` -- returns four paths
+    and raises nothing. This check would then have passed by measuring almost
+    nothing, which is the exact failure it exists to catch in the app.
+    """
+    from eesti import api
     from eesti.app import app
 
-    return sorted({r.path for r in app.routes
-                   if hasattr(r, "path") and r.path.startswith("/api/")})
+    return sorted(p for p in api.paths(app) if p.startswith("/api/"))
+
+
+def test_the_inventory_is_not_empty(routes):
+    """The guard on the guard: every assertion below is over `routes`, so a
+    change that makes it short makes them all pass."""
+    assert len(routes) > 40, f"only {len(routes)} routes found -- the walk broke"
 
 
 def callers(path: str, sources: dict[str, str]) -> list[str]:
@@ -133,4 +147,85 @@ def test_the_only_other_writer_is_the_cli(sources):
     got = subprocess.run(
         ["grep", "-rln", "--include=*.py", "set_status", "eesti/"],
         capture_output=True, text=True, cwd=ROOT).stdout.split()
-    assert sorted(got) == ["eesti/app.py", "eesti/cli.py", "eesti/vocab.py"]
+    assert sorted(got) == ["eesti/api/vocab.py", "eesti/cli/report.py",
+                           "eesti/vocab.py"]
+
+
+class TestEveryRouterIsRegistered:
+    """`api.ROUTERS` is a list of things that already exist somewhere else.
+
+    It has to be a list: registration order decides which route answers when
+    two patterns could match one URL, and no glob can express "in the order
+    they were written". So it is the one hand-maintained list in the API — and
+    a hand-maintained list of things that exist elsewhere is this project's
+    most-repeated bug (`TABS` was three of ten panels short, and nothing
+    failed, because every click still produced *a* panel).
+
+    What cannot be derived is checked in both directions instead.
+    """
+
+    @staticmethod
+    def _modules() -> dict[str, object]:
+        import importlib
+        import pkgutil
+
+        from eesti import api
+
+        out = {}
+        for info in pkgutil.iter_modules(api.__path__):
+            module = importlib.import_module(f"eesti.api.{info.name}")
+            if hasattr(module, "router"):
+                out[info.name] = module
+        return out
+
+    def test_there_are_routers_to_check(self):
+        assert len(self._modules()) >= 8
+
+    def test_every_router_in_the_package_is_registered(self):
+        from eesti import api
+
+        missing = sorted(name for name, module in self._modules().items()
+                         if module.router not in api.ROUTERS)
+        assert not missing, (
+            f"{missing} declare routes that nothing serves: add them to "
+            f"api.ROUTERS, in the position their paths need")
+
+    def test_no_router_is_registered_twice(self):
+        from eesti import api
+
+        assert len(api.ROUTERS) == len(set(map(id, api.ROUTERS)))
+
+    def test_every_registered_router_comes_from_the_package(self):
+        from eesti import api
+
+        known = {id(m.router) for m in self._modules().values()}
+        assert all(id(r) in known for r in api.ROUTERS)
+
+
+class TestTheOrderThatIsBehaviour:
+    """`/api/library` and `/api/library/{item_id}` are the pair that made the
+    registration order load-bearing. The comment in `api/__init__.py` says so;
+    this asks the app."""
+
+    @pytest.fixture
+    def client(self, tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from eesti import app as app_module
+        from eesti import config
+
+        for name, stem in (("PROGRESS_DB", "p"), ("REVIEW_DB", "r"),
+                           ("VOCAB_DB", "v"), ("NOTION_DB", "n")):
+            monkeypatch.setattr(config, name, str(tmp_path / f"{stem}.db"))
+        return TestClient(app_module.app)
+
+    def test_the_collection_route_is_not_swallowed_by_the_item_route(self, client):
+        """If `/api/library/{item_id}` were registered first, a request for the
+        shelf would be read as a request for an item called nothing."""
+        got = client.get("/api/library?skill=lugemine&limit=5")
+        assert got.status_code == 200
+        assert "items" in got.json()
+
+    def test_the_item_route_still_answers(self, client):
+        got = client.get("/api/library/does-not-exist")
+        assert got.status_code == 404, got.text

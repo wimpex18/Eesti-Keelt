@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from pagesrc import markup_and_script
+
 ROOT = Path(__file__).resolve().parents[1]
 
 #: Documents whose job is to state the current state. `CLAUDE.md` is not one of
@@ -33,6 +35,11 @@ ROOT = Path(__file__).resolve().parents[1]
 #: able to quote the wrong number. The first version of this check read the
 #: sentence "13 topics without a generator when there were 11" as a claim that
 #: there are 13, and failed on the very habit written to prevent it.
+#:
+#: `docs/lessons.md` is excluded for exactly that reason and no other: it is
+#: where those habits now live, moved out of `CLAUDE.md` verbatim. Every number
+#: in it is a record of what was measured when the bug was found, which is the
+#: point of the entry.
 #:
 #: `curriculum-plan.md` and `roadmap.md` are excluded for the same reason from
 #: the other direction: they narrate what a build step achieved, which is a
@@ -105,9 +112,28 @@ class TestCurriculumCounts:
 
 
 class TestApiSurface:
+    @staticmethod
+    def _declared() -> int:
+        """Route decorators across the API package.
+
+        It read `app.py` alone while every handler was declared there. The
+        routes live in `eesti/api/*.py` now, one module per thing the learner
+        is doing, so the count is taken across the package -- a glob rather
+        than a list of module names, or this check acquires the drift it
+        exists to catch.
+        """
+        modules = sorted((ROOT / "eesti" / "api").glob("*.py"))
+        assert modules, "no API modules found -- this check would measure zero"
+        return sum(len(re.findall(r"@router\.(?:get|post)",
+                                  m.read_text(encoding="utf-8")))
+                   for m in modules)
+
+    def test_the_count_is_not_zero(self):
+        """Every assertion below compares against this number."""
+        assert self._declared() > 40
+
     def test_route_count(self):
-        source = (ROOT / "eesti" / "app.py").read_text(encoding="utf-8")
-        actual = len(re.findall(r"@app\.(?:get|post)", source))
+        actual = self._declared()
         for doc, line, value, text in _claims(r"(\d+) API routes"):
             assert int(value) == actual, (
                 f"{doc.relative_to(ROOT)}:{line} says {value} API routes; "
@@ -132,7 +158,7 @@ class TestTheModeStructure:
 
     @staticmethod
     def _page_tabs() -> set[str]:
-        html = (ROOT / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        html = markup_and_script()
         return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl">([^<]+)',
                               html, re.S))
 

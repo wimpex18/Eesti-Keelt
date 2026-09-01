@@ -13,6 +13,7 @@ not be.
 
 from __future__ import annotations
 
+from eesti import config as config_db
 import pytest
 
 from eesti.progress import connect, is_mastered, record, reset
@@ -78,7 +79,7 @@ class TestTheEndpointRefusesTheDangerousDefault:
 
         from eesti import app as app_module
 
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+        monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
         monkeypatch.setenv("STATE_TOKEN", "tok")
         monkeypatch.delenv("PROXY_TOKEN", raising=False)
         client = TestClient(app_module.app)
@@ -95,7 +96,7 @@ class TestTheEndpointRefusesTheDangerousDefault:
 
         from eesti import app as app_module
 
-        monkeypatch.setattr(app_module, "PROGRESS_DB", str(tmp_path / "p.db"))
+        monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
         monkeypatch.setenv("STATE_TOKEN", "tok")
         monkeypatch.delenv("PROXY_TOKEN", raising=False)
         client = TestClient(app_module.app)

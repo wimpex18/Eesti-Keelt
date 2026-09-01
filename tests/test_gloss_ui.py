@@ -12,13 +12,17 @@ Four roles, four treatments, and one token for the one that was missing.
 
 from __future__ import annotations
 
+from eesti import config as config_db
 import re
 from pathlib import Path
 
 import pytest
 
-PAGE = (Path(__file__).resolve().parent.parent
-        / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+from pagesrc import markup_and_script, styles
+
+PAGE = markup_and_script()
+#: The stylesheet, for the checks about colour.
+CSS = styles()
 
 
 class TestTheInstructionIsNotOneGreyRunOn:
@@ -80,36 +84,36 @@ class TestTheGlossHasItsOwnColour:
     the third arrived as more grey prose and read as part of the rule."""
 
     def test_the_token_exists(self):
-        assert "--gloss:" in PAGE
+        assert "--gloss:" in CSS
 
     def test_it_is_defined_in_every_theme_state(self):
         """Three states, not two: an explicit choice stamps `data-theme`, and
         the default 'system' setting stamps nothing at all. A colour whose only
         definition sits behind a media query is invisible in the third."""
-        assert PAGE.count("--gloss:#") == 3
+        assert CSS.count("--gloss:#") == 3
 
     def test_the_light_definition_is_on_bare_root(self):
-        root = PAGE.split(":root{", 1)[1].split("}", 1)[0]
+        root = CSS.split(":root{", 1)[1].split("}", 1)[0]
         assert "--gloss:" in root
 
     def test_the_dark_media_query_redefines_it(self):
-        block = PAGE.split("@media (prefers-color-scheme:dark)", 1)[1][:600]
+        block = CSS.split("@media (prefers-color-scheme:dark)", 1)[1][:600]
         assert "--gloss:" in block
 
     def test_the_explicit_toggle_redefines_it(self):
-        block = PAGE.split(':root[data-theme="dark"]', 1)[1][:600]
+        block = CSS.split(':root[data-theme="dark"]', 1)[1][:600]
         assert "--gloss:" in block
 
     def test_every_gloss_surface_uses_the_token(self):
         for rule in (".task .gloss{", ".gloss-late{"):
-            body = PAGE.split(rule, 1)[1].split("}", 1)[0]
+            body = CSS.split(rule, 1)[1].split("}", 1)[0]
             assert "var(--gloss)" in body, rule
 
     def test_the_rule_explanation_stays_muted(self):
         """Deliberately not colour-by-language. The rule prose is Russian too;
         painting it the same would make the rule and the meaning identical,
         which is the confusion the token exists to remove."""
-        why = PAGE.split("  .why{", 1)[1].split("}", 1)[0]
+        why = CSS.split("  .why{", 1)[1].split("}", 1)[0]
         assert "var(--muted)" in why and "var(--gloss)" not in why
 
 
@@ -120,13 +124,13 @@ class TestTheQueueDoesNotPrintDatabaseKeys:
     than the word it described."""
 
     def test_the_endpoint_resolves_the_name(self):
-        from eesti.app import _topic_name
+        from eesti.api.render import _topic_name
 
         assert _topic_name("obj-case") == "täissihitis ja osasihitis"
         assert _topic_name("osastav") == "osastav kääne"
 
     def test_an_unknown_kind_is_not_an_error(self):
-        from eesti.app import _topic_name
+        from eesti.api.render import _topic_name
 
         assert _topic_name("vocab") == "vocab"
 
@@ -135,8 +139,8 @@ class TestTheQueueDoesNotPrintDatabaseKeys:
 
         from eesti import app as app_module
 
-        monkeypatch.setattr(app_module, "VOCAB_DB", str(tmp_path / "v.db"))
-        monkeypatch.setattr(app_module, "REVIEW_DB", str(tmp_path / "r.db"))
+        monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
+        monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
         client = TestClient(app_module.app)
         client.post("/api/review", json={
             "kind": "obj-case", "lemma": "kleit", "prompt": "Ma ostsin ____.",
