@@ -20,6 +20,7 @@ say so.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -306,6 +307,91 @@ def describe_dataset(state: dict[str, object]) -> str:
     return "eesti | " + " | ".join(parts)
 
 
+# --------------------------------------------------------------------------
+# The phantom word list.
+#
+# Something in a full run leaves an empty `data/eesti.db` behind: zero rows,
+# complete schema. `wordlist.connect()` is how -- it takes `config.DB_PATH` when
+# called with no argument, and `sqlite3.connect` creates the file before
+# `executescript` fills in the schema, so any read that skips `available()`
+# manufactures a convincing-looking empty database as a side effect.
+#
+# The cost was never the file. It was that `real_wordlist` gated on `exists()`,
+# so the *next* run stopped skipping two curated-content tests and checked
+# Estonian against an empty lexicon: two failures in a file nobody had touched,
+# looking exactly like a regression, one run after the run that caused them.
+# The gate counts rows now, which closes that.
+#
+# What stayed open is which caller writes it, and the reason the earlier spy
+# never found out is half the answer. No test in this process can do it: the
+# autouse fixture below redirects `config.DB_PATH` for every one of them. And a
+# monkeypatch of `sqlite3.connect` in this interpreter is invisible in another
+# one, which is where the suite's subprocesses run. Confirmed directly -- a
+# subprocess calling `wordlist.connect()` from the repo root creates the file,
+# because `config.DB_PATH` is anchored to the repo root and inherits nothing.
+#
+# So this does not try to find the writer. It makes the run *say* when it
+# happened, in the run that did it rather than the one after, and hands over the
+# stack that did it when the call was in-process. An audit hook rather than a
+# monkeypatch because audit hooks are per-interpreter too but fire beneath
+# every caller including C-level ones, and because it cannot be un-patched by
+# anything under test. Measured at no detectable cost on a 145-test slice.
+
+_PHANTOM: dict = {"existed": None, "stack": None}
+
+
+def _watch_for_the_phantom() -> None:
+    import sys
+    import traceback
+
+    from eesti import config
+
+    target = Path(config.DB_PATH).resolve()
+    _PHANTOM["existed"] = target.exists()
+    if _PHANTOM["existed"]:
+        return  # a real word list; nothing that opens it is creating it
+
+    def hook(event, args):
+        if event != "sqlite3.connect" or _PHANTOM["stack"] is not None:
+            return
+        try:
+            raw = str(args[0])
+        except Exception:
+            return
+        # A read-only URI cannot create anything, and `wordlist.available` --
+        # which this very file calls to build the header -- opens exactly that
+        # way. Without this line the first stack captured is the checker asking
+        # whether the file is there, reported as the thing that made it.
+        if "mode=ro" in raw:
+            return
+        opened = raw.replace("file:", "").split("?")[0]
+        # The absolute path, not the basename. The session fixture builds its
+        # own word list and calls it `eesti.db` too, so a name match captures a
+        # stack from an innocent fixture and then prints it as the culprit --
+        # a diagnostic that confidently names the wrong caller is worse than
+        # none. `config.DB_PATH` is anchored to the repo root, so a subprocess
+        # in another working directory still resolves to this same path.
+        try:
+            if Path(opened).resolve() != target:
+                return
+        except OSError:
+            return
+        _PHANTOM["stack"] = "".join(traceback.format_stack()[:-1])
+
+    sys.addaudithook(hook)
+
+
+def pytest_sessionstart(session) -> None:
+    """Arm the watcher here, not in `pytest_report_header`.
+
+    It was armed from the header, and under `-q` -- the command every document
+    in this repository names -- pytest never calls that hook, so the guard was
+    off in exactly the runs it was written for. That is the same mistake the
+    header itself was written to fix, made one function further down.
+    """
+    _watch_for_the_phantom()
+
+
 def pytest_report_header(config) -> str:
     """Printed before the run, so the result can never be read out of context."""
     return describe_dataset(dataset_state())
@@ -323,6 +409,28 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
     if skipped:
         line += f" | {len(skipped)} skipped"
     terminalreporter.write_line(line)
+    _report_the_phantom(terminalreporter)
+
+
+def _report_the_phantom(terminalreporter) -> None:
+    """Say it in the run that created it, not in the run that trips over it."""
+    from eesti import config
+    from eesti import wordlist
+
+    target = Path(config.DB_PATH)
+    if _PHANTOM["existed"] is not False or not target.exists():
+        return
+    if wordlist.available(target):
+        return  # a build ran during the session; that is a real word list
+    terminalreporter.write_line(
+        f"eesti | this run created an EMPTY {target} (0 rows, full schema). "
+        f"The next run will stop skipping tests that need a real word list and "
+        f"they will fail there instead of here. Delete it, and fix the caller:",
+        red=True)
+    terminalreporter.write_line(
+        _PHANTOM["stack"] or
+        "  no in-process stack -- a subprocess opened it. Re-run with "
+        "PYTHONPATH pointing at a sitecustomize that installs the same hook.")
 
 
 @pytest.fixture(scope="session")

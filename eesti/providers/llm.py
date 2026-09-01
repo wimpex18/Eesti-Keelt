@@ -169,27 +169,53 @@ PROVIDERS: dict[str, Provider] = {
         "@cf/openai/gpt-oss-120b",
         "10,000 neurons/day free, shared across all models.",
     ),
-    # EstLLM, run by you rather than by anyone else.
+    # EstLLM on somebody else's machine.
     #
-    # This lane used to point at `router.huggingface.co` on the theory that it
-    # was "the only hosted way to reach EstLLM". Probed on 2026-08-20: the
-    # router served 132 models and **not one Estonian one**, and every Estonian
-    # model had an empty `inferenceProviderMapping`. The lane could never have
-    # answered, and it was not in `LLM_PREFERENCE` either, so nothing ever tried
-    # it and nothing ever noticed.
+    # This lane existed once, pointing at `router.huggingface.co` on the theory
+    # that it was "the only hosted way to reach EstLLM", and it was deleted
+    # after the 2026-08-20 probe: the router served 132 models and **not one
+    # Estonian one**, every Estonian model had an empty
+    # `inferenceProviderMapping`, and the lane was not in `LLM_PREFERENCE`
+    # either. Defined, unreachable, unnoticed.
     #
-    # Re-probed 2026-09-01, because a claim about somebody else's
-    # infrastructure is a measurement and measurements go stale: the pinned
-    # model, `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`, is now served by
-    # **featherless-ai**, status `live`. That is three weeks, not the "not a gap
-    # about to close" the note assumed. It does not change this lane -- a hosted
-    # route needs an HF token and a third party's pricing, where a local server
-    # needs neither -- but it does mean the option exists, and `docs/local-llm.md`
-    # records it rather than leaving the old answer standing.
+    # It is back because the measurement changed, not because the idea did.
+    # Re-probed 2026-09-01: `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` -- the
+    # exact id this project pins -- reports `featherless-ai`, status `live`,
+    # task `conversational`. A claim about somebody else's infrastructure is a
+    # measurement, and this one went stale in three weeks in the direction that
+    # kept the project from noticing an option it had been waiting for.
     #
-    # The model is still the right idea: a general model failing Estonian object
-    # case is exactly what an Estonian-adapted one should fix. It just needs a
-    # machine instead of a key. GGUF builds exist (`mradermacher/
+    # **Two things are asserted here and one is not.** The mapping is read from
+    # the model's own metadata, and the router speaks the OpenAI shape this
+    # client already sends. What is *not* verified from this repository is that
+    # a request actually completes: the router answers 401 before it routes, so
+    # an unauthenticated probe returns 401 for a real id and for a made-up one
+    # alike and proves nothing. Only a call with a token settles it, and this
+    # repository must never hold one. So this lane is offered, not promised --
+    # `cli eval --provider huggingface` is how it gets a number.
+    #
+    # Placed directly after `local` in `LLM_PREFERENCE` for one reason: it runs
+    # **the same Estonian-adapted model**, on hardware somebody else owns. The
+    # argument that puts `local` in front of the general models is an argument
+    # about the model, and it applies here unchanged; the only thing that
+    # separates the two lanes is who pays and who can read the request.
+    #
+    # `HF_TOKEN` is already this deployment's vocabulary -- `providers/asr.py`
+    # reads it for hosted Whisper -- so turning this on adds a lane, not a
+    # secret.
+    "huggingface": Provider(
+        "huggingface",
+        "https://router.huggingface.co/v1",
+        "HF_TOKEN",
+        "tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125",
+        "Routed to featherless-ai; that provider's own free/paid tiers apply. "
+        "Estonian-adapted weights without owning a machine.",
+    ),
+    # The same model, run by you rather than by anyone else.
+    #
+    # A general model failing Estonian object case is exactly what an
+    # Estonian-adapted one should fix, and this is the lane where that costs
+    # nothing and tells nobody. GGUF builds exist (`mradermacher/
     # Llama-3.1-EstLLM-8B-Instruct-1125-GGUF`, Q4_K_M ~4.9 GB), and Ollama,
     # LM Studio and llama.cpp all expose an OpenAI-compatible `/v1`. So the lane
     # points at whatever is serving on `LOCAL_LLM_URL`.

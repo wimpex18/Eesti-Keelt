@@ -12,9 +12,26 @@ import urllib.request
 
 from ..config import LEVELS
 
-# Named here rather than imported at module load so the CLI stays importable
-# without the provider dependencies installed.
-_PROVIDERS = ("openrouter", "groq", "workers-ai", "huggingface", "anthropic")
+def _providers() -> tuple[str, ...]:
+    """Every provider the client actually knows, asked at parser-build time.
+
+    This was a hand-written tuple, and it had drifted in both directions at
+    once: it offered `huggingface`, which `llm.PROVIDERS` did not contain, so
+    `--provider huggingface` was an accepted choice that could only ever raise
+    `KeyError`; and it omitted `local`, so the one lane running an
+    Estonian-adapted model was the one lane the eval could not score -- on the
+    command whose entire job is to find out whether a model is any good at
+    Estonian.
+
+    A hand-maintained list of things that exist elsewhere is this project's
+    most-repeated bug, and unlike `api.ROUTERS` or `cli.GROUPS` this one carries
+    no ordering decision, so there is nothing to preserve by hand. Imported
+    inside the function, not at module load, so the CLI stays importable
+    without the provider dependencies installed.
+    """
+    from ..providers.llm import PROVIDERS
+
+    return tuple(PROVIDERS)
 
 WORDLIST_BASE = (
     "https://raw.githubusercontent.com/KristjanPikhof/"
@@ -202,13 +219,13 @@ def register(sub) -> None:
     p.set_defaults(func=cmd_fetch_bench)
 
     p = sub.add_parser("models", help="list a provider's live model catalogue")
-    p.add_argument("--provider", default="openrouter", choices=list(_PROVIDERS))
+    p.add_argument("--provider", default="openrouter", choices=list(_providers()))
     p.add_argument("--all", action="store_true", help="include paid models")
     p.add_argument("--limit", type=int, default=25)
     p.set_defaults(func=cmd_models)
 
     p = sub.add_parser("eval", help="score a model on the Estonian grammar eval")
-    p.add_argument("--provider", default="openrouter", choices=list(_PROVIDERS))
+    p.add_argument("--provider", default="openrouter", choices=list(_providers()))
     p.add_argument("--model")
     p.add_argument(
         "--evidence", action="store_true",

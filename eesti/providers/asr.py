@@ -95,6 +95,39 @@ HF_URL = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 ESTONIAN_MODEL = "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
 ESTONIAN_GGML = f"https://huggingface.co/{ESTONIAN_MODEL}/resolve/main/ggml/ggml-model.bin"
 
+# TalTech's Estonian Voxtral (published 2026-08-25). Not a Whisper: it is an
+# audio-understanding model, so it takes an instruction alongside the audio and
+# whisper.cpp cannot run it. llama.cpp can, through the multimodal CLI and the
+# `mmproj` audio encoder that ships beside the quantised weights.
+#
+# Two things about the provenance, because both were stated loosely once and
+# both matter:
+#
+# * **The GGUF builds are not TalTech's.** TalTech published bfloat16
+#   safetensors only; the quantisations are `mradermacher`'s, a third-party
+#   requantiser. Whoever pulls them is trusting a converter as well as a
+#   trainer, which is a different question from trusting the model card.
+# * **`llama-server` is not a route.** An OpenAI-shaped
+#   `/v1/audio/transcriptions` on llama.cpp is an open feature request, not a
+#   merged endpoint, and audio through the server is still called experimental
+#   upstream. So this lane shells out to the multimodal CLI, exactly as the
+#   whisper.cpp lane shells out to `whisper-cli` -- a binary on a machine, not
+#   a URL. If that endpoint lands, this becomes a URL and the shape here does
+#   not have to change.
+#
+# The reported WER is 5.05 %, and the model card says in its own words that the
+# validation set is ten recordings and "should not be treated as a broad
+# estimate of Estonian ASR quality". That is why this lane is behind
+# whisper.cpp rather than in front of it: see `transcribe`.
+VOXTRAL_MODEL = "TalTechNLP/Voxtral-Mini-3B-2507-estonian"
+VOXTRAL_GGUF = "mradermacher/Voxtral-Mini-3B-2507-estonian-GGUF"
+
+#: What to ask it for. It answers instructions rather than transcribing by
+#: reflex, so an empty prompt gets whatever the fine-tune's default style was --
+#: subtitles, a summary, or a news story, all of which are things it was trained
+#: to produce from the same audio.
+VOXTRAL_PROMPT = TRANSCRIBE_PROMPT
+
 
 @dataclass(frozen=True)
 class Transcript:
@@ -117,6 +150,26 @@ def _whisper_cpp_paths() -> tuple[str | None, str | None]:
     return binary, model
 
 
+def _voxtral_paths() -> tuple[str | None, str | None, str | None]:
+    """The llama.cpp multimodal binary, the Voxtral weights and its audio encoder.
+
+    All three or nothing: the `mmproj` file is what turns the language model
+    into something that can hear, and without it the binary loads and answers
+    about audio it never received -- a confident transcript of nothing, which is
+    the worst failure available here.
+    """
+    binary = os.environ.get("VOXTRAL_BIN") or shutil.which("llama-mtmd-cli")
+    model = os.environ.get("VOXTRAL_MODEL_PATH")
+    mmproj = os.environ.get("VOXTRAL_MMPROJ")
+    if model and not Path(model).exists():
+        model = None
+    if mmproj and not Path(mmproj).exists():
+        mmproj = None
+    if not (binary and model and mmproj):
+        return None, None, None
+    return binary, model, mmproj
+
+
 def available() -> dict:
     """Which engines this deployment can actually use. Shown in the UI as-is."""
     binary, model = _whisper_cpp_paths()
@@ -128,6 +181,7 @@ def available() -> dict:
         "openrouter": bool(os.environ.get("OPENROUTER_API_KEY")),
         "huggingface": bool(os.environ.get("HF_TOKEN")),
         "local": bool(binary and model),
+        "voxtral": all(_voxtral_paths()),
     }
     return {
         **engines,
@@ -252,6 +306,35 @@ def _local(audio: bytes, suffix: str = ".wav") -> Transcript | None:
                           note=proc.stderr.decode("utf-8", "replace")[-300:])
 
 
+def _voxtral(audio: bytes, suffix: str = ".wav") -> Transcript | None:
+    """TalTech's Estonian Voxtral, through llama.cpp's multimodal CLI.
+
+    Unlike the whisper.cpp lane there is no `-otxt` to write a transcript file:
+    a multimodal chat CLI prints its answer to stdout with its logs on stderr,
+    so the answer is stdout, trimmed. It is asked for a verbatim transcription
+    explicitly because this model will just as happily return a summary.
+    """
+    binary, model, mmproj = _voxtral_paths()
+    if not (binary and model and mmproj):
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / f"clip{suffix}"
+        path.write_bytes(audio)
+        try:
+            proc = subprocess.run(
+                [binary, "-m", model, "--mmproj", mmproj,
+                 "--audio", str(path), "-p", VOXTRAL_PROMPT],
+                capture_output=True, timeout=TIMEOUT, check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return Transcript("", "voxtral", degraded=True, note=str(exc))
+        text = proc.stdout.decode("utf-8", "replace").strip()
+        if proc.returncode == 0 and text:
+            return Transcript(text, "voxtral (TalTech et)")
+        return Transcript("", "voxtral", degraded=True,
+                          note=proc.stderr.decode("utf-8", "replace")[-300:])
+
+
 def _hosted(audio: bytes, mime: str = "audio/wav") -> Transcript | None:
     token = os.environ.get("HF_TOKEN")
     if not token:
@@ -272,12 +355,22 @@ def _hosted(audio: bytes, mime: str = "audio/wav") -> Transcript | None:
 
 
 def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Transcript:
-    """Cloudflare, then OpenRouter, then Hugging Face, then local — then a refusal.
+    """Cloudflare, then OpenRouter, then Hugging Face, then the two local engines.
 
     Ordered by where the app runs, not by which engine is best in the abstract.
-    The local engine is last because a Cloudflare deployment has no laptop; it is
-    still there so `serve` on a developer's machine gets the accurate Estonian
-    model for free.
+    The local engines are last because a Cloudflare deployment has no laptop;
+    they are still there so `serve` on a developer's machine gets an accurate
+    Estonian model for free.
+
+    **whisper.cpp before Voxtral**, and the reason is evidence rather than
+    preference. Both are TalTech and both are Estonian; the difference is what
+    is known about them. The verbatim Whisper has a published Estonian track
+    record, and Voxtral's own card reports 5.05 % WER while saying in the same
+    paragraph that the validation set is ten recordings and should not be read
+    as an estimate of Estonian ASR quality. Neither is measured on this
+    project's material. "Newer" is not a result, so the incumbent keeps the
+    position and Voxtral answers when it is the only one configured -- which is
+    also the arrangement that lets somebody compare them by turning one off.
 
     Unlike the grammar chain, a *degraded* answer does not stop the walk: a
     Cloudflare hiccup should fall through to OpenRouter rather than end the
@@ -294,6 +387,7 @@ def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Tran
         ("openrouter-audio", lambda: _openrouter(audio, mime, context)),
         ("hf-whisper", lambda: _hosted(audio, mime)),
         ("whisper.cpp", lambda: _local(audio, suffix)),
+        ("voxtral", lambda: _voxtral(audio, suffix)),
     )
     first_failure: Transcript | None = None
     for name, engine in attempts:

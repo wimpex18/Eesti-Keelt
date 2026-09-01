@@ -321,11 +321,98 @@ touched, reading exactly like a regression. The fixture counts a row now
 (`wordlist.available`), which is this project's oldest rule written into the
 fixture that existed to honour it.
 
-**The phantom's creator is not pinned.** It is intermittent, predates this
-work, appears in no single test file run alone, and an in-process
-`sqlite3.connect` spy never catches it — which points at a subprocess, though
-importing the app in one does not reproduce it. Making the gate honest closes
-the failure it causes either way; finding the writer is still open.
+**The mechanism is pinned now; the individual writer is not, and the run says
+so either way.**
+
+`wordlist.connect()` is how it happens. Called with no argument it takes
+`config.DB_PATH`, and `sqlite3.connect` creates the file before `executescript`
+lays down the schema — so any read that skips `available()` manufactures a
+convincing-looking empty database as a side effect of looking.
+
+Why the earlier spy never caught it is the useful half. The autouse fixture in
+`conftest.py` redirects `config.DB_PATH` for every test in the pytest process,
+so a test cannot produce the phantom; and a monkeypatch of `sqlite3.connect` in
+this interpreter is invisible in another one. The suite spawns subprocesses.
+Confirmed directly: a subprocess running `wordlist.connect()` from the repo root
+creates `data/eesti.db`, 28 KB, zero rows, because `config.DB_PATH` is anchored
+to the repo root and inherits nothing from the fixture.
+
+So the run reports it, in the run that created it rather than the run that
+trips over it — the whole cost of this bug was that the evidence arrived one run
+late and in an unrelated file. A `sys.addaudithook` armed at session start
+records the first read-write open of that exact path; the terminal summary
+names the file, says what will break next run, and prints the creating stack
+when the call was in-process or "a subprocess opened it" when it was not.
+
+Three things it deliberately does not do, each because the first draft did and
+was wrong:
+
+- match on the **basename**: the session fixture builds its own word list and
+  also calls it `eesti.db`, so a name match captured an innocent fixture and
+  would have printed it as the culprit. A diagnostic that confidently names the
+  wrong caller is worse than no diagnostic.
+- count a **read-only** open: `wordlist.available` opens `mode=ro` to answer
+  whether the file exists, and the first stack captured was the checker being
+  reported as the creator.
+- arm from `pytest_report_header`: pytest does not call that hook under `-q`,
+  which is the command every document here names. The guard was off in exactly
+  the runs it was written for — the same mistake the header itself exists to
+  prevent, made one function further down.
+
+A word list built legitimately during a session is not a phantom, and the
+difference is rows, which is the same question `available()` asks.
+
+### The two Estonian models are wired, and neither is adopted
+
+Both were recorded on 2026-09-01 as existing and left there. An option nobody
+can reach is an option nobody can measure, so both now have a lane; neither has
+a number, and nothing was reordered in front of an incumbent on the strength of
+being new.
+
+**EstLLM, hosted.** `huggingface` is back in `PROVIDERS` — the same lane that
+was deleted in August after the probe found the router serving 132 models and
+not one Estonian one. It is second in `LLM_PREFERENCE`, directly behind `local`
+and ahead of every general-purpose model, and that is the *same* argument
+rather than a new one: it runs the same Estonian-adapted weights, on hardware
+somebody else owns. `HF_TOKEN` is already this deployment's vocabulary, since
+`providers/asr.py` reads it for hosted Whisper.
+
+What is **not** verified: that a request completes. The HF router answers 401
+before it routes, so an unauthenticated probe returns 401 for a real id and a
+made-up one alike and proves nothing. Only a call with a token settles it, and
+this repository must never hold one. `cli eval --provider huggingface` is the
+command that turns the lane into a number.
+
+Wiring it uncovered a drifted list. `cli/build.py` held a hand-written
+`_PROVIDERS` tuple that had gone wrong in both directions at once: it offered
+`huggingface` when no such provider existed, so `--provider huggingface` was an
+accepted choice that could only raise `KeyError`; and it omitted `local`, so the
+one lane running an Estonian-adapted model was the one lane the eval could not
+score — on the command whose whole job is to find out whether a model is any
+good at Estonian. It is derived from `llm.PROVIDERS` now. Unlike `api.ROUTERS`
+and `cli.GROUPS` it carries no ordering decision, so there was nothing to keep
+by hand.
+
+**Voxtral, local.** `TalTechNLP/Voxtral-Mini-3B-2507-estonian`, Apache-2.0,
+published 2026-08-25, hosted by nobody (re-probed 2026-09-01). It is an
+audio-*understanding* model rather than a Whisper, so whisper.cpp cannot run it
+and the prompt is load-bearing — asked nothing in particular it will return a
+summary, a subtitle track or a news story, all of which it was trained to
+produce from the same recording. It shells out to llama.cpp's multimodal CLI,
+because an OpenAI-shaped `/v1/audio/transcriptions` on llama.cpp is an open
+feature request rather than a merged endpoint.
+
+It sits **behind** whisper.cpp. Its card reports 5.05 % WER and says in the same
+paragraph that the validation set is ten recordings and should not be read as an
+estimate of Estonian ASR quality. Nobody has said anything about it — 48
+downloads, zero likes, no discussion found — which is itself worth recording,
+because "new model, must be better" is the reasoning this project's eval exists
+to refuse.
+
+One earlier claim corrected: the note called it "TalTech's Estonian Voxtral with
+GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
+`mradermacher`'s. Whoever pulls them is trusting a converter as well as a
+trainer.
 
 ### Third-party sources, re-probed 2026-09-01
 

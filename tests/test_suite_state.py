@@ -166,3 +166,138 @@ class TestAnEmptyWordListIsNotAWordList:
         block = block[:block.index("\n\n\n")]
         assert "available(real)" in block, "the fixture is back to asking exists()"
         assert "if not real.exists()" not in block
+
+
+class TestTheRunSaysWhenItCreatesAPhantom:
+    """The empty `data/eesti.db` a full run leaves behind.
+
+    Making `real_wordlist` count rows fixed the *failure* — two curated-content
+    tests no longer check Estonian against an empty lexicon. It did not fix the
+    file, and it did not answer who writes it. That stayed open because the
+    evidence arrives one run late and in the wrong place: run one creates it
+    silently, run two fails somewhere unrelated.
+
+    So the run reports it, in the run that did it. Not a fix for the writer —
+    a fix for the *silence*, which is what made the writer hard to find.
+    """
+
+    class _Reporter:
+        def __init__(self):
+            self.lines: list[str] = []
+
+        def write_line(self, line, **kw):
+            self.lines.append(line)
+
+    @staticmethod
+    def _empty(path):
+        import sqlite3
+
+        conn = sqlite3.connect(path)
+        conn.executescript(
+            "CREATE TABLE words(word TEXT); CREATE TABLE object_cases(word TEXT);")
+        conn.close()
+        return path
+
+    def test_it_says_so_when_one_appears(self, monkeypatch, tmp_path):
+        import conftest
+        from eesti import config
+
+        target = self._empty(tmp_path / "eesti.db")
+        monkeypatch.setattr(config, "DB_PATH", target)
+        monkeypatch.setitem(conftest._PHANTOM, "existed", False)
+        reporter = self._Reporter()
+        conftest._report_the_phantom(reporter)
+        assert any("EMPTY" in line for line in reporter.lines)
+
+    def test_it_says_nothing_when_the_word_list_was_already_there(
+            self, monkeypatch, tmp_path):
+        """The normal case on a built machine. A guard that shouts every run is
+        a guard people learn to scroll past."""
+        import conftest
+        from eesti import config
+
+        monkeypatch.setattr(config, "DB_PATH", self._empty(tmp_path / "eesti.db"))
+        monkeypatch.setitem(conftest._PHANTOM, "existed", True)
+        reporter = self._Reporter()
+        conftest._report_the_phantom(reporter)
+        assert reporter.lines == []
+
+    def test_a_word_list_built_during_the_run_is_not_a_phantom(
+            self, monkeypatch, tmp_path):
+        """`cli build` in a test creates the file legitimately. The difference
+        is rows, which is this project's oldest rule and the same question
+        `available()` asks."""
+        import sqlite3
+
+        import conftest
+        from eesti import config
+
+        target = self._empty(tmp_path / "eesti.db")
+        conn = sqlite3.connect(target)
+        conn.execute("INSERT INTO words VALUES ('raamat')")
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(config, "DB_PATH", target)
+        monkeypatch.setitem(conftest._PHANTOM, "existed", False)
+        reporter = self._Reporter()
+        conftest._report_the_phantom(reporter)
+        assert reporter.lines == []
+
+    def test_it_names_the_caller_when_the_call_was_in_process(
+            self, monkeypatch, tmp_path):
+        import conftest
+        from eesti import config
+
+        monkeypatch.setattr(config, "DB_PATH", self._empty(tmp_path / "eesti.db"))
+        monkeypatch.setitem(conftest._PHANTOM, "existed", False)
+        monkeypatch.setitem(conftest._PHANTOM, "stack", "  File \"culprit.py\"\n")
+        reporter = self._Reporter()
+        conftest._report_the_phantom(reporter)
+        assert any("culprit.py" in line for line in reporter.lines)
+
+    def test_a_subprocess_is_reported_as_a_subprocess(self, monkeypatch, tmp_path):
+        """The in-process spy that came before this never caught the writer,
+        and the reason is the answer: a patched attribute in this interpreter
+        is invisible in another one. Saying "no stack" is the finding, not a
+        gap in the report."""
+        import conftest
+        from eesti import config
+
+        monkeypatch.setattr(config, "DB_PATH", self._empty(tmp_path / "eesti.db"))
+        monkeypatch.setitem(conftest._PHANTOM, "existed", False)
+        monkeypatch.setitem(conftest._PHANTOM, "stack", None)
+        reporter = self._Reporter()
+        conftest._report_the_phantom(reporter)
+        assert any("subprocess" in line for line in reporter.lines)
+
+
+class TestTheWatcherIsArmedWhereEveryRunReachesIt:
+    def test_it_is_armed_at_session_start(self):
+        """It was armed from `pytest_report_header`, which pytest does not call
+        under `-q` — the command every document here names. The guard was off
+        in exactly the runs it was written for, which is the mistake the header
+        itself exists to prevent, made one function further down.
+        """
+        import inspect
+
+        import conftest
+
+        assert "_watch_for_the_phantom" in inspect.getsource(
+            conftest.pytest_sessionstart)
+
+    def test_a_read_only_open_is_not_a_creation(self, monkeypatch, tmp_path):
+        """`wordlist.available` opens `mode=ro` to answer whether the file is
+        there. Counting that as the creation reports the checker as the
+        culprit."""
+        import conftest
+        from eesti import config
+
+        target = tmp_path / "eesti.db"
+        monkeypatch.setattr(config, "DB_PATH", target)
+        monkeypatch.setitem(conftest._PHANTOM, "stack", None)
+        monkeypatch.setitem(conftest._PHANTOM, "existed", None)
+        conftest._watch_for_the_phantom()
+        from eesti.wordlist import available
+
+        available(target)
+        assert conftest._PHANTOM["stack"] is None
