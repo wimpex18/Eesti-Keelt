@@ -209,6 +209,16 @@ REGISTRY: tuple[Source, ...] = (
         "what learners actually get wrong. The learner texts are not fetched.",
     ),
     Source(
+        "oma-materjal", "Oma materjal — käsitsi lisatud", "file",
+        "unknown, and treated as ungranted — personal study only", False, None,
+        "A textbook chapter, a tutor's handout, a transcript typed up by hand: "
+        "whatever the learner puts in with `cli ingest`. Not redistributable, "
+        "and deliberately not guessed at: this project has no way to know what "
+        "licence a file dropped into it carries, and the safe assumption for "
+        "somebody else's textbook is the same one it makes about HARNO and "
+        "ERR — owner-only, never republished, never baked into the image.",
+    ),
+    Source(
         "generated", "Genereeritud harjutused", "generated",
         "own work", True, None,
         "Drills built from Vabamorf forms. Unlimited, deterministic.",

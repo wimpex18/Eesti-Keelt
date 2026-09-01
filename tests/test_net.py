@@ -128,15 +128,89 @@ class TestTheFailureIsReadable:
         assert "no route to host" in str(caught.value)
 
 
+class TestTheExceptionEveryCallerAlreadyCatches:
+    """`Unreachable` inherits from `OSError` *and* `RuntimeError`.
+
+    Not cleverness — the callers were already catching two different things and
+    both were right. `lihtsad.harvest` catches `OSError` per issue so one dead
+    URL costs one issue; the EVKK command catches `RuntimeError` and turns it
+    into "the taxonomy is unavailable, here is what would fix it". Consolidating
+    onto a single base would have broken one of them silently, on the one day
+    the handler exists for.
+    """
+
+    @pytest.fixture
+    def unreachable(self, monkeypatch, no_sleeping):
+        monkeypatch.setattr(urllib.request, "urlopen", _serving(OSError("down")))
+
+        def raise_it():
+            net.get("https://example.test/doc", "the document", retries=1)
+
+        return raise_it
+
+    def test_a_per_item_handler_catching_oserror_still_works(self, unreachable):
+        try:
+            unreachable()
+        except OSError:
+            return
+        pytest.fail("an OSError handler no longer catches a dead host")
+
+    def test_an_operator_handler_catching_runtimeerror_still_works(self, unreachable):
+        try:
+            unreachable()
+        except RuntimeError:
+            return
+        pytest.fail("a RuntimeError handler no longer catches a dead host")
+
+    def test_the_original_failure_is_kept_as_the_cause(self, unreachable):
+        """`raise ... from last`: the message says which document, the chain
+        says what actually went wrong."""
+        with pytest.raises(net.Unreachable) as caught:
+            unreachable()
+        assert isinstance(caught.value.__cause__, OSError)
+
+
 class TestBothCallersStillUseIt:
     """The point of the module. If a caller grows its own loop again, the
     behaviour it shares stops being shared and nothing says so."""
 
-    @pytest.mark.parametrize("module", ["eesti.rection", "eesti.harvest.evkk"])
-    def test_the_fetcher_goes_through_net(self, module):
+    @pytest.mark.parametrize("module,func", [
+        ("eesti.rection", "fetch"),
+        ("eesti.harvest.evkk", "fetch"),
+        ("eesti.harvest.err", "_get"),
+        ("eesti.harvest.lihtsad", "_get"),
+        ("eesti.harvest.harno", "_fetch"),
+        ("eesti.harvest.selges", "fetch"),
+    ])
+    def test_the_fetcher_goes_through_net(self, module, func):
         import importlib
         import inspect
 
-        source = inspect.getsource(importlib.import_module(module).fetch)
-        assert "net.get(" in source, f"{module}.fetch no longer uses net.get"
-        assert "urlopen" not in source, f"{module}.fetch opens its own connection"
+        source = inspect.getsource(getattr(importlib.import_module(module), func))
+        assert "net.get(" in source, f"{module}.{func} no longer uses net.get"
+        assert "urlopen" not in source, f"{module}.{func} opens its own connection"
+
+    def test_nothing_under_harvest_opens_its_own_connection(self):
+        """The six were written one at a time, with three timeouts and two
+        retry styles between them. A seventh would be written the same way."""
+        from pathlib import Path
+
+        root = Path(net.__file__).parent / "harvest"
+        offenders = sorted(p.name for p in root.glob("*.py")
+                           if "urlopen" in p.read_text(encoding="utf-8"))
+        assert not offenders, (
+            f"{offenders} fetch without going through `net`, which is where "
+            f"the timeout, the retries and the User-Agent are decided")
+
+    @pytest.mark.parametrize("module,timeout", [
+        ("eesti.harvest.selges", 90.0),
+        ("eesti.harvest.lihtsad", 45.0),
+        ("eesti.harvest.harno", 45.0),
+    ])
+    def test_each_caller_kept_its_own_timeout(self, module, timeout):
+        """Consolidating how a request is made must not quietly standardise
+        how long each host is given: 90 s is there because paging a whole
+        WordPress archive is slow, and 45 s because a page is not."""
+        import importlib
+
+        assert importlib.import_module(module).TIMEOUT == timeout

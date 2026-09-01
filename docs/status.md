@@ -226,7 +226,7 @@ keeps meeting, so each got a decision rather than a shrug:
 | `harvest/err.fetch_episode` | **Dropped.** A one-line wrapper over `parse_episode(_get(url), url)`; `harvest()` calls those two directly. |
 | `notion.from_correction` | **Dropped.** It mapped a `grammar.Correction` to a `Row` and nothing produced one on that path — the page posts flat fields. It also relabelled an unknown tag to `vocab` silently, where `/api/notion/queue` rejects it with a 400, which is the better of the two behaviours and the one in use. |
 | `providers/grammar.reset_breakers` | **Dropped.** A one-line wrapper over `breaker.reset()`; the tests call that directly and there is no "retry now" control. |
-| `sources.ingest_file` | **Kept, and it is a gap.** It is the only code that can put a textbook chapter or a tutor's handout into the corpus — "feed it files" — and nothing can call it: no CLI command, no route. Wiring it is a feature decision, not cleanup, so it is written down here instead of deleted. |
+| `sources.ingest_file` | **Kept, and now wired.** It was the only code that could put a textbook chapter or a tutor's handout into the corpus, with nothing able to call it. `cli ingest <file>` calls it: a JSON array of items, or any text file as one passage. It defaults to a new registry source, `oma-materjal`, marked **not redistributable** — this project cannot know what licence a file dropped into it carries, and somebody else's textbook gets the same posture as HARNO's exam papers. An unregistered source is refused before the file is read, saying what to use instead. |
 
 Two computed values nobody read went with them: `progress.report` called
 `mastered(conn)` into a variable it never used, and `readiness._parts` called
@@ -248,10 +248,27 @@ dropping it is safe and worth checking before doing.
   has the first tests this logic has ever had. One deliberate difference: it no
   longer sleeps after the *final* attempt, which only delayed the exception.
 
-Not consolidated, and worth knowing: **six modules fetch over HTTP with three
-different timeouts** (45 s, 60 s, 90 s) and two retry styles. The two that were
-identical are merged; the rest differ in ways that may be deliberate, and
-changing them is a behaviour decision rather than a cleanup.
+**All six now go through `eesti/net.py`.** They had three timeouts (45 s, 60 s,
+90 s), two retry styles and two User-Agent strings between them, one of which
+was no User-Agent at all. Each keeps its own timeout, its own attempt count and
+the User-Agent it has always sent — those differ for reasons (paging a whole
+WordPress archive is not reading one page), and consolidating *how* a request is
+made must not quietly standardise *what each host is given*. A test holds each
+of those numbers, and another fails on any module under `harvest/` that opens
+its own connection.
+
+The one thing that had to be designed rather than moved is the failure. Callers
+already caught two different exception types and both were right: `lihtsad`
+catches `OSError` per issue, so one dead URL costs one issue rather than the
+run, and the EVKK command catches `RuntimeError` to turn a research host being
+down into a sentence instead of a traceback. `net.Unreachable` inherits from
+both, so every existing handler still catches — a single base would have broken
+one of them silently, on the one day the handler exists for.
+
+The provider calls (`providers/*`, `notion.py`, `cli push-content`) stay
+separate on purpose: they are POSTs with a circuit breaker and rate limits to
+tell apart, which is a different job, and `docs/lessons.md` has the entry about
+a retry there keeping a failure alive.
 
 ### Things the code already knew, that nothing had said out loud
 

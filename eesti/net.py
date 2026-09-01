@@ -38,9 +38,28 @@ RETRIES = 3
 UA = "Eesti-Keelt/0.1 (personal language-learning tool)"
 
 
+class Unreachable(OSError, RuntimeError):
+    """A host this project asked did not answer.
+
+    Two base classes, deliberately, because the callers already caught two
+    different things and both were right:
+
+    * `harvest/lihtsad.py` catches `OSError` around a single issue, so that one
+      dead URL costs one issue rather than the whole harvest.
+    * `cli harvest`'s EVKK path catches `RuntimeError` and turns it into "the
+      taxonomy is unavailable, here is what would fix it" — a third party being
+      down must never look like a crash.
+
+    A single base would have silently broken one of them, which is the kind of
+    change that is invisible until the day the host is down — the day the
+    handler exists for. Inheriting from both keeps every existing `except`
+    correct, and anything written later that catches either still works.
+    """
+
+
 def get(url: str, what: str, *, timeout: float = TIMEOUT,
         retries: int = RETRIES, ua: str = UA) -> str:
-    """Fetch `url` as text, retrying, or raise naming `what` was unreachable.
+    """Fetch `url` as text, retrying, or raise `Unreachable` naming `what`.
 
     `what` is the human name of the document -- "EKK SÜ 64", "EVKK taxonomy" --
     because the caller of a failed harvest reads the message, and "unreachable"
@@ -58,4 +77,4 @@ def get(url: str, what: str, *, timeout: float = TIMEOUT,
             # changes nothing.
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
-    raise RuntimeError(f"{what} unreachable: {last}")
+    raise Unreachable(f"{what} unreachable: {last}") from last

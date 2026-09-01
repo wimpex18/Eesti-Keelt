@@ -247,6 +247,56 @@ def cmd_rections(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ingest(args: argparse.Namespace) -> int:
+    """Add material the learner supplies by hand.
+
+    `sources.ingest_file` has been able to do this since it was written and
+    nothing could call it: no route, no command. A capability with no entry
+    point is the same bug as an endpoint with no caller, and it had been
+    sitting in the codebase as one — the only code that can put a textbook
+    chapter or a tutor's handout into the library, unreachable.
+
+    It takes a JSON array of item dicts, or any text file as a single passage.
+    The source defaults to `oma-materjal`, which is registered as
+    not-redistributable: this project cannot know what licence a file dropped
+    into it carries, and somebody else's textbook gets the same posture as
+    HARNO's exam papers.
+    """
+    from pathlib import Path
+
+    from ..sources import REGISTRY, connect, ingest_file, register
+
+    path = Path(args.path)
+    if not path.exists():
+        print(f"no such file: {path}")
+        return 1
+
+    # Checked here rather than left to `add_items`, which raises the right
+    # refusal with the wrong subject: the file is fine, the *source* is not
+    # registered, and a message saying "could not read your file" sends the
+    # learner looking at the wrong thing.
+    if args.source not in {s.id for s in REGISTRY}:
+        print(f"{args.source!r} is not a registered source — a row with no "
+              f"licence is a row nobody can reason about later. Use "
+              f"`--source oma-materjal`, or add it to `sources.REGISTRY` "
+              f"with an explicit licence first.")
+        return 1
+
+    conn = connect(content_path(args))
+    register(conn)
+    try:
+        added = ingest_file(conn, path, args.source, args.skill, level=args.level)
+    except (ValueError, KeyError) as exc:
+        print(f"could not read {path}: {exc}")
+        return 1
+    print(f"  {added} item(s) from {path.name} as {args.skill} "
+          f"({args.source})")
+    if not added:
+        print("  nothing was added — an empty file, or a JSON array with no "
+              "items in it")
+    return 0
+
+
 def register(sub) -> None:
     """Add this group's commands to the subparser table.
 
@@ -292,3 +342,14 @@ def register(sub) -> None:
     p = sub.add_parser("rections", help="fetch and store EKK's rection table (once)")
     p.add_argument("--levels", default="A1,A2,B1")
     p.set_defaults(func=cmd_rections)
+
+    p = sub.add_parser("ingest",
+                       help="add your own file to the library (text or JSON)")
+    p.add_argument("path", help="a .json array of items, or any text file")
+    p.add_argument("--skill", default="lugemine",
+                   help="which exam skill it practises (default: lugemine)")
+    p.add_argument("--source", default="oma-materjal",
+                   help="registered source id it belongs to")
+    p.add_argument("--level", default=None, help="CEFR level, if it states one")
+    p.add_argument("--db", default=None)
+    p.set_defaults(func=cmd_ingest)

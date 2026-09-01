@@ -22,8 +22,9 @@ from __future__ import annotations
 import json
 import re
 import time
-import urllib.request
 from dataclasses import dataclass
+
+from .. import net
 
 API = "https://public-api.wordpress.com/rest/v1.1/sites/{site}/posts/"
 SITE = "selgeskeeles.wordpress.com"
@@ -74,18 +75,13 @@ def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
     page = 1
     while True:
         url = f"{API.format(site=site)}?number={PAGE_SIZE}&page={page}"
-        payload = None
-        for attempt in range(RETRIES):
-            try:
-                with urllib.request.urlopen(url, timeout=TIMEOUT) as resp:
-                    payload = json.loads(resp.read())
-                break
-            except (TimeoutError, OSError):
-                if attempt == RETRIES - 1:
-                    raise
-                time.sleep(2 ** attempt)
-        if payload is None:
-            break
+        # Three attempts at 90 seconds, unchanged -- this pages through a
+        # whole archive and a WordPress.com cold start is slow. What is new is
+        # the User-Agent: this request went out anonymous, and a tool that
+        # fetches somebody else's server should be identifiable in their logs,
+        # which is the posture the rest of this project already takes.
+        payload = json.loads(
+            net.get(url, "Selges keeles", timeout=TIMEOUT, retries=RETRIES))
 
         batch = payload.get("posts") or []
         if not batch:

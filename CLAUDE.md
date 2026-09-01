@@ -185,9 +185,10 @@ python -m eesti.cli harvest          # ERR language archives
 python -m eesti.cli harvest-reading  # Selges keeles
 python -m eesti.cli harvest-news     # ERR Lihtsad uudised — the live feed
 python -m eesti.cli harvest-exam     # official EIS tasks (pointers)
+python -m eesti.cli ingest FILE      # your own material: a text file, or JSON items
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion
-pytest tests/ -q                     # 1 283 (65 need a browser)
+pytest tests/ -q                     # 1 486 in-process; 72 more need a browser
 ```
 
 `deploy/setup.sh`, `deploy/push-content.sh`, `deploy/reset-progress.sh` all run
