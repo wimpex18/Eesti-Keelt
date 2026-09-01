@@ -185,12 +185,23 @@ def real_wordlist():
     `kingad` a word?" — and a fixture cannot answer that about itself. They opt
     out of the redirect and skip loudly where the build is absent, which is what
     CI sees.
+
+    "Absent" means *no words in it*, not "no file". This asked `exists()`, which
+    is this project's oldest recurring bug written into the very fixture that
+    exists to avoid it: something in a full run leaves an empty `data/eesti.db`
+    behind — 0 rows, correct schema — and on the *next* run these tests then
+    stopped skipping and checked curated Estonian against an empty lexicon.
+    Two failures, in a file nothing had touched, that read exactly like a
+    regression. Counting a row makes an empty phantom skip, which is the honest
+    answer for it.
     """
     import sqlite3 as _sqlite3
     from pathlib import Path
 
+    from eesti.wordlist import available
+
     real = Path("data/eesti.db")
-    if not real.exists():
+    if not available(real):
         pytest.skip("needs the full wordlist — run `cli fetch-data && cli build`")
     conn = _sqlite3.connect(f"file:{real}?mode=ro", uri=True)
     conn.row_factory = _sqlite3.Row
@@ -244,21 +255,41 @@ def dataset_state() -> dict[str, object]:
 
     try:
         import importlib.util
-        import os
 
+        # Both halves matter and they fail differently: no `playwright` package
+        # is "the journeys cannot run at all", an empty browser directory is
+        # "they can run and have nothing to run in". Either way the suite
+        # skips, so the line says the same thing -- but the directory scan is
+        # its own function because it is the part worth testing, and testing it
+        # through this branch would have meant a test that only runs where
+        # playwright happens to be installed. Which is the failure this whole
+        # report exists to stop.
         if importlib.util.find_spec("playwright") is not None:
-            root = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
-            found = set()
-            for path in root.glob("*-*"):
-                for engine in ("chromium", "webkit", "firefox"):
-                    # `chromium_headless_shell-1194` is the same engine, not a
-                    # third browser: report engines, not directories.
-                    if path.name.startswith(engine):
-                        found.add(engine)
-            state["browsers"] = sorted(found)
+            state["browsers"] = installed_engines()
     except Exception:  # noqa: BLE001
         pass
     return state
+
+
+def installed_engines(root: "Path | None" = None) -> list[str]:
+    """Which browser engines Playwright has unpacked, named once each.
+
+    `chromium-1194` and `chromium_headless_shell-1194` sit beside each other
+    and are one engine, not two.
+    """
+    import os
+    from pathlib import Path
+
+    root = Path(root or os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
+    found = set()
+    try:
+        for path in root.glob("*-*"):
+            for engine in ("chromium", "webkit", "firefox"):
+                if path.name.startswith(engine):
+                    found.add(engine)
+    except OSError:
+        return []
+    return sorted(found)
 
 
 def describe_dataset(state: dict[str, object]) -> str:
