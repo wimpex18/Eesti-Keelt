@@ -86,8 +86,15 @@ def live_server(tmp_path_factory) -> str:
     are absolute and read-only for our purposes, so they are passed through --
     building a 160 000-word wordlist per test run would make this unrunnable.
     """
+    from eesti.wordlist import available
+
     words, content = ROOT / "data" / "eesti.db", ROOT / "data" / "content.db"
-    if not words.exists() or not content.exists():
+    # Rows for the word list, not existence. An empty one passes `exists()`,
+    # and then the whole journey suite runs against a zero-word lexicon: every
+    # drill empty, every lookup missing, ~140 failures that look like a
+    # regression and are a missing build. That is the same gate `real_wordlist`
+    # was fixed for, in the file where it would be loudest.
+    if not available(words) or not content.exists():
         pytest.skip("no built dataset — run `python -m eesti.cli build`")
 
     workdir = tmp_path_factory.mktemp("e2e-server")

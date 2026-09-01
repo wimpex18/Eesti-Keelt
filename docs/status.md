@@ -321,46 +321,68 @@ touched, reading exactly like a regression. The fixture counts a row now
 (`wordlist.available`), which is this project's oldest rule written into the
 fixture that existed to honour it.
 
-**The mechanism is pinned now; the individual writer is not, and the run says
-so either way.**
+**Found, after three commits of it being open.** It was never the test suite.
 
-`wordlist.connect()` is how it happens. Called with no argument it takes
-`config.DB_PATH`, and `sqlite3.connect` creates the file before `executescript`
-lays down the schema — so any read that skips `available()` manufactures a
-convincing-looking empty database as a side effect of looking.
+`python -m eesti.cli status`, `themes`, `vocab`, `readiness`, `drill`,
+`conjugate`, `patterns` and `placement` — typed by a person before
+`cli build` — each read the lexicon through `wordlist.connect()`, which creates
+the file and applies the schema. So *reading* the word list manufactured one:
+zero rows, complete schema, indistinguishable from a real build to anything
+asking `exists()`.
 
-Why the earlier spy never caught it is the useful half. The autouse fixture in
-`conftest.py` redirects `config.DB_PATH` for every test in the pytest process,
-so a test cannot produce the phantom; and a monkeypatch of `sqlite3.connect` in
-this interpreter is invisible in another one. The suite spawns subprocesses.
-Confirmed directly: a subprocess running `wordlist.connect()` from the repo root
-creates `data/eesti.db`, 28 KB, zero rows, because `config.DB_PATH` is anchored
-to the repo root and inherits nothing from the fixture.
+Why it took so long is the useful part, and all three reasons are the same
+mistake in different costumes:
 
-So the run reports it, in the run that created it rather than the run that
-trips over it — the whole cost of this bug was that the evidence arrived one run
-late and in an unrelated file. A `sys.addaudithook` armed at session start
-records the first read-write open of that exact path; the terminal summary
-names the file, says what will break next run, and prints the creating stack
-when the call was in-process or "a subprocess opened it" when it was not.
+- **`test_cli_smoke` runs all eight commands, in-process**, where the autouse
+  fixture redirects `config.DB_PATH`. A suite that exercised every culprit could
+  never show the bug.
+- **An in-process `sqlite3.connect` spy cannot see a subprocess.** `PYTHONPATH`
+  is inherited; a monkeypatched attribute is not. The hunt is committed as
+  `tests/phantom/` — the same audit hook, injected so it loads everywhere.
+- **The evidence arrived one run late.** `real_wordlist` gated on `exists()`, so
+  the run that created the file was fine and the *next* one failed, in an
+  unrelated file, looking like a regression.
 
-Three things it deliberately does not do, each because the first draft did and
-was wrong:
+Two suspects were eliminated rather than searched. Five full runs under the
+subprocess-wide hook recorded **not one read-write open of that path** — so
+nothing in `pytest tests/` does it. And the uvicorn subprocess is ruled out by
+construction: `live_server` skips when the word list is absent, which is the
+only condition in which the file could be created; when it is present there is
+nothing to create.
 
-- match on the **basename**: the session fixture builds its own word list and
-  also calls it `eesti.db`, so a name match captured an innocent fixture and
-  would have printed it as the culprit. A diagnostic that confidently names the
-  wrong caller is worse than no diagnostic.
-- count a **read-only** open: `wordlist.available` opens `mode=ro` to answer
-  whether the file exists, and the first stack captured was the checker being
-  reported as the creator.
-- arm from `pytest_report_header`: pytest does not call that hook under `-q`,
-  which is the command every document here names. The guard was off in exactly
-  the runs it was written for — the same mistake the header itself exists to
-  prevent, made one function further down.
+**It reached further than the CLI.** `practice.items_for` — library code behind
+`/api/practice`, placement, the checkpoint and the handoff — opened the word
+list the same way. On a deployment where content had not been pushed, the first
+learner to ask for a drill created a convincing empty lexicon on the server.
+That one raises now, and the route already turns it into a 400 carrying the
+text; returning no items would have read as "this topic is broken" rather than
+"nothing has been built here".
 
-A word list built legitimately during a session is not a phantom, and the
-difference is rows, which is the same question `available()` asks.
+**The fix is a helper that already existed.** `cli/_helpers.words_db` asks
+`available()` first and says what to run, and its docstring already called this
+"the fourth instance of the same bug". Eight commands bypassed it.
+
+Two guards were themselves defeated by the phantom, both asking existence where
+they meant rows:
+
+- `cli serve` refuses to start without a database — and an empty word list
+  satisfied `exists()`, so it served the whole app with a zero-word lexicon:
+  every drill empty, every lookup missing, no message anywhere.
+- `test_e2e_journeys.live_server` gated the same way, so a phantom would have
+  unskipped the entire browser suite against an empty lexicon — around 140
+  failures that look like a regression and are a missing build.
+
+The regression test asks the property of **every** command in
+`test_cli_smoke.READ_ONLY`, derived from that list rather than written again,
+as real subprocesses. A source grep cannot express it: `cli build` and
+`cli export` open the word list to write it and must keep creating. Writing the
+check that way immediately caught five creators beyond the three the manual
+hunt had found — including `readiness`, which the hand-run hunt had reported
+clean because the argument was typed as `readiness A2` rather than
+`readiness --level A2` and argparse rejected it before the code ran.
+
+The conftest guard from the previous commit stays. It is now a trap for the
+next instance rather than the only evidence for this one.
 
 ### The two Estonian models are wired, and neither is adopted
 

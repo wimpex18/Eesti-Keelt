@@ -230,8 +230,21 @@ class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
         from eesti.cli import ops
 
         called = {}
-        monkeypatch.setattr(config, "DB_PATH", tmp_path / "eesti.db")
-        (tmp_path / "eesti.db").write_bytes(b"")
+        db = tmp_path / "eesti.db"
+        monkeypatch.setattr(config, "DB_PATH", db)
+        # A word list with a word in it. This wrote an empty file, which was
+        # enough while the guard asked `exists()` -- and that is exactly the
+        # check an empty phantom word list satisfies, so the guard now counts
+        # rows and an empty file is correctly refused.
+        import sqlite3
+
+        from eesti.wordlist import SCHEMA
+
+        conn = sqlite3.connect(db)
+        conn.executescript(SCHEMA)
+        conn.execute("INSERT INTO words(word) VALUES ('raamat')")
+        conn.commit()
+        conn.close()
         monkeypatch.setitem(
             __import__("sys").modules, "uvicorn",
             type("uvicorn", (), {"run": staticmethod(

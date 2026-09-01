@@ -89,7 +89,25 @@ def items_for(
             f"{topic!r} has no generator — see step 2 of docs/curriculum-plan.md"
         )
 
+    from .wordlist import available
     from .wordlist import connect as wordlist_connect
+
+    # Asked before opening, because `wordlist_connect` *creates*: it makes the
+    # file and applies the schema, so generating a drill against an unbuilt
+    # deployment left a complete-looking, zero-row `data/eesti.db` behind. Every
+    # caller that reaches here does so on a learner action -- `/api/practice`,
+    # placement, the checkpoint, the handoff -- so this is the one that could
+    # manufacture a phantom on the live app rather than only on the CLI.
+    #
+    # Raised, not returned empty: the route above turns ValueError into a 400
+    # carrying this text, and "no items" would read as "this topic is broken"
+    # rather than "nothing has been built here". Same shape and same reason as
+    # the missing-generator raise a few lines up.
+    if not available():
+        raise ValueError(
+            "no word list built — run `python -m eesti.cli fetch-data` and "
+            "then `python -m eesti.cli build`"
+        )
 
     words = wordlist_connect()
 

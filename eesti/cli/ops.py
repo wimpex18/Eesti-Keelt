@@ -161,14 +161,23 @@ def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
     from .. import config
+    from ..wordlist import available
 
+    # Two separate lessons in one line.
+    #
     # `config.DB_PATH`, read here rather than a bare `DB_PATH`. The bare name
     # was never imported into `cli.py`, so the one command every document in
     # this repository tells you to run -- `python -m eesti.cli serve` -- raised
     # `NameError: name 'DB_PATH' is not defined` before it reached uvicorn.
     # Nothing caught it: `--help` proves the parser, and `serve` is the one
     # command the read-only smoke list cannot run because it blocks.
-    if not Path(config.DB_PATH).exists():
+    #
+    # And `available`, not `exists`. This guard exists to stop the app starting
+    # against nothing, and existence is exactly the check an empty word list
+    # defeats: `cli status` before `cli build` used to leave one behind, and
+    # then this passed and served the whole app with a zero-word lexicon --
+    # every drill empty, every lookup missing, and no message anywhere.
+    if not available(config.DB_PATH):
         print("No database yet — run `python -m eesti.cli build` first.", file=sys.stderr)
         return 1
     uvicorn.run("eesti.app:app", host=args.host, port=args.port, reload=args.reload)

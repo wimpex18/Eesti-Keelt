@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 
 from ..config import LEVELS
-from ._helpers import content_db, learner_db
+from ._helpers import content_db, learner_db, words_db
 
 def cmd_curriculum(args: argparse.Namespace) -> int:
     """Show the syllabus: the study path, and what can actually be practised.
@@ -89,9 +89,14 @@ def cmd_themes(args: argparse.Namespace) -> int:
     topics come out of the same generators.
     """
     from ..themes import coverage, validate
-    from ..wordlist import connect
 
-    conn = connect()
+    # `words_db`, not `wordlist.connect`: the latter creates the file and lays
+    # down the schema, so running this before `cli build` left an empty
+    # `data/eesti.db` behind and then reported every theme as having no words.
+    conn = words_db()
+    if conn is None:
+        return 1                      # it has already said what to run
+
     unknown = validate(conn)
     for theme, words in unknown.items():
         print(f"  !! {theme}: not in the lexicon — {', '.join(words)}")
@@ -154,10 +159,12 @@ def cmd_vocab(args: argparse.Namespace) -> int:
     """Track which words you actually know, and how far into the frequency list."""
     from ..vocab import (KNOWN, STATUS_NAMES, WELL_KNOWN, band_progress, connect,
                         set_status, summary)
-    from ..wordlist import connect as wordlist_connect
 
     vocabulary = connect(learner_db(args, "vocab_db"))
-    words = wordlist_connect()
+    # Marking words known and counting them are the learner's own record and
+    # need no lexicon; only the frequency bands do. So a missing word list
+    # costs the last table rather than the command.
+    words = words_db()
 
     if args.know:
         status = WELL_KNOWN if args.long_known else KNOWN
@@ -168,6 +175,9 @@ def cmd_vocab(args: argparse.Namespace) -> int:
     info = summary(vocabulary)
     print(f"\n{info['known_total']} known of {info['tracked']} tracked: "
           f"{info['by_status']}")
+    if words is None:
+        return 0
+
     print("\nKnown within each frequency band — the denominator is the band, "
           "not the language:")
     for band in band_progress(vocabulary, words):
@@ -183,16 +193,18 @@ def cmd_status(args: argparse.Namespace) -> int:
     from ..progress import connect as progress_connect
     from ..review import connect as review_connect
     from ..vocab import connect as vocab_connect
-    from ..wordlist import connect as wordlist_connect
 
     # A missing corpus must not take the whole status page down: every other
-    # section still has something true to say.
+    # section still has something true to say. The same is true of a missing
+    # word list, and `overview` already takes None for each of them -- but this
+    # asked `wordlist.connect()`, which *creates* one, so the section reported
+    # an empty lexicon instead of an absent one and left the file behind.
     content = content_db(args)
     data = overview(
         progress=progress_connect(learner_db(args, "progress_db")),
         reviews=review_connect(learner_db(args, "review_db")),
         vocabulary=vocab_connect(learner_db(args, "vocab_db")),
-        words=wordlist_connect(),
+        words=words_db(),
         content=content,
     )
 
@@ -236,13 +248,19 @@ def cmd_readiness(args: argparse.Namespace) -> int:
     from ..progress import connect as progress_connect
     from ..readiness import readiness
     from ..vocab import connect as vocab_connect
-    from ..wordlist import connect as words_connect
 
     from .. import config
     from ..sources import connect as content_connect
 
+    # `words_db`, not `wordlist.connect`: the latter creates the file and
+    # lays down the schema, so a run before `cli build` left an empty
+    # `data/eesti.db` behind for the next run to mistake for a real one.
+    words = words_db()
+    if words is None:
+        return 1
+
     r = readiness(args.level, progress=progress_connect(PROGRESS_DB),
-                  vocabulary=vocab_connect(VOCAB_DB), words=words_connect(),
+                  vocabulary=vocab_connect(VOCAB_DB), words=words,
                   content=content_connect(config.CONTENT_DB))
 
     print(f"{args.level}: {r.verdict}")

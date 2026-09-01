@@ -16,17 +16,23 @@ from ._helpers import content_db, content_path, learner_db, words_db
 
 def cmd_drill(args: argparse.Namespace) -> int:
     from ..drills import generate
-    from ..wordlist import connect
+
+    # `words_db`, not `wordlist.connect`: the latter creates the file and
+    # lays down the schema, so a run before `cli build` left an empty
+    # `data/eesti.db` behind for the next run to mistake for a real one.
+    words = words_db()
+    if words is None:
+        return 1                      # it has already said what to run
 
     if args.rules == ["verb-form"]:
         from ..drills import generate_verb_drills
 
         drills = generate_verb_drills(
-            connect(), count=args.count, levels=tuple(args.levels), seed=args.seed
+            words, count=args.count, levels=tuple(args.levels), seed=args.seed
         )
     else:
         drills = generate(
-            connect(), count=args.count, levels=tuple(args.levels),
+            words, count=args.count, levels=tuple(args.levels),
             rules=tuple(args.rules) if args.rules else None, seed=args.seed,
         )
     right = 0
@@ -156,11 +162,17 @@ def cmd_conjugate(args: argparse.Namespace) -> int:
     `õpiks` against `õpib` — so what is being tested is the marker, not the stem.
     """
     from ..conjugation import FRAMES, generate
-    from ..wordlist import connect
+
+    # `words_db`, not `wordlist.connect`: the latter creates the file and
+    # lays down the schema, so a run before `cli build` left an empty
+    # `data/eesti.db` behind for the next run to mistake for a real one.
+    words = words_db()
+    if words is None:
+        return 1
 
     topics = tuple(args.topics.split(",")) if args.topics else None
     items = generate(
-        connect(),
+        words,
         topics=topics,
         levels=tuple(args.levels.split(",")),
         count=args.count,
@@ -184,9 +196,14 @@ def cmd_conjugate(args: argparse.Namespace) -> int:
 def cmd_patterns(args: argparse.Namespace) -> int:
     """Drill comparison, numerals and question words — the closed classes."""
     from ..patterns import comparison_drills, numeral_drills, question_drills
-    from ..wordlist import connect
 
-    conn = connect()
+    # `words_db`, not `wordlist.connect`: the latter creates the file and
+    # lays down the schema, so a run before `cli build` left an empty
+    # `data/eesti.db` behind for the next run to mistake for a real one.
+    conn = words_db()
+    if conn is None:
+        return 1
+
     levels = tuple(args.levels.split(","))
     builders = {
         "vordlusastmed": lambda n: comparison_drills(conn, levels, n, args.seed),
