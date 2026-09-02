@@ -11,7 +11,7 @@ of it is repeated here.
 | Read | For |
 |---|---|
 | `docs/status.md` | what works, what is missing, the known bugs and the tech debt — **read before planning a sprint** |
-| `docs/lessons.md` | the 73 habits this codebase paid for, grouped by what you are about to change |
+| `docs/lessons.md` | the habits this codebase paid for, grouped by what you are about to change |
 | `docs/architecture.md` | how the modules fit together |
 | `docs/app-structure.md` | the screens, the modes and the tabs, as built |
 | `docs/ai-boundaries.md` | exactly what a model is and is not allowed to decide |
@@ -188,7 +188,7 @@ python -m eesti.cli harvest-exam     # official EIS tasks (pointers)
 python -m eesti.cli ingest FILE      # your own material: a text file, or JSON items
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion
-pytest tests/ -q                     # 1 486 in-process; 72 more need a browser
+pytest tests/ -q                     # ~1 690 in-process; ~144 more need a browser
 ```
 
 `deploy/setup.sh`, `deploy/push-content.sh`, `deploy/reset-progress.sh` all run
@@ -197,8 +197,8 @@ in Cloud Shell and discover the project, service and region themselves.
 ## Habits this codebase has earned the hard way
 
 They are in **`docs/lessons.md`**, in eight groups, unchanged. They were in
-this file until it reached 48 KB, which meant a session read all 73 before
-doing anything and in practice read none of them.
+this file until it reached 48 KB, which meant a session read every one of them
+before doing anything and in practice read none of them.
 
 Read the group that matches the change you are making:
 

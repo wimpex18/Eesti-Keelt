@@ -777,6 +777,49 @@ get a token, which of the three surfaces (Cloud Run, Actions, `.env`) needs it,
 and the command that turns the lane into a score. Until somebody runs step 3,
 this stays unmeasured, and this paragraph says so on purpose.
 
+### The eval scored a prompt the app does not ship
+
+`evals/gec.py` carries a comment recording the failure its prompt was built to
+fix: on the first real run a model flagged **four of eight already-correct
+sentences**. The fix was three mechanisms — rules stated positively, worked
+examples that include correct sentences, ambiguity resolved toward silence.
+
+All three went into the eval's prompt. `providers/grammar.py` — the prompt the
+learner actually meets — carried one line of it (*"Do not invent errors"*). The
+two had drifted on precisely the axis the eval measures, so a good eval score
+was a score for a different prompt, and the production prompt's real behaviour
+on already-correct Estonian was never measured at all.
+
+The object-case rules and the say-nothing instruction are now in both, lifted
+verbatim rather than paraphrased. The worked examples are deliberately **not**
+copied across: the production contract has a fourth field (`why`, in Russian)
+that the eval's three-field examples would contradict.
+
+`tests/test_provider_chain.py` holds the shared half in both and asserts the
+halves that must differ still differ — a guard that could be satisfied by making
+the two prompts identical would break what it was written to protect.
+
+**Not yet verified:** that this improves the production checker. The change
+lengthens the prompt the learner meets, and the honest test is the eval set run
+against both prompts on one lane. That has not happened, and this paragraph says
+so rather than implying it has.
+
+### A lane was sent a parameter its own model rejects
+
+`providers/llm.py` put `temperature: 0` on every request to every lane.
+Sampling parameters are **removed** on `claude-sonnet-5`, the model this file
+pins for its own `anthropic` lane, and return 400 on Anthropic's native API.
+
+Nothing was failing: that lane has no key set and sits last in `LLM_PREFERENCE`.
+It is the shape of a fault caught before it fires — and the same shape that cost
+a day on the `huggingface` lane, where a parameter no provider supported came
+back as `model_not_supported` and sent the diagnosis to the model id.
+
+Fixed with the per-provider capability flag that lane already established:
+`Provider.sampling`, false for `anthropic` only. `temperature: 0` stays
+everywhere else — grading here is deterministic, and the flag exists to stop a
+lane being sent what it refuses, never to make an answer less repeatable.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

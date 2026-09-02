@@ -186,6 +186,24 @@ because the other branch keeps working, so the feature looks finished.
   because it does not ask for JSON mode. When a third party names a cause, ask
   whether it is able to name a *different* one at all.
 
+- **A prompt is a per-model artifact, and two copies of one drift on the axis
+  you measure.** `evals/gec.py` recorded a real failure — a model flagging four
+  of eight already-correct sentences — and the mitigation for it: state the
+  rules positively, make silence the easy answer. That went into the *eval's*
+  prompt. The prompt the learner actually meets kept one line of it. So the
+  eval's number was a number for a prompt this app does not ship, on exactly
+  the contrast the eval exists to measure. Where two prompts share a job, the
+  shared half is asserted in both (`tests/test_provider_chain.py`), and the
+  halves that must differ — this one asks for a Russian `why` — are asserted to
+  still differ, so the guard cannot be satisfied by making them identical.
+
+- **Pressure language is not cruft when the model is small.** One system prompt
+  here reaches six lanes, from `claude-sonnet-5` down to an 8B Llama fine-tune.
+  An emphatic line written because a free 27B invented errors is dead weight on
+  the largest lane and the floor on the smallest, so "trim the shouting" is the
+  wrong instinct in a provider-portable prompt: trim what no run ever justified,
+  and keep what a run did — with the run named beside it, as `gec.py` does.
+
 ## Derived, never hand-maintained
 
 A list of things that already exist somewhere drifts from them silently,

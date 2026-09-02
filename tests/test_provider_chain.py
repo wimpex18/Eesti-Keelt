@@ -511,3 +511,119 @@ class TestTheEvalSaysWhyItCouldNotMeasure:
             assert "type(exc).__name__" not in code, (
                 f"{module.__name__} still renders the exception class and "
                 f"drops the provider's reason")
+
+
+class TestALaneIsNotSentAParameterItRejects:
+    """`temperature: 0` went to every lane, including one that rejects it.
+
+    Sampling parameters are *removed* on `claude-sonnet-5` — the model this
+    project pins for its own `anthropic` lane — and return 400 on Anthropic's
+    native API. The lane is unused today (no key), so nothing was failing; this
+    is the shape of a fault, caught before it fires, and it is the same shape
+    that cost a day on the `huggingface` lane: a request parameter the provider
+    could not accept, answered with an error that named something else.
+
+    `temperature: 0` stays everywhere else. Grading here is deterministic, and
+    the flag exists so a lane is not sent what it refuses — never to make an
+    answer less repeatable.
+    """
+
+    @staticmethod
+    def _capture(monkeypatch, provider, env):
+        import json
+
+        sent = {}
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            @staticmethod
+            def read():
+                return json.dumps(
+                    {"choices": [{"message": {"content": "{}"}}]}).encode()
+
+        def fake_urlopen(req, timeout=None):
+            sent.update(json.loads(req.data))
+            return _Resp()
+
+        monkeypatch.setenv(env, "not-a-real-key")
+        monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+        from eesti.providers.llm import complete
+
+        complete(provider, "sys", "user")
+        return sent
+
+    def test_the_anthropic_lane_sends_no_temperature(self, monkeypatch):
+        assert "temperature" not in self._capture(
+            monkeypatch, "anthropic", "ANTHROPIC_API_KEY")
+
+    def test_every_other_lane_still_pins_it_to_zero(self, monkeypatch):
+        """The other half. Dropping the parameter outright would also make the
+        assertion above pass, and would quietly cost five lanes the determinism
+        this project is built on."""
+        assert self._capture(
+            monkeypatch, "openrouter", "OPENROUTER_API_KEY")["temperature"] == 0
+
+    def test_the_flag_says_which(self):
+        from eesti.providers.llm import PROVIDERS
+
+        assert PROVIDERS["anthropic"].sampling is False
+        for name, provider in PROVIDERS.items():
+            if name != "anthropic":
+                assert provider.sampling is True, name
+
+
+class TestTheTwoPromptsDoNotDriftApart:
+    """The eval scored a prompt the app does not ship.
+
+    `evals/gec.py` documents a real failure — a model flagging four of eight
+    already-correct sentences — and the mitigation it names: state the rules
+    positively, and make silence the easy answer. That went into the *eval's*
+    prompt only. The prompt the learner meets carried one line of it.
+
+    So the eval's number was a number for a different prompt, on the one axis
+    the eval exists to measure. These assertions do not make the two prompts
+    identical — they have different contracts, and `gec.SYSTEM` has no `why`
+    field — they hold the shared half in place.
+    """
+
+    #: Lifted from the rules block, not restated. A sentence changed in one
+    #: prompt and not the other is the drift this class exists to catch.
+    SHARED = (
+        'Completed action, whole object -> GENITIVE (omastav). "Ma ostsin uue auto" is',
+        'Ongoing, repeated, or partial action -> PARTITIVE (osastav). "Ma sõin suppi"',
+        'Negation -> ALWAYS PARTITIVE. "Ma ei ostnud piletit" is CORRECT.',
+    )
+
+    def test_both_prompts_state_the_object_case_rules(self):
+        from eesti.evals.gec import SYSTEM
+        from eesti.providers.grammar import SYSTEM_PROMPT
+
+        for line in self.SHARED:
+            assert line in SYSTEM, f"eval prompt lost: {line}"
+            assert line in SYSTEM_PROMPT, f"production prompt lost: {line}"
+
+    def test_both_resolve_ambiguity_toward_saying_nothing(self):
+        """The mitigation itself. Without it the checker invents errors, and a
+        checker that invents errors teaches that every partitive is a mistake —
+        which `docs/status.md` names as worse than no checker."""
+        from eesti.evals.gec import SYSTEM
+        from eesti.providers.grammar import SYSTEM_PROMPT
+
+        for prompt in (SYSTEM, SYSTEM_PROMPT):
+            assert "already correct" in prompt
+            assert "Never flag a sentence merely because it" in prompt
+
+    def test_the_contracts_are_still_allowed_to_differ(self):
+        """Not a copy. The production prompt asks for a Russian `why`; the eval
+        does not, and must not — an assertion that forced them identical would
+        break the thing it was written to protect."""
+        from eesti.evals.gec import SYSTEM
+        from eesti.providers.grammar import SYSTEM_PROMPT
+
+        assert "RUSSIAN" in SYSTEM_PROMPT
+        assert "RUSSIAN" not in SYSTEM

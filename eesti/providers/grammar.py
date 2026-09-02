@@ -20,10 +20,40 @@ from typing import Protocol
 from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR
 from . import breaker
 
+# Why the object-case rules and the "most text is already correct" line are
+# stated here and not just in the eval's prompt.
+#
+# `evals/gec.py` records the failure that produced them: on its first real run a
+# model flagged four of eight already-correct sentences -- "Ma ostsin uue auto",
+# "Ma sõin suppi". The fix was to state the rules *positively*, so a correct
+# genitive is recognisably correct rather than merely un-flagged, and to resolve
+# ambiguity toward saying nothing.
+#
+# That fix went into the eval's prompt and not into this one, which is the
+# prompt the learner actually meets. The two had drifted apart on exactly the
+# axis the eval measures, so a good eval score was a score for a prompt this app
+# does not ship. A checker that invents errors teaches that every partitive is a
+# mistake, which is worse than no checker at all.
+#
+# The worked examples are deliberately *not* copied across with them: this
+# prompt's contract has a fourth field (`why`, in Russian) that the eval's
+# three-field examples would contradict, and an example that disagrees with the
+# contract above it is worse than none.
 SYSTEM_PROMPT = """\
 You are an Estonian teacher correcting a Russian-speaking learner preparing for \
 the B1 tasemeeksam. Their #1 documented weakness is object case: using partitive \
 (osastav) where a completed, whole object requires genitive (omastav).
+
+OBJECT CASE — the rules, stated positively:
+- Completed action, whole object -> GENITIVE (omastav). "Ma ostsin uue auto" is
+  CORRECT. "Ma lugesin raamatu läbi" is CORRECT.
+- Ongoing, repeated, or partial action -> PARTITIVE (osastav). "Ma sõin suppi"
+  is CORRECT. "Ta luges raamatut terve õhtu" is CORRECT.
+- Negation -> ALWAYS PARTITIVE. "Ma ei ostnud piletit" is CORRECT.
+
+Most text you see is already correct. Report a correction ONLY where you are
+confident a rule above is broken. Never flag a sentence merely because it
+contains a partitive or a genitive — both are correct in their own context.
 
 Return ONLY valid JSON:
 {"corrections":[{"wrong":"...","correct":"...","why":"...","tag":"..."}]}
