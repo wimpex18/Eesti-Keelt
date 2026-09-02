@@ -34,6 +34,50 @@ Free tiers, from the current comparisons:
 
 There is no unlimited free tier in 2026; every one carries rate limits and no SLA.
 
+### Recommendation — superseded 2026-09-02, and the argument is why
+
+**Current answer: EstLLM first, free tiers behind it, no paid lane at all.**
+
+The recommendation below argued the opposite — a paid frontier model as the
+primary, free tiers fit only for "bulk, low-stakes, non-authoritative jobs". It
+is kept rather than deleted because **its reasoning is what overturned it**, and
+a reader who meets only the conclusion cannot tell a decision from a default.
+
+Its own second caveat was the load-bearing one:
+
+> *"Estonian is a low-resource language. Frontier-model quality gaps widen on
+> Estonian morphosyntax exactly where this app is pointed."*
+
+That was an argument for paying only while no Estonian-adapted model was
+reachable. One is now: `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`, from the
+University of Tartu, in two lanes — `local` (a `Q4_K_M` GGUF, free and private)
+and `huggingface` (the same weights, hosted, routed to featherless-ai). The
+section further down that called this family *"too heavy for a laptop... worth
+revisiting if a smaller distilled version appears"* is the prediction that came
+true; the distilled version is what `PROVIDERS["local"]` pins.
+
+So the caveat now argues **against** the recommendation it was written to
+support. Paying a frontier model for Estonian morphosyntax buys the weakest axis
+of the most expensive option.
+
+What survives from the original unchanged:
+
+- **Mistral's free tier requires training opt-in**, and the text here is a
+  language diary. Still disqualifying, still for the same reason.
+- **Free tiers are rate-limited with no SLA.** True, and handled by the chain
+  rather than by a credit card: any lane whose key is unset is skipped, and
+  Vabamorf's offline mode answers when every lane is spent.
+- **Quality matters disproportionately** because a wrong grammar explanation
+  gets memorised. That is now an argument for the Estonian-tuned model, and for
+  measuring it: `python -m eesti.cli eval --provider huggingface`.
+
+What is **not** claimed: that EstLLM beats the free general models on this task.
+That is a measurement, it has not been made, and `docs/status.md` says so. The
+lane is ordered first on the argument above, not on a number.
+
+<details>
+<summary>The superseded recommendation, verbatim</summary>
+
 ### Recommendation
 
 **Primary: a paid frontier model, but only on the free-text path.** At a few
@@ -62,6 +106,8 @@ grammatical error correction, published by the University of Tartu. Too heavy fo
 a laptop (7B class, needs a GPU), but it is the only *Estonian-tuned* option and
 would remove the low-resource concern entirely. Worth revisiting if a smaller
 distilled version appears.
+
+</details>
 
 ## Verified provider table (probed August 2026)
 

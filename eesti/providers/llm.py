@@ -66,22 +66,6 @@ class Provider:
     #: valid JSON" and `parse_json` already tolerates a fenced block, because
     #: providers were returning prose-wrapped JSON long before this.
     json_mode: bool = True
-    #: Does this lane accept `temperature`?
-    #:
-    #: Sampling parameters -- `temperature`, `top_p`, `top_k` -- are *removed*
-    #: on `claude-sonnet-5`, the model this file pins for its own `anthropic`
-    #: lane, and return 400 on Anthropic's native API. Whether the
-    #: OpenAI-compatibility endpoint this `base_url` targets rejects them or
-    #: quietly ignores them is not something this repository can settle without
-    #: a key, so the flag follows what the model documents rather than what the
-    #: shim might forgive. The lane is unused today; this is the day the key is
-    #: set, not a bug anybody is hitting.
-    #:
-    #: `temperature: 0` stays the default everywhere else. Grading here is
-    #: deterministic and that is the one property that must not break -- the
-    #: flag exists to keep a lane from being sent a parameter it rejects, never
-    #: to make an answer less repeatable.
-    sampling: bool = True
 
     @property
     def model(self) -> str:
@@ -265,14 +249,6 @@ PROVIDERS: dict[str, Provider] = {
         "Free and private. Only reachable where the server is: localhost for "
         "`cli serve`, or a tunnel for the deployment.",
     ),
-    "anthropic": Provider(
-        "anthropic",
-        "https://api.anthropic.com/v1",
-        "ANTHROPIC_API_KEY",
-        "claude-sonnet-5",
-        "Paid. Cents/month at a few checks a day.",
-        sampling=False,
-    ),
 }
 
 
@@ -367,13 +343,13 @@ def complete(
             {"role": "user", "content": user},
         ],
         "max_tokens": max_tokens,
+        # Grading here is deterministic and that is the one property that must
+        # not break. Every remaining lane is OpenAI-compatible and accepts it;
+        # the one that did not -- `anthropic`, where sampling parameters are
+        # removed on `claude-sonnet-5` -- was deleted rather than special-cased,
+        # so the per-provider flag that briefly guarded it went with it.
+        "temperature": 0,
     }
-    # Determinism where the lane accepts it. A lane that rejects the parameter
-    # is not sent it: `temperature` is not worth a 400 whose message names
-    # something else, which is exactly how the `huggingface` lane's JSON mode
-    # cost a day.
-    if provider.sampling:
-        payload["temperature"] = 0
     # Both must agree: the caller wants JSON, and the lane can ask for it. A
     # provider that cannot is not asked, and is told in the prompt instead.
     if json_mode and provider.json_mode:

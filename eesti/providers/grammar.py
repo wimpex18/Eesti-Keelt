@@ -183,8 +183,9 @@ class LLMGrammar:
     Primary engine in practice: the only option that explains in Russian and can
     assign tags that group with the existing error log.
 
-    Works against any OpenAI-compatible provider (OpenRouter, Groq, Workers AI,
-    Anthropic) so the deployment target can change without touching this class.
+    Works against any OpenAI-compatible provider (EstLLM on Hugging Face or a
+    local server, OpenRouter, Groq, Workers AI) so the deployment target can
+    change without touching this class.
     Which one to prefer is a quality question, not a taste one — run
     `python -m eesti.cli eval --provider X` before switching.
     """
@@ -269,8 +270,8 @@ class VabamorfFallback:
             note=(
                 "Офлайн-режим: показаны кандидаты на obj-case и опечатки, "
                 "но без проверки правильности. Для полного разбора задай ключ "
-                "любого провайдера: OPENROUTER_API_KEY, GROQ_API_KEY, "
-                "CLOUDFLARE_API_TOKEN или ANTHROPIC_API_KEY."
+                "любого провайдера: HF_TOKEN, OPENROUTER_API_KEY, "
+                "GROQ_API_KEY или CLOUDFLARE_API_TOKEN."
             ),
         )
 
@@ -357,8 +358,7 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 # exactly that reason. Anything added to `PROVIDERS` and not to this tuple is
 # dead weight; a test asserts the two agree, which is what forced this line to
 # be edited when the provider came back.
-LLM_PREFERENCE = ("local", "huggingface", "openrouter", "groq", "workers-ai",
-                  "anthropic")
+LLM_PREFERENCE = ("local", "huggingface", "openrouter", "groq", "workers-ai")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:

@@ -18,7 +18,7 @@ integration.
 | Selges keeles | `harvest/selges.py` — 349 texts, 100 % Estonian |
 | ERR Raadio 4 | `harvest/err.py` — **but only 1 of 3 series** (see below) |
 | TartuNLP TTS | `providers/tts.py` |
-| OpenRouter / Groq / Workers AI / Anthropic | `providers/llm.py` |
+| EstLLM (local / Hugging Face) / OpenRouter / Groq / Workers AI | `providers/llm.py` |
 | EKK handbook | `grammar.py` — 7 rules → sections |
 
 ## Overlooked — registered or fetched, never used

@@ -70,14 +70,17 @@ is not presence of data" mistake in a new place.
 
 ### Only one grammar provider is actually configured
 
-The chain is built for redundancy across five providers and has none: the deep
-smoke check on 2026-08-22 read `llm:openrouter: HTTPError 429` with `groq`,
-`workers-ai` and `anthropic` all `unavailable` — no key. So the writing check
-falls to `vabamorf-offline` whenever the one free tier is spent, which for a
-50/day allowance is a normal Tuesday rather than an incident.
+The chain is built for redundancy and has had none: the deep smoke check on
+2026-08-22 read `llm:openrouter: HTTPError 429` with every other lane
+`unavailable` — no key. So the writing check falls to `vabamorf-offline`
+whenever the one free tier is spent, which for a 50/day allowance is a normal
+Tuesday rather than an incident.
 
-Nothing to fix in code: a second key is an operator action, and adding one
-would make the chain do what it was designed to do.
+**`HF_TOKEN` is now set in Actions**, so the `huggingface` lane — EstLLM, and
+the lane the chain prefers over every general model — has a key for the first
+time. Whether it *answers* is unmeasured: the first two attempts failed on a
+request-shape fault, since fixed. Nothing to fix in code; the remaining step is
+an eval run, and it is an operator action.
 
 ## What was never built
 
@@ -804,7 +807,7 @@ lengthens the prompt the learner meets, and the honest test is the eval set run
 against both prompts on one lane. That has not happened, and this paragraph says
 so rather than implying it has.
 
-### A lane was sent a parameter its own model rejects
+### A lane was sent a parameter its own model rejects — *and then the lane went*
 
 `providers/llm.py` put `temperature: 0` on every request to every lane.
 Sampling parameters are **removed** on `claude-sonnet-5`, the model this file
@@ -815,10 +818,63 @@ It is the shape of a fault caught before it fires — and the same shape that co
 a day on the `huggingface` lane, where a parameter no provider supported came
 back as `model_not_supported` and sent the diagnosis to the model id.
 
-Fixed with the per-provider capability flag that lane already established:
-`Provider.sampling`, false for `anthropic` only. `temperature: 0` stays
-everywhere else — grading here is deterministic, and the flag exists to stop a
-lane being sent what it refuses, never to make an answer less repeatable.
+Fixed with a per-provider capability flag, `Provider.sampling`, false for
+`anthropic` only.
+
+**That flag no longer exists.** Hours later the `anthropic` lane itself was
+deleted (next entry), and with its only user gone the flag was a capability no
+provider sets — the exact defect it had been added to prevent elsewhere.
+`temperature: 0` is unconditional again.
+
+Kept here because the finding was real and the sequence is the point: a fossil
+worth a flag on Tuesday is worth a deletion on Wednesday, and a flag that
+outlives its one user becomes the thing it was guarding against.
+
+### The paid lane is gone, and the docs that planned around it are corrected
+
+`anthropic` was the chain's paid backstop: last in `LLM_PREFERENCE`, never
+keyed, never called. Deleted — the app runs on free tiers and an
+Estonian-adapted model, and an option nobody chose still shapes what the next
+sprint plans around.
+
+`Provider.sampling` went with it. That flag was added hours earlier, in the
+prompt audit, for exactly one reason: `claude-sonnet-5` rejects `temperature`.
+With the lane gone it was a capability no provider sets — the defect it was
+added to prevent elsewhere. `temperature: 0` is unconditional again.
+
+**The deletion was the easy half.** Two documents a session plans from
+contradicted the code, on the point the decision turned on:
+
+- `docs/architecture.md` gave the preference order as OpenRouter → Groq →
+  Workers AI → Anthropic, **omitting both EstLLM lanes entirely** — the two the
+  chain actually tries first.
+- `docs/ai-strategy.md` recommended *"Primary: a paid frontier model"*, and its
+  Estonian section called the TartuNLP fine-tune *"too heavy for a laptop...
+  worth revisiting if a smaller distilled version appears"*. That version
+  exists, is wired, and is what `PROVIDERS["local"]` pins.
+
+Both corrected. The superseded recommendation is kept verbatim behind a
+`<details>` rather than deleted, because its own caveat — Estonian is
+low-resource, frontier gaps widen exactly where this app points — is the
+argument that overturned it, and a conclusion without its argument reads as a
+default.
+
+### The eval now scores the prompt the app ships
+
+`evals/gec.py` defined a near-copy of the production prompt: same job, three
+fields instead of four, its own worked examples. The prompt audit found the two
+had drifted on precisely the axis the eval measures and copied the missing
+mitigation across; that narrowed the gap without closing it.
+
+It imports `providers.grammar.SYSTEM_PROMPT` now. One prompt, one number, and a
+change to what the learner meets is measured by the next run rather than by a
+test asserting two files still agree. Safe because `_flagged` reads only
+`corrections[].wrong`, so the shipped contract's Russian `why` is read past.
+
+The drift guard added alongside it is deleted: one prompt cannot drift from
+itself, and a test that asserts a thing equals itself can never fail, which is
+worse than no test because it reads like coverage. What replaces it asserts that
+no *second* prompt is defined alongside — the failure that could recur.
 
 ## Known bugs and rough edges
 
@@ -903,11 +959,13 @@ the build stamp on `/api/health` rather than assumed from a green workflow.
    and cannot explain anything. That contradiction cost a debugging round once
    before; the cheap check says "configured (live call unproven)" now.
 
-   And the chain has no redundancy to fall back on — `groq`, `workers-ai` and
-   `anthropic` are all `unavailable`, meaning no key. One 50/day free tier is
-   the whole grammar checker. **A second provider key is the highest-value
-   operator action available**, and it is an operator action: no code change
-   would help, and a credential must never come through this session.
+   And the chain had no redundancy to fall back on — one 50/day free tier was
+   the whole grammar checker. `HF_TOKEN` has since been set, which gives the
+   chain its preferred lane rather than merely a second one. **Running the eval
+   against it is now the highest-value operator action available**: it is the
+   only thing that turns that lane from ordered-first-on-an-argument into
+   ordered-first-on-a-number, and it is an operator action — a credential must
+   never come through this session.
 2. **Re-harvest locally** so `content.db` is whole again and local measurements
    mean something. Still open, and now measured: local holds 349 Selges keeles
    texts and **nothing else** — no ERR radio, no Lihtsad uudised, no HARNO, no

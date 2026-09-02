@@ -9,8 +9,6 @@ estnltk==1.7.5
 fastapi>=0.115        # local web app
 uvicorn[standard]>=0.30
 
-# Optional — the grammar checker degrades gracefully without it.
-# anthropic>=0.40
 fsrs>=6.0                # FSRS-6 spaced repetition (MIT)
 
 # Starlette's TestClient transport. It asks for `httpx2` now and warns on every

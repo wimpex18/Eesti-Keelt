@@ -220,3 +220,70 @@ class TestTheModelChoiceIsDefensibleWithoutAnEval:
         workflow = (Path(__file__).resolve().parent.parent
                     / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8")
         assert llm.PROVIDERS["openrouter"].default_model in workflow
+
+
+class TestNoLaneCostsMoney:
+    """The `anthropic` lane is gone, and nothing quietly replaces it.
+
+    It was the chain's paid backstop, sitting last, keyless, unused. The
+    decision that removed it is a product one — this app runs on free tiers and
+    an Estonian-adapted model, not on a frontier model's invoice — and a
+    decision that lives only in a deleted diff is a decision the next sprint
+    re-litigates by accident.
+
+    Asserted through `free_note`, which every `Provider` already carries, rather
+    than through a second list of paid vendors. A list of things that exist
+    elsewhere is the other bug this repository keeps having.
+    """
+
+    def test_every_lane_documents_a_free_way_in(self):
+        for name, provider in llm.PROVIDERS.items():
+            assert provider.free_note, f"{name} says nothing about its tier"
+            assert not provider.free_note.lower().startswith("paid"), (
+                f"{name} is a paid lane — that is a product decision, not a "
+                f"provider addition")
+
+    def test_the_deleted_lane_stays_deleted(self):
+        assert "anthropic" not in llm.PROVIDERS
+        assert "anthropic" not in grammar.LLM_PREFERENCE
+
+    def test_its_key_is_no_longer_one_the_app_reads(self):
+        """A key in `KNOWN_KEYS` with no reader is a key `cli keys` invites the
+        operator to set, and `deploy/set-llm-key.sh` accepts, for a lane that
+        does not exist."""
+        from eesti.env import KNOWN_KEYS
+
+        assert "ANTHROPIC_API_KEY" not in KNOWN_KEYS
+
+
+class TestTheEstonianLanesComeFirstAsABlock:
+    """The chain's order *is* the routing decision, and it is the whole of it.
+
+    There is one production LLM use case — the grammar check — so the split
+    between "the Estonian model" and "the general models" is not a dispatcher
+    somewhere; it is these five names in this order. `local` and `huggingface`
+    run the same Estonian-adapted weights and differ only in who pays and who
+    can read the request, so they lead as a pair; everything behind them is a
+    general-purpose model that has been measured failing Estonian object case.
+
+    The existing tests pin two individual inequalities. This pins the shape, so
+    inserting a general lane between the two Estonian ones fails here rather
+    than in a learner's explanation six weeks later.
+    """
+
+    ESTONIAN = ("local", "huggingface")
+
+    def test_they_are_the_first_two(self):
+        assert grammar.LLM_PREFERENCE[:2] == self.ESTONIAN
+
+    def test_nothing_general_purpose_is_wedged_between_them(self):
+        order = list(grammar.LLM_PREFERENCE)
+        assert order.index("huggingface") - order.index("local") == 1
+
+    def test_they_run_the_same_model(self):
+        """Which is why they are a block and not two independent preferences.
+        `local` pins the GGUF build; `huggingface` pins the original repo."""
+        local = llm.PROVIDERS["local"].default_model
+        hosted = llm.PROVIDERS["huggingface"].default_model
+        assert "EstLLM-8B-Instruct-1125" in local
+        assert "EstLLM-8B-Instruct-1125" in hosted

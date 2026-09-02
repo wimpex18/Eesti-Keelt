@@ -85,10 +85,25 @@ Providers are interchangeable behind one OpenAI-compatible client
 (`eesti/providers/llm.py`), so the deployment target can change without touching
 the grammar logic. Preference order, skipping any whose key is unset:
 
-1. **OpenRouter** — one key, 412 models, 15 currently `:free`.
-2. **Groq** — fastest inference, generous free tier.
-3. **Workers AI** — runs *inside* Cloudflare: no egress, no third-party key.
-4. **Anthropic** — paid backstop for quality.
+1. **`local`** — EstLLM as a GGUF on a machine you own. Free, private, unmetered.
+2. **`huggingface`** — the *same* Estonian-adapted weights, hosted, via `HF_TOKEN`.
+3. **OpenRouter** — one key, 412 models, 15 currently `:free`.
+4. **Groq** — fastest inference, generous free tier.
+5. **Workers AI** — runs *inside* Cloudflare: no egress, no third-party key.
+
+**The order is the routing decision, and it is the whole of it.** There is one
+production LLM use case — judging and explaining a free-text sentence — so there
+is no dispatcher; there is this list. The two Estonian lanes lead because the
+documented weakness is object case and every general-purpose model here has been
+measured failing it; they lead *as a pair* because they run the same model and
+differ only in who pays and who can read the request. Everything behind them is
+a general model standing in when neither is configured.
+
+There is no paid lane. There was one — `anthropic`, keyless and last — and it
+was deleted rather than left as an option, because an option nobody chose still
+shapes what the next sprint plans around. `tests/test_ai_providers.py` asserts
+both halves: no provider whose own `free_note` says "Paid", and the Estonian
+pair first.
 
 **Probe before pinning.** Model ids are withdrawn silently, and a withdrawn
 `:free` id is the worst case because the paid one with the same name keeps
