@@ -655,6 +655,15 @@ Every one of these reported healthy while production was not.
   and the service worker's hand-edited cache version: the wiring looked
   connected and was not.
 
+  **And if event A is filtered more narrowly than event B, the check does not
+  fire at all.** Found three commits later, in the same workflow. `deploy` is
+  filtered to Worker paths; Cloud Build rebuilds on every push to `main`; so
+  every merge touching only `eesti/`, `tests/` or `docs/` redeployed the app
+  with no check running — `deploy` had 8 runs against roughly 17 merges. The
+  first half of this lesson makes a check honest about *what* it looked at; it
+  says nothing about whether it ran. Ask both: does this fire on every change to
+  the thing it checks, and does it look at the version that change produced?
+
 - **"No answer" and "a blank answer" are different, and collapsing them
   fabricates data.** `_ask_terminal` caught `EOFError` and `KeyboardInterrupt`
   and returned `""`. `""` grades as wrong, so `cli placement </dev/null` wrote

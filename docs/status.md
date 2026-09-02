@@ -593,6 +593,51 @@ subprocesses, derived from `READ_ONLY` rather than restated, comparing the
 learner's four databases **byte for byte** — a command that added one row and
 removed another would pass a row count.
 
+### Most merges deployed with nothing checking the deployment
+
+Found immediately after shipping the staleness warning above, which is the
+point: that fix made the smoke run honest about *which* image it saw, and this
+is the discovery that on most merges it never ran at all.
+
+Cloud Build rebuilds the image on **every** push to `main`. `smoke` fires on
+`workflow_run: [deploy] completed`, and `deploy` is filtered to Worker paths:
+
+```yaml
+paths: [deploy/**, wrangler.jsonc, package.json, package-lock.json,
+        .github/workflows/deploy.yml]
+```
+
+| a merge touches | image rebuilt? | `deploy` runs? | `smoke` runs? |
+|---|---|---|---|
+| Worker paths | yes | yes | yes — ~1 min later, so it sees the **old** image |
+| **anything else** | **yes** | no | **no. Nothing verified the deployment** |
+
+Measured when this was found: **`deploy` had 8 runs against roughly 17 merges
+to `main`.** Half the deploys of this app had never been checked by anything.
+Two costs already paid — the Python 3.13 image went ten hours unverified after
+PR #30, and PR #31, a Python change, produced no smoke run whatsoever.
+
+`smoke` now also runs **daily**, so any merge is checked within a day whatever
+it touched. Deliberately not `push: branches: [main]`: that fires within a
+minute of every merge, always before Cloud Build finishes, so every run would
+warn STALE and the warning would become the thing people scroll past — the
+exact failure it was written to avoid.
+
+A scheduled run has no triggering commit, so it asks the API for `main`'s head
+and compares against that; a failed lookup warns rather than failing, because
+somebody else's bad minute is not this app's outage.
+
+**The two stale cases are diagnosed differently, because they are different.**
+Minutes after a merge, an older image means Cloud Build has not finished —
+come back shortly. A day later, on the schedule, it means the build **failed or
+never ran**, and telling somebody to "re-run in a few minutes" would send them
+somewhere there is nothing to find.
+
+**Unverified until it has happened:** that the schedule fires and reports a
+post-merge image. That takes a day, and all seven branches were driven under
+`bash -e` against the script extracted from the real workflow with a stubbed
+`curl` — which is not the same as the cron having run.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
