@@ -55,14 +55,18 @@ def cmd_placement(args: argparse.Namespace) -> int:
 def cmd_test_out(args: argparse.Namespace) -> int:
     """Skip one topic you already know, by demonstrating it."""
     from ..curriculum import by_id
-    from ..placement import PROBE_REQUIRED, probe
+    from ..placement import PROBE_REQUIRED, Stopped, probe
     from ..progress import connect
 
     progress = connect(learner_db(args, "progress_db"))
     meta = by_id(args.topic)
     print(f"\nTest-out: {meta.level}  {meta.et}")
 
-    result = probe(progress, args.topic, _ask_terminal, seed=args.seed)
+    try:
+        result = probe(progress, args.topic, _ask_terminal, seed=args.seed)
+    except Stopped:
+        print("\nstopped — nothing was marked known.")
+        return 0
     if not result.ran:
         print(f"\nnot probed: {result.skipped}")
         return 1
@@ -135,6 +139,7 @@ def cmd_review(args: argparse.Namespace) -> int:
 def cmd_checkpoint(args: argparse.Namespace) -> int:
     """A mixed quiz across a whole level — interleaved by construction."""
     from ..checkpoint import PASS_MARK, ready, run, topics_at
+    from ..placement import Stopped
     from ..progress import connect as progress_connect
     from ..review import connect as review_connect
 
@@ -157,8 +162,13 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     print(f"\n{args.level} checkpoint: {args.count} questions across "
           f"{len(topics)} topics, mixed.\nNo hint which rule applies — that is "
           "the point.\n")
-    result = run(progress, args.level, _ask_terminal, count=args.count,
-                 seed=args.seed, reviews=reviews)
+    try:
+        result = run(progress, args.level, _ask_terminal, count=args.count,
+                     seed=args.seed, reviews=reviews)
+    except Stopped:
+        print("\nstopped — no checkpoint recorded. What you answered is kept "
+              "as ordinary practice.")
+        return 0
     print(f"\n{result.correct}/{result.asked} — {result.score:.0%} "
           f"(pass is {PASS_MARK:.0%})")
     if result.weakest:

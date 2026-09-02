@@ -36,6 +36,11 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from .config import LEVELS
+# `Ask` is declared separately in both modules, which is a duplication worth
+# noticing but not worth widening here. `Stopped` deliberately is *not*
+# duplicated: two exception classes with one name is how a caller ends up
+# catching the wrong one on the day it matters.
+from .placement import Stopped
 
 # Across a whole level, unprompted, with no clue which rule applies. Harder than
 # a blocked topic set at the same number, so the bar is lower.
@@ -188,6 +193,19 @@ def run(
     by_topic: dict[str, list[int]] = {}
     correct = 0
     for item in items:
+        # `Stopped` is deliberately not caught here and propagates to the
+        # caller. An abandoned checkpoint is not a failed one: the row below
+        # feeds the readiness verdict, and a sitting that never happened must
+        # not lower it. Leaving by exception is what keeps that row unwritten
+        # and the un-shown items out of the review queue.
+        #
+        # Returning an empty CheckpointResult instead was tried and is wrong --
+        # it is the value this function already returns for "no items could be
+        # built", so two different outcomes would arrive looking identical, and
+        # `score` divides by `asked`.
+        #
+        # Whatever was answered before the stop stays recorded as ordinary
+        # attempts, because those were real answers.
         given = ask(item)
         ok = item.check(given)
         correct += ok

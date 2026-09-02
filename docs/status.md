@@ -548,6 +548,51 @@ people learn to scroll past. It stays silent on a manual dispatch, where
 against. All five branches were driven under `bash -e` against the real
 extracted script — `bash -n` has been wrong in this file before.
 
+### `cli placement` wrote fifteen wrong answers nobody gave
+
+Found by asking a question the documents already pose: *has the practice number
+moved?* This container's `data/progress.db` held **15 attempts**, all
+`kusisonad`, all `correct=0`, all with an empty answer, in three bursts of five
+— on a machine where nobody has ever studied.
+
+`cli placement` wrote them. It is in the CLI's own **`READ_ONLY`** list, and
+that name is a promise.
+
+One line caused it. `_helpers._ask_terminal` caught `EOFError` and
+`KeyboardInterrupt` and returned `""` — and `""` is not "no answer", it is a
+**wrong answer**. Every consumer of the `Ask` contract then graded and recorded
+items the learner never saw:
+
+| | |
+|---|---|
+| `cli placement </dev/null` | a whole fabricated failed sweep, 15 attempts |
+| Ctrl-C during a sweep | did not leave. `cmd_placement` prints "Ctrl-C to leave early"; the interrupt became a blank answer and the sweep went on marking topics wrong |
+| `cli checkpoint` | the same, plus a **failed checkpoint row**, plus every un-shown item pushed into the review queue |
+
+Not cosmetic. Wrong answers fill the accuracy window that gates mastery, and
+the checkpoint row feeds the **readiness verdict** — the one that decides
+A2-then-B1 against B1-alone in 2027. A record of practice nobody did makes the
+learner look worse than they are, which is the direction that costs something.
+
+`placement.Stopped` is the fix: the absence of an answer is its own signal and
+it ends the session. An exception rather than a returned sentinel, because a
+caller that forgets to check a `None` grades it as wrong, which is the bug
+again. `probe` lets it propagate, `sweep` catches it and returns what it
+genuinely probed, and `checkpoint.run` deliberately does **not** catch it — an
+abandoned checkpoint must not be indistinguishable from "no items could be
+built", which is what the empty `CheckpointResult` already means, and `score`
+divides by `asked`. Answers given before the stop stay recorded, because those
+were real.
+
+**Why 1 500 tests never saw it.** `test_cli_smoke` runs every `READ_ONLY`
+command and asserts each exits clean — but in-process, via `cli.main()`, where
+the autouse fixture redirects all four learner databases. The promise the list
+makes was never tested. Identical blind spot to the phantom word list, and the
+same fix: `tests/test_read_only_is_read_only.py` asks the property of real
+subprocesses, derived from `READ_ONLY` rather than restated, comparing the
+learner's four databases **byte for byte** — a command that added one row and
+removed another would pass a row count.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
