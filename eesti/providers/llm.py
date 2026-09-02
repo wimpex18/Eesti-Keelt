@@ -142,8 +142,15 @@ PROVIDERS: dict[str, Provider] = {
         #
         # Still unmeasured on this project's own eval, and said plainly rather
         # than implied: this is the best-evidenced choice available without a
-        # key, not a result. `docs/ai-strategy.md` has the paid upgrade, which
-        # costs about $0.20 a month and is what the evidence actually favours.
+        # key, not a result.
+        #
+        # There is no paid upgrade to point at any more. An earlier note here
+        # recommended one at ~$0.20 a month; that was written when nothing
+        # Estonian-adapted was reachable, and this lane is now the *fallback*
+        # behind EstLLM rather than the best answer available. Paying a general
+        # model for Estonian morphosyntax buys the weakest axis of the most
+        # expensive option -- see `docs/ai-strategy.md`, which keeps the old
+        # recommendation and the argument that overturned it.
         "google/gemma-4-31b-it:free",
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",

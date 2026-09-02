@@ -859,6 +859,30 @@ low-resource, frontier gaps widen exactly where this app points — is the
 argument that overturned it, and a conclusion without its argument reads as a
 default.
 
+### The paid models went too, one level below the paid lane
+
+The lane deletion could not see them: `google/gemini-2.5-flash-lite` and
+`google/gemini-3.7-flash` sat in `eval.yml`'s dropdown **inside** OpenRouter, a
+provider that stays. They cost nothing unless selected, which is exactly why
+they survived a rule stated only at the lane level.
+
+Both are gone, and the rule is now stated at both levels — no provider whose own
+`free_note` says "Paid", and no selectable model that is not a `:free` alias or
+a lane's own pinned default. Derived from data the code already carries rather
+than from a list of vendors that would drift.
+
+Two comments arguing for the upgrade went with them: one in `providers/llm.py`
+pointing at *"the paid upgrade... which is what the evidence actually favours"*,
+and `docs/ai-strategy.md`'s costing section. The section is kept behind a
+`<details>` because the arithmetic was never the objection — it really is cents
+a month. What changed is the comparison: it read *"commercial models excel"*
+against the free **general** models of August 2026, and the option it did not
+have was a model trained on Estonian.
+
+`cli models` also had a silent edge: with no `:free` ids in a catalogue it fell
+back to listing paid ones under the same heading. The fallback is right — that
+is the moment a pin has to move — but it says so now.
+
 ### The eval now scores the prompt the app ships
 
 `evals/gec.py` defined a near-copy of the production prompt: same job, three

@@ -287,3 +287,63 @@ class TestTheEstonianLanesComeFirstAsABlock:
         hosted = llm.PROVIDERS["huggingface"].default_model
         assert "EstLLM-8B-Instruct-1125" in local
         assert "EstLLM-8B-Instruct-1125" in hosted
+
+
+class TestNoModelCostsMoneyEither:
+    """The lane rule, one level down: no *model* the eval can select is paid.
+
+    `TestNoLaneCostsMoney` keeps a paid provider out of the chain. It cannot see
+    a paid model **inside** a free provider, which is where two lived:
+    `eval.yml` offered `google/gemini-2.5-flash-lite` and
+    `google/gemini-3.7-flash` under OpenRouter, commented "what the evidence
+    actually favours… needs credit on the OpenRouter account".
+
+    They cost nothing unless selected, which is exactly why they survived the
+    lane deletion — and why the rule has to be stated at both levels or it is
+    not a rule.
+
+    Derived, not a second list: an option is legitimate if it is the
+    no-model sentinel, an OpenRouter `:free` alias, or a model some provider
+    already pins as its own default. A paid id is none of those.
+    """
+
+    SENTINEL = "(provider default)"
+
+    @staticmethod
+    def _options() -> list[str]:
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        # `on:` is YAML 1.1 boolean true, which is why this is not doc["on"].
+        return doc[True]["workflow_dispatch"]["inputs"]["model"]["options"]
+
+    def test_every_selectable_model_is_free(self):
+        pinned = {p.default_model for p in llm.PROVIDERS.values()}
+        for option in self._options():
+            assert (option == self.SENTINEL
+                    or option.endswith(":free")
+                    or option in pinned), (
+                f"{option} is neither a `:free` alias nor a lane's own pinned "
+                f"default — if it is paid, it does not belong in the menu")
+
+    def test_the_two_that_were_removed_stay_removed(self):
+        text = " ".join(self._options())
+        assert "gemini-2.5-flash-lite" not in text
+        assert "gemini-3.7-flash" not in text
+
+    def test_the_default_selection_is_a_free_one(self):
+        """The dropdown's default is what an operator runs without thinking
+        about it, which makes it the only option that must be right."""
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        default = doc[True]["workflow_dispatch"]["inputs"]["model"]["default"]
+        assert default.endswith(":free")

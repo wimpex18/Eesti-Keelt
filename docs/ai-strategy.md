@@ -302,6 +302,35 @@ different capabilities.** The eval workflow filtered its model list on the
 first and this client sends the second, which is how the largest dense free
 model came to be excluded from consideration entirely.
 
+### The paid upgrade — withdrawn 2026-09-02
+
+**There is no paid option in this app any more, at either level.** The
+`anthropic` lane is deleted, and the two paid OpenRouter model ids the eval
+could select — `google/gemini-2.5-flash-lite`, `google/gemini-3.7-flash` — are
+out of the dropdown. `tests/test_ai_providers.py` asserts both: no provider
+whose own `free_note` says "Paid", and no selectable model that is not a
+`:free` alias or a lane's own pinned default.
+
+The argument below is kept because it was sound, and because what changed was
+not the arithmetic. It is still cents a month. What changed is the comparison:
+it read *"commercial models excel"* against the free **general** models of
+August 2026, and the option it did not have was a model trained on Estonian.
+Spending on a general frontier model for Estonian morphosyntax buys the weakest
+axis of the most expensive choice — the low-resource caveat this same document
+raises three sections above.
+
+It also assumed a paid model would be the *fallback* when free tiers were spent.
+The fallback is now `local`: the same Estonian-adapted weights on a machine you
+own, free, private and unmetered. That is a better answer than a credit card for
+a tool whose whole point is a private error log.
+
+If a measurement ever shows every free lane — EstLLM included — below the
+precision this job needs, reopen this. Reopen it with the number, not with the
+arithmetic: the cost was never the objection.
+
+<details>
+<summary>The withdrawn recommendation, verbatim</summary>
+
 ### The paid upgrade, which is what the evidence actually favours
 
 The Estonian benchmark's finding is that **commercial models excel** — Claude
@@ -328,6 +357,8 @@ OPENROUTER_MODEL=google/gemini-2.5-flash-lite
 It needs credit on the OpenRouter account, which is why it is not the default —
 a default that fails for an account without credit would degrade silently to
 Workers AI and look like nothing had changed.
+
+</details>
 
 **Running the eval, if it is ever wanted.** Nothing needs installing: the
 `eval` workflow has a `workflow_dispatch` trigger, so it runs from the Actions
