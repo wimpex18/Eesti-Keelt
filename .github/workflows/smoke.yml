@@ -43,6 +43,10 @@ jobs:
           CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           DEEP: ${{ inputs.deep }}
+          # Populated only for `workflow_run` — the commit whose deploy fired
+          # this run. Empty on a manual dispatch, where there is no "the change
+          # I just merged" to compare against and the operator chose the moment.
+          TRIGGER_COMMIT_AT: ${{ github.event.workflow_run.head_commit.timestamp }}
         run: |
           if [ -z "$URL" ] || [ -z "$CF_ID" ] || [ -z "$CF_SECRET" ]; then
             echo "::warning::Smoke test not configured. Add WORKER_URL, \
@@ -84,6 +88,41 @@ jobs:
           else
             echo "::warning::The deployed image carries no build stamp — it \
           predates one. Rebuild the container to date it."
+          fi
+
+          # 3b. Is that image older than the commit this run is about?
+          #
+          #     This run fires on `deploy` completing, and `deploy` deploys the
+          #     Worker. The app is a separate container built by a Cloud Build
+          #     trigger on `main`, which nothing here can observe — so the
+          #     smoke run that fires on a merge is looking at the *previous*
+          #     image. Not usually: structurally, every time.
+          #
+          #     Measured on the merge of PR #30. Merge at 20:11:20Z, this run
+          #     fired at 20:12:11Z and reported an image built 14:39:50Z — five
+          #     and a half hours old — and every check under it passed. The new
+          #     image landed at 20:14:20Z, two minutes after the run that was
+          #     supposed to be checking it. A green tick about the wrong
+          #     deployment reads exactly like a green tick about the right one.
+          #
+          #     A warning, never a failure: a stale image inside the build
+          #     window is the normal and correct state, and a check that cried
+          #     wolf on every merge is a check people learn to scroll past.
+          if [ -n "$built" ] && [ -n "$TRIGGER_COMMIT_AT" ]; then
+            built_at="$(date -u -d "$built" +%s 2>/dev/null || echo 0)"
+            commit_at="$(date -u -d "$TRIGGER_COMMIT_AT" +%s 2>/dev/null || echo 0)"
+            if [ "$built_at" -eq 0 ] || [ "$commit_at" -eq 0 ]; then
+              echo "::warning::Could not compare the build stamp ('$built') \
+          with the triggering commit ('$TRIGGER_COMMIT_AT'), so this run cannot \
+          say whether it is looking at the new image."
+            elif [ "$built_at" -lt "$commit_at" ]; then
+              echo "::warning::STALE IMAGE — built $built, before the commit \
+          that triggered this run ($TRIGGER_COMMIT_AT). Cloud Build had not \
+          finished yet, so everything below describes the PREVIOUS deployment, \
+          not the change just merged. Re-run this workflow in a few minutes."
+            else
+              echo "image is post-merge ...... OK (built after $TRIGGER_COMMIT_AT)"
+            fi
           fi
 
           # 4. The origin guard is on. A deploy that silently dropped the

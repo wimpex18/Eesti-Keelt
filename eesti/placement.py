@@ -83,6 +83,34 @@ MAX_PROBES = 12
 Ask = Callable[[object], str]
 
 
+class Stopped(Exception):
+    """Nobody is answering: end of input, or Ctrl-C.
+
+    Not an error, and specifically not a blank answer. `_ask_terminal` returned
+    `""` for both, and `""` is a *wrong answer* — so every consumer of `Ask`
+    graded items the learner never saw and wrote them to their record:
+
+    * `cli placement </dev/null` fabricated a whole failed sweep — fifteen
+      attempts, all wrong, on a machine where nobody had studied. It is in the
+      CLI's own `READ_ONLY` list, and that list is a promise.
+    * Ctrl-C could not leave a sweep at all, though the command prints "Ctrl-C
+      to leave early". The interrupt was caught, turned into a blank answer,
+      and the sweep carried on marking everything wrong.
+    * `cli checkpoint` did the same and then wrote a *failed checkpoint* and
+      pushed every un-shown item into the review queue.
+
+    Those attempts are not cosmetic. Wrong answers fill the accuracy window
+    that gates mastery, and the checkpoint row feeds the readiness verdict —
+    the one that decides A2-then-B1 against B1-alone. A record of practice
+    nobody did makes the learner look worse than they are, which is the
+    direction that costs something.
+
+    So the absence of an answer is its own signal and it stops the session.
+    Raising rather than returning a sentinel is deliberate: a caller that
+    forgets to check a `None` grades it as wrong, which is exactly the bug.
+    """
+
+
 @dataclass(frozen=True)
 class ProbeResult:
     topic: str
@@ -188,7 +216,16 @@ def sweep(
         topic = pending[0]
         seen.add(topic.id)
 
-        result = probe(progress, topic.id, ask, seed=seed)
+        try:
+            result = probe(progress, topic.id, ask, seed=seed)
+        except Stopped:
+            # "Ctrl-C to leave early" is printed by the command, and until this
+            # line it was untrue: the interrupt became a blank answer and the
+            # sweep carried on marking topics wrong. Whatever was genuinely
+            # answered before the stop stays recorded and is returned; the
+            # topic that was interrupted yields no result, because a partial
+            # probe cannot place anybody.
+            break
         results.append(result)
         if on_result is not None:
             on_result(result)

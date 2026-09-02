@@ -92,12 +92,20 @@ def learner_db(args: argparse.Namespace, which: str) -> str:
 
 
 def _ask_terminal(item) -> str:
+    """Ask one item at the terminal, or raise `Stopped` if nobody is there.
+
+    It returned `""` on EOF and Ctrl-C, and `""` is a wrong answer — so every
+    caller graded and recorded items the learner never saw. See
+    `placement.Stopped` for what that cost.
+    """
+    from ..placement import Stopped
+
     print(f"\n   {item.prompt}")
     print(f"   ({item.hint})")
     try:
         return input("   > ")
-    except (EOFError, KeyboardInterrupt):
-        return ""
+    except (EOFError, KeyboardInterrupt) as exc:
+        raise Stopped from exc
 
 
 def _row_of(record) -> "object":

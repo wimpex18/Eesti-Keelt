@@ -492,11 +492,106 @@ removal date, not a style note.
 - The Dockerfile's two stages are `python:3.13-slim`. 3.11 stays in the CI
   matrix because it is what the image shipped until now.
 
-**What is still unverified, and only a deploy can check:** the image itself was
-not built here — this container has a Docker CLI and no daemon. The wheel is
-`manylinux_2_28`, which Debian slim satisfies comfortably, and CI installs the
-same requirements on 3.13; but "the deps install on ubuntu-latest" is not "the
-image builds". `deploy.yml` is what will say, and the smoke check after it.
+**Verified on the deployment, 2026-09-02.** The image was not built here — this
+container has a Docker CLI and no daemon — so until it shipped, "the deps
+install on ubuntu-latest" was all that had been shown, and that is not "the
+image builds". It builds. PR #30 merged at 20:11:20Z, Cloud Build produced an
+image stamped **20:14:20Z**, and a smoke run against the deployment came back
+clean on every check: health, the origin guard, `/api/library`, `/api/status`,
+`/api/curriculum`, speech and the reading library. Vabamorf's compiled
+extension was the whole risk and it builds and answers on 3.13 in the real
+image, not only on a runner.
+
+**One sentence here used to be wrong, and it is worth keeping the correction.**
+It said "`deploy.yml` is what will say". `deploy.yml` cannot say: it deploys
+the **Worker**, and the app is a container built by a Cloud Build trigger on
+`main`. `docs/deploy.md` had this right all along — *"The `deploy` workflow
+going green means the Worker is current; it says nothing about the container"* —
+so this file was contradicting the file that owns the subject. Anyone reading
+it would have watched a green Worker deploy and concluded the 3.13 image was
+fine. What actually answers is a **smoke run after the build window**, reading
+`image built`.
+
+### The smoke check could not see the deploy it fires on
+
+Finding the 3.13 image required a *manual* smoke run, and that turned out to be
+the interesting part.
+
+`smoke` fires on `workflow_run: [deploy] completed`. `deploy` deploys the
+Worker; the app is a container built by a Cloud Build trigger on `main`, which
+nothing here can observe. So the smoke run that fires on a merge is looking at
+the **previous** image — not usually, structurally, every time.
+
+The merge of PR #30 measured it exactly:
+
+| | |
+|---|---|
+| merge | 20:11:20Z |
+| smoke fired, all green | 20:12:11Z — reporting an image built **14:39:50Z**, 5½ hours old |
+| the new image actually landed | 20:14:20Z, two minutes *after* that run |
+
+Every check in that run passed, about a deployment that did not contain the
+merge. On the one merge whose open question was "does the image build at all",
+the automatic answer was a green tick about the old image.
+
+The run had both halves and never put them together: it printed the build
+stamp, and `github.event.workflow_run.head_commit.timestamp` was sitting
+unused. It compares them now and says **STALE IMAGE — … everything below
+describes the PREVIOUS deployment** when the image predates the commit, and
+says so out loud in the good case too, because silence on success cannot be
+told from never having checked.
+
+A **warning, never a failure**: a stale image inside the Cloud Build window is
+the normal and correct state, and a check that failed on every merge is one
+people learn to scroll past. It stays silent on a manual dispatch, where
+`head_commit` is empty and there is no "the change I just merged" to compare
+against. All five branches were driven under `bash -e` against the real
+extracted script — `bash -n` has been wrong in this file before.
+
+### `cli placement` wrote fifteen wrong answers nobody gave
+
+Found by asking a question the documents already pose: *has the practice number
+moved?* This container's `data/progress.db` held **15 attempts**, all
+`kusisonad`, all `correct=0`, all with an empty answer, in three bursts of five
+— on a machine where nobody has ever studied.
+
+`cli placement` wrote them. It is in the CLI's own **`READ_ONLY`** list, and
+that name is a promise.
+
+One line caused it. `_helpers._ask_terminal` caught `EOFError` and
+`KeyboardInterrupt` and returned `""` — and `""` is not "no answer", it is a
+**wrong answer**. Every consumer of the `Ask` contract then graded and recorded
+items the learner never saw:
+
+| | |
+|---|---|
+| `cli placement </dev/null` | a whole fabricated failed sweep, 15 attempts |
+| Ctrl-C during a sweep | did not leave. `cmd_placement` prints "Ctrl-C to leave early"; the interrupt became a blank answer and the sweep went on marking topics wrong |
+| `cli checkpoint` | the same, plus a **failed checkpoint row**, plus every un-shown item pushed into the review queue |
+
+Not cosmetic. Wrong answers fill the accuracy window that gates mastery, and
+the checkpoint row feeds the **readiness verdict** — the one that decides
+A2-then-B1 against B1-alone in 2027. A record of practice nobody did makes the
+learner look worse than they are, which is the direction that costs something.
+
+`placement.Stopped` is the fix: the absence of an answer is its own signal and
+it ends the session. An exception rather than a returned sentinel, because a
+caller that forgets to check a `None` grades it as wrong, which is the bug
+again. `probe` lets it propagate, `sweep` catches it and returns what it
+genuinely probed, and `checkpoint.run` deliberately does **not** catch it — an
+abandoned checkpoint must not be indistinguishable from "no items could be
+built", which is what the empty `CheckpointResult` already means, and `score`
+divides by `asked`. Answers given before the stop stay recorded, because those
+were real.
+
+**Why 1 500 tests never saw it.** `test_cli_smoke` runs every `READ_ONLY`
+command and asserts each exits clean — but in-process, via `cli.main()`, where
+the autouse fixture redirects all four learner databases. The promise the list
+makes was never tested. Identical blind spot to the phantom word list, and the
+same fix: `tests/test_read_only_is_read_only.py` asks the property of real
+subprocesses, derived from `READ_ONLY` rather than restated, comparing the
+learner's four databases **byte for byte** — a command that added one row and
+removed another would pass a row count.
 
 ## Known bugs and rough edges
 

@@ -637,6 +637,49 @@ Every one of these reported healthy while production was not.
   Run traffic split that did not exist. Name what was verified: "configured
   (live call unproven)".
 
+- **A check that fires on event A, about a system that changes on event B, is
+  green about the wrong thing — and the timing makes it look right.** `smoke`
+  fires when `deploy` completes. `deploy` deploys the Worker; the app is a
+  container built by a Cloud Build trigger on `main`. So the smoke run that
+  fires on a merge reports on the *previous* image, every time, and it does it
+  within a minute of the merge, which is exactly when a reader is looking and
+  most inclined to believe it. Measured: merge 20:11:20Z, smoke green at
+  20:12:11Z about an image built 14:39:50Z, the real image landing 20:14:20Z —
+  and the merge in question was the one carrying a Python runtime change whose
+  only open risk was whether the image builds. The run already printed both
+  facts and never compared them. When a check cannot observe the thing it is
+  named after, make it **say which version it looked at** rather than
+  suppressing or failing it: a warning that names the staleness costs nothing
+  on the runs where the timing is fine, and a failure on every merge is a check
+  people learn to scroll past. Same family as "a measurement with no writer"
+  and the service worker's hand-edited cache version: the wiring looked
+  connected and was not.
+
+- **"No answer" and "a blank answer" are different, and collapsing them
+  fabricates data.** `_ask_terminal` caught `EOFError` and `KeyboardInterrupt`
+  and returned `""`. `""` grades as wrong, so `cli placement </dev/null` wrote
+  fifteen wrong attempts to the learner's record, Ctrl-C could not leave a
+  sweep the command advertised as interruptible, and `cli checkpoint` also
+  wrote a failed checkpoint and queued every un-shown item for review — all
+  feeding the readiness verdict. When a value means "the person is not there",
+  give it its own type and let it stop the loop; **raise rather than return a
+  sentinel**, because a caller that forgets to check a `None` grades it, which
+  is the original bug wearing a new hat. And when two outcomes must stay
+  distinct, do not reuse a return value that already means something else — an
+  abandoned checkpoint returning the same empty result as "no items could be
+  built" is two states with one representation.
+
+- **A list called `READ_ONLY` is a promise, and the test that walks it must run
+  the real thing.** `test_cli_smoke` ran every command on that list and asserted
+  a clean exit — in-process, where the autouse fixture redirects the databases
+  the promise is about. So the one property the name asserts was the one thing
+  never checked, for as long as the list existed. Ask a safety property of a
+  **subprocess**, compare the artefacts **byte for byte** rather than counting
+  rows, and derive the cases from the list itself. This is the second bug found
+  this way, after the phantom word list, and both hid in the same gap between
+  "the suite exercises this command" and "the suite exercises this command the
+  way a person runs it".
+
 ## Documents and decisions
 
 A document is a measurement, and it goes stale the same way any other one
