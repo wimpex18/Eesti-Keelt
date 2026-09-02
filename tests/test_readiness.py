@@ -199,3 +199,104 @@ class TestTheVerdictReadsOnlyWhatItIsGiven:
         assert "ни одного" in evidence()
         mark_pushed(notion, pending(notion)[0]["id"])
         assert "1 в логе Vead" in evidence()
+
+
+class TestTheVocabularyLineCountedNothing:
+    """It read zero for every learner, always, and said it had measured.
+
+    `_vocabulary` asked `WHERE known = 1`. `vocab_status` has no `known`
+    column — it is `status`, on the ladder
+    `UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 5, 98, 99`. Every
+    call raised `OperationalError`, a bare `except sqlite3.Error` turned it
+    into `0`, and the screen told a learner who had marked hundreds of words
+    **"0 из 997 слов уровня"**.
+
+    Two faults, and the second is the worse one. A wrong column name is a typo.
+    Reporting the failure as a *measurement of zero* — `measured: True`, which
+    is what the page gates the line on — is what kept it invisible.
+    """
+
+    @pytest.fixture
+    def vocabulary(self, tmp_path):
+        from eesti.vocab import connect
+
+        return connect(tmp_path / "vocab.db")
+
+    @pytest.fixture
+    def words(self, tmp_path):
+        """A tiny word list with a known level split."""
+        import sqlite3
+
+        path = tmp_path / "words.db"
+        conn = sqlite3.connect(path)
+        conn.executescript(
+            "CREATE TABLE words (word TEXT PRIMARY KEY, freq_rank INTEGER,"
+            " proficiency TEXT, pos TEXT);")
+        conn.executemany(
+            "INSERT INTO words VALUES (?,1,?,'S')",
+            [("raamat", "A2"), ("koer", "A2"), ("maja", "A2"),
+             ("teadus", "B1"), ("uurimus", "B1")])
+        conn.commit()
+        return conn
+
+    def test_a_word_marked_known_is_counted(self, vocabulary, words):
+        from eesti.readiness import _vocabulary
+        from eesti.vocab import KNOWN, set_status
+
+        set_status(vocabulary, "raamat", KNOWN)
+        assert _vocabulary(vocabulary, words, "A2")["known"] == 1
+
+    def test_it_is_scoped_to_the_level_it_names(self, vocabulary, words):
+        """The line reads "N из M слов уровня". Counting every known word at
+        any level against one level's total can exceed 100 %, and means
+        nothing when it does."""
+        from eesti.readiness import _vocabulary
+        from eesti.vocab import KNOWN, set_status
+
+        for lemma in ("raamat", "koer", "teadus", "uurimus"):
+            set_status(vocabulary, lemma, KNOWN)
+        assert _vocabulary(vocabulary, words, "A2")["known"] == 2
+        assert _vocabulary(vocabulary, words, "B1")["known"] == 2
+
+    def test_a_word_the_learner_skipped_is_not_known(self, vocabulary, words):
+        """`IGNORED` is "ei ole minu jaoks". Counting it would inflate the
+        number with exactly the words they chose not to spend time on."""
+        from eesti.readiness import _vocabulary
+        from eesti.vocab import IGNORED, KNOWN, set_status
+
+        set_status(vocabulary, "raamat", KNOWN)
+        set_status(vocabulary, "koer", IGNORED)
+        assert _vocabulary(vocabulary, words, "A2")["known"] == 1
+
+    def test_merely_meeting_a_word_is_not_knowing_it(self, vocabulary, words):
+        """`difficulty` counts `status >= 1` because comprehensibility is about
+        exposure. The verdict is not: `LEARNING` is a word in progress."""
+        from eesti.readiness import _vocabulary
+        from eesti.vocab import LEARNING, set_status
+
+        set_status(vocabulary, "raamat", LEARNING)
+        assert _vocabulary(vocabulary, words, "A2")["known"] == 0
+
+    def test_an_unreadable_vocabulary_is_unmeasured_not_zero(self, words, tmp_path):
+        """The fault that hid the other one. An unmeasurable part is reported
+        as unmeasured everywhere else in this file; a zero here is a claim
+        about the learner rather than about the read."""
+        import sqlite3
+
+        from eesti.readiness import _vocabulary
+
+        empty = sqlite3.connect(tmp_path / "no-schema.db")   # no vocab_status
+        got = _vocabulary(empty, words, "A2")
+        assert got["measured"] is False
+
+    def test_a_real_count_still_says_it_measured(self, vocabulary, words):
+        from eesti.readiness import _vocabulary
+
+        assert _vocabulary(vocabulary, words, "A2")["measured"] is True
+
+    def test_the_query_names_a_column_that_exists(self, vocabulary):
+        """Read from the schema, because the whole bug was a column name that
+        looked plausible and was not there."""
+        cols = {r[1] for r in vocabulary.execute("PRAGMA table_info(vocab_status)")}
+        assert "status" in cols
+        assert "known" not in cols

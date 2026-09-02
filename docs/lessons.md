@@ -301,6 +301,20 @@ has been false.
   contain the misspelling, so the scan reads string literals via `ast` and
   subtracts the repair table.
 
+- **A source scan matches prose, and prose about a function is not a call to
+  it.** Four times in one sprint. Three were assertions I wrote that passed on
+  their own explanatory comment — searching a workflow step's `run:` for a
+  construct the comment above it also names, twice, and a Worker check for
+  `startsWith("/api/state/")` that its own "this used to be" comment satisfied.
+  The fourth was an *existing* test: `grep -rln set_status eesti/` counted a
+  docstring in `readiness.py` that explained a measurement had been taken
+  "through `vocab.set_status`", and reported a fourth writer of the vocabulary
+  ladder. A check that cannot tell a mention from a use fails on documentation,
+  which teaches people to stop writing it. Strip comments before searching, or
+  better, **parse**: `ast` distinguishes a `Name`, an `Attribute` and a
+  `FunctionDef` from a word in a sentence, and the definition site is a
+  different thing again from a caller.
+
 ## The page: layout, CSS, the browser, and what the learner reads
 
 Most of these were invisible to every assertion in the suite and obvious in

@@ -709,6 +709,36 @@ deployment while it keeps working under `cli serve`.
 The origin half is derived from the source rather than restated, so a route that
 starts requiring the token is covered without anybody remembering to come back.
 
+### The vocabulary line on the verdict counted zero, always
+
+`readiness._vocabulary` asked `SELECT COUNT(*) FROM vocab_status WHERE
+known = 1`. There is no `known` column: the table is keyed on `lemma` with a
+`status`, on the ladder `UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN =
+0, 1, 5, 98, 99`.
+
+So every call raised `OperationalError`, a bare `except sqlite3.Error` turned
+it into `0`, and the readiness screen told a learner who had marked hundreds of
+words **"0 из 997 слов уровня"**. Measured: three words marked known through
+`vocab.set_status` still produced `{"known": 0, "level_words": 997,
+"measured": True}`.
+
+**Two faults, and the second is the worse one.** A wrong column name is a typo.
+Reporting the failure as a *measurement of zero* is what kept it invisible —
+`measured: True` is the flag the page gates the line on, so the app asserted it
+had counted. An unmeasurable part now reports `measured: False` and the line
+disappears, which is the rule the rest of that file already follows.
+
+Two things fixed alongside, both of which the old query could not express:
+
+- **`IGNORED` is excluded.** "Ei ole minu jaoks" is a word the learner decided
+  not to spend time on; counting it as known would inflate the number with
+  exactly the words they skipped. Same set `vocab.bands` uses.
+- **It is scoped to the level it names.** The line reads *"N из M слов
+  уровня"*. Lemmas live in `vocab.db` and levels in `eesti.db`, so the
+  intersection happens in Python; at 997 words for A2 that costs nothing.
+  Unscoped, the numerator counted every known word at any level against one
+  level's total, which can exceed 100 % and means nothing when it does.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
