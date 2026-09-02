@@ -175,6 +175,17 @@ because the other branch keeps working, so the feature looks finished.
   module learns to describe a failure well, go and find the places still
   describing the same failure badly.
 
+- **A router's error names what it could not find, not what you got wrong.**
+  `400 model_not_supported` from the HF router sent the diagnosis to the model
+  id — which was correct, live, and mapped to an enabled provider. The router
+  selects a provider by the **capabilities the request asks for**, and the
+  request carried `response_format: {"type": "json_object"}`; no provider for
+  that model offers JSON mode, so there was no route, and the router reported
+  the absence in the vocabulary of the model. The tell took ten seconds and no
+  log: the model page's own widget answered from the same account and token,
+  because it does not ask for JSON mode. When a third party names a cause, ask
+  whether it is able to name a *different* one at all.
+
 ## Derived, never hand-maintained
 
 A list of things that already exist somewhere drifts from them silently,
