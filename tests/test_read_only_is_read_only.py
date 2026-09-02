@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import sqlite3
 import subprocess
 import sys
 
@@ -56,24 +55,24 @@ def _read_only_commands() -> list[list[str]]:
 
 
 @pytest.fixture
-def learner(tmp_path):
-    """A learner's data directory with a real, non-empty word list.
+def learner(tmp_path, fixture_data):
+    """A learner's data directory with a word list that actually drives a drill.
 
-    The word list has to be real: `placement` and `checkpoint` only reach the
-    ask loop when a generator produces items, so pointing them at an empty
-    lexicon would make this pass for the wrong reason — the bug would be
-    invisible behind "generator produced nothing".
+    It must be non-empty: `placement` only reaches the ask loop when a generator
+    produces items, so an empty lexicon would make every assertion here pass for
+    the wrong reason — the bug hidden behind "generator produced nothing".
+
+    The **fixture** lexicon rather than the real one, though. Gating on
+    `data/eesti.db` meant skipping on every CI runner, where `data/` is
+    git-ignored and nothing runs `cli build` — so the one property this file
+    exists to check would have been checked nowhere but a developer's machine.
+    That is the undeclared-local-state failure this repository has now paid for
+    twice. 250 words is enough: `kusisonad`, the topic the real bug recorded
+    against, is built from closed-class patterns and needs no corpus at all.
     """
-    from eesti import config
-
     data = tmp_path / "data"
     data.mkdir()
-    real = Path(config.ROOT) / "data" / "eesti.db"
-    from eesti.wordlist import available
-
-    if not available(real):
-        pytest.skip("needs a built word list — `cli fetch-data && cli build`")
-    shutil.copy(real, data / "eesti.db")
+    shutil.copy(fixture_data["words"], data / "eesti.db")
     return data
 
 
@@ -174,15 +173,14 @@ class TestStoppingRecordsNothing:
 
         raise Stopped
 
-    def test_a_probe_records_no_attempt(self, progress, real_wordlist):
+    def test_a_probe_records_no_attempt(self, progress):
         from eesti.placement import Stopped, probe
 
         with pytest.raises(Stopped):
             probe(progress, "osastav", self._stop)
         assert progress.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 0
 
-    def test_a_sweep_ends_instead_of_marking_everything_wrong(
-            self, progress, real_wordlist):
+    def test_a_sweep_ends_instead_of_marking_everything_wrong(self, progress):
         """It returns what it genuinely probed — here, nothing — rather than
         walking the whole syllabus recording blanks."""
         from eesti.placement import sweep
@@ -190,8 +188,7 @@ class TestStoppingRecordsNothing:
         assert sweep(progress, self._stop) == []
         assert progress.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 0
 
-    def test_an_abandoned_checkpoint_is_not_a_failed_one(
-            self, progress, real_wordlist):
+    def test_an_abandoned_checkpoint_is_not_a_failed_one(self, progress):
         """That row feeds the readiness verdict. A sitting that never happened
         must not lower it."""
         from eesti.checkpoint import run
@@ -202,8 +199,7 @@ class TestStoppingRecordsNothing:
         rows = progress.execute("SELECT COUNT(*) FROM checkpoints").fetchone()[0]
         assert rows == 0
 
-    def test_nothing_is_queued_for_review_either(self, progress, tmp_path,
-                                                 real_wordlist):
+    def test_nothing_is_queued_for_review_either(self, progress, tmp_path):
         """Missed checkpoint items go to the review queue. Items nobody saw
         would arrive there as material to re-study."""
         from eesti.checkpoint import run
