@@ -58,6 +58,12 @@ Open Cloud Shell in the Google Cloud console, in this project, then:
 bash deploy/set-llm-key.sh HF_TOKEN
 ```
 
+If it exits printing **nothing at all**, your checkout is older than
+2026-09-02. That was a real bug — a failing `gcloud` killed the script one line
+before the message explaining it — and the fix is on `main`. Run
+`git checkout main && git pull` first: `git pull` alone is not enough, because a
+fresh `git clone` can leave you on a branch that is not `main`.
+
 It prompts for the value with the echo off, hands it to `gcloud` on stdin — so
 it reaches neither your shell history nor the process table — starts a new
 revision, and then reads the variable *names* back off the service that is
@@ -108,6 +114,13 @@ And a score that is *worse* than a general model is a real result, not a
 failure of the setup: it would mean the Estonian-adapted weights do not help on
 this task, which is worth knowing and is exactly why the lane was wired instead
 of assumed.
+
+**A green check is not a pass.** A run whose calls all failed still succeeds,
+with a warning saying so; the *step summary* is where the answer is. The first
+real run of this lane, 2026-09-02, came back `HTTPError 400` on all 18 cases —
+not the token (that is a 401), not the quota (that is a 429), but the request
+body: the router took the credential and refused what was sent. The eval prints
+the provider's own error code now, so a repeat says which part.
 
 ## Step 4 — check it landed
 

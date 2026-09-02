@@ -25,6 +25,7 @@ import json
 from dataclasses import dataclass
 
 from ..config import TAGS
+from ..providers.grammar import why_failed
 from ..providers.llm import complete, parse_json
 
 # The first real run exposed the failure mode: the model flagged four of eight
@@ -198,7 +199,11 @@ def run(
                 if attempt:
                     failures.append((case.sentence, "ERROR: no valid JSON after retry"))
             except Exception as exc:
-                failures.append((case.sentence, f"ERROR {type(exc).__name__}: {exc}"))
+                # The provider's own name for the failure, via the same
+                # renderer the live chain uses. `type(exc).__name__` printed
+                # `HTTPError: HTTP Error 400: Bad Request` for all 18 cases and
+                # named neither the cause nor the fix.
+                failures.append((case.sentence, f"ERROR {why_failed(exc)}"))
                 break
         if result is None:
             broken += 1

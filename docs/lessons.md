@@ -152,6 +152,29 @@ because the other branch keeps working, so the feature looks finished.
   `tests/test_cloze.py` now derives that from `curriculum.py` and asserts it
   for every branch of `items_for`.
 
+- **`set -e` plus `2>/dev/null` makes the error message unreachable.** Three
+  deploy scripts opened with `LINE="$(gcloud ... 2>/dev/null | head -1)"`
+  followed by `[ -n "$LINE" ] || { echo "ERROR: no Cloud Run service..."; }`.
+  Under `set -euo pipefail` a failing `gcloud` fails the pipeline, `pipefail`
+  propagates it to the assignment, and `set -e` kills the script **before the
+  guard runs**, with its stderr discarded. The whole run was a blank line and
+  exit 1, reported as "it didn't ask for the token". That guard could only fire
+  in the case nobody wrote it for: the command succeeding and returning
+  nothing. `bash -n` parses every version happily, so drive the script against a
+  stubbed failure instead. Two of the five scripts were already right (`|| true`
+  in one, `mapfile < <(...)` in another, whose failure does not trip `set -e`),
+  which is the tell that the other three were copies of each other.
+
+- **A failure path that drops the provider's reason costs the next hour.** The
+  live grammar chain learned this on 2026-08-22, and `grammar.why_failed` was
+  written for it — it reads the provider's own error code and never lets a
+  response body into a log. The eval tracks, in the same package, still rendered
+  `type(exc).__name__`, so the first EstLLM run reported `HTTPError: HTTP Error
+  400: Bad Request` eighteen times and concluded "rate limit, timeout or
+  unparseable reply": three guesses, none of them what a 400 means. When one
+  module learns to describe a failure well, go and find the places still
+  describing the same failure badly.
+
 ## Derived, never hand-maintained
 
 A list of things that already exist somewhere drifts from them silently,
