@@ -49,7 +49,7 @@ group with the hand-logged history rather than starting a parallel taxonomy.
 
 | Tag | Drill | Source of truth |
 |---|---|---|
-| `obj-case` | ✅ built — genitive vs partitive under aspect/negation | Vabamorf synthesis |
+| `obj-case` | ✅ built — template frames for aspect, blended with corpus sentences under negation | Vabamorf synthesis + Selges keeles |
 | `verb-form` | irregular stem: given lemma + tense/person, produce the form | Vabamorf synthesis |
 | `ma-da-inf` | which infinitive a governing verb takes (`hakkan lugema` / `oskan lugeda`) | curated + sonapi `rection` |
 | `rektsioon` | which case a verb governs | **sonapi `rection` field** |

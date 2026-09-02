@@ -284,6 +284,8 @@ Groq's one. Worth having as a third key, not as the second.
 Estonian-adapted Llama that may explain Estonian better than a general free
 model. Small free tier, and a model may need a warm-up request. Add it for
 quality, not for redundancy.
+**`docs/hf-token.md` is the step-by-step** — where to get one, which of the
+three places to put it in, and the command that turns the lane into a number.
 
 ### The cheap check cannot tell you the key works
 

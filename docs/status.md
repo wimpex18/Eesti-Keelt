@@ -739,6 +739,44 @@ Two things fixed alongside, both of which the old query could not express:
   Unscoped, the numerator counted every known word at any level against one
   level's total, which can exceed 100 % and means nothing when it does.
 
+### The corpus half of the object-case drill reached nobody
+
+`cloze.negation_clozes` is the one object-case generator that draws on real
+Estonian: under negation the partitive is exception-free, so a harvested
+sentence settles the case with no aspect judgement and no risk of marking a
+licit answer wrong. It is written, documented, tested, and files its items
+under `obj-case`.
+
+It ran nowhere but the CLI. `practice.items_for` dispatches on
+`by_id(topic).generator`; the call sat inside the `generator == "corpus_cloze"`
+branch behind `if topic == "obj-case"`, and `obj-case`'s generator is
+`object_case`. The two conditions could never both hold, so the branch was
+unreachable — on the topic this file calls the documented #1 weakness, whose
+practice was therefore twelve hand-written frames and nothing else.
+
+Nothing failed, which is why it survived: the `object_case` branch further down
+answered every request perfectly well.
+
+`obj-case` sets are now blended — up to `practice.CORPUS_SHARE` (a third) of
+the items come from the corpus, the frames supply the rest and still carry the
+completed/ongoing contrast that a corpus sentence leaves implicit. The corpus
+stays optional: without a `content.db` the templates fill the whole set, so a
+deployment that has not had `deploy/push-content.sh` run loses nothing it had.
+
+The guard is derived rather than written out: `tests/test_cloze.py` parses
+`items_for` and asserts, for every `topic == "x"` inside an
+`if generator == "y"` block, that `curriculum.py` agrees the two go together.
+
+### `HF_TOKEN` — the tutorial exists now
+
+The EstLLM lane has been "wired but unmeasured" since 2026-09-01 for one
+reason: this repository must never hold a token, and the HF router answers 401
+before it routes, so nothing here can prove a request completes.
+`docs/hf-token.md` is the procedure that closes it from the outside — where to
+get a token, which of the three surfaces (Cloud Run, Actions, `.env`) needs it,
+and the command that turns the lane into a score. Until somebody runs step 3,
+this stays unmeasured, and this paragraph says so on purpose.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

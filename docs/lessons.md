@@ -139,6 +139,19 @@ because the other branch keeps working, so the feature looks finished.
   exists for the ladder — assert every named value round-trips through a named
   writer. Worth doing for any enumeration before adding to it.
 
+- **A branch keyed on the wrong dispatch key never runs, and looks written.**
+  `practice.items_for` dispatches on `by_id(topic).generator`; inside the
+  `corpus_cloze` branch sat `if topic == "obj-case": return negation_clozes(...)`
+  — and `obj-case`'s generator is `object_case`, so that comparison could not
+  be true. The generator underneath it was written, documented, tested, and
+  reached nobody: negation is the *one* object-case rule a corpus sentence can
+  settle on its own, on the topic this project calls its documented #1
+  weakness. Nothing failed, because the other branch of the dispatch answered.
+  When one condition selects the code path and a second condition inside it
+  names a value from the same table, ask whether the two can ever agree —
+  `tests/test_cloze.py` now derives that from `curriculum.py` and asserts it
+  for every branch of `items_for`.
+
 ## Derived, never hand-maintained
 
 A list of things that already exist somewhere drifts from them silently,
