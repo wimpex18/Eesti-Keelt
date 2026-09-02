@@ -676,6 +676,39 @@ The review queue (`review.db`) and the vocabulary table (`vocab.db`) are
 separate files and separate endpoints, and widening the route to them would be
 a behaviour change rather than a fix.
 
+### The Worker's second lock covered two of five routes
+
+`_require_state_token` says in its own docstring that a restore endpoint "does
+not rely on a single layer": Access guards the Worker, the token guards the
+route. The Worker's half was `startsWith("/api/state/")` — a naming convention
+rather than the set it meant.
+
+Five origin routes require `STATE_TOKEN`. That prefix covered two:
+
+| route | what it does | was blocked? |
+|---|---|---|
+| `/api/state/export` | reads the learner's databases | yes |
+| `/api/state/import` | overwrites them | yes |
+| `/api/progress/reset` | **erases practice history** | no |
+| `/api/content/import` | **overwrites the corpus** | no |
+| `/api/content/export` | reads the corpus | no |
+
+**Never an open door**, and worth being precise about: the origin demands the
+token either way, so a request without it gets 403 whichever path it takes.
+What was missing is the second layer the design claims to have, on the three
+routes where losing the first one costs most.
+
+The block is the explicit set now. A Worker cannot import Python, so it is
+hand-maintained — and therefore checked in **both directions** against
+`eesti/api/state.py`, the way `api.ROUTERS`, `cli.GROUPS` and `eval.yml`'s
+provider list are: every token-guarded route is refused, and nothing is refused
+that no route guards. The second direction matters as much: a path 404'd by the
+Worker that the origin serves normally is a feature quietly removed from the
+deployment while it keeps working under `cli serve`.
+
+The origin half is derived from the source rather than restated, so a route that
+starts requiring the token is covered without anybody remembering to come back.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.
