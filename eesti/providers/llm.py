@@ -49,6 +49,23 @@ class Provider:
     default_model: str
     # Free-tier shape, for choosing at runtime. None = paid/unmetered.
     free_note: str = ""
+    #: Does this lane accept `response_format: {"type": "json_object"}`?
+    #:
+    #: False for the HF router, and the distinction is not cosmetic: the router
+    #: picks a provider by the capabilities the *request* asks for, so asking
+    #: for JSON mode on a model whose only provider cannot do it is not a
+    #: degraded answer, it is **no route at all** — answered `400
+    #: model_not_supported`, which reads as "wrong model id" and is not.
+    #:
+    #: Measured 2026-09-02. The same model, same account, same token, answered
+    #: from the model page's own widget seconds later — because that widget
+    #: does not ask for JSON mode. Every one of the eval's 18 cases failed;
+    #: nothing about the model was learned.
+    #:
+    #: Dropping the flag costs nothing here. `SYSTEM` already says "Return ONLY
+    #: valid JSON" and `parse_json` already tolerates a fenced block, because
+    #: providers were returning prose-wrapped JSON long before this.
+    json_mode: bool = True
 
     @property
     def model(self) -> str:
@@ -210,6 +227,7 @@ PROVIDERS: dict[str, Provider] = {
         "tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125",
         "Routed to featherless-ai; that provider's own free/paid tiers apply. "
         "Estonian-adapted weights without owning a machine.",
+        json_mode=False,
     ),
     # The same model, run by you rather than by anyone else.
     #
@@ -334,7 +352,9 @@ def complete(
         "max_tokens": max_tokens,
         "temperature": 0,
     }
-    if json_mode:
+    # Both must agree: the caller wants JSON, and the lane can ask for it. A
+    # provider that cannot is not asked, and is told in the prompt instead.
+    if json_mode and provider.json_mode:
         payload["response_format"] = {"type": "json_object"}
 
     # A keyless lane -- a local server -- has nothing to authenticate, and

@@ -117,10 +117,18 @@ of assumed.
 
 **A green check is not a pass.** A run whose calls all failed still succeeds,
 with a warning saying so; the *step summary* is where the answer is. The first
-real run of this lane, 2026-09-02, came back `HTTPError 400` on all 18 cases —
-not the token (that is a 401), not the quota (that is a 429), but the request
-body: the router took the credential and refused what was sent. The eval prints
-the provider's own error code now, so a repeat says which part.
+real run of this lane, 2026-09-02, came back `400 model_not_supported` on all
+18 cases — which reads as "no such model" and was nothing of the kind. The
+model was live, `featherless-ai` was enabled on the account, and the token was
+fine; the model page's own widget answered from the same account seconds later.
+The request asked for JSON mode, the HF router picks a provider by the
+capabilities a request asks for, and no provider for that model offers it — so
+there was no route, and the router named the absence after the model. Fixed in
+the lane (`json_mode=False`), not in your settings.
+
+**`temporarily at capacity` is different, and is not a fault.** Featherless
+serves long-tail models on demand, so a first call can queue. Run it again in a
+few minutes.
 
 ## Step 4 — check it landed
 

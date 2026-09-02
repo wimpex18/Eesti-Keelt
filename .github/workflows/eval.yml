@@ -52,7 +52,16 @@ on:
           - google/gemini-3.7-flash
           # huggingface. The Estonian-adapted model this project has wanted from
           # the start, routed to featherless-ai. Select `huggingface` above with
-          # this, or with `(provider default)` -- they are the same id.
+          # this, or with `(provider default)` -- they are the same id, so
+          # picking it here changes nothing and is not the fix for a failing
+          # run.
+          #
+          # The `response_format` rule above does NOT hold for this one, and
+          # that was the bug: the HF router chooses a provider by what the
+          # request asks for, so sending JSON mode to a model whose only
+          # provider lacks it leaves no route and answers `400
+          # model_not_supported`. The lane sets `json_mode=False` and asks for
+          # JSON in the prompt instead.
           - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125
       evidence:
         description: >-

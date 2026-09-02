@@ -416,3 +416,113 @@ class TestAPartialCatalogueDoesNotReadAsABrokenPin:
         said = capsys.readouterr().out
         assert "ABSENT — fix it" in said
         assert llm.PROVIDERS["openrouter"].default_model in said
+
+
+class TestTheRouterPicksAProviderByWhatTheRequestAsksFor:
+    """`400 model_not_supported` was not about the model id.
+
+    The first authenticated run of the `huggingface` lane failed all 18 cases
+    with `model_not_supported`, which reads as "no such model". It was not:
+
+    * the model page reported `featherless-ai`, status **live**, `providerId`
+      identical, task `conversational`;
+    * `featherless-ai` was **enabled** on the account, and its "last used"
+      updated the moment the model page's own widget was tried;
+    * that widget answered from the same model, same account, same token —
+      reporting `temporarily at capacity`, which is a queue, not a refusal.
+
+    The one difference between the widget's request and ours is that ours
+    carried `response_format: {"type": "json_object"}`. The router selects a
+    provider by the capabilities the request asks for, so JSON mode on a model
+    whose only provider does not offer it leaves **no route**, and the router
+    says so in the vocabulary of the thing it could not find: the model.
+
+    Which is why this is a per-provider capability and not a retry.
+    """
+
+    def test_the_hf_lane_does_not_ask_for_json_mode(self):
+        from eesti.providers.llm import PROVIDERS
+
+        assert PROVIDERS["huggingface"].json_mode is False
+
+    def test_every_other_lane_still_does(self):
+        """It is the better setting where it works — the reason the flag is a
+        per-provider exception and not a default."""
+        from eesti.providers.llm import PROVIDERS
+
+        for name, provider in PROVIDERS.items():
+            if name != "huggingface":
+                assert provider.json_mode is True, name
+
+    def test_the_payload_omits_response_format_for_that_lane(self, monkeypatch):
+        """Asked of the bytes on the wire. A flag nothing reads is this
+        project's most-repeated bug, and this one has exactly one reader."""
+        import json
+
+        sent = {}
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            @staticmethod
+            def read():
+                return json.dumps(
+                    {"choices": [{"message": {"content": "{}"}}]}).encode()
+
+        def fake_urlopen(req, timeout=None):
+            sent.update(json.loads(req.data))
+            return _Resp()
+
+        monkeypatch.setenv("HF_TOKEN", "not-a-real-token")
+        monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+        from eesti.providers.llm import complete
+
+        complete("huggingface", "sys", "user")
+        assert "response_format" not in sent, (
+            "the HF router is being asked for JSON mode again — that is the "
+            "400 model_not_supported")
+
+    def test_a_lane_that_can_do_it_still_sends_it(self, monkeypatch):
+        """The other half. Removing the flag entirely would also make this
+        file pass, and would quietly cost every other provider its structured
+        replies."""
+        import json
+
+        sent = {}
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            @staticmethod
+            def read():
+                return json.dumps(
+                    {"choices": [{"message": {"content": "{}"}}]}).encode()
+
+        def fake_urlopen(req, timeout=None):
+            sent.update(json.loads(req.data))
+            return _Resp()
+
+        monkeypatch.setenv("OPENROUTER_API_KEY", "not-a-real-key")
+        monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+        from eesti.providers.llm import complete
+
+        complete("openrouter", "sys", "user")
+        assert sent["response_format"] == {"type": "json_object"}
+
+    def test_the_prompt_still_demands_json_without_the_flag(self):
+        """What replaces it. Dropping `response_format` is only safe because
+        the instruction and the tolerant parser were already there."""
+        from eesti.evals.gec import SYSTEM
+        from eesti.providers.llm import parse_json
+
+        assert "ONLY valid JSON" in SYSTEM
+        assert parse_json('```json\n{"corrections": []}\n```') == {
+            "corrections": []}
