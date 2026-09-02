@@ -637,6 +637,24 @@ Every one of these reported healthy while production was not.
   Run traffic split that did not exist. Name what was verified: "configured
   (live call unproven)".
 
+- **A check that fires on event A, about a system that changes on event B, is
+  green about the wrong thing — and the timing makes it look right.** `smoke`
+  fires when `deploy` completes. `deploy` deploys the Worker; the app is a
+  container built by a Cloud Build trigger on `main`. So the smoke run that
+  fires on a merge reports on the *previous* image, every time, and it does it
+  within a minute of the merge, which is exactly when a reader is looking and
+  most inclined to believe it. Measured: merge 20:11:20Z, smoke green at
+  20:12:11Z about an image built 14:39:50Z, the real image landing 20:14:20Z —
+  and the merge in question was the one carrying a Python runtime change whose
+  only open risk was whether the image builds. The run already printed both
+  facts and never compared them. When a check cannot observe the thing it is
+  named after, make it **say which version it looked at** rather than
+  suppressing or failing it: a warning that names the staleness costs nothing
+  on the runs where the timing is fine, and a failure on every merge is a check
+  people learn to scroll past. Same family as "a measurement with no writer"
+  and the service worker's hand-edited cache version: the wiring looked
+  connected and was not.
+
 ## Documents and decisions
 
 A document is a measurement, and it goes stale the same way any other one

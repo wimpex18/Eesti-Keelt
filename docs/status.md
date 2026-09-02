@@ -492,11 +492,61 @@ removal date, not a style note.
 - The Dockerfile's two stages are `python:3.13-slim`. 3.11 stays in the CI
   matrix because it is what the image shipped until now.
 
-**What is still unverified, and only a deploy can check:** the image itself was
-not built here — this container has a Docker CLI and no daemon. The wheel is
-`manylinux_2_28`, which Debian slim satisfies comfortably, and CI installs the
-same requirements on 3.13; but "the deps install on ubuntu-latest" is not "the
-image builds". `deploy.yml` is what will say, and the smoke check after it.
+**Verified on the deployment, 2026-09-02.** The image was not built here — this
+container has a Docker CLI and no daemon — so until it shipped, "the deps
+install on ubuntu-latest" was all that had been shown, and that is not "the
+image builds". It builds. PR #30 merged at 20:11:20Z, Cloud Build produced an
+image stamped **20:14:20Z**, and a smoke run against the deployment came back
+clean on every check: health, the origin guard, `/api/library`, `/api/status`,
+`/api/curriculum`, speech and the reading library. Vabamorf's compiled
+extension was the whole risk and it builds and answers on 3.13 in the real
+image, not only on a runner.
+
+**One sentence here used to be wrong, and it is worth keeping the correction.**
+It said "`deploy.yml` is what will say". `deploy.yml` cannot say: it deploys
+the **Worker**, and the app is a container built by a Cloud Build trigger on
+`main`. `docs/deploy.md` had this right all along — *"The `deploy` workflow
+going green means the Worker is current; it says nothing about the container"* —
+so this file was contradicting the file that owns the subject. Anyone reading
+it would have watched a green Worker deploy and concluded the 3.13 image was
+fine. What actually answers is a **smoke run after the build window**, reading
+`image built`.
+
+### The smoke check could not see the deploy it fires on
+
+Finding the 3.13 image required a *manual* smoke run, and that turned out to be
+the interesting part.
+
+`smoke` fires on `workflow_run: [deploy] completed`. `deploy` deploys the
+Worker; the app is a container built by a Cloud Build trigger on `main`, which
+nothing here can observe. So the smoke run that fires on a merge is looking at
+the **previous** image — not usually, structurally, every time.
+
+The merge of PR #30 measured it exactly:
+
+| | |
+|---|---|
+| merge | 20:11:20Z |
+| smoke fired, all green | 20:12:11Z — reporting an image built **14:39:50Z**, 5½ hours old |
+| the new image actually landed | 20:14:20Z, two minutes *after* that run |
+
+Every check in that run passed, about a deployment that did not contain the
+merge. On the one merge whose open question was "does the image build at all",
+the automatic answer was a green tick about the old image.
+
+The run had both halves and never put them together: it printed the build
+stamp, and `github.event.workflow_run.head_commit.timestamp` was sitting
+unused. It compares them now and says **STALE IMAGE — … everything below
+describes the PREVIOUS deployment** when the image predates the commit, and
+says so out loud in the good case too, because silence on success cannot be
+told from never having checked.
+
+A **warning, never a failure**: a stale image inside the Cloud Build window is
+the normal and correct state, and a check that failed on every merge is one
+people learn to scroll past. It stays silent on a manual dispatch, where
+`head_commit` is empty and there is no "the change I just merged" to compare
+against. All five branches were driven under `bash -e` against the real
+extracted script — `bash -n` has been wrong in this file before.
 
 ## Known bugs and rough edges
 

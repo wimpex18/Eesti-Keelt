@@ -253,6 +253,90 @@ class TestTheDeploymentSaysWhichBuildItIs:
         assert ".built" in workflow
 
 
+class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
+    """Reporting the stamp was half the job; nothing compared it to anything.
+
+    `smoke` fires on `deploy` completing, and `deploy` deploys the *Worker*.
+    The app is a separate container built by a Cloud Build trigger on `main`,
+    which nothing in this repository can observe — so the smoke run that fires
+    on a merge is looking at the previous image. Not usually: structurally,
+    every time.
+
+    Measured on the merge of PR #30. Merge at 20:11:20Z; the smoke run fired at
+    20:12:11Z and reported an image built 14:39:50Z, five and a half hours old,
+    with every check under it green; the new image landed at 20:14:20Z, two
+    minutes *after* the run that was meant to be checking it. That merge
+    carried the Python 3.13 runtime move, whose one open risk was whether the
+    image builds at all — and a green tick about the wrong deployment reads
+    exactly like a green tick about the right one.
+    """
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
+
+    @classmethod
+    def _step(cls) -> dict:
+        import yaml
+
+        doc = yaml.safe_load(cls.WORKFLOW.read_text(encoding="utf-8"))
+        return doc["jobs"]["check"]["steps"][0]
+
+    @classmethod
+    def _script(cls) -> str:
+        """The step's shell without its comments.
+
+        Every assertion here searches the `run:` for a construct that the
+        comment above that construct also names. Two guards written the same
+        way last week passed on the prose while the code they guarded was
+        deleted, so the prose is stripped before looking.
+        """
+        return "\n".join(line for line in cls._step()["run"].splitlines()
+                         if not line.lstrip().startswith("#"))
+
+    def test_the_triggering_commit_reaches_the_script(self):
+        """`github.event.workflow_run.head_commit.timestamp` is the only half
+        the run was missing — it already had the build stamp."""
+        env = self._step()["env"]
+        assert "TRIGGER_COMMIT_AT" in env
+        assert "workflow_run.head_commit.timestamp" in env["TRIGGER_COMMIT_AT"]
+
+    def test_the_two_are_actually_compared(self):
+        code = self._script()
+        assert "TRIGGER_COMMIT_AT" in code, "the value arrives and is never read"
+        assert "-lt" in code and "date -u -d" in code
+
+    def test_a_stale_image_warns_rather_than_fails(self):
+        """A stale image inside the Cloud Build window is the normal, correct
+        state. A check that failed on every merge is a check people learn to
+        scroll past, and then it is worth less than nothing."""
+        code = self._script()
+        stale = code[code.index("STALE IMAGE") - 400:code.index("STALE IMAGE") + 400]
+        assert "::warning::" in stale
+        assert "fail=1" not in stale
+
+    def test_it_still_fires_on_the_deploy_it_cannot_see(self):
+        """The whole fix is about that trigger's blind spot. Removing the
+        trigger would 'fix' the warning by removing the run."""
+        import yaml
+
+        doc = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))
+        # `on:` parses as the boolean True in YAML 1.1.
+        triggers = doc.get("on", doc.get(True))
+        assert triggers["workflow_run"]["workflows"] == ["deploy"]
+
+    def test_a_manual_run_has_nothing_to_compare_against(self):
+        """`workflow_run.head_commit` is empty on a dispatch, and there is no
+        checkout here to ask git. Saying nothing beats comparing against an
+        empty string and reporting every manual run as stale."""
+        code = self._script()
+        assert '[ -n "$TRIGGER_COMMIT_AT" ]' in code
+
+    def test_the_good_case_is_said_out_loud(self):
+        """Silence on success means the reader cannot tell 'checked, and the
+        image is current' from 'never checked'. That distinction is the entire
+        subject of this class."""
+        assert "post-merge" in self._script()
+
+
 class TestASplitDeploymentIsNotAFlake:
     """Production answered the same question two ways within a minute:
     `/api/engines` reported an LLM configured while `/api/check` fell through
