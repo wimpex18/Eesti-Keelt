@@ -245,4 +245,27 @@ def state_import(blob: StateBlob, request: Request) -> dict:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(base64.b64decode(payload))
         restored.append(name)
-    return {"restored": restored, "skipped": skipped}
+
+    # A restore is the only moment this container's learner record exists and
+    # is the real one, so it is the only place a repair to that record can run.
+    #
+    # `cli placement` used to write `PROBE_ITEMS` blank wrong attempts whenever
+    # nobody was answering. That is fixed, and the fix cannot reach rows already
+    # in a snapshot -- on a deployment nobody working on this repository can
+    # read, the record may still say the learner failed drills they never saw.
+    # Running it here needs no operator: Cloud Run scales to zero, every cold
+    # start restores, and the repair is idempotent by name and rides the next
+    # snapshot so it is not repeated.
+    #
+    # At import time instead of here would clean a database the restore is
+    # about to overwrite.
+    repair = None
+    if "progress" in restored:
+        from ..progress import connect as progress_connect
+        from ..progress import repair_fabricated_attempts
+
+        # `_state_paths()` rather than a second way of naming the same file:
+        # its own docstring is about exactly that, and it resolves at call time.
+        repair = repair_fabricated_attempts(
+            progress_connect(_state_paths()["progress"]))
+    return {"restored": restored, "skipped": skipped, "repair": repair}
