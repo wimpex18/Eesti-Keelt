@@ -70,6 +70,84 @@ class TestReset:
         assert is_mastered(progress, "kusisonad") is False
 
 
+class TestEverythingMeansEverything:
+    """It cleared two of the five tables in the file.
+
+    `attempts` and `topic_state` are created by `progress.py`; `checkpoints`,
+    `exposure` and `dictation` are created lazily by `checkpoint.py`,
+    `library.py` and `dictation.py` — and all three are read by the readiness
+    verdict. So `deploy/reset-progress.sh --everything`, behind a "Type ERASE to
+    confirm" prompt, erased a learner's practice history and left the app still
+    believing they had passed A2. Measured before the fix: `passed_levels`
+    returned `{"A2"}` immediately after the erase, and `readiness` gates the
+    whole verdict on that value.
+
+    The tables are asked of the database rather than listed here, for the same
+    reason the code derives them: a second hand-written copy beside the first is
+    how the first one went stale.
+    """
+
+    @staticmethod
+    def _tables(conn) -> dict:
+        return {name: conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
+                for (name,) in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                    " AND name NOT LIKE 'sqlite_%'")}
+
+    @pytest.fixture
+    def furnished(self, progress):
+        """A progress database with every table a real one accumulates."""
+        from eesti.checkpoint import SCHEMA as CHECKPOINTS
+
+        progress.executescript(CHECKPOINTS)
+        with progress:
+            progress.execute(
+                "INSERT INTO checkpoints (level,asked,correct,passed,at)"
+                " VALUES ('A2',12,11,1,'2026-01-01T00:00:00Z')")
+        return progress
+
+    def test_every_table_in_the_file_is_emptied(self, furnished):
+        reset(furnished)
+        assert set(self._tables(furnished).values()) == {0}
+
+    def test_a_passed_checkpoint_does_not_survive_an_erase(self, furnished):
+        """The one that made this more than tidiness: the verdict is gated on
+        `checkpoint_passed`, so an erased learner still read as having finished
+        the level."""
+        from eesti.checkpoint import passed_levels
+
+        assert passed_levels(furnished) == {"A2"}
+        reset(furnished)
+        assert passed_levels(furnished) == set()
+
+    def test_it_reports_what_it_cleared(self, furnished):
+        """The operator is answering a "Type ERASE" prompt. What went is worth
+        printing back."""
+        got = reset(furnished)
+        assert "checkpoints" in got["tables_cleared"]
+        assert "attempts" in got["tables_cleared"]
+
+    def test_a_topic_reset_still_touches_only_its_two(self, furnished):
+        """Not the same omission, and deliberately unchanged: a checkpoint is
+        level-wide, exposure is per reading item and a dictation is per
+        sentence, so none can be attributed to one topic. Clearing them here
+        would destroy records the request never asked about."""
+        from eesti.checkpoint import passed_levels
+
+        reset(furnished, "kusisonad")
+        assert passed_levels(furnished) == {"A2"}
+
+    def test_a_table_added_later_is_covered_without_anybody_remembering(
+            self, furnished):
+        """The point of deriving it. A sixth table is the sixth instance of
+        this repository's most-repeated bug if the list is hand-written."""
+        with furnished:
+            furnished.execute("CREATE TABLE IF NOT EXISTS newthing (x TEXT)")
+            furnished.execute("INSERT INTO newthing VALUES ('x')")
+        reset(furnished)
+        assert furnished.execute("SELECT COUNT(*) FROM newthing").fetchone()[0] == 0
+
+
 class TestTheEndpointRefusesTheDangerousDefault:
     def test_no_topic_and_no_flag_is_a_400(self, tmp_path, monkeypatch):
         """A missing topic is far more likely to be a caller's bug than a wish

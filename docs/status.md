@@ -638,6 +638,44 @@ post-merge image. That takes a day, and all seven branches were driven under
 `bash -e` against the script extracted from the real workflow with a stubbed
 `curl` — which is not the same as the cron having run.
 
+### "Erase ALL practice history" cleared two of five tables
+
+`deploy/reset-progress.sh --everything` prints **"This erases ALL practice
+history. Type ERASE to confirm"**. Behind it, `progress.reset(conn, None)`
+deleted `attempts` and `topic_state` — and `progress.db` has five tables.
+
+The other three are created lazily by the modules that own them, which is why
+they were missed: `checkpoints` by `checkpoint.py`, `exposure` by `library.py`,
+`dictation` by `dictation.py`. All three are read by the readiness verdict.
+
+Measured before the fix, on a database holding one passed A2 checkpoint:
+
+```
+before : {'attempts': 1, 'topic_state': 0, 'checkpoints': 1}
+after  : {'attempts': 0, 'topic_state': 0, 'checkpoints': 1}
+passed_levels after "erase ALL practice history": {'A2'}
+```
+
+So a learner could erase everything and the app still believed they had passed
+A2 — and `readiness._parts` gates the whole verdict on `checkpoint_passed`.
+Every part of the record that says "you have done this" survived the erase.
+
+The full branch is now derived from `sqlite_master` rather than listing tables:
+every table in the learner's progress database *is* learner progress, and a
+sixth one added later is covered without anybody remembering to come back. The
+list was itself an instance of this repository's most-repeated bug.
+
+**The topic-scoped branch deliberately still touches only its two**, and that is
+not the same omission: a checkpoint is level-wide, exposure is per reading item
+and a dictation is per sentence, so none can be attributed to one topic.
+Clearing them for a topic reset would destroy records the request never asked
+about.
+
+Scope kept honest: this is `/api/progress/reset`, so it clears `progress.db`.
+The review queue (`review.db`) and the vocabulary table (`vocab.db`) are
+separate files and separate endpoints, and widening the route to them would be
+a behaviour change rather than a fix.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

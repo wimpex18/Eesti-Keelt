@@ -313,6 +313,27 @@ def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
 
     Topic-scoped by default and never implicit: clearing everything requires
     asking for everything.
+
+    **And "everything" now means it.** This cleared `attempts` and `topic_state`
+    and left the other three tables in the file standing — `checkpoints`,
+    `exposure` and `dictation`, all written by other modules and all read by the
+    readiness verdict. So `deploy/reset-progress.sh --everything`, behind a
+    "Type ERASE to confirm" prompt, erased a learner's practice history and left
+    the app still believing they had passed the A2 checkpoint: `passed_levels`
+    returned `{"A2"}` immediately afterwards, and `readiness` gates the whole
+    verdict on exactly that.
+
+    The scoped branch stays two tables deliberately, and that is not the same
+    omission: a checkpoint is level-wide, exposure is per reading item and a
+    dictation is per sentence, so none of them can be attributed to one topic.
+    Clearing them for a topic reset would destroy records the request did not
+    ask about.
+
+    The full branch is derived from the file rather than listed, because a
+    hand-written list of things that exist elsewhere is this repository's
+    most-repeated bug and this function is already an instance of it. Every
+    table in the learner's progress database *is* learner progress; a sixth one
+    added later is covered without anybody remembering to come back here.
     """
     with conn:
         if topic:
@@ -320,7 +341,15 @@ def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
                 "DELETE FROM attempts WHERE topic = ?", (topic,)
             ).rowcount
             conn.execute("DELETE FROM topic_state WHERE topic = ?", (topic,))
+            cleared = ["attempts", "topic_state"]
         else:
             attempts = conn.execute("DELETE FROM attempts").rowcount
-            conn.execute("DELETE FROM topic_state")
-    return {"topic": topic, "attempts_removed": attempts}
+            # Names come from `sqlite_master`, never from a caller, so the
+            # interpolation below cannot carry anything a user supplied.
+            cleared = [row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+                " AND name NOT LIKE 'sqlite_%'")]
+            for name in cleared:
+                conn.execute(f"DELETE FROM {name}")  # noqa: S608 - see above
+    return {"topic": topic, "attempts_removed": attempts,
+            "tables_cleared": sorted(cleared)}
