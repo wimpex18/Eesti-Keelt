@@ -9,6 +9,7 @@ generator is registered once rather than wired into every caller.
 
 from __future__ import annotations
 
+import random
 import sqlite3
 from pathlib import Path
 
@@ -172,16 +173,13 @@ def items_for(
                                content=_content(content_db))
 
     if generator == "corpus_cloze":
-        from .cloze import case_clozes, negation_clozes, sentences
+        from .cloze import case_clozes, sentences
 
         sents = sentences(_content(content_db))
         # `levels` reaches the generator now. It was accepted here, threaded
         # this far and then dropped: `only` is None unless a theme is chosen,
         # so the default run of every corpus topic drilled whatever noun the
         # sentence happened to contain -- B2 `hooldustöö` inside an A1 topic.
-        if topic == "obj-case":
-            return negation_clozes(sents, words=words, count=count, seed=seed,
-                                   levels=levels)
         return case_clozes(
             sents, topics=(topic,), words=words, count=count, seed=seed,
             only=only, levels=levels,
@@ -202,9 +200,7 @@ def items_for(
         )
 
     if generator == "object_case":
-        from .drills import generate as generate_objcase
-
-        return generate_objcase(words, count=count, levels=levels, seed=seed)
+        return _object_case(words, count, levels, seed, content_db)
 
     if generator == "verb_stems":
         from .drills import generate_verb_drills
@@ -212,3 +208,58 @@ def items_for(
         return generate_verb_drills(words, count=count, levels=levels, seed=seed)
 
     raise ValueError(f"unknown generator {generator!r} for topic {topic!r}")
+
+
+#: How much of an object-case set comes from real Estonian rather than a frame.
+#:
+#: A third: enough that a learner meets the rule outside my twelve templates,
+#: not so much that a thin corpus decides the size of the set.
+CORPUS_SHARE = 3
+
+
+def _object_case(
+    words: sqlite3.Connection,
+    count: int,
+    levels: tuple[str, ...],
+    seed: int | None,
+    content_db: str | Path | None,
+) -> list:
+    """Template drills for `obj-case`, blended with authentic negation clozes.
+
+    Negation is the one object-case rule a corpus sentence settles on its own —
+    under it the partitive is exception-free, so no aspect judgement is needed
+    and the genitive really is wrong. `cloze.negation_clozes` was written for
+    exactly that, is tested, files its items under `obj-case`, and **reached
+    nobody**: the branch that called it sat under `generator == "corpus_cloze"`,
+    and `obj-case`'s generator is `object_case`, so `topic == "obj-case"` was
+    never true there. A generator with no caller — this project's most-repeated
+    bug, in another costume, and this time on the topic `docs/status.md` calls
+    the documented #1 weakness.
+
+    The corpus stays optional. A deployment without `content.db` — and the test
+    suite's four short passages — yields no negation items, and the templates
+    fill the whole set rather than the topic going short.
+    """
+    from .drills import generate as generate_objcase
+
+    share = count // CORPUS_SHARE
+    authentic: list = []
+    if share:
+        from .cloze import negation_clozes, sentences
+
+        try:
+            authentic = negation_clozes(
+                sentences(_content(content_db)), words=words, count=share,
+                seed=seed, levels=levels)
+        except sqlite3.Error:
+            # No content store, or one without the harvest. Not an outage of
+            # this topic: it had none of these items yesterday either.
+            authentic = []
+
+    items = generate_objcase(
+        words, count=count - len(authentic), levels=levels, seed=seed)
+    items += authentic
+    # Interleaved rather than a block of corpus sentences after a block of
+    # frames, which reads as two exercises stapled together.
+    random.Random(seed).shuffle(items)
+    return items

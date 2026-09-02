@@ -334,7 +334,117 @@ class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
         """Silence on success means the reader cannot tell 'checked, and the
         image is current' from 'never checked'. That distinction is the entire
         subject of this class."""
-        assert "post-merge" in self._script()
+        assert "image is current" in self._script()
+
+
+class TestEveryDeployGetsChecked:
+    """Most merges deployed with nothing checking the deployment.
+
+    `smoke` fired only on `workflow_run: [deploy] completed`, and `deploy` is
+    filtered to Worker paths -- `deploy/**`, `wrangler.jsonc`, `package*.json`
+    and itself. Cloud Build rebuilds the image on **every** push to `main`, so a
+    merge touching only `eesti/`, `tests/` or `docs/` redeployed the app and
+    fired no check at all. Measured when this was found: `deploy` had 8 runs
+    against roughly 17 merges.
+
+    Two costs already paid. The Python 3.13 image went ten hours unverified
+    after PR #30, and PR #31 -- a Python change -- produced no smoke run at all.
+
+    This is the previous class's bug one level up, found immediately after
+    fixing it: that one was a check reporting on the wrong version, this one is
+    a check that never runs. Both come of wiring a check to an event that is not
+    the event the system changes on.
+    """
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
+
+    @classmethod
+    def _doc(cls) -> dict:
+        import yaml
+
+        return yaml.safe_load(cls.WORKFLOW.read_text(encoding="utf-8"))
+
+    @classmethod
+    def _triggers(cls) -> dict:
+        doc = cls._doc()
+        # `on:` parses as the boolean True in YAML 1.1.
+        return doc.get("on", doc.get(True))
+
+    @classmethod
+    def _script(cls) -> str:
+        step = next(s for s in cls._doc()["jobs"]["check"]["steps"]
+                    if "Check the deployment" in s["name"])
+        return "\n".join(line for line in step["run"].splitlines()
+                          if not line.lstrip().startswith("#"))
+
+    def test_it_runs_on_a_schedule(self):
+        """The only trigger that covers a merge touching neither the Worker
+        paths nor anything else `deploy` watches — which is most of them."""
+        assert "schedule" in self._triggers()
+
+    def test_the_schedule_avoids_the_hour_mark(self):
+        """Everybody's daily job is at :00, and the runner queue shows it."""
+        for entry in self._triggers()["schedule"]:
+            minute = entry["cron"].split()[0]
+            assert minute not in ("0", "30"), entry["cron"]
+
+    def test_the_deploy_trigger_survives(self):
+        """It is still the fastest signal on the merges it covers. Deleting it
+        would 'fix' the staleness warning by removing the run."""
+        assert self._triggers()["workflow_run"]["workflows"] == ["deploy"]
+
+    def test_it_does_not_fire_on_every_push(self):
+        """`push: main` fires within a minute of every merge, always before
+        Cloud Build finishes — so every run would warn STALE and the warning
+        would become the thing people scroll past."""
+        assert "push" not in self._triggers()
+
+
+class TestAScheduledRunKnowsWhatToCompareAgainst:
+    """`workflow_run.head_commit` is empty on a schedule. Without a substitute
+    the daily run — the one covering the merges `deploy` never sees — would
+    report an image and say nothing about whether it is the current one, which
+    is the same silence in a new place."""
+
+    @classmethod
+    def _step(cls) -> dict:
+        import yaml
+
+        doc = yaml.safe_load(
+            (ROOT / ".github" / "workflows" / "smoke.yml").read_text(encoding="utf-8"))
+        return next(s for s in doc["jobs"]["check"]["steps"]
+                    if "Check the deployment" in s["name"])
+
+    @classmethod
+    def _script(cls) -> str:
+        return "\n".join(line for line in cls._step()["run"].splitlines()
+                          if not line.lstrip().startswith("#"))
+
+    def test_the_token_and_repo_reach_the_step(self):
+        env = self._step()["env"]
+        assert "GH_TOKEN" in env and "REPO" in env
+
+    def test_it_asks_the_api_for_mains_head(self):
+        code = self._script()
+        assert "commits/main" in code
+        assert "commit.committer.date" in code
+
+    def test_a_failed_lookup_warns_rather_than_failing(self):
+        """Somebody else's bad minute is not this app's outage — the rule
+        `net.py` and the eval workflow already follow."""
+        code = self._script()
+        chunk = code[code.index("commits/main") - 200:code.index("commits/main") + 700]
+        assert "::warning::" in chunk
+        assert "fail=1" not in chunk
+
+    def test_a_stale_image_is_diagnosed_by_when_the_run_fired(self):
+        """Minutes after a merge, "older" means Cloud Build has not finished.
+        A day later it means the build failed or never ran. Telling somebody to
+        "re-run in a few minutes" when the build died yesterday sends them
+        somewhere there is nothing to find."""
+        code = self._script()
+        assert "FAILED or never ran" in code
+        assert "Cloud Build had not \\\nfinished yet" in code or "not \\" in code
 
 
 class TestASplitDeploymentIsNotAFlake:

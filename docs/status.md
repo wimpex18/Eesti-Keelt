@@ -593,6 +593,190 @@ subprocesses, derived from `READ_ONLY` rather than restated, comparing the
 learner's four databases **byte for byte** — a command that added one row and
 removed another would pass a row count.
 
+### Most merges deployed with nothing checking the deployment
+
+Found immediately after shipping the staleness warning above, which is the
+point: that fix made the smoke run honest about *which* image it saw, and this
+is the discovery that on most merges it never ran at all.
+
+Cloud Build rebuilds the image on **every** push to `main`. `smoke` fires on
+`workflow_run: [deploy] completed`, and `deploy` is filtered to Worker paths:
+
+```yaml
+paths: [deploy/**, wrangler.jsonc, package.json, package-lock.json,
+        .github/workflows/deploy.yml]
+```
+
+| a merge touches | image rebuilt? | `deploy` runs? | `smoke` runs? |
+|---|---|---|---|
+| Worker paths | yes | yes | yes — ~1 min later, so it sees the **old** image |
+| **anything else** | **yes** | no | **no. Nothing verified the deployment** |
+
+Measured when this was found: **`deploy` had 8 runs against roughly 17 merges
+to `main`.** Half the deploys of this app had never been checked by anything.
+Two costs already paid — the Python 3.13 image went ten hours unverified after
+PR #30, and PR #31, a Python change, produced no smoke run whatsoever.
+
+`smoke` now also runs **daily**, so any merge is checked within a day whatever
+it touched. Deliberately not `push: branches: [main]`: that fires within a
+minute of every merge, always before Cloud Build finishes, so every run would
+warn STALE and the warning would become the thing people scroll past — the
+exact failure it was written to avoid.
+
+A scheduled run has no triggering commit, so it asks the API for `main`'s head
+and compares against that; a failed lookup warns rather than failing, because
+somebody else's bad minute is not this app's outage.
+
+**The two stale cases are diagnosed differently, because they are different.**
+Minutes after a merge, an older image means Cloud Build has not finished —
+come back shortly. A day later, on the schedule, it means the build **failed or
+never ran**, and telling somebody to "re-run in a few minutes" would send them
+somewhere there is nothing to find.
+
+**Unverified until it has happened:** that the schedule fires and reports a
+post-merge image. That takes a day, and all seven branches were driven under
+`bash -e` against the script extracted from the real workflow with a stubbed
+`curl` — which is not the same as the cron having run.
+
+### "Erase ALL practice history" cleared two of five tables
+
+`deploy/reset-progress.sh --everything` prints **"This erases ALL practice
+history. Type ERASE to confirm"**. Behind it, `progress.reset(conn, None)`
+deleted `attempts` and `topic_state` — and `progress.db` has five tables.
+
+The other three are created lazily by the modules that own them, which is why
+they were missed: `checkpoints` by `checkpoint.py`, `exposure` by `library.py`,
+`dictation` by `dictation.py`. All three are read by the readiness verdict.
+
+Measured before the fix, on a database holding one passed A2 checkpoint:
+
+```
+before : {'attempts': 1, 'topic_state': 0, 'checkpoints': 1}
+after  : {'attempts': 0, 'topic_state': 0, 'checkpoints': 1}
+passed_levels after "erase ALL practice history": {'A2'}
+```
+
+So a learner could erase everything and the app still believed they had passed
+A2 — and `readiness._parts` gates the whole verdict on `checkpoint_passed`.
+Every part of the record that says "you have done this" survived the erase.
+
+The full branch is now derived from `sqlite_master` rather than listing tables:
+every table in the learner's progress database *is* learner progress, and a
+sixth one added later is covered without anybody remembering to come back. The
+list was itself an instance of this repository's most-repeated bug.
+
+**The topic-scoped branch deliberately still touches only its two**, and that is
+not the same omission: a checkpoint is level-wide, exposure is per reading item
+and a dictation is per sentence, so none can be attributed to one topic.
+Clearing them for a topic reset would destroy records the request never asked
+about.
+
+Scope kept honest: this is `/api/progress/reset`, so it clears `progress.db`.
+The review queue (`review.db`) and the vocabulary table (`vocab.db`) are
+separate files and separate endpoints, and widening the route to them would be
+a behaviour change rather than a fix.
+
+### The Worker's second lock covered two of five routes
+
+`_require_state_token` says in its own docstring that a restore endpoint "does
+not rely on a single layer": Access guards the Worker, the token guards the
+route. The Worker's half was `startsWith("/api/state/")` — a naming convention
+rather than the set it meant.
+
+Five origin routes require `STATE_TOKEN`. That prefix covered two:
+
+| route | what it does | was blocked? |
+|---|---|---|
+| `/api/state/export` | reads the learner's databases | yes |
+| `/api/state/import` | overwrites them | yes |
+| `/api/progress/reset` | **erases practice history** | no |
+| `/api/content/import` | **overwrites the corpus** | no |
+| `/api/content/export` | reads the corpus | no |
+
+**Never an open door**, and worth being precise about: the origin demands the
+token either way, so a request without it gets 403 whichever path it takes.
+What was missing is the second layer the design claims to have, on the three
+routes where losing the first one costs most.
+
+The block is the explicit set now. A Worker cannot import Python, so it is
+hand-maintained — and therefore checked in **both directions** against
+`eesti/api/state.py`, the way `api.ROUTERS`, `cli.GROUPS` and `eval.yml`'s
+provider list are: every token-guarded route is refused, and nothing is refused
+that no route guards. The second direction matters as much: a path 404'd by the
+Worker that the origin serves normally is a feature quietly removed from the
+deployment while it keeps working under `cli serve`.
+
+The origin half is derived from the source rather than restated, so a route that
+starts requiring the token is covered without anybody remembering to come back.
+
+### The vocabulary line on the verdict counted zero, always
+
+`readiness._vocabulary` asked `SELECT COUNT(*) FROM vocab_status WHERE
+known = 1`. There is no `known` column: the table is keyed on `lemma` with a
+`status`, on the ladder `UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN =
+0, 1, 5, 98, 99`.
+
+So every call raised `OperationalError`, a bare `except sqlite3.Error` turned
+it into `0`, and the readiness screen told a learner who had marked hundreds of
+words **"0 из 997 слов уровня"**. Measured: three words marked known through
+`vocab.set_status` still produced `{"known": 0, "level_words": 997,
+"measured": True}`.
+
+**Two faults, and the second is the worse one.** A wrong column name is a typo.
+Reporting the failure as a *measurement of zero* is what kept it invisible —
+`measured: True` is the flag the page gates the line on, so the app asserted it
+had counted. An unmeasurable part now reports `measured: False` and the line
+disappears, which is the rule the rest of that file already follows.
+
+Two things fixed alongside, both of which the old query could not express:
+
+- **`IGNORED` is excluded.** "Ei ole minu jaoks" is a word the learner decided
+  not to spend time on; counting it as known would inflate the number with
+  exactly the words they skipped. Same set `vocab.bands` uses.
+- **It is scoped to the level it names.** The line reads *"N из M слов
+  уровня"*. Lemmas live in `vocab.db` and levels in `eesti.db`, so the
+  intersection happens in Python; at 997 words for A2 that costs nothing.
+  Unscoped, the numerator counted every known word at any level against one
+  level's total, which can exceed 100 % and means nothing when it does.
+
+### The corpus half of the object-case drill reached nobody
+
+`cloze.negation_clozes` is the one object-case generator that draws on real
+Estonian: under negation the partitive is exception-free, so a harvested
+sentence settles the case with no aspect judgement and no risk of marking a
+licit answer wrong. It is written, documented, tested, and files its items
+under `obj-case`.
+
+It ran nowhere but the CLI. `practice.items_for` dispatches on
+`by_id(topic).generator`; the call sat inside the `generator == "corpus_cloze"`
+branch behind `if topic == "obj-case"`, and `obj-case`'s generator is
+`object_case`. The two conditions could never both hold, so the branch was
+unreachable — on the topic this file calls the documented #1 weakness, whose
+practice was therefore twelve hand-written frames and nothing else.
+
+Nothing failed, which is why it survived: the `object_case` branch further down
+answered every request perfectly well.
+
+`obj-case` sets are now blended — up to `practice.CORPUS_SHARE` (a third) of
+the items come from the corpus, the frames supply the rest and still carry the
+completed/ongoing contrast that a corpus sentence leaves implicit. The corpus
+stays optional: without a `content.db` the templates fill the whole set, so a
+deployment that has not had `deploy/push-content.sh` run loses nothing it had.
+
+The guard is derived rather than written out: `tests/test_cloze.py` parses
+`items_for` and asserts, for every `topic == "x"` inside an
+`if generator == "y"` block, that `curriculum.py` agrees the two go together.
+
+### `HF_TOKEN` — the tutorial exists now
+
+The EstLLM lane has been "wired but unmeasured" since 2026-09-01 for one
+reason: this repository must never hold a token, and the HF router answers 401
+before it routes, so nothing here can prove a request completes.
+`docs/hf-token.md` is the procedure that closes it from the outside — where to
+get a token, which of the three surfaces (Cloud Run, Actions, `.env`) needs it,
+and the command that turns the lane into a score. Until somebody runs step 3,
+this stays unmeasured, and this paragraph says so on purpose.
+
 ## Known bugs and rough edges
 
 Nothing here is severe enough to block use. All of it is real.

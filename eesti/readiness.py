@@ -217,23 +217,60 @@ def _grammar(progress: sqlite3.Connection, level: str) -> dict:
 
 
 def _vocabulary(vocabulary, words, level: str) -> dict:
-    """Words met at this level, against what the level contains.
+    """Words known at this level, against what the level contains.
 
     A count rather than a verdict: knowing every A2 word does not make anyone
     ready, and meeting few of them does not make the exam impossible.
+
+    **This read zero for every learner, always.** It asked
+    `WHERE known = 1`, and `vocab_status` has no `known` column -- the column
+    is `status`, and the ladder is
+    `UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 5, 98, 99`. So every
+    call raised `OperationalError`, the `except` below turned it into `0`, and
+    the screen said **"0 из 997 слов уровня"** to somebody who had marked
+    hundreds. Measured: three words marked known through `vocab.set_status`
+    still produced `{"known": 0, ..., "measured": True}`.
+
+    Two separate faults, and the second is the worse one. A wrong column name
+    is a typo. Reporting the failure as a *measurement of zero* is the thing
+    that made it invisible for as long as it lasted: `measured: True` is what
+    the page gates the line on, so the app asserted it had counted. A read that
+    cannot happen now says `measured: False` and the line disappears, which is
+    the same rule the rest of this file follows -- an unmeasurable part is
+    reported as unmeasured, never as a zero.
+
+    `IGNORED` is excluded deliberately. "Ei ole minu jaoks" is a word the
+    learner has decided not to spend time on; counting it as known would
+    inflate the number with exactly the words they chose to skip. That is the
+    same set `vocab.bands` uses.
+
+    Scoped to the level, because the line reads *"N из M слов уровня"*. The
+    lemmas live in `vocab.db` and the levels in `eesti.db`, so the intersection
+    happens here rather than in SQL; at 997 words for A2 that costs nothing.
+    Without it the numerator counted every known word at any level against one
+    level's total, which can exceed 100 % and means nothing when it does.
     """
+    from .vocab import IGNORED, SETTLED
+
     if vocabulary is None or words is None:
         return {"known": 0, "level_words": 0, "measured": False}
-    total = words.execute(
-        "SELECT COUNT(*) FROM words WHERE proficiency = ?", (level,)
-    ).fetchone()[0]
+    at_level = {
+        row[0] for row in words.execute(
+            "SELECT word FROM words WHERE proficiency = ?", (level,))
+    }
+    settled = sorted(SETTLED - {IGNORED})
     try:
-        known = vocabulary.execute(
-            "SELECT COUNT(*) FROM vocab_status WHERE known = 1"
-        ).fetchone()[0]
+        known = {
+            row[0] for row in vocabulary.execute(
+                "SELECT lemma FROM vocab_status WHERE status IN "
+                f"({','.join('?' * len(settled))})", settled)
+        }
     except sqlite3.Error:
-        known = 0
-    return {"known": known, "level_words": total, "measured": True}
+        # Not a zero. Nothing was counted, and saying "0 known" would be a
+        # claim about the learner rather than about this read.
+        return {"known": 0, "level_words": len(at_level), "measured": False}
+    return {"known": len(known & at_level), "level_words": len(at_level),
+            "measured": True}
 
 
 def _official(content, level: str) -> dict[str, int]:

@@ -297,6 +297,86 @@ def resume(conn: sqlite3.Connection) -> str | None:
     return drillable[0].id
 
 
+#: Rows this repair has already applied, so it runs once per database and not
+#: once per connection. It travels inside `progress.db`, which means it rides
+#: the Worker's snapshot and restore like everything else -- a restored
+#: container does not repeat a repair the snapshot already carries.
+REPAIRS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS repairs (
+    name    TEXT PRIMARY KEY,
+    at      TEXT NOT NULL,
+    removed INTEGER NOT NULL,
+    detail  TEXT NOT NULL
+);
+"""
+
+#: Named so the record says what it was, not when it ran.
+FABRICATED = "placement-fabricated-attempts"
+
+
+def repair_fabricated_attempts(conn: sqlite3.Connection) -> dict:
+    """Remove attempts that `cli placement` recorded when nobody was answering.
+
+    `_ask_terminal` returned `""` on EOF and Ctrl-C, and `""` grades as a wrong
+    answer, so `cli placement </dev/null` wrote `PROBE_ITEMS` wrong attempts per
+    topic into the learner's record. That is fixed, and the fix cannot reach
+    rows already written -- on a deployment nobody here can read, the record may
+    already say the learner failed drills they never saw.
+
+    **The signature has to be tight, because deleting real practice is worse
+    than leaving noise.** A fabricated burst is `PROBE_ITEMS` or more attempts
+    sharing one timestamp, every one of them blank and every one of them wrong.
+    `_now()` records to the second, and a person cannot answer five items in a
+    second; a blank answer typed deliberately is one row, not five. Measured
+    against the real thing:
+
+        2026-09-01T19:26:21+00:00  x5  kusisonad
+        2026-09-01T19:26:59+00:00  x5  kusisonad
+        2026-09-01T19:27:22+00:00  x5  kusisonad
+
+    Nothing is unrecoverable: the removed rows are written into `repairs.detail`
+    as JSON before they go, so a wrong call here costs a paste rather than a
+    learner's history.
+
+    Idempotent by name. Runs after a restore rather than at import, because the
+    Worker overwrites `progress.db` wholesale on a cold start -- a repair at
+    startup would clean a database that is about to be replaced.
+    """
+    import json
+
+    from .placement import PROBE_ITEMS
+
+    conn.executescript(REPAIRS_SCHEMA)
+    done = conn.execute(
+        "SELECT removed FROM repairs WHERE name = ?", (FABRICATED,)).fetchone()
+    if done is not None:
+        return {"already_applied": True, "removed": done[0]}
+
+    bursts = [
+        row[0] for row in conn.execute(
+            "SELECT at FROM attempts WHERE answer = '' AND correct = 0"
+            " GROUP BY at HAVING COUNT(*) >= ?", (PROBE_ITEMS,))
+    ]
+    rows = []
+    if bursts:
+        marks = ",".join("?" * len(bursts))
+        rows = [dict(r) for r in conn.execute(
+            f"SELECT * FROM attempts WHERE answer = '' AND correct = 0"
+            f" AND at IN ({marks})", bursts)]
+    with conn:
+        if bursts:
+            marks = ",".join("?" * len(bursts))
+            conn.execute(
+                f"DELETE FROM attempts WHERE answer = '' AND correct = 0"
+                f" AND at IN ({marks})", bursts)
+        conn.execute(
+            "INSERT INTO repairs (name, at, removed, detail) VALUES (?,?,?,?)",
+            (FABRICATED, _now(), len(rows), json.dumps(rows, ensure_ascii=False)),
+        )
+    return {"already_applied": False, "removed": len(rows),
+            "topics": sorted({r["topic"] for r in rows})}
+
+
 def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
     """Forget attempts, so a topic starts again from nothing.
 
@@ -313,6 +393,27 @@ def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
 
     Topic-scoped by default and never implicit: clearing everything requires
     asking for everything.
+
+    **And "everything" now means it.** This cleared `attempts` and `topic_state`
+    and left the other three tables in the file standing — `checkpoints`,
+    `exposure` and `dictation`, all written by other modules and all read by the
+    readiness verdict. So `deploy/reset-progress.sh --everything`, behind a
+    "Type ERASE to confirm" prompt, erased a learner's practice history and left
+    the app still believing they had passed the A2 checkpoint: `passed_levels`
+    returned `{"A2"}` immediately afterwards, and `readiness` gates the whole
+    verdict on exactly that.
+
+    The scoped branch stays two tables deliberately, and that is not the same
+    omission: a checkpoint is level-wide, exposure is per reading item and a
+    dictation is per sentence, so none of them can be attributed to one topic.
+    Clearing them for a topic reset would destroy records the request did not
+    ask about.
+
+    The full branch is derived from the file rather than listed, because a
+    hand-written list of things that exist elsewhere is this repository's
+    most-repeated bug and this function is already an instance of it. Every
+    table in the learner's progress database *is* learner progress; a sixth one
+    added later is covered without anybody remembering to come back here.
     """
     with conn:
         if topic:
@@ -320,7 +421,15 @@ def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
                 "DELETE FROM attempts WHERE topic = ?", (topic,)
             ).rowcount
             conn.execute("DELETE FROM topic_state WHERE topic = ?", (topic,))
+            cleared = ["attempts", "topic_state"]
         else:
             attempts = conn.execute("DELETE FROM attempts").rowcount
-            conn.execute("DELETE FROM topic_state")
-    return {"topic": topic, "attempts_removed": attempts}
+            # Names come from `sqlite_master`, never from a caller, so the
+            # interpolation below cannot carry anything a user supplied.
+            cleared = [row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+                " AND name NOT LIKE 'sqlite_%'")]
+            for name in cleared:
+                conn.execute(f"DELETE FROM {name}")  # noqa: S608 - see above
+    return {"topic": topic, "attempts_removed": attempts,
+            "tables_cleared": sorted(cleared)}

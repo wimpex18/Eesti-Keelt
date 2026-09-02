@@ -139,16 +139,40 @@ def test_the_word_marking_route_is_reachable_from_the_page(sources):
     assert "/api/vocab/known" in sources["page"]
 
 
-def test_the_only_other_writer_is_the_cli(sources):
+def test_the_only_other_writer_is_the_cli():
     """If a second writer appears, this test should be updated deliberately —
-    an inferred "known" would measure reading rather than vocabulary."""
-    import subprocess
+    an inferred "known" would measure reading rather than vocabulary.
 
-    got = subprocess.run(
-        ["grep", "-rln", "--include=*.py", "set_status", "eesti/"],
-        capture_output=True, text=True, cwd=ROOT).stdout.split()
-    assert sorted(got) == ["eesti/api/vocab.py", "eesti/cli/report.py",
-                           "eesti/vocab.py"]
+    Parsed rather than grepped. `grep -rln set_status` matches the *word*, so
+    a docstring in `readiness.py` explaining that a count had been measured
+    "through `vocab.set_status`" registered as a fourth writer of the
+    vocabulary ladder. Prose about a function is not a call to it, and a check
+    that cannot tell them apart fails on documentation — which is a good way to
+    teach people to stop writing it.
+
+    That is the fourth time in one sprint a source scan matched its own
+    explanation; see `docs/lessons.md`. `ast` answers the question exactly:
+    a `Name` or an `Attribute` actually referencing the function.
+    """
+    import ast
+
+    writers = []
+    for path in sorted((ROOT / "eesti").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            named = (
+                # A call, or an import of it by name.
+                (isinstance(node, ast.Name) and node.id == "set_status")
+                or (isinstance(node, ast.Attribute) and node.attr == "set_status")
+                # And where it lives: `vocab.py` belongs in this list because
+                # it defines the ladder, not because it writes to it.
+                or (isinstance(node, ast.FunctionDef) and node.name == "set_status")
+            )
+            if named:
+                writers.append(str(path.relative_to(ROOT)))
+                break
+    assert sorted(writers) == ["eesti/api/vocab.py", "eesti/cli/report.py",
+                               "eesti/vocab.py"]
 
 
 class TestEveryRouterIsRegistered:

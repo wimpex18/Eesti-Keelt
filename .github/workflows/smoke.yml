@@ -32,6 +32,27 @@ on:
   workflow_run:
     workflows: [deploy]
     types: [completed]
+  # Because that trigger covers a minority of deploys.
+  #
+  # Cloud Build rebuilds the image on **every** push to `main`. `deploy` is
+  # filtered to Worker paths -- deploy/**, wrangler.jsonc, package*.json, and
+  # itself -- so a merge touching only `eesti/`, `tests/` or `docs/` rebuilds
+  # and redeploys the app with no check firing at all. Measured: `deploy` has
+  # run 8 times against roughly 17 merges to `main`.
+  #
+  # Two costs already paid. The Python 3.13 image went ten hours unverified
+  # after PR #30, and PR #31 -- a Python change -- produced no smoke run
+  # whatsoever.
+  #
+  # Daily, so any merge is checked within a day whatever it touched, and a
+  # deployment broken since the last merge stops being invisible. Not `push:
+  # branches: [main]`: that fires within a minute of every merge, always before
+  # Cloud Build finishes, so every run would warn STALE and the warning would
+  # become the thing people scroll past -- the exact failure the warning exists
+  # to avoid. An off-peak minute that is not :00, because everybody's hourly
+  # job is at :00.
+  schedule:
+    - cron: "43 5 * * *"
 
 jobs:
   check:
@@ -47,6 +68,11 @@ jobs:
           # this run. Empty on a manual dispatch, where there is no "the change
           # I just merged" to compare against and the operator chose the moment.
           TRIGGER_COMMIT_AT: ${{ github.event.workflow_run.head_commit.timestamp }}
+          # For the schedule, which has no triggering commit: ask the API what
+          # `main`'s head is. There is no checkout here and no reason to add
+          # one for a timestamp.
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           if [ -z "$URL" ] || [ -z "$CF_ID" ] || [ -z "$CF_SECRET" ]; then
             echo "::warning::Smoke test not configured. Add WORKER_URL, \
@@ -108,6 +134,35 @@ jobs:
           #     A warning, never a failure: a stale image inside the build
           #     window is the normal and correct state, and a check that cried
           #     wolf on every merge is a check people learn to scroll past.
+          #     On a schedule there is no triggering commit, so ask the API
+          #     what `main`'s head is. Without this the daily run -- the one
+          #     that covers the merges `deploy` never sees -- could report an
+          #     image and say nothing about whether it is the current one,
+          #     which is the same silence in a new place.
+          #
+          #     A failed lookup falls through to the "could not compare"
+          #     warning below rather than failing the run: somebody else's bad
+          #     minute is not this app's outage.
+          # Which question this run is answering. Minutes after a merge,
+          # "older" means Cloud Build has not finished. A day later, on the
+          # schedule, it means the build failed or never ran -- a different
+          # diagnosis, and telling a reader to "re-run in a few minutes" when
+          # the build died a day ago sends them somewhere there is nothing to
+          # find.
+          WHEN="just after the merge"
+          if [ -z "$TRIGGER_COMMIT_AT" ] && [ -n "$GH_TOKEN" ]; then
+            WHEN="scheduled"
+            TRIGGER_COMMIT_AT="$(curl -sf \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/commits/main" \
+              | jq -r '.commit.committer.date // ""' 2>/dev/null || echo "")"
+            [ -n "$TRIGGER_COMMIT_AT" ] \
+              && echo "comparing against ........ main @ $TRIGGER_COMMIT_AT" \
+              || echo "::warning::Could not read main's head commit, so this \
+          run cannot say whether the image it checked is the current one."
+          fi
+
           if [ -n "$built" ] && [ -n "$TRIGGER_COMMIT_AT" ]; then
             built_at="$(date -u -d "$built" +%s 2>/dev/null || echo 0)"
             commit_at="$(date -u -d "$TRIGGER_COMMIT_AT" +%s 2>/dev/null || echo 0)"
@@ -115,13 +170,20 @@ jobs:
               echo "::warning::Could not compare the build stamp ('$built') \
           with the triggering commit ('$TRIGGER_COMMIT_AT'), so this run cannot \
           say whether it is looking at the new image."
+            elif [ "$built_at" -lt "$commit_at" ] && [ "$WHEN" = "scheduled" ]; then
+              echo "::warning::STALE IMAGE — built $built, older than main's \
+          head ($TRIGGER_COMMIT_AT), and this is a scheduled run rather than one \
+          minutes after a merge. Cloud Build has had time and the image is still \
+          behind, so the build FAILED or never ran for that commit. Everything \
+          below describes an older deployment. Check the Cloud Build history."
             elif [ "$built_at" -lt "$commit_at" ]; then
               echo "::warning::STALE IMAGE — built $built, before the commit \
           that triggered this run ($TRIGGER_COMMIT_AT). Cloud Build had not \
           finished yet, so everything below describes the PREVIOUS deployment, \
           not the change just merged. Re-run this workflow in a few minutes."
             else
-              echo "image is post-merge ...... OK (built after $TRIGGER_COMMIT_AT)"
+              echo "image is current ........ OK (built $built, after \
+          $TRIGGER_COMMIT_AT)"
             fi
           fi
 

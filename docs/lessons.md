@@ -139,6 +139,19 @@ because the other branch keeps working, so the feature looks finished.
   exists for the ladder — assert every named value round-trips through a named
   writer. Worth doing for any enumeration before adding to it.
 
+- **A branch keyed on the wrong dispatch key never runs, and looks written.**
+  `practice.items_for` dispatches on `by_id(topic).generator`; inside the
+  `corpus_cloze` branch sat `if topic == "obj-case": return negation_clozes(...)`
+  — and `obj-case`'s generator is `object_case`, so that comparison could not
+  be true. The generator underneath it was written, documented, tested, and
+  reached nobody: negation is the *one* object-case rule a corpus sentence can
+  settle on its own, on the topic this project calls its documented #1
+  weakness. Nothing failed, because the other branch of the dispatch answered.
+  When one condition selects the code path and a second condition inside it
+  names a value from the same table, ask whether the two can ever agree —
+  `tests/test_cloze.py` now derives that from `curriculum.py` and asserts it
+  for every branch of `items_for`.
+
 ## Derived, never hand-maintained
 
 A list of things that already exist somewhere drifts from them silently,
@@ -300,6 +313,20 @@ has been false.
   explaining the bug and the `REPAIRS` search-and-replace table both have to
   contain the misspelling, so the scan reads string literals via `ast` and
   subtracts the repair table.
+
+- **A source scan matches prose, and prose about a function is not a call to
+  it.** Four times in one sprint. Three were assertions I wrote that passed on
+  their own explanatory comment — searching a workflow step's `run:` for a
+  construct the comment above it also names, twice, and a Worker check for
+  `startsWith("/api/state/")` that its own "this used to be" comment satisfied.
+  The fourth was an *existing* test: `grep -rln set_status eesti/` counted a
+  docstring in `readiness.py` that explained a measurement had been taken
+  "through `vocab.set_status`", and reported a fourth writer of the vocabulary
+  ladder. A check that cannot tell a mention from a use fails on documentation,
+  which teaches people to stop writing it. Strip comments before searching, or
+  better, **parse**: `ast` distinguishes a `Name`, an `Attribute` and a
+  `FunctionDef` from a word in a sentence, and the definition site is a
+  different thing again from a caller.
 
 ## The page: layout, CSS, the browser, and what the learner reads
 
@@ -654,6 +681,15 @@ Every one of these reported healthy while production was not.
   people learn to scroll past. Same family as "a measurement with no writer"
   and the service worker's hand-edited cache version: the wiring looked
   connected and was not.
+
+  **And if event A is filtered more narrowly than event B, the check does not
+  fire at all.** Found three commits later, in the same workflow. `deploy` is
+  filtered to Worker paths; Cloud Build rebuilds on every push to `main`; so
+  every merge touching only `eesti/`, `tests/` or `docs/` redeployed the app
+  with no check running — `deploy` had 8 runs against roughly 17 merges. The
+  first half of this lesson makes a check honest about *what* it looked at; it
+  says nothing about whether it ran. Ask both: does this fire on every change to
+  the thing it checks, and does it look at the version that change produced?
 
 - **"No answer" and "a blank answer" are different, and collapsing them
   fabricates data.** `_ask_terminal` caught `EOFError` and `KeyboardInterrupt`

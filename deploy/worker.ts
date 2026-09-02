@@ -453,10 +453,32 @@ export default {
     const denied = requireAccess(env, ctx);
     if (denied) return denied;
 
-    // The snapshot endpoints are the Worker's own back channel. Exposing them
-    // through the proxy would let anyone past Access overwrite everything.
+    // The Worker's own back channel. Exposing these through the proxy would let
+    // anyone past Access overwrite everything.
+    //
+    // This was `startsWith("/api/state/")`, which is a naming convention rather
+    // than the actual set. Five origin routes require `STATE_TOKEN`, and that
+    // prefix covered two of them: `/api/progress/reset`, which erases the
+    // learner's practice history, and `/api/content/import`, which overwrites
+    // the corpus, were both proxied straight through.
+    //
+    // Not an open door -- the origin still demands the token, so a request
+    // without it gets 403 either way. But `_require_state_token` says in its
+    // own docstring that a restore endpoint "does not rely on a single layer",
+    // and for three of the five that second layer was not there.
+    //
+    // Hand-maintained, because a Worker cannot import Python -- so, like
+    // `eval.yml`'s provider list, a test checks it against `eesti/api/state.py`
+    // in both directions.
+    const BACK_CHANNEL = [
+      "/api/state/export",
+      "/api/state/import",
+      "/api/content/export",
+      "/api/content/import",
+      "/api/progress/reset",
+    ];
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/state/")) {
+    if (BACK_CHANNEL.includes(url.pathname)) {
       return new Response("not found", { status: 404 });
     }
 

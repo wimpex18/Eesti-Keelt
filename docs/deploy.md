@@ -284,6 +284,8 @@ Groq's one. Worth having as a third key, not as the second.
 Estonian-adapted Llama that may explain Estonian better than a general free
 model. Small free tier, and a model may need a warm-up request. Add it for
 quality, not for redundancy.
+**`docs/hf-token.md` is the step-by-step** — where to get one, which of the
+three places to put it in, and the command that turns the lane into a number.
 
 ### The cheap check cannot tell you the key works
 
@@ -425,6 +427,19 @@ the Worker, and deployed nothing.
 
 **The Worker and the app deploy by different routes.** The `deploy` workflow
 going green means the *Worker* is current; it says nothing about the container.
+
+Which also decides what gets checked, and for a long time the answer was
+"usually nothing":
+
+| a merge touches | image rebuilt? | `deploy` runs? | `smoke` runs? |
+|---|---|---|---|
+| `deploy/**`, `wrangler.jsonc`, `package*.json`, `deploy.yml` | yes | yes | yes, ~1 min later — before Cloud Build finishes, so it sees the old image and says so |
+| anything else (`eesti/`, `tests/`, `docs/`) | yes | no | **only the daily schedule** |
+
+`smoke` runs daily for that second row. It compares the deployed build stamp
+against `main`'s head and distinguishes the two ways an image can be behind:
+minutes after a merge Cloud Build simply has not finished, while a day later it
+means the build failed or never ran.
 A Python change merged to `main` reaches the learner only once Cloud Build has
 rebuilt and redeployed the image — which takes 10–15 minutes, and which nothing
 in this repository can observe.

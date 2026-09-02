@@ -273,16 +273,23 @@ class TestStateSnapshots:
             headers={"x-state-token": "s3cret"},
         ).json()
         assert "progress" in restored["restored"]
-        assert fresh["progress"].read_bytes() == base64.b64decode(
-            blob["databases"]["progress"]
-        )
 
-        # And the restored attempt is really there, not just the bytes.
+        # Byte-equality used to be asserted here and is no longer true, on
+        # purpose: a restore now runs `repair_fabricated_attempts`, which
+        # records that it ran. Demanding identical bytes would forbid the
+        # restore from ever annotating the database it just wrote — and the
+        # claim that matters was always the one below, which the comment under
+        # the old assertion admitted by saying "not just the bytes".
         import sqlite3
 
-        assert sqlite3.connect(fresh["progress"]).execute(
+        conn = sqlite3.connect(fresh["progress"])
+        assert conn.execute(
             "SELECT COUNT(*) FROM attempts WHERE topic = 'kusisonad'"
         ).fetchone()[0] == 1
+
+        # The repair ran and found nothing, which is the expected outcome for a
+        # database whose only attempt is a real graded answer.
+        assert restored["repair"]["removed"] == 0
 
     def test_restore_refuses_to_overwrite_real_work(self, secured, tmp_path, monkeypatch):
         """A restore racing a learner who has already started would discard the

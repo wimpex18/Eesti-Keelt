@@ -68,6 +68,9 @@ from dataclasses import dataclass
 from estnltk.vabamorf.morf import synthesize
 
 from .config import LEVELS
+# `BLANK` is re-exported, not redefined. `item.BLANK` is the one definition; a
+# second literal here is the same duplication as the four private `_TAG_RE`s
+# that gave one line of input three different answers.
 from .item import BLANK, GradedItem
 from .morph import _readings, analyze, case_forms, split_sentences
 
@@ -122,9 +125,9 @@ _CLAUSE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Re-exported, not redefined. `item.BLANK` is the one definition; a second
-# literal here is the same duplication as the four private `_TAG_RE`s that
-# gave one line of input three different answers.
+# Vabamorf hands back punctuation as tokens of its own. A candidate with no
+# word character in it is one of those, and blanking it asks the learner to
+# inflect a comma.
 _WORD_RE = re.compile(r"\w", re.UNICODE)
 
 
@@ -179,15 +182,10 @@ class Cloze(GradedItem):
     def label(self) -> str:
         """The half of `hint` that is not the word — what to produce.
 
-        Every other generator gets this from `item.GradedItem`; this class
-        predates the mixin and still carries its own copy of the whole surface,
-        which is precisely the drift `eesti/item.py` was written to stop. It
-        went unnoticed until the page needed the two halves apart and cloze
-        items came back with the case missing.
-
-        Not folded into the mixin here because `check` and `solution` also
-        differ (`lower` against `casefold`, no sentence-initial capitalisation),
-        and changing how an answer is graded does not belong in a layout fix.
+        Every generator defines this; the mixin raises `NotImplementedError`
+        rather than guessing, because what an item asks for is the one thing
+        no two generators share. It went missing here once, and cloze items
+        reached the page with no case in their instruction row.
         """
         return f"{self.governor}?" if self.governor else self.case_et
 
@@ -475,7 +473,7 @@ def case_clozes(
             if wrong is None or (require_contrast and wrong == token.text):
                 continue
 
-            case_et, case_ru = CASES[token.form]
+            case_et = CASES[token.form][0]
             out.append((ease, Cloze(
                     prompt=_blank(sentence, token.start, token.end),
                     answer=token.text,
@@ -653,7 +651,7 @@ def rection_clozes(
         else:
             prompt = f"See on {BLANK} {head}."
 
-        case_et, case_ru = CASES.get(rection.correct_case, (rection.correct_case, ""))
+        case_et = CASES.get(rection.correct_case, (rection.correct_case, ""))[0]
         wrong_et = CASES.get(rection.wrong_case, (rection.wrong_case, ""))[0]
         out.append(
             Cloze(
