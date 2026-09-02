@@ -23,15 +23,10 @@ set -euo pipefail
 DB="${1:-data/content.db}"
 [ -f "$DB" ] || { echo "ERROR: $DB does not exist." >&2; exit 1; }
 
-command -v gcloud >/dev/null || { echo "ERROR: run this in Cloud Shell." >&2; exit 1; }
-
+# shellcheck source=deploy/_service.sh
+. "$(dirname "$0")/_service.sh"
 echo "==> Finding the Cloud Run service"
-LINE="$(gcloud run services list \
-  --format='value(metadata.name,metadata.labels."cloud.googleapis.com/location")' \
-  2>/dev/null | head -1)"
-[ -n "$LINE" ] || { echo "ERROR: no Cloud Run service. Is the project set?" >&2; exit 1; }
-SERVICE="$(awk '{print $1}' <<<"$LINE")"
-REGION="$(awk '{print $2}' <<<"$LINE")"
+find_service
 echo "    $SERVICE in $REGION"
 
 echo "==> Reading the service's own tokens"

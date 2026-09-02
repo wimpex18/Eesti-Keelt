@@ -45,14 +45,9 @@ if ! grep -qx "$VAR" <<<"$KNOWN"; then
   exit 1
 fi
 
-command -v gcloud >/dev/null || { echo "ERROR: run this in Cloud Shell." >&2; exit 1; }
-
-LINE="$(gcloud run services list \
-  --format='value(metadata.name,metadata.labels."cloud.googleapis.com/location")' \
-  2>/dev/null | head -1)"
-[ -n "$LINE" ] || { echo "ERROR: no Cloud Run service. Is the project set?" >&2; exit 1; }
-SERVICE="$(awk '{print $1}' <<<"$LINE")"
-REGION="$(awk '{print $2}' <<<"$LINE")"
+# shellcheck source=deploy/_service.sh
+. "$(dirname "$0")/_service.sh"
+find_service
 echo "==> $SERVICE in $REGION"
 
 printf 'Paste %s (input is hidden), then press Enter: ' "$VAR"

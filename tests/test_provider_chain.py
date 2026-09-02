@@ -339,12 +339,12 @@ class TestWhatTheNoteSays:
         exc = self._http(403, b'{"error":{"code":"model_decommissioned",'
                               b'"message":"llama-3.3-70b-versatile has been '
                               b'decommissioned"}}')
-        assert grammar._why(exc) == "HTTPError 403 (model_decommissioned)"
+        assert grammar.why_failed(exc) == "HTTPError 403 (model_decommissioned)"
 
     def test_type_is_read_when_there_is_no_code(self):
         """Providers disagree about which field carries the identifier."""
         exc = self._http(401, b'{"error":{"type":"invalid_api_key"}}')
-        assert grammar._why(exc) == "HTTPError 401 (invalid_api_key)"
+        assert grammar.why_failed(exc) == "HTTPError 401 (invalid_api_key)"
 
     def test_the_learners_sentence_cannot_reach_the_note(self):
         """The whole reason bodies were banned. Prose has spaces, capitals and
@@ -358,7 +358,7 @@ class TestWhatTheNoteSays:
         exc = self._http(400, '{"error":{"code":"Ma lugesin raamatut läbi.",'
                               '"message":"Ma lugesin raamatut läbi."}}'
                               .encode())
-        note = grammar._why(exc)
+        note = grammar.why_failed(exc)
         assert note == "HTTPError 400 (no-code)"
         assert "raamat" not in note and "lugesin" not in note
 
@@ -368,17 +368,17 @@ class TestWhatTheNoteSays:
         arrived. The body is a whole HTML page, so none of it is repeated —
         only the fact that it was not the provider's JSON."""
         exc = self._http(403, b"<!DOCTYPE html><title>Attention Required</title>")
-        note = grammar._why(exc)
+        note = grammar.why_failed(exc)
         assert note == "HTTPError 403 (non-json)"
         assert "html" not in note.lower() and "Attention" not in note
 
     def test_no_body_at_all_still_names_the_status(self):
         """`fp` is None on a synthesised error and on some proxies. Explaining a
         failure must never fail."""
-        assert grammar._why(self._http(500, None)) == "HTTPError 500"
+        assert grammar.why_failed(self._http(500, None)) == "HTTPError 500"
 
     def test_a_non_http_failure_is_unchanged(self):
-        assert grammar._why(TimeoutError()) == "TimeoutError"
+        assert grammar.why_failed(TimeoutError()) == "TimeoutError"
 
     def test_the_note_carries_it_through_the_chain(self):
         """The unit above is only useful if `check` still puts it in the note —
@@ -452,3 +452,62 @@ class TestImportingTheAppBindsTheBreaker:
         connection here would resolve the path at import, which is the habit
         this project has paid for three times."""
         assert self._ask("breaker._store is None") == "True"
+
+
+class TestTheEvalSaysWhyItCouldNotMeasure:
+    """An eval that reaches nothing must still name the reason.
+
+    On 2026-09-02 the first `huggingface` run reported, eighteen times:
+
+        ✗ Ma lugesin eile selle raamatut läbi.
+            ERROR HTTPError: HTTP Error 400: Bad Request
+
+    and then `18/18 cases never reached the model (rate limit, timeout or
+    unparseable reply) — no score reported`. Three guesses, none of them right:
+    the token authenticated (a bad one is 401), the quota was untouched (that is
+    429), and the reply was never the problem (400 means the request was). The
+    provider had named the cause in its body and both eval tracks dropped it,
+    rendering `type(exc).__name__`.
+
+    `grammar.why_failed` — then named `_why` — already existed for exactly this,
+    and its docstring records the same lesson being learned in the live chain a
+    fortnight earlier. It was one import away and nobody had crossed the gap.
+    """
+
+    @staticmethod
+    def _http(code, body):
+        import io
+        import json
+        import urllib.error
+
+        raw = json.dumps(body).encode() if body is not None else b""
+        return urllib.error.HTTPError(
+            "https://router.huggingface.co/v1/chat/completions", code,
+            "Bad Request", {}, io.BytesIO(raw))
+
+    def test_the_renderer_names_a_400s_cause(self):
+        from eesti.providers import grammar
+
+        exc = self._http(400, {"error": {"code": "json_mode_unsupported"}})
+        assert grammar.why_failed(exc) == "HTTPError 400 (json_mode_unsupported)"
+
+    def test_both_eval_tracks_use_it(self):
+        """Structural, because the failure is invisible until a provider is
+        actually failing — which is when nobody wants to discover that the
+        message says nothing. Two tracks; the hand one was fixed first and the
+        external one is the copy that would have been left behind."""
+        import inspect
+
+        from eesti.evals import external, gec
+
+        for module in (gec, external):
+            source = inspect.getsource(module)
+            # Comments stripped: `gec.py` quotes the old rendering in the
+            # comment explaining why it was replaced, and the first version of
+            # this assertion matched that. Sixth prose-vs-code match this
+            # sprint, and the second where the prose was mine.
+            code = "\n".join(line.split("#")[0] for line in source.splitlines())
+            assert "why_failed(exc)" in code, module.__name__
+            assert "type(exc).__name__" not in code, (
+                f"{module.__name__} still renders the exception class and "
+                f"drops the provider's reason")

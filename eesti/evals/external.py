@@ -35,6 +35,7 @@ import random
 from pathlib import Path
 
 from ..config import DATA
+from ..providers.grammar import why_failed
 from ..providers.llm import complete, parse_json
 from .gec import SYSTEM
 
@@ -124,7 +125,7 @@ def run(
             result = parse_json(complete(provider, SYSTEM, row["original"], model=model))
         except Exception as exc:
             broken += 1
-            failures.append((row["original"], f"ERROR {type(exc).__name__}"))
+            failures.append((row["original"], f"ERROR {why_failed(exc)}"))
             continue
 
         proposed = {

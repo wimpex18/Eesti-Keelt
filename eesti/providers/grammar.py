@@ -405,7 +405,7 @@ def _error_code(exc: urllib.error.HTTPError) -> str:
     return "no-code"
 
 
-def _why(exc: BaseException) -> str:
+def why_failed(exc: BaseException) -> str:
     """Name a failure precisely enough to act on it.
 
     The type alone is not actionable. `HTTPError` covers a 429 (wait, the free
@@ -426,6 +426,12 @@ def _why(exc: BaseException) -> str:
     Never a response *body*: the note is printed into CI logs, and the text
     being checked is the learner's own writing. `_error_code` reads one field
     and only when it is an identifier, which is a shape prose cannot take.
+
+    Public, and read by `eesti/evals/` too. The eval tracks rendered
+    `type(exc).__name__` instead and so reported the same 400 as a bare
+    `HTTPError` — the exact loss of the provider's own diagnosis that this
+    function was written to stop, in the one place a person goes looking for
+    why a model scored nothing.
     """
     if isinstance(exc, urllib.error.HTTPError):
         code = _error_code(exc)
@@ -456,9 +462,9 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             return result
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
             _record_failure(provider.name)
-            tried.append(f"{provider.name}: {_why(exc)}")
+            tried.append(f"{provider.name}: {why_failed(exc)}")
         except Exception as exc:  # bad JSON, SDK errors — never fatal
             _record_failure(provider.name)
-            tried.append(f"{provider.name}: {_why(exc)}")
+            tried.append(f"{provider.name}: {why_failed(exc)}")
 
     return GrammarResult("none", [], degraded=True, note="; ".join(tried))
