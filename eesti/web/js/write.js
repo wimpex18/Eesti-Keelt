@@ -1,5 +1,6 @@
 /* Kirjutamine: the grammar check, the error queue, and the written drill. */
 
+import {emptyState} from "./chrome.js";
 import {$, api, esc, md, setLabel} from "./core.js";
 import {loadRail} from "./review.js";
 
@@ -47,7 +48,11 @@ async function runCheck() {
         верной, а смысл — не тем, который ты имел в виду.</div></div>`;
     }
     if (!res.corrections.length) {
-      html += `<p class="empty">Всё верно — ошибок не найдено.</p>`;
+      html += emptyState({
+        icon: "done",
+        title: "Ошибок не найдено",
+        note: "Разбор форм не нашёл, к чему придраться в этом тексте.",
+      });
     } else {
       // Object-case errors first: that is the documented priority gap.
       const sorted = [...res.corrections].sort(

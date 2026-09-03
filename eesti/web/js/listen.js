@@ -1,5 +1,6 @@
 /* Kuulamine: dictation, the listening shelf, and turning any text into audio. */
 
+import {emptyState, uiIcon} from "./chrome.js";
 import {$, api, esc, md, setLabel} from "./core.js";
 import {mountAudio} from "./media.js";
 import {loadRail} from "./review.js";
@@ -107,15 +108,23 @@ export async function loadListenLibrary() {
        nothing in it looked identical to an archive that failed to load and
        to a panel that never had one. */
     if (!wanted.length) {
-      box.innerHTML = `<p class="empty">Архив передач пуст — материал ещё не
-        загружен. Его наполняют <code>cli harvest</code> и
-        <code>cli harvest-reading</code>.</p>`;
+      box.innerHTML = emptyState({
+        icon: "note",
+        title: "Архив передач пуст",
+        note: `Материал ещё не загружен. Его наполняют <code>cli harvest</code>
+          и <code>cli harvest-reading</code>.`,
+      });
       return;
     }
 
+    /* A mark before the section name, and a drawn note instead of the `♪`
+       character for the audio count -- the same reason every other glyph
+       went: it is font-dependent and cannot take the stroke weight beside
+       it. */
     box.innerHTML = wanted.map(sec => `
-      <h3 class="sec-head">${esc(sec.et)}
-        <span class="hint">${sec.items}${sec.with_audio ? " · ♪ " + sec.with_audio : ""}</span></h3>
+      <h3 class="sec-head"><span class="mark-chip">${uiIcon("note", "")}</span>${esc(sec.et)}
+        <span class="hint">${sec.items}${sec.with_audio
+          ? " · " + uiIcon("note", "inline-ico") + " " + sec.with_audio : ""}</span></h3>
       <p class="hint sec-note">${esc(sec.note || "")}</p>
       <div class="sec-list" data-section="${esc(sec.id)}"></div>`).join("");
 
@@ -136,7 +145,8 @@ export async function loadListenLibrary() {
         : `<div class="lib-item" data-id="${esc(it.id)}">
              <h4>${esc(it.title)}</h4>
              <span class="lib-meta">${it.words ? it.words + " слов" : "аудио"}${
-               it.audio_url ? " · ♪" : ""}${it.level ? " · " + esc(it.level) : ""}</span>
+               it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${
+               it.level ? " · " + esc(it.level) : ""}</span>
              <div class="lib-open" hidden></div>
            </div>`).join("");
       el.querySelectorAll(".lib-item[data-id]").forEach(row =>

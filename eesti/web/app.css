@@ -1081,3 +1081,67 @@
   .row:has(> button[data-r]) > button[data-r]{width:100%;min-height:48px;
     font-size:13.5px;padding:8px 6px}
   .row:has(> button[data-r]) > :not(button[data-r]){grid-column:1 / -1}
+
+  /* ── Marks in the interface ──────────────────────────────────────
+     Placed IN THE FLOW, not by making the button a flex container. That is
+     not a style preference: `button.go` deliberately is not flex, because
+     making it one blockifies every inline child and the Russian gloss --
+     `<i class="ru">` -- stops sitting inside the label and becomes a second
+     line. The mode buttons solved this years ago with an inline-block mark
+     and a vertical nudge; this is the same solution for every other button. */
+  .btn-ico{display:inline-block;vertical-align:-3.5px;width:17px;height:17px;
+    margin-right:7px;flex:none}
+  /* A mark inside a sentence or a meta line -- the "has audio" note, the
+     "do this next" arrow. Smaller, and nudged to sit on the text's baseline
+     rather than on the box. */
+  .inline-ico{display:inline-block;vertical-align:-2px;width:14px;height:14px}
+  .part-next .inline-ico{color:var(--accent)}
+  /* A mark with a surface of its own, for the top of an empty view. Big
+     enough to be the first thing seen, quiet enough not to be the point. */
+  .empty-state{text-align:center;padding:26px 20px}
+  .empty-mark{width:46px;height:46px;margin:0 auto 14px;border-radius:14px;
+    display:grid;place-items:center;background:var(--accent-soft);
+    color:var(--accent)}
+  .empty-mark svg{width:22px;height:22px}
+  .empty-state h4{margin:0;font-size:15px;font-weight:650}
+  .empty-state p{margin:6px auto 0;max-width:44ch;font-size:13px;
+    line-height:1.6;color:var(--muted)}
+  .empty-state .row{justify-content:center;margin-top:14px}
+
+  /* ── Depth, in one hue ───────────────────────────────────────────
+     The 2026 house style for this kind of surface is a gradient you cannot
+     quite see: analogous, a few points of lightness, doing the work a flat
+     fill does not -- telling a raised thing from the page under it. What it
+     is not is a second colour. Everything below stays inside the accent, so
+     nothing here can be mistaken for the app's one meaning-bearing hue. */
+  button.go, button.primary{
+    background-image:linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 88%, #ffffff) 0%,
+      var(--accent) 62%)}
+  /* The ring is the one number that represents accumulated work, so it is
+     the one thing worth a sweep: the arc lightens as it fills. */
+  .ring{background:conic-gradient(
+    color-mix(in srgb, var(--accent) 72%, #ffffff) 0deg,
+    var(--accent) calc(var(--pct) * 3.6deg),
+    var(--line) 0)}
+  /* Every panel carries a wash of the accent at its top corner -- six percent
+     of it, enough to lift the card off the page.
+
+     `:first-of-type` was the first spelling, and it does not mean "the panel
+     on screen": the eleven panels are siblings, so it matched Rada and only
+     Rada, whichever one was open. Ten screens would have quietly missed the
+     treatment. */
+  .panel{background-image:radial-gradient(
+    120% 90% at 0% 0%,
+    color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+    transparent 60%)}
+  .rail-card:first-child{background-image:radial-gradient(
+    130% 100% at 100% 0%,
+    color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+    transparent 65%)}
+  /* A tinted mark beside a section heading, so a list of sections is
+     scannable by shape before it is read. */
+  .sec-head .mark-chip{width:26px;height:26px;border-radius:8px;
+    display:inline-grid;place-items:center;background:var(--accent-soft);
+    color:var(--accent);flex:none}
+  .sec-head .mark-chip svg{width:15px;height:15px}

@@ -74,6 +74,49 @@ from a link or a reload put Kirjutamine 512px right of the viewport with the
 row at `scrollLeft` 0, so the panel was Kirjutamine and the navigation said
 Rada. `selectTab` scrolls the row (never the page) to bring it back.
 
+## Marks, and one hue with depth
+
+The navigation had drawn icons from the start; everything else used a text
+character where it wanted a mark — `✓ Tean seda sõna`, `⊘ Pole vaja`,
+`▶ Kuula`, `● Salvesta vastus`, `← Nimekirja`, `· ♪`. A character is not an
+icon: it is drawn by whichever font the platform picks, so it changes size,
+weight and baseline between Android, iOS and a desktop browser; `⊘` and `♪`
+are not in every system face and fall back to another one mid-sentence; and
+it cannot take the stroke weight of the icons beside it.
+
+`UI_ICON` in `chrome.js` draws the rest, in the same grammar as `NAV_ICON` —
+a 24-unit box, one stroke weight, round caps and joins, which is also the
+grammar every mainstream icon set (Lucide, Phosphor, Heroicons) converged on.
+Drawn rather than installed: this app ships no third-party requests and caches
+its own shell, so an icon font or a CDN sprite would be both.
+
+Two maps, so two ways to drift, and `test_navigation_icons.py` checks both
+directions: a `BUTTON_ICON` id the page no longer has paints nothing, and
+`uiIcon("typo")` returns an empty string. Neither would raise anything.
+
+**The marks go in the flow, never by making the button a flex container.**
+`button.go` deliberately is not flex: making it one blockifies every inline
+child and the Russian gloss stops sitting inside the label. The mode buttons
+solved that years ago with an inline-block mark and a vertical nudge; every
+other button now uses the same solution.
+
+### Depth, without a second colour
+
+Colour in this app carries meaning — accent is *action* and *correct*, warn is
+*attention*, bad is *error*, gloss is *what a word means*. So the 2026 house
+style for surfaces (a gradient you cannot quite see: analogous, a few points
+of lightness) is applied strictly inside the accent, and nowhere that a
+learner reads a verdict:
+
+- the primary button lightens 12 % toward white at its top edge;
+- the progress ring sweeps from a lighter accent to the accent as it fills —
+  it is the one number that represents accumulated work;
+- every panel and the first rail card carry a 6–7 % accent wash at one corner.
+
+Measured, not eyeballed: the lightest painted pixel of the button gradient
+gives 5.03:1 against its white label in the light theme and 8.79:1 in the
+dark one.
+
 ## The trap this file exists to warn about
 
 **A media query does not raise specificity.** Three of the defects found while
