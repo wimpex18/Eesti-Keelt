@@ -555,6 +555,98 @@ class TestTheTabsKeyboardPattern:
         assert [t for t, i in order if i == 0] == ["read"], order
 
 
+class TestTheSelectedSkillIsVisible:
+    """Where the learner is has to be visible in the navigation, not only in
+    the panel.
+
+    The skills scroll sideways on a phone, and the row does not start where the
+    selected chip is. Opening `#write` -- a pasted link, a reload, the tab you
+    were last on -- rendered Kirjutamine 512px to the right of the viewport
+    with the row at scrollLeft 0: the panel was correct and the navigation
+    said Rada. The old bottom bar could not have this bug because all seven
+    tabs were on screen at once, squeezed to 10.5px.
+    """
+
+    @pytest.mark.parametrize("tab", ["write", "speak", "sonad"])
+    def test_a_deep_link_scrolls_the_row_to_it(self, page, live_server, tab):
+        page.goto(f"{live_server}#{tab}", wait_until="networkidle")
+        page.wait_for_timeout(400)
+        verdict = page.evaluate("""()=>{
+          const nav=document.querySelector('nav[data-mode-nav]:not([hidden])');
+          const sel=nav.querySelector('button[aria-selected="true"]');
+          if(!sel) return 'no selected tab';
+          const r=sel.getBoundingClientRect(), n=nav.getBoundingClientRect();
+          return (r.left>=n.left-1 && r.right<=n.right+1) ? null
+               : `${sel.dataset.tab} is ${Math.round(r.right-n.right)}px outside the row`;}""")
+        assert verdict is None, f"{page.viewport_name}: {verdict}"
+
+    def test_the_page_itself_is_not_scrolled_to_do_it(self, page, live_server):
+        """`scrollIntoView` would drag the document down to the navigation on a
+        phone, which is a worse bug than the one being fixed."""
+        page.goto(f"{live_server}#write", wait_until="networkidle")
+        page.wait_for_timeout(400)
+        assert page.evaluate("()=>Math.round(window.scrollY)") == 0
+
+
+class TestTheMiddleWidth:
+    """720-1079px: not a wide phone, not a narrow desktop.
+
+    It had the phone's answer -- a row of seven bilingual tabs that has to
+    scroll -- on a screen with 300px of empty margin either side. It gets a
+    rail of marks now, and the two things that can go wrong with a rail are
+    both things this suite has already caught once elsewhere: marks with no
+    size, and buttons with no accessible name once the label is hidden.
+    """
+
+    @pytest.fixture
+    def tablet(self, _pw, live_server):
+        context = _pw.new_context(viewport={"width": 834, "height": 1000})
+        pg = context.new_page()
+        pg.goto(live_server, wait_until="networkidle")
+        pg.wait_for_timeout(300)
+        yield pg
+        context.close()
+
+    def test_the_skills_are_a_column(self, tablet):
+        assert tablet.eval_on_selector(
+            "nav[data-mode-nav]:not([hidden])",
+            "e=>getComputedStyle(e).flexDirection") == "column"
+
+    def test_every_mark_is_drawn(self, tablet):
+        bad = tablet.eval_on_selector_all(
+            "nav[data-mode-nav]:not([hidden]) button",
+            """els=>els.filter(b=>{const s=b.querySelector('.ico svg');
+                 if(!s) return true; const r=s.getBoundingClientRect();
+                 return !r.width || !r.height;}).map(b=>b.dataset.tab)""")
+        assert not bad, f"marks with no size in the rail: {bad}"
+
+    def test_every_button_still_has_a_name(self, tablet):
+        """The label is `display:none` here, and `display:none` takes the text
+        out of the accessibility tree with it."""
+        unnamed = tablet.eval_on_selector_all(
+            "nav[data-mode-nav]:not([hidden]) button",
+            """els=>els.filter(b=>!(b.getAttribute('aria-label')||'').trim())
+                 .map(b=>b.dataset.tab)""")
+        assert not unnamed, f"rail buttons with no accessible name: {unnamed}"
+
+    def test_the_rail_never_traps_its_own_last_entry(self, tablet):
+        """A sticky column taller than the window pins at `top` and its bottom
+        is never reachable by scrolling the page."""
+        verdict = tablet.evaluate("""()=>{
+          const n=document.querySelector('nav[data-mode-nav]:not([hidden])');
+          const r=n.getBoundingClientRect();
+          const last=n.querySelector('button:last-of-type').getBoundingClientRect();
+          if (last.bottom > r.bottom + 1 && getComputedStyle(n).overflowY === 'visible')
+            return 'the last skill is outside a rail that cannot scroll';
+          return null;}""")
+        assert verdict is None, verdict
+
+    def test_the_page_does_not_scroll_sideways(self, tablet):
+        over = tablet.evaluate(
+            "()=>document.documentElement.scrollWidth-document.documentElement.clientWidth")
+        assert over <= 1, f"{over}px of sideways scroll at 834px"
+
+
 class TestMobileLayout:
     """Everything here is a phone-only failure mode. They run at both sizes on
     purpose: a rule that only holds on one is the bug, not the test."""

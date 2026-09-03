@@ -48,6 +48,32 @@ on one left edge at every width. The path list is a four-column grid, because
 the Russian state words run to `ОТКРОЕТСЯ ПОЗЖЕ` and a `min-width:74px` sized
 for English left every row starting its name at a different x.
 
+## The middle width
+
+720-1079px was the last range still answering with the phone's layout: a row
+of seven bilingual tabs that has to scroll, on a screen with 300px of empty
+margin either side. It gets a rail of marks instead -- room for a 68px column
+and the reading measure at once, which a row cannot do because a row spends
+its width on labels and then runs out.
+
+Two things guard it, and both were found by measuring rather than by reading:
+
+- `min-height:560px` on the branch. A phone in landscape is 844x390 -- wide
+  enough for a rail and 390px tall, where a seven-item column is 352px and a
+  sticky element taller than the window can never show its bottom. Rääkimine
+  and Kirjutamine would have been unreachable. A short viewport keeps the row.
+- The label is `display:none` in the rail, which takes the text out of the
+  accessibility tree with it. `chrome.js` now sets `title` and `aria-label`
+  from the label and its gloss, at every width.
+
+## Where the learner is, in a row that scrolls
+
+The old bottom bar could not lose the selected tab: all seven were on screen
+at once, squeezed to 10.5px. A scrolling row can, and did -- opening `#write`
+from a link or a reload put Kirjutamine 512px right of the viewport with the
+row at `scrollLeft` 0, so the panel was Kirjutamine and the navigation said
+Rada. `selectTab` scrolls the row (never the page) to bring it back.
+
 ## The trap this file exists to warn about
 
 **A media query does not raise specificity.** Three of the defects found while

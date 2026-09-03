@@ -149,6 +149,11 @@
       position:sticky;top:20px;
       display:flex;flex-direction:column;gap:2px;
       margin:0;overflow:visible;
+      /* A sticky column taller than the window would strand its own last
+         entries: it pins at `top` and the page scroll never reveals its
+         bottom. Scroll it instead. */
+      max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);
+      overflow-y:auto;scrollbar-width:thin;
       padding:var(--s3);background:var(--panel);
       border:1px solid var(--line);border-radius:var(--radius)}
     /* Three columns -- mark, text, count -- so the Estonian name and its
@@ -345,8 +350,17 @@
 
     /* The skills, as chips. `flex:0 0 auto` is what makes the row scroll
        instead of squeezing eleven destinations into 350px. */
-    nav[data-mode-nav]{margin:0 calc(-1 * var(--s5)) var(--s4);
-      padding:2px var(--s5) var(--s1);gap:var(--s2);overflow-x:auto;
+    /* The bleed has to be exactly `.wrap`'s own padding, which is 20px --
+       not `--s5` (24px), which hung the row 4px past the viewport on each
+       side and put 4px of sideways scroll on the document. `.panel` bleeds
+       with the same literal, for the same reason. */
+    /* The vertical padding is the focus ring's room, not decoration.
+       `overflow-x:auto` makes this a scroll container, and a scroll container
+       cannot have `overflow-y:visible` -- so a 2px outline drawn 2px outside
+       a chip was being clipped along the top edge for anyone navigating by
+       keyboard. Four pixels is what the ring needs; six is what it gets. */
+    nav[data-mode-nav]{margin:0 -20px var(--s3);
+      padding:6px 20px;gap:var(--s2);overflow-x:auto;
       }
     nav[data-mode-nav] button{flex:0 0 auto;min-height:38px;padding:0 14px;
       border:1px solid var(--line);border-radius:999px;background:var(--panel);
@@ -919,6 +933,65 @@
      column were each caught by, which is why this block sits at the end. */
   @media (max-width:719px){
     .modes button{min-height:54px}
+  }
+
+  /* ── The middle width: 720-1079px ────────────────────────────────
+     Neither a wide phone nor a narrow desktop, and until now it got the
+     phone's answer without the phone's excuse: a row of seven bilingual tabs
+     that has to scroll, on a screen with 300px of empty margin either side.
+
+     The skills become a rail of marks. There is room for a 68px column and
+     the reading measure at the same time, which is what a row cannot do --
+     a row spends its width on labels and then runs out. The label is not
+     lost: it is the button's `title` and its accessible name, and the
+     selected one is named in full by the panel it opens.
+
+     The context rail stays hidden here. It is context, and context is the
+     first thing to cut -- that decision is older than this layout and has
+     not changed. */
+  /* `min-height` is not decoration. A phone in landscape is 844x390 -- wide
+     enough for this branch and 390px tall, where a seven-item rail is 352px
+     and a sticky element taller than the viewport can never show its bottom:
+     Rääkimine and Kirjutamine would be unreachable. A short viewport keeps
+     the scrolling row, which costs one gesture and hides nothing. */
+  @media (min-width:720px) and (max-width:1079px) and (min-height:560px){
+    .wrap{display:grid;grid-template-columns:68px minmax(0,1fr);
+      grid-template-rows:auto 1fr;gap:0 20px;align-items:start;
+      max-width:980px;padding-bottom:40px}
+    header{grid-column:1 / -1;grid-row:1}
+    nav[data-mode-nav]{grid-column:1;grid-row:2;position:sticky;top:20px;
+      display:flex;flex-direction:column;align-items:center;gap:var(--s1);
+      /* Room for the focus ring on both axes: this column scrolls too. */
+      margin:0;padding:var(--s2);overflow:visible;
+      /* A sticky column taller than the window would strand its own last
+         entries: it pins at `top` and the page scroll never reveals its
+         bottom. Scroll it instead. */
+      max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);
+      overflow-y:auto;scrollbar-width:thin;
+      background:var(--panel);border:1px solid var(--line);
+      border-radius:var(--radius);
+      /* The row's scroll fade belongs to a row. */
+      -webkit-mask-image:none;mask-image:none}
+    .panel{grid-column:2;grid-row:2}
+    nav[data-mode-nav] button{width:52px;height:48px;min-height:48px;
+      padding:0;justify-content:center;border-color:transparent;
+      border-radius:var(--radius-sm);position:relative}
+    nav[data-mode-nav] button:not([aria-selected="true"]){border-color:transparent}
+    nav[data-mode-nav] .lbl, nav[data-mode-nav] .ru{display:none}
+    /* Same reasoning as the desktop column: a mark with no text of its own,
+       above a rail of marks, labels nothing and reads as a stray glyph. */
+    nav[data-mode-nav] .groupmark{display:none}
+    nav[data-mode-nav] .ico{display:inline-flex;line-height:0}
+    nav[data-mode-nav] .ico svg{width:20px;height:20px}
+    nav[data-mode-nav] .badge{position:absolute;top:3px;right:3px;
+      min-width:16px;padding:0 4px;font-size:9.5px;
+      /* A ring in the rail's own colour: the count sits ON the mark here, and
+         without it the glyph reads through the digits. */
+      box-shadow:0 0 0 2px var(--panel)}
+    /* The marks are all this rail has, so they must never be the 0x0 the
+       phone bar once shipped. */
+    nav[data-mode-nav] button[aria-selected="true"]{background:var(--accent-soft);
+      border-color:transparent;color:var(--accent)}
   }
 
   /* ── The skills row scrolls, and says so ─────────────────────────

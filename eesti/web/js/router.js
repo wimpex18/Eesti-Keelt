@@ -53,12 +53,36 @@ document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
 });
 
 
+/* Keep the selected tab where the learner can see it.
+
+   On a phone the skills are a row that scrolls, and the selected one is not
+   always inside the part of it that is on screen: opening `#write` -- from a
+   pasted link, from a reload, or from the landing tab -- put Kirjutamine 512px
+   to the right of the viewport with the row still scrolled to zero. The panel
+   was correct and the navigation said the learner was on Rada.
+
+   Only the row is scrolled, never the page: `scrollIntoView` would also drag
+   the document down to the nav on a phone, which is the cure being worse. The
+   guard means this does nothing at any width where the row already fits, so
+   the desktop column and the tablet rail are untouched.
+*/
+function keepVisible(button) {
+  const nav = button.closest("nav");
+  if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
+  const b = button.getBoundingClientRect(), n = nav.getBoundingClientRect();
+  if (b.left >= n.left && b.right <= n.right) return;
+  const centred = nav.scrollLeft + (b.left - n.left) - (n.width - b.width) / 2;
+  nav.scrollLeft = Math.max(0, centred);
+}
+
+
 export function selectTab(button) {
   button.closest("nav").querySelectorAll("button").forEach(x => {
     x.setAttribute("aria-selected", x === button);
     // Roving tabindex: only the selected tab is in the Tab order.
     x.tabIndex = x === button ? 0 : -1;
   });
+  keepVisible(button);
   const tab = button.dataset.tab;
   TABS.forEach(t => $("#tab-" + t).hidden = (t !== tab));
   // Fetched when opened rather than on page load: the exam view is two

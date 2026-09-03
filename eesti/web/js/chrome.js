@@ -108,6 +108,23 @@ export function paintIcons() {
     const d = NAV_ICON[b.dataset.tab];
     const slot = b.querySelector(".ico");
     if (d && slot) slot.innerHTML = navIcon(d);
+    /* A name that does not depend on the label being painted.
+
+       Between 720 and 1079px the skills are a rail of marks and `.lbl` is
+       `display:none` -- which takes the text out of the accessibility tree
+       with it, leaving seven buttons called nothing at all. The label is
+       still the name; it is just carried by the attribute rather than by the
+       glyph. `title` for a pointer, `aria-label` for everything else, and
+       both are set at every width because a tooltip on a mark is useful on
+       the desktop too. */
+    const label = b.querySelector(".lbl");
+    const name = label && label.textContent.trim();
+    if (name) {
+      const ru = RU[name];
+      const full = ru ? `${name} — ${ru}` : name;
+      b.title = full;
+      b.setAttribute("aria-label", full);
+    }
   });
   document.querySelectorAll(".modes button[data-mode]").forEach(b => {
     if (b.querySelector(".ico")) return;
