@@ -77,9 +77,15 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         "passages": [p.to_dict() for p in passages],
         "words": [MIN_WORDS, MAX_WORDS],
         "caveat": CAVEAT,
-        "note": ("Kuula ja kirjuta üles. Kuulata võib nii mitu korda kui vaja."
+        # Both of these EXPLAIN, so both are Russian: one says how the
+        # exercise works, the other says why there is no exercise and what
+        # would produce one. The second was the worse failure -- it is the
+        # only thing standing between the learner and an empty panel.
+        "note": ("Прослушай и запиши услышанное. Слушать можно сколько нужно."
                  if passages else
-                 "Tekstikogu on tühi — lisa materjal, siis tulevad ka diktaadid."),
+                 "Корпус текстов пуст, поэтому диктантов (etteütlus) сейчас "
+                 "нет. Они появятся, когда материал будет загружен: "
+                 "`cli harvest-reading` или `cli ingest`."),
     }
 
 

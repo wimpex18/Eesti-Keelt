@@ -1,5 +1,0 @@
-# The seeded canvas: a 3 MB generated bundle (the design content plus a copy of
-# the canvas editor). Rebuild it with the command in README.md; the artboards
-# themselves are the source and they are committed.
-eesti-keel-uus-kujundus.html
-__pycache__/

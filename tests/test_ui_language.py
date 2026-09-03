@@ -130,21 +130,51 @@ class TestNothingUserFacingIsEnglish:
             "English key")
 
 
+#: Explanations that were once written in Estonian, each removed for the same
+#: reason: the person they are addressed to could not read them. The list is
+#: here rather than inside one test because it now has to hold in two places --
+#: the page and its modules, and the API responses those elements display.
+ESTONIAN_EXPLANATIONS = [
+    "Ükski osa ei tohi olla null.",
+    "Kuula ja kirjuta üles.",
+    "Vasta valjusti ja kuula end üle.",
+    "Töövihikuid pole veel imporditud.",
+    "Ametlikku materjali pole veel imporditud.",
+    # The page said this with parentheses, so the version listed here for
+    # months matched nothing. Corrected to what the code actually had.
+    "Mikrofon vajab HTTPS-i (või localhost'i).",
+    # Served by `api/speech.py` into `#dictState`, where it told the learner
+    # in Estonian why there were no dictations.
+    "Tekstikogu on tühi",
+]
+
+
 class TestExplanationsAreRussian:
     """The category the rule is strictest about."""
 
-    @pytest.mark.parametrize("gone", [
-        "Ükski osa ei tohi olla null.",
-        "Kuula ja kirjuta üles.",
-        "Vasta valjusti ja kuula end üle.",
-        "Töövihikuid pole veel imporditud.",
-        "Ametlikku materjali pole veel imporditud.",
-        # The page said this with parentheses, so the version listed here for
-        # months matched nothing. Corrected to what the code actually had.
-        "Mikrofon vajab HTTPS-i (või localhost'i).",
-    ])
+    @pytest.mark.parametrize("gone", ESTONIAN_EXPLANATIONS)
     def test_the_estonian_version_is_gone(self, page, gone):
         assert gone not in page, f"still explaining in Estonian: {gone!r}"
+
+    @pytest.mark.parametrize("gone", ESTONIAN_EXPLANATIONS)
+    def test_the_api_does_not_explain_in_estonian_either(self, gone):
+        """The same rule, over the half of the app the scan could not see.
+
+        `page` is the markup and the modules. An explanation SERVED by the API
+        reaches the learner through exactly the same elements and was never
+        looked at -- so `Kuula ja kirjuta üles.` sat in `api/speech.py` for
+        months, was written straight into `#dictState`, and this file's own
+        forbidden list passed it every run while the phone displayed it.
+
+        Scanning the API layer for the same strings rather than keeping a
+        second list: one list, two places it has to hold.
+        """
+        from pathlib import Path
+        api = Path(__file__).resolve().parents[1] / "eesti" / "api"
+        for mod in sorted(api.glob("*.py")):
+            text = mod.read_text(encoding="utf-8")
+            assert gone not in text, (
+                f"{mod.name} still explains in Estonian: {gone!r}")
 
     def test_the_no_part_may_be_zero_warning_is_readable(self, page):
         """The one that decides whether a learner fails the exam for ignoring a

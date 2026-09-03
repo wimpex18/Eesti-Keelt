@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sqlite3
 import socket
 import subprocess
 import sys
@@ -76,6 +77,26 @@ def chromium_path() -> str:
     return path
 
 
+def _has_texts(path: Path) -> bool:
+    """Rows, not a file — the same gate `available()` applies to the word list.
+
+    `content.exists()` was the whole check, and `sources.connect()` CREATES
+    the file: opening the content database once, for any reason, left a
+    complete-looking store with zero items behind. The reading journeys then
+    ran against it and reported eleven failures that were a missing harvest
+    wearing the costume of a regression. Presence of a database is not
+    presence of data; this project has now paid for that sentence three times.
+    """
+    if not path.exists():
+        return False
+    try:
+        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
+            return conn.execute(
+                "SELECT 1 FROM items WHERE body != '' LIMIT 1").fetchone() is not None
+    except sqlite3.Error:
+        return False
+
+
 @pytest.fixture(scope="session")
 def live_server(tmp_path_factory) -> str:
     """A real uvicorn process, isolated from the learner's study record.
@@ -94,8 +115,9 @@ def live_server(tmp_path_factory) -> str:
     # drill empty, every lookup missing, ~140 failures that look like a
     # regression and are a missing build. That is the same gate `real_wordlist`
     # was fixed for, in the file where it would be loudest.
-    if not available(words) or not content.exists():
-        pytest.skip("no built dataset — run `python -m eesti.cli build`")
+    if not available(words) or not _has_texts(content):
+        pytest.skip("no built dataset — run `python -m eesti.cli build` "
+                    "and `python -m eesti.cli harvest-reading`")
 
     workdir = tmp_path_factory.mktemp("e2e-server")
     (workdir / "data").mkdir()

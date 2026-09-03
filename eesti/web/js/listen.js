@@ -18,10 +18,19 @@ export async function loadDictation() {
     $("#dictAudio").innerHTML = "";
     $("#dictOut").innerHTML = "";
     $("#dictScore").textContent = "";
-    // No corpus is a supported state, not an error — say which it is.
+    /* No corpus is a supported state, not an error — say which it is, in a
+       place that survives the box being hidden. `#dictState` is inside
+       `#dictBox`, so writing the explanation there and then hiding the box
+       left the panel opening on the text-to-speech form with no hint that a
+       dictation exercise exists at all. */
     $("#dictBox").hidden = !dictNow;
-    state.textContent = d.note || "";
-    if (!dictNow) $("#dictState").textContent = d.note || "";
+    const empty = $("#dictEmpty");
+    empty.hidden = !!dictNow;
+    if (dictNow) {
+      state.textContent = d.note || "";
+    } else {
+      empty.textContent = d.note || "";
+    }
   } catch (e) {
     state.textContent = "Не удалось получить предложение: " + e.message;
   }
@@ -94,7 +103,15 @@ export async function loadListenLibrary() {
     // Everything in this mode except reading, which has its own tab.
     const wanted = (learn?.sections || []).filter(
       sec => sec.id !== "lugemine" && sec.items > 0);
-    if (!wanted.length) { box.innerHTML = ""; return; }
+    /* Silence is the one answer that cannot be acted on. An archive with
+       nothing in it looked identical to an archive that failed to load and
+       to a panel that never had one. */
+    if (!wanted.length) {
+      box.innerHTML = `<p class="empty">Архив передач пуст — материал ещё не
+        загружен. Его наполняют <code>cli harvest</code> и
+        <code>cli harvest-reading</code>.</p>`;
+      return;
+    }
 
     box.innerHTML = wanted.map(sec => `
       <h3 class="sec-head">${esc(sec.et)}

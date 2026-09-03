@@ -414,6 +414,12 @@
          untouched however much had been played. On an exam where a zero in
          one part fails you regardless of the other three, that was the worst
          place in the app to have no exercise. -->
+    <!-- Outside `#dictBox`, and that is the whole point: when there is no
+         corpus the box is hidden, and the note explaining why used to be
+         written into `#dictState`, which lives INSIDE it. The app said what
+         was wrong and then hid the answer. -->
+    <div id="dictEmpty" class="empty" hidden></div>
+
     <div id="dictBox">
       <div class="row">
         <button class="go" id="dictPlay">▶ Kuula<span class="ru">слушать</span></button>
