@@ -1,0 +1,286 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Desktop · Rada",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1290,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Harjutused.dc.html",
+      "title": "Desktop · Harjutused",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 890,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Lugemine.dc.html",
+      "title": "Desktop · Lugemine",
+      "x": 3120,
+      "y": 0,
+      "w": 1440,
+      "h": 880,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Sonavara.dc.html",
+      "title": "Desktop · Sõnavara",
+      "x": 4680,
+      "y": 0,
+      "w": 1440,
+      "h": 880,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Kuulamine.dc.html",
+      "title": "Desktop · Kuulamine",
+      "x": 0,
+      "y": 1470,
+      "w": 1440,
+      "h": 1310,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Raakimine.dc.html",
+      "title": "Desktop · Rääkimine",
+      "x": 1560,
+      "y": 1470,
+      "w": 1440,
+      "h": 1150,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Kirjutamine.dc.html",
+      "title": "Desktop · Kirjutamine",
+      "x": 3120,
+      "y": 1470,
+      "w": 1440,
+      "h": 1230,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Jarjekord.dc.html",
+      "title": "Desktop · Järjekord",
+      "x": 4680,
+      "y": 1470,
+      "w": 1440,
+      "h": 1000,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Toovihikud.dc.html",
+      "title": "Desktop · Töövihikud",
+      "x": 0,
+      "y": 2960,
+      "w": 1440,
+      "h": 880,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Ulevaade.dc.html",
+      "title": "Desktop · Ülevaade",
+      "x": 1560,
+      "y": 2960,
+      "w": 1440,
+      "h": 1230,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "Edenemine.dc.html",
+      "title": "Desktop · Edenemine",
+      "x": 3120,
+      "y": 2960,
+      "w": 1440,
+      "h": 1420,
+      "page": "page-1",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilRada.dc.html",
+      "title": "Mobiil · Rada",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilHarjutused.dc.html",
+      "title": "Mobiil · Harjutused",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilLugemine.dc.html",
+      "title": "Mobiil · Lugemine",
+      "x": 960,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilSonavara.dc.html",
+      "title": "Mobiil · Sõnavara",
+      "x": 1440,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilKuulamine.dc.html",
+      "title": "Mobiil · Kuulamine",
+      "x": 1920,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilRaakimine.dc.html",
+      "title": "Mobiil · Rääkimine",
+      "x": 2400,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilKirjutamine.dc.html",
+      "title": "Mobiil · Kirjutamine",
+      "x": 0,
+      "y": 1014,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilJarjekord.dc.html",
+      "title": "Mobiil · Järjekord",
+      "x": 480,
+      "y": 1014,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilToovihikud.dc.html",
+      "title": "Mobiil · Töövihikud",
+      "x": 960,
+      "y": 1014,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilUlevaade.dc.html",
+      "title": "Mobiil · Ülevaade",
+      "x": 1440,
+      "y": 1014,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "MobiilEdenemine.dc.html",
+      "title": "Mobiil · Edenemine",
+      "x": 1920,
+      "y": 1014,
+      "w": 390,
+      "h": 844,
+      "page": "page-2",
+      "print": "fixed"
+    },
+    {
+      "file": "Alused.dc.html",
+      "title": "Alused · дизайн-система",
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 1540,
+      "page": "page-3",
+      "print": "flow"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Desktop"
+    },
+    {
+      "id": "page-2",
+      "name": "Mobiil"
+    },
+    {
+      "id": "page-3",
+      "name": "Alused"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nav-note",
+      "x": 0,
+      "y": -150,
+      "w": 620,
+      "page": "page-1",
+      "text": "Навигация переехала в боковую панель: режим (Õppimine / Kordamine / Eksam) — заголовок группы, раздел — строка под ним. Семь вкладок в одну строку больше нигде не сжимаются."
+    },
+    {
+      "id": "grid-note",
+      "x": 700,
+      "y": -150,
+      "w": 620,
+      "page": "page-1",
+      "text": "1440 × сетка 248 / гибкая колонка / 300. Контент не шире 828 px, правая колонка — то, что раньше пряталось за кликом."
+    },
+    {
+      "id": "tab-note",
+      "x": 0,
+      "y": -150,
+      "w": 660,
+      "page": "page-2",
+      "text": "Внизу три режима вместо семи вкладок — 44+ px на палец. Разделы стали строкой чипов вверху. Карточка слова садится ровно на панель (bottom: 84 px) и больше её не перекрывает."
+    },
+    {
+      "id": "lang-note",
+      "x": 760,
+      "y": -150,
+      "w": 600,
+      "page": "page-2",
+      "text": "Правило языка сохранено: эстонский — интерфейс и термины, русский — всё, что объясняет и предупреждает."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}
