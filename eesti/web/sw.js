@@ -184,9 +184,9 @@ const OFFLINE_PAGE = `<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Нет соединения</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;margin:0;min-height:100vh;
-display:grid;place-items:center;background:#f7f7f5;color:#1a1a19;padding:24px}
+display:grid;place-items:center;background:#faf9f6;color:#1b1b19;padding:24px}
 div{max-width:32ch;text-align:center}h1{font-size:19px;margin:0 0 8px}
-p{margin:0;color:#5d5d57}</style>
+p{margin:0;color:#6b6b66}</style>
 <div><h1>Нет соединения</h1>
 <p>Упражнения создаются на сервере, поэтому без интернета их не открыть.
 Попробуй ещё раз, когда связь появится.</p></div>`;

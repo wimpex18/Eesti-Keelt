@@ -495,9 +495,9 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     breaker.bind(None)
     breaker.reset()
 
-    lookup._db.cache_clear()
+    lookup._open.cache_clear()
     yield
-    lookup._db.cache_clear()
+    lookup._open.cache_clear()
 
 
 @pytest.fixture(scope="session")

@@ -37,13 +37,29 @@ WORD_RE = re.compile(r"[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+", re.UNICODE)
 
 
 @lru_cache(maxsize=1)
-def _db(path: str | None = None) -> sqlite3.Connection | None:
-    target = Path(path or EDGE_DB)
-    if not target.exists():
-        return None
+def _open(target: str) -> sqlite3.Connection:
     conn = sqlite3.connect(f"file:{target}?mode=ro", uri=True, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _db(path: str | None = None) -> sqlite3.Connection | None:
+    """The forms database, opened once — but its ABSENCE is never cached.
+
+    It used to be one `lru_cache`d function, which memoised both answers. A
+    server started before `cli export` finished therefore returned `None` for
+    the rest of its life: the file appeared seconds later, every lookup kept
+    reporting "run `cli export` first", and only a restart fixed it. Caching a
+    connection is the point; caching "there is no database" is a decision made
+    once, at the worst possible moment, that nothing can revisit.
+
+    Same shape as the rule already written down for `available()`: presence of
+    a database is a question to ask when asked, not a fact to freeze at import.
+    """
+    target = Path(path or EDGE_DB)
+    if not target.exists():
+        return None
+    return _open(str(target))
 
 
 def lookup(word: str) -> dict:

@@ -18,6 +18,7 @@ of it is repeated here.
 | `docs/deploy.md` | Cloud Run, the Worker, Access, and why it is neither a Worker nor a Container |
 | `docs/curriculum-plan.md`, `docs/roadmap.md` | the syllabus, and why things were chosen |
 | `docs/ui-language.md` | what has been audited against the language rule below, and the check that enforces it |
+| `docs/redesign-2026.md` | the 2026 redesign: what changed on the page, and the specificity trap that cost three defects |
 | `docs/qa-status.md` | what the browser suite covers and what it cannot see |
 
 ## Where things stand

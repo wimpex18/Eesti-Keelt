@@ -198,3 +198,45 @@ class TestTheThemeAttributeHasAWriter:
         returning null, and this runs before anything else on the page."""
         block = page[page.index('localStorage.getItem("theme")') - 300:]
         assert "try" in block[:400] and "catch" in block[:600]
+
+
+class TestTheChromeOutsideThePageAgreesWithIt:
+    """The three surfaces the stylesheet cannot reach, and therefore forgets.
+
+    `--bg` moved from `#f7f7f5` to `#faf9f6` and the stylesheet's own comment
+    records the move -- while the status-bar colour, the installed app's splash
+    and the offline page kept the old white for months. Nobody sees them beside
+    the page, which is exactly why nobody noticed: an iOS status bar two points
+    off the page it sits above reads as a seam, not as a colour.
+
+    Derived rather than restated: the value is read out of the stylesheet, so
+    the next change to `--bg` fails here instead of drifting.
+    """
+
+    @pytest.fixture
+    def bg(self, css):
+        found = re.search(r"--bg:\s*(#[0-9a-fA-F]{6})", css)
+        assert found, "no --bg in the stylesheet"
+        return found.group(1).lower()
+
+    def test_the_status_bar_matches_the_page(self, bg):
+        page = (Path(__file__).resolve().parents[1]
+                / "eesti" / "web" / "index.html").read_text(encoding="utf-8")
+        found = re.search(
+            r'theme-color"\s+media="\(prefers-color-scheme: light\)"\s+content="(#[0-9a-fA-F]{6})"',
+            page)
+        assert found and found.group(1).lower() == bg, (
+            f"theme-color is {found and found.group(1)!r}, --bg is {bg!r}")
+
+    def test_the_installed_splash_matches_the_page(self, bg):
+        manifest = (Path(__file__).resolve().parents[1]
+                    / "eesti" / "api" / "assets.py").read_text(encoding="utf-8")
+        found = re.search(r'"background_color":\s*"(#[0-9a-fA-F]{6})"', manifest)
+        assert found and found.group(1).lower() == bg, (
+            f"manifest background_color is {found and found.group(1)!r}, --bg is {bg!r}")
+
+    def test_the_offline_page_matches_the_page(self, bg):
+        worker = (Path(__file__).resolve().parents[1]
+                  / "eesti" / "web" / "sw.js").read_text(encoding="utf-8")
+        assert f"background:{bg}" in worker, (
+            f"the offline page does not paint {bg}")

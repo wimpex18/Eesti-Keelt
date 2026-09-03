@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Eesti keel">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f5">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16171a">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -70,13 +70,6 @@
   <!-- Six destinations. On a phone this bar is fixed to the bottom, so the
        labels are short enough to survive 390px and each button clears 48px. -->
   <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
-    <!-- Inside the nav, not beside it. `.wrap` is a two-column grid on the
-         desktop and the rail is placed at a hardcoded `grid-row:3`, so a new
-         top-level element becomes a grid child and shifts every row under it
-         -- which is what a span here did: a 500px void between the header and
-         the tabs. It also belongs next to the thing it labels. -->
-    <span class="groupmark navmark" data-group="skills" aria-hidden="true"
-          title="Osaoskused — виды речевой деятельности"></span>
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Rada</span></button>
     <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">✦</span><span class="lbl">Harjutused</span></button>
     <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Lugemine</span></button>
@@ -414,6 +407,12 @@
          untouched however much had been played. On an exam where a zero in
          one part fails you regardless of the other three, that was the worst
          place in the app to have no exercise. -->
+    <!-- Outside `#dictBox`, and that is the whole point: when there is no
+         corpus the box is hidden, and the note explaining why used to be
+         written into `#dictState`, which lives INSIDE it. The app said what
+         was wrong and then hid the answer. -->
+    <div id="dictEmpty" class="empty" hidden></div>
+
     <div id="dictBox">
       <div class="row">
         <button class="go" id="dictPlay">▶ Kuula<span class="ru">слушать</span></button>

@@ -7,7 +7,21 @@ export async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = `<span class="hint">…</span>`;
   const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
-  if (!d.found) { card.innerHTML = `<span class="hint">${esc(d.word)} — не найдено</span>`; return; }
+  /* `found:false` covers two different answers and used to render as one.
+     A word can be genuinely absent from the lexicon -- or the lookup can be
+     unable to run at all, which is what `error` says ("run `cli export`
+     first" when the forms table was never exported). Reported as "не найдено"
+     the second one blames the word for a missing build step, and the learner
+     is told nothing they can act on about a card that would work fine
+     tomorrow. The API knew; the card threw it away. */
+  if (!d.found) {
+    card.innerHTML = d.error
+      ? `<span class="hint">${esc(d.word)} — разбор недоступен.
+           <br>Словарь форм ещё не собран на этом сервере
+           (<code>${esc(d.error)}</code>).</span>`
+      : `<span class="hint">${esc(d.word)} — не найдено</span>`;
+    return;
+  }
   /* Two different things to say about a word, and until now only one of them
      could be said.
 

@@ -165,7 +165,7 @@ def manifest() -> Response:
             "short_name": "Eesti keel",
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#f7f7f5",
+            "background_color": "#faf9f6",
             "theme_color": "#1c6b52",
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.

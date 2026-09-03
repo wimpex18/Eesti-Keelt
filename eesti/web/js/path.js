@@ -81,7 +81,11 @@ export async function loadPath() {
         <span>${esc(t.et)}${esc(blocked)}${acc}</span>
         ${testOut}</div>`;
     }).join("");
-  } catch (e) { $("#pathHead").hidden = false; $("#pathHead").textContent = e.message; }
+  } catch (e) {
+    $("#pathHead").className = "banner";   // an error is the amber one
+    $("#pathHead").hidden = false;
+    $("#pathHead").textContent = e.message;
+  }
 }
 
 
@@ -177,7 +181,8 @@ async function startPractice() {
     }
     pathTopic = res.topic;
     paintThemeNote();
-    let head = `<div class="banner"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
+    // A reference, not a warning: `info` rather than the default amber.
+    let head = `<div class="banner info"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
     /* A short set is not a broken one, but it is not the ten that were asked
        for either, and silence there reads as "this topic only has three". */
     if (res.theme && res.items.length < 10)
@@ -280,6 +285,11 @@ export function renderPracticeItem(it, topic, i, glosses) {
     if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $("#pathScore").textContent = line;
     if (res.just_mastered) {
+      // Good news wears the accent. `#pathHead` is shared with the error
+      // path below, so the class is set at each use rather than once in the
+      // markup -- otherwise whichever spoke last decides how the next one
+      // looks.
+      $("#pathHead").className = "banner ok";
       $("#pathHead").innerHTML =
         `✓ <strong>${esc(topic)}</strong> пройдено — открывает следующие темы. ` +
         `Упражнения ушли в очередь повторения.`;
