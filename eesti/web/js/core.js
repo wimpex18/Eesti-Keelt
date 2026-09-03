@@ -76,7 +76,12 @@ export function taskLine(it, ru, opts) {
 export function setLabel(el, text) {
   if (!el) return;
   const ru = el.querySelector(".ru");
+  /* The mark survives a label change for the same reason the gloss does:
+     `textContent =` wipes every child, and a button that loses its icon the
+     first time it says "Laen…" never gets it back. */
+  const ico = el.querySelector(".btn-ico");
   el.textContent = text;
+  if (ico) el.prepend(ico);
   if (ru) el.append(ru);
 }
 

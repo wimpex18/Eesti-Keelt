@@ -1,6 +1,6 @@
 /* Kordamine: the queue, the due badge, grading a card, and the desktop rail. */
 
-import {navIcon} from "./chrome.js";
+import {emptyState, navIcon} from "./chrome.js";
 import {$, api, esc, md, taskLine} from "./core.js";
 import {speakWord} from "./media.js";
 import {examLevel} from "./state.js";
@@ -86,7 +86,12 @@ $("#loadReview").onclick = async () => {
   const out = $("#reviewOut"); out.innerHTML = "";
   const {items, glosses} = await (await api("/api/review?limit=20", null, "GET")).json();
   if (!items.length) {
-    out.innerHTML = `<p class="empty">Сейчас повторять нечего. Порешай упражнения или почитай тексты.</p>`;
+    out.innerHTML = emptyState({
+      icon: "done",
+      title: "Повторять нечего",
+      note: `Очередь пуста — всё, что было назначено на сегодня, сделано.
+        Новые карточки появятся из ошибок и из слов, отмеченных при чтении.`,
+    });
     return;
   }
   for (const it of items) out.appendChild(renderReview(it, glosses || {}));

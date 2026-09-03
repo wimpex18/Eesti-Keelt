@@ -131,3 +131,68 @@ class TestSpacingComesFromTheScale:
         assert 'style="margin-top:0"' not in page, (
             "an inline reset is back; it cannot distinguish a first child from "
             "one that merely looked like it needed the same line")
+
+
+def _chrome() -> str:
+    return (Path(__file__).resolve().parents[1]
+            / "eesti" / "web" / "js" / "chrome.js").read_text(encoding="utf-8")
+
+
+def _block(name: str) -> str:
+    src = _chrome()
+    block = src[src.index(f"const {name} = {{"):]
+    return block[:block.index("\n};")]
+
+
+def _drawn() -> set[str]:
+    return set(re.findall(r"^\s{2}([a-z]+):", _block("UI_ICON"), re.M))
+
+
+def _button_map() -> dict[str, str]:
+    return dict(re.findall(r'(\w+):\s*"([a-z]+)"', _block("BUTTON_ICON")))
+
+
+def _asked() -> set[str]:
+    """Every mark the app asks for, however it asks.
+
+    Two call shapes, and missing the second is how the first draft of this
+    file reported three live icons as dead: `uiIcon("note")` directly, and
+    `emptyState({icon: "inbox"})`, which reaches `uiIcon` one layer down.
+    """
+    src = markup_and_script()
+    return (set(re.findall(r'uiIcon\(\s*"([a-z]+)"', src))
+            | set(re.findall(r'icon:\s*"([a-z]+)"', src))
+            | set(_button_map().values()))
+
+
+class TestTheInterfaceMarks:
+    """`UI_ICON` and `BUTTON_ICON` are two more hand-written maps, and they
+    fail in the two ways this file already exists to catch.
+
+    `BUTTON_ICON` maps an element id to a mark. An id that no longer exists in
+    the page paints nothing at all — no error, no warning, just a button that
+    quietly has no picture while every other one does. `uiIcon("typo")` is the
+    same failure from the other end: the helper returns an empty string, so a
+    misspelt name is invisible rather than loud.
+
+    Both directions, asked of the page and the modules rather than of a list
+    kept beside them.
+    """
+
+    def test_every_button_it_decorates_is_in_the_page(self):
+        page = markup()
+        missing = [i for i in _button_map() if f'id="{i}"' not in page]
+        assert not missing, (
+            f"BUTTON_ICON names ids the page does not have: {missing}. "
+            "The mark is painted by id, so these paint nothing.")
+
+    def test_every_mark_the_app_asks_for_is_drawn(self):
+        unknown = sorted(_asked() - _drawn())
+        assert not unknown, (
+            f"marks asked for but not drawn: {unknown}. `uiIcon` returns an "
+            "empty string for a name it does not have, so this is invisible.")
+
+    def test_no_mark_is_drawn_and_never_used(self):
+        unused = sorted(_drawn() - _asked())
+        assert not unused, (
+            f"marks drawn but never asked for: {unused}. Delete them or use them.")

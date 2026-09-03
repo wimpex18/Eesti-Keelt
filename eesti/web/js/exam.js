@@ -1,6 +1,6 @@
 /* Am I ready: the level, the official material, and the checkpoint. */
 
-import {markIcon} from "./chrome.js";
+import {emptyState, markIcon, uiIcon} from "./chrome.js";
 import {$, api, esc} from "./core.js";
 import {renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
@@ -40,7 +40,7 @@ export async function loadExam() {
       <span class="part-body">
         <span class="part-name">${esc(part.et)}</span>
         <span class="part-ev"> · ${esc(part.evidence)}</span>
-        ${part.next_task ? `<div class="part-next">→ ${part.next_task.url
+        ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.url
             ? `<a href="${esc(part.next_task.url)}" target="_blank"
                  rel="noopener">${esc(part.next_task.title)}</a>`
             : esc(part.next_task.title)}</div>` : ""}
@@ -108,13 +108,17 @@ export async function loadExam() {
       material.muu.map(linkRow).join("") + `</div>`;
   }
   $("#examMaterial").innerHTML = out ||
-    `<p class="empty">Официальные материалы ещё не загружены.</p>`;
+    emptyState({
+      icon: "inbox",
+      title: "Официальные материалы не загружены",
+      note: "Их индексирует <code>cli harvest-exam</code> — ссылками, не копиями.",
+    });
 }
 
 const linkRow = it => `<div class="lib-item">
   <a href="${esc(it.url || "#")}" target="_blank" rel="noopener">${esc(it.title)}</a>
   <span class="lib-meta">${esc(it.format || "")}${
-    it.audio_url ? " · ♪" : ""}</span></div>`;
+    it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
 
 
 document.querySelectorAll(".levels button").forEach(b => b.onclick = () => {
@@ -131,7 +135,11 @@ export async function loadVihikud() {
   const rows = (d.items || []).filter(i => i.external);
   $("#vihikudList").innerHTML = rows.length
     ? rows.map(linkRow).join("")
-    : `<p class="empty">Тетради ещё не загружены.</p>`;
+    : emptyState({
+      icon: "inbox",
+      title: "Тетради не загружены",
+      note: "Их индексирует <code>cli harvest-exam</code> — ссылками, не копиями.",
+    });
 }
 
 async function runCheckpoint() {

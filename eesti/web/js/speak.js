@@ -149,7 +149,7 @@ if (!canRecord) {
         el.src = URL.createObjectURL(blob);
         el.hidden = false;
         recording = false;
-        setLabel($("#recBtn"), "● Salvesta vastus");
+        setLabel($("#recBtn"), "Salvesta vastus");
         $("#recState").textContent = "Прослушай себя и сравни с образцом.";
         // Transcription is enrichment: the recording and the playback are the
         // exercise, and they already happened. Nothing here can fail in a way

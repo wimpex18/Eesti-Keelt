@@ -26,12 +26,29 @@ def index() -> str:
 # Installable on a phone: manifest and icons
 # --------------------------------------------------------------------------
 
+#: The mark, drawn rather than typed.
+#:
+#: It was a `<text>` element in a system font stack, which is a font
+#: dependency inside an icon: the glyph is drawn by whichever face the
+#: renderer resolves, so it changes weight and metrics between platforms and
+#: is at the mercy of a stack that a rasteriser may not have at all. An icon
+#: has to look the same everywhere it is pasted, so the `ä` is strokes now --
+#: a bowl, a stem and two dots, in the same grammar as every other icon in
+#: this app.
+#:
+#: The gradient is two steps of the accent, top to bottom. Flat colour is the
+#: only thing it replaces.
 ICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-    '<rect width="64" height="64" rx="14" fill="#1c6b52"/>'
-    '<text x="32" y="44" font-family="ui-sans-serif,system-ui,sans-serif" '
-    'font-size="34" font-weight="700" fill="#fff" text-anchor="middle">ä</text>'
-    "</svg>"
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
+    '<stop offset="0" stop-color="#2a8064"/>'
+    '<stop offset="1" stop-color="#155440"/></linearGradient></defs>'
+    '<rect width="64" height="64" rx="15" fill="url(#g)"/>'
+    '<g fill="none" stroke="#ffffff" stroke-width="5.4" stroke-linecap="round">'
+    '<circle cx="28" cy="40.5" r="9.6"/>'
+    '<path d="M39.5 30.5v20.4"/>'
+    '<path d="M23.4 20.6h.01"/><path d="M34.2 20.6h.01"/>'
+    "</g></svg>"
 )
 
 
@@ -87,17 +104,21 @@ def icon_svg() -> Response:
 
 
 @router.get("/icon.png")
-def icon_png() -> Response:
-    """iOS ignores SVG for the home-screen icon, so serve the SVG's bytes under
-    a .png name only if a real PNG exists; otherwise fall back to the SVG.
+def icon_png() -> FileResponse:
+    """The home-screen icon, which has to be a raster.
 
-    Kept deliberately simple: adding a raster toolchain to draw one letter would
-    be a dependency for a favicon.
+    This used to fall back to serving the SVG's bytes under a `.png` name when
+    no PNG existed -- and none ever did. iOS ignores SVG for
+    `apple-touch-icon`, which this file's own docstring said, so the one
+    platform the fallback existed for got an icon it will not read: adding to
+    the home screen produced a screenshot of the page instead of the mark.
+
+    The raster is checked in rather than generated at runtime. The objection
+    on record is to a raster toolchain as a *dependency*, and a committed
+    512x512 file is not one -- it is 15 KB drawn once from `ICON_SVG`, full
+    bleed with the glyph at 74 % so a maskable crop keeps the dots.
     """
-    png = WEB / "icon.png"
-    if png.exists():
-        return FileResponse(png, media_type="image/png")
-    return Response(ICON_SVG, media_type="image/svg+xml")
+    return FileResponse(WEB / "icon.png", media_type="image/png")
 
 
 #: The line `sw.js` declares its cache version on. Replaced when the worker is
@@ -170,9 +191,15 @@ def manifest() -> Response:
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.
             "lang": "ru",
+            # The SVG for anything that will take one, and the raster for
+            # the installers that will not. `maskable` matters: without it
+            # Android draws the icon inside a white circle instead of
+            # cropping the artwork, which is why the PNG is full bleed.
             "icons": [
                 {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml",
                  "purpose": "any"},
+                {"src": "/icon.png", "sizes": "512x512", "type": "image/png",
+                 "purpose": "any maskable"},
             ],
         }),
         media_type="application/manifest+json",

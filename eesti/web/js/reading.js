@@ -1,5 +1,6 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
+import {emptyState, skeleton, uiIcon} from "./chrome.js";
 import {$, api, esc} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
@@ -10,7 +11,8 @@ let libShown = 0;
 async function loadLibrary(append = false) {
   const choice = $("#readLevel").value;
   const list = $("#libList");
-  if (!append) { list.innerHTML = ""; libShown = 0; }
+  // The shape of the answer while it is fetched, rather than a blank panel.
+  if (!append) { list.innerHTML = skeleton(5); libShown = 0; }
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
@@ -67,8 +69,12 @@ async function loadLibrary(append = false) {
       : `${libShown} текстов${note ? " · " + note : ""}`;
     $("#libMore").hidden = !more;
     if (!items.length && !append) {
-      list.innerHTML = `<p class="empty">Текстов нет. Запусти
-        <code>cli harvest-reading</code>.</p>`;
+      list.innerHTML = emptyState({
+        icon: "inbox",
+        title: "Текстов нет",
+        note: `Библиотека ещё не наполнена. Её собирают
+          <code>cli harvest-reading</code> и <code>cli harvest-news</code>.`,
+      });
       return;
     }
     for (const it of items) {
@@ -92,7 +98,7 @@ async function loadLibrary(append = false) {
       } else {
         el.innerHTML = `<h4>${esc(it.title)}</h4>
           <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
-            it.audio_url ? " · ♪" : ""}${cover}</span>`;
+            it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${cover}</span>`;
         el.onclick = () => openItem(it.id);
       }
       list.appendChild(el);

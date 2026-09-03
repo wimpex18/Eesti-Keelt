@@ -103,7 +103,123 @@ export function navIcon(d) {
     aria-hidden="true">${d}</svg>`;
 }
 
+/* ── The interface's own marks ───────────────────────────────────────
+   The navigation has had drawn icons since it was built; everything else in
+   the app used a text character where it wanted a mark -- `✓ Tean seda sõna`,
+   `⊘ Pole vaja`, `▶ Kuula`, `● Salvesta vastus`, `← Nimekirja`, `· ♪`.
+
+   A character is not an icon. It is drawn by whichever font the platform
+   picks, so it changes size, weight and baseline between Android, iOS and a
+   desktop browser; `⊘` and `♪` are not in every system face at all and fall
+   back to a different one mid-sentence. They cannot take the stroke weight of
+   the icons beside them, and they cannot be sized in the stylesheet.
+
+   Same grammar as `NAV_ICON`, which is also the grammar every mainstream
+   icon set converged on: a 24-unit box, one stroke weight, round caps and
+   joins. Drawn here rather than pulled from a library because this app ships
+   no third-party requests and caches its own shell -- an icon font or a CDN
+   sprite would be both. */
+const UI_ICON = {
+  plus:    '<path d="M12 5.4v13.2M5.4 12h13.2"/>',
+  check:   '<path d="m5 12.6 4.6 4.6L19 6.8"/>',
+  ban:     '<circle cx="12" cy="12" r="8.6"/><path d="m6 6 12 12"/>',
+  play:    '<path d="M8.4 5.6v12.8L18.4 12z"/>',
+  record:  '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none"/>',
+  back:    '<path d="M19 12H5.4"/><path d="m11.4 5.6-6 6.4 6 6.4"/>',
+  next:    '<path d="M5 12h13.6"/><path d="m12.6 5.6 6 6.4-6 6.4"/>',
+  volume:  '<path d="M4.8 9.2h3.4L13 5.2v13.6L8.2 14.8H4.8z"/><path d="M16.4 9.4a3.8 3.8 0 0 1 0 5.2"/>',
+  skip:    '<path d="M6.4 5.6v12.8L15 12z"/><path d="M17.6 5.6v12.8"/>',
+  note:    '<path d="M9.4 17.4V6.2l9-1.7v11.2"/><circle cx="7" cy="17.6" r="2.6"/><circle cx="16" cy="15.7" r="2.6"/>',
+  send:    '<path d="M20.6 3.8 3.4 11.2l7 2.5 2.5 7z"/><path d="m10.4 13.7 10.2-9.9"/>',
+  inbox:   '<path d="M5.4 5.4h13.2l2 8.2v5a1.6 1.6 0 0 1-1.6 1.6H5A1.6 1.6 0 0 1 3.4 18.6v-5z"/><path d="M3.4 13.6h4.2l1.2 2.4h6.4l1.2-2.4h4.2"/>',
+  done:    '<circle cx="12" cy="12" r="8.6"/><path d="m8.4 12.3 2.6 2.6 4.7-5.4"/>',
+  eye:     '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="3.1"/>',
+  download:'<path d="M12 3.6v10.8"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.6 17.4v1.4a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-1.4"/>',
+  paper:   '<path d="M6.4 3.4h7.8l4 4v13.2H6.4z"/><path d="M14 3.4v4.2h4.2"/><path d="m9.2 14.4 1.9 1.9 4-4.4"/>',
+};
+
+
+/* A mark for a button, a heading or an empty view.
+
+   `class="btn-ico"` is what `setLabel` looks for when it rewrites a button's
+   text, so a control whose label changes ("Kuula" -> "Laen…") keeps its mark.
+*/
+export function uiIcon(name, cls = "btn-ico") {
+  const d = UI_ICON[name];
+  if (!d) return "";
+  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+    stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+}
+
+
+/* The shape of the answer, while the answer is on its way.
+
+   Both big lists used to say nothing at all: the reading list emptied itself
+   and waited, and the vocabulary grid printed `загружаю…` in grey. Neither
+   tells the eye where to be, and the moment the rows arrive the page jumps by
+   whatever height they turned out to need.
+
+   A skeleton is not decoration -- it is the same layout, drawn empty, so the
+   arrival costs no movement. `rows` is what the request actually asked for,
+   so twelve requested words leave room for twelve.
+*/
+export function skeleton(rows = 6, kind = "row") {
+  const one = kind === "tile"
+    ? `<div class="skel-tile"><span class="skel" style="width:52%"></span>
+         <span class="skel skel-sm" style="width:78%"></span></div>`
+    : `<div class="skel-row"><span class="skel" style="width:62%"></span>
+         <span class="skel skel-sm" style="width:34%"></span></div>`;
+  return `<div class="skel-wrap${kind === "tile" ? " skel-grid" : ""}"
+    aria-hidden="true">${one.repeat(rows)}</div>`;
+}
+
+
+/* An empty view that says what it is, why, and what to do about it.
+
+   `<p class="empty">Текстов нет…</p>` was a grey sentence where a panel's
+   content should be, which reads as a page that failed rather than as a
+   state the app understands. A mark, a statement and a next step is the
+   same information with a shape.
+
+   Russian throughout, including the heading: an empty view EXPLAINS -- why
+   there is nothing here and what would put something here -- and the rule
+   for anything that explains is that the learner has to be able to read it.
+*/
+export function emptyState({icon, title, note, action}) {
+  return `<div class="empty-state">
+    <div class="empty-mark">${uiIcon(icon, "")}</div>
+    <h4>${title}</h4>
+    ${note ? `<p>${note}</p>` : ""}
+    ${action ? `<div class="row">${action}</div>` : ""}
+  </div>`;
+}
+
+
+/* Buttons that live in the markup rather than in a template string.
+
+   The page cannot call `uiIcon`, and inlining twenty lines of SVG into
+   `index.html` would put the drawing in two places. So the id says which
+   mark a control wants and this file decides what that mark is -- the same
+   arrangement the navigation has always had. */
+const BUTTON_ICON = {
+  dictPlay: "play", dictNext: "skip", dictCheck: "check",
+  recBtn: "record", speakPlay: "volume", speakNext: "skip",
+  backToLib: "back", speakBtn: "volume", loadReview: "play",
+  queueSend: "send", checkBtn: "check", practiceBtn: "play",
+  drillBtn: "play", checkpointBtn: "paper", loadLib: "download",
+  vocBtn: "eye", vocMoreBtn: "plus", libMoreBtn: "plus",
+};
+
+
 export function paintIcons() {
+  for (const [id, name] of Object.entries(BUTTON_ICON)) {
+    const b = document.getElementById(id);
+    // `insertAdjacentHTML` rather than `innerHTML =`: these buttons carry a
+    // Russian gloss already, and rewriting the contents would drop it.
+    if (b && !b.querySelector(".btn-ico"))
+      b.insertAdjacentHTML("afterbegin", uiIcon(name));
+  }
   document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
     const d = NAV_ICON[b.dataset.tab];
     const slot = b.querySelector(".ico");

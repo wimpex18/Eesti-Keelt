@@ -1,11 +1,12 @@
 /* Sõnavara: the ladder, and the word card that both this and the reader open. */
 
 import {$, api, esc} from "./core.js";
+import {skeleton, uiIcon} from "./chrome.js";
 import {refreshDueBadge} from "./review.js";
 
 export async function showWordCard(word, card, contextFor) {
   card.hidden = false;
-  card.innerHTML = `<span class="hint">…</span>`;
+  card.innerHTML = skeleton(1);
   const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
   /* `found:false` covers two different answers and used to render as one.
      A word can be genuinely absent from the lexicon -- or the lookup can be
@@ -39,9 +40,9 @@ export async function showWordCard(word, card, contextFor) {
   // word they act on.
   const mineBtn = `<div id="cardExtra"></div>
     <div class="row" style="margin-top:var(--s2)">
-      <button class="ghost" id="mineBtn">+ Kordamisse</button>
-      <button class="ghost" id="knowBtn">✓ Tean seda sõna</button>
-      <button class="ghost" id="skipBtn" title="Не тратить время на это слово">⊘ Pole vaja</button></div>
+      <button class="ghost" id="mineBtn">${uiIcon("plus")}Kordamisse</button>
+      <button class="ghost" id="knowBtn">${uiIcon("check")}Tean seda sõna</button>
+      <button class="ghost" id="skipBtn" title="Не тратить время на это слово">${uiIcon("ban")}Pole vaja</button></div>
     <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
     <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
@@ -130,7 +131,7 @@ export async function showWordCard(word, card, contextFor) {
     const note = card.querySelector("#mineNote");
     try {
       await api("/api/vocab/known", {lemmas: [lemma], status: "ignore"});
-      e.target.textContent = "⊘ Jäetud";
+      e.target.innerHTML = uiIcon("ban") + "Jäetud";
       note.className = "mine-note";
       note.textContent = `«${lemma}» больше не будет предлагаться.`;
     } catch (err) {
@@ -146,7 +147,7 @@ export async function showWordCard(word, card, contextFor) {
     const note = card.querySelector("#mineNote");
     try {
       await api("/api/vocab/known", {lemmas: [lemma]});
-      e.target.textContent = "✓ Teada";
+      e.target.innerHTML = uiIcon("check") + "Teada";
       note.className = "mine-note";
       note.textContent = `«${lemma}» теперь известно — влияет на подбор текстов.`;
     } catch (err) {
@@ -184,7 +185,7 @@ export async function loadVocab(append) {
   vocOffset = append ? vocOffset + 60 : 0;
   q.set("limit", "60");
   q.set("offset", String(vocOffset));
-  if (!append) out.innerHTML = `<p class="hint">загружаю…</p>`;
+  if (!append) out.innerHTML = skeleton(8, "tile");
   try {
     const d = await (await api("/api/vocab?" + q, null, "GET")).json();
     if (!d.items.length && !append) {
