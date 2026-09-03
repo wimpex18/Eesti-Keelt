@@ -12,15 +12,44 @@ Published canvas: <https://claude.ai/code/artifact/e795c3d8-51d5-4f3a-bc2f-c8557
 | `Main.dc.html` … `Edenemine.dc.html` | the eleven screens at 1440 px |
 | `Mobiil*.dc.html` | the same eleven at 390 × 844 |
 | `Alused.dc.html` | palette, type scale, control sizes, the language rule |
-| `canvas.json` | where each artboard sits, on three pages |
+| `Tume.dc.html`, `MobiilTume.dc.html` | the dark theme, desktop and mobile |
+| `Tahvel.dc.html` | the middle width, 834 px |
+| `Seisundid.dc.html` | press, focus, empty, loading, failure |
+| `Komponendid.dc.html` | the parts the screens show in only one state |
+| `canvas.json` | where each artboard sits, on five pages |
 | `gen_*.py` | the generator — **edit these, not the `.dc.html` files** |
 
+Twenty-eight artboards on five pages: Desktop, Mobiil, Alused, Tume ja tahvel,
+Seisundid.
+
 The `.dc.html` files are generated. Change `gen_a.py` (tokens, shell, icons),
-`gen_b.py` / `gen_c.py` (desktop screens), `gen_d.py` (mobile), then:
+`gen_b.py` / `gen_c.py` (desktop screens), `gen_d.py` (mobile), `gen_f.py`
+(dark, tablet, states, components), then:
 
 ```bash
 python3 gen_e.py     # rewrites every .dc.html and canvas.json
 ```
+
+## The second pass
+
+The first pass drew the eleven screens in their working state and nothing else.
+Four things were missing, and all four are in the app today:
+
+- **the dark theme** — `app.css` carries a full dark palette and a three-state
+  toggle, and none of it had been drawn;
+- **failure, empty and loading** — 11 `.banner` sites and 6 `.empty` sites in
+  the JS, none of them drawn; the copy on `Seisundid.dc.html` is taken from the
+  code, not invented;
+- **the middle width** — `app.css` breaks at 720 px and again at 1080 px, so
+  834 px is its own layout, not a wide phone;
+- **components shown in one state only** — `.choices`, the flashcard's question
+  side, a running checkpoint, the player's three states.
+
+Rendering the dark board caught a real bug in this design system: elements that
+set no colour of their own inherit `body`'s *computed* colour, which resolves
+against the light tokens before `.dark` redefines them one level down — so every
+heading and number came out dark-on-dark. The shells now re-resolve
+`color: var(--ink)` at their root.
 
 ## What the redesign actually changes
 

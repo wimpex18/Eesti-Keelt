@@ -323,33 +323,145 @@ i.ru{display:inline;font-style:normal;font-size:11.5px;margin-left:6px}
   background:linear-gradient(to top,var(--paper),rgba(250,249,246,0));pointer-events:none}
 </style>
 </helmet>
-<div class="phone"><div class="m-top"><div><h1>Ülevaade</h1><span class="ru">готовность · A2</span></div><div class="r"><div class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8L20 20"/></svg></div><div class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.1M12 19.3v2.1M2.6 12h2.1M19.3 12h2.1M5.3 5.3l1.5 1.5M17.2 17.2l1.5 1.5M18.7 5.3l-1.5 1.5M6.8 17.2l-1.5 1.5"/></svg></div></div></div><div class="m-chips"><div class="pill on">Ülevaade</div><div class="pill">Edenemine</div></div><div class="m-body">
-<div style="display:flex;align-items:center;gap:10px">
-  <div class="seg"><span class="on">A2</span><span>B1</span></div>
-  <span class="hint" style="margin-left:auto;text-align:right">Kuupäev valimata<br>2027</span></div>
-<div class="banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></svg><span><b>Это не прогноз.</b> Показано только
-  измеренное: сколько сделано и с каким результатом.</span></div>
-<div class="mcard" style="padding:6px 15px">
-  <div class="part"><div class="mk yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></div>
-    <div style="min-width:0"><div class="nm">Lugemine</div>
-      <div class="ev">62 teksti · 74 % tuttavaid sõnu</div></div>
-    <div class="r"><b class="num" style="font-size:14px">82 %</b></div></div>
-  <div class="part"><div class="mk yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></div>
-    <div style="min-width:0"><div class="nm">Kuulamine</div>
-      <div class="ev">41 etteütlust · keskmine 71 %</div></div>
-    <div class="r"><b class="num" style="font-size:14px">71 %</b></div></div>
-  <div class="part"><div class="mk no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></svg></div>
-    <div style="min-width:0"><div class="nm">Kirjutamine</div>
-      <div class="ev">27 viga, neist 11 obj-case</div>
-      <div class="nx">Это тема 11 на <b>Rada</b>.</div></div>
-    <div class="r"><b class="num" style="font-size:14px;color:var(--warn)">54 %</b></div></div>
-  <div class="part"><div class="mk unk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5M12 7.9v.1"/></svg></div>
-    <div style="min-width:0"><div class="nm">Rääkimine</div>
-      <div class="ev">Ei ole mõõdetav — оценивает экзаменатор</div></div>
-    <div class="r"><span class="hint">—</span></div></div>
+
+<div style="width:1180px;background:var(--paper);padding:36px 40px;
+  font-family:var(--f-ui)">
+  <h1 style="font-size:28px;font-weight:650;letter-spacing:-.025em">Seisundid</h1>
+  <p style="font-size:13.5px;color:var(--muted);margin-top:6px;max-width:76ch">
+    Экраны выше показывают приложение, когда всё получилось. Здесь — остальное:
+    нажатие, фокус, пустота, загрузка и отказ. Тексты взяты из кода, а не
+    придуманы: в <b>app.css</b> 11 мест с <b>.banner</b> и 6 с <b>.empty</b>,
+    и ни одно из них не было нарисовано.</p>
+
+  <div class="card" style="margin-top:24px">
+    <div class="card-h"><h2>Nupud</h2><span class="ru">кнопки · 5 состояний</span></div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px">
+      <div><div class="hint" style="margin-bottom:8px">Tavaline</div>
+        <div class="btn btn-pri btn-wide">Kontrolli</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Kursor peal</div>
+        <div class="btn btn-pri btn-wide" style="filter:brightness(1.07)">Kontrolli</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Vajutatud</div>
+        <div class="btn btn-pri btn-wide" style="transform:translateY(2px);
+          box-shadow:0 0 0 var(--accent-deep)">Kontrolli</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Fookus</div>
+        <div class="btn btn-pri btn-wide" style="outline:2px solid var(--accent);
+          outline-offset:2px">Kontrolli</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Kinni</div>
+        <div class="btn btn-pri btn-wide" style="opacity:.55;box-shadow:none">Kontrolli</div></div>
+    </div>
+    <div class="sep"></div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px">
+      <div><div class="hint" style="margin-bottom:8px">Tavaline</div>
+        <div class="btn btn-wide">Järgmine</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Kursor peal</div>
+        <div class="btn btn-wide" style="border-color:var(--accent);
+          background:var(--accent-soft);color:var(--accent)">Järgmine</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Ootab vastust</div>
+        <div class="btn btn-wide" style="color:var(--muted)">
+          <span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--line);
+            border-top-color:var(--accent);display:inline-block"></span>Kontrollin…</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Fookus</div>
+        <div class="btn btn-wide" style="outline:2px solid var(--accent);
+          outline-offset:2px">Järgmine</div></div>
+      <div><div class="hint" style="margin-bottom:8px">Kinni</div>
+        <div class="btn btn-wide" style="opacity:.5">Järgmine</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Väljad</h2><span class="ru">поля ввода</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+      <div><div class="hint" style="margin-bottom:8px">Tühi</div>
+        <div class="inp ph"><span>Kirjuta õige vorm…</span></div></div>
+      <div><div class="hint" style="margin-bottom:8px">Täidetud</div>
+        <div class="inp"><span>raamatu</span></div></div>
+      <div><div class="hint" style="margin-bottom:8px">Fookus</div>
+        <div class="inp" style="border-color:var(--accent);outline:2px solid var(--accent);
+          outline-offset:2px"><span>raamatu</span></div></div>
+      <div><div class="hint" style="margin-bottom:8px">Vale vastus</div>
+        <div class="inp" style="border-color:var(--bad);color:var(--bad)">
+          <span>raamatut</span></div>
+        <div style="font-size:12.5px;color:var(--bad);margin-top:6px">
+          Действие завершено — нужен omastav.</div></div>
+    </div>
+    <p class="note" style="margin-top:16px">Поле не краснеет, пока не нажата
+      <b>Kontrolli</b>: подсветка во время набора сообщает об ошибке раньше,
+      чем человек закончил мысль.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Tühjad vaated</h2><span class="ru">пустые состояния · текст из кода</span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      <div class="drill" style="text-align:center;padding:26px 20px">
+        <div style="color:var(--muted);display:flex;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></div>
+        <div style="font-size:14.5px;font-weight:650;margin-top:10px">Järjekord on tühi</div>
+        <p class="hint" style="margin-top:6px">Сейчас повторять нечего. Порешай
+          упражнения или почитай тексты.</p>
+        <div class="btn btn-sm" style="margin-top:12px">Harjutused</div></div>
+      <div class="drill" style="text-align:center;padding:26px 20px">
+        <div style="color:var(--muted);display:flex;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 5.6A2.1 2.1 0 0 1 6.7 3.5H19.4v14.2H6.7a2.1 2.1 0 0 0-2.1 2.1z"/><path d="M8.6 7.8h6.6M8.6 11.2h6.6"/></svg></div>
+        <div style="font-size:14.5px;font-weight:650;margin-top:10px">Tekste pole</div>
+        <p class="hint" style="margin-top:6px">Текстов нет. Запусти
+          <b>harvest-reading</b>, чтобы наполнить библиотеку.</p></div>
+      <div class="drill" style="text-align:center;padding:26px 20px">
+        <div style="color:var(--good);display:flex;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></div>
+        <div style="font-size:14.5px;font-weight:650;margin-top:10px">Vigu ei leitud</div>
+        <p class="hint" style="margin-top:6px">Всё верно — ошибок не найдено.</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Laadimine</h2><span class="ru">загрузка</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div class="hint" style="margin-bottom:10px">Список — скелет строки,
+          не «крутилка» на весь экран</div>
+        <div class="item" style="align-items:flex-start">
+          <div style="flex:1"><div style="height:13px;width:62%;border-radius:5px;
+            background:var(--tint)"></div>
+            <div style="height:11px;width:38%;border-radius:5px;background:var(--tint);
+              margin-top:8px"></div></div></div>
+        <div class="item" style="align-items:flex-start">
+          <div style="flex:1"><div style="height:13px;width:48%;border-radius:5px;
+            background:var(--tint)"></div>
+            <div style="height:11px;width:30%;border-radius:5px;background:var(--tint);
+              margin-top:8px"></div></div></div>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:10px">Одиночное действие</div>
+        <div class="drill" style="display:flex;align-items:center;gap:12px">
+          <span style="width:16px;height:16px;border-radius:50%;border:2px solid var(--line);
+            border-top-color:var(--accent);display:inline-block;flex:none"></span>
+          <span style="font-size:14px;color:var(--muted)">Загружаю…</span></div>
+        <p class="note" style="margin-top:12px">Форма скелета повторяет форму
+          результата, иначе страница прыгает в момент, когда данные приходят.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Tõrked</h2><span class="ru">отказы · то, что человек может сделать</span></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></svg><span><b>Микрофон не открылся:</b>
+        Permission denied. Разреши доступ в настройках браузера — или продолжай
+        без записи: вопрос можно прослушать и ответить вслух.</span></div>
+      <div class="banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></svg><span><b>Звук не пришёл:</b> network error.
+        Диктант остаётся на месте — нажми <b>Kuula</b> ещё раз.</span></div>
+      <div class="banner" style="background:var(--tint);border-color:var(--line);
+        color:var(--ink-2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5M12 7.9v.1"/></svg><span><b>Проверка работает офлайн.</b>
+        Модель недоступна, поэтому объяснение короче обычного: формы разобраны
+        кодом, прозы не будет. Что считается ошибкой — не изменилось.</span></div>
+      <div class="banner" style="background:var(--tint);border-color:var(--line);
+        color:var(--ink-2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5M12 7.9v.1"/></svg><span><b>Нет сети.</b> Упражнения и
+        проверка форм работают: они считаются на устройстве. Не откроются
+        тексты, аудио и материалы HARNO.</span></div>
+    </div>
+    <p class="note" style="margin-top:16px">Каждое сообщение говорит, <b>что
+      делать дальше</b>. Отказ без следующего шага — это тупик, а не
+      информация.</p>
+  </div>
 </div>
-<div class="btn btn-pri btn-wide">Kontrolltöö<span class="ru">контрольная · 30 küsimust</span></div>
-</div><div class="m-fade"></div><nav class="m-tab"><a class=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.1"/></svg><span>Õppimine</span></a><a class=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20.2 4.2v4.2h-4.2"/></svg><span>Kordamine</span></a><a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.6" y="4.8" width="14.8" height="15.4" rx="2.6"/><path d="M8.6 12.6l2.4 2.4 4.6-4.9"/></svg><span>Eksam</span></a></nav></div>
+
 </x-dc>
 </body>
 </html>

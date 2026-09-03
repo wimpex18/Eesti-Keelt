@@ -323,33 +323,172 @@ i.ru{display:inline;font-style:normal;font-size:11.5px;margin-left:6px}
   background:linear-gradient(to top,var(--paper),rgba(250,249,246,0));pointer-events:none}
 </style>
 </helmet>
-<div class="phone"><div class="m-top"><div><h1>Ülevaade</h1><span class="ru">готовность · A2</span></div><div class="r"><div class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8L20 20"/></svg></div><div class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.1M12 19.3v2.1M2.6 12h2.1M19.3 12h2.1M5.3 5.3l1.5 1.5M17.2 17.2l1.5 1.5M18.7 5.3l-1.5 1.5M6.8 17.2l-1.5 1.5"/></svg></div></div></div><div class="m-chips"><div class="pill on">Ülevaade</div><div class="pill">Edenemine</div></div><div class="m-body">
-<div style="display:flex;align-items:center;gap:10px">
-  <div class="seg"><span class="on">A2</span><span>B1</span></div>
-  <span class="hint" style="margin-left:auto;text-align:right">Kuupäev valimata<br>2027</span></div>
-<div class="banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></svg><span><b>Это не прогноз.</b> Показано только
-  измеренное: сколько сделано и с каким результатом.</span></div>
-<div class="mcard" style="padding:6px 15px">
-  <div class="part"><div class="mk yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></div>
-    <div style="min-width:0"><div class="nm">Lugemine</div>
-      <div class="ev">62 teksti · 74 % tuttavaid sõnu</div></div>
-    <div class="r"><b class="num" style="font-size:14px">82 %</b></div></div>
-  <div class="part"><div class="mk yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></div>
-    <div style="min-width:0"><div class="nm">Kuulamine</div>
-      <div class="ev">41 etteütlust · keskmine 71 %</div></div>
-    <div class="r"><b class="num" style="font-size:14px">71 %</b></div></div>
-  <div class="part"><div class="mk no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.8v4.8M12 16.1v.1"/></svg></div>
-    <div style="min-width:0"><div class="nm">Kirjutamine</div>
-      <div class="ev">27 viga, neist 11 obj-case</div>
-      <div class="nx">Это тема 11 на <b>Rada</b>.</div></div>
-    <div class="r"><b class="num" style="font-size:14px;color:var(--warn)">54 %</b></div></div>
-  <div class="part"><div class="mk unk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5M12 7.9v.1"/></svg></div>
-    <div style="min-width:0"><div class="nm">Rääkimine</div>
-      <div class="ev">Ei ole mõõdetav — оценивает экзаменатор</div></div>
-    <div class="r"><span class="hint">—</span></div></div>
+
+<div style="width:1180px;background:var(--paper);padding:36px 40px;
+  font-family:var(--f-ui)">
+  <h1 style="font-size:28px;font-weight:650;letter-spacing:-.025em">Komponendid</h1>
+  <p style="font-size:13.5px;color:var(--muted);margin-top:6px;max-width:76ch">
+    Части, которые на экранах видны только в одном состоянии. Здесь — все.</p>
+
+  <div class="card" style="margin-top:24px">
+    <div class="card-h"><h2>Valikvastus</h2>
+      <span class="ru">.choices — два предложения, одно верное</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div>
+        <div class="hint" style="margin-bottom:10px">До ответа</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="choice" style="text-align:left;background:var(--paper);
+            border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+            font-size:14.5px">Ma lugesin eile raamatu läbi.</div>
+          <div class="choice" style="text-align:left;background:var(--paper);
+            border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+            font-size:14.5px">Ma lugesin eile raamatut läbi.</div>
+        </div>
+      </div>
+      <div>
+        <div class="hint" style="margin-bottom:10px">После ответа — выбран неверный</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="text-align:left;background:var(--accent-soft);
+            border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
+            font-size:14.5px;display:flex;gap:10px;align-items:center">
+            <span style="color:var(--good);flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg></span>
+            Ma lugesin eile raamatu läbi.</div>
+          <div style="text-align:left;background:var(--warn-soft);
+            border:1px solid var(--warn);border-radius:10px;padding:12px 14px;
+            font-size:14.5px;display:flex;gap:10px;align-items:center">
+            <span style="color:var(--warn);flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6"/></svg></span>
+            Ma lugesin eile raamatut läbi.</div>
+        </div>
+        <p class="hint" style="margin-top:10px">Верный вариант подсвечивается
+          всегда — даже когда человек его и выбрал.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Kaart</h2><span class="ru">карточка: до и после</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div class="drill" style="text-align:center;padding:28px 20px">
+        <div class="task" style="justify-content:center"><span class="form">omastav</span>
+          <span class="lvl">A2</span></div>
+        <div style="font-family:var(--f-read);font-size:38px;font-weight:600;
+          margin-top:14px">küsimus</div>
+        <div class="btn btn-wide" style="margin-top:20px;max-width:260px;
+          margin-left:auto;margin-right:auto">Näita vastust<span
+          class="ru">показать · пробел</span></div>
+      </div>
+      <div class="drill" style="text-align:center;padding:28px 20px">
+        <div class="task" style="justify-content:center"><span class="form">omastav</span>
+          <span class="lvl">A2</span></div>
+        <div style="font-family:var(--f-read);font-size:38px;font-weight:600;
+          margin-top:14px">küsimus</div>
+        <div style="font-size:18px;font-weight:600;color:var(--gloss);margin-top:8px">вопрос</div>
+        <div class="grades" style="max-width:340px;margin:18px auto 0">
+          <div class="grade g1">Uuesti<span>&lt;1 min</span></div>
+          <div class="grade">Raske<span>2 p</span></div>
+          <div class="grade">Hea<span>6 p</span></div>
+          <div class="grade g4">Lihtne<span>16 p</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Kontrolltöö</h2><span class="ru">контрольная — идёт и закончена</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div class="drill">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="hint num">Küsimus 12 / 30</span>
+          <div class="meter" style="flex:1"><i style="width:40%"></i></div>
+          <span class="hint num">08:41</span></div>
+        <p class="prompt" style="font-size:17px">Eile ma <span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+          poest leiva ja piima.</p>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px">
+          <div class="inp ph"><span>Kirjuta vorm…</span></div>
+          <div class="btn btn-pri">Edasi</div></div>
+        <p class="hint" style="margin-top:12px">Ответы не показываются до конца —
+          это проверка, а не тренировка.</p>
+      </div>
+      <div class="drill">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <div style="font-family:var(--f-read);font-size:34px;font-weight:600">23<span
+            style="font-size:20px;color:var(--muted)"> / 30</span></div>
+          <span class="tag">A2 · kontrolltöö</span></div>
+        <div class="meter" style="margin-top:12px"><i style="width:77%"></i></div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px">
+          <div class="rrow"><span>Sihitis · omastav / osastav</span><b>5 / 9</b></div>
+          <div class="rrow"><span>Käänded</span><b>8 / 10</b></div>
+          <div class="rrow"><span>Verbivormid</span><b>10 / 11</b></div></div>
+        <div class="actions" style="margin-top:14px">
+          <div class="btn btn-sm btn-pri">Vead kordamisse</div>
+          <div class="btn btn-sm">Vaata vastuseid</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Mängija ja sõnad tekstis</h2>
+      <span class="ru">плеер и слова в тексте</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px;border:1px solid var(--line);
+          border-radius:12px;padding:11px 14px;background:var(--paper)">
+          <div style="width:34px;height:34px;border-radius:999px;background:var(--accent);
+            color:#fff;display:grid;place-items:center;flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 5.6v12.8L18.4 12z"/></svg></div>
+          <div class="meter" style="flex:1"><i style="width:0"></i></div>
+          <span class="hint num">0:19</span></div>
+        <div style="display:flex;align-items:center;gap:12px;border:1px solid var(--line);
+          border-radius:12px;padding:11px 14px;background:var(--paper)">
+          <div style="width:34px;height:34px;border-radius:999px;background:var(--accent);
+            color:#fff;display:grid;place-items:center;flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.4"/></svg></div>
+          <div class="meter" style="flex:1"><i style="width:38%"></i></div>
+          <span class="hint num">0:07 / 0:19</span></div>
+        <div style="display:flex;align-items:center;gap:12px;border:1px solid var(--line);
+          border-radius:12px;padding:11px 14px;background:var(--paper);opacity:.7">
+          <span style="width:34px;height:34px;border-radius:50%;border:2px solid var(--line);
+            border-top-color:var(--accent);flex:none;display:inline-block"></span>
+          <span class="hint">Звук готовится…</span></div>
+        <div class="hint">Покой · воспроизведение · подготовка</div>
+      </div>
+      <div>
+        <div class="prose" style="font-size:16px">Sel aastal tuli <u>talv</u>
+          Eestisse varem kui tavaliselt. Juba oktoobri lõpus <mark>sadas</mark>
+          mitmes maakonnas lund, ja see ei ole
+          <span style="border-bottom:2px solid var(--accent);color:var(--accent)">haruldane</span>.</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px"
+          class="hint">
+          <span><u>подчёркнуто точками</u> — слово можно открыть</span>
+          <span><mark>подсвечено</mark> — отмечено как трудное</span>
+          <span style="color:var(--accent)">сплошное подчёркивание — открыто сейчас</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Raja seisundid</h2><span class="ru">пять состояний темы</span></div>
+    <div class="list" style="margin:0 -10px">
+      <div class="topic done"><span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 12.4l4.9 4.9 9.5-10.6"/></svg>läbitud</span>
+        <span class="nm">Nimisõna mitmus</span>
+        <span class="r"><span class="lvl">A1</span><span class="hint num">92%</span></span></div>
+      <div class="topic now"><span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.4"/></svg>praegu</span>
+        <span class="nm">Sihitis: lõpetatud tegevus → omastav</span>
+        <span class="r"><span class="lvl">A2</span><div class="btn btn-sm">Harjuta</div></span></div>
+      <div class="topic"><span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 5.6v12.8L18.4 12z"/></svg>avatud</span>
+        <span class="nm">Sihitis: eitus → osastav</span>
+        <span class="r"><span class="lvl">A2</span><div class="btn btn-sm">Harjuta</div></span></div>
+      <div class="topic ref"><span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 5.6A2.1 2.1 0 0 1 6.7 3.5H19.4v14.2H6.7a2.1 2.1 0 0 0-2.1 2.1z"/><path d="M8.6 7.8h6.6M8.6 11.2h6.6"/></svg>teatmik</span>
+        <span class="nm">Käänete tabel — 14 käänet</span>
+        <span class="r"><span class="lvl">A2</span><span class="hint">lugemiseks</span></span></div>
+      <div class="topic lock"><span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.2" width="14" height="10.2" rx="2.6"/><path d="M8.4 10.2V7.6a3.6 3.6 0 0 1 7.2 0v2.6"/></svg>suletud</span>
+        <span class="nm">Täisminevik ja enneminevik</span>
+        <span class="r"><span class="lvl up">B1</span><span class="hint">2 eeldust</span></span></div>
+    </div>
+    <p class="note" style="margin-top:14px">Состояние несут <b>и</b> цвет,
+      <b>и</b> значок, и слово. Различие, которое держится на одном оттенке,
+      различимо не для всех.</p>
+  </div>
 </div>
-<div class="btn btn-pri btn-wide">Kontrolltöö<span class="ru">контрольная · 30 küsimust</span></div>
-</div><div class="m-fade"></div><nav class="m-tab"><a class=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.1"/></svg><span>Õppimine</span></a><a class=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20.2 4.2v4.2h-4.2"/></svg><span>Kordamine</span></a><a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.6" y="4.8" width="14.8" height="15.4" rx="2.6"/><path d="M8.6 12.6l2.4 2.4 4.6-4.9"/></svg><span>Eksam</span></a></nav></div>
+
 </x-dc>
 </body>
 </html>

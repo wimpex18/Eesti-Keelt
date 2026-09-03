@@ -5,6 +5,7 @@ from gen_a import artboard
 from gen_b import D
 from gen_c import D2
 from gen_d import M
+from gen_f import E
 
 D.update(D2)
 
@@ -58,6 +59,19 @@ for i, (name, title, key) in enumerate(MOB):
                    "x": col * (MW + MGX), "y": row * (MH + MGY),
                    "w": MW, "h": MH, "page": "page-2", "print": "fixed"})
 
+# Pages 4 and 5 — what the first pass left unspecified.
+EXTRA = [
+    ("Tume",        "Desktop tume · Rada",   "dark_desk", 0,    0, 1440, 1290, "page-4"),
+    ("MobiilTume",  "Mobiil tume · Lugemine","dark_mob",  1560, 0,  390,  844, "page-4"),
+    ("Tahvel",      "Tahvel 834 · Rada",     "tablet",    2070, 0,  834,  860, "page-4"),
+    ("Seisundid",   "Seisundid",             "states",    0,    0, 1180, 1790, "page-5"),
+    ("Komponendid", "Komponendid",           "parts",     1300, 0, 1180, 1900, "page-5"),
+]
+for name, title, key, x, y, w, h, page in EXTRA:
+    files[name + ".dc.html"] = artboard(E[key])
+    boards.append({"file": name + ".dc.html", "title": title, "x": x, "y": y,
+                   "w": w, "h": h, "page": page, "print": "fixed"})
+
 # Page 3 — foundations.
 files["Alused.dc.html"] = artboard(D2["found"])
 boards.append({"file": "Alused.dc.html", "title": "Alused · дизайн-система",
@@ -68,7 +82,9 @@ canvas = {
     "artboards": boards,
     "pages": [{"id": "page-1", "name": "Desktop"},
               {"id": "page-2", "name": "Mobiil"},
-              {"id": "page-3", "name": "Alused"}],
+              {"id": "page-3", "name": "Alused"},
+              {"id": "page-4", "name": "Tume ja tahvel"},
+              {"id": "page-5", "name": "Seisundid"}],
     "annotations": [
         {"id": "nav-note", "x": 0, "y": -150, "w": 620, "page": "page-1",
          "text": "Навигация переехала в боковую панель: режим (Õppimine / "
@@ -84,6 +100,14 @@ canvas = {
         {"id": "lang-note", "x": 760, "y": -150, "w": 600, "page": "page-2",
          "text": "Правило языка сохранено: эстонский — интерфейс и термины, "
                  "русский — всё, что объясняет и предупреждает."},
+        {"id": "dark-note", "x": 0, "y": -150, "w": 640, "page": "page-4",
+         "text": "Тёмная тема была пропущена в первом заходе, хотя app.css её "
+                 "полностью поддерживает. Значения токенов взяты из app.css без "
+                 "изменений — это тот же экран, а не перерисованный."},
+        {"id": "state-note", "x": 0, "y": -170, "w": 660, "page": "page-5",
+         "text": "Экраны показывают приложение, когда всё получилось. Здесь "
+                 "остальное: нажатие, фокус, пустота, загрузка, отказ. Тексты "
+                 "взяты из кода — 11 мест с .banner и 6 с .empty."},
     ],
     "launch": {"view": "canvas", "page": "page-1"},
 }

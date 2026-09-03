@@ -20,6 +20,15 @@ CSS = r"""
   --f-ui:"Manrope",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-read:"Literata",Georgia,"Times New Roman",serif;
 }
+/* Dark: the token values are app.css's own dark block, unchanged. Only the
+   two tokens this redesign added (--ink-2, --tint) and --line-soft are new. */
+.dark{--paper:#16171a; --card:#1e2024; --ink:#e9e9e6; --muted:#9a9a94;
+  --line:#2e3138; --accent:#5fbf9b; --accent-soft:#1b302a; --accent-deep:#3f8f72;
+  --warn:#e0a758; --warn-soft:#2e2618; --bad:#e88b8b; --good:#5fbf9b;
+  --gloss:#9db8d8; --ink-2:#c2c2bb; --line-soft:#26282e; --tint:#242730;
+  --sh:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6)}
+.dark .btn-pri{color:#0f1512}
+.dark .side-badge, .dark .badge{color:#0f1512}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
   font-family:var(--f-ui);font-size:15px;line-height:1.55;
@@ -34,7 +43,15 @@ i.ru{display:inline;font-style:normal;font-size:11.5px;margin-left:6px}
 
 /* ── Desktop shell ───────────────────────────────────────────────── */
 .dsk{width:1440px;display:grid;grid-template-columns:248px minmax(0,1fr) 300px;
-  background:var(--paper);font-family:var(--f-ui)}
+  background:var(--paper);font-family:var(--f-ui);
+  /* The row is content-sized by default, so the sidebar and rail stopped
+     short of the frame's bottom edge and their borders ended mid-air. */
+  grid-template-rows:1fr;
+  /* Re-resolve the ink HERE. Elements that set no colour of their own inherit
+     body's COMPUTED colour, which was resolved against the light tokens before
+     .dark redefined them one level down -- so without this every heading and
+     number renders dark-on-dark in the dark theme. */
+  color:var(--ink)}
 .side{border-right:1px solid var(--line);background:var(--card);
   padding:22px 14px 18px;display:flex;flex-direction:column;gap:22px}
 .brand{display:flex;align-items:center;gap:11px;padding:0 8px}
@@ -59,6 +76,27 @@ i.ru{display:inline;font-style:normal;font-size:11.5px;margin-left:6px}
   padding:14px 6px 0;border-top:1px solid var(--line-soft)}
 .side-foot .who{font-size:12px;color:var(--muted);line-height:1.3}
 
+/* ── The middle width (720-1079) ──────────────────────────────────
+   Not a wide phone and not a narrow desktop: the sidebar keeps its
+   destinations but drops to icons, and the context rail folds under the
+   content instead of taking a third column it cannot afford. */
+.side.mini{width:76px;padding:20px 10px 16px;align-items:center;gap:14px}
+.side.mini .brand{padding:0}
+.side.mini .brand-t, .side.mini .brand-s,
+.side.mini .side-i > span:not(.side-badge),
+.side.mini .side-h b, .side.mini .side-h span, .side.mini .who{display:none}
+.side.mini .side-group{width:100%;align-items:center}
+.side.mini .side-h{height:1px;margin:6px 0 8px;padding:0;width:36px;
+  background:var(--line-soft)}
+.side.mini .side-i{position:relative;width:52px;height:48px;padding:0;
+  justify-content:center}
+.side.mini .side-i svg{width:20px;height:20px}
+.side.mini .side-badge{position:absolute;top:1px;right:1px;min-width:17px;
+  height:17px;padding:0 4px;font-size:9.5px;
+  /* A ring in the rail's own colour: the count sits ON the icon here, and
+     without it the glyph reads through the badge. */
+  box-shadow:0 0 0 2px var(--card)}
+.side.mini .side-foot{border-top:0;padding-top:0}
 .main{padding:26px 32px 40px;min-width:0}
 .rail{padding:26px 24px 40px;border-left:1px solid var(--line);
   display:flex;flex-direction:column;gap:12px}
@@ -248,7 +286,8 @@ i.ru{display:inline;font-style:normal;font-size:11.5px;margin-left:6px}
 
 /* ── Mobile shell ────────────────────────────────────────────────── */
 .phone{width:390px;height:844px;position:relative;overflow:hidden;
-  display:flex;flex-direction:column;background:var(--paper);font-family:var(--f-ui)}
+  display:flex;flex-direction:column;background:var(--paper);font-family:var(--f-ui);
+  color:var(--ink)}
 .m-top{height:60px;flex:none;display:flex;align-items:center;gap:10px;
   padding:0 16px;background:var(--card);border-bottom:1px solid var(--line-soft)}
 .m-top h1{font-size:18px;font-weight:650;letter-spacing:-.022em;line-height:1.15}
@@ -360,10 +399,15 @@ def top(title, ru, sub=""):
             '<div class="iconbtn">%s</div></div></div>'
             % (title, sub or ru, ic("search"), ic("home")))
 
-def desktop(active, title, sub, main, rail, h=1120):
-    return ('<div class="dsk" style="min-height:%dpx">%s<main class="main">%s%s</main>'
+def desktop(active, title, sub, main, rail, h=1120, dark=False):
+    # The frame paints the page background behind the root, so a dark artboard
+    # says so for the whole document, not just its own box.
+    skin = ('<style>body{background:#16171a}</style>' if dark else '')
+    return ('%s<div class="dsk%s" style="min-height:%dpx">%s'
+            '<main class="main">%s%s</main>'
             '<aside class="rail">%s</aside></div>'
-            % (h, sidebar(active), top(title, sub), main, rail))
+            % (skin, " dark" if dark else "", h, sidebar(active),
+               top(title, sub), main, rail))
 
 MODE_TABS = [("learn", "Õppimine", "target"), ("revise", "Kordamine", "refresh"),
              ("exam", "Eksam", "clip")]
@@ -374,13 +418,14 @@ MODE_SECTIONS = {
     "exam": ["Ülevaade", "Edenemine"],
 }
 
-def mobile(mode, section, title, ru, body, sheet="", fade=True):
+def mobile(mode, section, title, ru, body, sheet="", fade=True, dark=False):
     chips = "".join('<div class="pill%s">%s</div>' % (" on" if s == section else "", s)
                     for s in MODE_SECTIONS[mode])
     tabs = "".join('<a class="%s">%s<span>%s</span></a>'
                    % ("on" if k == mode else "", ic(i), lb)
                    for k, lb, i in MODE_TABS)
-    return ('<div class="phone">'
+    skin = ('<style>body{background:#16171a}</style>' if dark else '')
+    return (skin + '<div class="phone%s">' % (" dark" if dark else "") +
             '<div class="m-top"><div><h1>%s</h1><span class="ru">%s</span></div>'
             '<div class="r"><div class="iconbtn">%s</div>'
             '<div class="iconbtn">%s</div></div></div>'
