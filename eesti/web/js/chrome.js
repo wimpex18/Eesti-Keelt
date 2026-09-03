@@ -153,6 +153,28 @@ export function uiIcon(name, cls = "btn-ico") {
 }
 
 
+/* The shape of the answer, while the answer is on its way.
+
+   Both big lists used to say nothing at all: the reading list emptied itself
+   and waited, and the vocabulary grid printed `загружаю…` in grey. Neither
+   tells the eye where to be, and the moment the rows arrive the page jumps by
+   whatever height they turned out to need.
+
+   A skeleton is not decoration -- it is the same layout, drawn empty, so the
+   arrival costs no movement. `rows` is what the request actually asked for,
+   so twelve requested words leave room for twelve.
+*/
+export function skeleton(rows = 6, kind = "row") {
+  const one = kind === "tile"
+    ? `<div class="skel-tile"><span class="skel" style="width:52%"></span>
+         <span class="skel skel-sm" style="width:78%"></span></div>`
+    : `<div class="skel-row"><span class="skel" style="width:62%"></span>
+         <span class="skel skel-sm" style="width:34%"></span></div>`;
+  return `<div class="skel-wrap${kind === "tile" ? " skel-grid" : ""}"
+    aria-hidden="true">${one.repeat(rows)}</div>`;
+}
+
+
 /* An empty view that says what it is, why, and what to do about it.
 
    `<p class="empty">Текстов нет…</p>` was a grey sentence where a panel's

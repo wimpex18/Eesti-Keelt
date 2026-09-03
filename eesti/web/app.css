@@ -935,6 +935,7 @@
   .iconbtn:active{transform:translateY(1px)}
 
   @media (prefers-reduced-motion:reduce){
+    .skel{animation:none}
     .rec .dot{animation:none;opacity:1}
     button.go{transition:none}
     .lib-item, .vocword, .drill, .rail-card, .choice, .topic,
@@ -1145,3 +1146,40 @@
     display:inline-grid;place-items:center;background:var(--accent-soft);
     color:var(--accent);flex:none}
   .sec-head .mark-chip svg{width:15px;height:15px}
+
+  /* ── Waiting ─────────────────────────────────────────────────────
+     The skeleton repeats the shape of the result so the arrival costs no
+     movement, and the sweep says "working" without a spinner's implication
+     that the whole screen is blocked. */
+  .skel-wrap{display:flex;flex-direction:column;gap:var(--s2)}
+  .skel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .skel-row, .skel-tile{border:1px solid var(--line);border-radius:12px;
+    padding:14px;display:flex;flex-direction:column;gap:9px;background:var(--panel)}
+  .skel{display:block;height:12px;border-radius:6px;background:var(--tint);
+    background-image:linear-gradient(90deg,
+      var(--tint) 0%, color-mix(in srgb, var(--line) 55%, var(--tint)) 50%,
+      var(--tint) 100%);
+    background-size:220% 100%;animation:skel-sweep 1.25s linear infinite}
+  .skel-sm{height:10px;opacity:.7}
+  @keyframes skel-sweep{from{background-position:120% 0}to{background-position:-120% 0}}
+
+  /* ── The brand, on the parts of the page the browser draws ───────
+     A caret, a selection, a checkbox and a scrollbar are all drawn by the
+     browser in its own blue unless the page says otherwise. One line each,
+     and the app stops being green everywhere except where the learner is
+     actually typing. */
+  :root{accent-color:var(--accent)}
+  input, textarea{caret-color:var(--accent)}
+  ::selection{background:var(--accent-soft);color:var(--ink)}
+  .prose ::selection{background:color-mix(in srgb, var(--accent) 22%, transparent)}
+  html{scrollbar-color:var(--line) transparent}
+  /* The native select arrow is the last piece of unstyled chrome on the
+     page: a grey system triangle beside a set of drawn marks. Same chevron
+     as everything else, in the accent, as a background image so the control
+     stays a real `<select>`. */
+  select{appearance:none;-webkit-appearance:none;padding-right:34px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231c6b52' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6.5 9.5 5.5 5.5 5.5-5.5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;
+    background-size:16px 16px}
+  :root[data-theme="dark"] select, :root:not([data-theme="light"]) select{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235fbf9b' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6.5 9.5 5.5 5.5 5.5-5.5'/%3E%3C/svg%3E")}

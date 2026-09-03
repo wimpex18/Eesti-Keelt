@@ -1,6 +1,6 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
-import {emptyState, uiIcon} from "./chrome.js";
+import {emptyState, skeleton, uiIcon} from "./chrome.js";
 import {$, api, esc} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
@@ -11,7 +11,8 @@ let libShown = 0;
 async function loadLibrary(append = false) {
   const choice = $("#readLevel").value;
   const list = $("#libList");
-  if (!append) { list.innerHTML = ""; libShown = 0; }
+  // The shape of the answer while it is fetched, rather than a blank panel.
+  if (!append) { list.innerHTML = skeleton(5); libShown = 0; }
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 

@@ -1,12 +1,12 @@
 /* Sõnavara: the ladder, and the word card that both this and the reader open. */
 
 import {$, api, esc} from "./core.js";
-import {uiIcon} from "./chrome.js";
+import {skeleton, uiIcon} from "./chrome.js";
 import {refreshDueBadge} from "./review.js";
 
 export async function showWordCard(word, card, contextFor) {
   card.hidden = false;
-  card.innerHTML = `<span class="hint">…</span>`;
+  card.innerHTML = skeleton(1);
   const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
   /* `found:false` covers two different answers and used to render as one.
      A word can be genuinely absent from the lexicon -- or the lookup can be
@@ -185,7 +185,7 @@ export async function loadVocab(append) {
   vocOffset = append ? vocOffset + 60 : 0;
   q.set("limit", "60");
   q.set("offset", String(vocOffset));
-  if (!append) out.innerHTML = `<p class="hint">загружаю…</p>`;
+  if (!append) out.innerHTML = skeleton(8, "tile");
   try {
     const d = await (await api("/api/vocab?" + q, null, "GET")).json();
     if (!d.items.length && !append) {
