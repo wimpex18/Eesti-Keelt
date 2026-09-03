@@ -511,3 +511,51 @@ class TestTheEvalSaysWhyItCouldNotMeasure:
             assert "type(exc).__name__" not in code, (
                 f"{module.__name__} still renders the exception class and "
                 f"drops the provider's reason")
+
+
+class TestTheEvalScoresThePromptTheAppShips:
+    """The two prompts cannot drift apart, because there is now only one.
+
+    `evals/gec.py` used to define a near-copy of the shipped prompt: same job,
+    three fields instead of four, its own worked examples. A score from it was
+    a score for a prompt nobody was served, and the copies had already drifted
+    on the one thing the eval measures -- the mitigation for a model flagging
+    four of eight already-correct sentences reached the copy and not the
+    original.
+
+    The guard that held the shared half in both is gone with it. A test that
+    asserts a thing equals itself is a test that can never fail, which is worse
+    than no test: it reads like coverage.
+    """
+
+    def test_the_eval_imports_it_rather_than_restating_it(self):
+        from eesti.evals import gec
+        from eesti.providers import grammar
+
+        assert gec.SYSTEM is grammar.SYSTEM_PROMPT
+
+    def test_no_second_prompt_is_defined_alongside_it(self):
+        """The failure this replaces: a copy appears, nobody notices, and the
+        eval quietly measures something else again."""
+        import inspect
+
+        from eesti.evals import external, gec
+
+        for module in (gec, external):
+            source = inspect.getsource(module)
+            code = "\n".join(line.split("#")[0] for line in source.splitlines())
+            assert 'SYSTEM = """' not in code, (
+                f"{module.__name__} defines its own prompt again")
+
+    def test_the_scorer_ignores_the_field_the_eval_does_not_need(self):
+        """The shipped contract has a Russian `why` the eval has no use for.
+        It is read past, not stripped -- an eval that rewrote the contract
+        would be measuring a third prompt."""
+        from eesti.evals.gec import _flagged
+
+        result = {"corrections": [
+            {"wrong": "raamatut", "correct": "raamatu", "tag": "obj-case",
+             "why": "Здесь нужен omastav."}]}
+        assert _flagged(result, "raamatut")
+
+

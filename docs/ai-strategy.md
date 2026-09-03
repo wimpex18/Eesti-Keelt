@@ -34,6 +34,50 @@ Free tiers, from the current comparisons:
 
 There is no unlimited free tier in 2026; every one carries rate limits and no SLA.
 
+### Recommendation — superseded 2026-09-02, and the argument is why
+
+**Current answer: EstLLM first, free tiers behind it, no paid lane at all.**
+
+The recommendation below argued the opposite — a paid frontier model as the
+primary, free tiers fit only for "bulk, low-stakes, non-authoritative jobs". It
+is kept rather than deleted because **its reasoning is what overturned it**, and
+a reader who meets only the conclusion cannot tell a decision from a default.
+
+Its own second caveat was the load-bearing one:
+
+> *"Estonian is a low-resource language. Frontier-model quality gaps widen on
+> Estonian morphosyntax exactly where this app is pointed."*
+
+That was an argument for paying only while no Estonian-adapted model was
+reachable. One is now: `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`, from the
+University of Tartu, in two lanes — `local` (a `Q4_K_M` GGUF, free and private)
+and `huggingface` (the same weights, hosted, routed to featherless-ai). The
+section further down that called this family *"too heavy for a laptop... worth
+revisiting if a smaller distilled version appears"* is the prediction that came
+true; the distilled version is what `PROVIDERS["local"]` pins.
+
+So the caveat now argues **against** the recommendation it was written to
+support. Paying a frontier model for Estonian morphosyntax buys the weakest axis
+of the most expensive option.
+
+What survives from the original unchanged:
+
+- **Mistral's free tier requires training opt-in**, and the text here is a
+  language diary. Still disqualifying, still for the same reason.
+- **Free tiers are rate-limited with no SLA.** True, and handled by the chain
+  rather than by a credit card: any lane whose key is unset is skipped, and
+  Vabamorf's offline mode answers when every lane is spent.
+- **Quality matters disproportionately** because a wrong grammar explanation
+  gets memorised. That is now an argument for the Estonian-tuned model, and for
+  measuring it: `python -m eesti.cli eval --provider huggingface`.
+
+What is **not** claimed: that EstLLM beats the free general models on this task.
+That is a measurement, it has not been made, and `docs/status.md` says so. The
+lane is ordered first on the argument above, not on a number.
+
+<details>
+<summary>The superseded recommendation, verbatim</summary>
+
 ### Recommendation
 
 **Primary: a paid frontier model, but only on the free-text path.** At a few
@@ -62,6 +106,8 @@ grammatical error correction, published by the University of Tartu. Too heavy fo
 a laptop (7B class, needs a GPU), but it is the only *Estonian-tuned* option and
 would remove the low-resource concern entirely. Worth revisiting if a smaller
 distilled version appears.
+
+</details>
 
 ## Verified provider table (probed August 2026)
 
@@ -256,6 +302,35 @@ different capabilities.** The eval workflow filtered its model list on the
 first and this client sends the second, which is how the largest dense free
 model came to be excluded from consideration entirely.
 
+### The paid upgrade — withdrawn 2026-09-02
+
+**There is no paid option in this app any more, at either level.** The
+`anthropic` lane is deleted, and the two paid OpenRouter model ids the eval
+could select — `google/gemini-2.5-flash-lite`, `google/gemini-3.7-flash` — are
+out of the dropdown. `tests/test_ai_providers.py` asserts both: no provider
+whose own `free_note` says "Paid", and no selectable model that is not a
+`:free` alias or a lane's own pinned default.
+
+The argument below is kept because it was sound, and because what changed was
+not the arithmetic. It is still cents a month. What changed is the comparison:
+it read *"commercial models excel"* against the free **general** models of
+August 2026, and the option it did not have was a model trained on Estonian.
+Spending on a general frontier model for Estonian morphosyntax buys the weakest
+axis of the most expensive choice — the low-resource caveat this same document
+raises three sections above.
+
+It also assumed a paid model would be the *fallback* when free tiers were spent.
+The fallback is now `local`: the same Estonian-adapted weights on a machine you
+own, free, private and unmetered. That is a better answer than a credit card for
+a tool whose whole point is a private error log.
+
+If a measurement ever shows every free lane — EstLLM included — below the
+precision this job needs, reopen this. Reopen it with the number, not with the
+arithmetic: the cost was never the objection.
+
+<details>
+<summary>The withdrawn recommendation, verbatim</summary>
+
 ### The paid upgrade, which is what the evidence actually favours
 
 The Estonian benchmark's finding is that **commercial models excel** — Claude
@@ -282,6 +357,8 @@ OPENROUTER_MODEL=google/gemini-2.5-flash-lite
 It needs credit on the OpenRouter account, which is why it is not the default —
 a default that fails for an account without credit would degrade silently to
 Workers AI and look like nothing had changed.
+
+</details>
 
 **Running the eval, if it is ever wanted.** Nothing needs installing: the
 `eval` workflow has a `workflow_dispatch` trigger, so it runs from the Actions

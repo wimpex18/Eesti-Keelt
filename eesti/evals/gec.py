@@ -24,56 +24,26 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from ..config import TAGS
+from ..providers.grammar import SYSTEM_PROMPT as SYSTEM
 from ..providers.grammar import why_failed
 from ..providers.llm import complete, parse_json
 
-# The first real run exposed the failure mode: the model flagged four of eight
-# already-correct sentences ("Ma ostsin uue auto", "Ma sõin suppi"). A checker
-# that invents errors is worse than none, so the prompt is built to make silence
-# the easy answer:
+# The prompt under test is the one the app ships. It is not defined here.
 #
-#   * the rules are stated positively, so a correct genitive is recognisably
-#     correct rather than merely un-flagged;
-#   * worked examples include CORRECT sentences with an empty corrections list,
-#     because a model shown only errors infers that errors are expected;
-#   * ambiguity is resolved toward saying nothing.
-SYSTEM = """\
-You are an Estonian grammar checker for a Russian-speaking learner at A2-B1 level.
-
-Return ONLY valid JSON: {"corrections":[{"wrong":"...","correct":"...","tag":"..."}]}
-
-ESTONIAN OBJECT CASE — the rules, stated positively:
-- Completed action, whole object -> GENITIVE (omastav). "Ma ostsin uue auto" is
-  CORRECT. "Ma lugesin raamatu läbi" is CORRECT.
-- Ongoing, repeated, or partial action -> PARTITIVE (osastav). "Ma sõin suppi"
-  is CORRECT. "Ta luges raamatut terve õhtu" is CORRECT.
-- Negation -> ALWAYS PARTITIVE. "Ma ei ostnud piletit" is CORRECT.
-
-CRITICAL: most sentences you see are already correct. Report a correction ONLY
-when you are confident the sentence breaks a rule above. If in doubt, return an
-empty list. Never flag a sentence merely because it contains a partitive or a
-genitive — both are correct in their own context.
-
-- "wrong" must be an exact substring of the input.
-- "tag" must be one of: %s
-- Use "obj-case" for object-case errors, "verb-form" for wrong verb stems.
-- Do NOT flag style, word order, or punctuation preferences.
-
-EXAMPLES
-
-Input: Ma ostsin uue auto.
-Output: {"corrections":[]}
-
-Input: Ma sõin suppi.
-Output: {"corrections":[]}
-
-Input: Ma lugesin eile selle raamatut läbi.
-Output: {"corrections":[{"wrong":"raamatut","correct":"raamatu","tag":"obj-case"}]}
-
-Input: Homme ma minen kooli.
-Output: {"corrections":[{"wrong":"minen","correct":"lähen","tag":"verb-form"}]}
-""" % ", ".join(TAGS)
+# It was, and the two drifted. `providers/grammar.py` is what a learner's
+# sentence actually meets; this file kept a near-copy with a three-field
+# contract and its own worked examples, so a score from here was a score for a
+# prompt nobody was served. The drift was on precisely the axis this eval
+# exists to measure: the mitigation for a real failure -- a model flagging four
+# of eight already-correct sentences -- went into the copy and not into the
+# original.
+#
+# Importing it settles that permanently: one prompt, one number, and a change
+# to the shipped prompt is measured by the next run rather than by a test
+# asserting two files still agree.
+#
+# The extra field costs nothing here. The shipped contract carries a Russian
+# `why` alongside `wrong`/`correct`/`tag`, and `_flagged` reads only `wrong`.
 
 
 def with_evidence(sentence: str) -> str:

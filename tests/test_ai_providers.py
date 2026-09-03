@@ -220,3 +220,130 @@ class TestTheModelChoiceIsDefensibleWithoutAnEval:
         workflow = (Path(__file__).resolve().parent.parent
                     / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8")
         assert llm.PROVIDERS["openrouter"].default_model in workflow
+
+
+class TestNoLaneCostsMoney:
+    """The `anthropic` lane is gone, and nothing quietly replaces it.
+
+    It was the chain's paid backstop, sitting last, keyless, unused. The
+    decision that removed it is a product one — this app runs on free tiers and
+    an Estonian-adapted model, not on a frontier model's invoice — and a
+    decision that lives only in a deleted diff is a decision the next sprint
+    re-litigates by accident.
+
+    Asserted through `free_note`, which every `Provider` already carries, rather
+    than through a second list of paid vendors. A list of things that exist
+    elsewhere is the other bug this repository keeps having.
+    """
+
+    def test_every_lane_documents_a_free_way_in(self):
+        for name, provider in llm.PROVIDERS.items():
+            assert provider.free_note, f"{name} says nothing about its tier"
+            assert not provider.free_note.lower().startswith("paid"), (
+                f"{name} is a paid lane — that is a product decision, not a "
+                f"provider addition")
+
+    def test_the_deleted_lane_stays_deleted(self):
+        assert "anthropic" not in llm.PROVIDERS
+        assert "anthropic" not in grammar.LLM_PREFERENCE
+
+    def test_its_key_is_no_longer_one_the_app_reads(self):
+        """A key in `KNOWN_KEYS` with no reader is a key `cli keys` invites the
+        operator to set, and `deploy/set-llm-key.sh` accepts, for a lane that
+        does not exist."""
+        from eesti.env import KNOWN_KEYS
+
+        assert "ANTHROPIC_API_KEY" not in KNOWN_KEYS
+
+
+class TestTheEstonianLanesComeFirstAsABlock:
+    """The chain's order *is* the routing decision, and it is the whole of it.
+
+    There is one production LLM use case — the grammar check — so the split
+    between "the Estonian model" and "the general models" is not a dispatcher
+    somewhere; it is these five names in this order. `local` and `huggingface`
+    run the same Estonian-adapted weights and differ only in who pays and who
+    can read the request, so they lead as a pair; everything behind them is a
+    general-purpose model that has been measured failing Estonian object case.
+
+    The existing tests pin two individual inequalities. This pins the shape, so
+    inserting a general lane between the two Estonian ones fails here rather
+    than in a learner's explanation six weeks later.
+    """
+
+    ESTONIAN = ("local", "huggingface")
+
+    def test_they_are_the_first_two(self):
+        assert grammar.LLM_PREFERENCE[:2] == self.ESTONIAN
+
+    def test_nothing_general_purpose_is_wedged_between_them(self):
+        order = list(grammar.LLM_PREFERENCE)
+        assert order.index("huggingface") - order.index("local") == 1
+
+    def test_they_run_the_same_model(self):
+        """Which is why they are a block and not two independent preferences.
+        `local` pins the GGUF build; `huggingface` pins the original repo."""
+        local = llm.PROVIDERS["local"].default_model
+        hosted = llm.PROVIDERS["huggingface"].default_model
+        assert "EstLLM-8B-Instruct-1125" in local
+        assert "EstLLM-8B-Instruct-1125" in hosted
+
+
+class TestNoModelCostsMoneyEither:
+    """The lane rule, one level down: no *model* the eval can select is paid.
+
+    `TestNoLaneCostsMoney` keeps a paid provider out of the chain. It cannot see
+    a paid model **inside** a free provider, which is where two lived:
+    `eval.yml` offered `google/gemini-2.5-flash-lite` and
+    `google/gemini-3.7-flash` under OpenRouter, commented "what the evidence
+    actually favours… needs credit on the OpenRouter account".
+
+    They cost nothing unless selected, which is exactly why they survived the
+    lane deletion — and why the rule has to be stated at both levels or it is
+    not a rule.
+
+    Derived, not a second list: an option is legitimate if it is the
+    no-model sentinel, an OpenRouter `:free` alias, or a model some provider
+    already pins as its own default. A paid id is none of those.
+    """
+
+    SENTINEL = "(provider default)"
+
+    @staticmethod
+    def _options() -> list[str]:
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        # `on:` is YAML 1.1 boolean true, which is why this is not doc["on"].
+        return doc[True]["workflow_dispatch"]["inputs"]["model"]["options"]
+
+    def test_every_selectable_model_is_free(self):
+        pinned = {p.default_model for p in llm.PROVIDERS.values()}
+        for option in self._options():
+            assert (option == self.SENTINEL
+                    or option.endswith(":free")
+                    or option in pinned), (
+                f"{option} is neither a `:free` alias nor a lane's own pinned "
+                f"default — if it is paid, it does not belong in the menu")
+
+    def test_the_two_that_were_removed_stay_removed(self):
+        text = " ".join(self._options())
+        assert "gemini-2.5-flash-lite" not in text
+        assert "gemini-3.7-flash" not in text
+
+    def test_the_default_selection_is_a_free_one(self):
+        """The dropdown's default is what an operator runs without thinking
+        about it, which makes it the only option that must be right."""
+        import yaml
+
+        from pathlib import Path
+
+        path = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "eval.yml")
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        default = doc[True]["workflow_dispatch"]["inputs"]["model"]["default"]
+        assert default.endswith(":free")

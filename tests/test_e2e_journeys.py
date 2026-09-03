@@ -112,7 +112,7 @@ def live_server(tmp_path_factory) -> str:
         # Keep the run offline and deterministic: no provider key means the
         # grammar chain degrades to Vabamorf, which is what we want to assert.
         "OPENROUTER_API_KEY": "", "GROQ_API_KEY": "",
-        "ANTHROPIC_API_KEY": "", "CLOUDFLARE_API_TOKEN": "",
+        "HF_TOKEN": "", "CLOUDFLARE_API_TOKEN": "",
     }
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "eesti.app:app",

@@ -104,7 +104,6 @@ python -m eesti.cli keys  # prints only the last 4 characters
 | Key | What it adds | Where to get it |
 |---|---|---|
 | `GROQ_API_KEY` | fastest inference, generous free tier | https://console.groq.com/keys |
-| `ANTHROPIC_API_KEY` | paid quality backstop | https://console.anthropic.com |
 | `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | Workers AI — runs inside Cloudflare, 10 000 neurons/day | Cloudflare dashboard → My Profile → API Tokens |
 | `NOTION_TOKEN` | push confirmed errors into the `Vead` database | https://www.notion.so/my-integrations |
 

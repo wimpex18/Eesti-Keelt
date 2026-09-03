@@ -154,7 +154,17 @@ def cmd_models(args: argparse.Namespace) -> int:
     models = list_models(args.provider)
     free = [m for m in models if m.get("id", "").endswith(":free")]
     print(f"{args.provider}: {len(models)} models, {len(free)} free")
+    # Free-only unless asked, and *say* when that is not what you are seeing.
+    #
+    # The fallback is deliberate -- a catalogue with no `:free` ids at all is
+    # worth looking at, because that is precisely the moment a pin has to move.
+    # What was wrong is that it happened silently: this app runs on free tiers,
+    # so a paid list printed under the same heading as a free one is a list you
+    # could pin from by mistake.
     shown = free if (free and not args.all) else models
+    if shown is models and not args.all:
+        print("  (no `:free` ids in this catalogue — showing paid ones, which "
+              "this app does not use; a pin from here needs a decision)")
     for m in sorted(shown, key=lambda x: -(x.get("context_length") or 0))[: args.limit]:
         params = m.get("supported_parameters") or []
         print(
@@ -241,7 +251,7 @@ def register(sub) -> None:
 
     p = sub.add_parser("models", help="list a provider's live model catalogue")
     p.add_argument("--provider", default="openrouter", choices=list(_providers()))
-    p.add_argument("--all", action="store_true", help="include paid models")
+    p.add_argument("--all", action="store_true", help="include paid models (this app runs on free tiers)")
     p.add_argument("--limit", type=int, default=25)
     p.set_defaults(func=cmd_models)
 

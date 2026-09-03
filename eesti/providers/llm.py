@@ -142,8 +142,15 @@ PROVIDERS: dict[str, Provider] = {
         #
         # Still unmeasured on this project's own eval, and said plainly rather
         # than implied: this is the best-evidenced choice available without a
-        # key, not a result. `docs/ai-strategy.md` has the paid upgrade, which
-        # costs about $0.20 a month and is what the evidence actually favours.
+        # key, not a result.
+        #
+        # There is no paid upgrade to point at any more. An earlier note here
+        # recommended one at ~$0.20 a month; that was written when nothing
+        # Estonian-adapted was reachable, and this lane is now the *fallback*
+        # behind EstLLM rather than the best answer available. Paying a general
+        # model for Estonian morphosyntax buys the weakest axis of the most
+        # expensive option -- see `docs/ai-strategy.md`, which keeps the old
+        # recommendation and the argument that overturned it.
         "google/gemma-4-31b-it:free",
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
@@ -249,13 +256,6 @@ PROVIDERS: dict[str, Provider] = {
         "Free and private. Only reachable where the server is: localhost for "
         "`cli serve`, or a tunnel for the deployment.",
     ),
-    "anthropic": Provider(
-        "anthropic",
-        "https://api.anthropic.com/v1",
-        "ANTHROPIC_API_KEY",
-        "claude-sonnet-5",
-        "Paid. Cents/month at a few checks a day.",
-    ),
 }
 
 
@@ -350,6 +350,11 @@ def complete(
             {"role": "user", "content": user},
         ],
         "max_tokens": max_tokens,
+        # Grading here is deterministic and that is the one property that must
+        # not break. Every remaining lane is OpenAI-compatible and accepts it;
+        # the one that did not -- `anthropic`, where sampling parameters are
+        # removed on `claude-sonnet-5` -- was deleted rather than special-cased,
+        # so the per-provider flag that briefly guarded it went with it.
         "temperature": 0,
     }
     # Both must agree: the caller wants JSON, and the lane can ask for it. A

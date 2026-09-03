@@ -52,7 +52,7 @@ for LINE in "${SERVICES[@]}"; do
   # The four things whose absence is silent, and what each one costs.
   for pair in \
     "PROXY_TOKEN|the run.app URL answers the whole internet" \
-    "OPENROUTER_API_KEY GROQ_API_KEY ANTHROPIC_API_KEY CLOUDFLARE_API_TOKEN|grammar has no explanations, so nothing reaches the Notion log" \
+    "HF_TOKEN OPENROUTER_API_KEY GROQ_API_KEY CLOUDFLARE_API_TOKEN|grammar has no explanations, so nothing reaches the Notion log" \
     "NOTION_TOKEN|confirmed errors queue locally and never push"
   do
     want="${pair%%|*}"; cost="${pair#*|}"

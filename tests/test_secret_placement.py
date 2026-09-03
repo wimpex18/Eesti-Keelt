@@ -30,7 +30,7 @@ WORKER = ROOT / "deploy" / "worker.ts"
 
 #: Read by the Python app, therefore Cloud Run environment variables. The
 #: Worker must never be given these.
-CONTAINER_ONLY = ("OPENROUTER_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY")
+CONTAINER_ONLY = ("OPENROUTER_API_KEY", "GROQ_API_KEY", "HF_TOKEN")
 
 #: Read by the Worker, therefore Worker secrets.
 WORKER_SECRETS = ("CLOUD_RUN_URL", "PROXY_TOKEN", "STATE_TOKEN")

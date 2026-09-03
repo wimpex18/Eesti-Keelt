@@ -223,7 +223,7 @@ than failing when pressed.
 
 Measured on 2026-08-22 with the deep smoke check: the live chain answered
 `vabamorf-offline`, because `llm:openrouter` returned **HTTPError 429** and
-`groq`, `workers-ai` and `anthropic` were all `unavailable` — no key at all.
+`groq` and `workers-ai` were both `unavailable` — no key at all.
 
 So the chain is built for redundancy across five providers and has none. One
 50-a-day free tier is the entire grammar checker, and when it is spent every
