@@ -184,13 +184,58 @@ scratch; that is a property of the build, not a test.
   focus order and announcements were not audited.
 - **Concurrency** — two tabs open on the same learner state.
 
+## The 2026-09-03 pass — the redesign
+
+Second systematic pass, against the redesigned page. Same method: a real
+`uvicorn`, a real browser, both viewports, every claim produced by driving the
+page. The corpus was built for it (`build`, `export`, `harvest-reading`,
+`harvest`, `harvest-exam` — 542 items), which matters: the first pass could not
+open a library item, a workbook or an exam task because none were indexed, and
+those surfaces had never been looked at.
+
+**What it found, in the order the defects were noticed.** Every one of these
+was invisible to 1 600 passing tests.
+
+| Defect | Where |
+|---|---|
+| Primary button white on the dark theme's mint accent — 2.23:1 | every screen |
+| Dictation wrote "why there is no dictation" into an element inside the box it then hid | Kuulamine |
+| That note, and the exercise instruction, were Estonian | `api/speech.py` |
+| Word card said "не найдено" when the API had said `run cli export first` | Sõnavara, Lugemine |
+| `lookup._db` memoised the ABSENCE of the forms database | every lookup |
+| The e2e fixture gated the reading journeys on the content file EXISTING | the suite itself |
+| Deep-linking `#write` left the selected chip 512px outside the row | phone |
+| The skills row bled 24px where `.wrap` pads 20 — 4px of sideways scroll | below 720px |
+| Focus ring clipped by the row's own `overflow-x` | keyboard, phone |
+| `harjuta` 32px, disclosures 23px, workbook and exam links 15–23px | inside every panel |
+| One amber banner for an error, a reference and a mastery message | Rada, Kirjutamine |
+| Three rating buttons wrapping ragged, 112px tall | Järjekord |
+| `--bg` moved and the status bar, splash and offline page kept the old white | outside the page |
+
+**What was exercised as a learner**, not asserted from the DOM: a path drill
+answered wrong then right; a free-practice session with filters; the reading
+list, reader, word card, translate refusal and back; the vocabulary list, its
+three filters, pagination and all three card actions; dictation played, scored
+word by word and advanced; a review card revealed, graded and locked; a
+fifteen-item checkpoint answered to a verdict; the archive opened with audio
+and transcript; workbooks and exam material listed; the theme cycled through
+its three states; deep links, reload and Back.
+
+**Conditions checked beyond the two viewports:** 320px, landscape 844×390, a
+20px root font, a narrow desktop window, and both themes.
+
+**Still not covered:** WebKit — no build is installed here, so Safari, the
+engine this learner's phone actually uses, remains untested. Recording and
+microphone permission cannot be driven headlessly. The Notion queue needs a
+correction with a proposed fix, which the offline chain does not produce.
+
 ## Running the browser suite
 
 ```bash
 python -m pytest tests/test_e2e_journeys.py -q   # both engines x both viewports
 ```
 
-132 tests: Chromium and WebKit, desktop and phone. WebKit is included only when
+85 tests per engine: Chromium and WebKit, desktop and phone. WebKit is included only when
 `playwright install webkit` has been run — the suite drops to Chromium alone
 rather than failing, but **run it with WebKit before believing a release**: the
 worst defect of this whole pass was invisible without it.

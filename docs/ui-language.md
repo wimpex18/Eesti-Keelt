@@ -29,6 +29,15 @@ Run against the page before this work it flags 22 strings. The same file checks
 that no Estonian grammar term appears in Cyrillic letters, generated from the
 term lists rather than listed.
 
+**It scanned half the app.** `pagesrc` collects the page and its modules, which
+is where user-facing text was assumed to live — and an explanation *served by
+the API* reaches the learner through exactly the same elements. `api/speech.py`
+answered `/api/dictation/next` with `Kuula ja kirjuta üles.` and the page wrote
+it straight into `#dictState`; the string sat on screen for months while the
+check that forbids it by name passed every run. The forbidden list is one
+constant now, and two tests read it: one over the page and its modules, one
+over `eesti/api/`. Found on 2026-09-03 by reading the phone, not the file.
+
 
 ## Where the misspelling came from
 

@@ -177,10 +177,6 @@
     nav[data-mode-nav] button:not([aria-selected="true"]){border-color:transparent}
     nav[data-mode-nav] button{color:var(--ink-2)}
     nav[data-mode-nav] button[aria-selected="true"]{border-color:transparent}
-    /* The mark labels a ROW of skills. Above a column that spells each one out
-       in two languages it names nothing that is not already said, and with no
-       text of its own it reads as a stray glyph. */
-    nav[data-mode-nav] .groupmark{display:none}
     .panel{grid-column:2;grid-row:2}
     .rail{grid-column:3;grid-row:2;position:sticky;top:20px;
       display:flex;flex-direction:column;gap:12px}
@@ -310,8 +306,13 @@
      only width/height rule was behind `min-width:720px` -- so every icon in
      the phone bar collapsed to 0x0 and the bar became seven bare words.
      Same lesson as the 300x150 default, wearing the opposite symptom. */
+  /* Shown at every width. It was `display:none` here and switched back on in
+     all three layouts -- the phone's chips, the tablet's rail and the desktop
+     column -- which is three rules to say what the absence of one rule says.
+     Only the SIZE still varies, so only the size is still declared per
+     layout. */
+  nav .ico{display:inline-flex;line-height:0}
   nav .ico svg{width:20px;height:20px;display:block}
-  nav .ico{display:none}
 
   @media (max-width:719px){
     /* ── What the bar at the bottom is for ──────────────────────────
@@ -374,7 +375,6 @@
        failure `TestEveryMarkIsActuallyDrawn` exists to catch, and it caught
        it. A chip is wide enough for both, and the icon is what makes the row
        scannable at a glance rather than seven words to read. */
-    nav[data-mode-nav] .ico{display:inline-flex;line-height:0}
     nav[data-mode-nav] .ico svg{width:16px;height:16px}
     /* `min-width:0` is what actually makes `flex:1 1 0` share the bar. Without
        it a flex item will not shrink below its content, so the longest label
@@ -474,9 +474,25 @@
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .engine{font-size:12px;color:var(--muted);margin-top:var(--s4)}
   .engine b{color:var(--ink)}
+  /* ── The three things a banner can be ──────────────────────────────
+     One amber box said all of them. An error, the reference for the topic
+     you just opened, and "you have mastered this, it opens the next ones"
+     were the same colour, so the app congratulated the learner in the
+     livery it uses for problems and warned them in the livery it uses for
+     facts. Colour is the first thing read on a coloured box; it has to
+     agree with the sentence inside it. */
   .banner{background:var(--warn-soft);border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);
     color:var(--warn);padding:12px 14px;border-radius:12px;font-size:13px;
     line-height:1.6;margin-top:14px}
+  /* Neutral: a reference, or a note about how the app is running. */
+  .banner.info{background:var(--tint);border-color:var(--line);color:var(--ink-2)}
+  .banner.info strong{color:var(--ink)}
+  /* Good news. The one place the accent means "you did it" rather than
+     "press this". */
+  .banner.ok{background:var(--accent-soft);
+    border-color:color-mix(in srgb, var(--accent) 30%, transparent);
+    color:var(--accent-deep)}
+  .banner.ok strong{color:var(--accent-deep)}
   .corr{border:1px solid var(--line);border-left:3px solid var(--accent);
     border-radius:12px;padding:14px 16px;margin-top:12px;background:var(--bg)}
   .corr.objcase{border-left-color:var(--warn)}
@@ -826,7 +842,6 @@
        there is more room for them, not less. */
     nav[data-mode-nav] button{border:1px solid transparent;gap:7px;
       padding:7px 13px}
-    nav[data-mode-nav] .ico{display:inline-flex;line-height:0}
     nav[data-mode-nav] .ico svg{width:16px;height:16px}
     /* The desktop tab is a row: icon beside the label, not above it. */
     nav[data-mode-nav] button:not([aria-selected="true"]){border-color:var(--line)}
@@ -854,15 +869,21 @@
     nav[data-mode-nav] button[aria-selected="true"]{color:var(--accent)}
   }
 
-  /* The group marks. Quiet on purpose: they label rows that are already
-     distinguished by shape, so they are a reading aid rather than a second
-     thing competing for the eye. No room for either on a phone -- seven tabs
-     already fill 390px -- so they are a desktop affordance and say so. */
+  /* The group mark on the mode switch. Quiet on purpose: it labels a row
+     already distinguished by shape, so it is a reading aid rather than a
+     second thing competing for the eye. No room for it on a phone, where the
+     modes are the thumb bar, so it is a desktop affordance and says so.
+
+     There were two. The one over the skills row went with the row: in a
+     column that spells every entry out in two languages, and in a rail of
+     marks, it labelled nothing that was not already said -- and with no text
+     of its own it read as a stray glyph. It was `display:none` at every
+     width for a while before being deleted, which is its own kind of dead
+     code. */
   .groupmark{display:none;color:var(--muted);opacity:.55;line-height:0}
   .groupmark svg{width:16px;height:16px}
   @media (min-width:720px){
     .groupmark{display:inline-flex;align-items:center}
-    .navmark{margin-right:2px;vertical-align:middle}
   }
 
   /* ── The flashcard ───────────────────────────────────────────────
@@ -978,10 +999,6 @@
       border-radius:var(--radius-sm);position:relative}
     nav[data-mode-nav] button:not([aria-selected="true"]){border-color:transparent}
     nav[data-mode-nav] .lbl, nav[data-mode-nav] .ru{display:none}
-    /* Same reasoning as the desktop column: a mark with no text of its own,
-       above a rail of marks, labels nothing and reads as a stray glyph. */
-    nav[data-mode-nav] .groupmark{display:none}
-    nav[data-mode-nav] .ico{display:inline-flex;line-height:0}
     nav[data-mode-nav] .ico svg{width:20px;height:20px}
     nav[data-mode-nav] .badge{position:absolute;top:3px;right:3px;
       min-width:16px;padding:0 4px;font-size:9.5px;
@@ -1010,3 +1027,57 @@
       -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent);
       mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent)}
   }
+
+  /* ── Touch targets inside the panels ─────────────────────────────
+     The navigation has had a 44px floor and a test for it since the phone
+     bar was drawn. Everything INSIDE a panel was measured for the first time
+     on 2026-09-03 and four kinds of control were under it, on the screens
+     they matter most: the `harjuta` button on all thirty-six path rows
+     (32px), the `Kogu rada` disclosure (23px), every workbook and exam-
+     material link (15-23px, because the row is tall and the ANCHOR is one
+     line of text inside it), and the A2/B1 level switch (36px).
+
+     `hover:none` rather than a width: a 834px tablet is touched too, and a
+     narrow desktop window is not. Nothing changes for a mouse. */
+  @media (hover:none){
+    .topic button, .levels button, .logbtn{min-height:44px}
+    /* A disclosure is a one-line control with no box of its own; padding is
+       the only thing that can give it a thumb's worth of height. */
+    summary{padding:11px 0}
+    /* A link inside a row: the ROW is the target, not the eleven pixels of
+       text. The stretched pseudo-element keeps the accessible name on the
+       anchor -- a screen reader still reads one link, not a div. */
+    .lib-item{position:relative}
+    .lib-item > a::after{content:"";position:absolute;inset:0;
+      border-radius:inherit}
+    /* The readiness verdict's "do this next" link is an action inside a
+       sentence, not a row, so it cannot borrow the row. It gets its own
+       height instead -- 15px of underlined text is not a thumb target. */
+    .part-next a{display:inline-flex;align-items:center;min-height:44px}
+  }
+
+  /* ── The three ratings are one control ───────────────────────────
+     They are three buttons in a `.row`, which wraps -- so `Ei mäleta` took
+     its own line and `Raske`/`Teadsin` shared the next, and on the card that
+     also carries a task line the order came out ragged. This is the control
+     a learner touches most often in a review session, several times a
+     minute, and a target that moves between cards is a target that gets
+     mis-hit. Equal thirds, same place every time.
+
+     Anything in the row that is NOT a rating -- the task line on the vocab
+     card -- takes a row of its own rather than a quarter column. */
+  .row:has(> button[data-r]){display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2);
+    /* `.row` sets `align-items:center`, which a grid honours by centring each
+       item in its cell instead of filling it -- so the three ratings came out
+       112/67/68px tall with two different top edges. Stretch is what makes
+       them one control. */
+    align-items:stretch}
+  /* 13.5px is what keeps `Ei mäleta` on one line in a third of a 390px
+     screen. At the shared 14.5px it broke to `Ei / mäleta` and, because the
+     three are one row, dragged all of them to 112px -- a third of the card
+     spent on the label of a button rather than on the sentence being
+     reviewed. */
+  .row:has(> button[data-r]) > button[data-r]{width:100%;min-height:48px;
+    font-size:13.5px;padding:8px 6px}
+  .row:has(> button[data-r]) > :not(button[data-r]){grid-column:1 / -1}

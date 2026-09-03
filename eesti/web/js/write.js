@@ -26,7 +26,9 @@ async function runCheck() {
   try {
     const res = await (await api("/api/check", {text})).json();
     let html = "";
-    if (res.degraded && res.note) html += `<div class="banner">${esc(res.note)}</div>`;
+    // How the check is running is information, not a warning: the answer
+    // below it is still an answer.
+    if (res.degraded && res.note) html += `<div class="banner info">${esc(res.note)}</div>`;
     /* What the text actually says, read back in Russian.
 
        A grammar chain tells you whether your Estonian is well formed. It cannot
