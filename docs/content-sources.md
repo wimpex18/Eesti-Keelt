@@ -91,13 +91,22 @@ changes described.
 | What was wanted from it | The route that does not involve their web server |
 |---|---|
 | which words are at the learner's level | *Eesti keele tasemete sõnavara* — **wired**, `cli import-levels` |
-| simplified definitions, and recorded pronunciations of the principal forms | *Eesti keele põhisõnavara sõnastik 2014* (`D=psv`) — XML plus a headword list, and about 6 000 pronunciation WAVs |
+| simplified definitions | *Eesti keele põhisõnavara sõnastik 2014* (`D=psv`) — XML plus a headword list. **Wired**, `cli import-psv` |
+| recorded pronunciations of the principal forms | the same entry's `soundpack_alg.tgz` (MP3) / `soundpack.zip` (WAV) — available, deliberately not taken: about a gigabyte, against an app that already synthesises speech for any text |
 | everything | the Ekilex API, with a key from a free account |
 
-`psv` is not wired and not registered. Nothing here has seen the file, and an
-XML parser written against a format nobody has read is a code path that has
-never met its input. It is the top open item, and the one that would give word
-cards a definition at the learner's level instead of the full EKI one.
+**`psv` is wired as of 2026-09-11: `python -m eesti.cli import-psv
+psv_EKI_CCBY40.xml`.** What changed is that the format stopped being unread.
+EKI publishes **`schema_psv.xsd` beside the data**, so the parser is written
+against the publisher's own schema rather than a guess — `sr` → `A`, headword
+`P/mg/m`, definition `S/tp/tg/dg/d`, example `S/tp/tg/ng/n`. EKI warn on the
+same page that their XML does not validate against that schema, so the parser
+reads by descendant tag and treats everything but the headword as optional.
+
+The definitions land in `word_gloss.simple_definition` **beside** Sõnaveeb's
+rather than over it, and the word card prefers the learner-level one. The
+examples fill `/api/enrich`'s `"examples"`, which had been hardcoded `[]` since
+the endpoint was written.
 
 ### What Sõnaveeb and Sõnastik do and don't give
 

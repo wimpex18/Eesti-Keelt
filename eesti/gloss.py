@@ -70,6 +70,8 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS word_gloss (
     lemma           TEXT PRIMARY KEY,
     russian         TEXT NOT NULL DEFAULT '',
+    -- Sõnaveeb's definition: accurate, and written for a native speaker
+    -- consulting a dictionary.
     definition      TEXT,
     rection         TEXT,
     inflection_type TEXT,
@@ -210,10 +212,16 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
                  inflection_type = excluded.inflection_type,
                  found = excluded.found,
                  fetched = excluded.fetched""",
+            # EKI's learner-level wording is deliberately not in this table
+            # at all: it is reference data and lives beside the word list,
+            # where a state-snapshot restore cannot reach it. `/api/enrich`
+            # reads both and prefers EKI's. See `eesti/psv.py`.
             (lemma, "\x1f".join(gloss.russian), gloss.definition,
              gloss.rection, gloss.inflection_type, int(gloss.found), _now()),
         )
-    return gloss
+    # Read back rather than returning the object built above, so what the
+    # caller gets is what the store now holds.
+    return stored(conn, lemma) or gloss
 
 
 def spent_today(conn: sqlite3.Connection) -> int:
@@ -236,13 +244,37 @@ def _spend(conn: sqlite3.Connection) -> None:
         )
 
 
-def _is_seed(conn: sqlite3.Connection, lemma: str) -> bool:
-    """Whether the stored row came from the shipped glossary rather than a
-    live answer. Kept as a query rather than a field on `Gloss`, because it is
-    a fact about provenance and every caller of `Gloss` cares about meaning."""
+#: Provenance markers that mean "filled locally, never asked about".
+#:
+#: Only the shipped glossary, which carries a Russian translation and nothing
+#: else — no senses, no rection, no muuttüüp — so it is a **baseline, not a
+#: ceiling** and `remember()` asks Sõnaveeb anyway.
+#:
+#: EKI's learner dictionary was briefly in here too, and taking it out was the
+#: point of moving it: while PSV filled `word_gloss` rows, a covered word
+#: looked already-looked-up, and the six thousand commonest words would have
+#: lost their Russian for ever. In its own table it occupies no row here and
+#: the rule has nothing to except.
+BASELINES = ("seed",)
+
+
+def _is_baseline(conn: sqlite3.Connection, lemma: str) -> bool:
+    """Whether the stored row was filled locally rather than by a live answer.
+
+    Kept as a query rather than a field on `Gloss`, because it is a fact about
+    provenance and every caller of `Gloss` cares about meaning.
+
+    This was `_is_seed` and tested only for the shipped glossary. Importing
+    EKI's learner dictionary would then have filled 6 000 rows that `remember()`
+    treats as complete — so the commonest words in the language would have
+    gained an Estonian definition and permanently lost the chance of a Russian
+    one. Importing a dictionary would have made the word card worse for exactly
+    the words it appears on most, which is the same trap the seed hit, one
+    source later.
+    """
     row = conn.execute(
         "SELECT fetched FROM word_gloss WHERE lemma = ?", (lemma,)).fetchone()
-    return bool(row) and row[0] == "seed"
+    return bool(row) and row[0] in BASELINES
 
 
 def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
@@ -265,7 +297,7 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     # seeding would have quietly made the word card worse for exactly the words
     # it appears on most. Ask anyway, budget permitting, and keep the seed as
     # the fallback if the answer does not come.
-    if hit is not None and not _is_seed(conn, lemma):
+    if hit is not None and not _is_baseline(conn, lemma):
         return hit
     if budget_left(conn) <= 0:
         return hit

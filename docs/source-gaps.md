@@ -28,11 +28,17 @@ connected.
 
 ### 1. `grammar_et` — 1 000 error/correct pairs, fetched, unused — fixed ✅
 
-**Resolved.** It is the source of the `word-order` drill: 1 446 native-corrected
-pairs filtered to the corrections that only *re-order* — same words, different
-sequence, which is the signature of a word-order error and needs no annotation
-layer. Attested rather than generated, and that was a measurement: see
-`docs/status.md` for why generating them was refused.
+**Resolved.** It is the source of the `word-order` drill: 9 383
+native-corrected pairs filtered to the corrections that only *re-order* — same
+words, same punctuation, different sequence, which is the signature of a
+word-order error and needs no annotation layer. Attested rather than generated,
+and that was a measurement: see `docs/status.md` for why generating them was
+refused.
+
+9 383, not the 1 446 this section first said, because `grammar_et` has **two
+splits and only the test one was ever fetched** — the fetch table named the
+split `evals/external.py` scores, and every later pass read the fetch table.
+The train split is 7 937 pairs and took the drill pool from 64 items to 322.
 
 Downloaded in the same commit as `inflection_et` and referenced **only by a
 well-formedness test**. It is a real Estonian GEC benchmark, twenty times the

@@ -16,7 +16,10 @@ are deterministic*.
 | Generating a drill | **Vabamorf synthesis + EKK tables** | round-trip validated; ambiguous words refused |
 | **Grading a drill** | **string comparison** | no — and free, and offline |
 | Mastery, placement, checkpoints | **arithmetic over recorded attempts** | no model involved |
-| Checking free writing | LLM chain → Vabamorf offline | yes; engine always shown |
+| **Spelling in free writing** | **Vabamorf's dictionary** | no model judgement — merged into every answer, see below |
+| **Subject–verb agreement** | **Vabamorf tags + synthesis** | no model judgement; the correct form is synthesised, not guessed |
+| **Rection (rektsioon)** | **EKK SÜ 64 + Vabamorf** | no model judgement; only confusions the handbook itself records |
+| Checking free writing (everything else) | LLM chain → Vabamorf offline | yes; engine always shown |
 | Transcribing speech | Workers AI → OpenRouter → HF → whisper.cpp | yes |
 | Read-aloud comparison | **`difflib` against a known target** | no model judgement |
 | Feedback on a spoken answer | LLM chain, over the transcript | yes, **twice over** — see below |
@@ -25,6 +28,49 @@ The single most important line is the third. **No model decides whether your
 answer was right**, on any exercise, ever. That is why a drill can be graded
 offline, instantly, for free, and identically every time — and why a bad day
 from a provider cannot cost you a practice session.
+
+**Spelling is the newest line in that table, and it was a bug before it was a
+rule.** Vabamorf's dictionary has always been able to say `tanav` is not an
+Estonian word and `tänav` is — deterministically, offline, with no model
+involved. But it was wired only into the offline fallback, the *last* provider
+in a chain that returns the *first* one to answer, so with any LLM lane
+configured the dictionary's verdict was discarded on every request. A
+dictionary lookup is code, and code does not lose to a model's opinion; the
+chain was arranged so that it always did. It is merged into every answer now.
+
+**Agreement joined it for the same reason, and it is the sharper case.**
+`object_case_candidates` reports which case a word is in and refuses to say
+whether it is the right one, because that needs telicity — semantics. `ma elab`
+needs nothing of the kind: it is wrong for a reason visible entirely in two
+adjacent words, and Vabamorf can synthesise the form that belongs there. So
+this is the first thing in the app that *corrects* free writing without a model
+in the loop at all.
+
+The rules come from GiellaLT's Estonian Constraint Grammar, reimplemented over
+Vabamorf's tags rather than run — see `sources.REGISTRY`. The half worth having
+was the **exceptions**: `sid` and `ksid` are 2sg and 3pl alike, so `sa elasid`
+is correct, and a checker that did not know it would flag the past tense with
+`sa` every single time. A checker that invents errors teaches that every
+correct sentence is a mistake, which is worse than no checker.
+
+**Rection is the third, and it is checkable for a reason worth stating.**
+General rection checking needs valency — which phrase is this verb's
+complement, and may it stand in that case — and that is syntax. **EKK SÜ 64
+sidesteps it by being a list of specific attested confusions**: not "kohanema
+takes the comitative" but *people write `millele` where `millega` belongs*. The
+question becomes a lookup rather than a parse, which is the only reason it can
+sit in this table at all. Three conditions must hold — the handbook names the
+verb, a word in its own clause stands in the starred case, and nothing in that
+clause stands in the correct one — and the replacement is synthesised in the
+learner's own number.
+
+That it is the error class the learner corpus ranks **second** (5 170 marks
+against object case's 653) is why it was worth the care.
+
+Where the two overlap, the **provider's** explanation is kept for a word it
+already covered — that one has a reason attached, and this one only has "not in
+the dictionary". Deterministic evidence is added, never used to overrule prose
+that says more.
 
 **No model sets your homework either.** Every drill, quiz, placement probe and
 checkpoint comes from the generators, the topic graph and your own recorded

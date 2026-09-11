@@ -540,6 +540,15 @@
   .task .gloss{color:var(--gloss);font-size:13px}
   .task .lvl{color:var(--muted);font-size:10px;border:1px solid var(--line);
     border-radius:999px;padding:0 6px;letter-spacing:.04em}
+  /* What the word means, from EKI's põhisõnavara sõnastik — a definition
+     written for someone learning the word rather than for a native consulting
+     a dictionary, and the examples that come with it. New class names with no
+     competing rules anywhere in this file, so there is no specificity contest
+     to lose: see the trap in docs/redesign-2026.md. */
+  .meaning .def{color:var(--ink);font-size:13.5px;line-height:1.55}
+  .meaning .examples{margin:6px 0 0;padding-left:18px;color:var(--gloss);
+    font-size:12.5px;line-height:1.6}
+  .meaning .examples li{margin-bottom:2px}
   /* A meaning that arrived with the grade rather than with the item. */
   .gloss-late{color:var(--gloss);font-size:13px;display:block;margin-top:5px}
   .gloss-late b{font-weight:600;color:var(--ink)}

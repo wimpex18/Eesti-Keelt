@@ -245,3 +245,93 @@ built dataset, and it is deliberately not wired into CI — the standing
 decision is not to put a browser in the build. That means it only protects
 anything if somebody runs it; run it before a release, and after any change
 to `eesti/web/` — the page, the stylesheet or any module under `web/js/`.
+
+## A skip that CI could not see — 2026-09-11
+
+`tests/test_evkk_mapping.py` guards the tag map that weights the whole
+curriculum: if a `TAG_MAP` name stops matching EVKK's taxonomy, that tag
+silently weighs **zero** and the topic order shifts with nothing to say why.
+
+All three of its checks needed a cached copy of EVKK's page, which is
+git-ignored — so **all three skipped in CI**, and the run still read green.
+That is the same defect this project has paid for five times in other costumes:
+something that looks measured and is not.
+
+### The decision, and the two options that were refused
+
+**Commit a fixture — no.** `sources.REGISTRY` records EVKK as "no explicit
+reuse licence on the corpus", `redistributable = 0`. The taxonomy page is TLU's
+work, and committing it to a public repository is redistribution — the thing
+this project refuses for ERR, HARNO and Selges keeles. A test fixture is not an
+exception to that rule; it is the same bytes in a different directory.
+
+**Let CI fetch it — no, twice over.** The host answered 500 on two of three
+attempts the day this was written and takes 21 s when it works, so the test
+would be flaky, and this project's rule is that a failing test is never written
+off as infra. It would also hit a research server on every push, which is the
+discourtesy it already refuses toward Sõnaveeb.
+
+### What was done instead: split by what each check actually needs
+
+| Check | Needs | Runs in CI |
+|---|---|---|
+| the unmapped remainder is counted, not dropped | arithmetic over *any* taxonomy | **yes** |
+| no mapped subtree swallows a differently-tagged node | `TAG_MAP` + `LEAF_ONLY` + a tree *shape* | **yes** |
+| every tag it weights is one the error log uses | `TAG_MAP` + `config.TAGS` | **yes** |
+| a name matching nothing weighs zero | the failure mode, reproduced offline | **yes** |
+| every mapped name is really on the page | the live page, irreducibly | no — see below |
+
+The first four are invariants of **our own code**, and they are proved against a
+taxonomy this project writes itself: real `TAG_MAP` names, invented structure
+and counts. Nothing of TLU's is in the repository. **Five checks now run in CI
+where none did.**
+
+### And the live check moved to where live data exists
+
+The last one cannot be faked, so it stopped pretending to live in CI.
+`cli evkk` already fetches the real taxonomy, and now **refuses to exit 0 if any
+tag weighs zero**, naming the tags and where to fix them. That is strictly
+better than a CI test against a snapshot: it runs on real data every time the
+taxonomy is actually read, rather than on whatever copy someone happened to
+leave on a laptop.
+
+It does not raise. A rename does not make the taxonomy unusable and the counts
+are still worth storing — but a weighting that has quietly gone wrong must not
+pass for a good run.
+
+### The parser was the real gap, and it needed no fixture from them
+
+Raised on review: the licence objection was being applied too widely. This
+project's own note draws the line already — *"Counts about a published taxonomy
+are facts; the texts are not"* (`source-gaps.md`) — and the taxonomy counts are
+already stored in `content.db` and pushed to the deployment. The posture that
+protects ERR's transcripts and HARNO's exam papers was never meant to reach a
+list of category names.
+
+Following that through found a better gap than the one being argued about.
+`evkk.parse()` **was not tested at all.** Every check built `Mark` objects
+directly, so `_ROW_RE`, the markup flattening and the id-placeholder filter had
+no coverage — and a restyle of their page is the single most likely thing to
+break this harvester.
+
+That needs a fixture **in their format**, not a copy of their file, and a format
+can be reproduced without reproducing anyone's data: the shape is faithful — a
+`margin-left` div, an anchor whose href carries ancestry as `global_N/`
+segments, a `<span>` with the count, real newlines between them — and every
+name, id and number in it was made up here. The same approach as the EKI TSV
+and PSV XML fixtures.
+
+Seven more checks, all running in CI: labelled nodes found, the count read off
+the span, ancestry taken from the URL rather than the indentation, markup
+inside a label joined with a space rather than run together, a node labelled
+with its own id dropped, a page that stopped matching returning nothing rather
+than guessing, and subtree totals reaching ancestors.
+
+**Twelve checks run in CI where none did this morning.**
+
+### The skip is no longer silent
+
+`evkk: absent (tag-map check vs the live page skips -- `cli evkk`)` is now in
+the one-line banner the suite prints before and after every run, beside the
+word list, the corpus and the browsers. A skip nobody can see is the defect;
+a skip that announces itself is a state.

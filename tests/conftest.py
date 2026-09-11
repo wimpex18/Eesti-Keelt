@@ -239,7 +239,9 @@ def dataset_state() -> dict[str, object]:
     """
     from pathlib import Path
 
-    state: dict[str, object] = {"words": 0, "corpus": 0, "browsers": []}
+    state: dict[str, object] = {
+        "words": 0, "corpus": 0, "browsers": [], "evkk": False,
+    }
     try:
         from eesti import config
         from eesti.sources import available as corpus_available
@@ -269,6 +271,7 @@ def dataset_state() -> dict[str, object]:
         # report exists to stop.
         if importlib.util.find_spec("playwright") is not None:
             state["browsers"] = installed_engines()
+        state["evkk"] = (Path(config.CACHE) / "evkk_marks.html").exists()
     except Exception:  # noqa: BLE001
         pass
     return state
@@ -299,6 +302,12 @@ def describe_dataset(state: dict[str, object]) -> str:
     """One line naming what will and will not run."""
     words, corpus, browsers = state["words"], state["corpus"], state["browsers"]
     parts = [
+        # EVKK joins this line because its absence used to be *silent*: two
+        # checks on the tag map skipped in CI and the run still read green.
+        # A skip nobody can see is the same defect as a measurement with no
+        # writer, which this project has paid for five times.
+        "evkk: cached" if state.get("evkk")
+        else "evkk: absent (tag-map check vs the live page skips -- `cli evkk`)",
         f"word list: {words:,} words" if words
         else "word list: absent (some tests skip -- `cli fetch-data && cli build`)",
         f"corpus: {corpus:,} items" if corpus

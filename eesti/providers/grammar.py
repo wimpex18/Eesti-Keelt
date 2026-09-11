@@ -377,17 +377,17 @@ class VabamorfFallback:
         return True
 
     def check(self, text: str) -> GrammarResult:
-        from ..morph import misspellings, object_case_candidates
+        from ..morph import object_case_candidates
 
-        corrections = [
-            Correction(
-                wrong=item["text"],
-                correct=(item["suggestions"] or [""])[0],
-                why="Слово не найдено в словаре Vabamorf. Проверь написание.",
-                tag="vocab",
-            )
-            for item in misspellings(text)
-        ]
+        # `spelling()` rather than a second copy of the same loop, and located.
+        #
+        # This built its own unlocated `Correction`s, so every misspelling this
+        # provider reported arrived with `start`/`end` of `None` and the page
+        # had nothing to highlight. It went unnoticed because the offline
+        # provider only answers when everything else has failed — and then
+        # survived the merge, because a word this provider already named is the
+        # one the merge keeps, so the *located* copy lost to the unlocated one.
+        corrections = spelling(text)
 
         flagged = [
             Correction(
@@ -612,11 +612,173 @@ def why_failed(exc: BaseException) -> str:
     return type(exc).__name__
 
 
+#: Russian, like every explanation the learner has to act on. Names the
+#: authority, because "not in the dictionary" from Vabamorf is a different kind
+#: of claim from "I think this is wrong" from a model, and the learner should
+#: be able to tell them apart.
+SPELLING_WHY = (
+    "Слова нет в словаре Vabamorf. Проверь написание — чаще всего это "
+    "пропущенная täpitäht: **õ ä ö ü**."
+)
+
+
+def spelling(text: str) -> list[Correction]:
+    """Deterministic spelling, from Vabamorf's dictionary. No network, no model.
+
+    Separated from `VabamorfFallback` so it can run **beside** whatever the
+    chain answered rather than only when everything else has failed.
+    """
+    from ..morph import misspellings
+
+    return _locate(text, [
+        Correction(
+            wrong=item["text"],
+            correct=(item["suggestions"] or [""])[0],
+            why=SPELLING_WHY,
+            tag="vocab",
+        )
+        for item in misspellings(text)
+    ])
+
+
+#: Russian, like every explanation the learner acts on, keeping the Estonian
+#: grammatical term so it can be looked up — the language rule in CLAUDE.md.
+AGREEMENT_WHY = (
+    "**Pöördelõpp** не совпадает с подлежащим: «{pronoun}» требует формы "
+    "«{correct}». В эстонском лицо и число всегда видны на глаголе, а в "
+    "русском — не всегда, поэтому эту ошибку легко не заметить."
+)
+
+
+def agreement(text: str) -> list[Correction]:
+    """Subject–verb agreement, decided by morphology alone.
+
+    The one syntactic error class this project can check *without* syntax:
+    `ma elab` is wrong for a reason visible entirely in two adjacent words, and
+    no context makes it right. So unlike object case, this is corrected rather
+    than merely reported — and the correction is synthesised by the same
+    Vabamorf that grades every drill.
+
+    Rules and, more importantly, the exceptions come from GiellaLT's Estonian
+    Constraint Grammar (`&err-agr`). See `morph.agreement_errors`.
+    """
+    from ..morph import agreement_errors
+
+    return [
+        Correction(
+            wrong=item.verb,
+            correct=item.correct,
+            why=AGREEMENT_WHY.format(pronoun=item.pronoun, correct=item.correct),
+            tag="verb-form",
+            start=item.start if item.start >= 0 else None,
+            end=item.end if item.end >= 0 else None,
+        )
+        for item in agreement_errors(text)
+        if item.correct
+    ]
+
+
+#: Russian, keeping EKK's own frame words so the learner meets the form the
+#: handbook uses — `millega`, not "the comitative".
+RECTION_WHY = (
+    "**Rektsioon.** «{headword}» требует **{correct}** ({correct_frame}), "
+    "а не **{wrong}** ({wrong_frame}). Это одна из ошибок, которые EKK "
+    "перечисляет отдельно (SÜ 64) — русский предлог и эстонский падеж здесь "
+    "не совпадают."
+)
+
+
+def rection(text: str) -> list[Correction]:
+    """Attested rection confusions, from EKK's own list of the ones people miss.
+
+    The second-largest error class in the learner corpus — 5 170 marks against
+    object case's 653 — and checkable for one reason: EKK SÜ 64 does not
+    describe valency, it lists **specific confusions**. Not "kohanema takes the
+    comitative" but "people write `millele` where `millega` belongs". That is a
+    lookup rather than a parse, which is why it can be done here at all.
+
+    Degrades to nothing when the word list is absent: the contrasts live in it,
+    an enrichment is never worth an error, and a fresh checkout has no database.
+    """
+    from .. import rection as ekk
+    from ..wordlist import available, connect
+
+    try:
+        if not available():
+            return []
+        stored = ekk.load(connect())
+    except Exception:  # noqa: BLE001 - a missing table is not a failed check
+        return []
+
+    return [
+        Correction(
+            wrong=item.wrong,
+            correct=item.correct,
+            why=RECTION_WHY.format(
+                headword=item.headword, correct=item.correct,
+                correct_frame=item.correct_frame, wrong=item.wrong,
+                wrong_frame=item.wrong_frame),
+            tag="rektsioon",
+            start=item.start if item.start >= 0 else None,
+            end=item.end if item.end >= 0 else None,
+        )
+        for item in ekk.errors(text, stored)
+    ]
+
+
+def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
+    """Add what the dictionary knows to what the provider said.
+
+    **A dictionary lookup is code, and code does not lose to a model's
+    opinion.** That is this project's central rule, and the chain was breaking
+    it by accident: `check()` returns the *first* provider that answers, so the
+    moment an LLM lane was configured it answered and Vabamorf's spelling
+    verdict was thrown away — for every request, for ever.
+
+    And the LLM will not cover for it. The prompt it ships with is aimed at
+    object case and says in as many words that most text is already correct and
+    to report a correction only where a rule above is broken. `tanav` for
+    `tänav` breaks none of those rules, so nothing in the chain reported the
+    single commonest way a Russian speaker mistypes Estonian: a missing
+    täpitäht.
+
+    The same argument carries **subject–verb agreement**, added alongside it:
+    `ma elab` is decidable from morphology, Vabamorf can synthesise the form
+    that belongs there, and no model needs to be asked. Both are evidence, not
+    opinion, so both are merged rather than raced.
+
+    Merged, not prepended: a word the provider already has something to say
+    about keeps the provider's explanation, because that one has a reason
+    attached and this one only has "not in the dictionary".
+    """
+    if not result.corrections and result.engine == "none":
+        # Nothing answered at all. `check()` reports that honestly rather than
+        # dressing a spellcheck up as a working grammar service.
+        return result
+
+    already = {c.wrong.casefold() for c in result.corrections if c.wrong}
+    extra = [
+        c for c in spelling(text) + agreement(text) + rection(text)
+        if c.wrong.casefold() not in already
+    ]
+    if not extra:
+        return result
+    return GrammarResult(
+        result.engine,
+        result.corrections + extra,
+        degraded=result.degraded,
+        note=result.note,
+    )
+
+
 def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarResult:
     """Run the chain, returning the first provider that answers.
 
     Failures are expected, not exceptional, so they are swallowed and recorded in
     the final result's note rather than raised.
+
+    Whatever answers, Vabamorf's spelling verdict is merged into it — see
+    `_merge_spelling`.
     """
     tried: list[str] = []
     for provider in build_chain(providers):
@@ -632,7 +794,7 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             if tried:
                 result.note = (result.note + " | " if result.note else "") + \
                     "skipped -> " + "; ".join(tried)
-            return result
+            return _merge_spelling(text, result)
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
             _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")

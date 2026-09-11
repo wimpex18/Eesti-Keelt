@@ -3,6 +3,235 @@
 Every source, API and technique surfaced in research, against what is actually
 built. Kept honest: "verified" means called and observed, not read about.
 
+## GiellaLT: benefit without the duplication — 2026-09-11
+
+The question put to it was the right one: **would it benefit us, and would it
+create duplication?** Both answers are yes, and they apply to different halves.
+
+`giellalt/lang-est-x-utee` was inspected rather than assumed. Its
+`grammarchecker.cg3` is 35 KB, and the header is the Sámi template from UiT —
+which is exactly the shape a stub would have. It is not a stub. The rules are
+**genuinely Estonian**: `LIST Par` for the partitive, and 85 hand-written rules
+whose comments are in Estonian and about Estonian (`# ta on is OK`,
+`# ema ja tütar elasid|elaksid is OK`). The error tags it can emit include
+`&err-agr` (agreement), `&err-gov` (**rection** — EVKK's second-largest learner
+error class), `&err-no-conneg` and `&err-comma`.
+
+### The duplication is real and structural
+
+CG rules are written against a **specific tagset**. GiellaLT's rules speak
+`PersPronSing1`, `Sg1`, `Nom`, `Par`; Vabamorf speaks `sg n`, `n`, `b`, `vad`.
+There is no way to run their rules without running their morphology — so
+adopting the toolchain means **a second morphological analyser beside
+Vabamorf**, which is a second source of truth for the thing Vabamorf is the
+answer key for. Plus HFST and VISL CG3 in a free-tier image, and a repository
+its own maintainers file under `giellalt-experiment-langs` with a warning that
+the builds are "not tested for language quality".
+
+### So the linguistics was taken and the toolchain was not
+
+`morph.agreement_errors` implements `&err-agr` over **Vabamorf's own tags**.
+No new dependency, no second analyser, no build step, nothing of theirs copied
+or shipped — and `sources.REGISTRY` records the debt with their LGPL-3.0.
+
+This is the first thing in the app that **corrects** free writing with no model
+in the loop. `object_case_candidates` reports which case a word is in and
+refuses to judge it, because that needs telicity. `ma elab` needs nothing of
+the kind: it is decidable from two adjacent words, and Vabamorf **synthesises**
+the form that belongs there — `elan` — using the same call that generates every
+drill answer.
+
+**The exceptions were the valuable half, and they came straight from their rule
+comments.** `sid` and `ksid` are 2sg *and* 3pl, so `sa elasid` and `nad elasid`
+are both correct; a checker without that would flag the past tense with `sa`
+every single time a learner used it. `eks`/`ega` flip a clause to the
+imperative. Negation needs no special case, because a connegative carries no
+person tag at all. All of it is pinned in `tests/test_agreement.py`, which also
+regenerates the person/form table from Vabamorf so the two cannot drift.
+
+`&err-gov` — rection — is the obvious next one, and is **not** attempted here:
+it needs a verb-to-case table, which `sonapi` supplies per word and which this
+project already stores. That is a real follow-up with a real source, not a
+guess.
+
+## Replacing ELLE: the sweep, and what it found — 2026-09-11
+
+ELLE was closed as "no GEC endpoint, and every tool needs an account". The
+follow-up question was whether anything else fills that hole. A sweep of
+hosted APIs, open models, libraries, package indexes, community threads and
+the Estonian language-technology bodies produced **three definitive negatives,
+two documented candidates, and one thing that was already in the repository**.
+
+### The negatives, so nobody re-checks them
+
+| Checked | Result |
+|---|---|
+| **LanguageTool** — the obvious open grammar API | `api.languagetool.org/v2/languages` lists **62 languages and no Estonian**. Not a gap in their hosted tier; the language is not supported at all. |
+| **Any hosted Estonian GEC model** | Every Estonian GEC model on Hugging Face — `tartuNLP/Llama-3.1-8B-est-gec-july-2025`, its `-highrec` sibling, `Llammas-…-GEC` — reports an empty `inferenceProviderMapping`. Nobody rents one. |
+| **Consumer "Estonian grammar checker" sites** | Sapling, Rephrasely, paraphrasetool, hastewire and the rest are multilingual LLM wrappers with no Estonian case competence and no API worth binding to. This project already rejected that class once; nothing has changed. |
+
+### The candidates, documented and not adopted
+
+**`paulpall/GEC_Estonian_OPUS-MT`** — Apache-2.0, **73.9 M parameters**, Marian
+seq2seq, fine-tuned from `Helsinki-NLP/opus-mt-fi-et`. Interesting because of
+what it is *not*: every other Estonian GEC option is 7–8 B and needs a GPU,
+and this is small enough to run on a CPU inside the app's own container. Two
+things stop it being adopted on sight:
+
+- it needs **torch and transformers in the image**, which is a serious change
+  to a service that currently ships Vabamorf and FastAPI onto a free tier;
+- it is trained on **textbook and legalese sentences**, not learner errors, so
+  its error distribution is not this learner's. That is a measurement to make,
+  not a guess to act on — `cli eval --track external` exists for exactly this.
+
+**GiellaLT `lang-est-x-utee`** — LGPL-3.0, finite-state morphology plus
+**Constraint Grammar** rules, 73 000 lemmas, from Heiki-Jaan Kaalep at the
+University of Tartu. Architecturally this is the perfect answer: a
+**deterministic, rule-based** Estonian grammar checker, no model deciding
+anything. Two things hold it back: the repository is filed under
+`giellalt-experiment-langs` and its own download page warns the nightly
+packages are "not tested for language quality, and might contain regressions";
+and building it needs HFST and VISL CG3, a non-Python toolchain, in the image.
+**The strongest deterministic candidate found, and worth revisiting** when
+either its maturity or this project's appetite for a build step changes.
+
+### What was already here, and the bug that hid it
+
+The sweep's real finding was in this repository, not on the internet.
+**Vabamorf ships a spellchecker**, `estnltk.vabamorf.morf.spellcheck`, it is
+already a dependency, it runs offline, it is deterministic, and `morph.py` has
+wrapped it as `misspellings()` all along.
+
+It was wired into `VabamorfFallback` — **the last provider in the chain**. And
+`check()` returns the *first* provider that answers. So the moment an LLM lane
+is configured, it answers, and Vabamorf's dictionary verdict is discarded. For
+every request. For ever.
+
+That inverts this project's central rule. A dictionary lookup is **code**, and
+code does not lose to a model's opinion — but the chain was arranged so that it
+always did. Worse, the model does not cover for it: the shipped prompt is aimed
+at object case and says in as many words that most text is already correct and
+to report a correction only where one of those rules is broken. `tanav` for
+`tänav` breaks none of them.
+
+So nothing in the app reported **the single commonest way a Russian speaker
+mistypes Estonian** — a missing täpitäht — whenever the chain was working.
+
+`_merge_spelling` fixes it: whatever answers, Vabamorf's verdict is merged into
+the result. A word the provider already explained keeps the provider's
+explanation, because that one has a reason attached and this one only has "not
+in the dictionary". Nothing answering at all is still reported as nothing —
+a spellcheck is never dressed up as a working grammar service.
+
+**This is the honest replacement for ELLE.** Not a service, not a model: the
+thing the app already had, moved to where it always applies.
+
+## The three open threads, closed — 2026-09-11
+
+The audit left three things open. Two are now wired and one is answered with
+evidence rather than left hanging.
+
+### 1. `cli import-levels` had never met the real file — hardened against what it holds
+
+The importer could not be run against EKI's 51 015-row file from here, so
+instead the **file was interrogated about its own contents**, and it turned out
+to hold three things a fixture built from the schema would never have shown:
+
+| What the real file holds | What the importer did | Now |
+|---|---|---|
+| ~200 lemmas on **more than one line** — the same word under two parts of speech (`all` as `D` and as `K`, `alaealine` as `A` and as `S`) | `official_levels.word` is a primary key, so `INSERT OR REPLACE` kept whichever line came last: a coin-toss between two of EKI's own rows, decided by file order | collapsed in the parser, **lowest level wins**. If EKI calls a word A1 in any of its uses the learner meets it at A1, and each level's pool is then a superset of the one below |
+| **multi-word entries** — `aru saama`, `alla kirjutama`, `alles hoidma` | inserted into `words`, where `verbs_at_level` would hand `aru saama` to the conjugation drill and ask Vabamorf for its imperfect | kept in `official_levels`, which stays a faithful record of what EKI published, and out of `words`, which is the list of things this app generates exercises from |
+| a few rows with a **blank level** | already dropped, by luck rather than by intent | dropped, with a test saying so |
+
+Two things were added so the first real run is not the first look:
+
+- **`cli import-levels --check`** reads the file and writes nothing, reporting
+  the level counts, the multi-word entries and — the one that matters — any
+  part-of-speech code `EKI_POS` does not know. This is the only command in the
+  project that rewrites the CEFR level of every word the app drills, against a
+  file that arrives from the learner rather than from here.
+- **A stress test at the real scale**: 51 011 lemmas with the duplicates and
+  phrases mixed through, asserting the collapse and the phrase guard hold at
+  size. Not a benchmark — a check that nothing is quadratic on the one run that
+  matters.
+
+### 2. ELLE — answered, and the answer is no
+
+The thread was "ELLE is alive at v26.9.1 and only `/api/status` was checked".
+Its front end was read on 2026-09-11 and its whole API surface enumerated —
+seventeen paths, and **not one of them is grammatical error correction**:
+
+    /api/tools/masinoppe-ennustus      CEFR prediction
+    /api/texts/keerukus-…              complexity, parts of speech, diversity
+    /api/tools/wordanalyser            morphology
+    /api/tools/wordlist  /collocates  /wordcontext  /minitorn-pikkus
+    /api/texts/…                       the text library
+    /api/auth  /api/status  /api/text-to-speech  /api/actuator/health
+
+ELLE is a *text analysis* environment, not a corrector. Where its Tekstihindaja
+shows corrections it is calling somebody else's GEC — most plausibly the same
+TartuNLP service that has answered 500 since the first research round, which
+would explain why ELLE's corrector was observed failing at exactly the same
+time.
+
+Two of the tools were probed anyway. Both answer **HTTP 500 in under a second**
+— an instant refusal, not a timeout — and the bundle shows why: every tool call
+carries `Authorization: Bearer …`. **They require an ELLE account.** This
+repository must never hold a credential, so that is the end of it.
+
+**There is no free, keyless, working Estonian GEC.** That is worth stating
+plainly rather than leaving as a hopeful open item: the app's grammar chain is
+correct against the one Estonian service that exists, that service is down, and
+the LLM lane behind it is not a fallback but the thing that actually answers.
+
+### 3. EKI *põhisõnavara sõnastik* — wired
+
+`cli import-psv` imports EKI's learner dictionary: about 6 000 basic words
+defined in language a learner can read, CC BY 4.0, from the same download page
+as the level vocabulary.
+
+**This is what *Keeleõppija Sõnaveeb* was wanted for**, and the earlier verdict
+— out of reach without a second client against a site that asks not to be
+batch-requested — was the right answer to the wrong question. EKI publishes it.
+
+The format was read from **`schema_psv.xsd`, published beside the data**, not
+guessed: `sr` → `A`, headword at `P/mg/m`, definition at `S/tp/tg/dg/d`,
+example at `S/tp/tg/ng/n`. EKI warn on the same page that their XML does not
+validate against that schema, so the parser reads by descendant tag rather than
+rigid path and treats everything but the headword as optional.
+
+Three decisions worth recording:
+
+- **Two definitions, two databases.** It began as two columns of `word_gloss`
+  in `vocab.db`, beside Sõnaveeb's answers, and that was wrong in a way that
+  took a second look to see: `vocab.db` is in `STATE_DATABASES`, and a snapshot
+  restore replaces the **file**, not the rows. Six thousand EKI definitions
+  would have survived until the first restore and then gone, on a service that
+  cold-starts constantly. They are reference data — identical for every
+  learner, no more personal than the word list — so they live in `psv_gloss` in
+  `data/eesti.db`, which is baked into the image. `/api/enrich` is the one
+  place the two are read together, and it prefers EKI's, keeping Sõnaveeb's
+  beside it as `full_definition`. Same rule that keeps `level` and `band`
+  apart, applied to storage rather than to a column.
+- **The baseline trap dissolved rather than handled.** While the two shared a
+  row, a PSV import had the shape of the shipped seed glossary — a definition,
+  no Russian, no rection, no muuttüüp — and `remember()` returns early for a
+  row it considers complete, so the import would have filled the 6 000
+  commonest words and denied every one of them a Russian translation for ever.
+  That needed `_is_seed` to become `_is_baseline` and PSV to be listed in it.
+  Separate tables mean an import writes nothing `remember()` looks at, and
+  `BASELINES` went back to `("seed",)`. The fix that removes the trap beats the
+  fix that survives it.
+- **It filled a field that was hardcoded empty.** `/api/enrich` has always
+  returned `"examples": []`, and `definition` was returned and never drawn. The
+  card showed a muuttüüp number to someone who did not yet know the word. Both
+  are rendered now.
+
+The ~6 000 pronunciation recordings on the same page (`soundpack_alg.tgz`, MP3;
+`soundpack.zip`, WAV) are **not** taken. They are about a gigabyte, the app
+synthesises speech for any text already, and an audio store with no player is a
+measurement with no writer.
+
 ## Review pass, 2026-09-11: what the five fixes broke
 
 A code review of the two commits above found seven things. **Three were

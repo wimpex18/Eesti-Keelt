@@ -115,13 +115,19 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     # configuration, and configuration frozen into a module constant at import
     # cannot be redirected — which is how a whole class of tests ended up
     # silently depending on the developer's own build.
-    from . import config
+    from . import config, psv
 
     path = Path(path or config.DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    # EKI's learner dictionary lives here too, and whichever module opens the
+    # file first has to leave it complete -- otherwise `psv.imported()` reads
+    # "no table" on a deployment that simply has not imported the file yet, and
+    # absent and zero say different things (`eesti/vocab.py` has the same note
+    # for the same reason).
+    conn.executescript(psv.SCHEMA)
     _migrate(conn)
     return conn
 
@@ -301,7 +307,9 @@ def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
     already sort NULL last. A word with no rank drilling after one with a rank
     is right; a word ranked five million drilling first would not be.
     """
-    stats = {"levelled": 0, "changed": 0, "added": 0, "unclaimed": 0}
+    stats = {"levelled": 0, "changed": 0, "added": 0, "unclaimed": 0,
+             # Multi-word entries seen and deliberately not made drillable.
+             "phrases": 0}
     rows = conn.execute("SELECT word, level, pos FROM official_levels").fetchall()
     stats["levelled"] = len(rows)
     if not rows:
@@ -334,6 +342,17 @@ def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
                 "SELECT proficiency FROM words WHERE word = ?", (word,)
             ).fetchone()
             if current is None:
+                # A phrase is vocabulary; it is not a word the drill machinery
+                # can act on. EKI's list carries `aru saama`, `alla kirjutama`,
+                # `alles hoidma` — real and worth knowing, and inserting them
+                # here would put them in `verbs_at_level`, where the
+                # conjugation drill would hand `aru saama` to Vabamorf and ask
+                # for its imperfect. They stay in `official_levels`, the
+                # faithful record of what EKI published, and out of `words`,
+                # the list of things this app generates exercises from.
+                if " " in word:
+                    stats["phrases"] += 1
+                    continue
                 conn.execute(
                     "INSERT INTO words(word, freq_rank, proficiency, pos, level_source)"
                     " VALUES (?, NULL, ?, ?, 'eki')",

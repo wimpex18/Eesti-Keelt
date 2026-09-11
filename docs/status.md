@@ -439,6 +439,192 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### The EVKK tag-map check ran nowhere — 2026-09-11
+
+All three checks on `TAG_MAP` — the map that weights the whole curriculum —
+needed a git-ignored cache of EVKK's taxonomy, so **all three skipped in CI**
+and the run still read green. Same defect as a measurement with no writer:
+something that looks checked and is not.
+
+Committing a fixture was refused on licence (EVKK is `redistributable = 0`, and
+a test fixture is the same bytes in a different directory), and letting CI
+fetch it was refused twice over (500 on two of three attempts, and a research
+server should not be hit on every push).
+
+**Split by what each check actually needs instead.** Four are invariants of our
+own code and now run everywhere against a taxonomy this project writes itself —
+real `TAG_MAP` names, invented structure. **Five checks run in CI where none
+did.** The one that genuinely needs the live page moved to where live data
+exists: `cli evkk` now **refuses to exit 0 if any tag weighs zero**, naming the
+tags and where to fix them. And the remaining skip is named in the suite's
+banner, so it can no longer be invisible.
+
+Full reasoning in `qa-status.md`.
+
+### Three deterministic checks now correct free writing — 2026-09-11
+
+None needs a model, a network call or a credential, and all three are merged
+into whatever the provider chain answered rather than raced against it.
+
+| Check | Engine | What it catches |
+|---|---|---|
+| **Spelling** | Vabamorf's dictionary | `tanav` → `tänav` — the commonest way a Russian speaker mistypes Estonian |
+| **Subject–verb agreement** | Vabamorf tags + synthesis | `ma elab` → `elan` |
+| **Rection** | **EKK SÜ 64 + Vabamorf** | `kohanema uuele olukorrale` → `olukorraga` |
+
+**Rection is the error class the learner corpus ranks second** — 5 170 marks
+against object case's 653 — and it is checkable for one reason: EKK SÜ 64 is a
+list of *specific attested confusions*, not a valency table. Not "kohanema
+takes the comitative" but *people write `millele` where `millega` belongs*. A
+lookup, not a parse.
+
+Three conditions, all required: the handbook names the verb (23 contrasts), a
+word **in its own clause** stands in the starred wrong case, and **nothing** in
+that clause stands in the correct one. The replacement is synthesised in the
+learner's own number — `faktidele` → `faktidel`, not the singular the handbook
+happens to write its frames in.
+
+Two bugs were found by testing against real Estonian rather than a fixture:
+plural complements went unchecked because EKK's frames are singular and whole
+tags were compared, and an agreeing modifier (`uuele olukorrale`) counted as a
+rival candidate, so every modified noun phrase was skipped — the first version
+fired on nothing at all. A third was found end to end through the real
+endpoint: `VabamorfFallback` never located its spelling corrections, so the
+page had nothing to highlight, and the merge kept that unlocated copy over the
+located one.
+
+`cli rections` populates the contrasts and is now in the command list, where it
+was missing.
+
+### Two deterministic checks now correct free writing — 2026-09-11
+
+Neither needs a model, a network call or a credential, and both are merged into
+whatever the provider chain answered rather than raced against it.
+
+| Check | Engine | What it catches |
+|---|---|---|
+| **Spelling** | Vabamorf's dictionary | `tanav` → `tänav` — the commonest way a Russian speaker mistypes Estonian, and previously reported by nothing whenever the chain was working |
+| **Subject–verb agreement** | Vabamorf tags + synthesis | `ma elab` → `elan`, with the correct form **synthesised**, not guessed |
+
+Agreement is the first thing in the app that *corrects* free writing with no
+model involved. It is decidable where object case is not: `object_case_candidates`
+refuses to judge because telicity is semantics, while `ma elab` is wrong for a
+reason visible in two adjacent words.
+
+The rules come from **GiellaLT's Estonian Constraint Grammar** (`&err-agr`,
+LGPL-3.0, morphology by Heiki-Jaan Kaalep at Tartu Ülikool), reimplemented over
+Vabamorf's tags rather than run. Their toolchain was deliberately refused: CG
+rules are written against their tagset, so running them means a second
+morphological analyser beside Vabamorf — a second source of truth for the thing
+Vabamorf is the answer key for — plus HFST and VISL CG3 in a free-tier image,
+from a repository its maintainers file under `giellalt-experiment-langs`.
+
+The **exceptions** were the half worth having: `sid` and `ksid` are 2sg and 3pl
+alike, so `sa elasid` is correct and a checker without that knowledge would
+flag the past tense with `sa` every time. `&err-gov` (rection) is the obvious
+next one and is not attempted — it needs a verb-to-case table, which `sonapi`
+already supplies per word.
+
+### Replacing ELLE — swept 2026-09-11
+
+Three definitive negatives, two documented candidates, and one thing that was
+already in the repository. Full detail in `source-audit.md`.
+
+- **LanguageTool has no Estonian** — 62 languages, checked against their own
+  `/v2/languages`. Not a tier limitation; the language is absent.
+- **No Estonian GEC model is hosted anywhere.** Every one on Hugging Face has
+  an empty `inferenceProviderMapping`.
+- **`paulpall/GEC_Estonian_OPUS-MT`** (Apache-2.0, 73.9 M params) and
+  **GiellaLT `lang-est-x-utee`** (LGPL-3.0, finite-state + Constraint Grammar)
+  are the two real candidates. Documented, measured where possible, adopted
+  neither: the first needs torch in the image and is trained on textbook prose
+  rather than learner errors; the second is filed under
+  `giellalt-experiment-langs` and needs an HFST/CG3 build step.
+
+**The finding was in this repository.** Vabamorf ships a spellchecker,
+`morph.misspellings()` has wrapped it all along, and it was wired only into
+`VabamorfFallback` — the **last** provider in a chain that returns the **first**
+one to answer. So with any LLM lane configured, the dictionary's verdict was
+discarded on every request, and the shipped prompt (object-case focused,
+"most text is already correct") would never report `tanav` for `tänav`.
+
+A dictionary lookup is code, and code does not lose to a model's opinion. The
+chain was arranged so it always did. `_merge_spelling` merges Vabamorf's
+verdict into whatever answered; a word the provider already explained keeps the
+provider's explanation, and nothing answering is still reported as nothing.
+
+### Word order: 64 items became 322 — 2026-09-11
+
+EVKK ranks `word-order` the largest error class it annotates (11.4 % of
+51 467 marks), and the drill had 64 items, because the items are *attested* —
+pairs where a learner wrote it and a native corrected it — and generating them
+was refused on a measurement (75.4 % V2 inversion over 1 000 native-corrected
+sentences; a generated distractor would sometimes be correct Estonian).
+
+Refusing to generate makes the pool the only lever, and there was eight times
+more pool than anything had asked for. `grammar_et` has **two splits**; the
+fetch table named `test`, because that is what the eval track scores, and every
+later pass read the fetch table rather than the dataset. The train split is
+7 937 pairs.
+
+| pairs | items |
+|---|---|
+| `grammar_et` test, 1 000 | 43 |
+| `grammar2_et` train, 446 | 12 |
+| `grammar_et` train, 7 937 | 267 |
+| | **322** |
+
+The filter also got stricter, which is where the 376 those splits first yielded
+became 322: a pair must now carry the **same punctuation**, not only the same
+words. The item is a two-way choice between the learner's sentence and the
+native's, so any visible difference is one the learner can answer on — 54 pairs
+moved two words *and* a comma, and were teaching comma placement under a label
+that says `sõnajärg`.
+
+The eval track is untouched: the splits are disjoint, they land in separate
+files, and `evals/external.py` still reads `grammar_et.json`. `DATASETS` is now
+keyed by **filename** rather than dataset, because two entries for one dataset
+sharing a key would have overwritten each other — in the direction that empties
+the eval track.
+
+Getting the items to the deployment is unchanged and still manual, because the
+data is ungranted: `cli fetch-bench`, `cli wordorder`, then
+`deploy/push-content.sh`. Never baked into the image.
+
+### The three reference imports reach the deployment — 2026-09-11
+
+All three were shipped as CLI commands nobody on the deployment ran, which is
+this project's recurring shape: a writer that exists and is never called. On
+production `rections`, `eki_levels` and `eki_definitions` were all zero.
+
+| What | Now |
+|---|---|
+| `cli rections` | already run by the `Dockerfile` at build time — this was the one that was fine |
+| `cli import-levels` | run by the `Dockerfile` against `deploy/eki/A1A2B1.txt`, if it is in the build context |
+| `cli import-psv` | run by the `Dockerfile` against `deploy/eki/psv_EKI_CCBY40.xml`, same condition |
+| where PSV is stored | **moved** out of `vocab.db` into `psv_gloss` in the image-baked `data/eesti.db` — `vocab.db` is in `STATE_DATABASES` and a restore replaces the file, so the import could not have survived a cold start |
+| telling whether they ran | `/api/health` reports `reference` as three **row counts**, and `smoke` warns on any zero |
+
+The two EKI files are not downloaded by anything here: EKI ask who you are
+first. `deploy/eki/README.md` says what to put where, and every build step ends
+in `||` so a missing file costs one feature rather than the image.
+
+### The three open threads, closed — 2026-09-11
+
+| Thread | Outcome |
+|---|---|
+| `cli import-levels` had never met the real file | **Hardened against what it actually holds.** The file was interrogated about its own contents: ~200 lemmas appear on more than one line (collapsed now, lowest level wins, instead of a coin-toss decided by file order), and it carries multi-word entries like `aru saama` that would have reached the conjugation drill. Plus `--check`, which reads the file and writes nothing, and a stress test at 51 011 lemmas. |
+| ELLE | **Answered: no.** Its whole API surface is seventeen paths and none of them is grammatical error correction — it is a text-analysis environment. Two tools were probed and answer 500 in under a second; the bundle shows every tool call carries `Authorization: Bearer …`, so they need an ELLE account. **There is no free, keyless, working Estonian GEC.** |
+| EKI *põhisõnavara sõnastik* | **Wired.** `cli import-psv` imports ~6 000 learner-level definitions and their examples, CC BY 4.0, parsed to the schema EKI publishes beside the data. This is what *Keeleõppija Sõnaveeb* was wanted for. |
+
+The PSV import fills `/api/enrich`'s `"examples"`, which was hardcoded `[]`,
+and the `definition` the card received and never drew. Two definitions, two
+**databases**: EKI's learner-level wording is reference data and lives in
+`psv_gloss` in the image-baked `data/eesti.db`; Sõnaveeb's native-level answer
+stays in `vocab.db`, which the state snapshot carries. Kept together, the EKI
+import would have been wiped by the first snapshot restore. `/api/enrich`
+prefers EKI's and returns Sõnaveeb's beside it as `full_definition`.
+
 ### What the five fixes broke, 2026-09-11
 
 A code review of the two commits found seven things, **three of them

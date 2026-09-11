@@ -171,14 +171,15 @@ REGISTRY: tuple[Source, ...] = (
         "so nothing could contradict it.",
     ),
     Source(
-        "taltech-gec", "TalTechNLP grammar_et + grammar2_et (learner corrections)",
+        "taltech-gec", "TalTechNLP grammar_et (both splits) + grammar2_et",
         "file",
         "no licence stated — personal study only", False,
         "https://huggingface.co/datasets/TalTechNLP/grammar_et",
-        "1 446 (learner wrote, native corrected) sentence pairs from the "
-        "Estonian Native LLM Benchmark family: 1 000 in `grammar_et` and 446 "
-        "in `grammar2_et`, which has the same two columns and was overlooked "
-        "until 2026-09-11. 64 of them are pure re-orderings (47 + 17), which "
+        "9 383 (learner wrote, native corrected) sentence pairs from the "
+        "Estonian Native LLM Benchmark family: `grammar_et` test (1 000) and "
+        "train (7 937), plus `grammar2_et` (446), which carries the same two "
+        "columns. 322 of them are pure re-orderings -- same words, same "
+        "punctuation, different sequence -- which "
         "is the only sound source of word-order drills this project has: "
         "correctness is attested rather than inferred. Neither dataset card "
         "states a licence at all, so both are treated as ungranted — same "
@@ -221,6 +222,46 @@ REGISTRY: tuple[Source, ...] = (
         "filtered to A1/A2/B1, EKI's one-letter POS codes are mapped onto this "
         "project's tag vocabulary, and the corpus frequency is kept under its "
         "own name rather than written into a column that holds ranks.",
+    ),
+    Source(
+        "giellalt-est", "GiellaLT lang-est-x-utee (grammar rules)", "file",
+        "LGPL-3.0 — analysis used, no code or data copied", False,
+        "https://github.com/giellalt/lang-est-x-utee",
+        "Finite-state morphology and Constraint Grammar rules for Estonian, "
+        "morphology by Heiki-Jaan Kaalep (Tartu Ülikool). **Nothing of theirs "
+        "is copied or shipped.** What is used is the linguistic analysis in "
+        "their `&err-agr` rules — which pronoun/verb pairs disagree and, the "
+        "valuable half, which apparent disagreements are not errors: `sid` and "
+        "`ksid` are 2sg and 3pl alike, and `eks`/`ega` flip a clause to the "
+        "imperative. `morph.agreement_errors` reimplements that over "
+        "Vabamorf's own tags. Their toolchain is deliberately not adopted: the "
+        "CG rules are written against GiellaLT's tagset, so running them means "
+        "running a second morphological analyser beside Vabamorf — a second "
+        "source of truth for the thing Vabamorf is the answer key for — plus "
+        "HFST and VISL CG3 in a free-tier image. Recorded here because this "
+        "project touches their work and every third party it touches has its "
+        "licence written down.",
+    ),
+    Source(
+        "eki-psv", "Eesti keele põhisõnavara sõnastik 2014 (EKI)", "file",
+        "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "About 6 000 basic words defined in language a learner can read — the "
+        "thing *Keeleõppija Sõnaveeb* exists for, published for download "
+        "instead of scraped. Imported by `cli import-psv` from a file the "
+        "learner downloads; EKI serves it behind a page asking who you are and "
+        "what the material will be used in, so nothing here fetches it. Stored "
+        "in the words database as `psv_gloss`, not in `vocab.db`: it is "
+        "reference data, and `vocab.db` travels in the state snapshot, where "
+        "a restore replaces the file whole. `/api/enrich` reads it beside "
+        "Sõnaveeb's native-level definition and prefers EKI's. "
+        "Licence terms are EKI's own: process and present it any way needed, "
+        "an app included, commercial use unrestricted, provided the "
+        "attribution to EKI is kept and the changes described. The changes: "
+        "articles are flattened to headword, first definition and at most "
+        "three examples; editing metadata and cross-reference markup are "
+        "dropped. The store is one learner's, behind Access, never "
+        "redistributed — the same posture as the Sõnaveeb answers beside it.",
     ),
     Source(
         "sonapi", "Sõnaveeb via api.sonapi.ee", "api",
