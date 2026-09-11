@@ -33,10 +33,16 @@ jobs:
       # parts we own — so a failure here must not fail the build. The fetcher
       # retries 5xx with backoff; if it still cannot get the data, the validation
       # step below is skipped loudly rather than silently.
+      # `--required-only`: the morphology gate needs `inflection_et` and
+      # nothing here reads the two extra word-order pools — the drill tests run
+      # on fixtures. Fetching them anyway cost 160 requests per push across the
+      # two legs and earned a 429 from the datasets server, which skipped the
+      # gate. Asking someone else's server for 7 937 rows that this job will
+      # not open is the shape this project has a rule about.
       - name: Fetch benchmark data
         id: bench
         continue-on-error: true
-        run: python -m eesti.cli fetch-bench
+        run: python -m eesti.cli fetch-bench --required-only
 
       # Checks Vabamorf against TalTech's native-curated gold forms. Everything
       # the app generates inherits that correctness, so it gates the build —

@@ -228,11 +228,27 @@ def cmd_keys(args: argparse.Namespace) -> int:
 
 
 def cmd_fetch_bench(args: argparse.Namespace) -> int:
-    """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026)."""
-    from ..evals.fetch import fetch_all
+    """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026).
 
-    for name, count in fetch_all().items():
+    Fails only on a dataset something depends on. The two word-order pools are
+    optional by construction — fewer pairs is fewer drill items, which the
+    module already handles — and treating them as fatal is what once skipped
+    the morphology gate over a file that had downloaded perfectly.
+    """
+    from ..evals.fetch import REQUIRED, fetch_all
+
+    counts, failures = fetch_all(required_only=args.required_only)
+    for name, count in counts.items():
         print(f"  {name}: {count:,} rows")
+    for name, why in failures.items():
+        mark = "ERROR" if name in REQUIRED else "skipped"
+        print(f"  {name}: {mark} — {why}")
+    fatal = sorted(n for n in failures if n in REQUIRED)
+    if fatal:
+        print(f"Required dataset(s) unavailable: {', '.join(fatal)}.")
+        return 1
+    if failures:
+        print("  The word-order pool will be smaller. Re-run to fill it.")
     return 0
 
 
@@ -376,6 +392,10 @@ def register(sub) -> None:
     p.set_defaults(func=cmd_validate)
 
     p = sub.add_parser("fetch-bench", help="download the Estonian benchmark datasets")
+    p.add_argument(
+        "--required-only", action="store_true",
+        help="only what the morphology gate and the eval track need — skips "
+             "the two extra word-order pools, which nothing in CI reads")
     p.set_defaults(func=cmd_fetch_bench)
 
     p = sub.add_parser("models", help="list a provider's live model catalogue")
