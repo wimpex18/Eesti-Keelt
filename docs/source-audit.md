@@ -3,6 +3,78 @@
 Every source, API and technique surfaced in research, against what is actually
 built. Kept honest: "verified" means called and observed, not read about.
 
+## Replacing ELLE: the sweep, and what it found — 2026-09-11
+
+ELLE was closed as "no GEC endpoint, and every tool needs an account". The
+follow-up question was whether anything else fills that hole. A sweep of
+hosted APIs, open models, libraries, package indexes, community threads and
+the Estonian language-technology bodies produced **three definitive negatives,
+two documented candidates, and one thing that was already in the repository**.
+
+### The negatives, so nobody re-checks them
+
+| Checked | Result |
+|---|---|
+| **LanguageTool** — the obvious open grammar API | `api.languagetool.org/v2/languages` lists **62 languages and no Estonian**. Not a gap in their hosted tier; the language is not supported at all. |
+| **Any hosted Estonian GEC model** | Every Estonian GEC model on Hugging Face — `tartuNLP/Llama-3.1-8B-est-gec-july-2025`, its `-highrec` sibling, `Llammas-…-GEC` — reports an empty `inferenceProviderMapping`. Nobody rents one. |
+| **Consumer "Estonian grammar checker" sites** | Sapling, Rephrasely, paraphrasetool, hastewire and the rest are multilingual LLM wrappers with no Estonian case competence and no API worth binding to. This project already rejected that class once; nothing has changed. |
+
+### The candidates, documented and not adopted
+
+**`paulpall/GEC_Estonian_OPUS-MT`** — Apache-2.0, **73.9 M parameters**, Marian
+seq2seq, fine-tuned from `Helsinki-NLP/opus-mt-fi-et`. Interesting because of
+what it is *not*: every other Estonian GEC option is 7–8 B and needs a GPU,
+and this is small enough to run on a CPU inside the app's own container. Two
+things stop it being adopted on sight:
+
+- it needs **torch and transformers in the image**, which is a serious change
+  to a service that currently ships Vabamorf and FastAPI onto a free tier;
+- it is trained on **textbook and legalese sentences**, not learner errors, so
+  its error distribution is not this learner's. That is a measurement to make,
+  not a guess to act on — `cli eval --track external` exists for exactly this.
+
+**GiellaLT `lang-est-x-utee`** — LGPL-3.0, finite-state morphology plus
+**Constraint Grammar** rules, 73 000 lemmas, from Heiki-Jaan Kaalep at the
+University of Tartu. Architecturally this is the perfect answer: a
+**deterministic, rule-based** Estonian grammar checker, no model deciding
+anything. Two things hold it back: the repository is filed under
+`giellalt-experiment-langs` and its own download page warns the nightly
+packages are "not tested for language quality, and might contain regressions";
+and building it needs HFST and VISL CG3, a non-Python toolchain, in the image.
+**The strongest deterministic candidate found, and worth revisiting** when
+either its maturity or this project's appetite for a build step changes.
+
+### What was already here, and the bug that hid it
+
+The sweep's real finding was in this repository, not on the internet.
+**Vabamorf ships a spellchecker**, `estnltk.vabamorf.morf.spellcheck`, it is
+already a dependency, it runs offline, it is deterministic, and `morph.py` has
+wrapped it as `misspellings()` all along.
+
+It was wired into `VabamorfFallback` — **the last provider in the chain**. And
+`check()` returns the *first* provider that answers. So the moment an LLM lane
+is configured, it answers, and Vabamorf's dictionary verdict is discarded. For
+every request. For ever.
+
+That inverts this project's central rule. A dictionary lookup is **code**, and
+code does not lose to a model's opinion — but the chain was arranged so that it
+always did. Worse, the model does not cover for it: the shipped prompt is aimed
+at object case and says in as many words that most text is already correct and
+to report a correction only where one of those rules is broken. `tanav` for
+`tänav` breaks none of them.
+
+So nothing in the app reported **the single commonest way a Russian speaker
+mistypes Estonian** — a missing täpitäht — whenever the chain was working.
+
+`_merge_spelling` fixes it: whatever answers, Vabamorf's verdict is merged into
+the result. A word the provider already explained keeps the provider's
+explanation, because that one has a reason attached and this one only has "not
+in the dictionary". Nothing answering at all is still reported as nothing —
+a spellcheck is never dressed up as a working grammar service.
+
+**This is the honest replacement for ELLE.** Not a service, not a model: the
+thing the app already had, moved to where it always applies.
+
 ## The three open threads, closed — 2026-09-11
 
 The audit left three things open. Two are now wired and one is answered with

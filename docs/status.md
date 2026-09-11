@@ -439,6 +439,34 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### Replacing ELLE — swept 2026-09-11
+
+Three definitive negatives, two documented candidates, and one thing that was
+already in the repository. Full detail in `source-audit.md`.
+
+- **LanguageTool has no Estonian** — 62 languages, checked against their own
+  `/v2/languages`. Not a tier limitation; the language is absent.
+- **No Estonian GEC model is hosted anywhere.** Every one on Hugging Face has
+  an empty `inferenceProviderMapping`.
+- **`paulpall/GEC_Estonian_OPUS-MT`** (Apache-2.0, 73.9 M params) and
+  **GiellaLT `lang-est-x-utee`** (LGPL-3.0, finite-state + Constraint Grammar)
+  are the two real candidates. Documented, measured where possible, adopted
+  neither: the first needs torch in the image and is trained on textbook prose
+  rather than learner errors; the second is filed under
+  `giellalt-experiment-langs` and needs an HFST/CG3 build step.
+
+**The finding was in this repository.** Vabamorf ships a spellchecker,
+`morph.misspellings()` has wrapped it all along, and it was wired only into
+`VabamorfFallback` — the **last** provider in a chain that returns the **first**
+one to answer. So with any LLM lane configured, the dictionary's verdict was
+discarded on every request, and the shipped prompt (object-case focused,
+"most text is already correct") would never report `tanav` for `tänav`.
+
+A dictionary lookup is code, and code does not lose to a model's opinion. The
+chain was arranged so it always did. `_merge_spelling` merges Vabamorf's
+verdict into whatever answered; a word the provider already explained keeps the
+provider's explanation, and nothing answering is still reported as nothing.
+
 ### The three open threads, closed — 2026-09-11
 
 | Thread | Outcome |

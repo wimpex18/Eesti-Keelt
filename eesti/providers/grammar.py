@@ -612,11 +612,80 @@ def why_failed(exc: BaseException) -> str:
     return type(exc).__name__
 
 
+#: Russian, like every explanation the learner has to act on. Names the
+#: authority, because "not in the dictionary" from Vabamorf is a different kind
+#: of claim from "I think this is wrong" from a model, and the learner should
+#: be able to tell them apart.
+SPELLING_WHY = (
+    "Слова нет в словаре Vabamorf. Проверь написание — чаще всего это "
+    "пропущенная täpitäht: **õ ä ö ü**."
+)
+
+
+def spelling(text: str) -> list[Correction]:
+    """Deterministic spelling, from Vabamorf's dictionary. No network, no model.
+
+    Separated from `VabamorfFallback` so it can run **beside** whatever the
+    chain answered rather than only when everything else has failed.
+    """
+    from ..morph import misspellings
+
+    return _locate(text, [
+        Correction(
+            wrong=item["text"],
+            correct=(item["suggestions"] or [""])[0],
+            why=SPELLING_WHY,
+            tag="vocab",
+        )
+        for item in misspellings(text)
+    ])
+
+
+def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
+    """Add what the dictionary knows to what the provider said.
+
+    **A dictionary lookup is code, and code does not lose to a model's
+    opinion.** That is this project's central rule, and the chain was breaking
+    it by accident: `check()` returns the *first* provider that answers, so the
+    moment an LLM lane was configured it answered and Vabamorf's spelling
+    verdict was thrown away — for every request, for ever.
+
+    And the LLM will not cover for it. The prompt it ships with is aimed at
+    object case and says in as many words that most text is already correct and
+    to report a correction only where a rule above is broken. `tanav` for
+    `tänav` breaks none of those rules, so nothing in the chain reported the
+    single commonest way a Russian speaker mistypes Estonian: a missing
+    täpitäht.
+
+    Merged, not prepended: a word the provider already has something to say
+    about keeps the provider's explanation, because that one has a reason
+    attached and this one only has "not in the dictionary".
+    """
+    if not result.corrections and result.engine == "none":
+        # Nothing answered at all. `check()` reports that honestly rather than
+        # dressing a spellcheck up as a working grammar service.
+        return result
+
+    already = {c.wrong.casefold() for c in result.corrections if c.wrong}
+    extra = [c for c in spelling(text) if c.wrong.casefold() not in already]
+    if not extra:
+        return result
+    return GrammarResult(
+        result.engine,
+        result.corrections + extra,
+        degraded=result.degraded,
+        note=result.note,
+    )
+
+
 def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarResult:
     """Run the chain, returning the first provider that answers.
 
     Failures are expected, not exceptional, so they are swallowed and recorded in
     the final result's note rather than raised.
+
+    Whatever answers, Vabamorf's spelling verdict is merged into it — see
+    `_merge_spelling`.
     """
     tried: list[str] = []
     for provider in build_chain(providers):
@@ -632,7 +701,7 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             if tried:
                 result.note = (result.note + " | " if result.note else "") + \
                     "skipped -> " + "; ".join(tried)
-            return result
+            return _merge_spelling(text, result)
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
             _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")

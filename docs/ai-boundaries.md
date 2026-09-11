@@ -16,7 +16,8 @@ are deterministic*.
 | Generating a drill | **Vabamorf synthesis + EKK tables** | round-trip validated; ambiguous words refused |
 | **Grading a drill** | **string comparison** | no — and free, and offline |
 | Mastery, placement, checkpoints | **arithmetic over recorded attempts** | no model involved |
-| Checking free writing | LLM chain → Vabamorf offline | yes; engine always shown |
+| **Spelling in free writing** | **Vabamorf's dictionary** | no model judgement — merged into every answer, see below |
+| Checking free writing (everything else) | LLM chain → Vabamorf offline | yes; engine always shown |
 | Transcribing speech | Workers AI → OpenRouter → HF → whisper.cpp | yes |
 | Read-aloud comparison | **`difflib` against a known target** | no model judgement |
 | Feedback on a spoken answer | LLM chain, over the transcript | yes, **twice over** — see below |
@@ -25,6 +26,20 @@ The single most important line is the third. **No model decides whether your
 answer was right**, on any exercise, ever. That is why a drill can be graded
 offline, instantly, for free, and identically every time — and why a bad day
 from a provider cannot cost you a practice session.
+
+**Spelling is the newest line in that table, and it was a bug before it was a
+rule.** Vabamorf's dictionary has always been able to say `tanav` is not an
+Estonian word and `tänav` is — deterministically, offline, with no model
+involved. But it was wired only into the offline fallback, the *last* provider
+in a chain that returns the *first* one to answer, so with any LLM lane
+configured the dictionary's verdict was discarded on every request. A
+dictionary lookup is code, and code does not lose to a model's opinion; the
+chain was arranged so that it always did. It is merged into every answer now.
+
+Where the two overlap, the **provider's** explanation is kept for a word it
+already covered — that one has a reason attached, and this one only has "not in
+the dictionary". Deterministic evidence is added, never used to overrule prose
+that says more.
 
 **No model sets your homework either.** Every drill, quiz, placement probe and
 checkpoint comes from the generators, the topic graph and your own recorded
