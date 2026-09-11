@@ -76,6 +76,82 @@ def taxonomy() -> list[evkk.Mark]:
     return marks
 
 
+#: EVKK's page markup, written here rather than copied from theirs.
+#:
+#: The shape is faithful — a `margin-left` div, an anchor whose href carries the
+#: node's ancestry as `global_N/` segments, a `<span>` holding the count, and
+#: real newlines and indentation between them — but every name, id and number
+#: below was made up for this test. Same approach as the EKI TSV and PSV XML
+#: fixtures: a format can be reproduced without reproducing anyone's data.
+#:
+#: This exists because `parse()` was **not tested at all**. The checks below it
+#: build `Mark` objects directly, so `_ROW_RE`, the markup flattening and the
+#: placeholder filter had no coverage — and a restyle of their page is the one
+#: change most likely to break this harvester.
+MARKUP = """
+<div style="margin-left:20px">
+        <a href="https://evkk.tlu.ee/vers1/Marks/global_marks/global_100/markdown.html"
+           style="">Leksikaalsed</a>
+            <span>352</span>
+</div>
+<div style="margin-left:40px">
+        <a href="https://evkk.tlu.ee/vers1/Marks/global_marks/global_100/global_101/markdown.html"
+           style=""><p>Sobimatu</p><p>sõnavalik</p></a>
+            <span>41</span>
+</div>
+<div style="margin-left:40px">
+        <a href="https://evkk.tlu.ee/vers1/Marks/global_marks/global_100/global_102/markdown.html"
+           style="">global_102</a>
+            <span>0</span>
+</div>
+<div style="margin-left:20px">
+        <a href="https://evkk.tlu.ee/vers1/Marks/global_marks/global_200/markdown.html"
+           style="">Rektsioon</a>
+            <span>5170</span>
+</div>
+"""
+
+
+class TestReadingTheirMarkup:
+    """`parse()` against the page shape, which nothing exercised before."""
+
+    def test_it_finds_every_labelled_node(self):
+        assert [m.name for m in evkk.parse(MARKUP)] == [
+            "Leksikaalsed", "Sobimatu sõnavalik", "Rektsioon"]
+
+    def test_the_count_comes_off_the_span(self):
+        assert {m.name: m.count for m in evkk.parse(MARKUP)}["Rektsioon"] == 5170
+
+    def test_ancestry_comes_from_the_url_not_the_indentation(self):
+        """Matching on the href rather than the CSS indent is deliberate: a
+        restyle cannot silently flatten the tree."""
+        by_name = {m.name: m for m in evkk.parse(MARKUP)}
+        assert by_name["Leksikaalsed"].depth == 1
+        assert by_name["Sobimatu sõnavalik"].depth == 2
+        assert by_name["Sobimatu sõnavalik"].key.startswith(
+            by_name["Leksikaalsed"].key + "/")
+
+    def test_markup_inside_a_label_is_joined_with_a_space(self):
+        """It was `sub("")` once, which turned `<p>Esimene</p><p>Teine</p>` into
+        the single word `EsimeneTeine`."""
+        assert "Sobimatu sõnavalik" in {m.name for m in evkk.parse(MARKUP)}
+
+    def test_a_node_labelled_with_its_own_id_is_dropped(self):
+        """A handful render their id instead of a name. Keeping them would put
+        ids in a report of names."""
+        assert not [m for m in evkk.parse(MARKUP) if m.name.startswith("global_")]
+
+    def test_a_page_that_stopped_matching_returns_nothing_rather_than_guessing(self):
+        """`cmd_evkk` turns this into "the page shape may have changed" and
+        writes nothing, which is the honest response to a restyle."""
+        assert evkk.parse("<html><body>midagi muud</body></html>") == []
+
+    def test_subtree_totals_add_a_node_to_its_ancestors(self):
+        totals = evkk.subtree_totals(evkk.parse(MARKUP))
+        parent = next(m for m in evkk.parse(MARKUP) if m.name == "Leksikaalsed")
+        assert totals[parent.key] == 352 + 41
+
+
 class TestTheInvariantsOfOurOwnCode:
     """These run everywhere. No third-party data, no network, no cache."""
 

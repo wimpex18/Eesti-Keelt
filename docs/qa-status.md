@@ -299,6 +299,36 @@ It does not raise. A rename does not make the taxonomy unusable and the counts
 are still worth storing — but a weighting that has quietly gone wrong must not
 pass for a good run.
 
+### The parser was the real gap, and it needed no fixture from them
+
+Raised on review: the licence objection was being applied too widely. This
+project's own note draws the line already — *"Counts about a published taxonomy
+are facts; the texts are not"* (`source-gaps.md`) — and the taxonomy counts are
+already stored in `content.db` and pushed to the deployment. The posture that
+protects ERR's transcripts and HARNO's exam papers was never meant to reach a
+list of category names.
+
+Following that through found a better gap than the one being argued about.
+`evkk.parse()` **was not tested at all.** Every check built `Mark` objects
+directly, so `_ROW_RE`, the markup flattening and the id-placeholder filter had
+no coverage — and a restyle of their page is the single most likely thing to
+break this harvester.
+
+That needs a fixture **in their format**, not a copy of their file, and a format
+can be reproduced without reproducing anyone's data: the shape is faithful — a
+`margin-left` div, an anchor whose href carries ancestry as `global_N/`
+segments, a `<span>` with the count, real newlines between them — and every
+name, id and number in it was made up here. The same approach as the EKI TSV
+and PSV XML fixtures.
+
+Seven more checks, all running in CI: labelled nodes found, the count read off
+the span, ancestry taken from the URL rather than the indentation, markup
+inside a label joined with a space rather than run together, a node labelled
+with its own id dropped, a page that stopped matching returning nothing rather
+than guessing, and subtree totals reaching ancestors.
+
+**Twelve checks run in CI where none did this morning.**
+
 ### The skip is no longer silent
 
 `evkk: absent (tag-map check vs the live page skips -- `cli evkk`)` is now in
