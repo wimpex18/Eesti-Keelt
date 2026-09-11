@@ -439,6 +439,28 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### The EVKK tag-map check ran nowhere — 2026-09-11
+
+All three checks on `TAG_MAP` — the map that weights the whole curriculum —
+needed a git-ignored cache of EVKK's taxonomy, so **all three skipped in CI**
+and the run still read green. Same defect as a measurement with no writer:
+something that looks checked and is not.
+
+Committing a fixture was refused on licence (EVKK is `redistributable = 0`, and
+a test fixture is the same bytes in a different directory), and letting CI
+fetch it was refused twice over (500 on two of three attempts, and a research
+server should not be hit on every push).
+
+**Split by what each check actually needs instead.** Four are invariants of our
+own code and now run everywhere against a taxonomy this project writes itself —
+real `TAG_MAP` names, invented structure. **Five checks run in CI where none
+did.** The one that genuinely needs the live page moved to where live data
+exists: `cli evkk` now **refuses to exit 0 if any tag weighs zero**, naming the
+tags and where to fix them. And the remaining skip is named in the suite's
+banner, so it can no longer be invisible.
+
+Full reasoning in `qa-status.md`.
+
 ### Two deterministic checks now correct free writing — 2026-09-11
 
 Neither needs a model, a network call or a credential, and both are merged into

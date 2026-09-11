@@ -22,6 +22,11 @@ import pytest
 from conftest import describe_dataset
 
 
+#: The optional inputs the banner reports, one segment each. Named here so a
+#: new one has to be added deliberately rather than silently changing a count.
+EXPECTED_INPUTS = ("evkk", "word list", "corpus", "browsers")
+
+
 class TestItDescribesWhatIsPresent:
     def test_a_full_machine_names_its_numbers(self):
         said = describe_dataset({"words": 160316, "corpus": 349,
@@ -35,7 +40,28 @@ class TestItDescribesWhatIsPresent:
         thing that is missing, which is what it is."""
         said = describe_dataset({"words": 0, "corpus": 0, "browsers": []})
         assert "0 words" not in said and "0 items" not in said
-        assert said.count("absent") == 2
+
+    def test_every_absent_input_says_so(self):
+        """Counted, not hard-coded.
+
+        This asserted `count("absent") == 2`, which is a hand-maintained tally
+        of how many optional inputs exist — and it broke the moment a fourth
+        was added, saying only that a number had changed. What it was *for* is
+        that nothing absent goes unmentioned, so that is what it checks now:
+        one segment per input, and each one either names its contents or says
+        it is missing.
+        """
+        said = describe_dataset({"words": 0, "corpus": 0, "browsers": [],
+                                 "evkk": False})
+        segments = [seg.strip() for seg in said.removeprefix("eesti |").split("|")]
+        assert len(segments) == len(EXPECTED_INPUTS)
+        for segment in segments:
+            assert "absent" in segment or "none" in segment, segment
+
+    def test_a_present_input_stops_saying_absent(self):
+        said = describe_dataset({"words": 1, "corpus": 1,
+                                 "browsers": ["chromium"], "evkk": True})
+        assert "absent" not in said and "none" not in said
 
 
 class TestItSaysWhatToRun:
@@ -53,6 +79,19 @@ class TestItSaysWhatToRun:
     def test_no_browser_says_the_journeys_skip_entirely(self):
         said = describe_dataset({"words": 5, "corpus": 5, "browsers": []})
         assert "skips entirely" in said
+
+    def test_a_missing_evkk_cache_names_the_command_that_writes_one(self):
+        """Its absence used to be silent: two checks on the tag map skipped in
+        CI and the run still read green."""
+        said = describe_dataset({"words": 5, "corpus": 5, "browsers": [],
+                                 "evkk": False})
+        assert "cli evkk" in said
+
+    def test_every_segment_names_the_input_it_is_about(self):
+        said = describe_dataset({"words": 0, "corpus": 0, "browsers": [],
+                                 "evkk": False})
+        for name in EXPECTED_INPUTS:
+            assert f"{name}:" in said, name
 
 
 class TestReadingTheStateCannotBreakARun:

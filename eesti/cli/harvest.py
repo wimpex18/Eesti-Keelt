@@ -99,6 +99,25 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     rest = unmapped(marks)
     total = sum(weights.values()) + rest
 
+    # A tag that weighs nothing means a `TAG_MAP` name stopped matching.
+    #
+    # This is the failure this command is the right place to catch, and the
+    # reason `tests/test_evkk_mapping.py` does not try to. That test would need
+    # EVKK's taxonomy, which is TLU's work under no stated reuse licence, so it
+    # cannot be committed; and CI cannot fetch it, because the host answered 500
+    # on two of three attempts and a research server should not be hit on every
+    # push. Here the live page is already in hand.
+    #
+    # It does not raise: a rename does not mean the taxonomy is unusable, and
+    # the counts already fetched are still worth storing. It refuses to exit 0,
+    # so a weighting that has quietly gone wrong cannot pass for a good run.
+    blank = sorted(tag for tag, n in weights.items() if n == 0)
+    if blank:
+        print(f"TAG_MAP no longer matches the taxonomy for: {', '.join(blank)}")
+        print("Those tags now weigh nothing, so the curriculum order below is "
+              "wrong. Check the names against the live page and fix TAG_MAP in "
+              "eesti/harvest/evkk.py.\n")
+
     conn = connect(content_path(args))
     register(conn)
     store(conn, marks)
@@ -113,7 +132,7 @@ def cmd_evkk(args: argparse.Namespace) -> int:
         "\nfiner child would have taken, and exam essays dominate the corpus."
         "\nRead the ordering, not the absolute numbers."
     )
-    return 0
+    return 1 if blank else 0
 
 
 def cmd_harvest_exam(args: argparse.Namespace) -> int:
