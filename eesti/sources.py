@@ -171,14 +171,15 @@ REGISTRY: tuple[Source, ...] = (
         "so nothing could contradict it.",
     ),
     Source(
-        "taltech-gec", "TalTechNLP grammar_et + grammar2_et (learner corrections)",
+        "taltech-gec", "TalTechNLP grammar_et (both splits) + grammar2_et",
         "file",
         "no licence stated — personal study only", False,
         "https://huggingface.co/datasets/TalTechNLP/grammar_et",
-        "1 446 (learner wrote, native corrected) sentence pairs from the "
-        "Estonian Native LLM Benchmark family: 1 000 in `grammar_et` and 446 "
-        "in `grammar2_et`, which has the same two columns and was overlooked "
-        "until 2026-09-11. 64 of them are pure re-orderings (47 + 17), which "
+        "9 383 (learner wrote, native corrected) sentence pairs from the "
+        "Estonian Native LLM Benchmark family: `grammar_et` test (1 000) and "
+        "train (7 937), plus `grammar2_et` (446), which carries the same two "
+        "columns. 322 of them are pure re-orderings -- same words, same "
+        "punctuation, different sequence -- which "
         "is the only sound source of word-order drills this project has: "
         "correctness is attested rather than inferred. Neither dataset card "
         "states a licence at all, so both are treated as ungranted — same "

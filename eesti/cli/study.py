@@ -81,9 +81,9 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
     from ..sources import connect
     from ..wordorder import SOURCE_ID, bench_files, ingest, items
 
-    # Both TalTech pair files by default, one if `--file` names it. They carry
+    # Every TalTech pair file by default, one if `--file` names it. They carry
     # the same two columns and the same licence posture, and item ids are
-    # content hashes, so ingesting two files is ingesting one twice.
+    # content hashes, so a sentence in two files is one item.
     paths = [args.file] if args.file else bench_files()
     conn = connect(content_path(args))
     added = 0

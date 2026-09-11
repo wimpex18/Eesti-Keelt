@@ -553,6 +553,44 @@ chain was arranged so it always did. `_merge_spelling` merges Vabamorf's
 verdict into whatever answered; a word the provider already explained keeps the
 provider's explanation, and nothing answering is still reported as nothing.
 
+### Word order: 64 items became 322 — 2026-09-11
+
+EVKK ranks `word-order` the largest error class it annotates (11.4 % of
+51 467 marks), and the drill had 64 items, because the items are *attested* —
+pairs where a learner wrote it and a native corrected it — and generating them
+was refused on a measurement (75.4 % V2 inversion over 1 000 native-corrected
+sentences; a generated distractor would sometimes be correct Estonian).
+
+Refusing to generate makes the pool the only lever, and there was eight times
+more pool than anything had asked for. `grammar_et` has **two splits**; the
+fetch table named `test`, because that is what the eval track scores, and every
+later pass read the fetch table rather than the dataset. The train split is
+7 937 pairs.
+
+| pairs | items |
+|---|---|
+| `grammar_et` test, 1 000 | 43 |
+| `grammar2_et` train, 446 | 12 |
+| `grammar_et` train, 7 937 | 267 |
+| | **322** |
+
+The filter also got stricter, which is where the 376 those splits first yielded
+became 322: a pair must now carry the **same punctuation**, not only the same
+words. The item is a two-way choice between the learner's sentence and the
+native's, so any visible difference is one the learner can answer on — 54 pairs
+moved two words *and* a comma, and were teaching comma placement under a label
+that says `sõnajärg`.
+
+The eval track is untouched: the splits are disjoint, they land in separate
+files, and `evals/external.py` still reads `grammar_et.json`. `DATASETS` is now
+keyed by **filename** rather than dataset, because two entries for one dataset
+sharing a key would have overwritten each other — in the direction that empties
+the eval track.
+
+Getting the items to the deployment is unchanged and still manual, because the
+data is ungranted: `cli fetch-bench`, `cli wordorder`, then
+`deploy/push-content.sh`. Never baked into the image.
+
 ### The three reference imports reach the deployment — 2026-09-11
 
 All three were shipped as CLI commands nobody on the deployment ran, which is

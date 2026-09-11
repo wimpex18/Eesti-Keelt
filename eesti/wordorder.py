@@ -42,11 +42,28 @@ than inferred. Nothing is claimed about the learner's version being
 ungrammatical; the question asked is which one a native wrote, which is also
 how the exam is marked.
 
-The filter is severe, and that is the cost of refusing to generate: 1 446 pairs
-yield **64 items** (47 + 17). `grammar2_et` was added 2026-09-11 — same two
-columns, published 2024-11-18, and overlooked because every earlier pass
-enumerated the benchmark paper's seven datasets and this is an eighth sitting
-beside them. A third again on the pool, for one line in a fetch table.
+The filter is severe, and that is the cost of refusing to generate. Which
+makes the size of the pool being filtered the only lever there is:
+
+| pairs | items |
+|---|---|
+| `grammar_et` test, 1 000 | 43 |
+| `grammar2_et` train, 446 | 12 |
+| `grammar_et` **train, 7 937** | **267** |
+| | **322** |
+
+Measured 2026-09-11, and the interesting row is the third. Nothing had ever
+fetched it. `grammar_et` has two splits; `evals/external.py` scores the test
+one, so the fetch table named that split and every later pass read the fetch
+table. Eight times the pairs were sitting behind a word nobody had reason to
+re-read. `grammar2_et` — same two columns, published 2024-11-18 — was missed
+the same way: the benchmark paper lists seven datasets and it is an eighth
+beside them.
+
+The eval track still reads the test file and only the test file. The splits are
+disjoint and land in separate files, so what that track scores has not moved —
+a pool five times bigger would otherwise have arrived as a mysteriously
+different benchmark number.
 
 Licence: neither dataset card states one. Treated like every other ungranted
 source here — personal study, git-ignored, never redistributed, and never baked
@@ -79,9 +96,13 @@ FINITE = frozenset({
 
 _WORD = re.compile(r"[^\w\sõäöüÕÄÖÜ-]", re.UNICODE)
 
-
 def _words(text: str) -> list[str]:
     return _WORD.sub(" ", text).lower().split()
+
+
+def _punctuation(text: str) -> list[str]:
+    """Everything `_words` throws away — the same pattern, read the other way."""
+    return sorted(_WORD.findall(text))
 
 
 def is_reordering(wrong: str, right: str) -> bool:
@@ -90,9 +111,20 @@ def is_reordering(wrong: str, right: str) -> bool:
     The signature of a word-order error, and the reason it can be told apart
     from every other kind of correction without an annotation layer: the
     multiset of words is unchanged.
+
+    Punctuation has to be unchanged too, and that is not pedantry. The item is
+    a two-way choice between the learner's sentence and the native's, asking
+    which one an Estonian wrote — so any difference the learner can see is a
+    difference the learner can answer on. A pair that moves two words *and*
+    adds a comma is answerable from the comma, and would be teaching comma
+    placement under a label that says `sõnajärg`. 54 of 376 pairs are that
+    shape (measured 2026-09-11); dropping them costs a seventh of the pool and
+    buys items where the only visible difference is the one being taught.
     """
     a, b = _words(wrong), _words(right)
-    return bool(a) and a != b and sorted(a) == sorted(b)
+    if not a or a == b or sorted(a) != sorted(b):
+        return False
+    return _punctuation(wrong) == _punctuation(right)
 
 
 @dataclass(frozen=True)
@@ -223,9 +255,10 @@ def bench_files(bench_dir: Path | str | None = None) -> list[Path]:
 
     Derived from `evals.fetch.DATASETS` rather than listed here, because a
     hand-kept copy of a list that already exists is this project's
-    most-repeated bug. `grammar_et` and `grammar2_et` share one two-column
-    shape -- `original`, `correct` -- so the same reader takes both, and a
-    third file added to the fetch table is ingested without touching this.
+    most-repeated bug. Every GEC pair file shares one two-column shape --
+    `original`, `correct` -- so the same reader takes all of them, and a file
+    added to the fetch table is ingested without touching this. That is how
+    `grammar_et`'s train split arrived: one line there, three files here.
 
     Files that were never fetched are returned anyway: `load` treats absence as
     empty, which is what makes a fresh checkout work.

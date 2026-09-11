@@ -52,6 +52,21 @@ class TestOnlyReorderingsAreKept:
         items = wordorder.from_pairs(pairs)
         assert len(items) == 2
 
+    def test_a_pair_that_also_moves_a_comma_is_not_kept(self):
+        """The item is a two-way choice, so every visible difference is
+        something the learner can answer on. Move two words and add a comma and
+        the comma is the easier tell — teaching punctuation under a label that
+        says `sõnajärg`."""
+        assert not wordorder.is_reordering(
+            "Tavaliselt enne valimisi muutuvad lehed poliitilisemaks, kirjutades neist.",
+            "Tavaliselt muutuvad lehed enne valimisi poliitilisemaks, kirjutades, neist.")
+
+    def test_but_the_same_punctuation_in_a_new_place_is_fine(self):
+        """Only the multiset is compared. A fronted constituent takes its
+        comma with it, and that is still purely a re-ordering."""
+        assert wordorder.is_reordering(
+            "Kui sajab, ma jään koju.", "Kui sajab, jään ma koju.")
+
 
 class TestTheRuleIsOnlyClaimedWhereItCanBeRead:
     """Two rules are claimed because two can be read off morphology. Calling
@@ -192,6 +207,58 @@ class TestEveryFetchedPairFileIsRead:
         names = {p.stem for p in wordorder.bench_files()}
         assert names == {n for n in DATASETS if n.startswith("grammar")}
         assert "grammar2_et" in names, "the overlooked file must be in the default"
+        assert "grammar_et_train" in names, "and the split nothing ever fetched"
+
+
+class TestTheTwoSplitsOfGrammarEt:
+    """`grammar_et` is fetched twice — test for the eval track, train for the
+    drill pool — and the train split is eight times the size of the one the
+    fetch table used to name. Both land in `data/raw/bench/`, so the only thing
+    keeping them apart is the filename."""
+
+    def test_each_entry_names_its_own_file(self):
+        """Keyed by filename, not by dataset. Keyed by dataset, the second
+        `grammar_et` entry would overwrite the first — silently, and in the
+        direction that empties the eval track."""
+        from eesti.evals.fetch import DATASETS
+
+        assert len({k for k in DATASETS}) == len(DATASETS)
+        datasets = [d for d, _, _ in DATASETS.values()]
+        assert datasets.count("grammar_et") == 2, "both splits are fetched"
+
+    def test_the_eval_track_still_reads_the_test_split(self):
+        """Its score is compared across runs. Repointing this file at eight
+        times the rows would move a number that is supposed to mean one thing."""
+        from eesti.evals.external import DATASET
+        from eesti.evals.fetch import DATASETS
+
+        assert DATASET.name == "grammar_et.json"
+        assert DATASETS["grammar_et"] == ("grammar_et", "test", 1000)
+
+    def test_the_train_split_is_a_separate_file(self):
+        from eesti.evals.fetch import DATASETS
+
+        name, split, rows = DATASETS["grammar_et_train"]
+        assert (name, split) == ("grammar_et", "train")
+        assert rows > 1000, "the point of it"
+
+    def test_fetch_writes_under_the_key_not_the_dataset(self, tmp_path, monkeypatch):
+        import json
+
+        from eesti.evals import fetch as fetch_mod
+
+        class _Resp:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return json.dumps({"rows": []}).encode()
+
+        monkeypatch.setattr(fetch_mod.urllib.request, "urlopen",
+                            lambda *a, **k: _Resp())
+        out = fetch_mod.fetch("grammar_et", "train", 10, tmp_path,
+                              key="grammar_et_train")
+        assert out.name == "grammar_et_train.json"
+        assert not (tmp_path / "grammar_et.json").exists(), (
+            "or the train fetch lands on the eval track's file")
 
     def test_it_looks_where_fetch_bench_writes(self, tmp_path):
         assert all(p.parent == tmp_path for p in wordorder.bench_files(tmp_path))
