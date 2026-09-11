@@ -98,11 +98,13 @@ def _build_wordlist(path) -> None:
 
     conn = sqlite3.connect(path)
     conn.executescript(SCHEMA)
-    conn.executemany("INSERT OR REPLACE INTO words VALUES (?,?,?,?)", WORDS)
+    # Columns named, not positional. A positional insert binds the fixture to
+    # the table's column *count*, so adding `level_source` to the schema broke
+    # sixteen tests that have nothing to do with where a level came from.
+    cols = "INSERT OR %s INTO words(word, freq_rank, proficiency, pos) VALUES (?,?,?,?)"
+    conn.executemany(cols % "REPLACE", WORDS)
     # Inserted second so a word named in WORDS keeps its declared level.
-    conn.executemany(
-        "INSERT OR IGNORE INTO words VALUES (?,?,?,?)", _theme_words()
-    )
+    conn.executemany(cols % "IGNORE", _theme_words())
     # Rections live in the word database and are fetched by a deliberate `cli
     # rections` run, never during a lesson. Seeding two here means the generator
     # is exercised offline — CI proved why that matters by getting a 403 from

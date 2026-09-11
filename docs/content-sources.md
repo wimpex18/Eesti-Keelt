@@ -75,6 +75,30 @@ The one thing generation cannot give is **meaning**: definitions, usage examples
 and translations. That is what `api.sonapi.ee` is for (single lookups only), and
 what the enriched Ekilex wordlist supplies for CEFR level and frequency.
 
+### The learner dictionary: not refused, routed
+
+*Keeleõppija Sõnaveeb* — about 7 000 words with definitions simplified for A2
+and B1 — is exactly what a learner here wants, and an earlier pass wrote it off
+because reaching it meant a second client against the site whose maintainers
+ask not to be batch-requested.
+
+That was the right answer to the wrong question. **EKI publishes the same
+material for download under CC BY 4.0**, and the licence page says so outright:
+the material may be processed and presented in any way needed, an app included,
+commercial use unrestricted, provided the attribution to EKI is kept and the
+changes described.
+
+| What was wanted from it | The route that does not involve their web server |
+|---|---|
+| which words are at the learner's level | *Eesti keele tasemete sõnavara* — **wired**, `cli import-levels` |
+| simplified definitions, and recorded pronunciations of the principal forms | *Eesti keele põhisõnavara sõnastik 2014* (`D=psv`) — XML plus a headword list, and about 6 000 pronunciation WAVs |
+| everything | the Ekilex API, with a key from a free account |
+
+`psv` is not wired and not registered. Nothing here has seen the file, and an
+XML parser written against a format nobody has read is a code path that has
+never met its input. It is the top open item, and the one that would give word
+cards a definition at the learner's level instead of the full EKI one.
+
 ### What Sõnaveeb and Sõnastik do and don't give
 
 Both display the principal forms — they read the same Ekilex data — but neither
@@ -150,7 +174,27 @@ project refuses on a page it can point to. The sanctioned route is that the
 learner — who has an Estonian ID card and a name to put in the box — downloads
 `A1A2B1.txt` themselves.
 
-No importer is written for it yet, on purpose. Writing a parser for a file
+**Wired on 2026-09-11: `python -m eesti.cli import-levels A1A2B1.txt`.** It
+reads EKI's tab-separated `LEMMA POS SAGEDUS TASE`, keeps the A1/A2/B1 rows,
+maps EKI's one-letter part-of-speech codes onto this project's tags, and lets
+EKI's level win in `words.proficiency` — with `words.level_source = 'eki'` so
+the app can always say who decided. The frequency column is kept under its own
+name in `official_levels`, because EKI publishes a corpus **count** and
+`freq_rank` holds a **rank**, and the two run in opposite directions.
+
+It still does not download, for the reason given above. And the question this
+file left open — replace the enriched-Ekilex `proficiency` or sit beside it —
+was answered by looking at what the two actually are. They are not two scales;
+they are one scale with two authorities, and the enriched list's is a derived
+estimate covering 6.2 % of its lemmas. So EKI wins the column and
+`level_source` carries the provenance. That is the opposite of the `level` /
+`band` mistake, not a repeat of it: those were two different **claims** and had
+to be split; these are the same claim from two sources and had to be ranked.
+
+The older note is kept below, because its reasoning is still why nothing here
+fetches the file.
+
+No importer was written for it at first, on purpose. Writing a parser for a file
 nobody in this project has seen is guessing at a format and shipping a code path
 that has never met its input, which is the shape of bug `lessons.md` names as a
 measurement with no writer. It is the top open item in `source-gaps.md`: when

@@ -439,6 +439,31 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### Five fixes, 2026-09-11
+
+A second pass the same day, against five specific complaints. Four were defects
+on **this** side; the fifth was a question asked the wrong way round. Full
+verdicts and evidence in `source-audit.md`.
+
+| | Outcome |
+|---|---|
+| **TartuNLP grammar** | Their published OpenAPI spec was read: the request this app sends matches it exactly and no auth is declared, and both endpoints answer **500 after ~61 s** on TartuNLP's own example. Nothing to fix in the connection. Fixed instead: `POST /grammar/` is now tried when `/v2` fails, sentence-level answers are narrowed to the words that changed, a pure re-ordering is tagged `word-order` instead of `vocab`, and the contract is pinned offline by `tests/test_tartunlp_contract.py`. |
+| **EKI level vocabulary** | `cli import-levels` imports *Eesti keele tasemete sõnavara* (2018, CC BY 4.0). EKI's A1/A2/B1 wins in `words.proficiency`; `words.level_source` records who said so. Survives `cli build`. Does not download — the file comes from the learner. |
+| **EVKK** | The failure message named the wrong host (`elle.tlu.ee`, a different and working TLU service). Retries 3 → 5, measured: it 500'd twice and answered on the third attempt, taking 21 s. `LEAF_ONLY` was empty while being described as an active guard; it is now checked by a test rather than asserted in a comment. |
+| **ERR Lihtsad uudised** | The ledger claimed "audio + text". The pages carry **no audio at all** — the harvester always wrote `audio: False`, so the wrong claim lived only in a note, where nothing could contradict it. |
+| **HARNO** | 20 official materials — 11 statistics PDFs, 9 application forms — were indexed and claimed by **no section**, past the orphan check, because that check's fixture was a hand-written list of kinds. Forms now reach `Eksamist` (whose own description already promised registration); statistics are no longer indexed at all. The kind vocabulary is exported once as `harno.KINDS` and read by the sections and the tests. |
+| **Sõnaveeb learner dictionary** | Not refused — routed. EKI publishes the same material for download under CC BY 4.0. The level vocabulary is wired; *põhisõnavara sõnastik* (`psv`), which carries the simplified definitions and ~6 000 pronunciation WAVs, is the top open item. |
+
+**Verified along the way.** Every HARNO pointer was fetched: of the 107 that
+are files rather than embedded videos, **86 answer 200**, all on `harno.ee`.
+The other 21 — the listening audio — are on `projektid.edu.ee`, which answers
+503 today. Nothing was changed about them: a 503 is an outage, not a dead link.
+
+**HARNO publishes no A1.** The *tasemeeksam* starts at A2. At the two levels
+this app targets: 25 A2 materials and 26 B1, each covering all four parts.
+HARNO and EIS do not overlap — no shared URLs, and EIS's 14 A2/B1 items are
+interactive with feedback while HARNO's are downloadable PDFs plus audio.
+
 ### Third-party sources, re-probed 2026-09-11
 
 Ten days on, and the useful finding is that nothing the app depends on moved:

@@ -3,6 +3,189 @@
 Every source, API and technique surfaced in research, against what is actually
 built. Kept honest: "verified" means called and observed, not read about.
 
+## Second pass, 2026-09-11: five things chased to the bottom
+
+The first pass of the day (below) checked whether sources still answer. This
+one went after five specific complaints, and four of them turned out to be real
+defects on **this** side rather than upstream.
+
+### 1. TartuNLP grammar — the client was already right; their worker is not
+
+Their OpenAPI spec is public at `https://api.tartunlp.ai/grammar/openapi.json` and was
+read today. It publishes two endpoints, `POST /grammar/v2` and `POST /grammar/`,
+both taking `{"language": "et", "text": …}` — which is byte-for-byte the
+request this app has always sent. The spec declares **no authentication**, so
+there is no key to add.
+
+Both endpoints answer **HTTP 500 after ~61 seconds**, reproduced with the
+example string printed in their own spec, `{"text": "Aitähh!"}`. A `GET` to the
+same URL returns 405. That 405 is the trap worth naming: the route exists and
+the host is up, so any liveness check built on `GET` reports a healthy service
+that has never once returned a correction.
+
+There is no connection to fix. What *was* fixable, and is now fixed, is
+everything that happens the moment their worker comes back:
+
+| Was | Now |
+|---|---|
+| only `/v2` tried | `/v2` for the explanation, then `POST /grammar/` — a different code path on their side that skips the explanation step and returns character spans outright |
+| `original`/`corrected` are whole **sentences**, handed straight to the highlighter | narrowed to the words that actually changed, so a correction points at `autot → auto` rather than at the sentence containing it |
+| every correction tagged `vocab` | a pure re-ordering is tagged `word-order`, using the same multiset test `wordorder.py` already owns. Everything else stays `vocab`, which is still a guess and is left labelled as one |
+| the contract lived in nobody's head | `tests/test_tartunlp_contract.py` replays both published response shapes offline |
+
+### 2. EKI's A1/A2/B1 level vocabulary — imported
+
+`cli import-levels FILE` is new. It reads *Eesti keele tasemete sõnavara*
+(2018, CC BY 4.0) — `LEMMA POS SAGEDUS TASE`, tab separated — into a table of
+its own and lets EKI's levels win in `words.proficiency`, stamping
+`words.level_source = 'eki'`.
+
+This replaces a derived estimate with the exam board institute's own answer.
+The enriched Ekilex list tags **6.2 %** of its lemmas with a CEFR level; EKI
+publishes the levels outright.
+
+Two traps were designed around rather than discovered later:
+
+- **EKI's `SAGEDUS` is a corpus count; `words.freq_rank` is a rank.** `aasta`
+  is 5 006 831 occurrences and `ma` is rank 2. Writing one into the other would
+  have ordered every frequency-ranked drill backwards and put the commonest
+  words last. The count stays in `official_levels.freq`, under its own name.
+- **`build()` deletes every row in `words`.** So the import lives in its own
+  table and `build()` re-applies it, and a rebuild does not send the learner
+  back to EKI's download form.
+
+**It does not download.** EKI serves the file behind a page asking who you are
+and what the material will be used in — a request worth answering rather than
+stepping around — so the command takes a path and says where to get the file
+when the path is wrong. EKI's licence terms are kept: attribution in
+`sources.REGISTRY`, and the changes described there (rows filtered to A1–B1,
+one-letter POS codes mapped to this project's tags, frequency kept under its
+own name).
+
+### 3. EVKK and ERR Lihtsad uudised
+
+Three defects, two of them ours and one of them a claim nobody could check:
+
+- **The registry said Lihtsad uudised is "audio + text". It is text only.** The
+  pages were read today: an issue carries no per-issue audio, only ERR's
+  site-wide radio-app banner. `harvest/lihtsad.py` had it right the whole time
+  — it writes `audio: False` into every item — so the wrong claim lived in the
+  ledger and nowhere else, which is the worst place for it, because nothing
+  reads a note and so nothing could contradict it.
+- **The EVKK failure message named the wrong host.** It told whoever hit it to
+  retry when `elle.tlu.ee` answers. ELLE is a different TLU service, and it is
+  up; the corpus is `evkk.tlu.ee`. An error message that names a working host
+  sends its reader to check the wrong thing.
+- **`LEAF_ONLY` was empty while being described as an active guard.** The
+  comment said it "exists because two of these names sit above children that
+  belong to a different tag of ours". Checked against the live taxonomy: none
+  of the sixteen mapped nodes is an ancestor of another carrying a different
+  tag, so nothing is double-counted and there was nothing to exclude. The
+  mechanism stays, because the hazard returns the moment `TAG_MAP` grows — but
+  it is now checked by `tests/test_evkk_mapping.py` rather than asserted in a
+  comment. The same file checks that every `TAG_MAP` name really is on the
+  page, because a typo there does not raise: it makes a tag weigh zero and
+  quietly moves the topic order.
+
+EVKK's retries went from 3 to 5. Measured, not guessed: it answered 500 twice
+and succeeded on the third attempt today, and its successful response took 21
+seconds, against a retry budget of about three.
+
+### 4. HARNO — verified, mapped, and 20 items were invisible
+
+**The headline defect: `statistika` (11) and `vorm` (9) were indexed into
+`content.db` and claimed by no section.** Twenty official materials present in
+the database and absent from the app — which is precisely the failure the
+orphan check in `tests/test_sections.py` exists to prevent, and it got past it
+because that test's fixture was a **hand-written list of kinds** somebody had
+to remember to extend.
+
+| Kind | Count | Where it goes now |
+|---|---|---|
+| `ulesanne` | 72 | `eksam` — official tasks, split by exam part |
+| `konsultatsioon` | 9 | `vihikud` — the one official material that is homework |
+| `kirjeldus` | 9 | `eksamiinfo` |
+| `vorm` | 9 | **`eksamiinfo`** — newly reachable |
+| `sooritusnaidis` | 4 | `naidised` |
+| `teave` | 4 | `eksamiinfo` |
+| `video` | 4 | `eksamiinfo` |
+| `statistika` | 11 | **not indexed at all** |
+
+`vorm` is the application and reimbursement forms, and this section's own
+description gave the omission away: it promised *регистрация* while showing
+none of them. They are level-less on purpose — registering is the same errand
+at A2 as at C1 — so `exam_material` now matches level-less material for every
+level rather than filing a form under a level HARNO did not give it.
+
+`statistika` is eleven PDFs of national pass rates by year. It is not study
+material, and putting a national pass rate beside a readiness verdict whose
+whole job is to say "this is not a prediction" is worse than leaving it out.
+`catalogue()` still reads it, so the catalogue stays a faithful account of the
+page; `to_items` drops it.
+
+The fix that keeps this from recurring is not the mapping, it is
+`harno.KINDS` — one exported vocabulary, derived from the marker table, that
+the section list and the tests both read. A new kind now fails a test instead
+of disappearing.
+
+**There is no A1.** The Estonian *tasemeeksam* starts at A2, and HARNO
+publishes A2, B1, B2 and C1. At the two levels this app targets: **A2 has 25
+materials and B1 has 26**, each covering all four exam parts, with 19 of them
+listening audio (`mp3`/`wav`).
+
+**HARNO and EIS complement rather than duplicate.** No URL overlaps. EIS's 14
+A2/B1 items are interactive tasks with immediate feedback, done on their site;
+HARNO's are downloadable per-task PDFs plus the listening audio. Keeping both
+is right, and both stay **pointers** — `body` is empty and a test asserts it.
+
+**Every pointer was fetched.** The page catalogues 122 materials, 111 of which
+become items once the statistics are dropped. Four of those are embedded videos
+and were not fetched; of the remaining **107, 86 answer 200** — every one of
+them on `harno.ee`. The other **21 are on a different host entirely**,
+`projektid.edu.ee`, a Confluence space for the consultation project, and today
+that host answers **503 Service Unavailable** (confirmed by a second network
+path; from inside a sandboxed session the relay closes the tunnel, which proves
+nothing on its own).
+
+Those 21 are the listening material — the `mp3` and `wav` files this project's
+notes single out as "directly downloadable B1 listening MP3s". **Nothing was
+changed about them.** A 503 is an outage, not a dead link, and deleting or
+hiding a pointer because its host had a bad afternoon would lose the best
+listening material the exam board publishes. It is written down here so that
+the next person to find a broken listening link knows it is one host, it is not
+`harno.ee`, and it is not this app.
+
+One smaller bug found on the way: `format` was derived by splitting the URL on
+its last dot, so a consultation entry pointing at a Confluence wiki page stored
+`ee/spaces/tho/pages/343705183/konsultatsioonide+materjalid` as its file
+format — a whole URL path in a field the app renders as a badge and `to_items`
+reads to decide whether something is audio. Extensionless URLs are now `link`.
+
+### 5. Sõnaveeb's learner dictionary — not refused, routed
+
+The earlier verdict said this was out of reach because getting at *Keeleõppija
+Sõnaveeb* meant building a second client against the site whose maintainers ask
+not to be batch-requested. That was the right answer to the wrong question.
+**EKI publishes the same material for download, under CC BY 4.0**, and their
+own licence page says so in as many words: the material may be processed and
+presented in any way needed, an app included, commercial use unrestricted, so
+long as the attribution to EKI is kept and the changes described.
+
+| Want | Sanctioned route | State |
+|---|---|---|
+| which words are at the learner's level | *Eesti keele tasemete sõnavara* (`D=A1A2B1`) | **wired today** — `cli import-levels` |
+| simplified learner definitions, and recorded pronunciations of the principal forms | *Eesti keele põhisõnavara sõnastik 2014* (`D=psv`), XML + headword list, ~6 000 words | available, not wired — see below |
+| the whole database | Ekilex API | still needs a free account's key; `ekilex.ee/api/*` answers 403 without one |
+
+`psv` is not wired and is not registered, deliberately. Nothing in this project
+has seen the file, and writing an XML parser for a format nobody here has read
+is a code path that has never met its input — the same reason the level import
+takes a path instead of guessing. It is the top open item.
+
+So the posture is unchanged and the conclusion is not: Sõnaveeb is still never
+batch-requested, `sonapi` is still single-lookup only, and the learner-level
+vocabulary the app wanted from it now comes from EKI directly.
+
 ## Re-probe, 2026-09-11
 
 Every third-party surface the code calls was called again today. **Nothing has

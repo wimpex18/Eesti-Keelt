@@ -161,7 +161,14 @@ REGISTRY: tuple[Source, ...] = (
         "err-lihtsad", "ERR Lihtsad uudised", "harvest",
         "© ERR — personal study only", False,
         "https://news.err.ee/k/lihtsad-uudised",
-        "Simplified Estonian news for learners, audio + text. Weekly, ongoing.",
+        "Simplified Estonian news for learners. Weekly, ongoing — the one live "
+        "feed in the app. **Text only.** This note said 'audio + text' until "
+        "2026-09-11, when the pages were read: an issue carries no per-issue "
+        "audio at all, only ERR's site-wide radio-app banner. `harvest/"
+        "lihtsad.py` had it right the whole time — it writes `audio: False` "
+        "into every item's meta — so the claim lived in the ledger and "
+        "nowhere else, which is the worst place for it: nothing reads a note, "
+        "so nothing could contradict it.",
     ),
     Source(
         "taltech-gec", "TalTechNLP grammar_et + grammar2_et (learner corrections)",
@@ -195,6 +202,25 @@ REGISTRY: tuple[Source, ...] = (
         "CC-BY-SA-4.0", True,
         "https://github.com/KristjanPikhof/Estonian-Wordlist-Enriched-Ekilex",
         "CEFR levels and frequency for 160k lemmas.",
+    ),
+    Source(
+        "eki-tasemesonavara", "Eesti keele tasemete sõnavara (2018, EKI)", "file",
+        "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "The exam board's own institute publishing which words are A1, A2 and "
+        "B1 — the claim the enriched Ekilex list could only estimate, and it "
+        "estimated it for 6.2 % of its lemmas. Imported by `cli import-levels` "
+        "from a file the learner downloads: EKI serves it behind a page that "
+        "asks who you are and what the material will be used in, which is a "
+        "request worth answering rather than stepping around, so nothing here "
+        "fetches it. Stored verbatim in `official_levels` and applied to "
+        "`words.proficiency` with `words.level_source = 'eki'`. Licence terms "
+        "are EKI's own: process and present it any way needed, an app "
+        "included, commercial use unrestricted, provided the attribution to "
+        "EKI is kept and the changes are described. The changes: rows are "
+        "filtered to A1/A2/B1, EKI's one-letter POS codes are mapped onto this "
+        "project's tag vocabulary, and the corpus frequency is kept under its "
+        "own name rather than written into a column that holds ranks.",
     ),
     Source(
         "sonapi", "Sõnaveeb via api.sonapi.ee", "api",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import urllib.request
+from pathlib import Path
 
 from ..config import LEVELS
 
@@ -60,6 +61,42 @@ def cmd_fetch_data(args: argparse.Namespace) -> int:
         urllib.request.urlretrieve(f"{WORDLIST_BASE}/{name}", dest)
         print(f"  {name}: {dest.stat().st_size:,} bytes")
     print("Source: Estonian-Wordlist-Enriched-Ekilex (CC-BY-SA-4.0), from Ekilex/EKI.")
+    return 0
+
+
+def cmd_import_levels(args: argparse.Namespace) -> int:
+    """Replace the derived CEFR estimates with the exam board institute's own.
+
+    Not a download. `arhiiv.eki.ee/litsents/` asks who you are and what the
+    material will be used in before it hands the file over — a request worth
+    answering rather than stepping around — so this takes a path to the file
+    the learner fetched, and says so when the path is wrong.
+    """
+    from ..wordlist import LEVELS, connect
+
+    path = Path(args.file)
+    if not path.exists():
+        print(f"{path} not found.")
+        print("Download `A1A2B1.txt` from https://arhiiv.eki.ee/litsents/ "
+              "(Eesti keele tasemete sõnavara, CC BY 4.0) and pass its path.")
+        return 1
+
+    conn = connect()
+    from ..wordlist import import_official_levels
+
+    try:
+        stats = import_official_levels(conn, path)
+    except ValueError as exc:
+        print(exc)
+        return 1
+
+    print(f"  {stats['levelled']:,} words levelled by EKI")
+    for level in LEVELS:
+        print(f"    {level}: {stats.get(level, 0):,}")
+    print(f"  {stats['added']:,} words new to the word list")
+    print(f"  {stats['changed']:,} levels that disagreed with the enriched list")
+    print("  Source: Eesti keele tasemete sõnavara (2018), EKI, CC BY 4.0.")
+    print("  Survives `cli build`: the levels are re-applied from their own table.")
     return 0
 
 
@@ -239,6 +276,13 @@ def register(sub) -> None:
     p = sub.add_parser("export", help="build the edge dataset for Cloudflare D1")
     p.add_argument("--max-freq-rank", type=int, default=25_000)
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser(
+        "import-levels",
+        help="import EKI's official A1/A2/B1 level vocabulary (a file you downloaded)",
+    )
+    p.add_argument("file", help="A1A2B1.txt from arhiiv.eki.ee/litsents")
+    p.set_defaults(func=cmd_import_levels)
 
     p = sub.add_parser("keys", help="show which API keys are configured")
     p.set_defaults(func=cmd_keys)

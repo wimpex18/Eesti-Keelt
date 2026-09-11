@@ -120,11 +120,18 @@ SECTIONS: tuple[Section, ...] = (
             ("lugemine", "kuulamine", "kirjutamine", "raakimine"),
             "Официальные задания по частям экзамена. Только для владельца.",
             mode="eksam", kinds=("ulesanne",)),
+    # `vorm` was added 2026-09-11, and it was this section's own description
+    # that gave the omission away: it promised регистрация and showed none of
+    # the nine application and reimbursement forms HARNO publishes, because no
+    # section named the kind. They were in the database and in no section —
+    # the same way twenty-five items went missing before the orphan check
+    # existed, and past it, because the check's fixture was a hand-written list
+    # of kinds somebody had to remember to extend.
     Section("eksamiinfo", "Eksamist", "об экзамене",
             ("lugemine", "kuulamine", "kirjutamine", "raakimine", "eksam"),
-            "Видео об экзамене, описания уровней CEFR, информационный лист "
-            "и регистрация.",
-            mode="eksam", kinds=("video", "kirjeldus", "teave")),
+            "Видео об экзамене, описания уровней CEFR, информационный лист, "
+            "бланки заявлений и регистрация.",
+            mode="eksam", kinds=("video", "kirjeldus", "teave", "vorm")),
 )
 
 _BY_ID = {s.id: s for s in SECTIONS}
@@ -413,7 +420,8 @@ def exam_material(content: sqlite3.Connection, level: str,
     sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
                     s.name AS source_name, s.licence
              FROM items i JOIN sources s ON s.id = i.source_id
-             WHERE i.level = ? AND s.id IN ('harno', 'eis')"""
+             WHERE (i.level = ? OR COALESCE(i.level, '') = '')
+               AND s.id IN ('harno', 'eis')"""
     params: list = [level]
     if public_only:
         sql += " AND s.redistributable = 1"
@@ -444,6 +452,12 @@ def exam_material(content: sqlite3.Connection, level: str,
         "video": by_kind.pop("video", []),
         "kirjeldus": by_kind.pop("kirjeldus", []),
         "teave": by_kind.pop("teave", []),
+        # The application and reimbursement forms. Level-less on purpose and
+        # matched by the `level = ''` arm above: registering for the exam is
+        # the same errand at A2 and at C1, so a form belongs to every level
+        # rather than to one, and filing it under a level would have meant
+        # picking a level HARNO did not give it.
+        "vorm": by_kind.pop("vorm", []),
         "ulesanded": by_part,
         "muu": [item for items in by_kind.values() for item in items],
     }

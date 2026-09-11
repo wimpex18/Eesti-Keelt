@@ -124,6 +124,25 @@ teaches rather than bores or defeats.
 
 It is vocabulary coverage, not comprehension, and the field names say so.
 
+### One scale, two authorities
+
+`level` has a third column beside it, and it is not a third scale. CEFR levels
+now come from two places — the enriched Ekilex list, which is a derived
+estimate carrying a tag for 6.2 % of its lemmas, and **EKI's own published
+A1/A2/B1 vocabulary**, imported by `cli import-levels`. Where they disagree EKI
+wins, and `words.level_source` says which answered.
+
+That is the opposite of the `level` / `band` mistake rather than a repeat of
+it: those were two different *claims* and had to be split into two columns;
+these are the same claim from two sources and had to be **ranked**, with the
+provenance kept.
+
+The trap that shaped the table: EKI publishes a corpus **count** (`aasta` is
+5 006 831) and `words.freq_rank` holds a **rank** (`ma` is 2). They order the
+same words in opposite directions, so EKI's number stays in
+`official_levels.freq` under its own name. `cli import-levels` does not
+download — EKI asks who you are first, and that is worth answering.
+
 ## Where it runs
 
 | Half | Where | Why |
