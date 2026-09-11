@@ -641,6 +641,43 @@ def spelling(text: str) -> list[Correction]:
     ])
 
 
+#: Russian, like every explanation the learner acts on, keeping the Estonian
+#: grammatical term so it can be looked up — the language rule in CLAUDE.md.
+AGREEMENT_WHY = (
+    "**Pöördelõpp** не совпадает с подлежащим: «{pronoun}» требует формы "
+    "«{correct}». В эстонском лицо и число всегда видны на глаголе, а в "
+    "русском — не всегда, поэтому эту ошибку легко не заметить."
+)
+
+
+def agreement(text: str) -> list[Correction]:
+    """Subject–verb agreement, decided by morphology alone.
+
+    The one syntactic error class this project can check *without* syntax:
+    `ma elab` is wrong for a reason visible entirely in two adjacent words, and
+    no context makes it right. So unlike object case, this is corrected rather
+    than merely reported — and the correction is synthesised by the same
+    Vabamorf that grades every drill.
+
+    Rules and, more importantly, the exceptions come from GiellaLT's Estonian
+    Constraint Grammar (`&err-agr`). See `morph.agreement_errors`.
+    """
+    from ..morph import agreement_errors
+
+    return [
+        Correction(
+            wrong=item.verb,
+            correct=item.correct,
+            why=AGREEMENT_WHY.format(pronoun=item.pronoun, correct=item.correct),
+            tag="verb-form",
+            start=item.start if item.start >= 0 else None,
+            end=item.end if item.end >= 0 else None,
+        )
+        for item in agreement_errors(text)
+        if item.correct
+    ]
+
+
 def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
     """Add what the dictionary knows to what the provider said.
 
@@ -657,6 +694,11 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
     single commonest way a Russian speaker mistypes Estonian: a missing
     täpitäht.
 
+    The same argument carries **subject–verb agreement**, added alongside it:
+    `ma elab` is decidable from morphology, Vabamorf can synthesise the form
+    that belongs there, and no model needs to be asked. Both are evidence, not
+    opinion, so both are merged rather than raced.
+
     Merged, not prepended: a word the provider already has something to say
     about keeps the provider's explanation, because that one has a reason
     attached and this one only has "not in the dictionary".
@@ -667,7 +709,10 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
         return result
 
     already = {c.wrong.casefold() for c in result.corrections if c.wrong}
-    extra = [c for c in spelling(text) if c.wrong.casefold() not in already]
+    extra = [
+        c for c in spelling(text) + agreement(text)
+        if c.wrong.casefold() not in already
+    ]
     if not extra:
         return result
     return GrammarResult(

@@ -3,6 +3,57 @@
 Every source, API and technique surfaced in research, against what is actually
 built. Kept honest: "verified" means called and observed, not read about.
 
+## GiellaLT: benefit without the duplication — 2026-09-11
+
+The question put to it was the right one: **would it benefit us, and would it
+create duplication?** Both answers are yes, and they apply to different halves.
+
+`giellalt/lang-est-x-utee` was inspected rather than assumed. Its
+`grammarchecker.cg3` is 35 KB, and the header is the Sámi template from UiT —
+which is exactly the shape a stub would have. It is not a stub. The rules are
+**genuinely Estonian**: `LIST Par` for the partitive, and 85 hand-written rules
+whose comments are in Estonian and about Estonian (`# ta on is OK`,
+`# ema ja tütar elasid|elaksid is OK`). The error tags it can emit include
+`&err-agr` (agreement), `&err-gov` (**rection** — EVKK's second-largest learner
+error class), `&err-no-conneg` and `&err-comma`.
+
+### The duplication is real and structural
+
+CG rules are written against a **specific tagset**. GiellaLT's rules speak
+`PersPronSing1`, `Sg1`, `Nom`, `Par`; Vabamorf speaks `sg n`, `n`, `b`, `vad`.
+There is no way to run their rules without running their morphology — so
+adopting the toolchain means **a second morphological analyser beside
+Vabamorf**, which is a second source of truth for the thing Vabamorf is the
+answer key for. Plus HFST and VISL CG3 in a free-tier image, and a repository
+its own maintainers file under `giellalt-experiment-langs` with a warning that
+the builds are "not tested for language quality".
+
+### So the linguistics was taken and the toolchain was not
+
+`morph.agreement_errors` implements `&err-agr` over **Vabamorf's own tags**.
+No new dependency, no second analyser, no build step, nothing of theirs copied
+or shipped — and `sources.REGISTRY` records the debt with their LGPL-3.0.
+
+This is the first thing in the app that **corrects** free writing with no model
+in the loop. `object_case_candidates` reports which case a word is in and
+refuses to judge it, because that needs telicity. `ma elab` needs nothing of
+the kind: it is decidable from two adjacent words, and Vabamorf **synthesises**
+the form that belongs there — `elan` — using the same call that generates every
+drill answer.
+
+**The exceptions were the valuable half, and they came straight from their rule
+comments.** `sid` and `ksid` are 2sg *and* 3pl, so `sa elasid` and `nad elasid`
+are both correct; a checker without that would flag the past tense with `sa`
+every single time a learner used it. `eks`/`ega` flip a clause to the
+imperative. Negation needs no special case, because a connegative carries no
+person tag at all. All of it is pinned in `tests/test_agreement.py`, which also
+regenerates the person/form table from Vabamorf so the two cannot drift.
+
+`&err-gov` — rection — is the obvious next one, and is **not** attempted here:
+it needs a verb-to-case table, which `sonapi` supplies per word and which this
+project already stores. That is a real follow-up with a real source, not a
+guess.
+
 ## Replacing ELLE: the sweep, and what it found — 2026-09-11
 
 ELLE was closed as "no GEC endpoint, and every tool needs an account". The

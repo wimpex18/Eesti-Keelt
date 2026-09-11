@@ -17,6 +17,7 @@ are deterministic*.
 | **Grading a drill** | **string comparison** | no — and free, and offline |
 | Mastery, placement, checkpoints | **arithmetic over recorded attempts** | no model involved |
 | **Spelling in free writing** | **Vabamorf's dictionary** | no model judgement — merged into every answer, see below |
+| **Subject–verb agreement** | **Vabamorf tags + synthesis** | no model judgement; the correct form is synthesised, not guessed |
 | Checking free writing (everything else) | LLM chain → Vabamorf offline | yes; engine always shown |
 | Transcribing speech | Workers AI → OpenRouter → HF → whisper.cpp | yes |
 | Read-aloud comparison | **`difflib` against a known target** | no model judgement |
@@ -35,6 +36,21 @@ in a chain that returns the *first* one to answer, so with any LLM lane
 configured the dictionary's verdict was discarded on every request. A
 dictionary lookup is code, and code does not lose to a model's opinion; the
 chain was arranged so that it always did. It is merged into every answer now.
+
+**Agreement joined it for the same reason, and it is the sharper case.**
+`object_case_candidates` reports which case a word is in and refuses to say
+whether it is the right one, because that needs telicity — semantics. `ma elab`
+needs nothing of the kind: it is wrong for a reason visible entirely in two
+adjacent words, and Vabamorf can synthesise the form that belongs there. So
+this is the first thing in the app that *corrects* free writing without a model
+in the loop at all.
+
+The rules come from GiellaLT's Estonian Constraint Grammar, reimplemented over
+Vabamorf's tags rather than run — see `sources.REGISTRY`. The half worth having
+was the **exceptions**: `sid` and `ksid` are 2sg and 3pl alike, so `sa elasid`
+is correct, and a checker that did not know it would flag the past tense with
+`sa` every single time. A checker that invents errors teaches that every
+correct sentence is a mistake, which is worse than no checker.
 
 Where the two overlap, the **provider's** explanation is kept for a word it
 already covered — that one has a reason attached, and this one only has "not in

@@ -439,6 +439,35 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### Two deterministic checks now correct free writing — 2026-09-11
+
+Neither needs a model, a network call or a credential, and both are merged into
+whatever the provider chain answered rather than raced against it.
+
+| Check | Engine | What it catches |
+|---|---|---|
+| **Spelling** | Vabamorf's dictionary | `tanav` → `tänav` — the commonest way a Russian speaker mistypes Estonian, and previously reported by nothing whenever the chain was working |
+| **Subject–verb agreement** | Vabamorf tags + synthesis | `ma elab` → `elan`, with the correct form **synthesised**, not guessed |
+
+Agreement is the first thing in the app that *corrects* free writing with no
+model involved. It is decidable where object case is not: `object_case_candidates`
+refuses to judge because telicity is semantics, while `ma elab` is wrong for a
+reason visible in two adjacent words.
+
+The rules come from **GiellaLT's Estonian Constraint Grammar** (`&err-agr`,
+LGPL-3.0, morphology by Heiki-Jaan Kaalep at Tartu Ülikool), reimplemented over
+Vabamorf's tags rather than run. Their toolchain was deliberately refused: CG
+rules are written against their tagset, so running them means a second
+morphological analyser beside Vabamorf — a second source of truth for the thing
+Vabamorf is the answer key for — plus HFST and VISL CG3 in a free-tier image,
+from a repository its maintainers file under `giellalt-experiment-langs`.
+
+The **exceptions** were the half worth having: `sid` and `ksid` are 2sg and 3pl
+alike, so `sa elasid` is correct and a checker without that knowledge would
+flag the past tense with `sa` every time. `&err-gov` (rection) is the obvious
+next one and is not attempted — it needs a verb-to-case table, which `sonapi`
+already supplies per word.
+
 ### Replacing ELLE — swept 2026-09-11
 
 Three definitive negatives, two documented candidates, and one thing that was
