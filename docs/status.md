@@ -553,6 +553,34 @@ chain was arranged so it always did. `_merge_spelling` merges Vabamorf's
 verdict into whatever answered; a word the provider already explained keeps the
 provider's explanation, and nothing answering is still reported as nothing.
 
+### The morphology gate stopped running, and CI stayed green — 2026-09-11
+
+Caused by the word-order change below, found by reading the run it produced
+rather than its conclusion.
+
+Adding `grammar_et`'s train split took a CI leg from 14 requests to 94. Two
+legs run in parallel on every push, and HuggingFace's datasets server answered
+**429**. Three things then lined up, and each is a rule this repo already has:
+
+| | |
+|---|---|
+| 429 was re-raised | the retry loop kept anything under 500, and a rate limit is the most retryable status there is |
+| one failure ended the command | `inflection_et` had already downloaded and was on disk; the gate that needs only that file was skipped anyway |
+| the step is `continue-on-error` | correct — a third party's bad minute must not fail the suite — so the skip was silent and the run read **success** |
+
+The gate checks Vabamorf against TalTech's native gold forms, and every drill
+answer this app generates inherits that. It was off for one commit.
+
+Fixed at all three seams: 429 backs off and honours `Retry-After` (capped at
+30 s), `fetch_all` returns `(counts, failures)` instead of raising, and only
+`REQUIRED` — `inflection_et` and `grammar_et` — makes `cli fetch-bench` exit
+non-zero. CI now passes `--required-only`: nothing there reads the word-order
+pools, and asking someone else's server for 7 937 rows the job will not open is
+what earned the 429 in the first place.
+
+`tests/test_bench_fetch.py` covers the three seams, plus the two workflow lines
+that must not drift.
+
 ### Word order: 64 items became 322 — 2026-09-11
 
 EVKK ranks `word-order` the largest error class it annotates (11.4 % of
