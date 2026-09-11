@@ -72,6 +72,8 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
     answering rather than stepping around — so this takes a path to the file
     the learner fetched, and says so when the path is wrong.
     """
+    from collections import Counter
+
     from ..wordlist import LEVELS, connect
 
     path = Path(args.file)
@@ -81,8 +83,39 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
               "(Eesti keele tasemete sõnavara, CC BY 4.0) and pass its path.")
         return 1
 
+    from ..wordlist import import_official_levels, read_official_levels
+
+    # `--check` reads the file and reports, touching no database. The import is
+    # the one command here that rewrites the CEFR level of every word the app
+    # drills, and it runs against a file this project has never seen — EKI
+    # serves it behind a form, so it arrives from the learner. Being able to
+    # look before writing is worth twenty lines.
+    if args.check:
+        try:
+            rows = read_official_levels(path)
+        except ValueError as exc:
+            print(exc)
+            return 1
+        by_level = Counter(r[1] for r in rows)
+        phrases = [r[0] for r in rows if " " in r[0]]
+        codes = Counter(r[2] for r in rows)
+        from ..wordlist import EKI_POS
+
+        print(f"  {len(rows):,} distinct lemmas, duplicates collapsed to their "
+              f"lowest level")
+        for level in LEVELS:
+            print(f"    {level}: {by_level.get(level, 0):,}")
+        print(f"  {len(phrases):,} multi-word entries — kept as vocabulary, "
+              f"never drilled (e.g. {', '.join(phrases[:3]) or 'none'})")
+        unknown = sorted(c for c in codes if c and c not in EKI_POS)
+        print(f"  part-of-speech codes: {', '.join(sorted(c for c in codes if c))}")
+        if unknown:
+            print(f"  UNMAPPED codes {unknown} — they will be stored as "
+                  f"non-declinable; add them to wordlist.EKI_POS if that is wrong")
+        print("  Nothing was written. Drop --check to import.")
+        return 0
+
     conn = connect()
-    from ..wordlist import import_official_levels
 
     try:
         stats = import_official_levels(conn, path)
@@ -94,9 +127,47 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
     for level in LEVELS:
         print(f"    {level}: {stats.get(level, 0):,}")
     print(f"  {stats['added']:,} words new to the word list")
+    print(f"  {stats['phrases']:,} multi-word entries kept out of the drill pool")
     print(f"  {stats['changed']:,} levels that disagreed with the enriched list")
     print("  Source: Eesti keele tasemete sõnavara (2018), EKI, CC BY 4.0.")
     print("  Survives `cli build`: the levels are re-applied from their own table.")
+    return 0
+
+
+def cmd_import_psv(args: argparse.Namespace) -> int:
+    """Give the word card a definition a learner can read.
+
+    Not a download, for the same reason `import-levels` is not: EKI asks who
+    you are and what the material will be used in before handing the file over.
+    """
+    from .. import config, psv
+    from ..gloss import connect
+
+    path = Path(args.file)
+    if not path.exists():
+        print(f"{path} not found.")
+        print("Download `psv_EKI_CCBY40.xml` from https://arhiiv.eki.ee/litsents/ "
+              "(Eesti keele põhisõnavara sõnastik 2014, CC BY 4.0) and pass its path.")
+        return 1
+
+    try:
+        entries = psv.parse(path)
+    except Exception as exc:  # noqa: BLE001 - a bad file is not a traceback
+        print(f"{path} could not be parsed as EKI dictionary XML: {exc}")
+        print("Expected the `sr` / `A` structure described in schema_psv.xsd.")
+        return 1
+    if not entries:
+        print(f"{path} parsed but held no articles — is this the right file?")
+        return 1
+
+    conn = connect(config.VOCAB_DB, seed_glosses=False)
+    stats = psv.store(conn, entries)
+    print(f"  {stats['entries']:,} articles read")
+    print(f"  {stats['written']:,} with a definition or examples, stored")
+    print(f"  {stats.get('with_examples', 0):,} carry usage examples")
+    print(f"  {psv.imported(conn):,} words now have a learner-level definition")
+    print("  Source: Eesti keele põhisõnavara sõnastik 2014, EKI, CC BY 4.0.")
+    print("  Sõnaveeb answers are kept: only the learner-level columns change.")
     return 0
 
 
@@ -282,7 +353,16 @@ def register(sub) -> None:
         help="import EKI's official A1/A2/B1 level vocabulary (a file you downloaded)",
     )
     p.add_argument("file", help="A1A2B1.txt from arhiiv.eki.ee/litsents")
+    p.add_argument("--check", action="store_true",
+                   help="report what the file holds and write nothing")
     p.set_defaults(func=cmd_import_levels)
+
+    p = sub.add_parser(
+        "import-psv",
+        help="import EKI's learner dictionary definitions (a file you downloaded)",
+    )
+    p.add_argument("file", help="psv_EKI_CCBY40.xml from arhiiv.eki.ee/litsents")
+    p.set_defaults(func=cmd_import_psv)
 
     p = sub.add_parser("keys", help="show which API keys are configured")
     p.set_defaults(func=cmd_keys)

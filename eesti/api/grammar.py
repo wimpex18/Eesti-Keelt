@@ -125,8 +125,18 @@ def enrich_word(word: str) -> dict:
         "found": True,
         "governs": [p.strip() for p in (kept.rection or "").split(",") if p.strip()],
         "inflection_type": kept.inflection_type,
-        "definition": kept.definition,
-        "examples": [],
+        # The learner-level definition where EKI's *põhisõnavara sõnastik* has
+        # one, Sõnaveeb's otherwise. `best_definition` states that preference
+        # once; a card should not be the place it is decided.
+        "definition": kept.best_definition,
+        # Sõnaveeb's wording too, when the two differ, so the full definition
+        # is still reachable rather than replaced.
+        "full_definition": (
+            kept.definition if kept.definition != kept.best_definition else None),
+        # `[]` until 2026-09-11, hardcoded — a field the API promised and no
+        # source ever filled. EKI's learner dictionary is where usage examples
+        # at the learner's level come from.
+        "examples": list(kept.examples),
         # The language policy says explanations are in Russian, and the API has
         # carried Russian glosses all along — under the per-meaning key the
         # module never read. Three at most: a word card is a reminder, not an

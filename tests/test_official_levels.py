@@ -132,3 +132,104 @@ class TestSurvivingARebuild:
         assert words.execute(
             "SELECT proficiency FROM words WHERE word = 'aabits'"
         ).fetchone()["proficiency"] == "B1"
+
+
+class TestTheRealFilesSurprises:
+    """Written against facts read off EKI's actual 51 015-row file.
+
+    The importer is tested on a fixture because EKI serves the real file behind
+    a form and this project has never held it. A fixture proves the parser; it
+    does not prove the parser survives the *data*. So these are built from what
+    the real file was measured to contain — duplicate lemmas, multi-word
+    entries, blank levels — rather than from what a clean file would look like.
+    """
+
+    def test_a_lemma_on_two_lines_takes_the_lower_level(self, tmp_path):
+        """About 200 lemmas appear more than once, the same word under two
+        parts of speech. `official_levels.word` is a primary key, so the old
+        insert kept whichever line came last — a coin-toss between two of EKI's
+        own rows, decided by file order."""
+        path = tmp_path / "dup.txt"
+        path.write_text("\n".join([
+            "LEMMA\tPOS\tSAGEDUS\tTASE",
+            "kõne\tS\t900\tB1",
+            "kõne\tS\t900\tA2",     # same word, lower level, listed second
+            "all\tD\t44390\tA1",
+            "all\tK\t473918\tA1",
+        ]), encoding="utf-8")
+        rows = {r[0]: r[1] for r in wordlist.read_official_levels(path)}
+        assert rows["kõne"] == "A2", "the lower level is the one a learner meets"
+        assert rows["all"] == "A1"
+        assert len(rows) == 2, "one row per lemma"
+
+    def test_the_order_of_the_two_lines_does_not_matter(self, tmp_path):
+        path = tmp_path / "dup2.txt"
+        path.write_text("\n".join([
+            "LEMMA\tPOS\tSAGEDUS\tTASE",
+            "kõne\tS\t900\tA2",
+            "kõne\tS\t900\tB1",     # the same pair, listed the other way
+        ]), encoding="utf-8")
+        assert wordlist.read_official_levels(path)[0][1] == "A2"
+
+    def test_a_phrase_is_kept_as_vocabulary_and_never_drilled(self, tmp_path, words):
+        """EKI lists `aru saama`, `alla kirjutama`, `alles hoidma`. They are
+        real vocabulary and they are not words the drill machinery can act on:
+        inserted into `words`, `aru saama` reaches `verbs_at_level` and the
+        conjugation drill asks Vabamorf for its imperfect."""
+        path = tmp_path / "phrase.txt"
+        path.write_text("\n".join([
+            "LEMMA\tPOS\tSAGEDUS\tTASE",
+            "aru saama\tV\t5000\tA2",
+            "lugema\tV\t9000\tA1",
+        ]), encoding="utf-8")
+        stats = wordlist.import_official_levels(words, path)
+
+        assert stats["phrases"] == 1
+        assert words.execute(
+            "SELECT COUNT(*) FROM words WHERE word = 'aru saama'"
+        ).fetchone()[0] == 0, "a phrase must not become a drillable word"
+        assert words.execute(
+            "SELECT COUNT(*) FROM official_levels WHERE word = 'aru saama'"
+        ).fetchone()[0] == 1, "but the record of what EKI published is faithful"
+        assert not any(
+            " " in w for w, _ in wordlist.verbs_at_level(words, ("A1", "A2"))
+        )
+
+    def test_a_blank_level_is_dropped(self, tmp_path):
+        """The real file has a small number of rows with an empty TASE."""
+        path = tmp_path / "blank.txt"
+        path.write_text("\n".join([
+            "LEMMA\tPOS\tSAGEDUS\tTASE",
+            "miski\tP\t10\t",
+            "raamat\tS\t100\tA1",
+        ]), encoding="utf-8")
+        assert [r[0] for r in wordlist.read_official_levels(path)] == ["raamat"]
+
+    def test_it_handles_the_real_files_scale(self, tmp_path, words):
+        """51 015 rows, with duplicates and phrases mixed through, in one go.
+
+        Not a benchmark — a check that nothing here is quadratic or holds the
+        whole file twice, on the only run that matters being the learner's
+        first one.
+        """
+        lines = ["LEMMA\tPOS\tSAGEDUS\tTASE"]
+        for n in range(51_000):
+            level = ("A1", "A2", "B1")[n % 3]
+            lines.append(f"sona{n}\tS\t{n}\t{level}")
+            if n % 250 == 0:                      # ~200 duplicates, as measured
+                lines.append(f"sona{n}\tA\t{n}\tA1")
+            if n % 5000 == 0:
+                lines.append(f"fraas {n} tegema\tV\t{n}\tB1")
+        path = tmp_path / "big.txt"
+        path.write_text("\n".join(lines), encoding="utf-8")
+
+        stats = wordlist.import_official_levels(words, path)
+        # 51 000 single words + 11 phrases; the ~200 duplicated lemmas
+        # collapsed rather than adding rows.
+        assert stats["levelled"] == 51_011, "one row per distinct lemma"
+        assert stats["phrases"] == 11
+        assert stats["added"] == 51_000, "the phrases are not drillable words"
+        # Every duplicated lemma was listed A1 on its second line.
+        assert words.execute(
+            "SELECT level FROM official_levels WHERE word = 'sona250'"
+        ).fetchone()["level"] == "A1"

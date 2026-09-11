@@ -91,7 +91,26 @@ export async function showWordCard(word, card, contextFor) {
       // showed a muuttüüp number to someone who did not yet know the word.
       if (x.russian?.length)
         bits.push(`<span class="gloss">${esc(x.russian.join(", "))}</span>`);
+      /* The definition and the examples, from EKI's põhisõnavara sõnastik.
+
+         Both were already in the response and neither was ever drawn:
+         `definition` arrived and was dropped, `examples` arrived hardcoded to
+         `[]`. A card that shows a muuttüüp number and not what the word means
+         is the same defect as a gloss the provider never read — which this
+         file fixed once already, one field along. */
+      const meaning = [];
+      if (x.definition)
+        meaning.push(`<div class="def">${esc(x.definition)}</div>`);
+      if (x.examples?.length)
+        meaning.push(`<ul class="examples">` +
+          x.examples.map(e => `<li>${esc(e)}</li>`).join("") + `</ul>`);
       const slot = card.querySelector("#cardExtra");
+      if (meaning.length) {
+        const box = document.createElement("div");
+        box.className = "pair meaning";
+        box.innerHTML = meaning.join("");
+        slot.append(box);
+      }
       if (bits.length) {
         const extra = document.createElement("div");
         extra.className = "pair";

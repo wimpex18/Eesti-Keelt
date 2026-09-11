@@ -223,6 +223,25 @@ REGISTRY: tuple[Source, ...] = (
         "own name rather than written into a column that holds ranks.",
     ),
     Source(
+        "eki-psv", "Eesti keele põhisõnavara sõnastik 2014 (EKI)", "file",
+        "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "About 6 000 basic words defined in language a learner can read — the "
+        "thing *Keeleõppija Sõnaveeb* exists for, published for download "
+        "instead of scraped. Imported by `cli import-psv` from a file the "
+        "learner downloads; EKI serves it behind a page asking who you are and "
+        "what the material will be used in, so nothing here fetches it. Stored "
+        "in `vocab.db` as `word_gloss.simple_definition` and `examples`, "
+        "beside Sõnaveeb's native-level definition rather than over it. "
+        "Licence terms are EKI's own: process and present it any way needed, "
+        "an app included, commercial use unrestricted, provided the "
+        "attribution to EKI is kept and the changes described. The changes: "
+        "articles are flattened to headword, first definition and at most "
+        "three examples; editing metadata and cross-reference markup are "
+        "dropped. The store is one learner's, behind Access, never "
+        "redistributed — the same posture as the Sõnaveeb answers beside it.",
+    ),
+    Source(
         "sonapi", "Sõnaveeb via api.sonapi.ee", "api",
         "Ekilex data CC-BY-4.0; third-party endpoint", True,
         "https://api.sonapi.ee/v2/",

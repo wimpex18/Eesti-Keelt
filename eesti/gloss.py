@@ -70,7 +70,17 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS word_gloss (
     lemma           TEXT PRIMARY KEY,
     russian         TEXT NOT NULL DEFAULT '',
+    -- Sõnaveeb's definition: accurate, and written for a native speaker
+    -- consulting a dictionary.
     definition      TEXT,
+    -- EKI's *põhisõnavara sõnastik* definition: the same word restated for
+    -- somebody learning it. A separate column because it is a separate claim
+    -- about a separate audience -- the rule that keeps `level` and `band`
+    -- apart -- and because `save()` must never let the native-level wording
+    -- overwrite the learner-level one. See `eesti/psv.py`.
+    simple_definition TEXT,
+    -- Usage examples from the same source, `\x1f`-joined like `russian`.
+    examples        TEXT,
     rection         TEXT,
     inflection_type TEXT,
     found           INTEGER NOT NULL DEFAULT 1,
@@ -93,12 +103,27 @@ class Gloss:
     rection: str | None
     inflection_type: str | None
     found: bool
+    #: EKI's learner-level definition, when the word is one of the ~6 000 in
+    #: `põhisõnavara sõnastik`. None for everything else.
+    simple_definition: str | None = None
+    examples: tuple[str, ...] = ()
+
+    @property
+    def best_definition(self) -> str | None:
+        """What to show a learner: the simple one where there is one.
+
+        Both are kept, and this is where the preference is stated once rather
+        than at each of the places that render a card.
+        """
+        return self.simple_definition or self.definition
 
     def to_dict(self) -> dict:
         return {
             "lemma": self.lemma,
             "russian": list(self.russian),
             "definition": self.definition,
+            "simple_definition": self.simple_definition,
+            "examples": list(self.examples),
             "rection": self.rection,
             "inflection_type": self.inflection_type,
             "found": self.found,
@@ -150,6 +175,7 @@ def _today() -> str:
 
 
 def _row_to_gloss(row: sqlite3.Row) -> Gloss:
+    keys = row.keys()
     return Gloss(
         lemma=row["lemma"],
         russian=tuple(w for w in (row["russian"] or "").split("\x1f") if w),
@@ -157,6 +183,15 @@ def _row_to_gloss(row: sqlite3.Row) -> Gloss:
         rection=row["rection"],
         inflection_type=row["inflection_type"],
         found=bool(row["found"]),
+        # Read defensively: `vocab.db` travels in the state snapshot, so a
+        # learner can be carrying a store written before these columns existed
+        # and a missing column must degrade to "no learner definition" rather
+        # than to an exception on every word card.
+        simple_definition=(
+            row["simple_definition"] if "simple_definition" in keys else None),
+        examples=tuple(
+            e for e in ((row["examples"] or "") if "examples" in keys else "")
+            .split("\x1f") if e),
     )
 
 
@@ -210,10 +245,23 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
                  inflection_type = excluded.inflection_type,
                  found = excluded.found,
                  fetched = excluded.fetched""",
+            # `simple_definition` and `examples` are deliberately absent from
+            # that list. They come from EKI's learner dictionary, and the whole
+            # point of having them is that Sõnaveeb's native-level wording does
+            # not replace them the first time this word is looked up.
             (lemma, "\x1f".join(gloss.russian), gloss.definition,
              gloss.rection, gloss.inflection_type, int(gloss.found), _now()),
         )
-    return gloss
+    # Read back rather than returning the object built above.
+    #
+    # That object knows only what Sõnaveeb just said, and the row knows more:
+    # a word EKI's learner dictionary covers keeps its `simple_definition` and
+    # its examples through this write, and returning the local copy would have
+    # dropped them from the **one** response that matters — the request that
+    # triggered the lookup is the request the learner is waiting on, so the
+    # first time they opened a PSV word's card they would have got Sõnaveeb's
+    # native-level wording and only seen the simple one on a later visit.
+    return stored(conn, lemma) or gloss
 
 
 def spent_today(conn: sqlite3.Connection) -> int:
@@ -236,13 +284,35 @@ def _spend(conn: sqlite3.Connection) -> None:
         )
 
 
-def _is_seed(conn: sqlite3.Connection, lemma: str) -> bool:
-    """Whether the stored row came from the shipped glossary rather than a
-    live answer. Kept as a query rather than a field on `Gloss`, because it is
-    a fact about provenance and every caller of `Gloss` cares about meaning."""
+#: Provenance markers that mean "filled locally, never asked about".
+#:
+#: `seed` is the shipped glossary: a Russian translation and nothing else.
+#: `psv` is EKI's learner dictionary: an Estonian definition and examples, and
+#: nothing else. Neither carries rection or muuttüüp, and neither carries both
+#: halves of what a word card shows — so both are a **baseline, not a ceiling**.
+#: `"psv"` rather than `psv.SOURCE`: this module is imported by `vocab.py`,
+#: which `psv.py` imports back, and a two-character string is not worth an
+#: import cycle. `tests/test_psv.py` asserts the two agree.
+BASELINES = ("seed", "psv")
+
+
+def _is_baseline(conn: sqlite3.Connection, lemma: str) -> bool:
+    """Whether the stored row was filled locally rather than by a live answer.
+
+    Kept as a query rather than a field on `Gloss`, because it is a fact about
+    provenance and every caller of `Gloss` cares about meaning.
+
+    This was `_is_seed` and tested only for the shipped glossary. Importing
+    EKI's learner dictionary would then have filled 6 000 rows that `remember()`
+    treats as complete — so the commonest words in the language would have
+    gained an Estonian definition and permanently lost the chance of a Russian
+    one. Importing a dictionary would have made the word card worse for exactly
+    the words it appears on most, which is the same trap the seed hit, one
+    source later.
+    """
     row = conn.execute(
         "SELECT fetched FROM word_gloss WHERE lemma = ?", (lemma,)).fetchone()
-    return bool(row) and row[0] == "seed"
+    return bool(row) and row[0] in BASELINES
 
 
 def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
@@ -265,7 +335,7 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     # seeding would have quietly made the word card worse for exactly the words
     # it appears on most. Ask anyway, budget permitting, and keep the seed as
     # the fallback if the answer does not come.
-    if hit is not None and not _is_seed(conn, lemma):
+    if hit is not None and not _is_baseline(conn, lemma):
         return hit
     if budget_left(conn) <= 0:
         return hit

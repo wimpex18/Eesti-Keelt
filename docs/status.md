@@ -439,6 +439,19 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### The three open threads, closed — 2026-09-11
+
+| Thread | Outcome |
+|---|---|
+| `cli import-levels` had never met the real file | **Hardened against what it actually holds.** The file was interrogated about its own contents: ~200 lemmas appear on more than one line (collapsed now, lowest level wins, instead of a coin-toss decided by file order), and it carries multi-word entries like `aru saama` that would have reached the conjugation drill. Plus `--check`, which reads the file and writes nothing, and a stress test at 51 011 lemmas. |
+| ELLE | **Answered: no.** Its whole API surface is seventeen paths and none of them is grammatical error correction — it is a text-analysis environment. Two tools were probed and answer 500 in under a second; the bundle shows every tool call carries `Authorization: Bearer …`, so they need an ELLE account. **There is no free, keyless, working Estonian GEC.** |
+| EKI *põhisõnavara sõnastik* | **Wired.** `cli import-psv` imports ~6 000 learner-level definitions and their examples, CC BY 4.0, parsed to the schema EKI publishes beside the data. This is what *Keeleõppija Sõnaveeb* was wanted for. |
+
+The PSV import fills `/api/enrich`'s `"examples"`, which was hardcoded `[]`,
+and the `definition` the card received and never drew. Two definitions live in
+two columns — Sõnaveeb's native-level wording and EKI's learner-level one — and
+`save()` never lets the first overwrite the second.
+
 ### What the five fixes broke, 2026-09-11
 
 A code review of the two commits found seven things, **three of them

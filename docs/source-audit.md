@@ -3,6 +3,103 @@
 Every source, API and technique surfaced in research, against what is actually
 built. Kept honest: "verified" means called and observed, not read about.
 
+## The three open threads, closed — 2026-09-11
+
+The audit left three things open. Two are now wired and one is answered with
+evidence rather than left hanging.
+
+### 1. `cli import-levels` had never met the real file — hardened against what it holds
+
+The importer could not be run against EKI's 51 015-row file from here, so
+instead the **file was interrogated about its own contents**, and it turned out
+to hold three things a fixture built from the schema would never have shown:
+
+| What the real file holds | What the importer did | Now |
+|---|---|---|
+| ~200 lemmas on **more than one line** — the same word under two parts of speech (`all` as `D` and as `K`, `alaealine` as `A` and as `S`) | `official_levels.word` is a primary key, so `INSERT OR REPLACE` kept whichever line came last: a coin-toss between two of EKI's own rows, decided by file order | collapsed in the parser, **lowest level wins**. If EKI calls a word A1 in any of its uses the learner meets it at A1, and each level's pool is then a superset of the one below |
+| **multi-word entries** — `aru saama`, `alla kirjutama`, `alles hoidma` | inserted into `words`, where `verbs_at_level` would hand `aru saama` to the conjugation drill and ask Vabamorf for its imperfect | kept in `official_levels`, which stays a faithful record of what EKI published, and out of `words`, which is the list of things this app generates exercises from |
+| a few rows with a **blank level** | already dropped, by luck rather than by intent | dropped, with a test saying so |
+
+Two things were added so the first real run is not the first look:
+
+- **`cli import-levels --check`** reads the file and writes nothing, reporting
+  the level counts, the multi-word entries and — the one that matters — any
+  part-of-speech code `EKI_POS` does not know. This is the only command in the
+  project that rewrites the CEFR level of every word the app drills, against a
+  file that arrives from the learner rather than from here.
+- **A stress test at the real scale**: 51 011 lemmas with the duplicates and
+  phrases mixed through, asserting the collapse and the phrase guard hold at
+  size. Not a benchmark — a check that nothing is quadratic on the one run that
+  matters.
+
+### 2. ELLE — answered, and the answer is no
+
+The thread was "ELLE is alive at v26.9.1 and only `/api/status` was checked".
+Its front end was read on 2026-09-11 and its whole API surface enumerated —
+seventeen paths, and **not one of them is grammatical error correction**:
+
+    /api/tools/masinoppe-ennustus      CEFR prediction
+    /api/texts/keerukus-…              complexity, parts of speech, diversity
+    /api/tools/wordanalyser            morphology
+    /api/tools/wordlist  /collocates  /wordcontext  /minitorn-pikkus
+    /api/texts/…                       the text library
+    /api/auth  /api/status  /api/text-to-speech  /api/actuator/health
+
+ELLE is a *text analysis* environment, not a corrector. Where its Tekstihindaja
+shows corrections it is calling somebody else's GEC — most plausibly the same
+TartuNLP service that has answered 500 since the first research round, which
+would explain why ELLE's corrector was observed failing at exactly the same
+time.
+
+Two of the tools were probed anyway. Both answer **HTTP 500 in under a second**
+— an instant refusal, not a timeout — and the bundle shows why: every tool call
+carries `Authorization: Bearer …`. **They require an ELLE account.** This
+repository must never hold a credential, so that is the end of it.
+
+**There is no free, keyless, working Estonian GEC.** That is worth stating
+plainly rather than leaving as a hopeful open item: the app's grammar chain is
+correct against the one Estonian service that exists, that service is down, and
+the LLM lane behind it is not a fallback but the thing that actually answers.
+
+### 3. EKI *põhisõnavara sõnastik* — wired
+
+`cli import-psv` imports EKI's learner dictionary: about 6 000 basic words
+defined in language a learner can read, CC BY 4.0, from the same download page
+as the level vocabulary.
+
+**This is what *Keeleõppija Sõnaveeb* was wanted for**, and the earlier verdict
+— out of reach without a second client against a site that asks not to be
+batch-requested — was the right answer to the wrong question. EKI publishes it.
+
+The format was read from **`schema_psv.xsd`, published beside the data**, not
+guessed: `sr` → `A`, headword at `P/mg/m`, definition at `S/tp/tg/dg/d`,
+example at `S/tp/tg/ng/n`. EKI warn on the same page that their XML does not
+validate against that schema, so the parser reads by descendant tag rather than
+rigid path and treats everything but the headword as optional.
+
+Three decisions worth recording:
+
+- **Two definitions, two columns.** `word_gloss.definition` keeps Sõnaveeb's
+  native-level wording; `simple_definition` holds EKI's learner-level one, and
+  `save()` deliberately omits it from the update list. The point of the simple
+  wording is that the native wording does not replace it the first time the
+  learner opens that card. Same rule that keeps `level` and `band` apart.
+- **A baseline, not a ceiling.** A PSV row has a definition and no Russian, no
+  rection, no muuttüüp — exactly the shape of the shipped seed glossary, which
+  `remember()` already knew to re-ask about. `_is_seed` became `_is_baseline`.
+  Without that, importing a dictionary would have filled the rows of the 6 000
+  commonest words and denied every one of them a Russian translation for ever
+  — making the word card worse for precisely the words it appears on most.
+- **It filled a field that was hardcoded empty.** `/api/enrich` has always
+  returned `"examples": []`, and `definition` was returned and never drawn. The
+  card showed a muuttüüp number to someone who did not yet know the word. Both
+  are rendered now.
+
+The ~6 000 pronunciation recordings on the same page (`soundpack_alg.tgz`, MP3;
+`soundpack.zip`, WAV) are **not** taken. They are about a gigabyte, the app
+synthesises speech for any text already, and an audio store with no player is a
+measurement with no writer.
+
 ## Review pass, 2026-09-11: what the five fixes broke
 
 A code review of the two commits above found seven things. **Three were

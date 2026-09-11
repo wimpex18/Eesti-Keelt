@@ -301,7 +301,9 @@ def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
     already sort NULL last. A word with no rank drilling after one with a rank
     is right; a word ranked five million drilling first would not be.
     """
-    stats = {"levelled": 0, "changed": 0, "added": 0, "unclaimed": 0}
+    stats = {"levelled": 0, "changed": 0, "added": 0, "unclaimed": 0,
+             # Multi-word entries seen and deliberately not made drillable.
+             "phrases": 0}
     rows = conn.execute("SELECT word, level, pos FROM official_levels").fetchall()
     stats["levelled"] = len(rows)
     if not rows:
@@ -334,6 +336,17 @@ def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
                 "SELECT proficiency FROM words WHERE word = ?", (word,)
             ).fetchone()
             if current is None:
+                # A phrase is vocabulary; it is not a word the drill machinery
+                # can act on. EKI's list carries `aru saama`, `alla kirjutama`,
+                # `alles hoidma` — real and worth knowing, and inserting them
+                # here would put them in `verbs_at_level`, where the
+                # conjugation drill would hand `aru saama` to Vabamorf and ask
+                # for its imperfect. They stay in `official_levels`, the
+                # faithful record of what EKI published, and out of `words`,
+                # the list of things this app generates exercises from.
+                if " " in word:
+                    stats["phrases"] += 1
+                    continue
                 conn.execute(
                     "INSERT INTO words(word, freq_rank, proficiency, pos, level_source)"
                     " VALUES (?, NULL, ?, ?, 'eki')",

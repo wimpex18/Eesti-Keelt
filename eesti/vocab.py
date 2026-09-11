@@ -82,11 +82,19 @@ def connect(path: Path | str) -> sqlite3.Connection:
     some unrelated word lookup happened to create the table. Absent and zero
     say different things, and the learner was shown the one that says nothing.
     """
-    from . import gloss
+    from . import gloss, psv
 
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA + gloss.SCHEMA)
+    # `CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists,
+    # so a store written before `simple_definition` and `examples` came along
+    # would keep its old shape for ever — and `vocab.db` travels in the state
+    # snapshot, so those stores are real. The rule this file already states is
+    # that whichever module opens the file first has to leave it **complete**;
+    # a migration that only runs inside `import-psv` would leave it complete
+    # only for someone who had run that command.
+    psv._migrate(conn)
     return conn
 
 
