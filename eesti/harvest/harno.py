@@ -53,13 +53,6 @@ UA = "Mozilla/5.0 (compatible; eesti-keelt)"
 
 LEVELS = ("A2", "B1", "B2", "C1")
 
-#: What a file is *for*. A learner preparing on Tuesday evening wants a task; a
-#: learner deciding whether to register wants the information sheet; a learner
-#: who has never seen a pass wants the annotated sample. Flattening these into
-#: one list buries all three.
-KINDS = ("ulesanne", "sooritusnaidis", "konsultatsioon", "kirjeldus",
-         "teave", "video", "vorm", "statistika")
-
 _KIND_MARKERS = (
     # Ordered: the first match wins, and the specific ones come first.
     ("sooritusnaidis", ("sooritusnaidis", "sooritusnäidis", "sooritusnaidised",
@@ -74,11 +67,20 @@ _KIND_MARKERS = (
     ("kirjeldus", ("keelekasutaja", "raamdokument", "kirjeldus")),
 )
 
-#: Every value `_kind_of` can return, derived from the table above plus the two
-#: it falls through to. Exported because two other places need this list and
-#: both had been keeping their own copy: `library.SECTIONS`, which decides
-#: whether a kind is reachable at all, and the orphan test, whose hand-written
-#: fixture could only catch kinds somebody had remembered to add to it.
+#: What a file is *for*. A learner preparing on Tuesday evening wants a task; a
+#: learner deciding whether to register wants the information sheet; a learner
+#: who has never seen a pass wants the annotated sample. Flattening these into
+#: one list buries all three.
+#:
+#: Every value `_kind_of` can return, **derived** from the table above plus the
+#: ones it falls through to. Exported because three other places need this list
+#: and each had been keeping its own copy: `library.SECTIONS`, which decides
+#: whether a kind is reachable at all, the orphan test, whose hand-written
+#: fixture could only catch kinds somebody had remembered to add to it, and —
+#: found on review — a hand-written `KINDS` that sat twelve lines above this
+#: one and was shadowed by it. Two definitions of the same name in one module,
+#: the second winning silently, is the hand-maintained copy this comment says
+#: must not exist, written directly underneath the comment saying so.
 #:
 #: That is how `statistika` and `vorm` came to be indexed and invisible — 20
 #: items in the database and in no section, which is the same failure the

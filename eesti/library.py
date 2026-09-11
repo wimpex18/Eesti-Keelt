@@ -417,12 +417,31 @@ def exam_material(content: sqlite3.Connection, level: str,
     """
     import json as _json
 
+    from .harvest import harno
+
+    # Two filters, and the second is not belt-and-braces.
+    #
+    # Matching level-less material at every level is what lets the application
+    # forms reach a screen at all. It also, on its own, **un-hid the eleven
+    # statistics PDFs**: `harno.NOT_INDEXED` stops them being written by a
+    # future harvest, and stops nothing about the rows already sitting in a
+    # learner's `content.db` from an earlier one. Those rows are level-less
+    # too, no group claims them, and `muu` renders whatever no group claimed —
+    # so widening the query put national pass rates on the readiness screen for
+    # anybody who had harvested before today.
+    #
+    # `NOT_INDEXED` has to hold at **read** time as well as at write time, or
+    # it is a rule about new databases only.
+    blocked = ",".join("?" * len(harno.NOT_INDEXED))
+
     sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
                     s.name AS source_name, s.licence
              FROM items i JOIN sources s ON s.id = i.source_id
              WHERE (i.level = ? OR COALESCE(i.level, '') = '')
-               AND s.id IN ('harno', 'eis')"""
-    params: list = [level]
+               AND s.id IN ('harno', 'eis')
+               AND COALESCE(json_extract(i.meta, '$.kind'), '')
+                   NOT IN (""" + blocked + """)"""
+    params: list = [level, *sorted(harno.NOT_INDEXED)]
     if public_only:
         sql += " AND s.redistributable = 1"
     sql += " ORDER BY i.skill, i.title"

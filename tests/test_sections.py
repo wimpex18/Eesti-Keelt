@@ -91,6 +91,67 @@ class TestNothingIsHomeless:
             f"{sorted(indexed - claimed)}"
         )
 
+    def test_statistics_already_in_a_database_stay_off_the_exam_screen(self, tmp_path):
+        """`NOT_INDEXED` has to hold at read time, not only at write time.
+
+        It stops a *future* harvest writing the pass-rate PDFs. It does nothing
+        about the rows already in a learner's content.db from an earlier one —
+        and those rows are level-less, so teaching `exam_material` to match
+        level-less material (which is what lets the forms appear at all) put
+        eleven national pass rates on the readiness screen for anybody who had
+        harvested before today. `muu` renders whatever no group claimed.
+        """
+        from eesti.library import exam_material
+
+        conn = connect(tmp_path / "content.db")
+        register(conn)
+        add_items(conn, [
+            Item(source_id="harno", skill="eksam", title="Statistika 2024",
+                 body="", level="", meta={"kind": "statistika"}),
+            Item(source_id="harno", skill="eksam", title="Avaldus",
+                 body="", level="", meta={"kind": "vorm"}),
+        ])
+        material = exam_material(conn, "B1")
+        titles = [row["title"] for rows in material.values()
+                  if isinstance(rows, list) for row in rows]
+        assert "Avaldus" in titles, "the forms are the reason the query was widened"
+        assert "Statistika 2024" not in titles
+        assert not [r for r in material["muu"]], "muu is rendered; it must be empty here"
+
+    def test_every_group_the_exam_screen_returns_is_rendered(self):
+        """The other direction, and the one that got away.
+
+        `exam_material` was taught to return `vorm` under its own key, which
+        took the forms *out* of `muu` — the one bucket the page renders for
+        kinds it does not know by name. Without a matching group in exam.js the
+        widening moved them from invisible to invisible. A key returned by the
+        API and read by nothing is the same defect as an item in no section.
+        """
+        import re
+        from pathlib import Path
+
+        from eesti import library
+
+        src = Path(library.__file__).read_text(encoding="utf-8")
+        body = src[src.index("def exam_material"):]
+        body = body[:body.find("\ndef ", 10)]
+        returned = set(re.findall(r'by_kind\.pop\("([a-z]+)"', body))
+
+        page = (Path(library.__file__).parent / "web" / "js" / "exam.js").read_text(
+            encoding="utf-8")
+        groups = page[page.index("const groups = ["):]
+        groups = groups[:groups.index("];")]
+        rendered = set(re.findall(r'\["([a-z]+)",', groups))
+        # `ulesanne` is popped into `ulesanded` and rendered by its own loop,
+        # split by exam part rather than shown as one group. Named here rather
+        # than pattern-matched, because it is the single exception and a looser
+        # pattern would stop this test noticing the next one.
+        rendered |= {"ulesanne"}
+
+        assert returned <= rendered, (
+            f"exam_material returns these and the page shows none of them: "
+            f"{sorted(returned - rendered)}")
+
     def test_statistics_are_never_indexed_in_the_first_place(self):
         """Eleven PDFs of national pass rates. Not study material, and a pass
         rate beside a verdict that refuses to predict is worse than absent."""

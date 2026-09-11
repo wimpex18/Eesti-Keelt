@@ -239,13 +239,13 @@ class TartuNLPGrammar:
     def available(self) -> bool:
         return os.environ.get("EESTI_DISABLE_TARTUNLP") != "1"
 
-    def _post(self, url: str, text: str) -> dict:
+    def _post(self, url: str, text: str, timeout: float | None = None) -> dict:
         req = urllib.request.Request(
             url,
             data=json.dumps({"language": "et", "text": text}).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
             return json.loads(resp.read())
 
     @staticmethod
@@ -291,17 +291,28 @@ class TartuNLPGrammar:
         return out
 
     def check(self, text: str) -> GrammarResult:
+        """Two endpoints, one budget.
+
+        `self.timeout` is the whole allowance for this provider, not the
+        allowance per attempt. Spending it twice would double the wait on the
+        chain's first provider — the one documented to answer 500 after 61 s —
+        from 5 seconds to 10, against a docstring that says the short timeout
+        exists precisely so that wait is never inflicted on someone waiting to
+        see their mistake. Adding a fallback is not a licence to spend more of
+        the learner's time; it is a second thing to try inside the same budget.
+        """
         v2, root = self.ENDPOINTS
+        half = self.timeout / 2
         try:
             return GrammarResult(
-                self.name, _locate(text, self._from_v2(self._post(v2, text)))
+                self.name, _locate(text, self._from_v2(self._post(v2, text, half)))
             )
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError,
                 OSError, ValueError):
             # The span endpoint is a different code path on their side, and it
             # does not run the explanation step. Worth one attempt before the
             # chain gives up on Estonian-specific correction entirely.
-            located = self._from_v1(self._post(root, text))
+            located = self._from_v1(self._post(root, text, half))
             # `_locate` only fills offsets it does not already have.
             return GrammarResult(
                 self.name,

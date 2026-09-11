@@ -439,6 +439,30 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### What the five fixes broke, 2026-09-11
+
+A code review of the two commits found seven things, **three of them
+regressions introduced by the fixes**, and two of those defeated the goal the
+fix was written for. Full detail in `source-audit.md`; the short version:
+
+- **The HARNO fix made the forms invisible a second way.** `exam_material`
+  returned `vorm` under its own key, which took the forms out of `muu` — the
+  one bucket the exam screen renders for kinds it does not know. The page had
+  no `vorm` group, so nine forms went from invisible to invisible.
+- **It also un-hid the statistics.** `NOT_INDEXED` stops a future harvest
+  writing the pass-rate PDFs and does nothing about rows already in a
+  learner's database. Widening the query to match level-less material put
+  national pass rates next to the readiness verdict. A rule about what gets
+  written is not a rule about what gets read.
+- **`KINDS` was defined twice**, the derived one shadowing a hand-written one
+  twelve lines above — under a comment saying that must not happen.
+- Plus four smaller: an unmapped EKI part-of-speech code would have been read
+  as a noun and had a paradigm synthesised for it; the grammar fallback spent
+  the timeout twice, doubling the wait on the chain's dead first provider; a
+  re-import left EKI's name on levels it no longer claimed; and
+  `browse`/`count` still hide the level-less forms the exam screen now shows,
+  which is left alone because nothing passes a level to a section browse.
+
 ### Five fixes, 2026-09-11
 
 A second pass the same day, against five specific complaints. Four were defects

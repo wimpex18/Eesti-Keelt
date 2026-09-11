@@ -222,6 +222,19 @@ EKI_POS = {
     "G": "adjg", "I": "interj", "Y": "lyh",
 }
 
+#: What an EKI code this table does not know becomes.
+#:
+#: Not `None`, and the difference is not cosmetic. `nouns_at_level` matches on
+#: `COALESCE(pos, 's')`, so a NULL part of speech is read as **noun** — and an
+#: inserted word with a NULL `pos` would go straight into object-case drills
+#: and have a genitive and partitive synthesised for it. That is the exact
+#: failure `declines()` exists to stop, arrived at from the other side: there
+#: an absent tag means "not declinable", here it would have meant "noun".
+#:
+#: The twelve codes above are every code the 2018 file actually uses, checked.
+#: This is for the thirteenth, on the day EKI publishes one.
+UNKNOWN_POS = "muu"
+
 #: The columns EKI's file actually has: `LEMMA POS SAGEDUS TASE`, tab separated.
 _EKI_COLUMNS = ("LEMMA", "POS", "SAGEDUS", "TASE")
 
@@ -288,11 +301,31 @@ def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
     already sort NULL last. A word with no rank drilling after one with a rank
     is right; a word ranked five million drilling first would not be.
     """
-    stats = {"levelled": 0, "changed": 0, "added": 0}
+    stats = {"levelled": 0, "changed": 0, "added": 0, "unclaimed": 0}
     rows = conn.execute("SELECT word, level, pos FROM official_levels").fetchall()
     stats["levelled"] = len(rows)
     if not rows:
         return stats
+
+    # Drop EKI's name from any word this import no longer claims.
+    #
+    # `import_official_levels` replaces `official_levels` wholesale, so a
+    # corrected file with a word removed used to leave that word's old level in
+    # place still stamped `level_source = 'eki'` — an attribution to an
+    # authority that had withdrawn it, on a function whose docstring says
+    # idempotent.
+    #
+    # Only the attribution is cleared, because only the attribution can be. The
+    # level underneath was overwritten and the enriched list's original is not
+    # recoverable from here; `cli build` re-reads the TSV and then re-applies
+    # this, which is the one path that restores it. The count is reported so a
+    # re-import that quietly unclaims a thousand words says so.
+    with conn:
+        stats["unclaimed"] = conn.execute(
+            "UPDATE words SET level_source = NULL"
+            " WHERE level_source = 'eki'"
+            "   AND word NOT IN (SELECT word FROM official_levels)"
+        ).rowcount
 
     with conn:
         for row in rows:
@@ -304,7 +337,7 @@ def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
                 conn.execute(
                     "INSERT INTO words(word, freq_rank, proficiency, pos, level_source)"
                     " VALUES (?, NULL, ?, ?, 'eki')",
-                    (word, level, EKI_POS.get(eki_pos or "", "") or None),
+                    (word, level, EKI_POS.get(eki_pos or "", UNKNOWN_POS)),
                 )
                 stats["added"] += 1
                 continue

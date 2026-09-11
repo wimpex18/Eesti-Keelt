@@ -112,13 +112,32 @@ class TestTheChain:
     def test_the_fallback_runs_when_v2_fails(self, monkeypatch):
         calls = []
 
-        def fake_post(self, url, text):
-            calls.append(url)
+        def fake_post(self, url, text, timeout=None):
+            calls.append((url, timeout))
             if url.endswith("/v2"):
                 raise OSError("500 after 61s, which is what it actually does")
             return V1
 
         monkeypatch.setattr(TartuNLPGrammar, "_post", fake_post)
-        result = TartuNLPGrammar().check(TEXT)
+        result = TartuNLPGrammar(timeout=5.0).check(TEXT)
         assert len(calls) == 2, "the span endpoint must be tried"
         assert [c.wrong for c in result.corrections] == ["autot"]
+
+    def test_two_attempts_share_one_budget(self, monkeypatch):
+        """A fallback must not double what the learner waits.
+
+        This provider is first in the chain and has answered 500 after ~61 s
+        since the research phase. Its short timeout is the whole reason that
+        never reaches the page; spending it once per endpoint would have made
+        the dead provider twice as expensive as it was before the fallback.
+        """
+        spent = []
+
+        def fake_post(self, url, text, timeout=None):
+            spent.append(timeout)
+            raise OSError("down")
+
+        monkeypatch.setattr(TartuNLPGrammar, "_post", fake_post)
+        with pytest.raises(OSError):
+            TartuNLPGrammar(timeout=5.0).check(TEXT)
+        assert sum(spent) <= 5.0, f"worst case grew to {sum(spent)}s"

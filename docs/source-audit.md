@@ -3,6 +3,58 @@
 Every source, API and technique surfaced in research, against what is actually
 built. Kept honest: "verified" means called and observed, not read about.
 
+## Review pass, 2026-09-11: what the five fixes broke
+
+A code review of the two commits above found seven things. **Three were
+regressions introduced by the fixes themselves**, and two of those defeated the
+exact goal the fix was written for. Worth recording as its own section rather
+than folding into the story above, because the pattern is the lesson.
+
+### The HARNO fix made the forms invisible a second way
+
+`exam_material` was taught to return `vorm` under its own key, which took the
+forms **out of `muu`** — and `muu` is the one bucket the exam screen renders
+for kinds it does not know by name. `exam.js`'s `groups` list had no `vorm`
+entry, so the query got wider and the forms went from invisible in one way to
+invisible in another. The whole point of the change was to make nine
+application forms reachable; it made them unreachable by a different route.
+
+A key returned by the API and read by nothing is the same defect as an item in
+no section — which is the defect the change was fixing. Fixed: `exam.js` has an
+`Avaldused` group, and `tests/test_sections.py` now checks every key
+`exam_material` pops against the groups the page renders.
+
+### The same fix put national pass rates on the readiness screen
+
+Matching level-less material at every level is what lets the forms appear at
+all. It also un-hid the eleven `statistika` PDFs, because `harno.NOT_INDEXED`
+stops a **future** harvest writing them and does nothing about rows already in
+a learner's `content.db` from an earlier one. Those rows are level-less, no
+group claims them, and `muu` renders whatever no group claimed.
+
+So anybody who had harvested before today would have got national pass rates
+next to a verdict whose entire job is to say *"this is not a prediction"* —
+the precise outcome `NOT_INDEXED` was added to prevent. A rule about what gets
+written is not a rule about what gets read. `NOT_INDEXED` is now applied in the
+query too.
+
+### `KINDS` was defined twice in one module
+
+The derived `KINDS` was added twelve lines below a hand-written `KINDS` that
+had been there all along, and shadowed it. Two definitions of one name, the
+second winning silently — which is the hand-maintained copy the new comment
+says must not exist, written directly underneath the comment saying so. The
+hand-written one is gone.
+
+### Four smaller ones, all fixed
+
+| | Was | Now |
+|---|---|---|
+| `wordlist.EKI_POS` | an EKI code the table does not know became `pos = NULL`, and `nouns_at_level` reads `COALESCE(pos,'s')` — so an unmapped code would have been treated as a **noun** and had a paradigm synthesised for it | unknown codes become `muu`, which is not in `DECLINABLE`. The twelve codes in the 2018 file are all mapped; this is for the thirteenth |
+| `TartuNLPGrammar.check` | the new fallback spent `self.timeout` **again**, doubling the worst case on the chain's first and documented-dead provider from 5 s to 10 s | both attempts share one budget, with a test that fails if the worst case grows |
+| `apply_official_levels` | a re-import from a corrected file left `level_source = 'eki'` on words EKI no longer claims — an attribution to an authority that had withdrawn it, on a function documented as idempotent | the stale attribution is cleared and counted. Only the attribution: the level underneath is not recoverable here, and `cli build` is the path that restores it |
+| `library._filters` | `browse`/`count` still apply `i.level = ?`, so a section browsed *with* a level hides the same level-less forms `exam_material` now shows at every level | **not changed** — no caller passes a level to a section browse today. Written down rather than fixed, because changing the shared filter to satisfy a path nothing exercises risks the paths that are |
+
 ## Second pass, 2026-09-11: five things chased to the bottom
 
 The first pass of the day (below) checked whether sources still answer. This
