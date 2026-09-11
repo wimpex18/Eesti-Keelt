@@ -48,6 +48,35 @@ RUN python -m eesti.cli rections || \
     echo "WARNING: EKK rection table unavailable at build time; \
 run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 
+# EKI's two downloads, if the person building the image has them.
+#
+# Neither is fetched, here or anywhere: EKI serve both behind a form asking who
+# you are and what the material will be used in, and answering that is worth
+# doing rather than stepping around. The learner downloads them once and drops
+# them in `deploy/eki/`; this copies whatever is there.
+#
+# The directory always exists and always holds its README, so the COPY cannot
+# fail on an empty build context -- a conditional COPY is not a thing Docker
+# has, and an image that will not build because somebody has not filled in a
+# form at EKI would be the wrong trade.
+#
+# Both write into `data/eesti.db`, which is baked into this image. That is the
+# whole reason the build does it at all: the two imports are reference data,
+# identical for everybody, and `vocab.db` -- where the learner definitions used
+# to live -- travels in the state snapshot, which a restore replaces wholesale.
+# Kept there they would survive until the first Cloud Run cold start.
+#
+# Without the files each command says what is missing and returns 1, so the
+# `||` is doing real work: the image builds, the word list keeps its estimated
+# levels, and the word card keeps Sõnaveeb's native-level wording.
+COPY deploy/eki/ ./deploy/eki/
+RUN python -m eesti.cli import-levels deploy/eki/A1A2B1.txt || \
+    echo "NOTE: EKI level vocabulary not in the build context; \
+words keep their estimated CEFR levels. See deploy/eki/README.md."
+RUN python -m eesti.cli import-psv deploy/eki/psv_EKI_CCBY40.xml || \
+    echo "NOTE: EKI learner dictionary not in the build context; \
+word cards show Sonaveeb's native-level definition. See deploy/eki/README.md."
+
 # ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------

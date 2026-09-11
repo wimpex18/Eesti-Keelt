@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from ..lookup import lookup
 from ..providers import grammar
-from .deps import gloss_db
+from .deps import db, gloss_db
 
 router = APIRouter()
 
@@ -117,26 +117,32 @@ def enrich_word(word: str) -> dict:
     # `sonapi`'s own cache is on the container's disk, which Cloud Run throws
     # away every time it scales to zero -- so the module that promises not to
     # hammer Sõnaveeb was re-requesting the same words every session.
+    from ..psv import lookup as psv_lookup
+
     kept = gloss.remember(gloss_db(), word)
+    # PSV covers ~6 000 basic words and is absent on a deployment that never
+    # imported it; both are ordinary, so this never gates the response.
+    simple = psv_lookup(db(), word)
     if kept is None or not kept.found:
-        return {"word": word, "found": False}
+        return {"word": word, "found": bool(simple),
+                **({"definition": simple.definition,
+                    "examples": list(simple.examples)} if simple else {})}
     return {
         "word": word,
         "found": True,
         "governs": [p.strip() for p in (kept.rection or "").split(",") if p.strip()],
         "inflection_type": kept.inflection_type,
-        # The learner-level definition where EKI's *põhisõnavara sõnastik* has
-        # one, Sõnaveeb's otherwise. `best_definition` states that preference
-        # once; a card should not be the place it is decided.
-        "definition": kept.best_definition,
-        # Sõnaveeb's wording too, when the two differ, so the full definition
-        # is still reachable rather than replaced.
+        # EKI's learner-level wording where it has one, Sõnaveeb's otherwise —
+        # and Sõnaveeb's kept alongside rather than replaced. The two live in
+        # different databases (reference data in the image, learner data in the
+        # snapshot), so here is the one place they are read together and the
+        # preference is stated once.
+        "definition": (simple.definition if simple else kept.definition),
         "full_definition": (
-            kept.definition if kept.definition != kept.best_definition else None),
+            kept.definition if simple and simple.definition else None),
         # `[]` until 2026-09-11, hardcoded — a field the API promised and no
-        # source ever filled. EKI's learner dictionary is where usage examples
-        # at the learner's level come from.
-        "examples": list(kept.examples),
+        # source ever filled.
+        "examples": list(simple.examples) if simple else [],
         # The language policy says explanations are in Russian, and the API has
         # carried Russian glosses all along — under the per-meaning key the
         # module never read. Three at most: a word card is a reminder, not an

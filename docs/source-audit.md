@@ -202,17 +202,26 @@ rigid path and treats everything but the headword as optional.
 
 Three decisions worth recording:
 
-- **Two definitions, two columns.** `word_gloss.definition` keeps Sõnaveeb's
-  native-level wording; `simple_definition` holds EKI's learner-level one, and
-  `save()` deliberately omits it from the update list. The point of the simple
-  wording is that the native wording does not replace it the first time the
-  learner opens that card. Same rule that keeps `level` and `band` apart.
-- **A baseline, not a ceiling.** A PSV row has a definition and no Russian, no
-  rection, no muuttüüp — exactly the shape of the shipped seed glossary, which
-  `remember()` already knew to re-ask about. `_is_seed` became `_is_baseline`.
-  Without that, importing a dictionary would have filled the rows of the 6 000
-  commonest words and denied every one of them a Russian translation for ever
-  — making the word card worse for precisely the words it appears on most.
+- **Two definitions, two databases.** It began as two columns of `word_gloss`
+  in `vocab.db`, beside Sõnaveeb's answers, and that was wrong in a way that
+  took a second look to see: `vocab.db` is in `STATE_DATABASES`, and a snapshot
+  restore replaces the **file**, not the rows. Six thousand EKI definitions
+  would have survived until the first restore and then gone, on a service that
+  cold-starts constantly. They are reference data — identical for every
+  learner, no more personal than the word list — so they live in `psv_gloss` in
+  `data/eesti.db`, which is baked into the image. `/api/enrich` is the one
+  place the two are read together, and it prefers EKI's, keeping Sõnaveeb's
+  beside it as `full_definition`. Same rule that keeps `level` and `band`
+  apart, applied to storage rather than to a column.
+- **The baseline trap dissolved rather than handled.** While the two shared a
+  row, a PSV import had the shape of the shipped seed glossary — a definition,
+  no Russian, no rection, no muuttüüp — and `remember()` returns early for a
+  row it considers complete, so the import would have filled the 6 000
+  commonest words and denied every one of them a Russian translation for ever.
+  That needed `_is_seed` to become `_is_baseline` and PSV to be listed in it.
+  Separate tables mean an import writes nothing `remember()` looks at, and
+  `BASELINES` went back to `("seed",)`. The fix that removes the trap beats the
+  fix that survives it.
 - **It filled a field that was hardcoded empty.** `/api/enrich` has always
   returned `"examples": []`, and `definition` was returned and never drawn. The
   card showed a muuttüüp number to someone who did not yet know the word. Both

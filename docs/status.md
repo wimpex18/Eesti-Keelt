@@ -553,6 +553,24 @@ chain was arranged so it always did. `_merge_spelling` merges Vabamorf's
 verdict into whatever answered; a word the provider already explained keeps the
 provider's explanation, and nothing answering is still reported as nothing.
 
+### The three reference imports reach the deployment — 2026-09-11
+
+All three were shipped as CLI commands nobody on the deployment ran, which is
+this project's recurring shape: a writer that exists and is never called. On
+production `rections`, `eki_levels` and `eki_definitions` were all zero.
+
+| What | Now |
+|---|---|
+| `cli rections` | already run by the `Dockerfile` at build time — this was the one that was fine |
+| `cli import-levels` | run by the `Dockerfile` against `deploy/eki/A1A2B1.txt`, if it is in the build context |
+| `cli import-psv` | run by the `Dockerfile` against `deploy/eki/psv_EKI_CCBY40.xml`, same condition |
+| where PSV is stored | **moved** out of `vocab.db` into `psv_gloss` in the image-baked `data/eesti.db` — `vocab.db` is in `STATE_DATABASES` and a restore replaces the file, so the import could not have survived a cold start |
+| telling whether they ran | `/api/health` reports `reference` as three **row counts**, and `smoke` warns on any zero |
+
+The two EKI files are not downloaded by anything here: EKI ask who you are
+first. `deploy/eki/README.md` says what to put where, and every build step ends
+in `||` so a missing file costs one feature rather than the image.
+
 ### The three open threads, closed — 2026-09-11
 
 | Thread | Outcome |
@@ -562,9 +580,12 @@ provider's explanation, and nothing answering is still reported as nothing.
 | EKI *põhisõnavara sõnastik* | **Wired.** `cli import-psv` imports ~6 000 learner-level definitions and their examples, CC BY 4.0, parsed to the schema EKI publishes beside the data. This is what *Keeleõppija Sõnaveeb* was wanted for. |
 
 The PSV import fills `/api/enrich`'s `"examples"`, which was hardcoded `[]`,
-and the `definition` the card received and never drew. Two definitions live in
-two columns — Sõnaveeb's native-level wording and EKI's learner-level one — and
-`save()` never lets the first overwrite the second.
+and the `definition` the card received and never drew. Two definitions, two
+**databases**: EKI's learner-level wording is reference data and lives in
+`psv_gloss` in the image-baked `data/eesti.db`; Sõnaveeb's native-level answer
+stays in `vocab.db`, which the state snapshot carries. Kept together, the EKI
+import would have been wiped by the first snapshot restore. `/api/enrich`
+prefers EKI's and returns Sõnaveeb's beside it as `full_definition`.
 
 ### What the five fixes broke, 2026-09-11
 

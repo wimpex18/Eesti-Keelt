@@ -81,6 +81,8 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
         print(f"{path} not found.")
         print("Download `A1A2B1.txt` from https://arhiiv.eki.ee/litsents/ "
               "(Eesti keele tasemete sõnavara, CC BY 4.0) and pass its path.")
+        print("Put it in `deploy/eki/` and the image build imports it too — "
+              "see deploy/eki/README.md.")
         return 1
 
     from ..wordlist import import_official_levels, read_official_levels
@@ -140,14 +142,16 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
     Not a download, for the same reason `import-levels` is not: EKI asks who
     you are and what the material will be used in before handing the file over.
     """
-    from .. import config, psv
-    from ..gloss import connect
+    from .. import psv
+    from ..wordlist import connect
 
     path = Path(args.file)
     if not path.exists():
         print(f"{path} not found.")
         print("Download `psv_EKI_CCBY40.xml` from https://arhiiv.eki.ee/litsents/ "
               "(Eesti keele põhisõnavara sõnastik 2014, CC BY 4.0) and pass its path.")
+        print("Put it in `deploy/eki/` and the image build imports it too — "
+              "see deploy/eki/README.md.")
         return 1
 
     try:
@@ -160,14 +164,15 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
         print(f"{path} parsed but held no articles — is this the right file?")
         return 1
 
-    conn = connect(config.VOCAB_DB, seed_glosses=False)
+    conn = connect()
     stats = psv.store(conn, entries)
     print(f"  {stats['entries']:,} articles read")
     print(f"  {stats['written']:,} with a definition or examples, stored")
     print(f"  {stats.get('with_examples', 0):,} carry usage examples")
     print(f"  {psv.imported(conn):,} words now have a learner-level definition")
     print("  Source: Eesti keele põhisõnavara sõnastik 2014, EKI, CC BY 4.0.")
-    print("  Sõnaveeb answers are kept: only the learner-level columns change.")
+    print("  Stored beside the word list, not in `vocab.db`: reference data, and")
+    print("  a state-snapshot restore would otherwise wipe it on the next cold start.")
     return 0
 
 

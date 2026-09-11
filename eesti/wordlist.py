@@ -115,13 +115,19 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     # configuration, and configuration frozen into a module constant at import
     # cannot be redirected — which is how a whole class of tests ended up
     # silently depending on the developer's own build.
-    from . import config
+    from . import config, psv
 
     path = Path(path or config.DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    # EKI's learner dictionary lives here too, and whichever module opens the
+    # file first has to leave it complete -- otherwise `psv.imported()` reads
+    # "no table" on a deployment that simply has not imported the file yet, and
+    # absent and zero say different things (`eesti/vocab.py` has the same note
+    # for the same reason).
+    conn.executescript(psv.SCHEMA)
     _migrate(conn)
     return conn
 

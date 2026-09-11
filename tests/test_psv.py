@@ -1,20 +1,27 @@
 """EKI's learner dictionary: definitions written for someone learning the word.
 
-The two behaviours worth pinning are both about *not losing* something:
+Two things are worth pinning, and the second is the one that moved.
 
-* a PSV row must not stop `remember()` asking Sõnaveeb, or importing a
-  dictionary would strip the Russian translation from the 6 000 commonest
-  words — the trap the shipped seed glossary already hit once;
-* a Sõnaveeb answer must not overwrite the learner-level definition, or the
-  first time a learner opens a card the simple wording is replaced by the
-  native-level one and the import has bought nothing.
+* The parser has to survive EKI's own XML, which they warn does not validate
+  against the schema they publish for it.
+* The store has to be somewhere a Cloud Run cold start cannot empty. It began
+  in `vocab.db` beside the Sõnaveeb glosses, which was wrong twice over: that
+  file is carried by the **state snapshot** and a restore replaces it whole, so
+  six thousand reference definitions would have survived until the first
+  restore and then vanished; and sharing a row with `word_gloss` meant every
+  write had to be careful not to overwrite the other source. Its own table in
+  the words database — the one baked into the image — dissolves both. The
+  tests that used to guard the sharing are gone with the sharing; what is left
+  is a test that says the two stores do not touch.
 """
 
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 
-from eesti import gloss, psv
+from eesti import gloss, psv, wordlist
 
 SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
 <sr>
@@ -48,9 +55,8 @@ def xml(tmp_path):
 
 @pytest.fixture
 def store(tmp_path):
-    # No seed: these tests are about this store's own mechanics, and 294 rows
-    # nobody put here would only obscure them.
-    return gloss.connect(tmp_path / "vocab.db", seed_glosses=False)
+    """The words database — reference data, baked into the image."""
+    return wordlist.connect(tmp_path / "eesti.db")
 
 
 class TestReadingEkiXml:
@@ -84,15 +90,15 @@ class TestStoring:
         assert stats["written"] == 2, "the bare headword carries nothing"
         assert psv.imported(store) == 2
 
-    def test_the_definition_reaches_a_gloss(self, store, xml):
+    def test_the_definition_and_its_examples_come_back(self, store, xml):
         psv.store(store, psv.parse(xml))
-        kept = gloss.stored(store, "raamat")
-        assert kept.simple_definition == "kokku köidetud lehed, millel on tekst"
+        kept = psv.lookup(store, "raamat")
+        assert kept.definition == "kokku köidetud lehed, millel on tekst"
         assert kept.examples == ("Huvitav raamat.",)
 
-    def test_the_learner_definition_is_what_a_card_shows(self, store, xml):
+    def test_a_word_eki_never_described_is_none_not_an_empty_gloss(self, store, xml):
         psv.store(store, psv.parse(xml))
-        assert gloss.stored(store, "raamat").best_definition.startswith("kokku")
+        assert psv.lookup(store, "helikopter") is None
 
     def test_importing_twice_changes_nothing(self, store, xml):
         first = psv.store(store, psv.parse(xml))
@@ -100,82 +106,47 @@ class TestStoring:
         assert again == first
         assert psv.imported(store) == 2
 
-
-class TestItDoesNotLoseWhatIsAlreadyThere:
-    def test_a_sonaveeb_answer_survives_the_import(self, store, xml):
-        """Rection, muuttüüp and the Russian are things PSV does not have."""
-        gloss.save(store, "raamat", _Info())
+    def test_a_corrected_file_replaces_what_was_there(self, store, xml):
         psv.store(store, psv.parse(xml))
-        kept = gloss.stored(store, "raamat")
-        assert kept.russian == ("книга",)
-        assert kept.rection == "mida"
-        assert kept.inflection_type == "2"
-        assert kept.simple_definition.startswith("kokku"), "and it gained PSV's"
-
-    def test_sonaveeb_never_overwrites_the_learner_definition(self, store, xml):
-        """The other order, and the one that matters: import first, then the
-        learner opens the card and Sõnaveeb answers."""
-        psv.store(store, psv.parse(xml))
-        gloss.save(store, "raamat", _Info())
-        kept = gloss.stored(store, "raamat")
-        assert kept.definition == "trükitud ja köidetud teos"   # Sõnaveeb's
-        assert kept.simple_definition.startswith("kokku")       # EKI's, intact
-        assert kept.best_definition.startswith("kokku")
-
-    def test_a_psv_row_is_a_baseline_not_a_ceiling(self, store, xml):
-        """The trap. `remember()` returns early for a row it considers
-        complete — so a PSV import would have filled 6 000 rows and denied
-        every one of them the Russian translation, for ever."""
-        psv.store(store, psv.parse(xml))
-        assert gloss._is_baseline(store, "raamat")
-        assert psv.SOURCE in gloss.BASELINES
-
-    def test_the_lookup_that_triggered_the_fetch_already_shows_the_simple_one(
-        self, store, xml
-    ):
-        """`save()` returns what the row now holds, not what Sõnaveeb just said.
-
-        The request that triggers a lookup is the request the learner is
-        waiting on. Returning the locally-built object would have shown them
-        the native-level definition exactly once — on the first view of the
-        card — and the learner-level one only if they came back.
-        """
-        psv.store(store, psv.parse(xml))
-        returned = gloss.save(store, "raamat", _Info())
-        assert returned.simple_definition.startswith("kokku")
-        assert returned.examples == ("Huvitav raamat.",)
-        assert returned.best_definition.startswith("kokku")
-
-    def test_a_real_answer_is_not_a_baseline(self, store):
-        gloss.save(store, "raamat", _Info())
-        assert not gloss._is_baseline(store, "raamat")
+        fixed = [e for e in psv.parse(xml) if e.lemma == "raamat"]
+        psv.store(store, [type(fixed[0])(lemma="raamat", definition="uus sõnastus",
+                                         examples=(), pos="s")])
+        assert psv.lookup(store, "raamat").definition == "uus sõnastus"
+        assert psv.imported(store) == 2, "and nothing was added twice"
 
 
-class TestTheOldStoreStillOpens:
-    def test_a_store_written_before_these_columns_reads_as_no_definition(
+class TestWhereItLives:
+    def test_the_table_exists_before_anything_imports_it(self, store):
+        """Absent and zero say different things. A deployment that has never
+        seen the file must read as "no definitions", not as a missing table —
+        the rule `eesti/vocab.py` already states for the same reason."""
+        assert psv.imported(store) == 0
+        assert psv.lookup(store, "raamat") is None
+
+    def test_a_words_database_older_than_this_module_degrades_to_nothing(
         self, tmp_path
     ):
-        """`vocab.db` travels in the state snapshot, so a learner can be
-        carrying one older than this module. A missing column must degrade to
-        "no learner definition", never to an exception on every word card."""
-        import sqlite3
-
-        path = tmp_path / "old.db"
-        conn = sqlite3.connect(path)
-        conn.execute(
-            "CREATE TABLE word_gloss (lemma TEXT PRIMARY KEY, russian TEXT,"
-            " definition TEXT, rection TEXT, inflection_type TEXT,"
-            " found INTEGER, fetched TEXT)")
-        conn.execute(
-            "INSERT INTO word_gloss VALUES ('kass','кошка','kodulooma liik',"
-            "NULL,NULL,1,'2026-01-01')")
-        conn.commit()
+        """Opened by something that predates the table, a lookup must return
+        "no learner definition", never raise on every word card."""
+        conn = sqlite3.connect(tmp_path / "old.db")
         conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT * FROM word_gloss WHERE lemma='kass'").fetchone()
-        kept = gloss._row_to_gloss(row)
-        assert kept.simple_definition is None
-        assert kept.examples == ()
-        assert kept.best_definition == "kodulooma liik"
+        assert psv.lookup(conn, "raamat") is None
+        assert psv.imported(conn) == 0
+
+    def test_it_does_not_touch_the_sonaveeb_glosses(self, store, xml, tmp_path):
+        """The two stores are separate files with separate lifetimes: this one
+        ships in the image, `vocab.db` travels in the state snapshot. Importing
+        the dictionary must leave the learner's store alone — and, the way the
+        sharing used to fail, must not deny those 6 000 words their Russian."""
+        glosses = gloss.connect(tmp_path / "vocab.db", seed_glosses=False)
+        gloss.save(glosses, "raamat", _Info())
+        psv.store(store, psv.parse(xml))
+
+        kept = gloss.stored(glosses, "raamat")
+        assert kept.russian == ("книга",)
+        assert kept.definition == "trükitud ja köidetud teos"
+        assert psv.lookup(store, "raamat").definition.startswith("kokku")
+        assert psv.imported(glosses) == 0, "and nothing was written to vocab.db"
 
 
 class _Info:

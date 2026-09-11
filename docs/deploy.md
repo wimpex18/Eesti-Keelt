@@ -565,6 +565,61 @@ Without a corpus the reading library is simply empty and everything else works
 which is the same degradation the CLI has. `/api/health` reports `library` so
 the two are distinguishable.
 
+## The three reference imports, and why they are in the image
+
+Three commands fill reference data — the same rows for every learner, none of
+it personal:
+
+| Command | Fills | Without it |
+|---|---|---|
+| `cli rections` | EKK SÜ 64, the 23 rections learners get wrong | the `rektsioon` drill says "run `cli rections` once", and free writing stops reporting `&err-gov` |
+| `cli import-levels` | EKI's official A1/A2/B1 vocabulary | every CEFR level is an estimate off a list where only 6.2 % of lemmas carry a tag |
+| `cli import-psv` | EKI's learner dictionary, ~6 000 definitions and their examples | the word card shows Sõnaveeb's native-level wording, which is the thing a learner could not read |
+
+All three run **at image build time**, and all three write into
+`data/eesti.db`, which is baked in. That placement is the decision, and it is
+the opposite of the one above: the corpus and the learner's progress travel in
+the snapshot precisely because they are owner-only or personal, and reference
+data must not, because **a snapshot restore replaces whole files**. EKI's
+learner definitions started life in `vocab.db` beside the Sõnaveeb glosses and
+would have been wiped by the first restore — on a service that scales to zero,
+that is the first cold start.
+
+### The two EKI files come from you, not from code
+
+Nothing in this repo downloads them. EKI serve both behind a form asking who
+you are and what the material will be used in, and answering that is worth
+doing rather than stepping around — the same posture as HARNO and Sõnaveeb.
+
+Download them once from <https://arhiiv.eki.ee/litsents/> and drop them in
+`deploy/eki/` (that directory has a README; the files themselves are
+git-ignored):
+
+```
+deploy/eki/A1A2B1.txt           Eesti keele tasemete sõnavara (2018)
+deploy/eki/psv_EKI_CCBY40.xml   Eesti keele põhisõnavara sõnastik (2014)
+```
+
+The next `docker build` imports whatever is there. A build without them still
+works: each command prints what is missing and the `Dockerfile` steps end in
+`||`, so a missing file — or EKI having a bad afternoon and refusing
+`cli rections` from a datacenter IP, which they have already done to a GitHub
+runner — costs one feature rather than the whole deploy.
+
+### Which is exactly why you have to be able to ask
+
+Three optional imports that fail quietly are three features that can be absent
+from production with nothing saying so. `/api/health` therefore reports row
+counts, not flags:
+
+```json
+"reference": {"rections": 23, "eki_levels": 51015, "eki_definitions": 5987}
+```
+
+Counts, because the presence of a database is not the presence of data — twice
+already an empty deployment here has looked full. The `smoke` workflow reads
+all three and warns on any zero.
+
 ## What it costs
 
 For one learner, nothing, and the shape is worth knowing:

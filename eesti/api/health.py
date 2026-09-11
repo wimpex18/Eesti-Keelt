@@ -9,6 +9,7 @@ whether they answer, which only a live call can establish).
 from __future__ import annotations
 
 import os
+import sqlite3
 
 from fastapi import APIRouter
 
@@ -51,6 +52,41 @@ def health() -> dict:
         # deployment it is how you tell a stale image from a missing feature.
         "built": BUILD.get("built"),
         "revision": BUILD.get("revision") or None,
+        # The three reference imports that happen at image build time, each as
+        # a row count rather than a flag.
+        #
+        # Counts, because the rule this project keeps relearning is that the
+        # presence of a database is not the presence of data -- twice already
+        # an empty deployment has looked full. All three are optional by
+        # design: `cli rections` depends on EKI answering a datacenter IP, and
+        # the two EKI downloads depend on the files being in the build context
+        # (`deploy/eki/README.md`). Each failing costs one feature and the
+        # image still builds, which is exactly why a deployment needs to be
+        # able to say which of the three actually landed. Before this you
+        # could not tell "never imported" from "imported and empty" without
+        # opening the container.
+        "reference": _reference(conn),
+    }
+
+
+def _reference(conn) -> dict:
+    from .. import psv, rection
+
+    def count(sql: str) -> int:
+        try:
+            return conn.execute(sql).fetchone()[0]
+        except sqlite3.Error:
+            return 0
+
+    return {
+        # EKK SÜ 64, via `cli rections` -- powers the rektsioon drill and the
+        # &err-gov check in free writing.
+        "rections": len(rection.load(conn)),
+        # EKI's A1/A2/B1 vocabulary -- where a word's CEFR level is EKI's own
+        # answer rather than an estimate off a 6.2 %-tagged list.
+        "eki_levels": count("SELECT COUNT(*) FROM official_levels"),
+        # EKI's learner dictionary -- the definition on a word card.
+        "eki_definitions": psv.imported(conn),
     }
 
 

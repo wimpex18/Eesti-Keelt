@@ -101,6 +101,32 @@ jobs:
             && echo "health .................. OK" \
             || { echo "::error::health did not answer: ${body:0:200}"; fail=1; }
 
+          # 2b. Which of the three build-time reference imports landed.
+          #
+          #     All three are allowed to fail the build without failing it:
+          #     `cli rections` needs EKI to answer a datacenter IP (they have
+          #     returned 403 to a GitHub runner on that exact URL), and the two
+          #     EKI downloads need the files to be in the build context, which
+          #     depends on a person having filled in EKI's form. That is the
+          #     right trade against an unbuildable image — and it is precisely
+          #     why a deployment has to be asked which ones made it. Each costs
+          #     one feature silently: no rections means the rektsioon drill and
+          #     the rection check in free writing report "run `cli rections`",
+          #     no levels means every CEFR level is an estimate, no definitions
+          #     means the word card keeps Sõnaveeb's native-level wording.
+          #
+          #     Warnings, not failures. An image without them is degraded, not
+          #     broken, and the deployment ran that way for months.
+          for f in rections eki_levels eki_definitions; do
+            n="$(jq -r --arg k "$f" '.reference[$k] // 0' <<<"$body")"
+            if [ "${n:-0}" -gt 0 ]; then
+              printf 'reference %-16s %s rows\n' "$f" "$n"
+            else
+              echo "::warning::The deployed image has no $f. See \
+          deploy/eki/README.md (EKI downloads) or run 'cli rections'."
+            fi
+          done
+
           # 3. Which build is answering.
           #
           #    A Python change was merged, the Worker redeployed, and the new

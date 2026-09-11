@@ -23,25 +23,43 @@ included — provided the attribution is kept and the changes described. So the
 answer to "how do we get the learner dictionary" was never a scraper. It was a
 file.
 
-## Two definitions, two columns
+## Where it lives, and why not with the glosses
+
+**The words database, not `vocab.db`.** That was the first design and it was
+wrong in the one environment that matters.
+
+`vocab.db` is carried by the **state snapshot** — it holds what this learner
+has met and how they are doing — and a restore replaces the file wholesale.
+Cloud Run scales to zero, so a cold start and therefore a restore is the normal
+path, not an exceptional one. PSV definitions baked into that file would have
+survived exactly until the first restore and then vanished, permanently, with
+nothing saying so.
+
+PSV is not learner state. It is **reference data**: six thousand dictionary
+entries that are the same for everybody, no more personal than the word list or
+the inflection tables. So it belongs where the rest of the reference data lives
+— `eesti.db`, built into the image, rebuilt by every deploy — and the snapshot
+carries only what is actually the learner's.
+
+That also dissolved a trap rather than working around it. When these
+definitions filled `word_gloss` rows, a PSV-covered word looked *already
+looked up*, so `remember()` would have stopped asking Sõnaveeb and the six
+thousand commonest words would have lost their Russian translation for ever.
+Keeping PSV in its own table means `word_gloss` is untouched, every word is
+still enriched on demand, and there is no baseline-versus-ceiling rule to get
+right.
+
+## Two definitions, two tables
 
 A PSV definition and a Sõnaveeb definition are **different claims about
 different audiences**, not two guesses at one claim, so they do not share a
 column — the same rule that keeps `level` and `band` apart.
 
-`word_gloss.simple_definition` holds PSV's; `word_gloss.definition` holds
-Sõnaveeb's. `save()` never overwrites the first, because the whole value of the
-learner-level wording is that the native-level wording does not replace it the
-first time the learner opens that card.
-
-## A baseline, not a ceiling
-
-A PSV row carries an Estonian definition and examples. It carries **no Russian
-translation, no rection and no muuttüüp** — exactly the shape of the shipped
-seed glossary, and it inherits the seed's rule: `remember()` still asks
-Sõnaveeb about a PSV-filled word, because otherwise importing this file would
-have quietly made the word card *worse* for the 6 000 commonest words by
-filling their rows and so preventing the lookup that carries the Russian.
+`psv_gloss.definition` holds PSV's, in the words database;
+`word_gloss.definition` holds Sõnaveeb's, in the learner's. Neither can
+overwrite the other because neither knows about the other — the preference is
+expressed once, where the two are read together, and the whole value of the
+learner-level wording is that the native-level wording does not replace it.
 
 ## Not fetched from here
 
@@ -148,22 +166,32 @@ def parse(path: Path | str) -> list[Entry]:
     return entries
 
 
+SCHEMA = """
+-- EKI's learner dictionary, in the *words* database rather than the learner's.
+--
+-- Reference data: the same six thousand entries for everybody, no more
+-- personal than the word list beside it. `vocab.db` is carried by the state
+-- snapshot and a restore replaces it wholesale, so definitions kept there
+-- would survive until the first cold start and then vanish. See the module
+-- docstring.
+CREATE TABLE IF NOT EXISTS psv_gloss (
+    lemma      TEXT PRIMARY KEY,
+    definition TEXT,
+    examples   TEXT          -- \x1f-joined, like `word_gloss.russian`
+);
+"""
+
+
 def store(conn: sqlite3.Connection, entries: list[Entry]) -> dict[str, int]:
-    """Write the learner-level definitions into the gloss store.
+    """Write the learner-level definitions into the words database.
 
-    `INSERT ... ON CONFLICT` updating **only** the two PSV columns, which is the
-    whole design in one statement: a word Sõnaveeb has already answered for
-    keeps its Russian, its rection and its muuttüüp, and gains a definition
-    written for a learner. A word nobody has looked up yet gets a row that
-    `remember()` will still enrich, because `fetched` marks it a baseline.
+    `conn` is a `wordlist.connect()` handle. Idempotent: re-importing a
+    corrected file replaces what was there and adds nothing twice.
     """
-    from .gloss import SCHEMA
-
     conn.executescript(SCHEMA)
-    _migrate(conn)
 
     rows = [
-        (e.lemma, e.definition, SEP.join(e.examples), SOURCE)
+        (e.lemma, e.definition, SEP.join(e.examples))
         for e in entries if e.definition or e.examples
     ]
     stats = {"entries": len(entries), "written": len(rows)}
@@ -171,36 +199,50 @@ def store(conn: sqlite3.Connection, entries: list[Entry]) -> dict[str, int]:
         return stats
     with conn:
         conn.executemany(
-            """INSERT INTO word_gloss
-                 (lemma, russian, simple_definition, examples, fetched)
-               VALUES (?, '', ?, ?, ?)
-               ON CONFLICT(lemma) DO UPDATE SET
-                 simple_definition = excluded.simple_definition,
-                 examples = excluded.examples""",
+            "INSERT INTO psv_gloss (lemma, definition, examples)"
+            " VALUES (?,?,?)"
+            " ON CONFLICT(lemma) DO UPDATE SET"
+            "   definition = excluded.definition,"
+            "   examples = excluded.examples",
             rows,
         )
     stats["with_examples"] = sum(1 for e in entries if e.examples)
     return stats
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
-    """Add the two PSV columns to a store built before they existed.
+@dataclass(frozen=True)
+class Gloss:
+    """What PSV knows about one word."""
 
-    The same reasoning as `sources._migrate`: `vocab.db` travels in the state
-    snapshot, so a learner can be carrying a store older than this module, and
-    failing to open it would lose every gloss they have over one `ALTER TABLE`.
+    definition: str | None
+    examples: tuple[str, ...]
+
+
+def lookup(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
+    """EKI's learner-level entry for one word, or None.
+
+    Absence is the common case and not an error: PSV covers about six thousand
+    words and the app knows 160 316. A deployment that never imported the file
+    has no table at all, and that is also None rather than a failure.
     """
-    have = {r[1] for r in conn.execute("PRAGMA table_info(word_gloss)")}
-    for column in ("simple_definition", "examples"):
-        if column not in have:
-            conn.execute(f"ALTER TABLE word_gloss ADD COLUMN {column} TEXT")
+    try:
+        row = conn.execute(
+            "SELECT definition, examples FROM psv_gloss WHERE lemma = ?",
+            (lemma,),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    if row is None:
+        return None
+    return Gloss(
+        definition=row["definition"],
+        examples=tuple(e for e in (row["examples"] or "").split(SEP) if e),
+    )
 
 
 def imported(conn: sqlite3.Connection) -> int:
     """How many words carry a learner-level definition. Zero is a valid answer."""
     try:
-        return conn.execute(
-            "SELECT COUNT(*) FROM word_gloss WHERE simple_definition IS NOT NULL"
-        ).fetchone()[0]
+        return conn.execute("SELECT COUNT(*) FROM psv_gloss").fetchone()[0]
     except sqlite3.Error:
         return 0
