@@ -461,6 +461,41 @@ banner, so it can no longer be invisible.
 
 Full reasoning in `qa-status.md`.
 
+### Three deterministic checks now correct free writing — 2026-09-11
+
+None needs a model, a network call or a credential, and all three are merged
+into whatever the provider chain answered rather than raced against it.
+
+| Check | Engine | What it catches |
+|---|---|---|
+| **Spelling** | Vabamorf's dictionary | `tanav` → `tänav` — the commonest way a Russian speaker mistypes Estonian |
+| **Subject–verb agreement** | Vabamorf tags + synthesis | `ma elab` → `elan` |
+| **Rection** | **EKK SÜ 64 + Vabamorf** | `kohanema uuele olukorrale` → `olukorraga` |
+
+**Rection is the error class the learner corpus ranks second** — 5 170 marks
+against object case's 653 — and it is checkable for one reason: EKK SÜ 64 is a
+list of *specific attested confusions*, not a valency table. Not "kohanema
+takes the comitative" but *people write `millele` where `millega` belongs*. A
+lookup, not a parse.
+
+Three conditions, all required: the handbook names the verb (23 contrasts), a
+word **in its own clause** stands in the starred wrong case, and **nothing** in
+that clause stands in the correct one. The replacement is synthesised in the
+learner's own number — `faktidele` → `faktidel`, not the singular the handbook
+happens to write its frames in.
+
+Two bugs were found by testing against real Estonian rather than a fixture:
+plural complements went unchecked because EKK's frames are singular and whole
+tags were compared, and an agreeing modifier (`uuele olukorrale`) counted as a
+rival candidate, so every modified noun phrase was skipped — the first version
+fired on nothing at all. A third was found end to end through the real
+endpoint: `VabamorfFallback` never located its spelling corrections, so the
+page had nothing to highlight, and the merge kept that unlocated copy over the
+located one.
+
+`cli rections` populates the contrasts and is now in the command list, where it
+was missing.
+
 ### Two deterministic checks now correct free writing — 2026-09-11
 
 Neither needs a model, a network call or a credential, and both are merged into

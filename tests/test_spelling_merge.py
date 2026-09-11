@@ -118,6 +118,22 @@ class TestWhatTheDictionaryActuallyCatches:
         assert "Vabamorf" in why
         assert any("Ѐ" <= ch <= "ӿ" for ch in why), "must be Russian"
 
+    def test_the_offline_provider_locates_its_spelling_too(self):
+        """Found end to end, through the real endpoint, not by a test.
+
+        `VabamorfFallback` built its own unlocated `Correction`s, so every
+        misspelling it reported arrived with `start`/`end` of `None` and the
+        page had nothing to highlight. It survived the merge as well: a word
+        the provider already named is the one the merge keeps, so the located
+        copy lost to the unlocated one.
+        """
+        text = "See on tanav siin."
+        answer = grammar.check(text, providers=[grammar.VabamorfFallback()])
+        found = [c for c in answer.corrections if c.wrong == "tanav"]
+        assert len(found) == 1
+        assert found[0].start is not None, "the page cannot highlight None"
+        assert text[found[0].start:found[0].end] == "tanav"
+
     def test_it_needs_no_network(self, monkeypatch):
         """The whole point: this answers when everything else is down."""
         def boom(*a, **k):

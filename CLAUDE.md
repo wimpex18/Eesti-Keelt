@@ -216,6 +216,7 @@ python -m eesti.cli harvest-exam     # official EIS tasks (pointers)
 python -m eesti.cli ingest FILE      # your own material: a text file, or JSON items
 python -m eesti.cli import-levels F  # EKI's official A1/A2/B1 vocabulary (you download it)
 python -m eesti.cli import-psv F     # EKI's learner-level definitions (you download it)
+python -m eesti.cli rections         # EKK SÜ 64, once — powers the rektsioon check
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion
 pytest tests/ -q                     # ~1 690 in-process; ~144 more need a browser

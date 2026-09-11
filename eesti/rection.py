@@ -253,3 +253,157 @@ def at_levels(conn, rections: list[Rection], levels: tuple[str, ...]) -> list[Re
         )
     }
     return [r for r in rections if r.headword in known]
+
+
+# ---------------------------------------------------------------------------
+# Checking free writing: EVKK's `&err-gov`
+# ---------------------------------------------------------------------------
+#
+# Rection is the second-largest class in the learner corpus — 5 170 marks
+# against object case's 653 — and until now this module could only *drill* it.
+#
+# **What makes this checkable at all.** General rection checking needs valency:
+# which noun phrase is this verb's complement, and is its case one the verb
+# permits. That is syntax, and this project has morphology — the same wall
+# `object_case_candidates` refuses to climb.
+#
+# EKK SÜ 64 sidesteps it by being a list of *specific attested confusions*. It
+# does not say "kohanema takes the comitative"; it says **people write
+# `millele` where `millega` belongs**. So the question here is not "is this
+# case valid" but "is this the exact case EKK records as the mistake" — which
+# is a lookup, not an analysis.
+#
+# Three conditions, all of which must hold, because a checker that invents
+# errors teaches that correct Estonian is wrong:
+#
+#   1. the headword is one of EKK's 23 attested contrasts;
+#   2. a word **in its own clause** stands in the starred wrong case;
+#   3. **nothing** in that clause stands in the correct case — if the right
+#      complement is there too, the flagged word is something else's.
+#
+#: Clause boundaries, which are where a complement search has to stop.
+#:
+#: Estonian marks subordinate clauses with a comma far more reliably than
+#: English does, so this is a real boundary rather than a guess. Without it,
+#: "Ma kirjutasin sõbrale, et süsteem põhineb loogikal" flags `sõbrale` —
+#: allative, `põhinema`'s starred wrong case — from the other side of a comma,
+#: while the actual complement `loogikal` sits correctly beside the verb.
+_CLAUSE_SPLIT = ";:,"
+
+
+@dataclass(frozen=True)
+class Misgovernment:
+    """A verb from EKK's list, with its complement in the case EKK stars."""
+
+    headword: str
+    #: The learner's word, and what it should have been.
+    wrong: str
+    correct: str
+    correct_frame: str   # "millega", for the explanation
+    wrong_frame: str
+    start: int
+    end: int
+
+
+def _clauses(tokens: list) -> list[list]:
+    """Split analysed tokens at clause punctuation."""
+    out, current = [], []
+    for token in tokens:
+        if token.pos == "Z" and token.text in _CLAUSE_SPLIT:
+            if current:
+                out.append(current)
+            current = []
+        else:
+            current.append(token)
+    if current:
+        out.append(current)
+    return out
+
+
+def _case_of(form: str | None) -> str:
+    """The case, without the number.
+
+    EKK writes its frames as singular question words — `millega`, `millele` —
+    so `FRAME_CASES` stores `sg kom` and `sg all`. A learner writes about more
+    than one thing as readily as one: `põhineb faktidele` is `pl all`, and
+    comparing whole tags meant every plural complement went unchecked. **The
+    case is the claim; the number is the learner's business.**
+    """
+    return (form or "").split(" ")[-1]
+
+
+def _number_of(form: str | None) -> str:
+    return (form or "sg ").split(" ")[0] or "sg"
+
+
+#: Parts of speech that agree with a noun inside its phrase.
+#:
+#: `kohanema uuele olukorrale` is one complement, not two candidates — the
+#: adjective is in the allative because the noun is. Counting them separately
+#: made every modified noun phrase look ambiguous and skipped it, which is how
+#: the first version of this check fired on nothing at all.
+_MODIFIERS = frozenset({"A", "P", "N", "O", "G"})
+
+
+def errors(text: str, rections: list[Rection]) -> list[Misgovernment]:
+    """Attested rection confusions in free writing, with the case that belongs.
+
+    `rections` is passed in rather than loaded here so the caller owns the
+    database handle — the same reason `library` takes a connection.
+    """
+    from .morph import analyze, split_sentences
+
+    by_head = {r.headword: r for r in rections if r.drillable}
+    if not by_head:
+        return []
+
+    found: list[Misgovernment] = []
+    for sentence in split_sentences(text) or [text]:
+        offset = text.find(sentence)
+        for clause in _clauses(analyze(sentence)):
+            lemmas = {t.lemma for t in clause}
+            for headword, rule in by_head.items():
+                if headword not in lemmas:
+                    continue
+                right = _case_of(rule.correct_case)
+                starred = _case_of(rule.wrong_case)
+                # Condition 3: the right complement is not already here.
+                if any(_case_of(t.form) == right for t in clause):
+                    continue
+
+                candidates = [t for t in clause if _case_of(t.form) == starred]
+                # The head of the phrase is the noun; anything agreeing with it
+                # is part of the same complement, not a rival one.
+                nouns = [t for t in candidates if t.pos == "S"]
+                others = [t for t in candidates if t.pos not in _MODIFIERS | {"S"}]
+                # One noun phrase, or there is no telling which is meant.
+                if len(nouns) != 1 or others:
+                    continue
+                token = nouns[0]
+                fixed = _synthesize(
+                    token.lemma, f"{_number_of(token.form)} {right}")
+                if not fixed:
+                    continue
+                at = sentence.find(token.text)
+                found.append(Misgovernment(
+                    headword=headword,
+                    wrong=token.text,
+                    correct=fixed,
+                    correct_frame=rule.correct_frame,
+                    wrong_frame=rule.wrong_frame,
+                    start=offset + at if offset >= 0 and at >= 0 else -1,
+                    end=offset + at + len(token.text) if offset >= 0 and at >= 0 else -1,
+                ))
+    return found
+
+
+def _synthesize(lemma: str, case: str) -> str:
+    """The complement in the case the handbook says belongs there.
+
+    Vabamorf, so the suggestion is generated by the same call that produces
+    every drill answer rather than assembled from an ending table.
+    """
+    from estnltk.vabamorf.morf import synthesize
+
+    forms = synthesize(lemma, case, "S") or []
+    return forms[0] if forms else ""

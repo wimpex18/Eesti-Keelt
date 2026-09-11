@@ -18,6 +18,7 @@ are deterministic*.
 | Mastery, placement, checkpoints | **arithmetic over recorded attempts** | no model involved |
 | **Spelling in free writing** | **Vabamorf's dictionary** | no model judgement — merged into every answer, see below |
 | **Subject–verb agreement** | **Vabamorf tags + synthesis** | no model judgement; the correct form is synthesised, not guessed |
+| **Rection (rektsioon)** | **EKK SÜ 64 + Vabamorf** | no model judgement; only confusions the handbook itself records |
 | Checking free writing (everything else) | LLM chain → Vabamorf offline | yes; engine always shown |
 | Transcribing speech | Workers AI → OpenRouter → HF → whisper.cpp | yes |
 | Read-aloud comparison | **`difflib` against a known target** | no model judgement |
@@ -51,6 +52,20 @@ was the **exceptions**: `sid` and `ksid` are 2sg and 3pl alike, so `sa elasid`
 is correct, and a checker that did not know it would flag the past tense with
 `sa` every single time. A checker that invents errors teaches that every
 correct sentence is a mistake, which is worse than no checker.
+
+**Rection is the third, and it is checkable for a reason worth stating.**
+General rection checking needs valency — which phrase is this verb's
+complement, and may it stand in that case — and that is syntax. **EKK SÜ 64
+sidesteps it by being a list of specific attested confusions**: not "kohanema
+takes the comitative" but *people write `millele` where `millega` belongs*. The
+question becomes a lookup rather than a parse, which is the only reason it can
+sit in this table at all. Three conditions must hold — the handbook names the
+verb, a word in its own clause stands in the starred case, and nothing in that
+clause stands in the correct one — and the replacement is synthesised in the
+learner's own number.
+
+That it is the error class the learner corpus ranks **second** (5 170 marks
+against object case's 653) is why it was worth the care.
 
 Where the two overlap, the **provider's** explanation is kept for a word it
 already covered — that one has a reason attached, and this one only has "not in

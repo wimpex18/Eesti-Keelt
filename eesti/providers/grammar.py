@@ -377,17 +377,17 @@ class VabamorfFallback:
         return True
 
     def check(self, text: str) -> GrammarResult:
-        from ..morph import misspellings, object_case_candidates
+        from ..morph import object_case_candidates
 
-        corrections = [
-            Correction(
-                wrong=item["text"],
-                correct=(item["suggestions"] or [""])[0],
-                why="Слово не найдено в словаре Vabamorf. Проверь написание.",
-                tag="vocab",
-            )
-            for item in misspellings(text)
-        ]
+        # `spelling()` rather than a second copy of the same loop, and located.
+        #
+        # This built its own unlocated `Correction`s, so every misspelling this
+        # provider reported arrived with `start`/`end` of `None` and the page
+        # had nothing to highlight. It went unnoticed because the offline
+        # provider only answers when everything else has failed — and then
+        # survived the merge, because a word this provider already named is the
+        # one the merge keeps, so the *located* copy lost to the unlocated one.
+        corrections = spelling(text)
 
         flagged = [
             Correction(
@@ -678,6 +678,54 @@ def agreement(text: str) -> list[Correction]:
     ]
 
 
+#: Russian, keeping EKK's own frame words so the learner meets the form the
+#: handbook uses — `millega`, not "the comitative".
+RECTION_WHY = (
+    "**Rektsioon.** «{headword}» требует **{correct}** ({correct_frame}), "
+    "а не **{wrong}** ({wrong_frame}). Это одна из ошибок, которые EKK "
+    "перечисляет отдельно (SÜ 64) — русский предлог и эстонский падеж здесь "
+    "не совпадают."
+)
+
+
+def rection(text: str) -> list[Correction]:
+    """Attested rection confusions, from EKK's own list of the ones people miss.
+
+    The second-largest error class in the learner corpus — 5 170 marks against
+    object case's 653 — and checkable for one reason: EKK SÜ 64 does not
+    describe valency, it lists **specific confusions**. Not "kohanema takes the
+    comitative" but "people write `millele` where `millega` belongs". That is a
+    lookup rather than a parse, which is why it can be done here at all.
+
+    Degrades to nothing when the word list is absent: the contrasts live in it,
+    an enrichment is never worth an error, and a fresh checkout has no database.
+    """
+    from .. import rection as ekk
+    from ..wordlist import available, connect
+
+    try:
+        if not available():
+            return []
+        stored = ekk.load(connect())
+    except Exception:  # noqa: BLE001 - a missing table is not a failed check
+        return []
+
+    return [
+        Correction(
+            wrong=item.wrong,
+            correct=item.correct,
+            why=RECTION_WHY.format(
+                headword=item.headword, correct=item.correct,
+                correct_frame=item.correct_frame, wrong=item.wrong,
+                wrong_frame=item.wrong_frame),
+            tag="rektsioon",
+            start=item.start if item.start >= 0 else None,
+            end=item.end if item.end >= 0 else None,
+        )
+        for item in ekk.errors(text, stored)
+    ]
+
+
 def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
     """Add what the dictionary knows to what the provider said.
 
@@ -710,7 +758,7 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
 
     already = {c.wrong.casefold() for c in result.corrections if c.wrong}
     extra = [
-        c for c in spelling(text) + agreement(text)
+        c for c in spelling(text) + agreement(text) + rection(text)
         if c.wrong.casefold() not in already
     ]
     if not extra:
