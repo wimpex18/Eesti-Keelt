@@ -36,15 +36,21 @@ teach the wrong rule, which is the one failure mode the plan names for this
 whole tool.
 
 Items come instead from pairs where **a learner wrote it and a native corrected
-it**: TalTechNLP's `grammar_et`, filtered to corrections that only re-order —
-same words, different sequence. Correctness is given rather than inferred.
-Nothing is claimed about the learner's version being ungrammatical; the
-question asked is which one a native wrote, which is also how the exam is
-marked.
+it**: TalTechNLP's `grammar_et` and `grammar2_et`, filtered to corrections that
+only re-order — same words, different sequence. Correctness is given rather
+than inferred. Nothing is claimed about the learner's version being
+ungrammatical; the question asked is which one a native wrote, which is also
+how the exam is marked.
 
-Licence: `grammar_et` states none. Treated like every other ungranted source
-here — personal study, git-ignored, never redistributed, and never baked into
-an image built from a public repository.
+The filter is severe, and that is the cost of refusing to generate: 1 446 pairs
+yield **64 items** (47 + 17). `grammar2_et` was added 2026-09-11 — same two
+columns, published 2024-11-18, and overlooked because every earlier pass
+enumerated the benchmark paper's seven datasets and this is an eighth sitting
+beside them. A third again on the pool, for one line in a fetch table.
+
+Licence: neither dataset card states one. Treated like every other ungranted
+source here — personal study, git-ignored, never redistributed, and never baked
+into an image built from a public repository.
 """
 
 from __future__ import annotations
@@ -210,6 +216,24 @@ def load(path: Path | str) -> list[Item]:
         return []
     return from_pairs([(r.get("original", ""), r.get("correct", ""))
                        for r in rows])
+
+
+def bench_files(bench_dir: Path | str | None = None) -> list[Path]:
+    """Every fetched (learner wrote, native corrected) file, newest source last.
+
+    Derived from `evals.fetch.DATASETS` rather than listed here, because a
+    hand-kept copy of a list that already exists is this project's
+    most-repeated bug. `grammar_et` and `grammar2_et` share one two-column
+    shape -- `original`, `correct` -- so the same reader takes both, and a
+    third file added to the fetch table is ingested without touching this.
+
+    Files that were never fetched are returned anyway: `load` treats absence as
+    empty, which is what makes a fresh checkout work.
+    """
+    from .evals.fetch import BENCH_DIR, DATASETS
+
+    root = Path(bench_dir or BENCH_DIR)
+    return [root / f"{name}.json" for name in DATASETS if name.startswith("grammar")]
 
 
 def items(content: sqlite3.Connection | None, limit: int = 10,

@@ -127,12 +127,38 @@ supply, so neither is wired up:
 | Route | Gives | Needs |
 |---|---|---|
 | **Ekilex API** (`ekilex.ee`, key from the user profile page) | the whole database, CC BY 4.0, commercial use unrestricted | a free account and an API key |
-| **EKI downloads** (`arhiiv.eki.ee/litsents/`) | *Eesti-vene sõnaraamat* (XML, CC BY 4.0) and the **A1/A2/B1 level word lists** (2018, CC BY 4.0) | Estonian ID-card authentication |
+| **EKI downloads** (`arhiiv.eki.ee/litsents/`) | *Eesti-vene sõnaraamat* (XML, CC BY 4.0) and the **A1/A2/B1 level word lists** (2018, CC BY 4.0) | a download form that asks who you are and what for |
 
 The second is the interesting one for this app: an official Estonian-Russian
 dictionary and the exam board's own level vocabulary, both openly licensed. Worth
 fetching if the learner wants glosses for words they have not met yet rather than
 only the ones they have.
+
+**Checked 2026-09-11, and the access note above was wrong before today.** It
+said "Estonian ID-card authentication". EKI splits its catalogue into two
+directories — `vaba/dl.cgi` (free: the English-Estonian dictionary, the dialect
+and Võro material) and `idkaart/dl.cgi` — and the level word lists (`D=A1A2B1`)
+and the Estonian-Russian dictionary (`D=evs`) are both in the second. But the
+`idkaart` page answers 200 to anyone, and what it actually presents is a **form
+asking for your organisation's name and what the material will be used in**.
+The files underneath it are served without a certificate.
+
+That changes the reason and not the conclusion. **Nothing in this repository
+fetches them**, and nothing should: a gate that asks who you are is still a gate,
+and walking around it is the same move as batch-requesting Sõnaveeb, which this
+project refuses on a page it can point to. The sanctioned route is that the
+learner — who has an Estonian ID card and a name to put in the box — downloads
+`A1A2B1.txt` themselves.
+
+No importer is written for it yet, on purpose. Writing a parser for a file
+nobody in this project has seen is guessing at a format and shipping a code path
+that has never met its input, which is the shape of bug `lessons.md` names as a
+measurement with no writer. It is the top open item in `source-gaps.md`: when
+the file exists on disk, the question worth asking is whether the exam board's
+own A1/A2/B1 vocabulary should *replace* the enriched Ekilex `proficiency`
+column or sit beside it as a second, more authoritative claim — and that is a
+decision about two scales in one column, which this project has already got
+wrong once.
 
 ## What Estly does, and what it means for this app
 

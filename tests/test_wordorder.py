@@ -174,3 +174,46 @@ class TestTheLicenceDecisionIsRecorded:
         src = next(s for s in REGISTRY if s.id == wordorder.SOURCE_ID)
         assert src.redistributable is False
         assert "no licence" in src.licence.lower()
+
+
+class TestEveryFetchedPairFileIsRead:
+    """`grammar2_et` sat on the benchmark server for two years, unread.
+
+    It carries the same two columns as `grammar_et` and 17 more attested
+    re-orderings — a third again on a pool of 47, for the error class EVKK
+    ranks second-largest. The bug that hid it was not a parser: nothing asked
+    for the file. So the default is derived from the fetch table rather than
+    named here, and these tests are about that derivation, not about the file.
+    """
+
+    def test_the_default_covers_every_gec_pair_file_the_fetcher_knows(self):
+        from eesti.evals.fetch import DATASETS
+
+        names = {p.stem for p in wordorder.bench_files()}
+        assert names == {n for n in DATASETS if n.startswith("grammar")}
+        assert "grammar2_et" in names, "the overlooked file must be in the default"
+
+    def test_it_looks_where_fetch_bench_writes(self, tmp_path):
+        assert all(p.parent == tmp_path for p in wordorder.bench_files(tmp_path))
+
+    def test_absence_is_not_an_error(self, tmp_path):
+        """A fresh checkout has none of these: ungranted data, git-ignored."""
+        assert all(wordorder.load(p) == [] for p in wordorder.bench_files(tmp_path))
+
+    def test_two_files_merge_rather_than_collide(self, tmp_path, pairs, monkeypatch):
+        """Item ids are content hashes, so the same pair in both files is one
+        item and a different pair is two."""
+        from eesti.sources import connect
+
+        first = tmp_path / "grammar_et.json"
+        second = tmp_path / "grammar2_et.json"
+        first.write_text(json.dumps(
+            [{"original": pairs[0][0], "correct": pairs[0][1]}]), encoding="utf-8")
+        second.write_text(json.dumps(
+            [{"original": pairs[0][0], "correct": pairs[0][1]},
+             {"original": pairs[1][0], "correct": pairs[1][1]}]), encoding="utf-8")
+
+        conn = connect(tmp_path / "content.db")
+        wordorder.ingest(conn, first)
+        wordorder.ingest(conn, second)
+        assert len(wordorder.items(conn, limit=10)) == 2

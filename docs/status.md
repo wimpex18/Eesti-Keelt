@@ -439,6 +439,39 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### Third-party sources, re-probed 2026-09-11
+
+Ten days on, and the useful finding is that nothing the app depends on moved:
+`sonapi` (still `/v2`, still no `/v3`), both TartuNLP `/v2` services, EIS's 23
+public tasks, EVKK's 51 467 annotated errors, the Ekilex word list (still at its
+single 2026-04-01 commit), EKK, and `estnltk` (1.7.5 is still the latest on
+PyPI, so the pin is current rather than merely unmoved). The EstLLM lane's
+featherless-ai mapping is still `live`; TalTech's Estonian Voxtral is still
+hosted by nobody.
+
+Vabamorf re-measured against TalTech's gold forms today: **98.14 % over 1 400
+rows**, and 195–196 / 200 on each of the four object cases. Identical to the
+figure this project has quoted since the first run.
+
+Three numbers were ours and stale, and one dataset was simply unread:
+
+- **HARNO publishes 122 materials, not the 39 recorded.** Counted by running
+  `harno.catalogue()` today. Pointer-only posture is unchanged.
+- **EVKK reads 200 named categories, not 202.** The error total, which is what
+  the curriculum weights on, is unchanged.
+- **The EKI level word lists are behind a form, not a certificate.** Corrected
+  in `content-sources.md`; still not fetched from code, and now for the right
+  reason.
+- **`TalTechNLP/grammar2_et`** — 446 more native-corrected pairs, published
+  2024-11-18, missed because every pass enumerated the benchmark paper's seven
+  datasets and this is an eighth beside them. It yields **17 more attested
+  word-order items** against the existing 47. Wired: `fetch-bench` downloads it
+  and `cli wordorder` now ingests every `grammar*_et.json` the fetch table
+  knows, derived rather than named.
+
+The full verdict table — including what was looked at and refused, among it
+TLU's new MIT-licensed Estonian CEFR classifier — is in `source-audit.md`.
+
 ### Third-party sources, re-probed 2026-09-01
 
 Every endpoint the code actually calls answers: ERR's two archives, HARNO,
