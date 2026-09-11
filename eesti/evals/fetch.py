@@ -5,12 +5,29 @@ arXiv:2510.21193), released by TalTechNLP. Built from native Estonian sources
 with no machine translation, which is what makes it a fair check on a language
 this app cannot afford to be approximately right about.
 
-Two of the seven datasets are directly relevant here:
+Three of the datasets are directly relevant here:
 
   inflection_et  1 400 noun phrases with correct forms per case -> validates
                  Vabamorf, and therefore every drill answer this app generates
   grammar_et     1 000 (erroneous, corrected) sentence pairs -> a real GEC
                  benchmark, far broader than a hand-written eval set
+  grammar2_et      446 more pairs in the same two-column shape -> not a second
+                 eval track, but a second helping of the one thing this project
+                 cannot generate: corrections a native actually made
+
+`grammar2_et` was published 2024-11-18 and overlooked in every earlier pass,
+because the benchmark paper names seven datasets and this is an eighth sitting
+beside them. It matters for exactly one reason. `wordorder.py` refuses to
+generate word-order items -- measuring V2 over 1 000 native-corrected sentences
+gave 75.4 % inversion, so a generated distractor would sometimes be correct
+Estonian -- and takes its items only from corrections that purely re-order.
+That filter is severe: 47 items out of 1 000 pairs. `grammar2_et` yields
+**17 more** (measured 2026-09-11), which is a third again on the whole pool for
+the error class EVKK ranks second-largest.
+
+It is deliberately *not* added to `evals/external.py`. That track's score is
+compared across runs, and quietly changing what it scores would make two
+numbers that are not the same measurement look like they are.
 """
 
 from __future__ import annotations
@@ -31,9 +48,13 @@ RETRIES = 4
 TIMEOUT = 60.0
 BENCH_DIR = DATA / "raw" / "bench"
 
+#: name -> (split, rows). Row counts are the dataset's own, and the fetch stops
+#: early when the server runs out, so an over-estimate costs nothing and an
+#: under-estimate silently truncates.
 DATASETS = {
     "inflection_et": ("train", 1400),
     "grammar_et": ("test", 1000),
+    "grammar2_et": ("train", 446),
 }
 
 

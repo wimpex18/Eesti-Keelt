@@ -83,6 +83,14 @@ export async function loadExam() {
     ["video", "Tutvustav video", "Как проходит экзамен."],
     ["kirjeldus", "Tasemekirjeldus", "Что требуется на этом уровне."],
     ["teave", "Teave", "Информационный лист и регистрация."],
+    /* `vorm` — the application and reimbursement forms. Added with the group
+       below it, and only because the group was missing: `exam_material` had
+       just been taught to return them under their own key, which took them
+       out of `muu` — the one bucket this page renders for kinds it does not
+       know. So the query got wider and the forms went from invisible in one
+       way to invisible in another. A key returned by the API and read by
+       nothing is the same defect as an item in no section. */
+    ["vorm", "Avaldused", "Бланки: регистрация, апелляция, возмещение платы."],
   ];
   let out = "";
   for (const [key, title, why] of groups) {

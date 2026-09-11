@@ -24,12 +24,39 @@ from .config import LEVELS
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS words (
     word        TEXT PRIMARY KEY,
-    freq_rank   INTEGER,
+    freq_rank   INTEGER,      -- a RANK: 2 is the second commonest word
     proficiency TEXT,
-    pos         TEXT
+    pos         TEXT,
+    -- Who says so. NULL means the enriched Ekilex list, which is a derived
+    -- estimate; 'eki' means the Estonian Language Institute's published level
+    -- vocabulary, which is the exam board's own institute saying it outright.
+    level_source TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_words_prof ON words(proficiency);
 CREATE INDEX IF NOT EXISTS idx_words_pos  ON words(pos);
+
+-- EKI's own level vocabulary, stored verbatim and never mixed into `words`.
+--
+-- `Eesti keele tasemete sõnavara` (2018), CC BY 4.0, from the institute that
+-- writes the exam's word lists. It is kept as its own table for two reasons.
+--
+-- The first is provenance: `words.proficiency` now carries claims from two
+-- authorities, and `words.level_source` says which, so "who decided this word
+-- is B1" is answerable rather than assumed.
+--
+-- The second is the trap. EKI's `freq` is a raw corpus **count** -- `aasta` is
+-- 5 006 831 -- and `words.freq_rank` is a **rank**, where `ma` is 2. They are
+-- the same word ordered in opposite directions, and writing one into the other
+-- would have put the commonest words last in every drill that orders by
+-- frequency. Two scales, one column: the bug this project already paid for
+-- once with `level` and `band`. So the count stays here, under its own name.
+CREATE TABLE IF NOT EXISTS official_levels (
+    word  TEXT PRIMARY KEY,
+    level TEXT NOT NULL,      -- A1 | A2 | B1, as EKI published it
+    pos   TEXT,               -- EKI's own one-letter code, unmapped
+    freq  INTEGER             -- corpus COUNT, not a rank
+);
+CREATE INDEX IF NOT EXISTS idx_official_level ON official_levels(level);
 
 -- Cached Vabamorf synthesis. Populated lazily; 'distinct' records whether the
 -- genitive/partitive contrast is actually testable for this word.
@@ -95,6 +122,7 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
 
 
@@ -171,7 +199,183 @@ def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
         )
         # Derived from the rows above, so it cannot outlive them.
         conn.execute("DELETE FROM object_cases")
+    # `words` was just replaced wholesale, which wipes `level_source` and every
+    # level EKI supplied. Re-applying here is what makes the import survive a
+    # rebuild: the authoritative levels live in their own table, so this needs
+    # no file and no second trip to EKI's download form.
+    apply_official_levels(conn)
     return len(rows)
+
+
+#: EKI's part-of-speech codes, mapped onto the vocabulary the enriched list
+#: already uses — so `declines()` and every `pos LIKE '%,s,%'` query keep
+#: working on a word EKI supplied and the enriched list did not.
+#:
+#: `G` is the genitive-attribute class (`araabia keel`), which this project
+#: already calls `adjg`; `Y` is an abbreviation (`CD`, `SMS`), deliberately
+#: mapped to a tag outside `DECLINABLE` so nothing tries to synthesise a
+#: paradigm for an acronym. That is the rule `declines()` already applies to
+#: untagged words, kept rather than quietly reversed.
+EKI_POS = {
+    "S": "s", "A": "adj", "V": "v", "D": "adv", "J": "conj",
+    "P": "pron", "K": "postp", "N": "num", "O": "num",
+    "G": "adjg", "I": "interj", "Y": "lyh",
+}
+
+#: What an EKI code this table does not know becomes.
+#:
+#: Not `None`, and the difference is not cosmetic. `nouns_at_level` matches on
+#: `COALESCE(pos, 's')`, so a NULL part of speech is read as **noun** — and an
+#: inserted word with a NULL `pos` would go straight into object-case drills
+#: and have a genitive and partitive synthesised for it. That is the exact
+#: failure `declines()` exists to stop, arrived at from the other side: there
+#: an absent tag means "not declinable", here it would have meant "noun".
+#:
+#: The twelve codes above are every code the 2018 file actually uses, checked.
+#: This is for the thirteenth, on the day EKI publishes one.
+UNKNOWN_POS = "muu"
+
+#: The columns EKI's file actually has: `LEMMA POS SAGEDUS TASE`, tab separated.
+_EKI_COLUMNS = ("LEMMA", "POS", "SAGEDUS", "TASE")
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns an older word database does not have.
+
+    Same reasoning as `sources._migrate`: a learner can be carrying a database
+    built before a column existed, and failing to open it would lose the word
+    list over one `ALTER TABLE`.
+    """
+    have = {r[1] for r in conn.execute("PRAGMA table_info(words)")}
+    if "level_source" not in have:
+        conn.execute("ALTER TABLE words ADD COLUMN level_source TEXT")
+
+
+def read_official_levels(path: Path | str) -> list[tuple[str, str, str | None, int | None]]:
+    """Parse EKI's level vocabulary file. Rows only — no database.
+
+    Separated from the import so the format can be tested without one, and so a
+    malformed file fails while saying what it expected rather than half-filling
+    a table.
+    """
+    path = Path(path)
+    rows: list[tuple[str, str, str | None, int | None]] = []
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh, delimiter="\t")
+        missing = set(_EKI_COLUMNS) - set(reader.fieldnames or ())
+        if missing:
+            raise ValueError(
+                f"{path} does not look like EKI's level vocabulary: "
+                f"missing column(s) {sorted(missing)}. Expected a tab-separated "
+                f"file whose header is {' '.join(_EKI_COLUMNS)}."
+            )
+        for rec in reader:
+            word = (rec.get("LEMMA") or "").strip()
+            level = (rec.get("TASE") or "").strip().upper()
+            if not word or level not in LEVELS:
+                continue
+            freq = (rec.get("SAGEDUS") or "").strip()
+            rows.append((
+                word,
+                level,
+                (rec.get("POS") or "").strip().upper() or None,
+                int(freq) if freq.isdigit() else None,
+            ))
+    return rows
+
+
+def apply_official_levels(conn: sqlite3.Connection) -> dict[str, int]:
+    """Let EKI's levels win in `words`, and say so in `level_source`.
+
+    Derived, not hand-maintained: `build()` calls this after replacing `words`,
+    so a rebuild does not quietly drop the authoritative levels and send the
+    learner back to the download form.
+
+    Where the two disagree, EKI wins. That is not a close call — the enriched
+    list's CEFR tag is a derived estimate covering 6.2 % of its lemmas, and
+    this is the Estonian Language Institute publishing the levels outright.
+
+    A word EKI knows and the enriched list does not is **inserted**, with its
+    `freq_rank` left NULL. NULL is the honest value: EKI publishes a corpus
+    count and this column holds a rank, and the queries that order by it
+    already sort NULL last. A word with no rank drilling after one with a rank
+    is right; a word ranked five million drilling first would not be.
+    """
+    stats = {"levelled": 0, "changed": 0, "added": 0, "unclaimed": 0}
+    rows = conn.execute("SELECT word, level, pos FROM official_levels").fetchall()
+    stats["levelled"] = len(rows)
+    if not rows:
+        return stats
+
+    # Drop EKI's name from any word this import no longer claims.
+    #
+    # `import_official_levels` replaces `official_levels` wholesale, so a
+    # corrected file with a word removed used to leave that word's old level in
+    # place still stamped `level_source = 'eki'` — an attribution to an
+    # authority that had withdrawn it, on a function whose docstring says
+    # idempotent.
+    #
+    # Only the attribution is cleared, because only the attribution can be. The
+    # level underneath was overwritten and the enriched list's original is not
+    # recoverable from here; `cli build` re-reads the TSV and then re-applies
+    # this, which is the one path that restores it. The count is reported so a
+    # re-import that quietly unclaims a thousand words says so.
+    with conn:
+        stats["unclaimed"] = conn.execute(
+            "UPDATE words SET level_source = NULL"
+            " WHERE level_source = 'eki'"
+            "   AND word NOT IN (SELECT word FROM official_levels)"
+        ).rowcount
+
+    with conn:
+        for row in rows:
+            word, level, eki_pos = row["word"], row["level"], row["pos"]
+            current = conn.execute(
+                "SELECT proficiency FROM words WHERE word = ?", (word,)
+            ).fetchone()
+            if current is None:
+                conn.execute(
+                    "INSERT INTO words(word, freq_rank, proficiency, pos, level_source)"
+                    " VALUES (?, NULL, ?, ?, 'eki')",
+                    (word, level, EKI_POS.get(eki_pos or "", UNKNOWN_POS)),
+                )
+                stats["added"] += 1
+                continue
+            if current["proficiency"] != level:
+                stats["changed"] += 1
+            conn.execute(
+                "UPDATE words SET proficiency = ?, level_source = 'eki' WHERE word = ?",
+                (level, word),
+            )
+    return stats
+
+
+def import_official_levels(
+    conn: sqlite3.Connection, path: Path | str
+) -> dict[str, int]:
+    """Load EKI's level vocabulary and apply it. Idempotent.
+
+    The file is not fetched from here, and that is deliberate. EKI serves it
+    behind a page that asks who you are and what the material will be used in
+    — a request, not a lock, and one worth answering rather than stepping
+    around. So the learner downloads `A1A2B1.txt` themselves and names it here.
+
+    Licence: CC BY 4.0. EKI's own terms say the material may be processed and
+    presented in any way needed, an app included, provided the attribution to
+    EKI is kept and changes are described. Both are in `sources.REGISTRY`.
+    """
+    rows = read_official_levels(path)
+    with conn:
+        conn.execute("DELETE FROM official_levels")
+        conn.executemany(
+            "INSERT OR REPLACE INTO official_levels(word, level, pos, freq)"
+            " VALUES (?,?,?,?)",
+            rows,
+        )
+    stats = apply_official_levels(conn)
+    for level in LEVELS:
+        stats[level] = sum(1 for r in rows if r[1] == level)
+    return stats
 
 
 def nouns_at_level(

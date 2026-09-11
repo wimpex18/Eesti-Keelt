@@ -75,6 +75,30 @@ The one thing generation cannot give is **meaning**: definitions, usage examples
 and translations. That is what `api.sonapi.ee` is for (single lookups only), and
 what the enriched Ekilex wordlist supplies for CEFR level and frequency.
 
+### The learner dictionary: not refused, routed
+
+*Keeleõppija Sõnaveeb* — about 7 000 words with definitions simplified for A2
+and B1 — is exactly what a learner here wants, and an earlier pass wrote it off
+because reaching it meant a second client against the site whose maintainers
+ask not to be batch-requested.
+
+That was the right answer to the wrong question. **EKI publishes the same
+material for download under CC BY 4.0**, and the licence page says so outright:
+the material may be processed and presented in any way needed, an app included,
+commercial use unrestricted, provided the attribution to EKI is kept and the
+changes described.
+
+| What was wanted from it | The route that does not involve their web server |
+|---|---|
+| which words are at the learner's level | *Eesti keele tasemete sõnavara* — **wired**, `cli import-levels` |
+| simplified definitions, and recorded pronunciations of the principal forms | *Eesti keele põhisõnavara sõnastik 2014* (`D=psv`) — XML plus a headword list, and about 6 000 pronunciation WAVs |
+| everything | the Ekilex API, with a key from a free account |
+
+`psv` is not wired and not registered. Nothing here has seen the file, and an
+XML parser written against a format nobody has read is a code path that has
+never met its input. It is the top open item, and the one that would give word
+cards a definition at the learner's level instead of the full EKI one.
+
 ### What Sõnaveeb and Sõnastik do and don't give
 
 Both display the principal forms — they read the same Ekilex data — but neither
@@ -127,12 +151,58 @@ supply, so neither is wired up:
 | Route | Gives | Needs |
 |---|---|---|
 | **Ekilex API** (`ekilex.ee`, key from the user profile page) | the whole database, CC BY 4.0, commercial use unrestricted | a free account and an API key |
-| **EKI downloads** (`arhiiv.eki.ee/litsents/`) | *Eesti-vene sõnaraamat* (XML, CC BY 4.0) and the **A1/A2/B1 level word lists** (2018, CC BY 4.0) | Estonian ID-card authentication |
+| **EKI downloads** (`arhiiv.eki.ee/litsents/`) | *Eesti-vene sõnaraamat* (XML, CC BY 4.0) and the **A1/A2/B1 level word lists** (2018, CC BY 4.0) | a download form that asks who you are and what for |
 
 The second is the interesting one for this app: an official Estonian-Russian
 dictionary and the exam board's own level vocabulary, both openly licensed. Worth
 fetching if the learner wants glosses for words they have not met yet rather than
 only the ones they have.
+
+**Checked 2026-09-11, and the access note above was wrong before today.** It
+said "Estonian ID-card authentication". EKI splits its catalogue into two
+directories — `vaba/dl.cgi` (free: the English-Estonian dictionary, the dialect
+and Võro material) and `idkaart/dl.cgi` — and the level word lists (`D=A1A2B1`)
+and the Estonian-Russian dictionary (`D=evs`) are both in the second. But the
+`idkaart` page answers 200 to anyone, and what it actually presents is a **form
+asking for your organisation's name and what the material will be used in**.
+The files underneath it are served without a certificate.
+
+That changes the reason and not the conclusion. **Nothing in this repository
+fetches them**, and nothing should: a gate that asks who you are is still a gate,
+and walking around it is the same move as batch-requesting Sõnaveeb, which this
+project refuses on a page it can point to. The sanctioned route is that the
+learner — who has an Estonian ID card and a name to put in the box — downloads
+`A1A2B1.txt` themselves.
+
+**Wired on 2026-09-11: `python -m eesti.cli import-levels A1A2B1.txt`.** It
+reads EKI's tab-separated `LEMMA POS SAGEDUS TASE`, keeps the A1/A2/B1 rows,
+maps EKI's one-letter part-of-speech codes onto this project's tags, and lets
+EKI's level win in `words.proficiency` — with `words.level_source = 'eki'` so
+the app can always say who decided. The frequency column is kept under its own
+name in `official_levels`, because EKI publishes a corpus **count** and
+`freq_rank` holds a **rank**, and the two run in opposite directions.
+
+It still does not download, for the reason given above. And the question this
+file left open — replace the enriched-Ekilex `proficiency` or sit beside it —
+was answered by looking at what the two actually are. They are not two scales;
+they are one scale with two authorities, and the enriched list's is a derived
+estimate covering 6.2 % of its lemmas. So EKI wins the column and
+`level_source` carries the provenance. That is the opposite of the `level` /
+`band` mistake, not a repeat of it: those were two different **claims** and had
+to be split; these are the same claim from two sources and had to be ranked.
+
+The older note is kept below, because its reasoning is still why nothing here
+fetches the file.
+
+No importer was written for it at first, on purpose. Writing a parser for a file
+nobody in this project has seen is guessing at a format and shipping a code path
+that has never met its input, which is the shape of bug `lessons.md` names as a
+measurement with no writer. It is the top open item in `source-gaps.md`: when
+the file exists on disk, the question worth asking is whether the exam board's
+own A1/A2/B1 vocabulary should *replace* the enriched Ekilex `proficiency`
+column or sit beside it as a second, more authoritative claim — and that is a
+decision about two scales in one column, which this project has already got
+wrong once.
 
 ## What Estly does, and what it means for this app
 

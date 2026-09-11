@@ -135,17 +135,103 @@ def _locate(text: str, corrections: list[Correction]) -> list[Correction]:
     return located
 
 
-class TartuNLPGrammar:
-    """TartuNLP's public GEC service (tekstkorda.ut.ee / api.tartunlp.ai).
+def _minimal_span(wrong: str, right: str) -> tuple[str, str]:
+    """Narrow a sentence pair down to the words that actually changed.
 
-    Kept in the chain because it is free, Estonian-specific and MIT-licensed, but
-    it was returning 500 on every request during research and its /v2
-    explanations are Estonian-only with no language parameter. Short timeout: the
-    observed failure mode is a 61s gateway timeout, which must never be inflicted
-    on someone waiting to see their mistake.
+    TartuNLP's `/v2` answers in whole sentences: `original` and `corrected` are
+    both complete sentences, and only some words inside differ. Handing those
+    straight to `_locate` highlighted **the entire sentence** as the mistake,
+    which tells a learner nothing — the one thing a correction has to say is
+    *which word*.
+
+    Word-level common prefix and suffix, which is all that is needed: the two
+    strings are the same sentence, so whatever is left in the middle after
+    trimming the matching ends is the edit. Falls back to the whole pair when
+    the trim leaves nothing on either side, so a pure insertion or deletion is
+    still reported rather than silently dropped.
+    """
+    a, b = wrong.split(), right.split()
+    head = 0
+    while head < len(a) and head < len(b) and a[head] == b[head]:
+        head += 1
+    tail = 0
+    while (tail < len(a) - head and tail < len(b) - head
+           and a[len(a) - 1 - tail] == b[len(b) - 1 - tail]):
+        tail += 1
+    middle_a = " ".join(a[head:len(a) - tail])
+    middle_b = " ".join(b[head:len(b) - tail])
+    if not middle_a or not middle_b:
+        return wrong, right
+    # A shared trailing full stop rides along on the last word -- `autot.` for
+    # `auto.` -- and highlighting a sentence's punctuation as the mistake is a
+    # small lie about where the error is. Trim only what both sides share, so
+    # a correction that *is* about punctuation still shows it.
+    while (middle_a and middle_b and middle_a[-1] == middle_b[-1]
+           and not middle_a[-1].isalnum() and len(middle_a) > 1 and len(middle_b) > 1):
+        middle_a, middle_b = middle_a[:-1], middle_b[:-1]
+    return middle_a, middle_b
+
+
+def _tag_of(wrong: str, right: str) -> str:
+    """The one tag this service's output actually supports claiming.
+
+    TartuNLP returns no error type, so every correction used to be filed as
+    `vocab` — which put word-order corrections and case corrections alike into
+    the one bucket the error log uses for "wrong word", and the Notion log
+    groups on this field.
+
+    Exactly one type can be read off the strings themselves without inventing
+    an annotation layer: if the correction only re-orders, the multiset of
+    words is unchanged. That is the same signature `wordorder.is_reordering`
+    already uses, imported rather than restated. Everything else stays `vocab`,
+    which remains a guess and is left as the honest default.
+    """
+    from ..wordorder import is_reordering
+
+    return "word-order" if is_reordering(wrong, right) else "vocab"
+
+
+class TartuNLPGrammar:
+    """TartuNLP's public GEC service at `api.tartunlp.ai/grammar`.
+
+    ## The contract, read from their spec rather than guessed
+
+    `api.tartunlp.ai/grammar/openapi.json` is public and was fetched on
+    2026-09-11. It publishes two endpoints, and this class now uses both:
+
+    | Endpoint | Request | Answers with |
+    |---|---|---|
+    | `POST /grammar/v2` | `{"language": "et", "text": …}` | `corrections[{original, corrected, correction_log, explanations}]` — whole **sentences**, plus an Estonian-only explanation |
+    | `POST /grammar/` | the same body | `corrections[{span:{start,end,value}, replacements:[{value}]}]` — exact character **spans** |
+
+    ## Why both
+
+    `/v2` is tried first because it is the only one that carries an
+    explanation. `/` is tried when `/v2` fails, and it is not a consolation
+    prize: it returns the character offsets this app otherwise has to recover
+    by searching the text, and it skips the explanation step, so it is the
+    cheaper of the two on their side and the likelier of the two to answer.
+
+    ## What is actually wrong with it, measured 2026-09-11
+
+    Nothing on this side. The request shape above matches their published
+    schema exactly, the spec declares no authentication, and **both** endpoints
+    answer **HTTP 500 after ~61 seconds** — reproduced with TartuNLP's own
+    example string, `{"text": "Aitähh!"}`, which is the example printed in
+    their spec. A `GET` returns 405, so the route exists and the host is up;
+    only a `POST` reaches the worker that is not answering. That 405 is the
+    trap worth naming: a liveness check that issues a `GET` goes green on a
+    service that has never once returned a correction.
+
+    So the short timeout stays, and the breaker stays. The 61-second failure
+    must never be inflicted on someone waiting to see their mistake.
     """
 
     name = "tartunlp"
+
+    #: `/v2` first for the explanation, then the span endpoint. Derived from
+    #: the configured base so a change of host moves both.
+    ENDPOINTS = (TARTUNLP_GRAMMAR, TARTUNLP_GRAMMAR.rsplit("/", 1)[0] + "/")
 
     def __init__(self, timeout: float = PROVIDER_TIMEOUT):
         self.timeout = timeout
@@ -153,28 +239,85 @@ class TartuNLPGrammar:
     def available(self) -> bool:
         return os.environ.get("EESTI_DISABLE_TARTUNLP") != "1"
 
-    def check(self, text: str) -> GrammarResult:
+    def _post(self, url: str, text: str, timeout: float | None = None) -> dict:
         req = urllib.request.Request(
-            TARTUNLP_GRAMMAR,
+            url,
             data=json.dumps({"language": "et", "text": text}).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.loads(resp.read())
+        with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
+            return json.loads(resp.read())
 
-        corrections = [
-            Correction(
-                wrong=entry.get("original", ""),
-                correct=entry.get("corrected", ""),
+    @staticmethod
+    def _from_v2(payload: dict) -> list[Correction]:
+        """Sentence pairs — narrowed to the words that changed."""
+        out = []
+        for entry in payload.get("corrections", []):
+            original, corrected = entry.get("original", ""), entry.get("corrected", "")
+            if not original or original == corrected:
+                continue
+            wrong, right = _minimal_span(original, corrected)
+            out.append(Correction(
+                wrong=wrong,
+                correct=right,
                 # Explanations come back in Estonian only; label them so the
                 # learner is not surprised by the language switch.
                 why=(entry.get("explanations") or "").strip() or "(selgitus puudub)",
-                tag="vocab",
+                tag=_tag_of(original, corrected),
+            ))
+        return out
+
+    @staticmethod
+    def _from_v1(payload: dict) -> list[Correction]:
+        """Spans and replacements — already the exact words, already located."""
+        out = []
+        for entry in payload.get("corrections", []):
+            span = entry.get("span") or {}
+            wrong = span.get("value") or ""
+            replacements = [
+                r.get("value") for r in (entry.get("replacements") or [])
+                if isinstance(r, dict) and r.get("value")
+            ]
+            if not wrong or not replacements or replacements[0] == wrong:
+                continue
+            out.append(Correction(
+                wrong=wrong,
+                correct=replacements[0],
+                why="(selgitus puudub)",
+                tag=_tag_of(wrong, replacements[0]),
+                start=span.get("start"),
+                end=span.get("end"),
+            ))
+        return out
+
+    def check(self, text: str) -> GrammarResult:
+        """Two endpoints, one budget.
+
+        `self.timeout` is the whole allowance for this provider, not the
+        allowance per attempt. Spending it twice would double the wait on the
+        chain's first provider — the one documented to answer 500 after 61 s —
+        from 5 seconds to 10, against a docstring that says the short timeout
+        exists precisely so that wait is never inflicted on someone waiting to
+        see their mistake. Adding a fallback is not a licence to spend more of
+        the learner's time; it is a second thing to try inside the same budget.
+        """
+        v2, root = self.ENDPOINTS
+        half = self.timeout / 2
+        try:
+            return GrammarResult(
+                self.name, _locate(text, self._from_v2(self._post(v2, text, half)))
             )
-            for entry in payload.get("corrections", [])
-            if entry.get("original") != entry.get("corrected")
-        ]
-        return GrammarResult(self.name, _locate(text, corrections))
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError,
+                OSError, ValueError):
+            # The span endpoint is a different code path on their side, and it
+            # does not run the explanation step. Worth one attempt before the
+            # chain gives up on Estonian-specific correction entirely.
+            located = self._from_v1(self._post(root, text, half))
+            # `_locate` only fills offsets it does not already have.
+            return GrammarResult(
+                self.name,
+                [c if c.start is not None else _locate(text, [c])[0] for c in located],
+            )
 
 
 class LLMGrammar:

@@ -439,6 +439,88 @@ GGUF builds". TalTech published bfloat16 safetensors only; the quantisations are
 `mradermacher`'s. Whoever pulls them is trusting a converter as well as a
 trainer.
 
+### What the five fixes broke, 2026-09-11
+
+A code review of the two commits found seven things, **three of them
+regressions introduced by the fixes**, and two of those defeated the goal the
+fix was written for. Full detail in `source-audit.md`; the short version:
+
+- **The HARNO fix made the forms invisible a second way.** `exam_material`
+  returned `vorm` under its own key, which took the forms out of `muu` — the
+  one bucket the exam screen renders for kinds it does not know. The page had
+  no `vorm` group, so nine forms went from invisible to invisible.
+- **It also un-hid the statistics.** `NOT_INDEXED` stops a future harvest
+  writing the pass-rate PDFs and does nothing about rows already in a
+  learner's database. Widening the query to match level-less material put
+  national pass rates next to the readiness verdict. A rule about what gets
+  written is not a rule about what gets read.
+- **`KINDS` was defined twice**, the derived one shadowing a hand-written one
+  twelve lines above — under a comment saying that must not happen.
+- Plus four smaller: an unmapped EKI part-of-speech code would have been read
+  as a noun and had a paradigm synthesised for it; the grammar fallback spent
+  the timeout twice, doubling the wait on the chain's dead first provider; a
+  re-import left EKI's name on levels it no longer claimed; and
+  `browse`/`count` still hide the level-less forms the exam screen now shows,
+  which is left alone because nothing passes a level to a section browse.
+
+### Five fixes, 2026-09-11
+
+A second pass the same day, against five specific complaints. Four were defects
+on **this** side; the fifth was a question asked the wrong way round. Full
+verdicts and evidence in `source-audit.md`.
+
+| | Outcome |
+|---|---|
+| **TartuNLP grammar** | Their published OpenAPI spec was read: the request this app sends matches it exactly and no auth is declared, and both endpoints answer **500 after ~61 s** on TartuNLP's own example. Nothing to fix in the connection. Fixed instead: `POST /grammar/` is now tried when `/v2` fails, sentence-level answers are narrowed to the words that changed, a pure re-ordering is tagged `word-order` instead of `vocab`, and the contract is pinned offline by `tests/test_tartunlp_contract.py`. |
+| **EKI level vocabulary** | `cli import-levels` imports *Eesti keele tasemete sõnavara* (2018, CC BY 4.0). EKI's A1/A2/B1 wins in `words.proficiency`; `words.level_source` records who said so. Survives `cli build`. Does not download — the file comes from the learner. |
+| **EVKK** | The failure message named the wrong host (`elle.tlu.ee`, a different and working TLU service). Retries 3 → 5, measured: it 500'd twice and answered on the third attempt, taking 21 s. `LEAF_ONLY` was empty while being described as an active guard; it is now checked by a test rather than asserted in a comment. |
+| **ERR Lihtsad uudised** | The ledger claimed "audio + text". The pages carry **no audio at all** — the harvester always wrote `audio: False`, so the wrong claim lived only in a note, where nothing could contradict it. |
+| **HARNO** | 20 official materials — 11 statistics PDFs, 9 application forms — were indexed and claimed by **no section**, past the orphan check, because that check's fixture was a hand-written list of kinds. Forms now reach `Eksamist` (whose own description already promised registration); statistics are no longer indexed at all. The kind vocabulary is exported once as `harno.KINDS` and read by the sections and the tests. |
+| **Sõnaveeb learner dictionary** | Not refused — routed. EKI publishes the same material for download under CC BY 4.0. The level vocabulary is wired; *põhisõnavara sõnastik* (`psv`), which carries the simplified definitions and ~6 000 pronunciation WAVs, is the top open item. |
+
+**Verified along the way.** Every HARNO pointer was fetched: of the 107 that
+are files rather than embedded videos, **86 answer 200**, all on `harno.ee`.
+The other 21 — the listening audio — are on `projektid.edu.ee`, which answers
+503 today. Nothing was changed about them: a 503 is an outage, not a dead link.
+
+**HARNO publishes no A1.** The *tasemeeksam* starts at A2. At the two levels
+this app targets: 25 A2 materials and 26 B1, each covering all four parts.
+HARNO and EIS do not overlap — no shared URLs, and EIS's 14 A2/B1 items are
+interactive with feedback while HARNO's are downloadable PDFs plus audio.
+
+### Third-party sources, re-probed 2026-09-11
+
+Ten days on, and the useful finding is that nothing the app depends on moved:
+`sonapi` (still `/v2`, still no `/v3`), both TartuNLP `/v2` services, EIS's 23
+public tasks, EVKK's 51 467 annotated errors, the Ekilex word list (still at its
+single 2026-04-01 commit), EKK, and `estnltk` (1.7.5 is still the latest on
+PyPI, so the pin is current rather than merely unmoved). The EstLLM lane's
+featherless-ai mapping is still `live`; TalTech's Estonian Voxtral is still
+hosted by nobody.
+
+Vabamorf re-measured against TalTech's gold forms today: **98.14 % over 1 400
+rows**, and 195–196 / 200 on each of the four object cases. Identical to the
+figure this project has quoted since the first run.
+
+Three numbers were ours and stale, and one dataset was simply unread:
+
+- **HARNO publishes 122 materials, not the 39 recorded.** Counted by running
+  `harno.catalogue()` today. Pointer-only posture is unchanged.
+- **EVKK reads 200 named categories, not 202.** The error total, which is what
+  the curriculum weights on, is unchanged.
+- **The EKI level word lists are behind a form, not a certificate.** Corrected
+  in `content-sources.md`; still not fetched from code, and now for the right
+  reason.
+- **`TalTechNLP/grammar2_et`** — 446 more native-corrected pairs, published
+  2024-11-18, missed because every pass enumerated the benchmark paper's seven
+  datasets and this is an eighth beside them. It yields **17 more attested
+  word-order items** against the existing 47. Wired: `fetch-bench` downloads it
+  and `cli wordorder` now ingests every `grammar*_et.json` the fetch table
+  knows, derived rather than named.
+
+The full verdict table — including what was looked at and refused, among it
+TLU's new MIT-licensed Estonian CEFR classifier — is in `source-audit.md`.
+
 ### Third-party sources, re-probed 2026-09-01
 
 Every endpoint the code actually calls answers: ERR's two archives, HARNO,

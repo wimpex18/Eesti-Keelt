@@ -23,30 +23,46 @@ import json
 
 import pytest
 
+from eesti.harvest import harno
 from eesti.library import MODES, SECTIONS, browse, by_id, sections
 from eesti.sources import Item, add_items, connect, register
 
 
 @pytest.fixture
 def shelf(tmp_path):
-    """One item of each kind that has ever caused trouble."""
+    """One item of **every** kind the HARNO harvester can produce.
+
+    This used to be a hand-written list of "kinds that have caused trouble",
+    which is a list of things that already exist somewhere else — and it failed
+    the way those lists always fail. `statistika` and `vorm` were added to the
+    harvester, nobody added them here, and 20 items sat in the database and in
+    no section. That is the exact bug the orphan check below was written for
+    after 25 items disappeared the same way; the check was fine, its fixture
+    could not see the problem.
+
+    So the kinds come from `harno.KINDS` now. A kind added to the harvester
+    appears here on the next run, and if no section claims it this fails.
+    """
     conn = connect(tmp_path / "content.db")
     register(conn)
     sources = {r["id"] for r in conn.execute("SELECT id FROM sources")}
     made = [
         Item(source_id="selges-keeles", skill="lugemine", title="Lihtne tekst",
              body="Ma lugesin raamatu läbi."),
-        Item(source_id="harno", skill="lugemine", title="B1 Lu1 kuulutus",
-             body="", meta={"kind": "ulesanne", "external": True}),
-        Item(source_id="harno", skill="kirjutamine", title="B1 sooritusnäidis",
-             body="", meta={"kind": "sooritusnaidis", "external": True}),
-        Item(source_id="harno", skill="eksam", title="B1 konsultatsioon",
-             body="", meta={"kind": "konsultatsioon", "external": True}),
-        Item(source_id="harno", skill="eksam", title="B1 video",
-             body="", meta={"kind": "video", "external": True}),
         Item(source_id="err-r4", skill="grammatika", title="Saade 22",
              body="Objekti kääne."),
     ]
+    # `skill` deliberately varies: a kind reachable only when it happens to
+    # carry one skill is not reachable.
+    skills = ("lugemine", "kirjutamine", "eksam", "kuulamine", "raakimine")
+    for n, kind in enumerate(k for k in harno.KINDS if k not in harno.NOT_INDEXED):
+        made.append(Item(
+            source_id="harno", skill=skills[n % len(skills)],
+            title=f"B1 {kind}", body="",
+            meta={"kind": kind, "external": True},
+        ))
+    made.append(Item(source_id="harno", skill="eksam", title="B1 video",
+                     body="", meta={"kind": "video", "external": True}))
     add_items(conn, [i for i in made if i.source_id in sources])
     return conn
 
@@ -60,11 +76,93 @@ class TestNothingIsHomeless:
         everything = {r["id"] for r in shelf.execute("SELECT id FROM items")}
         assert everything - placed == set()
 
+    def test_every_kind_the_harvester_makes_has_a_section_that_wants_it(self):
+        """Read off the two vocabularies, with no database in the way.
+
+        The orphan check above needs an item to exist before it can notice the
+        gap. This one notices as soon as the harvester learns a kind nobody
+        shows — which is the moment it becomes wrong, not the moment somebody
+        harvests.
+        """
+        claimed = {kind for section in SECTIONS for kind in section.kinds}
+        indexed = set(harno.KINDS) - set(harno.NOT_INDEXED)
+        assert indexed - claimed == set(), (
+            "HARNO produces these kinds and no section shows them: "
+            f"{sorted(indexed - claimed)}"
+        )
+
+    def test_statistics_already_in_a_database_stay_off_the_exam_screen(self, tmp_path):
+        """`NOT_INDEXED` has to hold at read time, not only at write time.
+
+        It stops a *future* harvest writing the pass-rate PDFs. It does nothing
+        about the rows already in a learner's content.db from an earlier one —
+        and those rows are level-less, so teaching `exam_material` to match
+        level-less material (which is what lets the forms appear at all) put
+        eleven national pass rates on the readiness screen for anybody who had
+        harvested before today. `muu` renders whatever no group claimed.
+        """
+        from eesti.library import exam_material
+
+        conn = connect(tmp_path / "content.db")
+        register(conn)
+        add_items(conn, [
+            Item(source_id="harno", skill="eksam", title="Statistika 2024",
+                 body="", level="", meta={"kind": "statistika"}),
+            Item(source_id="harno", skill="eksam", title="Avaldus",
+                 body="", level="", meta={"kind": "vorm"}),
+        ])
+        material = exam_material(conn, "B1")
+        titles = [row["title"] for rows in material.values()
+                  if isinstance(rows, list) for row in rows]
+        assert "Avaldus" in titles, "the forms are the reason the query was widened"
+        assert "Statistika 2024" not in titles
+        assert not [r for r in material["muu"]], "muu is rendered; it must be empty here"
+
+    def test_every_group_the_exam_screen_returns_is_rendered(self):
+        """The other direction, and the one that got away.
+
+        `exam_material` was taught to return `vorm` under its own key, which
+        took the forms *out* of `muu` — the one bucket the page renders for
+        kinds it does not know by name. Without a matching group in exam.js the
+        widening moved them from invisible to invisible. A key returned by the
+        API and read by nothing is the same defect as an item in no section.
+        """
+        import re
+        from pathlib import Path
+
+        from eesti import library
+
+        src = Path(library.__file__).read_text(encoding="utf-8")
+        body = src[src.index("def exam_material"):]
+        body = body[:body.find("\ndef ", 10)]
+        returned = set(re.findall(r'by_kind\.pop\("([a-z]+)"', body))
+
+        page = (Path(library.__file__).parent / "web" / "js" / "exam.js").read_text(
+            encoding="utf-8")
+        groups = page[page.index("const groups = ["):]
+        groups = groups[:groups.index("];")]
+        rendered = set(re.findall(r'\["([a-z]+)",', groups))
+        # `ulesanne` is popped into `ulesanded` and rendered by its own loop,
+        # split by exam part rather than shown as one group. Named here rather
+        # than pattern-matched, because it is the single exception and a looser
+        # pattern would stop this test noticing the next one.
+        rendered |= {"ulesanne"}
+
+        assert returned <= rendered, (
+            f"exam_material returns these and the page shows none of them: "
+            f"{sorted(returned - rendered)}")
+
+    def test_statistics_are_never_indexed_in_the_first_place(self):
+        """Eleven PDFs of national pass rates. Not study material, and a pass
+        rate beside a verdict that refuses to predict is worse than absent."""
+        assert "statistika" in harno.NOT_INDEXED
+
     def test_the_kinds_that_were_lost_are_reachable(self, shelf):
-        """Samples, workbooks and videos: the 25 that vanished."""
+        """Samples, workbooks, videos and the forms: the ones that vanished."""
         for section_id, expected in [("naidised", "sooritusnaidis"),
                                      ("vihikud", "konsultatsioon"),
-                                     ("eksamiinfo", "video")]:
+                                     ("eksamiinfo", "video"),
+                                     ("eksamiinfo", "vorm")]:
             rows = browse(shelf, section_id, limit=50)
             kinds = {json.loads(r["meta"] or "{}").get("kind") for r in rows}
             assert expected in kinds, section_id
@@ -156,8 +254,10 @@ class TestTheExamTaxonomyIsStatedOnce:
         end = body.find("\ndef ", 10)
         if end != -1:
             body = body[:end]
-        known = ("sooritusnaidis", "ulesanne", "video", "kirjeldus", "teave",
-                 "konsultatsioon")
+        # Derived, like everything else about this vocabulary: a hand-written
+        # tuple here is how `vorm` could be declared by a section, rendered by
+        # nowhere, and pass both directions of this check.
+        known = sorted(set(harno.KINDS) | {"konsultatsioon"}, key=len, reverse=True)
         return set(re.findall("|".join(known), body))
 
     def test_every_kind_the_exam_screen_groups_belongs_to_a_section(self):

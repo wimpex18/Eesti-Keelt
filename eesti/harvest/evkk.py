@@ -53,7 +53,16 @@ from pathlib import Path
 
 TAXONOMY_URL = "https://evkk.tlu.ee/vers1/Marks/global_marks/marks_public.html"
 TIMEOUT = 60.0
-RETRIES = 3
+
+#: Five, not three, and the extra two were measured rather than guessed.
+#:
+#: On 2026-09-11 this host answered 500 on two consecutive attempts and
+#: succeeded on the third, and its successful response took 21 seconds. Three
+#: retries back off 1 s and 2 s, so the whole budget was about three seconds
+#: against a server that is slow when it works — and the failure lands on a
+#: command whose entire job is one request for a page that never changes.
+#: Five gives 1 + 2 + 4 + 8 s, which is nothing next to re-running a harvest.
+RETRIES = 5
 UA = "Eesti-Keelt/0.1 (personal language-learning tool)"
 
 # Name, then count, with nesting carried in the URL path. Matching on the path
@@ -127,8 +136,9 @@ def subtree_totals(marks: list[Mark]) -> dict[str, int]:
 
 # Our nine error tags, expressed in EVKK's vocabulary. Each entry is a list of
 # taxonomy node names; a node contributes its whole subtree unless it is listed
-# in LEAF_ONLY, which exists because two of these names sit above children that
-# belong to a different tag of ours.
+# in LEAF_ONLY, which is the exclusion list for a name that would otherwise
+# swallow children belonging to a different tag of ours. It is currently empty
+# — see the note under it.
 #
 # Written out by hand against the taxonomy, so it is auditable: every string
 # below appears verbatim on the EVKK page, and `unmapped()` reports whatever
@@ -173,6 +183,20 @@ TAG_MAP: dict[str, tuple[str, ...]] = {
 # `Leksikaalsed` is a top-level category whose subtree is genuinely all
 # vocabulary, so it is not here. This set is for names that would otherwise
 # swallow children we map elsewhere.
+#
+# **It is empty, and that is a finding rather than an oversight.** The comment
+# above `TAG_MAP` said it "exists because two of these names sit above children
+# that belong to a different tag of ours", which described a hazard that the
+# current map does not have: checked against the live taxonomy on 2026-09-11,
+# none of the sixteen mapped nodes is an ancestor of another mapped node
+# carrying a different tag, so nothing is double-counted and there is nothing
+# to exclude.
+#
+# The mechanism stays, because the hazard is real the moment `TAG_MAP` grows.
+# What changed is that the claim is now checked rather than asserted:
+# `tests/test_evkk_mapping.py` fails if a mapped subtree ever swallows a node
+# mapped elsewhere without that node being listed here. A guard nobody can see
+# working is a guard nobody can see break.
 LEAF_ONLY: frozenset[str] = frozenset()
 
 

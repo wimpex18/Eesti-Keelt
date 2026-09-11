@@ -41,13 +41,21 @@ def test_object_cases_specifically_agree(case):
     assert match / total >= 0.95, f"{case} agreement dropped to {match}/{total}"
 
 
-def test_grammar_benchmark_is_wellformed():
-    """grammar_et pairs must actually differ, or they test nothing."""
-    path = DATASET.parent / "grammar_et.json"
+@pytest.mark.parametrize(("name", "least"), [("grammar_et", 500), ("grammar2_et", 300)])
+def test_grammar_benchmark_is_wellformed(name, least):
+    """The GEC pairs must actually differ, or they test nothing.
+
+    Both files, because both are read: `wordorder.bench_files` takes every
+    `grammar*_et.json` the fetch table knows, and a second file with the same
+    column names is exactly the kind of thing that gets fetched and never
+    checked.
+    """
+    path = DATASET.parent / f"{name}.json"
     if not path.exists():
-        pytest.skip("grammar_et not fetched")
+        pytest.skip(f"{name} not fetched")
     rows = json.loads(path.read_text(encoding="utf-8"))
-    assert len(rows) > 500
+    assert len(rows) > least
+    assert {"original", "correct"} <= set(rows[0]), "the two-column shape changed"
     differing = [r for r in rows if r["original"] != r["correct"]]
     assert len(differing) / len(rows) > 0.9
 

@@ -53,13 +53,6 @@ UA = "Mozilla/5.0 (compatible; eesti-keelt)"
 
 LEVELS = ("A2", "B1", "B2", "C1")
 
-#: What a file is *for*. A learner preparing on Tuesday evening wants a task; a
-#: learner deciding whether to register wants the information sheet; a learner
-#: who has never seen a pass wants the annotated sample. Flattening these into
-#: one list buries all three.
-KINDS = ("ulesanne", "sooritusnaidis", "konsultatsioon", "kirjeldus",
-         "teave", "video", "vorm", "statistika")
-
 _KIND_MARKERS = (
     # Ordered: the first match wins, and the specific ones come first.
     ("sooritusnaidis", ("sooritusnaidis", "sooritusnäidis", "sooritusnaidised",
@@ -73,6 +66,46 @@ _KIND_MARKERS = (
     ("teave", ("teabeleht", "lisainfo", "teave")),
     ("kirjeldus", ("keelekasutaja", "raamdokument", "kirjeldus")),
 )
+
+#: What a file is *for*. A learner preparing on Tuesday evening wants a task; a
+#: learner deciding whether to register wants the information sheet; a learner
+#: who has never seen a pass wants the annotated sample. Flattening these into
+#: one list buries all three.
+#:
+#: Every value `_kind_of` can return, **derived** from the table above plus the
+#: ones it falls through to. Exported because three other places need this list
+#: and each had been keeping its own copy: `library.SECTIONS`, which decides
+#: whether a kind is reachable at all, the orphan test, whose hand-written
+#: fixture could only catch kinds somebody had remembered to add to it, and —
+#: found on review — a hand-written `KINDS` that sat twelve lines above this
+#: one and was shadowed by it. Two definitions of the same name in one module,
+#: the second winning silently, is the hand-maintained copy this comment says
+#: must not exist, written directly underneath the comment saying so.
+#:
+#: That is how `statistika` and `vorm` came to be indexed and invisible — 20
+#: items in the database and in no section, which is the same failure the
+#: orphan check was written for after 25 items vanished the same way.
+#: `video` is not in `_KIND_MARKERS` because it is not read off a filename:
+#: `catalogue()` assigns it to the embedded intro videos directly. It has to be
+#: here anyway — the point of this tuple is every kind that reaches an item,
+#: not every kind a filename can spell.
+KINDS: tuple[str, ...] = tuple(dict.fromkeys(
+    [k for k, _ in _KIND_MARKERS] + ["ulesanne", "teave", "video"]
+))  # `teave` is both a marker and a fallback; ordered dedup, not a set
+
+#: Kinds that are catalogued but deliberately **not** indexed as items.
+#:
+#: `statistika` is eleven PDFs of national pass rates by year. It is not study
+#: material, and putting it in the app would sit a national pass rate next to a
+#: readiness verdict whose whole job is to say "this is not a prediction". So
+#: it is read from the page — `catalogue()` stays a faithful account of what
+#: HARNO publishes — and dropped before it becomes an item.
+#:
+#: `vorm` is not here, and that is the other half of the fix: the application
+#: and reimbursement forms are exactly what an exam candidate needs, and the
+#: `eksamiinfo` section's own description already promised registration while
+#: showing none of them.
+NOT_INDEXED: frozenset[str] = frozenset({"statistika"})
 
 #: Filename fragments to exam parts. Estonian names the part in the file, so
 #: this is reading a label rather than inferring one.
@@ -148,6 +181,25 @@ def _decode(url: str) -> str:
     return " ".join(name.rsplit(".", 1)[0].replace("_", " ").split())
 
 
+#: File extensions HARNO actually publishes. Anything else is a link.
+_FORMATS = frozenset({"pdf", "docx", "doc", "mp3", "wav", "m4a", "zip", "xlsx"})
+
+
+def _format_of(url: str) -> str:
+    """The file type, or `link` when the URL does not name one.
+
+    Splitting on the last dot is right for
+    `.../B1_kuulamine.pdf` and wrong for everything without an extension: one
+    consultation entry points at a Confluence wiki page, and the old split
+    handed back `ee/spaces/tho/pages/343705183/konsultatsioonide+materjalid`
+    as the file format — a whole URL path stored in a field the app renders as
+    a badge, and the same field `to_items` asks whether the material is audio.
+    """
+    tail = url.split("?")[0].rsplit("/", 1)[-1]
+    ext = tail.rsplit(".", 1)[-1].lower() if "." in tail else ""
+    return ext if ext in _FORMATS else "link"
+
+
 def _skill_of(name: str) -> str | None:
     lowered = name.casefold()
     # Whole words first: unambiguous, and a filename carrying both
@@ -214,7 +266,7 @@ def catalogue(html: str | None = None) -> list[Material]:
             url = urllib.parse.urljoin(BASE, href).replace("&amp;", "&")
             title = _decode(url)
             skill = _skill_of(title)
-            fmt = url.split("?")[0].rsplit(".", 1)[-1].lower()
+            fmt = _format_of(url)
             kind = _kind_of(title, skill)
             # Statistics and application forms are page-wide: they are named by
             # year or by purpose and belong to no level. Attributing them to a
@@ -261,4 +313,5 @@ def to_items(materials: list[Material]) -> list:
             },
         )
         for m in materials
+        if m.kind not in NOT_INDEXED
     ]

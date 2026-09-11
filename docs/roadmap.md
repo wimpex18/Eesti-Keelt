@@ -236,7 +236,8 @@ three of these were found at all:
 `content.db` is on the deployment. The smoke run of 2026-08-19T22:48Z reports
 `reading library ......... OK`, which is `"library":true` from `/api/health`,
 so the three things that rode on it are live: the 349-text reading library,
-dictation's sentence pool, and the 47 attested word-order items.
+dictation's sentence pool, and the 64 attested word-order items (47 from
+`grammar_et`, 17 from `grammar2_et`, added 2026-09-11).
 
 Re-run `bash deploy/push-content.sh data/content.db` from Cloud Shell only
 after a *new* harvest. Nothing in the current branch needs it — see below.

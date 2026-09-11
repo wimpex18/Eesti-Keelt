@@ -73,15 +73,20 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     from ..sources import connect, register
 
     # A third party being down must never look like a crash. `fetch` raises
-    # when there is no cached copy and `elle.tlu.ee` cannot be reached -- which
+    # when there is no cached copy and `evkk.tlu.ee` cannot be reached -- which
     # is a Tuesday for these research hosts, and the reason this command is
     # excluded from the test suite. Say what happened and what would fix it,
     # and leave with a code rather than a traceback.
+    #
+    # The host named here was `elle.tlu.ee` until 2026-09-11. That is a
+    # different TLU service -- ELLE, the learning environment -- and it is up;
+    # EVKK is the corpus at `evkk.tlu.ee`. An error message that names the
+    # wrong host sends whoever reads it to check something that is working.
     try:
         marks = fetch(cache=CACHE / "evkk_marks.html")
     except RuntimeError as exc:
         print(f"EVKK taxonomy unavailable: {exc}")
-        print("It is one cached request. Retry when elle.tlu.ee answers, or "
+        print("It is one cached request. Retry when evkk.tlu.ee answers, or "
               "drop a saved copy of the taxonomy page at "
               f"{CACHE / 'evkk_marks.html'} to work offline.")
         return 1

@@ -28,8 +28,8 @@ connected.
 
 ### 1. `grammar_et` — 1 000 error/correct pairs, fetched, unused — fixed ✅
 
-**Resolved.** It is the source of the `word-order` drill: 1 000 native-corrected
-pairs filtered to the 47 corrections that only *re-order* — same words, different
+**Resolved.** It is the source of the `word-order` drill: 1 446 native-corrected
+pairs filtered to the corrections that only *re-order* — same words, different
 sequence, which is the signature of a word-order error and needs no annotation
 layer. Attested rather than generated, and that was a measurement: see
 `docs/status.md` for why generating them was refused.
@@ -77,8 +77,9 @@ lists as missing, sitting behind an endpoint confirmed working weeks ago.
 ### 4. HARNO and EIS — registered owner-only, never fetched — fixed ✅
 
 **Resolved.** `harvest/harno.py` and `harvest/eis.py`, both via
-`cli harvest-exam`: 39 HARNO items and 23 EIS tasks, indexed as **pointers
-only** — `body` is empty and a test asserts it.
+`cli harvest-exam`: **122** HARNO materials and 23 EIS tasks, indexed as
+**pointers only** — `body` is empty and a test asserts it. (This said 39 until
+2026-09-11, when the catalogue was run again and counted.)
 
 The best exam material that exists: per-task PDFs for every skill and level, and
 directly downloadable B1 listening MP3s. `eis.harno.ee/publicitems` serves
@@ -87,9 +88,23 @@ official A2–C1 reading and listening tasks with feedback, no login.
 Neither has a fetch script. The licence work was done (owner-only, git-ignored);
 the fetching was not.
 
-### 5. The Estonian Native LLM Benchmark — 2 of 7 datasets used
+### 5. The Estonian Native LLM Benchmark — 3 datasets used
 
-Used: `inflection_et`, `grammar_et`. Unused and relevant:
+Used: `inflection_et`, `grammar_et`, and — since 2026-09-11 — **`grammar2_et`**.
+
+`grammar2_et` is the one real find of the 2026-09-11 audit, and it is worth
+being precise about why it was missed: it was not hard to reach, not gated and
+not new. It was published 2024-11-18, it carries the same two columns as
+`grammar_et`, and every earlier pass enumerated "the seven datasets of the
+benchmark" — of which this is not one. A list read from a paper is still a
+hand-maintained list.
+
+446 pairs, of which **17 are pure re-orderings**, against the 47 `grammar_et`
+yields. A third again on the entire word-order pool. `cli wordorder` now reads
+every `grammar*_et.json` the fetch table knows, derived rather than named, so
+the next one costs nothing.
+
+Still unused and relevant:
 
 - **`word_meanings_et`** — semantic knowledge; a vocabulary-quiz source that is
   native-authored rather than generated.
@@ -107,8 +122,12 @@ document and the one filed as hardest to reach: ELLE's bulk export endpoint
 maintainers."
 
 It needed neither. The corpus is **Plone-served HTML**, not a SPA, and the error
-taxonomy with corpus-wide counts is a **public page** — 202 categories,
+taxonomy with corpus-wide counts is a **public page** — 200 named categories,
 **51 467 annotated errors**, one request. `eesti/harvest/evkk.py` reads it.
+(Re-fetched 2026-09-11: the error total is identical, which is the number the
+curriculum weights on. The category count reads 200 rather than the 202 first
+written down, because the parser drops two nodes that render their own id
+instead of a label.)
 
 **The finding contradicts an assumption this app was built on.** Ranked by
 annotation frequency, `obj-case` is 1.3 % of learner errors; the two largest
@@ -210,11 +229,18 @@ supplies the data. **Step 1 (the topic model) stays next** — unchanged.
 
 | Item | State |
 |---|---|
-| HARNO / EIS fetch scripts | **built** — 39 HARNO items and 23 EIS tasks, as pointers |
+| HARNO / EIS fetch scripts | **built** — 122 HARNO materials and 23 EIS tasks, as pointers (re-counted 2026-09-11) |
 | ERR *Lihtsad uudised* | **built** (`harvest/lihtsad.py`) |
 | Notion write-back | **built** (`notion.py`), queue then confirm |
 | Cloudflare deploy | **built** — Worker in front of Cloud Run, both free tier |
+| `grammar2_et` | **wired 2026-09-11** — +17 attested word-order items (§5) |
+| EKI A1/A2/B1 level vocabulary | **wired 2026-09-11** — `cli import-levels`, EKI's levels win in `words.proficiency` with `level_source` saying so |
+| HARNO `statistika` / `vorm` | **fixed 2026-09-11** — 20 official materials were indexed and in no section; forms now reach `eksamiinfo`, statistics are no longer indexed |
+| ERR Lihtsad uudised "audio" | **corrected 2026-09-11** — the ledger claimed audio, the pages have none, the harvester always said so |
+| EKI *põhisõnavara sõnastik* (`psv`) | **open, and the top item** — the simplified learner definitions and ~6 000 pronunciation WAVs, CC BY 4.0, owner-fetchable. Not wired: nothing here has read the XML, and a parser written blind is a code path that has never met its input. |
 | `word_meanings_et`, `exam_et` | still unused (§5) — the only row that has not moved |
+| EKI A1/A2/B1 level word lists | **done** — the importer is `cli import-levels`; the file still comes from the learner, not from code. |
+| `tlu-dt-nlp/Estonian-CEFR-Assessment` | **new, open, refused for now** — MIT, 720 CEFR-labelled L2 writings, no trained model, Stanza-scale dependencies, and a verdict `readiness.py` declines to make. See `source-audit.md`. |
 
 `word_meanings_et` is a native-authored vocabulary quiz, and the reason it is
 still unused is that vocabulary here is measured from **what the learner has

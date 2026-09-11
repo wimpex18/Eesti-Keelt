@@ -78,15 +78,23 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
     """
     from collections import Counter
 
-    from ..config import DATA
     from ..sources import connect
-    from ..wordorder import SOURCE_ID, ingest, items
+    from ..wordorder import SOURCE_ID, bench_files, ingest, items
 
-    path = args.file or (DATA / "raw" / "bench" / "grammar_et.json")
+    # Both TalTech pair files by default, one if `--file` names it. They carry
+    # the same two columns and the same licence posture, and item ids are
+    # content hashes, so ingesting two files is ingesting one twice.
+    paths = [args.file] if args.file else bench_files()
     conn = connect(content_path(args))
-    added = ingest(conn, path)
+    added = 0
+    for path in paths:
+        found = ingest(conn, path)
+        if found:
+            print(f"  {path.name if hasattr(path, 'name') else path}: {found}")
+        added += found
     if not added:
-        print(f"Nothing ingested. Is {path} there? Run `cli fetch-bench` first.")
+        listed = ", ".join(str(p) for p in paths)
+        print(f"Nothing ingested. Is {listed} there? Run `cli fetch-bench` first.")
         return 1
     got = items(conn, limit=1000)
     print(f"  {added} word-order items into {content_path(args)} as {SOURCE_ID!r}")
@@ -369,5 +377,6 @@ def register(sub) -> None:
                        help="ingest attested word-order corrections into content.db")
     p.add_argument("--db", default=None)
     p.add_argument("--file", default=None,
-                   help="grammar_et.json (default: the fetch-bench location)")
+                   help="one pair file (default: every grammar*_et.json "
+                        "`fetch-bench` downloaded)")
     p.set_defaults(func=cmd_wordorder)
