@@ -79,7 +79,7 @@ class TestVideo:
 class TestTheVendorRoute:
     @pytest.fixture
     def client(self):
-        pytest.importorskip("httpx", reason="TestClient needs httpx")
+        pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
         from fastapi.testclient import TestClient
 
         from eesti import app as app_module

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("httpx", reason="TestClient needs httpx")
+pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
 
 from fastapi.testclient import TestClient  # noqa: E402
 

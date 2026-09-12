@@ -59,3 +59,38 @@ def styles() -> str:
 
 def everything() -> str:
     return markup_and_script() + "\n" + styles()
+
+
+def function_body(source: str, name: str) -> str:
+    """The whole body of one JS function, found by matching its braces.
+
+    Written because three assertions in `test_ui_contract.py` took a fixed
+    slice — `source.split("async function loadListenLibrary")[1][:2000]` — and
+    the function outgrew the window. The behaviour they guard was still
+    correct; the tests had simply stopped reaching it. A character count is a
+    fuse, and widening it only resets the fuse.
+
+    Raises rather than returning "" for a function that is not there: a
+    renamed function must fail loudly, which is the one thing the slice
+    version got right.
+    """
+    start = source.index(name)
+    open_brace = source.index("{", start)
+    depth = 0
+    for i in range(open_brace, len(source)):
+        if source[i] == "{":
+            depth += 1
+        elif source[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[open_brace:i + 1]
+    raise AssertionError(f"unbalanced braces after {name!r}")
+
+
+def media_block(css: str, query: str) -> str:
+    """Everything inside one `@media` block, by the same brace matching.
+
+    `.rail`'s `display:flex` sits 2 278 characters into the 1080px block, and
+    the test that checks the rail comes back on read the first 700.
+    """
+    return function_body(css, query)

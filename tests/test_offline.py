@@ -107,7 +107,7 @@ def test_reference_data_paths_honour_the_config(fixture_data):
 def test_the_web_app_reads_the_redirected_content(fixture_data):
     """The endpoint that caught it: read-aloud sentences come from the corpus,
     and returned an empty list in CI while passing locally."""
-    pytest.importorskip("httpx")
+    pytest.importorskip("httpx2")
     from fastapi.testclient import TestClient
 
     from eesti.app import app

@@ -23,13 +23,14 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("httpx", reason="TestClient needs httpx")
+pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from eesti import app as app_module  # noqa: E402
 
-from pagesrc import JS, markup, markup_and_script, scripts, styles
+from pagesrc import (JS, function_body, markup, markup_and_script,
+                     media_block, scripts, styles)
 
 
 
@@ -159,8 +160,10 @@ class TestTheDesktopRail:
         )
 
     def test_the_query_turns_the_rail_back_on(self, page):
-        css = styles()
-        block = css[css.index("@media (min-width:1080px)"):][:700]
+        # The block, not the first 700 characters of it. `.rail` sits 2 278
+        # characters in, so the window stopped reaching it — and because this
+        # whole file was skipped, nothing said so.
+        block = media_block(styles(), "@media (min-width:1080px)")
         assert "display:flex" in block.split(".rail{")[1]
 
     def test_the_countdown_follows_the_level_the_learner_picked(self, page):
@@ -395,13 +398,13 @@ class TestAPointerIsALinkNotAPlayer:
         assert any(not i.get("external") for i in got["items"])
 
     def test_the_page_branches_on_it(self, page):
-        fn = page.split("async function loadListenLibrary")[1][:2000]
+        fn = function_body(page, "async function loadListenLibrary")
         assert "it.external" in fn
         assert 'target="_blank"' in fn
 
     def test_only_real_content_gets_a_click_handler(self, page):
         """Binding the handler to every row would put an expander on a link."""
-        fn = page.split("async function loadListenLibrary")[1][:2000]
+        fn = function_body(page, "async function loadListenLibrary")
         assert '.lib-item[data-id]' in fn
 
 
