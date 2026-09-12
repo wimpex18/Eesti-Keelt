@@ -340,3 +340,46 @@ class TestNothingIsDefinedForNobody:
         assert not orphans, (
             "declared and read by nothing — delete it, or add it to ALLOWED "
             f"with the reason: {orphans}")
+
+
+class TestTheLicenceLedgerStaysSeparable:
+    """`eesti/licences.py` was split out of `sources.py` because the two halves
+    share nothing at runtime: the store never reads a `note`, the ledger never
+    opens a database. That is the property the file boundary encodes, and it is
+    exactly the kind of property that rots silently — one convenient import and
+    the ledger is a database module again, with nobody the wiser until the next
+    person wonders why it was split.
+    """
+
+    def test_the_ledger_touches_no_database(self):
+        import ast
+
+        tree = ast.parse((ROOT / "eesti" / "licences.py").read_text(encoding="utf-8"))
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported |= {a.name.split(".")[0] for a in node.names}
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".")[0])
+        assert "sqlite3" not in imported, (
+            "the ledger has grown a database dependency; that is the seam the "
+            "split exists to keep")
+        assert not (imported & {"sources", "urllib", "requests"}), imported
+
+    def test_the_old_import_path_still_works(self):
+        """Fifteen call sites say `from ..sources import REGISTRY`, and moving
+        a file is not a reason to touch fifteen files."""
+        from eesti import licences
+        from eesti.sources import REGISTRY, Source
+
+        assert REGISTRY is licences.REGISTRY
+        assert Source is licences.Source
+
+    def test_neither_half_is_large_again(self):
+        """The split bought a reader ~250 lines they did not need. A guard on
+        the number is cruder than the reason, and the reason is not checkable —
+        but a file creeping back over 700 lines is the signal that the next
+        cohesive piece is waiting to come out."""
+        for name in ("sources.py", "licences.py"):
+            lines = len((ROOT / "eesti" / name).read_text(encoding="utf-8").splitlines())
+            assert lines < 700, f"eesti/{name} is {lines} lines"
