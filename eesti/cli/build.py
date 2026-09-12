@@ -67,10 +67,10 @@ def cmd_fetch_data(args: argparse.Namespace) -> int:
 def cmd_import_levels(args: argparse.Namespace) -> int:
     """Replace the derived CEFR estimates with the exam board institute's own.
 
-    Not a download. `arhiiv.eki.ee/litsents/` asks who you are and what the
-    material will be used in before it hands the file over — a request worth
-    answering rather than stepping around — so this takes a path to the file
-    the learner fetched, and says so when the path is wrong.
+    Not a download. `arhiiv.eki.ee/litsents/` requires ID-card authentication
+    before it hands the file over (checked 2026-09-12) — a gate to walk through
+    rather than step around — so this takes a path to the file the learner
+    fetched, and says so when the path is wrong.
     """
     from collections import Counter
 

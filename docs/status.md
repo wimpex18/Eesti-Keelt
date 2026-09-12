@@ -39,7 +39,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-51 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 432 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
+52 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 893 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
 
 ## What a learner still cannot do
 

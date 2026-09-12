@@ -63,3 +63,25 @@ def test_the_inactive_one_ships_hidden(css):
     """The exam navigation must start hidden; the learner lands on learning."""
     exam = re.search(r'<nav[^>]*data-mode-nav="exam"[^>]*>', css)
     assert exam and "hidden" in exam.group(0)
+
+
+def test_the_source_footer_clears_the_fixed_navigation(css):
+    """The same bug as the one this file is named for, in a new place.
+
+    `.modes` is `position:fixed; bottom:0` on a phone, so anything that ends at
+    the end of the document ends *underneath* it. The attribution footer is the
+    last thing on the page, and its final rows sat behind the nav bar — found
+    in a screenshot at 420px, invisible to every passing test, exactly as the
+    docstring above predicts.
+
+    The bottom padding is not spacing. Without it the licence text this footer
+    exists to show is the part that is covered.
+    """
+    rule = re.search(r"footer\.sources\{[^}]*\}", css, re.S)
+    assert rule, "the footer must have its own rule"
+    body = rule.group(0)
+    padding = re.search(r"padding:[^;}]*", body).group(0)
+    # Three values or a padding-bottom: the last one has to clear a ~48px bar
+    # plus its safe area, and `0 var(--s3)` does not.
+    assert re.search(r"padding:[^;}]*\s\d{2,}px", padding), (
+        f"no bottom padding to clear the fixed nav: {padding}")

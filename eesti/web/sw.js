@@ -69,7 +69,7 @@ const ASSETS = [
   "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js",
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
-  "/js/exam.js", "/js/write.js",
+  "/js/exam.js", "/js/write.js", "/js/sources.js",
 ];
 
 self.addEventListener("install", event => {

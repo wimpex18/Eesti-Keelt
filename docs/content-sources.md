@@ -160,7 +160,7 @@ supply, so neither is wired up:
 | Route | Gives | Needs |
 |---|---|---|
 | **Ekilex API** (`ekilex.ee`, key from the user profile page) | the whole database, CC BY 4.0, commercial use unrestricted | a free account and an API key |
-| **EKI downloads** (`arhiiv.eki.ee/litsents/`) | *Eesti-vene sõnaraamat* (XML, CC BY 4.0) and the **A1/A2/B1 level word lists** (2018, CC BY 4.0) | a download form that asks who you are and what for |
+| **EKI downloads** (`arhiiv.eki.ee/litsents/`) | *Eesti-vene sõnaraamat* (XML, CC BY 4.0) and the **A1/A2/B1 level word lists** (2018, CC BY 4.0) | **ID-card authentication** (checked 2026-09-12; this said "a download form" until then) |
 
 The second is the interesting one for this app: an official Estonian-Russian
 dictionary and the exam board's own level vocabulary, both openly licensed. Worth
@@ -177,7 +177,7 @@ asking for your organisation's name and what the material will be used in**.
 The files underneath it are served without a certificate.
 
 That changes the reason and not the conclusion. **Nothing in this repository
-fetches them**, and nothing should: a gate that asks who you are is still a gate,
+fetches them**, and nothing should: an ID-card gate is emphatically a gate,
 and walking around it is the same move as batch-requesting Sõnaveeb, which this
 project refuses on a page it can point to. The sanctioned route is that the
 learner — who has an Estonian ID card and a name to put in the box — downloads

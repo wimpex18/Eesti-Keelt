@@ -110,6 +110,19 @@ class Source:
     redistributable: bool
     url: str | None = None
     note: str = ""
+    #: What this project did to the material, in the words a licence asks for.
+    #:
+    #: A field rather than a sentence inside `note`, for the same reason
+    #: `licence` and `redistributable` are fields: CC BY 4.0 does not ask you to
+    #: keep a nice README, it asks you to state the source **and indicate
+    #: changes** wherever the material is presented. EKI put it in their own
+    #: terms -- process and present it any way needed, provided the reference to
+    #: EKI is retained and the modifications are described -- and Ekilex repeats
+    #: it. An obligation that has to be *served* cannot live in prose nothing
+    #: parses; `/api/sources` renders this one.
+    #:
+    #: Empty for sources that are only linked to, only counted, or our own.
+    changes: str = ""
 
 
 @dataclass(frozen=True)
@@ -203,6 +216,10 @@ REGISTRY: tuple[Source, ...] = (
         "CC-BY-SA-4.0", True,
         "https://github.com/KristjanPikhof/Estonian-Wordlist-Enriched-Ekilex",
         "CEFR levels and frequency for 160k lemmas.",
+        changes="Загружено в словарь приложения, частота пересчитана в ранг. "
+                "Там, где официальный список уровней EKI расходится с этим "
+                "списком, побеждает EKI, а источник уровня сохраняется "
+                "отдельно.",
     ),
     Source(
         "eki-tasemesonavara", "Eesti keele tasemete sõnavara (2018, EKI)", "file",
@@ -211,10 +228,12 @@ REGISTRY: tuple[Source, ...] = (
         "The exam board's own institute publishing which words are A1, A2 and "
         "B1 — the claim the enriched Ekilex list could only estimate, and it "
         "estimated it for 6.2 % of its lemmas. Imported by `cli import-levels` "
-        "from a file the learner downloads: EKI serves it behind a page that "
-        "asks who you are and what the material will be used in, which is a "
-        "request worth answering rather than stepping around, so nothing here "
-        "fetches it. Stored verbatim in `official_levels` and applied to "
+        "from a file the learner downloads: EKI serve it behind ID-card "
+        "authentication — checked 2026-09-12, and it is a stronger gate than "
+        "the form this note used to describe, which is worth knowing before "
+        "planning a build around the file being present. A gate to walk "
+        "through rather than step around, so nothing here fetches it. Stored "
+        "verbatim in `official_levels` and applied to "
         "`words.proficiency` with `words.level_source = 'eki'`. Licence terms "
         "are EKI's own: process and present it any way needed, an app "
         "included, commercial use unrestricted, provided the attribution to "
@@ -222,6 +241,10 @@ REGISTRY: tuple[Source, ...] = (
         "filtered to A1/A2/B1, EKI's one-letter POS codes are mapped onto this "
         "project's tag vocabulary, and the corpus frequency is kept under its "
         "own name rather than written into a column that holds ranks.",
+        changes="Оставлены только уровни A1/A2/B1; однобуквенные пометы "
+                "частей речи EKI переведены в обозначения этого приложения; "
+                "корпусная частота EKI сохранена отдельно и не смешана с "
+                "рангом. Формулировки не изменялись.",
     ),
     Source(
         "giellalt-est", "GiellaLT lang-est-x-utee (grammar rules)", "file",
@@ -249,8 +272,9 @@ REGISTRY: tuple[Source, ...] = (
         "About 6 000 basic words defined in language a learner can read — the "
         "thing *Keeleõppija Sõnaveeb* exists for, published for download "
         "instead of scraped. Imported by `cli import-psv` from a file the "
-        "learner downloads; EKI serves it behind a page asking who you are and "
-        "what the material will be used in, so nothing here fetches it. Stored "
+        "learner downloads; EKI serve it behind ID-card authentication "
+        "(checked 2026-09-12), so nothing here fetches it — and a build that "
+        "assumes the file is present will not get it. Stored "
         "in the words database as `psv_gloss`, not in `vocab.db`: it is "
         "reference data, and `vocab.db` travels in the state snapshot, where "
         "a restore replaces the file whole. `/api/enrich` reads it beside "
@@ -262,6 +286,10 @@ REGISTRY: tuple[Source, ...] = (
         "three examples; editing metadata and cross-reference markup are "
         "dropped. The store is one learner's, behind Access, never "
         "redistributed — the same posture as the Sõnaveeb answers beside it.",
+        changes="Из словарной статьи взяты заглавное слово, первое "
+                "определение и не более трёх примеров; редакционные пометы и "
+                "перекрёстные ссылки отброшены. Сами определения и примеры "
+                "показаны так, как их написал EKI.",
     ),
     Source(
         "sonapi", "Sõnaveeb via api.sonapi.ee", "api",
@@ -308,7 +336,16 @@ REGISTRY: tuple[Source, ...] = (
         "harvested corpus instead, so nothing of the prose is reproduced and "
         "the sentences sit at the learner's level rather than the handbook's. "
         "It was the one third party the app uses that this ledger did not "
-        "record, found by asking which source ids the code writes.",
+        "record, found by asking which source ids the code writes.\n\n"
+        "EKK 2009 is still the handbook, and this still links to it — but the "
+        "norm underneath it moved: **ÕS 2025 became the basis of the written-"
+        "language norm on 2026-01-01**, and EKI now route current rection and "
+        "usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
+        "selgitab`). That matters here because SÜ 64's 23 contrasts are "
+        "asserted *normatively* — the `rektsioon` drill marks an answer wrong "
+        "and `rection.errors` corrects free writing — so a contrast ÕS has "
+        "since revised would be taught stale. Checked as prose, not as code: "
+        "see docs/grammar-scope.md.",
     ),
     Source(
         "oma-materjal", "Oma materjal — käsitsi lisatud", "file",
@@ -354,6 +391,42 @@ def available(path: Path | str) -> bool:
         # No `items` table, or not a database at all. Either way there is
         # nothing to read.
         return False
+
+
+def corpus_counts(path: Path | str) -> dict[str, int]:
+    """How much material is here, and how much of it a drill can reach.
+
+    Two numbers rather than one, because they fail separately and only one of
+    them is visible. `items` is the reading library. `topic_links` is
+    `topic_items`, the join `topiclinks.related()` reads and `/api/practice`
+    returns as the `reading` beside every drill.
+
+    Nothing fills `topic_items` except `cli link-topics`, run by hand: no
+    harvest calls it and no deploy step does. So a freshly harvested corpus can
+    be pushed with the table empty, every drill's `reading` comes back `[]`,
+    and nothing anywhere says why. `deploy/push-content.sh` warns about exactly
+    that -- but only at push time, and only for the operator running it. A
+    deployment pushed before that warning existed, or answered with `-y`,
+    cannot be asked. Now it can.
+
+    Missing tables read as zero, like every other count here: presence of a
+    database is not presence of data, and absence is not an error.
+    """
+    counts = {"items": 0, "topic_links": 0}
+    target = Path(path)
+    if not target.exists() or target.stat().st_size == 0:
+        return counts
+    try:
+        with sqlite3.connect(f"file:{target}?mode=ro", uri=True) as conn:
+            for key, table in (("items", "items"), ("topic_links", "topic_items")):
+                try:
+                    counts[key] = conn.execute(
+                        f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                except sqlite3.Error:
+                    pass
+    except sqlite3.Error:
+        pass
+    return counts
 
 
 def _migrate(conn: sqlite3.Connection) -> None:

@@ -101,3 +101,85 @@ class TestTheCardDrawsTheCredit:
     def test_it_has_somewhere_to_be_drawn(self):
         css = (ROOT / "eesti" / "web" / "app.css").read_text(encoding="utf-8")
         assert ".meaning .attrib" in css
+
+
+class TestTheLedgerHasAReader:
+    """`sources.REGISTRY` recorded every licence and served none of them.
+
+    CC BY 4.0 asks for the source to be named **and the changes indicated**
+    wherever the material is presented, so the obligation is discharged on the
+    page, not in a repository the learner never opens.
+    """
+
+    def test_the_route_serves_the_whole_ledger(self, client):
+        from eesti.sources import REGISTRY
+
+        got = client.get("/api/sources").json()
+        assert len(got["sources"]) == len(REGISTRY)
+        assert {s["id"] for s in got["sources"]} == {s.id for s in REGISTRY}
+
+    def test_every_cc_by_source_describes_its_changes(self):
+        """The half of CC BY that is easy to forget. A source under a licence
+        that says "indicate if changes were made" and an empty `changes` is an
+        attribution that is missing its second sentence."""
+        from eesti.sources import REGISTRY
+
+        for s in REGISTRY:
+            if s.licence.upper().startswith("CC-BY"):
+                assert s.changes, f"{s.id} is {s.licence} and says no changes"
+
+    def test_changes_are_only_claimed_where_a_licence_asks(self):
+        """Printing "no changes made" under a source we merely link to would
+        turn a legal statement into decoration."""
+        from eesti.sources import REGISTRY
+
+        for s in REGISTRY:
+            if s.changes:
+                assert s.licence.upper().startswith("CC-BY"), s.id
+
+    def test_the_route_flags_which_ones_oblige_the_page(self, client):
+        got = client.get("/api/sources").json()
+        assert set(got["attribution_required"]) == {
+            "eki-tasemesonavara", "eki-psv", "ekilex-wordlist"}
+
+    def test_it_answers_without_a_corpus(self, client, monkeypatch, tmp_path):
+        """Read from REGISTRY in code, not from the `sources` table. An
+        unharvested deployment still has to be able to credit EKI, whose
+        material is in the image rather than in the corpus."""
+        from eesti import config
+
+        monkeypatch.setattr(config, "CONTENT_DB", tmp_path / "absent.db")
+        assert len(client.get("/api/sources").json()["sources"]) > 0
+
+    def test_it_serves_no_material_and_nothing_about_the_learner(self, client):
+        """A public-ish surface: keep it to facts that are already public."""
+        allowed = {"id", "name", "kind", "licence", "url", "redistributable",
+                   "changes"}
+        for s in client.get("/api/sources").json()["sources"]:
+            assert set(s) <= allowed, set(s) - allowed
+
+
+class TestTheChangeDescriptionsAreReadable:
+    """The rule that made this project rewrite nine strings once already: a
+    caveat nobody can read is not a caveat. These are shown to a Russian
+    speaker under a Russian heading, so they are explanation, not label."""
+
+    def test_they_are_written_in_russian(self):
+        import re
+
+        from eesti.sources import REGISTRY
+
+        for s in REGISTRY:
+            if not s.changes:
+                continue
+            assert re.search(r"[а-яА-Я]", s.changes), (
+                f"{s.id}: the change description has no Cyrillic in it")
+
+    def test_they_do_not_name_columns_at_the_learner(self):
+        """`words.level_source` is a schema detail. The learner is being told
+        what was done to the dictionary, not how this app stores it."""
+        from eesti.sources import REGISTRY
+
+        for s in REGISTRY:
+            assert "`" not in s.changes, f"{s.id} shows code punctuation"
+            assert "level_source" not in s.changes, s.id
