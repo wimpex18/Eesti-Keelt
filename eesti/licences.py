@@ -87,8 +87,12 @@ REGISTRY: tuple[Source, ...] = (
         "err-r4", "ERR Raadio 4 keeleõppesaated", "harvest",
         "© ERR — personal study only", False,
         "https://r4.err.ee/arhiiv/kak_eto_po_estonski",
-        "~170 episodes across 3 archives, transcript + audio. Archives are "
-        "closed and static, so harvest once and never re-fetch.",
+        "72 episodes across 3 archives: 28 carrying transcripts, 44 audio "
+        "with a blurb. Archives are closed and static, so harvest once and "
+        "never re-fetch. **Not ~170** — that figure was extrapolated from the "
+        "one series that has transcripts (2010; the 2015 and 2019 series do "
+        "not), and it stood in this ledger after README had recorded the "
+        "correction, which is what a fact with two homes does.",
     ),
     Source(
         "err-lihtsad", "ERR Lihtsad uudised", "harvest",

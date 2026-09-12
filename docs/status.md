@@ -39,7 +39,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-52 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. Roughly 1 900 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
+52 route handlers across `eesti/api/`, serving **44 API endpoints** — every one with a caller, and `test_route_inventory.py` fails on one nothing can reach. The two numbers differ because `/api/review` answers both GET and POST, and because eight of the handlers serve the page itself (`/`, `/app.css`, the modules, the worker) rather than the API. Roughly 1 900 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
 
 The route count is checked against the code (`test_docs_match_code.py`), and so are the three numbers in the table above that can be: topics with a generator, topics that link to the handbook, and shipped glosses. The test count is deliberately **not** one of them and is deliberately vague: it changes on almost every commit, nothing can derive it from prose, and a number asserted here would make adding a test a two-file edit. Precision nobody can maintain is worse than a round figure that says the right thing.
 
