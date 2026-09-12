@@ -374,10 +374,10 @@ def import_official_levels(
 ) -> dict[str, int]:
     """Load EKI's level vocabulary and apply it. Idempotent.
 
-    The file is not fetched from here, and that is deliberate. EKI serves it
-    behind a page that asks who you are and what the material will be used in
-    — a request, not a lock, and one worth answering rather than stepping
-    around. So the learner downloads `A1A2B1.txt` themselves and names it here.
+    The file is not fetched from here, and that is deliberate. EKI serve it
+    behind ID-card authentication (checked 2026-09-12) — a gate to walk through
+    rather than step around. So the learner downloads `A1A2B1.txt` themselves
+    and names it here.
 
     Licence: CC BY 4.0. EKI's own terms say the material may be processed and
     presented in any way needed, an app included, provided the attribution to

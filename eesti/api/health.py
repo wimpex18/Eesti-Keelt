@@ -19,6 +19,7 @@ from .deps import (
     BOOT_ID,
     BUILD,
     content_available,
+    content_counts,
     content_db,
     db,
     progress_db,
@@ -45,6 +46,15 @@ def health() -> dict:
         # broken" without going to the logs. The corpus is owner-only, so it is
         # supplied at runtime and its absence is a supported state.
         "library": content_available(),
+        # The same corpus as two numbers, because it fails in two ways and only
+        # one of them was visible. A library with texts but no topic links
+        # serves reading perfectly and returns `reading: []` beside every
+        # drill -- the join is what makes practice and the library one tool,
+        # and nothing fills it but `cli link-topics`, run by hand.
+        # `push-content.sh` warns about it at push time; this is how the
+        # running service can be asked. `library` stays a boolean beside it:
+        # two different claims, two fields.
+        "corpus": content_counts(),
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
         "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),

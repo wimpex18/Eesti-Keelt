@@ -1,9 +1,11 @@
 # Two files EKI hands over in person
 
 Drop them here and they are baked into the next image. Nothing in this repo
-downloads them, and that is deliberate: EKI serves both behind a form asking
-who you are and what the material will be used in, and answering that is worth
-doing rather than stepping around.
+downloads them, and that is deliberate: EKI serve both behind **ID-card
+authentication** (checked 2026-09-12), which is a gate to walk through rather
+than step around. It also means you need an Estonian ID card or Mobiil-ID to
+get them at all — worth knowing before planning a build around their being
+here.
 
 | File | What it is | What it turns on |
 |---|---|---|

@@ -587,9 +587,12 @@ that is the first cold start.
 
 ### The two EKI files come from you, not from code
 
-Nothing in this repo downloads them. EKI serve both behind a form asking who
-you are and what the material will be used in, and answering that is worth
-doing rather than stepping around — the same posture as HARNO and Sõnaveeb.
+Nothing in this repo downloads them. EKI serve both behind **ID-card
+authentication** (checked 2026-09-12 — this said "a form" until then, which
+understated it), a gate to walk through rather than step around — the same
+posture as HARNO and Sõnaveeb. In practice it means an Estonian ID card or
+Mobiil-ID, so the build path below is the one that stays unexercised if you
+have neither.
 
 Download them once from <https://arhiiv.eki.ee/litsents/> and drop them in
 `deploy/eki/` (that directory has a README; the files themselves are

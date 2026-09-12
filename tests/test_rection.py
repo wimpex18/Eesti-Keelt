@@ -139,3 +139,36 @@ class TestRectionDrills:
         rows = [rection.Rection("lähedane", "millele", "millega", "sg all", "sg kom")]
         for item in cloze.rection_clozes(rows, words=words, seed=1):
             assert item.prompt.startswith("See on ") and item.prompt.endswith("lähedane.")
+
+
+class TestTheExplanationClaimsWhatEkiClaims:
+    """Audited 2026-09-12: for 7 of the 23 contrasts, EKI's own ühendsõnastik
+    lists the form SÜ 64 stars among that word's attested rections.
+
+    The advice is unchanged — EKI's keelenõuanne still says `põhinema millel`,
+    `tuginema millele`, and the exam marks by that. What changed is the claim
+    the app makes about it. "Требует X, а не Y" is a rule; EKI state a strong
+    recommendation, and Y is a documented drift their dictionary records. This
+    project already learned that distinction once, on V2, where the explanation
+    says *обычно* rather than *всегда* precisely so the learner does not go and
+    "correct" Estonian that natives write.
+    """
+
+    def test_it_recommends_rather_than_requires(self):
+        from eesti.providers.grammar import RECTION_WHY
+
+        assert "рекомендует" in RECTION_WHY
+        assert "требует" not in RECTION_WHY
+
+    def test_it_still_says_which_form_the_exam_wants(self):
+        """Hedging must not cost the learner the answer: this is exam prep,
+        and the recommendation is what is marked."""
+        from eesti.providers.grammar import RECTION_WHY
+
+        assert "{correct}" in RECTION_WHY
+        assert "экзамен" in RECTION_WHY
+
+    def test_it_still_cites_the_handbook(self):
+        from eesti.providers.grammar import RECTION_WHY
+
+        assert "SÜ 64" in RECTION_WHY

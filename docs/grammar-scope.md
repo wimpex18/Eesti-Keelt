@@ -103,3 +103,47 @@ not a looser filter — pairing every frame with every noun is what produced
 "Ma ostsin haigla ära" (I bought the hospital). Next pools: transport, housing,
 work, health, documents/bureaucracy — the latter being disproportionately useful
 for a residence-permit exam.
+
+## The 23 rections, audited against ÕS-2025-era EKI — 2026-09-12
+
+`cli rections` scrapes EKK SÜ 64, published 2009 and served from an *archive*
+domain, and the app now asserts those 23 contrasts **normatively**: the
+`rektsioon` drill marks an answer wrong, and `rection.errors` corrects free
+writing. Meanwhile **ÕS 2025 became the basis of the written-language norm on
+2026-01-01**, and EKI route current usage decisions through the ühendsõnastik
+in Sõnaveeb. A contrast the norm had since revised would be taught stale, by
+the most confident thing this app says.
+
+So all 23 were checked, one lookup at a time through `sonapi` with its own 1 s
+throttle — no bulk helper was written and none exists.
+
+| | |
+|---|---|
+| agree with Sõnaveeb | 11 |
+| **Sõnaveeb lists the starred form as an attested rection** | **7** |
+| no rection field (the adjectives and the two phrases) | 5 |
+
+The seven: `baseeruma`, `kaasuma`, `panustama`, `põhinema`, `rajanema`,
+`sarnanema`, `tuginema`. In every one, the form SÜ 64 stars is the `-le`
+allative, and Sõnaveeb lists it beside the recommended form under the *same*
+sense, with nothing marking it as second-best.
+
+**The teaching is unchanged, because it is still EKI's.** Their keelenõuanne
+says what the handbook says — `põhinema` takes `millel`, while `toetuma` and
+`tuginema` take `millele` — and Emakeele Selts has a paper on exactly this
+drift (*"Kas käbi sarnaneb kännule või kännuga? Alaleütleva käände
+pealetungist"*). Sõnaveeb's `rection` field is descriptive: it records the
+patterns that occur, not the one to use.
+
+**The wording changed, because "требует" was stronger than EKI is.** Calling
+the other form simply wrong, when EKI's own dictionary records it, is the same
+overreach the V2 explanation already avoids by saying *обычно* rather than
+*всегда* — stating a strong recommendation as a rule teaches a harder rule than
+the source does, and the learner then "corrects" Estonian that natives write.
+`RECTION_WHY` now says EKI recommends, notes that the `-le` form is written
+too, and says the exam marks by the recommendation. Which is the true and
+useful thing, in that order.
+
+Re-check when a new ÕS lands, or if EKK moves off `arhiiv.eki.ee`. The audit
+is twenty lines of throwaway script against `rection.load()`; it is not worth a
+CI job, and running it needs 23 requests to somebody else's server.

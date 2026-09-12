@@ -179,10 +179,38 @@ Two of the tools were probed anyway. Both answer **HTTP 500 in under a second**
 carries `Authorization: Bearer …`. **They require an ELLE account.** This
 repository must never hold a credential, so that is the end of it.
 
-**There is no free, keyless, working Estonian GEC.** That is worth stating
-plainly rather than leaving as a hopeful open item: the app's grammar chain is
-correct against the one Estonian service that exists, that service is down, and
-the LLM lane behind it is not a fallback but the thing that actually answers.
+**No free, keyless Estonian GEC is *answering*.** Re-checked 2026-09-12 and
+narrowed, because the earlier phrasing — "there is no free, keyless, working
+Estonian GEC" — claimed more than the evidence did.
+
+One exists. TartuNLP's `grammar-api` is MIT-licensed, its OpenAPI spec is
+public, and the app's provider is built against that spec rather than a guess.
+What does not exist is a live answer:
+
+| probe (2026-09-12) | result |
+|---|---|
+| `GET api.tartunlp.ai/grammar/openapi.json` | **200 in 0.65 s** |
+| `POST api.tartunlp.ai/grammar/` | **hangs, 35 s, zero bytes** |
+| `POST api.tartunlp.ai/grammar/v2` | **hangs, 35 s, zero bytes** |
+| `POST api.tartunlp.ai/translation/v2` | **200 in 0.85 s** |
+
+The last row is the one that settles it. A POST to the *same host* through the
+*same network* answers in under a second, so this is not our egress, not the
+proxy and not the request shape: TartuNLP's grammar worker is not attached to
+its queue. `grammar.tartunlp.ai`, their own demo, posts to that same host —
+its bundle names `api.tartunlp.ai` and nothing else — so the public demo is
+down for the same reason.
+
+Two consequences worth having written down. The provider is **not dead code**:
+it is a correctly-built lane waiting on somebody else's worker, and it starts
+working the day they attach one, with no change here. And the learner is
+already insulated — `PROVIDER_TIMEOUT` is 5 s split across the two endpoints,
+after which the breaker opens for 900 s and backs off to six days.
+
+The self-hosting route is a dead end for a different reason: `grammar-api` is
+a façade that proxies to a model backend (`mgc.hpc.ut.ee/v1/completions` by
+default, behind `API_AUTH_USERNAME`/`API_AUTH_PASSWORD`). Running the container
+gets you the API and none of the correction.
 
 ### 3. EKI *põhisõnavara sõnastik* — wired
 

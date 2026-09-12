@@ -113,7 +113,7 @@ class TestMaterial:
 class TestApi:
     @pytest.fixture
     def client(self):
-        pytest.importorskip("httpx")
+        pytest.importorskip("httpx2")
         from fastapi.testclient import TestClient
 
         from eesti.app import app

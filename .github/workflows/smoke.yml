@@ -358,11 +358,30 @@ jobs:
             esac
           fi
 
-          # 9. The reading library. A warning, not an error: an unharvested
-          #    deployment is a supported state.
+          # 9. The reading library, and the join that makes it reachable.
+          #
+          #    A warning, not an error, in both directions: an unharvested
+          #    deployment is a supported state, and so is a corpus whose
+          #    linking genuinely found nothing.
+          #
+          #    The second check is the one that was missing. `topic_items` is
+          #    filled only by `cli link-topics`, run by hand — no harvest calls
+          #    it, no deploy step does — so a corpus can be pushed with the
+          #    table empty, every drill returns `reading: []`, and the library
+          #    itself looks perfect. push-content.sh warns at push time; this
+          #    asks the service that is actually running.
           library="$(curl -s "${auth[@]}" "$URL/api/health")"
-          echo "$library" | grep -q '"library":true' \
-            && echo "reading library ......... OK" \
-            || echo "::warning::No reading library — push a harvest."
+          items="$(jq -r '.corpus.items // 0' <<<"$library")"
+          links="$(jq -r '.corpus.topic_links // 0' <<<"$library")"
+          if [ "${items:-0}" -gt 0 ]; then
+            echo "reading library ......... OK ($items texts)"
+            [ "${links:-0}" -gt 0 ] \
+              && echo "topic links ............. OK ($links)" \
+              || echo "::warning::$items texts and no topic links, so no drill \
+          offers anything to read. Run 'python -m eesti.cli link-topics' and \
+          push again."
+          else
+            echo "::warning::No reading library — push a harvest."
+          fi
 
           exit $fail

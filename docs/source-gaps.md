@@ -254,3 +254,106 @@ actually met while reading**, per lemma. A quiz over words nobody met would
 report on a different population than every other number in the app. It stays
 open rather than closed: it would be the right source if a placement-style
 vocabulary check is ever wanted, which is a different question from progress.
+
+## EstGEC-L2: word order, labelled rather than inferred — 2026-09-12
+
+Looked for EKIL2's error statistics to corroborate the EVKK weighting. Found
+the corpus they come from, published openly by the people who annotated it.
+
+**`tlu-dt-nlp/EstGEC-L2-Corpus`** — GPL-3.0, © 2023 Language Technology
+Research Group, Tallinn University. 258 texts, 3 721 sentences from the
+Estonian Interlanguage Corpus (EVKK's own family), error-annotated in **M2
+format** by at least three annotators each, and split by CEFR level: A2 934,
+B1 963, B2 1 029, C1 795.
+
+This is the same **EIC** subcorpus MultiGEC-2025 distributes — 258 texts, the
+count matches exactly — except MultiGEC's terms restrict use to "scientific or
+research purposes" and TLU publish it on GitHub under a licence with no such
+clause. The research-only route was a dead end; the direct one is not.
+
+### The corroboration, which was the point
+
+Measured on the test split (2 029 sentences, `A2_source_gold.txt` and its
+siblings; the dev split's per-level files are not at the same path):
+
+| error tag | edits |
+|---|---|
+| `R:NOM:FORM` | 993 |
+| **`R:WO`** | **872** |
+| `R:SPELL` | 493 |
+| `R:LEX` | 442 |
+| `R:VERB:FORM` | 239 |
+
+**Word order is the second-largest error type**, in a corpus annotated
+independently of EVKK, by a different method, at this learner's levels. EVKK's
+taxonomy counts put `word-order` first at 11.4 % of all marks; two corpora
+disagreeing about first-versus-second while agreeing it belongs at the top is
+about as good as corroboration gets. The curriculum weight stands.
+
+### And an adoption candidate, not yet adopted
+
+`R:WO` is a **label**, not the `is_reordering` inference `wordorder.py` makes
+over TalTech pairs. Sentences where word order is the only annotated error:
+
+| level | sentences | `R:WO` edits | word-order-only sentences |
+|---|---|---|---|
+| A2 | 495 | 109 | 13 |
+| B1 | 504 | 259 | 49 |
+| B2 | 535 | 269 | 38 |
+| C1 | 495 | 245 | 54 |
+| | **2 029** | **872** | **154** |
+
+154 clean two-way items from the test split alone, 62 of them at A2/B1. Against
+the current pool of 322 that is not a big number — but count is not what it
+adds:
+
+* **The current 322 carry no CEFR level at all.** These do, per sentence, so an
+  A2 learner could be given A2 items.
+* **Labelled beats inferred.** `is_reordering` requires the multiset of words
+  *and* the punctuation to be identical, which is why 54 of 376 candidate pairs
+  were dropped last week: a re-ordering that co-occurs with any other edit is
+  invisible to it. EstGEC-L2 annotates overlapping scope deliberately — "we
+  allow overlapping error scope if a token-level error occurs within a word
+  order error" — so those are recoverable rather than lost.
+* **The licence is stated.** TalTech's three datasets still state none.
+
+**Wired 2026-09-12, merged rather than swapped in**, and the decision was made
+on two measurements rather than on preference:
+
+* the two corpora share **not one** corrected sentence — replacing would have
+  discarded 322 items and bought nothing;
+* **232 of the 237** pass `is_reordering` unchanged — merging does not put two
+  standards of item into one pool.
+
+The pool is 564 items, 157 of them carrying a CEFR level, and `v2` — the rule
+with actual teaching content in it — nearly doubled, 73 → 141.
+`is_reordering` stays the single gate for both feeders: a labelled `R:WO`
+earns no exemption, because `pealinn Islandil` → `Islandi pealinn` is
+annotated word order *and* changes a case ending, which the learner could
+answer on instead of the order.
+
+`eesti/estgec.py` reads the M2, `cli wordorder` fetches and ingests it beside
+the TalTech files, and the items ride `content.db` to the deployment like
+every other ungranted thing. GPL-3.0 obligations attach to *conveying* the
+work and this app conveys nothing; were that to change, the obligation would
+be to carry the licence and name the source, which `/api/sources` now does.
+
+### Also noted
+
+The README points at TartuNLP's **`corrector`** GEC toolkit
+(`koodivaramu.eesti.ee/tartunlp/corrector`, MIT), built jointly by the Tartu
+and Tallinn language-technology groups. Read 2026-09-12, and it narrows the
+earlier flat conclusion rather than overturning it — see `source-audit.md` for
+the probe table.
+
+Short version: the service exists, is MIT, and its spec is public; it just
+does not answer. A POST to `api.tartunlp.ai/grammar/` hangs for 35 s, while a
+POST to `translation/v2` on the **same host** answers in 0.85 s — so their
+grammar worker is unattached, and their own demo at `grammar.tartunlp.ai`
+posts to that same host and is down with it. Self-hosting does not rescue it:
+`grammar-api` is a façade over a model backend it expects credentials for, so
+the container gives you the API and none of the correction.
+
+The useful part is what this means for us. `TartuNLPGrammar` is not dead code
+— it is a correct lane waiting on somebody else's worker, and it will start
+answering with no change here.

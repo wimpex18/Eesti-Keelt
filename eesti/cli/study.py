@@ -78,8 +78,9 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
     """
     from collections import Counter
 
+    from .. import estgec
     from ..sources import connect
-    from ..wordorder import SOURCE_ID, bench_files, ingest, items
+    from ..wordorder import bench_files, ingest, ingest_estgec, items
 
     # Every TalTech pair file by default, one if `--file` names it. They carry
     # the same two columns and the same licence posture, and item ids are
@@ -92,15 +93,32 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
         if found:
             print(f"  {path.name if hasattr(path, 'name') else path}: {found}")
         added += found
+
+    # The second feeder, unless `--file` named one. Fetched here rather than by
+    # `fetch-bench`: five files from a public GitHub repository under GPL-3.0,
+    # nothing to gate and nobody to hammer. Allowed to come back empty, like
+    # every other third party in this project.
+    if not args.file:
+        estgec.fetch()
+        found = ingest_estgec(conn)
+        print(f"  EstGEC-L2: {found}"
+              + ("" if found else "  (nothing fetched — offline?)"))
+        added += found
+
     if not added:
         listed = ", ".join(str(p) for p in paths)
         print(f"Nothing ingested. Is {listed} there? Run `cli fetch-bench` first.")
         return 1
-    got = items(conn, limit=1000)
-    print(f"  {added} word-order items into {content_path(args)} as {SOURCE_ID!r}")
+
+    got = items(conn, limit=2000)
+    print(f"  {added} word-order items into {content_path(args)}")
     for rule, n in Counter(i.rule for i in got).most_common():
         print(f"    {rule:10} {n}")
-    print("  Ungranted source: push with deploy/push-content.sh, never commit.")
+    levelled = Counter(i.level for i in got if i.level)
+    if levelled:
+        print("  with a CEFR level: "
+              + ", ".join(f"{lvl} {n}" for lvl, n in sorted(levelled.items())))
+    print("  Ungranted sources: push with deploy/push-content.sh, never commit.")
     return 0
 
 

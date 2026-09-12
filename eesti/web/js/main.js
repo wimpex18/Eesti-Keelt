@@ -22,6 +22,7 @@ import {goToPlace, selectTab} from "./router.js";
    costume, and `tests/test_ui_contract.py` now fails on a module the entry
    point cannot reach. */
 import "./reading.js";
+import "./sources.js";
 import "./write.js";
 
 if ("serviceWorker" in navigator) {

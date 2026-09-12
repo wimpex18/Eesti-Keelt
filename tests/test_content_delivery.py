@@ -24,7 +24,7 @@ import argparse
 
 import pytest
 
-pytest.importorskip("httpx", reason="TestClient needs httpx")
+pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -272,3 +272,91 @@ class TestThePushWarnsAboutAnUnlinkedCorpus:
     def test_it_stays_quiet_when_the_corpus_is_linked(self, tmp_path, monkeypatch, capsys):
         out = self._push(tmp_path, monkeypatch, links=3, capsys=capsys)
         assert "no topic links" not in out, out
+
+
+class TestTheRunningServiceCanBeAskedTheSameQuestion:
+    """The push warns about an unlinked corpus. Only the push.
+
+    `push-content.sh` catches it for the operator running it, once. A
+    deployment pushed before that check existed, or answered past it, cannot be
+    asked afterwards — and `/api/health` said `"library": true`, which is true
+    and useless: the texts are there, the join is empty, every drill returns
+    `reading: []`, and the library page looks perfect.
+
+    Two numbers, because they fail separately. Same treatment `reference` got
+    for the three build-time imports, and the same rule underneath: presence of
+    a database is not presence of data, so count the rows.
+    """
+
+    def _corpus(self, tmp_path, *, items: int, links: int):
+        from eesti.sources import Item, add_items, connect, register
+
+        path = tmp_path / "content.db"
+        conn = connect(path)
+        register(conn)
+        if items:
+            add_items(conn, [
+                Item(source_id="selges-keeles", skill="lugemine",
+                     title=f"Tekst {n}", body="sõna sõna", level=None,
+                     band="keskmine", meta={})
+                for n in range(items)
+            ])
+            item_id = conn.execute("SELECT id FROM items").fetchone()[0]
+            for n in range(links):
+                conn.execute(
+                    "INSERT INTO topic_items (topic, item_id, hits) "
+                    "VALUES (?, ?, 1)", (f"topic{n}", item_id))
+        conn.commit()
+        conn.close()
+        return path
+
+    def _health(self, client, monkeypatch, path):
+        from eesti import config
+
+        monkeypatch.setattr(config, "CONTENT_DB", path)
+        return client.get("/api/health").json()
+
+    def test_a_linked_corpus_reports_both(self, client, monkeypatch, tmp_path):
+        got = self._health(
+            client, monkeypatch, self._corpus(tmp_path, items=2, links=3))
+        assert got["corpus"] == {"items": 2, "topic_links": 3}
+        assert got["library"] is True
+
+    def test_texts_with_no_links_are_visibly_different(
+        self, client, monkeypatch, tmp_path
+    ):
+        """The failure this exists for. `library` cannot tell these apart."""
+        got = self._health(
+            client, monkeypatch, self._corpus(tmp_path, items=2, links=0))
+        assert got["library"] is True, "the texts really are there"
+        assert got["corpus"] == {"items": 2, "topic_links": 0}
+
+    def test_no_corpus_at_all_is_zero_not_an_error(
+        self, client, monkeypatch, tmp_path
+    ):
+        """An unharvested deployment is a supported state, and the corpus is
+        owner-only by licence, so absence is ordinary."""
+        got = self._health(client, monkeypatch, tmp_path / "nothing.db")
+        assert got["corpus"] == {"items": 0, "topic_links": 0}
+        assert got["library"] is False
+
+    def test_a_database_older_than_the_join_reads_zero(self, tmp_path):
+        """The corpus is pushed as a file, so one can predate `topic_items`.
+        A missing table must be zero, never an exception on /api/health."""
+        import sqlite3
+
+        from eesti.sources import corpus_counts
+
+        path = tmp_path / "old.db"
+        conn = sqlite3.connect(path)
+        conn.execute("CREATE TABLE items (id TEXT)")
+        conn.commit()
+        conn.close()
+        assert corpus_counts(path) == {"items": 0, "topic_links": 0}
+
+    def test_the_smoke_check_reads_both(self):
+        body = (ROOT / ".github" / "workflows" / "smoke.yml").read_text(
+            encoding="utf-8")
+        assert ".corpus.items" in body
+        assert ".corpus.topic_links" in body
+        assert "link-topics" in body, "and says how to fix it"

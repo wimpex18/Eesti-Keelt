@@ -141,7 +141,7 @@ The trap that shaped the table: EKI publishes a corpus **count** (`aasta` is
 5 006 831) and `words.freq_rank` holds a **rank** (`ma` is 2). They order the
 same words in opposite directions, so EKI's number stays in
 `official_levels.freq` under its own name. `cli import-levels` does not
-download — EKI asks who you are first, and that is worth answering.
+download — EKI asks for an ID card first, and that is worth doing.
 
 ## Where it runs
 

@@ -194,6 +194,18 @@ def _tag_of(wrong: str, right: str) -> str:
 class TartuNLPGrammar:
     """TartuNLP's public GEC service at `api.tartunlp.ai/grammar`.
 
+    **Status 2026-09-12: correct, and not answering.** A GET for their OpenAPI
+    spec on this host returns in 0.65 s; a POST to either grammar endpoint
+    hangs for 35 s with zero bytes; a POST to `translation/v2` on the *same
+    host* returns in 0.85 s. That last probe is what rules out our network, the
+    proxy and the request shape and leaves their worker. Their own demo at
+    `grammar.tartunlp.ai` posts here too, and is down with it.
+
+    So this class is a lane waiting on somebody else, not dead code: it starts
+    answering the day they attach a worker, with no change here. The learner is
+    insulated meanwhile — `PROVIDER_TIMEOUT` is 5 s split across the two
+    endpoints, then the breaker opens for 900 s and backs off to six days.
+
     ## The contract, read from their spec rather than guessed
 
     `api.tartunlp.ai/grammar/openapi.json` is public and was fetched on
@@ -680,11 +692,26 @@ def agreement(text: str) -> list[Correction]:
 
 #: Russian, keeping EKK's own frame words so the learner meets the form the
 #: handbook uses — `millega`, not "the comitative".
+#: Deliberately "рекомендует", not "требует" — the same hedge, for the same
+#: reason, as the V2 explanation two constants up.
+#:
+#: Audited 2026-09-12 against EKI's current ühendsõnastik, one word at a time:
+#: for **7 of the 23** contrasts (baseeruma, kaasuma, panustama, põhinema,
+#: rajanema, sarnanema, tuginema) Sõnaveeb lists the form SÜ 64 stars as an
+#: error among that word's attested rections. EKI's advice channel still
+#: recommends what the handbook says — `põhinema millel`, `toetuma`/`tuginema`
+#: millele — so the teaching is right and unchanged. What is not right is
+#: calling the other form simply wrong when EKI's own dictionary records it:
+#: that is the `-le` drift Emakeele Selts has a paper about, and describing a
+#: strong recommendation as a requirement teaches a harder rule than EKI
+#: states. The exam marks by the recommendation, so the recommendation is what
+#: the learner is given — as a recommendation.
 RECTION_WHY = (
-    "**Rektsioon.** «{headword}» требует **{correct}** ({correct_frame}), "
-    "а не **{wrong}** ({wrong_frame}). Это одна из ошибок, которые EKK "
-    "перечисляет отдельно (SÜ 64) — русский предлог и эстонский падеж здесь "
-    "не совпадают."
+    "**Rektsioon.** «{headword}» — EKI рекомендует **{correct}** "
+    "({correct_frame}), а не **{wrong}** ({wrong_frame}). Это одна из ошибок, "
+    "которые EKK перечисляет отдельно (SÜ 64): русский предлог и эстонский "
+    "падеж здесь не совпадают, и форму на **-le** носители тоже иногда "
+    "пишут — но на экзамене оценивают по рекомендации."
 )
 
 

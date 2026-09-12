@@ -152,7 +152,7 @@ class TestTheEndpointRefusesTheDangerousDefault:
     def test_no_topic_and_no_flag_is_a_400(self, tmp_path, monkeypatch):
         """A missing topic is far more likely to be a caller's bug than a wish
         to erase months of work."""
-        pytest.importorskip("httpx", reason="TestClient needs httpx")
+        pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
         from fastapi.testclient import TestClient
 
         from eesti import app as app_module
@@ -169,7 +169,7 @@ class TestTheEndpointRefusesTheDangerousDefault:
     def test_it_needs_the_state_token(self, tmp_path, monkeypatch):
         """Destroying history must not be reachable from a page the learner has
         open — it is an operator action, not a UI button."""
-        pytest.importorskip("httpx", reason="TestClient needs httpx")
+        pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
         from fastapi.testclient import TestClient
 
         from eesti import app as app_module

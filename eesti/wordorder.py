@@ -65,6 +65,26 @@ disjoint and land in separate files, so what that track scores has not moved —
 a pool five times bigger would otherwise have arrived as a mysteriously
 different benchmark number.
 
+A second corpus, and why it was merged rather than swapped in
+-------------------------------------------------------------
+`EstGEC-L2` (Tallinn University, GPL-3.0) annotates word order as **`R:WO`**
+instead of leaving it to be inferred, and publishes its test split per CEFR
+level. See `eesti/estgec.py`. It adds 242 items and brings the pool to 564,
+of which 157 now say what level their writer was sitting at — the first items
+here that do.
+
+Both questions were measured before either was answered:
+
+* the two corpora share **not one** corrected sentence, so replacing would have
+  discarded 322 items and bought nothing;
+* **232 of EstGEC-L2's 237** pass `is_reordering` unchanged, so merging does
+  not put two standards of item in one pool.
+
+`is_reordering` stays the single gate. A labelled `R:WO` does not exempt a pair
+from it: `pealinn Islandil` → `Islandi pealinn` is annotated word order and
+also changes a case ending, and the learner could answer that from the ending.
+One bar, two feeders, and a new source cannot lower it by arriving.
+
 Licence: neither dataset card states one. Treated like every other ungranted
 source here — personal study, git-ignored, never redistributed, and never baked
 into an image built from a public repository.
@@ -84,6 +104,14 @@ from .item import GradedItem
 TAG = "word-order"
 
 SOURCE_ID = "taltech-gec"
+
+#: Every source the drill draws from. Two, since 2026-09-12, and merged rather
+#: than swapped because the question was measured before it was answered: the
+#: two corpora share **not one** corrected sentence, so replacing would have
+#: thrown 322 items away for nothing, and 232 of EstGEC-L2's 237 pass
+#: `is_reordering` unchanged, so merging does not mix two standards of item.
+#: One gate, two feeders -- a new source cannot lower the bar by arriving.
+SOURCE_IDS = (SOURCE_ID, "estgec-l2")
 
 #: Finite verb form tags in Vabamorf's vocabulary. `neg` (the particle `ei`) is
 #: excluded: it is tagged V but is not the finite verb whose position is at
@@ -134,6 +162,13 @@ class Item:
     rule: str                # v2 | negation | other
     why_ru: str
     moved: str = ""
+    #: CEFR level of the learner who wrote it, where the source says.
+    #:
+    #: `None` for every TalTech pair, because that file does not say and this
+    #: project does not invent a scale it was not given. EstGEC-L2 publishes its
+    #: test split per level, so those arrive labelled -- which is most of what
+    #: that corpus adds over an inference.
+    level: str | None = None
 
     @property
     def key(self) -> str:
@@ -145,7 +180,7 @@ class Item:
         return {
             "key": self.key, "wrong": self.wrong, "right": self.right,
             "rule": self.rule, "why_ru": self.why_ru, "moved": self.moved,
-            "tag": TAG,
+            "level": self.level, "tag": TAG,
         }
 
 
@@ -221,15 +256,21 @@ def classify(wrong: str, right: str) -> tuple[str, str]:
     return "other", moved
 
 
-def from_pairs(pairs: list[tuple[str, str]]) -> list[Item]:
-    """Build items from (learner wrote, native corrected) pairs."""
+def from_pairs(pairs) -> list[Item]:
+    """Build items from (learner wrote, native corrected[, level]) tuples.
+
+    The level is optional so both feeders use one function: TalTech's file has
+    no level to give, EstGEC-L2's test split has one per sentence.
+    """
     out: list[Item] = []
-    for wrong, right in pairs:
+    for pair in pairs:
+        wrong, right = pair[0], pair[1]
+        level = pair[2] if len(pair) > 2 else None
         if not is_reordering(wrong, right):
             continue
         rule, moved = classify(wrong, right)
         out.append(Item(wrong=wrong.strip(), right=right.strip(),
-                        rule=rule, why_ru=WHY[rule], moved=moved))
+                        rule=rule, why_ru=WHY[rule], moved=moved, level=level))
     return out
 
 
@@ -281,9 +322,11 @@ def items(content: sqlite3.Connection | None, limit: int = 10,
     if content is None:
         return []
     try:
+        placeholders = ",".join("?" for _ in SOURCE_IDS)
         rows = content.execute(
-            "SELECT body, meta FROM items WHERE source_id = ? AND skill = ?",
-            (SOURCE_ID, "kirjutamine"),
+            f"SELECT body, meta, level FROM items"
+            f" WHERE source_id IN ({placeholders}) AND skill = ?",
+            (*SOURCE_IDS, "kirjutamine"),
         ).fetchall()
     except sqlite3.Error:
         return []
@@ -292,6 +335,7 @@ def items(content: sqlite3.Connection | None, limit: int = 10,
     for row in rows:
         body = row[0] if not isinstance(row, sqlite3.Row) else row["body"]
         meta = row[1] if not isinstance(row, sqlite3.Row) else row["meta"]
+        level = row[2] if not isinstance(row, sqlite3.Row) else row["level"]
         try:
             data = json.loads(meta or "{}")
         except ValueError:
@@ -300,7 +344,7 @@ def items(content: sqlite3.Connection | None, limit: int = 10,
             continue
         out.append(Item(wrong=data["wrong"], right=body, rule=data.get("rule", "other"),
                         why_ru=WHY.get(data.get("rule", "other"), WHY["other"]),
-                        moved=data.get("moved", "")))
+                        moved=data.get("moved", ""), level=level))
 
     rank = {"v2": 0, "negation": 1, "other": 2}
     random.Random(seed).shuffle(out)
@@ -328,10 +372,32 @@ def ingest(content: sqlite3.Connection, path: Path | str) -> int:
     found = load(path)
     if not found:
         return 0
+    return _store(content, found, SOURCE_ID)
+
+
+def ingest_estgec(content: sqlite3.Connection,
+                  cache_dir: Path | str | None = None) -> int:
+    """The same, for the corpus that labels its word-order errors.
+
+    Through `from_pairs`, so `is_reordering` gates these exactly as it gates
+    TalTech's: one bar, and a second feeder cannot lower it.
+    """
+    from . import estgec
+    from .sources import register
+
+    register(content)
+    found = from_pairs(estgec.pairs(cache_dir))
+    return _store(content, found, estgec.SOURCE_ID) if found else 0
+
+
+def _store(content: sqlite3.Connection, found: list[Item], source_id: str) -> int:
+    from .sources import Item as SourceItem
+    from .sources import add_items
+
     return add_items(content, [
         SourceItem(
-            source_id=SOURCE_ID, skill="kirjutamine", body=i.right,
-            title=f"sõnajärg: {i.rule}",
+            source_id=source_id, skill="kirjutamine", body=i.right,
+            title=f"sõnajärg: {i.rule}", level=i.level,
             meta={"wrong": i.wrong, "rule": i.rule, "moved": i.moved,
                   "tag": TAG, "kind": "harjutus"},
         )

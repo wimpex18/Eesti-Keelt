@@ -39,7 +39,7 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-51 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 432 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
+52 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 893 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
 
 ## What a learner still cannot do
 
@@ -642,7 +642,7 @@ in `||` so a missing file costs one feature rather than the image.
 | Thread | Outcome |
 |---|---|
 | `cli import-levels` had never met the real file | **Hardened against what it actually holds.** The file was interrogated about its own contents: ~200 lemmas appear on more than one line (collapsed now, lowest level wins, instead of a coin-toss decided by file order), and it carries multi-word entries like `aru saama` that would have reached the conjugation drill. Plus `--check`, which reads the file and writes nothing, and a stress test at 51 011 lemmas. |
-| ELLE | **Answered: no.** Its whole API surface is seventeen paths and none of them is grammatical error correction — it is a text-analysis environment. Two tools were probed and answer 500 in under a second; the bundle shows every tool call carries `Authorization: Bearer …`, so they need an ELLE account. **There is no free, keyless, working Estonian GEC.** |
+| ELLE | **Answered: no.** Its whole API surface is seventeen paths and none of them is grammatical error correction — it is a text-analysis environment. Two tools were probed and answer 500 in under a second; the bundle shows every tool call carries `Authorization: Bearer …`, so they need an ELLE account. **No free, keyless Estonian GEC is answering** — narrowed 2026-09-12: TartuNLP's is MIT and its spec is public, but POST hangs 35 s while a POST to translation on the same host answers in 0.85 s, so it is their worker. See `source-audit.md`. |
 | EKI *põhisõnavara sõnastik* | **Wired.** `cli import-psv` imports ~6 000 learner-level definitions and their examples, CC BY 4.0, parsed to the schema EKI publishes beside the data. This is what *Keeleõppija Sõnaveeb* was wanted for. |
 
 The PSV import fills `/api/enrich`'s `"examples"`, which was hardcoded `[]`,
