@@ -199,6 +199,28 @@ REGISTRY: tuple[Source, ...] = (
         "posture as ERR and HARNO, and never baked into the image.",
     ),
     Source(
+        "estgec-l2", "EstGEC-L2 (Tallinna Ülikool)", "file",
+        "GPL-3.0", False,
+        "https://github.com/tlu-dt-nlp/EstGEC-L2-Corpus",
+        "258 texts, 3 721 sentences from the Estonian Interlanguage Corpus — "
+        "the same corpus whose error taxonomy weights this curriculum — "
+        "error-tagged in M2 format by at least three annotators each, and "
+        "published per CEFR level. It supplies word-order items where "
+        "`R:WO` is a **label** rather than the inference `wordorder.py` makes "
+        "over TalTech's unannotated pairs, and it is the only source of items "
+        "here that says what level its writer was sitting at. Merged with the "
+        "TalTech pool, not swapped for it: measured 2026-09-12, the two share "
+        "not one corrected sentence, and 232 of 237 pass `is_reordering` "
+        "unchanged, so one gate still governs both. "
+        "`redistributable = 0` is a choice, not a limit — GPL-3.0 permits "
+        "conveying the work with its licence and source, and this app conveys "
+        "nothing: the corpus rides `content.db` to one deployment behind "
+        "Access. MultiGEC-2025 distributes the identical 258 texts as `EIC` "
+        "under terms limiting use to scientific and research purposes, which "
+        "exam self-study is not; TLU publish it themselves with no such "
+        "clause, and that is the door used.",
+    ),
+    Source(
         "harno", "HARNO tasemeeksami materjalid", "file",
         "© Haridus- ja Noorteamet — personal study only", False,
         "https://harno.ee/eesti-keele-tasemeeksamid",

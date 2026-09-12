@@ -317,11 +317,26 @@ adds:
   order error" — so those are recoverable rather than lost.
 * **The licence is stated.** TalTech's three datasets still state none.
 
-Not wired. It is a new corpus, a new format (M2), a download step, and a
-decision about whether it replaces or merges with the 322 — item ids are
-content hashes, so merging is safe, but "which pool does a drill draw from"
-is a question with a wrong answer. Recorded here with the numbers so the
-decision is made on them.
+**Wired 2026-09-12, merged rather than swapped in**, and the decision was made
+on two measurements rather than on preference:
+
+* the two corpora share **not one** corrected sentence — replacing would have
+  discarded 322 items and bought nothing;
+* **232 of the 237** pass `is_reordering` unchanged — merging does not put two
+  standards of item into one pool.
+
+The pool is 564 items, 157 of them carrying a CEFR level, and `v2` — the rule
+with actual teaching content in it — nearly doubled, 73 → 141.
+`is_reordering` stays the single gate for both feeders: a labelled `R:WO`
+earns no exemption, because `pealinn Islandil` → `Islandi pealinn` is
+annotated word order *and* changes a case ending, which the learner could
+answer on instead of the order.
+
+`eesti/estgec.py` reads the M2, `cli wordorder` fetches and ingests it beside
+the TalTech files, and the items ride `content.db` to the deployment like
+every other ungranted thing. GPL-3.0 obligations attach to *conveying* the
+work and this app conveys nothing; were that to change, the obligation would
+be to carry the licence and name the source, which `/api/sources` now does.
 
 ### Also noted
 
