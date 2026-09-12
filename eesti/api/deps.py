@@ -37,6 +37,13 @@ def content_available() -> bool:
     return available(config.CONTENT_DB)
 
 
+def content_counts() -> dict:
+    from .. import config
+    from ..sources import corpus_counts
+
+    return corpus_counts(config.CONTENT_DB)
+
+
 # Every learner database is resolved from `config` when opened, never from a
 # copy bound here at import. `app.py` used to hold its own module globals for
 # these four, so redirecting them meant patching two modules that could drift
