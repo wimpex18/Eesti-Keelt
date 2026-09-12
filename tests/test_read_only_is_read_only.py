@@ -18,8 +18,8 @@ items the learner never saw:
 None of that is cosmetic. Wrong answers fill the accuracy window that gates
 mastery, and the checkpoint row feeds the readiness verdict — the one deciding
 A2-then-B1 against B1-alone in 2027. Practice nobody did makes the learner look
-worse than they are, and `docs/status.md` names their attempt count as the one
-number that matters.
+worse than they are, and `docs/changelog.md` records the incident: fifteen
+attempts on the deployment, none of them the learner's.
 
 **Why the existing suite could not see it.** `test_cli_smoke` runs every
 `READ_ONLY` command and asserts each exits clean — but it calls `cli.main()`

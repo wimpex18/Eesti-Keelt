@@ -44,6 +44,12 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `curriculum-plan.md` and `roadmap.md` are excluded for the same reason from
 #: the other direction: they narrate what a build step achieved, which is a
 #: record of a past state by construction.
+#:
+#: `docs/changelog.md` is excluded on the same ground, and its exclusion is the
+#: cleanest of them: since the 2026-09-12 split it holds *only* records of past
+#: states, so there is no live claim in it to miss. That is the half of
+#: `status.md` the `HISTORICAL` regex below was guessing at from wording; the
+#: guess now has 1 195 fewer lines to be wrong about.
 LIVE = ("README.md", "docs/status.md", "docs/app-structure.md",
         "docs/architecture.md", "docs/qa-status.md")
 DOCS = [ROOT / name for name in LIVE if (ROOT / name).exists()]
