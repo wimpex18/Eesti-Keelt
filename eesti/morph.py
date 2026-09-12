@@ -19,12 +19,20 @@ from functools import lru_cache
 
 from estnltk.vabamorf.morf import Vabamorf, spellcheck, synthesize
 
-# Vabamorf form tags. Estonian marks the object with one of three cases;
-# the genitive/partitive contrast is the one that carries aspect.
+# Vabamorf form tags. Estonian marks the object with one of three cases, and
+# these are the two this module reasons about: the genitive/partitive contrast
+# is the one that carries aspect, and it is the documented weakness the whole
+# curriculum points at.
+#
+# The third, the nominative, is deliberately absent rather than forgotten. It
+# marks a total object in the plural and after an imperative, neither of which
+# the object-case drill generates, and a constant nothing reads is the same
+# defect as a measurement nothing writes -- `NOMINATIVE_SG` sat here unused
+# from the first commit until 2026-09-12. If nominative objects are ever
+# drilled, the tag comes back with the code that needs it.
 GENITIVE_SG = "sg g"
 PARTITIVE_SG = "sg p"
 PARTITIVE_PL = "pl p"
-NOMINATIVE_SG = "sg n"
 
 # Parts of speech that can head an object phrase.
 OBJECT_POS = frozenset({"S", "A", "P", "N", "Y"})  # noun, adj, pronoun, numeral, abbrev

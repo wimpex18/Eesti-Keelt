@@ -95,9 +95,6 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-#: Provenance marker in `word_gloss.fetched`, alongside `seed` and a timestamp.
-SOURCE = "psv"
-
 #: How many examples to keep per word. A word card is a reminder, not an entry
 #: — the same reason `remember()` keeps three Russian glosses and not forty.
 MAX_EXAMPLES = 3

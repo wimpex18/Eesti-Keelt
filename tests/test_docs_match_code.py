@@ -239,3 +239,51 @@ class TestEveryFileTheDocsPointAtExists:
     def test_every_exemption_says_why(self):
         for name, reason in self.NOT_A_FILE.items():
             assert len(reason) > 25, f"{name} is exempt without a reason"
+
+
+class TestNothingIsDefinedForNobody:
+    """The counterpart to "a measurement with no writer": a writer with no
+    reader. Both are the same defect and this project has paid for it eight
+    times; the sweep that produced this class found four, of which three were
+    real and are gone.
+
+    Deliberately narrow. It checks module-level *constants*, not functions —
+    every function the same sweep flagged turned out to be a FastAPI route
+    handler, bound by its decorator and referenced by name nowhere, which is
+    correct and must not be reported.
+    """
+
+    #: Kept on purpose, with the reason. `ARCHIVES` is a provenance record: the
+    #: three ERR archive index pages, noted because the harvester deliberately
+    #: does *not* fetch them (they render their episode lists in JavaScript) and
+    #: a future session should not rediscover that by trying. Same category as
+    #: the provenance-only rows in `sources.REGISTRY`.
+    ALLOWED = {"ARCHIVES"}
+
+    def test_no_module_constant_is_read_by_nothing(self):
+        import ast
+        import collections
+        import re
+
+        root = ROOT / "eesti"
+        declared = []
+        for path in sorted(root.rglob("*.py")):
+            for node in ast.parse(path.read_text(encoding="utf-8")).body:
+                targets = (node.targets if isinstance(node, ast.Assign)
+                           else [node.target] if isinstance(node, ast.AnnAssign)
+                           else [])
+                for target in targets:
+                    if isinstance(target, ast.Name) and target.id.isupper():
+                        declared.append((target.id, path.relative_to(ROOT), node.lineno))
+
+        seen = collections.Counter()
+        for path in (list(root.rglob("*.py"))
+                     + list((ROOT / "tests").rglob("*.py"))
+                     + list((root / "web").rglob("*.js"))):
+            seen.update(re.findall(r"\b\w+\b", path.read_text(encoding="utf-8")))
+
+        orphans = [f"{name} ({rel}:{line})" for name, rel, line in declared
+                   if seen[name] <= 1 and name not in self.ALLOWED]
+        assert not orphans, (
+            "declared and read by nothing — delete it, or add it to ALLOWED "
+            f"with the reason: {orphans}")
