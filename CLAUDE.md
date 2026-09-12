@@ -190,10 +190,9 @@ origin), and a git-ignored `.env` (local).
   publishes the level vocabulary and the *põhisõnavara sõnastik* under CC BY
   4.0, with EKI's terms saying the material may be processed and presented any
   way needed, an app included, provided the attribution is kept and the changes
-  described. Both are imported from a file **the learner downloads** — EKI asks
-  who you are and what for, and that is worth answering rather than stepping
-  around, so nothing in this repo fetches them. This is why the app does not
-  need to scrape the learner dictionary.
+  described. Both are imported from a file **the learner downloads** — EKI ask
+  for an ID card first, so nothing in this repo fetches them and nothing can.
+  This is why the app does not need to scrape the learner dictionary.
 - **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only,
   throttled to one live request a second under a lock, and deliberately has no
   bulk helper. Where more than three fields are wanted, **link to Sõnaveeb**
@@ -219,7 +218,7 @@ python -m eesti.cli import-psv F     # EKI's learner-level definitions (you down
 python -m eesti.cli rections         # EKK SÜ 64, once — powers the rektsioon check
 python -m eesti.cli link-topics      # which texts demonstrate which topic
 python -m eesti.cli notion           # queued errors; --push writes to Notion
-pytest tests/ -q                     # ~1 690 in-process; ~144 more need a browser
+pytest tests/ -q                     # ~1 900 in-process; ~144 more need a browser
 ```
 
 `deploy/setup.sh`, `deploy/push-content.sh`, `deploy/reset-progress.sh` all run
