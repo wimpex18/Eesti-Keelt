@@ -680,11 +680,26 @@ def agreement(text: str) -> list[Correction]:
 
 #: Russian, keeping EKK's own frame words so the learner meets the form the
 #: handbook uses — `millega`, not "the comitative".
+#: Deliberately "рекомендует", not "требует" — the same hedge, for the same
+#: reason, as the V2 explanation two constants up.
+#:
+#: Audited 2026-09-12 against EKI's current ühendsõnastik, one word at a time:
+#: for **7 of the 23** contrasts (baseeruma, kaasuma, panustama, põhinema,
+#: rajanema, sarnanema, tuginema) Sõnaveeb lists the form SÜ 64 stars as an
+#: error among that word's attested rections. EKI's advice channel still
+#: recommends what the handbook says — `põhinema millel`, `toetuma`/`tuginema`
+#: millele — so the teaching is right and unchanged. What is not right is
+#: calling the other form simply wrong when EKI's own dictionary records it:
+#: that is the `-le` drift Emakeele Selts has a paper about, and describing a
+#: strong recommendation as a requirement teaches a harder rule than EKI
+#: states. The exam marks by the recommendation, so the recommendation is what
+#: the learner is given — as a recommendation.
 RECTION_WHY = (
-    "**Rektsioon.** «{headword}» требует **{correct}** ({correct_frame}), "
-    "а не **{wrong}** ({wrong_frame}). Это одна из ошибок, которые EKK "
-    "перечисляет отдельно (SÜ 64) — русский предлог и эстонский падеж здесь "
-    "не совпадают."
+    "**Rektsioon.** «{headword}» — EKI рекомендует **{correct}** "
+    "({correct_frame}), а не **{wrong}** ({wrong_frame}). Это одна из ошибок, "
+    "которые EKK перечисляет отдельно (SÜ 64): русский предлог и эстонский "
+    "падеж здесь не совпадают, и форму на **-le** носители тоже иногда "
+    "пишут — но на экзамене оценивают по рекомендации."
 )
 
 
