@@ -51,8 +51,6 @@ TIMEOUT = 45.0
 #: while consolidating how the request is made.
 UA = "Mozilla/5.0 (compatible; eesti-keelt)"
 
-LEVELS = ("A2", "B1", "B2", "C1")
-
 _KIND_MARKERS = (
     # Ordered: the first match wins, and the specific ones come first.
     ("sooritusnaidis", ("sooritusnaidis", "sooritusnäidis", "sooritusnaidised",

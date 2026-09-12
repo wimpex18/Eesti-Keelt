@@ -36,7 +36,7 @@ way:
 2. The material is owner-only. Holding it, even behind Access, is a risk that
    buys nothing when a link buys everything.
 
-So this stores a **pointer**: level, skill, title, maximum points, URL. The app
+So this stores a **pointer**: level, skill, title, URL. The app
 can say "four official A2 reading tasks, here they are" and send the learner to
 the exam board's own site to do them. Nothing of theirs is ever in our database.
 """
@@ -61,7 +61,6 @@ TIMEOUT = 45.0
 
 _RID_RE = re.compile(r'name="rid"[^>]*value="([^"]+)"')
 _ITEM_RE = re.compile(r'/publicitems/(\d+)"[^>]*>\s*([^<]{3,160})')
-_POINTS_RE = re.compile(r"max\s+(\d+)\s*p")
 
 #: The exam's four parts. Only two are published as public tasks -- there is no
 #: automated way to sit a speaking or writing task, which is the honest reason

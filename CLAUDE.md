@@ -10,7 +10,7 @@ of it is repeated here.
 
 | Read | For |
 |---|---|
-| `docs/status.md` | what works, what is missing, the known bugs and the tech debt — **read before planning a sprint** |
+| `docs/status.md` | what works, what is missing, the known bugs and the tech debt — **read before planning a sprint**; `changelog.md` has how it got there |
 | `docs/lessons.md` | the habits this codebase paid for, grouped by what you are about to change |
 | `docs/architecture.md` | how the modules fit together |
 | `docs/app-structure.md` | the screens, the modes and the tabs, as built |

@@ -221,7 +221,7 @@ class TestTheNegationLaneReachedNobody:
     `generator == "corpus_cloze"` branch, guarded by `topic == "obj-case"`; but
     `obj-case`'s generator is `object_case`, so that comparison could not be
     true. A generator with no caller, this project's most-repeated bug shape,
-    and this time on the topic `docs/status.md` names as the documented #1
+    and this time on the topic `CLAUDE.md` names as the documented #1
     weakness: negation is the *one* object-case rule a corpus sentence settles
     on its own, so the learner's only authentic obj-case material was the half
     that never shipped.

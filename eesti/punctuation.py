@@ -43,8 +43,6 @@ from dataclasses import dataclass
 
 from .item import GradedItem
 
-TAG = "kirjavahemargid"
-
 #: Only the two that measured categorical. `kui` and `nagu` are deliberately
 #: absent: at 38 % and 64 % they are not rules, and drilling them would teach a
 #: learner to insert commas into correct Estonian.
