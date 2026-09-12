@@ -177,7 +177,11 @@ _B1: tuple[Topic, ...] = (
                "tags cover — second only to vocabulary either way, and until "
                "now the largest tag with no drill at all. Items are attested "
                "learner corrections, never generated: see eesti/wordorder.py "
-               "for the measurement that ruled generation out."),
+               "for the measurement that ruled generation out. Corroborated "
+               "2026-09-12 against EstGEC-L2, a second L2 corpus annotated "
+               "independently of EVKK: `R:WO` is its second-largest error tag, "
+               "872 edits in 2 029 sentences. Two corpora, two methods, both "
+               "putting word order at the top."),
     Topic("uhendverbid", "B1", "ühendverbid", "фразовые глаголы",
           requires=("verb-form", "obj-case")),
     Topic("liitsonad", "B1", "liitsõnad", "сложные слова",
