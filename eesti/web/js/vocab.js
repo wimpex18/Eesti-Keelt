@@ -104,6 +104,22 @@ export async function showWordCard(word, card, contextFor) {
       if (x.examples?.length)
         meaning.push(`<ul class="examples">` +
           x.examples.map(e => `<li>${esc(e)}</li>`).join("") + `</ul>`);
+      /* Whose words those are.
+
+         EKI publish the põhisõnavara sõnastik under CC BY 4.0, and their terms
+         are that the material may be processed and presented any way needed
+         provided the reference to EKI is retained and the changes described.
+         The card renders their definition and their examples verbatim, so this
+         is where the reference has to be — the licence follows the text, not
+         the repository, and until now the credit existed only in `docs/` and
+         in a registry note that nothing served.
+
+         Estonian, and the source's own name: it is a label, and the language
+         rule keeps those in Estonian. The word "allikas" is not the caveat
+         kind of string that has to be readable to do its job. */
+      if (x.definition_source === "eki-psv")
+        meaning.push(`<div class="attrib">allikas: EKI põhisõnavara sõnastik` +
+          ` 2014 · CC BY 4.0</div>`);
       const slot = card.querySelector("#cardExtra");
       if (meaning.length) {
         const box = document.createElement("div");

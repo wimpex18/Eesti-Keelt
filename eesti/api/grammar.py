@@ -91,6 +91,42 @@ def translate_sentence(req: TranslateRequest) -> dict:
             "engine": got.engine}
 
 
+def _meaning(simple, kept) -> dict:
+    """Which definition the card shows, and whose words it is.
+
+    EKI's learner-level wording where there is one, Sõnaveeb's otherwise, with
+    Sõnaveeb's kept alongside rather than replaced. The two live in different
+    databases -- reference data in the image, learner data in the snapshot --
+    so this is the one place they are read together and the preference is
+    stated once.
+
+    `definition_source` is the point of the function. The card renders EKI's
+    text verbatim, and CC BY 4.0 asks that the reference to EKI be kept
+    wherever the material is presented; a page cannot credit a source it cannot
+    name. It was inferable from `full_definition` being non-null, which is a
+    side effect rather than a statement -- and that inference was wrong in one
+    real case: PSV has entries carrying examples and no definition, and the old
+    expression returned `None` for those instead of falling back to Sõnaveeb's
+    wording. Asking which source answered, rather than deducing it, fixes both.
+    """
+    psv_definition = simple.definition if simple else None
+    native = kept.definition if kept else None
+    definition = psv_definition or native
+    return {
+        "definition": definition,
+        # Named, not inferred. `None` when neither source had anything to say.
+        "definition_source": (
+            "eki-psv" if psv_definition else "sonapi" if native else None),
+        # Only when EKI answered and Sõnaveeb had something else to add, so the
+        # card can offer the fuller wording without repeating itself.
+        "full_definition": native if psv_definition and native != definition
+                           else None,
+        # `[]` until 2026-09-11, hardcoded — a field the API promised and no
+        # source ever filled. PSV is the only source that has examples.
+        "examples": list(simple.examples) if simple else [],
+    }
+
+
 @router.get("/api/enrich/{word}")
 def enrich_word(word: str) -> dict:
     """The two things Vabamorf cannot say: what the word governs, and its type.
@@ -123,26 +159,15 @@ def enrich_word(word: str) -> dict:
     # PSV covers ~6 000 basic words and is absent on a deployment that never
     # imported it; both are ordinary, so this never gates the response.
     simple = psv_lookup(db(), word)
+    meaning = _meaning(simple, kept)
     if kept is None or not kept.found:
-        return {"word": word, "found": bool(simple),
-                **({"definition": simple.definition,
-                    "examples": list(simple.examples)} if simple else {})}
+        return {"word": word, "found": bool(simple), **meaning}
     return {
         "word": word,
         "found": True,
         "governs": [p.strip() for p in (kept.rection or "").split(",") if p.strip()],
         "inflection_type": kept.inflection_type,
-        # EKI's learner-level wording where it has one, Sõnaveeb's otherwise —
-        # and Sõnaveeb's kept alongside rather than replaced. The two live in
-        # different databases (reference data in the image, learner data in the
-        # snapshot), so here is the one place they are read together and the
-        # preference is stated once.
-        "definition": (simple.definition if simple else kept.definition),
-        "full_definition": (
-            kept.definition if simple and simple.definition else None),
-        # `[]` until 2026-09-11, hardcoded — a field the API promised and no
-        # source ever filled.
-        "examples": list(simple.examples) if simple else [],
+        **meaning,
         # The language policy says explanations are in Russian, and the API has
         # carried Russian glosses all along — under the per-meaning key the
         # module never read. Three at most: a word card is a reminder, not an

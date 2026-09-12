@@ -549,6 +549,9 @@
   .meaning .examples{margin:6px 0 0;padding-left:18px;color:var(--gloss);
     font-size:12.5px;line-height:1.6}
   .meaning .examples li{margin-bottom:2px}
+  /* Attribution. Quiet enough not to compete with the definition it credits,
+     legible enough to be an attribution rather than a gesture at one. */
+  .meaning .attrib{margin-top:6px;color:var(--muted);font-size:11.5px}
   /* A meaning that arrived with the grade rather than with the item. */
   .gloss-late{color:var(--gloss);font-size:13px;display:block;margin-top:5px}
   .gloss-late b{font-weight:600;color:var(--ink)}
