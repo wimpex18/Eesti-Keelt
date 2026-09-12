@@ -33,13 +33,15 @@ of those two routes to take is precisely what the readiness verdict is for.
 | **Review** | FSRS-6 over items you actually got wrong, plus words mined from reading. Intervals expand as they should — measured 2026-08-21 at the due date: 10 min → 2 d → 11 d → 47 d → 171 d → 514 d. |
 | **Vocabulary** | `Sõnavara` lists the wordlist by CEFR level, part of speech and what you have marked, commonest first. Same word card as the reader, so a word chosen here and a word met while reading are one thing. |
 | **Meaning** | **294 Russian glosses ship with the app** (`data/seed_glossary.tsv`), covering 81 % of the words drills actually use — measured 0 % before. Written for this project, never scraped. Sõnaveeb enriches on demand with senses, rection and muuttüüp; the seed is a baseline, not a ceiling. Sentence-level translation from TartuNLP, on request only. |
-| **Rules** | **22 of 23 drillable topics link to the handbook** (was 5). Every section number read off the EKK rather than inferred — a summarising fetch of the same page returned numbers shifted by one. `kusisonad` has none: no section covering question words was found, and a wrong link is worse than none. |
+| **Rules** | **25 of 26 drillable topics link to the handbook** (was 5). Every section number read off the EKK rather than inferred — a summarising fetch of the same page returned numbers shifted by one. `kusisonad` has none: no section covering question words was found, and a wrong link is worse than none. |
 | **Back-translation** | The writing check reads your Estonian back in Russian, so a sentence that is well formed but says the wrong thing is visible. |
 | **Verdict** | Four exam parts reported separately, never as one total, with the reasons named in Russian. |
 | **Offline** | Installable, and an installed copy now opens without a connection and says why it can do no more. The API is never cached — every endpoint is either the learner's own state or freshly generated, and a drill quietly a day old is worse than one unavailable. |
 | **Deployment** | Cloudflare Worker + Access in front of Cloud Run, both free tiers, state snapshotted across cold starts. |
 
-52 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. 1 893 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
+52 API routes, every one with a caller — `test_route_inventory.py` fails on one nothing can reach. Roughly 1 900 in-process tests, plus 72 browser journeys run once per engine (Chromium and WebKit, so 144 when both are installed).
+
+The route count is checked against the code (`test_docs_match_code.py`), and so are the three numbers in the table above that can be: topics with a generator, topics that link to the handbook, and shipped glosses. The test count is deliberately **not** one of them and is deliberately vague: it changes on almost every commit, nothing can derive it from prose, and a number asserted here would make adding a test a two-file edit. Precision nobody can maintain is worse than a round figure that says the right thing.
 
 ## What a learner still cannot do
 
@@ -64,9 +66,13 @@ and has not been run since the corpus was last rebuilt. The reader returns
 `[]`, the practice response carries an empty `reading` list, and nothing
 anywhere says so.
 
-Unknown on the deployment. The smoke check verifies `/api/library` *answers*;
-it does not count rows in the join, which is the same "presence of a database
-is not presence of data" mistake in a new place.
+No longer unknown on the deployment, as of 2026-09-11. `/api/health` reports
+`corpus` as two row counts — `items` and `topic_links` — and the smoke check
+warns when there are texts and no links, naming `cli link-topics`. The gap this
+paragraph described (the check verified `/api/library` *answers* and counted
+nothing) was the "presence of a database is not presence of data" mistake in a
+new place, and it is closed. **The table can still be empty; what changed is
+that asking now gets an answer.**
 
 ### Only one grammar provider is actually configured
 

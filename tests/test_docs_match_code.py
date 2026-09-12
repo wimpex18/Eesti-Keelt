@@ -92,6 +92,59 @@ class TestCurriculumCounts:
                 f"{doc.relative_to(ROOT)}:{line} says {value}; "
                 f"the code has {actual}.\n  {text}")
 
+    def test_topics_that_link_to_the_handbook(self):
+        """`status.md` said 22 of 23 for three weeks while drills landed; it is
+        25 of 26. The shape of the claim stayed right — one topic has no link,
+        and it is still `kusisonad` — which is exactly why nobody noticed the
+        counts underneath it moving."""
+        from eesti.curriculum import TOPICS
+        from eesti.grammar import describe
+
+        def linked(topic) -> bool:
+            # Same fallback as `render._topic_reference`: by error tag where
+            # there is one, by topic id otherwise. Counting only the tagged
+            # ones gives 7 and is the wrong measure of the same words.
+            if topic.tag and describe(topic.tag).get("known"):
+                return True
+            return bool(describe(topic.id).get("known"))
+
+        drillable = [t for t in TOPICS if t.generator]
+        have = [t for t in drillable if linked(t)]
+        found = _claims(r"(\d+) of (?:\d+) drillable topics link to the handbook")
+        assert found, "no document states the handbook coverage"
+        for doc, line, value, text in found:
+            assert int(value) == len(have), (
+                f"{doc.relative_to(ROOT)}:{line} says {value}; "
+                f"the code has {len(have)} of {len(drillable)}.\n  {text}")
+
+    def test_the_one_topic_with_no_handbook_link_is_named(self):
+        """A wrong link is worse than none, so the exception is deliberate and
+        the document names it. If a second one ever appears, the sentence stops
+        being true in a way no count would show."""
+        from eesti.curriculum import TOPICS
+        from eesti.grammar import describe
+
+        missing = [t.id for t in TOPICS if t.generator
+                   and not (t.tag and describe(t.tag).get("known"))
+                   and not describe(t.id).get("known")]
+        assert missing == ["kusisonad"], (
+            f"status.md names `kusisonad` as the only topic with no handbook "
+            f"link; the code has {missing}")
+
+    def test_the_shipped_glossary_count(self):
+        """294 is a row count in a file, and a file people add rows to."""
+        seed = ROOT / "data" / "seed_glossary.tsv"
+        if not seed.exists():
+            pytest.skip("seed glossary is not in this checkout")
+        actual = sum(1 for line in seed.read_text(encoding="utf-8").splitlines()
+                     if line.strip() and not line.startswith("#"))
+        found = _claims(r"\*\*(\d+) Russian glosses ship")
+        assert found, "no document states how many glosses ship"
+        for doc, line, value, text in found:
+            assert int(value) == actual, (
+                f"{doc.relative_to(ROOT)}:{line} says {value}; "
+                f"the file has {actual}.\n  {text}")
+
     def test_the_named_list_matches_the_derived_one(self):
         """`status.md` prints the eleven topic ids for reading. A snapshot is
         fine; a snapshot that has drifted is what sent a previous session
