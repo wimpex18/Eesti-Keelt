@@ -194,6 +194,18 @@ def _tag_of(wrong: str, right: str) -> str:
 class TartuNLPGrammar:
     """TartuNLP's public GEC service at `api.tartunlp.ai/grammar`.
 
+    **Status 2026-09-12: correct, and not answering.** A GET for their OpenAPI
+    spec on this host returns in 0.65 s; a POST to either grammar endpoint
+    hangs for 35 s with zero bytes; a POST to `translation/v2` on the *same
+    host* returns in 0.85 s. That last probe is what rules out our network, the
+    proxy and the request shape and leaves their worker. Their own demo at
+    `grammar.tartunlp.ai` posts here too, and is down with it.
+
+    So this class is a lane waiting on somebody else, not dead code: it starts
+    answering the day they attach a worker, with no change here. The learner is
+    insulated meanwhile — `PROVIDER_TIMEOUT` is 5 s split across the two
+    endpoints, then the breaker opens for 900 s and backs off to six days.
+
     ## The contract, read from their spec rather than guessed
 
     `api.tartunlp.ai/grammar/openapi.json` is public and was fetched on

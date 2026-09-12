@@ -341,9 +341,19 @@ be to carry the licence and name the source, which `/api/sources` now does.
 ### Also noted
 
 The README points at TartuNLP's **`corrector`** GEC toolkit
-(`koodivaramu.eesti.ee/tartunlp/corrector`), built jointly by the Tartu and
-Tallinn language-technology groups. Earlier passes concluded flatly that there
-is no free, keyless, working Estonian GEC. That conclusion was about *hosted
-endpoints* and it stands for those — but a self-hostable toolkit from the
-people who annotate the corpora is a different object, and it deserves reading
-before that sentence is repeated again.
+(`koodivaramu.eesti.ee/tartunlp/corrector`, MIT), built jointly by the Tartu
+and Tallinn language-technology groups. Read 2026-09-12, and it narrows the
+earlier flat conclusion rather than overturning it — see `source-audit.md` for
+the probe table.
+
+Short version: the service exists, is MIT, and its spec is public; it just
+does not answer. A POST to `api.tartunlp.ai/grammar/` hangs for 35 s, while a
+POST to `translation/v2` on the **same host** answers in 0.85 s — so their
+grammar worker is unattached, and their own demo at `grammar.tartunlp.ai`
+posts to that same host and is down with it. Self-hosting does not rescue it:
+`grammar-api` is a façade over a model backend it expects credentials for, so
+the container gives you the API and none of the correction.
+
+The useful part is what this means for us. `TartuNLPGrammar` is not dead code
+— it is a correct lane waiting on somebody else's worker, and it will start
+answering with no change here.
