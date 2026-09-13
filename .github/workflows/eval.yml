@@ -94,7 +94,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       # Evidence mode is the only thing here that needs Vabamorf; the plain eval
       # path stays stdlib-only so a normal run costs seconds.

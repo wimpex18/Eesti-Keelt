@@ -617,6 +617,20 @@ class TestTheCiMatrixKnowsWhatShips:
         assert claim, "the matrix comment no longer says which version ships"
         assert claim.group(1) in shipped
 
+    def test_ci_and_the_eval_run_the_version_that_ships_and_only_it(self):
+        """Two legs made sense while the image moved between versions. Once it
+        has moved, a second leg tests a Python no deployment runs — and the
+        eval, which was still on 3.11, measured models on a runtime the app
+        had left."""
+        import yaml
+
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        shipped = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.M).group(1)
+        tests = yaml.safe_load((ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8"))
+        assert tests["jobs"]["test"]["strategy"]["matrix"]["python-version"] == [shipped]
+        evals = (ROOT / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8")
+        assert re.findall(r'python-version:\s*"(\d+\.\d+)"', evals) == [shipped]
+
     def test_the_shipped_version_is_in_the_matrix(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         shipped = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.M).group(1)
