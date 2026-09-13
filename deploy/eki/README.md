@@ -24,8 +24,14 @@ attribution stays and the changes are described. Both are described in
 ```bash
 python -m eesti.cli import-levels deploy/eki/A1A2B1.txt --check   # read it, write nothing
 python -m eesti.cli import-levels deploy/eki/A1A2B1.txt
+python -m eesti.cli import-psv    deploy/eki/psv_EKI_CCBY40.xml --check   # first, always
 python -m eesti.cli import-psv    deploy/eki/psv_EKI_CCBY40.xml
 ```
+
+`import-psv --check` matters more than the other one: `eesti/psv.py` has only
+ever read a fixture built from EKI's schema, and EKI say their XML does not
+validate against it. If it reports headwords and no definitions, the parser
+does not fit the real file — fix it against the file, not against the schema.
 
 Locally that is all. The `Dockerfile` runs the same two commands during the
 build, against whatever is sitting in this directory — so a `docker build` with

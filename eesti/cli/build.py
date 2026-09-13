@@ -142,6 +142,8 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
     Not a download, for the same reason `import-levels` is not: EKI asks who
     you are and what the material will be used in before handing the file over.
     """
+    from collections import Counter
+
     from .. import psv
     from ..wordlist import connect
 
@@ -163,6 +165,27 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
     if not entries:
         print(f"{path} parsed but held no articles — is this the right file?")
         return 1
+
+    # `--check` for the same reason `import-levels` has one, and a stronger
+    # one: `psv.py` has only ever read a fixture built from EKI's schema, and
+    # EKI say their XML does not validate against it. So the first run against
+    # the real file should be a look, and the number that matters is the
+    # definitions — headwords found and no definitions means the descendant
+    # tags did not match what EKI actually wrote.
+    if args.check:
+        defined = sum(1 for e in entries if e.definition)
+        examples = sum(1 for e in entries if e.examples)
+        pos = Counter(e.pos or "(none)" for e in entries)
+        print(f"  {len(entries):,} articles with a headword "
+              f"(e.g. {', '.join(e.lemma for e in entries[:3])})")
+        print(f"  {defined:,} with a definition, {examples:,} with usage examples")
+        print(f"  parts of speech: "
+              + ", ".join(f"{k} {v:,}" for k, v in pos.most_common()))
+        if not defined:
+            print("  NO DEFINITIONS FOUND — the headwords matched but `d` did not. "
+                  "The parser does not fit this file; do not import it.")
+        print("  Nothing was written. Drop --check to import.")
+        return 0 if defined else 1
 
     conn = connect()
     stats = psv.store(conn, entries)
@@ -383,6 +406,8 @@ def register(sub) -> None:
         help="import EKI's learner dictionary definitions (a file you downloaded)",
     )
     p.add_argument("file", help="psv_EKI_CCBY40.xml from arhiiv.eki.ee/litsents")
+    p.add_argument("--check", action="store_true",
+                   help="report what the file holds and write nothing")
     p.set_defaults(func=cmd_import_psv)
 
     p = sub.add_parser("keys", help="show which API keys are configured")
