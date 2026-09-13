@@ -240,16 +240,23 @@ class TestThePracticeSetShowsWhatTheWordsMean:
     def test_answering_glosses_exactly_the_word_just_answered(
         self, client, monkeypatch
     ):
-        """One lookup, for the one word the learner spent thought on — and
-        after the struggle with the form, which is when a meaning sticks."""
+        """At most one lookup, for the one word the learner spent thought on —
+        and none when the answer is already local. `kleit` is a seed word, so
+        grading it spends no request; `helikopter` is not, so it spends one.
+        (Before `meaning.py`, a seeded word still cost a live lookup here.)"""
         asked = []
         monkeypatch.setattr(sonapi, "lookup",
-                            lambda w, **k: asked.append(w) or info(word=w, ru=("платье",)))
+                            lambda w, **k: asked.append(w) or info(word=w, ru=("вертолёт",)))
         got = client.post("/api/practice/answer", json={
             "topic": "osastav", "prompt": "Ma ostsin ____.", "answer": "kleiti",
             "given": "kleiti", "lemma": "kleit"}).json()
         assert got["russian"] == ["платье"]
-        assert asked == ["kleit"]
+        assert asked == []
+        got = client.post("/api/practice/answer", json={
+            "topic": "osastav", "prompt": "Ma nägin ____.", "answer": "helikopterit",
+            "given": "helikopterit", "lemma": "helikopter"}).json()
+        assert got["russian"] == ["вертолёт"]
+        assert asked == ["helikopter"]
 
     def test_a_dead_dictionary_never_costs_a_grade(self, client, monkeypatch):
         def boom(*a, **k):

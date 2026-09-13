@@ -132,30 +132,14 @@ def _meaning(simple, kept, native_offline=None) -> dict:
 
 
 def _russian(word: str, kept) -> dict:
-    """The Russian on the card, and whose it is.
+    """The Russian on the card, and whose it is — the order lives in `meaning.py`.
 
-    **Offline EVS first, live Sõnaveeb second, EKI's education terms (HAR)
-    last** — the same shape as the definition beside it (PSV, Sõnaveeb, then
-    EKI's native-level dictionaries). EKI's Estonian–Russian
-    dictionary is in the image and answers for ~60 000 lemmas with no request,
-    no daily budget and no outage; Sõnaveeb's gloss is the fallback for what it
-    lacks. Each stays in its own table (`evs_gloss`, `word_gloss`) and neither
-    ever writes the other, so the preference is stated here and nowhere else.
     `russian_source` is named for the same CC BY reason as `definition_source`.
     """
-    from ..evs import russian as evs_russian
+    from ..meaning import russian
 
-    offline = evs_russian(db(), word)
-    if offline:
-        return {"russian": list(offline[:3]), "russian_source": "eki-evs"}
-    if kept is not None and kept.russian:
-        return {"russian": list(kept.russian[:3]), "russian_source": "sonapi"}
-    from ..har import russian as har_russian
-
-    terms = har_russian(db(), word)
-    if terms:
-        return {"russian": list(terms), "russian_source": "eki-har"}
-    return {"russian": [], "russian_source": None}
+    found, source = russian(db(), word, kept.russian if kept is not None else ())
+    return {"russian": found, "russian_source": source}
 
 
 @router.get("/api/enrich/{word}")
@@ -209,7 +193,7 @@ def enrich_word(word: str) -> dict:
         # The language policy says explanations are in Russian, and the API has
         # carried Russian glosses all along — under the per-meaning key the
         # module never read. Three at most: a word card is a reminder, not an
-        # entry. EKI's dictionary first; see `_russian`.
+        # entry. Whose Russian wins is `meaning.py`'s call.
         **russian,
         # The dictionary this app deliberately does not rebuild. Sõnaveeb has
         # the full paradigm, audio, and every translation; sending the learner

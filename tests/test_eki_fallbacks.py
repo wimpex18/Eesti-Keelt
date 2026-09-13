@@ -106,6 +106,73 @@ class TestTheFallbackOrder:
         assert got["russian"] == ["букварь", "азбука"]
 
 
+class TestLabels:
+    def test_har_drops_a_translation_eki_call_wrong(self, tmp_path):
+        path = tmp_path / "har.xml"
+        path.write_text(
+            '<h:A><h:P><h:ep><h:terg><h:ter h:tyyp="ee">hinne</h:ter></h:terg></h:ep></h:P>'
+            '<h:S><h:xp xml:lang="ru"><h:xg><h:x>балл</h:x><h:s>halb</h:s></h:xg>'
+            '<h:xg><h:x>оценка</h:x></h:xg></h:xp></h:S></h:A>\n', encoding="utf-8")
+        assert har.parse(path)["hinne"] == ("оценка",)
+
+    def test_vsl_prefers_a_current_sense_to_an_archaic_first_one(self, tmp_path):
+        path = tmp_path / "vsl.xml"
+        path.write_text(
+            '<x:A><x:P><x:mg><x:m>kontor</x:m></x:mg></x:P><x:S><x:tp><x:dg><x:s>van</x:s>'
+            '<x:d>kirjutuslaud</x:d></x:dg><x:dg><x:d>asutuse tööruum</x:d></x:dg></x:tp>'
+            '</x:S></x:A>\n', encoding="utf-8")
+        assert ekidefs.parse(path)["kontor"] == "asutuse tööruum"
+
+
+class TestEveryFlowAsksTheSamePlace:
+    """The Russian order was copied into three flows and missing from two.
+    Each is checked against `meaning.py` with one word only EVS knows."""
+
+    @pytest.fixture
+    def evs_only(self, tmp_path, monkeypatch):
+        from eesti import config, gloss
+
+        path = tmp_path / "eesti.db"
+        conn = wordlist.connect(path)
+        evs.store(conn, [evs.Entry("tugitool", "s", ("кресло", "стул"))])
+        conn.commit()
+        monkeypatch.setattr(config, "DB_PATH", path)
+        monkeypatch.setattr(config, "VOCAB_DB", tmp_path / "vocab.db")
+        monkeypatch.setattr(gloss, "remember", lambda conn, lemma: None)
+        return path
+
+    def test_the_vocabulary_list_shows_it(self, evs_only):
+        from eesti import gloss, vocab
+
+        store = gloss.connect(evs_only.parent / "vocab.db")
+        assert vocab._glosses(wordlist.connect(), store, ["tugitool"]) == {"tugitool": "кресло, стул"}
+
+    def test_a_meaning_flashcard_can_be_made_from_it(self, evs_only):
+        """It refused with "перевод пока неизвестен" while Sõnaveeb's store was
+        the only place it looked."""
+        from eesti import mining, review
+
+        conn = review.connect(evs_only.parent / "review.db")
+        got = mining._meaning_card(conn, "tugitool", "See on tugitool.")
+        assert got.queued and got.kind == "vocab", got.reason
+        answer = conn.execute("SELECT answer FROM review_items WHERE id = ?",
+                              (got.item_id,)).fetchone()[0]
+        assert answer == "кресло, стул"
+
+
+class TestTheSeedIsNotOverruled:
+    def test_a_drill_word_keeps_its_hand_written_gloss(self, tmp_path):
+        """EVS's first sense of `palk` is a log; the drill means a salary."""
+        from eesti import meaning
+
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store(conn, [evs.Entry("palk", "s", ("бревно", "заработная плата"))])
+        assert "palk" in meaning._seed(), "the fixture word must be a seeded one"
+        found, source = meaning.russian(conn, "palk")
+        assert source == "seed" and "бревно" not in found[0]
+        assert meaning.russian_many(conn, None, ["palk"])["palk"] == found
+
+
 class TestTheCard:
     def test_each_eki_source_is_credited_under_its_own_guard(self):
         from pathlib import Path
@@ -116,3 +183,21 @@ class TestTheCard:
                               ('definition_source === "eki-vsl"', "EKI võõrsõnade leksikon"),
                               ('definition_source === "eki-ekss"', "EKI eesti keele seletav")):
             assert 0 < card.index(credit) - card.index(guard) < 200, guard
+
+
+class TestTheOrderLivesInOnePlace:
+    def test_no_module_but_meaning_reads_the_russian_tables(self):
+        """The order was copied into three flows and forgotten in two. A flow
+        that reads `evs`/`har` itself has started a sixth copy."""
+        import re
+        from pathlib import Path
+
+        pkg = Path(__file__).resolve().parents[1] / "eesti"
+        allowed = {"meaning.py", "evs.py", "har.py"}
+        offenders = [
+            str(p.relative_to(pkg)) for p in pkg.rglob("*.py")
+            if p.name not in allowed
+            and re.search(r"\b(evs|har)\.russian(_many)?\(|from \.+(evs|har) import russian",
+                          p.read_text(encoding="utf-8"))
+        ]
+        assert not offenders, offenders

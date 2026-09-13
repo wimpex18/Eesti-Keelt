@@ -340,7 +340,7 @@ def browse(
             break
         seen += len(rows)
         marks = statuses(store, [r[0] for r in rows])
-        glosses = _glosses(store, [r[0] for r in rows])
+        glosses = _glosses(words, store, [r[0] for r in rows])
         for word, prof, part, rank, gen, par, distinct in rows:
             mark = marks.get(word, UNKNOWN)
             if wanted is not None and mark not in wanted:
@@ -375,21 +375,17 @@ def browse(
     }
 
 
-def _glosses(store: sqlite3.Connection, lemmas: list[str]) -> dict[str, str]:
-    """Russian for the words we already asked Sõnaveeb about. Never fetches:
-    browsing a page of sixty words must not become sixty live lookups against
-    a service that asks not to be batched."""
-    if not lemmas:
-        return {}
-    marks = ",".join("?" * len(lemmas))
-    # `word_gloss.russian` packs several senses into one column separated by
-    # \x1f, which `gloss.stored()` splits back into a tuple. Handing the raw
-    # column to a template renders the separator as tofu: the phone showed
-    # "мейл\x1fимейл\x1fэлектронное письмо". Split it here, where the storage
-    # convention is already known, rather than teaching the page about it.
-    return {
-        row[0]: ", ".join(w for w in row[1].split("\x1f") if w)
-        for row in store.execute(
-            f"SELECT lemma, russian FROM word_gloss WHERE lemma IN ({marks})"
-            " AND russian <> ''", lemmas)
-    }
+def _glosses(words: sqlite3.Connection, store: sqlite3.Connection,
+             lemmas: list[str]) -> dict[str, str]:
+    """Russian for a page of words, from local tables only, in `meaning.py`'s
+    order. Never fetches: browsing sixty words must not become sixty live
+    lookups against a service that asks not to be batched.
+
+    This read Sõnaveeb's store alone until EKI's dictionary was imported, so
+    the list showed Russian only for words the card had already enriched.
+    The join to a display string happens here, where the storage convention is
+    known — the raw `\x1f` separator once rendered as tofu on the phone.
+    """
+    from .meaning import russian_many
+
+    return {k: ", ".join(v) for k, v in russian_many(words, store, lemmas).items()}

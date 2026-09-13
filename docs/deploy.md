@@ -575,9 +575,9 @@ it personal:
 | `cli rections` | EKK SÜ 64, the 23 rections learners get wrong | the `rektsioon` drill says "run `cli rections` once", and free writing stops reporting `&err-gov` |
 | `cli import-levels` | EKI's official A1/A2/B1 vocabulary | every CEFR level is an estimate off a list where only 6.2 % of lemmas carry a tag |
 | `cli import-psv` | EKI's learner dictionary, 4 849 definitions and their examples | the word card shows Sõnaveeb's native-level wording, which is the thing a learner could not read |
-| `cli import-evs` | EKI's Estonian–Russian dictionary, 60 610 lemmas | the Russian on a word card and beside a drill needs a live Sõnaveeb request |
+| `cli import-evs` | EKI's Estonian–Russian dictionary, 60 509 lemmas | the Russian on a word card and beside a drill needs a live Sõnaveeb request |
 | `cli import-vsl` | EKI's foreign-words lexicon, 30 095 definitions | no offline definition when PSV and Sõnaveeb both have none |
-| `cli import-har` | EKI's education terms, 5 873 with Russian | no offline Russian when EVS and Sõnaveeb both have none |
+| `cli import-har` | EKI's education terms, 5 871 with Russian | no offline Russian when EVS and Sõnaveeb both have none |
 
 All six run **at image build time**, and all six write into
 `data/eesti.db`, which is baked in. That placement is the decision, and it is

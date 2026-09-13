@@ -94,18 +94,22 @@ them. Measured locally on the real files the same day:
 |---|---|
 | `eki_levels` | 4 340 (4 102 words carry `level_source = 'eki'`) |
 | `eki_definitions` | 4 849 |
-| `eki_russian` | 60 610 |
+| `eki_russian` | 60 509 |
 | `eki_loanwords` | 30 095 |
-| `eki_terms` | 5 873 |
+| `eki_terms` | 5 871 |
 
 The first real run found what the fixtures could not: the XML has no root
 element and undeclared prefixes, so `psv.parse` failed on byte one. PSV also
 has 58 lemmas with two articles, and an upsert in file order kept the rarer
 meaning. Both are fixed and tested against the real shape.
 
-Which answer a word card shows, each from its own table:
-**definition** PSV → Sõnaveeb → VSL (→ EKSS, if imported); **Russian** EVS →
-Sõnaveeb → HAR. EKSS (119 426 definitions) is optional and not in the image.
+Where the learner meets it: **Russian** — seed → EVS → Sõnaveeb → HAR, in
+`eesti/meaning.py`, used by the word card, the Sõnavara list, drill glosses,
+the graded-answer gloss and the review flashcard (the last two read only
+Sõnaveeb's store before, so *Kordamisse* refused 60 000 words EKI had
+translated). **Definition** — PSV → Sõnaveeb → VSL (→ EKSS), on the word card.
+EKSS (119 426 definitions) is optional and not in the image. What every file in
+the download became is in `deploy/eki/README.md`.
 
 ### Only one grammar provider is actually configured
 

@@ -32,6 +32,24 @@ from . import ekixml
 TABLES = {"eki-vsl": "vsl_gloss", "eki-ekss": "ekss_gloss"}
 
 
+#: A sense EKI mark obsolete — 248 in VSL (measured 2026-09-13) — is skipped
+#: when a current one exists; the first definition is not always the one a
+#: learner meets.
+ARCHAIC = "van"
+
+
+def _first_current(article) -> str:
+    fallback = ""
+    for dg in article.find("S").iter("dg") if article.find("S") is not None else ():
+        text = ekixml.text(dg.find("d"))
+        if not text:
+            continue
+        if ARCHAIC not in {ekixml.text(s) for s in dg.findall("s")}:
+            return text
+        fallback = fallback or text
+    return fallback
+
+
 def parse(path: Path | str) -> dict[str, str]:
     """lemma -> first definition, first article per lemma winning."""
     found: dict[str, str] = {}
@@ -39,7 +57,7 @@ def parse(path: Path | str) -> dict[str, str]:
         lemma = ekixml.headword(article)
         if not lemma or lemma in found:
             continue
-        definition = ekixml.text(article.find("S//d"))
+        definition = _first_current(article)
         if definition:
             found[lemma] = definition
     return found

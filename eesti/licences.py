@@ -213,10 +213,10 @@ REGISTRY: tuple[Source, ...] = (
         "eki-evs", "Eesti-vene sõnaraamat (EKI)", "file",
         "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
-        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 610 lemmas "
+        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 509 lemmas "
         "with a usable Russian translation (measured 2026-09-13). The Russian "
-        "on a word card and beside a drill, offline, ahead of Sõnaveeb's live "
-        "gloss. Imported by `cli import-evs` into the words database as "
+        "on the word card, the Sõnavara list, drills and review cards, offline — "
+        "after the hand-written seed, ahead of Sõnaveeb (`meaning.py`). Imported by `cli import-evs` into the words database as "
         "`evs_gloss` — reference data, like `psv_gloss`, never written into "
         "the learner's `word_gloss`. Same terms as EKI's other downloads: "
         "process and present it any way needed, with the attribution kept "
@@ -229,7 +229,7 @@ REGISTRY: tuple[Source, ...] = (
     Source(
         "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
-        "EKI's education terminology: 4 989 articles, 5 873 terms counting "
+        "EKI's education terminology: 4 989 articles, 5 871 terms counting "
         "synonyms, with Russian (measured 2026-09-13). The last fallback for "
         "a word card's Russian, after EVS and Sõnaveeb. `cli import-har`, "
         "table `har_gloss` in the words database.",

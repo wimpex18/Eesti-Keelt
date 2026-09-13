@@ -57,9 +57,9 @@ class TestReadingTheRealShape:
     def test_homonyms_merge_into_one_lemma(self, entries):
         assert set(entries) == {"iga", "hea", "abielluma"}
 
-    def test_every_sense_gets_a_slot_before_any_synonym(self, entries):
-        """Three words for "age" must not push "every" off a three-slot card."""
-        assert entries["iga"].russian[:2] == ("возраст", "каждый")
+    def test_another_homonym_gets_a_slot_on_a_three_slot_card(self, entries):
+        """Three words for "age" must not push "every" off the card."""
+        assert entries["iga"].russian[:3] == ("возраст", "век", "каждый")
 
     def test_marks_are_stripped_and_placeholders_skipped(self, entries):
         assert entries["abielluma"].russian == ("жениться", "вступать/вступить в брак")
@@ -79,6 +79,42 @@ class TestReadingTheRealShape:
 
     def test_a_combining_form_is_not_a_word(self, entries):
         assert "akord" not in entries
+
+
+class TestWhatComesFirst:
+    """Rules read off `evs_tyybid.xsd` and measured on the real file."""
+
+    @staticmethod
+    def _parse(tmp_path, body):
+        path = tmp_path / "evs.xml"
+        path.write_text(body, encoding="utf-8")
+        return {e.lemma: e.russian for e in evs.parse(path)}
+
+    def test_an_also_label_does_not_mark_a_translation(self, tmp_path):
+        """`<s l="ka">piltl</s>` is "also figurative"; counting it pushed
+        `читать` off `lugema` on the real file."""
+        got = self._parse(tmp_path,
+            '<x:A><x:P><x:mg><x:m>lugema</x:m></x:mg></x:P><x:S><x:tp><x:tg>'
+            '<x:xp xml:lang="ru"><x:xg><x:x>чит"ать</x:x><x:s x:l="ka">piltl</x:s>'
+            '</x:xg></x:xp></x:tg><x:tg><x:xp xml:lang="ru"><x:xg><x:x>доч"итывать'
+            '</x:x></x:xg></x:xp></x:tg></x:tp></x:S></x:A>\n')
+        assert got["lugema"][0] == "читать"
+
+    def test_a_colloquial_translation_never_comes_first(self, tmp_path):
+        got = self._parse(tmp_path,
+            '<x:A><x:P><x:mg><x:m>poiss</x:m></x:mg></x:P><x:S><x:tp><x:tg>'
+            '<x:xp xml:lang="ru"><x:xg><x:x>мальч"ишка</x:x><x:s>kõnek</x:s></x:xg>'
+            '<x:xg><x:x>м"альчик</x:x></x:xg></x:xp></x:tg></x:tp></x:S></x:A>\n')
+        assert got["poiss"] == ("мальчик", "мальчишка")
+
+    def test_the_homonym_with_more_senses_leads(self, tmp_path):
+        """`suu` is a mouth before it is a sou, whatever EKI's numbering."""
+        sou = ('<x:A><x:P><x:mg><x:m x:i="1">suu</x:m></x:mg></x:P><x:S><x:tp><x:tg>'
+               '<x:xp xml:lang="ru"><x:xg><x:x>су</x:x></x:xg></x:xp></x:tg></x:tp></x:S></x:A>\n')
+        mouth = ('<x:A><x:P><x:mg><x:m x:i="2">suu</x:m></x:mg></x:P><x:S><x:tp>'
+                 + "".join(f'<x:tg><x:xp xml:lang="ru"><x:xg><x:x>{w}</x:x></x:xg></x:xp></x:tg>'
+                           for w in ("рот", "устье", "отверстие")) + '</x:tp></x:S></x:A>\n')
+        assert self._parse(tmp_path, sou + mouth)["suu"][:3] == ("рот", "устье", "су")
 
 
 class TestStoring:
@@ -127,7 +163,7 @@ class TestTheCardPrefersEki:
     def test_drill_glosses_use_it_offline(self, words_db):
         from eesti.api.render import _glosses_for
 
-        assert _glosses_for(["iga"])["iga"][:2] == ["возраст", "каждый"]
+        assert _glosses_for(["iga"])["iga"] == ["возраст", "век", "каждый"]
 
     def test_the_card_credits_eki_only_when_eki_answered(self):
         card = (ROOT / "eesti" / "web" / "js" / "vocab.js").read_text(encoding="utf-8")

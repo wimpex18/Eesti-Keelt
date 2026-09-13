@@ -10,7 +10,7 @@ What is used is the Russian, as the **last** fallback for a word card's gloss:
 EKI's general Estonian–Russian dictionary first, Sõnaveeb second, this third.
 It is a terminology list, so for a word EVS already covers it would be the
 narrower answer; it earns its place on the school and exam vocabulary a learner
-meets in HARNO's own material. The order is stated in `api/grammar._russian`.
+meets in HARNO's own material. The order is stated in `meaning.py`.
 
 Every term, preferred or synonym, points at its article's Russian. The table is
 `har_gloss` in the words database, and nothing else writes it.
@@ -24,6 +24,10 @@ from pathlib import Path
 from . import ekixml
 
 MAX_RUSSIAN = 3
+
+#: `har_tyybid.xsd` `s_tyyp`: `halb` is EKI calling a term wrong, `van`
+#: obsolete. 72 translations carry one (measured 2026-09-13).
+NOT_USED = {"halb", "van"}
 SEP = "\x1f"
 
 SCHEMA = """
@@ -42,14 +46,21 @@ def parse(path: Path | str) -> dict[str, tuple[str, ...]]:
         for xp in article.findall("S/xp"):
             if xp.get(ekixml.XML_LANG) != "ru":
                 continue
-            for x in xp.iter("x"):
-                word = ekixml.russian(x)
+            for xg in xp.findall("xg"):
+                if {ekixml.text(s) for s in xg.findall("s")} & NOT_USED:
+                    continue
+                word = ekixml.russian(xg.find("x"))
                 if word and word not in russian:
                     russian.append(word)
         if not russian:
             continue
-        for term in article.findall("P/ep/terg/ter"):
-            lemma = ekixml.text(term)
+        # A term EKI mark `halb` or `van` is still one a learner can meet in
+        # an old text, so it keeps its gloss; only the translations so marked
+        # are dropped. Preferred terms first, so a synonym never claims first.
+        terms = sorted(article.findall("P/ep/terg"),
+                       key=lambda g: g.find("ter") is None or g.find("ter").get("tyyp") != "ee")
+        for terg in terms:
+            lemma = ekixml.text(terg.find("ter"))
             if lemma and lemma not in found:
                 found[lemma] = tuple(russian[:MAX_RUSSIAN])
     return found

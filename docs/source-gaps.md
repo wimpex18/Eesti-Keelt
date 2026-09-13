@@ -244,7 +244,7 @@ supplies the data. **Step 1 (the topic model) stays next** — unchanged.
 | HARNO `statistika` / `vorm` | **fixed 2026-09-11** — 20 official materials were indexed and in no section; forms now reach `eksamiinfo`, statistics are no longer indexed |
 | ERR Lihtsad uudised "audio" | **corrected 2026-09-11** — the ledger claimed audio, the pages have none, the harvester always said so |
 | EKI *põhisõnavara sõnastik* (`psv`) | **closed 2026-09-13** — the real XML was read, the parser fixed against it (no root, undeclared prefixes, homonyms), 4 849 definitions imported and the file committed gzipped. The ~6 000 pronunciation WAVs are still not wired. |
-| EKI *eesti-vene*, *võõrsõnade leksikon*, *haridussõnastik* (`evs`, `vsl`, `har`) | **closed 2026-09-13** — offline Russian (60 610 lemmas, then 5 873 terms) and last-fallback definitions (30 095), each in its own table; `deploy/eki/README.md`. EKSS read (119 426) but optional and not in the image. |
+| EKI *eesti-vene*, *võõrsõnade leksikon*, *haridussõnastik* (`evs`, `vsl`, `har`) | **closed 2026-09-13** — offline Russian (60 509 lemmas, then 5 871 terms) and last-fallback definitions (30 095), each in its own table; `deploy/eki/README.md`. EKSS read (119 426) but optional and not in the image. |
 | `word_meanings_et`, `exam_et` | still unused (§5) — the only row that has not moved |
 | EKI A1/A2/B1 level word lists | **done** — the importer is `cli import-levels`; the file still comes from the learner, not from code. |
 | `tlu-dt-nlp/Estonian-CEFR-Assessment` | **new, open, refused for now** — MIT, 720 CEFR-labelled L2 writings, no trained model, Stanza-scale dependencies, and a verdict `readiness.py` declines to make. See `source-audit.md`. |

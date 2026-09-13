@@ -9,7 +9,7 @@ until Sõnaveeb was asked — and none at all offline, over budget, or with
 Sõnaveeb down.
 
 EKI publish the Estonian–Russian dictionary for download under CC BY 4.0:
-70 882 articles, 60 610 lemmas with at least one usable Russian translation
+70 882 articles, 60 509 lemmas with at least one usable Russian translation
 (measured 2026-09-13 on `evs_EKI_CCBY40.xml`). So the Russian a word card needs
 is a file, not a request.
 
@@ -21,12 +21,13 @@ example phrases — a word card is a reminder, and Sõnaveeb is one link away fo
 the rest. Translations labelled archaic (`van`) are dropped: a learner at A2
 should not meet `благой` as the meaning of `hea`.
 
-## Senses before synonyms
+## Which translations come first
 
-`iga` is two articles — an age, and "every" — and the first sense of the first
-already has four Russian words. Kept in file order, the card's three slots
-would all say "age". So the order is breadth-first: the first translation of
-every sense, across homonyms, then the second of each, and so on.
+EKI's own order within an article, neutral translations before labelled ones
+(`kõnek`, `madalk`, `hlv`… — see `_labels`). Across homonym articles, the word
+with the most senses leads and every other homonym gets one early slot — see
+`_merge`. An earlier breadth-first order across *senses* put `poiss`'s
+interjection sense, "смотри", third on the card.
 
 ## Where it lives
 
@@ -34,7 +35,7 @@ every sense, across homonyms, then the second of each, and so on.
 reference data, identical for everybody, and `vocab.db` is replaced whole by a
 state-snapshot restore. It never writes `word_gloss` — Sõnaveeb's answers stay
 Sõnaveeb's — so the preference between the two is stated where they are read,
-in `api/grammar.py`: **offline EVS first, live Sõnaveeb second.**
+in `meaning.py`: after the hand-written seed, before Sõnaveeb and HAR.
 
 The file's shape is not its schema's; `ekixml` has what was measured.
 """
@@ -54,8 +55,15 @@ MAX_RUSSIAN = 5
 #: Same separator as `gloss.py` and `psv.py`.
 SEP = "\x1f"
 
-#: EKI's style label for an obsolete translation.
+#: EKI's style label for an obsolete translation, dropped outright.
 ARCHAIC = "van"
+
+#: Every *other* style label (`evs_tyybid.xsd`, `s_tyyp`): colloquial `kõnek`
+#: on 16 907 translations, low-register `madalk` 3 677, figurative `piltl`,
+#: pejorative `hlv`, dialect `murd`, slang, vulgar… Measured 2026-09-13. None is
+#: dropped — a word whose only Russian is colloquial still needs it — but a
+#: labelled translation or sense never comes before a neutral one, so the first
+#: thing a learner reads for a word is the word as it is normally used.
 
 
 @dataclass(frozen=True)
@@ -65,55 +73,70 @@ class Entry:
     russian: tuple[str, ...]
 
 
-def _senses(article) -> list[list[str]]:
-    """Russian alternatives per sense, in order, archaic ones dropped."""
-    senses = []
+def _labels(node) -> set[str]:
+    """Style labels that mark a translation. `l="ka"` means *also* figurative,
+    colloquial… — the translation itself is ordinary, so it does not count.
+    Measured 2026-09-13: 2 340 labels carry `ka`; counting them dropped `читать`
+    from `lugema`."""
+    return {ekixml.text(s) for s in node.findall("s") if s.get("l") != "ka"}
+
+
+def _article(article) -> tuple[int, list[str]]:
+    """(number of senses, translations): neutral ones in EKI's order, then
+    labelled ones; archaic senses and translations dropped."""
+    plain, labelled, senses = [], [], 0
     for tg in article.iter("tg"):
-        words = []
+        sense_labels = set().union(*(_labels(dg) for dg in tg.findall("dg")))
+        if ARCHAIC in sense_labels:
+            continue
+        found = False
         for xp in tg.findall("xp"):
             if xp.get(ekixml.XML_LANG) != "ru":
                 continue
             for xg in xp.findall("xg"):
-                if any(ekixml.text(s) == ARCHAIC for s in xg.findall("s")):
-                    continue
+                labels = _labels(xg)
                 word = ekixml.russian(xg.find("x"))
                 # `_` is EVS saying "no single-word Russian; see the phrases".
-                if word and word != "_":
-                    words.append(word)
-        if words:
-            senses.append(words)
-    return senses
+                if ARCHAIC in labels or not word or word == "_":
+                    continue
+                found = True
+                (labelled if labels or sense_labels else plain).append(word)
+        senses += found
+    return senses, plain + labelled
 
 
-def _breadth_first(senses: list[list[str]]) -> tuple[str, ...]:
-    out: list[str] = []
-    depth = 0
-    while len(out) < MAX_RUSSIAN and any(depth < len(s) for s in senses):
-        for words in senses:
-            if depth < len(words) and words[depth] not in out:
-                out.append(words[depth])
-                if len(out) == MAX_RUSSIAN:
-                    break
-        depth += 1
-    return tuple(out)
+def _merge(articles: list[tuple[int, list[str]]]) -> tuple[str, ...]:
+    """One list for a lemma with several homonym articles.
+
+    The article with the most senses is the word a learner means (`suu` the
+    mouth, 12 senses, not the sou, 1; `pea` the head, not "soon"), and it
+    supplies the first two translations. Each other homonym then gets its
+    first, so `iga` still shows "каждый" beside "возраст" on a three-slot card.
+    """
+    ranked = [words for _, words in sorted(articles, key=lambda a: -a[0]) if words]
+    if not ranked:
+        return ()
+    order = ranked[0][:2] + [w[0] for w in ranked[1:]] + ranked[0][2:] \
+        + [x for w in ranked[1:] for x in w[1:]]
+    return tuple(dict.fromkeys(order))[:MAX_RUSSIAN]
 
 
 def parse(path: Path | str) -> list[Entry]:
     """One entry per lemma, homonyms merged, with at least one translation."""
-    senses: dict[str, list[list[str]]] = {}
+    articles: dict[str, list[tuple[int, list[str]]]] = {}
     pos: dict[str, str | None] = {}
     for article in ekixml.articles(path):
         lemma = ekixml.headword(article)
         if not lemma:
             continue
-        found = _senses(article)
-        if not found:
+        senses, words = _article(article)
+        if not words:
             continue
-        senses.setdefault(lemma, []).extend(found)
+        articles.setdefault(lemma, []).append((senses, words))
         if lemma not in pos:
             first = article.find("P/mg/sl")
             pos[lemma] = ekixml.text(first) or None
-    return [Entry(lemma, pos[lemma], _breadth_first(s)) for lemma, s in senses.items()]
+    return [Entry(lemma, pos[lemma], _merge(a)) for lemma, a in articles.items()]
 
 
 SCHEMA = """

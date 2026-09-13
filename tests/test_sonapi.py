@@ -210,7 +210,9 @@ class TestTheDictionaryIsLinkedNotRebuilt:
             definition=None, examples=(),
             translations={"ru": ("читать", "прочитать")}))
         got = client.get("/api/enrich/lugema").json()
-        assert got["russian"] == ["читать", "прочитать"]
+        # `lugema` is a seed word, so its Russian is the seed's (`meaning.py`);
+        # what this test is about is the link, which is Sõnaveeb's either way.
+        assert got["russian_source"] == "seed"
         assert got["sonaveeb"].endswith("/lugema")
 
 

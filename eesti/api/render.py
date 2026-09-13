@@ -48,20 +48,13 @@ def _topic_name(kind: str) -> str:
 
 
 def _glosses_for(lemmas: list[str]) -> dict[str, list[str]]:
-    """Russian for whatever is already known locally. Never fetches.
-
-    EKI's Estonian–Russian dictionary wins where it has the word, the stored
-    Sõnaveeb glosses (and the hand-written seed) fill the rest — the order
-    `api/grammar._russian` states for the word card.
-    """
-    from .. import evs, gloss
+    """Russian for whatever is known locally, in `meaning.py`'s order. Never fetches."""
+    from ..meaning import russian_many
 
     try:
-        found = gloss.stored_many(gloss_db(), lemmas)
-        known = {k: list(g.russian) for k, g in found.items() if g.russian}
+        return russian_many(db(), gloss_db(), lemmas)
     except sqlite3.Error:
-        known = {}
-    return {**known, **evs.russian_many(db(), lemmas)}
+        return {}
 
 
 def reading_for(topic: str, limit: int = 3) -> list[dict]:
