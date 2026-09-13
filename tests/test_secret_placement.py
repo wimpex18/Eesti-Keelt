@@ -446,6 +446,14 @@ class TestAScheduledRunKnowsWhatToCompareAgainst:
         assert "FAILED or never ran" in code
         assert "Cloud Build had not \\\nfinished yet" in code or "not \\" in code
 
+    def test_the_diagnosis_is_made_by_the_clock_not_the_trigger(self):
+        """A manual dispatch counted as "scheduled", so a run four minutes
+        after a merge said the build had failed (2026-09-13). The elapsed time
+        since main's head decides now."""
+        code = self._script()
+        assert "BUILD_WINDOW" in code and "date -u +%s" in code
+        assert '"$WHEN" = "scheduled"' not in code
+
 
 class TestASplitDeploymentIsNotAFlake:
     """Production answered the same question two ways within a minute:
@@ -581,3 +589,38 @@ class TestTheKeyListIsNotHandMaintained:
             f"the script would accept {sorted(got)}, the app reads "
             f"{sorted(KNOWN_KEYS)}"
         )
+
+
+class TestTheLiveDictionaryIsChecked:
+    """`EKILEX_API_KEY` set on Cloud Run is not the same as Ekilex answering the
+    card: the key can sit on a revision without traffic, or beside an image
+    older than the code that reads it. Only asking the card tells."""
+
+    @staticmethod
+    def _script() -> str:
+        import yaml
+
+        doc = yaml.safe_load((ROOT / ".github" / "workflows" / "smoke.yml").read_text(encoding="utf-8"))
+        step = next(s for s in doc["jobs"]["check"]["steps"] if "Check the deployment" in s["name"])
+        return "\n".join(l for l in step["run"].splitlines() if not l.lstrip().startswith("#"))
+
+    def test_the_card_is_asked_which_dictionary_answered(self):
+        code = self._script()
+        assert "/api/enrich/" in code and ".definition_source" in code and ".russian_source" in code
+        assert "ekilex)" in code and "sonapi)" in code
+
+    def test_a_missing_key_warns_rather_than_fails(self):
+        code = self._script()
+        chunk = code[code.index("/api/enrich/"):code.index("esac", code.index("/api/enrich/"))]
+        assert "::warning::" in chunk and "fail=1" not in chunk
+
+    def test_the_word_it_asks_is_not_answered_by_the_seed(self):
+        """A seeded word's Russian would not say which dictionary answered;
+        the check reads `definition_source`, and the word is not seeded anyway."""
+        from eesti import meaning
+
+        assert "poiss" not in meaning._seed()
+
+    def test_check_service_names_the_key_and_its_cost(self):
+        script = (ROOT / "deploy" / "check-service.sh").read_text(encoding="utf-8")
+        assert "EKILEX_API_KEY|" in script

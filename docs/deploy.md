@@ -229,6 +229,11 @@ learner-level definition, each sense's Russian, rection, muuttüüp and CEFR
 level. Without it the card works as before. The key is personal — generate it
 on your ekilex.ee profile page; a new one replaces the old.
 
+Whether it took effect is not something `check-service.sh` can tell — a key can
+sit on a revision without traffic, or beside an image older than the code that
+reads it. The `smoke` workflow asks the card: its `live dictionary` line says
+`OK (Ekilex)`, or warns that the mirror is still answering.
+
 ### Set a second grammar key. One is not enough.
 
 Measured on 2026-08-22 with the deep smoke check: the live chain answered
