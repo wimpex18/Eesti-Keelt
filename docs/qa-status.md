@@ -232,8 +232,31 @@ correction with a proposed fix, which the offline chain does not produce.
 ## Running the browser suite
 
 ```bash
+python -m eesti.cli fetch-data && python -m eesti.cli build
+python -m eesti.cli export            # the forms every word card reads
+python -m eesti.cli harvest-reading   # the reading journeys need texts
 python -m pytest tests/test_e2e_journeys.py -q   # both engines x both viewports
 ```
+
+All three data steps are gated. Before 2026-09-13 `export` was not, and a
+checkout without it ran the journeys and failed 24 of them with
+"такого слова в словаре нет" instead of skipping and naming the step.
+
+**First run on a Mac, 2026-09-13** (Python 3.13, Playwright Chromium and
+WebKit, 349 texts): **168 passed, 2 skipped** — the two skips are the
+tap-target floor, which applies to touch viewports only. Getting there found
+three defects in the suite itself, none in the app:
+
+| Defect | Why nobody saw it |
+|---|---|
+| Browsers looked for only in `/opt/pw-browsers`, and Chromium only as `chrome-linux/chrome` — every journey skipped on macOS with "run `playwright install chromium`" right after it had run | the cloud container is Linux with that path |
+| The word card was read the moment it unhid, while it still held the loading skeleton | Chromium lost that race in 5 of 6 runs here; why it passed where the test was written is not known |
+| The flashcard word was keyed by viewport, not engine, on a server both engines share — WebKit found the card Chromium had graded and timed out | only visible with WebKit installed, which the cloud container did not have |
+
+The whole suite in one invocation, same day: **2 111 passed, 5 skipped** in
+8½ minutes. An earlier combined run took 18½ minutes and had 22 journeys error
+in setup on `page.goto` timing out; it did not reproduce, and its cause was not
+found. If it returns, run `tests/test_e2e_journeys.py` on its own first.
 
 85 tests per engine: Chromium and WebKit, desktop and phone. WebKit is included only when
 `playwright install webkit` has been run — the suite drops to Chromium alone

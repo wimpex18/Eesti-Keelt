@@ -163,6 +163,57 @@ class TestTheEnginesAreReportedOnce:
         assert installed_engines(tmp_path / "never-existed") == []
 
 
+class TestTheBrowsersAreFoundWhereTheyAre:
+    """Only the cloud container's `/opt/pw-browsers` was looked at, and only
+    Linux's `chrome-linux/chrome` counted as Chromium. On a Mac with Chromium
+    and WebKit freshly installed the report said `browsers: none` and all 170
+    journeys skipped telling the learner's own machine to install what it had."""
+
+    def test_the_environment_variable_wins(self, tmp_path):
+        from conftest import browsers_root
+
+        got = browsers_root(env={"PLAYWRIGHT_BROWSERS_PATH": str(tmp_path)},
+                            container=tmp_path / "opt")
+        assert got == tmp_path
+
+    def test_the_container_path_is_used_where_it_exists(self, tmp_path):
+        from conftest import browsers_root
+
+        (tmp_path / "opt").mkdir()
+        assert browsers_root(env={}, home=tmp_path, platform="darwin",
+                             container=tmp_path / "opt") == tmp_path / "opt"
+
+    @pytest.mark.parametrize("platform, rel", [
+        ("darwin", "Library/Caches/ms-playwright"),
+        ("linux", ".cache/ms-playwright"),
+    ])
+    def test_otherwise_playwrights_own_default(self, tmp_path, platform, rel):
+        from conftest import browsers_root
+
+        got = browsers_root(env={}, home=tmp_path, platform=platform,
+                            container=tmp_path / "absent")
+        assert got == tmp_path / rel
+
+    @pytest.mark.parametrize("layout", [
+        "chromium-1234/chrome-linux/chrome",
+        "chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+    ])
+    def test_chromium_is_found_in_either_layout(self, tmp_path, layout):
+        from conftest import chromium_binary
+
+        binary = tmp_path / layout
+        binary.parent.mkdir(parents=True)
+        binary.write_text("")
+        assert chromium_binary(tmp_path) == str(binary)
+
+    def test_no_chromium_is_none(self, tmp_path):
+        from conftest import chromium_binary
+
+        (tmp_path / "webkit-2336").mkdir()
+        assert chromium_binary(tmp_path) is None
+        assert chromium_binary(tmp_path / "never-existed") is None
+
+
 class TestAnEmptyWordListIsNotAWordList:
     """The fixture that gates on the real lexicon asks whether it holds words.
 
