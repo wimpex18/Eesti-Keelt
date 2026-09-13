@@ -133,15 +133,15 @@ evidence rather than left hanging.
 
 ### 1. `cli import-levels` had never met the real file — hardened against what it holds
 
-The importer could not be run against EKI's 51 015-row file from here, so
+The importer could not be run against EKI's real file from here (4 456 rows, measured on 2026-09-13 once it was), so
 instead the **file was interrogated about its own contents**, and it turned out
 to hold three things a fixture built from the schema would never have shown:
 
 | What the real file holds | What the importer did | Now |
 |---|---|---|
-| ~200 lemmas on **more than one line** — the same word under two parts of speech (`all` as `D` and as `K`, `alaealine` as `A` and as `S`) | `official_levels.word` is a primary key, so `INSERT OR REPLACE` kept whichever line came last: a coin-toss between two of EKI's own rows, decided by file order | collapsed in the parser, **lowest level wins**. If EKI calls a word A1 in any of its uses the learner meets it at A1, and each level's pool is then a superset of the one below |
+| 114 lemmas on **more than one line** (this said ~200 until the file was counted, 2026-09-13) — the same word under two parts of speech (`all` as `D` and as `K`, `alaealine` as `A` and as `S`) | `official_levels.word` is a primary key, so `INSERT OR REPLACE` kept whichever line came last: a coin-toss between two of EKI's own rows, decided by file order | collapsed in the parser, **lowest level wins**. If EKI calls a word A1 in any of its uses the learner meets it at A1, and each level's pool is then a superset of the one below |
 | **multi-word entries** — `aru saama`, `alla kirjutama`, `alles hoidma` | inserted into `words`, where `verbs_at_level` would hand `aru saama` to the conjugation drill and ask Vabamorf for its imperfect | kept in `official_levels`, which stays a faithful record of what EKI published, and out of `words`, which is the list of things this app generates exercises from |
-| a few rows with a **blank level** | already dropped, by luck rather than by intent | dropped, with a test saying so |
+| a few rows with a **blank level** — *not in the real file: 0, counted 2026-09-13* | already dropped, by luck rather than by intent | dropped, with a test saying so, which costs nothing to keep |
 
 Two things were added so the first real run is not the first look:
 

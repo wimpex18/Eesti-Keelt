@@ -95,6 +95,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import ekixml
+
 #: How many examples to keep per word. A word card is a reminder, not an entry
 #: — the same reason `remember()` keeps three Russian glosses and not forty.
 MAX_EXAMPLES = 3
@@ -113,54 +115,58 @@ class Entry:
     definition: str | None
     examples: tuple[str, ...]
     pos: str | None
-
-
-def _text(node: ET.Element | None) -> str:
-    """All text under a node, whitespace-collapsed.
-
-    `itertext`, not `.text`: EKI marks emphasis and cross-references inside a
-    definition, so `.text` stops at the first child and returns the sentence up
-    to its first italic word.
-    """
-    if node is None:
-        return ""
-    return " ".join("".join(node.itertext()).split())
+    #: EKI's frequency tier, `sag`: 1 is commonest, absent is rarest. Decides
+    #: which of two homonyms the one `psv_gloss` row per lemma belongs to.
+    frequency: int | None = None
 
 
 def _first(node: ET.Element, tag: str) -> str:
     found = node.find(f".//{tag}")
-    return _text(found) if found is not None else ""
+    return ekixml.text(found) if found is not None else ""
 
 
 def parse(path: Path | str) -> list[Entry]:
     """Read the dictionary. Articles without a headword are skipped, not raised.
 
-    Streamed with `iterparse` and cleared as it goes: the file is one XML
-    document holding every article, and reading it into a tree costs many times
-    its size in memory for no benefit — nothing here needs two articles at once.
+    Through `ekixml.articles`, because the real file is not one XML document:
+    no root, undeclared `c:` prefixes, one article per line. This function read
+    it with `iterparse` until 2026-09-13 and failed on byte one of the real
+    file, having passed every test against a fixture written from the schema.
     """
     entries: list[Entry] = []
-    for _, element in ET.iterparse(str(path), events=("end",)):
-        if element.tag != "A":
+    for article in ekixml.articles(path):
+        lemma = ekixml.headword(article)
+        if not lemma:
             continue
-        lemma = _first(element, "m")
-        if lemma:
-            examples = tuple(
-                text for text in
-                (_text(n) for n in element.findall(".//n"))
-                if text
-            )[:MAX_EXAMPLES]
-            entries.append(Entry(
-                lemma=lemma,
-                definition=_first(element, "d") or None,
-                examples=examples,
-                pos=_first(element, "sl") or None,
-            ))
-        # Free the article. Without this the "streaming" parser holds the whole
-        # document anyway, which is the classic way `iterparse` gives none of
-        # the benefit it was chosen for.
-        element.clear()
+        examples = tuple(
+            t for t in (ekixml.text(n) for n in article.iter("n")) if t
+        )[:MAX_EXAMPLES]
+        entries.append(Entry(
+            lemma=lemma,
+            definition=_first(article, "d") or None,
+            examples=examples,
+            pos=_first(article, "sl") or None,
+            frequency=int(_first(article, "sag")) if _first(article, "sag").isdigit() else None,
+        ))
     return entries
+
+
+def _one_per_lemma(entries: list[Entry]) -> list[Entry]:
+    """The article a word card should show when EKI has several for a lemma.
+
+    58 lemmas in the real file have two articles (`c:i="1"`, `c:i="2"`): `arm`
+    is a scar and an amnesty, `iga` is an age and "every". The table holds one
+    row per lemma, and an upsert in file order let the *last* article win — so
+    `arm` meant amnesty. The commonest meaning wins now, by EKI's own `sag`
+    tier; file order breaks a tie, which is EKI's homonym numbering.
+    """
+    best: dict[str, Entry] = {}
+    for entry in entries:
+        kept = best.get(entry.lemma)
+        rank = entry.frequency if entry.frequency is not None else 99
+        if kept is None or rank < (kept.frequency if kept.frequency is not None else 99):
+            best[entry.lemma] = entry
+    return list(best.values())
 
 
 SCHEMA = """
@@ -189,12 +195,17 @@ def store(conn: sqlite3.Connection, entries: list[Entry]) -> dict[str, int]:
 
     rows = [
         (e.lemma, e.definition, SEP.join(e.examples))
-        for e in entries if e.definition or e.examples
+        for e in _one_per_lemma(entries) if e.definition or e.examples
     ]
     stats = {"entries": len(entries), "written": len(rows)}
     if not rows:
         return stats
     with conn:
+        # The file is the whole truth: a lemma a corrected file no longer has
+        # must not survive in the table. Upserting alone kept seven headwords
+        # under their old `Jäär_` spelling after the parser learnt to strip
+        # the marker, beside the corrected `Jäär` rows.
+        conn.execute("DELETE FROM psv_gloss")
         conn.executemany(
             "INSERT INTO psv_gloss (lemma, definition, examples)"
             " VALUES (?,?,?)"

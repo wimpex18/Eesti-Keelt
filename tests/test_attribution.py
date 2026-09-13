@@ -140,7 +140,8 @@ class TestTheLedgerHasAReader:
     def test_the_route_flags_which_ones_oblige_the_page(self, client):
         got = client.get("/api/sources").json()
         assert set(got["attribution_required"]) == {
-            "eki-tasemesonavara", "eki-psv", "ekilex-wordlist"}
+            "eki-tasemesonavara", "eki-psv", "eki-evs", "eki-har", "eki-vsl",
+            "eki-ekss", "ekilex-wordlist"}
 
     def test_it_answers_without_a_corpus(self, client, monkeypatch, tmp_path):
         """Read from REGISTRY in code, not from the `sources` table. An

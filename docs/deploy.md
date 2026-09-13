@@ -565,18 +565,21 @@ Without a corpus the reading library is simply empty and everything else works
 which is the same degradation the CLI has. `/api/health` reports `library` so
 the two are distinguishable.
 
-## The three reference imports, and why they are in the image
+## The reference imports, and why they are in the image
 
-Three commands fill reference data — the same rows for every learner, none of
+Six commands fill reference data — the same rows for every learner, none of
 it personal:
 
 | Command | Fills | Without it |
 |---|---|---|
 | `cli rections` | EKK SÜ 64, the 23 rections learners get wrong | the `rektsioon` drill says "run `cli rections` once", and free writing stops reporting `&err-gov` |
 | `cli import-levels` | EKI's official A1/A2/B1 vocabulary | every CEFR level is an estimate off a list where only 6.2 % of lemmas carry a tag |
-| `cli import-psv` | EKI's learner dictionary, ~6 000 definitions and their examples | the word card shows Sõnaveeb's native-level wording, which is the thing a learner could not read |
+| `cli import-psv` | EKI's learner dictionary, 4 849 definitions and their examples | the word card shows Sõnaveeb's native-level wording, which is the thing a learner could not read |
+| `cli import-evs` | EKI's Estonian–Russian dictionary, 60 610 lemmas | the Russian on a word card and beside a drill needs a live Sõnaveeb request |
+| `cli import-vsl` | EKI's foreign-words lexicon, 30 095 definitions | no offline definition when PSV and Sõnaveeb both have none |
+| `cli import-har` | EKI's education terms, 5 873 with Russian | no offline Russian when EVS and Sõnaveeb both have none |
 
-All three run **at image build time**, and all three write into
+All six run **at image build time**, and all six write into
 `data/eesti.db`, which is baked in. That placement is the decision, and it is
 the opposite of the one above: the corpus and the learner's progress travel in
 the snapshot precisely because they are owner-only or personal, and reference
@@ -585,33 +588,18 @@ learner definitions started life in `vocab.db` beside the Sõnaveeb glosses and
 would have been wiped by the first restore — on a service that scales to zero,
 that is the first cold start.
 
-### The two EKI files come from you, not from code
+### The EKI files are committed
 
-Nothing in this repo downloads them. EKI serve both behind **ID-card
-authentication** (checked 2026-09-12 — this said "a form" until then, which
-understated it), a gate to walk through rather than step around — the same
-posture as HARNO and Sõnaveeb. In practice it means an Estonian ID card or
-Mobiil-ID, so the build path below is the one that stays unexercised if you
-have neither.
+Since 2026-09-13 the files the image imports live in `deploy/eki/` — the level
+list as text, the four dictionaries gzipped — and `deploy/eki/README.md` lists
+them with what each turns on. Until then they were git-ignored, Cloud Build
+builds from git, and production had none of them: smoke run 34765657703 read
+`eki_levels` 0 and `eki_definitions` 0. `test_every_file_the_image_imports_is_in_git`
+now derives the list from the `Dockerfile` and fails if git ignores any of it.
 
-Download them once from <https://arhiiv.eki.ee/litsents/> and drop them in
-`deploy/eki/` (that directory has a README; the files themselves are
-git-ignored):
-
-```
-deploy/eki/A1A2B1.txt           Eesti keele tasemete sõnavara (2018)
-deploy/eki/psv_EKI_CCBY40.xml   Eesti keele põhisõnavara sõnastik (2014)
-```
-
-The next `docker build` **from that working copy** imports whatever is there.
-The production image is not built from it: Cloud Build rebuilds from git on
-every merge, the files are git-ignored, and so production has neither —
-`eki_levels` 0 and `eki_definitions` 0 in smoke run 34765657703 (2026-09-13).
-`deploy/eki/README.md` has what that leaves open. A build without them still
-works: each command prints what is missing and the `Dockerfile` steps end in
-`||`, so a missing file — or EKI having a bad afternoon and refusing
-`cli rections` from a datacenter IP, which they have already done to a GitHub
-runner — costs one feature rather than the whole deploy.
+The `Dockerfile` steps still end in `||`, so a missing or unreadable file — or
+EKI refusing `cli rections` from a datacenter IP, which they have done to a
+GitHub runner — costs one feature rather than the whole deploy.
 
 ### Which is exactly why you have to be able to ask
 
@@ -623,8 +611,9 @@ counts, not flags:
 "reference": {"rections": 23, "eki_levels": 0, "eki_definitions": 0}
 ```
 
-That is what production returned on 2026-09-13 (smoke run 34765657703), not an
-illustration. An earlier version of this block showed `5987` definitions — a
+That is what production returned on 2026-09-13 (smoke run 34765657703), before
+the EKI files were committed — not an illustration. The block now also reports
+`eki_russian`, `eki_terms` and `eki_loanwords`. An earlier version of this block showed `5987` definitions — a
 number no import had ever produced, since the dictionary XML has never been
 read here.
 

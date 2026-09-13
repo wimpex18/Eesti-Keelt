@@ -91,7 +91,7 @@ def translate_sentence(req: TranslateRequest) -> dict:
             "engine": got.engine}
 
 
-def _meaning(simple, kept) -> dict:
+def _meaning(simple, kept, native_offline=None) -> dict:
     """Which definition the card shows, and whose words it is.
 
     EKI's learner-level wording where there is one, Sõnaveeb's otherwise, with
@@ -111,12 +111,16 @@ def _meaning(simple, kept) -> dict:
     """
     psv_definition = simple.definition if simple else None
     native = kept.definition if kept else None
-    definition = psv_definition or native
+    # Third and last: EKI's native-level dictionaries (VSL, EKSS), offline, for
+    # when Sõnaveeb had nothing or could not be asked. `(source id, text)`.
+    offline_source, offline = native_offline or (None, None)
+    definition = psv_definition or native or offline
     return {
         "definition": definition,
-        # Named, not inferred. `None` when neither source had anything to say.
+        # Named, not inferred. `None` when no source had anything to say.
         "definition_source": (
-            "eki-psv" if psv_definition else "sonapi" if native else None),
+            "eki-psv" if psv_definition else "sonapi" if native
+            else offline_source if offline else None),
         # Only when EKI answered and Sõnaveeb had something else to add, so the
         # card can offer the fuller wording without repeating itself.
         "full_definition": native if psv_definition and native != definition
@@ -125,6 +129,33 @@ def _meaning(simple, kept) -> dict:
         # source ever filled. PSV is the only source that has examples.
         "examples": list(simple.examples) if simple else [],
     }
+
+
+def _russian(word: str, kept) -> dict:
+    """The Russian on the card, and whose it is.
+
+    **Offline EVS first, live Sõnaveeb second, EKI's education terms (HAR)
+    last** — the same shape as the definition beside it (PSV, Sõnaveeb, then
+    EKI's native-level dictionaries). EKI's Estonian–Russian
+    dictionary is in the image and answers for ~60 000 lemmas with no request,
+    no daily budget and no outage; Sõnaveeb's gloss is the fallback for what it
+    lacks. Each stays in its own table (`evs_gloss`, `word_gloss`) and neither
+    ever writes the other, so the preference is stated here and nowhere else.
+    `russian_source` is named for the same CC BY reason as `definition_source`.
+    """
+    from ..evs import russian as evs_russian
+
+    offline = evs_russian(db(), word)
+    if offline:
+        return {"russian": list(offline[:3]), "russian_source": "eki-evs"}
+    if kept is not None and kept.russian:
+        return {"russian": list(kept.russian[:3]), "russian_source": "sonapi"}
+    from ..har import russian as har_russian
+
+    terms = har_russian(db(), word)
+    if terms:
+        return {"russian": list(terms), "russian_source": "eki-har"}
+    return {"russian": [], "russian_source": None}
 
 
 @router.get("/api/enrich/{word}")
@@ -159,9 +190,16 @@ def enrich_word(word: str) -> dict:
     # PSV covers ~6 000 basic words and is absent on a deployment that never
     # imported it; both are ordinary, so this never gates the response.
     simple = psv_lookup(db(), word)
-    meaning = _meaning(simple, kept)
+    from ..ekidefs import lookup as native_offline
+
+    meaning = _meaning(simple, kept, native_offline(db(), word))
+    russian = _russian(word, kept)
     if kept is None or not kept.found:
-        return {"word": word, "found": bool(simple), **meaning}
+        # Found if *any* source had something to show. The card draws nothing
+        # when this is false, so counting only PSV hid every VSL definition
+        # and every EVS gloss for a word Sõnaveeb does not know.
+        shown = meaning["definition"] or meaning["examples"] or russian["russian"]
+        return {"word": word, "found": bool(shown), **meaning, **russian}
     return {
         "word": word,
         "found": True,
@@ -171,8 +209,8 @@ def enrich_word(word: str) -> dict:
         # The language policy says explanations are in Russian, and the API has
         # carried Russian glosses all along — under the per-meaning key the
         # module never read. Three at most: a word card is a reminder, not an
-        # entry.
-        "russian": list(kept.russian[:3]),
+        # entry. EKI's dictionary first; see `_russian`.
+        **russian,
         # The dictionary this app deliberately does not rebuild. Sõnaveeb has
         # the full paradigm, audio, and every translation; sending the learner
         # there is the honest answer to "I want more than three fields", and it

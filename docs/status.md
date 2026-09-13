@@ -81,16 +81,31 @@ nothing) was the "presence of a database is not presence of data" mistake in a
 new place, and it is closed. **The table can still be empty; what changed is
 that asking now gets an answer.**
 
-### EKI's levels and learner definitions are not in production
+### EKI's dictionaries: committed, imported, not yet measured in production
 
-Both importers are built and the `Dockerfile` runs them, and production has
-neither: `eki_levels` 0 and `eki_definitions` 0 in smoke run 34765657703
-(2026-09-13), from an image built after the latest merge. That is structural,
-not a bad build. Cloud Build rebuilds from git, `deploy/eki/*` is git-ignored,
-and the files are not on the operator machine either (checked the same day).
-So every CEFR level the learner sees is the estimate, and the word card shows
-Sõnaveeb's native-level wording. `rections` is present (23, the whole parsed
-table). What would change it is in `deploy/eki/README.md`.
+Closed in code on 2026-09-13; open until a smoke run reads the counts.
+
+Until then production had none of EKI's data (`eki_levels` 0, `eki_definitions`
+0, smoke run 34765657703), because Cloud Build builds from git and the files
+were git-ignored. They are now committed in `deploy/eki/` and the image imports
+them. Measured locally on the real files the same day:
+
+| `/api/health` `reference` | Local, from the committed files |
+|---|---|
+| `eki_levels` | 4 340 (4 102 words carry `level_source = 'eki'`) |
+| `eki_definitions` | 4 849 |
+| `eki_russian` | 60 610 |
+| `eki_loanwords` | 30 095 |
+| `eki_terms` | 5 873 |
+
+The first real run found what the fixtures could not: the XML has no root
+element and undeclared prefixes, so `psv.parse` failed on byte one. PSV also
+has 58 lemmas with two articles, and an upsert in file order kept the rarer
+meaning. Both are fixed and tested against the real shape.
+
+Which answer a word card shows, each from its own table:
+**definition** PSV → Sõnaveeb → VSL (→ EKSS, if imported); **Russian** EVS →
+Sõnaveeb → HAR. EKSS (119 426 definitions) is optional and not in the image.
 
 ### Only one grammar provider is actually configured
 

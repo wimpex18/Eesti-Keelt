@@ -135,7 +135,12 @@ class TestSurvivingARebuild:
 
 
 class TestTheRealFilesSurprises:
-    """Written against facts read off EKI's actual 51 015-row file.
+    """Written against facts read off EKI's actual file — and two of them wrong.
+
+    Counted on 2026-09-13, when the file itself arrived: 4 456 rows, not
+    51 015; 114 duplicated lemmas, not ~200; no blank levels. The shapes held
+    (duplicates under two parts of speech, multi-word entries), so the tests
+    stand; the numbers in them were never the real file's.
 
     The importer is tested on a fixture because EKI serves the real file behind
     a form and this project has never held it. A fixture proves the parser; it
@@ -145,7 +150,7 @@ class TestTheRealFilesSurprises:
     """
 
     def test_a_lemma_on_two_lines_takes_the_lower_level(self, tmp_path):
-        """About 200 lemmas appear more than once, the same word under two
+        """114 lemmas appear more than once (counted), the same word under two
         parts of speech. `official_levels.word` is a primary key, so the old
         insert kept whichever line came last — a coin-toss between two of EKI's
         own rows, decided by file order."""
@@ -206,7 +211,7 @@ class TestTheRealFilesSurprises:
         assert [r[0] for r in wordlist.read_official_levels(path)] == ["raamat"]
 
     def test_it_handles_the_real_files_scale(self, tmp_path, words):
-        """51 015 rows, with duplicates and phrases mixed through, in one go.
+        """Eleven times the real file (4 456 rows), duplicates and phrases mixed through.
 
         Not a benchmark — a check that nothing here is quadratic or holds the
         whole file twice, on the only run that matters being the learner's

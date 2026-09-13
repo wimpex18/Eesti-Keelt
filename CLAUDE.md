@@ -141,7 +141,7 @@ The trap that shaped the table: EKI publishes a corpus **count** (`aasta` is
 5 006 831) and `words.freq_rank` holds a **rank** (`ma` is 2). They order the
 same words in opposite directions, so EKI's number stays in
 `official_levels.freq` under its own name. `cli import-levels` does not
-download — EKI asks for an ID card first, and that is worth doing.
+download; the file is committed in `deploy/eki/`, gzipped where large.
 
 ## Where it runs
 
@@ -190,8 +190,8 @@ origin), and a git-ignored `.env` (local).
   publishes the level vocabulary and the *põhisõnavara sõnastik* under CC BY
   4.0, with EKI's terms saying the material may be processed and presented any
   way needed, an app included, provided the attribution is kept and the changes
-  described. Both are imported from a file **the learner downloads** — EKI ask
-  for an ID card first, so nothing in this repo fetches them and nothing can.
+  described. They are imported from files **the learner downloaded** and committed in
+  `deploy/eki/` (gzipped); nothing in this repo fetches from EKI.
   This is why the app does not need to scrape the learner dictionary.
 - **Sõnaveeb must never be batch-scraped.** `sonapi` is single-lookup only,
   throttled to one live request a second under a lock, and deliberately has no

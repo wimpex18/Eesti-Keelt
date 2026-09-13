@@ -80,7 +80,7 @@ def health() -> dict:
 
 
 def _reference(conn) -> dict:
-    from .. import psv, rection
+    from .. import ekidefs, evs, har, psv, rection
 
     def count(sql: str) -> int:
         try:
@@ -97,6 +97,11 @@ def _reference(conn) -> dict:
         "eki_levels": count("SELECT COUNT(*) FROM official_levels"),
         # EKI's learner dictionary -- the definition on a word card.
         "eki_definitions": psv.imported(conn),
+        # EKI's Estonian-Russian dictionary -- the Russian on a word card.
+        "eki_russian": evs.imported(conn),
+        # Last fallbacks: education-term Russian, loanword definitions.
+        "eki_terms": har.imported(conn),
+        "eki_loanwords": ekidefs.imported(conn, "eki-vsl"),
     }
 
 

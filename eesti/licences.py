@@ -174,11 +174,9 @@ REGISTRY: tuple[Source, ...] = (
         "The exam board's own institute publishing which words are A1, A2 and "
         "B1 — the claim the enriched Ekilex list could only estimate, and it "
         "estimated it for 6.2 % of its lemmas. Imported by `cli import-levels` "
-        "from a file the learner downloads: EKI serve it behind ID-card "
-        "authentication — checked 2026-09-12, and it is a stronger gate than "
-        "the form this note used to describe, which is worth knowing before "
-        "planning a build around the file being present. A gate to walk "
-        "through rather than step around, so nothing here fetches it. Stored "
+        "from a file the learner downloaded, committed as `deploy/eki/A1A2B1.txt` "
+        "since 2026-09-13 (4 456 rows). On 2026-09-12 EKI's page asked for an "
+        "ID card; direct links worked the next day. Nothing here fetches it. Stored "
         "verbatim in `official_levels` and applied to "
         "`words.proficiency` with `words.level_source = 'eki'`. Licence terms "
         "are EKI's own: process and present it any way needed, an app "
@@ -212,15 +210,63 @@ REGISTRY: tuple[Source, ...] = (
         "licence written down.",
     ),
     Source(
+        "eki-evs", "Eesti-vene sõnaraamat (EKI)", "file",
+        "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 610 lemmas "
+        "with a usable Russian translation (measured 2026-09-13). The Russian "
+        "on a word card and beside a drill, offline, ahead of Sõnaveeb's live "
+        "gloss. Imported by `cli import-evs` into the words database as "
+        "`evs_gloss` — reference data, like `psv_gloss`, never written into "
+        "the learner's `word_gloss`. Same terms as EKI's other downloads: "
+        "process and present it any way needed, with the attribution kept "
+        "and the changes described.",
+        changes="Из словарной статьи взяты заглавное слово, часть речи и не "
+                "более пяти русских переводов — по одному на значение, затем "
+                "следующие. Отброшены пометы ударения и вида, устаревшие "
+                "переводы, формы, управление и переведённые примеры.",
+    ),
+    Source(
+        "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "EKI's education terminology: 4 989 articles, 5 873 terms counting "
+        "synonyms, with Russian (measured 2026-09-13). The last fallback for "
+        "a word card's Russian, after EVS and Sõnaveeb. `cli import-har`, "
+        "table `har_gloss` in the words database.",
+        changes="Взяты термины (основной и синонимы) и не более трёх русских "
+                "переводов; определения, переводы на другие языки и "
+                "редакционные пометы отброшены.",
+    ),
+    Source(
+        "eki-vsl", "Võõrsõnade leksikon (EKI)", "file", "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "EKI's lexicon of foreign words: 31 794 articles, 30 095 headwords "
+        "with a definition (measured 2026-09-13). Native-level wording, so the "
+        "last fallback for a word card's definition, after PSV and Sõnaveeb. "
+        "`cli import-vsl`, table `vsl_gloss` in the words database.",
+        changes="Взяты заглавное слово и первое определение первой статьи; "
+                "этимология, подстатьи, пометы и разметка отброшены.",
+    ),
+    Source(
+        "eki-ekss", "Eesti keele seletav sõnaraamat (EKI)", "file", "CC-BY-4.0", True,
+        "https://arhiiv.eki.ee/litsents/",
+        "EKI's full explanatory dictionary: 145 882 articles (measured "
+        "2026-09-13). Optional — Sõnaveeb already shows these definitions "
+        "live, and the image build does not import it. If imported with `cli "
+        "import-ekss`, it is consulted after VSL, as the last definition "
+        "fallback. Table `ekss_gloss`.",
+        changes="Взяты заглавное слово и первое определение первой статьи; "
+                "примеры, формы, подстатьи и разметка отброшены.",
+    ),
+    Source(
         "eki-psv", "Eesti keele põhisõnavara sõnastik 2014 (EKI)", "file",
         "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
         "About 6 000 basic words defined in language a learner can read — the "
         "thing *Keeleõppija Sõnaveeb* exists for, published for download "
         "instead of scraped. Imported by `cli import-psv` from a file the "
-        "learner downloads; EKI serve it behind ID-card authentication "
-        "(checked 2026-09-12), so nothing here fetches it — and a build that "
-        "assumes the file is present will not get it. Stored "
+        "learner downloaded, committed gzipped in `deploy/eki/` since "
+        "2026-09-13, so the image build imports it. Nothing here fetches it. Stored "
         "in the words database as `psv_gloss`, not in `vocab.db`: it is "
         "reference data, and `vocab.db` travels in the state snapshot, where "
         "a restore replaces the file whole. `/api/enrich` reads it beside "
@@ -229,11 +275,13 @@ REGISTRY: tuple[Source, ...] = (
         "an app included, commercial use unrestricted, provided the "
         "attribution to EKI is kept and the changes described. The changes: "
         "articles are flattened to headword, first definition and at most "
-        "three examples; editing metadata and cross-reference markup are "
-        "dropped. The store is one learner's, behind Access, never "
-        "redistributed — the same posture as the Sõnaveeb answers beside it.",
+        "three examples, and of two homonym articles the commoner is kept; "
+        "editing metadata and cross-reference markup are dropped. The source "
+        "file is redistributed, gzipped, in this public repository, which CC "
+        "BY 4.0 permits with this attribution.",
         changes="Из словарной статьи взяты заглавное слово, первое "
-                "определение и не более трёх примеров; редакционные пометы и "
+                "определение и не более трёх примеров; из статей-омонимов "
+                "оставлена более частотная; редакционные пометы и "
                 "перекрёстные ссылки отброшены. Сами определения и примеры "
                 "показаны так, как их написал EKI.",
     ),

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from .deps import content_db, gloss_db
+from .deps import content_db, db, gloss_db
 
 
 def _topic_reference(meta) -> dict | None:
@@ -48,14 +48,20 @@ def _topic_name(kind: str) -> str:
 
 
 def _glosses_for(lemmas: list[str]) -> dict[str, list[str]]:
-    """Russian for whatever is already known locally. Never fetches."""
-    from .. import gloss
+    """Russian for whatever is already known locally. Never fetches.
+
+    EKI's Estonian–Russian dictionary wins where it has the word, the stored
+    Sõnaveeb glosses (and the hand-written seed) fill the rest — the order
+    `api/grammar._russian` states for the word card.
+    """
+    from .. import evs, gloss
 
     try:
         found = gloss.stored_many(gloss_db(), lemmas)
+        known = {k: list(g.russian) for k, g in found.items() if g.russian}
     except sqlite3.Error:
-        return {}
-    return {k: list(g.russian) for k, g in found.items() if g.russian}
+        known = {}
+    return {**known, **evs.russian_many(db(), lemmas)}
 
 
 def reading_for(topic: str, limit: int = 3) -> list[dict]:

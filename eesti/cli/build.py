@@ -67,10 +67,9 @@ def cmd_fetch_data(args: argparse.Namespace) -> int:
 def cmd_import_levels(args: argparse.Namespace) -> int:
     """Replace the derived CEFR estimates with the exam board institute's own.
 
-    Not a download. `arhiiv.eki.ee/litsents/` requires ID-card authentication
-    before it hands the file over (checked 2026-09-12) — a gate to walk through
-    rather than step around — so this takes a path to the file the learner
-    fetched, and says so when the path is wrong.
+    Not a download: it takes a path to the file the learner fetched from
+    `arhiiv.eki.ee/litsents/` — committed as `deploy/eki/A1A2B1.txt` since
+    2026-09-13 — and says so when the path is wrong.
     """
     from collections import Counter
 
@@ -196,6 +195,68 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
     print("  Source: Eesti keele põhisõnavara sõnastik 2014, EKI, CC BY 4.0.")
     print("  Stored beside the word list, not in `vocab.db`: reference data, and")
     print("  a state-snapshot restore would otherwise wipe it on the next cold start.")
+    return 0
+
+
+def cmd_import_evs(args: argparse.Namespace) -> int:
+    """Russian for Estonian words, from EKI's dictionary rather than a request."""
+    from .. import evs
+    from ..wordlist import connect
+
+    path = Path(args.file)
+    if not path.exists():
+        print(f"{path} not found.")
+        print("Download `evs_EKI_CCBY40.xml` from https://arhiiv.eki.ee/litsents/ "
+              "(Eesti-vene sõnaraamat, CC BY 4.0) and pass its path.")
+        return 1
+
+    entries = evs.parse(path)
+    if not entries:
+        print(f"{path} held no article with a Russian translation — is this "
+              "the right file?")
+        return 1
+
+    if args.check:
+        sample = {e.lemma: e for e in entries}
+        print(f"  {len(entries):,} lemmas with Russian")
+        for word in ("maja", "lugema", "hea"):
+            if word in sample:
+                print(f"    {word}: {', '.join(sample[word].russian)}")
+        print("  Nothing was written. Drop --check to import.")
+        return 0
+
+    conn = connect()
+    stats = evs.store(conn, entries)
+    print(f"  {stats['entries']:,} lemmas with Russian stored")
+    print("  Source: Eesti-vene sõnaraamat, EKI, CC BY 4.0.")
+    print("  Word cards now show EKI's Russian first and Sõnaveeb's second.")
+    return 0
+
+
+def cmd_import_eki_fallback(args: argparse.Namespace) -> int:
+    """VSL, EKSS (definitions) or HAR (Russian): EKI's last-fallback dictionaries."""
+    from .. import ekidefs, har
+    from ..wordlist import connect
+
+    path = Path(args.file)
+    if not path.exists():
+        print(f"{path} not found. Download it from https://arhiiv.eki.ee/litsents/ "
+              "(CC BY 4.0) and pass its path.")
+        return 1
+    found = har.parse(path) if args.source == "eki-har" else ekidefs.parse(path)
+    if not found:
+        print(f"{path} held nothing usable — is this the right file?")
+        return 1
+    what = "terms with Russian" if args.source == "eki-har" else "definitions"
+    if args.check:
+        sample = list(found.items())[:3]
+        print(f"  {len(found):,} {what} (e.g. {sample})")
+        print("  Nothing was written. Drop --check to import.")
+        return 0
+    conn = connect()
+    n = (har.store(conn, found) if args.source == "eki-har"
+         else ekidefs.store(conn, args.source, found))
+    print(f"  {n:,} {what} stored ({args.source}, EKI, CC BY 4.0)")
     return 0
 
 
@@ -409,6 +470,29 @@ def register(sub) -> None:
     p.add_argument("--check", action="store_true",
                    help="report what the file holds and write nothing")
     p.set_defaults(func=cmd_import_psv)
+
+    p = sub.add_parser(
+        "import-evs",
+        help="import EKI's Estonian-Russian dictionary (a file you downloaded)",
+    )
+    p.add_argument("file", help="evs_EKI_CCBY40.xml from arhiiv.eki.ee/litsents")
+    p.add_argument("--check", action="store_true",
+                   help="report what the file holds and write nothing")
+    p.set_defaults(func=cmd_import_evs)
+
+    for name, source, filename, helptext in (
+        ("import-vsl", "eki-vsl", "vsl_EKI_CCBY40.xml.gz",
+         "EKI's foreign-words lexicon, last-fallback definitions"),
+        ("import-har", "eki-har", "har_EKI_CCBY40.xml.gz",
+         "EKI's education terms, last-fallback Russian"),
+        ("import-ekss", "eki-ekss", "ekss_EKI_CCBY40.xml",
+         "EKI's explanatory dictionary (optional, not in the image build)"),
+    ):
+        p = sub.add_parser(name, help=helptext)
+        p.add_argument("file", help=f"{filename} from arhiiv.eki.ee/litsents")
+        p.add_argument("--check", action="store_true",
+                       help="report what the file holds and write nothing")
+        p.set_defaults(func=cmd_import_eki_fallback, source=source)
 
     p = sub.add_parser("keys", help="show which API keys are configured")
     p.set_defaults(func=cmd_keys)

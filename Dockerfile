@@ -51,17 +51,18 @@ run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 
 # EKI's two downloads, if the person building the image has them.
 #
-# **The production image does not.** Cloud Build rebuilds on every merge to
-# `main` from a git checkout, and `deploy/eki/*` is git-ignored, so on that path
-# both commands below find nothing and the `||` swallows it every time.
-# Measured, not inferred: the smoke run of 2026-09-13 (34765657703) read
-# `eki_levels` 0 and `eki_definitions` 0 from an image built after the merge.
-# Only a `docker build` from a working copy that holds the files bakes them in;
-# deploy/eki/README.md says what that leaves open.
+# **They are committed, gzipped**, since 2026-09-13. Until then `deploy/eki/*`
+# was git-ignored, Cloud Build rebuilds from a git checkout, and so production
+# had none of them: smoke run 34765657703 read `eki_levels` 0 and
+# `eki_definitions` 0 from an image built after a merge. CC BY 4.0 permits
+# redistribution with the attribution kept (`eesti/licences.py`). Gzipped
+# because `evs` raw is 87 MB; the importers read `.gz` directly. EKSS, the
+# full explanatory dictionary, is deliberately not committed or imported here:
+# Sõnaveeb shows its definitions live, and it is the one optional file.
 #
-# Neither is fetched, here or anywhere: EKI serve both behind ID-card
-# authentication (checked 2026-09-12), a gate worth walking through rather than
-# stepping around. The learner downloads them once and drops
+# None is fetched by the build: the learner downloads them from
+# arhiiv.eki.ee/litsents (direct links worked on 2026-09-13, without the ID-card
+# step noted on 2026-09-12) and they are committed from there. The learner downloads them once and drops
 # them in `deploy/eki/`; this copies whatever is there.
 #
 # The directory always exists and always holds its README, so the COPY cannot
@@ -84,9 +85,16 @@ COPY deploy/eki/ ./deploy/eki/
 RUN python -m eesti.cli import-levels deploy/eki/A1A2B1.txt || \
     echo "NOTE: EKI level vocabulary not in the build context; \
 words keep their estimated CEFR levels. See deploy/eki/README.md."
-RUN python -m eesti.cli import-psv deploy/eki/psv_EKI_CCBY40.xml || \
+RUN python -m eesti.cli import-psv deploy/eki/psv_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI learner dictionary not in the build context; \
 word cards show Sonaveeb's native-level definition. See deploy/eki/README.md."
+RUN python -m eesti.cli import-evs deploy/eki/evs_EKI_CCBY40.xml.gz || \
+    echo "NOTE: EKI Estonian-Russian dictionary not in the build context; \
+word cards show Sonaveeb's Russian only. See deploy/eki/README.md."
+RUN python -m eesti.cli import-vsl deploy/eki/vsl_EKI_CCBY40.xml.gz || \
+    echo "NOTE: EKI foreign-words lexicon not in the build context. See deploy/eki/README.md."
+RUN python -m eesti.cli import-har deploy/eki/har_EKI_CCBY40.xml.gz || \
+    echo "NOTE: EKI education terms not in the build context. See deploy/eki/README.md."
 
 # ---------------------------------------------------------------------------
 # Runtime

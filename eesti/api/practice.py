@@ -318,11 +318,14 @@ def practice_answer(req: AnswerRequest) -> dict:
     # struggle with the form, not before it as a hint.
     meaning: list[str] = []
     if req.lemma:
-        from .. import gloss
+        from .. import evs, gloss
 
+        # EKI's dictionary first, and then no request is spent at all.
+        meaning = list(evs.russian(db(), req.lemma))
         try:
-            kept = gloss.remember(gloss_db(), req.lemma)
-            meaning = list(kept.russian) if kept else []
+            if not meaning:
+                kept = gloss.remember(gloss_db(), req.lemma)
+                meaning = list(kept.russian) if kept else []
         except Exception:  # noqa: BLE001 - a gloss is never worth failing a grade
             meaning = []
 

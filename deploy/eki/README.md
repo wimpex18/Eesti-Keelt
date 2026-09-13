@@ -1,69 +1,59 @@
-# Two files EKI hands over in person
+# EKI's dictionary downloads, committed
 
-Drop them here and a `docker build` **from this working copy** bakes them in.
-The deployed image is not built from this working copy — see *The deployment
-does not have them* below. Nothing in this repo
-downloads them, and that is deliberate: EKI serve both behind **ID-card
-authentication** (checked 2026-09-12), which is a gate to walk through rather
-than step around. It also means you need an Estonian ID card or Mobiil-ID to
-get them at all — worth knowing before planning a build around their being
-here.
+Five files from <https://arhiiv.eki.ee/litsents/>, all CC BY 4.0, committed here
+since 2026-09-13 and imported by the `Dockerfile` into `data/eesti.db`. The
+learner downloaded them — direct links worked that day, without the ID-card
+step recorded on 2026-09-12 — and nothing in this repo fetches from EKI.
 
 | File | What it is | What it turns on |
 |---|---|---|
-| `A1A2B1.txt` | *Eesti keele tasemete sõnavara* (2018) — the official A1 / A2 / B1 lists | `words.level` becomes EKI's answer instead of an estimate; `words.level_source` says so |
-| `psv_EKI_CCBY40.xml` | *Eesti keele põhisõnavara sõnastik* (2014) — ~6 000 words defined in language a learner can read | the word card shows a definition the learner can read, with real usage examples |
+| `A1A2B1.txt` | *Eesti keele tasemete sõnavara* — 4 456 lemmas, A1 740 · A2 1 266 · B1 2 450 | `words.level` is EKI's answer, `words.level_source` says so |
+| `psv_EKI_CCBY40.xml.gz` | *Eesti keele põhisõnavara sõnastik* — 4 849 learner-level definitions | the word card's definition and examples |
+| `evs_EKI_CCBY40.xml.gz` | *Eesti-vene sõnaraamat* — 60 610 lemmas with Russian | the word card's and the drills' Russian, offline |
+| `vsl_EKI_CCBY40.xml.gz` | *Võõrsõnade leksikon* — 30 095 definitions | last-fallback definition |
+| `har_EKI_CCBY40.xml.gz` | *Haridussõnastik* — 5 873 terms with Russian | last-fallback Russian |
 
-Both from <https://arhiiv.eki.ee/litsents/>, both CC BY 4.0. EKI's terms: process
-and present the material any way you need, an app included, provided the
-attribution stays and the changes are described. Both are described in
-`eesti/sources.py`, which is where the attribution lives.
+Counts measured on the real files, 2026-09-13. EKI's terms: process and present
+the material any way needed, an app included, provided the attribution stays and
+the changes are described. Both live in `eesti/licences.py`, and `/api/sources`
+serves them; the word card credits EKI on whatever EKI wrote.
 
-## Getting them in
+## Which answer a word card shows
+
+Every source has its own table, and none writes another's:
+
+- **Estonian definition** — PSV (`psv_gloss`) → live Sõnaveeb → VSL, then EKSS if imported
+- **Russian** — EVS (`evs_gloss`) → live Sõnaveeb → HAR (`har_gloss`)
+
+Stated in code once, in `eesti/api/grammar.py` (`_meaning`, `_russian`).
+
+## Why gzipped, and what is not here
+
+`evs` is 87 MB raw, over GitHub's 50 MB warning; gzipped it is 15 MB, and every
+importer reads `.gz` directly. The raw XML, the `.xsd` schemas, `ekss` (the full
+explanatory dictionary, 68 MB — Sõnaveeb shows it live, so it is optional) and
+the extras (`scrabble.txt`, `marksonad.txt`, `ekss.html.gz`) stay git-ignored.
+
+## The shape is not the schema
+
+The first real run of `import-psv` failed on byte one — "unbound prefix: line 1,
+column 0" — after a clean suite against a fixture built from `schema_psv.xsd`.
+The files have no root element and undeclared namespace prefixes, one article
+per line. `eesti/ekixml.py` reads that shape, and has the entity codes and
+marks that had to be cleaned. Run `--check` before importing a new download:
 
 ```bash
-python -m eesti.cli import-levels deploy/eki/A1A2B1.txt --check   # read it, write nothing
-python -m eesti.cli import-levels deploy/eki/A1A2B1.txt
-python -m eesti.cli import-psv    deploy/eki/psv_EKI_CCBY40.xml --check   # first, always
-python -m eesti.cli import-psv    deploy/eki/psv_EKI_CCBY40.xml
+python -m eesti.cli import-levels deploy/eki/A1A2B1.txt --check
+python -m eesti.cli import-psv    deploy/eki/psv_EKI_CCBY40.xml.gz --check
+python -m eesti.cli import-evs    deploy/eki/evs_EKI_CCBY40.xml.gz --check
+python -m eesti.cli import-vsl    deploy/eki/vsl_EKI_CCBY40.xml.gz --check
+python -m eesti.cli import-har    deploy/eki/har_EKI_CCBY40.xml.gz --check
+python -m eesti.cli import-ekss   path/to/ekss_EKI_CCBY40.xml      --check   # optional
 ```
 
-`import-psv --check` matters more than the other one: `eesti/psv.py` has only
-ever read a fixture built from EKI's schema, and EKI say their XML does not
-validate against it. If it reports headwords and no definitions, the parser
-does not fit the real file — fix it against the file, not against the schema.
+Drop `--check` to import. All of it is reference data in the words database,
+which is baked into the image — not in `vocab.db`, which a state-snapshot
+restore replaces whole.
 
-Locally that is all. The `Dockerfile` runs the same two commands during the
-build, against whatever is sitting in this directory — so a `docker build` with
-the files present ships a word list EKI levelled and a dictionary a learner can
-read, and a build without them ships exactly what it shipped before. Both write into `data/eesti.db`, which is baked into the image:
-reference data, the same for everybody, and **not** carried by the state
-snapshot — a restore replaces `vocab.db`, `progress.db` and `review.db` whole,
-so anything kept there would vanish on the first cold start.
-
-The files themselves are git-ignored. They are redistributable under CC BY 4.0,
-but this repo's rule is that data files are built or downloaded, never
-committed, and 51 015 rows of someone else's list is not a diff anybody reads.
-
-## The deployment does not have them
-
-Cloud Build rebuilds the production image on every merge to `main`, from git.
-These files are git-ignored — the line below says why — so that build never
-sees them, both imports print "not found", and the `||` lets the image ship
-without them. Measured on 2026-09-13: smoke run 34765657703 read `eki_levels` 0
-and `eki_definitions` 0 from an image built three minutes after the merge.
-
-`gcloud builds submit` from a working copy that holds them would not help
-either: without a `.gcloudignore`, gcloud honours `.gitignore` and leaves them
-out of the upload.
-
-So getting them into production is a decision nobody has made yet, and it
-waits until someone actually holds the files. The two shapes it can take are
-committing them (CC BY 4.0 permits it; this repo's rule against committed data
-files would need an exception) or having the build fetch them from a private
-bucket. Until then the importers have met the level list only through facts
-read off it (`docs/source-audit.md`) and the dictionary XML **not at all** —
-`psv.py` is tested against a fixture built from the schema.
-
-The file names above are what the `Dockerfile` looks for. If EKI hand you a
-different name, rename it — or run the commands yourself and rebuild.
+To refresh a file: download it, `gzip -9 -n`, replace it here, run `--check`,
+and commit.
