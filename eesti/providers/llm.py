@@ -220,8 +220,11 @@ PROVIDERS: dict[str, Provider] = {
     #
     # It got an answer rather than a number: eval run 34765659556 (2026-09-13),
     # with the token, returned `400 model_not_supported` for all 18 cases. The
-    # mapping above is metadata; the router does not route this id for that
-    # token. docs/status.md has what is and is not known about why.
+    # mapping above is metadata; the bare id asks for `:fastest`, which does
+    # not offer it. With the provider named (`:featherless-ai`, run 34772172942)
+    # it routes and answers 402 Payment Required. Not paid for, by decision --
+    # docs/status.md. The id is left unsuffixed so a free route, if one ever
+    # appears, is picked up without a code change.
     #
     # Placed directly after `local` in `LLM_PREFERENCE` for one reason: it runs
     # **the same Estonian-adapted model**, on hardware somebody else owns. The
