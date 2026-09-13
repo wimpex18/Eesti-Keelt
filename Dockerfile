@@ -1,4 +1,5 @@
-# The app on Cloudflare Containers.
+# The app, as a container image run on Google Cloud Run (docs/deploy.md has
+# why it is neither a Worker nor a Cloudflare Container).
 #
 # Why a container and not a Worker: `cloze`, `conjugation`, `patterns` and
 # `verbs` all call Vabamorf at request time, and Vabamorf is a compiled C++
@@ -50,9 +51,17 @@ run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 
 # EKI's two downloads, if the person building the image has them.
 #
-# Neither is fetched, here or anywhere: EKI serve both behind a form asking who
-# you are and what the material will be used in, and answering that is worth
-# doing rather than stepping around. The learner downloads them once and drops
+# **The production image does not.** Cloud Build rebuilds on every merge to
+# `main` from a git checkout, and `deploy/eki/*` is git-ignored, so on that path
+# both commands below find nothing and the `||` swallows it every time.
+# Measured, not inferred: the smoke run of 2026-09-13 (34765657703) read
+# `eki_levels` 0 and `eki_definitions` 0 from an image built after the merge.
+# Only a `docker build` from a working copy that holds the files bakes them in;
+# deploy/eki/README.md says what that leaves open.
+#
+# Neither is fetched, here or anywhere: EKI serve both behind ID-card
+# authentication (checked 2026-09-12), a gate worth walking through rather than
+# stepping around. The learner downloads them once and drops
 # them in `deploy/eki/`; this copies whatever is there.
 #
 # The directory always exists and always holds its README, so the COPY cannot
@@ -68,7 +77,9 @@ run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 #
 # Without the files each command says what is missing and returns 1, so the
 # `||` is doing real work: the image builds, the word list keeps its estimated
-# levels, and the word card keeps Sõnaveeb's native-level wording.
+# levels, and the word card keeps Sõnaveeb's native-level wording. The cost of
+# that silence is paid by `/api/health`'s `reference` counts and the smoke
+# workflow's warnings, which are the only place its absence shows.
 COPY deploy/eki/ ./deploy/eki/
 RUN python -m eesti.cli import-levels deploy/eki/A1A2B1.txt || \
     echo "NOTE: EKI level vocabulary not in the build context; \

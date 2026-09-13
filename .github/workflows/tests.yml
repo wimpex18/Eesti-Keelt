@@ -9,11 +9,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      # Two Pythons, and the pair is the point. 3.11 is what the Dockerfile
-      # ships and therefore what the learner actually runs; 3.13 is where this
-      # is going, and running it here is the only honest way to find out
-      # whether Vabamorf's compiled extension and everything above it survive
-      # the move. `fail-fast: false` so a break on one does not hide the other.
+      # Two Pythons, and the pair is the point. 3.13 is what the Dockerfile
+      # ships and therefore what the learner actually runs. 3.11 is the floor:
+      # the oldest version estnltk publishes wheels for, and the one `eval.yml`
+      # still runs on, so a change that only works on 3.13 fails here rather
+      # than in the eval. `fail-fast: false` so a break on one does not hide
+      # the other. `test_deploy_claims.py` holds the first sentence to the
+      # Dockerfile's FROM line.
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.13"]

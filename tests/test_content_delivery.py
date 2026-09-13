@@ -360,3 +360,14 @@ class TestTheRunningServiceCanBeAskedTheSameQuestion:
         assert ".corpus.items" in body
         assert ".corpus.topic_links" in body
         assert "link-topics" in body, "and says how to fix it"
+
+    def test_the_operator_sequence_links_before_it_pushes(self):
+        """The machine that has `content.db` is the one that harvested it —
+        Cloud Shell, where `push-content.sh` runs, has neither the harvest nor
+        the word list `link-topics` needs. So the only place the join can be
+        written is between harvesting and pushing, and the deploy document is
+        the only place that order is written down."""
+        doc = (ROOT / "docs" / "deploy.md").read_text(encoding="utf-8")
+        link = doc.index("python -m eesti.cli link-topics")
+        push = doc.index("bash deploy/push-content.sh")
+        assert doc.index("python -m eesti.cli harvest") < link < push

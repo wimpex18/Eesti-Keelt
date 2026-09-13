@@ -66,6 +66,13 @@ and has not been run since the corpus was last rebuilt. The reader returns
 `[]`, the practice response carries an empty `reading` list, and nothing
 anywhere says so.
 
+**On the deployment it is not empty:** smoke run 34765657703 (2026-09-13) read
+609 corpus items and 660 topic links, so `link-topics` was run on the copy that
+was last pushed. What is still true is that nothing on the deploy path runs it —
+it is a manual step between harvesting and `push-content.sh`, written out in
+`docs/deploy.md`, and a re-harvest pushed without it empties the join again.
+A local checkout with a fresh `content.db` starts empty.
+
 No longer unknown on the deployment, as of 2026-09-11. `/api/health` reports
 `corpus` as two row counts — `items` and `topic_links` — and the smoke check
 warns when there are texts and no links, naming `cli link-topics`. The gap this
@@ -73,6 +80,17 @@ paragraph described (the check verified `/api/library` *answers* and counted
 nothing) was the "presence of a database is not presence of data" mistake in a
 new place, and it is closed. **The table can still be empty; what changed is
 that asking now gets an answer.**
+
+### EKI's levels and learner definitions are not in production
+
+Both importers are built and the `Dockerfile` runs them, and production has
+neither: `eki_levels` 0 and `eki_definitions` 0 in smoke run 34765657703
+(2026-09-13), from an image built after the latest merge. That is structural,
+not a bad build. Cloud Build rebuilds from git, `deploy/eki/*` is git-ignored,
+and the files are not on the operator machine either (checked the same day).
+So every CEFR level the learner sees is the estimate, and the word card shows
+Sõnaveeb's native-level wording. `rections` is present (23, the whole parsed
+table). What would change it is in `deploy/eki/README.md`.
 
 ### Only one grammar provider is actually configured
 

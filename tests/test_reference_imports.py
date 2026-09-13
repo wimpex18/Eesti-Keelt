@@ -4,7 +4,7 @@ All three — EKK's rection table, EKI's level vocabulary, EKI's learner
 dictionary — happen at image build time and are all allowed to fail without
 failing the build. `cli rections` needs EKI to answer a datacenter IP, and they
 have already returned 403 to a GitHub runner on that exact URL; the two EKI
-downloads need files a person has to fetch from behind a form. Failing the
+downloads need files a person has to fetch from behind ID-card authentication. Failing the
 image on any of them would trade one feature for the whole deploy.
 
 That trade is only defensible if the deployment can be *asked* which ones
@@ -79,6 +79,20 @@ class TestTheBuildActuallyRunsThem:
         assert "deploy/eki/*" in ignore
         assert "!deploy/eki/README.md" in ignore, "and the README must survive it"
 
+    def test_nothing_promises_the_merge_built_image_has_them(self):
+        """The two EKI files are git-ignored (asserted above), and the
+        production image is built by Cloud Build from git on every merge. So
+        that image never has them — production read `eki_levels` 0 and
+        `eki_definitions` 0 on 2026-09-13 — while the README opened with "drop
+        them here and they are baked into the next image". Written in a session
+        that could not see the deployment, and true only for a local
+        `docker build`. The premise is derived; the documents must follow it."""
+        readme = (ROOT / "deploy" / "eki" / "README.md").read_text(encoding="utf-8")
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        assert "baked into the next image" not in readme
+        assert "## The deployment does not have them" in readme
+        assert "The production image does not." in dockerfile
+
     def test_the_file_names_agree_with_what_the_cli_tells_you_to_download(self):
         """The Dockerfile looks for a fixed name; the CLI prints one. They
         drifted once already — `tasemesonavara.txt` against `A1A2B1.txt` — and
@@ -99,3 +113,16 @@ class TestTheSmokeCheckReadsThem:
         assert ".reference[$k]" in body
         for field in FIELDS:
             assert field in body, field
+
+    def test_each_missing_field_is_told_its_own_fix(self):
+        """One hint served all three and told a missing `eki_levels` to "run
+        'cli rections'", which fills a different table. A warning that names
+        the wrong command sends the operator to do something that cannot help."""
+        body = (ROOT / ".github" / "workflows" / "smoke.yml").read_text(
+            encoding="utf-8")
+        start = body.index('case "$f" in')
+        block = body[start:body.index("esac", start)]
+        rections, _, eki = block.partition("*)")
+        assert "rections)" in rections and "eesti.cli rections" in rections
+        assert "deploy/eki/README.md" in eki
+        assert "rections" not in eki, "the EKI hint must not name `cli rections`"

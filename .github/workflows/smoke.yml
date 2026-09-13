@@ -106,8 +106,10 @@ jobs:
           #     All three are allowed to fail the build without failing it:
           #     `cli rections` needs EKI to answer a datacenter IP (they have
           #     returned 403 to a GitHub runner on that exact URL), and the two
-          #     EKI downloads need the files to be in the build context, which
-          #     depends on a person having filled in EKI's form. That is the
+          #     EKI downloads need the files to be in the build context -- and
+          #     the Cloud Build that rebuilds on every merge checks out git,
+          #     where `deploy/eki/*` is ignored, so on that path they never
+          #     are (measured 2026-09-13: both zero, run 34765657703). That is the
           #     right trade against an unbuildable image — and it is precisely
           #     why a deployment has to be asked which ones made it. Each costs
           #     one feature silently: no rections means the rektsioon drill and
@@ -122,8 +124,14 @@ jobs:
             if [ "${n:-0}" -gt 0 ]; then
               printf 'reference %-16s %s rows\n' "$f" "$n"
             else
-              echo "::warning::The deployed image has no $f. See \
-          deploy/eki/README.md (EKI downloads) or run 'cli rections'."
+              # One hint per field. A single shared hint told the EKI rows to
+              # "run 'cli rections'", which fills neither of them.
+              case "$f" in
+                rections) hint="Run 'python -m eesti.cli rections' and rebuild." ;;
+                *)        hint="The EKI files are git-ignored, so the \
+          merge-triggered Cloud Build never has them. See deploy/eki/README.md." ;;
+              esac
+              echo "::warning::The deployed image has no $f. $hint"
             fi
           done
 

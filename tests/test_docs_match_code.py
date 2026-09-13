@@ -599,3 +599,27 @@ class TestTheLicenceLedgerStaysSeparable:
         for name in ("sources.py", "licences.py"):
             lines = len((ROOT / "eesti" / name).read_text(encoding="utf-8").splitlines())
             assert lines < 700, f"eesti/{name} is {lines} lines"
+
+
+class TestTheCiMatrixKnowsWhatShips:
+    """`tests.yml` said "3.11 is what the Dockerfile ships" for a sprint after
+    the Dockerfile moved to `python:3.13-slim`. The comment is the reason the
+    matrix has the shape it has, so a wrong one invites dropping the leg that
+    actually runs in production."""
+
+    def test_the_comment_names_the_version_the_image_is_built_on(self):
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        shipped = set(re.findall(r"^FROM python:(\d+\.\d+)", dockerfile, re.M))
+        assert len(shipped) == 1, f"builder and runtime disagree: {shipped}"
+        workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(
+            encoding="utf-8")
+        claim = re.search(r"(\d+\.\d+) is what the Dockerfile\s*#?\s*ships", workflow)
+        assert claim, "the matrix comment no longer says which version ships"
+        assert claim.group(1) in shipped
+
+    def test_the_shipped_version_is_in_the_matrix(self):
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        shipped = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.M).group(1)
+        workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(
+            encoding="utf-8")
+        assert f'"{shipped}"' in workflow
