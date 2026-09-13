@@ -9,19 +9,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      # One Python: 3.14 is what the Dockerfile ships, and therefore what the
-      # learner actually runs. There were two legs while the image moved from
-      # 3.11 to 3.13; nothing runs 3.11 any more (`eval.yml` moved with the
-      # image), so a second leg would test a version no deployment uses.
-      #
-      # The move to 3.14 was measured, not assumed (2026-09-14): every
-      # dependency publishes cp314 wheels, Vabamorf generated 3 001 forms and
-      # analyses byte-identical to 3.13, the TalTech gold-form gate passed at
-      # the same 1374/1400, and the whole suite and a built image passed on
-      # 3.14.7. `test_docs_match_code.py` holds this comment, the matrix and
+      # One Python: 3.14.7 is what the Dockerfile ships, and therefore what the
+      # learner actually runs. A second leg would test an interpreter no
+      # deployment uses. The move was measured, not assumed (2026-09-14):
+      # every dependency publishes cp314 wheels, Vabamorf generated 3 001 forms
+      # and analyses byte-identical to the previous runtime, the TalTech
+      # gold-form gate held at 1374/1400, and the whole suite and a built image
+      # passed. `test_docs_match_code.py` holds this comment, the matrix and
       # `eval.yml` to the Dockerfile's FROM line.
       matrix:
-        python-version: ["3.14"]
+        python-version: ["3.14.7"]
     name: test (py${{ matrix.python-version }})
     steps:
       - uses: actions/checkout@v7

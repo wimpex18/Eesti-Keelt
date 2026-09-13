@@ -266,7 +266,7 @@ class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
     20:12:11Z and reported an image built 14:39:50Z, five and a half hours old,
     with every check under it green; the new image landed at 20:14:20Z, two
     minutes *after* the run that was meant to be checking it. That merge
-    carried the Python 3.13 runtime move, whose one open risk was whether the
+    carried a Python runtime move, whose one open risk was whether the
     image builds at all — and a green tick about the wrong deployment reads
     exactly like a green tick about the right one.
     """
@@ -347,7 +347,7 @@ class TestEveryDeployGetsChecked:
     fired no check at all. Measured when this was found: `deploy` had 8 runs
     against roughly 17 merges.
 
-    Two costs already paid. The Python 3.13 image went ten hours unverified
+    Two costs already paid. The runtime-upgrade image went ten hours unverified
     after PR #30, and PR #31 -- a Python change -- produced no smoke run at all.
 
     This is the previous class's bug one level up, found immediately after

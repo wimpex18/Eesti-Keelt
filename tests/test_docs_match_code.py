@@ -602,38 +602,50 @@ class TestTheLicenceLedgerStaysSeparable:
 
 
 class TestTheCiMatrixKnowsWhatShips:
-    """`tests.yml` said "3.11 is what the Dockerfile ships" for a sprint after
-    the Dockerfile moved to `python:3.13-slim`. The comment is the reason the
-    matrix has the shape it has, so a wrong one invites dropping the leg that
-    actually runs in production."""
+    """One interpreter everywhere, named to the patch. A CI comment once named
+    a Python the Dockerfile had already left, and the eval ran on it — the
+    comment is the reason the matrix has the shape it has, so a wrong one
+    invites testing a runtime no deployment uses."""
+
+    @staticmethod
+    def _shipped() -> set[str]:
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        return set(re.findall(r"^FROM python:(\d+\.\d+\.\d+)-slim", dockerfile, re.M))
+
+    def test_both_stages_pin_one_patch_release(self):
+        assert len(self._shipped()) == 1, self._shipped()
 
     def test_the_comment_names_the_version_the_image_is_built_on(self):
-        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        shipped = set(re.findall(r"^FROM python:(\d+\.\d+)", dockerfile, re.M))
-        assert len(shipped) == 1, f"builder and runtime disagree: {shipped}"
-        workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(
-            encoding="utf-8")
-        claim = re.search(r"(\d+\.\d+) is what the Dockerfile\s*#?\s*ships", workflow)
+        workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+        claim = re.search(r"(\d+\.\d+\.\d+) is what the Dockerfile\s*#?\s*ships", workflow)
         assert claim, "the matrix comment no longer says which version ships"
-        assert claim.group(1) in shipped
+        assert claim.group(1) in self._shipped()
 
-    def test_ci_and_the_eval_run_the_version_that_ships_and_only_it(self):
-        """Two legs made sense while the image moved between versions. Once it
-        has moved, a second leg tests a Python no deployment runs — and the
-        eval, which was still on 3.11, measured models on a runtime the app
-        had left."""
+    def test_ci_the_eval_and_local_run_the_version_that_ships_and_only_it(self):
         import yaml
 
-        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        shipped = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.M).group(1)
+        (shipped,) = self._shipped()
         tests = yaml.safe_load((ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8"))
         assert tests["jobs"]["test"]["strategy"]["matrix"]["python-version"] == [shipped]
         evals = (ROOT / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8")
-        assert re.findall(r'python-version:\s*"(\d+\.\d+)"', evals) == [shipped]
+        assert re.findall(r'python-version:\s*"([\d.]+)"', evals) == [shipped]
+        assert (ROOT / ".python-version").read_text(encoding="utf-8").strip() == shipped
 
-    def test_the_shipped_version_is_in_the_matrix(self):
-        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        shipped = re.search(r"^FROM python:(\d+\.\d+)", dockerfile, re.M).group(1)
-        workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(
-            encoding="utf-8")
-        assert f'"{shipped}"' in workflow
+    def test_no_file_names_an_older_python(self):
+        """The runtime is 3.14.7 and nothing else; a leftover version number in
+        a comment or a document is how a later session concludes otherwise."""
+        (shipped,) = self._shipped()
+        major_minor = tuple(int(x) for x in shipped.split(".")[:2])
+        older = re.compile(r"(?:[Pp]ython[ :-]?|py)(3\.(\d+))\b|python:(3\.(\d+))")
+        found = []
+        for path in [ROOT / "Dockerfile", ROOT / "README.md", ROOT / "CLAUDE.md", ROOT / "requirements.txt",
+                     *(ROOT / ".github" / "workflows").glob("*.yml"),
+                     *(ROOT / "docs").glob("*.md"), *(ROOT / "tests").glob("*.py")]:
+            if path.name == "test_docs_match_code.py":
+                continue
+            for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                for m in older.finditer(line):
+                    minor = int(m.group(2) or m.group(4))
+                    if (3, minor) < major_minor:
+                        found.append(f"{path.relative_to(ROOT)}:{n}")
+        assert not found, found

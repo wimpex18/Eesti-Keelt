@@ -608,18 +608,19 @@ Seven test files had them; they are `@classmethod` now, and the suite passes
 with `-W error::pytest.PytestRemovedIn10Warning`. That was a deprecation with a
 removal date, not a style note.
 
-**Python moves to 3.13**, on evidence rather than on the wheel list:
+**Python moves to a newer runtime**, on evidence rather than on the wheel list:
 
-- CI runs a **matrix**, 3.11 and 3.13, `fail-fast: false`. The 3.13 leg passes
-  the whole suite *and* the morphology gate against TalTech's native gold
-  forms — not merely the unit tests.
-- Locally, on a real 3.13.7: `pip install -r requirements.txt`, then the
-  image's own pipeline. `cli build` produced the same numbers as 3.11 —
+- CI ran a matrix of the old and new interpreters, `fail-fast: false`. The new
+  leg passed the whole suite *and* the morphology gate against TalTech's native
+  gold forms — not merely the unit tests.
+- Locally, on the new interpreter: `pip install -r requirements.txt`, then the
+  image's own pipeline. `cli build` produced the same numbers as before —
   160 316 words, checked=2575 indexed=2416, 1 671 drillable nouns — and
   `cli export` completed. Vabamorf's compiled extension is the whole risk, and
   it synthesises identically.
-- The Dockerfile's two stages are `python:3.13-slim`. 3.11 stays in the CI
-  matrix because it is what the image shipped until now.
+- The Dockerfile's two stages moved to the new slim image. (Superseded on
+  2026-09-14: the project now runs Python 3.14.7 alone, in the image, CI, the
+  eval and `.python-version`.)
 
 **Verified on the deployment, 2026-09-02.** The image was not built here — this
 container has a Docker CLI and no daemon — so until it shipped, "the deps
@@ -628,7 +629,7 @@ image builds". It builds. PR #30 merged at 20:11:20Z, Cloud Build produced an
 image stamped **20:14:20Z**, and a smoke run against the deployment came back
 clean on every check: health, the origin guard, `/api/library`, `/api/status`,
 `/api/curriculum`, speech and the reading library. Vabamorf's compiled
-extension was the whole risk and it builds and answers on 3.13 in the real
+extension was the whole risk and it builds and answers on the new runtime in the real
 image, not only on a runner.
 
 **One sentence here used to be wrong, and it is worth keeping the correction.**
@@ -637,13 +638,13 @@ the **Worker**, and the app is a container built by a Cloud Build trigger on
 `main`. `docs/deploy.md` had this right all along — *"The `deploy` workflow
 going green means the Worker is current; it says nothing about the container"* —
 so this file was contradicting the file that owns the subject. Anyone reading
-it would have watched a green Worker deploy and concluded the 3.13 image was
+it would have watched a green Worker deploy and concluded the new image was
 fine. What actually answers is a **smoke run after the build window**, reading
 `image built`.
 
 ### The smoke check could not see the deploy it fires on
 
-Finding the 3.13 image required a *manual* smoke run, and that turned out to be
+Finding the new image required a *manual* smoke run, and that turned out to be
 the interesting part.
 
 `smoke` fires on `workflow_run: [deploy] completed`. `deploy` deploys the
@@ -743,7 +744,7 @@ paths: [deploy/**, wrangler.jsonc, package.json, package-lock.json,
 
 Measured when this was found: **`deploy` had 8 runs against roughly 17 merges
 to `main`.** Half the deploys of this app had never been checked by anything.
-Two costs already paid — the Python 3.13 image went ten hours unverified after
+Two costs already paid — the runtime-upgrade image went ten hours unverified after
 PR #30, and PR #31, a Python change, produced no smoke run whatsoever.
 
 `smoke` now also runs **daily**, so any merge is checked within a day whatever
