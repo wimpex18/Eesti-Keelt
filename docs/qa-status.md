@@ -253,9 +253,10 @@ three defects in the suite itself, none in the app:
 | The word card was read the moment it unhid, while it still held the loading skeleton | Chromium lost that race in 5 of 6 runs here; why it passed where the test was written is not known |
 | The flashcard word was keyed by viewport, not engine, on a server both engines share — WebKit found the card Chromium had graded and timed out | only visible with WebKit installed, which the cloud container did not have |
 
-Run the file on its own. In one `pytest tests/` invocation after the
-in-process suite, 22 journeys errored in setup on `page.goto` timing out —
-the same journeys pass alone. Cause not measured yet.
+The whole suite in one invocation, same day: **2 111 passed, 5 skipped** in
+8½ minutes. An earlier combined run took 18½ minutes and had 22 journeys error
+in setup on `page.goto` timing out; it did not reproduce, and its cause was not
+found. If it returns, run `tests/test_e2e_journeys.py` on its own first.
 
 85 tests per engine: Chromium and WebKit, desktop and phone. WebKit is included only when
 `playwright install webkit` has been run — the suite drops to Chromium alone
