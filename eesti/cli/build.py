@@ -260,6 +260,30 @@ def cmd_import_eki_fallback(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ekilex_probe(args: argparse.Namespace) -> int:
+    """Save what Ekilex answers for one word, so its parser meets a real response."""
+    from .. import env
+    from ..providers import ekilex
+
+    env.load()
+    if not ekilex.available():
+        print(f"{ekilex.KEY} is not set. Put it in .env (see .env.example) and run this again.")
+        return 2
+    try:
+        path = ekilex.probe(args.word)
+    except Exception as exc:  # noqa: BLE001 - a refusal is a message, not a traceback
+        print(f"Ekilex did not answer: {type(exc).__name__}: {exc}")
+        return 1
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    print(f"  saved {path}")
+    print(f"  word ids: {data.get('ids')}")
+    for line in ekilex.shape(data.get("details") or {}, max_depth=3)[:120]:
+        print("  " + line)
+    return 0
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     from ..wordlist import build, connect, index_object_cases
 
@@ -479,6 +503,11 @@ def register(sub) -> None:
     p.add_argument("--check", action="store_true",
                    help="report what the file holds and write nothing")
     p.set_defaults(func=cmd_import_evs)
+
+    p = sub.add_parser("ekilex-probe",
+                       help="save Ekilex's raw answer for one word (needs EKILEX_API_KEY)")
+    p.add_argument("word")
+    p.set_defaults(func=cmd_ekilex_probe)
 
     for name, source, filename, helptext in (
         ("import-vsl", "eki-vsl", "vsl_EKI_CCBY40.xml.gz",
