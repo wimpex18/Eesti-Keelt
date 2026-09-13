@@ -111,6 +111,13 @@ translated). **Definition** — PSV → Sõnaveeb → VSL (→ EKSS), on the wor
 EKSS (119 426 definitions) is optional and not in the image. What every file in
 the download became is in `deploy/eki/README.md`.
 
+**The 294 shipped glosses were not in production either.** `data/seed_glossary.tsv`
+is a tracked file, and the image copies `eesti/` and the builder's generated
+`data/`, never it — so the *Meaning* row above was true on every checkout and on
+no deployment. Found by a clean image build answering `palk` with EVS's "бревно";
+the `Dockerfile` now copies it, and `test_seed_glossary.py` derives the check
+from `gloss.SEED`.
+
 ### Only one grammar provider is actually configured
 
 The chain is built for redundancy and has had none: the deep smoke check on

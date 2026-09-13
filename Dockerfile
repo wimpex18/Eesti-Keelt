@@ -111,6 +111,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY eesti/ ./eesti/
 COPY --from=builder /build/data/ ./data/
+# The hand-written glossary is a tracked file, not a build product, so the
+# builder's `data/` never had it: until 2026-09-13 production ran without the
+# 294 glosses status.md says ship with the app, and nothing noticed, because
+# every test runs from a checkout where the file sits in `data/`. A clean image
+# build showed it: `palk` answered "бревно" from EVS instead of "зарплата".
+COPY data/seed_glossary.tsv ./data/seed_glossary.tsv
 
 # When this image was built, and from what.
 #
