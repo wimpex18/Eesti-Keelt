@@ -201,3 +201,84 @@ class TestTheOrderLivesInOnePlace:
                           p.read_text(encoding="utf-8"))
         ]
         assert not offenders, offenders
+
+
+class TestHeadwordMarks:
+    """Every mark a real file uses, one case each (measured 2026-09-13)."""
+
+    @pytest.mark.parametrize("raw, lemmas", [
+        ("tehase|märk", ["tehasemärk"]),          # EKSS, 28 276
+        ("\\sae\\pakk", ["saepakk"]),             # EKSS, 58 814
+        ("akordi+kannel", ["akordikannel"]),      # EVS
+        ("ainuke[ne]", ["ainukene", "ainuke"]),   # EVS optional ending
+        ("(kindel) kui ~ nagu aamen kirikus", []),  # EKSS phrase entry
+        ("-keelne", []), ("akord+", []),          # affix, combining form
+        ("Vähk_", ["Vähk"]),                      # homograph mark
+    ])
+    def test_marks(self, raw, lemmas):
+        import xml.etree.ElementTree as ET
+
+        from eesti import ekixml
+
+        node = ET.Element("A")
+        ET.SubElement(node, "m").text = raw
+        assert ekixml.headwords(node) == lemmas
+
+
+class TestTheCardFromEkiAlone:
+    """Rektsioon and muuttüüp offline, and when Sõnaveeb is not asked at all."""
+
+    @pytest.fixture
+    def words_db(self, tmp_path, monkeypatch):
+        from eesti import config, gloss
+
+        path = tmp_path / "eesti.db"
+        conn = wordlist.connect(path)
+        psv.store(conn, [
+            psv.Entry("tugitool", "mugav tool", (), "S"),
+            psv.Entry("sõltuma", "olema mõjutatud", (), "V", rection=("kellest-millest",)),
+        ])
+        evs.store(conn, [evs.Entry("tugitool", "s", ("кресло",), "1"),
+                         evs.Entry("sõltuma", "v", ("зависеть",), "27")])
+        conn.commit()
+        monkeypatch.setattr(config, "DB_PATH", path)
+        monkeypatch.setattr(config, "VOCAB_DB", tmp_path / "vocab.db")
+        asked = []
+        monkeypatch.setattr(gloss, "remember", lambda conn, lemma: asked.append(lemma))
+        return asked
+
+    def test_a_fully_covered_noun_spends_no_request(self, client, words_db):
+        got = client.get("/api/enrich/tugitool").json()
+        assert words_db == [], "EKI's files filled every slot"
+        assert got["asked_sonaveeb"] is False
+        assert (got["definition"], got["russian"], got["inflection_type"]) == \
+            ("mugav tool", ["кресло"], "1")
+
+    def test_a_verb_still_asks_and_falls_back_to_ekis_rection(self, client, words_db):
+        """PSV's rection is partial for verbs, so Sõnaveeb is still asked;
+        with nothing back, the card shows PSV's rection and EVS's type."""
+        got = client.get("/api/enrich/sõltuma").json()
+        assert words_db == ["sõltuma"]
+        assert got["governs"] == ["kellest-millest"]
+        assert got["governs_source"] == "eki-psv"
+        assert got["inflection_type"] == "27"
+
+
+class TestOlderTablesGainTheirColumns:
+    def test_a_psv_table_without_rection_is_migrated_on_import(self, tmp_path):
+        import sqlite3
+
+        path = tmp_path / "old.db"
+        raw = sqlite3.connect(path)
+        raw.execute("CREATE TABLE psv_gloss (lemma TEXT PRIMARY KEY, definition TEXT, examples TEXT)")
+        raw.commit()
+        psv.store(raw, [psv.Entry("sõltuma", "x", (), "V", rection=("millest",))])
+        assert psv.lookup(raw, "sõltuma").rection == ("millest",)
+
+
+class TestInflectionTypeAsTheCardShowsIt:
+    @pytest.mark.parametrize("raw, shown", [
+        ("02", "2"), ("17", "17"), ("11_&_09", "11 / 9"), ("12_&_10?", None), ("", None),
+    ])
+    def test_evs_types_are_normalised(self, raw, shown):
+        assert evs._inflection_type(raw) == shown

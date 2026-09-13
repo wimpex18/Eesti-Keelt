@@ -23,7 +23,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 FIELDS = ("rections", "eki_levels", "eki_definitions", "eki_russian",
-          "eki_terms", "eki_loanwords")
+          "eki_terms", "eki_loanwords", "eki_explanatory")
 
 
 class TestHealthReportsThem:
@@ -58,11 +58,11 @@ class TestTheBuildActuallyRunsThem:
     def dockerfile(self):
         return (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv", "import-evs", "import-vsl", "import-har"])
+    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv", "import-evs", "import-vsl", "import-har", "import-ekss"])
     def test_the_image_build_runs_it(self, dockerfile, command):
         assert f"eesti.cli {command}" in dockerfile
 
-    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv", "import-evs", "import-vsl", "import-har"])
+    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv", "import-evs", "import-vsl", "import-har", "import-ekss"])
     def test_and_is_allowed_to_fail(self, dockerfile, command):
         """Each depends on a third party or on a file a person downloaded.
         Chained with `&&`, somebody else's bad afternoon takes down the deploy."""

@@ -9,7 +9,7 @@ until Sõnaveeb was asked — and none at all offline, over budget, or with
 Sõnaveeb down.
 
 EKI publish the Estonian–Russian dictionary for download under CC BY 4.0:
-70 882 articles, 60 509 lemmas with at least one usable Russian translation
+70 882 articles, 60 676 lemmas with at least one usable Russian translation
 (measured 2026-09-13 on `evs_EKI_CCBY40.xml`). So the Russian a word card needs
 is a file, not a request.
 
@@ -71,6 +71,9 @@ class Entry:
     lemma: str
     pos: str | None
     russian: tuple[str, ...]
+    #: EKI's inflection type (`mt`), the muuttüüp a word card shows: `lugema`
+    #: 28, `jätkuma` 27 — the numbers Sõnaveeb returns for the same words.
+    inflection_type: str | None = None
 
 
 def _labels(node) -> set[str]:
@@ -105,6 +108,21 @@ def _article(article) -> tuple[int, list[str]]:
     return senses, plain + labelled
 
 
+def _inflection_type(raw: str) -> str | None:
+    """EVS's `mt` in the form the card shows and Sõnaveeb returns.
+
+    Measured 2026-09-13: 42 204 single types, zero-padded (`02`, `17`);
+    1 682 words with two paradigms (`11_&_09`); 1 261 of those marked `?` —
+    EKI unsure of the type. Padded becomes `2`, a pair `11 / 9`, and an unsure
+    one None: a muuttüüp a learner copies into Sõnaveeb must not be a guess,
+    and None makes the card ask Sõnaveeb instead.
+    """
+    if not raw or "?" in raw:
+        return None
+    parts = [p.strip().lstrip("0") or "0" for p in raw.split("_&_")]
+    return " / ".join(parts) if all(p.isdigit() for p in parts) else None
+
+
 def _merge(articles: list[tuple[int, list[str]]]) -> tuple[str, ...]:
     """One list for a lemma with several homonym articles.
 
@@ -125,18 +143,21 @@ def parse(path: Path | str) -> list[Entry]:
     """One entry per lemma, homonyms merged, with at least one translation."""
     articles: dict[str, list[tuple[int, list[str]]]] = {}
     pos: dict[str, str | None] = {}
+    types: dict[str, str | None] = {}
     for article in ekixml.articles(path):
-        lemma = ekixml.headword(article)
-        if not lemma:
+        lemmas = ekixml.headwords(article)
+        if not lemmas:
             continue
         senses, words = _article(article)
         if not words:
             continue
-        articles.setdefault(lemma, []).append((senses, words))
-        if lemma not in pos:
-            first = article.find("P/mg/sl")
-            pos[lemma] = ekixml.text(first) or None
-    return [Entry(lemma, pos[lemma], _merge(a)) for lemma, a in articles.items()]
+        for lemma in lemmas:
+            articles.setdefault(lemma, []).append((senses, words))
+            if lemma not in pos:
+                first = article.find("P/mg/sl")
+                pos[lemma] = ekixml.text(first) or None
+                types[lemma] = _inflection_type(ekixml.text(article.find("P/mg/grg/mt")))
+    return [Entry(lemma, pos[lemma], _merge(a), types[lemma]) for lemma, a in articles.items()]
 
 
 SCHEMA = """
@@ -152,11 +173,12 @@ CREATE TABLE IF NOT EXISTS evs_gloss (
 def store(conn: sqlite3.Connection, entries: list[Entry]) -> dict[str, int]:
     """Replace the table's contents with `entries`. Idempotent."""
     conn.executescript(SCHEMA)
+    ekixml.ensure_column(conn, "evs_gloss", "inflection_type")
     with conn:
         conn.execute("DELETE FROM evs_gloss")
         conn.executemany(
-            "INSERT INTO evs_gloss (lemma, pos, russian) VALUES (?,?,?)",
-            [(e.lemma, e.pos, SEP.join(e.russian)) for e in entries],
+            "INSERT INTO evs_gloss (lemma, pos, russian, inflection_type) VALUES (?,?,?,?)",
+            [(e.lemma, e.pos, SEP.join(e.russian), e.inflection_type) for e in entries],
         )
     return {"entries": len(entries)}
 
@@ -183,6 +205,16 @@ def russian_many(conn: sqlite3.Connection, lemmas: list[str]) -> dict[str, list[
     except sqlite3.Error:
         return {}
     return {r[0]: [w for w in r[1].split(SEP) if w] for r in rows}
+
+
+def inflection_type(conn: sqlite3.Connection, lemma: str) -> str | None:
+    """EKI's muuttüüp for a lemma, or None — also None on an older table."""
+    try:
+        row = conn.execute("SELECT inflection_type FROM evs_gloss WHERE lemma = ?",
+                           (lemma,)).fetchone()
+    except sqlite3.Error:
+        return None
+    return row[0] if row and row[0] else None
 
 
 def imported(conn: sqlite3.Connection) -> int:

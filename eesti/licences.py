@@ -213,7 +213,7 @@ REGISTRY: tuple[Source, ...] = (
         "eki-evs", "Eesti-vene sõnaraamat (EKI)", "file",
         "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
-        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 509 lemmas "
+        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 676 lemmas "
         "with a usable Russian translation (measured 2026-09-13). The Russian "
         "on the word card, the Sõnavara list, drills and review cards, offline — "
         "after the hand-written seed, ahead of Sõnaveeb (`meaning.py`). Imported by `cli import-evs` into the words database as "
@@ -229,7 +229,7 @@ REGISTRY: tuple[Source, ...] = (
     Source(
         "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
-        "EKI's education terminology: 4 989 articles, 5 871 terms counting "
+        "EKI's education terminology: 4 989 articles, 5 905 terms counting "
         "synonyms, with Russian (measured 2026-09-13). The last fallback for "
         "a word card's Russian, after EVS and Sõnaveeb. `cli import-har`, "
         "table `har_gloss` in the words database.",
@@ -250,11 +250,12 @@ REGISTRY: tuple[Source, ...] = (
     Source(
         "eki-ekss", "Eesti keele seletav sõnaraamat (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
-        "EKI's full explanatory dictionary: 145 882 articles (measured "
-        "2026-09-13). Optional — Sõnaveeb already shows these definitions "
-        "live, and the image build does not import it. If imported with `cli "
-        "import-ekss`, it is consulted after VSL, as the last definition "
-        "fallback. Table `ekss_gloss`.",
+        "EKI's full explanatory dictionary: 145 882 articles, 117 937 lemmas "
+        "with a definition, 96 058 of them in the word list (measured "
+        "2026-09-13). Native-level wording, so the last definition fallback, "
+        "after PSV, Sõnaveeb and VSL — the one that still answers offline for "
+        "almost every word the learner can click. `cli import-ekss`, table "
+        "`ekss_gloss`, committed gzipped and imported by the image build.",
         changes="Взяты заглавное слово и первое определение первой статьи; "
                 "примеры, формы, подстатьи и разметка отброшены.",
     ),

@@ -118,6 +118,9 @@ class Entry:
     #: EKI's frequency tier, `sag`: 1 is commonest, absent is rarest. Decides
     #: which of two homonyms the one `psv_gloss` row per lemma belongs to.
     frequency: int | None = None
+    #: What the word governs, as EKI write it (`kellele`, `mida teha`): the
+    #: rektsioon a word card shows. 872 articles carry it, 609 of them verbs.
+    rection: tuple[str, ...] = ()
 
 
 def _first(node: ET.Element, tag: str) -> str:
@@ -135,20 +138,32 @@ def parse(path: Path | str) -> list[Entry]:
     """
     entries: list[Entry] = []
     for article in ekixml.articles(path):
-        lemma = ekixml.headword(article)
-        if not lemma:
-            continue
         examples = tuple(
             t for t in (ekixml.text(n) for n in article.iter("n")) if t
         )[:MAX_EXAMPLES]
-        entries.append(Entry(
-            lemma=lemma,
-            definition=_first(article, "d") or None,
-            examples=examples,
-            pos=_first(article, "sl") or None,
-            frequency=int(_first(article, "sag")) if _first(article, "sag").isdigit() else None,
-        ))
+        for lemma in ekixml.headwords(article):
+            entries.append(Entry(
+                lemma=lemma,
+                definition=_first(article, "d") or None,
+                examples=examples,
+                pos=_first(article, "sl") or None,
+                frequency=int(_first(article, "sag")) if _first(article, "sag").isdigit() else None,
+                rection=_rection(article),
+            ))
     return entries
+
+
+#: `rliik` kinds a word card's rektsioon line means: the object (`obj`), a case
+#: frame (`kn`), an infinitive (`inf`), a postposition phrase (`ks`) and an
+#: adverbial question (`yld`, `kust`). Measured on the real file: kn 744,
+#: obj 262, ks 200, inf 123, yld 93. `kla` (50) and `subj` (1) are clause and
+#: subject frames, not what "rektsioon" shows beside a word, and are left out.
+RECTION_KINDS = ("obj", "kn", "inf", "ks", "yld")
+
+
+def _rection(article) -> tuple[str, ...]:
+    found = [ekixml.text(r) for r in article.iter("rek") if r.get("rliik") in RECTION_KINDS]
+    return tuple(dict.fromkeys(f for f in found if f))
 
 
 def _one_per_lemma(entries: list[Entry]) -> list[Entry]:
@@ -193,8 +208,10 @@ def store(conn: sqlite3.Connection, entries: list[Entry]) -> dict[str, int]:
     """
     conn.executescript(SCHEMA)
 
+    ekixml.ensure_column(conn, "psv_gloss", "rection")
+    ekixml.ensure_column(conn, "psv_gloss", "pos")
     rows = [
-        (e.lemma, e.definition, SEP.join(e.examples))
+        (e.lemma, e.definition, SEP.join(e.examples), ",".join(e.rection), e.pos)
         for e in _one_per_lemma(entries) if e.definition or e.examples
     ]
     stats = {"entries": len(entries), "written": len(rows)}
@@ -207,11 +224,8 @@ def store(conn: sqlite3.Connection, entries: list[Entry]) -> dict[str, int]:
         # the marker, beside the corrected `Jäär` rows.
         conn.execute("DELETE FROM psv_gloss")
         conn.executemany(
-            "INSERT INTO psv_gloss (lemma, definition, examples)"
-            " VALUES (?,?,?)"
-            " ON CONFLICT(lemma) DO UPDATE SET"
-            "   definition = excluded.definition,"
-            "   examples = excluded.examples",
+            "INSERT INTO psv_gloss (lemma, definition, examples, rection, pos)"
+            " VALUES (?,?,?,?,?)",
             rows,
         )
     stats["with_examples"] = sum(1 for e in entries if e.examples)
@@ -224,6 +238,8 @@ class Gloss:
 
     definition: str | None
     examples: tuple[str, ...]
+    rection: tuple[str, ...] = ()
+    pos: str | None = None
 
 
 def lookup(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
@@ -234,17 +250,18 @@ def lookup(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     has no table at all, and that is also None rather than a failure.
     """
     try:
-        row = conn.execute(
-            "SELECT definition, examples FROM psv_gloss WHERE lemma = ?",
-            (lemma,),
-        ).fetchone()
+        cursor = conn.execute("SELECT * FROM psv_gloss WHERE lemma = ?", (lemma,))
+        found = cursor.fetchone()
     except sqlite3.Error:
         return None
-    if row is None:
+    if found is None:
         return None
+    row = dict(zip((d[0] for d in cursor.description), found))
     return Gloss(
         definition=row["definition"],
         examples=tuple(e for e in (row["examples"] or "").split(SEP) if e),
+        rection=tuple(r for r in (row.get("rection") or "").split(",") if r),
+        pos=row.get("pos"),
     )
 
 

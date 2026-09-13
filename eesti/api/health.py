@@ -102,6 +102,7 @@ def _reference(conn) -> dict:
         # Last fallbacks: education-term Russian, loanword definitions.
         "eki_terms": har.imported(conn),
         "eki_loanwords": ekidefs.imported(conn, "eki-vsl"),
+        "eki_explanatory": ekidefs.imported(conn, "eki-ekss"),
     }
 
 

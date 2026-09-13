@@ -567,7 +567,7 @@ the two are distinguishable.
 
 ## The reference imports, and why they are in the image
 
-Six commands fill reference data — the same rows for every learner, none of
+Seven commands fill reference data — the same rows for every learner, none of
 it personal:
 
 | Command | Fills | Without it |
@@ -575,11 +575,12 @@ it personal:
 | `cli rections` | EKK SÜ 64, the 23 rections learners get wrong | the `rektsioon` drill says "run `cli rections` once", and free writing stops reporting `&err-gov` |
 | `cli import-levels` | EKI's official A1/A2/B1 vocabulary | every CEFR level is an estimate off a list where only 6.2 % of lemmas carry a tag |
 | `cli import-psv` | EKI's learner dictionary, 4 849 definitions and their examples | the word card shows Sõnaveeb's native-level wording, which is the thing a learner could not read |
-| `cli import-evs` | EKI's Estonian–Russian dictionary, 60 509 lemmas | the Russian on a word card and beside a drill needs a live Sõnaveeb request |
+| `cli import-evs` | EKI's Estonian–Russian dictionary, 60 676 lemmas | the Russian on a word card and beside a drill needs a live Sõnaveeb request |
 | `cli import-vsl` | EKI's foreign-words lexicon, 30 095 definitions | no offline definition when PSV and Sõnaveeb both have none |
-| `cli import-har` | EKI's education terms, 5 871 with Russian | no offline Russian when EVS and Sõnaveeb both have none |
+| `cli import-har` | EKI's education terms, 5 905 with Russian | no offline Russian when EVS and Sõnaveeb both have none |
+| `cli import-ekss` | EKI's explanatory dictionary, 117 937 definitions | no offline definition for most words PSV does not cover |
 
-All six run **at image build time**, and all six write into
+All seven run **at image build time**, and all seven write into
 `data/eesti.db`, which is baked in. That placement is the decision, and it is
 the opposite of the one above: the corpus and the learner's progress travel in
 the snapshot precisely because they are owner-only or personal, and reference
@@ -613,7 +614,7 @@ counts, not flags:
 
 That is what production returned on 2026-09-13 (smoke run 34765657703), before
 the EKI files were committed — not an illustration. The block now also reports
-`eki_russian`, `eki_terms` and `eki_loanwords`. An earlier version of this block showed `5987` definitions — a
+`eki_russian`, `eki_terms`, `eki_loanwords` and `eki_explanatory`. An earlier version of this block showed `5987` definitions — a
 number no import had ever produced, since the dictionary XML has never been
 read here.
 

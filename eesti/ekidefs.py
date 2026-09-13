@@ -5,9 +5,9 @@ a headword `m`, and definitions `d` under the article's `S`.
 
 * **vsl** — *Võõrsõnade leksikon*: 31 794 articles on loanwords (`idee`,
   `aktiivne`), definitions written for a native reader.
-* **ekss** — *Eesti keele seletav sõnaraamat*: 145 882 articles, the full
-  native dictionary. Sõnaveeb already shows its definitions live, so it is
-  optional, and the build does not import it.
+* **ekss** — *Eesti keele seletav sõnaraamat*: 145 882 articles, 117 937
+  lemmas with a definition — 96 058 of them in the word list. Committed and
+  imported by the build (measured 2026-09-13).
 
 Both are the **last** Estonian definition a word card falls back to: EKI's
 learner-level PSV first, Sõnaveeb second, these third — so they fill a gap only
@@ -54,11 +54,11 @@ def parse(path: Path | str) -> dict[str, str]:
     """lemma -> first definition, first article per lemma winning."""
     found: dict[str, str] = {}
     for article in ekixml.articles(path):
-        lemma = ekixml.headword(article)
-        if not lemma or lemma in found:
+        lemmas = [l for l in ekixml.headwords(article) if l not in found]
+        if not lemmas:
             continue
         definition = _first_current(article)
-        if definition:
+        for lemma in lemmas if definition else ():
             found[lemma] = definition
     return found
 

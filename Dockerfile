@@ -56,9 +56,9 @@ run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 # had none of them: smoke run 34765657703 read `eki_levels` 0 and
 # `eki_definitions` 0 from an image built after a merge. CC BY 4.0 permits
 # redistribution with the attribution kept (`eesti/licences.py`). Gzipped
-# because `evs` raw is 87 MB; the importers read `.gz` directly. EKSS, the
-# full explanatory dictionary, is deliberately not committed or imported here:
-# Sõnaveeb shows its definitions live, and it is the one optional file.
+# because `evs` raw is 87 MB; the importers read `.gz` directly. EKSS, the full
+# explanatory dictionary, is the last definition fallback: 117 937 lemmas,
+# 96 058 of them in the word list (measured 2026-09-13).
 #
 # None is fetched by the build: the learner downloads them from
 # arhiiv.eki.ee/litsents (direct links worked on 2026-09-13, without the ID-card
@@ -95,6 +95,8 @@ RUN python -m eesti.cli import-vsl deploy/eki/vsl_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI foreign-words lexicon not in the build context. See deploy/eki/README.md."
 RUN python -m eesti.cli import-har deploy/eki/har_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI education terms not in the build context. See deploy/eki/README.md."
+RUN python -m eesti.cli import-ekss deploy/eki/ekss_EKI_CCBY40.xml.gz || \
+    echo "NOTE: EKI explanatory dictionary not in the build context. See deploy/eki/README.md."
 
 # ---------------------------------------------------------------------------
 # Runtime

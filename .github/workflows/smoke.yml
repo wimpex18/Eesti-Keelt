@@ -119,7 +119,7 @@ jobs:
           #
           #     Warnings, not failures. An image without them is degraded, not
           #     broken, and the deployment ran that way for months.
-          for f in rections eki_levels eki_definitions eki_russian eki_terms eki_loanwords; do
+          for f in rections eki_levels eki_definitions eki_russian eki_terms eki_loanwords eki_explanatory; do
             n="$(jq -r --arg k "$f" '.reference[$k] // 0' <<<"$body")"
             if [ "${n:-0}" -gt 0 ]; then
               printf 'reference %-16s %s rows\n' "$f" "$n"

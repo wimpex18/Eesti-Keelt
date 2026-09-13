@@ -26,8 +26,8 @@ node_modules/
 # CC BY 4.0 and redistributable; not committed because data files here are
 # always built or fetched. See deploy/eki/README.md.
 # Since 2026-09-13 the files the image imports ARE committed, gzipped — without
-# them Cloud Build had none (see Dockerfile). Raw XML, schemas, EKSS and the
-# extras stay local.
+# them Cloud Build had none (see Dockerfile). Raw XML, schemas and the extras
+# stay local; deploy/eki/README.md says what each became.
 deploy/eki/*
 !deploy/eki/README.md
 !deploy/eki/A1A2B1.txt
@@ -35,3 +35,4 @@ deploy/eki/*
 !deploy/eki/evs_EKI_CCBY40.xml.gz
 !deploy/eki/vsl_EKI_CCBY40.xml.gz
 !deploy/eki/har_EKI_CCBY40.xml.gz
+!deploy/eki/ekss_EKI_CCBY40.xml.gz

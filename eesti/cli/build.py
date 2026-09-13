@@ -485,8 +485,8 @@ def register(sub) -> None:
          "EKI's foreign-words lexicon, last-fallback definitions"),
         ("import-har", "eki-har", "har_EKI_CCBY40.xml.gz",
          "EKI's education terms, last-fallback Russian"),
-        ("import-ekss", "eki-ekss", "ekss_EKI_CCBY40.xml",
-         "EKI's explanatory dictionary (optional, not in the image build)"),
+        ("import-ekss", "eki-ekss", "ekss_EKI_CCBY40.xml.gz",
+         "EKI's explanatory dictionary, last-fallback definitions"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("file", help=f"{filename} from arhiiv.eki.ee/litsents")

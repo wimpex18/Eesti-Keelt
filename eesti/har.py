@@ -60,9 +60,9 @@ def parse(path: Path | str) -> dict[str, tuple[str, ...]]:
         terms = sorted(article.findall("P/ep/terg"),
                        key=lambda g: g.find("ter") is None or g.find("ter").get("tyyp") != "ee")
         for terg in terms:
-            lemma = ekixml.text(terg.find("ter"))
-            if lemma and lemma not in found:
-                found[lemma] = tuple(russian[:MAX_RUSSIAN])
+            for lemma in ekixml.headwords(terg, tag="ter"):
+                if lemma not in found:
+                    found[lemma] = tuple(russian[:MAX_RUSSIAN])
     return found
 
 

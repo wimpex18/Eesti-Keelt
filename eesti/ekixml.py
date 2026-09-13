@@ -118,20 +118,55 @@ def russian(node: ET.Element | None) -> str:
     return text(shell).replace('"', "").replace("*", "").replace("[]", "").strip()
 
 
-def headword(article: ET.Element) -> str | None:
-    """The article's headword, with EKI's compound boundary `+` removed.
+#: Compound-boundary marks, per dictionary (measured 2026-09-13): `+` in EVS
+#: (`aabitsa+`, 31 108), `|` and `\\…\\` in EKSS (`tehase|märk` 28 276,
+#: `\\sae\\pakk` 58 814). Stripping only `+` stored every EKSS compound under
+#: a key no lookup could ever match.
+_BOUNDARY = str.maketrans("", "", "+|\\_")
 
-    `akordi+kannel` is the word `akordikannel`. A headword that *ends* in `+`
-    (`akord+`) is a combining form — the first half of compounds, not a word a
-    learner looks up — and is None; so is an affix (`ab-`, `-ne`, 324 in VSL).
-    Trailing `_` tells homographs apart (`Vähk_` the zodiac sign, `A__`): it is
-    removed, and the capital already keeps `Vähk` apart from `vähk`.
+
+def headwords(article: ET.Element, tag: str = "m") -> list[str]:
+    """Every lemma an article answers for, markers removed.
+
+    * a combining form or affix (`akord+`, `ab-`, `-keelne`) answers for none;
+    * a phrase entry (`(kindel) kui ~ nagu aamen kirikus`, EKSS) answers for
+      none — a learner clicks words, not idioms with a placeholder;
+    * an optional part in brackets (`ainuke[ne]` in EVS, `[struktuuri]üksus`
+      in HAR) answers for both forms;
+    * trailing `_` tells homographs apart (`Vähk_` the sign): removed, and the
+      capital keeps `Vähk` apart from `vähk`.
     """
-    node = article.find(".//m")
-    word = text(node).replace("_", "").strip()
-    if not word or word[0] in "+-" or word[-1] in "+-":
-        return None
-    return word.replace("+", "")
+    raw = text(article.find(f".//{tag}"))
+    if not raw or "~" in raw or "(" in raw:
+        return []
+    ends = raw.replace("_", "").strip()
+    if not ends or ends[0] in "+-" or ends[-1] in "+-":
+        return []
+    word = raw.translate(_BOUNDARY).strip()
+    if "[" in word:
+        full = word.replace("[", "").replace("]", "")
+        short = re.sub(r"\[[^\]]*\]", "", word)
+        return [w for w in dict.fromkeys((full, short)) if w]
+    return [word]
+
+
+def headword(article: ET.Element) -> str | None:
+    """The first of `headwords()`, for the dictionaries that key one row per lemma."""
+    found = headwords(article)
+    return found[0] if found else None
+
+
+def ensure_column(conn, table: str, column: str) -> None:
+    """Add a TEXT column a table created by an older build lacks.
+
+    `CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists,
+    so a words database built before a column was added would raise on the
+    first query naming it. The words database is rebuilt with every image, but a
+    local checkout keeps its file.
+    """
+    have = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in have:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
 
 
 XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"

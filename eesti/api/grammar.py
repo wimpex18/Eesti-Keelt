@@ -161,44 +161,54 @@ def enrich_word(word: str) -> dict:
     disappear when one is down. An empty object is the honest answer to "the
     lookup did not come back", and the page simply adds nothing.
     """
-    from .. import gloss
+    from .. import evs, gloss
+    from ..ekidefs import lookup as native_offline
+    from ..meaning import russian as russian_for
     from ..providers import sonapi
-
-    # Through the store, so a word is asked about once and then never again.
-    # `sonapi`'s own cache is on the container's disk, which Cloud Run throws
-    # away every time it scales to zero -- so the module that promises not to
-    # hammer Sõnaveeb was re-requesting the same words every session.
     from ..psv import lookup as psv_lookup
 
-    kept = gloss.remember(gloss_db(), word)
-    # PSV covers ~6 000 basic words and is absent on a deployment that never
-    # imported it; both are ordinary, so this never gates the response.
-    simple = psv_lookup(db(), word)
-    from ..ekidefs import lookup as native_offline
+    words = db()
+    # Everything the card shows, from EKI's files first: PSV (definition,
+    # examples, rection), the seed/EVS (Russian), EVS (muuttüüp).
+    simple = psv_lookup(words, word)
+    offline_type = evs.inflection_type(words, word)
+    offline_russian, _ = russian_for(words, word)
 
-    meaning = _meaning(simple, kept, native_offline(db(), word))
-    russian = _russian(word, kept)
-    if kept is None or not kept.found:
-        # Found if *any* source had something to show. The card draws nothing
-        # when this is false, so counting only PSV hid every VSL definition
-        # and every EVS gloss for a word Sõnaveeb does not know.
-        shown = meaning["definition"] or meaning["examples"] or russian["russian"]
-        return {"word": word, "found": bool(shown), **meaning, **russian}
+    # Sõnaveeb only when that leaves a slot empty. A word card used to spend a
+    # live request — against a service that asks not to be batched, capped by
+    # `gloss.DAILY_BUDGET` — on words EKI's files already answer in full. Verbs
+    # always ask: PSV's rection is partial where Sõnaveeb's is not (`lugema`:
+    # PSV has `kust, kellele`, Sõnaveeb also `mida`), and rection is the
+    # learner corpus's second-largest error class.
+    covered = bool(simple and simple.definition and offline_russian
+                   and offline_type and simple.pos != "V")
+    # Through the store, so a word is asked about once and then never again.
+    kept = None if covered else gloss.remember(gloss_db(), word)
+    live = kept if kept is not None and kept.found else None
+
+    meaning = _meaning(simple, live, native_offline(words, word))
+    russian = _russian(word, live)
+    live_rection = [p.strip() for p in ((live.rection if live else "") or "").split(",") if p.strip()]
+    governs = live_rection or list(simple.rection if simple else ())
+    inflection_type = (live.inflection_type if live and live.inflection_type else None) or offline_type
+    shown = (meaning["definition"] or meaning["examples"] or russian["russian"]
+             or governs or inflection_type)
     return {
         "word": word,
-        "found": True,
-        "governs": [p.strip() for p in (kept.rection or "").split(",") if p.strip()],
-        "inflection_type": kept.inflection_type,
+        # Found if *any* source had something to show: the card draws nothing
+        # when this is false.
+        "found": bool(shown),
+        "governs": governs,
+        "governs_source": ("sonapi" if live_rection else "eki-psv" if governs else None),
+        "inflection_type": inflection_type,
         **meaning,
-        # The language policy says explanations are in Russian, and the API has
-        # carried Russian glosses all along — under the per-meaning key the
-        # module never read. Three at most: a word card is a reminder, not an
-        # entry. Whose Russian wins is `meaning.py`'s call.
+        # The language policy says explanations are in Russian. Three at most:
+        # a word card is a reminder, not an entry. Whose Russian wins is
+        # `meaning.py`'s call.
         **russian,
-        # The dictionary this app deliberately does not rebuild. Sõnaveeb has
-        # the full paradigm, audio, and every translation; sending the learner
-        # there is the honest answer to "I want more than three fields", and it
-        # costs one link rather than a scraper the maintainers asked us not to
-        # write.
-        "sonaveeb": sonapi.entry_url(kept.lemma),
+        # The dictionary this app deliberately does not rebuild — one link
+        # rather than a scraper the maintainers asked us not to write.
+        "sonaveeb": sonapi.entry_url(live.lemma if live else word),
+        # Whether this card spent a Sõnaveeb request, so the saving is visible.
+        "asked_sonaveeb": kept is not None,
     }
