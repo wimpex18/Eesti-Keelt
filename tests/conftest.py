@@ -277,16 +277,58 @@ def dataset_state() -> dict[str, object]:
     return state
 
 
+def browsers_root(env: "dict | None" = None, home: "Path | None" = None,
+                  platform: "str | None" = None,
+                  container: Path = Path("/opt/pw-browsers")) -> Path:
+    """Where Playwright's browsers are, on this machine.
+
+    `/opt/pw-browsers` is the cloud container's path, and it was the only
+    answer: on a Mac, where `playwright install` unpacks into
+    `~/Library/Caches/ms-playwright`, all 170 journeys skipped with "no
+    Chromium binary — run `playwright install chromium`" on a machine that had
+    just run it. So the container's path still wins where it exists, and
+    otherwise Playwright's own default for the platform is used.
+    """
+    import os
+    import sys
+
+    env = os.environ if env is None else env
+    home = Path.home() if home is None else home
+    platform = sys.platform if platform is None else platform
+    if env.get("PLAYWRIGHT_BROWSERS_PATH"):
+        return Path(env["PLAYWRIGHT_BROWSERS_PATH"])
+    if container.is_dir():
+        return container
+    if platform == "darwin":
+        return home / "Library" / "Caches" / "ms-playwright"
+    return home / ".cache" / "ms-playwright"
+
+
+def chromium_binary(root: Path) -> "str | None":
+    """The Chromium executable under `root`, whichever OS laid it out.
+
+    The folder name carries a build number, so it is discovered rather than
+    hardcoded. Linux unpacks `chrome-linux/chrome`; macOS unpacks an app
+    bundle, where no file is called `chrome` at all.
+    """
+    if not root.is_dir():
+        return None
+    for pattern in ("chromium-*/chrome-linux*/chrome",
+                    "chromium-*/chrome-mac*/*.app/Contents/MacOS/*",
+                    "chromium*/**/chrome"):
+        for path in sorted(root.glob(pattern)):
+            if path.is_file():
+                return str(path)
+    return None
+
+
 def installed_engines(root: "Path | None" = None) -> list[str]:
     """Which browser engines Playwright has unpacked, named once each.
 
     `chromium-1194` and `chromium_headless_shell-1194` sit beside each other
     and are one engine, not two.
     """
-    import os
-    from pathlib import Path
-
-    root = Path(root or os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
+    root = Path(root) if root else browsers_root()
     found = set()
     try:
         for path in root.glob("*-*"):

@@ -284,6 +284,11 @@ class TestEveryFileTheDocsPointAtExists:
                         "path deliberately",
         "stack-2026.md": "history: architecture.md records that it was merged "
                          "from that file, which is why the name appears",
+        "grammar_et.json": "a dataset `cli fetch-bench` downloads into the "
+                           "git-ignored data/raw/bench. CI passed only because "
+                           "it fetches first -- and that fetch is allowed to "
+                           "fail, which would have failed this doc check "
+                           "for a Hugging Face outage",
     }
 
     @staticmethod

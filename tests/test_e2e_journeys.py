@@ -49,18 +49,13 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: Where the container keeps Chromium. `PLAYWRIGHT_BROWSERS_PATH` is set for us,
-#: but the folder name carries a build number, so it is discovered rather than
-#: hardcoded -- a pinned number is a test that breaks on an unrelated upgrade.
+from conftest import browsers_root, chromium_binary  # noqa: E402
+
+
+#: Where Chromium is. Discovered per platform in `conftest.browsers_root` --
+#: the container's path alone made every journey skip on a Mac.
 def _chromium() -> str | None:
-    root = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
-    if not root.is_dir():
-        return None
-    for path in sorted(root.glob("chromium-*/chrome-linux/chrome")):
-        return str(path)
-    for path in sorted(root.glob("chromium*/**/chrome")):
-        return str(path)
-    return None
+    return chromium_binary(browsers_root())
 
 
 def _free_port() -> int:
@@ -174,7 +169,7 @@ def _engines() -> list[str]:
     it as an unhandled rejection nobody was listening for, WebKit raised it
     where it could be seen.
     """
-    root = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
+    root = browsers_root()
     engines = ["chromium"]
     if root.is_dir() and any(root.glob("webkit-*")):
         engines.append("webkit")

@@ -563,6 +563,7 @@ class TestTheKeyListIsNotHandMaintained:
         """Including the ones that are not LLM keys. The script's name is
         narrower than its job, which is a naming wart, not a limit."""
         import re
+        import shlex
         import subprocess
 
         from eesti.env import KNOWN_KEYS
@@ -573,7 +574,7 @@ class TestTheKeyListIsNotHandMaintained:
         assert script, "the extraction command changed shape"
         got = subprocess.run(
             ["sh", "-c",
-             f"sed -n '{script.group(1)}' {ROOT / 'eesti' / 'env.py'} "
+             f"sed -n '{script.group(1)}' {shlex.quote(str(ROOT / 'eesti' / 'env.py'))} "
              r"""| sed -n 's/^ *"\([A-Z0-9_]*\)".*/\1/p'"""],
             capture_output=True, text=True, check=True).stdout.split()
         assert set(got) == set(KNOWN_KEYS), (
