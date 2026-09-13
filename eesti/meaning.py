@@ -4,8 +4,10 @@ Four sources can answer, each kept where it lives, none writing another's:
 
 1. `seed`    — `data/seed_glossary.tsv`, 294 glosses written for the words the
                drills use most, read from the shipped file
-2. `sonapi`  — the live dictionary's gloss, `word_gloss` in `vocab.db` (asked
-               on the word card; everywhere else, what is already stored)
+2. live     — the live dictionary's gloss, `word_gloss` in `vocab.db`: EKI's
+               Ekilex API (`ekilex`) with a key, the Sõnaveeb mirror
+               (`sonapi`) without — asked on the word card; everywhere else,
+               what is already stored
 3. `eki-evs` — EKI's Estonian–Russian dictionary, `evs_gloss`, offline
 4. `eki-har` — EKI's education terms, `har_gloss`, offline
 
@@ -62,17 +64,28 @@ def _seed() -> dict[str, list[str]]:
 
 
 def russian(words: sqlite3.Connection, lemma: str,
-            sonaveeb: tuple[str, ...] | list[str] = ()) -> tuple[list[str], str | None]:
+            sonaveeb: tuple[str, ...] | list[str] = (),
+            live_source: str = "sonapi",
+            beside_its_definition: bool = False) -> tuple[list[str], str | None]:
     """`(translations, source id)` for one lemma; `([], None)` if nobody knows.
 
-    `sonaveeb` is whatever the caller already has from Sõnaveeb — a live answer
-    on the word card, a stored one elsewhere. This function never fetches.
+    `sonaveeb` is whatever the caller already has from the live dictionary — a
+    fresh answer on the word card, a stored one elsewhere. Never fetches.
+
+    `beside_its_definition` is the word card's case: the live dictionary's
+    definition is on screen, so its Russian goes first, or the card describes
+    two words. Measured with Ekilex, 2026-09-13: `kohus` showed EKI's
+    definition of "duty" beside the seed's "суд" (a court) — the seed names the
+    sense the drills use, which is right for a drill and wrong beside a
+    definition of the other homonym.
     """
+    if beside_its_definition and sonaveeb:
+        return list(sonaveeb[:SHOWN]), live_source
     seeded = _seed().get(lemma)
     if seeded:
         return list(seeded), "seed"
     if sonaveeb:
-        return list(sonaveeb[:SHOWN]), "sonapi"
+        return list(sonaveeb[:SHOWN]), live_source
     offline = evs.russian(words, lemma)
     if offline:
         return list(offline[:SHOWN]), "eki-evs"

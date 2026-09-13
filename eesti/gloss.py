@@ -87,6 +87,20 @@ CREATE TABLE IF NOT EXISTS gloss_budget (
 """
 
 
+#: Columns added after the table first shipped, for Ekilex: the learner-level
+#: definition it flags `wwLite`, the CEFR level it gives a sense, and which
+#: live dictionary answered. `CREATE TABLE IF NOT EXISTS` cannot add a column
+#: to a `vocab.db` a restore brought back, so `migrate` does.
+LATER_COLUMNS = ("learner_definition", "level", "source")
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    have = {row[1] for row in conn.execute("PRAGMA table_info(word_gloss)")}
+    for column in LATER_COLUMNS:
+        if column not in have:
+            conn.execute(f"ALTER TABLE word_gloss ADD COLUMN {column} TEXT")
+
+
 @dataclass(frozen=True)
 class Gloss:
     lemma: str
@@ -95,6 +109,12 @@ class Gloss:
     rection: str | None
     inflection_type: str | None
     found: bool
+    learner_definition: str | None = None
+    level: str | None = None
+    #: Which live dictionary answered: `ekilex`, or `sonapi` (also every row
+    #: from before the column, and the seed's rows, which are marked `seed`
+    #: in `fetched`).
+    source: str = "sonapi"
 
     def to_dict(self) -> dict:
         return {
@@ -159,6 +179,9 @@ def _row_to_gloss(row: sqlite3.Row) -> Gloss:
         rection=row["rection"],
         inflection_type=row["inflection_type"],
         found=bool(row["found"]),
+        learner_definition=row["learner_definition"] if "learner_definition" in row.keys() else None,
+        level=row["level"] if "level" in row.keys() else None,
+        source=(row["source"] if "source" in row.keys() else None) or "sonapi",
     )
 
 
@@ -198,26 +221,34 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
         rection=(info.rection if info else None),
         inflection_type=(info.inflection_type if info else None),
         found=info is not None,
+        learner_definition=getattr(info, "learner_definition", None),
+        level=getattr(info, "level", None),
+        source=getattr(info, "source", "sonapi"),
     )
+    migrate(conn)
     with conn:
         conn.execute(
             """INSERT INTO word_gloss
                  (lemma, russian, definition, rection, inflection_type,
-                  found, fetched)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+                  found, fetched, learner_definition, level, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(lemma) DO UPDATE SET
                  russian = excluded.russian,
                  definition = excluded.definition,
                  rection = excluded.rection,
                  inflection_type = excluded.inflection_type,
                  found = excluded.found,
-                 fetched = excluded.fetched""",
+                 fetched = excluded.fetched,
+                 learner_definition = excluded.learner_definition,
+                 level = excluded.level,
+                 source = excluded.source""",
             # EKI's learner-level wording is deliberately not in this table
             # at all: it is reference data and lives beside the word list,
             # where a state-snapshot restore cannot reach it. `/api/enrich`
             # reads both and prefers EKI's. See `eesti/psv.py`.
             (lemma, "\x1f".join(gloss.russian), gloss.definition,
-             gloss.rection, gloss.inflection_type, int(gloss.found), _now()),
+             gloss.rection, gloss.inflection_type, int(gloss.found), _now(),
+             gloss.learner_definition, gloss.level, gloss.source),
         )
     # Read back rather than returning the object built above, so what the
     # caller gets is what the store now holds.
@@ -302,11 +333,14 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     if budget_left(conn) <= 0:
         return hit
 
-    from .providers import sonapi
+    from .providers import ekilex, sonapi
 
+    # EKI's own API when this deployment holds its key; the third-party mirror
+    # over Sõnaveeb otherwise. Same budget, same once-per-word store.
+    provider = ekilex if ekilex.available() else sonapi
     _spend(conn)  # spent on the attempt, so a failing service cannot be retried
     try:                                   # into a flood
-        info = sonapi.lookup(lemma)
+        info = provider.lookup(lemma)
     except Exception:  # noqa: BLE001 - a third party being down is not an error
         # `hit` rather than None: for a seeded word we already have the Russian,
         # and showing nothing because Sõnaveeb is having a bad minute would be a

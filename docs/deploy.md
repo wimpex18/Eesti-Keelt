@@ -219,6 +219,16 @@ bash deploy/set-llm-key.sh NOTION_TOKEN
 database. Without it they queue in the app and the send button says so rather
 than failing when pressed.
 
+```bash
+bash deploy/set-llm-key.sh EKILEX_API_KEY
+```
+
+`EKILEX_API_KEY` switches the word card's live dictionary from the third-party
+Sõnaveeb mirror (`api.sonapi.ee`) to EKI's own Ekilex API: the current
+learner-level definition, each sense's Russian, rection, muuttüüp and CEFR
+level. Without it the card works as before. The key is personal — generate it
+on your ekilex.ee profile page; a new one replaces the old.
+
 ### Set a second grammar key. One is not enough.
 
 Measured on 2026-08-22 with the deep smoke check: the live chain answered

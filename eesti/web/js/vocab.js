@@ -94,6 +94,8 @@ export async function showWordCard(word, card, contextFor) {
       // EKI's Estonian-Russian dictionary is CC BY 4.0 like the definition
       // below, so its Russian carries the same credit -- and only when it is
       // EKI's: Sõnaveeb's gloss in the same slot is not theirs to be credited.
+      if (x.russian_source === "ekilex")
+        bits.push(`<span class="attrib">allikas: Ekilex (EKI) · CC BY 4.0</span>`);
       if (x.russian_source === "eki-evs")
         bits.push(`<span class="attrib">allikas: EKI eesti-vene sõnaraamat · CC BY 4.0</span>`);
       if (x.russian_source === "eki-har")
@@ -127,6 +129,8 @@ export async function showWordCard(word, card, contextFor) {
       if (x.definition_source === "eki-psv")
         meaning.push(`<div class="attrib">allikas: EKI põhisõnavara sõnastik` +
           ` 2014 · CC BY 4.0</div>`);
+      if (x.definition_source === "ekilex")
+        meaning.push(`<div class="attrib">allikas: Ekilex (EKI) · CC BY 4.0</div>`);
       if (x.definition_source === "eki-vsl")
         meaning.push(`<div class="attrib">allikas: EKI võõrsõnade leksikon · CC BY 4.0</div>`);
       if (x.definition_source === "eki-ekss")
@@ -138,6 +142,7 @@ export async function showWordCard(word, card, contextFor) {
       if (x.full_definition) {
         const who = {
           "sonapi": "Sõnaveeb (EKI) · CC BY 4.0",
+          "ekilex": "Ekilex (EKI) · CC BY 4.0",
           "eki-vsl": "EKI võõrsõnade leksikon · CC BY 4.0",
           "eki-ekss": "EKI eesti keele seletav sõnaraamat · CC BY 4.0",
         }[x.full_definition_source] || "";

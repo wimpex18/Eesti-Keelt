@@ -150,6 +150,9 @@ def live_server(tmp_path_factory) -> str:
         # grammar chain degrades to Vabamorf, which is what we want to assert.
         "OPENROUTER_API_KEY": "", "GROQ_API_KEY": "",
         "HF_TOKEN": "", "CLOUDFLARE_API_TOKEN": "",
+        # The server loads `.env` itself; a real Ekilex key there would send
+        # every journey's word card to ekilex.ee.
+        "EKILEX_API_KEY": "",
     }
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "eesti.app:app",

@@ -287,6 +287,24 @@ REGISTRY: tuple[Source, ...] = (
                 "показаны так, как их написал EKI.",
     ),
     Source(
+        "ekilex", "Ekilex API (EKI)", "api", "CC-BY-4.0", True,
+        "https://ekilex.ee/",
+        "EKI's own dictionary and term base system — the database Sõnaveeb "
+        "shows — through its API with the learner's key (`EKILEX_API_KEY`). "
+        "The live dictionary whenever the key is set, ahead of the third-party "
+        "`sonapi` mirror: the learner-level definition (`wwLite`), the native "
+        "one, the Russian translations of each sense, rection, muuttüüp and "
+        "CEFR level. Single lookups, one request a second, each word asked "
+        "once and kept in `vocab.db` within `gloss.DAILY_BUDGET`. Terms "
+        "(ekilex.ee, 2022): CC BY 4.0, commercial use not restricted, EKI and "
+        "Ekilex to be credited and the changes described.",
+        changes="Из ответа Ekilex взяты определение для изучающих язык и "
+                "полное определение, русские переводы (не более пяти: сначала "
+                "основного значения), управление, тип словоизменения и уровень "
+                "CEFR; устаревшие значения, переводы родственных значений и "
+                "остальные поля отброшены.",
+    ),
+    Source(
         "sonapi", "Sõnaveeb via api.sonapi.ee", "api",
         "Ekilex data CC-BY-4.0; third-party endpoint", True,
         "https://api.sonapi.ee/v2/",

@@ -17,13 +17,31 @@ Documented by EKI and confirmed in EKI-adjacent client code (2026-09-13):
   `GET /word/details/{wordId}/{dataset}`, `GET /paradigm/details/{wordId}`;
 * licence CC BY 4.0: EKI and Ekilex credited, changes described.
 
-## What is not known yet, on purpose
+## What the parser reads, and where it learnt it
 
-The response parser. This project has written two parsers against a
-description of a format and watched both fail on the first real input, so this
-one waits for a real response: `cli ekilex-probe WORD` saves what Ekilex answers
-to `data/cache/ekilex/` (git-ignored) and prints its shape. The parser is built
-from that file, and its tests from a trimmed copy of it.
+Built from real responses (`cli ekilex-probe` for `maja`, `lugema`, `poiss`,
+`kohus`, 2026-09-13; trimmed copies in `tests/fixtures/ekilex/`), not from a
+description — this project has watched two parsers written that way fail on
+their first real input.
+
+`/word/details/{id}/eki` answers `word` (with `paradigms`) and `lexemes`, one
+per sense, in EKI's order. From them:
+
+* **learner definition** — a definition flagged `wwLite`: the *Keeleõppija
+  Sõnaveeb* wording, the same text PSV has for `maja` but maintained today;
+* **native definition** — flagged `wwUnif`;
+* **Russian** — `synonymLangGroups` of `lang: rus`, **`MEANING_WORD` only**.
+  `MEANING_REL` entries are words of *related* meanings, weighted below 1:
+  counted, `kohus` ("duty") read угнетение, давление, иго;
+* **rection** — `governments` (`lugema`: mida, kust, kellele — the object PSV lacks);
+* **muuttüüp** — the first paradigm's `inflectionType`; a parenthesised one
+  (`poiss`: `(22e)`) is secondary;
+* **CEFR level** — `lexemeProficiencyLevelCode` (`maja` A1, `kohus` B1);
+* **examples** — `usages` in Estonian.
+
+A sense EKI mark archaic (`registers: van`, `kohus` → "право") is skipped.
+Homonyms are separate word ids (`kohus`: duty, then court); the first is read,
+one details request per word.
 
 ## Restraint
 
@@ -42,9 +60,11 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import CACHE
+from .sonapi import WordInfo
 
 BASE = "https://ekilex.ee/api"
 HEADER = "ekilex-api-key"
@@ -121,3 +141,82 @@ def shape(value, depth: int = 0, max_depth: int = 4) -> list[str]:
     if isinstance(value, list) and value:
         return shape(value[0], depth, max_depth)
     return []
+
+
+@dataclass(frozen=True)
+class Info(WordInfo):
+    """`sonapi.WordInfo`, plus what only Ekilex separates."""
+
+    learner_definition: str | None = None
+    level: str | None = None
+    source: str = "ekilex"
+
+
+ARCHAIC = "van"
+MAX_RUSSIAN = 5
+
+
+def _senses(details: dict) -> list[dict]:
+    return [l for l in details.get("lexemes") or []
+            if ARCHAIC not in {r.get("code") for r in l.get("registers") or []}]
+
+
+def _definitions(lexeme: dict, flag: str) -> list[str]:
+    return [d["value"] for d in (lexeme.get("meaning") or {}).get("definitions") or []
+            if d.get("lang") == "est" and d.get(flag) and d.get("value")]
+
+
+def _russian(lexeme: dict) -> list[str]:
+    return [w["wordValue"]
+            for g in lexeme.get("synonymLangGroups") or [] if g.get("lang") == "rus"
+            for s in g.get("synonyms") or [] if s.get("type") == "MEANING_WORD"
+            for w in s.get("words") or [] if w.get("wordValue")]
+
+
+def parse(details: dict) -> Info | None:
+    """One word's details, as the fields the app shows. None if nothing usable."""
+    word = details.get("word") or {}
+    senses = _senses(details)
+    if not senses:
+        return None
+
+    # Russian: the main sense's own translations lead (poiss: мальчик,
+    # мальчишка, мальчуган), then each other sense's first.
+    main = list(dict.fromkeys(_russian(senses[0])))
+    others = [ru[0] for ru in (_russian(l) for l in senses[1:]) if ru]
+    russian = tuple(dict.fromkeys(main[:3] + others + main[3:]))[:MAX_RUSSIAN]
+
+    learner = next((d for l in senses for d in _definitions(l, "wwLite")), None)
+    native = next((d for l in senses for d in _definitions(l, "wwUnif")), None)
+    rection = next((",".join(dict.fromkeys(g["value"] for g in l["governments"] if g.get("value")))
+                    for l in senses if l.get("governments")), None)
+    paradigm = next((p for p in word.get("paradigms") or []
+                     if p.get("inflectionType") and not p["inflectionType"].startswith("(")), None)
+    level = next((l["lexemeProficiencyLevelCode"] for l in senses
+                  if l.get("lexemeProficiencyLevelCode")), None)
+    examples = tuple(u["value"] for l in senses[:1] for u in l.get("usages") or []
+                     if u.get("lang") == "est" and u.get("value"))[:3]
+    pos = tuple(dict.fromkeys(p["code"] for l in senses for p in l.get("pos") or [] if p.get("code")))
+
+    if not (russian or learner or native or rection):
+        return None
+    return Info(
+        word=word.get("wordValue") or "",
+        word_classes=pos,
+        rection=rection or None,
+        inflection_type=paradigm["inflectionType"] if paradigm else None,
+        definition=native,
+        examples=examples,
+        translations={"ru": russian} if russian else {},
+        learner_definition=learner,
+        level=level,
+    )
+
+
+def lookup(word: str) -> Info | None:
+    """Two requests: the word's ids, then the first id's details. None for a
+    word Ekilex does not have. Raises on transport errors, like `sonapi`."""
+    ids = get(f"/word/ids/{urllib.parse.quote(word)}/{DATASET}/est")
+    if not ids:
+        return None
+    return parse(get(f"/word/details/{ids[0]}/{DATASET}") or {})

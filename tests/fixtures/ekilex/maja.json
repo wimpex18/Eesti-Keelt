@@ -1,0 +1,421 @@
+{
+ "ids": [
+  199880
+ ],
+ "details": {
+  "word": {
+   "wordId": 199880,
+   "wordValue": "maja",
+   "lang": "est",
+   "paradigms": [
+    {
+     "inflectionType": "17u",
+     "inflectionTypeNr": "17",
+     "wordClass": "noomen"
+    }
+   ]
+  },
+  "lexemes": [
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": "A1",
+    "wwLite": true,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Kodumaja."
+     },
+     {
+      "lang": "est",
+      "value": "Palkmaja."
+     },
+     {
+      "lang": "est",
+      "value": "Maja taga on kuur ja garaaž."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "house",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "building",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.8357,
+        "words": [
+         {
+          "wordValue": "building",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "building",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "дом",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "домик",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.8357,
+        "words": [
+         {
+          "wordValue": "постройка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "здание",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "строение",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "стройка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "постройка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "сооружение",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "здание",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "строение",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "hoone inimestele elamiseks, töötamiseks, nende teenindamiseks vms",
+       "wwLite": false,
+       "wwUnif": true
+      },
+      {
+       "lang": "est",
+       "value": "hoone, kus inimesed elavad või töötavad",
+       "wwLite": true,
+       "wwUnif": false
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Alarm ehmatas terve maja üles."
+     },
+     {
+      "lang": "est",
+      "value": "Neil on alailma puudus majas."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "дом",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "крестьянский двор",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "хуторской люд",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "обитатели крестьянского двора",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "хутор",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "дым",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "двор",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "хозяйство",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "дом",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "(ühes hoones elava pere, majaliste, majapidamise kohta)",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": true,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Suupisted veini kõrvale on maja poolt."
+     },
+     {
+      "lang": "est",
+      "value": "Pidu toimus Õpetajate Majas."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "house",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "place",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "дом",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "место",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "(restorani vms asutuse, selle töötajate kohta)",
+       "wwLite": false,
+       "wwUnif": true
+      },
+      {
+       "lang": "est",
+       "value": "teatud asutus koos vastava hoonega",
+       "wwLite": true,
+       "wwUnif": false
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Etendus läks tühjale majale."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "зал",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "зал",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "(teatri, kino publiku ja sellele mõeldud ruumide kohta)",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
