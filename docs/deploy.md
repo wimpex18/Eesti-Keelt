@@ -603,7 +603,11 @@ deploy/eki/A1A2B1.txt           Eesti keele tasemete sõnavara (2018)
 deploy/eki/psv_EKI_CCBY40.xml   Eesti keele põhisõnavara sõnastik (2014)
 ```
 
-The next `docker build` imports whatever is there. A build without them still
+The next `docker build` **from that working copy** imports whatever is there.
+The production image is not built from it: Cloud Build rebuilds from git on
+every merge, the files are git-ignored, and so production has neither —
+`eki_levels` 0 and `eki_definitions` 0 in smoke run 34765657703 (2026-09-13).
+`deploy/eki/README.md` has what that leaves open. A build without them still
 works: each command prints what is missing and the `Dockerfile` steps end in
 `||`, so a missing file — or EKI having a bad afternoon and refusing
 `cli rections` from a datacenter IP, which they have already done to a GitHub
@@ -616,8 +620,13 @@ from production with nothing saying so. `/api/health` therefore reports row
 counts, not flags:
 
 ```json
-"reference": {"rections": 23, "eki_levels": 51015, "eki_definitions": 5987}
+"reference": {"rections": 23, "eki_levels": 0, "eki_definitions": 0}
 ```
+
+That is what production returned on 2026-09-13 (smoke run 34765657703), not an
+illustration. An earlier version of this block showed `5987` definitions — a
+number no import had ever produced, since the dictionary XML has never been
+read here.
 
 Counts, because the presence of a database is not the presence of data — twice
 already an empty deployment here has looked full. The `smoke` workflow reads
