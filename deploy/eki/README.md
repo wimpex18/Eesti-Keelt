@@ -23,7 +23,7 @@ serves them; the word card credits EKI on whatever EKI wrote.
 
 Every source keeps its own table, and none writes another's.
 
-The live dictionary (Sõnaveeb today) is EKI's database as it is now; every
+The live dictionary — EKI's Ekilex API when `EKILEX_API_KEY` is set, the Sõnaveeb mirror otherwise — is EKI's database as it is now; every
 file here is a snapshot. So the live answer wins wherever it is the same kind of
 answer, and the files fill what it leaves empty, answer when it cannot be asked
 (offline, over the daily budget, down), and serve every flow that must not wait

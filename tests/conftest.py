@@ -504,6 +504,22 @@ def fixture_data(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_keys(monkeypatch):
+    """No test sees a key from the developer's `.env`.
+
+    `eesti/__init__.py` loads `.env` on import, so a key sitting there was in
+    every test's environment. It went unnoticed while `.env` held nothing a test
+    reaches; the first real `EKILEX_API_KEY` sent the gloss tests to ekilex.ee
+    with the learner's key, past the stubs they had set on `sonapi`. A test
+    that needs a key sets one.
+    """
+    from eesti.env import KNOWN_KEYS
+
+    for name in KNOWN_KEYS:
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _redirect_data(monkeypatch, tmp_path, fixture_data):
     """Point every database at a fixture or a scratch file, for every test.
 

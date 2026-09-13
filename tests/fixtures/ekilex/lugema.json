@@ -1,0 +1,550 @@
+{
+ "ids": [
+  196789
+ ],
+ "details": {
+  "word": {
+   "wordId": 196789,
+   "wordValue": "lugema",
+   "lang": "est",
+   "paradigms": [
+    {
+     "inflectionType": "28",
+     "inflectionTypeNr": "28",
+     "wordClass": "verb"
+    }
+   ]
+  },
+  "lexemes": [
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": "A1",
+    "wwLite": true,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "v"
+     }
+    ],
+    "registers": [],
+    "governments": [
+     {
+      "value": "mida"
+     },
+     {
+      "value": "kust"
+     },
+     {
+      "value": "kellele"
+     }
+    ],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Mis raamatut sa viimati lugesid?"
+     },
+     {
+      "lang": "est",
+      "value": "Mul on komme õhtuti enne magama jäämist voodis lugeda."
+     },
+     {
+      "lang": "est",
+      "value": "Ta töötab televisioonis, loeb uudiseid."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "read",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "read aloud",
+          "lang": "eng"
+         },
+         {
+          "wordValue": "read out",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "pronounce",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "читать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "прочитать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "прочитывать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "дочитывать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "дочитать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "почитывать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "почитать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "прочитать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "зачитывать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "прочитывать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "зачитать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "поглотить",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "поглощать",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "kirjalikku teksti sõnahaaval jälgima ja sõnu ning lauseid tõlgendades selle tähendust tajuma",
+       "wwLite": false,
+       "wwUnif": true
+      },
+      {
+       "lang": "est",
+       "value": "kirjalikku teksti suuliselt esitama (seda pilguga jälgides või päheõpitult)",
+       "wwLite": false,
+       "wwUnif": true
+      },
+      {
+       "lang": "est",
+       "value": "mingit teksti vaatama ja sellest aru saama",
+       "wwLite": true,
+       "wwUnif": false
+      },
+      {
+       "lang": "est",
+       "value": "seda valju häälega esitama",
+       "wwLite": true,
+       "wwUnif": false
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "v"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Laps ei oska veel lugeda."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "читать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "прочитать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "читать",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "tähemärke sõnadeks ühendama ja sõnade (ning lausete) tähendust mõistma",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "v"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Nooti lugema."
+     },
+     {
+      "lang": "est",
+      "value": "Naine ei mõistnud juhi kõrvalistmel kaarti lugeda."
+     },
+     {
+      "lang": "est",
+      "value": "Raamat õpetab, kuidas lugeda käejooni."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "читать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "знать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "разбираться",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.541,
+        "words": [
+         {
+          "wordValue": "понимать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "рассматривать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "интерпретировать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "истолковывать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "истолковать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "толковать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "трактовать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "давать толкование",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "дать толкование",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "know",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "mingeid muid märke, muud märgisüsteemi lahti mõtestada oskama, sellistest märkidest või süsteemist aru saama",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "v"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Kes teile kirjakeele ajalugu loeb?"
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "читать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "прочитать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.75,
+        "words": [
+         {
+          "wordValue": "давать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "дать",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.559,
+        "words": [
+         {
+          "wordValue": "учить",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "обучать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "преподавать",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "обучить",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "научить",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_REL",
+        "weight": 0.75,
+        "words": [
+         {
+          "wordValue": "give",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.559,
+        "words": [
+         {
+          "wordValue": "teach",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "(hrl kõrgkoolis mingi aine loengute pidamise kohta)",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

@@ -25,6 +25,7 @@ KNOWN_KEYS = {
     "CLOUDFLARE_ACCOUNT_ID": "Required alongside CLOUDFLARE_API_TOKEN.",
     "HF_TOKEN": "Hugging Face — the only hosted route to EstLLM (Estonian-adapted).",
     "NOTION_TOKEN": "Notion — push confirmed errors to the Vead database.",
+    "EKILEX_API_KEY": "Ekilex — EKI's own dictionary API, the database behind Sõnaveeb.",
 }
 
 

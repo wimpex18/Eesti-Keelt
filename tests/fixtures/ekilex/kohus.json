@@ -1,0 +1,231 @@
+{
+ "ids": [
+  183400,
+  283694
+ ],
+ "details": {
+  "word": {
+   "wordId": 183400,
+   "wordValue": "kohus",
+   "lang": "est",
+   "paradigms": [
+    {
+     "inflectionType": "9",
+     "inflectionTypeNr": "9",
+     "wordClass": "noomen"
+    }
+   ]
+  },
+  "lexemes": [
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": "B1",
+    "wwLite": true,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Minu püha kohus on vabatahtlikuna sõdima minna."
+     },
+     {
+      "lang": "est",
+      "value": "Riigi kohus on kaitsta oma inimesi."
+     },
+     {
+      "lang": "est",
+      "value": "Vahetevahel täidan ma ka tõlgi kohuseid."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "duty",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "task",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "point of honour",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "долг",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "обязанность",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "угнетение",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "давление",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "иго",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "необходимость",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "диктовка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "принуждение",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "задача",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "поручение",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "задание",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "sisemine, moraalne vajadus mingit ülesannet või toimingut sooritada",
+       "wwLite": false,
+       "wwUnif": true
+      },
+      {
+       "lang": "est",
+       "value": "see, et sa pead midagi tegema, kuna see on sinu ülesanne või sul on selleks moraalne vajadus",
+       "wwLite": true,
+       "wwUnif": false
+      },
+      {
+       "lang": "est",
+       "value": "moraalne vajadus mingit ülesannet sooritada",
+       "wwLite": true,
+       "wwUnif": false
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [
+     {
+      "code": "van"
+     }
+    ],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Andke keisrile, mis keisri kohus."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "право",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "see, millele kellelgi on õigus või mis on kellelegi ette nähtud",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

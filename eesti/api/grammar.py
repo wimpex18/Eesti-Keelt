@@ -110,11 +110,11 @@ def _without(text: str | None, shown: str | None) -> str | None:
     return "; ".join(kept) or None
 
 
-def _fuller(psv_definition, definition, native, offline_source, offline) -> dict:
-    native = _without(native, psv_definition) if psv_definition else native
-    if psv_definition and native and native != definition:
-        return {"full_definition": native, "full_definition_source": "sonapi"}
-    if psv_definition and offline and offline != definition:
+def _fuller(learner_shown, definition, native, live_source, offline_source, offline) -> dict:
+    native = _without(native, definition) if learner_shown else native
+    if learner_shown and native and native != definition:
+        return {"full_definition": native, "full_definition_source": live_source}
+    if learner_shown and offline and offline != definition:
         return {"full_definition": offline, "full_definition_source": offline_source}
     return {"full_definition": None, "full_definition_source": None}
 
@@ -137,24 +137,28 @@ def _meaning(simple, kept, native_offline=None) -> dict:
     expression returned `None` for those instead of falling back to Sõnaveeb's
     wording. Asking which source answered, rather than deducing it, fixes both.
     """
+    # Learner-level wording first: Ekilex's `wwLite` definition — the
+    # *Keeleõppija Sõnaveeb* text, maintained today — then PSV's 2014 snapshot
+    # of it. Then the live native definition, then EKI's native-level files.
+    live_source = getattr(kept, "source", None) or "sonapi"
+    live_learner = getattr(kept, "learner_definition", None) if kept else None
     psv_definition = simple.definition if simple else None
     native = kept.definition if kept else None
-    # Third and last: EKI's native-level dictionaries (VSL, EKSS), offline, for
-    # when Sõnaveeb had nothing or could not be asked. `(source id, text)`.
     offline_source, offline = native_offline or (None, None)
-    definition = psv_definition or native or offline
+    learner = live_learner or psv_definition
+    definition = learner or native or offline
     return {
         "definition": definition,
         # Named, not inferred. `None` when no source had anything to say.
         "definition_source": (
-            "eki-psv" if psv_definition else "sonapi" if native
-            else offline_source if offline else None),
+            live_source if live_learner else "eki-psv" if psv_definition
+            else live_source if native else offline_source if offline else None),
         # The native-level wording beside PSV's learner one: the live
         # dictionary's, else EKSS/VSL offline. Only when PSV answered and the
         # fuller text says something else, so the card never repeats itself.
         # It had no reader until 2026-09-13 — an API field nothing drew — and
         # the card now shows it folded under "täpsem seletus".
-        **_fuller(psv_definition, definition, native, offline_source, offline),
+        **_fuller(bool(learner), definition, native, live_source, offline_source, offline),
         # `[]` until 2026-09-11, hardcoded — a field the API promised and no
         # source ever filled. PSV is the only source that has examples.
         "examples": list(simple.examples) if simple else [],
@@ -168,7 +172,11 @@ def _russian(word: str, kept) -> dict:
     """
     from ..meaning import russian
 
-    found, source = russian(db(), word, kept.russian if kept is not None else ())
+    live_definition = bool(kept is not None and (getattr(kept, "learner_definition", None)
+                                                  or kept.definition))
+    found, source = russian(db(), word, kept.russian if kept is not None else (),
+                            live_source=getattr(kept, "source", None) or "sonapi",
+                            beside_its_definition=live_definition)
     return {"russian": found, "russian_source": source}
 
 
@@ -220,7 +228,10 @@ def enrich_word(word: str) -> dict:
         # when this is false.
         "found": bool(shown),
         "governs": governs,
-        "governs_source": ("sonapi" if live_rection else "eki-psv" if governs else None),
+        "governs_source": ((live.source if live else None) if live_rection
+                           else "eki-psv" if governs else None),
+        # Ekilex's CEFR level for the word's main sense, when Ekilex answered.
+        "live_level": getattr(live, "level", None),
         "inflection_type": inflection_type,
         **meaning,
         # The language policy says explanations are in Russian. Three at most:

@@ -1,0 +1,588 @@
+{
+ "ids": [
+  218375
+ ],
+ "details": {
+  "word": {
+   "wordId": 218375,
+   "wordValue": "poiss",
+   "lang": "est",
+   "paradigms": [
+    {
+     "inflectionType": "23e",
+     "inflectionTypeNr": "23",
+     "wordClass": "noomen"
+    },
+    {
+     "inflectionType": "(22e)",
+     "inflectionTypeNr": "22",
+     "wordClass": "noomen"
+    }
+   ]
+  },
+  "lexemes": [
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": "A1",
+    "wwLite": true,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Poisid mängisid sõda."
+     },
+     {
+      "lang": "est",
+      "value": "Öeldakse, et mehed jäävad elu lõpuni poisteks."
+     },
+     {
+      "lang": "est",
+      "value": "Poisid mängivad õues jalgpalli."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "boy",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.649,
+        "words": [
+         {
+          "wordValue": "kid",
+          "lang": "eng"
+         },
+         {
+          "wordValue": "child",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "adolescent",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "мальчик",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "мальчишка",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "мальчуган",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "парень",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "пацан",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "хлопец",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "малец",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "шкет",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.8203,
+        "words": [
+         {
+          "wordValue": "мальчик",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "мальчонка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "парнишка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "мальчуган",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "мальчик",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "паренёк",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "мальчишка",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "meessoost laps",
+       "wwLite": true,
+       "wwUnif": true
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Mul poiss on kaheteistaastane – tema aitab mind."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "сын",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "сын",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "сынок",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "сыночек",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "сынуля",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "son",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "(poja kohta)",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Kuperjanovi jalaväepataljoni poisid."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "юноша",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "парень",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "юнец",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "юноша",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "молодой человек",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "хлопец",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "молодец",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "парень",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "подлеток",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "юноша",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "молодой человек",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "парнишка",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "молодец",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "парень",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "подросток",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "мужичок",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "юнец",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "отрок",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "young man",
+          "lang": "eng"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.9,
+        "words": [
+         {
+          "wordValue": "adolescent",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "noor (vallaline) mees",
+       "wwLite": false,
+       "wwUnif": true
+      },
+      {
+       "lang": "est",
+       "value": "nooruk, noor mees",
+       "wwLite": false,
+       "wwUnif": false
+      }
+     ]
+    }
+   },
+   {
+    "datasetCode": "eki",
+    "lexemeProficiencyLevelCode": null,
+    "wwLite": false,
+    "wwUnif": true,
+    "pos": [
+     {
+      "code": "s"
+     }
+    ],
+    "registers": [],
+    "governments": [],
+    "usages": [
+     {
+      "lang": "est",
+      "value": "Kas sul poiss on?"
+     },
+     {
+      "lang": "est",
+      "value": "Tal pole oma poissi."
+     }
+    ],
+    "synonymLangGroups": [
+     {
+      "lang": "rus",
+      "synonyms": [
+       {
+        "type": "MEANING_WORD",
+        "weight": 1.0,
+        "words": [
+         {
+          "wordValue": "парень",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.691,
+        "words": [
+         {
+          "wordValue": "ухажёр",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "бойфренд",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "молодой человек",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "парень",
+          "lang": "rus"
+         }
+        ]
+       },
+       {
+        "type": "MEANING_REL",
+        "weight": 0.7,
+        "words": [
+         {
+          "wordValue": "поклонник",
+          "lang": "rus"
+         },
+         {
+          "wordValue": "жених",
+          "lang": "rus"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "lang": "eng",
+      "synonyms": [
+       {
+        "type": "MEANING_REL",
+        "weight": 0.691,
+        "words": [
+         {
+          "wordValue": "boyfriend",
+          "lang": "eng"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "meaning": {
+     "definitions": [
+      {
+       "lang": "est",
+       "value": "noormehest kallim või püsisuhte partner",
+       "wwLite": false,
+       "wwUnif": true
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
