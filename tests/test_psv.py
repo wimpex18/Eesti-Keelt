@@ -149,6 +149,48 @@ class TestWhereItLives:
         assert psv.imported(glosses) == 0, "and nothing was written to vocab.db"
 
 
+class TestLookingBeforeWriting:
+    """`import-psv --check`. The parser has only met a fixture built from the
+    schema, so the first run on EKI's real file should report and write nothing."""
+
+    @pytest.fixture(autouse=True)
+    def own_database(self, tmp_path, monkeypatch):
+        """A database per test. The suite's redirected one is shared, so a
+        count of zero after `--check` would otherwise depend on test order."""
+        from eesti import config
+
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "own.db")
+
+    def test_check_reports_and_writes_nothing(self, xml, capsys):
+        from eesti.cli import main
+
+        assert main(["import-psv", str(xml), "--check"]) == 0
+        out = capsys.readouterr().out
+        assert "3 articles" in out and "2 with a definition" in out
+        assert "Nothing was written" in out
+        assert psv.imported(wordlist.connect()) == 0
+
+    def test_without_check_it_imports(self, xml, capsys):
+        from eesti.cli import main
+
+        assert main(["import-psv", str(xml)]) == 0
+        assert psv.imported(wordlist.connect()) == 2
+
+    def test_headwords_without_definitions_are_a_refusal(self, tmp_path, capsys):
+        """The failure a blind parser is most likely to have on the real file:
+        it finds `m` and misses `d`. That must read as "does not fit", not as
+        a clean report of zero."""
+        from eesti.cli import main
+
+        path = tmp_path / "psv_EKI_CCBY40.xml"
+        path.write_text("<sr><A><P><mg><m>lugema</m></mg></P>"
+                        "<S><definitsioon>teisiti nimetatud</definitsioon></S></A></sr>",
+                        encoding="utf-8")
+        assert main(["import-psv", str(path), "--check"]) == 1
+        assert "NO DEFINITIONS FOUND" in capsys.readouterr().out
+        assert psv.imported(wordlist.connect()) == 0
+
+
 class _Info:
     """A stand-in for `sonapi.WordInfo` — the fields `gloss.save` reads."""
 
