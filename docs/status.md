@@ -112,10 +112,23 @@ routing), and the router refuses the pinned
 that brought this lane back (`featherless-ai`, `live`) described a mapping, not
 a completed request, and a request is what failed. The catalogue step of the
 same run listed 140 routable models and marked the pin "not answerable here".
-Why the router refuses it — a stale mapping, a provider suffix, or an account
-without that provider — is not measured, and changing the pin is a decision,
-not a fix. Until then the lane EstLLM was meant to fill is empty, and the chain
-still has one working general lane.
+**Why, measured the same day:** the bare id asks for the default `:fastest`
+policy, and that route does not offer this model. Naming the provider
+explicitly — `…-1125:featherless-ai`, the router's documented suffix — does
+route it, and the answer is money: run 34772172942 returned `403` for the first
+ten cases and `402 Payment Required` for the rest. The model is live; it is not
+served on this account's free allowance.
+
+**Decided: not paid for, and nothing changed in code.** Both halves of the
+deployment run on free tiers, and a model is only ever allowed to *explain* a
+correction here, never to decide one — so EstLLM would improve the prose, not
+the grading, which is not worth a subscription on its own. The lane stays
+defined because it costs nothing while failing: the breaker in
+`providers/breaker.py` skips a lane after two failures for 15 minutes, doubling up to six
+days. If an HF plan with inference credits is ever bought, the check is
+`cli eval --provider huggingface --model tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125:featherless-ai`.
+It is deliberately not in `eval.yml`'s menu: `test_every_selectable_model_is_free`
+keeps paid ids out, and it caught this one being added for the measurement.
 
 The weekly `schedule` of `eval.yml` always scores `openrouter`, so nothing
 re-checks this lane on its own; a re-run is a manual dispatch.
