@@ -145,6 +145,14 @@ If it is built, it needs a hand-written table of about thirty words, which is
 the same shape as `data/seed_glossary.tsv` and now a proven pattern. It is not
 a generation problem.
 
+**And it needs a cited source, which this repository does not have.** Nothing
+in `eesti/`, `docs/` or `data/` gives a pronoun paradigm. TalTech's native gold
+forms were the obvious candidate, and they have none. Measured 2026-09-13 on
+`inflection_et` as `cli fetch-bench` downloads it: 1 400 rows, all adjective +
+noun phrases, and **0** contain a personal, demonstrative, interrogative or
+indefinite pronoun. So the table cannot be checked against that source, and
+until one is cited the topic stays without a generator.
+
 ### Local ASR
 
 The plan called for `faster-whisper` with TalTech's verbatim fine-tune, run
