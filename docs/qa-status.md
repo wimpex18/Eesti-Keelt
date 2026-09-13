@@ -250,7 +250,7 @@ three defects in the suite itself, none in the app:
 | Defect | Why nobody saw it |
 |---|---|
 | Browsers looked for only in `/opt/pw-browsers`, and Chromium only as `chrome-linux/chrome` — every journey skipped on macOS with "run `playwright install chromium`" right after it had run | the cloud container is Linux with that path |
-| The word card was read the moment it unhid, while it still held the loading skeleton | Chromium lost that race most runs; the cloud had timing that let it pass |
+| The word card was read the moment it unhid, while it still held the loading skeleton | Chromium lost that race in 5 of 6 runs here; why it passed where the test was written is not known |
 | The flashcard word was keyed by viewport, not engine, on a server both engines share — WebKit found the card Chromium had graded and timed out | only visible with WebKit installed, which the cloud container did not have |
 
 Run the file on its own. In one `pytest tests/` invocation after the
