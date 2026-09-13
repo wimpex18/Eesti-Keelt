@@ -82,11 +82,25 @@ The chain is built for redundancy and has had none: the deep smoke check on
 whenever the one free tier is spent, which for a 50/day allowance is a normal
 Tuesday rather than an incident.
 
-**`HF_TOKEN` is now set in Actions**, so the `huggingface` lane — EstLLM, and
-the lane the chain prefers over every general model — has a key for the first
-time. Whether it *answers* is unmeasured: the first two attempts failed on a
-request-shape fault, since fixed. Nothing to fix in code; the remaining step is
-an eval run, and it is an operator action.
+**The `huggingface` lane does not answer.** `HF_TOKEN` is set in Actions, and
+the eval was finally run with it: `eval.yml`, `provider=huggingface`, provider
+default model, run 34765659556 on 2026-09-13. **Not a score — could not
+measure.** 18 of 18 cases came back `HTTPError 400 (model_not_supported)`, and
+the run finished green, which is exactly the green `eval.yml` warns about.
+
+What that does settle: the token is accepted (a bad one is a 401 before
+routing), and the router refuses the pinned
+`tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125`. The 2026-09-01 metadata probe
+that brought this lane back (`featherless-ai`, `live`) described a mapping, not
+a completed request, and a request is what failed. The catalogue step of the
+same run listed 140 routable models and marked the pin "not answerable here".
+Why the router refuses it — a stale mapping, a provider suffix, or an account
+without that provider — is not measured, and changing the pin is a decision,
+not a fix. Until then the lane EstLLM was meant to fill is empty, and the chain
+still has one working general lane.
+
+The weekly `schedule` of `eval.yml` always scores `openrouter`, so nothing
+re-checks this lane on its own; a re-run is a manual dispatch.
 
 ## What was never built
 

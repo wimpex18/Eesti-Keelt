@@ -218,6 +218,11 @@ PROVIDERS: dict[str, Provider] = {
     # repository must never hold one. So this lane is offered, not promised --
     # `cli eval --provider huggingface` is how it gets a number.
     #
+    # It got an answer rather than a number: eval run 34765659556 (2026-09-13),
+    # with the token, returned `400 model_not_supported` for all 18 cases. The
+    # mapping above is metadata; the router does not route this id for that
+    # token. docs/status.md has what is and is not known about why.
+    #
     # Placed directly after `local` in `LLM_PREFERENCE` for one reason: it runs
     # **the same Estonian-adapted model**, on hardware somebody else owns. The
     # argument that puts `local` in front of the general models is an argument
