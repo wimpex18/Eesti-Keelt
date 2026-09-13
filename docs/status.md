@@ -125,8 +125,10 @@ correction here, never to decide one — so EstLLM would improve the prose, not
 the grading, which is not worth a subscription on its own. The lane stays
 defined because it costs nothing while failing: the breaker in
 `providers/breaker.py` skips a lane after two failures for 15 minutes, doubling up to six
-days. If an HF plan with inference credits is ever bought, `eval.yml` now offers
-the suffixed id, and one dispatch settles whether it is worth pinning.
+days. If an HF plan with inference credits is ever bought, the check is
+`cli eval --provider huggingface --model tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125:featherless-ai`.
+It is deliberately not in `eval.yml`'s menu: `test_every_selectable_model_is_free`
+keeps paid ids out, and it caught this one being added for the measurement.
 
 The weekly `schedule` of `eval.yml` always scores `openrouter`, so nothing
 re-checks this lane on its own; a re-run is a manual dispatch.

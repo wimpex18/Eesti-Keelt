@@ -58,7 +58,6 @@ on:
           # model_not_supported`. The lane sets `json_mode=False` and asks for
           # JSON in the prompt instead.
           - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125
-          - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125:featherless-ai
       evidence:
         description: >-
           Attach Vabamorf's case analysis (as the real app does). Tests whether
