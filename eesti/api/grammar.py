@@ -7,6 +7,8 @@ See `docs/ai-boundaries.md`.
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -91,6 +93,32 @@ def translate_sentence(req: TranslateRequest) -> dict:
             "engine": got.engine}
 
 
+def _without(text: str | None, shown: str | None) -> str | None:
+    """`text`'s definitions minus the one already on the card, or None.
+
+    Sõnaveeb's mirror returns every definition of a word in one string, joined
+    by a comma with no space — `tõesti` came back as "(päris)
+    kindlasti,rõhutab, et miski on just nii, nagu sa ütled", the second half
+    being PSV's own learner wording, which Sõnaveeb also carries. Prose puts a
+    space after its commas, so the join is recoverable: split there, drop what
+    the card already shows, and join the rest so the seam is visible.
+    """
+    if not text:
+        return None
+    parts = [p.strip() for p in re.split(r",(?=\S)", text) if p.strip()]
+    kept = [p for p in parts if p != (shown or "").strip()]
+    return "; ".join(kept) or None
+
+
+def _fuller(psv_definition, definition, native, offline_source, offline) -> dict:
+    native = _without(native, psv_definition) if psv_definition else native
+    if psv_definition and native and native != definition:
+        return {"full_definition": native, "full_definition_source": "sonapi"}
+    if psv_definition and offline and offline != definition:
+        return {"full_definition": offline, "full_definition_source": offline_source}
+    return {"full_definition": None, "full_definition_source": None}
+
+
 def _meaning(simple, kept, native_offline=None) -> dict:
     """Which definition the card shows, and whose words it is.
 
@@ -121,10 +149,12 @@ def _meaning(simple, kept, native_offline=None) -> dict:
         "definition_source": (
             "eki-psv" if psv_definition else "sonapi" if native
             else offline_source if offline else None),
-        # Only when EKI answered and Sõnaveeb had something else to add, so the
-        # card can offer the fuller wording without repeating itself.
-        "full_definition": native if psv_definition and native != definition
-                           else None,
+        # The native-level wording beside PSV's learner one: the live
+        # dictionary's, else EKSS/VSL offline. Only when PSV answered and the
+        # fuller text says something else, so the card never repeats itself.
+        # It had no reader until 2026-09-13 — an API field nothing drew — and
+        # the card now shows it folded under "täpsem seletus".
+        **_fuller(psv_definition, definition, native, offline_source, offline),
         # `[]` until 2026-09-11, hardcoded — a field the API promised and no
         # source ever filled. PSV is the only source that has examples.
         "examples": list(simple.examples) if simple else [],
@@ -168,22 +198,13 @@ def enrich_word(word: str) -> dict:
     from ..psv import lookup as psv_lookup
 
     words = db()
-    # Everything the card shows, from EKI's files first: PSV (definition,
-    # examples, rection), the seed/EVS (Russian), EVS (muuttüüp).
     simple = psv_lookup(words, word)
     offline_type = evs.inflection_type(words, word)
-    offline_russian, _ = russian_for(words, word)
-
-    # Sõnaveeb only when that leaves a slot empty. A word card used to spend a
-    # live request — against a service that asks not to be batched, capped by
-    # `gloss.DAILY_BUDGET` — on words EKI's files already answer in full. Verbs
-    # always ask: PSV's rection is partial where Sõnaveeb's is not (`lugema`:
-    # PSV has `kust, kellele`, Sõnaveeb also `mida`), and rection is the
-    # learner corpus's second-largest error class.
-    covered = bool(simple and simple.definition and offline_russian
-                   and offline_type and simple.pos != "V")
-    # Through the store, so a word is asked about once and then never again.
-    kept = None if covered else gloss.remember(gloss_db(), word)
+    # The live dictionary is always asked — it is EKI's database as it is today,
+    # where every downloaded file is a snapshot — through the store, so a word
+    # is asked about once and never again, and within `gloss.DAILY_BUDGET`.
+    # EKI's files fill what it leaves empty and answer when it cannot be asked.
+    kept = gloss.remember(gloss_db(), word)
     live = kept if kept is not None and kept.found else None
 
     meaning = _meaning(simple, live, native_offline(words, word))
@@ -209,6 +230,4 @@ def enrich_word(word: str) -> dict:
         # The dictionary this app deliberately does not rebuild — one link
         # rather than a scraper the maintainers asked us not to write.
         "sonaveeb": sonapi.entry_url(live.lemma if live else word),
-        # Whether this card spent a Sõnaveeb request, so the saving is visible.
-        "asked_sonaveeb": kept is not None,
     }

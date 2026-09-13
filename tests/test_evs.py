@@ -107,6 +107,20 @@ class TestWhatComesFirst:
             '<x:xg><x:x>м"альчик</x:x></x:xg></x:xp></x:tg></x:tp></x:S></x:A>\n')
         assert got["poiss"] == ("мальчик", "мальчишка")
 
+    def test_the_main_sense_leads_over_a_later_senses_neutral_word(self, tmp_path):
+        """`poiss` is a boy. Taking one neutral word from every sense in turn put
+        its interjection sense, "смотри", third on the card."""
+        senses = [("мальчик", ""), ("мальчишка", "kõnek"), ("подросток", ""), ("смотри", "")]
+        body = ('<x:A><x:P><x:mg><x:m>poiss</x:m></x:mg></x:P><x:S>'
+                '<x:tp x:tnr="1"><x:tg><x:xp xml:lang="ru">'
+                '<x:xg><x:x>м"альчик</x:x></x:xg><x:xg><x:x>мальч"ишка</x:x><x:s>kõnek</x:s></x:xg>'
+                '</x:xp></x:tg></x:tp>'
+                '<x:tp x:tnr="2"><x:tg><x:xp xml:lang="ru"><x:xg><x:x>подр"осток</x:x></x:xg>'
+                '</x:xp></x:tg></x:tp>'
+                '<x:tp x:tnr="3"><x:tg><x:xp xml:lang="ru"><x:xg><x:x>смотр"и</x:x></x:xg>'
+                '</x:xp></x:tg></x:tp></x:S></x:A>\n')
+        assert self._parse(tmp_path, body)["poiss"][:3] == ("мальчик", "мальчишка", "подросток")
+
     def test_the_homonym_with_more_senses_leads(self, tmp_path):
         """`suu` is a mouth before it is a sou, whatever EKI's numbering."""
         sou = ('<x:A><x:P><x:mg><x:m x:i="1">suu</x:m></x:mg></x:P><x:S><x:tp><x:tg>'

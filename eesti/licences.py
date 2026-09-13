@@ -213,10 +213,10 @@ REGISTRY: tuple[Source, ...] = (
         "eki-evs", "Eesti-vene sõnaraamat (EKI)", "file",
         "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
-        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 676 lemmas "
+        "EKI's Estonian–Russian dictionary: 70 882 articles, 60 672 lemmas "
         "with a usable Russian translation (measured 2026-09-13). The Russian "
         "on the word card, the Sõnavara list, drills and review cards, offline — "
-        "after the hand-written seed, ahead of Sõnaveeb (`meaning.py`). Imported by `cli import-evs` into the words database as "
+        "after the hand-written seed and the live dictionary (`meaning.py`). Imported by `cli import-evs` into the words database as "
         "`evs_gloss` — reference data, like `psv_gloss`, never written into "
         "the learner's `word_gloss`. Same terms as EKI's other downloads: "
         "process and present it any way needed, with the attribution kept "

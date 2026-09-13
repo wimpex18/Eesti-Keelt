@@ -9,7 +9,7 @@ step recorded on 2026-09-12 — and nothing in this repo fetches from EKI.
 |---|---|---|
 | `A1A2B1.txt` | *Eesti keele tasemete sõnavara* — 4 456 lemmas, A1 740 · A2 1 266 · B1 2 450 | `words.level` is EKI's answer, `words.level_source` says so |
 | `psv_EKI_CCBY40.xml.gz` | *Eesti keele põhisõnavara sõnastik* — 4 849 learner-level definitions | the word card's definition and examples |
-| `evs_EKI_CCBY40.xml.gz` | *Eesti-vene sõnaraamat* — 60 676 lemmas with Russian | the word card's and the drills' Russian, offline |
+| `evs_EKI_CCBY40.xml.gz` | *Eesti-vene sõnaraamat* — 60 672 lemmas with Russian | the word card's and the drills' Russian, offline |
 | `vsl_EKI_CCBY40.xml.gz` | *Võõrsõnade leksikon* — 30 095 definitions | last-fallback definition |
 | `har_EKI_CCBY40.xml.gz` | *Haridussõnastik* — 5 905 terms with Russian | last-fallback Russian |
 | `ekss_EKI_CCBY40.xml.gz` | *Eesti keele seletav sõnaraamat* — 117 937 definitions, 96 058 for words in the word list | last-fallback definition |
@@ -23,19 +23,27 @@ serves them; the word card credits EKI on whatever EKI wrote.
 
 Every source keeps its own table, and none writes another's.
 
-- **Russian** — seed glossary → EVS → Sõnaveeb → HAR, stated once in
+The live dictionary (Sõnaveeb today) is EKI's database as it is now; every
+file here is a snapshot. So the live answer wins wherever it is the same kind of
+answer, and the files fill what it leaves empty, answer when it cannot be asked
+(offline, over the daily budget, down), and serve every flow that must not wait
+on a network. The word card always asks it.
+
+- **Russian** — seed glossary → live dictionary → EVS → HAR, stated once in
   `eesti/meaning.py` and used by every flow that shows a meaning: the word card
   (Lugemine and Sõnavara), the Sõnavara list, the gloss beside a drill, the
   gloss after a graded answer, and the review flashcard made with *Kordamisse*.
-  The seed (294 hand-written glosses for the drill words) outranks EVS because
-  EVS puts a different first translation on 45 of them — `kohus` "долг", not "суд".
-- **Estonian definition and examples** — PSV → Sõnaveeb → VSL → EKSS, on the
-  word card: `eesti/api/grammar.py`, `_meaning`.
-- **Rektsioon and muuttüüp** — Sõnaveeb's where it answered, else PSV's rection
-  (872 articles) and EVS's inflection type (43 886 lemmas; the ones EKI mark unsure are left to Sõnaveeb), on the word card.
-- **Whether the card asks Sõnaveeb at all** — not when EKI's files already fill
-  every slot (definition, Russian, muuttüüp) for a word that is not a verb.
-  Verbs always ask: PSV's rection is partial (`lugema` lacks `mida`).
+  The seed (294 hand-written glosses for the drill words) comes first because
+  it names the drilled sense: EVS puts a different first translation on 45 of
+  them — `kohus` "долг", not "суд".
+- **Estonian definition** — PSV's learner wording first, because it is written
+  for someone learning the word; then the live dictionary, VSL, EKSS. When PSV
+  answers, the native-level wording (live, else EKSS/VSL) is on the card too,
+  folded under *täpsem seletus*: `eesti/api/grammar.py`, `_meaning`.
+- **Examples** — PSV's.
+- **Rektsioon and muuttüüp** — the live dictionary's, else PSV's rection (872
+  articles) and EVS's inflection type (43 886 lemmas; the ones EKI mark unsure
+  are left to the live dictionary).
 - **CEFR level** — EKI's list over the estimate, everywhere a level is shown or
   filtered (`words.level_source`), as before.
 

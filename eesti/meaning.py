@@ -4,10 +4,16 @@ Four sources can answer, each kept where it lives, none writing another's:
 
 1. `seed`    — `data/seed_glossary.tsv`, 294 glosses written for the words the
                drills use most, read from the shipped file
-2. `eki-evs` — EKI's Estonian–Russian dictionary, `evs_gloss`, offline
-3. `sonapi`  — Sõnaveeb's gloss, `word_gloss` in `vocab.db` (live on the word
-               card only; everywhere else, what is already stored)
+2. `sonapi`  — the live dictionary's gloss, `word_gloss` in `vocab.db` (asked
+               on the word card; everywhere else, what is already stored)
+3. `eki-evs` — EKI's Estonian–Russian dictionary, `evs_gloss`, offline
 4. `eki-har` — EKI's education terms, `har_gloss`, offline
+
+**Why live outranks EKI's files.** The downloads are snapshots — EVS as
+exported, PSV from 2014, the level list from 2018 — and Sõnaveeb is EKI's
+database as it is today. The files answer when the live source has nothing,
+cannot be asked, or has not been asked yet: every flow but the word card only
+reads what is already stored.
 
 **Why the seed outranks EKI.** Measured 2026-09-13: EVS covers 287 of the 294,
 shares a translation with the seed on 277, and puts a different word first on
@@ -65,11 +71,11 @@ def russian(words: sqlite3.Connection, lemma: str,
     seeded = _seed().get(lemma)
     if seeded:
         return list(seeded), "seed"
+    if sonaveeb:
+        return list(sonaveeb[:SHOWN]), "sonapi"
     offline = evs.russian(words, lemma)
     if offline:
         return list(offline[:SHOWN]), "eki-evs"
-    if sonaveeb:
-        return list(sonaveeb[:SHOWN]), "sonapi"
     terms = har.russian(words, lemma)
     if terms:
         return list(terms[:SHOWN]), "eki-har"
@@ -92,7 +98,7 @@ def russian_many(words: sqlite3.Connection, store: sqlite3.Connection | None,
     offline = evs.russian_many(words, wanted)
     out: dict[str, list[str]] = {}
     for lemma in wanted:
-        if lemma in offline and lemma not in _seed():
+        if lemma in offline and lemma not in _seed() and lemma not in stored:
             found = offline[lemma][:SHOWN]
         else:
             found, _ = russian(words, lemma, stored.get(lemma, ()))

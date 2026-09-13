@@ -94,7 +94,7 @@ them. Measured locally on the real files the same day:
 |---|---|
 | `eki_levels` | 4 340 (4 102 words carry `level_source = 'eki'`) |
 | `eki_definitions` | 4 849 |
-| `eki_russian` | 60 676 |
+| `eki_russian` | 60 672 |
 | `eki_loanwords` | 30 095 |
 | `eki_terms` | 5 905 |
 | `eki_explanatory` | 117 937 |
@@ -104,13 +104,14 @@ element and undeclared prefixes, so `psv.parse` failed on byte one. PSV also
 has 58 lemmas with two articles, and an upsert in file order kept the rarer
 meaning. Both are fixed and tested against the real shape.
 
-Where the learner meets it: **Russian** — seed → EVS → Sõnaveeb → HAR, in
+Where the learner meets it: **Russian** — seed → live dictionary → EVS → HAR, in
 `eesti/meaning.py`, used by the word card, the Sõnavara list, drill glosses,
 the graded-answer gloss and the review flashcard (the last two read only
 Sõnaveeb's store before, so *Kordamisse* refused 60 000 words EKI had
-translated). **Definition** — PSV → Sõnaveeb → VSL → EKSS, on the word card.
-**Rektsioon and muuttüüp** — Sõnaveeb's, else PSV's and EVS's. A card no longer
-asks Sõnaveeb for a non-verb EKI's files cover in full. What every file in the
+translated). **Definition** — PSV → live → VSL → EKSS, with the native-level
+wording folded under it. **Rektsioon and muuttüüp** — live, else PSV's and EVS's.
+The live dictionary outranks the files because they are snapshots; the card
+always asks it. What every file in the
 download became — including why `marksonad.txt`, `scrabble.txt` and
 `ekss.html.gz` add nothing — is in `deploy/eki/README.md`.
 

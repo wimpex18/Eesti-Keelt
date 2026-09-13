@@ -9,7 +9,7 @@ until Sõnaveeb was asked — and none at all offline, over budget, or with
 Sõnaveeb down.
 
 EKI publish the Estonian–Russian dictionary for download under CC BY 4.0:
-70 882 articles, 60 676 lemmas with at least one usable Russian translation
+70 882 articles, 60 672 lemmas with at least one usable Russian translation
 (measured 2026-09-13 on `evs_EKI_CCBY40.xml`). So the Russian a word card needs
 is a file, not a request.
 
@@ -35,7 +35,7 @@ interjection sense, "смотри", third on the card.
 reference data, identical for everybody, and `vocab.db` is replaced whole by a
 state-snapshot restore. It never writes `word_gloss` — Sõnaveeb's answers stay
 Sõnaveeb's — so the preference between the two is stated where they are read,
-in `meaning.py`: after the hand-written seed, before Sõnaveeb and HAR.
+in `meaning.py`: after the hand-written seed and the live dictionary, before HAR.
 
 The file's shape is not its schema's; `ekixml` has what was measured.
 """
@@ -84,28 +84,60 @@ def _labels(node) -> set[str]:
     return {ekixml.text(s) for s in node.findall("s") if s.get("l") != "ka"}
 
 
+#: Labels that keep a translation last wherever it is. Milder ones (`kõnek`,
+#: `piltl`, `dem`, `hellitl`…) may stand in the main sense: `мальчишка` is still
+#: "boy". These may not: pejorative, vulgar, low-register, slang, dialect,
+#: rare, ironic, jocular, poetic.
+STRONG = {"hlv", "vulg", "madalk", "släng", "murd", "hrv", "iroon", "nlj", "luulek"}
+
+
 def _article(article) -> tuple[int, list[str]]:
-    """(number of senses, translations): neutral ones in EKI's order, then
-    labelled ones; archaic senses and translations dropped."""
-    plain, labelled, senses = [], [], 0
-    for tg in article.iter("tg"):
-        sense_labels = set().union(*(_labels(dg) for dg in tg.findall("dg")))
-        if ARCHAIC in sense_labels:
-            continue
-        found = False
-        for xp in tg.findall("xp"):
-            if xp.get(ekixml.XML_LANG) != "ru":
+    """(number of senses, translations) in the order a learner needs them.
+
+    1. two from the main sense (EKI's first `tp`), neutral then mildly
+       labelled — `poiss` → мальчик, мальчишка: both "boy";
+    2. the neutral translations of the other senses, in EKI's order;
+    3. the rest of the main sense, then everything else, strongly labelled
+       last. Archaic translations and prefix forms are dropped.
+
+    Taking one neutral translation from every sense in turn put `poiss`'s
+    interjection sense ("смотри") third on the card, ahead of every other
+    word for "boy".
+    """
+    main, main_labelled, rest_plain, rest_labelled, strong = [], [], [], [], []
+    senses = 0
+    for index, tp in enumerate(article.findall("S/tp") or [article]):
+        for tg in tp.iter("tg"):
+            found = False
+            sense_labels = set().union(*(_labels(dg) for dg in tg.findall("dg")))
+            if ARCHAIC in sense_labels:
                 continue
-            for xg in xp.findall("xg"):
-                labels = _labels(xg)
-                word = ekixml.russian(xg.find("x"))
-                # `_` is EVS saying "no single-word Russian; see the phrases".
-                if ARCHAIC in labels or not word or word == "_":
+            for xp in tg.findall("xp"):
+                if xp.get(ekixml.XML_LANG) != "ru":
                     continue
-                found = True
-                (labelled if labels or sense_labels else plain).append(word)
-        senses += found
-    return senses, plain + labelled
+                for xg in xp.findall("xg"):
+                    labels = _labels(xg) | sense_labels
+                    word = ekixml.russian(xg.find("x"))
+                    # `_` is EVS saying "no single-word Russian; see the phrases".
+                    # A prefix (`еже-` for `iga`) is how a compound translates,
+                    # not what the word means on its own.
+                    if ARCHAIC in labels or not word or word == "_" or word.endswith("-"):
+                        continue
+                    found = True
+                    if labels & STRONG:
+                        strong.append(word)
+                    elif index == 0:
+                        (main_labelled if labels else main).append(word)
+                    elif labels:
+                        rest_labelled.append(word)
+                    else:
+                        rest_plain.append(word)
+            senses += found
+    # The main sense leads with two, so a run of diminutives (`tüdruk`:
+    # девочка, девчушка, девчурка) cannot push the second sense (девушка) off
+    # a three-slot card.
+    main = main + main_labelled
+    return senses, main[:2] + rest_plain + main[2:] + rest_labelled + strong
 
 
 def _inflection_type(raw: str) -> str | None:

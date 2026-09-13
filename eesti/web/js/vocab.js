@@ -131,6 +131,20 @@ export async function showWordCard(word, card, contextFor) {
         meaning.push(`<div class="attrib">allikas: EKI võõrsõnade leksikon · CC BY 4.0</div>`);
       if (x.definition_source === "eki-ekss")
         meaning.push(`<div class="attrib">allikas: EKI eesti keele seletav sõnaraamat · CC BY 4.0</div>`);
+      /* The fuller, native-level wording beside PSV's learner definition.
+         Folded, because the learner-level one is the one meant to be read
+         first; open when the simple wording is not enough. Credited by whose
+         words they are: Sõnaveeb's (EKI's live database) or EKI's files. */
+      if (x.full_definition) {
+        const who = {
+          "sonapi": "Sõnaveeb (EKI) · CC BY 4.0",
+          "eki-vsl": "EKI võõrsõnade leksikon · CC BY 4.0",
+          "eki-ekss": "EKI eesti keele seletav sõnaraamat · CC BY 4.0",
+        }[x.full_definition_source] || "";
+        meaning.push(`<details class="fuller"><summary>täpsem seletus</summary>` +
+          `<div class="def">${esc(x.full_definition)}</div>` +
+          (who ? `<div class="attrib">allikas: ${esc(who)}</div>` : "") + `</details>`);
+      }
       const slot = card.querySelector("#cardExtra");
       if (meaning.length) {
         const box = document.createElement("div");

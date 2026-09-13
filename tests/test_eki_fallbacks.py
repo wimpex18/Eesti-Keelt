@@ -225,8 +225,9 @@ class TestHeadwordMarks:
         assert ekixml.headwords(node) == lemmas
 
 
-class TestTheCardFromEkiAlone:
-    """Rektsioon and muuttüüp offline, and when Sõnaveeb is not asked at all."""
+class TestTheCardFromEkiAndTheLiveDictionary:
+    """Rektsioon and muuttüüp from EKI's files when the live dictionary has
+    none — and the live dictionary is always asked, because it is current."""
 
     @pytest.fixture
     def words_db(self, tmp_path, monkeypatch):
@@ -240,6 +241,7 @@ class TestTheCardFromEkiAlone:
         ])
         evs.store(conn, [evs.Entry("tugitool", "s", ("кресло",), "1"),
                          evs.Entry("sõltuma", "v", ("зависеть",), "27")])
+        ekidefs.store(conn, "eki-ekss", {"tugitool": "käetugedega pehme tool"})
         conn.commit()
         monkeypatch.setattr(config, "DB_PATH", path)
         monkeypatch.setattr(config, "VOCAB_DB", tmp_path / "vocab.db")
@@ -247,21 +249,52 @@ class TestTheCardFromEkiAlone:
         monkeypatch.setattr(gloss, "remember", lambda conn, lemma: asked.append(lemma))
         return asked
 
-    def test_a_fully_covered_noun_spends_no_request(self, client, words_db):
+    def test_the_live_dictionary_is_asked_even_when_eki_covers_the_word(self, client, words_db):
         got = client.get("/api/enrich/tugitool").json()
-        assert words_db == [], "EKI's files filled every slot"
-        assert got["asked_sonaveeb"] is False
+        assert words_db == ["tugitool"]
         assert (got["definition"], got["russian"], got["inflection_type"]) == \
             ("mugav tool", ["кресло"], "1")
 
-    def test_a_verb_still_asks_and_falls_back_to_ekis_rection(self, client, words_db):
-        """PSV's rection is partial for verbs, so Sõnaveeb is still asked;
-        with nothing back, the card shows PSV's rection and EVS's type."""
+    def test_with_nothing_live_the_card_uses_ekis_rection_and_type(self, client, words_db):
         got = client.get("/api/enrich/sõltuma").json()
-        assert words_db == ["sõltuma"]
         assert got["governs"] == ["kellest-millest"]
         assert got["governs_source"] == "eki-psv"
         assert got["inflection_type"] == "27"
+
+    def test_the_fuller_wording_is_offered_from_ekss_when_live_has_none(self, client, words_db):
+        got = client.get("/api/enrich/tugitool").json()
+        assert got["full_definition"] == "käetugedega pehme tool"
+        assert got["full_definition_source"] == "eki-ekss"
+
+
+class TestTheFullerWordingNeverRepeatsTheCard:
+    def test_a_joined_live_definition_is_split_and_the_learner_one_dropped(self):
+        from eesti.api.grammar import _without
+
+        psv_text = "rõhutab, et miski on just nii, nagu sa ütled"
+        live = "(päris) kindlasti," + psv_text
+        assert _without(live, psv_text) == "(päris) kindlasti"
+        assert _without(psv_text, psv_text) is None
+
+
+class TestTheLiveGlossOutranksEvs:
+    def test_a_stored_live_gloss_beats_the_snapshot(self, tmp_path):
+        from eesti import meaning
+
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store(conn, [evs.Entry("tugitool", "s", ("кресло-качалка",))])
+        assert meaning.russian(conn, "tugitool", ("кресло",)) == (["кресло"], "sonapi")
+        assert meaning.russian(conn, "tugitool") == (["кресло-качалка"], "eki-evs")
+
+
+class TestTheCardDrawsTheFullerWording:
+    def test_it_is_drawn_folded_and_credited(self):
+        from pathlib import Path
+
+        card = (Path(__file__).resolve().parents[1] / "eesti" / "web" / "js"
+                / "vocab.js").read_text(encoding="utf-8")
+        assert "x.full_definition" in card
+        assert "täpsem seletus" in card and "full_definition_source" in card
 
 
 class TestOlderTablesGainTheirColumns:
