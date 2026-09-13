@@ -92,6 +92,23 @@ def _has_texts(path: Path) -> bool:
         return False
 
 
+def _has_forms(path: Path) -> bool:
+    """Rows in the forms table `cli export` writes, which every word card reads.
+
+    `build` and `harvest-reading` were the whole gate, so a checkout that had
+    run both and not `export` passed it, and 24 journeys across both engines
+    failed with "«maja» — такого слова в словаре нет": a missing build step
+    wearing a regression's costume, in the one file written to prevent that.
+    """
+    if not path.exists():
+        return False
+    try:
+        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
+            return conn.execute("SELECT 1 FROM forms LIMIT 1").fetchone() is not None
+    except sqlite3.Error:
+        return False
+
+
 @pytest.fixture(scope="session")
 def live_server(tmp_path_factory) -> str:
     """A real uvicorn process, isolated from the learner's study record.
@@ -110,9 +127,12 @@ def live_server(tmp_path_factory) -> str:
     # drill empty, every lookup missing, ~140 failures that look like a
     # regression and are a missing build. That is the same gate `real_wordlist`
     # was fixed for, in the file where it would be loudest.
-    if not available(words) or not _has_texts(content):
-        pytest.skip("no built dataset — run `python -m eesti.cli build` "
-                    "and `python -m eesti.cli harvest-reading`")
+    from eesti.lookup import EDGE_DB
+
+    if not available(words) or not _has_texts(content) or not _has_forms(EDGE_DB):
+        pytest.skip("no built dataset — run `python -m eesti.cli build`, "
+                    "`python -m eesti.cli export` and "
+                    "`python -m eesti.cli harvest-reading`")
 
     workdir = tmp_path_factory.mktemp("e2e-server")
     (workdir / "data").mkdir()
@@ -423,7 +443,15 @@ class TestReading:
         page.wait_for_selector("#readerBody w", timeout=15000)
         page.locator("#readerBody w").first.click()
         page.wait_for_selector("#wordCard:not([hidden])", timeout=10000)
-        assert page.locator("#wordCard").inner_text().strip()
+        # The card unhides at once with an empty skeleton and fills when
+        # `/api/lookup` answers. Reading it on unhide raced that request, and
+        # Chromium lost the race most runs -- so wait for the answer, then
+        # check it is an analysis rather than one of the two refusals.
+        page.wait_for_function(
+            "document.querySelector('#wordCard').innerText.trim().length > 0",
+            timeout=10000)
+        text = page.locator("#wordCard").inner_text().strip()
+        assert "разбор недоступен" not in text, text
 
 
 class TestWriting:
@@ -862,10 +890,25 @@ class TestTheMeaningCardIsAFlashcard:
     #: it not-due for the run after it. Two words, no ordering coupling. Both
     #: have identical genitive and partitive and a shipped Russian gloss, which
     #: is exactly the pair of conditions a meaning card needs.
-    WORD = {"desktop": ("maja", "дом"), "phone": ("tool", "стул")}
+    #: One word per engine *and* viewport. The live server is one per session,
+    #: shared by both engines, so keyed by viewport alone WebKit re-queued the
+    #: card Chromium had just graded, found it no longer due, and timed out --
+    #: on every run, and only on a machine with both engines installed.
+    #: Each is a glossed noun whose genitive and partitive coincide: a noun in
+    #: the obj-case pool (`laud`, `raamat`) is mined as that pattern, not as a
+    #: meaning card.
+    WORD = {
+        ("chromium", "desktop"): ("maja", "дом"),
+        ("chromium", "phone"): ("tool", "стул"),
+        ("webkit", "desktop"): ("arst", "врач"),
+        ("webkit", "phone"): ("ema", "мать"),
+    }
+
+    def _word(self, page):
+        return self.WORD[(page.engine_name, page.viewport_name)]
 
     def _queue_a_meaning_card(self, page, live_server):
-        word, _ = self.WORD[page.viewport_name]
+        word, _ = self._word(page)
         return page.evaluate("""async ([base, word]) => {
             const r = await fetch(base + "/api/mine", {
               method: "POST", headers: {"Content-Type": "application/json"},
@@ -883,7 +926,7 @@ class TestTheMeaningCardIsAFlashcard:
         queue. The reveal and the grade are one sequence; asserting them
         together is both more honest and free of the ordering coupling.
         """
-        word, meaning = self.WORD[page.viewport_name]
+        word, meaning = self._word(page)
         queued = self._queue_a_meaning_card(page, live_server)
         assert queued["queued"] and queued["kind"] == "vocab", queued
 
