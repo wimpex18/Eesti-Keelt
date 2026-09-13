@@ -7,6 +7,8 @@ See `docs/ai-boundaries.md`.
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -91,7 +93,33 @@ def translate_sentence(req: TranslateRequest) -> dict:
             "engine": got.engine}
 
 
-def _meaning(simple, kept) -> dict:
+def _without(text: str | None, shown: str | None) -> str | None:
+    """`text`'s definitions minus the one already on the card, or None.
+
+    Sõnaveeb's mirror returns every definition of a word in one string, joined
+    by a comma with no space — `tõesti` came back as "(päris)
+    kindlasti,rõhutab, et miski on just nii, nagu sa ütled", the second half
+    being PSV's own learner wording, which Sõnaveeb also carries. Prose puts a
+    space after its commas, so the join is recoverable: split there, drop what
+    the card already shows, and join the rest so the seam is visible.
+    """
+    if not text:
+        return None
+    parts = [p.strip() for p in re.split(r",(?=\S)", text) if p.strip()]
+    kept = [p for p in parts if p != (shown or "").strip()]
+    return "; ".join(kept) or None
+
+
+def _fuller(psv_definition, definition, native, offline_source, offline) -> dict:
+    native = _without(native, psv_definition) if psv_definition else native
+    if psv_definition and native and native != definition:
+        return {"full_definition": native, "full_definition_source": "sonapi"}
+    if psv_definition and offline and offline != definition:
+        return {"full_definition": offline, "full_definition_source": offline_source}
+    return {"full_definition": None, "full_definition_source": None}
+
+
+def _meaning(simple, kept, native_offline=None) -> dict:
     """Which definition the card shows, and whose words it is.
 
     EKI's learner-level wording where there is one, Sõnaveeb's otherwise, with
@@ -111,20 +139,37 @@ def _meaning(simple, kept) -> dict:
     """
     psv_definition = simple.definition if simple else None
     native = kept.definition if kept else None
-    definition = psv_definition or native
+    # Third and last: EKI's native-level dictionaries (VSL, EKSS), offline, for
+    # when Sõnaveeb had nothing or could not be asked. `(source id, text)`.
+    offline_source, offline = native_offline or (None, None)
+    definition = psv_definition or native or offline
     return {
         "definition": definition,
-        # Named, not inferred. `None` when neither source had anything to say.
+        # Named, not inferred. `None` when no source had anything to say.
         "definition_source": (
-            "eki-psv" if psv_definition else "sonapi" if native else None),
-        # Only when EKI answered and Sõnaveeb had something else to add, so the
-        # card can offer the fuller wording without repeating itself.
-        "full_definition": native if psv_definition and native != definition
-                           else None,
+            "eki-psv" if psv_definition else "sonapi" if native
+            else offline_source if offline else None),
+        # The native-level wording beside PSV's learner one: the live
+        # dictionary's, else EKSS/VSL offline. Only when PSV answered and the
+        # fuller text says something else, so the card never repeats itself.
+        # It had no reader until 2026-09-13 — an API field nothing drew — and
+        # the card now shows it folded under "täpsem seletus".
+        **_fuller(psv_definition, definition, native, offline_source, offline),
         # `[]` until 2026-09-11, hardcoded — a field the API promised and no
         # source ever filled. PSV is the only source that has examples.
         "examples": list(simple.examples) if simple else [],
     }
+
+
+def _russian(word: str, kept) -> dict:
+    """The Russian on the card, and whose it is — the order lives in `meaning.py`.
+
+    `russian_source` is named for the same CC BY reason as `definition_source`.
+    """
+    from ..meaning import russian
+
+    found, source = russian(db(), word, kept.russian if kept is not None else ())
+    return {"russian": found, "russian_source": source}
 
 
 @router.get("/api/enrich/{word}")
@@ -146,37 +191,43 @@ def enrich_word(word: str) -> dict:
     disappear when one is down. An empty object is the honest answer to "the
     lookup did not come back", and the page simply adds nothing.
     """
-    from .. import gloss
+    from .. import evs, gloss
+    from ..ekidefs import lookup as native_offline
+    from ..meaning import russian as russian_for
     from ..providers import sonapi
-
-    # Through the store, so a word is asked about once and then never again.
-    # `sonapi`'s own cache is on the container's disk, which Cloud Run throws
-    # away every time it scales to zero -- so the module that promises not to
-    # hammer Sõnaveeb was re-requesting the same words every session.
     from ..psv import lookup as psv_lookup
 
+    words = db()
+    simple = psv_lookup(words, word)
+    offline_type = evs.inflection_type(words, word)
+    # The live dictionary is always asked — it is EKI's database as it is today,
+    # where every downloaded file is a snapshot — through the store, so a word
+    # is asked about once and never again, and within `gloss.DAILY_BUDGET`.
+    # EKI's files fill what it leaves empty and answer when it cannot be asked.
     kept = gloss.remember(gloss_db(), word)
-    # PSV covers ~6 000 basic words and is absent on a deployment that never
-    # imported it; both are ordinary, so this never gates the response.
-    simple = psv_lookup(db(), word)
-    meaning = _meaning(simple, kept)
-    if kept is None or not kept.found:
-        return {"word": word, "found": bool(simple), **meaning}
+    live = kept if kept is not None and kept.found else None
+
+    meaning = _meaning(simple, live, native_offline(words, word))
+    russian = _russian(word, live)
+    live_rection = [p.strip() for p in ((live.rection if live else "") or "").split(",") if p.strip()]
+    governs = live_rection or list(simple.rection if simple else ())
+    inflection_type = (live.inflection_type if live and live.inflection_type else None) or offline_type
+    shown = (meaning["definition"] or meaning["examples"] or russian["russian"]
+             or governs or inflection_type)
     return {
         "word": word,
-        "found": True,
-        "governs": [p.strip() for p in (kept.rection or "").split(",") if p.strip()],
-        "inflection_type": kept.inflection_type,
+        # Found if *any* source had something to show: the card draws nothing
+        # when this is false.
+        "found": bool(shown),
+        "governs": governs,
+        "governs_source": ("sonapi" if live_rection else "eki-psv" if governs else None),
+        "inflection_type": inflection_type,
         **meaning,
-        # The language policy says explanations are in Russian, and the API has
-        # carried Russian glosses all along — under the per-meaning key the
-        # module never read. Three at most: a word card is a reminder, not an
-        # entry.
-        "russian": list(kept.russian[:3]),
-        # The dictionary this app deliberately does not rebuild. Sõnaveeb has
-        # the full paradigm, audio, and every translation; sending the learner
-        # there is the honest answer to "I want more than three fields", and it
-        # costs one link rather than a scraper the maintainers asked us not to
-        # write.
-        "sonaveeb": sonapi.entry_url(kept.lemma),
+        # The language policy says explanations are in Russian. Three at most:
+        # a word card is a reminder, not an entry. Whose Russian wins is
+        # `meaning.py`'s call.
+        **russian,
+        # The dictionary this app deliberately does not rebuild — one link
+        # rather than a scraper the maintainers asked us not to write.
+        "sonaveeb": sonapi.entry_url(live.lemma if live else word),
     }

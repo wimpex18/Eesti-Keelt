@@ -145,3 +145,19 @@ class TestItCoversWhatDrillsActuallyAsk:
             found += len(hits)
         assert total, "no drill produced a lemma to check"
         assert found / total > 0.5, f"only {found}/{total} drill words translated"
+
+
+class TestItShipsInTheImage:
+    def test_the_dockerfile_copies_the_file_gloss_reads(self):
+        """The builder's `data/` is build output; a tracked file under `data/`
+        reaches the runtime image only if it is copied by name. It was not, so
+        production never had the seed. Derived from `gloss.SEED`, so moving the
+        file without moving the COPY fails here."""
+        from pathlib import Path
+
+        from eesti import gloss
+
+        root = Path(__file__).resolve().parents[1]
+        rel = gloss.SEED.relative_to(root).as_posix()
+        dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+        assert f"COPY {rel} ./{rel}" in dockerfile

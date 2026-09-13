@@ -1,4 +1,4 @@
-"""The three reference imports, and whether a deployment can tell they ran.
+"""The reference imports, and whether a deployment can tell they ran.
 
 All three — EKK's rection table, EKI's level vocabulary, EKI's learner
 dictionary — happen at image build time and are all allowed to fail without
@@ -22,7 +22,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-FIELDS = ("rections", "eki_levels", "eki_definitions")
+FIELDS = ("rections", "eki_levels", "eki_definitions", "eki_russian",
+          "eki_terms", "eki_loanwords", "eki_explanatory")
 
 
 class TestHealthReportsThem:
@@ -57,11 +58,11 @@ class TestTheBuildActuallyRunsThem:
     def dockerfile(self):
         return (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv"])
+    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv", "import-evs", "import-vsl", "import-har", "import-ekss"])
     def test_the_image_build_runs_it(self, dockerfile, command):
         assert f"eesti.cli {command}" in dockerfile
 
-    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv"])
+    @pytest.mark.parametrize("command", ["rections", "import-levels", "import-psv", "import-evs", "import-vsl", "import-har", "import-ekss"])
     def test_and_is_allowed_to_fail(self, dockerfile, command):
         """Each depends on a third party or on a file a person downloaded.
         Chained with `&&`, somebody else's bad afternoon takes down the deploy."""
@@ -79,19 +80,22 @@ class TestTheBuildActuallyRunsThem:
         assert "deploy/eki/*" in ignore
         assert "!deploy/eki/README.md" in ignore, "and the README must survive it"
 
-    def test_nothing_promises_the_merge_built_image_has_them(self):
-        """The two EKI files are git-ignored (asserted above), and the
-        production image is built by Cloud Build from git on every merge. So
-        that image never has them — production read `eki_levels` 0 and
-        `eki_definitions` 0 on 2026-09-13 — while the README opened with "drop
-        them here and they are baked into the next image". Written in a session
-        that could not see the deployment, and true only for a local
-        `docker build`. The premise is derived; the documents must follow it."""
-        readme = (ROOT / "deploy" / "eki" / "README.md").read_text(encoding="utf-8")
+    def test_every_file_the_image_imports_is_in_git(self):
+        """Cloud Build builds from a git checkout, so a file the Dockerfile
+        imports and git ignores is a file production never has. That was the
+        state until 2026-09-13 — smoke read `eki_levels` 0 and
+        `eki_definitions` 0 — while the README promised "baked into the next
+        image". Derived from the Dockerfile, so a new import cannot repeat it."""
+        import re
+        import subprocess
+
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        assert "baked into the next image" not in readme
-        assert "## The deployment does not have them" in readme
-        assert "The production image does not." in dockerfile
+        imported = sorted(set(re.findall(r"eesti\.cli import-\w+ (deploy/eki/\S+)", dockerfile)))
+        assert imported, "the Dockerfile imports nothing from deploy/eki"
+        ignored = subprocess.run(
+            ["git", "check-ignore", "--no-index", *imported],
+            cwd=ROOT, capture_output=True, text=True).stdout.split()
+        assert not ignored, f"git ignores what the image imports: {ignored}"
 
     def test_the_file_names_agree_with_what_the_cli_tells_you_to_download(self):
         """The Dockerfile looks for a fixed name; the CLI prints one. They
@@ -100,7 +104,8 @@ class TestTheBuildActuallyRunsThem:
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         cli = (ROOT / "eesti" / "cli" / "build.py").read_text(encoding="utf-8")
         readme = (ROOT / "deploy" / "eki" / "README.md").read_text(encoding="utf-8")
-        for name in ("A1A2B1.txt", "psv_EKI_CCBY40.xml"):
+        for name in ("A1A2B1.txt", "psv_EKI_CCBY40.xml", "evs_EKI_CCBY40.xml",
+                     "vsl_EKI_CCBY40.xml", "har_EKI_CCBY40.xml"):
             assert f"deploy/eki/{name}" in dockerfile, name
             assert name in cli, name
             assert name in readme, name

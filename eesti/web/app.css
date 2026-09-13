@@ -552,6 +552,11 @@
   /* Attribution. Quiet enough not to compete with the definition it credits,
      legible enough to be an attribution rather than a gesture at one. */
   .meaning .attrib{margin-top:6px;color:var(--muted);font-size:11.5px}
+  /* The native-level wording, folded under the learner one. A new class under
+     `.meaning`, so no rule elsewhere competes for it. */
+  .meaning .fuller{margin-top:8px}
+  .meaning .fuller summary{cursor:pointer;color:var(--muted);font-size:12px}
+  .meaning .fuller .def{margin-top:4px;color:var(--gloss)}
   /* Attribution, in full. A footer rather than a panel: it is an obligation
      the page carries, not a place the learner goes. */
   /* The bottom padding is not spacing. The mode nav is fixed to the bottom of

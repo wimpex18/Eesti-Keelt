@@ -120,19 +120,28 @@ def _meaning_card(
 ) -> MineResult:
     """A card for what a word means, when there is no case contrast to drill.
 
-    Reads the local gloss store only. `gloss.remember` is the one call allowed
-    to leave the machine and it belongs to the word card, where the learner is
-    already waiting on it -- not here, where this runs behind a click that
-    should feel instant.
+    Reads local tables only, in `meaning.py`'s order. `gloss.remember` is the
+    one call allowed to leave the machine and it belongs to the word card, where
+    the learner is already waiting on it -- not here, where this runs behind a
+    click that should feel instant.
+
+    Until EKI's dictionary was imported this read Sõnaveeb's store alone, so a
+    word the card had not yet enriched was refused with "перевод пока
+    неизвестен" — for 60 000 words EKI had already translated.
     """
-    from . import config, gloss
+    from . import config, gloss, wordlist
+    from .meaning import russian as russian_for
 
     analysis = analysis or {}
 
     with gloss.connect(config.VOCAB_DB) as g:
         known = gloss.stored(g, lemma)
 
-    russian = list(known.russian) if known else []
+    words = wordlist.connect()
+    try:
+        russian, _ = russian_for(words, lemma, known.russian if known else ())
+    finally:
+        words.close()
     if not russian:
         # Two different absences, and saying the wrong one is worse than saying
         # nothing. A noun whose forms coincide has no contrast; an adverb or a
