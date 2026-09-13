@@ -112,3 +112,98 @@ class TestAvailable:
         )])
         conn.close()
         assert available(path) is True
+
+
+@pytest.fixture(params=["cannot-be-created", "no-directory", "directory-no-file"])
+def corpusless(request, tmp_path, monkeypatch):
+    """Every way a container meets the app without its corpus: a path SQLite
+    cannot create; a directory that is not there (Cloud Run ignoring `VOLUME`);
+    and the directory there with no file in it — the Docker image, and every
+    cold start before the Worker restores the library. The last is the one that
+    answered 500: SQLite creates the file, empty, with no tables.
+
+    Returns `(client, fresh)`. `fresh()` points the app at a new, untouched
+    path of the same kind, and the sweep calls it before **every** request:
+    opening the corpus through `sources.connect` creates its tables, so one
+    request can repair the path for the next, and a sweep sharing one path
+    passed while the first `osastav` of a cold container failed.
+    """
+    counter = iter(range(10_000))
+
+    def fresh():
+        n = next(counter)
+        if request.param == "cannot-be-created":
+            blocker = tmp_path / f"not-a-directory-{n}"
+            blocker.write_text("")
+            target = blocker / "content.db"
+        elif request.param == "no-directory":
+            target = tmp_path / f"content-{n}" / "content.db"
+        else:
+            (tmp_path / f"content-{n}").mkdir()
+            target = tmp_path / f"content-{n}" / "content.db"
+        monkeypatch.setattr(config, "CONTENT_DB", str(target))
+
+    fresh()
+    monkeypatch.setattr(config_db, "PROGRESS_DB", str(tmp_path / "p.db"))
+    monkeypatch.setattr(config_db, "REVIEW_DB", str(tmp_path / "r.db"))
+    monkeypatch.setattr(config_db, "VOCAB_DB", str(tmp_path / "v.db"))
+    monkeypatch.delenv("PROXY_TOKEN", raising=False)
+    return TestClient(app_module.app, raise_server_exceptions=False), fresh
+
+
+#: A value for every path parameter a GET route takes, so the sweep can call
+#: them all. A route with a parameter not named here fails the sweep loudly.
+PATH_VALUES = {"word": "maja", "topic": "osastav", "item_id": "x", "lemma": "maja",
+               "source_id": "selges-keeles", "name": "x", "theme": "kodu", "code": "x",
+               "level": "A2"}
+
+
+class TestNothingReturns500WithoutACorpus:
+    """`POST /api/practice {"topic": "osastav"}` answered 500 in the built image
+    (2026-09-14): `practice._content` opened the corpus with a bare
+    `sqlite3.connect`, which creates an empty file with no tables, and
+    `cloze.sentences` asked it for `items`. Every other opener applies its
+    schema; this one did not, and no test called that topic without a corpus.
+    So: every topic, and every GET route, both ways a corpus can be missing."""
+
+    def test_every_topic_answers(self, corpusless):
+        from eesti.curriculum import TOPICS
+
+        client, fresh = corpusless
+        failed = {}
+        for topic in TOPICS:
+            fresh()
+            response = client.post("/api/practice", json={"topic": topic.id, "count": 3})
+            if response.status_code == 500:
+                failed[topic.id] = response.status_code
+        assert not failed, sorted(failed)
+
+    def test_every_get_route_answers(self, corpusless):
+        """From `eesti.api.ROUTERS`, not `app.routes`: FastAPI keeps an included
+        router as one lazy entry, and the first version of this sweep walked
+        `app.routes`, found no API route at all, and passed. The count below is
+        the guard on the guard.
+
+        500 only: the snapshot routes answer 503 "STATE_TOKEN is not
+        configured" on purpose — an unset secret is a refusal, not a crash."""
+        import re
+
+        from eesti import api
+
+        client, fresh = corpusless
+        failed, unnamed, checked = {}, set(), 0
+        for router in api.ROUTERS:
+            for route in router.routes:
+                if "GET" not in getattr(route, "methods", ()):
+                    continue
+                params = re.findall(r"{(\w+)(?::\w+)?}", route.path)
+                unnamed |= {p for p in params if p not in PATH_VALUES}
+                path = re.sub(r"{(\w+)(?::\w+)?}", lambda m: PATH_VALUES.get(m.group(1), "x"), route.path)
+                fresh()
+                response = client.get(path)
+                checked += 1
+                if response.status_code == 500:
+                    failed[route.path] = response.status_code
+        assert checked > 30, f"only {checked} GET routes reached — the walk broke"
+        assert not unnamed, f"give the sweep a value for {sorted(unnamed)}"
+        assert not failed, sorted(failed)
