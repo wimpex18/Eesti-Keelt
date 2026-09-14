@@ -1,21 +1,9 @@
 """A secret belongs where the code that reads it runs, and nowhere else.
 
-The deployment has two halves, and each reads a different set of environment
-variables. Putting one in the wrong half is silent: nothing errors, the value
-simply is not there, and the feature degrades into its fallback.
-
-That happened. `OPENROUTER_API_KEY` is read by `eesti/providers/llm.py`, which
-runs in the container on Cloud Run. The deploy workflow stored it as a *Worker*
-secret, where nothing reads it — so the grammar checker sat permanently in
-offline mode (object-case candidates and typos, no corrections), which also
-meant no correction ever carried a fix, no "log it" button ever rendered, and
-nothing ever reached the Notion log. A whole chain, inert, because a credential
-was one hop away from the process that needed it.
-
-It is also the worse half of the trade: all the exposure of holding a key, none
-of the benefit.
-
-These tests read the deploy workflow and the Worker source, and hold the line.
+The Worker and the Cloud Run container read different variables; a key in the
+wrong half is silently absent and the feature falls back (e.g. an LLM key stored
+as a Worker secret leaves the grammar check offline and the Notion chain
+inert). These tests read the deploy workflow, the Worker source and the scripts.
 """
 
 from __future__ import annotations
@@ -72,19 +60,15 @@ def test_there_is_a_script_for_setting_them_where_they_belong():
     script = ROOT / "deploy" / "set-llm-key.sh"
     assert script.exists()
     body = script.read_text(encoding="utf-8")
-    # Read without echo and passed on stdin: not in shell history, not in the
-    # process table, never printed.
+    # Read without echo and passed on stdin: not in shell history, not in the process
+    # table, never printed.
     assert "read -rs" in body
 
 
 class TestTheDeploymentCanSayWhetherTheKeyLanded:
-    """`test_the_workflow_does_not_push_the_llm_key_to_the_worker` above stops
-    the mistake being made again. This is the other half: a way to ask a
-    *running* deployment whether the key is where the code that reads it runs.
-
-    Without it the failure is invisible from outside — health is green, the
-    checker serves offline mode, and because only an explained correction
-    offers a "log it" button, the Notion chain is inert too."""
+    """A running deployment can be asked whether an explaining key is configured
+    (`/api/engines`), since a missing key is otherwise invisible from outside.
+    """
 
     @pytest.fixture
     def client(self):
@@ -126,9 +110,9 @@ class TestTheDeploymentCanSayWhetherTheKeyLanded:
         assert got["can_explain"] is True
 
     def test_only_an_llm_is_credited_with_explaining(self, client):
-        """Vabamorf reports evidence without judgement, and TartuNLP answers in
-        Estonian with no language parameter — neither can teach a Russian
-        speaker why the case was wrong."""
+        """Vabamorf and TartuNLP cannot explain in Russian, so they do not count as
+        explaining engines.
+        """
         got = client.get("/api/engines").json()
         for e in got["engines"]:
             assert e["explains"] == e["name"].startswith("llm:")
@@ -175,11 +159,9 @@ class TestTheDeepCheckIsOptIn:
 
 
 class TestTheScriptsCheckTheirOwnWork:
-    """`set-llm-key.sh` printed "Done" and told the operator to go and look.
-    A run of it left the service without the variable, and the only symptom
-    was corrections arriving without explanations — so nobody looked, and the
-    grammar checker sat in offline mode until the deployment was asked
-    directly."""
+    """The scripts verify their own work: `set-llm-key.sh` reads the variable name back
+    off the service.
+    """
 
     SET = ROOT / "deploy" / "set-llm-key.sh"
     CHECK = ROOT / "deploy" / "check-service.sh"
@@ -209,13 +191,9 @@ class TestTheScriptsCheckTheirOwnWork:
 
 
 class TestTheDeploymentSaysWhichBuildItIs:
-    """A Python change was merged, the Worker redeployed green, and the new
-    endpoint was still absent from production. Nothing could distinguish
-    "the container build has not run yet" from "the build failed" from "there
-    is no trigger" — the Worker and the app deploy by different routes, so a
-    green deploy workflow says nothing about the app.
-
-    The image stamps itself; health reports the stamp."""
+    """The image stamps its build time (and commit when passed), and health reports it,
+    since the Worker and the app deploy by different routes.
+    """
 
     @pytest.fixture
     def client(self):
@@ -254,21 +232,9 @@ class TestTheDeploymentSaysWhichBuildItIs:
 
 
 class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
-    """Reporting the stamp was half the job; nothing compared it to anything.
-
-    `smoke` fires on `deploy` completing, and `deploy` deploys the *Worker*.
-    The app is a separate container built by a Cloud Build trigger on `main`,
-    which nothing in this repository can observe — so the smoke run that fires
-    on a merge is looking at the previous image. Not usually: structurally,
-    every time.
-
-    Measured on the merge of PR #30. Merge at 20:11:20Z; the smoke run fired at
-    20:12:11Z and reported an image built 14:39:50Z, five and a half hours old,
-    with every check under it green; the new image landed at 20:14:20Z, two
-    minutes *after* the run that was meant to be checking it. That merge
-    carried a Python runtime move, whose one open risk was whether the
-    image builds at all — and a green tick about the wrong deployment reads
-    exactly like a green tick about the right one.
+    """The smoke run compares the image build stamp with main's head commit, because a
+    run fired by `deploy` usually sees the previous image; staleness warns rather
+    than fails.
     """
 
     WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
@@ -282,19 +248,12 @@ class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
 
     @classmethod
     def _script(cls) -> str:
-        """The step's shell without its comments.
-
-        Every assertion here searches the `run:` for a construct that the
-        comment above that construct also names. Two guards written the same
-        way last week passed on the prose while the code they guarded was
-        deleted, so the prose is stripped before looking.
-        """
+        """The step's shell without its comments, so assertions match code, not prose."""
         return "\n".join(line for line in cls._step()["run"].splitlines()
                          if not line.lstrip().startswith("#"))
 
     def test_the_triggering_commit_reaches_the_script(self):
-        """`github.event.workflow_run.head_commit.timestamp` is the only half
-        the run was missing — it already had the build stamp."""
+        """The triggering commit's timestamp reaches the script."""
         env = self._step()["env"]
         assert "TRIGGER_COMMIT_AT" in env
         assert "workflow_run.head_commit.timestamp" in env["TRIGGER_COMMIT_AT"]
@@ -338,22 +297,8 @@ class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
 
 
 class TestEveryDeployGetsChecked:
-    """Most merges deployed with nothing checking the deployment.
-
-    `smoke` fired only on `workflow_run: [deploy] completed`, and `deploy` is
-    filtered to Worker paths -- `deploy/**`, `wrangler.jsonc`, `package*.json`
-    and itself. Cloud Build rebuilds the image on **every** push to `main`, so a
-    merge touching only `eesti/`, `tests/` or `docs/` redeployed the app and
-    fired no check at all. Measured when this was found: `deploy` had 8 runs
-    against roughly 17 merges.
-
-    Two costs already paid. The runtime-upgrade image went ten hours unverified
-    after PR #30, and PR #31 -- a Python change -- produced no smoke run at all.
-
-    This is the previous class's bug one level up, found immediately after
-    fixing it: that one was a check reporting on the wrong version, this one is
-    a check that never runs. Both come of wiring a check to an event that is not
-    the event the system changes on.
+    """Every merge gets checked: smoke also runs on a daily schedule (off the hour), not
+    only after `deploy`, which is filtered to Worker paths.
     """
 
     WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
@@ -401,10 +346,9 @@ class TestEveryDeployGetsChecked:
 
 
 class TestAScheduledRunKnowsWhatToCompareAgainst:
-    """`workflow_run.head_commit` is empty on a schedule. Without a substitute
-    the daily run — the one covering the merges `deploy` never sees — would
-    report an image and say nothing about whether it is the current one, which
-    is the same silence in a new place."""
+    """On a schedule there is no triggering commit, so the run asks the GitHub API for
+    main's head.
+    """
 
     @classmethod
     def _step(cls) -> dict:
@@ -438,34 +382,24 @@ class TestAScheduledRunKnowsWhatToCompareAgainst:
         assert "fail=1" not in chunk
 
     def test_a_stale_image_is_diagnosed_by_when_the_run_fired(self):
-        """Minutes after a merge, "older" means Cloud Build has not finished.
-        A day later it means the build failed or never ran. Telling somebody to
-        "re-run in a few minutes" when the build died yesterday sends them
-        somewhere there is nothing to find."""
+        """Diagnose staleness by elapsed time since main's head: minutes means the build is
+        still running; a day means it failed or never ran.
+        """
         code = self._script()
         assert "FAILED or never ran" in code
         assert "Cloud Build had not \\\nfinished yet" in code or "not \\" in code
 
     def test_the_diagnosis_is_made_by_the_clock_not_the_trigger(self):
-        """A manual dispatch counted as "scheduled", so a run four minutes
-        after a merge said the build had failed (2026-09-13). The elapsed time
-        since main's head decides now."""
+        """Decided by the clock, not by what triggered the run."""
         code = self._script()
         assert "BUILD_WINDOW" in code and "date -u +%s" in code
         assert '"$WHEN" = "scheduled"' not in code
 
 
 class TestASplitDeploymentIsNotAFlake:
-    """Production answered the same question two ways within a minute:
-    `/api/engines` reported an LLM configured while `/api/check` fell through
-    to offline mode. Not a contradiction — two revisions serving, only one
-    carrying the key, and each request landing wherever it landed.
-
-    Asked once, that reads as a flake and gets re-run until it passes. Asked
-    five times, disagreement between instances is itself the finding, and it
-    is an error rather than a warning: an app that works or does not depending
-    on which instance answers is not a supported state, unlike having no key
-    at all."""
+    """Ask the deep check several times: instances disagreeing (a traffic split) is an
+    error, not a flake.
+    """
 
     WORKFLOW = ROOT / ".github" / "workflows" / "smoke.yml"
 
@@ -484,7 +418,7 @@ class TestASplitDeploymentIsNotAFlake:
         assert "fail=1" in block
 
     def test_it_names_the_fix(self, workflow):
-        """A split is fixed by moving traffic, not by setting the key again."""
+        """The split's fix is moving traffic, and the message says so."""
         block = workflow.split('elif [ "$kinds" -gt 1 ]')[1][:600]
         assert "update-traffic" in block
 
@@ -498,17 +432,9 @@ class TestASplitDeploymentIsNotAFlake:
 
 
 class TestTheSummaryFieldCannotBeConfusedForAPerEngineOne:
-    """The check read the response body with `grep -q '"explains":true'`. Each
-    engine carries a field of that name too, and it is true for every `llm:`
-    provider whether or not that provider is available — so the grep matched a
-    per-engine field on an unavailable provider and reported the chain healthy
-    while production was in offline mode.
-
-    Worse than a missed check: it contradicted the deep check in the same run,
-    and I spent a round diagnosing a traffic split that did not exist.
-
-    Two fixes, both needed. The summary field has its own name, and the
-    workflow reads JSON with jq rather than by matching text."""
+    """The summary field is `can_explain` (distinct from the per-engine `explains`),
+    and the workflow reads JSON with `jq`, not grep.
+    """
 
     @pytest.fixture
     def client(self):
@@ -538,11 +464,9 @@ class TestTheSummaryFieldCannotBeConfusedForAPerEngineOne:
 
 
 class TestTheKeyListIsNotHandMaintained:
-    """`check-service.sh` reported NOTION_TOKEN missing and said what its
-    absence costs; `set-llm-key.sh` then refused to set it, because it carried
-    its own hardcoded list of four names. Two lists of the same thing become
-    two different lists — the same failure as the hand-written tab list, one
-    layer down."""
+    """The key list comes from the app (`env.KNOWN_KEYS`), not a second hand-written
+    list in a script.
+    """
 
     SET = ROOT / "deploy" / "set-llm-key.sh"
 

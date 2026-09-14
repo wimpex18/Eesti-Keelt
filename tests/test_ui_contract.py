@@ -1,19 +1,8 @@
 """The interface asks for things; this checks the API serves them.
 
-A whole suite passed while the reading list returned zero texts for every
-difficulty. The cause was a rename: relative bands moved out of the `level`
-column into their own, and the `<select>` went on sending `level=kergem`. The
-API answered honestly — no item has that level any more — and the page showed
-an empty list with no error.
-
-Nothing caught it because the two halves are tested separately. `library()` was
-asked for `band` and answered; the page sent `level` and nobody asked what the
-page sent. This is the seam, and it is where the last three UI bugs have been:
-the POST-only fetch helper, the `role="tab"` mismatch, and this.
-
-The approach is deliberately blunt — read the page, pull out what it queries,
-and demand the API accepts it. A cleverer test would have the same blind spot
-as the code.
+The page and the API are tested separately elsewhere, so this reads what the
+page actually requests (routes, parameters, methods) and demands the API accepts
+it.
 """
 
 from __future__ import annotations
@@ -54,17 +43,10 @@ def client(monkeypatch, tmp_path):
 def api_paths(page: str) -> set[str]:
     """Every `/api/...` literal the page fetches, normalised to a route shape.
 
-    Two ways the page builds a URL, and both have to survive normalisation:
-    a template literal (`/api/exam/${level}`) and plain concatenation
-    (`"/api/lookup/" + word`). A trailing slash means the value follows, so it
-    becomes a parameter rather than being trimmed away — trimming it turned
-    `/api/lookup/` into `/api/lookup` and reported a route that exists as
-    missing.
+    Handles template literals (`/api/exam/${level}`) and concatenation
+    (`"/api/lookup/" + word`); a trailing slash means a parameter follows.
     """
-    # Comments are not calls. A comment explaining *why* a handler goes
-    # through `/api/library/{id}` was read as a call to a route of that
-    # literal name — the page should be free to name its own endpoints in
-    # prose without the test inventing a caller.
+    # Comments are not calls: strip them before collecting endpoints.
     code = re.sub(r"/\*.*?\*/", " ", page, flags=re.S)
     code = re.sub(r"(?m)^\s*//.*$", " ", code)
     code = re.sub(r"<!--.*?-->", " ", code, flags=re.S)
@@ -90,8 +72,9 @@ class TestEveryEndpointThePageCallsExists:
 
 
 class TestQueryParametersAreAccepted:
-    """The bug that made this file: the page sent a parameter the API had
-    stopped using, and got an empty list rather than a complaint."""
+    """The page sends parameters the API still reads (an unknown parameter returns an
+    empty list rather than an error).
+    """
 
     @pytest.mark.parametrize("query", [
         "/api/library?skill=lugemine&limit=80",
@@ -103,15 +86,8 @@ class TestQueryParametersAreAccepted:
         assert client.get(query).status_code == 200
 
     def test_the_difficulty_filter_uses_the_column_it_lives_in(self, page):
-        """`band`, not `level`. They were one column and are now two, and the
-        page kept sending the name that no longer selects anything.
-
-        Sliced to the end of the function, not to a fixed 1 600 characters.
-        The magic number silently narrowed as the function grew: adding a
-        comment above the line pushed `q.set("band"` out of the window, and the
-        test failed against code that was entirely correct. A window that has
-        to be re-tuned whenever the code is edited is a window that will one
-        day be widened past the next function instead.
+        """The reading filter sends `band`, not `level`; the function body is sliced to its
+        end rather than a fixed window.
         """
         after = page.split("async function loadLibrary")[1]
         loader = after.split("\nasync function ")[0].split("\nfunction ")[0]
@@ -134,20 +110,16 @@ class TestVerbsMatch:
             assert client.post(path, json=body).status_code in (200, 400)
 
     def test_endpoints_the_page_gets_do_not_require_a_body(self, client):
-        """The fetch helper was POST-only, and posting to a GET route produces
-        a 405 that looks exactly like a feature quietly not working."""
+        """GET routes are fetched with GET (posting to them would 405 silently)."""
         for path in ("/api/modes", "/api/readiness/A2", "/api/exam/A2",
                      "/api/reading/next"):
             assert client.get(path).status_code == 200, path
 
 
 class TestTheDesktopRail:
-    """A MacBook is the other half of this app. The rail is what fills the
-    300px a phone does not have — countdown, resume point, untouched exam
-    parts — and it broke once in a way no API test could see: the base
-    `.rail{display:none}` sat *after* the media query, same specificity, so
-    the later rule won and the rail was invisible at every width while still
-    fetching and rendering into itself."""
+    """The desktop rail: its hiding rule must precede the media query that shows it
+    (same specificity, so order decides).
+    """
 
     def test_the_hiding_rule_comes_before_the_query_that_undoes_it(self, page):
         css = styles()
@@ -159,40 +131,26 @@ class TestTheDesktopRail:
         )
 
     def test_the_query_turns_the_rail_back_on(self, page):
-        # The block, not the first 700 characters of it. `.rail` sits 2 278
-        # characters in, so the window stopped reaching it — and because this
-        # whole file was skipped, nothing said so.
+        # Search the whole media block, not a fixed-size prefix.
         block = media_block(styles(), "@media (min-width:1080px)")
         assert "display:flex" in block.split(".rail{")[1]
 
     def test_the_countdown_follows_the_level_the_learner_picked(self, page):
-        """Hardcoding a level here would have shown B1's countdown while the
-        rest of the page was on A2 — and A2 is the nearer decision."""
+        """The countdown follows the level the learner selected."""
         fn = page.split("async function loadRail")[1][:900]
         assert "/api/readiness/${examLevel()}" in fn
         assert "/api/readiness/B1" not in fn
         assert "/api/readiness/A2" not in fn
 
     def test_the_rail_is_refreshed_when_what_it_shows_changes(self, page):
-        """Mastered topics and due reviews both move during a session. A rail
-        that only renders on load is a wrong number sitting in the corner."""
+        """The rail re-renders when mastery or due reviews change."""
         assert page.count("loadRail()") >= 4  # load, level switch, path, review
 
 
 class TestEveryTabOpensItsOwnPanel:
-    """Found by opening the app on a laptop: clicking `Kirjutamine` left the
-    path panel on screen.
-
-    `TABS` was a hand-written list of panel names and it had drifted from the
-    document — `path`, `speak` and `status` were missing. `selectTab` only
-    hides what the list names, so `#tab-path` was never hidden (it showed
-    underneath every other tab) and `#tab-speak` and `#tab-status` were never
-    unhidden (the speaking practice and the progress view could not be opened
-    at all). Nothing failed: every click still produced a panel, just not the
-    one asked for.
-
-    The fix derives the set from the panels themselves. These tests hold the
-    two halves together whichever way the next section is added."""
+    """Tabs and panels correspond in both directions, derived from the document, so
+    every panel can be shown and hidden.
+    """
 
     def panels(self, page: str) -> set[str]:
         return set(re.findall(r'id="tab-([a-z]+)"', page))
@@ -226,9 +184,9 @@ class TestEveryTabOpensItsOwnPanel:
 
 
 class TestTheListeningTabHasAnExercise:
-    """It was a text-to-speech box: paste a passage, hear it read. Nothing
-    could be answered, so nothing was scored and nothing recorded — and the
-    verdict reported listening untouched however much had been played."""
+    """Listening has a gradeable exercise (dictation), and the page calls its
+    endpoints.
+    """
 
     def test_the_page_calls_the_dictation_endpoints(self, page):
         for path in ("/api/dictation/next", "/api/dictation/answer"):
@@ -241,13 +199,9 @@ class TestTheListeningTabHasAnExercise:
                                  "typed": "Ma elan siin."}).status_code == 200
 
     def test_the_sentence_is_not_rendered_before_it_is_answered(self, page):
-        """Held in JS and written into the DOM only by the result render. A
-        screen rather than a lock — devtools defeats it, and that is the
-        learner's business — but it must not be on screen by accident.
-
-        Scoped to the loader's own body. A fixed-size window spilled into the
-        next function, where `dictNow.text` goes to the synthesiser and is
-        exactly where it belongs."""
+        """The dictation sentence is not rendered before it is answered (scoped to the
+        loader's body).
+        """
         body = page.split("async function loadDictation")[1]
         body = body.split("async function dictAudio")[0]
         assert "dictNow = " in body
@@ -257,8 +211,9 @@ class TestTheListeningTabHasAnExercise:
         )
 
     def test_the_player_is_not_in_the_container_the_result_overwrites(self, page):
-        """It was, and grading destroyed it — so replaying while looking at the
-        marked words, the moment a replay is worth most, was impossible."""
+        """The player is outside the result container, so replay works while reviewing the
+        marked words.
+        """
         assert 'id="dictAudio"' in page
         play = page.split('$("#dictPlay").onclick')[1][:500]
         assert '$("#dictAudio")' in play
@@ -272,11 +227,9 @@ class TestTheListeningTabHasAnExercise:
 
 
 class TestATwoChoiceItemIsAnsweredByChoosing:
-    """Word order is the one topic whose unit is the whole sequence, so its
-    items carry `choices` instead of a blank. Everything downstream is
-    unchanged — the chosen sentence is submitted as the answer and the server
-    grades it the same way — which is what lets it reach mastery and the review
-    queue without a loop of its own."""
+    """Word-order items render `choices` and submit the chosen sentence for normal
+    server-side grading.
+    """
 
     def test_the_renderer_has_a_branch_for_them(self, page):
         assert "it.choices && it.choices.length" in page
@@ -305,18 +258,9 @@ class TestATwoChoiceItemIsAnsweredByChoosing:
 
 
 class TestEverySectionCanBeReached:
-    """This file has checked one direction since it was written: every
-    endpoint the page calls must exist. The other direction was never checked,
-    and that is where 82 items went missing.
-
-    Two of the seven library sections — the entire harvested listening archive
-    (54 items) and the 28 radio-course transcripts, 13 % of everything
-    harvested — were indexed, sectioned, and covered by API tests, and could
-    not be opened from the app. The page could only ask the library by *skill*,
-    and it only ever asked for `lugemine`.
-
-    It cost more than hidden content: the readiness verdict measures Kuulamine
-    by library items opened, so that evidence could never move."""
+    """The page can reach every library section the API serves (the other direction of
+    the contract).
+    """
 
     def test_the_page_can_ask_for_every_learning_section(self, page, client):
         from eesti.library import SECTIONS
@@ -341,9 +285,7 @@ class TestEverySectionCanBeReached:
         assert client.get("/api/library?section=nope").status_code == 404
 
     def test_the_modes_endpoint_has_a_caller_now(self, page):
-        """It returned every section with its count and its Russian note, and
-        nothing called it. An endpoint with no caller is the same shape of bug
-        as a measurement with no writer."""
+        """`/api/modes` has a caller."""
         assert "/api/modes" in page
 
     def test_opening_a_listening_item_records_it(self, page):
@@ -355,13 +297,9 @@ class TestEverySectionCanBeReached:
 
 
 class TestAPointerIsALinkNotAPlayer:
-    """Ten of the listening shelf's items are EIS tasks: their audio and their
-    scoring live on eis.harno.ee, and nothing of theirs is stored here — `body`
-    is empty and there is no `audio_url`, by licence and by design.
-
-    Rendered as expandable rows they opened on an empty panel. The exam section
-    had already made this distinction; the new listening list had to make it
-    too, which is the cost of a second list rather than a shared one."""
+    """EIS tasks in the listening list render as outbound links, not empty readers
+    (`body` is empty and there is no `audio_url` by licence).
+    """
 
     def test_the_api_marks_them(self, monkeypatch, tmp_path):
         """Built here rather than read from a harvest: a test that only passes
@@ -408,13 +346,9 @@ class TestAPointerIsALinkNotAPlayer:
 
 
 class TestNoTwoElementsShareAnId:
-    """`$("#x")` returns the first match, so a duplicated id does not error —
-    it silently binds a handler to the wrong element.
-
-    Adding a "Kontrolltöö" button as `#checkBtn` collided with the writing
-    panel's existing "Kontrolli" button. One of the two would have been dead
-    and the other repurposed, depending on which script line ran last, and
-    nothing would have said so."""
+    """No duplicated element ids: `$("#x")` returns the first match and would silently
+    bind to the wrong element.
+    """
 
     def test_every_id_in_the_markup_is_unique(self, page):
         import collections
@@ -432,17 +366,8 @@ class TestNoTwoElementsShareAnId:
 
 
 class TestEveryModuleIsReachableFromTheEntryPoint:
-    """A module nobody imports is a module that never runs.
-
-    The page loads exactly one file — `<script type="module" src="/js/main.js">`
-    — and everything else arrives through its import graph. `write.js` and
-    `reading.js` export nothing anybody calls: they wire their screen's buttons
-    when they evaluate. Left out of the graph they simply did not run, and the
-    failure was silent in the worst way — `Kirjutamine` opened, looked complete,
-    and every control on it was dead, with no console error.
-
-    Same shape as a route with no caller and a measurement with no writer, so
-    it gets the same kind of check.
+    """Every module is reachable from `main.js`'s import graph; an unimported module
+    never runs its wiring.
     """
 
     @staticmethod
