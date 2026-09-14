@@ -17,13 +17,26 @@ from .config import LEVELS
 
 
 def _content(path: str | Path | None = None) -> sqlite3.Connection:
-    # Resolved at call time. A hardcoded default here is how the test suite
-    # ended up reading the developer's own harvest without anyone noticing.
-    from . import config
+    """The corpus, through the one opener that survives its absence.
 
-    conn = sqlite3.connect(path or config.CONTENT_DB)
-    conn.row_factory = sqlite3.Row
-    return conn
+    Resolved at call time: a hardcoded default here is how the test suite once
+    read the developer's own harvest without anyone noticing.
+
+    Through `sources.connect`, not `sqlite3.connect`. The bare call creates a
+    missing file *empty, with no tables*, so on a container without its corpus
+    — the image, and every cold start before the Worker restores the library —
+    `osastav`, `mitmus`, `kohakaanded`, `gen-stem`, `harvad-kaanded` and
+    `kirjavahemargid` answered 500 on `no such table: items`, and only
+    worked once some other request had happened to create the schema.
+    `sources.connect` applies it, and hands back an empty in-memory library
+    when the path cannot be created at all. An empty file with a schema is
+    still "no corpus" to `sources.available`, which counts rows, so the
+    Worker's restore is unaffected.
+    """
+    from . import config
+    from .sources import connect
+
+    return connect(path or config.CONTENT_DB)
 
 
 #: The three vocabulary slots a theme can narrow a drill by. `countable` is a
