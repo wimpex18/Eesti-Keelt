@@ -1,23 +1,11 @@
-"""The build-time export, and the two paradigms it was inventing.
+"""The build-time export never ships an invented or ambiguous paradigm.
 
-`export.py` sat at 22 % coverage. Reading it found the same defect twice over,
-and both reached the learner through `/api/lookup`'s citation line — the one
-that prints `raamat, raamatu, raamatut` in the format a textbook uses.
+Two rules, both visible through `/api/lookup`'s citation line:
 
-**It asked for a genitive of words that have none.** Vabamorf refuses to
-decline a verb, and that quietly implied it would refuse for anything else
-without a paradigm. It does not: asked for the genitive of the adverb
-`alguses` it answers `algusese`, of `dna` it answers `dnad`, of the imperative
-`õpi` a full declension. 319 of 7 256 drillable entries were invented that
-way. `wordlist.nouns_at_level` already gated the drill path on part of speech;
-this path never did.
-
-**And it took whichever candidate came first.** `next(iter(synthesize(...)))`
-shipped `kool, koola, koola` — the declension of *koola*, cola — for the word
-meaning "school", and `reis, reie, reit`, which is *reis* the thigh rather
-than *reis* the journey. `morph.case_forms` exists precisely to stop that, and
-names both words in its docstring. This module reimplemented the naive version
-it replaced.
+- **Only declinable words get case forms.** Vabamorf synthesises "genitives" for
+  adverbs, acronyms and imperatives (`alguses` → `algusese`).
+- **Only unambiguous paradigms.** `morph.case_forms` refuses homographs, so
+  `kool` never gets *koola*'s forms and `reis` never the thigh's.
 """
 
 from __future__ import annotations
@@ -41,21 +29,14 @@ class TestOnlyWordsThatDeclineGetAParadigm:
         assert declines(pos) is False
 
     def test_an_untagged_word_does_not_decline(self):
-        """This inverts the CEFR rule elsewhere in the project, deliberately.
-
-        There an absent tag meant "nobody rated this" and dropping it lost real
-        words. Here an absent tag correlates with the entry not being a lemma:
-        the untagged set is acronyms (`dna`, `nato`, `who`), genitives filed as
-        headwords (`kahe`, `linna`, `panga`) and imperatives (`küsi`, `õpi`).
+        """Untagged words count as not declinable: they are mostly acronyms, genitives filed
+        as headwords and imperatives.
         """
         assert declines(None) is False
         assert declines("") is False
 
     def test_the_rule_is_stated_once(self):
-        """`nouns_at_level` gates the drill path in SQL; this gates the export
-        in Python. They answer different questions — "is a noun" against "can
-        take a case ending" — so both must exist, and both must agree that a
-        noun declines."""
+        """`nouns_at_level` (SQL) and `declines` (Python) must agree that a noun declines."""
         assert "s" in DECLINABLE
         assert declines("s") and declines("adj")
 
@@ -89,8 +70,7 @@ class TestTheExportUsesTheCarefulSynthesiser:
 
 
 class TestAgainstTheBuiltDataset:
-    """The measurement that found this, as an assertion. Skipped where the
-    dataset has not been built — it is 47 MB and git-ignored."""
+    """Measured against the built dataset; skipped where it is not built."""
 
     @pytest.fixture(scope="class")
     @classmethod
@@ -119,8 +99,7 @@ class TestAgainstTheBuiltDataset:
         assert not bad, f"invented paradigms for indeclinables: {bad[:10]}"
 
     def test_the_words_that_were_wrong_are_gone(self, edge):
-        """Named individually because each was printed to the learner in
-        citation format: `kool, koola, koola` and `reis, reie, reit`."""
+        """The two homographs that reached a learner: `kool` and `reis`."""
         for lemma in ("kool", "reis", "alguses", "abielus", "dna", "õpi"):
             row = edge.execute(
                 "SELECT genitive, partitive FROM object_cases WHERE lemma = ?",
@@ -147,29 +126,13 @@ class TestAgainstTheBuiltDataset:
 
 
 class TestTheExportRunsEndToEnd:
-    """The 40 lines nothing had executed.
-
-    The tests above check the *rule*; this checks the build. `export()` is what
-    the Dockerfile runs at image build time — `RUN python -m eesti.cli export`
-    — so if it raises, the image does not exist. It had never been called by a
-    test.
-    """
+    """`export()` runs end to end (the Dockerfile runs it at image build)."""
 
     @pytest.fixture(scope="class")
     @classmethod
     def built(cls, tmp_path_factory, fixture_data):
-        """Built from the fixture word list, named explicitly.
-
-        The first version called `connect()` with no argument and let it read
-        `config.DB_PATH`. A class-scoped fixture is set up *before* the
-        function-scoped autouse redirect in `conftest`, so it got the real
-        path -- and `sqlite3.connect` on a path with no file creates one. On a
-        machine with a built word list the export quietly used 160 316 real
-        lemmas; on CI it created an empty `data/eesti.db`, exported nothing,
-        and left the phantom file behind to break two unrelated theme tests.
-
-        Pass the connection; never reach for a module-level path. Same lesson
-        as the readiness verdict reading the developer's real Notion queue.
+        """Built from the fixture word list, passed explicitly: a class-scoped fixture runs
+        before the autouse redirect.
         """
         from eesti.export import export
         from eesti.wordlist import connect
@@ -242,21 +205,8 @@ class TestTheExportRunsEndToEnd:
 
 
 class TestAgainstTheDatabaseTheAppActuallyServes:
-    """`edge.db` is the export; `eesti.db` is what the running app reads.
-
-    The class above guards the dataset shipped to Cloudflare. The FastAPI app
-    generates its drills from `eesti.db.object_cases` — a different table,
-    written by `wordlist.index_object_cases` — and **nothing guarded that one**.
-    Found during the UAT pass, from the other end: a drill offered
-    `kook · A1` and marked the answer `koogu`, pairing the genitive of *kook*
-    the hooked pole with the partitive of *kook* the cake. `case_forms` refuses
-    ambiguous words precisely so this cannot happen, and the local database
-    predated that fix.
-
-    It does not ship — the Dockerfile rebuilds the dataset from scratch — but
-    that is a property of the build, not a test, and it is exactly the kind of
-    thing that stops being true quietly. So: same questions, asked of the table
-    the learner's answers are actually graded against.
+    """The same guarantees for `eesti.db.object_cases`, the table drills are graded
+    against (the export guards `edge.db`).
     """
 
     @pytest.fixture(scope="class")
@@ -277,10 +227,7 @@ class TestAgainstTheDatabaseTheAppActuallyServes:
         return conn
 
     def test_no_ambiguous_word_carries_a_paradigm(self, served):
-        """A word with two real paradigms has no single right answer, so it
-        must not be drilled at all. `kool` (school / cola), `reis` (journey /
-        thigh) and `kook` (cake / hooked pole) are the three that have actually
-        reached a learner."""
+        """Words with two real paradigms are never drilled: `kool`, `reis`, `kook`."""
         wrong = []
         for word in ("kool", "reis", "kook"):
             row = served.execute(

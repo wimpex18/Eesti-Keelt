@@ -1,28 +1,9 @@
-"""The 907 statements nothing had ever imported.
+"""Every read-only CLI command runs cleanly.
 
-`eesti/cli.py` was the largest module in the project and sat at **0 % coverage**
-— no test had ever imported it, while the app underneath it was refactored
-heavily: six API routes removed, four generators unified onto a mixin, a whole
-gloss layer added, `Cloze` rebuilt on `GradedItem`.
-
-Nothing was broken, as it turns out. That is the point of writing this now
-rather than after something is: a command body that calls a function which was
-renamed away fails at *run* time, and until this file existed the only way to
-find out was to run it by hand. (It is `eesti/cli/`, a package, since; these
-checks scan every module in it rather than one file.)
-
-`--help` is not enough — it proves the parser and never executes the body. So
-these run the commands that only read, and assert they come back clean.
-
-Deliberately not covered here: anything that writes to a third party or needs
-the network (`harvest*`, `push-content`, `notion --push`, `eval`, `models`,
-`fetch-*`, `rections`, `serve`). Those are the operator's, and a test suite
-that fetches ERR on every run is a test suite that hammers someone's server.
-
-`evkk` was in the list by mistake and CI caught it: it fetches the EVKK
-taxonomy from `elle.tlu.ee`, which timed out on a runner. A third party being
-down must never fail the build — that rule is why the exclusion exists, and
-including `evkk` broke it on the first run.
+`--help` proves the parser, never the body, so these execute the commands that
+only read. Excluded: anything that touches a third party or the network
+(`harvest*`, `push-content`, `notion --push`, `eval`, `models`, `fetch-*`,
+`rections`, `evkk`) and `serve`, which blocks.
 """
 
 from __future__ import annotations
@@ -61,13 +42,7 @@ READ_ONLY = [
 
 
 def _package_source() -> str:
-    """Every module of the CLI package, concatenated.
-
-    It read one file, which was right while `cli.py` was one file. A glob
-    rather than a list of module names: a hand-maintained list of the things
-    to scan is how the *other* derived check in this suite went blind to a
-    module (`test_ui_language`, and it took a real defect with it).
-    """
+    """Every module of the CLI package, concatenated (a glob, not a list)."""
     from pathlib import Path
 
     root = Path(cli.__file__).parent
@@ -80,12 +55,8 @@ def test_the_source_scan_finds_the_package():
 
 
 def run(argv: list[str], stdin: str = "") -> tuple[int, str, str]:
-    """Run a command with captured streams and a closed stdin.
-
-    `drill`, `placement` and `review` are interactive loops -- they print an
-    item and wait for an answer. Giving them EOF exercises the same code and
-    ends the loop, which is what happens when the CLI is piped rather than
-    typed at. Without it these tests hang or raise out of pytest's capture.
+    """Run a command with captured streams and stdin at EOF, which ends interactive
+    loops.
     """
     out, err = io.StringIO(), io.StringIO()
     real_stdin = sys.stdin
@@ -140,13 +111,7 @@ class TestTheCommandsThatOnlyReadStillRun:
         assert out.strip(), f"{' '.join(argv)} printed nothing at all"
 
     def test_build_reports_the_redirected_database_path(self, monkeypatch, tmp_path):
-        """The command must describe the same DB path it actually builds.
-
-        `wordlist.connect()` resolves `config.DB_PATH` at call time, but the CLI
-        banner used an import-time copy. Tests redirect the database for safety;
-        the old banner still pointed at the real learner database and made the
-        destructive target ambiguous.
-        """
+        """The build banner names the database path it actually builds."""
         from eesti import config
 
         raw = tmp_path / "raw"
@@ -182,9 +147,7 @@ class TestTheCommandsThatOnlyReadStillRun:
 
 
 class TestTheCommandsUseTheSameEnginesAsTheApp:
-    """The CLI is the only other caller of several things — which is exactly
-    why `POST /api/vocab/known` went unnoticed with no caller on the page: its
-    other caller was here, and here does not exist on the deployment."""
+    """Commands that are the only callers of their functions still run."""
 
     def test_it_does_not_reach_the_network_to_list_things(self, monkeypatch):
         import urllib.request
@@ -210,18 +173,7 @@ class TestTheCommandsUseTheSameEnginesAsTheApp:
 
 
 class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
-    """`serve`, and the shape of bug it was hiding.
-
-    `cmd_serve` referenced a bare `DB_PATH` that was never imported into the
-    module, so `python -m eesti.cli serve` -- the command every document in
-    this repository tells you to run -- raised `NameError` before it reached
-    uvicorn. Every test passed: `--help` proves the parser and never the body,
-    and `serve` is excluded from `READ_ONLY` above because it blocks forever.
-
-    A command that cannot be run in a suite can still be *entered*, with the
-    thing it would block on replaced. That is enough to catch a name that does
-    not resolve, which is the whole failure class here.
-    """
+    """`serve` resolves its names: entered with uvicorn replaced."""
 
     def test_serve_reaches_uvicorn(self, monkeypatch, tmp_path):
         from eesti import config
@@ -230,10 +182,7 @@ class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
         called = {}
         db = tmp_path / "eesti.db"
         monkeypatch.setattr(config, "DB_PATH", db)
-        # A word list with a word in it. This wrote an empty file, which was
-        # enough while the guard asked `exists()` -- and that is exactly the
-        # check an empty phantom word list satisfies, so the guard now counts
-        # rows and an empty file is correctly refused.
+        # A word list with a word in it; the guard refuses an empty file.
         import sqlite3
 
         from eesti.wordlist import SCHEMA
@@ -262,13 +211,8 @@ class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
 
 
 class TestEveryCommandGroupIsRegistered:
-    """`cli.GROUPS` is the other hand-maintained list this split created.
-
-    Like `api.ROUTERS` it cannot be a glob — its order is the order `--help`
-    lists the commands in, and that is a choice — so a module added to the
-    package and forgotten here would take its commands with it. Nothing would
-    fail: every *other* command would still work, which is exactly how `TABS`
-    hid three missing panels.
+    """`cli.GROUPS` is hand-ordered (`--help` order), so it is checked against the
+    package's modules.
     """
 
     @staticmethod
@@ -320,12 +264,7 @@ class TestEveryCommandGroupIsRegistered:
 
 
 class TestImportingThePackageRunsNothing:
-    """`eesti/cli/__main__.py` used to call `main()` at import.
-
-    That is correct for `python -m eesti.cli` and a trap for anything that
-    walks the package -- importing the module exited the process doing the
-    walking, with an argparse usage message and no clue where it came from.
-    """
+    """Importing `eesti/cli/__main__.py` does not run the parser."""
 
     def test_importing_main_module_does_not_parse_arguments(self):
         import importlib

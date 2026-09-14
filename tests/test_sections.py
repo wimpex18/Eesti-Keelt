@@ -1,20 +1,11 @@
-"""Three sections, and nothing homeless.
-
-The app answers three questions and each section belongs to exactly one:
+"""Three modes, and no library item without a section.
 
     õppimine  — "what am I learning today?"
     kordamine — "what am I forgetting?"
     eksam     — "am I ready?"
 
-Sections used to filter on skill alone, and that held only while every item was
-reading or listening practice. The official material broke it: HARNO publishes
-samples, videos, workbooks and information sheets that carry the *same skill* as
-a task while being a completely different activity. Twenty-five of them landed
-in no section at all — in the database, absent from the app, and nothing said
-so.
-
-The test that matters here is the orphan check. A missing section is visible;
-an item that belongs to none is not.
+Sections filter on skill and purpose (`meta.kind`). The orphan check matters
+most: a missing section is visible, an item that belongs to none is not.
 """
 
 from __future__ import annotations
@@ -30,18 +21,8 @@ from eesti.sources import Item, add_items, connect, register
 
 @pytest.fixture
 def shelf(tmp_path):
-    """One item of **every** kind the HARNO harvester can produce.
-
-    This used to be a hand-written list of "kinds that have caused trouble",
-    which is a list of things that already exist somewhere else — and it failed
-    the way those lists always fail. `statistika` and `vorm` were added to the
-    harvester, nobody added them here, and 20 items sat in the database and in
-    no section. That is the exact bug the orphan check below was written for
-    after 25 items disappeared the same way; the check was fine, its fixture
-    could not see the problem.
-
-    So the kinds come from `harno.KINDS` now. A kind added to the harvester
-    appears here on the next run, and if no section claims it this fails.
+    """One item of every kind the HARNO harvester can produce (`harno.KINDS`), so a
+    new kind with no section fails here.
     """
     conn = connect(tmp_path / "content.db")
     register(conn)
@@ -77,12 +58,8 @@ class TestNothingIsHomeless:
         assert everything - placed == set()
 
     def test_every_kind_the_harvester_makes_has_a_section_that_wants_it(self):
-        """Read off the two vocabularies, with no database in the way.
-
-        The orphan check above needs an item to exist before it can notice the
-        gap. This one notices as soon as the harvester learns a kind nobody
-        shows — which is the moment it becomes wrong, not the moment somebody
-        harvests.
+        """Every harvester kind is claimed by some section, checked from the two
+        vocabularies without a database.
         """
         claimed = {kind for section in SECTIONS for kind in section.kinds}
         indexed = set(harno.KINDS) - set(harno.NOT_INDEXED)
@@ -92,14 +69,8 @@ class TestNothingIsHomeless:
         )
 
     def test_statistics_already_in_a_database_stay_off_the_exam_screen(self, tmp_path):
-        """`NOT_INDEXED` has to hold at read time, not only at write time.
-
-        It stops a *future* harvest writing the pass-rate PDFs. It does nothing
-        about the rows already in a learner's content.db from an earlier one —
-        and those rows are level-less, so teaching `exam_material` to match
-        level-less material (which is what lets the forms appear at all) put
-        eleven national pass rates on the readiness screen for anybody who had
-        harvested before today. `muu` renders whatever no group claimed.
+        """`NOT_INDEXED` kinds (statistics) stay hidden at read time, including rows from
+        older harvests.
         """
         from eesti.library import exam_material
 
@@ -119,14 +90,7 @@ class TestNothingIsHomeless:
         assert not [r for r in material["muu"]], "muu is rendered; it must be empty here"
 
     def test_every_group_the_exam_screen_returns_is_rendered(self):
-        """The other direction, and the one that got away.
-
-        `exam_material` was taught to return `vorm` under its own key, which
-        took the forms *out* of `muu` — the one bucket the page renders for
-        kinds it does not know by name. Without a matching group in exam.js the
-        widening moved them from invisible to invisible. A key returned by the
-        API and read by nothing is the same defect as an item in no section.
-        """
+        """Every key `exam_material` returns is rendered by the exam screen."""
         import re
         from pathlib import Path
 
@@ -142,10 +106,8 @@ class TestNothingIsHomeless:
         groups = page[page.index("const groups = ["):]
         groups = groups[:groups.index("];")]
         rendered = set(re.findall(r'\["([a-z]+)",', groups))
-        # `ulesanne` is popped into `ulesanded` and rendered by its own loop,
-        # split by exam part rather than shown as one group. Named here rather
-        # than pattern-matched, because it is the single exception and a looser
-        # pattern would stop this test noticing the next one.
+        # `ulesanne` is rendered by its own loop, split by exam part — the one named
+        # exception.
         rendered |= {"ulesanne"}
 
         assert returned <= rendered, (
@@ -220,20 +182,8 @@ class TestLanguage:
 
 
 class TestTheExamTaxonomyIsStatedOnce:
-    """Exam material is grouped twice, by two different code paths.
-
-    `library.SECTIONS` declares which `kind` values belong to `naidised`,
-    `eksam` and `eksamiinfo`; `library.exam_material` groups the same values
-    again for the exam screen, which does not read `SECTIONS` at all. Two
-    expressions of one taxonomy, and they agree today — checked, not assumed.
-
-    They are not merged because they answer different questions: `SECTIONS`
-    drives browsing by section, `exam_material` returns one level's material in
-    a single request grouped by activity. But this is precisely the shape that
-    produced the `TABS` bug — a hand-kept list beside the thing it describes,
-    where nothing failed when they drifted because both halves still returned
-    *something*. So the correspondence is asserted in both directions, which is
-    what this project's own rule prescribes when a list cannot be derived away.
+    """The exam taxonomy is expressed in `library.SECTIONS` and in
+    `library.exam_material`; they must agree in both directions.
     """
 
     @staticmethod
@@ -266,26 +216,14 @@ class TestTheExamTaxonomyIsStatedOnce:
             f"grouped but unsectioned: {sorted(self._grouped() - self._declared())}")
 
     def test_every_kind_a_section_claims_is_grouped_by_the_exam_screen(self):
-        """And the other direction: a section nothing renders is 25 items
-        present in the database and absent from the app, which has happened
-        here once already."""
+        """Every section is rendered somewhere."""
         assert self._declared() <= self._grouped(), (
             f"sectioned but ungrouped: {sorted(self._declared() - self._grouped())}")
 
 
 class TestEverySourceIdIsRegistered:
-    """The ledger has to cover every source the code names.
-
-    `sources.REGISTRY` is this project's licence record — "licensing is a
-    column, not a convention" — and `add_items` refuses a row whose source is
-    not in it. That gate only covers rows going into `items`, though, and a
-    source id is written in two other places: `Cloze.source_id`, which records
-    which corpus a drill sentence was cut from, and the harvesters' own
-    `clear_source` calls.
-
-    Asking which ids the code actually writes is how `ekk` turned up: the
-    handbook every rule explanation links to, whose rection table is fetched
-    once and stored, was the one third party with no entry in the ledger.
+    """The licence ledger covers every source id the code writes (`add_items`,
+    `Cloze.source_id`, `clear_source` calls).
     """
 
     @staticmethod

@@ -1,31 +1,9 @@
 """Every route must have a caller, or a written reason for not having one.
 
-This file exists because of a count. Six times in this project the page and
-the server drifted apart and nothing failed:
-
-  * the reading list sent `level=` after the column became `band` — empty list
-  * the fetch helper was POST-only, so every GET route would have 405'd
-  * `/api/library/{id}` read without recording, so reading counted for nothing
-  * four endpoints were built and never wired to anything
-  * `TABS` lost three panels, so two could not be opened and one never hid
-  * two library sections — 82 items — could not be reached from the page
-
-`test_ui_contract.py` covers one direction: everything the page calls must
-exist. That finds typos. It cannot find something nobody wired up, and five of
-those six were exactly that.
-
-Measured when this was written: **10 of 47 API routes had no caller anywhere** —
-21 % of the surface. The worst was `POST /api/vocab/known`, the only way a word
-can be marked known. Its other caller is `cli vocab`, which does not exist on
-the deployment, so on the running app no word could ever become known — and the
-comprehensible-input ordering, dictation's easiest-first ordering, the
-vocabulary line in the verdict and the "N of the first 4000" counter all sat at
-zero permanently. Nothing errored.
-
-The idea is borrowed from API-coverage reporting (Specmatic and similar), which
-compares the implemented surface against the consumed one and flags both
-directions. Doing it at source level rather than from traffic suits this
-project: one page, one server, no build step, and a test that runs offline.
+`test_ui_contract.py` checks that everything the page calls exists; this checks
+the other direction — every `/api/*` route is referenced by the page, the Worker
+or a deploy script. A route nobody calls is a feature that silently does not
+work on the deployment.
 """
 
 from __future__ import annotations
@@ -46,11 +24,8 @@ CONSUMERS = {
     "ci": (".github/workflows/*.yml",),
 }
 
-#: Routes with no caller, and why that is the right answer for each.
-#:
-#: An entry here is a decision, not a snooze. The reason has to say who the
-#: route is for, because "nobody calls it" and "the Worker will call it once
-#: X ships" are different states and only one of them is fine.
+#: Routes with no caller, and why that is right for each. The reason must say who
+#: the route is for.
 EXEMPT: dict[str, str] = {
     "/api/docs": (
         "FastAPI's own interactive documentation. Its caller is a human with a "
@@ -78,13 +53,8 @@ def sources() -> dict[str, str]:
 
 @pytest.fixture(scope="module")
 def routes() -> list[str]:
-    """Every `/api/` path the app serves.
-
-    From `eesti.api.paths()`, not from `app.routes`. FastAPI keeps an included
-    router as one lazy `_IncludedRouter` entry, so the obvious walk --
-    `{r.path for r in app.routes if hasattr(r, "path")}` -- returns four paths
-    and raises nothing. This check would then have passed by measuring almost
-    nothing, which is the exact failure it exists to catch in the app.
+    """Every `/api/` path the app serves, from `eesti.api.paths()` (walking
+    `app.routes` misses included routers).
     """
     from eesti import api
     from eesti.app import app
@@ -99,10 +69,8 @@ def test_the_inventory_is_not_empty(routes):
 
 
 def callers(path: str, sources: dict[str, str]) -> list[str]:
-    """Which consumers mention this route.
-
-    A parameterised route is called by its prefix — `"/api/library/" + id` —
-    so the stem is what is searched for.
+    """Which consumers mention this route; a parameterised route is found by its
+    prefix.
     """
     stem = re.sub(r"\{[^}]+\}.*$", "", path).rstrip("/")
     return [name for name, text in sources.items() if stem and stem in text]
@@ -120,8 +88,7 @@ def test_every_route_has_a_caller_or_a_reason(routes, sources):
 
 
 def test_the_exemptions_are_still_routes(routes):
-    """An exemption for a route that no longer exists is a stale note that
-    would silently excuse a future route of the same name."""
+    """An exemption for a route that no longer exists must be removed."""
     stale = [p for p in EXEMPT if p not in routes]
     assert not stale, f"EXEMPT names routes that do not exist: {stale}"
 
@@ -132,27 +99,15 @@ def test_every_exemption_gives_a_reason(routes):
 
 
 def test_the_word_marking_route_is_reachable_from_the_page(sources):
-    """Singled out because it was the costly one. `set_status` is the only way
-    a lemma becomes known, and its two callers were this route — uncalled —
-    and a CLI that does not exist on the deployment. Everything that orders
-    material by what the learner already knows depended on it."""
+    """`POST /api/vocab/known` — the only way a word becomes known on the deployment —
+    has a caller in the page.
+    """
     assert "/api/vocab/known" in sources["page"]
 
 
 def test_the_only_other_writer_is_the_cli():
-    """If a second writer appears, this test should be updated deliberately —
-    an inferred "known" would measure reading rather than vocabulary.
-
-    Parsed rather than grepped. `grep -rln set_status` matches the *word*, so
-    a docstring in `readiness.py` explaining that a count had been measured
-    "through `vocab.set_status`" registered as a fourth writer of the
-    vocabulary ladder. Prose about a function is not a call to it, and a check
-    that cannot tell them apart fails on documentation — which is a good way to
-    teach people to stop writing it.
-
-    That is the fourth time in one sprint a source scan matched its own
-    explanation; see `.claude/rules/tests.md`. `ast` answers the question exactly:
-    a `Name` or an `Attribute` actually referencing the function.
+    """`vocab.set_status` has only the expected writers, found by parsing (`ast`), not
+    by grepping prose.
     """
     import ast
 
@@ -176,16 +131,8 @@ def test_the_only_other_writer_is_the_cli():
 
 
 class TestEveryRouterIsRegistered:
-    """`api.ROUTERS` is a list of things that already exist somewhere else.
-
-    It has to be a list: registration order decides which route answers when
-    two patterns could match one URL, and no glob can express "in the order
-    they were written". So it is the one hand-maintained list in the API — and
-    a hand-maintained list of things that exist elsewhere is this project's
-    most-repeated bug (`TABS` was three of ten panels short, and nothing
-    failed, because every click still produced *a* panel).
-
-    What cannot be derived is checked in both directions instead.
+    """`api.ROUTERS` is hand-ordered (registration order matters), so it is checked
+    against the modules in both directions.
     """
 
     @staticmethod
@@ -244,8 +191,7 @@ class TestTheOrderThatIsBehaviour:
         return TestClient(app_module.app)
 
     def test_the_collection_route_is_not_swallowed_by_the_item_route(self, client):
-        """If `/api/library/{item_id}` were registered first, a request for the
-        shelf would be read as a request for an item called nothing."""
+        """`/api/library` is registered before `/api/library/{item_id}`."""
         got = client.get("/api/library?skill=lugemine&limit=5")
         assert got.status_code == 200
         assert "items" in got.json()
