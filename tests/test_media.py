@@ -1,15 +1,8 @@
-"""Playing the half of the listening library Chrome cannot play unaided.
+"""Playing HLS audio in browsers without native support.
 
-Forty-four of the ninety-one audio items are HLS streams (`.m3u8`) from ERR;
-the rest are `.mp3` and `.wav`. Safari plays HLS natively, Chrome and Firefox
-do not, and the reader was setting `<audio src="...m3u8">` directly — so the
-radio archive worked on a phone and failed **silently** on a laptop. No error,
-no message, a control that never starts.
-
-That is why these assertions are about source rather than behaviour: the real
-proof was driving the page in a browser with no native HLS support, and a
-browser does not belong in CI for this. What belongs here is the set of
-properties that made the fix work, so removing one is loud.
+Many ERR audio items are HLS streams (`.m3u8`): Safari plays them natively,
+Chrome and Firefox need hls.js. These pin the properties that make playback work
+(checked in source; a browser is not in CI).
 """
 
 from __future__ import annotations
@@ -32,8 +25,7 @@ def page() -> str:
 
 class TestHlsFallback:
     def test_the_library_is_vendored_not_fetched_from_a_cdn(self):
-        """A lesson must not depend on someone else's uptime — the same rule
-        this project applies to every research API."""
+        """hls.js is served locally, not from a CDN."""
         assert (VENDOR / "hls.light.min.js").is_file()
 
     def test_the_page_loads_it_from_here(self, page):
@@ -54,7 +46,7 @@ class TestHlsFallback:
         assert not re.search(r'<script[^>]+hls\.light', page)
 
     def test_failure_is_announced_rather_than_silent(self, page):
-        """The bug was a player that never started and never said why."""
+        """A playback failure shows a message."""
         block = page.split("async function mountAudio")[1][:1400]
         assert "catch" in block
         assert any("Ѐ" <= ch <= "ӿ" for ch in block), (
@@ -103,16 +95,8 @@ class TestTheVendorRoute:
 
 
 class TestTheVendoredPlayerSaysWhatItIs:
-    """A vendored bundle with no recorded version cannot be audited.
-
-    `hls.light.min.js` sat here for months at **1.5.20** with nothing anywhere
-    saying so — not a filename, not a comment, not a lockfile. The only way to
-    find out was to grep the minified source for something that looked like a
-    semver, which is not a process. It is 1.7.1 now, with the version written
-    beside it and checked against what the bundle actually contains.
-
-    It is load-bearing: 44 of the 91 audio items are HLS streams, which Safari
-    plays natively and Chrome and Firefox do not.
+    """The vendored hls.js records its version beside the file, checked against the
+    bundle.
     """
 
     VERSION = ROOT / "eesti" / "web" / "vendor" / "hls.js.version"

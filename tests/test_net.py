@@ -1,14 +1,5 @@
-"""The retrying GET that two modules used to own a copy of each.
-
-`rection.fetch` and `harvest/evkk.fetch` carried the same loop character for
-character, and neither had a test: the harvesters' fetch halves are excluded
-from the suite by a deliberate rule — a suite that re-crawls somebody's server
-on every run is a suite that hammers it.
-
-That rule is about the *network*, not about the logic wrapped around it. With
-`urlopen` replaced, none of this touches a network, and what is left is exactly
-the part that had two copies and could drift: how many attempts, how long it
-waits between them, and what it says when it gives up.
+"""The shared retrying GET (`eesti/net.py`), with `urlopen` replaced: attempts,
+back-off and the message when it gives up.
 """
 
 from __future__ import annotations
@@ -43,10 +34,7 @@ class _Response:
 
 
 def _serving(*outcomes):
-    """A fake `urlopen` playing the given outcomes in order.
-
-    An outcome is either bytes to return or an exception to raise.
-    """
+    """A fake `urlopen` playing the given outcomes (bytes or an exception) in order."""
     calls = []
 
     def urlopen(req, timeout=None):
@@ -129,14 +117,8 @@ class TestTheFailureIsReadable:
 
 
 class TestTheExceptionEveryCallerAlreadyCatches:
-    """`Unreachable` inherits from `OSError` *and* `RuntimeError`.
-
-    Not cleverness — the callers were already catching two different things and
-    both were right. `lihtsad.harvest` catches `OSError` per issue so one dead
-    URL costs one issue; the EVKK command catches `RuntimeError` and turns it
-    into "the taxonomy is unavailable, here is what would fix it". Consolidating
-    onto a single base would have broken one of them silently, on the one day
-    the handler exists for.
+    """`Unreachable` inherits from `OSError` and `RuntimeError`, so both existing
+    handlers keep catching it.
     """
 
     @pytest.fixture
@@ -191,8 +173,7 @@ class TestBothCallersStillUseIt:
         assert "urlopen" not in source, f"{module}.{func} opens its own connection"
 
     def test_nothing_under_harvest_opens_its_own_connection(self):
-        """The six were written one at a time, with three timeouts and two
-        retry styles between them. A seventh would be written the same way."""
+        """Nothing under `harvest/` opens its own connection."""
         from pathlib import Path
 
         root = Path(net.__file__).parent / "harvest"

@@ -1,11 +1,5 @@
-"""Foundation checks against third-party data.
-
-Everything this app produces — drills, the reverse index, the exported dataset —
-inherits Vabamorf's correctness. These tests check that inheritance against data
-this project did not write.
-
-Skipped when the benchmark files are absent, so the suite still runs offline for
-someone who has not fetched them.
+"""Foundation checks against third-party data; skipped when the benchmark files
+are absent.
 """
 
 import json
@@ -21,10 +15,8 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_vabamorf_agrees_with_native_gold_forms():
-    """Vabamorf must match TalTech's native-curated inflections.
-
-    Threshold is 95%, below the measured 98.1%, so a real regression trips it
-    while the known invariant-adjective disagreements do not.
+    """Vabamorf matches TalTech's native-curated inflections (threshold 95 %, below
+    the measured ~98 %).
     """
     result = run()
     assert result["total"] > 1000, "dataset looks truncated"
@@ -43,13 +35,7 @@ def test_object_cases_specifically_agree(case):
 
 @pytest.mark.parametrize(("name", "least"), [("grammar_et", 500), ("grammar2_et", 300)])
 def test_grammar_benchmark_is_wellformed(name, least):
-    """The GEC pairs must actually differ, or they test nothing.
-
-    Both files, because both are read: `wordorder.bench_files` takes every
-    `grammar*_et.json` the fetch table knows, and a second file with the same
-    column names is exactly the kind of thing that gets fetched and never
-    checked.
-    """
+    """Every GEC pair file the drill reads actually contains differing pairs."""
     path = DATASET.parent / f"{name}.json"
     if not path.exists():
         pytest.skip(f"{name} not fetched")
@@ -61,11 +47,8 @@ def test_grammar_benchmark_is_wellformed(name, least):
 
 
 class TestSourceLicensing:
-    """A public request must never be able to reach owner-only material.
-
-    This is the guard that makes serving HARNO exam material legitimate: fine to
-    study from privately, not fine to republish. The filter is on the source's
-    licence, so a new source cannot leak by forgetting to tag its items.
+    """A public request never reaches owner-only material (filtered on the source's
+    licence).
     """
 
     def _db(self, tmp_path):
@@ -106,12 +89,7 @@ class TestSourceLicensing:
 
 
 class TestEvalScoreValidity:
-    """A run that never reached the model must not report a score.
-
-    A real run had all 18 cases fail with HTTP 429 and reported precision 1.0 —
-    nothing was flagged because nothing was asked, which reads as perfect. That
-    is the same class of bug as a green CI check that ran no checks.
-    """
+    """A run that never reached the model reports no score."""
 
     def _run_with(self, monkeypatch, side_effect):
         import eesti.evals.gec as gec
@@ -129,12 +107,7 @@ class TestEvalScoreValidity:
         assert "never reached the model" in result["invalid_reason"]
 
     def test_a_silent_model_scores_zero_recall_not_perfect_precision(self, monkeypatch):
-        """Answering "no errors" to everything is a real, measurable failure.
-
-        This must be scored — unlike an unreachable model — because a model that
-        never flags anything is exactly the useless-but-safe behaviour the eval
-        exists to catch.
-        """
+        """A model that answers "no errors" to everything is scored, and fails recall."""
         result = self._run_with(monkeypatch, lambda *_a, **_k: '{"corrections":[]}')
         assert result["valid"] is True
         assert result["recall"] == 0.0

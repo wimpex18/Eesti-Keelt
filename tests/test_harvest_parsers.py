@@ -1,27 +1,10 @@
 """Parsing what the harvesters fetch — the half that needs no network.
 
-`harvest/err.py` and `harvest/selges.py` sat at 0 % between them, 226
-statements, because they talk to third parties and the suite deliberately does
-not. That exclusion is right for `fetch` and `crawl`; it is not right for the
-parsers, which are pure functions over a string and are where every bug these
-modules have had actually lived.
+Fixed behaviours pinned: entities decoded; HLS `.m3u8` audio accepted; audio-only
+episodes kept.
 
-`parse_episode` carries three fixed bugs as comments and no test for any of
-them:
-
-  * entities were never decoded, so `&#8211;` reached the reader as literal
-    characters through 27 000 words of transcript;
-  * only `.mp3` was accepted, and the 2015 and 2019 series serve HLS `.m3u8`,
-    so two whole archives looked empty;
-  * an episode was required to have a transcript, which discarded the
-    audio-only series entirely.
-
-A comment recording a fixed bug is not a test. These are.
-
-**Every fixture here is synthetic.** ERR transcripts and Selges keeles are
-owner-only by licence — `redistributable = 0` — so no real harvested text goes
-in this repository. The Estonian below is invented; only the *shape* of the
-markup is copied, which is the thing being parsed.
+**Every fixture is synthetic.** ERR and Selges keeles text is owner-only, so only
+the markup shape is copied; the Estonian is invented.
 """
 
 from __future__ import annotations
@@ -145,15 +128,13 @@ class TestWalkingTheSeriesWithoutABrowser:
         assert err._sibling_urls(html) == []
 
     def test_the_series_name_gates_the_crawl(self):
-        """Pages whose series differs are fetched once but never expanded, so
-        the walk stays inside the archive it started in."""
+        """Pages from another series are fetched once but never expanded."""
         assert err._series_name(page(serial="Keelekõdi")) == "Keelekõdi"
         assert err._series_name("<html></html>") == ""
 
 
 class TestMeasuringHowEstonianAThingIs:
-    """The measurement that demoted the radio archives: they came out at 12 %
-    Estonian, being Russian grammar lessons with Estonian examples in them."""
+    """The Estonian share measure separates Russian lesson prose from Estonian."""
 
     def make(self, body):
         return err.Episode(url="u", title="t", body=body, audio_url=None,
@@ -196,6 +177,5 @@ class TestSelgesKeeles:
         assert item.meta["words"] == 5 and item.meta["published"] == "2018-01-01"
 
     def test_markup_is_cleaned_through_the_shared_cleaner(self):
-        """Four harvesters each had a private tag regex and gave three
-        different answers on one line of input. There is one cleaner now."""
+        """Every harvester uses the shared cleaner."""
         assert selges._clean("<p>Ma lugesin  raamatut .</p>") == "Ma lugesin raamatut."
