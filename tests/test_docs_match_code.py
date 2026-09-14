@@ -1,20 +1,9 @@
-"""Numbers in the documentation, checked against the code that produces them.
+"""Numbers and structures in the documentation, checked against the code.
 
-Every count in `docs/` was written by hand from a measurement taken once. Four
-of them were wrong on 2026-08-21 — 13 topics without a generator when there
-were 11, 42 API routes when there were 49, 1 141 tests when there were 1 283,
-21 of 36 topics with practice when it was 25 — and every one of them had been
-true when written. That is the whole failure mode: **a true sentence goes stale
-silently**, and a document nobody can trust is worse than no document, because
-the next session plans against it.
-
-This is the same remedy this project applies everywhere else. A claim that can
-be derived is asserted against its source, so the build fails at the moment the
-two disagree rather than the next time somebody reads carefully.
-
-Deliberately narrow. It checks the counts that have actually drifted and are
-unambiguous to parse; it does not try to verify prose, and a doc is free to
-record a historical figure as long as it is marked "at the time of writing".
+A true sentence in a doc goes stale silently, and a later session plans against
+it. A claim that can be derived is asserted against its source, so the build
+fails when the two disagree. Narrow by design: counts, the tab diagram and cited
+file paths; prose is not verified.
 """
 
 from __future__ import annotations
@@ -81,10 +70,7 @@ class TestCurriculumCounts:
                 f"the code has {actual}.\n  {text}")
 
     def test_topics_that_link_to_the_handbook(self):
-        """`status.md` said 22 of 23 for three weeks while drills landed; it is
-        25 of 26. The shape of the claim stayed right — one topic has no link,
-        and it is still `kusisonad` — which is exactly why nobody noticed the
-        counts underneath it moving."""
+        """"N of M drillable topics link to the handbook": both numbers are checked."""
         from eesti.curriculum import TOPICS
         from eesti.grammar import describe
 
@@ -137,9 +123,7 @@ class TestCurriculumCounts:
                 f"the file has {actual}.\n  {text}")
 
     def test_the_named_list_matches_the_derived_one(self):
-        """`status.md` prints the eleven topic ids for reading. A snapshot is
-        fine; a snapshot that has drifted is what sent a previous session
-        looking for `eitus` in a list it had already left."""
+        """The fenced list of topics without a generator matches the code."""
         from eesti.curriculum import TOPICS
 
         actual = {t.id for t in TOPICS if not t.generator}
@@ -158,14 +142,7 @@ class TestCurriculumCounts:
 class TestApiSurface:
     @staticmethod
     def _declared() -> int:
-        """Route decorators across the API package.
-
-        It read `app.py` alone while every handler was declared there. The
-        routes live in `eesti/api/*.py` now, one module per thing the learner
-        is doing, so the count is taken across the package -- a glob rather
-        than a list of module names, or this check acquires the drift it
-        exists to catch.
-        """
+        """Route decorators across the API package (a glob over `eesti/api/*.py`)."""
         modules = sorted((ROOT / "eesti" / "api").glob("*.py"))
         assert modules, "no API modules found -- this check would measure zero"
         return sum(len(re.findall(r"@router\.(?:get|post)",
@@ -177,13 +154,8 @@ class TestApiSurface:
         assert self._declared() > 40
 
     def test_the_api_endpoint_count(self):
-        """The number the *guarantee* is about.
-
-        `status.md` said "52 API routes, every one with a caller" and cited
-        `test_route_inventory.py`. Two measures welded together: 52 is the
-        `@router` decorator count, and the caller guarantee is over the 44
-        `/api/*` paths that test actually walks. Both were right about their
-        own measure and the sentence was right about neither.
+        """"N API endpoints" counts `/api/*` paths from `api.paths()` — the set the caller
+        guarantee in `test_route_inventory.py` covers.
         """
         from eesti import api
         from eesti.app import app
@@ -205,10 +177,7 @@ class TestApiSurface:
 
 
 class TestTheModeStructure:
-    """`app-structure.md` drew a structure that was never built — a top-level
-    `Raamatukogu`, `Kordamine` nested inside `Õppimine`, no speaking or writing
-    tab. It was a plan being read as a map for long enough that a later session
-    planned against it."""
+    """The app-structure diagram lists exactly the tabs the page has."""
 
     @staticmethod
     def _diagram_tabs() -> set[str]:
@@ -239,15 +208,8 @@ class TestTheModeStructure:
 
 
 class TestEveryFileTheDocsPointAtExists:
-    """A pointer to a file that is not there sends the reader nowhere.
-
-    A stale pointer reads exactly like a live one. Nothing catches that rot — a stale *pointer* reads
-    exactly like a live one, and only somebody following it finds out.
-
-    Backticked filenames are the form this project uses for a reference, so
-    that is what gets checked. Names that are deliberately not files live in
-    `NOT_A_FILE` with a reason, the same posture `test_route_inventory` takes
-    towards a route with no caller: an entry is a decision, not a snooze.
+    """Every backticked file name in the docs and rules exists. Names that are
+    deliberately not files go in `NOT_A_FILE` with a reason.
     """
 
     #: Cited in backticks, correctly, and not a path in this repository.
@@ -295,29 +257,11 @@ class TestEveryFileTheDocsPointAtExists:
 
 
 class TestNothingIsDefinedForNobody:
-    """The counterpart to "a measurement with no writer": a writer with no
-    reader. Both are the same defect and this project has paid for it eight
-    times; the sweep that produced this class found four, of which three were
-    real and are gone.
+    """A module constant nothing reads is flagged.
 
-    Read by **AST**, not by grepping words out of the file text. The first
-    version did the latter and was three-quarters ornamental:
-
-    * a name merely *mentioned in a comment* counted as read, which in a
-      codebase written in essays is the common case rather than the corner one;
-    * `ALLOWED` was inert -- naming a constant there put the word in this file,
-      which raised its own occurrence count past the threshold, so the
-      exemption could never be needed and its staleness could never be caught;
-    * one global counter meant a name declared in two modules could never be
-      flagged at all: 24 names covering 85 declarations were invisible.
-
-    Counting identifier *loads* fixes all three at once. A string inside a set
-    literal is not a load, so `ALLOWED` does its job; a word in a comment is not
-    a load; and a name loaded nowhere is orphaned wherever it is declared.
-
-    Deliberately constants only. Every *function* the sweep flagged was a
-    FastAPI route handler, bound by its decorator and referenced by name
-    nowhere, which is correct and must not be reported.
+    Read by AST: identifier loads count, comments do not, and each read resolves to
+    its module so a same-named constant elsewhere cannot cover for an orphan.
+    Constants only — route handlers are bound by decorators and never named.
     """
 
     #: Constants deliberately declared and never read, with the reason.
@@ -340,22 +284,11 @@ class TestNothingIsDefinedForNobody:
 
     @staticmethod
     def _loads(paths):
-        """Who reads what, keyed by **(module, NAME)** rather than by name.
+        """Who reads what, keyed by (module, NAME).
 
-        One global tally was the counting bug: `TIMEOUT` is declared in two
-        modules, one of them reads it, and a global count of "is TIMEOUT read
-        anywhere" therefore clears an orphan on the strength of its twin.
-        Planting an unused `TIMEOUT` proved it -- swept clean.
-
-        A constant is read when something imports it from its module, reaches
-        it as an attribute on that module, or -- inside the declaring module
-        itself -- loads it as a bare name. Those are the three ways to reach
-        one, so resolving each read to a module is enough to tell twins apart.
-
-        Modules are keyed by basename, so two files of the same name (there
-        are: `eesti/sources.py` and `eesti/api/sources.py`) share a key and the
-        check falls back to today's leniency for those. Lenient in the same
-        place as before, precise everywhere else.
+        A constant is read when imported from its module, reached as an attribute on it,
+        or loaded as a bare name inside it. Modules are keyed by basename, so same-named
+        files (`eesti/sources.py`, `eesti/api/sources.py`) share a key.
         """
         import ast
         import collections
@@ -365,10 +298,8 @@ class TestNothingIsDefinedForNobody:
             here = path.stem
             tree = ast.parse(path.read_text(encoding="utf-8"))
 
-            # `from eesti.api import state as state_module` -- without this the
-            # alias is an unknown module and every constant reached through it
-            # reads as unread. `STATE_DATABASES` was the false positive that
-            # found this.
+            # Resolve `from pkg import module as alias`, so constants reached through the
+            # alias count as read.
             alias_of = {}
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom):
@@ -422,11 +353,7 @@ class TestNothingIsDefinedForNobody:
             f"with the reason: {orphans}")
 
     def test_a_comment_does_not_count_as_a_read(self):
-        """The weakness that made the first version ornamental, pinned.
-
-        Every flaw it had was invisible from its own green result, so the
-        mechanism gets its own test rather than being trusted.
-        """
+        """The mechanism itself is tested: a comment mention does not count as a read."""
         import ast
         import tempfile
 
@@ -447,13 +374,7 @@ class TestNothingIsDefinedForNobody:
         assert loads["USED"], "and a real use is"
 
     def test_a_twin_that_is_read_does_not_cover_for_one_that_is_not(self):
-        """The counting bug, pinned at the case that actually bit.
-
-        Not "two declarations and no reader" -- that one the global tally
-        caught. The hole was two declarations where *one* is read: planting an
-        unused `TIMEOUT` in a module while `estgec.TIMEOUT` is used elsewhere
-        swept clean.
-        """
+        """A same-named constant that is read elsewhere does not clear an unread one."""
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -482,9 +403,7 @@ class TestNothingIsDefinedForNobody:
             assert not self._orphan("BUDGET", root / "conf.py", reads)
 
     def test_the_exemption_is_still_needed(self):
-        """`ALLOWED` stays honest only if an entry that stopped being necessary
-        fails. It could not before: naming a constant here was what made it
-        look read."""
+        """Every `ALLOWED` entry must still be needed."""
         declared, loads = self._swept()
         for name in self.ALLOWED:
             where = [path for n, path, _ in declared if n == name]
@@ -494,22 +413,15 @@ class TestNothingIsDefinedForNobody:
 
 
 class TestTheLicenceLedgerStaysSeparable:
-    """`eesti/licences.py` was split out of `sources.py` because the two halves
-    share nothing at runtime: the store never reads a `note`, the ledger never
-    opens a database. That is the property the file boundary encodes, and it is
-    exactly the kind of property that rots silently — one convenient import and
-    the ledger is a database module again, with nobody the wiser until the next
-    person wonders why it was split.
+    """`eesti/licences.py` imports no database module: the ledger and the store share
+    nothing at runtime.
     """
 
     def test_the_ledger_touches_no_database(self):
         import ast
 
         tree = ast.parse((ROOT / "eesti" / "licences.py").read_text(encoding="utf-8"))
-        # Every segment, not the first. `from eesti.sources import X` resolves
-        # to "eesti" on a first-segment split and sails through -- so the one
-        # import this guard exists to catch, the circular one back into the
-        # store, was the one it could not see.
+        # Check every segment of an import, so `from eesti.sources import X` is caught.
         imported = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -551,20 +463,16 @@ class TestTheLicenceLedgerStaysSeparable:
         assert Source is licences.Source
 
     def test_neither_half_is_large_again(self):
-        """The split bought a reader ~250 lines they did not need. A guard on
-        the number is cruder than the reason, and the reason is not checkable —
-        but a file creeping back over 700 lines is the signal that the next
-        cohesive piece is waiting to come out."""
+        """Neither half of the sources/licences split grows past 700 lines again."""
         for name in ("sources.py", "licences.py"):
             lines = len((ROOT / "eesti" / name).read_text(encoding="utf-8").splitlines())
             assert lines < 700, f"eesti/{name} is {lines} lines"
 
 
 class TestTheCiMatrixKnowsWhatShips:
-    """One interpreter everywhere, named to the patch. A CI comment once named
-    a Python the Dockerfile had already left, and the eval ran on it — the
-    comment is the reason the matrix has the shape it has, so a wrong one
-    invites testing a runtime no deployment uses."""
+    """One interpreter everywhere, pinned to the patch: the Dockerfile, CI, the eval
+    and `.python-version` agree.
+    """
 
     @staticmethod
     def _shipped() -> set[str]:
@@ -591,8 +499,7 @@ class TestTheCiMatrixKnowsWhatShips:
         assert (ROOT / ".python-version").read_text(encoding="utf-8").strip() == shipped
 
     def test_no_file_names_an_older_python(self):
-        """The runtime is 3.14.7 and nothing else; a leftover version number in
-        a comment or a document is how a later session concludes otherwise."""
+        """No file names a Python older than the one that ships."""
         (shipped,) = self._shipped()
         major_minor = tuple(int(x) for x in shipped.split(".")[:2])
         older = re.compile(r"(?:[Pp]ython[ :-]?|py)(3\.(\d+))\b|python:(3\.(\d+))")
