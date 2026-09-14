@@ -242,7 +242,7 @@ All three data steps are gated. Before 2026-09-13 `export` was not, and a
 checkout without it ran the journeys and failed 24 of them with
 "такого слова в словаре нет" instead of skipping and naming the step.
 
-**First run on a Mac, 2026-09-13** (Python 3.13, Playwright Chromium and
+**First run on a Mac, 2026-09-13** (Playwright Chromium and
 WebKit, 349 texts): **168 passed, 2 skipped** — the two skips are the
 tap-target floor, which applies to touch viewports only. Getting there found
 three defects in the suite itself, none in the app:

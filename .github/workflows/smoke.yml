@@ -40,7 +40,7 @@ on:
   # and redeploys the app with no check firing at all. Measured: `deploy` has
   # run 8 times against roughly 17 merges to `main`.
   #
-  # Two costs already paid. The Python 3.13 image went ten hours unverified
+  # Two costs already paid. The runtime-upgrade image went ten hours unverified
   # after PR #30, and PR #31 -- a Python change -- produced no smoke run
   # whatsoever.
   #

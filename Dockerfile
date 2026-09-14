@@ -10,13 +10,15 @@
 # ---------------------------------------------------------------------------
 # Builder: produce the derived databases, then throw the toolchain away.
 # ---------------------------------------------------------------------------
-# 3.13, and only after CI ran the whole suite on it. estnltk publishes wheels
-# for 3.11 through 3.14, but a wheel existing is not the same as Vabamorf's
-# compiled extension and everything above it behaving -- so `tests.yml` runs a
-# 3.11 and a 3.13 leg, and the 3.13 leg passes the morphology gate against
-# TalTech's native gold forms, not merely the unit tests. 3.11 stays in that
-# matrix because it is what this image shipped until now.
-FROM python:3.13-slim AS builder
+# Python 3.14.7, pinned to the patch so the image, CI, the eval and a local
+# `.venv` run the same interpreter. Moved only after it was measured
+# (2026-09-14): estnltk 1.7.5 publishes cp314 wheels, and — a wheel existing
+# not being the same as Vabamorf's compiled extension behaving — 400 nouns x 4
+# cases, 200 verbs x 5 forms and a sentence analysis came out byte-identical to
+# the previous runtime, so the drills' answer key did not move; the TalTech
+# gold-form gate passed at the same 1374/1400; the full suite passed; and this
+# image was built and generated drills in-container.
+FROM python:3.14.7-slim AS builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -101,7 +103,7 @@ RUN python -m eesti.cli import-ekss deploy/eki/ekss_EKI_CCBY40.xml.gz || \
 # ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------
-FROM python:3.13-slim
+FROM python:3.14.7-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
