@@ -538,9 +538,16 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 #: Groq left the chain on 2026-09-14: its Cloudflare front refuses datacenter IP
 #: ranges by design ("Access denied. Please check your network settings"), so a
 #: Cloud Run container can never reach it. NVIDIA and Mistral joined as the
-#: largest free allowances reachable from a server. The order among the new
-#: lanes is provisional until each has a key and an eval run.
-LLM_PREFERENCE = ("local", "huggingface", "mistral", "nvidia", "openrouter", "workers-ai")
+#: largest free allowances reachable from a server.
+#:
+#: The order is Estonian quality first, then how much free use survives a day.
+#: Tartu's human-vote Estonian leaderboard (baromeeter.tartunlp.ai, updated
+#: 2026-05-31, open and API models only) puts Mistral Large 3 first (1470),
+#: DeepSeek V3 second (1457) and Kimi K2 third (1439); NVIDIA serves their
+#: successors. Workers AI goes ahead of OpenRouter because OpenRouter's free
+#: tier is 50 requests a day and a 429 still spends one. Re-order on an eval
+#: run, not on this comment.
+LLM_PREFERENCE = ("local", "huggingface", "mistral", "nvidia", "workers-ai", "openrouter")
 
 #: Lanes defined in `PROVIDERS` and deliberately left out of the chain, each with
 #: the reason. The only way past the "defined but never tried" check.
