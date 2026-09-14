@@ -1,22 +1,8 @@
-"""Estonian speech synthesis via TartuNLP's public TTS API.
+"""Estonian speech synthesis via TartuNLP's public TTS API (free, no key, reliable).
 
-Unlike the grammar service this one is genuinely reliable — during research it
-returned a 310 KB WAV in 2.0s with no auth. It is what makes listening practice
-possible from *any* text: a textbook passage, a harvested ERR transcript, or a
-generated drill sentence.
-
-Output is cached on disk by content hash. That claim used to end "so repeated
-listening costs nothing and works offline once fetched", which is true on a
-laptop and false where this actually runs: the cache lives on the container's
-own filesystem, Cloud Run scales to zero, and the cache dies with the
-container. So the cache is warm within a session and cold after one — a
-dictation sentence is re-synthesised the next evening.
-
-That is a latency note, not a problem to solve. The call is free, took 2.0s for
-a 310 KB WAV during research, and persisting audio into the state snapshot
-would trade a couple of seconds for hundreds of kilobytes per sentence. It is
-written down because a stale claim about where data lives is how the privacy
-notice on the speaking screen came to say the opposite of the truth.
+Makes listening possible from any text. Output is cached on disk by content
+hash; on Cloud Run that disk is ephemeral, so the cache lasts a container's
+lifetime — a latency cost, not worth storing audio in the state snapshot.
 """
 
 from __future__ import annotations

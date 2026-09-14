@@ -1,23 +1,16 @@
-"""One screen, five measures, and deliberately no overall percentage.
+"""One screen, a measure per section, and deliberately no overall percentage.
 
-The temptation with a learning app is a single number. It is the wrong shape
-here for a reason specific to this exam: the B1 tasemeeksam scores **four parts
-separately** and fails you for a zero in any one of them. A learner at "68 %
-overall" who has never done a listening task is not 68 % ready; they are going
-to fail. An aggregate hides exactly the thing that decides the outcome.
-
-So each section reports the measure that is honest for it:
+The exam scores four parts separately and fails a zero in any, so an aggregate
+hides what decides the outcome.
 
 | Section       | Measure                              | Why that one |
 |---------------|--------------------------------------|--------------|
 | Rada          | topics mastered / total              | mastery is binary per topic |
-| Sõnavara      | known within each frequency band     | "1 200 of the top 2 000" means something; "12 % of Estonian" does not |
-| Kordamine     | due now, and how much is scheduled   | the FSRS numbers already exist |
-| Raamatukogu   | items opened, minutes                | exposure counts, and is not mastery |
+| Sõnavara      | known within each frequency band     | "1 200 of the top 2 000" means something |
+| Kordamine     | due now, and how much is scheduled   | FSRS numbers |
+| Raamatukogu   | items opened, minutes                | exposure, not mastery |
 
-Every connection is optional. A learner who has never opened the library should
-see the library section reporting zero, not an app that refuses to render — and
-a caller that has no vocabulary database should not get an exception for it.
+Every connection is optional: a missing database reports zero, not an error.
 """
 
 from __future__ import annotations
@@ -63,10 +56,7 @@ def overview(
         from .curriculum import by_id
 
         rows = report(progress)
-        # `next` is an id, because that is what the practice endpoint takes.
-        # The screen showed it raw ("kusisonad"), which is a database key, not
-        # a thing a learner recognises. Resolve the names here so no caller has
-        # to know the curriculum to render one line.
+        # Resolve the next topic's name here, so no caller prints a raw id.
         nxt = resume(progress)
         topic = by_id(nxt) if nxt else None
         out["sections"]["rada"] = {
@@ -88,11 +78,7 @@ def overview(
             "bands": bands,
             "known_in_top": sum(b["known"] for b in bands),
             "top": bands[-1]["to"] if bands else 0,
-            # How many words the app can now translate. `gloss.stats` was
-            # written with no reader, which is the same defect as a measurement
-            # with no writer. This is the honest place for it: the store fills
-            # at the learner's own pace, so it is a fact about their reading,
-            # not about the app's inventory.
+            # How many words the learner can now see a translation for (`gloss.stats`).
             **_gloss_line(vocabulary),
         }
 

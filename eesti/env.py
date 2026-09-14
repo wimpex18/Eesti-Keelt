@@ -38,15 +38,8 @@ _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 def load(path: Path | None = None, override: bool = False) -> list[str]:
     """Read KEY=value lines into the environment. Returns the names it set.
 
-    Only names it actually set. That distinction is the point: a line reading
-    `export OPENROUTER_API_KEY=sk-...` -- which is what you get from copying
-    any shell instruction -- used to set a variable literally called
-    `"export OPENROUTER_API_KEY"`, report it as loaded, and leave the real key
-    unset. The grammar chain then ran in offline mode with the key apparently
-    configured, which is a confusion this project has already paid for once.
-
-    So `export ` is stripped, and a name that is not a legal environment
-    variable is skipped rather than set and announced.
+    A leading `export ` is stripped and invalid names are skipped, so a pasted shell
+    line sets the real variable and nothing is reported as loaded that was not.
     """
     path = Path(path or ENV_FILE)
     if not path.exists():

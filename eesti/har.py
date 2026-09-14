@@ -1,19 +1,11 @@
 """*Haridussõnastik* — EKI's education terms, with their Russian.
 
-4 989 articles, each an education term — `aabits`,
-`eksam`, `hinne` — with a definition and translations into English, German,
-Finnish and Russian. The shape is not EVS's: the headword is `P/ep/terg/ter`,
-one preferred term (`tyyp="ee"`) plus synonyms (`tyyp="sy"`, 1 235 of them),
-and the translations sit directly under `S`.
+Each article is a term (`aabits`, `eksam`, `hinne`) with translations. Headword
+at `P/ep/terg/ter`: a preferred term (`tyyp="ee"`) plus synonyms (`tyyp="sy"`);
+translations directly under `S`.
 
-What is used is the Russian, as the **last** fallback for a word card's gloss:
-EKI's general Estonian–Russian dictionary first, Sõnaveeb second, this third.
-It is a terminology list, so for a word EVS already covers it would be the
-narrower answer; it earns its place on the school and exam vocabulary a learner
-meets in HARNO's own material. The order is stated in `meaning.py`.
-
-Every term, preferred or synonym, points at its article's Russian. The table is
-`har_gloss` in the words database, and nothing else writes it.
+Only the Russian is used, as the last gloss fallback (order in `meaning.py`).
+Every term, preferred or synonym, maps to its article's Russian in `har_gloss`.
 """
 
 from __future__ import annotations

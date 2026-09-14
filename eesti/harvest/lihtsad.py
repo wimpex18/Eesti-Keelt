@@ -1,31 +1,13 @@
-"""ERR *Lihtsad uudised* — simplified Estonian news, and the only live source here.
+"""ERR *Lihtsad uudised* — simplified Estonian news, the one live reading source.
 
-## Why a live feed matters when three archives already exist
+Published weekly in plain Estonian for learners, so it keeps supplying current
+text while the other sources are fixed archives.
 
-Everything else harvested for reading is **frozen**. The ERR radio courses ended
-in 2019; Selges keeles is a fixed set of 349 posts. They are good material and
-they will say exactly the same thing in spring 2027.
-
-*Lihtsad uudised* is published weekly, in deliberately simplified Estonian, for
-people learning the language. It is the one source that keeps producing
-sentences about things that happened this month — which is what a reading exam
-tests and what a frozen archive cannot supply.
-
-## What is here, and what is not
-
-**Text: yes.** Roughly 500 words per issue, several short news items, written
-plainly. HTML entities and all — ERR serves `&uuml;` rather than `ü`, so the
-text needs unescaping before it is Estonian at all.
-
-**Audio: no, and not by choice.** The page says "listen and read", and the
-player is loaded by JavaScript after the fact: there is no `.mp3` or `.m3u8`
-anywhere in the HTML a plain request receives. Rather than pretend, these items
-carry no `audio_url` and the reading library treats them as text.
-
-Two paragraph filters earn their place. Each issue opens with the same English
-sentence explaining what the series is — useful to a first-time visitor, noise
-in a corpus of Estonian. And the share widget leaks its SVG attributes into the
-paragraph text, which would otherwise put `aria-label` into a reading exercise.
+- **Text:** several short items per issue; HTML entities (`&uuml;`) are
+  unescaped.
+- **No audio:** the player loads by JavaScript, and no audio URL is in the HTML,
+  so items are text only.
+- Filtered out: the recurring English series blurb, and share-widget SVG text.
 """
 
 from __future__ import annotations
@@ -37,9 +19,7 @@ from dataclasses import dataclass
 FEED = "https://news.err.ee/k/lihtsad-uudised"
 TIMEOUT = 45.0
 
-#: The value this module has always sent. Kept as it was rather than
-#: standardised: what a server has been seeing is not a detail to change
-#: while consolidating how the request is made.
+#: The User-Agent this harvester sends.
 UA = "Mozilla/5.0 (compatible; eesti-keelt)"
 #: Somebody else's newsroom, and this runs weekly at most.
 POLITE_DELAY = 1.0
@@ -131,11 +111,7 @@ def issue_urls(html: str | None = None) -> list[str]:
 
 
 def harvest(limit: int | None = None) -> list[Issue]:
-    """Fetch issues, politely, newest first.
-
-    `limit` exists because this is a live feed: a weekly refresh wants the last
-    few, not the whole back catalogue again.
-    """
+    """Fetch issues, politely, newest first; `limit` suits a weekly refresh."""
     urls = issue_urls()
     if limit is not None:
         urls = urls[:limit]
