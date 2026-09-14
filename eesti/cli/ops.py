@@ -14,15 +14,10 @@ from pathlib import Path
 from ._helpers import _row_of
 
 def cmd_notion(args: argparse.Namespace) -> int:
-    """Review queued errors and, only if asked, push them to the `Vead` log.
+    """Review queued errors and, only with `--push`, send them to the `Vead` log.
 
-    Dry-run by default, and that is the whole design. The Notion log's value is
-    that it is curated -- three rows sharing a tag become the focus of the week,
-    and that rule is what identified `obj-case` in the first place. A checker
-    that appended every suspicion would turn a hand-picked record into a dump of
-    model output and start the rule firing on noise.
-
-    So: this prints what would be sent. `--push` sends it.
+    Dry-run by default: the log is curated (three rows sharing a tag set the week's
+    focus), so nothing is sent without a decision.
     """
     from ..notion import connect, mark_pushed, pending, push
 
@@ -63,23 +58,10 @@ def cmd_notion(args: argparse.Namespace) -> int:
 def cmd_push_content(args: argparse.Namespace) -> int:
     """Send the harvested library to the deployment, once.
 
-    The corpus cannot ride along in the image: ERR transcripts are © ERR and
-    Selges keeles carries no reuse grant, so putting them inside an image built
-    from a public repository would be redistribution. And Cloud Run's disk is
-    ephemeral, so copying the file in by hand lasts until the next cold start.
-
-    So it goes where the learner's progress already goes -- held by the Worker,
-    pushed into each fresh container. Harvest on a laptop, push once, and no
-    deploy ever re-scrapes anyone's server again.
-
-    The target is the **Cloud Run origin**, not the Worker. Cloudflare Access
-    guards the Worker and Access is an interactive login, which a script cannot
-    satisfy; the origin is guarded by `PROXY_TOKEN`, which a script can send.
-    The Worker archives the corpus from there on its next look, so this survives
-    the cold start that wipes the disk.
-
-    Both tokens are read from the environment rather than taken as arguments, so
-    they stay out of shell history and out of the process table.
+    The corpus is owner-only (so not in the image) and Cloud Run's disk is
+    ephemeral, so the Worker keeps it and restores it to each fresh container. The
+    target is the Cloud Run origin (guarded by `PROXY_TOKEN`), since a script cannot
+    pass Cloudflare Access. Tokens come from the environment, never arguments.
     """
     import base64
     import json
@@ -110,18 +92,8 @@ def cmd_push_content(args: argparse.Namespace) -> int:
     if not items:
         print(f"{path} holds no items. Nothing to push.")
         return 2
-    # The same "count the rows" check the line above makes, applied to the
-    # other table that has to be populated for the corpus to do its job.
-    #
-    # `topic_items` is what `topiclinks.related()` reads, and `/api/practice`
-    # returns it as the `reading` beside every drill -- "the join that makes
-    # practice and the reading library one tool". Nothing fills it except
-    # `cli link-topics`, run by hand: no harvest calls it and no deploy step
-    # does, so a freshly harvested corpus pushes with the table empty, the
-    # drill's `reading` list comes back `[]`, and nothing anywhere says why.
-    #
-    # A warning and not a refusal: the texts are worth serving on their own,
-    # and a corpus whose linking genuinely found nothing is a legitimate state.
+    # Warn when `topic_items` is empty: only `cli link-topics` fills it, and without
+    # it every drill's `reading` list is empty. A warning, not a refusal.
     if not links:
         print(f"  WARNING: {path} has {items} items but no topic links, so no "
               "drill will offer anything to read.\n"
@@ -163,20 +135,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from .. import config
     from ..wordlist import available
 
-    # Two separate lessons in one line.
-    #
-    # `config.DB_PATH`, read here rather than a bare `DB_PATH`. The bare name
-    # was never imported into `cli.py`, so the one command every document in
-    # this repository tells you to run -- `python -m eesti.cli serve` -- raised
-    # `NameError: name 'DB_PATH' is not defined` before it reached uvicorn.
-    # Nothing caught it: `--help` proves the parser, and `serve` is the one
-    # command the read-only smoke list cannot run because it blocks.
-    #
-    # And `available`, not `exists`. This guard exists to stop the app starting
-    # against nothing, and existence is exactly the check an empty word list
-    # defeats: `cli status` before `cli build` used to leave one behind, and
-    # then this passed and served the whole app with a zero-word lexicon --
-    # every drill empty, every lookup missing, and no message anywhere.
+    # Refuse to serve without a word list that has rows (`available`, not `exists`):
+    # an empty file would serve the app with no lexicon and no message.
     if not available(config.DB_PATH):
         print("No database yet — run `python -m eesti.cli build` first.", file=sys.stderr)
         return 1
@@ -185,12 +145,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def register(sub) -> None:
-    """Add this group's commands to the subparser table.
-
-    Beside the handlers rather than a thousand lines away in one
-    argparse block: a flag and the code that reads it drift apart
-    when they cannot be seen together.
-    """
+    """Register this group's commands beside their handlers."""
     p = sub.add_parser(
         "notion",
         help="review queued errors; --push writes them to the Vead log",
