@@ -1,14 +1,7 @@
-"""Translations for the words drills actually use.
+"""Translations for the words drills use, shipped with the app.
 
-Measured across every generator on a fresh deployment: **0 %** of drill lemmas
-had a Russian translation. The gloss store fills one word at a time on demand
-from Sõnaveeb, so `etendus` stayed untranslated until somebody looked it up —
-and a B1 object-case drill on a word the learner cannot translate teaches
-morphology on a token. `CLAUDE.md` names that failure; nothing had closed it.
-
-`data/seed_glossary.tsv` ships with the app. It is **written, not scraped**:
-Sõnaveeb asks not to be batched, `sonapi` has no bulk helper by design, and
-seeding from it was never an option.
+`data/seed_glossary.tsv` is hand-written, not scraped (Sõnaveeb must not be
+batched), so drill words have Russian on a fresh deployment.
 """
 
 from __future__ import annotations
@@ -71,8 +64,7 @@ class TestTheFileItself:
 
 class TestLoading:
     def test_opening_the_store_loads_it(self, store):
-        """A loader nothing calls is this project's oldest recurring bug, so
-        seeding is wired into the one opener rather than left to a caller."""
+        """Seeding happens in the store's single opener."""
         n = store.execute(
             "SELECT COUNT(*) FROM word_gloss WHERE fetched = 'seed'").fetchone()[0]
         assert n > 200
@@ -97,8 +89,7 @@ class TestLoading:
         assert row[0] == "настоящий ответ" and row[1] == "2026-08-21"
 
     def test_the_source_stays_distinguishable(self, store):
-        """So a later session asking where a translation came from gets an
-        answer rather than assuming Sõnaveeb said it."""
+        """Seeded rows are marked `fetched = 'seed'`."""
         row = store.execute(
             "SELECT fetched FROM word_gloss WHERE lemma='raamat'").fetchone()
         assert row and row[0] == "seed"
@@ -149,10 +140,9 @@ class TestItCoversWhatDrillsActuallyAsk:
 
 class TestItShipsInTheImage:
     def test_the_dockerfile_copies_the_file_gloss_reads(self):
-        """The builder's `data/` is build output; a tracked file under `data/`
-        reaches the runtime image only if it is copied by name. It was not, so
-        production never had the seed. Derived from `gloss.SEED`, so moving the
-        file without moving the COPY fails here."""
+        """The Dockerfile copies the seed file into the runtime image (derived from
+        `gloss.SEED`).
+        """
         from pathlib import Path
 
         from eesti import gloss

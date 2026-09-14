@@ -1,7 +1,5 @@
-"""Test-out and placement.
-
-`ask` is injected, so these drive the real generators and the real progress
-database without pretending to be a terminal.
+"""Test-out and placement, with `ask` injected so the real generators and progress
+database are used.
 """
 
 from __future__ import annotations
@@ -41,9 +39,7 @@ class TestProbe:
         assert is_mastered(db, "kusisonad")
 
     def test_one_mistake_is_not_enough(self, db):
-        """Stricter than the 8-of-10 practice gate, and deliberately so: this is
-        used to skip the work, and a false pass removes a topic from the course
-        while a false fail costs one session."""
+        """The probe bar (5 of 5) is stricter than the practice gate (8 of 10)."""
         calls = {"n": 0}
 
         def almost(item):
@@ -106,13 +102,8 @@ class TestSweep:
         reached = {r.topic for r in results}
         asked = {r.topic for r in results if r.ran}
 
-        # The noun branch is entered at `pohivormid` now, not `gen-stem`.
-        # `pohivormid` gained a generator, so it stopped being a free-pass
-        # reference topic and became the prerequisite it was always declared to
-        # be -- which is the point of building one. It is *reached* rather than
-        # *asked* here only because the shared fixture wordlist carries no
-        # `object_cases` rows for it to draw on; `cli build` populates those on
-        # any real deployment.
+        # The noun branch is entered at `pohivormid`, a real prerequisite; the fixture word
+        # list has no `object_cases`, so it is reached rather than asked.
         assert {"pohivormid", "gen-stem"} & reached, sorted(reached)
         assert asked & {"olevik", "verb-form"}   # and the verb branch was asked
         assert {"olevik", "verb-form"} <= mastered(db)
@@ -155,11 +146,7 @@ class TestSweep:
     def test_candidates_are_drillable_and_unblocked(self, db):
         for topic in candidates(db):
             assert topic.generator is not None
-            # Derived, not listed. This was the literal set
-            # `{"pohivormid", "lauseehitus"}` -- a hand-kept copy of "topics
-            # that cannot gate because nothing can drill them", which went
-            # stale the moment `pohivormid` got a generator. `reference_topics`
-            # is where that set actually lives.
+            # Reference topics come from `progress.reference_topics()`.
             from eesti.progress import reference_topics
 
             assert set(topic.requires) <= reference_topics() | mastered(db)

@@ -1,19 +1,9 @@
-"""What a 429 costs, and why retrying one is usually wrong here.
+"""When to retry a 429.
 
-The deployment reported `llm:openrouter: HTTPError 429` on three consecutive
-days. The free tier allows **20 requests a minute and 50 a day**, and — the
-part that decides this design — **a failed attempt still counts against the
-daily quota**.
-
-So when the daily cap is what was hit, every retry spends another of the fifty
-to be told the same thing. At `RETRIES = 3` a single grammar check cost three
-requests and made the learner wait 5 s then 10 s to reach the answer the first
-call already had. Ten checks a day would have spent 30 of the 50 on failures
-alone.
-
-Two different limits wear one status code, and only one of them is worth
-sleeping through. The provider is the only thing that knows which, and it says
-so in `Retry-After`.
+On OpenRouter's free tier a failed attempt counts against the daily quota, so
+retrying a daily-cap 429 spends quota to learn nothing. Only a short
+`Retry-After` (the per-minute cap) is worth waiting for; otherwise the chain
+falls through.
 """
 
 from __future__ import annotations
@@ -64,17 +54,14 @@ class TestWhatARateLimitCosts:
         assert len(calls) == 1, f"spent {len(calls)} requests on a spent quota"
 
     def test_an_unexplained_429_is_not_retried_either(self, monkeypatch):
-        """With no header there is no way to tell which cap it was, and
-        guessing costs quota. Falling through the chain is cheap; that is what
-        the chain is for."""
+        """No `Retry-After`: do not retry; fall through."""
         calls = _count_calls(monkeypatch, http_error())
         with pytest.raises(urllib.error.HTTPError):
             llm.complete("openrouter", "sa oled abiline", "hei")
         assert len(calls) == 1
 
     def test_a_short_wait_is_retried(self, monkeypatch):
-        """The per-minute cap clears on its own and is worth sleeping through
-        — this is the 429 that retrying was written for."""
+        """A short wait (the per-minute cap) is retried."""
         calls = _count_calls(monkeypatch, http_error(
             headers={"Retry-After": "2"}))
         with pytest.raises(urllib.error.HTTPError):

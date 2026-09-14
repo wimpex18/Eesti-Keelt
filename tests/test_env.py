@@ -1,20 +1,7 @@
-"""Loading API keys, and the two promises the module's docstring makes.
+"""Loading API keys from `.env`.
 
-`env.py` sat at 37 % coverage with `load()` — the function that reads secrets
-off disk — untested end to end. Reading it found a defect of exactly the shape
-this project has already paid for once: a key that appears to be set and is
-not.
-
-A `.env` line reading `export OPENROUTER_API_KEY=sk-...`, which is what you
-get from copying any shell instruction, set an environment variable literally
-named `"export OPENROUTER_API_KEY"`. Nothing can read that back, so the real
-key stayed unset — and `load()` announced it as loaded. The grammar chain then
-ran in offline mode with the key apparently configured, which is the entry in
-CLAUDE.md that begins "and a fourth".
-
-The docstring also makes two claims that are facts about the code rather than
-prose, so they are pinned here: an explicitly exported variable always wins,
-and nothing in this module ever prints a key.
+A pasted `export NAME=value` line sets `NAME`; an exported variable always wins;
+nothing prints a key.
 """
 
 from __future__ import annotations
@@ -60,8 +47,7 @@ class TestTheKeyThatLookedSetAndWasNot:
     @pytest.mark.parametrize("line", ["9INVALID=x", "BAD-NAME=y", "HAS SPACE=z",
                                       "=novalue"])
     def test_an_illegal_name_is_skipped_not_announced(self, env_file, line):
-        """Skipped *and* absent from the return value. Reporting a key as
-        loaded when it was not is the whole bug."""
+        """An invalid name is skipped and not reported as loaded."""
         assert env.load(env_file(line + "\n")) == []
 
     def test_a_legal_name_beside_an_illegal_one_still_loads(self, env_file):
