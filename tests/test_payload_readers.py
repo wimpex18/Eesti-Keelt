@@ -1,27 +1,8 @@
-"""Every field an endpoint returns, checked against something that reads it.
+"""Every field an endpoint returns has a reader on the page.
 
-`tests/test_route_inventory.py` asks whether each *route* has a caller. This
-asks the same question one level finer: does each **field** have a reader? The
-two failures are the same shape, and this project has now found both — an
-endpoint nothing called (`/api/modes`), and fields nothing read.
-
-Found on 2026-08-22 by enumerating live responses and grepping the page:
-
-- `/api/exam/{level}` returned `muu`, the bucket `exam_material` fills with
-  every kind no named group claimed, precisely so nothing is lost. The page
-  rendered the five named groups and dropped the bucket, so a kind the
-  harvesters had not been taught about would vanish from that screen without a
-  trace. Only `konsultatsioon` lands there today and it has its own tab, which
-  is exactly why nobody noticed.
-- `/api/readiness/{level}` returned `grammar.outstanding` — the exact topics
-  standing between this learner and this level, the most actionable thing the
-  verdict computes — and `vocabulary`, and `deadline.note`, the sentence that
-  explains an empty countdown. None reached the screen.
-- `/api/review/stats` returned `struggling`: the words that keep coming back
-  wrong. A count says the queue is working; the names say what to look at.
-- `/api/reading/next` returned `unmeasurable`, counted by its own comment
-  "rather than silently dropped" — and then dropped by the page, restoring the
-  contradiction it was added to prevent.
+`tests/test_route_inventory.py` checks routes have callers; this checks fields
+do, so computed values (e.g. `muu`, `grammar.outstanding`, `struggling`,
+`unmeasurable`) actually reach the screen.
 """
 
 from __future__ import annotations
@@ -76,12 +57,8 @@ def page() -> str:
 
 
 def reads(page: str, key: str) -> bool:
-    """Does the page mention this field at all?
-
-    Deliberately generous — property access, destructuring, a string key. The
-    question being asked is "is this field wired to anything", and a false
-    *pass* on a field that is mentioned but unused is a far cheaper mistake
-    than a false failure on every destructured name.
+    """Does the page mention this field at all? Deliberately generous (property access,
+    destructuring, string keys).
     """
     return re.search(r'[.\["\'{,\s]' + re.escape(key) + r'\b', page) is not None
 
@@ -110,19 +87,9 @@ class TestEveryFieldHasAReader:
 
 
 class TestTheFieldsThisWasWrittenFor:
-    """Driven in a browser, because the question is whether a value reaches
-    the screen and no amount of grepping can answer that.
+    """Driven in a browser: a string match cannot prove a value is displayed."""
 
-    The string version of these was written first and two of the five passed
-    with the rendering disabled -- `if (false) { ... material.muu.map(...) }`
-    still contains the words `material.muu`. A matcher generous enough to
-    survive destructuring is far too generous to prove a value was displayed.
-    That is the same vacuity this suite has now caught four times, and the
-    browser is the only reader that cannot be fooled by it.
-    """
-
-    #: Payloads shaped like the real ones, each carrying a value that used to
-    #: be computed and dropped. The marker strings are what must appear.
+    #: Payloads shaped like the real ones; each marker string must appear on screen.
     STUBS = {
         "**/api/exam/**": ({
             "level": "B1", "sooritusnaidis": [], "video": [], "kirjeldus": [],
@@ -150,13 +117,9 @@ class TestTheFieldsThisWasWrittenFor:
     @pytest.fixture(scope="class")
     @classmethod
     def screen(cls, live_server, chromium_path):
-        """Every stubbed panel's rendered text, in one browser session.
-
-        Run on a thread of its own. `TestClient` leaves an asyncio event loop
-        installed in the thread it ran on, and Playwright's sync API refuses to
-        start inside one -- so this passed alone and failed in the full suite,
-        purely because of which modules had run first. A fresh thread has no
-        loop, which makes the outcome independent of test order.
+        """Every stubbed panel's rendered text, in one browser session, run on its own
+        thread (Playwright's sync API refuses a thread with an asyncio loop left by
+        `TestClient`).
         """
         from concurrent.futures import ThreadPoolExecutor
 
@@ -175,10 +138,8 @@ class TestTheFieldsThisWasWrittenFor:
             page = browser.new_context(viewport={"width": 1280, "height": 1000}).new_page()
             errors: list[str] = []
             page.on("pageerror", lambda e: errors.append(str(e)))
-            # A factory, not `lambda route, b=body:`. Playwright inspects the
-            # handler's arity and calls a two-parameter one as (route,
-            # request) -- so the default argument was overwritten with a
-            # Request object and every stub tried to serialise it.
+            # A factory, not a lambda with a default argument: Playwright calls a
+            # two-parameter handler as (route, request).
             def stub(payload):
                 def handler(route):
                     route.fulfill(status=200, content_type="application/json",
@@ -193,10 +154,8 @@ class TestTheFieldsThisWasWrittenFor:
             page.goto(live_server, wait_until="domcontentloaded")
             page.wait_for_selector('button[data-mode="exam"]', timeout=15000)
 
-            # Waits on the panel, never on the elements under test: a fixture
-            # that waits for the thing it is about to assert turns every real
-            # failure into a fixture error, which reads as a broken test rather
-            # than a broken page.
+            # Wait on the panel, never on the elements under test, so a missing value fails
+            # the assertion rather than the fixture.
             page.click('button[data-mode="exam"]')
             page.wait_for_selector("#tab-exam:not([hidden])", timeout=15000)
             page.wait_for_timeout(900)
@@ -265,10 +224,8 @@ class TestTopicIdsNeverReachTheLearner:
         joined = " ".join(body["reasons"])
         assert joined, "no reasons — nothing checked"
 
-        # Names first, then ids in what is left. `umbisikuline tegumood` is a
-        # real topic name that *begins* with its own id, so searching the raw
-        # string for bare ids flags a correct label -- which is what the first
-        # version of this test did.
+        # Replace names first, then look for bare ids (a real topic name can begin with
+        # its own id).
         rest = joined
         for topic in sorted(TOPICS, key=lambda t: -len(t.et)):
             rest = rest.replace(topic.et, " ")
