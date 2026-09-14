@@ -1,36 +1,13 @@
 """Themes: the unit that carries grammar and vocabulary at the same time.
 
-Step 6, and the idea is Keeleklikk's. Its sixteen chapters are *situations* —
-greetings, food, family, shopping, health, work — and grammar arrives **in
-service of one**: the chapter that needs the partitive teaches the partitive.
-The learner is not doing a case exercise, they are ordering food, and the case
-comes along with the words.
+As in Keeleklikk, grammar arrives in service of a situation (food, travel,
+work). Here theme and rule are separate axes that recombine freely:
+`täissihitis × toit` drills object case over food words.
 
-Everything else in this app is generated, so this can do something a fixed
-course cannot: **theme and grammar rule are separate axes and recombine
-freely.** `täissihitis × toit` drills the object case over food words;
-`lihtminevik × reisimine` drills the past tense over travel words. Sixteen
-chapters becomes eleven themes times twenty-one drillable topics, from the same
-generators, without writing a single new lesson.
-
-## The word lists are hand-picked, and that is the right call
-
-Every other list in this project earns its place by being derived — corpus
-frequency, Vabamorf synthesis, EKK's own tables. A theme is not derivable:
-"which words belong to *food*" is a curatorial judgement, and Keeleklikk's
-authors made it by hand too.
-
-What is **not** left to judgement is whether the words are real. Every lemma
-here is checked against the 160 316-word Ekilex list at load, and anything it
-does not know is dropped and reported rather than silently drilled. That check
-already earned itself: the first draft had `kindad`, `kingad`, `saapad`,
-`sokid` — plural-only forms where the lexicon lists `kinnas`, `king`, `saabas`,
-`sokk`, and a generator asked for the genitive of `kingad` would have produced
-something no one says.
-
-Untagged words are kept. Only 6.2 % of Ekilex lemmas carry a CEFR level, so a
-missing tag is an absence of evidence, not evidence of difficulty — but a word
-tagged *above* the learner's level is dropped, because that is evidence.
+The word lists are hand-picked (theme membership is curatorial), but every
+lemma is checked against the Ekilex word list at load; unknown words are dropped
+and reported (plural-only forms like `kingad` are caught). Untagged words are
+kept; words tagged above the learner's level are dropped.
 """
 
 from __future__ import annotations
@@ -106,11 +83,8 @@ THEMES: tuple[Theme, ...] = (
        "sadama puhuma paistma külmetama"),
 )
 
-# Substances and abstractions: real words, and not things you can have two of.
-# The numeral drill produced *"Mul on kaks riisi"* — I have two rice — because a
-# theme's nouns were treated as countable by construction. Countability is not
-# derivable from the word list, and it is not guessable from the theme either:
-# `toit` holds both `kook` (countable) and `suhkur` (not).
+# Uncountable nouns (substances, abstractions), excluded from numeral drills:
+# countability cannot be derived from the word list or the theme.
 UNCOUNTABLE: frozenset[str] = frozenset({
     "piim", "vesi", "kohv", "tee", "mahl", "riis", "sool", "suhkur", "või",
     "liha", "leib", "sai", "juust", "töö", "tervis", "valu",
@@ -126,11 +100,7 @@ def by_id(theme_id: str) -> Theme:
 
 
 def validate(conn: sqlite3.Connection) -> dict[str, list[str]]:
-    """Lemmas no lexicon knows, per theme. Empty dict means every word is real.
-
-    Called by the tests, and cheap enough to call anywhere. This is the check
-    that caught `kingad`.
-    """
+    """Lemmas no lexicon knows, per theme; an empty dict means every word is real."""
     known = {r[0] for r in conn.execute("SELECT word FROM words")}
     return {
         theme.id: [w for w in theme.lemmas if w not in known]
@@ -145,11 +115,8 @@ def lemmas_for(
     levels: tuple[str, ...] = LEVELS,
     pos: str | None = None,
 ) -> list[str]:
-    """The theme's words, filtered to what exists and is not above the level.
-
-    An untagged word is kept: only 6.2 % of Ekilex lemmas carry a CEFR level, so
-    a missing tag says nothing about difficulty. A word tagged *above* the
-    target is dropped, because that does.
+    """The theme's words that exist and are not tagged above the level (untagged words
+    are kept).
     """
     theme = by_id(theme_id)
     wanted = theme.nouns if pos == "s" else theme.verbs if pos == "v" else theme.lemmas

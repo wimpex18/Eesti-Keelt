@@ -1,9 +1,7 @@
 """The vocabulary ladder: browsing it, and moving a word up it.
 
-`POST /api/vocab/known` is the only way a word can become known from the
-deployment — its other caller is the CLI, which does not run there. That made
-it the worst orphan this project has had, and is why every route now has to
-have a caller (`tests/test_route_inventory.py`).
+`POST /api/vocab/known` is the only way a word becomes known on the deployment;
+every route must have a caller (`tests/test_route_inventory.py`).
 """
 
 from __future__ import annotations
@@ -18,12 +16,8 @@ router = APIRouter()
 class KnownWords(BaseModel):
     lemmas: list[str] = Field(min_length=1, max_length=200)
     long_known: bool = False
-    #: `known` (default), `long_known`, or `ignore`. The ladder has five values
-    #: and until now only two had any writer: `õpin`, set automatically on the
-    #: first encounter while reading, and `tean`, set by the button. `eiran`,
-    #: `teadsin ammu` and `tuttav` were modelled, stored, counted — and
-    #: unreachable, which is this project's most recurring bug wearing another
-    #: hat.
+    #: `known` (default), `long_known`, or `ignore` — the three settled statuses the
+    #: learner sets. `õpin` is set by meeting a word while reading.
     status: str | None = None
 
 
@@ -35,20 +29,10 @@ def vocab_browse(
     limit: int = 60,
     offset: int = 0,
 ) -> dict:
-    """Browse the wordlist. The app could look a word up and could not list any.
+    """Browse the word list by level, part of speech and the learner's status.
 
-    A learner cannot ask for a word they have not met, which is precisely the
-    set worth studying, so lookup-only made 160 316 words reachable only by
-    somebody who already knew what was in there. Filters are level, part of
-    speech and what the learner has already marked.
-
-    Needs the built wordlist, and asks whether one exists rather than opening
-    the path and trusting it: `wordlist.connect` creates the file and applies
-    the schema, so an unbuilt path hands back a complete-looking database with
-    no words in it, which reads as "the vocabulary is empty" rather than
-    "nothing has been built here". This used to borrow `cli.words_db` for that
-    -- the web app reaching into the command line tool for a database opener,
-    and printing its instruction to the server log where nobody reads it.
+    Checks `wordlist.available` first, so an unbuilt path reports "nothing built"
+    rather than an empty vocabulary.
     """
     from .. import vocab as vocab_mod
     from ..wordlist import available
@@ -73,17 +57,8 @@ def vocab_browse(
 def vocab_known(req: KnownWords) -> dict:
     """Settle a word: known, long known, or not worth studying.
 
-    Marking a word known is an explicit act — never inferred from reading. A
-    word skimmed past is not a word learned, and a counter that inflates itself
-    measures reading rather than vocabulary.
-
-    `ignore` is the one a vocabulary list needs and a reader does not. Browsing
-    B1 nouns turns up `riigivisiit` and `seinamaaling`: real words, correctly
-    listed, and not what this learner is going to spend a morning on. Without a
-    way to say so they come back on every page and the "still to learn" count
-    never means anything. All three are *settled* — the app stops proposing
-    them — and they stay distinguishable, because "I know this" and "this is
-    not for me" are different facts about a learner.
+    Always an explicit act, never inferred from reading. `ignore` removes words the
+    learner will not study from lists and counts; all three are distinct facts.
     """
     from ..vocab import IGNORED, KNOWN, WELL_KNOWN, set_status
 
