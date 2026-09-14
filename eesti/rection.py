@@ -1,46 +1,13 @@
-"""Verb government (rektsioon), from the list EKI keeps of the ones people get wrong.
+"""Verb government (rektsioon), from EKK SÜ 64: "Rektsioone, milles sageli eksitakse".
 
-Rection is the **second-largest error class** in the EVKK learner corpus — 5 170
-annotated marks, 10 % of everything, against object case's 1.3 %. It is also the
-error a Russian speaker is structurally set up to make, because the Estonian case
-and the Russian preposition rarely line up: *mõtlema **millele*** where Russian
-says *думать **о чём***.
+Rection is a large learner error class, and a natural one for a Russian speaker
+(*mõtlema millele* vs *думать о чём*). EKK's table lists the headword, the
+correct case frame and, starred, the frame people write instead — so both the
+answer and the distractor come from the handbook.
 
-## Why not fetch this from a dictionary
-
-`providers/sonapi.py` returns the rection of any single verb, and the obvious
-move is to walk the ~130 indexed A1-B1 verbs and collect them. That module says,
-in its own docstring, single lookups only and deliberately no bulk helper —
-Sõnaveeb's maintainers ask not to be batch-requested, and reinterpreting my own
-constraint the moment it becomes inconvenient is how that kind of rule dies. So
-sonapi stays interactive: it enriches a word the learner is actually looking at.
-
-The bulk source is better anyway. **EKK SÜ 64 is titled "Rektsioone, milles
-sageli eksitakse"** — *rections that are often got wrong* — and it is a table of
-exactly that: headword, the correct case frame, and, starred, the wrong one.
-An authority's own error list, on one page, fetched once.
-
-That is a considerably better drill source than a dictionary dump, because the
-wrong answer does not have to be invented. `kohanema` governs *millega*, and EKK
-records that people write *millele*; the drill is that contrast, and both halves
-come from the handbook rather than from me.
-
-## What is stored, and what is not
-
-Stored: **headword, correct frame, marked wrong frame** — lexical facts about
-which case a verb takes. Not stored: EKK's example sentences, which are the
-handbook's own prose. Drills are built over the harvested corpus instead, so
-nothing is reproduced and the sentences are at the learner's level rather than
-the handbook's.
-
-## The honest size of it
-
-62 entries, 30 with a marked error, and **11 of those 30 are A1-B1** — the rest
-are B2 vocabulary like *baseeruma* and *proportsionaalne*, which are filed and
-filtered out rather than drilled at the wrong level. Eleven is a small set. It is
-also eleven contrasts that a state-published grammar says learners get wrong, for
-the error class the learner corpus ranks second, which is a better place to start
-than a hundred rections nobody struggles with.
+Fetched once by `cli rections` (not from Sõnaveeb, which must not be batched).
+Stored: headword, correct frame, starred wrong frame. Not stored: EKK's example
+sentences. Only headwords at the learner's level are drilled.
 """
 
 from __future__ import annotations
@@ -112,12 +79,8 @@ def _frames(text: str) -> list[str]:
 
 
 def parse(page: str) -> list[Rection]:
-    """Rections with a marked error, from EKK's own table.
-
-    Entries whose frame is not a case — `millal` (when), `mis ajast` (from when),
-    or a postposition like `kelle vastu` — are dropped rather than forced into a
-    case slot. They are real rules, but they are not a case contrast, and a drill
-    that pretends otherwise would be teaching the wrong thing.
+    """Rections with a marked error, from EKK's table. Frames that are not a case
+    (`millal`, postposition phrases) are dropped.
     """
     start = page.rfind(SECTION)
     if start < 0:
@@ -148,10 +111,8 @@ def parse(page: str) -> list[Rection]:
         if len(correct) != 1 or len(wrong) != 1:
             continue
 
-        # The tail can license the very case the star rejects: `kindel milles
-        # (*millele) kellele ~ kelle peale` stars the allative for things and
-        # then allows it for people. Same case on both sides is a contradiction,
-        # not a contrast.
+        # The tail can license the starred case for another argument; the same case on
+        # both sides is a contradiction, not a contrast.
         wrong_case = FRAME_CASES[wrong[0]]
         if any(FRAME_CASES[f] == wrong_case for f in _frames(tail)):
             continue
@@ -199,14 +160,7 @@ CREATE TABLE IF NOT EXISTS rections (
 
 
 def load(conn) -> list[Rection]:
-    """Read the stored table. **No network** — that is the whole point.
-
-    `fetch` belongs to a deliberate, one-time `cli rections` run. Calling it
-    from a lesson made a practice session depend on EKI being reachable, and
-    CI proved the point by getting a 403 from a GitHub runner: a drill that
-    cannot run because someone else's server is having a bad minute is exactly
-    what this project claims not to build.
-    """
+    """Read the stored table, with no network; `fetch` belongs to `cli rections`."""
     conn.executescript(SCHEMA)
     return [
         Rection(r[0], r[1], r[2], r[3], r[4])
@@ -235,11 +189,8 @@ def store(conn, rections: list[Rection]) -> int:
 
 
 def at_levels(conn, rections: list[Rection], levels: tuple[str, ...]) -> list[Rection]:
-    """Keep the rections whose headword is at the learner's level.
-
-    Two thirds of EKK's list is B2 vocabulary. Drilling *baseeruma* at A2 teaches
-    a case frame attached to a word the learner will not meet, which is effort
-    spent on the wrong half of the problem.
+    """Keep the rections whose headword is at the learner's level; most of EKK's list
+    is B2 vocabulary.
     """
     if not rections:
         return []
@@ -259,35 +210,15 @@ def at_levels(conn, rections: list[Rection], levels: tuple[str, ...]) -> list[Re
 # Checking free writing: EVKK's `&err-gov`
 # ---------------------------------------------------------------------------
 #
-# Rection is the second-largest class in the learner corpus — 5 170 marks
-# against object case's 653 — and until now this module could only *drill* it.
+# General rection checking needs valency (syntax). SÜ 64 lists specific attested
+# confusions, so this is a lookup. All three must hold:
 #
-# **What makes this checkable at all.** General rection checking needs valency:
-# which noun phrase is this verb's complement, and is its case one the verb
-# permits. That is syntax, and this project has morphology — the same wall
-# `object_case_candidates` refuses to climb.
+#   1. the headword is one of EKK's attested contrasts;
+#   2. a word in its own clause stands in the starred wrong case;
+#   3. nothing in that clause stands in the correct case.
 #
-# EKK SÜ 64 sidesteps it by being a list of *specific attested confusions*. It
-# does not say "kohanema takes the comitative"; it says **people write
-# `millele` where `millega` belongs**. So the question here is not "is this
-# case valid" but "is this the exact case EKK records as the mistake" — which
-# is a lookup, not an analysis.
-#
-# Three conditions, all of which must hold, because a checker that invents
-# errors teaches that correct Estonian is wrong:
-#
-#   1. the headword is one of EKK's 23 attested contrasts;
-#   2. a word **in its own clause** stands in the starred wrong case;
-#   3. **nothing** in that clause stands in the correct case — if the right
-#      complement is there too, the flagged word is something else's.
-#
-#: Clause boundaries, which are where a complement search has to stop.
-#:
-#: Estonian marks subordinate clauses with a comma far more reliably than
-#: English does, so this is a real boundary rather than a guess. Without it,
-#: "Ma kirjutasin sõbrale, et süsteem põhineb loogikal" flags `sõbrale` —
-#: allative, `põhinema`'s starred wrong case — from the other side of a comma,
-#: while the actual complement `loogikal` sits correctly beside the verb.
+# Clause boundaries, where a complement search stops (Estonian reliably marks
+# subordinate clauses with a comma).
 _CLAUSE_SPLIT = ";:,"
 
 
@@ -321,13 +252,8 @@ def _clauses(tokens: list) -> list[list]:
 
 
 def _case_of(form: str | None) -> str:
-    """The case, without the number.
-
-    EKK writes its frames as singular question words — `millega`, `millele` —
-    so `FRAME_CASES` stores `sg kom` and `sg all`. A learner writes about more
-    than one thing as readily as one: `põhineb faktidele` is `pl all`, and
-    comparing whole tags meant every plural complement went unchecked. **The
-    case is the claim; the number is the learner's business.**
+    """The case without the number: EKK's frames are singular, but a plural complement
+    is checked the same way.
     """
     return (form or "").split(" ")[-1]
 
@@ -336,20 +262,14 @@ def _number_of(form: str | None) -> str:
     return (form or "sg ").split(" ")[0] or "sg"
 
 
-#: Parts of speech that agree with a noun inside its phrase.
-#:
-#: `kohanema uuele olukorrale` is one complement, not two candidates — the
-#: adjective is in the allative because the noun is. Counting them separately
-#: made every modified noun phrase look ambiguous and skipped it, which is how
-#: the first version of this check fired on nothing at all.
+#: Parts of speech that agree with a noun inside its phrase, so `uuele olukorrale`
+#: counts as one complement.
 _MODIFIERS = frozenset({"A", "P", "N", "O", "G"})
 
 
 def errors(text: str, rections: list[Rection]) -> list[Misgovernment]:
     """Attested rection confusions in free writing, with the case that belongs.
-
-    `rections` is passed in rather than loaded here so the caller owns the
-    database handle — the same reason `library` takes a connection.
+    `rections` is passed in so the caller owns the database handle.
     """
     from .morph import analyze, split_sentences
 
@@ -398,11 +318,7 @@ def errors(text: str, rections: list[Rection]) -> list[Misgovernment]:
 
 
 def _synthesize(lemma: str, case: str) -> str:
-    """The complement in the case the handbook says belongs there.
-
-    Vabamorf, so the suggestion is generated by the same call that produces
-    every drill answer rather than assembled from an ending table.
-    """
+    """The complement in the correct case, synthesised by Vabamorf."""
     from estnltk.vabamorf.morf import synthesize
 
     forms = synthesize(lemma, case, "S") or []

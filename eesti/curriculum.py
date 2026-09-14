@@ -1,35 +1,17 @@
 """The syllabus as data: topics, what they need first, and what drills them.
 
-This is the spine of the learning path. It declares nothing about the UI and
-runs nothing; it says **what there is to learn, in what order the language
-itself permits, and which generator can produce practice for it.**
+Declares what there is to learn, in the order the language permits, and which
+generator practises it; no UI, no execution.
 
-Why a graph rather than a list
-------------------------------
-Estonian makes prerequisite ordering unusually real. Every case except nominative
-and partitive is built from the **genitive stem**, so a learner who cannot form
-`raamatu` cannot form eleven other cases either. That is not a pedagogical
-opinion to be argued about — it is how the morphology works. So the order comes
-out of a dependency graph instead of being hand-sequenced, and `order()` derives
-it. Where the language imposes no dependency, none is invented: topics with the
-same prerequisites are free to be taken in any order, and the tie is broken by
-how often learners actually get them wrong.
+**A graph, not a list.** Every case except nominative and partitive is built on
+the genitive stem, so prerequisites are real; `order()` derives the path.
 
-Where the levels come from
---------------------------
-The A1 and B1 topic sets (see `docs/curriculum.md`) are taken
-from Estonian course curricula that agree because they track the same state
-standard. **A2 is a judgement call**, and worth flagging as one: the sources
-tabulate A1 and B1, so the topics conventionally taught in between — conditional,
-perfect, comparison, ordinals — are placed at A2 here. If that split is wrong it
-is wrong in the direction of seeing a topic slightly early, which the mastery
-gate (step 3) absorbs.
+**Levels.** A1 and B1 topic sets follow Estonian course curricula
+(`docs/curriculum.md`). A2 placement (conditional, perfect, comparison,
+ordinals) is a judgement call; the mastery gate absorbs a slightly early topic.
 
-`generator=None` is not an oversight
-------------------------------------
-Most topics have no generator yet — that is the honest state of the app, and
-step 2 of the plan is precisely the work of filling them in. Declaring the topic
-anyway is what lets `coverage()` report the gap instead of hiding it.
+**`generator=None`** marks a topic with no drill yet, so `coverage()` can report
+the gap.
 """
 
 from __future__ import annotations
@@ -39,15 +21,9 @@ from dataclasses import dataclass
 from .config import LEVELS, TAGS
 from .grammar import REFERENCES
 
-# How often each error tag is annotated in EVKK's learner corpus, as a share of
-# the 51 467 marks it publishes. A recorded snapshot (2026-08), used only to
-# break ties between topics the graph leaves unordered — never as a claim about
-# this learner. `python -m eesti.cli evkk` recomputes it from the live page.
-#
-# It is a share of *annotations*, not of learner errors: parent categories
-# absorb marks a finer child would have taken, and 40.7 % of marks fall outside
-# these nine tags entirely. Good enough to order two topics; not good enough to
-# quote.
+# EVKK annotation share per error tag: a recorded snapshot used only to break ties
+# the graph leaves free (`python -m eesti.cli evkk` recomputes it). Annotation
+# shares, not error rates.
 CORPUS_WEIGHT: dict[str, float] = {
     "vocab": 24.2,
     "word-order": 11.4,
@@ -210,10 +186,8 @@ def at_level(level: str) -> tuple[Topic, ...]:
 
 
 def validate() -> None:
-    """Fail loudly on a malformed graph. Called by the tests, cheap enough to call anywhere.
-
-    A dangling prerequisite or a cycle would make `order()` silently drop topics,
-    which is exactly the kind of quiet omission a syllabus must not have.
+    """Fail loudly on a malformed graph: a dangling prerequisite or a cycle would make
+    `order()` drop topics silently.
     """
     seen: set[str] = set()
     for topic in TOPICS:
@@ -243,19 +217,9 @@ _DECLARED: dict[str, int] = {t.id: i for i, t in enumerate(TOPICS)}
 def order(topics: tuple[Topic, ...] = TOPICS) -> list[Topic]:
     """The study path: what the graph permits, sequenced the way a course would.
 
-    Kahn's algorithm with a sorted ready set — level first, then **declaration
-    order**, which is the authored textbook sequence in the tables above.
-
-    Declaration order is the tie-break rather than corpus weight, because the two
-    answer different questions and mixing them produced nonsense: weighting the
-    path by error frequency put irregular verb stems before the genitive and left
-    the alphabet until last. *What to learn next* is a sequencing question the
-    course curricula already answer; *what to practise hardest* is what error
-    frequency answers, and that is `practice_order()`.
-
-    The graph stays the hard constraint. Declaration order only chooses among
-    topics it has left genuinely free, so reordering the tables can never produce
-    a sequence that teaches a case before the stem it is built from.
+    Kahn's algorithm with a sorted ready set — level first, then declaration order
+    (the textbook sequence in the tables above). Error frequency answers a
+    different question, in `practice_order()`. The graph stays the hard constraint.
     """
     pending = {t.id: set(t.requires) & {x.id for x in topics} for t in topics}
     pool = {t.id: t for t in topics}
@@ -278,10 +242,8 @@ def order(topics: tuple[Topic, ...] = TOPICS) -> list[Topic]:
 
 
 def available(known: set[str], topics: tuple[Topic, ...] = TOPICS) -> list[Topic]:
-    """Topics whose prerequisites are all satisfied and which are not yet known.
-
-    This is what "where do I go next" resolves to, and what a skipped topic
-    unlocks — skipping is just adding to `known` without doing the lesson.
+    """Topics whose prerequisites are satisfied and which are not yet known; skipping a
+    topic is adding it to `known`.
     """
     return [
         t for t in order(topics)
@@ -290,13 +252,8 @@ def available(known: set[str], topics: tuple[Topic, ...] = TOPICS) -> list[Topic
 
 
 def practice_order(topics: list[Topic] | tuple[Topic, ...] = TOPICS) -> list[Topic]:
-    """The same topics ranked by how much trouble they cause, not by sequence.
-
-    Answers "which of the things I could study now is worth the most practice"
-    and "which generator should be built next" — the question `CORPUS_WEIGHT`
-    is actually evidence for. Untagged topics carry weight 0 and fall to the
-    back, in path order, so the ranking degrades to the sequence rather than to
-    noise.
+    """The same topics ranked by corpus error weight (`CORPUS_WEIGHT`), for "what to
+    practise hardest"; untagged topics fall back to path order.
     """
     return sorted(order(tuple(topics)), key=lambda t: (-t.weight, _DECLARED[t.id]))
 
@@ -307,11 +264,7 @@ def blocked_by(topic_id: str, known: set[str]) -> list[str]:
 
 
 def unlocks(topic_id: str) -> list[str]:
-    """Everything that depends on this topic, transitively.
-
-    `gen-stem` unlocks most of the noun system, which is the argument for
-    teaching it before anything that uses a stem.
-    """
+    """Everything that depends on this topic, transitively."""
     found: set[str] = set()
     frontier = {topic_id}
     while frontier:

@@ -1,52 +1,18 @@
-"""Speech recognition for the speaking exercises — cloud-first, because the app is.
+"""Speech recognition for the speaking exercises.
 
-## The correction that shapes this file
+Ordered by where the app runs (Cloud Run, behind the Worker):
 
-An earlier version of this module recommended running whisper.cpp locally with
-TalTech's Estonian GGML build. That is the most accurate and the most private
-option, and it is **the wrong recommendation for this app**: this deploys to
-Cloudflare, so "runs on your MacBook" is a thing that happens on a machine the
-server is not. A learner on a phone gets nothing from it.
+| Route | Notes |
+|---|---|
+| Cloudflare Workers AI `@cf/openai/whisper-large-v3-turbo` | primary; `language="et"`, `initial_prompt` carries the question |
+| OpenRouter audio-input models | fallback |
+| Hugging Face `openai/whisper-large-v3` (`HF_TOKEN`) | fallback |
+| TalTech Whisper `…-et-verbatim-2604` via whisper.cpp | best Estonian; local only |
+| TalTech Voxtral via llama.cpp | local only |
 
-So the chain is ordered by *where the app actually runs*, and the local engine
-stays only as a bonus for whoever runs `serve` on their own laptop.
-
-## What was probed (August 2026), and what it costs
-
-| Route | State | Estonian | Cost |
-|---|---|---|---|
-| **Cloudflare Workers AI `@cf/openai/whisper-large-v3-turbo`** | Live | Whisper's 99 languages; takes a `language` pin | **$0.00051/audio-minute**, plus the free daily neuron allowance |
-| **OpenRouter, audio-input models** | 38 of them, one **free** (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`); Gemini Flash from ~$0.00000004/audio-token | Multilingual | free tier exists |
-| Hugging Face `openai/whisper-large-v3` | Five providers | yes, generically | free tier |
-| TalTech `…-et-verbatim-2604` | MIT, best Estonian, GGML build | best | **nobody hosts it** — `inferenceProviderMapping` is empty |
-| `api.tartunlp.ai/speech-to-text` | 404 | — | dead since 2024 |
-
-**Workers AI is the primary for three reasons that all point the same way:** it
-is the platform the app already deploys to, its credentials
-(`CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`) are already provisioned for
-the LLM eval, and at half a thousandth of a dollar per audio minute a year of
-daily practice costs less than a coffee. It also accepts `language="et"` — so
-Estonian is pinned rather than guessed — and an `initial_prompt`, which is used
-to feed it the question being answered so the vocabulary is biased correctly.
-
-## Why not an Estonian LLM
-
-Worth stating plainly, because it is the obvious question: **EstLLM cannot do
-this.** `tartuNLP/Llama-3.1-EstLLM-8B-Instruct` is a text model — it has no
-audio encoder, so it cannot turn a recording into words at any price. The
-Estonian-specific speech models (TalTech's) are the ones that could, and nobody
-rents them.
-
-Where an Estonian-tuned model *does* belong is one step later: judging the
-**transcript**. That runs through the existing LLM chain, on text, which is what
-it is for.
-
-## What this still refuses to do
-
-**No pronunciation score.** Forced alignment yields timings, not correctness,
-and EKI already publishes free pronunciation exercises. A transcript is used for
-one honest thing: showing what the recogniser *heard*, so the learner can
-compare it with what they meant.
+In production the Worker answers `/api/transcribe` through its `AI` binding;
+this chain serves `cli serve`. EstLLM is a text model and cannot transcribe.
+No pronunciation score: a transcript shows what the recogniser heard.
 """
 
 from __future__ import annotations
@@ -64,12 +30,8 @@ from dataclasses import asdict, dataclass
 from . import breaker
 from pathlib import Path
 
-# Generous next to the text providers — a minute of audio takes real time to
-# transcribe — but not four times generous. With four engines in series, 120 s
-# each meant a full outage cost the learner eight minutes before telling them
-# nothing was heard. 45 s is comfortably above what hosted Whisper needs for a
-# short answer, and the circuit breaker below stops a dead engine being tried at
-# all after two failures.
+# Longer than text providers (audio takes time), bounded so several engines in
+# series cannot keep the learner waiting minutes; the breaker skips dead engines.
 TIMEOUT = 45.0
 
 CF_MODEL = "@cf/openai/whisper-large-v3-turbo"
@@ -94,14 +56,10 @@ ESTONIAN_MODEL = "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
 ESTONIAN_GGML = f"https://huggingface.co/{ESTONIAN_MODEL}/resolve/main/ggml/ggml-model.bin"
 
 # TalTech's Estonian Voxtral (`TalTechNLP/Voxtral-Mini-3B-2507-estonian`; GGUF
-# builds by the third-party requantiser `mradermacher`). An audio-understanding
-# model: it needs an instruction and the `mmproj` audio encoder, and runs through
-# llama.cpp's multimodal CLI. Behind whisper.cpp because its reported WER rests
-# on a ten-recording validation set.
-#: What to ask it for. It answers instructions rather than transcribing by
-#: reflex, so an empty prompt gets whatever the fine-tune's default style was --
-#: subtitles, a summary, or a news story, all of which are things it was trained
-#: to produce from the same audio.
+# builds by the third-party requantiser `mradermacher`) needs an instruction and
+# the `mmproj` audio encoder, via llama.cpp's multimodal CLI. It is behind
+# whisper.cpp because its reported WER rests on ten recordings. The prompt asks
+# for a verbatim transcription; unprompted it may summarise instead.
 VOXTRAL_PROMPT = TRANSCRIBE_PROMPT
 
 
@@ -127,12 +85,9 @@ def _whisper_cpp_paths() -> tuple[str | None, str | None]:
 
 
 def _voxtral_paths() -> tuple[str | None, str | None, str | None]:
-    """The llama.cpp multimodal binary, the Voxtral weights and its audio encoder.
-
-    All three or nothing: the `mmproj` file is what turns the language model
-    into something that can hear, and without it the binary loads and answers
-    about audio it never received -- a confident transcript of nothing, which is
-    the worst failure available here.
+    """The llama.cpp multimodal binary, the Voxtral weights and its audio encoder —
+    all three or nothing: without `mmproj` the model answers about audio it never
+    received.
     """
     binary = os.environ.get("VOXTRAL_BIN") or shutil.which("llama-mtmd-cli")
     model = os.environ.get("VOXTRAL_MODEL_PATH")
@@ -177,12 +132,8 @@ def available() -> dict:
 
 
 def _cloudflare(audio: bytes, context: str = "") -> Transcript | None:
-    """Whisper large-v3-turbo on the platform the app already runs on.
-
-    `language="et"` matters: Whisper guesses otherwise, and a few seconds of
-    accented Estonian is exactly the input it guesses wrong on. `initial_prompt`
-    carries the question being answered, which biases the vocabulary towards the
-    topic instead of leaving it to chance.
+    """Whisper large-v3-turbo on Workers AI, with `language="et"` pinned and the
+    question as `initial_prompt` to bias vocabulary.
     """
     token = os.environ.get("CLOUDFLARE_API_TOKEN")
     account = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
@@ -219,12 +170,7 @@ def _cloudflare(audio: bytes, context: str = "") -> Transcript | None:
 
 
 def _openrouter(audio: bytes, mime: str = "audio/wav", context: str = "") -> Transcript | None:
-    """An audio-capable chat model, OpenAI-style. The free tier's fallback.
-
-    Chat models transcribe by being asked to, which makes them chattier than a
-    dedicated ASR: the prompt insists on the transcription alone, and anything
-    that still arrives wrapped in commentary is the caller's to distrust.
-    """
+    """An audio-capable chat model, OpenAI-style: asked for the transcription alone."""
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         return None
@@ -283,12 +229,8 @@ def _local(audio: bytes, suffix: str = ".wav") -> Transcript | None:
 
 
 def _voxtral(audio: bytes, suffix: str = ".wav") -> Transcript | None:
-    """TalTech's Estonian Voxtral, through llama.cpp's multimodal CLI.
-
-    Unlike the whisper.cpp lane there is no `-otxt` to write a transcript file:
-    a multimodal chat CLI prints its answer to stdout with its logs on stderr,
-    so the answer is stdout, trimmed. It is asked for a verbatim transcription
-    explicitly because this model will just as happily return a summary.
+    """TalTech's Estonian Voxtral through llama.cpp's multimodal CLI: the answer is
+    stdout (logs go to stderr), trimmed.
     """
     binary, model, mmproj = _voxtral_paths()
     if not (binary and model and mmproj):
@@ -331,31 +273,12 @@ def _hosted(audio: bytes, mime: str = "audio/wav") -> Transcript | None:
 
 
 def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Transcript:
-    """Cloudflare, then OpenRouter, then Hugging Face, then the two local engines.
+    """Workers AI, OpenRouter, Hugging Face, then the two local engines.
 
-    Ordered by where the app runs, not by which engine is best in the abstract.
-    The local engines are last because a Cloudflare deployment has no laptop;
-    they are still there so `serve` on a developer's machine gets an accurate
-    Estonian model for free.
-
-    **whisper.cpp before Voxtral**, and the reason is evidence rather than
-    preference. Both are TalTech and both are Estonian; the difference is what
-    is known about them. The verbatim Whisper has a published Estonian track
-    record, and Voxtral's own card reports 5.05 % WER while saying in the same
-    paragraph that the validation set is ten recordings and should not be read
-    as an estimate of Estonian ASR quality. Neither is measured on this
-    project's material. "Newer" is not a result, so the incumbent keeps the
-    position and Voxtral answers when it is the only one configured -- which is
-    also the arrangement that lets somebody compare them by turning one off.
-
-    Unlike the grammar chain, a *degraded* answer does not stop the walk: a
-    Cloudflare hiccup should fall through to OpenRouter rather than end the
-    attempt, because unlike a grammar check there is no offline engine behind it
-    to degrade to.
-
-    The final refusal matters: silence would look like a broken button, and the
-    speaking tab is useful without a transcript — recording and playing back is
-    most of what solo practice for a *paired* exam can offer.
+    whisper.cpp precedes Voxtral: its Estonian record is published, Voxtral's is
+    not established. A degraded answer does not stop the walk — there is no offline
+    engine to fall back to. With nothing configured, the refusal says recording and
+    playback still work.
     """
     suffix = ".wav" if "wav" in mime else ".webm" if "webm" in mime else ".ogg"
     attempts = (

@@ -1,30 +1,12 @@
-"""Two A1 topics that were in the syllabus and opened nothing.
+"""Principal forms (`pohivormid`) and negation (`eitus`): two A1 topics generated
+offline, with no corpus needed.
 
-`pohivormid` and `eitus` sat in the path with `generator=None`, so a learner who
-reached them got a message saying nothing would happen. Both are A1, both are
-prerequisites for topics that *are* drilled, and both are generable offline from
-data the app already has -- which matters, because a generator that needs the
-harvested corpus produces nothing on a fresh deployment, and these are the first
-topics a beginner meets.
+**Principal forms** — `nimetav, omastav, osastav` (raamat, raamatu, raamatut),
+the three forms every case is built on — come from `object_cases`.
 
-**Principal forms** (`nimetav, omastav, osastav` -- raamat, raamatu, raamatut)
-are the three forms an Estonian dictionary lists, and every case in the language
-is built on one of them. They come straight from `object_cases`, which already
-holds a genitive and a partitive for 1 671 nouns whose forms differ, indexed by
-Vabamorf and guarded by `test_export_quality`.
-
-**Negation** is the other half of the object-case rule this whole app points at:
-a negated verb takes the **partitive**, always, whatever the affirmative took.
-`Ma ostsin raamatu` (genitive, completed) becomes `Ma ei ostnud raamatut`. So
-this topic is not a detour from `obj-case` -- it is the case where the rule has
-no exceptions, which makes it the easier half to learn first.
-
-The connegative form was **measured, not assumed**. It is not the da-infinitive:
-`minema` gives *minna* but negates as *ei lähe*. It is not the imperative
-either, which gives *mine*. It is the present stem, and dropping the final `-n`
-from the 1sg produces it for **611 of the 612** A1-B1 verbs in the wordlist --
-the single divergence being `minema`, where this derivation is the correct one
-and the imperative is not.
+**Negation** takes the partitive, always: `Ma ostsin raamatu` → `Ma ei ostnud
+raamatut`. The connegative is the present stem: the 1sg minus `-n` (not the
+da-infinitive `minna` or the imperative `mine`; `minema` → `ei lähe`).
 """
 
 from __future__ import annotations
@@ -37,10 +19,8 @@ from .item import BLANK, GradedItem
 
 LEVELS = ("A1", "A2", "B1")
 
-#: Present-tense frames for negation. The subject is fixed at `ma` so the
-#: exercise is about the verb rather than about agreement -- and Estonian
-#: negation does not inflect for person, which is itself the point being
-#: taught: `ei` is the same for everyone.
+#: Present-tense negation frames with the subject fixed at `ma`: `ei` does not
+#: inflect for person.
 PRESENT_FRAME = "Ma {} praegu."
 PAST_FRAME = "Ma {} eile."
 
@@ -74,12 +54,8 @@ def principal_forms(
 ) -> list[FormDrill]:
     """Ask for one of the three principal forms, given the other two.
 
-    Only nouns whose genitive and partitive actually differ: `maja, maja, maja`
-    asks the learner to type the word back at itself, which teaches nothing and
-    reads as a bug. `object_cases.distinct_` already carries exactly that
-    distinction, and the ambiguous words -- `kool`, `reis`, `kook`, where two
-    different nouns share a spelling -- are absent from that table by design,
-    so they cannot be drilled here either.
+    Only nouns whose genitive and partitive differ (`object_cases.distinct_`);
+    homographs such as `kool` and `reis` are absent from that table by design.
     """
     marks = ",".join("?" * len(levels))
     rows = conn.execute(
@@ -98,19 +74,8 @@ def principal_forms(
     rnd.shuffle(rows)
     out: list[FormDrill] = []
     for word, gen, par, level in rows[:count]:
-        # Which of the three to ask for. The nominative is included because
-        # recognising the citation form from two inflected ones is the skill a
-        # dictionary actually demands.
-        # The answer must not already be on screen. `distinct_` guarantees the
-        # genitive and partitive differ, and says nothing about the nominative,
-        # which frequently equals one of them: `matemaatika, matemaatika,
-        # matemaatikat`, `linnapea, linnapea, linnapead`, `tigu, teo, tigu`.
-        # Asking for a form that is printed beside the blank has the learner
-        # copy it across and record a correct answer for a question they were
-        # shown. Keep only the forms this word actually hides.
-        #
-        # Checked over 480 generated items: filtering on the nominative alone
-        # left 41 of them still showing their own answer.
+        # Which form to ask for: never one already shown, since the nominative often
+        # equals the genitive or partitive (`linnapea, linnapea, linnapead`).
         forms = {"nimetav": word, "omastav": gen, "osastav": par}
         choices = [
             which for which, hidden in forms.items()
@@ -144,14 +109,8 @@ def principal_forms(
 # ---------------------------------------------------------------------------
 
 def connegative(verb: str) -> str | None:
-    """The form that follows `ei` in the present: `ostan` -> `osta`.
-
-    Derived from the 1sg by dropping its `-n`, which is the present stem. The
-    two obvious alternatives are both wrong somewhere: the da-infinitive gives
-    `ei minna` and the imperative gives `ei mine`, where Estonian says
-    `ei lähe`. Measured across the 612 A1-B1 verbs in the wordlist, this rule
-    and the imperative agree on 611 and disagree only on `minema` -- the one
-    case where the imperative is the wrong answer.
+    """The form that follows `ei` in the present: `ostan` -> `osta` (the 1sg minus
+    `-n`).
     """
     from .morph import synthesize
 
@@ -182,12 +141,8 @@ def negation_drills(
     seed: int | None = None,
     only: frozenset[str] | None = None,
 ) -> list[FormDrill]:
-    """Turn an affirmative sentence negative.
-
-    The distractor is the affirmative form the learner started from, because
-    the mistake this drills against is carrying the inflected verb across the
-    negation -- *ei ostan*, which is the error a Russian speaker makes, since
-    Russian negates with `не` and leaves the verb agreeing.
+    """Turn an affirmative sentence negative. The distractor keeps the affirmative
+    verb (*ei ostan*), the Russian-speaker's error.
     """
     marks = ",".join("?" * len(levels))
     verbs = [
@@ -253,18 +208,10 @@ def negation_drills(
 # Agreement (ühildumine)
 # ---------------------------------------------------------------------------
 
-#: Cases in which an Estonian adjective genuinely agrees with its noun.
-#:
-#: **Deliberately not all of them.** In the terminative, essive, abessive and
-#: comitative the attribute stays in the *genitive* -- `suure majani`, not
-#: `suureni majani` -- and Vabamorf will cheerfully synthesise the agreeing
-#: form anyway, because that form exists as a word. Generating those four would
-#: produce fluent, confident, wrong Estonian, which is worse than not drilling
-#: them at all.
-#:
-#: The handbook's own example is `selle halli kivini` (terminative, attribute
-#: in the genitive). This list is the conservative half: excluded cases are
-#: never generated, so an error in the exception list cannot reach a learner.
+#: Cases in which an Estonian adjective agrees with its noun. The terminative,
+#: essive, abessive and comitative are excluded: there the attribute stays in the
+#: genitive (`selle halli kivini`), though Vabamorf would synthesise an agreeing
+#: form.
 AGREEING_CASES = (
     ("sg n", "ainsuse nimetav"), ("sg g", "ainsuse omastav"),
     ("sg p", "ainsuse osastav"), ("sg in", "sisseütlev"),
@@ -284,17 +231,8 @@ def agreement_drills(
 ) -> list[FormDrill]:
     """Put the adjective into the case its noun is already in.
 
-    The error this drills is specific to a Russian speaker. Russian adjectives
-    agree too, so the *concept* transfers and the learner is not warned by it
-    feeling strange -- what does not transfer is that Estonian marks the
-    adjective with the same case ending as the noun, across fourteen cases.
-    The usual mistake is to leave the adjective in the nominative, which is why
-    that is the distractor.
-
-    The noun is shown already inflected, so the question is agreement and not
-    whether the learner can decline the noun -- that is `pohivormid` and
-    `kohakaanded`, and asking two things at once makes a wrong answer
-    uninformative.
+    The distractor is the nominative adjective. The noun is shown already inflected,
+    so only agreement is tested.
     """
     marks = ",".join("?" * len(levels))
     adjectives = [
@@ -309,10 +247,7 @@ def agreement_drills(
             "SELECT c.word FROM object_cases c JOIN words w ON w.word = c.word"
             f" WHERE w.proficiency IN ({marks})"
             "   AND (',' || REPLACE(w.pos, ' ', '') || ',') LIKE '%,s,%'"
-            # Nouns only, never a word that is also an adjective. `hea` is
-            # tagged `adj,s`, and pairing it as the noun produced
-            # `kohutavaks heaks` -- an adjective modifying an adjective, which
-            # is not the construction being taught.
+            # Nouns only, never a word also tagged adjective (`hea` is `adj,s`).
             "   AND (',' || REPLACE(w.pos, ' ', '') || ',') NOT LIKE '%,adj,%'"
             " ORDER BY (w.freq_rank IS NULL OR w.freq_rank = 0), w.freq_rank",
             levels)
@@ -332,10 +267,7 @@ def agreement_drills(
 
     out: list[FormDrill] = []
     seen: set[tuple[str, str, str]] = set()
-    # Sampled rather than zipped. `zip` gave exactly one attempt per adjective,
-    # so a short word list -- or a run where the agreeing form happens to equal
-    # the citation form -- returned far fewer items than were asked for, and
-    # the caller has no way to tell "nothing to generate" from "gave up early".
+    # Sample pairs rather than zip, so a short list still yields the requested count.
     for _ in range(count * 40):
         if len(out) >= count:
             break
