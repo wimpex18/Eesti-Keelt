@@ -1,44 +1,14 @@
 """Official practice tasks from EIS, the state exam information system.
 
-## What this is, and why it is worth having
+`eis.harno.ee/publicitems` serves the exam board's own reading and listening
+tasks, per CEFR level, with immediate scoring and no login.
 
-`eis.harno.ee/publicitems` publishes the exam board's *own* practice tasks —
-reading and listening, per CEFR level, with immediate scoring — and serves them
-without a login. It is the only material in this project written by the people
-who write the real exam. Everything else the app produces is generated from a
-word list or harvested from a radio archive; this is the thing they will
-actually be graded against.
+- Filter by `keeletase`; `aine=R` returns nothing (tasks are filed under Eesti
+  keel).
+- The catalogue is small: A2 and B1 have a handful each; A1 and C2 are empty.
 
-## What was found, against what the plan assumed
-
-The plan said to filter by `aine=R` (*Eesti keel teise keelena*) and described
-an enumerable A2–C1 catalogue. Probed directly:
-
-- **`aine=R` returns nothing at all.** The tasks are filed under general Eesti
-  keel, so that filter finds zero.
-- **`keeletase` is the filter that works**, and the catalogue is small: 23 tasks
-  in total, of which **14 are A2 and B1** — 7 each, split between `Lugemine` and
-  `Kuulamine`.
-- A1 and C2 are empty.
-
-Small, then, but not thin: seven official A2 tasks is a real rehearsal for
-whichever sitting is chosen.
-
-## Why this indexes rather than copies
-
-The task body lives in an iframe on HARNO's own site, and it is **copyright
-Haridus- ja Noorteamet**. Two reasons not to pull it in, and they point the same
-way:
-
-1. Scraping the iframe would yield dead text — the scoring, the immediate
-   feedback and the interaction all live on their page. A copy is strictly worse
-   than a link.
-2. The material is owner-only. Holding it, even behind Access, is a risk that
-   buys nothing when a link buys everything.
-
-So this stores a **pointer**: level, skill, title, URL. The app
-can say "four official A2 reading tasks, here they are" and send the learner to
-the exam board's own site to do them. Nothing of theirs is ever in our database.
+**Pointers only.** Task bodies are © Haridus- ja Noorteamet and live in an
+iframe whose scoring works only on their site. Stored: level, skill, title, URL.
 """
 
 from __future__ import annotations
@@ -51,8 +21,7 @@ from dataclasses import dataclass
 
 BASE = "https://eis.harno.ee/publicitems"
 
-#: Levels this app teaches, plus B2 so the ceiling is visible. A1 and C2 were
-#: probed and are empty.
+#: Levels this app teaches, plus B2 so the ceiling is visible.
 LEVELS = ("A2", "B1", "B2", "C1")
 
 #: Somebody else's server, and the whole catalogue is 23 pages.
@@ -85,7 +54,7 @@ def _opener():
 
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-    # The search refuses without a browser-shaped agent and a session cookie.
+    # The search requires a browser-shaped agent and a session cookie.
     opener.addheaders = [("User-Agent", "Mozilla/5.0 (compatible; eesti-keelt)")]
     return opener
 
@@ -99,10 +68,8 @@ def _skill_of(title: str) -> str | None:
 
 
 def catalogue(levels: tuple[str, ...] = LEVELS) -> list[Task]:
-    """Every published practice task at the given levels.
-
-    One request per level, a second apart. The search needs a session token from
-    the form page, so that is fetched once and reused.
+    """Every published practice task at the given levels: one request per level, a
+    second apart, reusing one session token.
     """
     opener = _opener()
     first = opener.open(BASE, timeout=TIMEOUT).read().decode("utf-8", "replace")
@@ -132,12 +99,7 @@ def catalogue(levels: tuple[str, ...] = LEVELS) -> list[Task]:
 
 
 def to_items(tasks: list[Task]) -> list:
-    """Pointers, not copies. See the module docstring.
-
-    `body` is deliberately empty: there is nothing of HARNO's in here, and the
-    app's own degradation rules already treat a bodyless item as something to
-    link to rather than something to read.
-    """
+    """Pointers, not copies: `body` stays empty, so the app links out."""
     from ..sources import Item
 
     return [
