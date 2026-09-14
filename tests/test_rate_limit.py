@@ -126,4 +126,4 @@ class TestTheChainStillFallsThrough:
         monkeypatch.setenv("OPENROUTER_API_KEY", "k")
         result = grammar.check("Ma lugesin raamatut läbi")
         assert result.engine
-        assert "429" in result.note
+        assert "429" in result.diagnostics

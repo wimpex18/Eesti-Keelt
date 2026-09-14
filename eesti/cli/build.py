@@ -386,9 +386,29 @@ def cmd_models(args: argparse.Namespace) -> int:
     easy to miss because the paid one with the same name keeps working. Probe
     before pinning.
     """
+    import urllib.error
+
     from ..providers.llm import PROVIDERS, list_models
 
-    models = list_models(args.provider)
+    try:
+        models = list_models(args.provider)
+    except urllib.error.HTTPError as exc:
+        # The provider's own words, briefly: a 403 from a bad key and a 403
+        # from a firewall look identical until the body is read, and a
+        # traceback printed neither (2026-09-14, Groq). Keys are never in a
+        # response body; the excerpt is capped anyway.
+        try:
+            said = exc.read().decode("utf-8", "replace")
+        except Exception:  # noqa: BLE001
+            said = ""
+        said = " ".join(said.split())[:300]
+        print(f"{args.provider}: catalogue refused — HTTP {exc.code} {exc.reason}")
+        if said:
+            print(f"  it said: {said}")
+        return 1
+    except (urllib.error.URLError, OSError, RuntimeError) as exc:
+        print(f"{args.provider}: catalogue unreachable — {type(exc).__name__}: {exc}")
+        return 1
     free = [m for m in models if m.get("id", "").endswith(":free")]
     print(f"{args.provider}: {len(models)} models, {len(free)} free")
     # Free-only unless asked, and *say* when that is not what you are seeing.

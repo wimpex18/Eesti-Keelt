@@ -105,7 +105,11 @@ jobs:
           python -m eesti.cli fetch-data
           python -m eesti.cli build
 
+      # Informative, never a gate: on 2026-09-14 this step failed for Groq
+      # (403) and Workers AI (405) and the job ended before a single sentence
+      # was scored — the one measurement the workflow exists for.
       - name: Check the pinned model id still exists
+        continue-on-error: true
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
 
       # A key is optional, but "no key" must never look like "model passed".

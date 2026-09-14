@@ -347,3 +347,58 @@ class TestNoModelCostsMoneyEither:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
         default = doc[True]["workflow_dispatch"]["inputs"]["model"]["default"]
         assert default.endswith(":free")
+
+
+class TestEveryLlmRequestNamesItself:
+    """Groq's Cloudflare front answers `403 error code: 1010` to urllib's
+    default `Python-urllib/3.x` signature (2026-09-14)."""
+
+    def test_completions_and_catalogues_send_the_apps_user_agent(self, monkeypatch):
+        import json
+
+        from eesti.net import UA
+        from eesti.providers import llm
+
+        monkeypatch.setenv("GROQ_API_KEY", "test-key-not-real")
+        seen = []
+
+        class Response:
+            def __init__(self, body): self.body = body
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return self.body
+
+        def fake(req, timeout):
+            seen.append(req.get_header("User-agent"))
+            if req.full_url.endswith("/models"):
+                return Response(b'{"data": []}')
+            return Response(json.dumps({"choices": [{"message": {"content": "{}"}}]}).encode())
+
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+        monkeypatch.setattr(llm, "_throttle", lambda: None)
+        llm.list_models("groq")
+        llm.complete("groq", "s", "u")
+        assert seen == [UA, UA]
+
+
+class TestAnEmptyReplyIsNamed:
+    def test_null_content_raises_a_named_error_not_attribute_error(self, monkeypatch):
+        import json
+
+        from eesti.providers import llm
+        from eesti.providers.grammar import why_failed
+
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-not-real")
+
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self):
+                return json.dumps({"choices": [{"message": {"content": None},
+                                                "finish_reason": "length"}]}).encode()
+
+        monkeypatch.setattr("urllib.request.urlopen", lambda req, timeout: Response())
+        monkeypatch.setattr(llm, "_throttle", lambda: None)
+        with pytest.raises(llm.EmptyReply) as caught:
+            llm.complete("openrouter", "s", "u")
+        assert why_failed(caught.value) == "empty reply (length)"

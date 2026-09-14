@@ -88,7 +88,7 @@ class TestFallback:
         """Silent fallback hides an outage for weeks."""
         got = check("tekst", [Provider("tartunlp", fails=a_500()),
                               Provider("llm", answer=[])])
-        assert "tartunlp" in got.note
+        assert "tartunlp" in got.diagnostics
 
     def test_the_note_carries_the_status_code_not_just_the_type(self):
         """A live deployment reported `llm:openrouter: HTTPError` and the note
@@ -106,7 +106,7 @@ class TestFallback:
                     "boom", {}, None)),
                 Provider("vabamorf-offline", answer=[]),
             ])
-            assert f"llm:openrouter: HTTPError {code}" in got.note
+            assert f"llm:openrouter: HTTPError {code}" in got.diagnostics
 
     def test_the_note_never_carries_a_response_body(self):
         """It is printed into CI logs. A provider that echoes the request on
@@ -118,14 +118,14 @@ class TestFallback:
                 "Bad Request", {}, body)),
             Provider("vabamorf-offline", answer=[]),
         ])
-        assert "secret-ish" not in got.note
-        assert "raamatut" not in got.note
+        assert "secret-ish" not in got.diagnostics
+        assert "raamatut" not in got.diagnostics
 
     def test_a_failure_with_no_code_still_names_its_type(self):
         """URLError and TimeoutError have no status; the type is all there is."""
         got = check("tekst", [Provider("tartunlp", fails=TimeoutError()),
                               Provider("llm", answer=[])])
-        assert "tartunlp: TimeoutError" in got.note
+        assert "tartunlp: TimeoutError" in got.diagnostics
 
     def test_an_unavailable_provider_is_never_called(self):
         """`available()` is the cheap check; calling anyway costs the timeout."""
@@ -173,7 +173,7 @@ class TestTheBreaker:
                             Provider("llm", answer=[])])
         got = check("tekst", [Provider("tartunlp", fails=a_500()),
                               Provider("llm", answer=[])])
-        assert "skipped" in got.note
+        assert "skipped" in got.diagnostics
 
 
 class TestTiming:
@@ -386,7 +386,7 @@ class TestWhatTheNoteSays:
         exc = self._http(403, b'{"error":{"code":"model_decommissioned"}}')
         got = check("tekst", [Provider("llm:groq", fails=exc),
                               Provider("vabamorf", answer=[])])
-        assert "llm:groq: HTTPError 403 (model_decommissioned)" in got.note
+        assert "llm:groq: HTTPError 403 (model_decommissioned)" in got.diagnostics
 
 
 class TestThePinnedModels:
@@ -559,3 +559,41 @@ class TestTheEvalScoresThePromptTheAppShips:
         assert _flagged(result, "raamatut")
 
 
+class TestTheLearnerReadsRussianAndTheOperatorReadsTheTrail:
+    """Production, 2026-09-14: four keys set, every lane failing, and the
+    banner told the learner to set a key — followed by `skipped -> tartunlp:
+    TimeoutError; llm:groq: HTTPError 403 (non-json)…` in English."""
+
+    def test_the_trail_is_not_in_the_note(self, monkeypatch):
+        from eesti.providers import grammar
+
+        class Down:
+            name = "llm:test"
+            def available(self): return True
+            def check(self, text): raise TimeoutError()
+
+        monkeypatch.setattr(grammar, "_breaker_open", lambda name: False)
+        monkeypatch.setattr(grammar, "_record_failure", lambda name: None)
+        got = grammar.check("Ma lugesin raamatu.", providers=[Down(), grammar.VabamorfFallback()])
+        assert "llm:test" in got.diagnostics
+        assert "skipped" not in got.note and "Error" not in got.note
+
+    def test_with_keys_set_the_note_does_not_ask_for_a_key(self, monkeypatch):
+        from eesti.providers import grammar
+
+        monkeypatch.setenv("OPENROUTER_API_KEY", "set-but-failing")
+        assert "задай ключ" not in grammar._offline_note()
+        assert "не ответили" in grammar._offline_note()
+
+    def test_without_keys_it_still_says_which_to_set(self, monkeypatch):
+        from eesti.providers import grammar
+
+        for k in grammar.EXPLAINING_KEYS:
+            monkeypatch.delenv(k, raising=False)
+        assert "OPENROUTER_API_KEY" in grammar._offline_note()
+
+    def test_the_api_carries_both(self):
+        from eesti.providers.grammar import GrammarResult
+
+        got = GrammarResult("x", note="n", diagnostics="d").to_dict()
+        assert (got["note"], got["diagnostics"]) == ("n", "d")

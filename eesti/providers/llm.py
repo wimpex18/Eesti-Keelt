@@ -280,6 +280,27 @@ def _base_url(provider: Provider) -> str:
     return provider.base_url
 
 
+class EmptyReply(RuntimeError):
+    """The provider answered, with no text in it."""
+
+    def __init__(self, finish_reason: str):
+        super().__init__(f"empty reply (finish_reason={finish_reason})")
+        self.finish_reason = finish_reason
+
+
+def _user_agent() -> str:
+    """This app's own User-Agent, the one `net.py` already sends everywhere else.
+
+    Without it urllib announces itself as `Python-urllib/3.x`, and Groq's
+    Cloudflare front refuses that signature outright: `403`, body `error code:
+    1010` — measured from both Cloud Run and a GitHub runner on 2026-09-14. The
+    lane had a valid key and never reached the model.
+    """
+    from ..net import UA
+
+    return UA
+
+
 def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
     """Fetch the provider's live catalogue.
 
@@ -287,11 +308,22 @@ def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
     check whether a pinned id still exists.
     """
     provider = PROVIDERS[provider_name]
-    req = urllib.request.Request(f"{_base_url(provider)}/models")
+    url = f"{_base_url(provider)}/models"
+    if provider.name == "workers-ai":
+        # Cloudflare's OpenAI-compatible base (`/ai/v1`) serves chat
+        # completions, not a catalogue: `GET /ai/v1/models` answered 405 and the
+        # eval died before scoring (2026-09-14). The catalogue is the documented
+        # `GET /accounts/{id}/ai/models/search`, whose models sit in `result`
+        # under `name`.
+        url = _base_url(provider).removesuffix("/v1") + "/models/search"
+    req = urllib.request.Request(url, headers={"User-Agent": _user_agent()})
     if provider.api_key:
         req.add_header("Authorization", f"Bearer {provider.api_key}")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read()).get("data", [])
+        body = json.loads(resp.read())
+    if provider.name == "workers-ai":
+        return [{**m, "id": m.get("name") or m.get("id", "")} for m in body.get("result") or []]
+    return body.get("data", [])
 
 
 def probe(provider_name: str, model: str) -> bool:
@@ -373,7 +405,7 @@ def complete(
     # A keyless lane -- a local server -- has nothing to authenticate, and
     # `Bearer None` is a header that happens to work only because Ollama
     # ignores it. Send it when there is a key and not when there is not.
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": _user_agent()}
     if provider.api_key:
         headers["Authorization"] = f"Bearer {provider.api_key}"
 
@@ -388,7 +420,15 @@ def complete(
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read())
-            return body["choices"][0]["message"]["content"]
+            choice = body["choices"][0]
+            content = choice["message"].get("content")
+            if not content:
+                # A reasoning model that spends its budget thinking answers
+                # `content: null`, and `parse_json(None)` raised AttributeError —
+                # 3 of 18 cases on dots-3-note-preview (2026-09-14), reported as
+                # a bare `ERROR AttributeError` that named nothing.
+                raise EmptyReply(choice.get("finish_reason") or "unknown")
+            return content
         except urllib.error.HTTPError as exc:
             if attempt == RETRIES - 1:
                 raise
