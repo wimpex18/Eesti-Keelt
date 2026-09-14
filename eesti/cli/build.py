@@ -1,8 +1,7 @@
-"""Building what the app runs on: the word list, the index, the edge dataset.
+"""Building what the app runs on: the word list, the index, the form index.
 
-Also the commands that report on the build rather than change it — which keys
-are configured, how Vabamorf scores against native gold forms, and what a
-provider's live model catalogue contains.
+Also the commands that report on the build: configured keys, Vabamorf against
+native gold forms, and a provider's live model catalogue.
 """
 
 from __future__ import annotations
@@ -45,11 +44,8 @@ def cmd_fetch_data(args: argparse.Namespace) -> int:
 
 
 def cmd_import_levels(args: argparse.Namespace) -> int:
-    """Replace the derived CEFR estimates with the exam board institute's own.
-
-    Not a download: it takes a path to the file the learner fetched from
-    `arhiiv.eki.ee/litsents/` (committed as `deploy/eki/A1A2B1.txt`) and says
-    so when the path is wrong.
+    """Replace the derived CEFR estimates with EKI's official levels, from a local
+    file (`deploy/eki/A1A2B1.txt`).
     """
     from collections import Counter
 
@@ -66,11 +62,8 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
 
     from ..wordlist import import_official_levels, read_official_levels
 
-    # `--check` reads the file and reports, touching no database. The import is
-    # the one command here that rewrites the CEFR level of every word the app
-    # drills, and it runs against a file this project has never seen — EKI
-    # serves it behind a form, so it arrives from the learner. Being able to
-    # look before writing is worth twenty lines.
+    # `--check` reads the file and reports without touching a database: the import
+    # rewrites every word's CEFR level.
     if args.check:
         try:
             rows = read_official_levels(path)
@@ -116,11 +109,7 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
 
 
 def cmd_import_psv(args: argparse.Namespace) -> int:
-    """Give the word card a definition a learner can read.
-
-    Not a download, for the same reason `import-levels` is not: EKI asks who
-    you are and what the material will be used in before handing the file over.
-    """
+    """Import EKI's learner-level definitions (PSV) from a local file."""
     from collections import Counter
 
     from .. import psv
@@ -145,12 +134,8 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
         print(f"{path} parsed but held no articles — is this the right file?")
         return 1
 
-    # `--check` for the same reason `import-levels` has one, and a stronger
-    # one: `psv.py` has only ever read a fixture built from EKI's schema, and
-    # EKI say their XML does not validate against it. So the first run against
-    # the real file should be a look, and the number that matters is the
-    # definitions — headwords found and no definitions means the descendant
-    # tags did not match what EKI actually wrote.
+    # `--check` reports headwords, definitions and examples without writing; headwords
+    # with no definitions means the parser did not match the file.
     if args.check:
         defined = sum(1 for e in entries if e.definition)
         examples = sum(1 for e in entries if e.examples)
@@ -316,12 +301,8 @@ def cmd_keys(args: argparse.Namespace) -> int:
 
 
 def cmd_fetch_bench(args: argparse.Namespace) -> int:
-    """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026).
-
-    Fails only on a dataset something depends on. The two word-order pools are
-    optional by construction — fewer pairs is fewer drill items, which the
-    module already handles — and treating them as fatal is what once skipped
-    the morphology gate over a file that had downloaded perfectly.
+    """Download the public Estonian benchmark datasets (TalTechNLP, LREC 2026). Fails
+    only on a required dataset; the word-order pools are optional.
     """
     from ..evals.fetch import REQUIRED, fetch_all
 
@@ -341,10 +322,8 @@ def cmd_fetch_bench(args: argparse.Namespace) -> int:
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
-    """Check Vabamorf against native-curated gold forms.
-
-    Everything this app generates inherits Vabamorf's correctness, so this is the
-    check that the foundation is sound.
+    """Check Vabamorf against native-curated gold forms — every generated answer
+    depends on it.
     """
     from ..evals.morphology import run
 
@@ -360,11 +339,8 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_models(args: argparse.Namespace) -> int:
-    """List a provider's live catalogue.
-
-    Model ids get withdrawn silently, and a withdrawn ':free' id is especially
-    easy to miss because the paid one with the same name keeps working. Probe
-    before pinning.
+    """List a provider's live catalogue and whether the pinned model is present. Probe
+    before pinning: ids are withdrawn silently.
     """
     import urllib.error
 
@@ -408,10 +384,8 @@ def cmd_models(args: argparse.Namespace) -> int:
 def cmd_eval(args: argparse.Namespace) -> int:
     """Score a model on Estonian grammar.
 
-    Two tracks. The default is the hand-written set: 18 sentences aimed at this
-    learner's documented errors, half already correct so precision is real.
-    `--track external` uses TalTech's grammar_et instead — 1000 real pairs the
-    model has never seen, 88% of their vocabulary at A1-B1.
+    Two tracks: the default 18 hand-written sentences (half already correct, so
+    precision is real), or `--track external`, TalTech's grammar_et pairs.
     """
     if args.track == "external":
         from ..evals.external import run as run_external
@@ -434,12 +408,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 
 def register(sub) -> None:
-    """Add this group's commands to the subparser table.
-
-    Beside the handlers rather than a thousand lines away in one
-    argparse block: a flag and the code that reads it drift apart
-    when they cannot be seen together.
-    """
+    """Register this group's commands beside their handlers."""
     p = sub.add_parser("fetch-data", help="download the word list")
     p.add_argument("--force", action="store_true")
     p.set_defaults(func=cmd_fetch_data)

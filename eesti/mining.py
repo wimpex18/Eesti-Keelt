@@ -1,32 +1,13 @@
-"""Turning encounters into scheduled practice.
+"""Turning a word met while reading into scheduled practice.
 
-Two entry points, both feeding the same FSRS queue:
+Like LingQ/Migaku, but the card is **grammar**: Vabamorf knows `raamatut` is the
+partitive of `raamat`, so the queued card is the object-case contrast in the
+sentence the learner met.
 
-  a drill answered wrong   ->  the item that caught you out
-  a word clicked in a text ->  the grammar pattern behind it, with the sentence
-
-The second is the LingQ/Migaku move with one change. Those tools build a
-*vocabulary* card, because a general tool cannot know why a word was hard. Here,
-Vabamorf can say `raamatut` is the partitive of `raamat` and that the genitive
-would be `raamatu` — so the card that gets queued is the object-case contrast in
-the sentence you actually met, not a translation to memorise.
-
-Words with no *grammar* to teach still have a meaning. If a noun's genitive and
-partitive are identical there is no contrast to drill — a card that cannot be got
-wrong wastes review time, the scarcest thing in spaced repetition — so those used
-to be refused outright, with a message telling the learner there was nothing to
-practise about a word they had just said they did not know.
-
-That is 31.3 % of A1–B1 words (791 of 2 531, measured against `object_cases`):
-A1 35.8 %, A2 34.9 %, B1 28.5 %. The reasoning above was right about the words it
-was written for and was being applied to a third of the vocabulary it does not
-describe. Those get a **meaning** card now — `kind="vocab"`, which the review
-schema has documented since it was written and which nothing had ever produced.
-
-The card is only queued when a Russian gloss is already in the local store. A
-meaning card with no meaning on it cannot be graded, and fetching one here would
-put a third party's server in the learner's click path, which `gloss.remember`
-exists to keep out of.
+Words with no case contrast (identical genitive and partitive, about a third of
+A1–B1 words) get a **meaning** card (`kind="vocab"`) instead — but only when a
+Russian gloss is already in the local store: a card with no meaning cannot be
+graded, and a live fetch here would put a third party in the click path.
 """
 
 from __future__ import annotations
@@ -50,10 +31,8 @@ def from_reading(
     word: str,
     context: str | None = None,
 ) -> MineResult:
-    """Queue the grammar pattern behind a word met while reading.
-
-    Returns a refusal rather than a card when there is nothing to teach, so the
-    caller can say why instead of silently doing nothing.
+    """Queue the grammar pattern behind a word met while reading; returns a refusal
+    with a reason when there is nothing to teach.
     """
     from .lookup import lookup
 
@@ -94,16 +73,9 @@ def _meaning_card(
     conn: sqlite3.Connection, lemma: str, context: str | None,
     analysis: dict | None = None,
 ) -> MineResult:
-    """A card for what a word means, when there is no case contrast to drill.
-
-    Reads local tables only, in `meaning.py`'s order. `gloss.remember` is the
-    one call allowed to leave the machine and it belongs to the word card, where
-    the learner is already waiting on it -- not here, where this runs behind a
-    click that should feel instant.
-
-    Until EKI's dictionary was imported this read Sõnaveeb's store alone, so a
-    word the card had not yet enriched was refused with "перевод пока
-    неизвестен" — for 60 000 words EKI had already translated.
+    """A card for what a word means, when there is no case contrast to drill. Reads
+    local tables only, in `meaning.py`'s order; the live lookup belongs to the word
+    card.
     """
     from . import config, gloss, wordlist
     from .meaning import russian as russian_for
@@ -119,11 +91,8 @@ def _meaning_card(
     finally:
         words.close()
     if not russian:
-        # Two different absences, and saying the wrong one is worse than saying
-        # nothing. A noun whose forms coincide has no contrast; an adverb or a
-        # conjunction has no genitive or partitive *at all*, and telling the
-        # learner that `kiiresti`'s omastav equals its osastav states something
-        # untrue about a word that has neither.
+        # Two different absences: a noun whose forms coincide has no contrast; an adverb
+        # or conjunction has no genitive or partitive at all. The refusal says which.
         declines = bool(analysis.get("genitive") and analysis.get("partitive"))
         why = ("**omastav** и **osastav** совпадают"
                if declines else "это слово не склоняется")
@@ -142,10 +111,8 @@ def _meaning_card(
         prompt=f"«{lemma}» — mida see tähendab?",
         answer=meaning,
         distractor=None,
-        # Nothing. `why_ru` is the Russian explanation slot and renders as
-        # such; Sõnaveeb's `definition` is **Estonian**, so putting it here
-        # printed `filmide näitamise asutus…` under a heading promising
-        # Russian. The answer is already the explanation on a meaning card.
+        # No `why_ru`: that slot is the Russian explanation, and the definition is
+        # Estonian; the answer already explains a meaning card.
         why_ru=None,
         source="reading",
         context=context,

@@ -42,18 +42,11 @@ def health() -> dict:
         "rules": sorted({t.rule for t in TEMPLATES}),
         "voices": list(tts.VOICES),
         "boot": BOOT_ID,
-        # Distinguishes "the reading list is empty" from "the reading list is
-        # broken" without going to the logs. The corpus is owner-only, so it is
-        # supplied at runtime and its absence is a supported state.
+        # Distinguishes an empty reading library (a supported state) from a broken one.
         "library": content_available(),
-        # The same corpus as two numbers, because it fails in two ways and only
-        # one of them was visible. A library with texts but no topic links
-        # serves reading perfectly and returns `reading: []` beside every
-        # drill -- the join is what makes practice and the library one tool,
-        # and nothing fills it but `cli link-topics`, run by hand.
-        # `push-content.sh` warns about it at push time; this is how the
-        # running service can be asked. `library` stays a boolean beside it:
-        # two different claims, two fields.
+        # Corpus items and topic links as separate counts: a corpus without links serves
+        # reading but gives every drill an empty `reading` list (`cli link-topics` fills
+        # it).
         "corpus": content_counts(),
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
@@ -62,19 +55,9 @@ def health() -> dict:
         # deployment it is how you tell a stale image from a missing feature.
         "built": BUILD.get("built"),
         "revision": BUILD.get("revision") or None,
-        # The three reference imports that happen at image build time, each as
-        # a row count rather than a flag.
-        #
-        # Counts, because the rule this project keeps relearning is that the
-        # presence of a database is not the presence of data -- twice already
-        # an empty deployment has looked full. All three are optional by
-        # design: `cli rections` depends on EKI answering a datacenter IP, and
-        # the two EKI downloads depend on the files being in the build context
-        # (`docs/sources.md`). Each failing costs one feature and the
-        # image still builds, which is exactly why a deployment needs to be
-        # able to say which of the three actually landed. Before this you
-        # could not tell "never imported" from "imported and empty" without
-        # opening the container.
+        # Reference data imported at image build, as row counts: a database file existing
+        # does not mean it holds data, and each import may fail without failing the build
+        # (`docs/sources.md`), so the deployment reports which landed.
         "reference": _reference(conn),
     }
 
@@ -119,20 +102,11 @@ def status() -> dict:
 
 @router.get("/api/engines")
 def grammar_engines() -> dict:
-    """Which grammar engines this deployment can actually use.
+    """Which grammar engines this deployment can use — configuration only.
 
-    Configuration only — nothing here calls a provider, so it is free to poll
-    and costs no quota.
-
-    This exists because of a failure that was invisible from outside: the LLM
-    key was set as a *Worker* secret, while the code that reads it runs in the
-    Cloud Run container. Nothing errored. The checker quietly served offline
-    mode — object-case candidates and typos, no explanations — and since only
-    an explained correction offers a "log it" button, the whole Notion chain
-    was inert too. All the exposure of holding a key and none of the benefit.
-
-    `explains` is the question worth asking: an engine that cannot produce a
-    Russian explanation cannot teach, whatever else it does.
+    Calls no provider, so it is free to poll; it cannot tell whether a provider
+    answers (the smoke check's deep mode does). `can_explain` matters because only
+    an explaining engine teaches and offers "log it".
     """
     from ..providers.grammar import build_chain
 
@@ -145,13 +119,8 @@ def grammar_engines() -> dict:
     ]
     return {
         "engines": engines,
-        # Deliberately NOT called `explains`: each engine carries a field of
-        # that name too, and a smoke check grepping the body for
-        # `"explains":true` matched a per-engine one on a provider that was
-        # not available — reporting the chain healthy while it was in offline
-        # mode, and sending me looking for a traffic split that did not exist.
-        # A summary field that shares a name with a per-item field is a trap
-        # for every line-oriented reader.
+        # `can_explain`, not `explains`: every engine carries an `explains` field, and a
+        # summary field sharing that name misleads line-oriented readers.
         "can_explain": any(e["available"] and e["explains"] for e in engines),
         "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
     }

@@ -11,8 +11,6 @@ from __future__ import annotations
 import sqlite3
 
 
-
-
 #: Topics whose exercises come out of real sentences. Others -- conjugation,
 #: question words, ordinals -- are generated from the word list, so no text
 #: "demonstrates" them in a way worth pointing at.
