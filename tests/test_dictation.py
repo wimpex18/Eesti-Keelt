@@ -266,7 +266,6 @@ class TestTheExamIsNotOnePerson:
         assert passage.to_dict()["voice"] == voice_for("Ma lugesin raamatut.")
 
     def test_the_page_sends_it(self):
-        from pathlib import Path
 
         page = markup_and_script()
         # Anchored on the dictation call specifically: the speaking tab calls

@@ -214,7 +214,7 @@ REGISTRY: tuple[Source, ...] = (
         "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
         "EKI's Estonian–Russian dictionary: 70 882 articles, 60 672 lemmas "
-        "with a usable Russian translation (measured 2026-09-13). The Russian "
+        "with a usable Russian translation. The Russian "
         "on the word card, the Sõnavara list, drills and review cards, offline — "
         "after the hand-written seed and the live dictionary (`meaning.py`). Imported by `cli import-evs` into the words database as "
         "`evs_gloss` — reference data, like `psv_gloss`, never written into "
@@ -230,7 +230,7 @@ REGISTRY: tuple[Source, ...] = (
         "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
         "EKI's education terminology: 4 989 articles, 5 905 terms counting "
-        "synonyms, with Russian (measured 2026-09-13). The last fallback for "
+        "synonyms, with Russian. The last fallback for "
         "a word card's Russian, after EVS and Sõnaveeb. `cli import-har`, "
         "table `har_gloss` in the words database.",
         changes="Взяты термины (основной и синонимы) и не более трёх русских "
@@ -241,7 +241,7 @@ REGISTRY: tuple[Source, ...] = (
         "eki-vsl", "Võõrsõnade leksikon (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
         "EKI's lexicon of foreign words: 31 794 articles, 30 095 headwords "
-        "with a definition (measured 2026-09-13). Native-level wording, so the "
+        "with a definition. Native-level wording, so the "
         "last fallback for a word card's definition, after PSV and Sõnaveeb. "
         "`cli import-vsl`, table `vsl_gloss` in the words database.",
         changes="Взяты заглавное слово и первое определение первой статьи; "

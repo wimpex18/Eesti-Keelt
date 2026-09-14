@@ -52,7 +52,7 @@ for LINE in "${SERVICES[@]}"; do
   # The things whose absence is silent, and what each one costs.
   for pair in \
     "PROXY_TOKEN|the run.app URL answers the whole internet" \
-    "MISTRAL_API_KEY NVIDIA_API_KEY OPENROUTER_API_KEY CLOUDFLARE_API_TOKEN HF_TOKEN|grammar has no explanations, so nothing reaches the Notion log" \
+    "CLOUDFLARE_API_TOKEN NVIDIA_API_KEY MISTRAL_API_KEY OPENROUTER_API_KEY|grammar has no explanations, so nothing reaches the Notion log" \
     "NOTION_TOKEN|confirmed errors queue locally and never push" \
     "EKILEX_API_KEY|the word card reads the third-party Sõnaveeb mirror instead of EKI's Ekilex API"
   do

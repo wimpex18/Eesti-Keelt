@@ -375,7 +375,7 @@ def import_official_levels(
     """Load EKI's level vocabulary and apply it. Idempotent.
 
     The file is not fetched from here, and that is deliberate. EKI serve it
-    behind ID-card authentication (checked 2026-09-12) — a gate to walk through
+    behind ID-card authentication — a gate to walk through
     rather than step around. So the learner downloads `A1A2B1.txt` themselves
     and names it here.
 

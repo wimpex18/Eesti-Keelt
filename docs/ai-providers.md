@@ -17,14 +17,13 @@ LLM lanes (`providers/llm.py`, all OpenAI-compatible, all free):
 | Order | Lane | Default model | Key(s) | Free limit | Measured |
 |---|---|---|---|---|---|
 | 1 | `local` | EstLLM 8B GGUF via Ollama | `LOCAL_LLM_URL` | unmetered, your machine | — |
-| 2 | `huggingface` | `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` | `HF_TOKEN` | not on a free account (402) | — |
-| 3 | `workers-ai` | `@cf/openai/gpt-oss-120b` | `CLOUDFLARE_API_TOKEN` (Workers AI Read) + `CLOUDFLARE_ACCOUNT_ID` | 10 000 neurons/day | P 1.0 · R 0.8 · 3–8 s |
-| 4 | `nvidia` | `deepseek-ai/deepseek-v4-flash-0731` | `NVIDIA_API_KEY` | 40 req/min | P 1.0 · R 1.0 · 40–230 s |
-| 5 | `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | Experiment plan, ~1B tokens/month | P 1.0 · R 0.3 · 1–4 s |
-| 6 | `openrouter` | `dots-studio/dots-3-note-preview:free` | `OPENROUTER_API_KEY` | 50 req/day, failures count | P 1.0 · R 0.71 |
+| 2 | `workers-ai` | `@cf/openai/gpt-oss-120b` | `CLOUDFLARE_API_TOKEN` (Workers AI Read) + `CLOUDFLARE_ACCOUNT_ID` | 10 000 neurons/day | P 1.0 · R 0.8 · 3–8 s |
+| 3 | `nvidia` | `deepseek-ai/deepseek-v4-flash-0731` | `NVIDIA_API_KEY` | 40 req/min | P 1.0 · R 1.0 · 40–230 s |
+| 4 | `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | Experiment plan, ~1B tokens/month | P 1.0 · R 0.3 · 1–4 s |
+| 5 | `openrouter` | `dots-studio/dots-3-note-preview:free` | `OPENROUTER_API_KEY` | 50 req/day, failures count | P 1.0 · R 0.71 |
 
-`groq` is defined but excluded (`grammar.NOT_IN_CHAIN`): Groq's firewall
-refuses datacenter IPs, so it only works from a laptop.
+Groq (blocks datacenter IPs) and Hugging Face-hosted EstLLM (paid only) are
+not lanes.
 
 **Order = recall at precision 1.0, weighed against how long the learner
 waits.** NVIDIA gives the best answer but is too slow to go first. Mistral

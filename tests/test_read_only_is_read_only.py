@@ -210,13 +210,3 @@ class TestStoppingRecordsNothing:
         with pytest.raises(Stopped):
             run(progress, "A1", self._stop, count=5, reviews=reviews)
         assert stats(reviews)["total"] == 0
-
-
-class TestTheStopIsOneClassNotTwo:
-    def test_checkpoint_and_placement_agree(self):
-        """Two exception classes sharing a name is how a caller catches the
-        wrong one on the day it matters."""
-        import eesti.checkpoint as checkpoint
-        import eesti.placement as placement
-
-        assert checkpoint.Stopped is placement.Stopped

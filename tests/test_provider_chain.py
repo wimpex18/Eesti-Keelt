@@ -331,7 +331,7 @@ class TestWhatTheNoteSays:
     @staticmethod
     def _http(code: int, body: bytes | None):
         return urllib.error.HTTPError(
-            "https://api.groq.com/openai/v1/chat/completions", code, "Forbidden",
+            "https://integrate.api.nvidia.com/v1/chat/completions", code, "Forbidden",
             {}, io.BytesIO(body) if body is not None else None)
 
     def test_the_providers_own_error_name_reaches_the_note(self):
@@ -384,9 +384,9 @@ class TestWhatTheNoteSays:
         """The unit above is only useful if `check` still puts it in the note —
         this project has shipped a correct function nothing called."""
         exc = self._http(403, b'{"error":{"code":"model_decommissioned"}}')
-        got = check("tekst", [Provider("llm:groq", fails=exc),
+        got = check("tekst", [Provider("llm:nvidia", fails=exc),
                               Provider("vabamorf", answer=[])])
-        assert "llm:groq: HTTPError 403 (model_decommissioned)" in got.diagnostics
+        assert "llm:nvidia: HTTPError 403 (model_decommissioned)" in got.diagnostics
 
 
 class TestThePinnedModels:
@@ -562,7 +562,7 @@ class TestTheEvalScoresThePromptTheAppShips:
 class TestTheLearnerReadsRussianAndTheOperatorReadsTheTrail:
     """Production, 2026-09-14: four keys set, every lane failing, and the
     banner told the learner to set a key — followed by `skipped -> tartunlp:
-    TimeoutError; llm:groq: HTTPError 403 (non-json)…` in English."""
+    TimeoutError; llm:nvidia: HTTPError 403 (non-json)…` in English."""
 
     def test_the_trail_is_not_in_the_note(self, monkeypatch):
         from eesti.providers import grammar

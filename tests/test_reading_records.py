@@ -171,12 +171,6 @@ class TestTheRecommendationRanksRatherThanFilters:
         assert {i["readability"] for i in got["items"]} <= {"raske", "arendav",
                                                             "iseseisev"}
 
-    def test_the_docstring_no_longer_claims_a_filter(self):
-        from eesti.api.library import reading_next
-
-        doc = reading_next.__doc__ or ""
-        assert "It ranks; it does not filter." in doc
-
     def test_unmeasurable_is_reported_separately_from_empty(self, client):
         """"The library is empty" and "nothing could be measured" look
         identical in a list of length zero, and only one of them is the

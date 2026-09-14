@@ -70,7 +70,7 @@ def health() -> dict:
         # an empty deployment has looked full. All three are optional by
         # design: `cli rections` depends on EKI answering a datacenter IP, and
         # the two EKI downloads depend on the files being in the build context
-        # (`deploy/eki/README.md`). Each failing costs one feature and the
+        # (`docs/sources.md`). Each failing costs one feature and the
         # image still builds, which is exactly why a deployment needs to be
         # able to say which of the three actually landed. Before this you
         # could not tell "never imported" from "imported and empty" without

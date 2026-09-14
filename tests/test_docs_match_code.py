@@ -320,12 +320,8 @@ class TestNothingIsDefinedForNobody:
     nowhere, which is correct and must not be reported.
     """
 
-    #: Kept on purpose, with the reason. `ARCHIVES` is a provenance record: the
-    #: three ERR archive index pages, noted because the harvester deliberately
-    #: does *not* fetch them (they render their episode lists in JavaScript) and
-    #: a future session should not rediscover that by trying. Same category as
-    #: the provenance-only rows in `sources.REGISTRY`.
-    ALLOWED = {"ARCHIVES"}
+    #: Constants deliberately declared and never read, with the reason.
+    ALLOWED: set[str] = set()
 
     @staticmethod
     def _declarations(root):

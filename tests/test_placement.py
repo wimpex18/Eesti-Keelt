@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 from eesti.placement import (MAX_FAILURES, MAX_PROBES, PROBE_ITEMS,
-                             PROBE_REQUIRED, candidates, entry_point,
+                             PROBE_REQUIRED, candidates,
                              entry_points, probe, sweep)
 from eesti.progress import connect, is_mastered, mark_mastered, mastered
 
@@ -132,12 +132,11 @@ class TestSweep:
         results = sweep(db, knows({"olevik", "verb-form", "kusisonad"}), seed=1)
         points = entry_points(results)
         assert len(points) >= 1
-        assert entry_point(results) == points[0]
         assert not (set(points) & mastered(db))
 
     def test_a_complete_beginner_is_placed_at_the_first_topic(self, db):
         results = sweep(db, wrong, seed=1)
-        assert entry_point(results) is not None
+        assert entry_points(results)
         assert mastered(db) == set()
 
     def test_passing_a_topic_unlocks_what_depends_on_it_mid_sweep(self, db):
@@ -168,10 +167,10 @@ class TestSweep:
     def test_level_filter_is_honoured(self, db):
         assert all(t.level == "A1" for t in candidates(db, levels=("A1",)))
 
-    def test_entry_point_is_the_first_real_failure(self, db):
+    def test_the_first_entry_point_is_the_first_real_failure(self, db):
         results = sweep(db, knows({"kusisonad"}), seed=1)
         first_fail = next(r for r in results if r.ran and not r.passed)
-        assert entry_point(results) == first_fail.topic
+        assert entry_points(results)[0] == first_fail.topic
 
     def test_a_probe_budget_bounds_the_session(self, db):
         """These are stopping rules for the learner's patience, not claims
@@ -179,10 +178,10 @@ class TestSweep:
         results = sweep(db, perfect, seed=1, max_probes=3)
         assert len(results) <= 3
 
-    def test_entry_point_is_none_when_nothing_failed(self, db):
+    def test_there_is_no_entry_point_when_nothing_failed(self, db):
         from eesti.placement import ProbeResult
 
-        assert entry_point([ProbeResult("x", 5, 5, True)]) is None
+        assert entry_points([ProbeResult("x", 5, 5, True)]) == []
 
 
 def test_the_probe_bar_is_stricter_than_the_practice_gate():

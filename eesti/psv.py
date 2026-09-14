@@ -132,9 +132,7 @@ def parse(path: Path | str) -> list[Entry]:
     """Read the dictionary. Articles without a headword are skipped, not raised.
 
     Through `ekixml.articles`, because the real file is not one XML document:
-    no root, undeclared `c:` prefixes, one article per line. This function read
-    it with `iterparse` until 2026-09-13 and failed on byte one of the real
-    file, having passed every test against a fixture written from the schema.
+    no root, undeclared `c:` prefixes, one article per line.
     """
     entries: list[Entry] = []
     for article in ekixml.articles(path):

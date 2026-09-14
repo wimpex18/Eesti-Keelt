@@ -13,15 +13,9 @@ word in it and still cannot parse the clause; a learner drilling the partitive o
 Three reasons, in order of how much they matter:
 
 1. **It is built for Estonian.** The University of Tartu's NMT models are trained
-   on Estonian, not on 119 languages of which Estonian is one. The eval in
-   `docs/ai-providers.md` is the whole argument: a 120B general model scored
-   0.50/0.50 on Estonian object case. Translation is a narrower task, but the
-   asymmetry is the same one.
-2. **It has never been down.** The grammar endpoint on the same host has failed
-   every probe since the first research round, including 2026-08-20. Translation
-   answered in 1.0 s on that same run and on every one before it. That split —
-   research *inference* is fragile, research *translation and TTS* are not — is
-   the finding this project's whole provider design is built on.
+   on Estonian, not on 119 languages of which Estonian is one. General models are
+   measurably weaker at Estonian (`docs/ai-providers.md`).
+2. **It is reliable**, unlike the grammar endpoint on the same host.
 3. **It costs nothing and needs no key.** No quota to exhaust, so nothing here
    competes with the grammar chain for OpenRouter's free tier.
 

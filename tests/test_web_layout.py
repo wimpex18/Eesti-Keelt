@@ -20,7 +20,6 @@ Rather than put a browser in CI for one line, this asserts the line is there.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 

@@ -1,6 +1,6 @@
 """Reading EKI's dictionary downloads as they actually are, not as their schemas say.
 
-Every `*_EKI_CCBY40.xml` from arhiiv.eki.ee/litsents was measured on 2026-09-13
+Every `*_EKI_CCBY40.xml` from arhiiv.eki.ee/litsents was
 (psv, evs, vsl, har, ekss), and all five share a shape no schema-built fixture
 would have: **there is no root element and the namespace prefixes are never
 declared.** The file is one article per line —
@@ -118,7 +118,7 @@ def russian(node: ET.Element | None) -> str:
     return text(shell).replace('"', "").replace("*", "").replace("[]", "").strip()
 
 
-#: Compound-boundary marks, per dictionary (measured 2026-09-13): `+` in EVS
+#: Compound-boundary marks, per dictionary: `+` in EVS
 #: (`aabitsa+`, 31 108), `|` and `\\…\\` in EKSS (`tehase|märk` 28 276,
 #: `\\sae\\pakk` 58 814). Stripping only `+` stored every EKSS compound under
 #: a key no lookup could ever match.

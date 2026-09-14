@@ -103,19 +103,8 @@ jobs:
 
           # 2b. Which of the three build-time reference imports landed.
           #
-          #     All three are allowed to fail the build without failing it:
-          #     `cli rections` needs EKI to answer a datacenter IP (they have
-          #     returned 403 to a GitHub runner on that exact URL), and the two
-          #     EKI downloads need the files to be in the build context -- and
-          #     the Cloud Build that rebuilds on every merge checks out git,
-          #     where `deploy/eki/*` is ignored, so on that path they never
-          #     are (measured 2026-09-13: both zero, run 34765657703). That is the
-          #     right trade against an unbuildable image — and it is precisely
-          #     why a deployment has to be asked which ones made it. Each costs
-          #     one feature silently: no rections means the rektsioon drill and
-          #     the rection check in free writing report "run `cli rections`",
-          #     no levels means every CEFR level is an estimate, no definitions
-          #     means the word card keeps Sõnaveeb's native-level wording.
+          #     Each import may fail without failing the image build, costing one
+          #     feature silently — which is why the deployment is asked.
           #
           #     Warnings, not failures. An image without them is degraded, not
           #     broken, and the deployment ran that way for months.
@@ -128,8 +117,8 @@ jobs:
               # "run 'cli rections'", which fills neither of them.
               case "$f" in
                 rections) hint="Run 'python -m eesti.cli rections' and rebuild." ;;
-                *)        hint="The EKI files are git-ignored, so the \
-          merge-triggered Cloud Build never has them. See deploy/eki/README.md." ;;
+                *)        hint="The EKI import failed at image build; check the Cloud \
+          Build log and deploy/eki/. See docs/sources.md." ;;
               esac
               echo "::warning::The deployed image has no $f. $hint"
             fi
@@ -181,13 +170,6 @@ jobs:
           # `main`'s head was committed, not by what fired the run. Minutes
           # after a merge, "older" means Cloud Build has not finished. Past the
           # build window it means the build failed or never ran.
-          #
-          # This was decided by the trigger, and a manual dispatch counted as
-          # "scheduled": on 2026-09-13 a run dispatched four minutes after a
-          # merge reported "the build FAILED or never ran", sent the operator
-          # into Cloud Shell, and the image landed two minutes later. A
-          # diagnosis that depends on the button pressed rather than the clock
-          # is a guess.
           if [ -z "$TRIGGER_COMMIT_AT" ] && [ -n "$GH_TOKEN" ]; then
             TRIGGER_COMMIT_AT="$(curl -sf \
               -H "Authorization: Bearer $GH_TOKEN" \

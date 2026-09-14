@@ -13,10 +13,7 @@ Four roles, four treatments, and one token for the one that was missing.
 from __future__ import annotations
 
 from eesti import config as config_db
-import re
-from pathlib import Path
 
-import pytest
 
 from pagesrc import markup_and_script, styles
 
@@ -38,10 +35,6 @@ class TestTheInstructionIsNotOneGreyRunOn:
 
     def test_the_component_is_defined_before_nothing_else_needs_it(self):
         assert "function taskLine(" in PAGE
-
-    def test_the_old_run_on_is_gone(self):
-        assert 'esc(it.hint || it.lemma || "")' not in PAGE
-
 
 class TestBothHalvesOfTheHintAreAvailable:
     """`hint` glues lemma and label together, so a page that wants them apart

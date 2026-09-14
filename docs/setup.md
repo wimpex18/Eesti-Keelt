@@ -40,8 +40,7 @@ Never in chat, a commit, an issue or the Claude environment-variables box. In
 | `NVIDIA_API_KEY` | NVIDIA Build lane (DeepSeek V4 Flash) | build.nvidia.com → Get API Key |
 | `MISTRAL_API_KEY` | Mistral lane (Experiment plan, phone verification) | console.mistral.ai → API Keys |
 | `OPENROUTER_API_KEY` | OpenRouter free models | openrouter.ai/keys |
-| `HF_TOKEN` | EstLLM via Hugging Face (needs paid credits) | huggingface.co/settings/tokens |
-| `GROQ_API_KEY` | Groq — local use only | console.groq.com/keys |
+| `HF_TOKEN` | hosted Whisper fallback for speech | huggingface.co/settings/tokens |
 | `EKILEX_API_KEY` | EKI's Ekilex API for the word card | your profile at ekilex.ee |
 | `NOTION_TOKEN` | sending corrections to the `Vead` database | notion.so/my-integrations |
 

@@ -13,28 +13,8 @@ from pathlib import Path
 
 from ..config import LEVELS
 
-#: Providers whose model listing is a selection rather than an inventory, so
-#: "the pinned id is not in the list" does not mean the pin is broken.
-PARTIAL_CATALOGUE = frozenset({"huggingface"})
-
-
 def _providers() -> tuple[str, ...]:
-    """Every provider the client actually knows, asked at parser-build time.
-
-    This was a hand-written tuple, and it had drifted in both directions at
-    once: it offered `huggingface`, which `llm.PROVIDERS` did not contain, so
-    `--provider huggingface` was an accepted choice that could only ever raise
-    `KeyError`; and it omitted `local`, so the one lane running an
-    Estonian-adapted model was the one lane the eval could not score -- on the
-    command whose entire job is to find out whether a model is any good at
-    Estonian.
-
-    A hand-maintained list of things that exist elsewhere is this project's
-    most-repeated bug, and unlike `api.ROUTERS` or `cli.GROUPS` this one carries
-    no ordering decision, so there is nothing to preserve by hand. Imported
-    inside the function, not at module load, so the CLI stays importable
-    without the provider dependencies installed.
-    """
+    """Every provider the client knows, read from `llm.PROVIDERS` at parser-build time."""
     from ..providers.llm import PROVIDERS
 
     return tuple(PROVIDERS)
@@ -68,8 +48,8 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
     """Replace the derived CEFR estimates with the exam board institute's own.
 
     Not a download: it takes a path to the file the learner fetched from
-    `arhiiv.eki.ee/litsents/` — committed as `deploy/eki/A1A2B1.txt` since
-    2026-09-13 — and says so when the path is wrong.
+    `arhiiv.eki.ee/litsents/` (committed as `deploy/eki/A1A2B1.txt`) and says
+    so when the path is wrong.
     """
     from collections import Counter
 
@@ -81,7 +61,7 @@ def cmd_import_levels(args: argparse.Namespace) -> int:
         print("Download `A1A2B1.txt` from https://arhiiv.eki.ee/litsents/ "
               "(Eesti keele tasemete sõnavara, CC BY 4.0) and pass its path.")
         print("Put it in `deploy/eki/` and the image build imports it too — "
-              "see deploy/eki/README.md.")
+              "see docs/sources.md.")
         return 1
 
     from ..wordlist import import_official_levels, read_official_levels
@@ -152,7 +132,7 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
         print("Download `psv_EKI_CCBY40.xml` from https://arhiiv.eki.ee/litsents/ "
               "(Eesti keele põhisõnavara sõnastik 2014, CC BY 4.0) and pass its path.")
         print("Put it in `deploy/eki/` and the image build imports it too — "
-              "see deploy/eki/README.md.")
+              "see docs/sources.md.")
         return 1
 
     try:
@@ -393,10 +373,8 @@ def cmd_models(args: argparse.Namespace) -> int:
     try:
         models = list_models(args.provider)
     except urllib.error.HTTPError as exc:
-        # The provider's own words, briefly: a 403 from a bad key and a 403
-        # from a firewall look identical until the body is read, and a
-        # traceback printed neither (2026-09-14, Groq). Keys are never in a
-        # response body; the excerpt is capped anyway.
+        # The provider's own words, briefly: a bad key and a firewall both
+        # answer 403. Keys are never in a response body; the excerpt is capped.
         try:
             said = exc.read().decode("utf-8", "replace")
         except Exception:  # noqa: BLE001
@@ -411,13 +389,7 @@ def cmd_models(args: argparse.Namespace) -> int:
         return 1
     free = [m for m in models if m.get("id", "").endswith(":free")]
     print(f"{args.provider}: {len(models)} models, {len(free)} free")
-    # Free-only unless asked, and *say* when that is not what you are seeing.
-    #
-    # The fallback is deliberate -- a catalogue with no `:free` ids at all is
-    # worth looking at, because that is precisely the moment a pin has to move.
-    # What was wrong is that it happened silently: this app runs on free tiers,
-    # so a paid list printed under the same heading as a free one is a list you
-    # could pin from by mistake.
+    # Free-only unless asked; say so when a catalogue has no `:free` ids.
     shown = free if (free and not args.all) else models
     if shown is models and not args.all:
         print("  (no `:free` ids in this catalogue — showing paid ones, which "
@@ -429,23 +401,6 @@ def cmd_models(args: argparse.Namespace) -> int:
             f" json={'structured_outputs' in params}"
         )
     default = PROVIDERS[args.provider].model
-    if args.provider in PARTIAL_CATALOGUE:
-        # Some catalogues are not an inventory of what is callable. The HF
-        # router's `/v1/models` returns ~135 warm models; a model reachable
-        # through an inference-provider mapping is routable without appearing
-        # there at all -- `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` is
-        # mapped to featherless-ai and is absent from that list.
-        #
-        # So "ABSENT -- fix it" here would be a false alarm on the one lane
-        # this project most wants to run, printed by the very step the eval
-        # workflow uses to sanity-check a pin. The question this command exists
-        # to answer -- has the id been silently withdrawn? -- is a real question
-        # for OpenRouter's `:free` aliases and is one this endpoint cannot
-        # answer. Saying so beats answering it wrongly.
-        print(f"\npinned default {default!r}: NOT ANSWERABLE HERE — "
-              f"{args.provider} lists warm models only, not everything routable. "
-              f"Check https://huggingface.co/{default}")
-        return 0
     present = any(m.get("id") == default for m in models)
     print(f"\npinned default {default!r}: {'PRESENT' if present else 'ABSENT — fix it'}")
     return 0
@@ -493,7 +448,7 @@ def register(sub) -> None:
     p.add_argument("--levels", nargs="+", default=list(LEVELS))
     p.set_defaults(func=cmd_build)
 
-    p = sub.add_parser("export", help="build the edge dataset for Cloudflare D1")
+    p = sub.add_parser("export", help="build the form index (data/edge.db) the word card reads")
     p.add_argument("--max-freq-rank", type=int, default=25_000)
     p.set_defaults(func=cmd_export)
 

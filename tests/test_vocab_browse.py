@@ -268,7 +268,6 @@ class TestSettlingAWord:
     def test_the_page_can_reach_every_settled_status(self):
         """The contract that was broken: a status the page cannot set is a
         status that does not exist for the learner."""
-        from pathlib import Path
 
         page = markup_and_script()
         assert '"ignore"' in page, "the page cannot reach `eiran`"

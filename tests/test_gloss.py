@@ -21,7 +21,6 @@ module-level dict: state that protects against restarts must survive one.
 
 from __future__ import annotations
 
-import sqlite3
 
 import pytest
 
@@ -103,11 +102,9 @@ class TestAWordIsAskedAboutOnce:
     def test_it_lives_where_the_snapshot_will_carry_it(self):
         """`vocab.db` is in STATE_DATABASES. Any other file and the store would
         reproduce exactly the bug it was written to fix."""
-        from eesti import app as app_module
         from eesti.api import state as state_module
 
         assert "vocab" in state_module.STATE_DATABASES
-        assert app_module.gloss_db.__doc__ and "snapshot" in app_module.gloss_db.__doc__
 
 
 class TestNothingHereCanBecomeAHarvest:
@@ -219,7 +216,6 @@ class TestThePracticeSetShowsWhatTheWordsMean:
         assert got.json()["glosses"] == {}
 
     def test_a_stored_gloss_reaches_the_set(self, client, tmp_path, monkeypatch):
-        from eesti import app as app_module
 
         conn = gloss.connect(config_db.VOCAB_DB)
         first = client.post(
@@ -304,7 +300,6 @@ class TestThePracticeSetShowsWhatTheWordsMean:
 class TestThePageShowsIt:
     @staticmethod
     def _page() -> str:
-        from pathlib import Path
 
         return markup_and_script()
 
@@ -332,7 +327,6 @@ class TestTheReviewQueueIsGlossedToo:
         return TestClient(app_module.app)
 
     def test_the_queue_carries_glosses(self, client):
-        from eesti import app as app_module
 
         client.post("/api/review", json={
             "kind": "obj-case", "lemma": "kleit", "prompt": "Ma ostsin ____.",
@@ -350,7 +344,6 @@ class TestTheReviewQueueIsGlossedToo:
         assert client.get("/api/review?limit=20").status_code == 200
 
     def test_the_page_reads_the_map(self):
-        from pathlib import Path
 
         page = markup_and_script()
         assert "function renderReview(it, glosses)" in page

@@ -28,7 +28,7 @@ of the pool it is filtering the only thing that moves the number:
 | `grammar2_et` train, 446 | 17 |
 | `grammar_et` **train, 7 937** | **312** |
 
-Measured 2026-09-11. The train split is five times the whole previous pool and
+The train split is five times the whole previous pool and
 nothing had ever asked for it: every earlier pass read the dataset card, saw
 one number, and fetched the split the eval track names. `grammar2_et` was
 missed the same way -- the benchmark paper lists seven datasets and it is an

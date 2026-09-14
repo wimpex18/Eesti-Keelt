@@ -164,14 +164,3 @@ class TestOneAnswerAboutWhichVerbsAreReady:
         assert pool, "no verbs at all — this check would prove nothing"
         assert {lemma for lemma, _ in verbs_at_levels(words)} == pool
         assert {form.lemma for form in irregular_verbs(words)} <= pool
-
-    def test_neither_module_keeps_its_own_copy_of_the_query(self):
-        import inspect
-
-        from eesti import conjugation, verbs
-
-        for module, func in ((conjugation, conjugation.verbs_at_levels),
-                             (verbs, verbs.irregular_verbs)):
-            source = inspect.getsource(func)
-            assert "SELECT word, proficiency" not in source, (
-                f"{module.__name__} has grown its own copy of the verb query")

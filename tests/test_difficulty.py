@@ -19,7 +19,6 @@ the word list carry a CEFR tag at all.
 
 from __future__ import annotations
 
-import pytest
 
 from eesti.difficulty import (BANDS, INDEPENDENT, INSTRUCTIONAL, CAVEAT,
                               comprehensible, known_lemmas, rank)

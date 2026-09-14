@@ -35,11 +35,8 @@ def check(req: CheckRequest) -> dict:
     and it is still correct Estonian, and it now means you went *with* a doctor.
     No grammar chain flags that. Reading it back in Russian does.
 
-    This is the one job an Estonian-trained NMT is better at than a general LLM,
-    and it is free, keyless, and on the one TartuNLP endpoint that has never
-    been down — measured again on 2026-08-20: translation answers in 1.0s while
-    its grammar sibling on the same host returns 500 after 60.7s, unchanged
-    since the first probe six months ago.
+    TartuNLP's Estonian-trained translation does this job; it is free, keyless
+    and reliable.
 
     Never blocking. If translation is unavailable the check returns exactly what
     it always did.
@@ -156,11 +153,9 @@ def _meaning(simple, kept, native_offline=None) -> dict:
         # The native-level wording beside PSV's learner one: the live
         # dictionary's, else EKSS/VSL offline. Only when PSV answered and the
         # fuller text says something else, so the card never repeats itself.
-        # It had no reader until 2026-09-13 — an API field nothing drew — and
-        # the card now shows it folded under "täpsem seletus".
+        # The card shows it folded under "täpsem seletus".
         **_fuller(bool(learner), definition, native, live_source, offline_source, offline),
-        # `[]` until 2026-09-11, hardcoded — a field the API promised and no
-        # source ever filled. PSV is the only source that has examples.
+        # PSV is the only source that has examples.
         "examples": list(simple.examples) if simple else [],
     }
 
@@ -201,7 +196,6 @@ def enrich_word(word: str) -> dict:
     """
     from .. import evs, gloss
     from ..ekidefs import lookup as native_offline
-    from ..meaning import russian as russian_for
     from ..providers import sonapi
     from ..psv import lookup as psv_lookup
 

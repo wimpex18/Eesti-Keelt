@@ -104,7 +104,6 @@ class TestEveryCommandIsReachable:
     @staticmethod
     def _registered() -> list[str]:
         import re
-        from pathlib import Path
 
         source = _package_source()
         return re.findall(r'sub\.add_parser\(\s*\n?\s*"([a-z0-9-]+)"', source)
@@ -122,7 +121,6 @@ class TestEveryCommandIsReachable:
     def test_every_command_has_a_handler(self):
         """`set_defaults(func=...)` is easy to forget and fails only when run."""
         import re
-        from pathlib import Path
 
         source = _package_source()
         handlers = set(re.findall(r"set_defaults\(func=(cmd_\w+)\)", source))
@@ -257,7 +255,6 @@ class TestTheCommandsThatCannotBeRunHereStillReachTheirWork:
         """The message it prints instead, which is the branch that ran first
         and still raised."""
         from eesti import config
-        from eesti.cli import ops
 
         monkeypatch.setattr(config, "DB_PATH", tmp_path / "missing.db")
         code, out, err = run(["serve"])

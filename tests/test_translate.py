@@ -134,7 +134,6 @@ class TestTheEndpointAndItsPosture:
         """Offered, never shown. A reader handed Russian reads the Russian, and
         this app's reading design rests on working at the edge of what is
         understood rather than past it."""
-        from pathlib import Path
 
         page = markup_and_script()
         assert '"/api/translate"' in page
@@ -144,7 +143,6 @@ class TestTheEndpointAndItsPosture:
 
     def test_the_route_has_a_caller(self):
         """The bug being fixed: `TARTUNLP_TRANSLATE` was configured with none."""
-        from pathlib import Path
 
         page = markup_and_script()
         assert "/api/translate" in page
@@ -184,7 +182,6 @@ class TestBackTranslationInTheWritingCheck:
         assert "corrections" in got.json()
 
     def test_the_page_renders_it(self):
-        from pathlib import Path
 
         page = markup_and_script()
         assert "res.back_translation" in page

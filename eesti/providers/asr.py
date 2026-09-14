@@ -89,39 +89,15 @@ TRANSCRIBE_PROMPT = (
 HF_MODEL = "openai/whisper-large-v3"
 HF_URL = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 
-# The best Estonian model, named here so the fact stays next to the code: it is
-# MIT and it is better than any of the above at Estonian, and no one hosts it.
-# Usable only by self-hosting — see docs/speaking.md.
+# TalTech's Estonian verbatim Whisper (MIT); self-hosted only, via whisper.cpp.
 ESTONIAN_MODEL = "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
 ESTONIAN_GGML = f"https://huggingface.co/{ESTONIAN_MODEL}/resolve/main/ggml/ggml-model.bin"
 
-# TalTech's Estonian Voxtral (published 2026-08-25). Not a Whisper: it is an
-# audio-understanding model, so it takes an instruction alongside the audio and
-# whisper.cpp cannot run it. llama.cpp can, through the multimodal CLI and the
-# `mmproj` audio encoder that ships beside the quantised weights.
-#
-# Two things about the provenance, because both were stated loosely once and
-# both matter:
-#
-# * **The GGUF builds are not TalTech's.** TalTech published bfloat16
-#   safetensors only; the quantisations are `mradermacher`'s, a third-party
-#   requantiser. Whoever pulls them is trusting a converter as well as a
-#   trainer, which is a different question from trusting the model card.
-# * **`llama-server` is not a route.** An OpenAI-shaped
-#   `/v1/audio/transcriptions` on llama.cpp is an open feature request, not a
-#   merged endpoint, and audio through the server is still called experimental
-#   upstream. So this lane shells out to the multimodal CLI, exactly as the
-#   whisper.cpp lane shells out to `whisper-cli` -- a binary on a machine, not
-#   a URL. If that endpoint lands, this becomes a URL and the shape here does
-#   not have to change.
-#
-# The reported WER is 5.05 %, and the model card says in its own words that the
-# validation set is ten recordings and "should not be treated as a broad
-# estimate of Estonian ASR quality". That is why this lane is behind
-# whisper.cpp rather than in front of it: see `transcribe`.
-VOXTRAL_MODEL = "TalTechNLP/Voxtral-Mini-3B-2507-estonian"
-VOXTRAL_GGUF = "mradermacher/Voxtral-Mini-3B-2507-estonian-GGUF"
-
+# TalTech's Estonian Voxtral (`TalTechNLP/Voxtral-Mini-3B-2507-estonian`; GGUF
+# builds by the third-party requantiser `mradermacher`). An audio-understanding
+# model: it needs an instruction and the `mmproj` audio encoder, and runs through
+# llama.cpp's multimodal CLI. Behind whisper.cpp because its reported WER rests
+# on a ten-recording validation set.
 #: What to ask it for. It answers instructions rather than transcribing by
 #: reflex, so an empty prompt gets whatever the fine-tune's default style was --
 #: subtitles, a summary, or a news story, all of which are things it was trained

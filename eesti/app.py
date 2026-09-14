@@ -1,6 +1,5 @@
-"""Local single-user web app. No auth, no deployment, no cloud state.
-
-Run with:  python -m eesti.cli serve
+"""The FastAPI application: single learner, served locally (`cli serve`) or on
+Cloud Run behind the Cloudflare Worker.
 
 This module is the assembly: the application object, the one piece of
 middleware that guards the origin, and the names that the CLI, the tests and

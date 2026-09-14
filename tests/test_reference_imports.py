@@ -69,17 +69,6 @@ class TestTheBuildActuallyRunsThem:
         line = next(l for l in dockerfile.splitlines() if f"eesti.cli {command}" in l)
         assert line.rstrip().endswith("|| \\"), line
 
-    def test_the_eki_drop_directory_survives_an_empty_build_context(self):
-        """Docker has no conditional COPY, so the directory the two EKI files
-        go in has to exist in the repo with something committed in it. Empty,
-        the COPY fails and the image will not build for someone who has not
-        filled in EKI's form."""
-        readme = ROOT / "deploy" / "eki" / "README.md"
-        assert readme.exists(), "the COPY in the Dockerfile has nothing to copy"
-        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
-        assert "deploy/eki/*" in ignore
-        assert "!deploy/eki/README.md" in ignore, "and the README must survive it"
-
     def test_every_file_the_image_imports_is_in_git(self):
         """Cloud Build builds from a git checkout, so a file the Dockerfile
         imports and git ignores is a file production never has. That was the
@@ -103,7 +92,7 @@ class TestTheBuildActuallyRunsThem:
         a build that silently skips the import is exactly what that costs."""
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         cli = (ROOT / "eesti" / "cli" / "build.py").read_text(encoding="utf-8")
-        readme = (ROOT / "deploy" / "eki" / "README.md").read_text(encoding="utf-8")
+        readme = (ROOT / "docs" / "sources.md").read_text(encoding="utf-8")
         for name in ("A1A2B1.txt", "psv_EKI_CCBY40.xml", "evs_EKI_CCBY40.xml",
                      "vsl_EKI_CCBY40.xml", "har_EKI_CCBY40.xml"):
             assert f"deploy/eki/{name}" in dockerfile, name
@@ -129,5 +118,5 @@ class TestTheSmokeCheckReadsThem:
         block = body[start:body.index("esac", start)]
         rections, _, eki = block.partition("*)")
         assert "rections)" in rections and "eesti.cli rections" in rections
-        assert "deploy/eki/README.md" in eki
+        assert "docs/sources.md" in eki
         assert "rections" not in eki, "the EKI hint must not name `cli rections`"

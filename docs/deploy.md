@@ -75,7 +75,8 @@ Smoke warns on any zero.
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Workers AI token ✅ | deploy token ✅ | Worker deploy (Actions); grammar lane (Cloud Run) |
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | — | ✅ | Workers AI Read token for `eval.yml` |
 | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `WORKER_URL` | — | ✅ | smoke test service token |
-| `MISTRAL_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `HF_TOKEN` | ✅ | ✅ | grammar lanes; Actions copies for the eval |
+| `MISTRAL_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY` | ✅ | ✅ | grammar lanes; Actions copies for the eval |
+| `HF_TOKEN` | optional | — | hosted Whisper fallback for speech |
 | `EKILEX_API_KEY` | ✅ | — | live Ekilex word card |
 | `NOTION_TOKEN` | ✅ | — | sending corrections to `Vead` |
 

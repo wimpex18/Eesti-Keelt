@@ -1,8 +1,7 @@
 name: Estonian model eval
 
-# Answers a question no model card can: does this model actually handle Estonian
-# object case? Runs on demand so a key is only ever spent deliberately, and on
-# PRs that touch the eval or the providers.
+# Scores a grammar model on the 18-case Estonian eval (docs/ai-providers.md).
+# Manual, plus weekly on OpenRouter to catch a `:free` alias changing model.
 on:
   workflow_dispatch:
     inputs:
@@ -10,61 +9,20 @@ on:
         description: Provider to score
         default: openrouter
         type: choice
-        # Hand-maintained, because Actions YAML cannot read `llm.PROVIDERS` --
-        # so a test asserts the two agree in both directions. That test exists
-        # because this exact shape of list has now drifted twice: `huggingface`
-        # was once in `PROVIDERS` and in no chain, and `cli/build.py` offered a
-        # `huggingface` that did not exist while omitting `local`.
-        #
-        # `local` is deliberately absent and is the one documented exclusion: no
-        # runner has an Ollama server on `LOCAL_LLM_URL`, and offering a choice
-        # that cannot work is the bug this list is guarding against.
-        options: [openrouter, mistral, nvidia, workers-ai, huggingface, groq]
+        # Must equal `llm.PROVIDERS` minus `local` (no runner has a local model
+        # server); a test checks both directions.
+        options: [openrouter, mistral, nvidia, workers-ai]
       model:
         description: Model to score
         default: "dots-studio/dots-3-note-preview:free"
         type: choice
+        # Free OpenRouter ids, or a lane's pinned default (a test checks).
+        # `(provider default)` passes no --model, so the lane's own pin is used.
         options:
-          # Every id below the sentinel is OpenRouter's. Picking one of them
-          # with a different provider selected sends an id that provider has
-          # never heard of -- so the sentinel passes no `--model` at all and
-          # lets the provider's own default stand. Without it the expression
-          # further down always sent a model, which for any non-OpenRouter lane
-          # was the wrong one.
           - (provider default)
-          # Only models that accept `response_format`, which is what the client
-          # sends — a model that cannot produce JSON fails for the wrong reason.
-          # Note that is a *different* capability from `structured_outputs`,
-          # which this list used to filter on and which excluded gemma-4-31b.
-          #
-          # Ordered by active parameters, because that is the axis a
-          # low-resource language actually rides on: 30.7B dense, 16B, 12B,
-          # 3.8B, 3.6B. The 12B one is the model measured at 0.50/0.50.
-          # dots-3 leads since 2026-09-14: the only free id that answered (P 1.0,
-          # R 0.714) while gemma-4-31b returned 429 to every case. Nemotron 3
-          # Ultra (550B, 55B active) is the next one to measure.
           - dots-studio/dots-3-note-preview:free
           - nvidia/nemotron-3-ultra-550b-a55b:free
-          - google/gemma-4-31b-it:free
-          - nvidia/nemotron-3-super-120b-a12b:free
-          - google/gemma-4-26b-a4b-it:free
-          - openai/gpt-oss-20b:free
-          # huggingface. The Estonian-adapted model this project has wanted from
-          # the start, routed to featherless-ai. Select `huggingface` above with
-          # this, or with `(provider default)` -- they are the same id, so
-          # picking it here changes nothing and is not the fix for a failing
-          # run.
-          #
-          # The `response_format` rule above does NOT hold for this one, and
-          # that was the bug: the HF router chooses a provider by what the
-          # request asks for, so sending JSON mode to a model whose only
-          # provider lacks it leaves no route and answers `400
-          # model_not_supported`. The lane sets `json_mode=False` and asks for
-          # JSON in the prompt instead.
-          - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125
-          # nvidia and mistral: their lanes' own pinned defaults. Measured
-          # against them on 2026-09-14 and dropped (docs/ai-providers.md):
-          # deepseek-v4-pro-0813, 410 Gone; kimi-k3, 429s and a six-minute reply.
+          - "@cf/openai/gpt-oss-120b"
           - deepseek-ai/deepseek-v4-flash-0731
           - mistral-large-latest
       evidence:
@@ -73,16 +31,7 @@ on:
           the model's weakness is judgement or morphology.
         default: false
         type: boolean
-  # Weekly, and on demand. NOT on every pull request that touches a provider.
-  #
-  # It was, and on 2026-08-20 that meant 16 runs in one day -- roughly 288
-  # requests against OpenRouter's 50/day free tier. The eval then measured
-  # nothing and said so, which is the honest-skip design working, but a gate
-  # that cannot run is not a gate. 39 runs on 18 Aug, same story.
-  #
-  # A model's score changes when the model changes, not when a docstring in
-  # `providers/` does. Weekly catches a provider silently swapping a model
-  # under a `:free` alias; `workflow_dispatch` covers a deliberate switch.
+  # Weekly only: OpenRouter's free tier is 50 requests a day.
   schedule:
     - cron: "17 6 * * 1"
 
@@ -92,16 +41,11 @@ jobs:
     env:
       PROVIDER: ${{ inputs.provider || 'openrouter' }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
-      # The deploy token cannot read Workers AI (403, code 10000, 2026-09-14);
-      # a separate read-only token does, and the deploy one stays as it was.
+      # The deploy token cannot read Workers AI; a separate Read token can.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_AI_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      # The EstLLM lane. Without this line the provider could be selected and
-      # would report "no key configured" with the secret sitting right there.
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@v7
 
@@ -118,25 +62,16 @@ jobs:
           python -m eesti.cli fetch-data
           python -m eesti.cli build
 
-      # Informative, never a gate: on 2026-09-14 this step failed for Groq
-      # (403) and Workers AI (405) and the job ended before a single sentence
-      # was scored — the one measurement the workflow exists for.
+      # Informative, never a gate: a catalogue error must not stop the scoring.
       - name: Check the pinned model id still exists
         continue-on-error: true
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
 
-      # A key is optional, but "no key" must never look like "model passed".
-      # The first version of this workflow skipped the scoring step and reported
-      # success, which is a green tick standing for no measurement at all.
+      # "No key" must never look like "model passed".
       - name: Score the model on Estonian
         id: score
         run: |
-          # The key for *this* provider, not any key at all. `cli keys | grep ✓`
-          # answered "is some lane configured", so selecting `huggingface` with
-          # only an OpenRouter key set ran the eval, failed every call, and
-          # reported rc=2 -- "rate limit or provider outage", blaming a third
-          # party for a missing secret. `available` is the same property the
-          # grammar chain uses to decide whether a lane can be called.
+          # The key for *this* provider (`available`, as the grammar chain uses).
           if ! python -c "
           import sys
           from eesti import env
@@ -149,9 +84,7 @@ jobs:
             exit 0
           fi
 
-          # `cmd | tee` reports tee's status, not the command's, so the eval's
-          # exit code was being swallowed and an unmeasurable run reported
-          # success. pipefail keeps it.
+          # pipefail keeps the eval's exit code through `tee`.
           set -o pipefail
           rc=0
           # `(provider default)` is the sentinel, not an id: passing no
@@ -165,11 +98,7 @@ jobs:
             | tee eval.txt || rc=$?
           echo "RC=$rc" >> "$GITHUB_OUTPUT"
 
-          # 2 = could not measure (rate limit, provider down). That is somebody
-          # else's bad minute, so it warns rather than failing the build.
-          # 1 = measured, and the model fell below threshold: real information,
-          # reported loudly but still not a code defect, so also not a failure.
-          # Anything else is an actual crash and should fail.
+          # 1 = below threshold, 2 = could not measure: both warn. >2 is a crash.
           if [ "$rc" -gt 2 ]; then exit "$rc"; fi
 
       - name: Report
@@ -182,7 +111,7 @@ jobs:
               echo "> The model-id check passed, but **no model was scored**."
               echo "> Add the key for \`$PROVIDER\` under Settings → Secrets"
               echo "> and variables → Actions, then re-run this workflow."
-              echo "> (\`HF_TOKEN\` for huggingface, \`OPENROUTER_API_KEY\` for"
+              echo "> (\`NVIDIA_API_KEY\` for nvidia, \`OPENROUTER_API_KEY\` for"
               echo "> openrouter, and so on — \`python -m eesti.cli keys\` lists them.)"
             elif [ "${{ steps.score.outputs.RC }}" = "2" ]; then
               echo

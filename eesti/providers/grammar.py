@@ -90,9 +90,8 @@ class GrammarResult:
     #: For the learner, in Russian: shown in the writing banner.
     note: str = ""
     #: For the operator: which lanes were tried and how each failed
-    #: (`llm:groq: HTTPError 403 (non-json)`). It was appended to `note` until
-    #: 2026-09-14, so the learner's banner carried English stack-trace
-    #: vocabulary; the smoke workflow reads this field instead.
+    #: (`llm:nvidia: HTTPError 410 (no-code)`). English; read by the smoke
+    #: workflow, never shown to the learner.
     diagnostics: str = ""
     # True when the input was not typed by the learner — a speech transcript,
     # where the recogniser may have introduced the "error" being reported.
@@ -201,49 +200,16 @@ def _tag_of(wrong: str, right: str) -> str:
 class TartuNLPGrammar:
     """TartuNLP's public GEC service at `api.tartunlp.ai/grammar`.
 
-    **Status 2026-09-12: correct, and not answering.** A GET for their OpenAPI
-    spec on this host returns in 0.65 s; a POST to either grammar endpoint
-    hangs for 35 s with zero bytes; a POST to `translation/v2` on the *same
-    host* returns in 0.85 s. That last probe is what rules out our network, the
-    proxy and the request shape and leaves their worker. Their own demo at
-    `grammar.tartunlp.ai` posts here too, and is down with it.
-
-    So this class is a lane waiting on somebody else, not dead code: it starts
-    answering the day they attach a worker, with no change here. The learner is
-    insulated meanwhile — `PROVIDER_TIMEOUT` is 5 s split across the two
-    endpoints, then the breaker opens for 900 s and backs off to six days.
-
-    ## The contract, read from their spec rather than guessed
-
-    `api.tartunlp.ai/grammar/openapi.json` is public and was fetched on
-    2026-09-11. It publishes two endpoints, and this class now uses both:
+    Contract from their published OpenAPI spec (no authentication):
 
     | Endpoint | Request | Answers with |
     |---|---|---|
-    | `POST /grammar/v2` | `{"language": "et", "text": …}` | `corrections[{original, corrected, correction_log, explanations}]` — whole **sentences**, plus an Estonian-only explanation |
-    | `POST /grammar/` | the same body | `corrections[{span:{start,end,value}, replacements:[{value}]}]` — exact character **spans** |
+    | `POST /grammar/v2` | `{"language": "et", "text": …}` | whole corrected sentences, plus an Estonian explanation |
+    | `POST /grammar/` | the same body | exact character spans with replacements |
 
-    ## Why both
-
-    `/v2` is tried first because it is the only one that carries an
-    explanation. `/` is tried when `/v2` fails, and it is not a consolation
-    prize: it returns the character offsets this app otherwise has to recover
-    by searching the text, and it skips the explanation step, so it is the
-    cheaper of the two on their side and the likelier of the two to answer.
-
-    ## What is actually wrong with it, measured 2026-09-11
-
-    Nothing on this side. The request shape above matches their published
-    schema exactly, the spec declares no authentication, and **both** endpoints
-    answer **HTTP 500 after ~61 seconds** — reproduced with TartuNLP's own
-    example string, `{"text": "Aitähh!"}`, which is the example printed in
-    their spec. A `GET` returns 405, so the route exists and the host is up;
-    only a `POST` reaches the worker that is not answering. That 405 is the
-    trap worth naming: a liveness check that issues a `GET` goes green on a
-    service that has never once returned a correction.
-
-    So the short timeout stays, and the breaker stays. The 61-second failure
-    must never be inflicted on someone waiting to see their mistake.
+    `/v2` is tried first for the explanation, `/` when it fails. The service is
+    often unresponsive (POSTs hang or return 500 while GET answers 405), so both
+    share the short `PROVIDER_TIMEOUT` and the breaker skips it after failures.
     """
 
     name = "tartunlp"
@@ -434,18 +400,12 @@ class VabamorfFallback:
 
 
 #: The keys that turn on a lane able to explain a correction.
-EXPLAINING_KEYS = ("MISTRAL_API_KEY", "NVIDIA_API_KEY", "OPENROUTER_API_KEY", "CLOUDFLARE_API_TOKEN", "HF_TOKEN")
+EXPLAINING_KEYS = ("CLOUDFLARE_API_TOKEN", "NVIDIA_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY")
 
 
 def _offline_note() -> str:
-    """What the learner reads when only the offline check answered.
-
-    It said "set a key" whatever the reason, and on 2026-09-14 production had
-    four keys set and every lane failing (a timeout, a 400, a 429, a 403): the
-    learner was told to fix a configuration that was there. Absent keys and
-    failing services are different situations, and only one of them is the
-    learner's to do anything about — and not even that one, really.
-    """
+    """What the learner reads when only the offline check answered: fix a key
+    only when none is set; otherwise the services did not answer."""
     base = "Офлайн-режим: показаны кандидаты на obj-case и опечатки, но без проверки правильности."
     if any(os.environ.get(k) for k in EXPLAINING_KEYS):
         return base + " Сервисы разбора сейчас не ответили — попробуй ещё раз позже."
@@ -516,48 +476,11 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
     )
 
 
-# Preference order for LLM providers. Any provider that is not configured is
-# skipped, so this degrades by configuration alone.
-#
-# `local` is first when it is switched on, and switched off by default. That
-# order is not a guess about quality: it is the one lane running a model built
-# for Estonian, and Estonian object case is the specific thing every general
-# model here has been measured failing. It is also free, private and unmetered,
-# so when it is available there is no argument for asking anyone else first.
-#
-# `huggingface` is second, and it is the same argument rather than a new one:
-# that lane runs the *same* Estonian-adapted model as `local`, hosted. What
-# separates them is who pays and who can read the request -- not the model. So
-# every general-purpose lane stays behind both.
-#
-# This entry is also the reason the rule below exists. `huggingface` was once in
-# `PROVIDERS` and never in this tuple: defined, unreachable, and unnoticed for
-# exactly that reason. Anything added to `PROVIDERS` and not to this tuple is
-# dead weight; a test asserts the two agree, which is what forced this line to
-# be edited when the provider came back.
-#: Groq left the chain on 2026-09-14: its Cloudflare front refuses datacenter IP
-#: ranges by design ("Access denied. Please check your network settings"), so a
-#: Cloud Run container can never reach it. NVIDIA and Mistral joined as the
-#: largest free allowances reachable from a server.
-#:
-#: The order weighs eval recall (all at precision 1.0) against how long the
-#: learner waits, both measured 2026-09-14 and tabled in `docs/ai-providers.md`:
-#:
-#: * workers-ai, gpt-oss-120b: recall 0.8, 3-8 s — first.
-#: * nvidia, DeepSeek V4 Flash: recall 1.0, but 40-229 s per check on the free
-#:   endpoint. The best answer, and too slow to be the first one; behind
-#:   Workers AI it only runs when that lane has failed.
-#: * mistral, Large: recall 0.3, 1-4 s. Mostly answers "no errors". Mistral
-#:   leads Tartu's Estonian leaderboard for fluency, so fluency did not decide it.
-#: * openrouter, dots-3: recall 0.714, but 50 free requests a day and a 429
-#:   still spends one.
-LLM_PREFERENCE = ("local", "huggingface", "workers-ai", "nvidia", "mistral", "openrouter")
-
-#: Lanes defined in `PROVIDERS` and deliberately left out of the chain, each with
-#: the reason. The only way past the "defined but never tried" check.
-NOT_IN_CHAIN = {
-    "groq": "refuses datacenter IPs; kept for `cli models` and evals from a laptop",
-}
+#: LLM lanes in the order the chain tries them; unconfigured lanes are skipped.
+#: `local` runs an Estonian-adapted model and is off unless LOCAL_LLM_URL is set.
+#: The rest are ordered by eval recall at precision 1.0 against how long the
+#: learner waits (docs/ai-providers.md). Every lane in `llm.PROVIDERS` must be here.
+LLM_PREFERENCE = ("local", "workers-ai", "nvidia", "mistral", "openrouter")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
@@ -643,14 +566,8 @@ def why_failed(exc: BaseException) -> str:
     identically. A live deployment reported `llm:openrouter: HTTPError` and
     nothing in the note could say which of the three it was.
 
-    The status code was that fix, and it was the same fix one level too shallow.
-    On 2026-08-22 a freshly-set Groq key reported `HTTPError 403` on its first
-    call. 403 is *permissions*, so the diagnosis went to the key — and the key
-    was fine: the pinned model id had been deprecated for free accounts six days
-    earlier, and a withdrawn id that enterprise accounts still hold does not
-    404, it forbids. The provider had named the cause in its body, and the note
-    dropped it, so the answer came from a web search instead of from the run
-    that hit it.
+    The provider's own error code is included where it gives one: a 403 can be
+    a withdrawn model id, not a bad key.
 
     Never a response *body*: the note is printed into CI logs, and the text
     being checked is the learner's own writing. `_error_code` reads one field

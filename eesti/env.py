@@ -20,12 +20,11 @@ ENV_FILE = ROOT / ".env"
 # Every key the app can use. All optional: absent keys just disable that lane.
 KNOWN_KEYS = {
     "OPENROUTER_API_KEY": "OpenRouter — 412 models, 15 free. The recommended one.",
-    "GROQ_API_KEY": "Groq — blocks datacenter IPs, so it cannot serve Cloud Run; kept for local use.",
     "MISTRAL_API_KEY": "Mistral — free Experiment plan, ~1B tokens/month, Mistral Large.",
     "NVIDIA_API_KEY": "NVIDIA Build — free developer key, 40 req/min, DeepSeek V4 Pro and 100+ models.",
     "CLOUDFLARE_API_TOKEN": "Workers AI — runs inside Cloudflare, 10k neurons/day.",
     "CLOUDFLARE_ACCOUNT_ID": "Required alongside CLOUDFLARE_API_TOKEN.",
-    "HF_TOKEN": "Hugging Face — the only hosted route to EstLLM (Estonian-adapted).",
+    "HF_TOKEN": "Hugging Face — hosted Whisper fallback for speech recognition.",
     "NOTION_TOKEN": "Notion — push confirmed errors to the Vead database.",
     "EKILEX_API_KEY": "Ekilex — EKI's own dictionary API, the database behind Sõnaveeb.",
 }

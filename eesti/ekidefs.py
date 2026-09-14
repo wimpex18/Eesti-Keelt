@@ -1,13 +1,13 @@
 """Estonian definitions from EKI's native-level dictionaries: VSL, and EKSS if imported.
 
-Two downloads from arhiiv.eki.ee/litsents share one shape (measured 2026-09-13):
+Two downloads from arhiiv.eki.ee/litsents share one shape:
 a headword `m`, and definitions `d` under the article's `S`.
 
 * **vsl** — *Võõrsõnade leksikon*: 31 794 articles on loanwords (`idee`,
   `aktiivne`), definitions written for a native reader.
 * **ekss** — *Eesti keele seletav sõnaraamat*: 145 882 articles, 117 937
   lemmas with a definition — 96 058 of them in the word list. Committed and
-  imported by the build (measured 2026-09-13).
+  imported by the build.
 
 Both are the **last** Estonian definition a word card falls back to: EKI's
 learner-level PSV first, Sõnaveeb second, these third — so they fill a gap only
@@ -32,7 +32,7 @@ from . import ekixml
 TABLES = {"eki-vsl": "vsl_gloss", "eki-ekss": "ekss_gloss"}
 
 
-#: A sense EKI mark obsolete — 248 in VSL (measured 2026-09-13) — is skipped
+#: A sense EKI mark obsolete — 248 in VSL — is skipped
 #: when a current one exists; the first definition is not always the one a
 #: learner meets.
 ARCHAIC = "van"
