@@ -1,19 +1,9 @@
-"""Two A1 topics that were in the syllabus and opened nothing.
+"""Principal forms (`pohivormid`), negation (`eitus`) and agreement (`uhildumine`),
+generated offline from the word list and Vabamorf.
 
-`pohivormid` and `eitus` carried `generator=None`, so a beginner who reached
-them -- both are A1, both are prerequisites for topics that *are* drilled --
-got a message saying nothing would happen.
-
-Both generate offline, from the wordlist and Vabamorf, with no harvested
-corpus. That is deliberate: the corpus generators produce nothing on a fresh
-deployment, and these are the first topics anybody meets.
-
-The tests that matter here are the two that caught real defects:
-
-  * the answer was printed in its own prompt for 41 of 480 items, because the
-    nominative frequently equals the genitive or the partitive and only the
-    genitive/partitive pair is guaranteed distinct;
-  * the connegative is neither the da-infinitive nor the imperative.
+Key guarantees: the answer is never printed in its own prompt (the nominative
+often equals the genitive or partitive), and the connegative is neither the
+da-infinitive nor the imperative.
 """
 
 from __future__ import annotations
@@ -54,11 +44,9 @@ def words(tmp_path):
 
 class TestPrincipalForms:
     def test_the_answer_is_never_printed_in_its_own_prompt(self, words):
-        """`distinct_` guarantees genitive != partitive and says nothing about
-        the nominative, which often equals one of them -- `linnapea, linnapea,
-        linnapead`. Asking for a form shown beside the blank lets the learner
-        copy it across and score a correct answer for a question they were
-        given. 41 of 480 generated items did exactly that."""
+        """Never ask for a form already shown beside the blank (`linnapea, linnapea,
+        linnapead`).
+        """
         for seed in range(30):
             for item in principal_forms(words, count=10, seed=seed):
                 shown = [p for p in item.prompt.replace("____", "").split(", ") if p]
@@ -156,18 +144,9 @@ class TestBothAreReachableThroughTheCurriculum:
 
     @pytest.mark.parametrize("topic", ["eitus", "pohivormid"])
     def test_practice_no_longer_refuses_the_topic(self, topic):
-        """The regression being guarded is the refusal, not the yield.
-
-        `items_for` used to raise `ValueError: 'eitus' has no generator`, which
-        the API turned into a 400 and the page printed as `Viga: ...`. It must
-        now dispatch.
-
-        It is deliberately not asserted that items come *back*: the shared
-        fixture wordlist carries no `object_cases` rows, so `pohivormid` has
-        nothing to build from there, and a test that demanded output would be
-        asserting on fixture contents rather than on this code. What the
-        generators produce is covered above, against a connection with known
-        rows in it.
+        """These topics dispatch through `items_for` instead of raising "no generator".
+        Item output is covered above against known rows; the shared fixture has no
+        `object_cases`.
         """
         from eesti.practice import items_for
 
@@ -175,13 +154,8 @@ class TestBothAreReachableThroughTheCurriculum:
 
 
 class TestAgreement:
-    """`uhildumine` — the adjective takes its noun's case.
-
-    The error is specific to a Russian speaker: Russian adjectives agree too,
-    so the *concept* transfers and nothing feels strange; what does not
-    transfer is that Estonian marks the adjective with the same case ending
-    across fourteen cases. Leaving it in the nominative is the usual mistake,
-    which is why that is the distractor.
+    """`uhildumine` — the adjective takes its noun's case; the distractor is the
+    nominative adjective.
     """
 
     @pytest.fixture
@@ -237,17 +211,9 @@ class TestAgreement:
 
     @pytest.mark.parametrize("spec", ["sg ter", "sg es", "sg ab", "sg kom"])
     def test_the_exception_cases_are_never_generated(self, words, spec):
-        """**The one that matters.**
-
-        In the terminative, essive, abessive and comitative the attribute stays
-        in the *genitive* — `suure majani`, not `suureni majani` — and Vabamorf
-        will synthesise the agreeing form anyway, because that form exists as a
-        word. Generating those four would produce fluent, confident, wrong
-        Estonian.
-
-        Asserted against the generated forms rather than only against the
-        constant, so adding a case to `AGREEING_CASES` by hand cannot slip one
-        of these in.
+        """Terminative, essive, abessive and comitative are never generated: the attribute
+        stays genitive there (`suure majani`). Checked against generated forms, not only
+        the constant.
         """
         from eesti.forms import AGREEING_CASES
         from eesti.morph import synthesize

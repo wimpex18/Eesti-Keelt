@@ -1,13 +1,5 @@
-"""Sõnaveeb enrichment: the module that existed and nothing called.
-
-62 statements, zero coverage, no importer — the roadmap listed it as built and
-its own docstring said it "enriches a word the learner is actually looking at".
-That is the word card, and the word card had never asked it anything. The
-module-level version of an endpoint with no caller.
-
-It supplies two things Vabamorf cannot: which case a verb governs — the
-`rektsioon` error tag, which is a list rather than a rule — and the muuttüüp
-the Notion "Nomenid A–F" page already tracks.
+"""Sõnaveeb enrichment via `api.sonapi.ee`: rection and muuttüüp (what Vabamorf
+cannot give), plus definitions and translations, on the word card.
 """
 
 from __future__ import annotations
@@ -66,20 +58,14 @@ class TestSingleLookupsOnlyIsEnforced:
 
 class TestTheTimeoutSuitsARequestPath:
     def test_it_is_short(self):
-        """This runs inside a request the learner is waiting on. Twenty seconds
-        was the value while nothing called the module at all."""
+        """The timeout is short: this runs inside a request the learner is waiting on."""
         assert sonapi.TIMEOUT <= 5.0
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    """A client whose stores are its own.
-
-    Without the redirect these tests wrote glosses into the developer's real
-    `data/vocab.db` -- and then read them back, so "the service is down" still
-    returned found:true because an earlier test in the same file had cached the
-    word. A path opened inside a function cannot be redirected by its caller;
-    the caller has to point the module constant somewhere else.
+    """A client whose stores are its own (scratch `vocab.db`), so cached answers from
+    other tests or the developer cannot mask a failure.
     """
     from fastapi.testclient import TestClient
 
@@ -105,18 +91,13 @@ class TestTheEndpointNeverBreaksTheWordCard:
             raise OSError("connection refused")
 
         monkeypatch.setattr(sonapi, "lookup", boom)
-        # A word the shipped glossary does not carry. `lugema` used to be here
-        # and is seeded now, so the store answered and the dead service was
-        # never reached -- which tested the seed rather than this path.
+        # A word the shipped glossary does not carry, so the live path is exercised.
         got = client.get("/api/enrich/seinamaaling")
         assert got.status_code == 200 and got.json()["found"] is False
 
 
 class TestThePageAsksAboutTheLemma:
-    """Sõnaveeb is a dictionary: it knows `jätkuma`, not `jätkuvad`. Sending
-    the surface form returned "found: false" for every inflected word — which
-    in Estonian is most of them — so the enrichment looked like it had simply
-    never worked."""
+    """The lookup sends the lemma, not the surface form (`jätkuma`, not `jätkuvad`)."""
 
     def test_the_page_sends_the_lemma(self):
 
@@ -134,12 +115,8 @@ class TestThePageAsksAboutTheLemma:
 
 
 class TestTheRussianGlossIsRead:
-    """The API returns translations twice, and the obvious one is the worse one.
-
-    Top level: `[{"from":"et","to":"en","translations":["book"]}]` — English,
-    and only English. Per meaning: `{"rus":[{"words":"книга","weight":1}],
-    "eng":[…]}`. The module read the top level, so an app whose stated language
-    policy is Russian threw away every Russian gloss the service had.
+    """Russian comes from each meaning's weighted lists (`rus`), not the English-only
+    top-level `translations`.
     """
 
     PAYLOAD = {
@@ -172,7 +149,7 @@ class TestTheRussianGlossIsRead:
         assert self._info(tmp_path).russian == ("книга", "книжка")
 
     def test_codes_are_normalised_to_two_letters(self, tmp_path):
-        """One source says `rus`, the other says `ru`. A caller asks once."""
+        """Language codes `rus` and `ru` are both accepted."""
         keys = set(self._info(tmp_path).translations)
         assert keys == {"ru", "fr", "en"}, keys
 
@@ -216,10 +193,7 @@ class TestTheDictionaryIsLinkedNotRebuilt:
 
 
 class TestWhatTheAppLinksRatherThanBuilds:
-    """Pronunciation scoring is explicitly not being built, on the grounds
-    that EKI already publishes free exercises. That is only a decision if the
-    learner can reach them; until now the app linked neither them nor the
-    situational phrase collections the speaking bank was meant to draw on."""
+    """The speaking panel links to EKI's pronunciation exercises and phrase collections."""
 
     @staticmethod
     def _page() -> str:
@@ -246,10 +220,7 @@ class TestWhatTheAppLinksRatherThanBuilds:
 
 
 class TestTheThrottleHoldsUnderConcurrency:
-    """A sync FastAPI route runs in a threadpool. Two enrichments arriving
-    together read `_last_request` before either writes it, both conclude no
-    wait is needed, and fire at once — so the throttle held only while nothing
-    was happening, which is the one time nobody needed it."""
+    """The throttle holds under concurrency (sync routes run in a threadpool)."""
 
     def test_threads_are_spaced_too(self, monkeypatch, tmp_path):
         import threading
