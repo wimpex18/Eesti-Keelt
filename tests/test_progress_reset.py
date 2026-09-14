@@ -1,14 +1,7 @@
 """Starting a topic over.
 
-Written because it was needed: smoke-testing the deployed app meant answering
-two real questions, and those two attempts landed in the learner's own record.
-Two rows out of a ten-attempt mastery window is twenty percent of the evidence
-the gate is weighing — small, but not nothing, and not mine to leave there.
-
-It earns its place beyond that. A topic answered carelessly on a phone leaves a
-window saying "not mastered" for the next ten questions however well they go.
-"Start this one over" is the honest repair; quietly relaxing the threshold would
-not be.
+A careless run leaves a mastery window saying "not mastered" for the next ten
+questions; resetting a topic is the repair (operator action).
 """
 
 from __future__ import annotations
@@ -71,20 +64,9 @@ class TestReset:
 
 
 class TestEverythingMeansEverything:
-    """It cleared two of the five tables in the file.
-
-    `attempts` and `topic_state` are created by `progress.py`; `checkpoints`,
-    `exposure` and `dictation` are created lazily by `checkpoint.py`,
-    `library.py` and `dictation.py` — and all three are read by the readiness
-    verdict. So `deploy/reset-progress.sh --everything`, behind a "Type ERASE to
-    confirm" prompt, erased a learner's practice history and left the app still
-    believing they had passed A2. Measured before the fix: `passed_levels`
-    returned `{"A2"}` immediately after the erase, and `readiness` gates the
-    whole verdict on that value.
-
-    The tables are asked of the database rather than listed here, for the same
-    reason the code derives them: a second hand-written copy beside the first is
-    how the first one went stale.
+    """`--everything` clears every table in the progress database — including
+    checkpoints, exposure and dictation, which the readiness verdict reads — derived
+    from the database, not listed.
     """
 
     @staticmethod
@@ -128,10 +110,9 @@ class TestEverythingMeansEverything:
         assert "attempts" in got["tables_cleared"]
 
     def test_a_topic_reset_still_touches_only_its_two(self, furnished):
-        """Not the same omission, and deliberately unchanged: a checkpoint is
-        level-wide, exposure is per reading item and a dictation is per
-        sentence, so none can be attributed to one topic. Clearing them here
-        would destroy records the request never asked about."""
+        """A topic reset leaves level-wide and per-item records (checkpoints, exposure,
+        dictation) alone.
+        """
         from eesti.checkpoint import passed_levels
 
         reset(furnished, "kusisonad")
@@ -139,8 +120,7 @@ class TestEverythingMeansEverything:
 
     def test_a_table_added_later_is_covered_without_anybody_remembering(
             self, furnished):
-        """The point of deriving it. A sixth table is the sixth instance of
-        this repository's most-repeated bug if the list is hand-written."""
+        """A table added later is cleared too."""
         with furnished:
             furnished.execute("CREATE TABLE IF NOT EXISTS newthing (x TEXT)")
             furnished.execute("INSERT INTO newthing VALUES ('x')")
@@ -150,8 +130,7 @@ class TestEverythingMeansEverything:
 
 class TestTheEndpointRefusesTheDangerousDefault:
     def test_no_topic_and_no_flag_is_a_400(self, tmp_path, monkeypatch):
-        """A missing topic is far more likely to be a caller's bug than a wish
-        to erase months of work."""
+        """A missing topic is refused unless `everything` is explicit."""
         pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
         from fastapi.testclient import TestClient
 
@@ -167,8 +146,7 @@ class TestTheEndpointRefusesTheDangerousDefault:
         assert response.status_code == 400
 
     def test_it_needs_the_state_token(self, tmp_path, monkeypatch):
-        """Destroying history must not be reachable from a page the learner has
-        open — it is an operator action, not a UI button."""
+        """Reset requires `STATE_TOKEN`: an operator action, not a UI button."""
         pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
         from fastapi.testclient import TestClient
 
@@ -184,22 +162,10 @@ class TestTheEndpointRefusesTheDangerousDefault:
 
 
 class TestTheFabricatedAttemptsAreRepairedOnRestore:
-    """`cli placement` wrote blank wrong attempts whenever nobody was answering.
+    """The repair of fabricated placement attempts runs after a restore.
 
-    That is fixed, and a fix cannot reach rows already in a snapshot. On a
-    deployment nobody working on this repository can read, the record may still
-    say the learner failed drills they never saw — and those rows depress the
-    accuracy window that gates mastery and feed the readiness verdict.
-
-    So the repair runs where the real record arrives: after a restore. Cloud Run
-    scales to zero, every cold start restores, the repair is idempotent by name,
-    and the `repairs` row rides the next snapshot — so it needs no operator and
-    does not repeat.
-
-    **The signature is deliberately narrow, because deleting real practice is
-    worse than leaving noise.** `PROBE_ITEMS` or more attempts sharing one
-    timestamp, every one blank and every one wrong. `_now()` records to the
-    second, and nobody answers five items in a second.
+    Signature: `PROBE_ITEMS` or more attempts sharing one timestamp, all blank and
+    all wrong. Idempotent by name; the `repairs` row rides the next snapshot.
     """
 
     @pytest.fixture
@@ -244,8 +210,7 @@ class TestTheFabricatedAttemptsAreRepairedOnRestore:
         assert self._count(conn) == 5
 
     def test_a_slow_run_of_wrong_answers_is_kept(self, conn):
-        """Five wrong blanks spread over five seconds is somebody having a bad
-        session, not a loop. Only the same-second grouping identifies the bug."""
+        """Blank wrong answers spread over several seconds are real, and kept."""
         from eesti.progress import repair_fabricated_attempts
 
         for sec in range(21, 26):
@@ -254,7 +219,7 @@ class TestTheFabricatedAttemptsAreRepairedOnRestore:
         assert self._count(conn) == 5
 
     def test_nothing_is_unrecoverable(self, conn):
-        """A wrong call here should cost a paste, not a learner's history."""
+        """Removed rows are saved in `repairs.detail`."""
         import json
 
         from eesti.progress import repair_fabricated_attempts

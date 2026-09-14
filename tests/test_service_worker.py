@@ -1,21 +1,10 @@
-"""The PWA installed and then needed the network.
+"""The service worker makes the installed app open offline, safely.
 
-`manifest.webmanifest` has been served for months, so the app was installable,
-and nothing backed that up: an installed copy failed exactly like a browser tab
-with the signal off. Half a claim is worse than none.
-
-These tests pin the three rules that make the worker safe rather than the fact
-that it exists, because the dangerous version of this feature is the one that
-caches something it should not:
-
-  * **the API is never cached** — every endpoint is either the learner's own
-    state or freshly generated, and a drill that is quietly a day old is worse
-    than one that is unavailable;
-  * **nothing that is not a clean 200 is stored** — Cloudflare Access answers a
-    signed-out request with a 302 to a login page, and caching that would pin
-    the login screen in front of the app until someone cleared site data;
-  * **the offline text is Russian** — it is the only thing on screen when it
-    appears, so it has to be readable by the person reading it.
+  * **the API is never cached** — endpoints are learner state or freshly
+    generated;
+  * **only clean 200 GET responses from this origin are stored** — caching
+    Access's 302 to a login page would pin it in front of the app;
+  * **the offline text is Russian** — it may be the only thing on screen.
 """
 
 from __future__ import annotations
@@ -132,11 +121,9 @@ class TestTheOfflineTextIsReadable:
         assert "сервере" in page
 
     def test_the_page_says_the_same_thing_when_a_fetch_fails(self):
-        """The browser's own TypeError message is English — "Failed to fetch" —
-        and every caller renders it into a banner, so with no connection the
-        app told a Russian-speaking learner exactly that. Made reachable by the
-        worker: before it, the browser's offline page showed instead and the
-        app never got to speak."""
+        """A failed fetch shows a Russian message, not the browser's English "Failed to
+        fetch".
+        """
         page = markup_and_script()
         block = page[page.index("async function api("):][:1400]
         assert "catch" in block
@@ -144,19 +131,8 @@ class TestTheOfflineTextIsReadable:
 
 
 class TestThePrecacheListAndThePageAgree:
-    """The shell list and the page's own tags are two halves of one fact.
-
-    The app was one file until this split; now the page pulls a stylesheet and
-    fourteen ES modules, and the worker has to precache them or an offline open
-    paints an unstyled document with no behaviour -- which looks like the app
-    having broken itself rather than like being offline.
-
-    A list of filenames kept by hand is exactly what this project has been
-    bitten by (`TABS`: three of ten panels missing, and nothing failed because
-    every click still produced *a* panel). It cannot be derived here -- the
-    worker is a static file a browser fetches, with no build step to generate
-    it -- so the two sides are checked against each other in both directions,
-    which is the rule for when derivation is impossible.
+    """The precache list and the page's own asset tags agree in both directions (the
+    worker is a static file with no build step, so the list cannot be derived).
     """
 
     @staticmethod
@@ -194,15 +170,9 @@ class TestThePrecacheListAndThePageAgree:
 
 
 class TestCodeIsNeverServedStale:
-    """The rule the split made necessary.
-
-    While every line of JavaScript was inside `index.html`, the navigation
-    branch fetched it fresh on every load and staleness was impossible. As
-    `/app.css` and `/js/*.js` -- unhashed URLs, because there is no build step
-    to put a hash in a filename -- cache-first would serve last week's code
-    against this week's markup until somebody remembered to bump `VERSION` in
-    this file. For ever, silently, and only for the people who had already
-    installed the app.
+    """Page code (`/app.css`, `/js/*.js`, unhashed URLs) is fetched network-first, so an
+    installed copy never runs old code against new markup; the cache is the offline
+    fallback.
     """
 
     @staticmethod
@@ -238,14 +208,7 @@ class TestCodeIsNeverServedStale:
 
 
 class TestTheCacheVersionIsDerived:
-    """The version string is the only thing that retires an old shell.
-
-    `activate` deletes every cache whose name is not the current one, so while
-    `VERSION` was a literal somebody had to remember to edit, a redeploy that
-    did not edit it kept the previous `index.html` on disk for ever — and that
-    page names the modules it loads. A hand-bumped version is a hand-maintained
-    list of one.
-    """
+    """The cache name is stamped from the build, so every deploy retires the old shell."""
 
     @pytest.fixture
     def served(self, client):
@@ -274,7 +237,7 @@ class TestTheCacheVersionIsDerived:
         assert 'const VERSION = "2026-09-01T10:00:00Z";' in client.get("/sw.js").text
 
     def test_a_renamed_line_fails_loudly(self, monkeypatch):
-        """A silent no-op here brings back exactly the bug this prevents."""
+        """The stamped line must exist, or stamping silently does nothing."""
         from eesti.api import assets
 
         monkeypatch.setattr(assets, "_VERSION_LINE", 'const VERSION = "moved";')

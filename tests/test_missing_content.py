@@ -1,19 +1,9 @@
-"""The reading library is optional, and "optional" has to mean it in production.
+"""The app works without its reading corpus, including when the corpus path cannot
+be created.
 
-The harvested corpus is deliberately not in the image: ERR transcripts are
-© ERR and Selges keeles carries no reuse grant, so shipping them inside a
-distributable image would be redistribution. Every document in this repo
-therefore promises the same thing -- without `content.db` the reading library is
-simply empty and everything else works.
-
-On Cloud Run that promise broke. `EESTI_CONTENT_DB` pointed inside a directory
-supplied by a `VOLUME` declaration, Cloud Run ignores `VOLUME`, and SQLite
-cannot create a database in a directory that does not exist. `/api/library` and
-`/api/status` both returned 500 on the live deployment while the whole suite was
-green, because every test had a writable path.
-
-That is the gap these tests close: the failure needs a database path that cannot
-be created, which no test had ever asked for.
+The corpus is not in the image. On Cloud Run the content directory may not
+exist (`VOLUME` is ignored), so every route must degrade to an empty library
+instead of a 500.
 """
 
 from __future__ import annotations
@@ -31,13 +21,8 @@ from eesti import config  # noqa: E402
 
 @pytest.fixture
 def no_corpus(tmp_path, monkeypatch):
-    """A content path that cannot be created.
-
-    A merely *absent* directory is not the right stand-in: the fix creates
-    missing parents, which is what repairs the Cloud Run case, and a test
-    running as root would have that succeed and prove nothing. So the parent
-    here is a regular file -- `mkdir` on it raises whatever the operating system
-    raises, from any user, on any machine.
+    """A content path that cannot be created: its parent is a regular file, so `mkdir`
+    fails for any user on any machine.
     """
     blocker = tmp_path / "not-a-directory"
     blocker.write_text("")
@@ -62,7 +47,7 @@ class TestLibraryDegradesRatherThanFails:
         assert response.json()["sections"]
 
     def test_health_says_the_library_is_absent(self, no_corpus):
-        """Empty-because-unharvested must be distinguishable from broken."""
+        """Health says the library is absent, distinguishing empty from broken."""
         assert no_corpus.get("/api/health").json()["library"] is False
 
 
@@ -88,11 +73,9 @@ class TestAvailable:
         assert available(tmp_path / "empty.db") is False
 
     def test_a_schema_only_database_is_not_available(self, tmp_path):
-        """The one that matters. `connect` creates the database with its schema
-        on the very first request, so "the file exists and is non-empty" is true
-        of a deployment that has never been harvested -- which is exactly what
-        the first version of this reported, and exactly the mistake the snapshot
-        restore made before it."""
+        """A schema-only database counts as unavailable (`connect` creates the schema on
+        first open).
+        """
         from eesti.sources import available, connect
 
         path = tmp_path / "content.db"
@@ -116,17 +99,11 @@ class TestAvailable:
 
 @pytest.fixture(params=["cannot-be-created", "no-directory", "directory-no-file"])
 def corpusless(request, tmp_path, monkeypatch):
-    """Every way a container meets the app without its corpus: a path SQLite
-    cannot create; a directory that is not there (Cloud Run ignoring `VOLUME`);
-    and the directory there with no file in it — the Docker image, and every
-    cold start before the Worker restores the library. The last is the one that
-    answered 500: SQLite creates the file, empty, with no tables.
+    """Every way a container meets the app without its corpus: an uncreatable path, a
+    missing directory, and an existing directory with no file.
 
-    Returns `(client, fresh)`. `fresh()` points the app at a new, untouched
-    path of the same kind, and the sweep calls it before **every** request:
-    opening the corpus through `sources.connect` creates its tables, so one
-    request can repair the path for the next, and a sweep sharing one path
-    passed while the first `osastav` of a cold container failed.
+    Returns `(client, fresh)`; `fresh()` is called before every request, because
+    one request's `sources.connect` creates tables that would mask the next.
     """
     counter = iter(range(10_000))
 
@@ -159,12 +136,9 @@ PATH_VALUES = {"word": "maja", "topic": "osastav", "item_id": "x", "lemma": "maj
 
 
 class TestNothingReturns500WithoutACorpus:
-    """`POST /api/practice {"topic": "osastav"}` answered 500 in the built image
-    (2026-09-14): `practice._content` opened the corpus with a bare
-    `sqlite3.connect`, which creates an empty file with no tables, and
-    `cloze.sentences` asked it for `items`. Every other opener applies its
-    schema; this one did not, and no test called that topic without a corpus.
-    So: every topic, and every GET route, both ways a corpus can be missing."""
+    """Every topic and every GET route answers without a corpus, in each missing-corpus
+    shape.
+    """
 
     def test_every_topic_answers(self, corpusless):
         from eesti.curriculum import TOPICS
@@ -179,13 +153,9 @@ class TestNothingReturns500WithoutACorpus:
         assert not failed, sorted(failed)
 
     def test_every_get_route_answers(self, corpusless):
-        """From `eesti.api.ROUTERS`, not `app.routes`: FastAPI keeps an included
-        router as one lazy entry, and the first version of this sweep walked
-        `app.routes`, found no API route at all, and passed. The count below is
-        the guard on the guard.
-
-        500 only: the snapshot routes answer 503 "STATE_TOKEN is not
-        configured" on purpose — an unset secret is a refusal, not a crash."""
+        """Routes from `eesti.api.ROUTERS` (not `app.routes`), with a count guard. Only 500
+        fails: snapshot routes answer 503 without `STATE_TOKEN` by design.
+        """
         import re
 
         from eesti import api

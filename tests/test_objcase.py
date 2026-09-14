@@ -1,12 +1,8 @@
 """Regression set for the #1 documented gap: total (genitive) vs partial
 (partitive) object.
 
-Two halves, and the second matters as much as the first: the tool must catch
-planted errors AND stay quiet on correct partitives. A checker that flags every
-partitive would "pass" the first half while teaching exactly the wrong rule.
-
-Runs fully offline via Vabamorf — no API keys, no network, so it can gate every
-change.
+Planted errors must be caught AND correct partitives left alone. Runs offline via
+Vabamorf.
 """
 
 import pytest
@@ -36,10 +32,8 @@ KNOWN_FORMS = [
 # not pretend otherwise.
 IDENTICAL_CASES = ["maja", "õun", "kiri", "film"]
 
-# Words with more than one valid paradigm, which is a different reason to refuse
-# them: `kool` synthesises both *kooli* (school) and *koola* (cola), `reis* both
-# *reisi* (journey) and *reie* (thigh). Morphology cannot choose; only meaning
-# can, so nothing is reported.
+# Words with more than one valid paradigm (`kool`: *kooli*/*koola*; `reis`:
+# *reisi*/*reie*) are refused: morphology cannot choose.
 AMBIGUOUS_PARADIGMS = ["kool", "reis", "kott", "juht"]
 
 
@@ -59,13 +53,7 @@ def test_identical_cases_are_not_drillable(lemma):
 
 @pytest.mark.parametrize("lemma", AMBIGUOUS_PARADIGMS)
 def test_words_with_two_paradigms_report_nothing(lemma):
-    """Zero candidates and several candidates are the same situation.
-
-    The previous tiebreak — fewest competing lemma readings — got `kool` right
-    and `reis` exactly wrong, returning the thigh's paradigm because the rarer
-    word is the less ambiguous one. A drill built on that would have taught a
-    confidently wrong answer.
-    """
+    """Several candidates are refused exactly like zero candidates; no tie-break."""
     assert case_forms(lemma) == {}
     assert not has_distinct_object_cases(lemma)
 
@@ -112,19 +100,13 @@ def test_candidates_are_surfaced(sentence):
     ],
 )
 def test_no_false_candidates_without_objects(sentence):
-    """Sentences with no object must not produce object-case candidates.
-
-    This is the false-positive guard: over-flagging would teach the wrong rule.
-    """
+    """Sentences with no object produce no object-case candidates."""
     assert object_case_candidates(sentence) == []
 
 
 class TestVerbForms:
-    """Irregular verb stems — the secondary documented gap (`verb-form`).
-
-    The design claim under test: the naive form (strip -ma, add the ending) is
-    the error a learner actually makes, so it is the right distractor. These
-    check that claim holds for the verbs the drills lean on hardest.
+    """Irregular verb stems (`verb-form`): the naive form (strip -ma, add the ending) is
+    wrong for the verbs the drills use.
     """
 
     @pytest.mark.parametrize(
@@ -158,14 +140,7 @@ class TestVerbForms:
         assert not regular[0].is_irregular
 
     def test_generated_verb_drills_are_answerable(self, tmp_path):
-        """Uses a fixture database rather than the built one.
-
-        An earlier version called `wordlist.connect()`, which passed locally
-        only because the developer's machine had a populated data/eesti.db —
-        and failed in CI, where nothing builds it. Seeding a handful of verbs
-        keeps the test hermetic and fast, and it exercises the same code path:
-        generation depends on the verbs table, not on all 160k rows.
-        """
+        """Uses a fixture database, so the test is hermetic and matches CI."""
         from eesti.drills import generate_verb_drills
         from eesti.wordlist import connect
 
@@ -195,25 +170,14 @@ class TestVerbForms:
 
 
 class TestASetDoesNotRepeatItself:
-    """The noun is blanked, so two items sharing a frame are the same sentence
-    on screen.
-
-    `generate`'s docstring promised "a ten-item set does not repeat the same
-    sentence twice" and the flat uniform sample did not deliver it: measured
-    over twelve seeds, a ten-item set held 5-8 distinct prompts and one
-    sentence could appear five times, from a pool of twelve frames. Nothing
-    failed -- every item was individually valid and gradeable -- which is why
-    it survived until somebody looked at a screenshot of the drill.
+    """A ten-item set does not repeat a sentence (the noun is blanked, so a shared frame
+    is the same sentence on screen).
     """
 
     @pytest.fixture
     def words(self, fixture_data):
-        """The shared fixture wordlist, never `connect()` with no argument.
-
-        Two traps in one line, both already paid for in this repo: a bare
-        `connect()` reads the developer's built database and fails in CI where
-        nothing builds it, and a *class*-scoped fixture runs before the autouse
-        redirect, so it would read real data even here.
+        """The shared fixture word list, passed explicitly (a class-scoped fixture runs
+        before the autouse redirect).
         """
         from eesti.wordlist import connect
         return connect(fixture_data["words"])
