@@ -1,20 +1,9 @@
-"""Fetching the benchmark datasets, and the gate that depends on one of them.
+"""Fetching the benchmark datasets without silently skipping the morphology gate.
 
-Written after a green CI run that had silently stopped checking Vabamorf.
-
-Adding `grammar_et`'s train split took the fetch from 14 requests to 94, two
-test legs run it in parallel on every push, and the HuggingFace datasets server
-answered **429 Too Many Requests**. Three things then lined up:
-
-* 429 was not retried — the retry loop re-raised anything under 500, and a rate
-  limit is the most retryable status there is;
-* one failure ended the whole command, although `inflection_et` had already
-  downloaded and was sitting on disk;
-* the workflow step is `continue-on-error`, so the morphology gate was skipped
-  and the run reported success.
-
-A check that reads green because it never ran is this project's most-repeated
-defect. These are the three seams, one test class each.
+- 429 is retried, honouring `Retry-After`;
+- one failed dataset does not end the whole fetch;
+- only `REQUIRED` datasets make the command fail, so CI's
+  `continue-on-error` step cannot hide a missing gold-form file.
 """
 
 from __future__ import annotations

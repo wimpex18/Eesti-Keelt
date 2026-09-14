@@ -1,8 +1,5 @@
-"""EVKK taxonomy parsing and tag weighting.
-
-No network: the parser is exercised against a fixture shaped like the real page,
-and the invariants that matter are arithmetic ones — nothing counted twice,
-nothing quietly dropped.
+"""EVKK taxonomy parsing and tag weighting, offline against a page-shaped fixture:
+nothing counted twice, nothing silently dropped.
 """
 
 from __future__ import annotations
@@ -69,8 +66,7 @@ def test_every_mark_is_either_tagged_or_counted_as_unmapped():
 
 def test_nested_roots_are_not_counted_twice():
     marks = evkk.parse(PAGE)
-    # obj-case names both a parent and, in the real taxonomy, categories under
-    # it; the subtree must be claimed once.
+    # A tag naming a parent claims its subtree once.
     assert evkk.tag_weights(marks)["obj-case"] == 100 + 45
 
 

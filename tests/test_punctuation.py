@@ -1,19 +1,11 @@
-"""The comma before a subordinate clause, and why this one may be generated.
-
-`wordorder.py` refuses to generate its items: Estonian word order is flexible
-enough that a swapped constituent is sometimes still correct, so a generated
-distractor would teach the opposite of the rule. This module does the opposite
-and generates, and the difference is a measurement rather than a preference.
-
-Across 1 349 native texts, mid-sentence occurrences preceded by a comma:
+"""The comma before a subordinate clause — generated, because for `et` and `sest`
+the rule is categorical in native text.
 
     sest   99.0 %   et  95.9 %   |   nagu  63.9 %   kui  37.8 %
 
-`kui` is also the comparative and `nagu` is also a preposition, so neither is a
-rule. `et` and `sest` are, and every exception found was systematic — a
-coordinating conjunction in front (`ja et`), a fixed collocation (`ilma et`,
-`nii et`), or a sentence start. Excluding those, deleting the comma produces
-Estonian that is provably wrong.
+`kui` (also comparative) and `nagu` (also a preposition) are excluded, as are the
+systematic exceptions: a coordinating conjunction before (`ja et`), fixed
+collocations (`ilma et`, `nii et`) and sentence starts.
 """
 
 from __future__ import annotations
@@ -86,8 +78,7 @@ class TestTheGeneratedPairIsSound:
             assert item.answer in bodies
 
     def test_a_sentence_with_two_such_commas_is_refused(self):
-        """Under a single deletion it would have two right answers and the
-        learner could not tell which was being asked about."""
+        """One comma per item, so a single deletion has one right answer."""
         two = ("Ma arvan, et see on õige, sest kõik teavad seda.")
         assert len(punctuation._spans(two)) == 2
         assert punctuation.from_sentences([two], count=5) == []

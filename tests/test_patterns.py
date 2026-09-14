@@ -1,8 +1,5 @@
-"""Comparison, numerals and question words.
-
-The comparative rule is the risky one: genitive + `-m` is right often enough to
-look reliable and wrong often enough to teach errors, so most of these tests are
-about the gate that keeps the wrong ones out.
+"""Comparison, numerals and question words. Most tests guard the comparative gate:
+genitive + `-m` over-generates, so only attested comparatives pass.
 """
 
 from __future__ import annotations
@@ -62,7 +59,7 @@ class TestComparison:
         assert sup
         for item in sup:
             assert item.answer.startswith("kõige ")
-            # The lesson: `kõige` governs the comparative, not the positive.
+            # `kõige` governs the comparative, not the positive.
             assert item.distractor.startswith("kõige ")
             assert item.answer != item.distractor
 
@@ -170,12 +167,9 @@ def test_all_items_file_against_a_real_curriculum_topic(words):
 
 
 class TestSentenceSplittingDoesNotCutEstonianOrdinals:
-    """`28. augustil` is "on the 28th of August", not two sentences. The
-    splitter broke on every one, which put truncated sentences and orphaned
-    tails into the corpus every generator draws on.
-
-    The rule is not a digit special case: a sentence never *continues* with a
-    lowercase word, so a period followed by one was never a boundary."""
+    """`28. augustil` is one sentence: a period followed by a lowercase word is not a
+    boundary.
+    """
 
     def split(self, text):
         from eesti.morph import split_sentences

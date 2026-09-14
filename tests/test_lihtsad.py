@@ -1,20 +1,7 @@
-"""ERR *Lihtsad uudised* — the only live source in the project.
+"""ERR *Lihtsad uudised* — the one live reading source.
 
-Everything else read here is frozen: the radio courses ended in 2019, Selges
-keeles is a fixed set of 349 posts. Both are good and both will say exactly the
-same thing in spring 2027. This one publishes weekly, in deliberately
-simplified Estonian, about things that happened this month — which is what a
-reading exam is made of.
-
-Three things the harvest has to get right, and each was a real defect in the
-page rather than a hypothetical:
-
-- ERR serves HTML entities, so `&uuml;` has to become `ü` or the text is not
-  Estonian at all
-- every issue opens with the same English sentence explaining the series —
-  useful to a visitor, noise in a corpus
-- the share widget leaks its SVG attributes into paragraph text, which would
-  otherwise put `aria-label` into a reading exercise
+The harvest must decode entities (`&uuml;` → `ü`), drop the recurring English
+series blurb, and keep the share widget's SVG attributes out of the text.
 """
 
 from __future__ import annotations
