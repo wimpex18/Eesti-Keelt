@@ -119,7 +119,6 @@ class TestThePageAsksAboutTheLemma:
     never worked."""
 
     def test_the_page_sends_the_lemma(self):
-        from pathlib import Path
 
         page = markup_and_script()
         block = page.split("/api/enrich/")[0][-400:]
@@ -224,7 +223,6 @@ class TestWhatTheAppLinksRatherThanBuilds:
 
     @staticmethod
     def _page() -> str:
-        from pathlib import Path
 
         return markup_and_script()
 

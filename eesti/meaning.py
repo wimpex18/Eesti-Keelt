@@ -17,7 +17,7 @@ database as it is today. The files answer when the live source has nothing,
 cannot be asked, or has not been asked yet: every flow but the word card only
 reads what is already stored.
 
-**Why the seed outranks EKI.** Measured 2026-09-13: EVS covers 287 of the 294,
+**Why the seed outranks EKI.** EVS covers 287 of the 294,
 shares a translation with the seed on 277, and puts a different word first on
 45. Where they differ, EVS's first line is the dictionary's first *sense*, not
 the one a learner drilling A2 means: `kohus` → "долг" where the drill means

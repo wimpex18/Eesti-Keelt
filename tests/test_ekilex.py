@@ -119,7 +119,6 @@ class TestTheStoreAndTheCard:
         assert asked == ["maja"]
 
     def test_the_card_leads_with_ekilexs_learner_definition_and_credits_it(self, client, monkeypatch):
-        from eesti import gloss
 
         monkeypatch.setenv(ekilex.KEY, "test-key-not-real")
         monkeypatch.setattr(ekilex, "lookup", lambda w: ekilex.parse(_fixture("lugema")))

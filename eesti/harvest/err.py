@@ -14,9 +14,6 @@ What they are good for, and it is a lot:
     completed/incomplete object contrast behind the `obj-case` gap.
   * **Listening** — the audio is bilingual, so it is graded input rather than a
     wall of native speech.
-  * **Example sentences** — the Estonian fragments are teacher-curated
-    illustrations of specific grammar points. `estonian_fragments()` pulls them
-    out for use as drill material.
 
 All three archives are closed and static: nothing new is being added. So this
 runs once, caches to disk, and never touches ERR again. That is both polite and
@@ -45,15 +42,8 @@ from pathlib import Path
 
 from ..config import CACHE
 
-# Archive index pages, for reference. They render their episode lists in
-# JavaScript, so they are not fetchable — the crawl uses seeds instead.
-ARCHIVES = {
-    "kak_eto_po_estonski": "https://r4.err.ee/arhiiv/kak_eto_po_estonski",
-    "ekeel": "https://r4.err.ee/arhiiv/ekeel",
-    "keelekodi": "https://r4.err.ee/arhiiv/keelekodi",
-}
-
-# One known episode per series; the crawl expands outward from each by following
+# Archive index pages render episode lists in JavaScript, so the crawl starts
+# from one known episode per series and expands outward from each by following
 # the ld+json sibling list. Any episode works as a seed — these are just ones
 # whose ids were easy to find.
 SEEDS = {
@@ -75,7 +65,6 @@ from .clean import text as _clean_markup
 _LATIN_RE = re.compile(r"[A-Za-zÕÄÖÜõäöüŠŽšž]+")
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]+")
 # A run of Latin-script words with Estonian-legal punctuation between them.
-_FRAGMENT_RE = re.compile(r"[A-Za-zÕÄÖÜõäöüŠŽšž][A-Za-zÕÄÖÜõäöüŠŽšž \-']{8,120}")
 
 
 @dataclass(frozen=True)
@@ -115,20 +104,6 @@ class Episode:
         cyrillic = len(_CYRILLIC_RE.findall(self.body))
         total = latin + cyrillic
         return round(latin / total, 3) if total else 0.0
-
-    def estonian_fragments(self, min_words: int = 3) -> list[str]:
-        """Estonian runs of `min_words`+ words — the worked examples.
-
-        These are what a teacher wrote on the board to illustrate a rule, so they
-        are better drill material than anything generated: real, idiomatic, and
-        already tied to a grammar point.
-        """
-        out = []
-        for run in _FRAGMENT_RE.findall(self.body):
-            cleaned = " ".join(run.split())
-            if len(cleaned.split()) >= min_words:
-                out.append(cleaned)
-        return out
 
     @property
     def content_key(self) -> str:

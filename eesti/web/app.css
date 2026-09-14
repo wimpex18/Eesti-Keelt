@@ -1061,13 +1061,9 @@
   }
 
   /* ── Touch targets inside the panels ─────────────────────────────
-     The navigation has had a 44px floor and a test for it since the phone
-     bar was drawn. Everything INSIDE a panel was measured for the first time
-     on 2026-09-03 and four kinds of control were under it, on the screens
-     they matter most: the `harjuta` button on all thirty-six path rows
-     (32px), the `Kogu rada` disclosure (23px), every workbook and exam-
-     material link (15-23px, because the row is tall and the ANCHOR is one
-     line of text inside it), and the A2/B1 level switch (36px).
+     44px floor for controls inside panels on touch devices: path-row
+     `harjuta` buttons, the `Kogu rada` disclosure, workbook and exam links
+     (the whole row, not the one-line anchor), and the A2/B1 switch.
 
      `hover:none` rather than a width: a 834px tablet is touched too, and a
      narrow desktop window is not. Nothing changes for a mouse. */

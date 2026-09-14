@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from eesti import checkpoint
-from eesti.checkpoint import (DEFAULT_ITEMS, PASS_MARK, build, history,
+from eesti.checkpoint import (PASS_MARK, build,
                               passed_levels, ready, run, topics_at)
 from eesti.progress import MASTERY_CORRECT, MASTERY_WINDOW, connect, mark_mastered
 from eesti.review import connect as review_connect
@@ -131,8 +130,6 @@ class TestRun:
 
     def test_results_are_recorded(self, db):
         run(db, "A1", perfect, count=10, seed=1)
-        rows = history(db, "A1")
-        assert len(rows) == 1 and rows[0]["passed"] == 1
         assert passed_levels(db) == {"A1"}
 
     def test_a_failed_level_is_not_in_passed_levels(self, db):

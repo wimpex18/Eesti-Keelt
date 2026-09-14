@@ -24,12 +24,8 @@ from estnltk.vabamorf.morf import Vabamorf, spellcheck, synthesize
 # is the one that carries aspect, and it is the documented weakness the whole
 # curriculum points at.
 #
-# The third, the nominative, is deliberately absent rather than forgotten. It
-# marks a total object in the plural and after an imperative, neither of which
-# the object-case drill generates, and a constant nothing reads is the same
-# defect as a measurement nothing writes -- `NOMINATIVE_SG` sat here unused
-# from the first commit until 2026-09-12. If nominative objects are ever
-# drilled, the tag comes back with the code that needs it.
+# The nominative object (plural total object, after an imperative) is not
+# drilled, so it has no constant here.
 GENITIVE_SG = "sg g"
 PARTITIVE_SG = "sg p"
 PARTITIVE_PL = "pl p"

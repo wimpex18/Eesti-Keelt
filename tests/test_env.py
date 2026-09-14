@@ -38,7 +38,7 @@ def env_file(tmp_path):
 @pytest.fixture(autouse=True)
 def _clean_environment(monkeypatch):
     """Every test gets its own environment, so none of them leaks a key."""
-    for name in ("OPENROUTER_API_KEY", "GROQ_API_KEY", "NOTION_TOKEN",
+    for name in ("OPENROUTER_API_KEY", "NVIDIA_API_KEY", "NOTION_TOKEN",
                  "TESTKEY", "GOOD", "SPACED"):
         monkeypatch.delenv(name, raising=False)
 
@@ -95,9 +95,9 @@ class TestTheDocstringsPromises:
     def test_a_short_value_is_not_shown_at_all(self, monkeypatch):
         """Four trailing characters of a 40-character key identify it; four of
         a six-character one is most of it."""
-        monkeypatch.setenv("GROQ_API_KEY", "abc123")
+        monkeypatch.setenv("NVIDIA_API_KEY", "abc123")
         masked = {n: m for n, _, m, _ in env.describe()}
-        assert masked["GROQ_API_KEY"] == "set"
+        assert masked["NVIDIA_API_KEY"] == "set"
 
     def test_an_absent_key_reads_as_absent(self):
         for name, is_set, masked, _ in env.describe():

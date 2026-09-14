@@ -1,21 +1,10 @@
 """Should you sit the exam? An answer built only from evidence that exists.
 
-## The question this exists to answer, and the date on it
+## No target date
 
-**There is no target sitting right now, and that is a decision rather than an
-omission.** The November 2026 A2 rehearsal was declined on 2026-08-20: the plan
-is independent study plus a tutor through the winter, and an exam in 2027 —
-either A2 and then B1, or B1 alone, whenever the evidence says ready.
-
-So the countdown is off. That matters more than it sounds. A date that has been
-declined is not a motivator, it is a reproach: every load of the app would have
-shown "до регистрации N дн." toward a sitting the learner had already reasoned
-their way out of. The honest version says no date is chosen and reports the
-same evidence, which is what actually decides when to sit.
-
-Set `TARGET` when a session is chosen and the countdown comes back. HARNO runs
-quarterly and closes registration about five weeks ahead, so the shape of the
-calendar is known even when the date is not.
+No sitting is booked (planned for 2027: A2 then B1, or B1 alone), so `TARGET`
+is `None` and no countdown is shown. Set `TARGET` when a session is chosen;
+HARNO runs quarterly and closes registration about five weeks ahead.
 
 ## What this refuses to do
 
@@ -52,21 +41,12 @@ from datetime import date
 
 #: The sitting being prepared for, or None while none is chosen.
 #:
-#: `(registration_closes, sitting)`. When set, `registration_closes` is **not**
-#: a personal checkpoint that can slip — it is the day HARNO closes the list,
-#: after which that sitting is gone until the next quarter whatever the learner
-#: decides. It was once displayed as "до решения", which reads like a
-#: self-imposed deadline: the one date in this app where a soft word could cost
-#: an entire sitting.
-#:
-#: None as of 2026-08-20. The Q4 2026 A2 rehearsal (register by 01.10, sit
-#: 07.11) was considered and declined in favour of another year's study, so
-#: counting down to it would be counting down to a decision already made.
+#: `(registration_closes, sitting)`. `registration_closes` is the day HARNO
+#: closes the list — a hard deadline, not a personal checkpoint. None: no
+#: sitting is chosen.
 TARGET: tuple[date, date] | None = None
 
-#: What the last considered session looked like, kept so setting a new one is
-#: a matter of copying the shape rather than re-reading HARNO's calendar:
-#: registration closes roughly five weeks before the sitting, quarterly.
+#: The shape of a target: registration closes about five weeks before the sitting.
 EXAMPLE_TARGET = (date(2026, 10, 1), date(2026, 11, 7))
 
 

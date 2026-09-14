@@ -9,14 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      # One Python: 3.14.7 is what the Dockerfile ships, and therefore what the
-      # learner actually runs. A second leg would test an interpreter no
-      # deployment uses. The move was measured, not assumed (2026-09-14):
-      # every dependency publishes cp314 wheels, Vabamorf generated 3 001 forms
-      # and analyses byte-identical to the previous runtime, the TalTech
-      # gold-form gate held at 1374/1400, and the whole suite and a built image
-      # passed. `test_docs_match_code.py` holds this comment, the matrix and
-      # `eval.yml` to the Dockerfile's FROM line.
+      # One Python: 3.14.7 is what the Dockerfile ships. `test_docs_match_code.py`
+      # holds this matrix and `eval.yml` to the Dockerfile's FROM line.
       matrix:
         python-version: ["3.14.7"]
     name: test (py${{ matrix.python-version }})

@@ -12,7 +12,6 @@ correct Estonian wrong teaches the opposite of the rule.
 from __future__ import annotations
 
 import json
-import sqlite3
 
 import pytest
 
@@ -114,12 +113,6 @@ class TestGenerationIsRefused:
 
     def test_the_module_has_no_corpus_generator(self):
         assert not hasattr(wordorder, "from_corpus")
-
-    def test_the_docstring_records_the_measurement(self):
-        doc = wordorder.__doc__ or ""
-        assert "75.4" in doc, "the number that ruled generation out"
-        assert "syntax" in doc and "morphology" in doc
-
 
 class TestThePracticeShape:
     @pytest.fixture

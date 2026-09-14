@@ -40,7 +40,6 @@ from .config import LEVELS
 # noticing but not worth widening here. `Stopped` deliberately is *not*
 # duplicated: two exception classes with one name is how a caller ends up
 # catching the wrong one on the day it matters.
-from .placement import Stopped
 
 # Across a whole level, unprompted, with no clue which rule applies. Harder than
 # a blocked topic set at the same number, so the bar is lower.
@@ -230,16 +229,6 @@ def run(
         level, len(items), correct, passed,
         {t: (ok, n) for t, (ok, n) in by_topic.items()},
     )
-
-
-def history(progress: sqlite3.Connection, level: str | None = None) -> list[sqlite3.Row]:
-    progress.executescript(SCHEMA)
-    sql = "SELECT * FROM checkpoints"
-    params: tuple = ()
-    if level:
-        sql += " WHERE level = ?"
-        params = (level,)
-    return list(progress.execute(sql + " ORDER BY id DESC", params))
 
 
 def passed_levels(progress: sqlite3.Connection) -> set[str]:

@@ -60,7 +60,7 @@ ARCHAIC = "van"
 
 #: Every *other* style label (`evs_tyybid.xsd`, `s_tyyp`): colloquial `kõnek`
 #: on 16 907 translations, low-register `madalk` 3 677, figurative `piltl`,
-#: pejorative `hlv`, dialect `murd`, slang, vulgar… Measured 2026-09-13. None is
+#: pejorative `hlv`, dialect `murd`, slang, vulgar… None is
 #: dropped — a word whose only Russian is colloquial still needs it — but a
 #: labelled translation or sense never comes before a neutral one, so the first
 #: thing a learner reads for a word is the word as it is normally used.
@@ -79,7 +79,7 @@ class Entry:
 def _labels(node) -> set[str]:
     """Style labels that mark a translation. `l="ka"` means *also* figurative,
     colloquial… — the translation itself is ordinary, so it does not count.
-    Measured 2026-09-13: 2 340 labels carry `ka`; counting them dropped `читать`
+    2 340 labels carry `ka`; counting them dropped `читать`
     from `lugema`."""
     return {ekixml.text(s) for s in node.findall("s") if s.get("l") != "ka"}
 
@@ -143,7 +143,7 @@ def _article(article) -> tuple[int, list[str]]:
 def _inflection_type(raw: str) -> str | None:
     """EVS's `mt` in the form the card shows and Sõnaveeb returns.
 
-    Measured 2026-09-13: 42 204 single types, zero-padded (`02`, `17`);
+    42 204 single types, zero-padded (`02`, `17`);
     1 682 words with two paradigms (`11_&_09`); 1 261 of those marked `?` —
     EKI unsure of the type. Padded becomes `2`, a pair `11 / 9`, and an unsure
     one None: a muuttüüp a learner copies into Sõnaveeb must not be a guess,

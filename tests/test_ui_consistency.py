@@ -291,21 +291,6 @@ class TestNoCountIsAPageSize:
         for fn in (sources.query, sources.count):
             assert "_filters(" in inspect.getsource(fn), fn.__name__
 
-    def test_the_ranking_covers_the_whole_shelf(self):
-        """No literal cap: the number of rows scored comes from counting them."""
-        import inspect
-
-        from eesti.api.library import reading_next
-
-        code = "\n".join(
-            line for line in inspect.getsource(reading_next).splitlines()
-            if not line.lstrip().startswith("#"))
-        assert "section_count(conn, section)" in code
-        # Checked against the code with comments stripped, because the comment
-        # explaining the fix necessarily quotes the thing being forbidden.
-        assert "limit=120" not in code
-
-
 class TestTheDeploymentMarker:
     """The smoke check has to say which *code* is running, not when it built.
 

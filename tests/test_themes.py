@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import pytest
 
-from eesti import themes
 from eesti.practice import items_for
 from eesti.themes import (THEMES, UNCOUNTABLE, by_id, countable_nouns, coverage,
                           lemmas_for, validate)

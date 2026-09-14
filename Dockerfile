@@ -1,23 +1,11 @@
-# The app, as a container image run on Google Cloud Run (docs/deploy.md has
-# why it is neither a Worker nor a Cloudflare Container).
-#
-# Why a container and not a Worker: `cloze`, `conjugation`, `patterns` and
-# `verbs` all call Vabamorf at request time, and Vabamorf is a compiled C++
-# Python extension. Workers run JavaScript and WASM, so an earlier plan in this
-# repo — export everything to D1 and serve from a Worker — described an app that
-# only looked things up. This one *generates*, so it needs a real Python process.
+# The app on Google Cloud Run. A container, not a Worker: drills are generated
+# with Vabamorf, a compiled C++ Python extension (docs/deploy.md).
 
 # ---------------------------------------------------------------------------
 # Builder: produce the derived databases, then throw the toolchain away.
 # ---------------------------------------------------------------------------
-# Python 3.14.7, pinned to the patch so the image, CI, the eval and a local
-# `.venv` run the same interpreter. Moved only after it was measured
-# (2026-09-14): estnltk 1.7.5 publishes cp314 wheels, and — a wheel existing
-# not being the same as Vabamorf's compiled extension behaving — 400 nouns x 4
-# cases, 200 verbs x 5 forms and a sentence analysis came out byte-identical to
-# the previous runtime, so the drills' answer key did not move; the TalTech
-# gold-form gate passed at the same 1374/1400; the full suite passed; and this
-# image was built and generated drills in-container.
+# Python 3.14.7, pinned to the patch: the image, CI, the eval and local `.venv`
+# run the same interpreter.
 FROM python:3.14.7-slim AS builder
 
 WORKDIR /build
@@ -29,76 +17,39 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY eesti/ ./eesti/
 
-# Derived from the public CC-BY-SA wordlist, so this is reproducible from
-# scratch and nothing owner-only is baked into an image.
+# Derived from the public CC-BY-SA word list; nothing owner-only is baked in.
 RUN python -m eesti.cli fetch-data \
  && python -m eesti.cli build \
  && python -m eesti.cli export \
  && rm -rf data/raw
 
-# EKK's rection table is fetched separately and is allowed to fail.
-#
-# It is the one build step that depends on a third party being willing to talk
-# to a datacenter IP, and EKI already returned 403 to a GitHub Actions runner
-# on this exact URL. Chained with `&&` it would take the whole image down with
-# it — so a build machine having a bad afternoon would cost the entire deploy.
-#
-# The cost of it failing is one topic: `rektsioon` reports "run `cli rections`
-# once" and the other twenty generators are untouched. That is the right trade
-# against an unbuildable image, and it is the same rule the rest of the app
-# follows — own the core, let every third party be optional.
+# EKK's rection table comes from EKI and may refuse a datacenter IP: a failure
+# costs the `rektsioon` topic, not the image.
 RUN python -m eesti.cli rections || \
     echo "WARNING: EKK rection table unavailable at build time; \
 run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 
-# EKI's two downloads, if the person building the image has them.
-#
-# **They are committed, gzipped**, since 2026-09-13. Until then `deploy/eki/*`
-# was git-ignored, Cloud Build rebuilds from a git checkout, and so production
-# had none of them: smoke run 34765657703 read `eki_levels` 0 and
-# `eki_definitions` 0 from an image built after a merge. CC BY 4.0 permits
-# redistribution with the attribution kept (`eesti/licences.py`). Gzipped
-# because `evs` raw is 87 MB; the importers read `.gz` directly. EKSS, the full
-# explanatory dictionary, is the last definition fallback: 117 937 lemmas,
-# 96 058 of them in the word list (measured 2026-09-13).
-#
-# None is fetched by the build: the learner downloads them from
-# arhiiv.eki.ee/litsents (direct links worked on 2026-09-13, without the ID-card
-# step noted on 2026-09-12) and they are committed from there. The learner downloads them once and drops
-# them in `deploy/eki/`; this copies whatever is there.
-#
-# The directory always exists and always holds its README, so the COPY cannot
-# fail on an empty build context -- a conditional COPY is not a thing Docker
-# has, and an image that will not build because somebody has not filled in a
-# form at EKI would be the wrong trade.
-#
-# Both write into `data/eesti.db`, which is baked into this image. That is the
-# whole reason the build does it at all: the two imports are reference data,
-# identical for everybody, and `vocab.db` -- where the learner definitions used
-# to live -- travels in the state snapshot, which a restore replaces wholesale.
-# Kept there they would survive until the first Cloud Run cold start.
-#
-# Without the files each command says what is missing and returns 1, so the
-# `||` is doing real work: the image builds, the word list keeps its estimated
-# levels, and the word card keeps Sõnaveeb's native-level wording. The cost of
-# that silence is paid by `/api/health`'s `reference` counts and the smoke
-# workflow's warnings, which are the only place its absence shows.
+# EKI's CC BY 4.0 dictionaries, committed gzipped in `deploy/eki/` (see its
+# README). Reference data goes into `data/eesti.db` in the image — never into a
+# learner database, which a state restore replaces. Each import ends in `||` so
+# a missing or unreadable file costs one feature; `/api/health` `reference`
+# counts and the smoke workflow report what is missing.
 COPY deploy/eki/ ./deploy/eki/
 RUN python -m eesti.cli import-levels deploy/eki/A1A2B1.txt || \
     echo "NOTE: EKI level vocabulary not in the build context; \
-words keep their estimated CEFR levels. See deploy/eki/README.md."
+words keep their estimated CEFR levels. See docs/sources.md."
 RUN python -m eesti.cli import-psv deploy/eki/psv_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI learner dictionary not in the build context; \
-word cards show Sonaveeb's native-level definition. See deploy/eki/README.md."
+word cards show Sonaveeb's native-level definition. See docs/sources.md."
 RUN python -m eesti.cli import-evs deploy/eki/evs_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI Estonian-Russian dictionary not in the build context; \
-word cards show Sonaveeb's Russian only. See deploy/eki/README.md."
+word cards show Sonaveeb's Russian only. See docs/sources.md."
 RUN python -m eesti.cli import-vsl deploy/eki/vsl_EKI_CCBY40.xml.gz || \
-    echo "NOTE: EKI foreign-words lexicon not in the build context. See deploy/eki/README.md."
+    echo "NOTE: EKI foreign-words lexicon not in the build context. See docs/sources.md."
 RUN python -m eesti.cli import-har deploy/eki/har_EKI_CCBY40.xml.gz || \
-    echo "NOTE: EKI education terms not in the build context. See deploy/eki/README.md."
+    echo "NOTE: EKI education terms not in the build context. See docs/sources.md."
 RUN python -m eesti.cli import-ekss deploy/eki/ekss_EKI_CCBY40.xml.gz || \
-    echo "NOTE: EKI explanatory dictionary not in the build context. See deploy/eki/README.md."
+    echo "NOTE: EKI explanatory dictionary not in the build context. See docs/sources.md."
 
 # ---------------------------------------------------------------------------
 # Runtime
@@ -115,48 +66,21 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY eesti/ ./eesti/
 COPY --from=builder /build/data/ ./data/
-# The hand-written glossary is a tracked file, not a build product, so the
-# builder's `data/` never had it: until 2026-09-13 production ran without the
-# 294 glosses status.md says ship with the app, and nothing noticed, because
-# every test runs from a checkout where the file sits in `data/`. A clean image
-# build showed it: `palk` answered "бревно" from EVS instead of "зарплата".
+# The hand-written glossary is tracked, not built, so copy it explicitly.
 COPY data/seed_glossary.tsv ./data/seed_glossary.tsv
 
-# When this image was built, and from what.
-#
-# Written here, immediately after the code is copied, so the layer cache
-# invalidates exactly when `eesti/` changes -- a stamp that survives a code
-# change would be worse than none.
-#
-# It exists because of a question nothing could answer: a Python change was
-# merged, the Worker redeployed, and the new endpoint was still missing from
-# production. There was no way to tell whether the container build had not run
-# yet, had failed, or had never been wired up at all. `built` answers that
-# without any deploy-side configuration.
-#
-# `revision` is the exact commit, and needs the builder to pass it:
-#   docker build --build-arg BUILD_REV="$COMMIT_SHA" .
-# Unset it and the timestamp still answers the question that matters.
+# Build stamp for /api/health (`built`, `revision`), written right after the
+# code is copied so it changes whenever `eesti/` does. Pass the commit with
+# `--build-arg BUILD_REV="$COMMIT_SHA"`.
 ARG BUILD_REV=""
 RUN printf '{"built":"%s","revision":"%s"}\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$BUILD_REV" > /app/BUILD_INFO
 
-# Harvested reading material is NOT baked in. Two reasons: re-running the ERR
-# and Selges keeles harvest on every image build would hammer someone else's
-# server for no reason, and that material is owner-only by licence, so it has no
-# business inside a distributable image. Supply it at runtime — see
-# docs/deploy.md — and without it the reading library is simply empty.
+# The harvested corpus is owner-only and not baked in; it is pushed at runtime
+# (docs/deploy.md). Without it the reading library is empty.
 VOLUME ["/app/data/content"]
 ENV EESTI_CONTENT_DB=/app/data/content/content.db
 
-# Verified by building and running this image, not by reading it: the app
-# starts, /api/health reports 160 316 words, Vabamorf generates a conditional
-# drill in-container, an answer is recorded, and a snapshot survives destroying
-# the container and creating a new one. Image is ~1.08 GB.
-
 EXPOSE 8080
-# `$PORT` rather than a literal: Cloud Run injects the port it expects the
-# container to listen on, and a service configured with anything but 8080 would
-# otherwise fail its health check with a container that is running perfectly.
-# `exec` so uvicorn is PID 1 and gets Cloud Run's shutdown signal directly.
+# Cloud Run injects $PORT; `exec` makes uvicorn PID 1 so it receives SIGTERM.
 CMD ["sh", "-c", "exec python -m uvicorn eesti.app:app --host 0.0.0.0 --port ${PORT:-8080}"]

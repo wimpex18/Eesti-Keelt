@@ -83,7 +83,6 @@ def test_every_snapshotted_database_knows_its_learner_table():
 def test_each_learner_table_exists_in_its_schema(name, table, tmp_path):
     """A renamed table would make `_has_learner_data` return True forever --
     the failure mode that once made every restore silently refuse."""
-    import sqlite3
 
     connectors = {
         "progress": ("eesti.progress", "connect"),
@@ -215,7 +214,6 @@ class TestOnePlaceDecidesWhereTheDatabasesAre:
 
     def test_the_snapshot_follows_a_redirect_of_config_alone(self, tmp_path,
                                                              monkeypatch):
-        from eesti import app as app_module
         from eesti import config as config_module
 
         for name, stem in (("PROGRESS_DB", "p"), ("REVIEW_DB", "r"),

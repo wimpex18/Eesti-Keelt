@@ -240,9 +240,7 @@ class TestStateSnapshots:
         assert set(data["databases"]) == {"progress", "review", "vocab", "notion"}
 
     def test_a_snapshot_round_trips(self, secured, tmp_path, monkeypatch):
-        import base64
 
-        from eesti import app as app_module
 
         # Write something worth losing. It has to be a graded *answer*: asking
         # for items with an explicit topic never touches the progress database.
@@ -296,7 +294,6 @@ class TestStateSnapshots:
         newer work. Losing five minutes beats losing it silently."""
         import base64
 
-        from eesti import app as app_module
         from eesti.progress import connect as progress_connect
 
         live = tmp_path / "progress.db"
@@ -324,7 +321,6 @@ class TestStateSnapshots:
         discarding the snapshot it existed to restore."""
         import base64
 
-        from eesti import app as app_module
         from eesti.progress import connect as progress_connect
 
         empty = tmp_path / "progress.db"
@@ -357,7 +353,6 @@ class TestStateSnapshots:
         ).fetchone()[0] == 1
 
     def test_an_empty_entry_is_skipped_not_written(self, secured, tmp_path, monkeypatch):
-        from eesti import app as app_module
 
         target = tmp_path / "vocab.db"
         monkeypatch.setattr(config_db, "VOCAB_DB", str(target))

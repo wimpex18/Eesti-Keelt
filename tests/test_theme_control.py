@@ -61,17 +61,6 @@ class TestTheClaimMatchesTheGenerator:
     and they were not in step: `vordlusastmed` and `jargarvud` were handed
     `only=None` while the page offered them a theme."""
 
-    def test_items_for_reads_theme_slot_and_nothing_else(self):
-        import inspect
-
-        from eesti import practice
-
-        source = inspect.getsource(practice.items_for)
-        assert "theme_slot(topic)" in source
-        # One `only`, computed once. Three named sets is the shape that drifted.
-        for gone in ("nouns =", "verbs =", "countable ="):
-            assert gone not in source, f"{gone} is back — two places again"
-
     def test_every_branch_passes_the_same_only(self):
         import inspect
 

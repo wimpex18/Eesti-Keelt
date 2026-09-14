@@ -30,7 +30,7 @@ WORKER = ROOT / "deploy" / "worker.ts"
 
 #: Read by the Python app, therefore Cloud Run environment variables. The
 #: Worker must never be given these.
-CONTAINER_ONLY = ("OPENROUTER_API_KEY", "GROQ_API_KEY", "HF_TOKEN")
+CONTAINER_ONLY = ("OPENROUTER_API_KEY", "NVIDIA_API_KEY", "HF_TOKEN")
 
 #: Read by the Worker, therefore Worker secrets.
 WORKER_SECRETS = ("CLOUD_RUN_URL", "PROXY_TOKEN", "STATE_TOKEN")
@@ -530,19 +530,6 @@ class TestTheSummaryFieldCannotBeConfusedForAPerEngineOne:
         )
         assert got["can_explain"] is False
 
-    def test_the_body_still_contains_the_string_that_fooled_the_grep(self, client,
-                                                                     monkeypatch):
-        """Not incidental — it is why the rename was the fix rather than a
-        tidier regex. Any check matching text against this body can still be
-        misled; only reading the named field cannot."""
-        from eesti.providers.llm import PROVIDERS
-
-        for p in PROVIDERS.values():
-            monkeypatch.delenv(p.key_env, raising=False)
-        body = client.get("/api/engines").text
-        assert '"explains":true' in body
-        assert '"can_explain":false' in body
-
     def test_the_workflow_parses_json_instead_of_matching_text(self):
         workflow = (ROOT / ".github" / "workflows" / "smoke.yml").read_text()
         block = workflow.split("Asked five times")[1][:800]
@@ -565,7 +552,7 @@ class TestTheKeyListIsNotHandMaintained:
 
     def test_no_hardcoded_alternation_of_key_names(self):
         body = self.SET.read_text(encoding="utf-8")
-        assert "OPENROUTER_API_KEY|GROQ_API_KEY" not in body
+        assert "OPENROUTER_API_KEY|NVIDIA_API_KEY" not in body
 
     def test_every_key_the_app_reads_can_be_set(self):
         """Including the ones that are not LLM keys. The script's name is

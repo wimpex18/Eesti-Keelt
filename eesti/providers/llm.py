@@ -1,16 +1,11 @@
-"""Unified LLM client for the OpenAI-compatible providers.
+"""One client for every OpenAI-compatible LLM lane.
 
-OpenRouter, Groq and Cloudflare Workers AI all speak the OpenAI chat-completions
-shape, so one client covers them and switching provider is a base-URL change.
+Rules:
 
-Two rules encoded here, both learned the hard way (see docs/ai-providers.md):
-
-1. **Never pin a model id without probing it.** Ids are withdrawn silently, and a
-   withdrawn `:free` id is especially treacherous because the paid one with the
-   same name keeps existing — the name still looks right while every call 404s.
-   `list_models()` and `probe()` exist so a pin can be checked, not trusted.
-2. **The model never generates linguistic facts.** It adjudicates free text and
-   explains. Forms come from Vabamorf via the exported dataset.
+1. **Never pin a model id without probing it** — ids are withdrawn silently.
+   `list_models()` checks a pin against the live catalogue.
+2. **The model never generates linguistic facts.** It explains; forms come
+   from Vabamorf. See `docs/ai-boundaries.md` and `docs/ai-providers.md`.
 """
 
 from __future__ import annotations
@@ -49,34 +44,14 @@ class Provider:
     default_model: str
     # Free-tier shape, for choosing at runtime. None = paid/unmetered.
     free_note: str = ""
-    #: Does this lane accept `response_format: {"type": "json_object"}`?
-    #:
-    #: False for the HF router, and the distinction is not cosmetic: the router
-    #: picks a provider by the capabilities the *request* asks for, so asking
-    #: for JSON mode on a model whose only provider cannot do it is not a
-    #: degraded answer, it is **no route at all** — answered `400
-    #: model_not_supported`, which reads as "wrong model id" and is not.
-    #:
-    #: Measured 2026-09-02. The same model, same account, same token, answered
-    #: from the model page's own widget seconds later — because that widget
-    #: does not ask for JSON mode. Every one of the eval's 18 cases failed;
-    #: nothing about the model was learned.
-    #:
-    #: Dropping the flag costs nothing here. `SYSTEM` already says "Return ONLY
-    #: valid JSON" and `parse_json` already tolerates a fenced block, because
-    #: providers were returning prose-wrapped JSON long before this.
+    #: Whether the lane accepts `response_format: {"type": "json_object"}`.
+    #: Where unsupported, the prompt still demands JSON and `parse_json`
+    #: tolerates a fenced block.
     json_mode: bool = True
 
     @property
     def model(self) -> str:
-        """The model to call, overridable per provider from the environment.
-
-        `OPENROUTER_MODEL`, `GROQ_MODEL`, `LOCAL_LLM_MODEL` and so on. Trying a
-        different model was a code change and a redeploy until now, which is a
-        high price for an experiment whose whole point is that the answer is
-        unknown — and this project has already run the wrong model in production
-        for weeks because switching it meant editing a constant.
-        """
+        """The model to call: `<LANE>_MODEL` (or `LOCAL_LLM_MODEL`) overrides the pin."""
         # `local` reads LOCAL_LLM_MODEL, to pair with LOCAL_LLM_URL rather than
         # inventing a second naming convention next to it. Everything else is
         # NAME_MODEL, with dashes normalised: WORKERS_AI_MODEL.
@@ -106,93 +81,18 @@ class Provider:
         return bool(self.api_key)
 
 
-# Probed against the live catalogues in August 2026. Re-probe before trusting:
-#   python -m eesti.cli models --provider openrouter
+# Order of use is `grammar.LLM_PREFERENCE`; measurements are in docs/ai-providers.md.
+# Re-check a pin with `python -m eesti.cli models --provider <name>`.
 PROVIDERS: dict[str, Provider] = {
-    # 15 of 412 OpenRouter models were :free at time of probing. This id was
-    # present and advertises structured_outputs, which the JSON contract needs.
-    "openrouter": Provider(
-        "openrouter",
-        "https://openrouter.ai/api/v1",
-        "OPENROUTER_API_KEY",
-        # Chosen on evidence rather than on an eval, because the eval needs a
-        # key this repository must never hold. Three things decided it.
-        #
-        # 1. **Active parameters, not total.** The Estonian benchmark work
-        #    (Lillepalu & Alumäe, LREC 2026) frames weak Estonian as either
-        #    less training data *or* "less model capacity dedicated to that
-        #    language". Of the eight free models that accept the
-        #    `response_format` this client sends, active capacity runs:
-        #    gemma-4-31b **30.7B dense**, dots-3-note 16B, nemotron-3-super
-        #    12B, gemma-4-26b-a4b **3.8B**, gpt-oss-20b 3.6B.
-        #
-        #    `nvidia/nemotron-3-super-120b-a12b:free` -- 12B active -- is the
-        #    one this project measured at 0.50 recall / 0.50 precision, failing
-        #    in the harmful direction: it flagged `Ma ostsin uue auto` and
-        #    `Ma sõin suppi`, both correct. `gemma-4-26b-a4b:free` was picked as
-        #    its replacement and is a **downgrade** on this axis at 3.8B active,
-        #    which is the opposite of what a low-resource language needs.
-        #
-        # 2. **Gemma lineage.** The OmniGEC study (arXiv 2509.14504) found
-        #    Gemma's largest multilingual GEC gain was on Estonian, +8.25 GLEU.
-        #
-        # 3. **It takes the parameter we send.** `structured_outputs` and
-        #    `response_format` are different capabilities; this client sends
-        #    the latter, and gemma-4-31b accepts it.
-        #
-        # Still unmeasured on this project's own eval, and said plainly rather
-        # than implied: this is the best-evidenced choice available without a
-        # key, not a result.
-        #
-        # There is no paid upgrade to point at any more. An earlier note here
-        # recommended one at ~$0.20 a month; that was written when nothing
-        # Estonian-adapted was reachable, and this lane is now the *fallback*
-        # behind EstLLM rather than the best answer available. Paying a general
-        # model for Estonian morphosyntax buys the weakest axis of the most
-        # expensive option -- see `docs/ai-providers.md`, which keeps the old
-        # recommendation and the argument that overturned it.
-        #
-        # Re-pinned 2026-09-14, on the project's own eval this time: the Gemma
-        # id above answered 429 to 18 of 18 cases (the free model saturated,
-        # the key fine), and `dots-studio/dots-3-note-preview:free` scored
-        # precision 1.0 — no correct sentence flagged — and recall 0.714 on the
-        # same cases (eval run 34811299690). A pin that answers nothing loses
-        # to one that answers precisely.
-        "dots-studio/dots-3-note-preview:free",
-        "50 req/day free; 1000/day after a one-time $10 credit purchase "
-        "(an account threshold, not consumption). 20 req/min either way.",
+    # Cloudflare Workers AI over REST. Token needs Account → Workers AI → Read.
+    "workers-ai": Provider(
+        "workers-ai",
+        "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "CLOUDFLARE_API_TOKEN",
+        "@cf/openai/gpt-oss-120b",
+        "10,000 neurons/day free, shared across all models.",
     ),
-    # This entry is rule 1 above, demonstrated on itself. It was pinned to
-    # `llama-3.3-70b-versatile` and probed against the live catalogue in August
-    # 2026; Groq announced that id's deprecation for the free and developer
-    # tiers on **2026-08-16**, and the pin was stale six days later, on the
-    # first day a key was ever put behind it. A withdrawn id that enterprise
-    # accounts keep does not 404 -- the resource exists and this account may not
-    # have it -- so it answers **403**, which reads as a permissions problem and
-    # sent the first diagnosis at the key rather than at the model.
-    #
-    # `openai/gpt-oss-120b` rather than `qwen/qwen3.6-27b`, and the reason is
-    # not capability. Qwen is the better fit on the axis the OpenRouter comment
-    # above spends four paragraphs on -- 27B dense against roughly 5B active --
-    # and Groq lists it as **preview**, "for evaluation purposes only", which is
-    # a documented promise to withdraw it. This lane exists to answer on the
-    # days the primary cannot; pinning it to something that announces its own
-    # impermanence rebuilds the failure being fixed here. Production tier wins
-    # for a backstop, and it is the model the `workers-ai` lane already runs, so
-    # falling through does not also change models.
-    #
-    # The active-parameter objection stands and is not settled by this choice.
-    # `GROQ_MODEL` is why it does not have to be: trying qwen against the eval
-    # is an environment variable, not a redeploy.
-    # NVIDIA Build (NIM API): OpenAI-compatible, no card, 40 requests a minute
-    # on the free developer programme, and the widest catalogue of new open
-    # models reachable from a datacenter (82 listed publicly, 2026-09-14).
-    # DeepSeek V4 Flash scored precision 1.0, recall 1.0 on the Estonian eval
-    # (run 34827285002, 2026-09-14). The first pin, `deepseek-v4-pro-0813`,
-    # answered 410 Gone to every case: NVIDIA ended it at 08:00Z that morning,
-    # which is how fast a catalogue id can die. JSON mode is not
-    # documented per model there, so the lane does not ask for it: the prompt
-    # already demands JSON and `parse_json` tolerates a fenced block.
+    # NVIDIA Build. JSON mode is not documented per model, so it is not sent.
     "nvidia": Provider(
         "nvidia",
         "https://integrate.api.nvidia.com/v1",
@@ -201,9 +101,7 @@ PROVIDERS: dict[str, Provider] = {
         "Free NVIDIA Developer Program key, 40 req/min; 100+ hosted models.",
         json_mode=False,
     ),
-    # Mistral La Plateforme, Experiment plan: free, no card, about a billion
-    # tokens a month across every API model, Large included. `-latest` is
-    # Mistral's own stable alias, so a new Large release needs no re-pin.
+    # Mistral Experiment plan. `-latest` is Mistral's stable alias.
     "mistral": Provider(
         "mistral",
         "https://api.mistral.ai/v1",
@@ -211,85 +109,17 @@ PROVIDERS: dict[str, Provider] = {
         "mistral-large-latest",
         "Free Experiment plan, ~1B tokens/month, rate-limited.",
     ),
-    "groq": Provider(
-        "groq",
-        "https://api.groq.com/openai/v1",
-        "GROQ_API_KEY",
-        "openai/gpt-oss-120b",
-        "Generous free tier, fastest inference. Rate-limited per model.",
+    # Free models rotate; a `:free` id can vanish while the paid id remains.
+    "openrouter": Provider(
+        "openrouter",
+        "https://openrouter.ai/api/v1",
+        "OPENROUTER_API_KEY",
+        "dots-studio/dots-3-note-preview:free",
+        "50 req/day free; 1000/day after a one-time $10 credit purchase "
+        "(an account threshold, not consumption). 20 req/min either way.",
     ),
-    # Runs inside Cloudflare, so an edge deployment pays no egress and needs no
-    # third-party key. Requires CF_ACCOUNT_ID as well as the token.
-    "workers-ai": Provider(
-        "workers-ai",
-        "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
-        "CLOUDFLARE_API_TOKEN",
-        "@cf/openai/gpt-oss-120b",
-        "10,000 neurons/day free, shared across all models.",
-    ),
-    # EstLLM on somebody else's machine.
-    #
-    # This lane existed once, pointing at `router.huggingface.co` on the theory
-    # that it was "the only hosted way to reach EstLLM", and it was deleted
-    # after the 2026-08-20 probe: the router served 132 models and **not one
-    # Estonian one**, every Estonian model had an empty
-    # `inferenceProviderMapping`, and the lane was not in `LLM_PREFERENCE`
-    # either. Defined, unreachable, unnoticed.
-    #
-    # It is back because the measurement changed, not because the idea did.
-    # Re-probed 2026-09-01: `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` -- the
-    # exact id this project pins -- reports `featherless-ai`, status `live`,
-    # task `conversational`. A claim about somebody else's infrastructure is a
-    # measurement, and this one went stale in three weeks in the direction that
-    # kept the project from noticing an option it had been waiting for.
-    #
-    # **Two things are asserted here and one is not.** The mapping is read from
-    # the model's own metadata, and the router speaks the OpenAI shape this
-    # client already sends. What is *not* verified from this repository is that
-    # a request actually completes: the router answers 401 before it routes, so
-    # an unauthenticated probe returns 401 for a real id and for a made-up one
-    # alike and proves nothing. Only a call with a token settles it, and this
-    # repository must never hold one. So this lane is offered, not promised --
-    # `cli eval --provider huggingface` is how it gets a number.
-    #
-    # It got an answer rather than a number: eval run 34765659556 (2026-09-13),
-    # with the token, returned `400 model_not_supported` for all 18 cases. The
-    # mapping above is metadata; the bare id asks for `:fastest`, which does
-    # not offer it. With the provider named (`:featherless-ai`, run 34772172942)
-    # it routes and answers 402 Payment Required. Not paid for, by decision --
-    # docs/status.md. The id is left unsuffixed so a free route, if one ever
-    # appears, is picked up without a code change.
-    #
-    # Placed directly after `local` in `LLM_PREFERENCE` for one reason: it runs
-    # **the same Estonian-adapted model**, on hardware somebody else owns. The
-    # argument that puts `local` in front of the general models is an argument
-    # about the model, and it applies here unchanged; the only thing that
-    # separates the two lanes is who pays and who can read the request.
-    #
-    # `HF_TOKEN` is already this deployment's vocabulary -- `providers/asr.py`
-    # reads it for hosted Whisper -- so turning this on adds a lane, not a
-    # secret.
-    "huggingface": Provider(
-        "huggingface",
-        "https://router.huggingface.co/v1",
-        "HF_TOKEN",
-        "tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125",
-        "Routed to featherless-ai; that provider's own free/paid tiers apply. "
-        "Estonian-adapted weights without owning a machine.",
-        json_mode=False,
-    ),
-    # The same model, run by you rather than by anyone else.
-    #
-    # A general model failing Estonian object case is exactly what an
-    # Estonian-adapted one should fix, and this is the lane where that costs
-    # nothing and tells nobody. GGUF builds exist (`mradermacher/
-    # Llama-3.1-EstLLM-8B-Instruct-1125-GGUF`, Q4_K_M ~4.9 GB), and Ollama,
-    # LM Studio and llama.cpp all expose an OpenAI-compatible `/v1`. So the lane
-    # points at whatever is serving on `LOCAL_LLM_URL`.
-    #
-    # Keyless on purpose: a local server has nothing to authenticate. See
-    # docs/ai-providers.md for the Mac mini setup and the tunnel, if the deployment
-    # is to reach it rather than just `cli serve`.
+    # EstLLM (Estonian-adapted Llama 3.1 8B) on your own OpenAI-compatible
+    # server (Ollama, LM Studio, llama.cpp). Keyless; on when LOCAL_LLM_URL is set.
     "local": Provider(
         "local",
         os.environ.get("LOCAL_LLM_URL", "http://localhost:11434/v1"),
@@ -323,13 +153,7 @@ class EmptyReply(RuntimeError):
 
 
 def _user_agent() -> str:
-    """This app's own User-Agent, the one `net.py` already sends everywhere else.
-
-    Without it urllib announces itself as `Python-urllib/3.x`, and Groq's
-    Cloudflare front refuses that signature outright: `403`, body `error code:
-    1010` — measured from both Cloud Run and a GitHub runner on 2026-09-14. The
-    lane had a valid key and never reached the model.
-    """
+    """This app's User-Agent (`net.UA`); some provider firewalls refuse urllib's default."""
     from ..net import UA
 
     return UA
@@ -344,11 +168,7 @@ def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
     provider = PROVIDERS[provider_name]
     url = f"{_base_url(provider)}/models"
     if provider.name == "workers-ai":
-        # Cloudflare's OpenAI-compatible base (`/ai/v1`) serves chat
-        # completions, not a catalogue: `GET /ai/v1/models` answered 405 and the
-        # eval died before scoring (2026-09-14). The catalogue is the documented
-        # `GET /accounts/{id}/ai/models/search`, whose models sit in `result`
-        # under `name`.
+        # The OpenAI-compatible base has no catalogue; use `/ai/models/search`.
         url = _base_url(provider).removesuffix("/v1") + "/models/search"
     req = urllib.request.Request(url, headers={"User-Agent": _user_agent()})
     if provider.api_key:
@@ -457,10 +277,7 @@ def complete(
             choice = body["choices"][0]
             content = choice["message"].get("content")
             if not content:
-                # A reasoning model that spends its budget thinking answers
-                # `content: null`, and `parse_json(None)` raised AttributeError —
-                # 3 of 18 cases on dots-3-note-preview (2026-09-14), reported as
-                # a bare `ERROR AttributeError` that named nothing.
+                # A reasoning model that spends its budget thinking returns no content.
                 raise EmptyReply(choice.get("finish_reason") or "unknown")
             return content
         except urllib.error.HTTPError as exc:

@@ -6,7 +6,6 @@ back sooner than a right one, and lapses must be counted so struggling items can
 be surfaced.
 """
 
-import sqlite3
 
 import pytest
 

@@ -120,13 +120,7 @@ SECTIONS: tuple[Section, ...] = (
             ("lugemine", "kuulamine", "kirjutamine", "raakimine"),
             "Официальные задания по частям экзамена. Только для владельца.",
             mode="eksam", kinds=("ulesanne",)),
-    # `vorm` was added 2026-09-11, and it was this section's own description
-    # that gave the omission away: it promised регистрация and showed none of
-    # the nine application and reimbursement forms HARNO publishes, because no
-    # section named the kind. They were in the database and in no section —
-    # the same way twenty-five items went missing before the orphan check
-    # existed, and past it, because the check's fixture was a hand-written list
-    # of kinds somebody had to remember to extend.
+    # Includes `vorm`: HARNO's application and reimbursement forms.
     Section("eksamiinfo", "Eksamist", "об экзамене",
             ("lugemine", "kuulamine", "kirjutamine", "raakimine", "eksam"),
             "Видео об экзамене, описания уровней CEFR, информационный лист, "

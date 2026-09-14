@@ -1,6 +1,6 @@
 """*Haridussõnastik* — EKI's education terms, with their Russian.
 
-4 989 articles (measured 2026-09-13), each an education term — `aabits`,
+4 989 articles, each an education term — `aabits`,
 `eksam`, `hinne` — with a definition and translations into English, German,
 Finnish and Russian. The shape is not EVS's: the headword is `P/ep/terg/ter`,
 one preferred term (`tyyp="ee"`) plus synonyms (`tyyp="sy"`, 1 235 of them),
@@ -26,7 +26,7 @@ from . import ekixml
 MAX_RUSSIAN = 3
 
 #: `har_tyybid.xsd` `s_tyyp`: `halb` is EKI calling a term wrong, `van`
-#: obsolete. 72 translations carry one (measured 2026-09-13).
+#: obsolete. 72 translations carry one.
 NOT_USED = {"halb", "van"}
 SEP = "\x1f"
 

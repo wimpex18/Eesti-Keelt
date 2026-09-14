@@ -52,7 +52,7 @@ makes the size of the pool being filtered the only lever there is:
 | `grammar_et` **train, 7 937** | **267** |
 | | **322** |
 
-Measured 2026-09-11, and the interesting row is the third. Nothing had ever
+and the interesting row is the third. Nothing had ever
 fetched it. `grammar_et` has two splits; `evals/external.py` scores the test
 one, so the fetch table named that split and every later pass read the fetch
 table. Eight times the pairs were sitting behind a word nobody had reason to
@@ -146,7 +146,7 @@ def is_reordering(wrong: str, right: str) -> bool:
     difference the learner can answer on. A pair that moves two words *and*
     adds a comma is answerable from the comma, and would be teaching comma
     placement under a label that says `sõnajärg`. 54 of 376 pairs are that
-    shape (measured 2026-09-11); dropping them costs a seventh of the pool and
+    shape; dropping them costs a seventh of the pool and
     buys items where the only visible difference is the one being taught.
     """
     a, b = _words(wrong), _words(right)
@@ -365,8 +365,7 @@ def ingest(content: sqlite3.Connection, path: Path | str) -> int:
     baked into an image built from a public repository. The corrected sentence
     is the body; the learner's version and the rule ride in `meta`.
     """
-    from .sources import Item as SourceItem
-    from .sources import add_items, register
+    from .sources import register
 
     register(content)
     found = load(path)

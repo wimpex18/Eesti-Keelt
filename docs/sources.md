@@ -21,13 +21,36 @@ can answer "may this be shown to anyone but the owner?".
 | *Eesti keele käsiraamat* (EKK) | © EKI — linked, not reproduced | rule links per topic; SÜ 64 rection list |
 | `data/seed_glossary.tsv` | own work | 294 hand-written glosses for drill words |
 
-EKI downloads are committed in `deploy/eki/` and imported at image build
-(`deploy/eki/README.md`). Keep EKI attribution wherever EKI text is shown.
+Keep EKI attribution wherever EKI text is shown (`eesti/licences.py`).
 
 **Sõnaveeb and Ekilex are never batch-requested**: single lookups, one live
 request per second under a lock, each word stored once in `vocab.db`
 (`gloss.py`), capped per day. For more than the stored fields, link to
 Sõnaveeb (`sonapi.entry_url`).
+
+## EKI files (`deploy/eki/`)
+
+Downloaded from <https://arhiiv.eki.ee/litsents/>, committed (XML gzipped) and
+imported by the `Dockerfile` into `data/eesti.db`. Nothing in the repo fetches
+from EKI.
+
+| File | Import | Rows |
+|---|---|---|
+| `A1A2B1.txt` | `cli import-levels` | 4 456 lemmas with official level |
+| `psv_EKI_CCBY40.xml.gz` | `cli import-psv` | 4 849 learner definitions |
+| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian |
+| `vsl_EKI_CCBY40.xml.gz` | `cli import-vsl` | 30 095 definitions |
+| `har_EKI_CCBY40.xml.gz` | `cli import-har` | 5 905 terms with Russian |
+| `ekss_EKI_CCBY40.xml.gz` | `cli import-ekss` | 117 937 definitions |
+
+Lookup order — **Russian:** seed → live dictionary → EVS → HAR
+(`eesti/meaning.py`). **Definition:** PSV → live → VSL → EKSS
+(`eesti/api/grammar.py`), with native-level wording folded under *täpsem
+seletus* when PSV answers. **Rektsioon, muuttüüp:** live, else PSV and EVS.
+
+The XML has no root element and undeclared prefixes, one article per line
+(`eesti/ekixml.py`). To refresh a file: download, `gzip -9 -n`, replace, run the
+matching import with `--check`, commit.
 
 ## Reading and listening material
 
@@ -35,7 +58,7 @@ Sõnaveeb (`sonapi.entry_url`).
 |---|---|---|
 | Selges keeles (WordPress.com API) | no reuse grant — owner-only | reading texts, cloze sentences |
 | ERR *Lihtsad uudised* | © ERR — owner-only | weekly reading feed |
-| ERR Raadio 4 language archives | © ERR — owner-only | grammar-lesson episodes; transcripts filed as `grammatika`, example sentences for drills |
+| ERR Raadio 4 language archives | © ERR — owner-only | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
 | HARNO exam material | © HARNO — owner-only | pointers only; `data/exam/` never committed |
 | EIS public tasks | © HARNO — owner-only | pointers only |
 | Own material (`cli ingest`) | treated as ungranted | owner-only |

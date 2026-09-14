@@ -7,7 +7,6 @@ scores anything. The tests protect that boundary as much as the behaviour.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 

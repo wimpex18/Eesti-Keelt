@@ -68,8 +68,6 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   40–230 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
   a day and counts failures. When all fail the check degrades to Vabamorf
   offline evidence. See `docs/ai-providers.md`.
-- **The `huggingface` lane (EstLLM) is not usable** on a free account — the
-  router answers `402 Payment Required`. It stays defined; the breaker skips it.
 - **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
   by manual dispatch of `eval.yml`.
 - **Browser journeys are not in CI.** They protect a release only when run

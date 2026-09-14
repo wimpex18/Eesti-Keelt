@@ -247,9 +247,3 @@ def entry_points(results: Iterable[ProbeResult]) -> list[str]:
     nouns is an ordinary way to be, and one "you are here" cannot say it.
     """
     return [r.topic for r in results if r.ran and not r.passed]
-
-
-def entry_point(results: Iterable[ProbeResult]) -> str | None:
-    """The first branch to start on, or None if nothing was failed."""
-    found = entry_points(results)
-    return found[0] if found else None

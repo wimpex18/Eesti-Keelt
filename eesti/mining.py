@@ -45,30 +45,6 @@ class MineResult:
     kind: str | None = None
 
 
-def from_failed_drill(
-    conn: sqlite3.Connection,
-    lemma: str,
-    prompt: str,
-    answer: str,
-    distractor: str | None,
-    rule: str,
-    why_ru: str | None = None,
-) -> MineResult:
-    """Queue a drill the learner just got wrong, then record the failure.
-
-    Adding and grading in one step is deliberate: an item enters the queue
-    already knowing it was missed, so FSRS schedules it soon rather than treating
-    it as fresh material.
-    """
-    kind = "verb-form" if rule == "verb-form" else "obj-case"
-    item = review.add(
-        conn, kind=kind, lemma=lemma, tag=rule, prompt=prompt, answer=answer,
-        distractor=distractor, why_ru=why_ru, source="drill",
-    )
-    review.grade(conn, item, "again")
-    return MineResult(True, "queued after a wrong answer", item, kind)
-
-
 def from_reading(
     conn: sqlite3.Connection,
     word: str,

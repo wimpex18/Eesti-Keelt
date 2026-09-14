@@ -21,7 +21,7 @@ known meaning.
 import pytest
 
 from eesti import review
-from eesti.mining import from_failed_drill, from_reading
+from eesti.mining import from_reading
 
 
 @pytest.fixture()
@@ -118,26 +118,3 @@ class TestMiningFromReading:
         from_reading(db, "raamatut", context="esimene lause")
         from_reading(db, "raamatut", context="teine lause")
         assert db.execute("SELECT COUNT(*) FROM review_items").fetchone()[0] == 1
-
-
-class TestMiningFromFailedDrills:
-    def test_a_wrong_answer_enters_the_queue_already_marked_missed(self, db):
-        """It must not look like fresh material — it was just got wrong."""
-        result = from_failed_drill(
-            db, lemma="minema", prompt="Ma ____ kooli.", answer="lähen",
-            distractor="minen", rule="verb-form",
-        )
-        assert result.queued and result.kind == "verb-form"
-
-        row = db.execute(
-            "SELECT reps, lapses FROM review_items WHERE id = ?", (result.item_id,)
-        ).fetchone()
-        assert row["reps"] == 1 and row["lapses"] == 1
-
-    def test_object_case_rules_map_to_the_obj_case_kind(self, db):
-        for rule in ("completed", "ongoing", "negation"):
-            result = from_failed_drill(
-                db, lemma=f"test{rule}", prompt="___", answer="a",
-                distractor="b", rule=rule,
-            )
-            assert result.kind == "obj-case"

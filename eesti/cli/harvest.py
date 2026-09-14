@@ -77,11 +77,6 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     # is a Tuesday for these research hosts, and the reason this command is
     # excluded from the test suite. Say what happened and what would fix it,
     # and leave with a code rather than a traceback.
-    #
-    # The host named here was `elle.tlu.ee` until 2026-09-11. That is a
-    # different TLU service -- ELLE, the learning environment -- and it is up;
-    # EVKK is the corpus at `evkk.tlu.ee`. An error message that names the
-    # wrong host sends whoever reads it to check something that is working.
     try:
         marks = fetch(cache=CACHE / "evkk_marks.html")
     except RuntimeError as exc:

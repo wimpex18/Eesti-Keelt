@@ -2,7 +2,6 @@
 paths:
   - "docs/**"
   - "*.md"
-  - "deploy/eki/README.md"
 ---
 
 # Documentation
