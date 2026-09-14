@@ -1,34 +1,21 @@
 """One-time harvest of ERR's Estonian-for-Russian-speakers radio archives.
 
-**What these actually are, measured rather than assumed.** Across the 28
-harvested episodes the transcripts are **12 % Estonian** — 3 214 Estonian words
-against 23 147 Russian. They are Russian-language *grammar lessons* with Estonian
-examples embedded, not Estonian reading material. An earlier plan filed them
-under `lugemine`; that was wrong, and reading practice has to come from a source
-that is actually in Estonian (Lihtsad uudised, HARNO reading tasks).
+The transcripts are mostly Russian: grammar lessons with Estonian examples, not
+reading material. They are used for:
 
-What they are good for, and it is a lot:
+- **grammar explanation in Russian** (several episodes cover the object-case
+  contrast);
+- **listening** — bilingual audio.
 
-  * **Grammar explanation in Russian** — the learner's native language, and the
-    language corrections are explained in. Several episodes cover exactly the
-    completed/incomplete object contrast behind the `obj-case` gap.
-  * **Listening** — the audio is bilingual, so it is graded input rather than a
-    wall of native speech.
+The archives are closed and static, so this runs once, caches to disk and never
+touches ERR again.
 
-All three archives are closed and static: nothing new is being added. So this
-runs once, caches to disk, and never touches ERR again. That is both polite and
-the reason the result can be treated as a local corpus.
+- listing — archive pages render in JavaScript, so series are crawled from a
+  seed episode via sibling links.
+- episode — server-rendered: `window.pageControlData` carries the transcript
+  (`mainContent.body`) and the MP3 (`playerClips[*].src`).
 
-Two extraction paths, because the site needs both:
-
-  listing  — the archive page renders its episode list in JavaScript, so plain
-             HTTP returns nothing. Rendered once per archive with Chromium.
-  episode  — the article page is server-rendered: `window.pageControlData`
-             carries the transcript in `mainContent.body` and the MP3 in
-             `playerClips[*].src`. Plain HTTP, no browser.
-
-Content is © ERR. Registered as owner-only in `eesti.sources`: fine to study
-from, never to republish.
+Content is © ERR, owner-only: study, never republish.
 """
 
 from __future__ import annotations
@@ -42,10 +29,7 @@ from pathlib import Path
 
 from ..config import CACHE
 
-# Archive index pages render episode lists in JavaScript, so the crawl starts
-# from one known episode per series and expands outward from each by following
-# the ld+json sibling list. Any episode works as a seed — these are just ones
-# whose ids were easy to find.
+# One known episode per series; the crawl follows the ld+json sibling list.
 SEEDS = {
     "kak_eto_po_estonski": "https://r4.err.ee/755936/kak-jeto-po-jestonski-28",
     # Course two (2015-16). Episode 27 covers rektsioon and 25 the minema /
@@ -55,8 +39,7 @@ SEEDS = {
     "keelekodi": "https://r4.err.ee/932880/keelekodi-17",
 }
 
-# Deliberately slow. This is somebody else's server and the whole corpus is
-# fetched exactly once.
+# Deliberately slow: somebody else's server, fetched once.
 POLITE_DELAY = 1.0
 USER_AGENT = "Eesti-Keelt/0.1 (personal language study; one-time archive fetch)"
 
@@ -74,15 +57,9 @@ class Episode:
     body: str          # plain-text transcript
     audio_url: str | None
     published: str | None
-    #: The teacher's own one-line label for the lesson, e.g.
-    #: "Урок 22. Падеж дополнения в законченном действии."
-    #:
-    #: This is the most valuable field on an audio-only episode and it was
-    #: being thrown away. Two thirds of the archive has no transcript at all,
-    #: which made those episodes look like empty rows -- but every one of them
-    #: says, in the teacher's words, which grammar point it teaches. Lesson 22
-    #: and lesson 23 of the second course are the completed and incomplete
-    #: object contrast: the documented weakness this whole app was built for.
+    #: The teacher's one-line lesson label, e.g.
+    #: "Урок 22. Падеж дополнения в законченном действии." Most episodes are
+    #: audio-only, so this is often the only description of the grammar point.
     summary: str = ""
 
     @property
@@ -95,11 +72,7 @@ class Episode:
 
     @property
     def estonian_share(self) -> float:
-        """Fraction of words in Latin script.
-
-        Crude but sufficient: these transcripts are Russian prose with Estonian
-        examples, and script cleanly separates the two.
-        """
+        """Fraction of words in Latin script (Estonian vs Russian prose)."""
         latin = len(_LATIN_RE.findall(self.body))
         cyrillic = len(_CYRILLIC_RE.findall(self.body))
         total = latin + cyrillic
@@ -107,12 +80,7 @@ class Episode:
 
     @property
     def content_key(self) -> str:
-        """Identity by transcript, not by URL.
-
-        ERR publishes the same episode under several content ids — a crawl of
-        one series returned "Как это по-эстонски? 21" three times at three
-        different ids. The transcript is what makes an episode distinct.
-        """
+        """Identity by transcript, not by URL: ERR publishes one episode under several ids."""
         # Audio-only episodes in the later series all carry the same series
         # blurb, so hashing the body alone would collapse ~140 of them into one.
         # The audio URL is what distinguishes them.
@@ -144,24 +112,15 @@ def _page_data(html: str) -> dict:
 
 
 def _get(url: str, timeout: float = 45.0) -> str:
-    """One attempt, because this walks a series.
-
-    `retries=1` keeps exactly the behaviour this had: a crawl over ~170 pages
-    that retried each one three times would turn a bad afternoon on ERR's side
-    into a very long one, and `crawl_series` already skips a page it cannot
-    read.
-    """
+    """One attempt per page: `crawl_series` skips a page it cannot read."""
     from .. import net
 
     return net.get(url, "ERR", timeout=timeout, retries=1, ua=USER_AGENT)
 
 
 def parse_episode(html: str, url: str) -> Episode | None:
-    """Pull transcript and audio out of an episode page.
-
-    An episode is worth keeping if it has *either* a transcript or audio. Only
-    the 2010 series carries transcripts; the 2015 and 2019 series are audio-only,
-    and requiring text discarded them entirely.
+    """Pull transcript and audio out of an episode page; keep it if it has either
+    (later series are audio-only).
     """
     content = _page_data(html).get("mainContent") or {}
     body_html = content.get("body") or ""
@@ -197,13 +156,8 @@ _EPISODE_URL_RE = re.compile(r"^https://r4\.err\.ee/\d{5,}/")
 def _sibling_urls(html: str) -> list[str]:
     """Related-episode links from the page's ld+json ItemList.
 
-    ERR's archive listing is rendered client-side, so plain HTTP sees no episode
-    links at all — and a headless browser cannot reach the host from a sandboxed
-    session (ERR_CONNECTION_RESET even through the proxy). But every episode page
-    carries an ItemList of sibling episodes, which makes the series a graph that
-    can be walked with ordinary requests. Note the slugs in those URLs are
-    inherited from the current page and are misleading; only the numeric id is
-    meaningful.
+    Only the numeric id in those URLs is meaningful; the slugs are inherited from
+    the current page.
     """
     urls: list[str] = []
     for blob in _LDJSON_RE.findall(html):
@@ -231,9 +185,8 @@ def crawl_series(
 ) -> dict[str, str]:
     """Walk a series from one known episode, following sibling links.
 
-    Returns {url: html}. Pages whose series name differs from the seed's are
-    fetched once (there is no way to know without looking) but not expanded, so
-    the crawl stays inside the series.
+    Returns {url: html}. Pages from another series are fetched once but not
+    expanded.
     """
     cache = Path(cache_dir or CACHE) / "err"
     cache.mkdir(parents=True, exist_ok=True)
@@ -273,10 +226,8 @@ def harvest(
     max_pages: int = 400,
     cache_dir: Path | None = None,
 ) -> dict[str, list[Episode]]:
-    """Crawl each series from a seed episode and parse every page found.
-
-    Everything is cached to disk, so a re-run issues no requests at all. The
-    archives are closed and static, which is what makes one pass sufficient.
+    """Crawl each series from a seed episode and parse every page; cached, so a
+    re-run makes no requests.
     """
     seeds = seeds or SEEDS
     out: dict[str, list[Episode]] = {}
@@ -296,12 +247,8 @@ def harvest(
 
 
 def to_items(harvested: dict[str, list[Episode]]) -> list:
-    """Convert episodes into content items.
-
-    Each episode becomes ONE item carrying both transcript and audio, because it
-    is genuinely one artefact — the same material read and heard. The reading and
-    listening views select on `skill`, and an episode serves both, so it is filed
-    under `lugemine` with its audio attached rather than duplicated into two rows.
+    """Convert episodes into content items: one item per episode, carrying both
+    transcript and audio.
     """
     from ..difficulty import rank
     from ..sources import Item
@@ -321,9 +268,8 @@ def to_items(harvested: dict[str, list[Episode]]) -> list:
             items.append(
                 Item(
                     source_id="err-r4",
-                    # Episodes with a transcript are Russian-language grammar
-                    # lessons (measured 12% Estonian). Audio-only episodes are
-                    # listening material and nothing else.
+                    # Episodes with a transcript are Russian grammar lessons; audio-only ones are
+                    # listening material.
                     skill="grammatika" if episode.word_count > 100 else "kuulamine",
                     title=episode.title,
                     band=bands.get(episode.url),

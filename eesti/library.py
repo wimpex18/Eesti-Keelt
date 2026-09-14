@@ -1,37 +1,18 @@
 """The library: everything that is material rather than curriculum.
 
-Step 7. The path (`curriculum.py` + `progress.py`) is ordered, gated and
-pass/fail. This is the other surface, and the difference is not cosmetic.
+|            | Path (`curriculum.py`, `progress.py`) | Library |
+|------------|------------------|---------------|
+| ordered    | by prerequisite  | browse freely |
+| gated      | on mastery       | never         |
+| measurable | pass/fail per topic | exposure only |
 
-**Keelekõdi is the case that forces the split.** Its episodes are ~30 minutes of
-mixed content — some grammar, some songs, some vocabulary — with no transcript.
-That is genuinely useful *exposure* and genuinely useless as a *curriculum
-step*: it cannot be sequenced, gated on, or checked. Putting it on the path
-would break the path's one promise, which is that finishing a step means
-something.
+Material that cannot be sequenced or checked (e.g. unscripted radio) belongs
+here, not on the path. Opening an item records exposure, never mastery;
+vocabulary coverage comes from `vocab.py`.
 
-|            | Path                  | Library            |
-|------------|-----------------------|--------------------|
-| ordered    | by prerequisite       | browse freely      |
-| gated      | on mastery            | never              |
-| measurable | pass/fail per topic   | exposure only      |
-
-## Exposure is counted, and never called mastery
-
-Reading a text is not passing anything, so the library records *that* an item
-was opened and how long was spent, and stops there. The temptation is to turn
-"37 texts read" into a percentage of something; that is exactly how progress
-bars start lying. Coverage of a text's vocabulary — the number that actually
-tells you whether a text is worth your time — comes from `vocab.py`, which
-measures words rather than intentions.
-
-## Licence gating is a filter, not a convention
-
-`browse(..., public_only=True)` is what an unauthenticated request must use. It
-filters on the **source's** licence rather than on anything about the item, so a
-new source cannot leak by forgetting to tag its rows. ERR transcripts and HARNO
-exam material live here and are owner-only; Selges keeles texts are too, pending
-a licence answer. That is why Cloudflare Access is not optional.
+Licence gating is a filter: `browse(..., public_only=True)` filters on the
+source's licence, so a new source cannot leak by forgetting to tag rows.
+Owner-only material is why Cloudflare Access is required.
 """
 
 from __future__ import annotations
@@ -67,21 +48,15 @@ class Section:
     #: still learning that language.
     note: str
     mode: str = "oppimine"
-    #: Which `meta.kind` values belong here. Empty means "any".
-    #:
-    #: Skill alone was not enough once the official material arrived. HARNO
-    #: publishes samples, videos, workbooks and information sheets that all
-    #: carry the same skill as a task but are a completely different activity —
-    #: and 25 of them landed in no section at all, present in the database and
-    #: absent from the app.
+    #: Which `meta.kind` values belong here; empty means "any". Skill alone cannot
+    #: separate official samples, videos and workbooks from tasks of the same skill.
     kinds: tuple[str, ...] = ()
     #: Exclude these kinds even when the skill matches.
     not_kinds: tuple[str, ...] = ()
 
 
-# Sections group by *what the learner does with the material*, which is not the
-# same as where it came from: the ERR radio courses are Russian-language grammar
-# lessons and belong with grammar, not with listening practice.
+# Sections group by what the learner does with material, not by origin: the ERR
+# radio courses are grammar lessons and sit with grammar.
 SECTIONS: tuple[Section, ...] = (
     # -- Õppimine ----------------------------------------------------------
     Section("lugemine", "Lugemine", "чтение", ("lugemine",),
@@ -155,17 +130,8 @@ def _now() -> str:
 
 
 def _kind_clause(section: Section) -> tuple[str, list]:
-    """SQL restricting to a section's purpose, read out of `meta.kind`.
-
-    `meta` is a JSON blob rather than a column, so the value has to be read out
-    of it. SQLite's `json_extract` does that properly; the first version matched
-    a substring including the space after the colon, which meant any change to
-    how `meta` is serialised -- a different separator, a re-encode by another
-    tool -- would silently stop matching and empty a whole section.
-
-    `json_extract` is available in every SQLite that ships with a supported
-    Python, but a corpus file could still predate it, so a failure falls back to
-    the substring form rather than taking the library down.
+    """SQL restricting to a section's purpose, read from `meta.kind` with
+    `json_extract`, falling back to a substring match if JSON functions fail.
     """
     kinds, not_kinds = section.kinds, section.not_kinds
     if not (kinds or not_kinds):
@@ -186,11 +152,7 @@ def _kind_clause(section: Section) -> tuple[str, list]:
 
 def sections(content: sqlite3.Connection, public_only: bool = False,
              mode: str | None = None) -> list[dict]:
-    """Every section with how much material is actually in it.
-
-    `mode` narrows to one of the three things a learner is doing. Without it
-    the whole shelf is returned, which is what the overview wants.
-    """
+    """Every section with how much material is in it; `mode` narrows to one mode."""
     out = []
     for section in SECTIONS:
         if mode is not None and section.mode != mode:
@@ -219,19 +181,11 @@ def sections(content: sqlite3.Connection, public_only: bool = False,
 
 def _filters(level: str | None, band: str | None,
              public_only: bool) -> tuple[str, list]:
-    """The conditions `browse` and `count` must both apply.
+    """The conditions `browse` and `count` both apply, so a count always matches its
+    rows.
 
-    `count`'s docstring has said "built from `browse`'s own filters rather
-    than beside them" since it was written, and it was written beside them:
-    the same three clauses appeared twice, in the same order, in two functions
-    whose whole contract is that they agree. A count computed from different
-    conditions than the rows it counts is worse than no count, because it looks
-    authoritative -- so the filters are one thing now, and the docstring is
-    true.
-
-    Two different claims stay deliberately separate. `level` is CEFR and only
-    official material carries it; `band` is difficulty relative to a source and
-    is the only thing harvested prose can honestly offer.
+    `level` (CEFR, official material only) and `band` (difficulty relative to a
+    source) stay separate claims.
     """
     sql, params = "", []
     if level:
@@ -255,10 +209,8 @@ def browse(
 ) -> list[sqlite3.Row]:
     """Material in one section. Unordered by design — this is a shelf, not a path.
 
-    A section can cover several skills, and the naive version asked each for
-    `limit` rows and then truncated: with eight writing tasks and a limit of
-    five, every speaking task was unreachable. Sections are dealt round-robin
-    so each skill in a section is represented.
+    Skills within a section are dealt round-robin so none is crowded out by the
+    limit.
     """
     meta = by_id(section)
     kind_sql, kind_params = _kind_clause(meta)
@@ -297,16 +249,8 @@ def count(
     band: str | None = None,
     public_only: bool = False,
 ) -> int:
-    """How many items a section holds, ignoring `browse`'s page size.
-
-    `browse` takes a `limit` and the caller printed the length of what came
-    back. That reads as a total and is not one: the reading shelf answered "80
-    текстов" against 349 indexed, with no way to see the number was a cap and
-    no way to reach the rest.
-
-    Built from `browse`'s own filters rather than beside them -- a count
-    computed from different conditions than the rows it counts is worse than no
-    count, because it looks authoritative.
+    """How many items a section holds, ignoring `browse`'s page size; built from the
+    same filters as `browse`.
     """
     meta = by_id(section)
     kind_sql, kind_params = _kind_clause(meta)
@@ -343,17 +287,8 @@ def open_item(
 ) -> dict:
     """Open one piece of material: record the exposure *and* the words met.
 
-    This is the missing writer. `vocab.py` could measure how much of a text a
-    learner already handles, and `band_progress` could report known words per
-    frequency band, and **nothing in the app ever wrote a word into that table**
-    — so both were measuring something permanently empty. The measurement was
-    built without the recording.
-
-    Encounters are exposure, not knowledge: `record_encounter` bumps a met-count
-    and never promotes a word to *known*, because a word skimmed past is not a
-    word learned. Deciding a word is known stays an explicit act (`cli vocab
-    --know`). That distinction is the difference between a coverage number worth
-    trusting and one that inflates every time a text is opened.
+    Encounters bump a met-count and never mark a word known — that stays an
+    explicit act, so coverage numbers do not inflate by opening texts.
     """
     row = content.execute(
         "SELECT id, body FROM items WHERE id = ?", (item_id,)
@@ -377,10 +312,8 @@ def open_item(
 
 
 def exposure(progress: sqlite3.Connection) -> dict:
-    """Texts opened and minutes spent. Two counts, and deliberately no percentage.
-
-    There is no denominator that would make one honest: the library grows, and
-    "12 % of the library" says nothing about whether the learner can read.
+    """Texts opened and minutes spent. Two counts, deliberately no percentage: the
+    library has no meaningful denominator.
     """
     progress.executescript(SCHEMA)
     rows = progress.execute(
@@ -397,35 +330,16 @@ def seen_items(progress: sqlite3.Connection) -> set[str]:
 
 def exam_material(content: sqlite3.Connection, level: str,
                   public_only: bool = False) -> dict:
-    """Everything official for one level, grouped by what it is for.
-
-    One request instead of four. The exam view needs the annotated sample, the
-    intro video, the level descriptor and the tasks split by part, and asking
-    for each separately made the section the slowest screen in the app for no
-    reason — they all come from one table.
-
-    Grouping by `kind` rather than listing flat is the point. A sample
-    performance, a workbook and a reading task are three different activities
-    that happen to share a level, and a single list buries the one thing a
-    learner who has never sat the exam most needs to see.
+    """Everything official for one level, grouped by `kind`, in one request: a sample
+    performance, a workbook and a task are different activities.
     """
     import json as _json
 
     from .harvest import harno
 
-    # Two filters, and the second is not belt-and-braces.
-    #
-    # Matching level-less material at every level is what lets the application
-    # forms reach a screen at all. It also, on its own, **un-hid the eleven
-    # statistics PDFs**: `harno.NOT_INDEXED` stops them being written by a
-    # future harvest, and stops nothing about the rows already sitting in a
-    # learner's `content.db` from an earlier one. Those rows are level-less
-    # too, no group claims them, and `muu` renders whatever no group claimed —
-    # so widening the query put national pass rates on the readiness screen for
-    # anybody who had harvested before today.
-    #
-    # `NOT_INDEXED` has to hold at **read** time as well as at write time, or
-    # it is a rule about new databases only.
+    # Level-less material matches every level (so HARNO forms show), and
+    # `harno.NOT_INDEXED` is also enforced at read time so previously harvested
+    # statistics PDFs stay hidden.
     blocked = ",".join("?" * len(harno.NOT_INDEXED))
 
     sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
@@ -465,11 +379,7 @@ def exam_material(content: sqlite3.Connection, level: str,
         "video": by_kind.pop("video", []),
         "kirjeldus": by_kind.pop("kirjeldus", []),
         "teave": by_kind.pop("teave", []),
-        # The application and reimbursement forms. Level-less on purpose and
-        # matched by the `level = ''` arm above: registering for the exam is
-        # the same errand at A2 and at C1, so a form belongs to every level
-        # rather than to one, and filing it under a level would have meant
-        # picking a level HARNO did not give it.
+        # Application and reimbursement forms: level-less, so shown at every level.
         "vorm": by_kind.pop("vorm", []),
         "ulesanded": by_part,
         "muu": [item for items in by_kind.values() for item in items],
@@ -480,13 +390,8 @@ def parts_touched(progress: sqlite3.Connection,
                   content: sqlite3.Connection) -> dict[str, int]:
     """How many items the learner has opened, per exam part.
 
-    `exposure` records what was opened; `items` knows which part each belongs
-    to. Joining them is what turns "you have opened 14 texts" into "you have
-    never opened a listening task" — and the second is the one the exam's
-    no-part-may-be-zero rule actually punishes.
-
-    Two databases, so the join is done here rather than in SQL: progress is the
-    learner's and travels in the snapshot, content is the corpus and does not.
+    Joins `exposure` (learner, snapshotted) with `items` (corpus) in Python, since
+    they are different databases.
     """
     seen = seen_items(progress)
     if not seen:

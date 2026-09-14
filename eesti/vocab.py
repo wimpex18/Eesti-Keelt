@@ -1,22 +1,14 @@
 """Known-word tracking, so the library adapts to what you actually know.
 
-Adapted from Lute/LWT, the open-source ancestor of LingQ's model: every word in
-a text carries a status, statuses are visible *while reading*, and the share of
-known words is what tells you whether a text is worth your time.
-
-Lute uses 1–5 plus special codes for ignored and well-known. The same shape is
-used here, with one change that follows from this app being about grammar rather
-than vocabulary: status is tracked **per lemma**, not per surface form. Meeting
-`raamatut`, `raamatu` and `raamatud` is meeting one word three times, and
-Vabamorf already tells us so. A surface-form tracker would show three unknowns
-and badly understate what the reader knows.
+Modelled on Lute/LWT: every word carries a status, and the share of known words
+decides whether a text is worth reading. Status is per **lemma** (Vabamorf
+resolves `raamatut`, `raamatu`, `raamatud` to one word).
 
     0  unknown     never seen (implicit — absent from the table)
     1  learning    met, still opaque
-    3  familiar    recognised in context
     5  known       produced without effort
-    98 ignored     names, numbers, foreign words — never counted
-    99 well-known  known before this app existed; excluded from study
+    98 ignored     "Pole vaja" — excluded from study and counts
+    99 well-known  known before this app existed
 """
 
 from __future__ import annotations
@@ -25,24 +17,8 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Four rungs, not five. `FAMILIAR` (3, `tuttav`) sat between "met it" and
-# "know it" and **nothing ever wrote it**: no endpoint set it, no encounter
-# produced it, and the vocabulary store held zero rows at that value. Its only
-# reader was `coverage`, in an `in (LEARNING, FAMILIAR)` where the second term
-# could never be true.
-#
-# The question this settles -- "are five statuses four too many?" -- turned out
-# to be the wrong shape. The code never compares a status to five values; it
-# uses two thresholds, `>= 1` for *met* in `difficulty` and `>= 5` for
-# *settled* in the vocabulary list, so the number of named rungs costs nothing
-# structurally. What LingQ's users complain about is being made to *choose*
-# among four, and here the learner only ever chooses among the three settled
-# ones -- `LEARNING` is assigned by meeting a word, not by judging it.
-#
-# So the three settled values stay: "I know this", "I knew this long ago" and
-# "this is not for me" are different facts, they are cheap, and each has an
-# input path. `FAMILIAR` went because it encoded nothing, not because five was
-# one too many.
+# The code uses two thresholds: `>= 1` is *met*, `>= 5` is *settled*. `LEARNING`
+# is set by meeting a word; the three settled values are set by the learner.
 UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 5, 98, 99
 
 STATUS_NAMES = {
@@ -68,19 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_vocab_status ON vocab_status(status);
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
-    """Open `vocab.db` with **both** of its schemas applied.
-
-    Two modules keep tables in this one file: word status here, and word
-    meanings in `eesti/gloss.py`. They are one store because they are one
-    fact -- what this learner knows about words -- and because the state
-    snapshot ships whole files.
-
-    Whichever module opens the file first has to leave it complete. It did
-    not: a fresh container ran `vocab.connect` for the status page, got
-    `vocab_status` and nothing else, and the glossed-word count came back
-    missing rather than zero -- so the line vanished from the screen until
-    some unrelated word lookup happened to create the table. Absent and zero
-    say different things, and the learner was shown the one that says nothing.
+    """Open `vocab.db` with both of its schemas applied: word status here and word
+    meanings in `eesti/gloss.py` share one file, which the state snapshot ships.
     """
     from . import gloss
 
@@ -111,11 +76,8 @@ def set_status(conn: sqlite3.Connection, lemma: str, status: int) -> None:
 
 
 def record_encounter(conn: sqlite3.Connection, lemmas: list[str]) -> int:
-    """Note that these lemmas were met, without changing any status.
-
-    Called when a text is opened. Encounters are evidence of exposure; deciding
-    a word is known stays an explicit act, because a word skimmed past is not a
-    word learned — the mistake that makes automatic "known" counts meaningless.
+    """Note that these lemmas were met, without changing any status. Marking a word
+    known stays an explicit act.
     """
     if not lemmas:
         return 0
@@ -144,12 +106,7 @@ def statuses(conn: sqlite3.Connection, lemmas: list[str]) -> dict[str, int]:
 
 
 def coverage(conn: sqlite3.Connection, lemmas: list[str]) -> dict:
-    """What share of a text you already handle.
-
-    Ignored words are excluded from both sides: a proper name is neither a word
-    you know nor one you need, and counting it either way distorts the number
-    the reader uses to choose a text.
-    """
+    """What share of a text you already handle; ignored words count on neither side."""
     if not lemmas:
         return {"total": 0, "known": 0, "coverage": 0.0}
 
@@ -168,10 +125,7 @@ def coverage(conn: sqlite3.Connection, lemmas: list[str]) -> dict:
     }
 
 
-# Speakly orders vocabulary by real-world frequency and reports progress as
-# "known within the top N". Band size is a display choice, not a claim: 500 is
-# small enough that a band can be finished and large enough that finishing one
-# means something.
+# Bands of 500 by frequency rank: small enough to finish, large enough to matter.
 BAND_SIZE = 500
 BAND_TOP = 4000
 
@@ -182,22 +136,10 @@ def band_progress(
     size: int = BAND_SIZE,
     top: int = BAND_TOP,
 ) -> list[dict]:
-    """Known words per frequency band — the only vocabulary number worth showing.
+    """Known words per frequency band.
 
-    Vocabulary has no prerequisites, only usefulness, so it is ordered by
-    frequency rather than sequenced like the grammar path. And the denominator
-    is a band rather than the language: **"1 200 of the top 2 000" means
-    something; "12 % of Estonian" does not**, because the tail is endless and
-    nobody is trying to finish it.
-
-    `top` stops at 4 000 because that is roughly the whole A1-B1 vocabulary
-    target — the enriched word list tags 4 191 lemmas A1, A2 or B1 — so the
-    bands cover the thing being studied rather than trailing off into words no
-    exam will ask for.
-
-    Unranked lemmas are excluded: `freq_rank` 0 or NULL means the frequency
-    corpus never saw the word, which is not the same as it being rare-but-rank-
-    160000, and treating them as a band would invent a denominator.
+    "1 200 of the top 2 000" is meaningful where "12 % of Estonian" is not. `top`
+    defaults to 4 000, roughly the A1–B1 vocabulary. Unranked lemmas are excluded.
     """
     settled = {
         r[0] for r in conn.execute(
@@ -234,16 +176,11 @@ def summary(conn: sqlite3.Connection) -> dict:
     }
 
 
-#: What a browse request may filter on. `level` is CEFR and only ~6.2 % of the
-#: 160 316 words carry one, so a level filter is a filter onto the tagged
-#: minority -- which is the right minority, because it is exactly the A1-B1
-#: vocabulary the exam is drawn from.
+#: Browse filters. `level` is CEFR, carried only by the tagged A1–B1 minority.
 LEVELS = ("A1", "A2", "B1", "B2", "C1")
 
-#: Parts of speech worth offering. The wordlist's `pos` column also carries
-#: compound tags (`adj,s`, `adv,postp`) for words that are two things; a filter
-#: matches the tag as one of the comma-separated parts rather than by equality,
-#: or `adj` would silently hide the 52 B1 words tagged `adj,s`.
+#: Parts of speech offered. `pos` may be compound (`adj,s`), so a filter matches
+#: one comma-separated part.
 POS_NAMES = {
     "s": "nimisõna",
     "v": "tegusõna",
@@ -262,21 +199,10 @@ def browse(
     limit: int = 60,
     offset: int = 0,
 ) -> dict:
-    """List vocabulary the learner can work through, newest-first by usefulness.
+    """List vocabulary the learner can work through, commonest first.
 
-    The app could look a word up and could not list any. That made the wordlist
-    a thing you could query only if you already knew what to ask for, which is
-    the one situation a learner is not in.
-
-    Ordered by frequency rank, because for a learner deciding what to study
-    next, "commonest first" is the ordering that pays. Ties and untagged ranks
-    sort last rather than first, so a word nobody has ranked never displaces a
-    word somebody has.
-
-    Both connections are passed in. `words` holds the wordlist and the case
-    contrasts, `store` holds this learner's statuses and glosses; they are
-    different databases with different lifetimes, and a function that opened
-    either one itself could not be pointed at a fixture.
+    Unranked words sort last. Both connections are passed in: `words` (word list)
+    and `store` (this learner's statuses and glosses) are different databases.
     """
     where, args = [], []
     if level:
@@ -296,28 +222,14 @@ def browse(
         "  FROM words w"
         "  LEFT JOIN object_cases c ON c.word = w.word"
         + (" WHERE " + " AND ".join(where) if where else "")
-        # Unranked is 0 in this dataset, not NULL -- 147 823 of 160 316 words
-        # carry it, including 597 of the 2 509 at B1. Sorting on the raw column
-        # puts every unranked word *first*, which is the exact opposite of
-        # "commonest first" and produces a page of a-words. Both spellings of
-        # "no rank" sort last.
+        # Unranked is 0 in this dataset; sort both 0 and NULL last.
         + " ORDER BY (w.freq_rank IS NULL OR w.freq_rank = 0),"
           " w.freq_rank, w.word"
     )
 
-    # Status lives in the other database, so it cannot be a SQL filter here.
-    # Read a window, annotate, then filter -- and keep reading windows until
-    # the page is full, or a status filter would return a short page and look
-    # like the end of the list.
-    # `known` stays both settled-positive rungs, so an existing caller keeps
-    # its meaning; the two narrower names are additions, not a redefinition.
-    #
-    # `ignored` is the one that had to exist. A learner can mark a word "Pole
-    # vaja" and it leaves every drill and every sentence -- and there was no
-    # filter that could list one again, so the decision was irreversible in
-    # practice through the only surface that makes it. A writer with no reader
-    # is the same defect as a reader with no writer, which this project has now
-    # found in both directions.
+    # Status lives in the other database, so filter after reading: keep reading
+    # windows until the page is full. `known` covers both settled-positive rungs;
+    # `ignored` lets a "Pole vaja" decision be listed and undone.
     wanted = None
     if status is not None:
         wanted = {
@@ -366,9 +278,7 @@ def browse(
         "items": page,
         "count": len(page),
         "offset": offset,
-        # `more` is honest about what was actually read rather than claiming a
-        # total: counting every match would mean scanning 160 316 rows and
-        # joining the other database on each request, to render one word.
+        # `more` reports whether another page exists, without counting every match.
         "more": len(out) > offset + limit,
         "level": level,
         "pos": pos,
@@ -378,14 +288,8 @@ def browse(
 
 def _glosses(words: sqlite3.Connection, store: sqlite3.Connection,
              lemmas: list[str]) -> dict[str, str]:
-    """Russian for a page of words, from local tables only, in `meaning.py`'s
-    order. Never fetches: browsing sixty words must not become sixty live
-    lookups against a service that asks not to be batched.
-
-    This read Sõnaveeb's store alone until EKI's dictionary was imported, so
-    the list showed Russian only for words the card had already enriched.
-    The join to a display string happens here, where the storage convention is
-    known — the raw `\x1f` separator once rendered as tofu on the phone.
+    """Russian for a page of words, from local tables only, in `meaning.py`'s order.
+    Never fetches: browsing must not become a batch of live lookups.
     """
     from .meaning import russian_many
 

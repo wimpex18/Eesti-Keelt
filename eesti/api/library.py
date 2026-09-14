@@ -1,9 +1,8 @@
 """The material: what is in it, what to read next, and opening one item.
 
-Sections filter on skill *and* purpose (`meta.kind`), not skill alone —
-`/api/modes` is the map. `/api/reading/next` ranks by comprehensibility for
-this learner (the share of a text's lemmas they have met), never by a CEFR
-level derived from vocabulary, which was measured and does not work.
+Sections filter on skill *and* purpose (`meta.kind`); `/api/modes` is the map.
+`/api/reading/next` ranks by comprehensibility for this learner, never by a
+CEFR level derived from vocabulary.
 """
 
 from __future__ import annotations
@@ -21,12 +20,7 @@ router = APIRouter()
 
 @router.get("/api/modes")
 def modes() -> dict:
-    """The three things a learner is ever doing, and what is in each.
-
-    One request instead of four: the client asks once and knows the whole
-    shelf, which is what makes a three-way switch cheap enough to be the
-    top-level navigation.
-    """
+    """The three modes and what is in each, in one request."""
     from ..library import MODE_LABELS, MODES, sections as library_sections
 
     conn = content_db()
@@ -49,20 +43,9 @@ def library(skill: str = "lugemine", section: str | None = None,
             limit: int = 60, offset: int = 0) -> dict:
     """Harvested study material, by skill or by section.
 
-    `section` exists because a skill is not a shelf. A section also carries the
-    `kind` filters that keep an exam task out of the reading list and a
-    consultation workbook out of the exam list, and asking by skill alone
-    silently ignores them.
-
-    It was added after finding that two of the seven sections — 82 items, the
-    entire harvested listening archive and the 28 radio-course transcripts —
-    could not be reached from the page at all. They were indexed, sectioned and
-    covered by API tests; the page just never asked, because it could only ask
-    by skill and it only ever asked for `lugemine`.
-
-    `public_only` is deliberately NOT exposed as a parameter. This server is the
-    single-user local one; the public deployment sets it, and making it a query
-    parameter would let a caller ask for owner-only material by guessing.
+    Prefer `section`: it also applies the `kind` filters a skill alone ignores.
+    `public_only` is not a parameter — a caller must not be able to request
+    owner-only material by guessing.
     """
     conn = content_db()
     if section is not None:
@@ -81,10 +64,7 @@ def library(skill: str = "lugemine", section: str | None = None,
                              limit=limit, offset=offset)
         total = content_count(conn, skill=skill, level=level, band=band)
     return {
-        # How many there are, not how many came back. The page printed
-        # `len(items)` as the library size, so a `limit` of 80 against 349
-        # indexed texts read as "80 текстов" -- a page size in the clothes of a
-        # total, and 269 texts that nothing could reach.
+        # The section total, not the page length.
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -98,10 +78,8 @@ def library(skill: str = "lugemine", section: str | None = None,
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
                 "words": len(( r["body"] or "").split()),
-                # Official exam tasks are indexed, not copied: they are HARNO's
-                # copyright and their scoring only works on their page. The UI
-                # needs to send the learner there rather than open a reader on
-                # an empty body.
+                # Official exam tasks are pointers (HARNO copyright, scored on their page); the UI
+                # links out instead of opening an empty reader.
                 **_pointer(r["meta"]),
             }
             for r in rows
@@ -124,34 +102,16 @@ def _pointer(meta: str | None) -> dict:
 def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     """Texts to read next, ranked by how readable they are *for this learner*.
 
-    The reading research is specific about the mechanism: input works when it is
-    understood, and understanding is gated by how much of the vocabulary the
-    reader already has. A difficulty band cannot see that — it ranks texts
-    against each other and says nothing about who is reading.
-
-    So this sorts by known-word coverage and puts the **instructional** band
-    first: texts the learner can follow with effort, which is where a text
-    teaches rather than either boring or defeating them.
-
-    It ranks; it does not filter. This docstring used to end "anything below
-    the threshold is not offered at all", which the code has never done and
-    must not: a learner with 411 known words scores about 13 % on native-ish
-    news, so a threshold filter would hand them an empty list on the default
-    view and no way to tell an empty library from a high bar. The band is
-    reported honestly instead — `raske` says the text is above them without
-    hiding it.
+    Sorts by known-word coverage and puts the **instructional** band first — texts
+    the learner can follow with effort. It ranks and never filters: a low coverage
+    shows as `raske` rather than an empty list.
     """
     from ..difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
     from ..library import browse
     from ..library import count as section_count
 
     known = known_lemmas(vocab_db())
-    # The whole shelf, not a slice of it. This read `limit=120` against 349
-    # indexed texts, so 229 of them could never be recommended however well
-    # they fitted -- which defeats the one thing this endpoint exists to do,
-    # since ranking a fixed arbitrary subset by *this learner's* vocabulary is
-    # not ranking the library by it. Measured before changing: scoring all 349
-    # takes 0.14 s against 0.05 s for 120. The cap was buying 90 milliseconds.
+    # Score the whole shelf, so any text can be recommended.
     conn = content_db()
     rows = browse(conn, section, limit=max(1, section_count(conn, section)))
 
@@ -162,13 +122,8 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
             continue
         profile = comprehensible(row["body"], known)
         if profile["total"] == 0:
-            # No lemmas resolved. Either the text is empty, or the word
-            # database is missing — `cli export` builds it and the image does
-            # so at build time, but a source checkout may not have it. Counted
-            # rather than silently dropped: every text failing this way
-            # produced "0 teksti · 411 слов знакомо", a contradiction with no
-            # explanation, which is the same shape as showing a zero that
-            # means "not measured yet".
+            # No lemmas resolved (empty text, or no form index — run `cli export`): counted
+            # as unmeasurable rather than silently dropped.
             unmeasurable += 1
             continue
         scored.append({
@@ -198,8 +153,7 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
         "items": scored[:limit],
         "known_words": len(known),
         "threshold": INSTRUCTIONAL,
-        # Distinguishes "the library is empty" from "nothing could be
-        # measured", which look identical in a list of length zero.
+        # Distinguishes "the library is empty" from "nothing could be measured".
         "unmeasurable": unmeasurable,
         "note": note,
     }
@@ -207,23 +161,10 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
 
 @router.get("/api/library/{item_id}")
 def library_item(item_id: str, minutes: float = 0.0) -> dict:
-    """One item with its full text, a vocabulary profile, and a record that it
-    was opened.
+    """One item with its full text and vocabulary profile; opening records exposure
+    and word encounters via `library.open_item`.
 
-    That last part was missing, and it was load-bearing. `library.open_item`
-    exists to write two things — an exposure row and a vocabulary encounter per
-    lemma — and this endpoint, the only way the web app ever opens a text, did
-    a raw SELECT instead. So reading in the app fed nothing:
-
-    - `readiness` reported "0 текстов" for Lugemine however much was read
-    - `parts_touched` saw no contact, so every exam part stayed untouched
-    - `vocab_status` stayed empty, so `/api/reading/next` could never rank by
-      what the learner knows and said "слова ещё не отмечены" forever
-
-    Third time this project has built a measurement without its writer. The
-    recording is deliberately *encounter*, not knowledge: `record_encounter`
-    bumps a met-count and never promotes a word to known, because a word
-    skimmed past is not a word learned.
+    Encounters are not knowledge: they bump a met-count and never mark a word known.
     """
     conn = content_db()
     row = conn.execute(
