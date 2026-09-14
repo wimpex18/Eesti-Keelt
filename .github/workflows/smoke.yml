@@ -1,15 +1,8 @@
 # Checks the *deployed* app, not the code.
 #
-# Why this exists: Cloudflare Access closes the front door and PROXY_TOKEN
-# closes the origin, which is exactly right — and it means nobody working on
-# this repo can reach the running app to confirm it works. Three production
-# bugs in this project were found by asking the live deployment rather than
-# reading the code, so losing that ability outright would be a bad trade.
-#
-# The way back in is an Access **service token**: a credential minted for a
-# machine, allowed by its own policy, revocable on its own. It lives in GitHub
-# Actions secrets, which is where CI credentials belong — not in a chat, not in
-# an environment variable box, and not in anyone's hands.
+# Cloudflare Access closes the front door and PROXY_TOKEN the origin, so nobody
+# can reach the running app directly. This workflow gets in with an Access
+# **service token** held in GitHub Actions secrets.
 #
 # Setup, once:
 #   1. Zero Trust -> Access -> Service Auth -> Service Tokens -> Create.
@@ -32,25 +25,9 @@ on:
   workflow_run:
     workflows: [deploy]
     types: [completed]
-  # Because that trigger covers a minority of deploys.
-  #
-  # Cloud Build rebuilds the image on **every** push to `main`. `deploy` is
-  # filtered to Worker paths -- deploy/**, wrangler.jsonc, package*.json, and
-  # itself -- so a merge touching only `eesti/`, `tests/` or `docs/` rebuilds
-  # and redeploys the app with no check firing at all. Measured: `deploy` has
-  # run 8 times against roughly 17 merges to `main`.
-  #
-  # Two costs already paid. The runtime-upgrade image went ten hours unverified
-  # after PR #30, and PR #31 -- a Python change -- produced no smoke run
-  # whatsoever.
-  #
-  # Daily, so any merge is checked within a day whatever it touched, and a
-  # deployment broken since the last merge stops being invisible. Not `push:
-  # branches: [main]`: that fires within a minute of every merge, always before
-  # Cloud Build finishes, so every run would warn STALE and the warning would
-  # become the thing people scroll past -- the exact failure the warning exists
-  # to avoid. An off-peak minute that is not :00, because everybody's hourly
-  # job is at :00.
+  # Daily, because Cloud Build redeploys the app on every push to `main` while
+  # `deploy` runs only for Worker paths. Not on every push: that fires before Cloud
+  # Build finishes and would always report a stale image. Off the hour mark.
   schedule:
     - cron: "43 5 * * *"
 
@@ -64,13 +41,9 @@ jobs:
           CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           DEEP: ${{ inputs.deep }}
-          # Populated only for `workflow_run` — the commit whose deploy fired
-          # this run. Empty on a manual dispatch, where there is no "the change
-          # I just merged" to compare against and the operator chose the moment.
+          # Set only for `workflow_run`: the commit whose deploy fired this run.
           TRIGGER_COMMIT_AT: ${{ github.event.workflow_run.head_commit.timestamp }}
-          # For the schedule, which has no triggering commit: ask the API what
-          # `main`'s head is. There is no checkout here and no reason to add
-          # one for a timestamp.
+          # On a schedule there is no triggering commit: ask the API for `main`'s head.
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
@@ -84,9 +57,7 @@ jobs:
                 -H "CF-Access-Client-Secret: $CF_SECRET")
           fail=0
 
-          # 1. The front door is shut to anyone without the token. This is the
-          #    check that matters most: everything else is a feature, this is
-          #    the licence obligation.
+          # 1. The front door is shut to anyone without the token (the licence obligation).
           code="$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/health")"
           if [ "$code" = "302" ] || [ "$code" = "403" ]; then
             echo "closed to anonymous ...... OK ($code)"
@@ -101,13 +72,10 @@ jobs:
             && echo "health .................. OK" \
             || { echo "::error::health did not answer: ${body:0:200}"; fail=1; }
 
-          # 2b. Which of the three build-time reference imports landed.
+          # 2b. Which build-time reference imports landed (row counts).
           #
-          #     Each import may fail without failing the image build, costing one
-          #     feature silently — which is why the deployment is asked.
-          #
-          #     Warnings, not failures. An image without them is degraded, not
-          #     broken, and the deployment ran that way for months.
+          #     Each import may fail without failing the image build, costing one feature
+          #     silently — so the deployment is asked. Warnings, not failures.
           for f in rections eki_levels eki_definitions eki_russian eki_terms eki_loanwords eki_explanatory; do
             n="$(jq -r --arg k "$f" '.reference[$k] // 0' <<<"$body")"
             if [ "${n:-0}" -gt 0 ]; then
@@ -124,13 +92,8 @@ jobs:
             fi
           done
 
-          # 3. Which build is answering.
-          #
-          #    A Python change was merged, the Worker redeployed, and the new
-          #    endpoint was still missing from production — with no way to tell
-          #    whether the container build had not run yet, had failed, or was
-          #    never wired up. The Worker and the app deploy by different
-          #    routes, so "the deploy went green" says nothing about the app.
+          # 3. Which build is answering (the image's build stamp). The Worker and the app
+          #    deploy by different routes, so a green `deploy` says nothing about the app.
           built="$(jq -r '.built // ""' <<<"$body")"
           if [ -n "$built" ]; then
             echo "image built .............. $built"
@@ -141,35 +104,14 @@ jobs:
 
           # 3b. Is that image older than the commit this run is about?
           #
-          #     This run fires on `deploy` completing, and `deploy` deploys the
-          #     Worker. The app is a separate container built by a Cloud Build
-          #     trigger on `main`, which nothing here can observe — so the
-          #     smoke run that fires on a merge is looking at the *previous*
-          #     image. Not usually: structurally, every time.
+          #     A run fired by `deploy` usually sees the previous image, because Cloud Build
+          #     is still building. A warning, never a failure. On a schedule, main's head
+          #     comes from the GitHub API; a failed lookup falls through to the "could not
+          #     compare" warning.
           #
-          #     Measured on the merge of PR #30. Merge at 20:11:20Z, this run
-          #     fired at 20:12:11Z and reported an image built 14:39:50Z — five
-          #     and a half hours old — and every check under it passed. The new
-          #     image landed at 20:14:20Z, two minutes after the run that was
-          #     supposed to be checking it. A green tick about the wrong
-          #     deployment reads exactly like a green tick about the right one.
-          #
-          #     A warning, never a failure: a stale image inside the build
-          #     window is the normal and correct state, and a check that cried
-          #     wolf on every merge is a check people learn to scroll past.
-          #     On a schedule there is no triggering commit, so ask the API
-          #     what `main`'s head is. Without this the daily run -- the one
-          #     that covers the merges `deploy` never sees -- could report an
-          #     image and say nothing about whether it is the current one,
-          #     which is the same silence in a new place.
-          #
-          #     A failed lookup falls through to the "could not compare"
-          #     warning below rather than failing the run: somebody else's bad
-          #     minute is not this app's outage.
-          # Which question this run is answering: decided by how long ago
-          # `main`'s head was committed, not by what fired the run. Minutes
-          # after a merge, "older" means Cloud Build has not finished. Past the
-          # build window it means the build failed or never ran.
+          # Which question this run answers is decided by how long ago `main`'s head was
+          # committed: minutes means Cloud Build has not finished; past the build window it
+          # means the build failed or never ran.
           if [ -z "$TRIGGER_COMMIT_AT" ] && [ -n "$GH_TOKEN" ]; then
             TRIGGER_COMMIT_AT="$(curl -sf \
               -H "Authorization: Bearer $GH_TOKEN" \
@@ -219,7 +161,7 @@ jobs:
             && echo "origin guarded .......... OK" \
             || { echo "::error::origin_guarded is false — the run.app URL is open."; fail=1; }
 
-          # 5. The endpoints that returned 500 in production once already.
+          # 5. Endpoints that must not return 500.
           for path in /api/library /api/status /api/curriculum; do
             code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$URL$path")"
             [ "$code" = "200" ] \
@@ -227,22 +169,9 @@ jobs:
               || { echo "::error::$path returned $code"; fail=1; }
           done
 
-          # 5b. Which *code* is answering, as opposed to when it was built.
-          #
-          #     A timestamp cannot answer the question anybody actually has,
-          #     which is "does the running image contain the change I merged?".
-          #     It came up immediately: a merge landed at 16:10 and the stamp
-          #     read 16:13, and a failure that the merge was supposed to fix
-          #     was still there. Stale image, or fix live and something else
-          #     wrong? The stamp cannot say, and `revision` is null because
-          #     the Cloud Build trigger passes no BUILD_REV.
-          #
-          #     So ask for a *behaviour* only the newer code has. `total` was
-          #     added to /api/library when the page turned out to be printing
-          #     its page size as the library size; an image without it predates
-          #     that merge. This is a marker, not a feature test -- when it
-          #     stops discriminating, move it to whatever shipped most
-          #     recently rather than deleting it.
+          # 5b. Which *code* is answering: a behaviour only newer code has (`total` on
+          #     /api/library), since `revision` is not passed by the trigger. When it stops
+          #     discriminating, move the marker to something newer.
           lib="$(curl -s "${auth[@]}" "$URL/api/library?skill=lugemine&limit=1")"
           if [ "$(jq -r 'has("total")' <<<"$lib")" = true ]; then
             echo "image carries /api/library total ($(jq -r '.total' <<<"$lib") texts)"
@@ -251,31 +180,16 @@ jobs:
           predates that merge, so anything else merged with it is not live either."
           fi
 
-          # 6. Speech is reachable. The microphone silently not working is the
-          #    kind of thing nobody notices until a speaking exercise.
+          # 6. Speech is reachable.
           curl -s "${auth[@]}" "$URL/api/asr" | grep -q '"ready":true' \
             && echo "speech .................. OK" \
             || echo "::warning::/api/asr reports not ready."
 
-          # 7. The grammar checker can actually explain. This is the check
-          #    that would have caught the LLM key being set on the Worker
-          #    instead of on Cloud Run: the app stayed healthy, served offline
-          #    mode, and because only an explained correction offers a "log
-          #    it" button, nothing ever reached the Notion log either. A
-          #    warning rather than an error — a deployment with no LLM key is
-          #    a legitimate choice; a key that is set and unreachable is not.
-          #    Read with jq, not grep. Grepping the body for
-          #    `"explains":true` matched a *per-engine* field on a provider
-          #    that was not available, so the chain was reported healthy while
-          #    it was in offline mode — and the contradiction with the deep
-          #    check below sent me looking for a traffic split that did not
-          #    exist. The summary field is `can_explain` now, and jq reads
-          #    exactly the field asked for.
+          # 7. The grammar checker is configured to explain (`can_explain`, read with jq). A
+          #    warning: running without an LLM key is a legitimate choice.
           #
-          #    Asked five times because Cloud Run can serve two revisions at
-          #    once during a rollout, and a single request reports whichever
-          #    instance it reached — a real split would read as a flake and be
-          #    re-run until it passed.
+          #    Asked five times, because two revisions can serve during a rollout and
+          #    disagreement between instances is itself the finding.
           yes_n=0; no_n=0; gone_n=0
           for _ in 1 2 3 4 5; do
             out="$(curl -s -w '\n%{http_code}' "${auth[@]}" "$URL/api/engines")"
@@ -286,18 +200,14 @@ jobs:
             esac
           done
 
-          # Counted with `if`, not `[ ... ] && x`: the shell runs with -e, and
-          # an && list whose test fails returns non-zero, which would end the
-          # step.
+          # Counted with `if`, not `[ ... ] && x`, which would end the step under -e.
           kinds=0
           if [ "$yes_n"  -gt 0 ]; then kinds=$((kinds + 1)); fi
           if [ "$no_n"   -gt 0 ]; then kinds=$((kinds + 1)); fi
           if [ "$gone_n" -gt 0 ]; then kinds=$((kinds + 1)); fi
 
           if [ "$gone_n" = 5 ]; then
-            # The running image predates this endpoint. Saying "offline mode"
-            # here would be a guess, and a misleading warning is worse than
-            # none.
+            # The running image predates this endpoint; say so rather than guess.
             echo "::notice::/api/engines not in the deployed image yet."
           elif [ "$kinds" -gt 1 ]; then
             echo "::error::Instances disagree ($yes_n with an engine, \
@@ -307,18 +217,8 @@ jobs:
           --region REGION --to-latest"
             fail=1
           elif [ "$yes_n" = 5 ]; then
-            # "configured", not "OK". `/api/engines` says so itself --
-            # "configuration only, nothing here calls a provider" -- so a
-            # provider whose free tier is spent still answers `can_explain:
-            # true` and still cannot explain anything.
-            #
-            # This check printed OK in the same run where the deep check below
-            # reported `vabamorf-offline` and `llm:openrouter: HTTPError 429`.
-            # The two contradicting each other has already cost one debugging
-            # round, chasing a Cloud Run traffic split that did not exist; the
-            # fix then was to read `can_explain` with jq instead of grepping a
-            # per-engine field, which was a real bug and not this one. Naming
-            # what was actually verified is what stops it recurring.
+            # "configured", not "OK": `/api/engines` reads configuration only and cannot see a
+            # provider whose calls fail. The deep check below proves it.
             echo "grammar explains ........ configured (live call unproven \
           — re-run with deep:true to send one sentence through)"
           else
@@ -328,14 +228,10 @@ jobs:
 
           # 8. Opt-in: one real sentence through the whole chain.
           #
-          #    The check above reads configuration; this one proves the key
-          #    actually works — a revoked or mistyped key is configured and
-          #    useless. It costs a request of a 50/day free tier, which is why
-          #    it is not on the automatic path.
-          #
-          #    The sentence is the learner's documented weakness: "Ma lugesin
-          #    raamatut labi" — a completed action, so the object should be
-          #    genitive `raamatu`, not partitive `raamatut`.
+          #    Proves the key works (a revoked key is still configured). Costs one request of
+          #    a free tier, so it is not automatic. The sentence exercises the learner's
+          #    documented weakness: "Ma lugesin raamatut läbi" — completed, so genitive
+          #    `raamatu`.
           if [ "$DEEP" = "true" ]; then
             answer="$(curl -s "${auth[@]}" -X POST "$URL/api/check" \
               -H 'Content-Type: application/json' \
@@ -346,31 +242,20 @@ jobs:
               llm:*) echo "grammar chain ........... OK (answered by $engine)" ;;
               "")    echo "::error::/api/check did not answer: ${answer:0:200}"
                      fail=1 ;;
-              # The chain records why each provider was passed over, and the
-              # distinction decides what to do: "unavailable" means the key is
-              # not on this process at all (run deploy/set-llm-key.sh), while
-              # an exception name means it is there and the call failed — a
-              # revoked key, a rate limit, a model id that no longer exists.
-              # The note holds only provider names and exception *types*, never
-              # a response body, so it is safe to print.
+              # The diagnostics say why each provider was passed over: "unavailable" means no key
+              # on this process (run deploy/set-llm-key.sh); an error name means the call failed
+              # (revoked key, rate limit, withdrawn model). Never a response body.
               *)     echo "::warning::Answered by '$engine' — no explanation \
           behind it. Lanes: $(field diagnostics)" ;;
             esac
           fi
 
-          # 9. Which live dictionary answers the word card.
-          #
-          #    `EKILEX_API_KEY` switches it from the Sõnaveeb mirror to EKI's
-          #    own Ekilex API, and nothing else in this run could see which one
-          #    is in effect: the key can be set on a revision that gets no
-          #    traffic, or on an image that predates the code reading it — both
-          #    looked healthy above. One word, asked once: the answer is kept in
-          #    the store, so later runs spend nothing. A warning, never a
-          #    failure — without a key the card works, from the mirror.
+          # 9. Which live dictionary answers the word card: Ekilex (with `EKILEX_API_KEY`) or
+          #    the Sõnaveeb mirror. One word, stored after the first ask. A warning, never a
+          #    failure.
           card="$(curl -s "${auth[@]}" "$URL/api/enrich/poiss")"
-          # The first field a live dictionary answered: with the mirror, PSV's
-          # learner wording can hold the definition slot, so the definition
-          # alone would not name it.
+          # The first field a live dictionary answered (the definition slot may hold PSV's
+          # wording).
           live="$(jq -r '[.definition_source, .russian_source, .full_definition_source]
             | map(select(. == "ekilex" or . == "sonapi")) | first // ""' \
             <<<"$card" 2>/dev/null)"
@@ -384,18 +269,9 @@ jobs:
           or over today's lookup budget." ;;
           esac
 
-          # 10. The reading library, and the join that makes it reachable.
-          #
-          #    A warning, not an error, in both directions: an unharvested
-          #    deployment is a supported state, and so is a corpus whose
-          #    linking genuinely found nothing.
-          #
-          #    The second check is the one that was missing. `topic_items` is
-          #    filled only by `cli link-topics`, run by hand — no harvest calls
-          #    it, no deploy step does — so a corpus can be pushed with the
-          #    table empty, every drill returns `reading: []`, and the library
-          #    itself looks perfect. push-content.sh warns at push time; this
-          #    asks the service that is actually running.
+          # 10. The reading library and its topic links. Warnings, not errors: an unharvested
+          #     deployment is supported. `topic_items` is filled only by `cli link-topics`, so
+          #     a corpus can have texts and no links.
           library="$(curl -s "${auth[@]}" "$URL/api/health")"
           items="$(jq -r '.corpus.items // 0' <<<"$library")"
           links="$(jq -r '.corpus.topic_links // 0' <<<"$library")"

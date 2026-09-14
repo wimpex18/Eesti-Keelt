@@ -22,10 +22,8 @@
 </head>
 <body>
 <script>
-/* Ahead of everything, and deliberately not in the module at the end of the
-   file: by the time a script after <body> runs the browser has already painted
-   once, so a learner who chose dark sees a white flash on every load. Reading
-   one key and setting one attribute is all this may ever do. */
+/* Before first paint, so a learner who chose dark sees no white flash. Reads one
+   key and sets one attribute — nothing more. */
 (function () {
   try {
     var t = localStorage.getItem("theme");
@@ -37,9 +35,7 @@
   <header>
     <h1>Eesti keel</h1>
     <span class="sub" id="stats">…</span>
-    <!-- Mode, then skill. The split is not by content but by CONDITIONS: the
-         same passage is study material untimed with lookups, and an exam task
-         timed, scored and unaided. Mixing the two hides which one you can do. -->
+    <!-- Mode, then skill. -->
     <div class="modes" role="tablist" aria-label="Režiim — режим">
       <span class="groupmark" data-group="modes" aria-hidden="true"
             title="Õpperežiim — режим занятия"></span>
@@ -47,19 +43,11 @@
       <button role="tab" aria-selected="false" data-mode="revise">Kordamine</button>
       <button role="tab" aria-selected="false" data-mode="exam">Eksam</button>
     </div>
-    <!-- The stylesheet has read `[data-theme]` since it was written and
-         nothing has ever set it: a complete explicit-theme mechanism with no
-         control, which is the same shape as the three vocabulary statuses
-         nobody could reach. Three states, not two -- "system" is the default
-         and has to stay reachable, or choosing once locks the page out of
-         following the phone at sunset. -->
-    <!-- No `aria-pressed`: this cycles through three states rather than
-         toggling one, and a pressed/unpressed control would describe it
-         wrongly. The accessible name says which state is active, and it is
-         rewritten with the icon. -->
-    <!-- One group, because two loose flex items wrap independently: at 1440px
-         the header ran ~2px long and the theme button alone dropped to a line
-         of its own under the title. -->
+    <!-- Theme control: system, light, dark. "System" stays reachable so the page can
+         follow the device. -->
+    <!-- No `aria-pressed`: it cycles three states. The accessible name says which is
+         active and is rewritten with the icon. -->
+    <!-- One group, so the header's buttons wrap together. -->
     <div class="hdr-actions">
       <button id="homeBtn" class="iconbtn" type="button"
               title="Avaleht — на главную" aria-label="Avaleht — на главную"></button>
@@ -67,8 +55,7 @@
     </div>
   </header>
 
-  <!-- Six destinations. On a phone this bar is fixed to the bottom, so the
-       labels are short enough to survive 390px and each button clears 48px. -->
+  <!-- The destinations; on a phone this bar is fixed to the bottom. -->
   <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Rada</span></button>
     <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">✦</span><span class="lbl">Harjutused</span></button>
@@ -91,9 +78,7 @@
   </nav>
 
   <!-- ── The path ──────────────────────────────────────────────────
-       Ordered, gated, pass/fail — the opposite of the library. What the
-       learner sees first is one topic, not thirty-six: the research on paths
-       versus trees is that removing the choice is what improves outcomes. -->
+       Ordered, gated, pass/fail. The learner sees one next topic first. -->
   <section class="panel" id="tab-path">
     <div class="pathtop">
       <div class="ring" id="pathRing" aria-hidden="true"><span>0%</span></div>
@@ -110,10 +95,8 @@
       </label>
       <span class="hint" id="pathScore"></span>
     </div>
-    <!-- Two axes, and the page never said there were two. `Rada` chooses the
-         rule; `Sõnavara teema` chooses the words the rule is drilled over. The
-         list below does not react to the select, which is correct and looked
-         broken. -->
+    <!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
+         drilled over. The list below does not react to the select. -->
     <p class="note" id="themeNote"></p>
     <div id="practiceOut"></div>
     <details id="pathAll">
@@ -126,11 +109,8 @@
   </section>
 
   <!-- ── Speaking ──────────────────────────────────────────────────
-       The B1 speaking exam is PAIRED: two candidates answer in turn and then
-       talk to each other. A solo record-and-score loop trains almost none of
-       that, and scoring pronunciation from audio is a research project, not a
-       feature. What a phone can honestly do is voice the other side and let
-       you hear yourself back — so that is what this is, and it says so. -->
+       The B1 speaking exam is paired, so this voices the other side and lets the
+       learner hear themselves; it does not score speech. -->
   <section class="panel" id="tab-speak" hidden>
     <div class="row">
       <select id="speakMode" aria-label="Harjutus — упражнение">
@@ -149,9 +129,7 @@
       <button class="go" id="recBtn">Salvesta vastus<span class="ru">записать ответ</span></button>
       <span class="hint" id="recState">Микрофону нужен HTTPS или localhost.</span>
     </div>
-    <!-- Said before the button is pressed, not in a policy page. Text is
-         disposable; a voice is biometric, and the learner is entitled to know
-         it leaves the device before they decide to record. -->
+    <!-- Shown before recording: the voice leaves the device for recognition. -->
     <p class="hint" id="recPrivacy">Запись отправляется в Cloudflare для
       распознавания речи и <strong>нигде не сохраняется</strong> — ни здесь, ни
       там. Остаётся только текст. Локально (<code>cli serve</code> +
@@ -160,13 +138,8 @@
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
 
-    <!-- The two things this panel deliberately does not build.
-         Pronunciation scoring is a research problem, and EKI already publishes
-         free pronunciation exercises — using them is a better use of the hour
-         than a number this app would have to invent. The situational phrase
-         collections are the same story: they exist, by level, from the people
-         who set the exam, and copying them here would be scraping a site whose
-         maintainers asked not to be scraped. So: links, not copies. -->
+    <!-- Links out instead of building: EKI's pronunciation exercises and the Sõnaveeb
+         phrase collections. -->
     <div style="margin-top:var(--s4)">
       <div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
       <div class="row" style="margin-top:var(--s2)">
@@ -179,8 +152,7 @@
   </section>
 
   <!-- ── Progress ──────────────────────────────────────────────────
-       Five measures, no aggregate: the exam scores four parts separately and
-       fails you for a zero in any one. -->
+       Five measures, no aggregate: the exam fails a zero in any part. -->
   <section class="panel" id="tab-status" hidden>
     <div id="statusOut" class="empty">Загружаю…</div>
   </section>
@@ -194,13 +166,7 @@
     </div>
     <div id="checkOut"></div>
 
-    <!-- The other half of the error log, which was missing.
-         Corrections could be queued from here but sent only by
-         `cli notion --push` — and the CLI does not exist on the deployment:
-         the container is ephemeral and the learner is on a phone. So the
-         queue filled and never drained. Sending is still an explicit act on
-         named rows, because the Vead log is worth having only while it stays
-         curated. -->
+    <!-- The error-log queue: send named, checked rows to the Vead log. -->
     <details id="queueBox" style="margin-top:var(--s5)">
       <summary>Журнал ошибок — ожидает отправки <span id="queueCount"></span></summary>
       <div id="queueList"></div>
@@ -255,12 +221,7 @@
     <!-- Filled from /api/readiness/{level}: the hand-written version said
          "349 teksti" and "pole veel" regardless of what had happened. -->
     <div id="readiness"></div>
-    <!-- The checkpoint: a mixed set across the whole level.
-         It was built and had no way in — the route existed, the generator
-         existed, and nothing in the app could start one. A drill session is
-         one topic at a time, which is how you practise; an exam is everything
-         at once, which is how you are tested, and only the second answers
-         "am I ready". -->
+    <!-- The checkpoint: a mixed set across the whole level. -->
     <div class="row" style="margin-top:var(--s5)">
       <button class="go" id="checkpointBtn">Kontrolltöö<span class="ru">контрольная</span></button>
       <span class="hint" id="checkpointNote"></span>
@@ -287,24 +248,14 @@
       <button class="go" id="loadReview">Alusta kordamist<span class="ru">начать повторение</span></button>
       <span class="hint" id="reviewStats"></span>
     </div>
-    <!-- The words this learner keeps getting wrong. `/api/review/stats` has
-         computed `struggling` since it was written and nothing read it, so the
-         one thing the queue knows that a learner could act on today was
-         invisible. -->
+    <!-- The words the learner keeps getting wrong (`/api/review/stats` `struggling`). -->
     <div id="reviewHard" hidden></div>
     <div id="reviewOut"></div>
   </section>
 
   <!-- ── Vocabulary ────────────────────────────────────────────────────
-       The app could look a word up and could not list any, so the 160 316-word
-       dataset was reachable only by somebody who already knew what was in it —
-       which is the one person who does not need it. Ordered commonest-first,
-       because for "what should I learn next" that is the ordering that pays.
-
-       Level is CEFR and only ~6.2 % of the wordlist carries one. That is fine
-       here and would not be fine as a difficulty score: this is a filter onto
-       the tagged minority, and the tagged minority is exactly the A1–B1
-       vocabulary the exam draws on. -->
+       The word list, commonest first. The level filter selects the CEFR-tagged
+       minority, which is the A1–B1 exam vocabulary. -->
   <section class="panel" id="tab-sonad" hidden>
     <div class="row">
       <label>Tase <i class="ru">уровень</i>
@@ -366,11 +317,7 @@
       </label>
       <button class="go" id="loadLib">Lae tekstid<span class="ru">загрузить тексты</span></button>
     </div>
-    <!-- Out of the control row on purpose. It sat inside it, and `.row` wraps,
-         so the count rendered to the right of the button when it was short
-         ("80 текстов") and dropped onto its own line when it was long ("25
-         текстов · Слова ещё не отмечены…"). The same number moved around the
-         screen depending on what it said. -->
+    <!-- The count sits outside the wrapping control row, so it does not move. -->
     <p class="hint" id="libCount"></p>
     <div id="libList"></div>
     <div class="row" id="libMore" hidden>
@@ -385,10 +332,7 @@
       <div id="readerAudio"></div>
       <p class="hint" id="readerProfile"></p>
       <div id="readerBody" class="prose"></div>
-      <!-- A crutch, offered rather than shown. Select a sentence you are stuck
-           on and ask; nothing translates on its own, because a reader handed
-           Russian reads the Russian and the whole reading design rests on
-           working at the edge of what is understood. -->
+      <!-- Translation on request only: a reader handed Russian reads the Russian. -->
       <div class="row" style="margin-top:var(--s3)">
         <button class="ghost" id="xlBtn">Tõlgi valitud lause<span class="ru">перевести предложение</span></button>
         <span class="hint" id="xlHint">vali tekstist lause</span>
@@ -400,17 +344,9 @@
 
   <!-- ── Listening ─────────────────────────────────────────────────── -->
   <section class="panel" id="tab-listen" hidden>
-    <!-- Dictation first, the text-to-speech box second.
-         This panel used to be only the box below: paste a passage, hear it
-         read. Nothing could be answered, so nothing could be scored, so
-         nothing was recorded — and the verdict reported listening as
-         untouched however much had been played. On an exam where a zero in
-         one part fails you regardless of the other three, that was the worst
-         place in the app to have no exercise. -->
-    <!-- Outside `#dictBox`, and that is the whole point: when there is no
-         corpus the box is hidden, and the note explaining why used to be
-         written into `#dictState`, which lives INSIDE it. The app said what
-         was wrong and then hid the answer. -->
+    <!-- Dictation first (graded), the text-to-speech box second. -->
+    <!-- Outside `#dictBox`, so the reason there is no dictation stays visible when the
+         box is hidden. -->
     <div id="dictEmpty" class="empty" hidden></div>
 
     <div id="dictBox">
@@ -425,22 +361,13 @@
         <button class="go" id="dictCheck">Kontrolli<span class="ru">проверить</span></button>
         <span class="hint" id="dictScore"></span>
       </div>
-      <!-- Separate containers on purpose. The player lived in #dictOut and
-           was destroyed the moment the result rendered into it, so replaying
-           after seeing the marked words -- which is the one moment the replay
-           is worth most -- was impossible. -->
+      <!-- The player and the result are separate containers, so replay survives grading. -->
       <div id="dictAudio"></div>
       <div id="dictOut"></div>
       <p class="hint" id="dictCaveat"></p>
     </div>
 
-    <!-- The harvested listening archive.
-         It was indexed, sectioned, covered by API tests — and unreachable:
-         the page could only ask the library by *skill* and only ever asked for
-         `lugemine`, so 54 listening items and 28 radio-course transcripts, 13 %
-         of everything harvested, could not be opened from the app at all. That
-         also meant the readiness verdict's Kuulamine evidence, which counts
-         library items opened, could never move. -->
+    <!-- The harvested listening archive, by section. -->
     <div id="listenLib"></div>
 
     <h3 style="margin:var(--s5) 0 var(--s2);font-size:15px">Mis tahes tekst → heli</h3>
@@ -461,26 +388,14 @@
     </div>
     <div id="ttsOut"></div>
   </section>
-  <!-- Desktop only. Everything here is otherwise behind a click: the
-       countdown lives in the exam tab, the path list behind a disclosure, the
-       due count in a badge. On a laptop there is room to just show them. -->
+  <!-- Desktop-only context rail: countdown, resume point, due count. -->
   <aside class="rail" id="rail" aria-label="Ülevaade — обзор"></aside>
 
 </div>
 
-<!-- Attribution, and why it is a page element rather than a line in a README.
-
-     Three of the sources here are CC BY 4.0, and that licence does not ask for
-     a tidy repository: it asks that the source be named and the changes
-     indicated wherever the material is presented. EKI say it in their own
-     words on arhiiv.eki.ee/litsents/ — process and present it any way needed,
-     provided the reference to EKI is retained and the modifications are
-     described. Their definitions are on the word card and their CEFR levels
-     are under every drill, so the credit belongs on the screen those appear
-     on.
-
-     Closed by default and loaded on first open: it is a legal obligation, not
-     something the learner needs in front of them while conjugating. -->
+<!-- Attribution. CC BY 4.0 requires naming the source and indicating changes wherever
+     the material is presented, so it is on the page. Closed by default, loaded on
+     first open. -->
 <footer class="sources">
   <details id="sourceBox">
     <summary>Allikad ja litsentsid <i class="ru">источники и лицензии</i></summary>
