@@ -43,6 +43,8 @@ from pathlib import Path
 
 import pytest
 
+from eesti.env import KNOWN_KEYS
+
 pytest.importorskip("playwright", reason="browser suite: pip install playwright")
 
 from playwright.sync_api import sync_playwright  # noqa: E402
@@ -148,11 +150,11 @@ def live_server(tmp_path_factory) -> str:
         "PYTHONPATH": str(ROOT),
         # Keep the run offline and deterministic: no provider key means the
         # grammar chain degrades to Vabamorf, which is what we want to assert.
-        "OPENROUTER_API_KEY": "", "GROQ_API_KEY": "",
-        "HF_TOKEN": "", "CLOUDFLARE_API_TOKEN": "",
-        # The server loads `.env` itself; a real Ekilex key there would send
-        # every journey's word card to ekilex.ee.
-        "EKILEX_API_KEY": "",
+        # The server loads `.env` itself, so every key it knows is blanked —
+        # derived from `env.KNOWN_KEYS`, not listed. The list this replaced
+        # predated MISTRAL_API_KEY and NVIDIA_API_KEY, and the first real
+        # NVIDIA key in a local `.env` held a writing check past its 90 s wait.
+        **{name: "" for name in KNOWN_KEYS},
     }
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "eesti.app:app",

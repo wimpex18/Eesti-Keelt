@@ -187,14 +187,17 @@ PROVIDERS: dict[str, Provider] = {
     # NVIDIA Build (NIM API): OpenAI-compatible, no card, 40 requests a minute
     # on the free developer programme, and the widest catalogue of new open
     # models reachable from a datacenter (82 listed publicly, 2026-09-14).
-    # DeepSeek V4 Pro is the newest large general model in it. JSON mode is not
+    # DeepSeek V4 Flash scored precision 1.0, recall 1.0 on the Estonian eval
+    # (run 34827285002, 2026-09-14). The first pin, `deepseek-v4-pro-0813`,
+    # answered 410 Gone to every case: NVIDIA ended it at 08:00Z that morning,
+    # which is how fast a catalogue id can die. JSON mode is not
     # documented per model there, so the lane does not ask for it: the prompt
     # already demands JSON and `parse_json` tolerates a fenced block.
     "nvidia": Provider(
         "nvidia",
         "https://integrate.api.nvidia.com/v1",
         "NVIDIA_API_KEY",
-        "deepseek-ai/deepseek-v4-pro-0813",
+        "deepseek-ai/deepseek-v4-flash-0731",
         "Free NVIDIA Developer Program key, 40 req/min; 100+ hosted models.",
         json_mode=False,
     ),

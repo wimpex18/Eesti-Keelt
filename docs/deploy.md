@@ -256,7 +256,7 @@ largest free allowances a server can reach, both without a card:
 | Key | Where | Free allowance | Pinned model |
 |---|---|---|---|
 | `MISTRAL_API_KEY` | `console.mistral.ai` → choose the **Experiment** plan → API Keys | ~1B tokens/month, rate-limited | `mistral-large-latest` |
-| `NVIDIA_API_KEY` | `build.nvidia.com` → sign in → *Get API Key* (NVIDIA Developer Program) | 40 requests/minute | `deepseek-ai/deepseek-v4-pro-0813` |
+| `NVIDIA_API_KEY` | `build.nvidia.com` → sign in → *Get API Key* (NVIDIA Developer Program) | 40 requests/minute | `deepseek-ai/deepseek-v4-flash-0731` |
 
 1. Create each key; the value is shown once.
 2. In **Google Cloud Shell**, from the clone — see *Every `deploy/` script
