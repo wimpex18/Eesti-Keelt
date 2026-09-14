@@ -180,7 +180,7 @@ def practice_items(req: PracticeRequest) -> dict:
     # the path, so practising them is a thing a learner will try, and what came
     # back was a 400 carrying a Python exception message:
     #
-    #     'tahestik' has no generator — see step 2 of docs/curriculum-plan.md
+    #     'tahestik' has no generator — see docs/status.md
     #
     # English, naming a file the learner does not have, rendered by the page as
     # "Viga: ...". Two rules broken at once -- explanations are in Russian, and

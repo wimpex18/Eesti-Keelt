@@ -10,7 +10,7 @@ image on any of them would trade one feature for the whole deploy.
 That trade is only defensible if the deployment can be *asked* which ones
 landed — otherwise "never imported" and "imported and empty" look identical
 from outside, which is this project's oldest recurring bug in a new costume
-(`docs/lessons.md`, *Measurements with no writer*). Hence counts, not flags,
+(`.claude/rules/python.md`). Hence counts, not flags,
 and a check in the smoke workflow that reads them.
 """
 

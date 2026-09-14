@@ -63,7 +63,7 @@ on:
           # JSON in the prompt instead.
           - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125
           # nvidia and mistral: their lanes' own pinned defaults. Measured
-          # against them on 2026-09-14 and dropped (docs/ai-strategy.md):
+          # against them on 2026-09-14 and dropped (docs/ai-providers.md):
           # deepseek-v4-pro-0813, 410 Gone; kimi-k3, 429s and a six-minute reply.
           - deepseek-ai/deepseek-v4-flash-0731
           - mistral-large-latest

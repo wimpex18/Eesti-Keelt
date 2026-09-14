@@ -1,652 +1,129 @@
-# Deploying
+# Deploy and operate
 
-Two halves, on two providers, for one reason each.
-
-| Half | Where | Why there |
+| Part | Where | Why |
 |---|---|---|
-| the app | **Google Cloud Run** | it needs Vabamorf, a compiled C++ Python extension |
-| the front door | **Cloudflare Worker + Access** | one hostname, one login, and Workers AI for speech |
+| App | **Google Cloud Run** (always-free tier), scales to zero | Vabamorf is a compiled C++ extension; Workers cannot run it, Cloudflare Containers need a paid plan |
+| Front door | **Cloudflare Worker + Access** (free plan) | one login, state snapshots, Workers AI speech |
 
-## Why the app is not a Worker
+## Security: two doors, two locks
 
-An earlier plan in this repo said: export everything to D1, serve it from a
-Worker. That described the app as it was — a lookup tool over a pre-computed
-form index. It is not this app any more.
+- Cloud Run allows unauthenticated invocations (required for the free tier), so
+  its `run.app` URL is public. **`PROXY_TOKEN`**, known only to the Worker, is
+  required on every request; without it the app answers 403. Unset (local
+  `cli serve`) the guard is off. `/api/health` reports `origin_guarded`.
+- **Cloudflare Access** guards the Worker with the *Cloudflare account* policy
+  (never *Email domain*). The Worker also refuses any request without an Access
+  identity; `ALLOW_UNAUTHENTICATED=1` is the deliberate escape hatch.
+- `/api/state/*` requires `STATE_TOKEN` and is 404 from outside the Worker.
 
-`cloze`, `conjugation`, `patterns` and `verbs` all call **Vabamorf at request
-time**, because drills are *generated*, not stored: the conditional of a verb is
-synthesised when you ask for it, and a cloze is cut from a corpus sentence
-analysed on the spot. Vabamorf is a compiled C++ Python extension. Workers run
-JavaScript and WASM. There is no version of that plan that works.
+## Deploying
 
-## Why the app is not in a Cloudflare Container either
+- **App:** merging to `main` is the deploy. A Cloud Build trigger builds the
+  `Dockerfile` (word list, form index, EKI imports, `cli rections`) and deploys
+  to Cloud Run in 10–15 minutes. `/api/health` reports `built` and `revision`.
+- **Worker:** `.github/workflows/deploy.yml` runs on pushes to `main` touching
+  `deploy/**`, `wrangler.jsonc`, `package*.json` or itself, and on demand. It
+  typechecks, pushes Worker secrets and runs `wrangler deploy`.
+- Build steps that reach third parties or optional files end in `||` so a
+  missing file or a 403 costs one feature, not the image.
 
-Cloudflare Containers would have solved it in one place — and the first version
-of this file recommended exactly that. It requires the **Workers Paid plan, $5 a
-month**, which this project does not spend. Cloud Run's always-free tier (2M
-requests, 360k GiB-seconds, 180k vCPU-seconds per month) runs the same
-`Dockerfile` for nothing, and one learner practising daily is not close to those
-numbers. A card is required for identity verification; the free tier is not a
-trial and does not expire.
+## Learner state across cold starts
 
-So the container moved, and the Worker stayed — as a doorman.
+Cloud Run disk is ephemeral. The app stamps every response with a boot id; the
+Worker keeps the learner databases (`progress`, `review`, `vocab`, `notion`) in
+a SQLite-backed Durable Object:
 
-## The two doors problem
-
-Cloud Run must **allow unauthenticated invocations** for this to be free. That
-means its `run.app` URL answers the entire internet. Cloudflare Access sits in
-front of the **Worker**, not in front of that URL.
-
-Left there, Access would guard one of two doors, and roughly **421 owner-only
-harvested items** — ERR transcripts are © ERR, Selges keeles carries no reuse
-grant — would be a hostname guess away from being published.
-
-So there is a second lock. `PROXY_TOKEN` is a secret only the Worker holds; it
-is sent on every proxied request, and the app refuses anything without it:
-
-- **Unset** → the guard is off. That is deliberate: the ordinary way to run this
-  app is `cli serve` on a laptop, and demanding a token there is ceremony.
-- **Set** → every request without a matching header gets 403, `/` included. A
-  reader who can fetch the page can read the library through it.
-
-`/api/health` reports `origin_guarded`, so "is the deployment actually closed?"
-is a question with an answer you can check rather than assume.
-
-## The thing that would have eaten your progress
-
-Cloud Run disk is **ephemeral** and the service scales to zero. A fresh instance
-starts with the image's databases and none of the learner's. Mastery, review
-queue and vocabulary are SQLite files on that disk, so without the snapshotting
-below, **a lunch break would reset everything the curriculum exists to
-accumulate** — silently, which is the worst way for it to happen.
-
-Cloud Run gives the Worker no shutdown hook to observe, so restarts are
-**noticed, not announced**: the app stamps every response with a boot id, and a
-boot id the Worker has not seen means a new, empty instance.
-
-| When | What happens |
+| When | What |
 |---|---|
-| boot id changes | the Worker pushes the last snapshot in (`POST /api/state/import`) |
-| every 5 minutes | a Durable Object alarm pulls a snapshot out (`GET /api/state/export`) |
-| after any write | a snapshot, debounced to at most one a minute |
+| new boot id | Worker pushes the last snapshot in (`POST /api/state/import`) |
+| every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
-Only the learner's three databases travel. The word list, the form index and the
-harvested corpus are derived or baked into the image, so shipping them would be
-58 MB of copying nothing.
+Safeguards: restore never overwrites a database that already has learner rows;
+a half-written snapshot counts as none; an empty export never replaces a real
+snapshot. A crash between snapshots can lose a few minutes of answers.
 
-The snapshot lives in a **SQLite-backed Durable Object**, which Cloudflare made
-available on the **Workers Free plan** in April 2025 — free-plan limits are 5M
-rows read and 100k rows written per day, against a snapshot that costs a handful
-of rows. It is stored in 96 KiB chunks with the index key written **last**, so
-an interrupted save leaves the previous snapshot unreadable rather than leaving
-a truncated one that looks fine.
+## The reading corpus
 
-Four deliberate refusals in that path:
+Owner-only, so not in the image. Harvest locally, link topics, push once; the
+Worker archives it and restores it to every new container.
 
-- **Restore never overwrites a database that already has learner rows.** A
-  restore racing a learner who has started answering would discard the newer
-  work; losing minutes beats losing it silently.
-- **A half-written snapshot is treated as no snapshot**, rather than restored
-  over a working database.
-- **An empty export never overwrites a real snapshot.**
-- **The snapshot endpoints refuse when `STATE_TOKEN` is unset**, and the Worker
-  404s `/api/state/*` from the outside — they are its back channel, not a route.
-  An unset secret is a misconfiguration, not permission.
+```bash
+python -m eesti.cli harvest && python -m eesti.cli harvest-reading && python -m eesti.cli harvest-news
+python -m eesti.cli link-topics                 # required — fills the topic join
+bash deploy/push-content.sh data/content.db     # in Cloud Shell, with the file uploaded
+```
 
-### Verified, not assumed
+## Reference data in the image
 
-The image was built and run before any of this was recommended, which is how the
-next bug was found rather than discovered in production:
+All written into `data/eesti.db` at build, never snapshotted (a restore
+replaces whole files):
 
-| Check | Result |
+| Step | Fills | `/api/health` `reference` field |
+|---|---|---|
+| `cli rections` | EKK SÜ 64 rections | `rections` |
+| `cli import-levels deploy/eki/A1A2B1.txt` | official levels | `eki_levels` |
+| `cli import-psv` / `import-evs` / `import-vsl` / `import-har` / `import-ekss` | EKI dictionaries | `eki_definitions`, `eki_russian`, `eki_loanwords`, `eki_terms`, `eki_explanatory` |
+
+Smoke warns on any zero.
+
+## Secrets
+
+| Name | Cloud Run env | GitHub Actions | Purpose |
+|---|---|---|---|
+| `PROXY_TOKEN`, `STATE_TOKEN` | ✅ | ✅ | origin guard, snapshot endpoints (set by `setup.sh`) |
+| `CLOUD_RUN_URL` | — | ✅ | where the Worker forwards |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Workers AI token ✅ | deploy token ✅ | Worker deploy (Actions); grammar lane (Cloud Run) |
+| `CLOUDFLARE_WORKERS_AI_TOKEN` | — | ✅ | Workers AI Read token for `eval.yml` |
+| `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `WORKER_URL` | — | ✅ | smoke test service token |
+| `MISTRAL_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `HF_TOKEN` | ✅ | ✅ | grammar lanes; Actions copies for the eval |
+| `EKILEX_API_KEY` | ✅ | — | live Ekilex word card |
+| `NOTION_TOKEN` | ✅ | — | sending corrections to `Vead` |
+
+A key read by the container must be on Cloud Run; one stored only as a Worker
+secret is invisible to the app and fails silently.
+
+## Operator scripts (Google Cloud Shell)
+
+Always start from a fresh clone — the scripts read allowed key names from
+`eesti/env.py`:
+
+```bash
+cd ~ && (git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || true) && cd Eesti-Keelt && git pull
+```
+
+| Script | Does |
 |---|---|
-| image builds | 1.08 GB |
-| app starts, `/api/health` | 160 316 words indexed |
-| Vabamorf generates in-container | `Ta ____, kui saaks.` (tingiv) |
-| answer recorded | `accuracy: 1.0`, gate `8/10` |
-| snapshot survives container destroy → recreate | attempt count 1 → 1 |
-
-**The bug that found.** The restore refused every time: `{"restored": [],
-"skipped": ["progress"]}`. The guard against overwriting live data tested
-"database exists and is non-empty", and a fresh container's very first request
-creates `progress.db` *with its schema* — so an untouched instance looked like
-one with work in it, and the snapshot was silently discarded. The guard now asks
-whether the database holds **learner rows**, which is what "live data" was
-always supposed to mean.
-
-That failure mode is worth naming: the mechanism protecting progress would have
-thrown progress away, quietly, and only under the exact conditions of a real
-deploy.
-
-**The residual risk, stated plainly:** a crash between snapshots loses up to a
-few minutes of answers. The alternative is moving learner state to D1, which is
-a real rewrite of the storage layer and is not worth it for that.
-
-## Access is not optional, and the Worker enforces it
-
-`browse(..., public_only=True)` returns **0** owner-only items, which is the app
-being honest; it is not what keeps the URL private. **Cloudflare Access is.**
-
-Access tab on the Worker → **All traffic** → the **Cloudflare account** policy,
-which means "members of this account" and on a one-person account means you.
-Not **Email domain**: that grants everyone at the domain, and on a `gmail.com`
-address it grants the internet.
-
-But a dashboard setting is a thing that can be switched off by accident, reset
-by a later change, or never have applied at all — which is what happened on the
-first attempt here. The policy was created, *Apply Access* was pressed, and an
-anonymous request kept returning 200 for a quarter of an hour. Nothing
-complained, because nothing was watching.
-
-So the Worker **refuses every request that did not come through Access**. The
-runtime attaches an identity to requests that passed it; without one, the Worker
-answers 403 with the instructions rather than the app. Losing the policy is now
-a locked door instead of a silent opening.
-
-`ALLOW_UNAUTHENTICATED=1` serves without Access on purpose. It is deliberately
-awkward, because the default has to be the safe one — the unsafe one is
-invisible.
-
-## Secrets, and where each one lives
-
-Nothing here belongs in the repo, in a chat message, or in an environment
-variable box that says it is visible to others.
-
-| Secret | Cloud Run | GitHub Actions | What it is |
-|---|---|---|---|
-| `PROXY_TOKEN` | ✅ env var | ✅ repo secret | shared; closes the second door |
-| `STATE_TOKEN` | ✅ env var | ✅ repo secret | guards the snapshot endpoints |
-| `CLOUD_RUN_URL` | — | ✅ repo secret | where the Worker forwards |
-| `CLOUDFLARE_API_TOKEN` | — | ✅ repo secret | deploys the Worker |
-| `CLOUDFLARE_ACCOUNT_ID` | — | ✅ repo secret | ditto |
-| `OPENROUTER_API_KEY` | ✅ env var | — | grammar explanations; **Cloud Run only** |
-
-**Which half reads which is not a detail.** The Worker and the container read
-different variables, and putting one in the wrong half fails silently — nothing
-errors, the value simply is not there, and the feature drops into its fallback.
-
-That happened with `OPENROUTER_API_KEY`. It is read by `eesti/providers/llm.py`,
-which runs in the container; it was stored as a Worker secret, where nothing
-reads it. The grammar checker sat permanently in offline mode, so no correction
-carried a fix, no "log it" button rendered, and nothing ever reached the Notion
-log — a whole chain inert because a credential was one hop from the process that
-needed it. And it was the worse half of the trade: all the exposure of holding a
-key, none of the benefit.
-
-### Every `deploy/` script runs from a clone
-
-Cloud Shell arrives signed in, with `gcloud` and `openssl` — and without this
-repository. Its home directory is also reclaimed after a long enough gap, so a
-clone made months ago may not be there now. That makes the first command of a
-session `git`, not `bash`: run from the home directory, the instruction below
-answers
-
-```
-bash: deploy/set-llm-key.sh: No such file or directory
-```
-
-which reads like a missing script and is a missing checkout.
-
-```bash
-cd ~
-git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || true
-cd Eesti-Keelt && git pull
-```
-
-Both lines are safe to re-run, and the `git pull` matters as much as the clone:
-the scripts read their allowed key names out of `eesti/env.py`, so a stale
-checkout refuses a key the current app knows about.
-
-Set it where it belongs, without it touching your shell history:
-
-```bash
-bash deploy/set-llm-key.sh
-```
-
-The script now reads the variable's **name** back off the service afterwards
-and refuses to claim success if it is not there — because a run of it once
-ended with the key still absent, and the only symptom was corrections quietly
-arriving without explanations.
-
-The same script sets any key the app reads, not only the grammar one — the
-allowed names come from `eesti/env.py`, so there is no second list to drift:
-
-```bash
-bash deploy/set-llm-key.sh NOTION_TOKEN
-```
-
-`NOTION_TOKEN` is what lets confirmed corrections actually reach the `Vead`
-database. Without it they queue in the app and the send button says so rather
-than failing when pressed.
-
-```bash
-bash deploy/set-llm-key.sh EKILEX_API_KEY
-```
-
-`EKILEX_API_KEY` switches the word card's live dictionary from the third-party
-Sõnaveeb mirror (`api.sonapi.ee`) to EKI's own Ekilex API: the current
-learner-level definition, each sense's Russian, rection, muuttüüp and CEFR
-level. Without it the card works as before. The key is personal — generate it
-on your ekilex.ee profile page; a new one replaces the old.
-
-Whether it took effect is not something `check-service.sh` can tell — a key can
-sit on a revision without traffic, or beside an image older than the code that
-reads it. The `smoke` workflow asks the card: its `live dictionary` line says
-`OK (Ekilex)`, or warns that the mirror is still answering.
-
-### Set a second grammar key. One is not enough.
-
-Measured on 2026-08-22 with the deep smoke check: the live chain answered
-`vabamorf-offline`, because `llm:openrouter` returned **HTTPError 429** and
-`groq` and `workers-ai` were both `unavailable` — no key at all.
-
-So the chain is built for redundancy across five providers and has none. One
-50-a-day free tier is the entire grammar checker, and when it is spent every
-writing check drops to offline mode: object-case candidates and typos, no
-explanations, and no "log it" button, so nothing reaches the error log either.
-A 429 recovers on its own; what does not recover on its own is having nowhere
-to fall back to.
-
-**Groq was the one to add, and cannot be.** Measured 2026-09-14: its
-Cloudflare front refuses datacenter IP ranges ("Access denied. Please check
-your network settings"), so neither Cloud Run nor Actions reaches it, and the
-lane left the chain (`grammar.NOT_IN_CHAIN`). The replacements are the two
-largest free allowances a server can reach, both without a card:
-
-| Key | Where | Free allowance | Pinned model |
-|---|---|---|---|
-| `MISTRAL_API_KEY` | `console.mistral.ai` → choose the **Experiment** plan → API Keys | ~1B tokens/month, rate-limited | `mistral-large-latest` |
-| `NVIDIA_API_KEY` | `build.nvidia.com` → sign in → *Get API Key* (NVIDIA Developer Program) | 40 requests/minute | `deepseek-ai/deepseek-v4-flash-0731` |
-
-1. Create each key; the value is shown once.
-2. In **Google Cloud Shell**, from the clone — see *Every `deploy/` script
-   runs from a clone* above if it is not there:
-
-   ```bash
-   bash deploy/set-llm-key.sh MISTRAL_API_KEY
-   bash deploy/set-llm-key.sh NVIDIA_API_KEY
-   ```
-
-   The input is hidden, so the key never reaches your shell history or the
-   process table, and the script reads the variable's name back off the service
-   afterwards rather than assuming the write worked.
-3. Add the same two as **GitHub Actions secrets** so the `eval` workflow can
-   score them.
-4. Confirm by running the **smoke** workflow with `deep: true`, and read the
-   deep line rather than the cheap one — see below.
-
-**The Groq history, kept because the lesson generalises.** `llm:groq: HTTPError
-403` on the first key ever set here meant a withdrawn model id, not a bad key:
-a withdrawn id that enterprise accounts still hold does not 404, it forbids.
-
-The three cases are now told apart by the note itself, which reads the
-provider's own error name: `HTTPError 401 (invalid_api_key)` is a dead key,
-`HTTPError 429 (rate_limit_exceeded)` is a spent tier that recovers on its own,
-and `HTTPError 403 (model_decommissioned)` is a stale pin — a code change, not
-an operator action. If it is a stale pin and you want the app working before
-that lands, `<PROVIDER>_MODEL` on the Cloud Run service overrides the pin
-(`bash deploy/set-llm-key.sh MISTRAL_MODEL`, say). Prefer an id the provider
-lists as stable; a preview id is documented as temporary and will do this again.
-
-**Why not Cloudflare Workers AI**, given the Worker already uses it: the Worker
-reaches it through an `AI` *binding*, which needs no token. The container
-cannot see that binding and would need REST access — a token *and*
-`CLOUDFLARE_ACCOUNT_ID`, so two variables and a permissions screen against
-one for Mistral or NVIDIA. Worth having as a third key, not as the second. The token needs
-**Account → Workers AI → Read** and nothing else; without it the API answers
-403 `Authentication error` (code 10000), measured 2026-09-14.
-
-`HF_TOKEN` is a different kind of bet: the only hosted route to EstLLM, an
-Estonian-adapted Llama that may explain Estonian better than a general free
-model. Small free tier, and a model may need a warm-up request. Add it for
-quality, not for redundancy.
-**`docs/hf-token.md` is the step-by-step** — where to get one, which of the
-three places to put it in, and the command that turns the lane into a number.
-
-### The cheap check cannot tell you the key works
-
-`grammar explains ........ configured` means exactly that: `/api/engines` reads
-configuration and calls nobody, so a provider whose quota is spent still
-reports `can_explain: true`.
-
-Only the deep check proves the chain answers, because only it sends a sentence.
-Run the **smoke** workflow with **`deep: true`**. It costs one request of the
-free tier, which is why it is opt-in.
-
-This mattered once: the cheap line printed `OK` in the same run where the deep
-line reported `vabamorf-offline`, and two checks contradicting each other sent
-somebody looking for a Cloud Run traffic split that did not exist.
-
-To ask what a deployment is currently configured with, changing nothing:
-
-```bash
-bash deploy/check-service.sh
-```
-
-It lists every Cloud Run service in the project with the environment variable
-**names** it carries (never a value), flags the four whose absence is silent,
-and warns when traffic is still on an older revision than the one a variable
-was set on — which is the way a correctly-run `set-llm-key.sh` can still leave
-the app in offline mode.
-
-From outside, the same question is answered by `/api/engines`, and the `deep`
-input on the **smoke** workflow sends one real sentence through the chain to
-prove the key works rather than merely exists.
-
-`PROXY_TOKEN` and `STATE_TOKEN` are values you invent — any long random string,
-the same string in both places:
-
-```bash
-openssl rand -hex 32
-```
-
-## One script does the wiring
-
-`deploy/setup.sh`, run once in **Google Cloud Shell** — the terminal icon in the
-Cloud Console. Cloud Shell is already signed in to your Google account and ships
-`gcloud`, `openssl` and `gh`, so there is nothing to install and no password to
-type.
-
-```bash
-git clone https://github.com/wimpex18/Eesti-Keelt.git
-cd Eesti-Keelt
-bash deploy/setup.sh
-```
-
-It generates both tokens, sets them on the Cloud Run service, looks the service
-URL up rather than asking you for it, stores all three as GitHub Actions
-secrets, and then checks the guard actually took effect: an unauthorised request
-to the app must come back **403**, an authorised one **200**. It prints nothing
-secret and writes nothing to disk.
-
-Only the two Cloudflare values are left by hand, because minting a credential is
-not something a script should do on your behalf.
-
-## Before the first deploy: open the Workers page once
-
-A Cloudflare account has no `*.workers.dev` subdomain until somebody opens the
-Workers section of the dashboard, and until it does, `wrangler deploy` fails
-with:
-
-```
-✘ [ERROR] You need a workers.dev subdomain in order to proceed. [code: 10063]
-```
-
-It is not a permissions problem and no amount of retrying fixes it. Open
-**Workers & Pages** in the dashboard once — the subdomain is created on that
-first visit — then re-run the deploy workflow.
-
-Worth knowing what this failure does *not* mean: the run that hit it had already
-uploaded every secret and bundled the Worker successfully. Only the final upload
-failed, so a re-run after the click is all that is needed.
-
-## The window between deploying and enabling Access
-
-Cloudflare Access can only be switched on for a Worker that **already exists**,
-so there is a gap between the deploy finishing and the toggle being flipped —
-and the Worker supplies `PROXY_TOKEN` itself, so anyone who reaches it in that
-gap is all the way in. The hostname is not published anywhere, and the gap is
-however long it takes you to click, so the practical answer is: **enable Access
-as soon as the deploy workflow goes green**, before opening the app yourself.
-
-If you would rather the gap be exactly zero, the workflow allows it:
-`CLOUD_RUN_URL` is the only secret it does not require. Deploy without it and
-the Worker answers 503 to everyone; enable Access; then add the secret and
-re-run. The app is reachable for the first time already behind Access.
-
-## Deploying the Worker
-
-`.github/workflows/deploy.yml` does it on every push to `main` that touches the
-Worker, and on demand from the Actions tab. It typechecks, pushes the Worker
-secrets, then deploys. A missing repository secret fails the run with a sentence
-naming it, because that is the most likely reason it ever goes red and the fix
-is a settings page rather than a code change.
-
-By hand, if you'd rather:
-
-```bash
-npm ci
-npx wrangler secret put CLOUD_RUN_URL
-npx wrangler secret put PROXY_TOKEN
-npx wrangler secret put STATE_TOKEN
-npx wrangler deploy
-```
-
-## Deploying the app
-
-**Merging to `main` is the deploy.** There is no command to run. Cloud Build
-triggers on `main`, builds this `Dockerfile` — including `RUN python -m
-eesti.cli export`, which is where the generated dataset comes from — and
-deploys the result to Cloud Run. `PROXY_TOKEN` and `STATE_TOKEN` are
-environment variables on the service, set once by `deploy/setup.sh`.
-
-### `setup.sh` is not a deploy command
-
-It is one-time wiring, and re-running it takes the app down until a second
-thing happens. It rotates both tokens into Cloud Run and GitHub Actions
-secrets — but **not** into the Cloudflare Worker, which receives them from the
-`deploy` workflow through `wrangler secret put`. Until that workflow runs, the
-Worker offers the old `PROXY_TOKEN` to an origin that has already changed it
-and every request 403s.
-
-The workflow fires on a push to `main` touching `deploy/**`, `wrangler.jsonc`,
-`package*.json` or itself. A token rotation touches none of those, so after
-rotating, trigger it yourself:
-
-```
-gh workflow run deploy.yml --repo wimpex18/Eesti-Keelt
-```
-
-This was written down because it was got wrong: `setup.sh` was recommended as
-the way to ship a Python change, which would have rotated the tokens, skipped
-the Worker, and deployed nothing.
-
-**The Worker and the app deploy by different routes.** The `deploy` workflow
-going green means the *Worker* is current; it says nothing about the container.
-
-Which also decides what gets checked, and for a long time the answer was
-"usually nothing":
-
-| a merge touches | image rebuilt? | `deploy` runs? | `smoke` runs? |
-|---|---|---|---|
-| `deploy/**`, `wrangler.jsonc`, `package*.json`, `deploy.yml` | yes | yes | yes, ~1 min later — before Cloud Build finishes, so it sees the old image and says so |
-| anything else (`eesti/`, `tests/`, `docs/`) | yes | no | **only the daily schedule** |
-
-`smoke` runs daily for that second row. It compares the deployed build stamp
-against `main`'s head and distinguishes the two ways an image can be behind:
-minutes after a merge Cloud Build simply has not finished, while a day later it
-means the build failed or never ran.
-A Python change merged to `main` reaches the learner only once Cloud Build has
-rebuilt and redeployed the image — which takes 10–15 minutes, and which nothing
-in this repository can observe.
-
-So the image stamps itself. `/api/health` reports `built` (when the image was
-built) and `revision` (the commit, if the builder passed one), and the smoke
-test prints it. That is how you tell a stale image from a missing feature —
-a distinction that cost real time before the stamp existed.
-
-### Nothing checks an app-only merge on its own
-
-The `smoke` workflow runs on `workflow_run` after **`deploy`**, and `deploy`
-fires only on a push to `main` touching `deploy/`, `wrangler.jsonc`,
-`package*.json` or itself. A pure Python change touches none of those. So the
-Worker is untouched (correctly), `deploy` never runs, and **smoke never runs
-either** — the container is rebuilt and redeployed with nothing asking whether
-it works.
-
-That is the automatic path being honest rather than broken: the Worker did not
-change, so there is nothing for the Worker workflow to do. But it means the
-verification step is manual, and has to be remembered:
-
-```
-Actions -> smoke -> Run workflow -> main
-```
-
-Wait for the build stamp to move past the merge time before believing the
-result; run it too early and it reports on the *previous* image and hands back
-a green that means nothing. Ten to fifteen minutes is the usual window.
-
-Use `deep: true` when a provider or model changed. The plain run reads
-`can_explain`, which is **configuration** — it sees a key on the process and
-cannot see a call that fails. On 2026-08-20 the plain check said
-`grammar explains ........ OK` and the deep check, four minutes later in the
-same session, found the chain falling through to `vabamorf-offline`. Both were
-correct about different questions.
-
-To include the commit, add a build arg on the trigger:
-
-```
---build-arg BUILD_REV=$COMMIT_SHA
-```
-
-Without it the timestamp still answers the question that matters.
-
-The image builds the derived databases from the public CC-BY-SA wordlist, so it
-is reproducible from scratch and nothing owner-only is baked in. **The first
-build takes 10–15 minutes**: it installs EstNLTK (~170 MB) and generates the
-46 MB form index inside the build.
-
-One build step is allowed to fail. `cli rections` fetches EKK's rection table
-from EKI, which has already returned 403 to a datacenter IP once; chained with
-the offline steps it would take the whole image down with it. It runs in its own
-layer and logs a warning. The cost is one topic — `rektsioon` says "run `cli
-rections` once" — against an unbuildable image.
-
-## Speech runs on the Worker, not the origin
-
-Cloudflare Workers AI is reachable two ways: over REST with an API token, or
-through the Worker's own `AI` binding. This uses the binding, and the reason is
-authority rather than convenience — the only token template that covers Workers
-can also **edit** them, which is far more than "turn this audio into words"
-deserves to hold on the origin.
-
-So `POST /api/transcribe` is answered by the Worker: Whisper
-(`@cf/openai/whisper-large-v3-turbo`), `language` pinned to `et` rather than
-guessed, and the question being answered passed as `initial_prompt` because a
-few seconds of accented Estonian is exactly what a recogniser guesses wrong on.
-
-The transcript then goes to `POST /api/transcribe/text` on the app, which owns
-every judgement made about it. **A model says what it heard; nothing else in
-this app is a model's opinion.** The target sentence is known, so the comparison
-is string alignment, and it never travels without the caveat saying a miss may
-be the recogniser rather than the learner.
-
-`/api/transcribe` still works locally under `cli serve`, where there is no
-Worker and the provider chain does the recognising.
-
-One consequence worth knowing: the origin cannot see the binding, so its
-`/api/asr` reports every hosted engine as absent. The Worker corrects that one
-field on the way past — it is the only place that knows.
-
-## The reading library: harvested once, pushed once
-
-The corpus is **not** in the image, for two reasons that both matter.
-Re-running the ERR and Selges keeles harvest on every build would hammer
-someone else's server for nothing; and that material is owner-only by licence,
-so it has no business inside an image built from a public repository.
-
-Cloud Run's disk is ephemeral too, so a file copied into a container is gone at
-the next cold start. It therefore travels the same road as the learner's
-progress: pushed once, archived by the Worker, handed back to every container
-that starts afterwards.
-
-```bash
-# on your laptop, once
-python -m eesti.cli harvest
-python -m eesti.cli harvest-reading
-python -m eesti.cli link-topics     # which texts demonstrate which topic
-
-# then in Cloud Shell, with data/content.db uploaded
-bash deploy/push-content.sh data/content.db
-```
-
-**Why the push targets Cloud Run and not the Worker.** Cloudflare Access guards
-the Worker, and Access is an interactive login — a script cannot satisfy one.
-The origin is guarded by `PROXY_TOKEN`, which a script *can* send. So the
-harvest goes to the origin, and the Worker archives it from there.
-
-`push-content.sh` reads both tokens straight out of the running Cloud Run
-service, so you never see or type either one.
-
-The Worker then keeps the two in step, in whichever direction is needed:
-
-| Container | Archive | What happens |
-|---|---|---|
-| has one | empty | **archived** — a fresh push becomes permanent |
-| empty | has one | **restored** — every cold start after that |
-| agree | agree | nothing |
-
-Without a corpus the reading library is simply empty and everything else works
-— the generators that need corpus sentences return nothing rather than failing,
-which is the same degradation the CLI has. `/api/health` reports `library` so
-the two are distinguishable.
-
-## The reference imports, and why they are in the image
-
-Seven commands fill reference data — the same rows for every learner, none of
-it personal:
-
-| Command | Fills | Without it |
-|---|---|---|
-| `cli rections` | EKK SÜ 64, the 23 rections learners get wrong | the `rektsioon` drill says "run `cli rections` once", and free writing stops reporting `&err-gov` |
-| `cli import-levels` | EKI's official A1/A2/B1 vocabulary | every CEFR level is an estimate off a list where only 6.2 % of lemmas carry a tag |
-| `cli import-psv` | EKI's learner dictionary, 4 849 definitions and their examples | the word card shows Sõnaveeb's native-level wording, which is the thing a learner could not read |
-| `cli import-evs` | EKI's Estonian–Russian dictionary, 60 672 lemmas | the Russian on a word card and beside a drill needs a live Sõnaveeb request |
-| `cli import-vsl` | EKI's foreign-words lexicon, 30 095 definitions | no offline definition when PSV and Sõnaveeb both have none |
-| `cli import-har` | EKI's education terms, 5 905 with Russian | no offline Russian when EVS and Sõnaveeb both have none |
-| `cli import-ekss` | EKI's explanatory dictionary, 117 937 definitions | no offline definition for most words PSV does not cover |
-
-All seven run **at image build time**, and all seven write into
-`data/eesti.db`, which is baked in. That placement is the decision, and it is
-the opposite of the one above: the corpus and the learner's progress travel in
-the snapshot precisely because they are owner-only or personal, and reference
-data must not, because **a snapshot restore replaces whole files**. EKI's
-learner definitions started life in `vocab.db` beside the Sõnaveeb glosses and
-would have been wiped by the first restore — on a service that scales to zero,
-that is the first cold start.
-
-### The EKI files are committed
-
-Since 2026-09-13 the files the image imports live in `deploy/eki/` — the level
-list as text, the four dictionaries gzipped — and `deploy/eki/README.md` lists
-them with what each turns on. Until then they were git-ignored, Cloud Build
-builds from git, and production had none of them: smoke run 34765657703 read
-`eki_levels` 0 and `eki_definitions` 0. `test_every_file_the_image_imports_is_in_git`
-now derives the list from the `Dockerfile` and fails if git ignores any of it.
-
-The `Dockerfile` steps still end in `||`, so a missing or unreadable file — or
-EKI refusing `cli rections` from a datacenter IP, which they have done to a
-GitHub runner — costs one feature rather than the whole deploy.
-
-### Which is exactly why you have to be able to ask
-
-Three optional imports that fail quietly are three features that can be absent
-from production with nothing saying so. `/api/health` therefore reports row
-counts, not flags:
-
-```json
-"reference": {"rections": 23, "eki_levels": 0, "eki_definitions": 0}
-```
-
-That is what production returned on 2026-09-13 (smoke run 34765657703), before
-the EKI files were committed — not an illustration. The block now also reports
-`eki_russian`, `eki_terms`, `eki_loanwords` and `eki_explanatory`. An earlier version of this block showed `5987` definitions — a
-number no import had ever produced, since the dictionary XML has never been
-read here.
-
-Counts, because the presence of a database is not the presence of data — twice
-already an empty deployment here has looked full. The `smoke` workflow reads
-all three and warns on any zero.
-
-## What it costs
-
-For one learner, nothing, and the shape is worth knowing:
-
-- **Cloud Run**: within the always-free tier. It scales to zero, so a daily
-  practice session is minutes of CPU, not hours. Cold start is a few seconds.
-- **Worker + Durable Object**: within the free plan.
-- **Speech**: `@cf/openai/whisper-large-v3-turbo` at **$0.00051 per audio
-  minute** — Workers AI has a free daily allocation, and a learner reading
-  sentences aloud does not approach it.
-- **Grammar explanations**: a free-tier model on OpenRouter, or nothing — the
-  app degrades to offline Vabamorf evidence.
+| `deploy/setup.sh` | one-time wiring: generates tokens, sets them on Cloud Run and in Actions, verifies 403/200. Re-running rotates tokens — then run `gh workflow run deploy.yml` or every request 403s |
+| `deploy/set-llm-key.sh NAME` | sets any `KNOWN_KEYS` variable on Cloud Run with hidden input, and verifies it landed |
+| `deploy/check-service.sh` | lists variable names on each service (never values), flags missing ones and traffic on an old revision |
+| `deploy/push-content.sh FILE` | uploads the harvested corpus to the origin |
+| `deploy/reset-progress.sh <topic> \| --everything` | forgets one topic's practice history, or all of it, on the deployment |
+
+If `gcloud` has no project: `gcloud config set project <id>`.
+
+## Verifying production
+
+A session cannot read the deployed app. Use the **`smoke`** workflow
+(Actions → smoke → Run workflow). It runs after `deploy`, daily, and on demand,
+and checks: Access closed, health, image build stamp vs `main`, origin guard,
+speech, reference counts, live dictionary, library and topic links.
+
+- Wait until the image is newer than the merge (10–15 min), or smoke reports on
+  the previous image — it prints which.
+- `grammar explains … configured` only reads configuration. Run with
+  **`deep: true`** after any provider or key change: it sends one sentence and
+  prints which engine answered, or the per-lane failure diagnostics.
+
+## First-time Cloudflare notes
+
+- Open **Workers & Pages** once before the first deploy, or `wrangler deploy`
+  fails with code 10063 (no `workers.dev` subdomain).
+- Enable Access as soon as the first deploy is green. For a zero-length gap,
+  deploy without `CLOUD_RUN_URL` (Worker answers 503), enable Access, then add
+  the secret and re-run.
+
+## Cost
+
+Nothing for one learner: Cloud Run and the Worker stay within free tiers;
+Workers AI Whisper is $0.00051/audio minute inside a free daily allocation; the
+grammar lanes are free tiers.

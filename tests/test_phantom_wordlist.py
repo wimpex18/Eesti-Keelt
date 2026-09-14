@@ -8,7 +8,7 @@ checked Estonian against an empty lexicon. Two failures, in a file nobody had
 touched, reading exactly like a regression.
 
 **It was never the test suite.** Five full runs under an audit hook injected
-into every subprocess (`tests/phantom/`) recorded not one read-write open of
+into every subprocess (a `sitecustomize` audit hook) recorded not one read-write open of
 that path. No test in the pytest process can do it — the autouse fixture in
 `conftest.py` redirects `config.DB_PATH` for all of them — and the uvicorn
 subprocess is ruled out by construction: `live_server` skips when the word list

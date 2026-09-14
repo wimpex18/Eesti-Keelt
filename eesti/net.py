@@ -13,7 +13,7 @@ requested once, cached to disk, and does not change weekly. It is not the
 right shape for a crawl (`harvest/err.py` walks a series and wants its own
 per-request timeout) or for a provider call (`providers/` needs the circuit
 breaker and has to tell a rate limit from an outage -- and the entry in
-`docs/lessons.md` about a retry keeping a failure alive is about exactly that
+`.claude/rules/providers-and-deploy.md` about a retry keeping a failure alive is about exactly that
 case, which is why this one is not used there).
 
 Nothing here decides whether a failure is worth retrying: three attempts with

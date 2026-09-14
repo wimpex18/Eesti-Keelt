@@ -1,298 +1,71 @@
 # Architecture
 
-Target: a Cloudflare-hosted app, reachable online, working on desktop and mobile.
+One Python package, `eesti/`, serving a FastAPI app and a CLI over SQLite
+databases. Vabamorf (via EstNLTK, a compiled C++ extension) generates forms at
+request time, which is why the app runs in a container and not in a Worker.
 
-## The constraint that shapes everything
-
-**Vabamorf cannot run on Cloudflare.** Workers execute Python through
-Pyodide/WebAssembly, which supports pure-Python and PyEmscripten wheels only —
-and Vabamorf (via EstNLTK) is a compiled C++ extension. There is no port to
-JavaScript, Rust or WASM either.
-
-That looks fatal, because Vabamorf is the source of every linguistic fact in this
-app. It is not, because **morphology is static**. The genitive of `raamat` does
-not depend on the request.
-
-## The resolution: move Vabamorf to build time
+## Request path
 
 ```
-BUILD (local / CI, Python)                RUNTIME (Cloudflare, TypeScript)
-─────────────────────────────             ────────────────────────────────
-Ekilex wordlist ─┐
-                 ├─► Vabamorf ─► edge.db ──► D1 ──► Worker ──► Pages (UI)
-CEFR + freq ─────┘   synthesis                        │
-                                                      └─► LLM (adjudication only)
+browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers AI speech)
+              └─► Cloud Run: FastAPI (eesti.app) ─► eesti/api/* ─► domain modules ─► SQLite
 ```
 
-`python -m eesti.cli export` runs Vabamorf over the vocabulary and writes a
-portable SQLite. Measured:
+- `eesti/app.py` builds the app: origin guard (`PROXY_TOKEN`), routers, static
+  page. Every route lives in `eesti/api/`; `eesti.api.ROUTERS` is the list and
+  `eesti.api.paths()` derives the inventory.
+- `eesti/web/` is the page: `index.html`, `app.css`, ES modules in `web/js/`
+  (one per screen plus `core`, `router`, `chrome`, `media`, `state`; `main.js`
+  bootstraps last) and `sw.js`. No build step.
+- `deploy/worker.ts` is the Worker; `wrangler.jsonc` configures it.
 
-| | |
-|---|---|
-| lemmas exported | 12 787 (all CEFR-tagged + frequency head to rank 25 000) |
-| labelled forms | **411 349** |
-| object-case pairs | 10 979, of which **7 256 have a distinct genitive/partitive** |
-| size | 47 MB — against D1's 5 GB free tier |
-| build time | ~11 s |
-
-The edge therefore needs no morphology engine. It needs indexed lookups.
-
-### The reverse index is the important part
-
-`forms(form, lemma, tag)` replaces runtime analysis. Where Vabamorf answers "what
-case is `raamatut`?", a `SELECT` answers the same question:
-
-```sql
-SELECT lemma, tag FROM forms WHERE form = 'raamatut';
--- raamat | sg p
-```
-
-Measured coverage on realistic learner sentences: **44/45 tokens (98 %)** — the
-single miss was the string `b1`. Irregular verb stems resolve correctly
-(`läksin`→minema/`sin`, `sõin`→sööma/`sin`), which is the `verb-form` gap.
-
-Anything not in the index falls through to the LLM, so coverage degrades
-gracefully instead of failing.
-
-## What runs where
-
-| Layer | Where | Why |
-|---|---|---|
-| UI | Cloudflare Pages | Static, free, global. Responsive desktop + mobile. |
-| API | Workers | 100 K req/day free; 10 ms CPU is ample for indexed lookups. |
-| Data | D1 | 5 GB, 5 M row reads/day. Holds `words`, `forms`, `object_cases`. |
-| Progress | D1 | Attempts and drill history — single user, tiny. |
-| Audio cache | R2 | 10 GB free. TTS output is immutable, keyed by content hash. |
-| LLM | Workers AI, or OpenRouter/Groq | See below. |
-| **Build** | **local / GitHub Actions** | **Python + Vabamorf. Never at the edge.** |
-
-The Python package does not disappear — it becomes a **build tool and a local
-dev server**, which is also how the offline-first property survives: everything
-still works on `localhost` with the network unplugged.
-
-## Free-tier headroom
-
-For one learner, none of these bind:
-
-- Workers 100 K req/day · D1 5 M reads/day · KV, R2, Durable Objects all free
-- Workers AI **10 000 neurons/day**, shared across models
-- OpenRouter **50 req/day** free, or **1 000/day** after a one-time $10 credit
-  purchase — an account threshold, not consumption
-
-## LLM lane
-
-Providers are interchangeable behind one OpenAI-compatible client
-(`eesti/providers/llm.py`), so the deployment target can change without touching
-the grammar logic. Preference order, skipping any whose key is unset:
-
-1. **`local`** — EstLLM as a GGUF on a machine you own. Free, private, unmetered.
-2. **`huggingface`** — the *same* Estonian-adapted weights, hosted, via `HF_TOKEN`.
-3. **OpenRouter** — one key, 412 models, 15 currently `:free`.
-4. **Groq** — fastest inference, generous free tier.
-5. **Workers AI** — runs *inside* Cloudflare: no egress, no third-party key.
-
-**The order is the routing decision, and it is the whole of it.** There is one
-production LLM use case — judging and explaining a free-text sentence — so there
-is no dispatcher; there is this list. The two Estonian lanes lead because the
-documented weakness is object case and every general-purpose model here has been
-measured failing it; they lead *as a pair* because they run the same model and
-differ only in who pays and who can read the request. Everything behind them is
-a general model standing in when neither is configured.
-
-There is no paid lane. There was one — `anthropic`, keyless and last — and it
-was deleted rather than left as an option, because an option nobody chose still
-shapes what the next sprint plans around. `tests/test_ai_providers.py` asserts
-both halves: no provider whose own `free_note` says "Paid", and the Estonian
-pair first.
-
-**Probe before pinning.** Model ids are withdrawn silently, and a withdrawn
-`:free` id is the worst case because the paid one with the same name keeps
-working, so the name still looks right while every call 404s. Verified live in
-August 2026: `openai/gpt-oss-120b:free` is **absent** from OpenRouter's catalogue
-while `openai/gpt-oss-120b` still exists. The pinned default is
-`dots-studio/dots-3-note-preview:free` since 2026-09-14, chosen on the eval:
-`google/gemma-4-31b-it:free`, the previous pin, answered 429 to every case while
-dots-3 scored precision 1.0, recall 0.714. It advertises `response_format` —
-the capability the client actually sends, and a *different* one from
-`structured_outputs`.
-
-```bash
-python -m eesti.cli models --provider openrouter   # re-probe the catalogue
-```
-
-## Choosing a model by measurement, not by reputation
-
-The reasonable hypothesis — a model good at other languages should handle
-Estonian — is testable, so `eesti/evals/gec.py` tests it. 18 Estonian sentences,
-scored two ways:
-
-- **recall** — of the 10 with planted errors, how many were caught
-- **precision** — of the 8 that are **already correct**, how many were left alone
-
-The second is what separates models. A checker that flags every partitive scores
-perfect recall and is worse than useless, because it would teach the learner that
-every partitive is wrong. Estonian is low-resource, and the specific judgement
-here (genitive for a completed whole object, partitive for ongoing, partial or
-negated) is exactly the language-specific semantics that thins out first.
-
-```bash
-python -m eesti.cli eval --provider openrouter --model <id>
-```
-
-Exits non-zero below 0.8 on either score, so it can gate a deploy.
-
-## Invariants
-
-1. **Linguistic facts come from Vabamorf, never from a model.** Models adjudicate
-   free text and explain. Forms, paradigms and drill answers are generated.
-2. **Grading is deterministic** — string comparison against a synthesized form.
-   Free, instant, and incapable of being confidently wrong.
-3. **Every network dependency is optional**, behind a chain with short timeouts
-   and a circuit breaker; the UI always names the engine that answered.
-4. **The build is reproducible and offline.** `export` needs no network.
-
-## Open questions
-
-- **Auth.** Currently single-user and unauthenticated, which is fine on
-  `localhost` and *not* fine on a public URL. Cloudflare Access is the cheapest
-  answer (free tier, no code) and keeps the app single-user by policy.
-- **D1 import path.** 411 K rows: `wrangler d1 execute --file` may need batching,
-  or the dataset can ship as a read-only SQLite in R2.
-- **Mobile drill ergonomics.** The drill loop is a typing loop; on a phone,
-  õ/ä/ö/ü need to be reachable without switching keyboard layers.
-
----
-
-# Stack and practices
-
-Merged from the former `stack-2026.md`. Recommendations are for *this*
-project, not a generic survey; where the modern default does not fit a
-single-user tool, that is said plainly.
-
-## Backend
-
-**FastAPI + Pydantic v2 — keep.** FastAPI is the default greenfield Python choice
-in 2026: async-first, native Pydantic v2, OpenAPI for free. Pydantic v2 is 5–50×
-faster than v1 on validation-heavy endpoints. Already in use here.
-
-**The HTTP surface is one module per thing the learner is doing.** `app.py` is
-the assembly — the application object, the origin guard, and the names the CLI
-and the tests import — and every route lives in `eesti/api/`:
+## API modules
 
 | Module | Answers |
 |---|---|
-| `api/deps.py` | the databases and the facts about this process, all resolved at call time |
-| `api/render.py` | ids, lemmas and topics turned into what a learner reads |
-| `api/assets.py` | the page, the icons, the manifest, the service worker, the vendored player |
-| `api/health.py` | is there a word list, is the origin guarded, which build is answering |
-| `api/grammar.py`, `api/practice.py`, `api/review.py`, `api/vocab.py` | check, drill, revise, browse |
-| `api/library.py`, `api/speech.py`, `api/exam.py` | material, sound, readiness |
-| `api/notion.py`, `api/state.py` | the error log, and the snapshot that survives a cold start |
+| `api/deps.py` | database handles and process facts, resolved at call time |
+| `api/render.py` | ids, lemmas and topics rendered for the learner |
+| `api/assets.py` | page, icons, manifest, service worker |
+| `api/health.py` | word list, reference row counts, corpus counts, build stamp, origin guard |
+| `api/practice.py`, `api/review.py`, `api/vocab.py` | drills and grading, FSRS queue, word statuses |
+| `api/grammar.py` | sentence check, word lookup and word card |
+| `api/library.py`, `api/speech.py`, `api/exam.py` | material, sound (TTS/ASR/dictation/speaking), readiness |
+| `api/notion.py`, `api/state.py`, `api/sources.py` | error log, snapshot export/import, licence credits |
 
-Below them, `library.py` is the shelf and `topiclinks.py` is the join that
-decides which texts demonstrate which grammar topic — one database, two jobs.
+## Domain modules
 
-Routers are registered in the order they were written in, because registration
-order decides which route answers when two patterns could match one URL. The
-inventory is derived by `eesti.api.paths()` rather than by walking `app.routes`:
-FastAPI keeps an included router as a single lazy entry, so the obvious walk
-returns four paths and no error.
+| Concern | Modules |
+|---|---|
+| Morphology | `morph.py` (Vabamorf), `wordlist.py` (word list, `declines`), `export.py` + `lookup.py` (form index `edge.db`) |
+| Generators | `drills.py`, `cloze.py`, `conjugation.py`, `patterns.py`, `forms.py`, `verbs.py`, `punctuation.py`, `rection.py`, `wordorder.py`, `dictation.py`, `speaking.py`, `pronunciation.py`; shared shape in `item.py` |
+| Curriculum | `curriculum.py` (topics, prerequisites, generators), `practice.py` (dispatch), `progress.py`, `placement.py`, `checkpoint.py`, `handoff.py`, `themes.py`, `overview.py`, `readiness.py` |
+| Review and vocabulary | `review.py` (FSRS), `mining.py`, `vocab.py`, `gloss.py` (stored dictionary answers), `meaning.py` (which Russian a word gets) |
+| EKI data | `ekixml.py` (file reader), `psv.py`, `evs.py`, `har.py`, `ekidefs.py` (VSL, EKSS) |
+| Library | `library.py`, `sources.py`, `topiclinks.py`, `difficulty.py`, `harvest/` (ERR, Selges keeles, Lihtsad uudised, EIS, HARNO, EVKK) |
+| Grammar reference | `grammar.py` (EKK links), `estgec.py` (EstGEC-L2 word-order corrections) |
+| Providers | `providers/grammar.py` (check chain), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
+| Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `fetch.py` |
+| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` |
+| CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |
 
-**Tooling — adopt.** Two changes are clearly worth making:
+## Databases
 
-| Replace | With | Why |
+Paths resolve at call time from `eesti/config.py`; tests redirect them.
+
+| File | Holds | Origin |
 |---|---|---|
-| `pip` + `venv` | **`uv`** | Dramatically faster installs; one tool for envs, deps and lockfile. |
-| flake8 + isort + black | **`ruff`** | One binary, fast enough to run on every keystroke. |
+| `data/eesti.db` | words, object cases, EKI levels and dictionaries, rections | built into the image (`cli build`, imports) |
+| `data/edge.db` | form index (`forms`, `object_cases`) | built into the image (`cli export`) |
+| `data/content.db` | library items, sources, topic links | harvested locally, pushed with `push-content.sh` |
+| `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | learner state: mastery, FSRS cards, word statuses and stored glosses, error queue | created at runtime; snapshotted by the Worker |
 
-```bash
-uv venv && uv pip install -r requirements.txt
-uvx ruff check . && uvx ruff format .
-```
+`data/seed_glossary.tsv` is tracked and copied into the image.
 
-**Database — keep plain `sqlite3`.** SQLModel/SQLAlchemy 2.0 is the production
-standard, but this app has four tables, one writer, and no migrations. Adding an
-ORM here buys abstraction nobody needs. Revisit only if the schema starts
-changing often.
+## Invariants
 
-**Testing — pytest, already in place.** The suite is the regression gate; keep it
-offline so it can run without keys or network.
-
-## Frontend
-
-The 2026 default is Next.js — and for this app it is **the wrong choice**.
-
-Next.js earns its keep through SSR, image optimisation, file-based routing and
-edge delivery. A single-user app on `localhost` with no SEO, no cold-start
-audience and no auth benefits from none of it, while paying for a Node
-toolchain alongside the Python one that must exist anyway.
-
-**Recommended path, in order of when to escalate:**
-
-1. **Now — vanilla HTML, CSS and ES modules, no build step.** The page grew
-   to 3 506 lines in one file, which is where "one file" stopped paying: it is
-   `index.html` (the markup and the pre-paint theme script), `app.css`, and
-   fourteen ES modules under `web/js/` — one per screen, plus `core.js`,
-   `router.js`, `chrome.js`, `media.js` and a `state.js` holding the one value
-   two screens share. `main.js` imports them all and bootstraps last, which is
-   the position that keeps a loader from reaching a declaration that has not
-   run yet. Still zero build step and no `node_modules`: the browser resolves
-   the imports, and the service worker precaches the list.
-2. **If the UI outgrows one file — Vite + React 19 + TypeScript.** The consensus
-   pick for dashboards and internal tools: instant HMR, fast builds, no framework
-   opinions. Vite also wins the client-side metrics (bundle size, TTI) that
-   actually apply to localhost.
-3. **Next.js — only if this is ever deployed publicly** for other learners.
-
-If step 2 happens, the 2026-standard companions: **Tailwind + shadcn/ui**
-(components you own, not a dependency), **TanStack Query** (server state),
-**Zod** (schema validation shared with Pydantic's contract), **Vitest +
-Playwright**, **ESLint flat config**, strict TypeScript.
-
-## Design
-
-Principles the current UI already follows and should keep:
-
-- **Theme-aware by default** — light/dark via `prefers-color-scheme`, all colours
-  as CSS custom properties, never a hard-coded hex in a rule.
-- **System font stack** — no webfont request, no layout shift, correct rendering
-  of `õ ä ö ü` on every platform.
-- **Semantic colour, sparingly.** Object-case errors get their own accent because
-  they are the documented priority; everything else shares one neutral treatment.
-  If every error type had a colour, none would signal anything.
-- **Estonian UI labels** (`Kirjutamine`, `Harjutused`, `Kuulamine`) with Russian
-  explanations. The interface is itself exposure; the explanation is where
-  comprehension has to win.
-- **Keyboard first** — Ctrl+Enter to check, Enter to submit an answer, autofocus
-  on the first drill. Drilling is a typing loop; reaching for a mouse breaks it.
-
-Accessibility floor: WCAG 2.2 AA contrast, visible focus rings, real `<label>`s,
-`aria-selected` on tabs, and no meaning carried by colour alone (the ✓/✗ glyphs
-carry it too).
-
-## Practices worth keeping
-
-- **Offline-first.** Four research APIs were down during development. The core
-  loop must not depend on any network call.
-- **Provider chain + circuit breaker.** Every external service behind one
-  interface, short timeouts, automatic skip after repeated failure, and the UI
-  always names the engine that answered.
-- **Never let a model generate linguistic facts.** Forms come from Vabamorf.
-  Models adjudicate and explain only. See `ai-strategy.md`.
-- **Deterministic where possible.** Drill grading is string comparison — free,
-  instant, and incapable of being confidently wrong.
-- **Licence hygiene.** Wordlist CC-BY-SA-4.0, Ekilex CC-BY-4.0, Vabamorf/TalTech
-  models permissive. HARNO exam material is copyright — git-ignored, never
-  redistributed.
-
-## Correction: the Cloudflare plan changed
-
-This document's original deploy plan — export to D1, serve from a Worker — was
-written when the app looked things up. It now *generates*: `cloze`,
-`conjugation`, `patterns` and `verbs` all call Vabamorf at request time, and
-Vabamorf is a compiled C++ extension that cannot run in a Worker.
-
-The deploy is therefore **Cloudflare Containers**, with a Worker in front for
-routing and for snapshotting the learner's state — container disk is ephemeral,
-so without that a ten-minute idle period would reset all progress. See
-[`deploy.md`](deploy.md).
+1. Linguistic facts come from Vabamorf or EKI data, never from a model.
+2. Grading is string comparison against a synthesised or attested form.
+3. Every network dependency is optional: provider chains with timeouts and a
+   persistent circuit breaker (`providers/breaker.py`); responses name the
+   engine that answered.
+4. Tests run offline (`tests/test_offline.py` blocks sockets).

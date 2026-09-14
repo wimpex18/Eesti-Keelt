@@ -3,7 +3,7 @@
 OpenRouter, Groq and Cloudflare Workers AI all speak the OpenAI chat-completions
 shape, so one client covers them and switching provider is a base-URL change.
 
-Two rules encoded here, both learned the hard way (see docs/ai-strategy.md):
+Two rules encoded here, both learned the hard way (see docs/ai-providers.md):
 
 1. **Never pin a model id without probing it.** Ids are withdrawn silently, and a
    withdrawn `:free` id is especially treacherous because the paid one with the
@@ -149,7 +149,7 @@ PROVIDERS: dict[str, Provider] = {
         # Estonian-adapted was reachable, and this lane is now the *fallback*
         # behind EstLLM rather than the best answer available. Paying a general
         # model for Estonian morphosyntax buys the weakest axis of the most
-        # expensive option -- see `docs/ai-strategy.md`, which keeps the old
+        # expensive option -- see `docs/ai-providers.md`, which keeps the old
         # recommendation and the argument that overturned it.
         #
         # Re-pinned 2026-09-14, on the project's own eval this time: the Gemma
@@ -288,7 +288,7 @@ PROVIDERS: dict[str, Provider] = {
     # points at whatever is serving on `LOCAL_LLM_URL`.
     #
     # Keyless on purpose: a local server has nothing to authenticate. See
-    # docs/local-llm.md for the Mac mini setup and the tunnel, if the deployment
+    # docs/ai-providers.md for the Mac mini setup and the tunnel, if the deployment
     # is to reach it rather than just `cli serve`.
     "local": Provider(
         "local",

@@ -1,7 +1,7 @@
 """The two Estonian-adapted models, and the lanes that reach them.
 
 Both arrived the same way: a claim about somebody else's infrastructure went
-stale in the direction that hides an option. `docs/local-llm.md` recorded on
+stale in the direction that hides an option. the local-LLM doc recorded on
 2026-08-20 that nobody hosted any Estonian model, which was true, and three
 weeks later `tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125` was served by
 featherless-ai and TalTech had published an Estonian Voxtral. Neither is

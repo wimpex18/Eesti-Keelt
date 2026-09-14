@@ -14,9 +14,7 @@ two disagree rather than the next time somebody reads carefully.
 
 Deliberately narrow. It checks the counts that have actually drifted and are
 unambiguous to parse; it does not try to verify prose, and a doc is free to
-record a historical figure as long as it is marked as one — `curriculum-plan.md`
-keeps "21 of 36 at the time of writing" beside the current number, which is a
-record rather than a claim.
+record a historical figure as long as it is marked "at the time of writing".
 """
 
 from __future__ import annotations
@@ -30,28 +28,9 @@ from pagesrc import markup_and_script
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: Documents whose job is to state the current state. `CLAUDE.md` is not one of
-#: them: it records habits, and a habit about a number that was wrong has to be
-#: able to quote the wrong number. The first version of this check read the
-#: sentence "13 topics without a generator when there were 11" as a claim that
-#: there are 13, and failed on the very habit written to prevent it.
-#:
-#: `docs/lessons.md` is excluded for exactly that reason and no other: it is
-#: where those habits now live, moved out of `CLAUDE.md` verbatim. Every number
-#: in it is a record of what was measured when the bug was found, which is the
-#: point of the entry.
-#:
-#: `curriculum-plan.md` and `roadmap.md` are excluded for the same reason from
-#: the other direction: they narrate what a build step achieved, which is a
-#: record of a past state by construction.
-#:
-#: `docs/changelog.md` is excluded on the same ground, and its exclusion is the
-#: cleanest of them: since the 2026-09-12 split it holds *only* records of past
-#: states, so there is no live claim in it to miss. That is the half of
-#: `status.md` the `HISTORICAL` regex below was guessing at from wording; the
-#: guess now has 1 195 fewer lines to be wrong about.
-LIVE = ("README.md", "docs/status.md", "docs/app-structure.md",
-        "docs/architecture.md", "docs/qa-status.md")
+#: Every document states the current state; history lives in git. `CLAUDE.md`
+#: and `.claude/rules/` hold instructions, not counts, and are not scanned.
+LIVE = tuple(["README.md"] + sorted(f"docs/{p.name}" for p in (ROOT / "docs").glob("*.md")))
 DOCS = [ROOT / name for name in LIVE if (ROOT / name).exists()]
 
 #: A claim that says "at the time of writing" is a record of a past state, not
@@ -262,9 +241,7 @@ class TestTheModeStructure:
 class TestEveryFileTheDocsPointAtExists:
     """A pointer to a file that is not there sends the reader nowhere.
 
-    `roadmap.md` said "see `sources.md`" for why a monologue recorder trains
-    the wrong thing. There has never been a `sources.md`; the argument is in
-    `speaking.md`. Nothing catches that kind of rot — a stale *pointer* reads
+    A stale pointer reads exactly like a live one. Nothing catches that rot — a stale *pointer* reads
     exactly like a live one, and only somebody following it finds out.
 
     Backticked filenames are the form this project uses for a reference, so
@@ -274,22 +251,7 @@ class TestEveryFileTheDocsPointAtExists:
     """
 
     #: Cited in backticks, correctly, and not a path in this repository.
-    NOT_A_FILE = {
-        "Search/search_results.html": "a path on EVKK's server, in the note "
-                                      "about what their search returns",
-        "cli.py": "history: it was one module before the split, and the "
-                  "lessons and status entries about it name what it was",
-        "eesti/cli.py": "history, as above — the Was/Is table in status.md and "
-                        "the docstring in test_cli_smoke.py both name the old "
-                        "path deliberately",
-        "stack-2026.md": "history: architecture.md records that it was merged "
-                         "from that file, which is why the name appears",
-        "grammar_et.json": "a dataset `cli fetch-bench` downloads into the "
-                           "git-ignored data/raw/bench. CI passed only because "
-                           "it fetches first -- and that fetch is allowed to "
-                           "fail, which would have failed this doc check "
-                           "for a Hugging Face outage",
-    }
+    NOT_A_FILE: dict[str, str] = {}
 
     @staticmethod
     def _citations() -> dict[str, set[str]]:
@@ -298,7 +260,8 @@ class TestEveryFileTheDocsPointAtExists:
         found = collections.defaultdict(set)
         pattern = re.compile(
             r"`([A-Za-z0-9_./-]+\.(?:md|py|js|css|html|sh|ts|yml|json|tsv))`")
-        for path in sorted(ROOT.glob("*.md")) + sorted(ROOT.glob("docs/*.md")):
+        for path in (sorted(ROOT.glob("*.md")) + sorted(ROOT.glob("docs/*.md"))
+                     + sorted(ROOT.glob(".claude/rules/*.md"))):
             for match in pattern.finditer(path.read_text(encoding="utf-8")):
                 found[match.group(1)].add(path.relative_to(ROOT).as_posix())
         return found

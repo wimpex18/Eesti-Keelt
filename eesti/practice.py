@@ -100,7 +100,7 @@ def items_for(
     generator = by_id(topic).generator
     if generator is None:
         raise ValueError(
-            f"{topic!r} has no generator — see step 2 of docs/curriculum-plan.md"
+            f"{topic!r} has no generator — see docs/status.md"
         )
 
     from .wordlist import available

@@ -151,7 +151,7 @@ def test_the_only_other_writer_is_the_cli():
     teach people to stop writing it.
 
     That is the fourth time in one sprint a source scan matched its own
-    explanation; see `docs/lessons.md`. `ast` answers the question exactly:
+    explanation; see `.claude/rules/tests.md`. `ast` answers the question exactly:
     a `Name` or an `Attribute` actually referencing the function.
     """
     import ast

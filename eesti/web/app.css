@@ -544,7 +544,7 @@
      written for someone learning the word rather than for a native consulting
      a dictionary, and the examples that come with it. New class names with no
      competing rules anywhere in this file, so there is no specificity contest
-     to lose: see the trap in docs/redesign-2026.md. */
+     to lose: a rule inside @media does not outrank a later one. */
   .meaning .def{color:var(--ink);font-size:13.5px;line-height:1.55}
   .meaning .examples{margin:6px 0 0;padding-left:18px;color:var(--gloss);
     font-size:12.5px;line-height:1.6}
