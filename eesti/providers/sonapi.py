@@ -1,22 +1,13 @@
-"""Sõnaveeb lookups via api.sonapi.ee — the two fields Vabamorf cannot give.
+"""Sõnaveeb lookups via api.sonapi.ee — what Vabamorf cannot give.
 
-Vabamorf generates forms; it does not know what a word *means* or what case a
-verb *governs*. Two fields here fill curriculum gaps that nothing else covers:
-
-  rection         `lugema` → "mida, kust, kellele" — this is the `rektsioon`
-                  error tag, directly. Which case a verb takes is a list, not a
-                  rule, and no amount of morphology derives it.
-  inflectionType  the muuttüüp number (`raamat`=2, `lugema`=28) — the declension
-                  type system the Notion "Nomenid A–F" page already tracks, and
-                  the thing that makes a new word predictable once you know its
-                  type.
+  rection         `lugema` → "mida, kust, kellele" (the `rektsioon` tag)
+  inflectionType  the muuttüüp number (`raamat`=2, `lugema`=28)
 
 Plus definitions, usage examples and translations.
 
-**Single lookups only.** This is a third-party surface over Sõnaveeb, whose
-maintainers explicitly ask people not to batch-request it. Responses are cached
-on disk, and there is deliberately no bulk helper — if a caller wants a thousand
-words, the answer is the Ekilex API with a key, not a loop over this.
+**Single lookups only**: Sõnaveeb's maintainers ask not to be batch-requested.
+There is no bulk helper; live requests are spaced under a lock and answers are
+stored (`gloss.py`).
 """
 
 from __future__ import annotations
@@ -34,28 +25,16 @@ from ..config import CACHE
 
 BASE = "https://api.sonapi.ee/v2"
 
-#: Short on purpose: this runs inside a request the learner is waiting on, and
-#: an enrichment is never worth making a word card slow. Twenty seconds was the
-#: value while nothing called this module at all.
+#: Short: this runs inside a request the learner is waiting on.
 TIMEOUT = 4.0
 
-#: Minimum seconds between two *live* requests. Cache hits are free and are not
-#: throttled.
-#:
-#: The module has always said "single lookups only" because Sõnaveeb's
-#: maintainers ask people not to batch it. That was a comment, and a comment
-#: does not stop `for word in words: lookup(word)` from running as fast as
-#: Python can issue requests. This makes the promise something the code keeps:
-#: a caller who loops gets throttled rather than obeyed.
+#: Minimum seconds between two live requests; cache hits are not throttled, so a
+#: caller that loops is slowed rather than obeyed.
 MIN_INTERVAL = 1.0
 _last_request = 0.0
 
-#: `_last_request` is read, compared and written, and FastAPI runs a sync route
-#: in a threadpool — so two enrichments arriving together would both read the
-#: same stale stamp, both decide no wait was needed, and issue at once. The
-#: throttle would then be a thing that holds only when nothing is happening,
-#: which is the one time it does not matter. Serialising the read-sleep-write
-#: makes the spacing hold under concurrency too.
+#: Serialise the read-sleep-write of `_last_request`: sync routes run in a
+#: threadpool, so concurrent enrichments would otherwise fire together.
 _turn = threading.Lock()
 
 
@@ -146,28 +125,13 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
         (f.get("inflectionType") for f in forms if f.get("inflectionType")), None
     )
 
-    # Two translation sources come back, and the obvious one is the worse one.
-    #
-    # The top-level `translations` holds English only:
-    #     [{"from": "et", "to": "en", "translations": ["book"]}]
-    #
-    # Each meaning carries its own, in three-letter codes and weighted:
-    #     {"rus": [{"words": "книга", "weight": 1}, …], "eng": […], "fra": […]}
-    #
-    # This app is for a Russian speaker and says so in its language policy, so
-    # reading only the top level threw away the field that mattered most.
-    # Per-meaning first, top-level as a fallback for anything it lacks.
+    # Translations come twice: top-level `translations` is English only; each meaning
+    # carries weighted `rus`/`eng`/… lists. Read per-meaning first (Russian), then the
+    # top level.
     translations: dict[str, tuple[str, ...]] = {}
     for code, entries in (meaning.get("translations") or {}).items():
-        # Two shapes hide in one field. `words` is usually a single word, but
-        # sometimes a comma-joined list of synonyms -- `lavastus` returned
-        # "театральное представление,театральная постановка" as one entry. Both
-        # are split, so a caller taking the first three gets three words rather
-        # than one word and one paragraph.
-        #
-        # `dict.fromkeys` rather than a set: the list is weighted, so its order
-        # is the API's own confidence ranking and a set would throw that away.
-        # Repeats are real -- `hääl` came back as "голос, тон, голос".
+        # `words` may be a comma-joined list of synonyms; split it, and de-duplicate with
+        # `dict.fromkeys` to keep the API's weight order.
         words = tuple(dict.fromkeys(
             part
             for e in entries
@@ -199,11 +163,7 @@ SEARCH = "https://sonaveeb.ee/search/unif/dlall/dsall/{word}"
 
 
 def entry_url(word: str) -> str:
-    """Where to send a learner who wants more than the three fields above.
-
-    The plan is explicit that this app does not rebuild the dictionary —
-    Sõnaveeb, Sõnastik and Anki already do it better. A link honours that:
-    the full paradigm, the audio and every translation are one tap away, and
-    nothing here has to fetch, cache or redistribute any of it.
+    """Link to Sõnaveeb for anything beyond the stored fields: the app does not rebuild
+    the dictionary.
     """
     return SEARCH.format(word=urllib.parse.quote(word))
