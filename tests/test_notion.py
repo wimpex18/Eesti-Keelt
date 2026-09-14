@@ -1,19 +1,9 @@
-"""Feeding the existing error log, without drowning it.
+"""Feeding the hand-kept Notion `Vead` log, without drowning it.
 
-There is already a hand-kept `Vead` log in Notion, with a rule attached: three
-or more rows sharing a tag become the focus of the week. That rule is what made
-`obj-case` the documented priority in the first place.
-
-Two things follow, and both are tested here rather than described.
-
-**The tags are a closed set of nine.** They are `multi_select` options in a
-database that already exists, and the counting rule is what gives them meaning.
-An invented tag would not group, would never reach three, and would silently
-never become anyone's focus — so it is refused at construction, not at push.
-
-**Nothing is sent without a person looking.** A checker that appended every
-suspicion would turn a curated record into a dump of model output and start the
-rule firing on noise. Queueing is the default; pushing is a separate act.
+- **Tags are a closed set of nine** (`multi_select` options); an invented tag is
+  refused at construction, since it would never group.
+- **Nothing is sent without a person choosing it:** queueing is the default,
+  pushing a separate act.
 """
 
 from __future__ import annotations
@@ -37,8 +27,7 @@ def a_row(**kw):
 
 class TestTheClosedNine:
     def test_the_app_and_the_database_agree(self):
-        """Read off the live database on 2026-08-19. If Notion's options ever
-        drift from this list, rows stop grouping and the rule stops working."""
+        """Must match the live database's options, or rows stop grouping."""
         assert TAGS == (
             "obj-case", "loc-case", "gen-stem", "gradation", "verb-form",
             "ma-da-inf", "word-order", "vocab", "rektsioon",
@@ -80,14 +69,14 @@ class TestQueueing:
 
 class TestPushing:
     def test_no_token_is_a_refusal_not_a_crash(self, monkeypatch):
-        """A study session must never be interrupted by Notion being absent."""
+        """A study session is never interrupted by Notion being unreachable."""
         monkeypatch.delenv("NOTION_TOKEN", raising=False)
         ok, detail = push(a_row())
         assert ok is False
         assert "NOTION_TOKEN" in detail
 
     def test_a_failed_push_leaves_the_row_queued(self, log, monkeypatch):
-        """The queue is the record until Notion confirms it has one."""
+        """A failed push leaves the row queued."""
         monkeypatch.delenv("NOTION_TOKEN", raising=False)
         queue(log, a_row())
         ok, _ = push(a_row())
@@ -117,11 +106,9 @@ class TestPayload:
 
 
 class TestTheQueueCanActuallyBeDrained:
-    """Corrections could be queued from the app and pushed only by
-    `cli notion --push`. The CLI does not exist on the deployment — the
-    container is ephemeral and the learner is on a phone — so the queue filled
-    and never drained, and the readiness verdict counted queued rows as
-    writing evidence, measuring the queue rather than the log it feeds."""
+    """The queue can be drained from the app (`POST /api/notion/push`), since the CLI
+    does not exist on the deployment.
+    """
 
     @pytest.fixture
     def client(self, monkeypatch, tmp_path):
@@ -130,10 +117,7 @@ class TestTheQueueCanActuallyBeDrained:
         from eesti import app as app_module
         from eesti import config
 
-        # On `config`, which is where the queue is resolved from when it is
-        # opened. Patching `app.NOTION_DB` used to work because the routes
-        # closed over a copy bound at import; that copy is gone, and a patch
-        # nothing reads is a test that quietly stops testing.
+        # Patch `config.NOTION_DB`, where the queue is resolved from when opened.
         monkeypatch.setattr(config, "NOTION_DB", str(tmp_path / "n.db"))
         return TestClient(app_module.app)
 
@@ -167,15 +151,9 @@ class TestTheQueueCanActuallyBeDrained:
         assert client.get("/api/notion/pending").json()["can_push"] is True
 
     def test_it_takes_named_rows_not_the_whole_queue(self, client, monkeypatch):
-        """The Vead log is worth having only while it stays curated: three rows
-        sharing a tag become the focus of the week, and that rule is what
-        identified obj-case. An endpoint that drained the queue wholesale would
-        be the same mistake as appending every suspicion, one step later.
-
-        Tested by asking for a bulk push and being refused, rather than by
-        inspecting the signature — `from __future__ import annotations` makes
-        the annotation a string, and a test that reads it is testing the import
-        style."""
+        """The push endpoint refuses a bulk "send everything": only named rows are sent.
+        Tested by behaviour, not by reading the signature.
+        """
         from eesti import notion
 
         monkeypatch.setenv("NOTION_TOKEN", "t")
@@ -190,7 +168,7 @@ class TestTheQueueCanActuallyBeDrained:
         assert len(client.get("/api/notion/pending").json()["items"]) == 2
 
     def test_a_failed_row_stays_queued(self, client, monkeypatch):
-        """The queue is the record until Notion confirms it has one."""
+        """A failed push leaves the row queued."""
         from eesti import notion
 
         monkeypatch.setenv("NOTION_TOKEN", "t")

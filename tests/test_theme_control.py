@@ -1,21 +1,9 @@
-"""The Sõnavara teema control, and whether it does anything.
+"""The Teema control, and whether it does anything.
 
-A theme picks **words**; the path picks the **rule**. Two axes, and the page
-offered the word axis on every topic — including the seven drillable ones where
-there is no word to vary. Choosing *Kodu ja elamine* on `küsisõnad` produced
-exactly the same ten drills: no error, no note, no difference. That is
-indistinguishable from the app ignoring the click, and it is what a learner
-reported after trying it.
-
-It is also this project's most-repeated defect in a new costume. The list so
-far: a measurement nothing wrote to, an endpoint nothing called, a
-`[data-theme]` nothing set, a `kind="vocab"` nothing inserted, a `FAMILIAR`
-rung nothing wrote — and now a filter nothing applies.
-
-So the answer lives in exactly one function, `practice.theme_slot`, which the
-generator dispatch reads to build its `only` set and the API reads to tell the
-page whether to offer the control at all. These check that the three stay one
-thing.
+A theme picks words; the path picks the rule. Closed-class topics have no word
+to vary, so the control must not be offered there. `practice.theme_slot` is the
+single answer, read by the generator dispatch and by the API that tells the page
+whether to offer the control.
 """
 
 from __future__ import annotations
@@ -55,11 +43,7 @@ class TestTheAnswerIsWellFormed:
 
 
 class TestTheClaimMatchesTheGenerator:
-    """`items_for` computes one `only` set from `theme_slot` and hands it to
-    whichever generator owns the topic. It used to compute three sets up front
-    and pick between them at each branch, which is two places to keep in step —
-    and they were not in step: `vordlusastmed` and `jargarvud` were handed
-    `only=None` while the page offered them a theme."""
+    """`items_for` passes one `only` set, from `theme_slot`, to every generator branch."""
 
     def test_every_branch_passes_the_same_only(self):
         import inspect
@@ -87,8 +71,7 @@ class TestTheApiTellsThePageTheTruth:
             assert row["themed"] is expected, row["id"]
 
     def test_the_topic_that_prompted_this_is_marked_unthemed(self, client):
-        """`küsisõnad` is a closed class of question words. It was the topic on
-        screen when the control was reported as doing nothing."""
+        """`küsisõnad` (a closed class) has no theme slot."""
         rows = {r["id"]: r for r in client.get("/api/curriculum").json()["topics"]}
         assert rows["kusisonad"]["themed"] is False
         # ...and one that genuinely varies its nouns still offers it.
@@ -101,29 +84,19 @@ class TestThePageActsOnIt:
         assert re.search(r"sel\.disabled = true", page)
 
     def test_a_theme_is_not_sent_when_it_would_be_ignored(self, page):
-        """Disabling the control is not enough on its own: a value left in it
-        from a previous topic would still be posted."""
+        """A disabled control posts no leftover theme value."""
         assert 'const theme = themeApplies() ? $("#wordTheme").value : "";' in page
 
     def test_the_two_axes_are_named_on_screen(self, page):
-        """The learner's actual question was "is this list connected to that
-        select?". The answer is no, and nothing said so."""
+        """The page explains that the word list and the theme select are separate."""
         assert 'id="themeNote"' in page
         assert "Kogu rada" in page
 
 
 class TestTheDeadEnd:
-    """A legitimate choice that leads nowhere, measured rather than guessed.
-
-    Across the whole grid — 18 themed topics by 11 themes — **31 of 198 pairs
-    return fewer than three items and 6 return none**. A corpus cloze needs a
-    sentence *containing* a theme noun, which is far rarer than the noun
-    existing, so the corpus topics are worst: `mitmus × kodu`, `mitmus × ilm`,
-    `kohakaanded × riided` all come back empty.
-
-    The learner was told "Генератор «corpus_cloze» ничего не вернул" — which is
-    untrue and, worse, unactionable. The generator is fine. The way out is one
-    click, so it is a button.
+    """A theme × topic pair that yields nothing tells the learner and offers a
+    one-click retry without the theme (corpus topics often lack a sentence with a
+    theme noun).
     """
 
     def test_the_grid_still_has_dead_ends(self):

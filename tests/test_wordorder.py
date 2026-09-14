@@ -1,12 +1,7 @@
-"""Word order: the second-biggest error class, and why its items are attested.
+"""Word order: attested items, and the refusals that keep them sound.
 
-Of the 51 467 errors annotated in EVKK, `word-order` takes 11.4 % of all marks
-and 19.3 % of those the nine tags cover — second only to vocabulary — and it
-was one of three tags nothing in this app could practise.
-
-The interesting tests here are the refusals. Estonian word order is flexible,
-so a generated distractor is sometimes correct Estonian, and a drill that marks
-correct Estonian wrong teaches the opposite of the rule.
+Estonian word order is flexible, so a generated distractor is sometimes correct
+Estonian; items come from attested learner/native pairs that only re-order.
 """
 
 from __future__ import annotations
@@ -29,7 +24,7 @@ def pairs():
         # A native's re-ordering with no rule behind it.
         ("Praegu on talv ja minu esimene semester varsti lõpeb.",
          "Praegu on talv ja minu esimene semester lõpeb varsti."),
-        # Not a re-ordering: words were changed, so it is a different error.
+        # Not a re-ordering: words changed.
         ("Kellena küll saaksin?", "Kelleks küll saaksin?"),
     ]
 
@@ -52,10 +47,9 @@ class TestOnlyReorderingsAreKept:
         assert len(items) == 2
 
     def test_a_pair_that_also_moves_a_comma_is_not_kept(self):
-        """The item is a two-way choice, so every visible difference is
-        something the learner can answer on. Move two words and add a comma and
-        the comma is the easier tell — teaching punctuation under a label that
-        says `sõnajärg`."""
+        """Pairs that also change punctuation are refused: the comma would give the answer
+        away.
+        """
         assert not wordorder.is_reordering(
             "Tavaliselt enne valimisi muutuvad lehed poliitilisemaks, kirjutades neist.",
             "Tavaliselt muutuvad lehed enne valimisi poliitilisemaks, kirjutades, neist.")
@@ -89,10 +83,9 @@ class TestTheRuleIsOnlyClaimedWhereItCanBeRead:
         assert rule == "other"
 
     def test_the_v2_explanation_does_not_overstate_it(self):
-        """EKK (SÜ 90) says the finite verb is *usually* second and calls
-        inversion a means of emphasis. Measuring 1 000 native-corrected
-        sentences gave 75.4 % inversion in this shape. An absolute rule here
-        would have the learner "correcting" good Estonian."""
+        """The explanation says "обычно", as EKK (SÜ 90) does: the finite verb is usually
+        second.
+        """
         why = wordorder.WHY["v2"]
         assert "обычно" in why
         assert "всегда" not in why
@@ -135,7 +128,7 @@ class TestThePracticeShape:
         assert len(got) == 2
 
     def test_the_rule_bearing_item_comes_first(self, content):
-        """A session should open on the one that teaches something."""
+        """A session opens on the rules that teach something (v2, then negation)."""
         assert wordorder.generate(count=2, seed=1, content=content)[0].rule == "v2"
 
     def test_it_offers_exactly_two_whole_sentences(self, content):
@@ -163,7 +156,7 @@ class TestThePracticeShape:
         assert wordorder.generate(count=3, content=None, path=None) == []
 
     def test_the_topic_now_has_a_generator(self):
-        """`sonajark` was a dead end in the path: reachable and unpractisable."""
+        """`sonajark` has practice items."""
         from eesti.curriculum import by_id
 
         assert by_id("sonajark").generator == "wordorder"
@@ -185,13 +178,8 @@ class TestTheLicenceDecisionIsRecorded:
 
 
 class TestEveryFetchedPairFileIsRead:
-    """`grammar2_et` sat on the benchmark server for two years, unread.
-
-    It carries the same two columns as `grammar_et` and 17 more attested
-    re-orderings — a third again on a pool of 47, for the error class EVKK
-    ranks second-largest. The bug that hid it was not a parser: nothing asked
-    for the file. So the default is derived from the fetch table rather than
-    named here, and these tests are about that derivation, not about the file.
+    """The default input files are derived from the fetch table, so every fetched pair
+    file (including `grammar2_et`) feeds the pool.
     """
 
     def test_the_default_covers_every_gec_pair_file_the_fetcher_knows(self):
@@ -204,10 +192,7 @@ class TestEveryFetchedPairFileIsRead:
 
 
 class TestTheTwoSplitsOfGrammarEt:
-    """`grammar_et` is fetched twice — test for the eval track, train for the
-    drill pool — and the train split is eight times the size of the one the
-    fetch table used to name. Both land in `data/raw/bench/`, so the only thing
-    keeping them apart is the filename."""
+    """`grammar_et`'s test and train splits land in separate files."""
 
     def test_each_entry_names_its_own_file(self):
         """Keyed by filename, not by dataset. Keyed by dataset, the second
