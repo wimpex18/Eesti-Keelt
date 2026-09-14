@@ -29,7 +29,7 @@ no entry for at all (`päike`, `riided`…).
 The order was first written into the word card, then copied into the drill
 glosses and the graded-answer gloss, and missing from the vocabulary list and
 the review flashcards — five places, three of them in step. That is the shape
-this codebase keeps paying for (`docs/lessons.md`, *Derived, never
+this codebase keeps paying for (`.claude/rules/python.md`, *Derived, never
 hand-maintained*), so every flow now asks here.
 
 The Estonian definition has its own order (PSV → Sõnaveeb → VSL → EKSS) and is

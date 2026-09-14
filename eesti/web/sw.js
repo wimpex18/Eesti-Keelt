@@ -46,8 +46,7 @@
    retires an old shell: `activate` deletes every cache that is not the current
    one, so a redeploy that did not also edit this line left the previous
    `index.html` in the cache for ever -- and that page names the modules it
-   loads. A hand-bumped version is a hand-maintained list of one, and this
-   project has an entry in `docs/lessons.md` about every other one it has had. */
+   loads. A hand-bumped version is a hand-maintained list of one. */
 const VERSION = "dev";
 const SHELL = `shell-${VERSION}`;
 

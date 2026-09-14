@@ -541,7 +541,7 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 #: largest free allowances reachable from a server.
 #:
 #: The order weighs eval recall (all at precision 1.0) against how long the
-#: learner waits, both measured 2026-09-14 and tabled in `docs/ai-strategy.md`:
+#: learner waits, both measured 2026-09-14 and tabled in `docs/ai-providers.md`:
 #:
 #: * workers-ai, gpt-oss-120b: recall 0.8, 3-8 s — first.
 #: * nvidia, DeepSeek V4 Flash: recall 1.0, but 40-229 s per check on the free

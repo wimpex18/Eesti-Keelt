@@ -14,7 +14,7 @@ Three reasons, in order of how much they matter:
 
 1. **It is built for Estonian.** The University of Tartu's NMT models are trained
    on Estonian, not on 119 languages of which Estonian is one. The eval in
-   `docs/ai-strategy.md` is the whole argument: a 120B general model scored
+   `docs/ai-providers.md` is the whole argument: a 120B general model scored
    0.50/0.50 on Estonian object case. Translation is a narrower task, but the
    asymmetry is the same one.
 2. **It has never been down.** The grammar endpoint on the same host has failed

@@ -34,7 +34,7 @@ from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read th
 )
 # The four learner database paths are deliberately NOT re-exported here.
 #
-# They were, and `docs/lessons.md` has the entry: two names for one file is a
+# They were, and `.claude/rules/python.md` has the rule: two names for one file is a
 # fork waiting to happen. It happened twice. `app.py` first kept its own copies
 # bound at import, so `_state_paths()` read one set and the database helpers
 # the other and a restore could land in a file the app never opened. That was

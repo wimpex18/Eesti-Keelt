@@ -17,7 +17,7 @@ how often learners actually get them wrong.
 
 Where the levels come from
 --------------------------
-The A1 and B1 topic sets are the ones in `docs/curriculum-plan.md` Part 1, taken
+The A1 and B1 topic sets (see `docs/curriculum.md`) are taken
 from Estonian course curricula that agree because they track the same state
 standard. **A2 is a judgement call**, and worth flagging as one: the sources
 tabulate A1 and B1, so the topics conventionally taught in between — conditional,

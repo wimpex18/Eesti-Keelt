@@ -358,7 +358,7 @@ REGISTRY: tuple[Source, ...] = (
         "asserted *normatively* — the `rektsioon` drill marks an answer wrong "
         "and `rection.errors` corrects free writing — so a contrast ÕS has "
         "since revised would be taught stale. Checked as prose, not as code: "
-        "see docs/grammar-scope.md.",
+        "see docs/sources.md.",
     ),
     Source(
         "oma-materjal", "Oma materjal — käsitsi lisatud", "file",

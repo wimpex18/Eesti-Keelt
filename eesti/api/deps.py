@@ -4,7 +4,7 @@ Split out of `app.py` so that a router imports what it needs rather than the
 whole application. Every database here is resolved from `config` **when it is
 opened**, never from a copy bound at import: a path frozen at import cannot be
 pointed anywhere else, which is the bug this project has paid for often enough
-to have a rule about it (`docs/lessons.md`, *Paths, connections and state*).
+to have a rule about it (`.claude/rules/python.md`, *Paths, connections, state*).
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ def notion_db():
     This was the last path in the app read from a module global bound at
     import — the notion routes closed over `app.NOTION_DB` while every other
     database went through `config`, which is the two-homes-for-one-value shape
-    `docs/lessons.md` warns about. One source, read at call time.
+    `.claude/rules/python.md` warns about. One source, read at call time.
     """
     from .. import config
     from ..notion import connect
