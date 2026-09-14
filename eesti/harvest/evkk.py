@@ -1,48 +1,16 @@
 """EVKK — the Estonian Interlanguage Corpus, as a second opinion on priorities.
 
-Every drill in this app is weighted by **one** learner's error log. That log is
-real and it is the right thing to optimise for, but it cannot answer a question
-it is too small to see: *is object case actually hard for learners of Estonian,
-or is it just hard for me?*
+The learner's own error log is the first weight; EVKK (Tallinn University)
+shows whether an error is hard for learners in general. Its corpus-wide error
+mark counts are a public, server-rendered page.
 
-Tallinn University's Eesti vahekeele korpus is where that question gets an
-answer. It is a corpus of texts written by learners of Estonian, annotated by
-linguists against a published error taxonomy, and its **corpus-wide mark counts
-are served as a public page** — no login, no API key, server-rendered HTML.
-51 467 annotated errors, which is four orders of magnitude more evidence than a
-personal log.
+Fetched: the taxonomy and its counts, one cached page. **Not fetched:** the
+learner texts — the search is heavy on a research server and the texts carry no
+reuse grant.
 
-## What is fetched, and what is deliberately not
-
-Fetched: **the taxonomy and its counts** — 202 category names and how often each
-was applied. That is one small page, requested once and cached.
-
-Not fetched: **the learner texts themselves.** The corpus search works (POST to
-`Search/search_results.html`, plain form encoding, no JS) and would hand back
-authentic wrong sentences — the most tempting material in this whole project.
-Two reasons it stays untouched. A single-word query returned **6 MB**, and this
-is a research server with no rate limiting to protect it; and the site carries no
-explicit reuse grant, so the texts are other people's writing with no permission
-attached. The counts are facts about a published taxonomy. The texts are not.
-
-So this module answers "what should the curriculum weight?" and stops there.
-
-## What it found
-
-Counted strictly, object-case marks are **~1.3 %** of all annotated errors. The
-two largest categories are **verb rection (4 450)** and **word order (5 889)** —
-one of which this app had a tag for and no drills, and the other of which it
-barely modelled at all. That does not demote the personal log: the log is
-evidence about *this* learner and stays the first weight. It does say the
-curriculum should not assume one person's ranking generalises, and it makes the
-rection data that `providers/sonapi.py` returns considerably more valuable than
-it looked when it was wired.
-
-Counts are **annotation** frequencies, not incidence rates. They reflect what
-annotators chose to mark and what the sub-corpora contain (exam essays are
-heavily represented), and a parent category is often marked where a specific
-child would have done — `põhikäänded` carries 1 331 marks of its own. Read the
-ordering, not the absolute numbers.
+Among the tags, word order and verb rection are the largest annotated classes
+after vocabulary; object case is small. Counts are annotation frequencies (a
+parent category often absorbs marks), so read the ordering, not the numbers.
 """
 
 from __future__ import annotations
@@ -54,14 +22,8 @@ from pathlib import Path
 TAXONOMY_URL = "https://evkk.tlu.ee/vers1/Marks/global_marks/marks_public.html"
 TIMEOUT = 60.0
 
-#: Five, not three, and the extra two were measured rather than guessed.
-#:
-#: On 2026-09-11 this host answered 500 on two consecutive attempts and
-#: succeeded on the third, and its successful response took 21 seconds. Three
-#: retries back off 1 s and 2 s, so the whole budget was about three seconds
-#: against a server that is slow when it works — and the failure lands on a
-#: command whose entire job is one request for a page that never changes.
-#: Five gives 1 + 2 + 4 + 8 s, which is nothing next to re-running a harvest.
+#: Five retries (backoff 1+2+4+8 s): the host is slow and intermittently answers
+#: 500, and this is one request for a page that never changes.
 RETRIES = 5
 UA = "Eesti-Keelt/0.1 (personal language-learning tool)"
 
@@ -96,8 +58,7 @@ def parse(page: str) -> list[Mark]:
     marks: list[Mark] = []
     for m in _ROW_RE.finditer(page):
         path = tuple(p for p in m.group(1).split("/") if p)
-        # Was `sub("")`, which turned `<p>Esimene</p><p>Teine</p>` into the
-        # single word `EsimeneTeine`.
+        # Replace tags with a space so adjacent paragraphs do not merge into one word.
         name = _clean_markup(m.group(2))
         name = re.sub(r"\s+", " ", name).strip()
         # A handful of nodes carry no label and render their own id. They are
@@ -134,15 +95,9 @@ def subtree_totals(marks: list[Mark]) -> dict[str, int]:
     return totals
 
 
-# Our nine error tags, expressed in EVKK's vocabulary. Each entry is a list of
-# taxonomy node names; a node contributes its whole subtree unless it is listed
-# in LEAF_ONLY, which is the exclusion list for a name that would otherwise
-# swallow children belonging to a different tag of ours. It is currently empty
-# — see the note under it.
-#
-# Written out by hand against the taxonomy, so it is auditable: every string
-# below appears verbatim on the EVKK page, and `unmapped()` reports whatever
-# these lines fail to claim rather than letting it vanish.
+# Our nine error tags in EVKK's vocabulary: taxonomy node names whose subtrees
+# count toward each tag (except nodes in LEAF_ONLY). Every string appears verbatim
+# on the EVKK page; `unmapped()` reports what is not claimed.
 TAG_MAP: dict[str, tuple[str, ...]] = {
     "obj-case": (
         "Tegevuse piiritletus/piiritlematus",
@@ -180,23 +135,9 @@ TAG_MAP: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# `Leksikaalsed` is a top-level category whose subtree is genuinely all
-# vocabulary, so it is not here. This set is for names that would otherwise
-# swallow children we map elsewhere.
-#
-# **It is empty, and that is a finding rather than an oversight.** The comment
-# above `TAG_MAP` said it "exists because two of these names sit above children
-# that belong to a different tag of ours", which described a hazard that the
-# current map does not have: checked against the live taxonomy on 2026-09-11,
-# none of the sixteen mapped nodes is an ancestor of another mapped node
-# carrying a different tag, so nothing is double-counted and there is nothing
-# to exclude.
-#
-# The mechanism stays, because the hazard is real the moment `TAG_MAP` grows.
-# What changed is that the claim is now checked rather than asserted:
-# `tests/test_evkk_mapping.py` fails if a mapped subtree ever swallows a node
-# mapped elsewhere without that node being listed here. A guard nobody can see
-# working is a guard nobody can see break.
+# Names whose subtree would swallow children mapped to a different tag. Currently
+# empty: no mapped node is an ancestor of another; `tests/test_evkk_mapping.py`
+# fails if that changes without an entry here.
 LEAF_ONLY: frozenset[str] = frozenset()
 
 
