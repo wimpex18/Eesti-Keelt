@@ -87,7 +87,13 @@ class GrammarResult:
     engine: str
     corrections: list[Correction] = field(default_factory=list)
     degraded: bool = False
+    #: For the learner, in Russian: shown in the writing banner.
     note: str = ""
+    #: For the operator: which lanes were tried and how each failed
+    #: (`llm:groq: HTTPError 403 (non-json)`). It was appended to `note` until
+    #: 2026-09-14, so the learner's banner carried English stack-trace
+    #: vocabulary; the smoke workflow reads this field instead.
+    diagnostics: str = ""
     # True when the input was not typed by the learner — a speech transcript,
     # where the recogniser may have introduced the "error" being reported.
     # Advisory results are shown and never recorded: they must not reach the
@@ -101,6 +107,7 @@ class GrammarResult:
             "degraded": self.degraded,
             "advisory": self.advisory,
             "note": self.note,
+            "diagnostics": self.diagnostics,
             "corrections": [c.to_dict() for c in self.corrections],
         }
 
@@ -422,13 +429,28 @@ class VabamorfFallback:
             self.name,
             corrections + flagged,
             degraded=True,
-            note=(
-                "Офлайн-режим: показаны кандидаты на obj-case и опечатки, "
-                "но без проверки правильности. Для полного разбора задай ключ "
-                "любого провайдера: HF_TOKEN, OPENROUTER_API_KEY, "
-                "GROQ_API_KEY или CLOUDFLARE_API_TOKEN."
-            ),
+            note=_offline_note(),
         )
+
+
+#: The keys that turn on a lane able to explain a correction.
+EXPLAINING_KEYS = ("MISTRAL_API_KEY", "NVIDIA_API_KEY", "OPENROUTER_API_KEY", "CLOUDFLARE_API_TOKEN", "HF_TOKEN")
+
+
+def _offline_note() -> str:
+    """What the learner reads when only the offline check answered.
+
+    It said "set a key" whatever the reason, and on 2026-09-14 production had
+    four keys set and every lane failing (a timeout, a 400, a 429, a 403): the
+    learner was told to fix a configuration that was there. Absent keys and
+    failing services are different situations, and only one of them is the
+    learner's to do anything about — and not even that one, really.
+    """
+    base = "Офлайн-режим: показаны кандидаты на obj-case и опечатки, но без проверки правильности."
+    if any(os.environ.get(k) for k in EXPLAINING_KEYS):
+        return base + " Сервисы разбора сейчас не ответили — попробуй ещё раз позже."
+    return (base + " Для полного разбора задай ключ любого провайдера: "
+            + ", ".join(EXPLAINING_KEYS[:-1]) + " или " + EXPLAINING_KEYS[-1] + ".")
 
 
 # Tags whose evidence a speech transcript cannot support.
@@ -513,7 +535,25 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 # exactly that reason. Anything added to `PROVIDERS` and not to this tuple is
 # dead weight; a test asserts the two agree, which is what forced this line to
 # be edited when the provider came back.
-LLM_PREFERENCE = ("local", "huggingface", "openrouter", "groq", "workers-ai")
+#: Groq left the chain on 2026-09-14: its Cloudflare front refuses datacenter IP
+#: ranges by design ("Access denied. Please check your network settings"), so a
+#: Cloud Run container can never reach it. NVIDIA and Mistral joined as the
+#: largest free allowances reachable from a server.
+#:
+#: The order is Estonian quality first, then how much free use survives a day.
+#: Tartu's human-vote Estonian leaderboard (baromeeter.tartunlp.ai, updated
+#: 2026-05-31, open and API models only) puts Mistral Large 3 first (1470),
+#: DeepSeek V3 second (1457) and Kimi K2 third (1439); NVIDIA serves their
+#: successors. Workers AI goes ahead of OpenRouter because OpenRouter's free
+#: tier is 50 requests a day and a 429 still spends one. Re-order on an eval
+#: run, not on this comment.
+LLM_PREFERENCE = ("local", "huggingface", "mistral", "nvidia", "workers-ai", "openrouter")
+
+#: Lanes defined in `PROVIDERS` and deliberately left out of the chain, each with
+#: the reason. The only way past the "defined but never tried" check.
+NOT_IN_CHAIN = {
+    "groq": "refuses datacenter IPs; kept for `cli models` and evals from a laptop",
+}
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
@@ -621,6 +661,11 @@ def why_failed(exc: BaseException) -> str:
     if isinstance(exc, urllib.error.HTTPError):
         code = _error_code(exc)
         return f"HTTPError {exc.code} ({code})" if code else f"HTTPError {exc.code}"
+    from .llm import EmptyReply
+
+    if isinstance(exc, EmptyReply):
+        # `finish_reason` is the API's identifier (`length`, `stop`), never prose.
+        return f"empty reply ({exc.finish_reason})"
     return type(exc).__name__
 
 
@@ -795,6 +840,7 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
         result.corrections + extra,
         degraded=result.degraded,
         note=result.note,
+        diagnostics=result.diagnostics,
     )
 
 
@@ -819,8 +865,7 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             result = provider.check(text)
             _record_success(provider.name)
             if tried:
-                result.note = (result.note + " | " if result.note else "") + \
-                    "skipped -> " + "; ".join(tried)
+                result.diagnostics = "skipped -> " + "; ".join(tried)
             return _merge_spelling(text, result)
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
             _record_failure(provider.name)
@@ -829,4 +874,7 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")
 
-    return GrammarResult("none", [], degraded=True, note="; ".join(tried))
+    return GrammarResult(
+        "none", [], degraded=True,
+        note="Проверка сейчас недоступна — ни один сервис разбора не ответил. Попробуй позже.",
+        diagnostics="; ".join(tried))

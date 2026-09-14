@@ -151,7 +151,14 @@ PROVIDERS: dict[str, Provider] = {
         # model for Estonian morphosyntax buys the weakest axis of the most
         # expensive option -- see `docs/ai-strategy.md`, which keeps the old
         # recommendation and the argument that overturned it.
-        "google/gemma-4-31b-it:free",
+        #
+        # Re-pinned 2026-09-14, on the project's own eval this time: the Gemma
+        # id above answered 429 to 18 of 18 cases (the free model saturated,
+        # the key fine), and `dots-studio/dots-3-note-preview:free` scored
+        # precision 1.0 — no correct sentence flagged — and recall 0.714 on the
+        # same cases (eval run 34811299690). A pin that answers nothing loses
+        # to one that answers precisely.
+        "dots-studio/dots-3-note-preview:free",
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
@@ -177,6 +184,30 @@ PROVIDERS: dict[str, Provider] = {
     # The active-parameter objection stands and is not settled by this choice.
     # `GROQ_MODEL` is why it does not have to be: trying qwen against the eval
     # is an environment variable, not a redeploy.
+    # NVIDIA Build (NIM API): OpenAI-compatible, no card, 40 requests a minute
+    # on the free developer programme, and the widest catalogue of new open
+    # models reachable from a datacenter (82 listed publicly, 2026-09-14).
+    # DeepSeek V4 Pro is the newest large general model in it. JSON mode is not
+    # documented per model there, so the lane does not ask for it: the prompt
+    # already demands JSON and `parse_json` tolerates a fenced block.
+    "nvidia": Provider(
+        "nvidia",
+        "https://integrate.api.nvidia.com/v1",
+        "NVIDIA_API_KEY",
+        "deepseek-ai/deepseek-v4-pro-0813",
+        "Free NVIDIA Developer Program key, 40 req/min; 100+ hosted models.",
+        json_mode=False,
+    ),
+    # Mistral La Plateforme, Experiment plan: free, no card, about a billion
+    # tokens a month across every API model, Large included. `-latest` is
+    # Mistral's own stable alias, so a new Large release needs no re-pin.
+    "mistral": Provider(
+        "mistral",
+        "https://api.mistral.ai/v1",
+        "MISTRAL_API_KEY",
+        "mistral-large-latest",
+        "Free Experiment plan, ~1B tokens/month, rate-limited.",
+    ),
     "groq": Provider(
         "groq",
         "https://api.groq.com/openai/v1",
@@ -280,6 +311,27 @@ def _base_url(provider: Provider) -> str:
     return provider.base_url
 
 
+class EmptyReply(RuntimeError):
+    """The provider answered, with no text in it."""
+
+    def __init__(self, finish_reason: str):
+        super().__init__(f"empty reply (finish_reason={finish_reason})")
+        self.finish_reason = finish_reason
+
+
+def _user_agent() -> str:
+    """This app's own User-Agent, the one `net.py` already sends everywhere else.
+
+    Without it urllib announces itself as `Python-urllib/3.x`, and Groq's
+    Cloudflare front refuses that signature outright: `403`, body `error code:
+    1010` — measured from both Cloud Run and a GitHub runner on 2026-09-14. The
+    lane had a valid key and never reached the model.
+    """
+    from ..net import UA
+
+    return UA
+
+
 def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
     """Fetch the provider's live catalogue.
 
@@ -287,11 +339,22 @@ def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
     check whether a pinned id still exists.
     """
     provider = PROVIDERS[provider_name]
-    req = urllib.request.Request(f"{_base_url(provider)}/models")
+    url = f"{_base_url(provider)}/models"
+    if provider.name == "workers-ai":
+        # Cloudflare's OpenAI-compatible base (`/ai/v1`) serves chat
+        # completions, not a catalogue: `GET /ai/v1/models` answered 405 and the
+        # eval died before scoring (2026-09-14). The catalogue is the documented
+        # `GET /accounts/{id}/ai/models/search`, whose models sit in `result`
+        # under `name`.
+        url = _base_url(provider).removesuffix("/v1") + "/models/search"
+    req = urllib.request.Request(url, headers={"User-Agent": _user_agent()})
     if provider.api_key:
         req.add_header("Authorization", f"Bearer {provider.api_key}")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read()).get("data", [])
+        body = json.loads(resp.read())
+    if provider.name == "workers-ai":
+        return [{**m, "id": m.get("name") or m.get("id", "")} for m in body.get("result") or []]
+    return body.get("data", [])
 
 
 def probe(provider_name: str, model: str) -> bool:
@@ -373,7 +436,7 @@ def complete(
     # A keyless lane -- a local server -- has nothing to authenticate, and
     # `Bearer None` is a header that happens to work only because Ollama
     # ignores it. Send it when there is a key and not when there is not.
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": _user_agent()}
     if provider.api_key:
         headers["Authorization"] = f"Bearer {provider.api_key}"
 
@@ -388,7 +451,15 @@ def complete(
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read())
-            return body["choices"][0]["message"]["content"]
+            choice = body["choices"][0]
+            content = choice["message"].get("content")
+            if not content:
+                # A reasoning model that spends its budget thinking answers
+                # `content: null`, and `parse_json(None)` raised AttributeError —
+                # 3 of 18 cases on dots-3-note-preview (2026-09-14), reported as
+                # a bare `ERROR AttributeError` that named nothing.
+                raise EmptyReply(choice.get("finish_reason") or "unknown")
+            return content
         except urllib.error.HTTPError as exc:
             if attempt == RETRIES - 1:
                 raise

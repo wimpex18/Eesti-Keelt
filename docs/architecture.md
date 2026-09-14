@@ -110,9 +110,11 @@ pair first.
 working, so the name still looks right while every call 404s. Verified live in
 August 2026: `openai/gpt-oss-120b:free` is **absent** from OpenRouter's catalogue
 while `openai/gpt-oss-120b` still exists. The pinned default is
-`google/gemma-4-31b-it:free`, re-verified present on 2026-08-20 and advertising
-`response_format` — which is the capability the client actually sends, and a
-*different* one from `structured_outputs`.
+`dots-studio/dots-3-note-preview:free` since 2026-09-14, chosen on the eval:
+`google/gemma-4-31b-it:free`, the previous pin, answered 429 to every case while
+dots-3 scored precision 1.0, recall 0.714. It advertises `response_format` —
+the capability the client actually sends, and a *different* one from
+`structured_outputs`.
 
 ```bash
 python -m eesti.cli models --provider openrouter   # re-probe the catalogue

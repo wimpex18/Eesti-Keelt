@@ -293,9 +293,16 @@ was picked as its replacement on the strength of the OmniGEC result, which is a
 **downgrade on this axis** — the opposite of what a low-resource language needs.
 That was caught by reading the architectures rather than the model names.
 
-So the default is **`google/gemma-4-31b-it:free`**: the most active capacity of
+So the default was **`google/gemma-4-31b-it:free`**: the most active capacity of
 any free option, Gemma lineage (OmniGEC found Gemma's largest multilingual GEC
 gain was on Estonian, +8.25 GLEU), and it accepts the parameter we send.
+
+**Superseded 2026-09-14, by measurement.** The Gemma id answered 429 to 18 of 18
+eval cases — the free model saturated — while `dots-studio/dots-3-note-preview:free`
+scored precision 1.0, recall 0.714 (run 34811299690), and it is the pin now. The
+chain also gained two free lanes, Mistral (`mistral-large-latest`) and NVIDIA
+(`deepseek-ai/deepseek-v4-pro-0813`), and lost Groq, whose firewall refuses
+datacenter IPs.
 
 One trap worth recording: **`structured_outputs` and `response_format` are
 different capabilities.** The eval workflow filtered its model list on the

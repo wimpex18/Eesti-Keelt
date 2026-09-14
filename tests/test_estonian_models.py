@@ -450,8 +450,9 @@ class TestTheRouterPicksAProviderByWhatTheRequestAsksFor:
         per-provider exception and not a default."""
         from eesti.providers.llm import PROVIDERS
 
+        # nvidia: NIM does not document JSON mode per model (llm.py says why).
         for name, provider in PROVIDERS.items():
-            if name != "huggingface":
+            if name not in ("huggingface", "nvidia"):
                 assert provider.json_mode is True, name
 
     def test_the_payload_omits_response_format_for_that_lane(self, monkeypatch):
