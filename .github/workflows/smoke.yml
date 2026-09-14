@@ -177,15 +177,18 @@ jobs:
           #     A failed lookup falls through to the "could not compare"
           #     warning below rather than failing the run: somebody else's bad
           #     minute is not this app's outage.
-          # Which question this run is answering. Minutes after a merge,
-          # "older" means Cloud Build has not finished. A day later, on the
-          # schedule, it means the build failed or never ran -- a different
-          # diagnosis, and telling a reader to "re-run in a few minutes" when
-          # the build died a day ago sends them somewhere there is nothing to
-          # find.
-          WHEN="just after the merge"
+          # Which question this run is answering: decided by how long ago
+          # `main`'s head was committed, not by what fired the run. Minutes
+          # after a merge, "older" means Cloud Build has not finished. Past the
+          # build window it means the build failed or never ran.
+          #
+          # This was decided by the trigger, and a manual dispatch counted as
+          # "scheduled": on 2026-09-13 a run dispatched four minutes after a
+          # merge reported "the build FAILED or never ran", sent the operator
+          # into Cloud Shell, and the image landed two minutes later. A
+          # diagnosis that depends on the button pressed rather than the clock
+          # is a guess.
           if [ -z "$TRIGGER_COMMIT_AT" ] && [ -n "$GH_TOKEN" ]; then
-            WHEN="scheduled"
             TRIGGER_COMMIT_AT="$(curl -sf \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
@@ -197,6 +200,9 @@ jobs:
           run cannot say whether the image it checked is the current one."
           fi
 
+          # Cloud Build takes 10–15 minutes to build and deploy; past this a
+          # stale image is a failed build, not a slow one.
+          BUILD_WINDOW=$(( 25 * 60 ))
           if [ -n "$built" ] && [ -n "$TRIGGER_COMMIT_AT" ]; then
             built_at="$(date -u -d "$built" +%s 2>/dev/null || echo 0)"
             commit_at="$(date -u -d "$TRIGGER_COMMIT_AT" +%s 2>/dev/null || echo 0)"
@@ -204,17 +210,21 @@ jobs:
               echo "::warning::Could not compare the build stamp ('$built') \
           with the triggering commit ('$TRIGGER_COMMIT_AT'), so this run cannot \
           say whether it is looking at the new image."
-            elif [ "$built_at" -lt "$commit_at" ] && [ "$WHEN" = "scheduled" ]; then
+            elif [ "$built_at" -lt "$commit_at" ] && \
+                 [ $(( $(date -u +%s) - commit_at )) -gt "$BUILD_WINDOW" ]; then
               echo "::warning::STALE IMAGE — built $built, older than main's \
-          head ($TRIGGER_COMMIT_AT), and this is a scheduled run rather than one \
-          minutes after a merge. Cloud Build has had time and the image is still \
-          behind, so the build FAILED or never ran for that commit. Everything \
-          below describes an older deployment. Check the Cloud Build history."
+          head ($TRIGGER_COMMIT_AT), which was committed more than \
+          $(( BUILD_WINDOW / 60 )) minutes ago. Cloud Build has had time and the \
+          image is still behind, so the build FAILED or never ran for that \
+          commit. Everything below describes an older deployment. Check the \
+          Cloud Build history."
             elif [ "$built_at" -lt "$commit_at" ]; then
-              echo "::warning::STALE IMAGE — built $built, before the commit \
-          that triggered this run ($TRIGGER_COMMIT_AT). Cloud Build had not \
-          finished yet, so everything below describes the PREVIOUS deployment, \
-          not the change just merged. Re-run this workflow in a few minutes."
+              echo "::warning::STALE IMAGE — built $built, before main's head \
+          ($TRIGGER_COMMIT_AT), committed $(( ($(date -u +%s) - commit_at) / 60 )) \
+          minutes ago. Cloud Build had not \
+          finished yet (it takes 10–15 minutes), so everything below describes \
+          the PREVIOUS deployment, not the change just merged. Re-run this \
+          workflow in a few minutes."
             else
               echo "image is current ........ OK (built $built, after \
           $TRIGGER_COMMIT_AT)"
@@ -366,7 +376,33 @@ jobs:
             esac
           fi
 
-          # 9. The reading library, and the join that makes it reachable.
+          # 9. Which live dictionary answers the word card.
+          #
+          #    `EKILEX_API_KEY` switches it from the Sõnaveeb mirror to EKI's
+          #    own Ekilex API, and nothing else in this run could see which one
+          #    is in effect: the key can be set on a revision that gets no
+          #    traffic, or on an image that predates the code reading it — both
+          #    looked healthy above. One word, asked once: the answer is kept in
+          #    the store, so later runs spend nothing. A warning, never a
+          #    failure — without a key the card works, from the mirror.
+          card="$(curl -s "${auth[@]}" "$URL/api/enrich/poiss")"
+          # The first field a live dictionary answered: with the mirror, PSV's
+          # learner wording can hold the definition slot, so the definition
+          # alone would not name it.
+          live="$(jq -r '[.definition_source, .russian_source, .full_definition_source]
+            | map(select(. == "ekilex" or . == "sonapi")) | first // ""' \
+            <<<"$card" 2>/dev/null)"
+          case "$live" in
+            ekilex) echo "live dictionary ......... OK (Ekilex)" ;;
+            sonapi) echo "::warning::The word card reads the Sõnaveeb mirror, \
+          not Ekilex — EKILEX_API_KEY is not in effect on the serving revision. \
+          Run 'bash deploy/check-service.sh' in Cloud Shell." ;;
+            *)      echo "::warning::The word card named no live dictionary \
+          — Ekilex and the mirror both unanswered, \
+          or over today's lookup budget." ;;
+          esac
+
+          # 10. The reading library, and the join that makes it reachable.
           #
           #    A warning, not an error, in both directions: an unharvested
           #    deployment is a supported state, and so is a corpus whose

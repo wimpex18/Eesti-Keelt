@@ -49,11 +49,12 @@ for LINE in "${SERVICES[@]}"; do
     | tr ';' ' ')"
   echo "   env: ${NAMES:-none}"
 
-  # The four things whose absence is silent, and what each one costs.
+  # The things whose absence is silent, and what each one costs.
   for pair in \
     "PROXY_TOKEN|the run.app URL answers the whole internet" \
     "HF_TOKEN OPENROUTER_API_KEY GROQ_API_KEY CLOUDFLARE_API_TOKEN|grammar has no explanations, so nothing reaches the Notion log" \
-    "NOTION_TOKEN|confirmed errors queue locally and never push"
+    "NOTION_TOKEN|confirmed errors queue locally and never push" \
+    "EKILEX_API_KEY|the word card reads the third-party Sõnaveeb mirror instead of EKI's Ekilex API"
   do
     want="${pair%%|*}"; cost="${pair#*|}"
     found=""
