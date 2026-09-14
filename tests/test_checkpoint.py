@@ -1,8 +1,5 @@
-"""End-of-level checkpoints.
-
-What a checkpoint measures is different from what a topic gate measures, and
-most of these tests are about keeping that distinction real: mixed rather than
-blocked, diagnostic rather than punitive.
+"""End-of-level checkpoints: mixed rather than blocked, diagnostic rather than
+punitive.
 """
 
 from __future__ import annotations

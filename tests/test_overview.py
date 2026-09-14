@@ -80,9 +80,7 @@ def test_the_caveat_is_in_russian():
 
 
 def test_the_resume_topic_is_named_not_just_keyed(dbs):
-    """`next` is an id because the practice endpoint takes an id. The screen
-    was printing that id — `kusisonad` — which is a database key, not
-    something a learner recognises."""
+    """The status screen names the next topic, not its id."""
     rada = overview(progress=dbs["progress"])["sections"]["rada"]
     assert rada["next"]
     assert rada["next_et"] and rada["next_et"] != rada["next"]

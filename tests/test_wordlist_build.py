@@ -1,15 +1,5 @@
-"""Importing the word list, and the cache that outlived it.
-
-`wordlist.py` sat at 49 % coverage. The untested half is the build path — the
-TSV importer and the Vabamorf cache — which is the same shape as `export.py`,
-where the two worst defects of this session were hiding.
-
-`build()`'s docstring said "Idempotent — safe to re-run after a refresh". That
-was true of `words` and false of everything derived from it. It replaced the
-word list and left `object_cases` alone, and `index_object_cases` skips any
-word it already has — so a refresh could neither drop a cached paradigm for a
-word upstream had removed, nor recompute one whose part of speech had been
-corrected. The cache was write-once for the life of the database.
+"""Importing the word list: `build()` is safe to re-run, and it rebuilds the derived
+`object_cases` cache so removed or re-tagged words are recomputed.
 """
 
 from __future__ import annotations
@@ -86,9 +76,7 @@ class TestTheDerivedCacheCannotOutliveItsSource:
         assert db.execute("SELECT COUNT(*) FROM object_cases").fetchone()[0] == 0
 
     def test_no_row_survives_for_a_word_that_is_gone(self, db, source):
-        """The orphan this used to leave was invisible to drills — they join on
-        `words` — but it accumulated, and it meant a corrected paradigm could
-        never be recomputed."""
+        """No cached paradigm survives for a word the word list no longer has."""
         wordlist.build(db, raw_dir=source([row("raamat"), row("ajaleht", "500", "A2")]))
         wordlist.index_object_cases(db)
         wordlist.build(db, raw_dir=source([row("raamat")]))

@@ -1,8 +1,7 @@
 """EKI's last-fallback dictionaries: VSL and EKSS (definitions), HAR (Russian).
 
-Fixtures are the real files' shapes, trimmed from real articles (measured
-2026-09-13). The order these sit in is the point: they fill a gap only after
-the learner-level source and Sõnaveeb have both had nothing.
+Fixtures follow the real files' shapes, trimmed from real articles. These fill a
+gap only after the learner-level source and the live dictionary have nothing.
 """
 
 from __future__ import annotations
@@ -125,8 +124,9 @@ class TestLabels:
 
 
 class TestEveryFlowAsksTheSamePlace:
-    """The Russian order was copied into three flows and missing from two.
-    Each is checked against `meaning.py` with one word only EVS knows."""
+    """Every flow that shows Russian follows `meaning.py`'s order, checked with a word
+    only EVS knows.
+    """
 
     @pytest.fixture
     def evs_only(self, tmp_path, monkeypatch):
@@ -148,8 +148,7 @@ class TestEveryFlowAsksTheSamePlace:
         assert vocab._glosses(wordlist.connect(), store, ["tugitool"]) == {"tugitool": "кресло, стул"}
 
     def test_a_meaning_flashcard_can_be_made_from_it(self, evs_only):
-        """It refused with "перевод пока неизвестен" while Sõnaveeb's store was
-        the only place it looked."""
+        """Mining a word only EVS translates produces a meaning card."""
         from eesti import mining, review
 
         conn = review.connect(evs_only.parent / "review.db")
@@ -187,8 +186,7 @@ class TestTheCard:
 
 class TestTheOrderLivesInOnePlace:
     def test_no_module_but_meaning_reads_the_russian_tables(self):
-        """The order was copied into three flows and forgotten in two. A flow
-        that reads `evs`/`har` itself has started a sixth copy."""
+        """No flow reads `evs`/`har` directly instead of through `meaning.py`."""
         import re
         from pathlib import Path
 
@@ -204,7 +202,7 @@ class TestTheOrderLivesInOnePlace:
 
 
 class TestHeadwordMarks:
-    """Every mark a real file uses, one case each (measured 2026-09-13)."""
+    """Every headword mark a real file uses, one case each."""
 
     @pytest.mark.parametrize("raw, lemmas", [
         ("tehase|märk", ["tehasemärk"]),          # EKSS, 28 276

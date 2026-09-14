@@ -1,9 +1,6 @@
-"""Blocked practice handing off to interleaved review.
-
-Two arrows: a missed item goes into the queue already marked missed, and a
-mastered topic seeds the queue with a sample. The tests care most about what
-must *not* happen — a reset schedule, a collapsed identity, or a topic that
-quietly never reaches the review pool.
+"""Blocked practice handing off to interleaved review: a missed item enters the queue
+marked missed, a mastered topic seeds a sample, schedules are never reset, and no
+mastered topic stays outside the review pool.
 """
 
 from __future__ import annotations
@@ -121,13 +118,7 @@ class TestPendingHandoffs:
 
 
 class TestInterleaving:
-    """Step 5's whole purpose: practice is blocked, review is interleaved.
-
-    It did not hold when first built. Items enter in batches of six the moment a
-    topic is mastered, so they carry near-identical due times, and ordering by
-    due date handed them back in insertion order — all of one topic, then all of
-    the next. Blocked review, from the module whose job was to end it.
-    """
+    """Due items are interleaved across topics, not returned in insertion order."""
 
     def test_a_session_alternates_between_topics(self, reviews):
         for topic in ("kusisonad", "olevik", "tingiv"):
@@ -156,7 +147,7 @@ class TestInterleaving:
         assert order.count("kusisonad") == 2 and order.count("olevik") == 5
 
     def test_a_single_topic_request_is_left_alone(self, reviews):
-        """Asking for one topic is a deliberate drill-down, not a session."""
+        """Asking for one topic is a drill-down, not interleaved."""
         handoff.seed_mastered(reviews, "olevik", seed=1)
         handoff.seed_mastered(reviews, "kusisonad", seed=1)
         got = review.due(reviews, limit=10, kind="olevik")

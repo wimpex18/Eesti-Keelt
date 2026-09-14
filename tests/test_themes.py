@@ -1,9 +1,7 @@
-"""Themes: the axis that lets one grammar topic be drilled over one situation.
+"""Themes: one grammar topic drilled over one situation's words.
 
-The theme lists are hand-picked — "which words belong to *food*" is a curatorial
-judgement, not a derivable fact — so the tests check the things judgement gets
-wrong: words that are not real, words above the learner's level, and words you
-cannot have two of.
+Theme lists are hand-picked, so the tests check what curation gets wrong: words
+that are not real, words above the level, and uncountable nouns in numeral drills.
 """
 
 from __future__ import annotations
@@ -99,7 +97,7 @@ class TestThemedPractice:
         assert {i.lemma for i in items} <= allowed
 
     def test_themes_and_topics_recombine(self, words):
-        """The point of separating the axes: no lesson is written, they compose."""
+        """Theme and topic compose without a written lesson."""
         pairs = [
             (topic, theme.id)
             for topic in ("lihtminevik", "tingiv", "olevik")
@@ -114,8 +112,7 @@ class TestThemedPractice:
         assert produced >= len(pairs) * 0.7
 
     def test_a_closed_class_topic_ignores_the_theme_rather_than_failing(self, words):
-        """Question words have no vocabulary to vary; a lesson that silently
-        produced zero items would be worse than one thematic in half its parts."""
+        """Topics with no vocabulary to vary ignore the theme instead of returning nothing."""
         assert items_for("kusisonad", count=3, seed=1, theme="toit")
 
     def test_an_impossible_pairing_returns_empty_not_an_error(self, words):

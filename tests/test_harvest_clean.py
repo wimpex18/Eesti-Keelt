@@ -1,16 +1,8 @@
-"""One cleaner for four harvesters, and the three defects that came of four.
+"""One markup cleaner shared by the harvesters.
 
-Each harvester carried its own `_TAG_RE = re.compile(r"<[^>]+>")` and its own
-idea of what else to do with it. On one line of input they produced three
-different answers, and every difference reached the learner:
-
-  * `err.py` never decoded entities, so `&#8211;` appeared as literal
-    characters in 27 000 words of transcript — the richest text in the corpus,
-    and reachable from the app since the listening shelf was wired up;
-  * `evkk.py` replaced tags with nothing rather than a space, so
-    `<p>Esimene</p><p>Teine</p>` became the single word `EsimeneTeine`;
-  * all four left a space before a full stop wherever an inline tag had been,
-    which the punctuation drill then showed as correct Estonian.
+Guarantees: entities decoded (`&#8211;` → `–`); tags become spaces, so
+`<p>Esimene</p><p>Teine</p>` stays two words; no space left before punctuation
+where an inline tag was.
 """
 
 from __future__ import annotations
@@ -62,7 +54,7 @@ class TestWhatItMustNotBreak:
 
 
 class TestNobodyKeepsAPrivateCopy:
-    """The root cause was four copies, not any one of the three bugs."""
+    """Every harvester uses the shared cleaner, not its own tag regex."""
 
     def test_no_harvester_defines_its_own_tag_regex(self):
         from pathlib import Path

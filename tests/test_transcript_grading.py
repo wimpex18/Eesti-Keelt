@@ -1,13 +1,8 @@
-"""Grading a transcript stays here, and stays deterministic.
+"""Grading a transcript stays in the app and stays deterministic.
 
-Recognition moved to the Worker's AI binding -- it needs no API token, so the
-origin never holds a credential that could edit Workers. What did **not** move
-is the judgement. The Worker sends back only what Whisper heard; the target
-sentence is known to this app, so comparing them is string alignment rather
-than a model's opinion.
-
-That boundary is the app's central safety property (see docs/ai-boundaries.md),
-and these tests are where it is enforced rather than merely described.
+The Worker's AI binding returns only what Whisper heard; the target sentence is
+known here, so the comparison is string alignment, not a model's opinion
+(`docs/ai-boundaries.md`).
 """
 
 from __future__ import annotations

@@ -1,20 +1,8 @@
 """Adding material by hand: `cli ingest`.
 
-`sources.ingest_file` could do this since it was written, and nothing could
-call it — no command, no route. A capability with no entry point is the same
-bug as an endpoint with no caller, and this one mattered: it is the only code
-that can put a textbook chapter, a tutor's handout or a typed-up transcript
-into the library, and the app's whole reading side is built on material.
-
-The licence posture is why this is more than a convenience wrapper. The project
-cannot know what licence a file dropped into it carries, so the source it
-defaults to is registered as **not** redistributable — the same posture it
-takes towards HARNO's exam papers and ERR's transcripts. A file the learner
-adds is theirs to study from and nobody's to republish.
-
-Every test writes to its own database via `--db`, never the fixture corpus:
-ingesting into a shared database would leave items behind for whatever ran
-next.
+The default source `oma-materjal` is registered as not redistributable — a file's
+licence is unknown, so it is owner-only like HARNO and ERR material. Every test
+writes to its own database via `--db`.
 """
 
 from __future__ import annotations
