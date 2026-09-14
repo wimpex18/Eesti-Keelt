@@ -1,12 +1,8 @@
-"""EKI's level vocabulary: the exam board institute's own A1/A2/B1 word lists.
+"""EKI's official A1/A2/B1 vocabulary import.
 
-Until this landed, every CEFR level in this app came from the enriched Ekilex
-list — a derived estimate carrying a tag for 6.2 % of its lemmas. EKI publishes
-the levels outright, under CC BY 4.0, and this is the import that lets them win.
-
-The tests worth having here are about the two things that could go quietly
-wrong: a frequency **count** landing in a column that holds **ranks**, and a
-rebuild silently dropping the authoritative levels.
+EKI's levels win over the enriched list's estimate. Guarded: EKI's frequency
+**count** never lands in `freq_rank`, which holds **ranks**; and a rebuild does
+not drop the official levels.
 """
 
 from __future__ import annotations
@@ -121,10 +117,7 @@ class TestApplyingThem:
 
 class TestSurvivingARebuild:
     def test_the_levels_are_reapplied_after_words_is_replaced(self, words, sample):
-        """`build()` deletes every row in `words`, which wipes `level_source`
-        and every level EKI supplied. The levels live in their own table so
-        that costs a re-apply rather than a second trip to EKI's download form.
-        """
+        """`build()` replaces `words`; official levels are re-applied from their own table."""
         wordlist.import_official_levels(words, sample)
         with words:
             words.execute("DELETE FROM words")          # what `build()` does
@@ -135,25 +128,12 @@ class TestSurvivingARebuild:
 
 
 class TestTheRealFilesSurprises:
-    """Written against facts read off EKI's actual file — and two of them wrong.
-
-    Counted on 2026-09-13, when the file itself arrived: 4 456 rows, not
-    51 015; 114 duplicated lemmas, not ~200; no blank levels. The shapes held
-    (duplicates under two parts of speech, multi-word entries), so the tests
-    stand; the numbers in them were never the real file's.
-
-    The importer is tested on a fixture because EKI serves the real file behind
-    a form and this project has never held it. A fixture proves the parser; it
-    does not prove the parser survives the *data*. So these are built from what
-    the real file was measured to contain — duplicate lemmas, multi-word
-    entries, blank levels — rather than from what a clean file would look like.
+    """Parsing the shapes the real file contains: duplicated lemmas (two parts of
+    speech), multi-word entries, blank levels.
     """
 
     def test_a_lemma_on_two_lines_takes_the_lower_level(self, tmp_path):
-        """114 lemmas appear more than once (counted), the same word under two
-        parts of speech. `official_levels.word` is a primary key, so the old
-        insert kept whichever line came last — a coin-toss between two of EKI's
-        own rows, decided by file order."""
+        """A lemma listed twice keeps its lower level, not whichever line came last."""
         path = tmp_path / "dup.txt"
         path.write_text("\n".join([
             "LEMMA\tPOS\tSAGEDUS\tTASE",
@@ -177,10 +157,9 @@ class TestTheRealFilesSurprises:
         assert wordlist.read_official_levels(path)[0][1] == "A2"
 
     def test_a_phrase_is_kept_as_vocabulary_and_never_drilled(self, tmp_path, words):
-        """EKI lists `aru saama`, `alla kirjutama`, `alles hoidma`. They are
-        real vocabulary and they are not words the drill machinery can act on:
-        inserted into `words`, `aru saama` reaches `verbs_at_level` and the
-        conjugation drill asks Vabamorf for its imperfect."""
+        """Multi-word entries (`aru saama`) stay out of `words`, so drills never try to
+        conjugate a phrase.
+        """
         path = tmp_path / "phrase.txt"
         path.write_text("\n".join([
             "LEMMA\tPOS\tSAGEDUS\tTASE",
@@ -211,12 +190,7 @@ class TestTheRealFilesSurprises:
         assert [r[0] for r in wordlist.read_official_levels(path)] == ["raamat"]
 
     def test_it_handles_the_real_files_scale(self, tmp_path, words):
-        """Eleven times the real file (4 456 rows), duplicates and phrases mixed through.
-
-        Not a benchmark — a check that nothing here is quadratic or holds the
-        whole file twice, on the only run that matters being the learner's
-        first one.
-        """
+        """Scales linearly to many times the real file (no quadratic work)."""
         lines = ["LEMMA\tPOS\tSAGEDUS\tTASE"]
         for n in range(51_000):
             level = ("A1", "A2", "B1")[n % 3]
@@ -234,7 +208,7 @@ class TestTheRealFilesSurprises:
         assert stats["levelled"] == 51_011, "one row per distinct lemma"
         assert stats["phrases"] == 11
         assert stats["added"] == 51_000, "the phrases are not drillable words"
-        # Every duplicated lemma was listed A1 on its second line.
+        # Every duplicated lemma lists A1 on its second line.
         assert words.execute(
             "SELECT level FROM official_levels WHERE word = 'sona250'"
         ).fetchone()["level"] == "A1"

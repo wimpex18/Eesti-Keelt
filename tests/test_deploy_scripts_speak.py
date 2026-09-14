@@ -1,29 +1,13 @@
-"""A deploy script that fails must say so.
+"""A deploy script that fails must say why.
 
-`bash deploy/set-llm-key.sh HF_TOKEN` printed **nothing at all** and exited 1.
-Reported as "it didn't ask for the token".
+Under `set -euo pipefail`, `LINE="$(gcloud ... 2>/dev/null | head -1)"` exits
+at that line when `gcloud` fails — before any guard, with the error discarded.
+The scripts share one sourced helper (`deploy/_service.sh`) that reports what
+`gcloud` said.
 
-The cause is one interaction, and the guard against it was already written:
-
-    LINE="$(gcloud run services list --format='...' 2>/dev/null | head -1)"
-    [ -n "$LINE" ] || { echo "ERROR: no Cloud Run service..." >&2; exit 1; }
-
-Under `set -euo pipefail` a failing `gcloud` fails the pipeline, `pipefail`
-propagates that to the assignment, and `set -e` kills the script **at that
-line** — before the guard runs. Its stderr went to `/dev/null`, so the one
-message that would have named the problem was discarded and the one that would
-have replaced it was unreachable. The guard could only ever fire in the case it
-was not written for: `gcloud` succeeding and returning nothing.
-
-Three of the five scripts had it. `check-service.sh` reads through
-`mapfile < <(...)`, whose failure does not trip `set -e`; `setup.sh` writes
-`|| true`. That two of five were already right is why the fix is one sourced
-function rather than a fourth copy.
-
-Driven as real subprocesses against a stubbed `gcloud`, because every part of
-this bug — `set -e`, `pipefail`, command substitution, a redirect — is shell
-behaviour that no amount of reading the file reveals. `bash -n` parses all of
-it happily, before and after.
+Driven as real subprocesses against a stubbed `gcloud`: `set -e`, `pipefail`,
+command substitution and redirects are shell behaviour that reading the file
+(or `bash -n`) cannot reveal.
 """
 
 from __future__ import annotations
@@ -37,9 +21,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: The scripts that discover the service and then act on it. `check-service.sh`
-#: is deliberately absent: it lists *every* service rather than taking the
-#: first, which is a different job, and it was never broken.
+#: Scripts that discover one service and act on it. `check-service.sh` lists every
+#: service instead, a different job.
 ACTING = {
     "set-llm-key.sh": ["HF_TOKEN"],
     "push-content.sh": [],
@@ -87,9 +70,9 @@ class TestAFailureIsNeverSilent:
             f"back")
 
     def test_it_repeats_what_gcloud_actually_said(self, script, tmp_path):
-        """Not merely "something went wrong". The provider named the cause —
-        an API not enabled, a permission, an unset project — and which one it
-        was decides what the operator does next."""
+        """The error repeats what `gcloud` actually said (API not enabled, permission,
+        unset project).
+        """
         done = _run(script, ACTING[script], FAILING_GCLOUD, tmp_path)
         assert "PERMISSION_DENIED" in done.stdout + done.stderr
 
@@ -106,8 +89,7 @@ class TestAFailureIsNeverSilent:
 
 class TestTheGuardIsWrittenOnce:
     def test_no_script_rediscovers_the_service_for_itself(self):
-        """The shape that broke, asked of the directory. Three copies of six
-        lines is how two of them stayed wrong after one was noticed."""
+        """No script rediscovers the service itself; all use the helper."""
         for path in (ROOT / "deploy").glob("*.sh"):
             if path.name in ("_service.sh", "check-service.sh", "setup.sh"):
                 continue
@@ -118,14 +100,8 @@ class TestTheGuardIsWrittenOnce:
                     f"_service.sh")
 
     def test_the_helper_never_discards_the_error_it_reports(self):
-        """`2>/dev/null` on the discovery call is the whole bug. It may hide a
-        *probe* — `gcloud config get-value` is allowed to be noisy — but not
-        the call whose failure is the thing being explained.
-
-        Comments stripped first. The helper quotes the broken original in its
-        own header, and the first version of this assertion matched **that** —
-        the fifth time this sprint a check has passed or failed on the prose
-        explaining it rather than on the code.
+        """The helper never sends the discovery call's stderr to `/dev/null` (comments
+        stripped before checking).
         """
         code = "\n".join(
             line for line in

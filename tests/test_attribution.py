@@ -1,17 +1,9 @@
 """Crediting the sources whose words are on the screen.
 
-EKI publish both files this app imports under CC BY 4.0, and their terms —
-quoted on `arhiiv.eki.ee/litsents/` and again on `ekilex.ee` — are that the
-material may be processed and presented in any way needed **provided** the
-reference to EKI is retained and any modifications are described.
-
-The word card renders EKI's definition and EKI's usage examples verbatim. The
-credit for that lived in `docs/` and in a `sources.REGISTRY` note, and neither
-is served to anybody: the registry was a licence ledger with no reader, which
-is the same defect as a writer with no caller, pointing the other way.
-
-So the API has to be able to say *whose* definition it just returned, and the
-card has to draw it.
+EKI's terms (CC BY 4.0) require the reference to EKI to be kept and changes
+described wherever the material is presented. The word card shows EKI's text
+verbatim, so the API names whose definition it returned and the page draws the
+credit.
 """
 
 from __future__ import annotations
@@ -60,13 +52,9 @@ class TestTheApiNamesWhoAnswered:
     def test_an_examples_only_row_falls_back_instead_of_going_blank(
         self, client, words_db
     ):
-        """The bug this field replaced an inference with.
-
-        `definition_source` used to be deducible from `full_definition` being
-        non-null, and the expression behind it read "PSV's definition if there
-        is a PSV row at all" — so a row with examples and no definition
-        returned `None` rather than the wording Sõnaveeb had. Asking which
-        source answered, rather than deducing it, cannot make that mistake."""
+        """`definition_source` is stated, not inferred: a PSV row with examples and no
+        definition falls back to the live wording.
+        """
         got = client.get("/api/enrich/ainultnaide").json()
         assert got["examples"] == ["Ainult näide."]
         assert got["definition_source"] != "eki-psv", "EKI said nothing here"
@@ -104,12 +92,7 @@ class TestTheCardDrawsTheCredit:
 
 
 class TestTheLedgerHasAReader:
-    """`sources.REGISTRY` recorded every licence and served none of them.
-
-    CC BY 4.0 asks for the source to be named **and the changes indicated**
-    wherever the material is presented, so the obligation is discharged on the
-    page, not in a repository the learner never opens.
-    """
+    """`/api/sources` serves the ledger so the page can name sources and changes."""
 
     def test_the_route_serves_the_whole_ledger(self, client):
         from eesti.sources import REGISTRY
@@ -119,9 +102,7 @@ class TestTheLedgerHasAReader:
         assert {s["id"] for s in got["sources"]} == {s.id for s in REGISTRY}
 
     def test_every_cc_by_source_describes_its_changes(self):
-        """The half of CC BY that is easy to forget. A source under a licence
-        that says "indicate if changes were made" and an empty `changes` is an
-        attribution that is missing its second sentence."""
+        """Every CC BY source states its changes."""
         from eesti.sources import REGISTRY
 
         for s in REGISTRY:
@@ -161,9 +142,9 @@ class TestTheLedgerHasAReader:
 
 
 class TestTheChangeDescriptionsAreReadable:
-    """The rule that made this project rewrite nine strings once already: a
-    caveat nobody can read is not a caveat. These are shown to a Russian
-    speaker under a Russian heading, so they are explanation, not label."""
+    """Change descriptions are Russian: they are explanation shown under a Russian
+    heading.
+    """
 
     def test_they_are_written_in_russian(self):
         import re
@@ -177,8 +158,9 @@ class TestTheChangeDescriptionsAreReadable:
                 f"{s.id}: the change description has no Cyrillic in it")
 
     def test_they_do_not_name_columns_at_the_learner(self):
-        """`words.level_source` is a schema detail. The learner is being told
-        what was done to the dictionary, not how this app stores it."""
+        """Change descriptions describe what was done to the dictionary, not schema
+        details.
+        """
         from eesti.sources import REGISTRY
 
         for s in REGISTRY:

@@ -1,20 +1,8 @@
-"""One rule in the page's CSS, pinned because a browser found it and no other
-test could have.
+"""CSS rules a browser found and markup tests cannot see.
 
-The page has two bottom navigation bars — one for learning, one for exam prep —
-and the JavaScript hides the inactive one by setting the `hidden` attribute.
-That is correct, and it did nothing: `nav{display:flex}` is an *author* rule,
-and an author rule beats the browser's own `[hidden]{display:none}`. So the
-hidden bar stayed laid out, and on a 390px phone two fixed bars sat on top of
-each other, both painting, at the same 48 pixels of screen.
-
-Driving the page in a real browser showed it as geometry: `Ülevaade` occupying
-x 4–131 while `Rada` and `Lugemine` occupied x 4–67 and 67–130, all at the
-bottom edge. A test that renders markup without layout cannot see that, and
-neither can a person reading the CSS, because the bug is in what the rule
-*overrides* rather than in the rule itself.
-
-Rather than put a browser in CI for one line, this asserts the line is there.
+`[hidden]{display:none!important}` must come first: an author rule such as
+`nav{display:flex}` otherwise beats the browser's own `[hidden]`, leaving hidden
+navigation laid out on top of the visible one.
 """
 
 from __future__ import annotations
@@ -29,13 +17,8 @@ from pagesrc import everything
 
 @pytest.fixture(scope="module")
 def css() -> str:
-    """The stylesheet *and* the markup.
-
-    Four of the five checks here are about one CSS rule; the fifth is about
-    the two `<nav>` elements that rule exists to hide, and the point of the
-    file is that they are one fact. `everything()` keeps them in one string,
-    with the stylesheet last, so the ordering assertion below still compares
-    two positions inside the CSS.
+    """The stylesheet and the markup in one string (stylesheet last), so ordering
+    assertions compare positions inside the CSS.
     """
     return everything()
 
@@ -46,8 +29,7 @@ def test_hidden_beats_the_display_rules(css):
 
 
 def test_it_comes_before_the_nav_rule_it_has_to_beat(css):
-    """Specificity ties are broken by order, and `[hidden]` versus `nav` is not
-    a tie — but keeping it first means it also covers whatever is added later."""
+    """Keeping `[hidden]` first covers rules added later."""
     assert css.index("[hidden]") < css.index("nav{display:flex")
 
 
@@ -65,16 +47,8 @@ def test_the_inactive_one_ships_hidden(css):
 
 
 def test_the_source_footer_clears_the_fixed_navigation(css):
-    """The same bug as the one this file is named for, in a new place.
-
-    `.modes` is `position:fixed; bottom:0` on a phone, so anything that ends at
-    the end of the document ends *underneath* it. The attribution footer is the
-    last thing on the page, and its final rows sat behind the nav bar — found
-    in a screenshot at 420px, invisible to every passing test, exactly as the
-    docstring above predicts.
-
-    The bottom padding is not spacing. Without it the licence text this footer
-    exists to show is the part that is covered.
+    """The page's bottom padding clears the phone's fixed mode bar, so the attribution
+    footer is not covered.
     """
     rule = re.search(r"footer\.sources\{[^}]*\}", css, re.S)
     assert rule, "the footer must have its own rule"
