@@ -1,25 +1,12 @@
 """Grammar reference: link drills to the authority, don't reinvent it.
 
-Where Estonian grammar actually comes from
-------------------------------------------
-Keeleklikk and Keeletee are courses, not references, and neither exposes an API.
-But the authority does exist online and free: **Eesti keele käsiraamat** (EKK),
-the Estonian Language Institute's handbook by Erelt, Erelt and Ross, hosted at
-`arhiiv.eki.ee/books/ekk09/` with stable per-section URLs.
+The authority is **Eesti keele käsiraamat** (EKK; Erelt, Erelt, Ross) at
+`arhiiv.eki.ee/books/ekk09/`, with stable per-section URLs. Each drill links to
+the section defining its rule: authoritative, in the exam's terminology, and
+nothing to maintain.
 
-Its syntax chapter numbers the rules this app drills — SÜ 37–44 are the object,
-täissihitis vs osasihitis, and the hard cases of choosing between them. So each
-drill links to the section that defines it. Three reasons that beats writing our
-own explanations:
-
-  * it is authoritative, and a learner who doubts a drill can check the source;
-  * it uses the terminology the exam uses;
-  * it does not rot, because we are not maintaining a parallel grammar.
-
-Terminology note: what the error log calls `obj-case` is **täissihitis**
-(total object — genitive or nominative) versus **osasihitis** (partial object —
-partitive). Using the real terms is better teaching than inventing our own, and
-they are what an examiner will say.
+`obj-case` is **täissihitis** (total object — genitive or nominative) versus
+**osasihitis** (partial object — partitive).
 """
 
 from __future__ import annotations
@@ -28,15 +15,10 @@ from dataclasses import dataclass
 
 EKK_BASE = "https://arhiiv.eki.ee/books/ekk09/index.php"
 
-# Chapter ids in EKK's URL scheme. `p1` selects a sub-page within the chapter,
-# and there are no per-section anchors, so a link lands on the page that
-# *contains* the section and `ekk_section` is the label to look for on it.
-#
-# Getting these right needs reading the handbook, not guessing: the morphology
-# chapter numbers its sections **M**, not `MO`, and its sub-pages do not run in
-# section order. An earlier version of this table had six of seven entries
-# pointing at a real page with the wrong section on it — which is worse than no
-# link, because it looks checked.
+# EKK chapter ids. `p1` selects a sub-page; there are no per-section anchors, so a
+# link lands on the page containing the section and `ekk_section` is the label to
+# find. Section numbers were read off the handbook (morphology uses **M**, and
+# sub-pages are not in section order).
 ORTOGRAAFIA, MORFOLOOGIA, SUNTAKS = 2, 3, 5
 
 
@@ -143,22 +125,10 @@ REFERENCES: dict[str, Reference] = {
 # ---------------------------------------------------------------------------
 # Topic references
 #
-# The nine entries above are keyed by *error tag* -- the fixed set the Notion
-# log validates against (`config.TAGS`), which must not grow. These are keyed
-# by **topic id** instead, so a curriculum topic can carry a handbook link
-# without inventing a tenth error tag.
-#
-# Measured before this was written: of the 23 topics that generate exercises,
-# only 5 carried a reference. A learner who got an item wrong received an
-# explanation and no way to read the underlying rule.
-#
-# **Every section number below was read off the handbook, not inferred.** That
-# matters more than it sounds: a summarising fetch of the same page returned
-# numbers shifted by one, which would have made `M 51` point at the partitive
-# instead of the genitive. Two of them were checked against entries that were
-# already correct, and it was the summary that was wrong. `M 77` is another
-# trap -- it is *Oleviku kesksõna*, the present participle, not the present
-# tense, which is `M 85`.
+# Keyed by topic id (the entries above are keyed by error tag, a fixed set that
+# must match Notion), so topics get handbook links without new tags. Every section
+# number was read off the handbook: e.g. `M 85` is the present tense; `M 77` is
+# the present participle.
 # ---------------------------------------------------------------------------
 
 TOPIC_REFERENCES: dict[str, Reference] = {
@@ -329,11 +299,8 @@ TOPIC_REFERENCES: dict[str, Reference] = {
 
 
 def reference_for(tag: str) -> Reference | None:
-    """The handbook entry for an error tag or a topic id, or None.
-
-    Error tags are looked up first, because that is the older and narrower set
-    and the two do not collide -- `obj-case` is both a tag and a topic id, and
-    the tag's entry is the one written for a learner who got it wrong.
+    """The handbook entry for an error tag or a topic id, or None. Tags are looked up
+    first (`obj-case` is both, and the tag's entry is written for a mistake).
     """
     return REFERENCES.get(tag) or TOPIC_REFERENCES.get(tag)
 

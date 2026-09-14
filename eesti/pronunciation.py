@@ -1,37 +1,16 @@
 """Read-aloud practice: say a known sentence, and see what the recogniser heard.
 
-## Correcting an over-broad claim
-
-This project has said, repeatedly and correctly, that it does not score
-pronunciation: forced alignment yields timings rather than correctness, turning
-that into feedback is a research project, and EKI already publishes free
-pronunciation exercises.
-
-That is true of **acoustic** scoring. It was stated too broadly, because it also
-ruled out something quite different and entirely sound: when the learner is
-asked to read a **known target**, comparing what the recogniser heard against
-what they were asked to say is a deterministic measurement with no model
-judgement in it at all. Duolingo's and Babbel's speaking exercises are this, and
-they work. The two are not the same thing:
+Acoustic pronunciation scoring is not done. Comparing what the recogniser heard
+with a **known target** is different: two strings, `difflib`, no model judgement.
 
 | | Acoustic scoring | Read-aloud comparison |
 |---|---|---|
 | Input | waveform | two strings |
-| Needs | phoneme models, alignment, a scale someone invented | `difflib` |
 | Says | "your /õ/ is 62 % correct" | "it heard *kool* where you were asked to say *kohl*" |
-| Honest? | not without a research programme | yes, with one caveat |
 
-**The caveat, stated wherever the number is shown:** this measures what an ASR
-model heard, which is a proxy for intelligibility and not a phonetics grade. A
-miss can mean the learner mispronounced it *or* that the recogniser is weak on
-accented Estonian — both are informative, neither is a mark. Which is why the
-output names the words rather than producing a percentage on its own.
-
-## Why word-level and not sentence-level
-
-"7/9 words" is actionable in a way "78 %" is not: the two that were missed are
-the ones to say again. So the comparison returns the alignment, and the ratio is
-derived from it rather than being the point.
+**Caveat, shown wherever the result is:** this measures what an ASR model heard
+(a proxy for intelligibility); a miss may be the recogniser, not the learner.
+Results name the missed words; the ratio is derived from the alignment.
 """
 
 from __future__ import annotations
@@ -48,11 +27,8 @@ _PUNCT = re.compile(r"[^\w\s-]", re.UNICODE)
 
 
 def normalise(text: str) -> list[str]:
-    """Words, lowercased, punctuation gone, Unicode composed.
-
-    Composition matters more than it looks: `ä` can arrive as one codepoint or
-    as `a` + combining diaeresis depending on the recogniser, and two strings
-    that render identically would otherwise never compare equal.
+    """Words, lowercased, punctuation removed, Unicode NFC-composed (`ä` may arrive
+    decomposed from a recogniser).
     """
     text = unicodedata.normalize("NFC", text or "")
     return _PUNCT.sub(" ", text).lower().split()
@@ -94,11 +70,7 @@ class Comparison:
             "words": [asdict(w) for w in self.words],
             "extra": self.extra, "matched": self.matched, "total": self.total,
             "ratio": round(self.ratio, 3), "missed": self.missed,
-            # Russian, deliberately. This sentence exists to stop the learner
-            # reading a low score as "my pronunciation is bad" when the honest
-            # reading is "the recogniser may not know accented Estonian". In
-            # Estonian it would be unreadable to the person it protects, and a
-            # caveat nobody can read does the opposite of its job.
+            # Russian, so the learner can read that a miss may be the recogniser's.
             "caveat": (
                 "Это то, что услышало распознавание речи, а не оценка "
                 "произношения. Промах может означать произношение — или то, "
@@ -108,11 +80,8 @@ class Comparison:
 
 
 def compare(target: str, heard: str) -> Comparison:
-    """Align what was asked against what was heard, word by word.
-
-    `SequenceMatcher` rather than a naive zip: a learner who drops one word
-    would otherwise fail every word after it, which would be a measurement of
-    the alignment rather than of the speech.
+    """Align what was asked against what was heard, word by word (`SequenceMatcher`),
+    so one dropped word does not fail the rest.
     """
     want, got = normalise(target), normalise(heard)
     results: list[WordResult] = [WordResult(w, None, False) for w in want]
@@ -156,11 +125,7 @@ def words_to_say(
     count: int = 10,
     seed: int | None = None,
 ) -> list[ReadAloud]:
-    """Single words, frequency-ordered.
-
-    Deliberately the frequent end: the point of saying a word aloud is the
-    sounds in it, and a learner gets more from the ones they will say again.
-    """
+    """Single words, frequency-ordered: the words the learner will say again."""
     import random
 
     rows = conn.execute(
@@ -182,12 +147,7 @@ def sentences_to_say(
     min_words: int = 4,
     max_words: int = 12,
 ) -> list[ReadAloud]:
-    """Real sentences from the harvested corpus, short enough to say in a breath.
-
-    Authentic rather than authored, for the same reason the cloze drills are:
-    the sentence is correct because a native wrote it, and reading real prose
-    aloud rehearses real rhythm rather than a textbook's.
-    """
+    """Real sentences from the harvested corpus, short enough to say in a breath."""
     import random
 
     from .cloze import sentences
