@@ -25,10 +25,8 @@ export async function loadExam() {
     (await api(`/api/exam/${examLevel()}`, null, "GET")).json(),
   ]);
 
-  /* An empty countdown is a fact about the plan, not a rendering failure, and
-     `deadline.note` is the sentence that says which -- written in Russian
-     precisely so it could be read, and then never put on screen. A caveat
-     nobody can read is not a caveat; one nobody can *see* is less than that. */
+  /* An empty countdown is a fact about the plan; `deadline.note` says which, in
+     Russian, and is shown. */
   $("#countdown").textContent =
     ready.countdown || (ready.deadline && ready.deadline.note) || "";
 
@@ -53,13 +51,9 @@ export async function loadExam() {
       ready.reasons.map(r => `<li>${esc(r)}</li>`).join("") + `</ul>`;
   }
 
-  /* The two measures the verdict computes and threw away.
-
-     `grammar.outstanding` is a list of the exact topics standing between this
-     learner and this level -- the most actionable thing on the screen, and it
-     was in the payload with nothing reading it. `vocabulary` is the same
-     story one field over. Both are named, not summarised: "6 тем осталось"
-     is a number, and the six names are a plan. */
+  /* The two measures behind the verdict: `grammar.outstanding` names the exact
+     topics standing between the learner and the level, and `vocabulary` the same
+     for words. Named, not summarised: the names are a plan. */
   const g = ready.grammar || {}, v = ready.vocabulary || {};
   if (g.topics) {
     html += `<div class="verdict-detail"><b>Grammatika</b> · ` +
@@ -83,13 +77,8 @@ export async function loadExam() {
     ["video", "Tutvustav video", "Как проходит экзамен."],
     ["kirjeldus", "Tasemekirjeldus", "Что требуется на этом уровне."],
     ["teave", "Teave", "Информационный лист и регистрация."],
-    /* `vorm` — the application and reimbursement forms. Added with the group
-       below it, and only because the group was missing: `exam_material` had
-       just been taught to return them under their own key, which took them
-       out of `muu` — the one bucket this page renders for kinds it does not
-       know. So the query got wider and the forms went from invisible in one
-       way to invisible in another. A key returned by the API and read by
-       nothing is the same defect as an item in no section. */
+    /* `vorm` — the application and reimbursement forms. `exam_material` returns
+       them under their own key, so they need their own group. */
     ["vorm", "Avaldused", "Бланки: регистрация, апелляция, возмещение платы."],
   ];
   let out = "";
@@ -103,13 +92,8 @@ export async function loadExam() {
     out += `<div class="kindgroup"><h3>${esc(part)} — ${items.length}</h3>` +
       items.map(linkRow).join("") + `</div>`;
   }
-  /* Whatever no group above claimed. `exam_material` sorts by `kind` and
-     returns the remainder in `muu` so nothing is lost -- and the page never
-     read it, so anything the harvesters start producing under a new kind
-     would vanish from this screen without a trace. That is the same defect as
-     the 25 library items that belonged to no section: present in the database,
-     absent from the app, silently. Today only `konsultatsioon` lands here and
-     it has its own tab, which is exactly why nobody noticed. */
+  /* Whatever no group above claimed. `exam_material` returns unknown kinds in
+     `muu`, so a new kind never vanishes from this screen. */
   if ((material.muu || []).length) {
     out += `<div class="kindgroup"><h3>Muu materjal <i class="ru">прочее</i></h3>
       <p class="why">Официальные файлы, не попавшие в разделы выше.</p>` +

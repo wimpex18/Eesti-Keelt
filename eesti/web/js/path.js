@@ -17,10 +17,9 @@ let pathMeta = {};
 
 function themeApplies() {
   const meta = pathMeta[pathTopic];
-  // Unknown topic (a stale page, or before the first load) errs towards
-  // offering the control: a filter that silently does nothing is the bug being
-  // fixed, and a filter withheld from a topic that supports it is the same bug
-  // pointing the other way.
+  // An unknown topic (a stale page, or before the first load) offers the control:
+  // withholding a filter from a topic that supports it is as wrong as offering
+  // one that does nothing.
   return !meta || meta.themed !== false;
 }
 
@@ -66,9 +65,8 @@ export async function loadPath() {
     paintThemeNote();
 
     $("#pathList").innerHTML = p.topics.map(t => {
-      /* Names, not ids — the API resolves them now. Kept tolerant of an older
-         payload so a stale cached page degrades to the previous behaviour
-         rather than printing "undefined". */
+      /* Names, not ids — the API resolves them. Tolerant of an older payload so a
+         stale cached page never prints "undefined". */
       const needs = t.blocked_by || [];
       const blocked = needs.length ? ` ← ${needs.join(", ")}` : "";
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
@@ -105,10 +103,9 @@ export async function loadStatus() {
       ${s.sonavara.top}</div><div class="why">` +
       s.sonavara.bands.map(b =>
         `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") +
-      // Two different facts, kept apart. "known" is what the learner declared
-      // they know; this is what the app can translate for them. The second
-      // grows on its own as they study, so it is not an achievement and is not
-      // presented as one.
+      // Two facts, kept apart: "known" is what the learner declared; this is what the
+      // app can translate for them. The second grows on its own, so it is not
+      // presented as an achievement.
       (s.sonavara.glossed != null
         ? `<div class="gloss-late">${s.sonavara.glossed} слов с переводом
            <span class="hint">(пополняется само · сегодня осталось
@@ -119,8 +116,8 @@ export async function loadStatus() {
     if (s.raamatukogu) html += `<div class="corr"><span class="tag">Raamatukogu</span>
       <div class="fix">${s.raamatukogu.items || 0} открыто,
       ${s.raamatukogu.minutes || 0} минут</div></div>`;
-    // The caveat comes from the API, in Russian, so it is written once and
-    // cannot drift out of step with what the numbers mean.
+    // The caveat comes from the API, in Russian, so it is written once and matches
+    // what the numbers mean.
     html += `<div class="engine">${esc(d.caveat || "")}</div>`;
     out.innerHTML = html;
   } catch (e) { out.textContent = e.message; }
@@ -158,18 +155,15 @@ async function startPractice() {
     if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
     if (!res.items.length) {
-      // An empty topic is still a topic. The 13 with no generator carry an EKK
-      // reference, and dropping it here left the learner with a sentence
-      // explaining that nothing would happen and nowhere to go instead.
+      // An empty topic is still a topic: those with no generator carry an EKK
+      // reference, which is the learner's way forward.
       let msg = `<div class="banner">${esc(res.detail || "ничего не пришло")}`;
       if (res.reference && res.reference.known)
         msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
       out.innerHTML = msg + `</div>`;
-      /* Measured across the whole grid: 31 of 198 topic x theme pairs return
-         fewer than three items and 6 return none, because a corpus cloze needs
-         a sentence *containing* a theme noun, which is far rarer than the noun
-         existing. The learner picked a legitimate combination and hit a dead
-         end; the way out is one click, so it is a button and not a sentence. */
+      /* Some topic × theme pairs return fewer than three items or none, because a
+         corpus cloze needs a sentence containing a theme noun. The way out is one
+         click, so it is a button. */
       if (res.theme_emptied) {
         const again = document.createElement("button");
         again.className = "ghost";
@@ -183,8 +177,8 @@ async function startPractice() {
     paintThemeNote();
     // A reference, not a warning: `info` rather than the default amber.
     let head = `<div class="banner info"><strong>${esc(res.et)}</strong> · ${esc(res.level)}`;
-    /* A short set is not a broken one, but it is not the ten that were asked
-       for either, and silence there reads as "this topic only has three". */
+    /* A short set is not a broken one, but silence would read as "this topic only has
+       three". */
     if (res.theme && res.items.length < 10)
       head += ` · <span class="hint">по этой теме нашлось ${res.items.length}</span>`;
     if (res.reference && res.reference.known)
@@ -202,10 +196,7 @@ async function startPractice() {
 export function renderPracticeItem(it, topic, i, glosses) {
   /* What the word means, when the app already knows.
 
-     A B1 object-case set draws lemmas like `etendus`, `luuletus` and
-     `rahakott`. The morphology can be got right without knowing any of them,
-     and then the exercise has taught half of what it appears to teach. The
-     gloss comes from the local store, so it is either instantly there or
+     The gloss comes from the local store, so it is either instantly there or
      absent — a practice set never waits on a dictionary. */
   const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
@@ -261,11 +252,9 @@ export function renderPracticeItem(it, topic, i, glosses) {
     }
     pathAnswered++; if (res.correct) pathCorrect++;
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
-    // A choice item's prompt is a question with no blank in it, so filling the
-    // blank echoed "Какое предложение верное?" back at the learner instead of
-    // showing the sentence they got right. The rule is worth seeing either
-    // way here: on a right answer it says *why* it was right, which for word
-    // order is the whole lesson.
+    // A choice item's prompt is a question with no blank, so the answered sentence is
+    // shown instead. The rule is shown either way: on a right answer it says why,
+    // which for word order is the lesson.
     verdict.innerHTML = res.correct
       ? (choices.length
           ? `✓ õige <i class="ru">верно</i> — <strong>${esc(it.answer)}</strong><br>
@@ -273,10 +262,8 @@ export function renderPracticeItem(it, topic, i, glosses) {
           : `✓ õige <i class="ru">верно</i> — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
       : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, а не <em>${esc(it.distractor)}</em>` : ""}<br>
          <span class="why">${md(it.why_ru || "")}</span>`;
-    /* The meaning arrives with the grade, not before it. `/api/practice/answer`
-       looks up at most this one word, which is the "word in front of the
-       learner" case rather than a batch — and after wrestling with the form is
-       when it sticks. Only shown when the hint above did not already carry it. */
+    /* The meaning arrives with the grade: `/api/practice/answer` looks up at most
+       this one word. Only shown when the hint above did not already carry it. */
     if (res.russian?.length && !ru.length) {
       verdict.innerHTML += `<span class="gloss-late"><b>${esc(it.lemma)}</b> — `
         + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
@@ -285,10 +272,8 @@ export function renderPracticeItem(it, topic, i, glosses) {
     if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $("#pathScore").textContent = line;
     if (res.just_mastered) {
-      // Good news wears the accent. `#pathHead` is shared with the error
-      // path below, so the class is set at each use rather than once in the
-      // markup -- otherwise whichever spoke last decides how the next one
-      // looks.
+      // Good news wears the accent. `#pathHead` is shared with the error path, so the
+      // class is set at each use.
       $("#pathHead").className = "banner ok";
       $("#pathHead").innerHTML =
         `✓ <strong>${esc(topic)}</strong> пройдено — открывает следующие темы. ` +

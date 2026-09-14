@@ -1,26 +1,15 @@
 # Find the Cloud Run service, and say what went wrong when it cannot be found.
 #
-# Sourced by set-llm-key.sh, push-content.sh and reset-progress.sh, which all
-# opened with the same six lines:
+# Sourced by set-llm-key.sh, push-content.sh and reset-progress.sh.
 #
-#   LINE="$(gcloud run services list --format='...' 2>/dev/null | head -1)"
-#   [ -n "$LINE" ] || { echo "ERROR: no Cloud Run service..." >&2; exit 1; }
+# Under `set -euo pipefail` a guard written as
 #
-# Under `set -euo pipefail` **that guard cannot fire.** A failing `gcloud` makes
-# the pipeline fail, `pipefail` propagates it to the assignment, and `set -e`
-# kills the script at that line — before the `[ -n ... ]` runs. Its stderr went
-# to /dev/null, so the whole run produced *no output at all* and exit 1:
+#   LINE="$(gcloud run services list ... 2>/dev/null | head -1)"
+#   [ -n "$LINE" ] || { echo "ERROR: ..." >&2; exit 1; }
 #
-#   wimpex18@cloudshell:~/Eesti-Keelt$ bash deploy/set-llm-key.sh HF_TOKEN
-#   wimpex18@cloudshell:~/Eesti-Keelt$
-#
-# Reported as "it didn't ask for the token". The error message was written, was
-# correct, and was unreachable in exactly the case it existed for.
-#
-# `check-service.sh` never had this: it reads through `mapfile < <(...)`, whose
-# failure does not trip `set -e`, and it checks the project first. `setup.sh`
-# never had it either — it writes `|| true`. Two of five were right, which is
-# why this is one function now rather than a fourth copy.
+# cannot fire: a failing `gcloud` fails the pipeline, `pipefail` propagates it
+# to the assignment, and `set -e` exits silently before the check runs. Hence
+# `|| true` on the assignment, with gcloud's stderr kept and shown.
 
 find_service() {
   command -v gcloud >/dev/null || {
@@ -38,8 +27,7 @@ find_service() {
     exit 1
   }
 
-  # gcloud's stderr is kept and shown. Discarding it is what made the failure
-  # silent; `|| true` is what lets the guard below run at all.
+  # gcloud's stderr is kept and shown; `|| true` lets the guard below run.
   local err line
   err="$(mktemp)"
   line="$(gcloud run services list \
