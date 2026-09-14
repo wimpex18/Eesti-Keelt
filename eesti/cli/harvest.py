@@ -36,12 +36,7 @@ def cmd_harvest(args: argparse.Namespace) -> int:
 
 
 def cmd_harvest_reading(args: argparse.Namespace) -> int:
-    """Harvest simplified-Estonian reading material (Selges keeles).
-
-    This is the actual reading corpus. The ERR radio archives measured 12%
-    Estonian — Russian grammar lessons with Estonian examples — so they are
-    filed as grammar, not reading.
-    """
+    """Harvest simplified-Estonian reading material (Selges keeles), the reading corpus."""
     from ..harvest.selges import fetch, to_items
     from ..sources import add_items, clear_source, connect, register
 
@@ -62,21 +57,16 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
 
 
 def cmd_evkk(args: argparse.Namespace) -> int:
-    """Weight the curriculum by real learner errors, not just one person's log.
-
-    Fetches the public EVKK error taxonomy (51 467 linguist-annotated errors in
-    learner Estonian) and reports how the nine tags rank in it. One request,
-    cached; the learner texts themselves are deliberately left alone.
+    """Weight the curriculum by learner-corpus errors: fetch EVKK's public error
+    taxonomy counts and rank the nine tags. One cached request; learner texts are
+    not fetched.
     """
     from ..config import CACHE
     from ..harvest.evkk import fetch, store, tag_weights, unmapped
     from ..sources import connect, register
 
-    # A third party being down must never look like a crash. `fetch` raises
-    # when there is no cached copy and `evkk.tlu.ee` cannot be reached -- which
-    # is a Tuesday for these research hosts, and the reason this command is
-    # excluded from the test suite. Say what happened and what would fix it,
-    # and leave with a code rather than a traceback.
+    # A third-party outage must not look like a crash: print what happened and what
+    # would fix it, and exit with a code.
     try:
         marks = fetch(cache=CACHE / "evkk_marks.html")
     except RuntimeError as exc:
@@ -94,18 +84,9 @@ def cmd_evkk(args: argparse.Namespace) -> int:
     rest = unmapped(marks)
     total = sum(weights.values()) + rest
 
-    # A tag that weighs nothing means a `TAG_MAP` name stopped matching.
-    #
-    # This is the failure this command is the right place to catch, and the
-    # reason `tests/test_evkk_mapping.py` does not try to. That test would need
-    # EVKK's taxonomy, which is TLU's work under no stated reuse licence, so it
-    # cannot be committed; and CI cannot fetch it, because the host answered 500
-    # on two of three attempts and a research server should not be hit on every
-    # push. Here the live page is already in hand.
-    #
-    # It does not raise: a rename does not mean the taxonomy is unusable, and
-    # the counts already fetched are still worth storing. It refuses to exit 0,
-    # so a weighting that has quietly gone wrong cannot pass for a good run.
+    # A tag with zero weight means a `TAG_MAP` name stopped matching the live
+    # taxonomy. Checked here, where the page is in hand (the taxonomy cannot be
+    # committed or fetched in CI). Counts are still stored; the exit code is non-zero.
     blank = sorted(tag for tag, n in weights.items() if n == 0)
     if blank:
         print(f"TAG_MAP no longer matches the taxonomy for: {', '.join(blank)}")
@@ -131,12 +112,8 @@ def cmd_evkk(args: argparse.Namespace) -> int:
 
 
 def cmd_harvest_exam(args: argparse.Namespace) -> int:
-    """Index the exam board's own practice tasks.
-
-    Pointers, not copies: the tasks are copyright Haridus- ja Noorteamet, they
-    live in an iframe on their site, and the scoring and feedback that make them
-    worth doing only work there. A link buys everything a copy would, and holds
-    none of their material.
+    """Index the exam board's practice tasks as pointers: they are HARNO's copyright
+    and their scoring only works on their site.
     """
     from .. import config
     from ..harvest.eis import LEVELS, catalogue, to_items
@@ -184,15 +161,10 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
 
 
 def cmd_harvest_news(args: argparse.Namespace) -> int:
-    """Fetch ERR's simplified weekly news.
+    """Fetch ERR's simplified weekly news — the one live reading source.
 
-    The only live source in this project. Everything else read is frozen -- the
-    radio courses ended in 2019, Selges keeles is a fixed set -- and will say
-    the same thing in spring 2027. This keeps producing sentences about things
-    that happened this month, which is what a reading exam is made of.
-
-    Re-runnable: items are keyed by content hash, so a weekly `--limit 5` costs
-    five requests and updates nothing that has not changed.
+    Re-runnable: items are keyed by content hash, so a weekly `--limit 5` updates
+    only what changed.
     """
     from .. import config
     from ..harvest import lihtsad
@@ -217,12 +189,8 @@ def cmd_harvest_news(args: argparse.Namespace) -> int:
 def cmd_link_topics(args: argparse.Namespace) -> int:
     """Work out which harvested texts demonstrate which grammar topic.
 
-    Run after a harvest and before pushing: the links live inside content.db,
-    so the deployment gets them for free and no container ever repeats the work.
-
-    Slow -- every sentence goes through Vabamorf -- and that is the trade. The
-    alternative is deciding it per request, which would put a morphological
-    analysis of the whole corpus in front of a learner waiting for a page.
+    Run after a harvest and before pushing: links live in `content.db`, so the
+    Vabamorf analysis runs once, not per request.
     """
     from .. import config
     from ..topiclinks import link_labelled, link_topics
@@ -231,8 +199,8 @@ def cmd_link_topics(args: argparse.Namespace) -> int:
 
     content = content_connect(config.CONTENT_DB)
     counts = link_topics(content, wordlist_connect())
-    # After the derived links, never before: a lesson label outranks anything
-    # inferred from a transcript, and `link_topics` clears the table.
+    # After the derived links: `link_topics` clears the table, and a lesson label
+    # outranks an inferred link.
     for topic, n in link_labelled(content).items():
         counts[topic] = counts.get(topic, 0) + n
     if not counts:
@@ -245,11 +213,7 @@ def cmd_link_topics(args: argparse.Namespace) -> int:
 
 
 def cmd_rections(args: argparse.Namespace) -> int:
-    """Fetch EKK's list of error-prone rections, once, and store it.
-
-    Deliberate and separate from practice: a lesson must never depend on EKI
-    being reachable. One page, cached on disk, stored in the word database.
-    """
+    """Fetch EKK's list of error-prone rections once and store it in the word database."""
     from ..config import CACHE
     from ..rection import at_levels, fetch, load, store
     from ..wordlist import connect
@@ -267,19 +231,9 @@ def cmd_rections(args: argparse.Namespace) -> int:
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
-    """Add material the learner supplies by hand.
-
-    `sources.ingest_file` has been able to do this since it was written and
-    nothing could call it: no route, no command. A capability with no entry
-    point is the same bug as an endpoint with no caller, and it had been
-    sitting in the codebase as one — the only code that can put a textbook
-    chapter or a tutor's handout into the library, unreachable.
-
-    It takes a JSON array of item dicts, or any text file as a single passage.
-    The source defaults to `oma-materjal`, which is registered as
-    not-redistributable: this project cannot know what licence a file dropped
-    into it carries, and somebody else's textbook gets the same posture as
-    HARNO's exam papers.
+    """Add material the learner supplies by hand: a JSON array of item dicts, or a text
+    file as one passage. Defaults to source `oma-materjal`, registered as
+    not redistributable.
     """
     from pathlib import Path
 
@@ -290,10 +244,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         print(f"no such file: {path}")
         return 1
 
-    # Checked here rather than left to `add_items`, which raises the right
-    # refusal with the wrong subject: the file is fine, the *source* is not
-    # registered, and a message saying "could not read your file" sends the
-    # learner looking at the wrong thing.
+    # Check the source is registered first, so the error names the source, not the
+    # file.
     if args.source not in {s.id for s in REGISTRY}:
         print(f"{args.source!r} is not a registered source — a row with no "
               f"licence is a row nobody can reason about later. Use "
@@ -317,12 +269,7 @@ def cmd_ingest(args: argparse.Namespace) -> int:
 
 
 def register(sub) -> None:
-    """Add this group's commands to the subparser table.
-
-    Beside the handlers rather than a thousand lines away in one
-    argparse block: a flag and the code that reads it drift apart
-    when they cannot be seen together.
-    """
+    """Register this group's commands beside their handlers."""
     p = sub.add_parser("harvest", help="crawl ERR language archives (one time)")
     p.add_argument("--max-pages", type=int, default=300)
     p.add_argument("--db", default=None)

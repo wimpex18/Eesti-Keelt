@@ -1,50 +1,17 @@
-"""EstGEC-L2: word-order errors a linguist labelled, at levels this learner sits.
+"""EstGEC-L2: word-order errors a linguist labelled, with the writer's CEFR level.
 
-`wordorder.py` refuses to generate items and *infers* which corrections are
-re-orderings, because TalTech's pairs carry no error annotation: same words in
-a different sequence is the only signature available without one. That
-inference works — 322 items — and it has two costs it cannot pay off. It
-cannot see a re-ordering that co-occurs with any other edit, and it cannot say
-what level the sentence is, because nothing in the file says.
+`tlu-dt-nlp/EstGEC-L2-Corpus` (Tallinn University): learner sentences from the
+Estonian Interlanguage Corpus, error-tagged in M2 format by several annotators,
+organised by CEFR level. `R:WO` is a label, not an inference.
 
-This corpus says both. `tlu-dt-nlp/EstGEC-L2-Corpus` is 258 texts and 3 721
-sentences from the Estonian Interlanguage Corpus — the same corpus whose error
-taxonomy already weights this app's curriculum — error-tagged in **M2 format**
-by at least three annotators each, in directories named for the CEFR level of
-the writer. `R:WO` is a label, not a guess.
+Merged with the TalTech pool in `wordorder.py`, not replacing it: the corpora
+share no sentences, and both pass the same `is_reordering` gate (pairs that also
+change a case ending, `R:WO:NOM:FORM`, are rejected by it).
 
-Why this is merged with the TalTech pool rather than replacing it
------------------------------------------------------------------
-Measured before deciding, which is the only reason the answer is trustworthy:
-
-* **Zero overlap.** Not one corrected sentence appears in both corpora. They
-  are different learners writing different texts, collected by different
-  universities. Replacing would throw 322 items away and buy nothing.
-* **232 of 237 pass `is_reordering` unchanged.** The two sources are
-  homogeneous under the filter the drill already applies, so merging does not
-  mix two standards of item. The five that fail are `R:WO:NOM:FORM` — a
-  re-ordering that also changes a word's case, like `pealinn Islandil` ->
-  `Islandi pealinn` — and those are exactly the pairs a learner could answer
-  from the case ending instead of the order. The filter keeps its job.
-
-So: one gate, two feeders. `is_reordering` stays the arbiter for both, which
-also means this module cannot lower the bar by arriving.
-
-Licence
--------
-GPL-3.0, © 2023 Language Technology Research Group, Tallinn University School
-of Digital Technologies. GPL obligations attach to *conveying* the work, and
-this app conveys nothing: the corpus rides `content.db` to one deployment
-behind Access, the same road as every other ungranted thing here, and is never
-served to a third party. Were that ever to change, the obligation would be to
-carry the licence and point at the source — which `/api/sources` now does
-structurally.
-
-Note the door this came through. MultiGEC-2025 distributes the same 258 texts
-as `EIC` under terms restricting use to "scientific or research purposes",
-which exam self-study is not. TLU publish the identical material themselves
-with no such clause. The corpus was not out of reach; one of its two
-distributions was.
+Licence: GPL-3.0, © Language Technology Research Group, Tallinn University. Not
+conveyed: it rides `content.db` to one deployment behind Access and is never
+served to third parties. (MultiGEC-2025's `EIC` copy is research-only; TLU's own
+publication is used.)
 """
 
 from __future__ import annotations
@@ -60,15 +27,8 @@ SOURCE_ID = "estgec-l2"
 
 RAW = "https://raw.githubusercontent.com/tlu-dt-nlp/EstGEC-L2-Corpus/main"
 
-#: Which file carries which level, and the honest gap in the middle.
-#:
-#: The test split is published per CEFR level, so those sentences arrive with
-#: the level the writer was sitting at. The dev split is published only as one
-#: combined file -- its per-level directories hold individual documents, and
-#: fetching 130-odd of them to recover a label is not worth doing to somebody
-#: else's server. Those items get `None`, which is what this project does
-#: instead of inventing a scale: a level it does not know is not a level it
-#: guesses. Five requests in total, once.
+#: Which file carries which level. The test split is per level; the dev split is
+#: one combined file, so those items have level `None`. Five requests, once.
 SOURCES: tuple[tuple[str, str | None], ...] = (
     ("test/A2/A2_source_gold.txt", "A2"),
     ("test/B1/B1_source_gold.txt", "B1"),
@@ -80,19 +40,14 @@ SOURCES: tuple[tuple[str, str | None], ...] = (
 TIMEOUT = 30.0
 CACHE_DIR = CACHE / "estgec"
 
-#: `A 3 4|||R:NOM:FORM|||sind|||REQUIRED|||-NONE-|||0` — the last field is the
-#: annotator. Only annotator 0 is read: the corpus carries up to three parallel
-#: annotations of the same sentence and taking all of them would offer the
-#: learner the same item several times over, with different "right" answers.
+#: M2 edit line; the last field is the annotator. Only annotator 0 is read, so a
+#: sentence is not offered several times with different answers.
 _EDIT = re.compile(r"^A (\d+) (\d+)\|\|\|([^|]*)\|\|\|([^|]*)\|\|\|")
 
 
 def parse(path: Path | str, level: str | None = None) -> list[tuple[str, str, str | None]]:
-    """(learner wrote, native corrected, level) for the word-order-only sentences.
-
-    Absence is a supported state, like every other harvested file here: a
-    checkout that has not fetched the corpus reads as no items rather than as
-    an error.
+    """(learner wrote, native corrected, level) for the word-order-only sentences; an
+    unfetched corpus yields no items.
     """
     path = Path(path)
     if not path.exists():
@@ -136,14 +91,8 @@ _TIGHT_RIGHT = frozenset('(«')
 
 
 def _detokenize(tokens: list[str]) -> str:
-    """Put the sentence back the way a person writes it.
-
-    M2 is tokenised -- `See on Islandi pealinn .` -- and the drill shows both
-    sentences to the learner side by side. A space before the full stop is
-    something they can see, and this project has just spent a commit on the
-    principle that every visible difference in a two-way choice is one the
-    learner can answer on. Here it would be worse than that: the difference is
-    identical in both options, so it teaches nothing and simply looks wrong.
+    """Detokenise (`See on Islandi pealinn .` → `…pealinn.`) so the two-way choice
+    shows no spurious visible differences.
     """
     out = ""
     for token in tokens:
@@ -154,13 +103,7 @@ def _detokenize(tokens: list[str]) -> str:
 
 
 def _apply(tokens: list[str], edits: list[tuple[int, int, str, str]]) -> list[str] | None:
-    """Rebuild the corrected sentence from the edit spans.
-
-    None when two edits overlap. The corpus allows that deliberately — a
-    spelling error *inside* a word-order error is annotated as both — and a
-    sentence whose spans cannot be applied in sequence is one this module has
-    no business guessing at.
-    """
+    """Rebuild the corrected sentence from the edit spans; None when edits overlap."""
     out: list[str] = []
     i = 0
     for start, end, _type, replacement in sorted(edits):
@@ -174,12 +117,7 @@ def _apply(tokens: list[str], edits: list[tuple[int, int, str, str]]) -> list[st
 
 
 def fetch(cache_dir: Path | str | None = None) -> list[Path]:
-    """Download the five files, once. Politely, and allowed to come back short.
-
-    A public repository under a free licence, so unlike EKI's downloads there
-    is no gate to walk through and no reason for the learner to do this by
-    hand. Unlike Sõnaveeb there is nothing to hammer: five files, once.
-    """
+    """Download the five files once, politely; a short result is allowed."""
     root = Path(cache_dir or CACHE_DIR)
     root.mkdir(parents=True, exist_ok=True)
     got: list[Path] = []

@@ -1,43 +1,18 @@
 """*Eesti-vene sõnaraamat* — Russian for an Estonian word, without a network call.
 
-## The gap this fills
+EKI's Estonian–Russian dictionary (CC BY 4.0, `deploy/eki/`): about 60 000
+lemmas with Russian, so a word card has Russian offline, over budget, or with
+the live dictionary down.
 
-`gloss.py` gets Russian from Sõnaveeb, one live request per word, capped by a
-daily budget and never in bulk. `data/seed_glossary.tsv` covers the 294 words
-drills use most. Everything else a learner clicks while reading had no Russian
-until Sõnaveeb was asked — and none at all offline, over budget, or with
-Sõnaveeb down.
+Kept: headword, part of speech, at most `MAX_RUSSIAN` translations. Dropped:
+Russian grammar notes, government (`vrek`), example phrases, and archaic (`van`)
+translations.
 
-EKI publish the Estonian–Russian dictionary for download under CC BY 4.0:
-70 882 articles, 60 672 lemmas with at least one usable Russian translation
-(measured 2026-09-13 on `evs_EKI_CCBY40.xml`). So the Russian a word card needs
-is a file, not a request.
+**Order:** EKI's order within an article, neutral before labelled; across
+homonyms, the word with the most senses leads (`_merge`).
 
-## What is kept
-
-Headword, part of speech, and at most `MAX_RUSSIAN` translations. Not the
-Russian inflection notes, aspect pairs, government (`vrek`) or the translated
-example phrases — a word card is a reminder, and Sõnaveeb is one link away for
-the rest. Translations labelled archaic (`van`) are dropped: a learner at A2
-should not meet `благой` as the meaning of `hea`.
-
-## Which translations come first
-
-EKI's own order within an article, neutral translations before labelled ones
-(`kõnek`, `madalk`, `hlv`… — see `_labels`). Across homonym articles, the word
-with the most senses leads and every other homonym gets one early slot — see
-`_merge`. An earlier breadth-first order across *senses* put `poiss`'s
-interjection sense, "смотри", third on the card.
-
-## Where it lives
-
-`evs_gloss` in the words database, beside `psv_gloss` and for the same reason:
-reference data, identical for everybody, and `vocab.db` is replaced whole by a
-state-snapshot restore. It never writes `word_gloss` — Sõnaveeb's answers stay
-Sõnaveeb's — so the preference between the two is stated where they are read,
-in `meaning.py`: after the hand-written seed and the live dictionary, before HAR.
-
-The file's shape is not its schema's; `ekixml` has what was measured.
+**Storage:** `evs_gloss` in the words database (reference data; `vocab.db` is
+learner state). Precedence is in `meaning.py`: seed, live dictionary, EVS, HAR.
 """
 
 from __future__ import annotations
@@ -58,12 +33,8 @@ SEP = "\x1f"
 #: EKI's style label for an obsolete translation, dropped outright.
 ARCHAIC = "van"
 
-#: Every *other* style label (`evs_tyybid.xsd`, `s_tyyp`): colloquial `kõnek`
-#: on 16 907 translations, low-register `madalk` 3 677, figurative `piltl`,
-#: pejorative `hlv`, dialect `murd`, slang, vulgar… None is
-#: dropped — a word whose only Russian is colloquial still needs it — but a
-#: labelled translation or sense never comes before a neutral one, so the first
-#: thing a learner reads for a word is the word as it is normally used.
+#: Style labels other than archaic (`kõnek`, `madalk`, `piltl`, `hlv`, `murd`…):
+#: kept, but a labelled translation never precedes a neutral one.
 
 
 @dataclass(frozen=True)
@@ -77,32 +48,26 @@ class Entry:
 
 
 def _labels(node) -> set[str]:
-    """Style labels that mark a translation. `l="ka"` means *also* figurative,
-    colloquial… — the translation itself is ordinary, so it does not count.
-    2 340 labels carry `ka`; counting them dropped `читать`
-    from `lugema`."""
+    """Style labels that mark a translation. `l="ka"` means *also* figurative etc., so
+    the translation itself is ordinary and not counted as labelled.
+    """
     return {ekixml.text(s) for s in node.findall("s") if s.get("l") != "ka"}
 
 
-#: Labels that keep a translation last wherever it is. Milder ones (`kõnek`,
-#: `piltl`, `dem`, `hellitl`…) may stand in the main sense: `мальчишка` is still
-#: "boy". These may not: pejorative, vulgar, low-register, slang, dialect,
-#: rare, ironic, jocular, poetic.
+#: Labels that keep a translation last wherever it is (pejorative, vulgar,
+#: low-register, slang, dialect, rare, ironic, jocular, poetic). Milder ones
+#: (`kõnek`, `piltl`…) may stand in the main sense.
 STRONG = {"hlv", "vulg", "madalk", "släng", "murd", "hrv", "iroon", "nlj", "luulek"}
 
 
 def _article(article) -> tuple[int, list[str]]:
     """(number of senses, translations) in the order a learner needs them.
 
-    1. two from the main sense (EKI's first `tp`), neutral then mildly
-       labelled — `poiss` → мальчик, мальчишка: both "boy";
+    1. two from the main sense (EKI's first `tp`), neutral then mildly labelled —
+       `poiss` → мальчик, мальчишка;
     2. the neutral translations of the other senses, in EKI's order;
-    3. the rest of the main sense, then everything else, strongly labelled
-       last. Archaic translations and prefix forms are dropped.
-
-    Taking one neutral translation from every sense in turn put `poiss`'s
-    interjection sense ("смотри") third on the card, ahead of every other
-    word for "boy".
+    3. the rest, strongly labelled last. Archaic translations and prefix forms are
+       dropped.
     """
     main, main_labelled, rest_plain, rest_labelled, strong = [], [], [], [], []
     senses = 0
@@ -141,13 +106,9 @@ def _article(article) -> tuple[int, list[str]]:
 
 
 def _inflection_type(raw: str) -> str | None:
-    """EVS's `mt` in the form the card shows and Sõnaveeb returns.
-
-    42 204 single types, zero-padded (`02`, `17`);
-    1 682 words with two paradigms (`11_&_09`); 1 261 of those marked `?` —
-    EKI unsure of the type. Padded becomes `2`, a pair `11 / 9`, and an unsure
-    one None: a muuttüüp a learner copies into Sõnaveeb must not be a guess,
-    and None makes the card ask Sõnaveeb instead.
+    """EVS's `mt` in the form the card shows: zero padding removed (`02` → `2`), two
+    paradigms as `11 / 9`, and None when EKI marks the type unsure (`?`), so the
+    card asks the live dictionary instead.
     """
     if not raw or "?" in raw:
         return None
@@ -156,12 +117,9 @@ def _inflection_type(raw: str) -> str | None:
 
 
 def _merge(articles: list[tuple[int, list[str]]]) -> tuple[str, ...]:
-    """One list for a lemma with several homonym articles.
-
-    The article with the most senses is the word a learner means (`suu` the
-    mouth, 12 senses, not the sou, 1; `pea` the head, not "soon"), and it
-    supplies the first two translations. Each other homonym then gets its
-    first, so `iga` still shows "каждый" beside "возраст" on a three-slot card.
+    """One list for a lemma with several homonym articles: the article with the most
+    senses supplies the first two translations (`suu` the mouth), then each other
+    homonym gets its first (`iga` still shows "каждый").
     """
     ranked = [words for _, words in sorted(articles, key=lambda a: -a[0]) if words]
     if not ranked:
