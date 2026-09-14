@@ -247,53 +247,54 @@ explanations, and no "log it" button, so nothing reaches the error log either.
 A 429 recovers on its own; what does not recover on its own is having nowhere
 to fall back to.
 
-**Groq is the one to add.** Free, no card, and a free tier of roughly 100
-requests a day per model — about double OpenRouter's, and spent independently,
-so the two are unlikely to run out on the same afternoon.
+**Groq was the one to add, and cannot be.** Measured 2026-09-14: its
+Cloudflare front refuses datacenter IP ranges ("Access denied. Please check
+your network settings"), so neither Cloud Run nor Actions reaches it, and the
+lane left the chain (`grammar.NOT_IN_CHAIN`). The replacements are the two
+largest free allowances a server can reach, both without a card:
 
-1. Sign in at **`console.groq.com`** with Google or GitHub.
-2. Open **API Keys** (`console.groq.com/keys`) and create one. Copy it: the
-   value is shown once.
-3. In **Google Cloud Shell**, from the clone — see *Every `deploy/` script
+| Key | Where | Free allowance | Pinned model |
+|---|---|---|---|
+| `MISTRAL_API_KEY` | `console.mistral.ai` → choose the **Experiment** plan → API Keys | ~1B tokens/month, rate-limited | `mistral-large-latest` |
+| `NVIDIA_API_KEY` | `build.nvidia.com` → sign in → *Get API Key* (NVIDIA Developer Program) | 40 requests/minute | `deepseek-ai/deepseek-v4-pro-0813` |
+
+1. Create each key; the value is shown once.
+2. In **Google Cloud Shell**, from the clone — see *Every `deploy/` script
    runs from a clone* above if it is not there:
 
    ```bash
-   bash deploy/set-llm-key.sh GROQ_API_KEY
+   bash deploy/set-llm-key.sh MISTRAL_API_KEY
+   bash deploy/set-llm-key.sh NVIDIA_API_KEY
    ```
 
    The input is hidden, so the key never reaches your shell history or the
    process table, and the script reads the variable's name back off the service
    afterwards rather than assuming the write worked.
+3. Add the same two as **GitHub Actions secrets** so the `eval` workflow can
+   score them.
 4. Confirm by running the **smoke** workflow with `deep: true`, and read the
    deep line rather than the cheap one — see below.
 
-**If that run says `llm:groq: HTTPError 403`, the key is fine.** This happened
-on the first key ever set here, and 403 means *permissions*, so an hour went
-into the key before anything looked at the model. Groq deprecated the pinned id
-`llama-3.3-70b-versatile` for free and developer tiers on **2026-08-16**, six
-days earlier. A withdrawn id that enterprise accounts still hold does not 404 —
-the model exists, this account may not have it — so it forbids.
+**The Groq history, kept because the lesson generalises.** `llm:groq: HTTPError
+403` on the first key ever set here meant a withdrawn model id, not a bad key:
+a withdrawn id that enterprise accounts still hold does not 404, it forbids.
 
 The three cases are now told apart by the note itself, which reads the
 provider's own error name: `HTTPError 401 (invalid_api_key)` is a dead key,
 `HTTPError 429 (rate_limit_exceeded)` is a spent tier that recovers on its own,
 and `HTTPError 403 (model_decommissioned)` is a stale pin — a code change, not
 an operator action. If it is a stale pin and you want the app working before
-that lands, `GROQ_MODEL` on the Cloud Run service overrides the pin:
-
-```bash
-bash deploy/set-llm-key.sh GROQ_MODEL
-```
-
-Current ids are at `console.groq.com/docs/models`. Prefer one listed
-**production**; a **preview** id is documented as temporary and will do this
-again.
+that lands, `<PROVIDER>_MODEL` on the Cloud Run service overrides the pin
+(`bash deploy/set-llm-key.sh MISTRAL_MODEL`, say). Prefer an id the provider
+lists as stable; a preview id is documented as temporary and will do this again.
 
 **Why not Cloudflare Workers AI**, given the Worker already uses it: the Worker
 reaches it through an `AI` *binding*, which needs no token. The container
 cannot see that binding and would need REST access — a token *and*
 `CLOUDFLARE_ACCOUNT_ID`, so two variables and a permissions screen against
-Groq's one. Worth having as a third key, not as the second.
+one for Mistral or NVIDIA. Worth having as a third key, not as the second. The token needs
+**Account → Workers AI → Read** and nothing else; without it the API answers
+403 `Authentication error` (code 10000), measured 2026-09-14.
 
 `HF_TOKEN` is a different kind of bet: the only hosted route to EstLLM, an
 Estonian-adapted Llama that may explain Estonian better than a general free

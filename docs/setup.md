@@ -103,7 +103,9 @@ python -m eesti.cli keys  # prints only the last 4 characters
 
 | Key | What it adds | Where to get it |
 |---|---|---|
-| `GROQ_API_KEY` | fastest inference, generous free tier | https://console.groq.com/keys |
+| `MISTRAL_API_KEY` | Mistral Large, free Experiment plan (~1B tokens/month) | https://console.mistral.ai/api-keys |
+| `NVIDIA_API_KEY` | DeepSeek V4 Pro and 80+ open models, 40 req/min free | https://build.nvidia.com |
+| `GROQ_API_KEY` | local use only — Groq refuses datacenter IPs, so it cannot serve the deployment | https://console.groq.com/keys |
 | `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | Workers AI — runs inside Cloudflare, 10 000 neurons/day | Cloudflare dashboard → My Profile → API Tokens |
 | `NOTION_TOKEN` | push confirmed errors into the `Vead` database | https://www.notion.so/my-integrations |
 | `EKILEX_API_KEY` | EKI's own dictionary API for the word card: current learner definitions, Russian per sense, rection, muuttüüp, CEFR level — instead of the third-party Sõnaveeb mirror | your profile page at https://ekilex.ee/ |

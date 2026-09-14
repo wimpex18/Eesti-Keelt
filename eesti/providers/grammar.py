@@ -434,7 +434,7 @@ class VabamorfFallback:
 
 
 #: The keys that turn on a lane able to explain a correction.
-EXPLAINING_KEYS = ("HF_TOKEN", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CLOUDFLARE_API_TOKEN")
+EXPLAINING_KEYS = ("MISTRAL_API_KEY", "NVIDIA_API_KEY", "OPENROUTER_API_KEY", "CLOUDFLARE_API_TOKEN", "HF_TOKEN")
 
 
 def _offline_note() -> str:
@@ -535,7 +535,18 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 # exactly that reason. Anything added to `PROVIDERS` and not to this tuple is
 # dead weight; a test asserts the two agree, which is what forced this line to
 # be edited when the provider came back.
-LLM_PREFERENCE = ("local", "huggingface", "openrouter", "groq", "workers-ai")
+#: Groq left the chain on 2026-09-14: its Cloudflare front refuses datacenter IP
+#: ranges by design ("Access denied. Please check your network settings"), so a
+#: Cloud Run container can never reach it. NVIDIA and Mistral joined as the
+#: largest free allowances reachable from a server. The order among the new
+#: lanes is provisional until each has a key and an eval run.
+LLM_PREFERENCE = ("local", "huggingface", "mistral", "nvidia", "openrouter", "workers-ai")
+
+#: Lanes defined in `PROVIDERS` and deliberately left out of the chain, each with
+#: the reason. The only way past the "defined but never tried" check.
+NOT_IN_CHAIN = {
+    "groq": "refuses datacenter IPs; kept for `cli models` and evals from a laptop",
+}
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:

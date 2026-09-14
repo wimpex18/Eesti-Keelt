@@ -151,7 +151,14 @@ PROVIDERS: dict[str, Provider] = {
         # model for Estonian morphosyntax buys the weakest axis of the most
         # expensive option -- see `docs/ai-strategy.md`, which keeps the old
         # recommendation and the argument that overturned it.
-        "google/gemma-4-31b-it:free",
+        #
+        # Re-pinned 2026-09-14, on the project's own eval this time: the Gemma
+        # id above answered 429 to 18 of 18 cases (the free model saturated,
+        # the key fine), and `dots-studio/dots-3-note-preview:free` scored
+        # precision 1.0 — no correct sentence flagged — and recall 0.714 on the
+        # same cases (eval run 34811299690). A pin that answers nothing loses
+        # to one that answers precisely.
+        "dots-studio/dots-3-note-preview:free",
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
@@ -177,6 +184,30 @@ PROVIDERS: dict[str, Provider] = {
     # The active-parameter objection stands and is not settled by this choice.
     # `GROQ_MODEL` is why it does not have to be: trying qwen against the eval
     # is an environment variable, not a redeploy.
+    # NVIDIA Build (NIM API): OpenAI-compatible, no card, 40 requests a minute
+    # on the free developer programme, and the widest catalogue of new open
+    # models reachable from a datacenter (82 listed publicly, 2026-09-14).
+    # DeepSeek V4 Pro is the newest large general model in it. JSON mode is not
+    # documented per model there, so the lane does not ask for it: the prompt
+    # already demands JSON and `parse_json` tolerates a fenced block.
+    "nvidia": Provider(
+        "nvidia",
+        "https://integrate.api.nvidia.com/v1",
+        "NVIDIA_API_KEY",
+        "deepseek-ai/deepseek-v4-pro-0813",
+        "Free NVIDIA Developer Program key, 40 req/min; 100+ hosted models.",
+        json_mode=False,
+    ),
+    # Mistral La Plateforme, Experiment plan: free, no card, about a billion
+    # tokens a month across every API model, Large included. `-latest` is
+    # Mistral's own stable alias, so a new Large release needs no re-pin.
+    "mistral": Provider(
+        "mistral",
+        "https://api.mistral.ai/v1",
+        "MISTRAL_API_KEY",
+        "mistral-large-latest",
+        "Free Experiment plan, ~1B tokens/month, rate-limited.",
+    ),
     "groq": Provider(
         "groq",
         "https://api.groq.com/openai/v1",

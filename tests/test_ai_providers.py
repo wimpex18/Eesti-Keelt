@@ -30,8 +30,15 @@ class TestEveryProviderIsReachable:
         that is absent from `LLM_PREFERENCE` is dead weight nobody notices,
         because nothing fails — the chain simply walks past a lane that is not
         in it."""
-        orphans = sorted(set(llm.PROVIDERS) - set(grammar.LLM_PREFERENCE))
+        orphans = sorted(set(llm.PROVIDERS) - set(grammar.LLM_PREFERENCE)
+                         - set(grammar.NOT_IN_CHAIN))
         assert not orphans, f"defined but never tried: {orphans}"
+
+    def test_a_lane_left_out_is_left_out_on_purpose(self):
+        """An exclusion must name a real lane, not also be in the chain, and say why."""
+        for name, reason in grammar.NOT_IN_CHAIN.items():
+            assert name in llm.PROVIDERS and name not in grammar.LLM_PREFERENCE, name
+            assert reason.strip(), name
 
     def test_nothing_is_tried_that_does_not_exist(self):
         """The other direction: a typo in the preference tuple would build a
