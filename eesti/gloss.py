@@ -1,58 +1,22 @@
-"""What the words mean — kept, so Sõnaveeb is asked once per word and never again.
+"""What the words mean — stored, so the live dictionary is asked once per word, ever.
 
-## The gap this fills
+Drills on words the learner cannot translate teach only morphology, so every
+word the learner looks at gets a stored gloss.
 
-The app knows 160 316 Estonian words, knows which of them are A1, A2 or B1, and
-can inflect any of them. It could not say what a single one of them meant.
+Sõnaveeb and Ekilex ask not to be batch-requested. This store is how that is
+honoured across Cloud Run cold starts: it lives in `vocab.db`, which the state
+snapshot carries, so a word is never re-requested after a restart. Misses are
+stored too.
 
-That is not an abstract omission. Generate twelve B1 object-case drills and the
-lemmas that come back are `etendus`, `luuletus`, `rahakott`, `kingitus`,
-`jäätis`, `kleit` — none of which a Russian speaker at A2 knows. The learner
-supplies `kleidi` for "Ma ostsin ____", gets it right, and has practised
-morphology on a token with no meaning attached. The stated scope of this project
-is *learning Estonian*, not only passing an exam, and a drill on a word you
-cannot translate teaches half of what it looks like it teaches.
+What keeps it from becoming a harvest, in code:
 
-## Why this is not the batch-request the rules forbid
+- a word is fetched only when the learner is looking at it (a card, or a drill
+  just answered);
+- `sonapi` spaces live requests a second apart, under a lock;
+- `DAILY_BUDGET` caps new words per day.
 
-`providers/sonapi.py` says single lookups only, because Sõnaveeb's maintainers
-ask not to be batch-requested. That rule stands and this module does not bend
-it. It makes it *stronger*, because the honest reading of "do not hammer our
-server" is **ask once per word, ever** — and that is precisely what the app was
-failing to do.
-
-Its cache lived in `data/cache/sonapi/`, which is git-ignored, not the content
-volume, and not in the state snapshot. Cloud Run scales to zero. So every cold
-start began with an empty cache, and every word the learner looked at was
-requested again — the same words, session after session, because seeing a word
-again is the entire point of spaced repetition. The module whose central promise
-is "don't hammer Sõnaveeb" had storage that guaranteed it would.
-
-This is the same bug as the circuit breaker keeping its failure counts in a
-module-level dict: *state that protects against restarts must survive one*.
-Here the state protects a third party, which makes it worse.
-
-## What stops this becoming a harvest
-
-Three things, in code rather than in this docstring:
-
-  * a word is fetched only when the learner is looking at it — reading a card,
-    or having just answered a drill on it;
-  * `sonapi` still spaces live requests a second apart, under a lock;
-  * and `DAILY_BUDGET` caps new words per day. A person meets a few dozen new
-    words in a hard study session. At this cap the full 160 316-word list would
-    take three and a half years, so no code path here can turn into a harvest
-    even by accident.
-
-Misses are stored too. A word Sõnaveeb does not have is a fact worth keeping;
-re-asking for it every session is the same load with none of the benefit.
-
-## Licence
-
-Ekilex — the database behind Sõnaveeb, and behind `api.sonapi.ee` — is CC BY 4.0.
-This store is private to one learner, behind Cloudflare Access, and travels only
-inside their own state snapshot. It is never redistributed, and `sources.py`
-records the attribution.
+Ekilex data is CC BY 4.0; this store is one learner's, behind Access, and never
+redistributed (attribution in `licences.py`).
 """
 
 from __future__ import annotations
@@ -87,10 +51,8 @@ CREATE TABLE IF NOT EXISTS gloss_budget (
 """
 
 
-#: Columns added after the table first shipped, for Ekilex: the learner-level
-#: definition it flags `wwLite`, the CEFR level it gives a sense, and which
-#: live dictionary answered. `CREATE TABLE IF NOT EXISTS` cannot add a column
-#: to a `vocab.db` a restore brought back, so `migrate` does.
+#: Columns added for Ekilex (learner-level definition `wwLite`, sense CEFR level,
+#: which live dictionary answered). `migrate` adds them to a restored `vocab.db`.
 LATER_COLUMNS = ("learner_definition", "level", "source")
 
 
@@ -128,30 +90,17 @@ class Gloss:
 
 
 def connect(path: Path | str, *, seed_glosses: bool = True) -> sqlite3.Connection:
-    """Open the store. Lives in `vocab.db`, which the state snapshot carries.
+    """Open the store in `vocab.db`, which the state snapshot carries.
 
-    Not a file of its own: a gloss is a fact about a word this learner met, it
-    is small, and putting it anywhere outside the snapshot would reproduce the
-    exact bug this module exists to fix.
-
-    Delegates to `vocab.connect` so the file has exactly one opener and comes
-    back complete whichever module asked for it. Two openers, each applying
-    half the schema, is how the glossed-word count went missing on a fresh
-    container instead of reading zero.
+    Delegates to `vocab.connect`, the file's single opener, so both schemas are
+    always present.
     """
     from .vocab import connect as open_vocab
 
     conn = open_vocab(path)
-    # Load the shipped glosses if this store has never had them. Keyed on the
-    # marker rather than on the table being empty, so a store that already
-    # holds Sõnaveeb answers still receives the seed on upgrade -- "empty"
-    # would have skipped exactly the stores that have been used.
-    #
-    # A loader nothing calls is this project's oldest recurring bug, so it is
-    # wired into the one opener rather than left for a caller to remember.
-    # `seed_glosses=False` is for tests about the store's own mechanics --
-    # saving, de-duplicating, counting -- which should not have 294 rows they
-    # did not put there. Production never passes it.
+    # Load the shipped glosses once per store, keyed on a marker (not on emptiness),
+    # so stores that already hold dictionary answers still get the seed.
+    # `seed_glosses=False` is for tests of the store's own mechanics.
     if seed_glosses:
         try:
             if not conn.execute(
@@ -196,12 +145,7 @@ def stored(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
 def stored_many(
     conn: sqlite3.Connection, lemmas: list[str] | tuple[str, ...]
 ) -> dict[str, Gloss]:
-    """Local lookup for a list of lemmas.
-
-    A bulk read of the **local** table, which is a SELECT and nothing else.
-    Deliberately has no live-fetch fallback: that would be the loop over
-    `sonapi` this whole design exists to prevent, wearing a different name.
-    """
+    """Local lookup for a list of lemmas: a SELECT only, never a live fetch."""
     wanted = [w for w in dict.fromkeys(lemmas) if w]
     if not wanted:
         return {}
@@ -242,16 +186,13 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
                  learner_definition = excluded.learner_definition,
                  level = excluded.level,
                  source = excluded.source""",
-            # EKI's learner-level wording is deliberately not in this table
-            # at all: it is reference data and lives beside the word list,
-            # where a state-snapshot restore cannot reach it. `/api/enrich`
-            # reads both and prefers EKI's. See `eesti/psv.py`.
+            # EKI's learner definitions are reference data beside the word list, not in this
+            # table; `/api/enrich` reads both (see `eesti/psv.py`).
             (lemma, "\x1f".join(gloss.russian), gloss.definition,
              gloss.rection, gloss.inflection_type, int(gloss.found), _now(),
              gloss.learner_definition, gloss.level, gloss.source),
         )
-    # Read back rather than returning the object built above, so what the
-    # caller gets is what the store now holds.
+    # Read back, so the caller gets what the store now holds.
     return stored(conn, lemma) or gloss
 
 
@@ -275,34 +216,14 @@ def _spend(conn: sqlite3.Connection) -> None:
         )
 
 
-#: Provenance markers that mean "filled locally, never asked about".
-#:
-#: Only the shipped glossary, which carries a Russian translation and nothing
-#: else — no senses, no rection, no muuttüüp — so it is a **baseline, not a
-#: ceiling** and `remember()` asks Sõnaveeb anyway.
-#:
-#: EKI's learner dictionary was briefly in here too, and taking it out was the
-#: point of moving it: while PSV filled `word_gloss` rows, a covered word
-#: looked already-looked-up, and the six thousand commonest words would have
-#: lost their Russian for ever. In its own table it occupies no row here and
-#: the rule has nothing to except.
+#: Provenance markers meaning "filled locally, never asked about": the shipped
+#: glossary, which carries only Russian, so `remember()` still asks the live
+#: dictionary for senses, rection and muuttüüp.
 BASELINES = ("seed",)
 
 
 def _is_baseline(conn: sqlite3.Connection, lemma: str) -> bool:
-    """Whether the stored row was filled locally rather than by a live answer.
-
-    Kept as a query rather than a field on `Gloss`, because it is a fact about
-    provenance and every caller of `Gloss` cares about meaning.
-
-    This was `_is_seed` and tested only for the shipped glossary. Importing
-    EKI's learner dictionary would then have filled 6 000 rows that `remember()`
-    treats as complete — so the commonest words in the language would have
-    gained an Estonian definition and permanently lost the chance of a Russian
-    one. Importing a dictionary would have made the word card worse for exactly
-    the words it appears on most, which is the same trap the seed hit, one
-    source later.
-    """
+    """Whether the stored row was filled locally rather than by a live answer."""
     row = conn.execute(
         "SELECT fetched FROM word_gloss WHERE lemma = ?", (lemma,)).fetchone()
     return bool(row) and row[0] in BASELINES
@@ -311,23 +232,17 @@ def _is_baseline(conn: sqlite3.Connection, lemma: str) -> bool:
 def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     """The one place a live lookup may happen: a word in front of the learner.
 
-    Returns what is stored if anything is; otherwise asks Sõnaveeb once, keeps
-    the answer — including "no such word" — and returns it. Over budget, or with
-    the service down, the answer is None and the caller shows nothing. An
-    enrichment is never worth an error, and never worth a wait the learner did
-    not ask for.
+    Returns what is stored; otherwise asks the live dictionary once, keeps the
+    answer (including "no such word") and returns it. Over budget or offline, it
+    returns None and the caller shows nothing.
     """
     lemma = (lemma or "").strip()
     if not lemma:
         return None
 
     hit = stored(conn, lemma)
-    # A seeded row is a baseline, not a ceiling. It carries the Russian and
-    # nothing else -- no senses, no rection, no muuttüüp -- so returning it here
-    # would mean 294 of the commonest words could *never* gain the rest, and
-    # seeding would have quietly made the word card worse for exactly the words
-    # it appears on most. Ask anyway, budget permitting, and keep the seed as
-    # the fallback if the answer does not come.
+    # A seeded row carries only Russian; ask anyway (budget permitting) and keep the
+    # seed as the fallback.
     if hit is not None and not _is_baseline(conn, lemma):
         return hit
     if budget_left(conn) <= 0:
@@ -335,8 +250,8 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
 
     from .providers import ekilex, sonapi
 
-    # EKI's own API when this deployment holds its key; the third-party mirror
-    # over Sõnaveeb otherwise. Same budget, same once-per-word store.
+    # Ekilex when this deployment holds its key; the Sõnaveeb mirror otherwise.
+    # Same budget, same store.
     provider = ekilex if ekilex.available() else sonapi
     _spend(conn)  # spent on the attempt, so a failing service cannot be retried
     try:                                   # into a flood
@@ -364,29 +279,16 @@ def stats(conn: sqlite3.Connection) -> dict:
         "daily_budget": DAILY_BUDGET,
     }
 
-#: Glosses that ship with the app, for the words drills actually use.
-#:
-#: Measured across every generator: 0 % of drill lemmas had a translation on a
-#: fresh deployment, because the store fills one word at a time on demand. A
-#: learner drilling `etendus` got morphology on a token they could not
-#: translate -- the failure CLAUDE.md names and nothing had closed.
-#:
-#: Written for this project rather than fetched. Sõnaveeb asks not to be
-#: batched and `sonapi` has no bulk helper by design, so seeding from it was
-#: never an option and this is not a workaround for one.
+#: Glosses that ship with the app, for the words drills use. Hand-written for this
+#: project — never fetched from Sõnaveeb.
 SEED = Path(__file__).resolve().parent.parent / "data" / "seed_glossary.tsv"
 
 
 def seed(conn: sqlite3.Connection, path: Path | str | None = None) -> int:
     """Load the shipped glosses. Returns how many rows were newly written.
 
-    `INSERT OR IGNORE`, so a Sõnaveeb answer already in the store always wins:
-    it carries senses, rection and muuttüüp, and this file carries one line.
-    Idempotent, so it can run on every start without cost.
-
-    Marked `fetched = 'seed'` so the two sources stay distinguishable -- a
-    later session asking "where did this translation come from" gets an answer
-    rather than assuming Sõnaveeb said it.
+    `INSERT OR IGNORE`, so a live dictionary answer already stored wins. Marked
+    `fetched = 'seed'` to keep provenance. Idempotent.
     """
     src = Path(path) if path else SEED
     if not src.exists():

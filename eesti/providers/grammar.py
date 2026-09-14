@@ -1,10 +1,8 @@
 """Grammar checking, as a chain of interchangeable providers.
 
-Order is deliberate: try the free Estonian-specific services first, fall back to
-an LLM, and if even that is unavailable degrade to purely offline evidence
-rather than failing. The user always sees which engine answered, because a
-correction from Vabamorf-only mode carries far less authority than one with a
-real explanation behind it.
+TartuNLP first, then LLM lanes, then offline Vabamorf evidence; the result
+always names the engine that answered, because an offline answer carries far
+less authority than an explained one.
 """
 
 from __future__ import annotations
@@ -20,25 +18,11 @@ from typing import Protocol
 from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR
 from . import breaker
 
-# Why the object-case rules and the "most text is already correct" line are
-# stated here and not just in the eval's prompt.
-#
-# `evals/gec.py` records the failure that produced them: on its first real run a
-# model flagged four of eight already-correct sentences -- "Ma ostsin uue auto",
-# "Ma sõin suppi". The fix was to state the rules *positively*, so a correct
-# genitive is recognisably correct rather than merely un-flagged, and to resolve
-# ambiguity toward saying nothing.
-#
-# That fix went into the eval's prompt and not into this one, which is the
-# prompt the learner actually meets. The two had drifted apart on exactly the
-# axis the eval measures, so a good eval score was a score for a prompt this app
-# does not ship. A checker that invents errors teaches that every partitive is a
-# mistake, which is worse than no checker at all.
-#
-# The worked examples are deliberately *not* copied across with them: this
-# prompt's contract has a fourth field (`why`, in Russian) that the eval's
-# three-field examples would contradict, and an example that disagrees with the
-# contract above it is worse than none.
+# The object-case rules and "most text is already correct" are stated positively
+# here, as in the eval prompt (`evals/gec.py`): a model otherwise flags correct
+# genitives, and a checker that invents errors is worse than none. The eval's
+# worked examples are not copied: this prompt adds a Russian `why` field they
+# would contradict.
 SYSTEM_PROMPT = """\
 You are an Estonian teacher correcting a Russian-speaking learner preparing for \
 the B1 tasemeeksam. Their #1 documented weakness is object case: using partitive \
@@ -93,11 +77,8 @@ class GrammarResult:
     #: (`llm:nvidia: HTTPError 410 (no-code)`). English; read by the smoke
     #: workflow, never shown to the learner.
     diagnostics: str = ""
-    # True when the input was not typed by the learner — a speech transcript,
-    # where the recogniser may have introduced the "error" being reported.
-    # Advisory results are shown and never recorded: they must not reach the
-    # Notion log or the review queue, because a curated error log is only worth
-    # keeping if everything in it actually happened.
+    # True for a speech transcript: the recogniser may have introduced the "error".
+    # Advisory results are shown and never recorded (no Notion log, no review queue).
     advisory: bool = False
 
     def to_dict(self) -> dict:
@@ -144,17 +125,9 @@ def _locate(text: str, corrections: list[Correction]) -> list[Correction]:
 def _minimal_span(wrong: str, right: str) -> tuple[str, str]:
     """Narrow a sentence pair down to the words that actually changed.
 
-    TartuNLP's `/v2` answers in whole sentences: `original` and `corrected` are
-    both complete sentences, and only some words inside differ. Handing those
-    straight to `_locate` highlighted **the entire sentence** as the mistake,
-    which tells a learner nothing — the one thing a correction has to say is
-    *which word*.
-
-    Word-level common prefix and suffix, which is all that is needed: the two
-    strings are the same sentence, so whatever is left in the middle after
-    trimming the matching ends is the edit. Falls back to the whole pair when
-    the trim leaves nothing on either side, so a pure insertion or deletion is
-    still reported rather than silently dropped.
+    TartuNLP `/v2` answers whole sentences; trim the common word prefix and suffix
+    so only the edited words are highlighted. Falls back to the whole pair when
+    nothing is left, so insertions and deletions are still reported.
     """
     a, b = wrong.split(), right.split()
     head = 0
@@ -168,10 +141,7 @@ def _minimal_span(wrong: str, right: str) -> tuple[str, str]:
     middle_b = " ".join(b[head:len(b) - tail])
     if not middle_a or not middle_b:
         return wrong, right
-    # A shared trailing full stop rides along on the last word -- `autot.` for
-    # `auto.` -- and highlighting a sentence's punctuation as the mistake is a
-    # small lie about where the error is. Trim only what both sides share, so
-    # a correction that *is* about punctuation still shows it.
+    # Trim a trailing full stop both sides share; punctuation that did change stays.
     while (middle_a and middle_b and middle_a[-1] == middle_b[-1]
            and not middle_a[-1].isalnum() and len(middle_a) > 1 and len(middle_b) > 1):
         middle_a, middle_b = middle_a[:-1], middle_b[:-1]
@@ -179,18 +149,8 @@ def _minimal_span(wrong: str, right: str) -> tuple[str, str]:
 
 
 def _tag_of(wrong: str, right: str) -> str:
-    """The one tag this service's output actually supports claiming.
-
-    TartuNLP returns no error type, so every correction used to be filed as
-    `vocab` — which put word-order corrections and case corrections alike into
-    the one bucket the error log uses for "wrong word", and the Notion log
-    groups on this field.
-
-    Exactly one type can be read off the strings themselves without inventing
-    an annotation layer: if the correction only re-orders, the multiset of
-    words is unchanged. That is the same signature `wordorder.is_reordering`
-    already uses, imported rather than restated. Everything else stays `vocab`,
-    which remains a guess and is left as the honest default.
+    """The one tag this service's output supports: `word-order` when the correction
+    only re-orders words (`wordorder.is_reordering`), otherwise `vocab`.
     """
     from ..wordorder import is_reordering
 
@@ -276,16 +236,7 @@ class TartuNLPGrammar:
         return out
 
     def check(self, text: str) -> GrammarResult:
-        """Two endpoints, one budget.
-
-        `self.timeout` is the whole allowance for this provider, not the
-        allowance per attempt. Spending it twice would double the wait on the
-        chain's first provider — the one documented to answer 500 after 61 s —
-        from 5 seconds to 10, against a docstring that says the short timeout
-        exists precisely so that wait is never inflicted on someone waiting to
-        see their mistake. Adding a fallback is not a licence to spend more of
-        the learner's time; it is a second thing to try inside the same budget.
-        """
+        """Two endpoints, one budget: `self.timeout` covers both attempts together."""
         v2, root = self.ENDPOINTS
         half = self.timeout / 2
         try:
@@ -308,14 +259,9 @@ class TartuNLPGrammar:
 class LLMGrammar:
     """LLM checker, prompted for this learner's gap and the fixed Notion tags.
 
-    Primary engine in practice: the only option that explains in Russian and can
-    assign tags that group with the existing error log.
-
-    Works against any OpenAI-compatible provider (EstLLM on Hugging Face or a
-    local server, OpenRouter, Groq, Workers AI) so the deployment target can
-    change without touching this class.
-    Which one to prefer is a quality question, not a taste one — run
-    `python -m eesti.cli eval --provider X` before switching.
+    The only engine that explains in Russian and assigns tags that group with the
+    error log. Works with any lane in `llm.PROVIDERS`; compare lanes with
+    `python -m eesti.cli eval --provider X` before reordering.
     """
 
     def __init__(self, provider: str = "openrouter", model: str | None = None):
@@ -350,10 +296,8 @@ class LLMGrammar:
 class VabamorfFallback:
     """Always-available offline mode: evidence without judgement.
 
-    This cannot decide whether a partitive should have been genitive — that needs
-    telicity, which is semantics. It reports what is objectively true (the case
-    actually written, plus misspellings) and says so honestly, so the learner is
-    never shown a guess dressed up as a correction.
+    It cannot decide whether a partitive should have been genitive (that needs
+    telicity); it reports the case written and misspellings, and says so.
     """
 
     name = "vabamorf-offline"
@@ -364,14 +308,7 @@ class VabamorfFallback:
     def check(self, text: str) -> GrammarResult:
         from ..morph import object_case_candidates
 
-        # `spelling()` rather than a second copy of the same loop, and located.
-        #
-        # This built its own unlocated `Correction`s, so every misspelling this
-        # provider reported arrived with `start`/`end` of `None` and the page
-        # had nothing to highlight. It went unnoticed because the offline
-        # provider only answers when everything else has failed — and then
-        # survived the merge, because a word this provider already named is the
-        # one the merge keeps, so the *located* copy lost to the unlocated one.
+        # Located spelling corrections from `spelling()`, so the page can highlight them.
         corrections = spelling(text)
 
         flagged = [
@@ -413,17 +350,8 @@ def _offline_note() -> str:
             + ", ".join(EXPLAINING_KEYS[:-1]) + " или " + EXPLAINING_KEYS[-1] + ".")
 
 
-# Tags whose evidence a speech transcript cannot support.
-#
-# `vocab` is raised when Vabamorf does not recognise a word. On writing that is
-# a spelling mistake. On a transcript it is overwhelmingly the *recogniser*
-# inventing a word — a learner who says `kooli` correctly and is heard as
-# `kohli` would be told they made a vocabulary error, and then an object-case
-# error on top of the invented word. Two mistakes reported, none made.
-#
-# So a transcript drops them. The remaining tags are about the *shape* of what
-# was said, which survives a mis-heard word or two; `vocab` is about the word
-# itself, which is exactly what the recogniser may have got wrong.
+# Tags a transcript cannot support: `vocab` on a transcript is usually the
+# recogniser inventing a word, not a learner's spelling mistake.
 SPEECH_UNSUPPORTED_TAGS = frozenset({"vocab"})
 
 
@@ -437,23 +365,13 @@ def unrecognised_words(text: str) -> set[str]:
 def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
     """Re-read a written-text check as what it is when the input was spoken.
 
-    An ASR transcript is evidence about two things at once — what the learner
-    said, and what the model heard — and nothing here can separate them. So:
+    A transcript mixes what was said with what was heard, so:
 
-    1. **Corrections anchored on a word Vabamorf does not recognise are dropped
-       entirely**, whatever their tag. The first version only dropped the
-       `vocab` ones, which was half a fix: a learner who says *kooli* correctly
-       and is heard as *kohli* stopped being told they had a vocabulary error,
-       and was still told the invented word was in the wrong case. If a token is
-       not a word, nothing about that token is worth reporting.
-    2. What remains is marked `advisory`, so nothing downstream files it as a
-       confirmed error — it must never reach the Notion log or seed the review
-       queue, because a curated error log is only worth keeping if everything in
-       it actually happened.
-
-    The unknown-word set is recomputed from the text rather than read off the
-    `vocab` corrections, because an LLM provider may not emit those at all and
-    the rule has to hold for every engine in the chain.
+    1. Corrections anchored on a word Vabamorf does not recognise are dropped,
+       whatever their tag (unknown words are recomputed from the text, so the rule
+       holds for every engine).
+    2. The rest is marked `advisory` and never reaches the Notion log or the
+       review queue.
     """
     unknown = unrecognised_words(text) if text else {
         c.wrong.casefold() for c in result.corrections
@@ -484,11 +402,9 @@ LLM_PREFERENCE = ("local", "workers-ai", "nvidia", "mistral", "openrouter")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
-    """Default order: Estonian-specific service, then LLMs, then offline.
+    """Default order: TartuNLP, the LLM lanes, then offline Vabamorf.
 
-    TartuNLP goes first because it is purpose-built for Estonian and free, but it
-    was failing every request during development, so the breaker will normally
-    step over it within a couple of calls.
+    TartuNLP is often unresponsive; the breaker steps over it after two failures.
     """
     if providers is not None:
         return providers
@@ -499,31 +415,19 @@ def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarP
     ]
 
 
-#: `non-json` and `no-code` are this module's own words for "the provider did
-#: not give one", and are deliberately shaped like the thing they stand in for
-#: so the note reads the same either way. They are the two answers that used to
-#: be silence.
+#: `non-json` and `no-code` stand in when a provider gives no identifier.
 #:
-#: A machine-readable error identifier — `model_decommissioned`,
-#: `invalid_api_key`, `rate_limit_exceeded`. Deliberately narrow: no spaces, no
-#: capitals, no non-ASCII, and short. A learner's sentence cannot take this
-#: shape, which is what makes reading this one field compatible with the rule
-#: below that a response body never reaches the note.
+#: An error identifier (`model_decommissioned`, `invalid_api_key`): no spaces,
+#: capitals or non-ASCII, and short, so a learner's sentence can never match and a
+#: response body never reaches the note.
 _ERROR_CODE = re.compile(r"^[a-z][a-z0-9_.-]{2,39}$")
 
 
 def _error_code(exc: urllib.error.HTTPError) -> str:
     """The provider's own name for the failure, or "" if it did not give one.
 
-    Every OpenAI-compatible provider in the chain answers a 4xx with
-    `{"error": {"code": ..., "type": ...}}`, and that identifier is the
-    difference between a status code and an instruction. Anything that is not
-    such an identifier — prose, HTML from a proxy sitting in front of the API, a
-    body that echoes the request — fails the pattern and is dropped rather than
-    trimmed, because a truncated sentence is still a sentence.
-
-    Reading is capped and never raises: this runs on the failure path, and an
-    error while explaining an error would replace a useful note with none.
+    Reads `{"error": {"code"|"type": ...}}`; anything that is not an identifier
+    (prose, proxy HTML, an echoed request) is dropped. Capped and never raises.
     """
     try:
         raw = exc.read(4096)
@@ -537,12 +441,8 @@ def _error_code(exc: urllib.error.HTTPError) -> str:
     try:
         body = json.loads(raw or b"{}")
     except Exception:
-        # Not the provider's JSON at all. Almost always something in *front* of
-        # the API -- Groq, OpenRouter and Cloudflare all sit behind proxies that
-        # answer 403 with an HTML challenge page, and that is a completely
-        # different diagnosis from the API itself refusing. Saying nothing here
-        # made the two identical, and an ambiguous note is what sent an hour
-        # into deciding whether a deployment was even running the new code.
+        # Not JSON: usually a proxy in front of the API (an HTML challenge page), which
+        # is a different diagnosis from the API refusing.
         return "non-json"
     error = body.get("error") if isinstance(body, dict) else None
     if not isinstance(error, dict):
@@ -560,24 +460,10 @@ def _error_code(exc: urllib.error.HTTPError) -> str:
 def why_failed(exc: BaseException) -> str:
     """Name a failure precisely enough to act on it.
 
-    The type alone is not actionable. `HTTPError` covers a 429 (wait, the free
-    tier is spent), a 401 (the key is dead, replace it) and a 502 (the provider
-    is having a moment) — three different jobs for the operator, printed
-    identically. A live deployment reported `llm:openrouter: HTTPError` and
-    nothing in the note could say which of the three it was.
-
-    The provider's own error code is included where it gives one: a 403 can be
-    a withdrawn model id, not a bad key.
-
-    Never a response *body*: the note is printed into CI logs, and the text
-    being checked is the learner's own writing. `_error_code` reads one field
-    and only when it is an identifier, which is a shape prose cannot take.
-
-    Public, and read by `eesti/evals/` too. The eval tracks rendered
-    `type(exc).__name__` instead and so reported the same 400 as a bare
-    `HTTPError` — the exact loss of the provider's own diagnosis that this
-    function was written to stop, in the one place a person goes looking for
-    why a model scored nothing.
+    Includes the HTTP status and the provider's own error code: a 429 (wait), a
+    401 (replace the key) and a 403 for a withdrawn model id are different jobs.
+    Never a response body — the note reaches CI logs and the checked text is the
+    learner's writing. Also used by `eesti/evals/`.
     """
     if isinstance(exc, urllib.error.HTTPError):
         code = _error_code(exc)
@@ -590,10 +476,8 @@ def why_failed(exc: BaseException) -> str:
     return type(exc).__name__
 
 
-#: Russian, like every explanation the learner has to act on. Names the
-#: authority, because "not in the dictionary" from Vabamorf is a different kind
-#: of claim from "I think this is wrong" from a model, and the learner should
-#: be able to tell them apart.
+#: Russian, naming the authority: "not in Vabamorf's dictionary" is a different
+#: claim from a model's opinion.
 SPELLING_WHY = (
     "Слова нет в словаре Vabamorf. Проверь написание — чаще всего это "
     "пропущенная täpitäht: **õ ä ö ü**."
@@ -631,14 +515,10 @@ AGREEMENT_WHY = (
 def agreement(text: str) -> list[Correction]:
     """Subject–verb agreement, decided by morphology alone.
 
-    The one syntactic error class this project can check *without* syntax:
-    `ma elab` is wrong for a reason visible entirely in two adjacent words, and
-    no context makes it right. So unlike object case, this is corrected rather
-    than merely reported — and the correction is synthesised by the same
-    Vabamorf that grades every drill.
-
-    Rules and, more importantly, the exceptions come from GiellaLT's Estonian
-    Constraint Grammar (`&err-agr`). See `morph.agreement_errors`.
+    `ma elab` is wrong from two adjacent words, so this corrects rather than
+    reports, with the form synthesised by Vabamorf. Rules and exceptions follow
+    GiellaLT's Estonian Constraint Grammar (`&err-agr`); see
+    `morph.agreement_errors`.
     """
     from ..morph import agreement_errors
 
@@ -656,22 +536,10 @@ def agreement(text: str) -> list[Correction]:
     ]
 
 
-#: Russian, keeping EKK's own frame words so the learner meets the form the
-#: handbook uses — `millega`, not "the comitative".
-#: Deliberately "рекомендует", not "требует" — the same hedge, for the same
-#: reason, as the V2 explanation two constants up.
-#:
-#: Audited 2026-09-12 against EKI's current ühendsõnastik, one word at a time:
-#: for **7 of the 23** contrasts (baseeruma, kaasuma, panustama, põhinema,
-#: rajanema, sarnanema, tuginema) Sõnaveeb lists the form SÜ 64 stars as an
-#: error among that word's attested rections. EKI's advice channel still
-#: recommends what the handbook says — `põhinema millel`, `toetuma`/`tuginema`
-#: millele — so the teaching is right and unchanged. What is not right is
-#: calling the other form simply wrong when EKI's own dictionary records it:
-#: that is the `-le` drift Emakeele Selts has a paper about, and describing a
-#: strong recommendation as a requirement teaches a harder rule than EKI
-#: states. The exam marks by the recommendation, so the recommendation is what
-#: the learner is given — as a recommendation.
+#: Russian, keeping EKK's own frame words (`millega`, not "the comitative").
+#: "рекомендует", not "требует": for 7 of the 23 contrasts EKI's current
+#: dictionary also records the starred form, so the handbook's choice is taught as
+#: a recommendation, which is what the exam marks.
 RECTION_WHY = (
     "**Rektsioon.** «{headword}» — EKI рекомендует **{correct}** "
     "({correct_frame}), а не **{wrong}** ({wrong_frame}). Это одна из ошибок, "
@@ -682,16 +550,10 @@ RECTION_WHY = (
 
 
 def rection(text: str) -> list[Correction]:
-    """Attested rection confusions, from EKK's own list of the ones people miss.
+    """Attested rection confusions from EKK SÜ 64's list of common mistakes.
 
-    The second-largest error class in the learner corpus — 5 170 marks against
-    object case's 653 — and checkable for one reason: EKK SÜ 64 does not
-    describe valency, it lists **specific confusions**. Not "kohanema takes the
-    comitative" but "people write `millele` where `millega` belongs". That is a
-    lookup rather than a parse, which is why it can be done here at all.
-
-    Degrades to nothing when the word list is absent: the contrasts live in it,
-    an enrichment is never worth an error, and a fresh checkout has no database.
+    A lookup, not a parse: SÜ 64 lists specific confusions ("`millele` where
+    `millega` belongs"). Returns nothing when the word list is absent.
     """
     from .. import rection as ekk
     from ..wordlist import available, connect
@@ -720,29 +582,13 @@ def rection(text: str) -> list[Correction]:
 
 
 def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
-    """Add what the dictionary knows to what the provider said.
+    """Add deterministic evidence to what the provider said.
 
-    **A dictionary lookup is code, and code does not lose to a model's
-    opinion.** That is this project's central rule, and the chain was breaking
-    it by accident: `check()` returns the *first* provider that answers, so the
-    moment an LLM lane was configured it answered and Vabamorf's spelling
-    verdict was thrown away — for every request, for ever.
-
-    And the LLM will not cover for it. The prompt it ships with is aimed at
-    object case and says in as many words that most text is already correct and
-    to report a correction only where a rule above is broken. `tanav` for
-    `tänav` breaks none of those rules, so nothing in the chain reported the
-    single commonest way a Russian speaker mistypes Estonian: a missing
-    täpitäht.
-
-    The same argument carries **subject–verb agreement**, added alongside it:
-    `ma elab` is decidable from morphology, Vabamorf can synthesise the form
-    that belongs there, and no model needs to be asked. Both are evidence, not
-    opinion, so both are merged rather than raced.
-
-    Merged, not prepended: a word the provider already has something to say
-    about keeps the provider's explanation, because that one has a reason
-    attached and this one only has "not in the dictionary".
+    Spelling (Vabamorf's dictionary) and subject–verb agreement are code, and code
+    does not lose to a model: `check()` returns the first provider that answers, so
+    without this merge an LLM answer would discard them — and the LLM prompt does
+    not cover a missing täpitäht. Merged, not prepended: where the provider already
+    covered a word, its explanation is kept.
     """
     if not result.corrections and result.engine == "none":
         # Nothing answered at all. `check()` reports that honestly rather than
@@ -768,11 +614,8 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
 def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarResult:
     """Run the chain, returning the first provider that answers.
 
-    Failures are expected, not exceptional, so they are swallowed and recorded in
-    the final result's note rather than raised.
-
-    Whatever answers, Vabamorf's spelling verdict is merged into it — see
-    `_merge_spelling`.
+    Failures are expected and recorded in the result's diagnostics rather than
+    raised. Deterministic checks are merged in (`_merge_spelling`).
     """
     tried: list[str] = []
     for provider in build_chain(providers):

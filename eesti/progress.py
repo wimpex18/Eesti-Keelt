@@ -1,39 +1,13 @@
 """Mastery and progress: what turns a drill box into a course.
 
-Step 3 of the curriculum plan. The topic graph says what *may* be studied; this
-says what *has* been, and it is the piece that makes the other steps possible —
-"skip what I already know" (step 4) and the blocked-to-interleaved handoff
-(step 5) are both reads against this table.
-
-## Advancement is earned, not clicked
-
-The standard shape in course software, and the one the research supports, is
-**n correct out of the last m attempts** rather than "you have seen this page".
-Here that is 8 of the last 10, with two conditions on the window: it must be
-**full**, because a 3/3 is not evidence about a paradigm, and it must cover at
-least **five different items**, because otherwise the same two can be answered
-five times each and clear the gate — ten attempts, eight correct, window full,
-and nothing demonstrated but short-term memory.
-
-Using a *rolling window* rather than lifetime accuracy matters. A learner who got
-their first twenty attempts wrong and their last twenty right has learned the
-topic, and a lifetime ratio would say 50 % forever and never let them past.
-
-## Mastery does not get revoked
-
-`mastered_at` is a durable fact: on this date you passed the gate. A later bad
-run lowers the topic's current accuracy and brings its items back through the
-review scheduler, but it does **not** clear the flag, because prerequisites are
-what unlock the rest of the syllabus — and revoking them would let one bad
-evening lock the learner out of half the course. Forgetting is FSRS's job;
-sequencing is this module's, and they should not be wired to fight.
-
-## Skipping and passing are the same operation
-
-A topic marked known by a placement test and a topic mastered by practice differ
-only in the `via` column. That is deliberate: the graph in `curriculum.py` reads
-`mastered()` and does not care how a topic got there, which is what lets step 4
-reuse this gate as a test-out instead of building a parallel one.
+- **Mastery gate:** 8 correct of the last 10 attempts, with the window full and
+  at least five distinct items. A rolling window, so early mistakes do not
+  block a learner forever.
+- **Mastery is not revoked.** `mastered_at` records passing the gate; later
+  mistakes bring items back through review (FSRS) but do not re-lock the
+  syllabus.
+- **Skipping and passing are one operation:** a test-out and practice differ
+  only in the `via` column, and `curriculum.py` reads `mastered()` either way.
 """
 
 from __future__ import annotations
@@ -44,17 +18,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-# 8 of the last 10. The window must be full — a topic answered three times has
-# not demonstrated anything about a paradigm, however clean the three were.
+# 8 of the last 10, and the window must be full.
 MASTERY_CORRECT = 8
 MASTERY_WINDOW = 10
 
-# ...and it must contain this many *different* items. Without it the gate can be
-# passed by answering the same two items five times each: ten attempts, eight
-# correct, window full, mastered — having demonstrated nothing about the
-# paradigm and everything about short-term memory. `item_key` was being stored
-# and never read, which is what made the hole invisible. A normal ten-item
-# session produces ten distinct items, so this costs an honest learner nothing.
+# ...over at least this many distinct items, so repeating two items cannot pass.
 MASTERY_DISTINCT = 5
 
 SCHEMA = """
@@ -85,12 +53,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 
 def item_key(item) -> str:
-    """Stable identity for a generated item.
-
-    Items are generated rather than stored, so there is no row id to point at.
-    The prompt and answer together identify one, and hashing keeps the column
-    short and the same across runs.
-    """
+    """Stable identity for a generated item: a hash of prompt and answer."""
     payload = f"{item.topic}|{item.prompt}|{item.answer}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
@@ -127,12 +90,7 @@ def recent(conn: sqlite3.Connection, topic: str, window: int = MASTERY_WINDOW) -
 
 
 def accuracy(conn: sqlite3.Connection, topic: str, window: int = MASTERY_WINDOW) -> float | None:
-    """Rolling accuracy, or None if the topic has never been attempted.
-
-    None rather than 0.0 deliberately: "not started" and "got everything wrong"
-    are different states, and a progress view that renders them the same is
-    lying to the learner about where they stand.
-    """
+    """Rolling accuracy, or None if never attempted ("not started" is not 0 %)."""
     results = recent(conn, topic, window)
     return sum(results) / len(results) if results else None
 
@@ -189,15 +147,8 @@ def mastered(conn: sqlite3.Connection) -> set[str]:
 def reference_topics() -> set[str]:
     """Topics with no generator, which therefore cannot gate anything.
 
-    `pohivormid` and `lauseehitus` are real prerequisites and have no practice
-    behind them yet, so requiring them to be *demonstrated* made every topic
-    downstream permanently unreachable — the graph offered `tahestik` forever
-    and `gen-stem` never. That is a defect in the model, not a fact about
-    Estonian: a topic that cannot be tested cannot be a gate.
-
-    They stay in the syllabus and show as `reference`, so they read as material
-    to work through rather than quietly disappearing. When step 2 gives one a
-    generator it starts gating for real, with no change here.
+    A topic that cannot be tested cannot be a prerequisite gate; these show as
+    `reference` and start gating once they get a generator.
     """
     from .curriculum import TOPICS
 
@@ -271,19 +222,11 @@ def report(conn: sqlite3.Connection) -> list[TopicProgress]:
 
 
 def resume(conn: sqlite3.Connection) -> str | None:
-    """Where to pick up: the first unmastered topic whose prerequisites are met.
-
-    Duolingo's path beat its tree because removing the choice improved outcomes.
-    The graph still permits several topics at once; this names one of them so
-    the learner does not have to decide before they can start.
-    """
+    """Where to pick up: the first unmastered topic whose prerequisites are met."""
     from .curriculum import available
 
     ready = available(unlocked(conn))
-    # A topic with no generator has nothing to practise, so resuming to it
-    # hands the learner an empty screen. `tahestik` is the first thing the
-    # graph offers and is reference material; it must not be the answer to
-    # "where do I pick up".
+    # Skip topics with no generator: resuming to one would show an empty screen.
     drillable = [t for t in ready if t.generator]
     if not drillable:
         return None
@@ -297,10 +240,8 @@ def resume(conn: sqlite3.Connection) -> str | None:
     return drillable[0].id
 
 
-#: Rows this repair has already applied, so it runs once per database and not
-#: once per connection. It travels inside `progress.db`, which means it rides
-#: the Worker's snapshot and restore like everything else -- a restored
-#: container does not repeat a repair the snapshot already carries.
+#: Repairs already applied, stored in `progress.db` so they travel with the
+#: snapshot and run once per database.
 REPAIRS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS repairs (
     name    TEXT PRIMARY KEY,
@@ -315,32 +256,12 @@ FABRICATED = "placement-fabricated-attempts"
 
 
 def repair_fabricated_attempts(conn: sqlite3.Connection) -> dict:
-    """Remove attempts that `cli placement` recorded when nobody was answering.
+    """Remove attempts recorded when nobody was answering.
 
-    `_ask_terminal` returned `""` on EOF and Ctrl-C, and `""` grades as a wrong
-    answer, so `cli placement </dev/null` wrote `PROBE_ITEMS` wrong attempts per
-    topic into the learner's record. That is fixed, and the fix cannot reach
-    rows already written -- on a deployment nobody here can read, the record may
-    already say the learner failed drills they never saw.
-
-    **The signature has to be tight, because deleting real practice is worse
-    than leaving noise.** A fabricated burst is `PROBE_ITEMS` or more attempts
-    sharing one timestamp, every one of them blank and every one of them wrong.
-    `_now()` records to the second, and a person cannot answer five items in a
-    second; a blank answer typed deliberately is one row, not five. Measured
-    against the real thing:
-
-        2026-09-01T19:26:21+00:00  x5  kusisonad
-        2026-09-01T19:26:59+00:00  x5  kusisonad
-        2026-09-01T19:27:22+00:00  x5  kusisonad
-
-    Nothing is unrecoverable: the removed rows are written into `repairs.detail`
-    as JSON before they go, so a wrong call here costs a paste rather than a
-    learner's history.
-
-    Idempotent by name. Runs after a restore rather than at import, because the
-    Worker overwrites `progress.db` wholesale on a cold start -- a repair at
-    startup would clean a database that is about to be replaced.
+    Signature: `PROBE_ITEMS` or more attempts sharing one timestamp, all blank and
+    all wrong — a person cannot answer five items in one second. Removed rows are
+    saved as JSON in `repairs.detail` first. Idempotent by name; runs after a
+    restore, not at import, because a restore replaces `progress.db`.
     """
     import json
 
@@ -380,40 +301,10 @@ def repair_fabricated_attempts(conn: sqlite3.Connection) -> dict:
 def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
     """Forget attempts, so a topic starts again from nothing.
 
-    Written because I needed it: smoke-testing the deployed app meant answering
-    two real questions, and those two attempts went into the learner's own
-    record. Two rows out of a ten-attempt mastery window is not nothing — it is
-    twenty percent of the evidence the gate is weighing.
-
-    Useful beyond that, though. A topic answered carelessly on a phone, or
-    drilled before its prerequisites were understood, leaves a window that says
-    "not mastered" for the next ten questions regardless of how well they go.
-    Being able to say "start this one over" is the honest fix; quietly adjusting
-    the threshold would not be.
-
-    Topic-scoped by default and never implicit: clearing everything requires
-    asking for everything.
-
-    **And "everything" now means it.** This cleared `attempts` and `topic_state`
-    and left the other three tables in the file standing — `checkpoints`,
-    `exposure` and `dictation`, all written by other modules and all read by the
-    readiness verdict. So `deploy/reset-progress.sh --everything`, behind a
-    "Type ERASE to confirm" prompt, erased a learner's practice history and left
-    the app still believing they had passed the A2 checkpoint: `passed_levels`
-    returned `{"A2"}` immediately afterwards, and `readiness` gates the whole
-    verdict on exactly that.
-
-    The scoped branch stays two tables deliberately, and that is not the same
-    omission: a checkpoint is level-wide, exposure is per reading item and a
-    dictation is per sentence, so none of them can be attributed to one topic.
-    Clearing them for a topic reset would destroy records the request did not
-    ask about.
-
-    The full branch is derived from the file rather than listed, because a
-    hand-written list of things that exist elsewhere is this repository's
-    most-repeated bug and this function is already an instance of it. Every
-    table in the learner's progress database *is* learner progress; a sixth one
-    added later is covered without anybody remembering to come back here.
+    Topic-scoped by default: clears that topic's `attempts` and `topic_state`
+    (checkpoints, exposure and dictation cannot be attributed to one topic).
+    Clearing everything must be asked for, and then clears every table in the file,
+    derived from the schema rather than listed.
     """
     with conn:
         if topic:

@@ -1,64 +1,18 @@
 """Test-out and placement: starting where you are, not at lesson one.
 
-Step 4 of the curriculum plan, and it is deliberately cheap, because step 3
-already built the thing it needs. A topic marked known by a placement probe and
-a topic mastered by practice differ only in a `via` column, so this module runs
-probes and calls `progress.mark_mastered`; it owns no state of its own.
+Runs probes and calls `progress.mark_mastered`; owns no state.
 
-## Two features, one mechanism
-
-**Test-out** is a short probe of one topic: get every item right and the topic is
-marked known without working through it. **Placement** is the same probe run
-across the syllabus in study order until the learner starts failing, which
-answers "where do I begin" for someone who is not a beginner.
-
-## Why the bar is higher than the practice gate
-
-Practice masters a topic on 8 of the last 10. A test-out demands **5 of 5**.
-That looks inconsistent and is not: the two are buying different things. Ten
-attempts with two mistakes is a learner who has worked through a topic and
-mostly holds it. Five attempts is thin evidence, and it is being used to skip
-the work entirely, so the only defensible reading of a wrong answer is "not yet".
-A false pass here costs more than a false fail — it silently removes a topic
-from the course and unlocks everything downstream of it — while a false fail
-costs one session of practice the learner did not strictly need.
-
-Probe attempts are recorded as ordinary attempts, because that is what they are.
-A learner who fails a test-out has genuinely answered those items, and the
-rolling window should know.
-
-## Failing one topic does not end the sweep
-
-The first version stopped after two consecutive failures, and that was wrong in
-a way worth recording, because it looked reasonable. The syllabus is a **graph,
-not a line**: `osastav` and `mitmus` are nouns, `olevik` and `verb-form` are
-verbs, and they are independent. A learner who is solid on verbs and shaky on
-nouns — which is an ordinary way to be — failed two noun topics in a row and the
-sweep concluded it had found their level without ever asking about a verb.
-
-So a failure now prunes exactly what the graph says it should: the topics that
-**depend on** the failed one. Failing `osastav` means not asking about `eitus`
-or `obj-case`, because those are built on it and the answer is already known.
-It means nothing at all about the verb branch, which keeps being probed.
-
-That makes the result a **set** of entry points rather than one, which is the
-honest shape: a learner can be at A2 on verbs and A1 on nouns, and a single
-"you are here" cannot express that.
-
-The cost is session length, so two budgets bound it — `MAX_FAILURES` and
-`MAX_PROBES`. They are stopping rules for the learner's patience, not claims
-about their level, and the sweep reports when it hit one.
-
-## This is not IRT, and says so
-
-The plan floated item-response theory: ask progressively harder items, and the
-level where the learner fails is the entry point. The adaptive half of that is
-here — the sweep walks the syllabus in order and stops once failures accumulate
-— but the *psychometric* half is not, because IRT needs per-item difficulty
-parameters estimated from a population of test-takers, and this app has one user.
-Calling a stopping rule "IRT" would be dressing up a heuristic. What the sweep
-actually relies on is the prerequisite graph: study order already encodes
-difficulty, because a topic that depends on four others is genuinely later.
+- **Test-out** probes one topic; all items right marks it known.
+- **Placement** probes the syllabus in study order.
+- **The bar is 5 of 5**, higher than practice's 8 of 10: a false pass silently
+  removes a topic and unlocks everything after it; a false fail costs one
+  session.
+- **A failure prunes only dependants.** The syllabus is a graph, so failing a
+  noun topic says nothing about verbs; the result is a set of entry points.
+  `MAX_FAILURES` and `MAX_PROBES` bound the session.
+- Probe attempts are recorded as ordinary attempts.
+- Not IRT: there is no calibrated item population; difficulty comes from the
+  prerequisite graph.
 """
 
 from __future__ import annotations
@@ -74,9 +28,8 @@ from .config import LEVELS
 PROBE_ITEMS = 5
 PROBE_REQUIRED = 5
 
-# A failure prunes the topics that *depend* on the failed one, and nothing else.
-# These two bound the session: a sweep ends when the learner has failed this many
-# topics outright, or when it has asked this many probes, whichever comes first.
+# A failure prunes the topics that depend on it. A sweep ends after this many
+# failed topics or this many probes, whichever comes first.
 MAX_FAILURES = 3
 MAX_PROBES = 12
 
@@ -86,28 +39,9 @@ Ask = Callable[[object], str]
 class Stopped(Exception):
     """Nobody is answering: end of input, or Ctrl-C.
 
-    Not an error, and specifically not a blank answer. `_ask_terminal` returned
-    `""` for both, and `""` is a *wrong answer* — so every consumer of `Ask`
-    graded items the learner never saw and wrote them to their record:
-
-    * `cli placement </dev/null` fabricated a whole failed sweep — fifteen
-      attempts, all wrong, on a machine where nobody had studied. It is in the
-      CLI's own `READ_ONLY` list, and that list is a promise.
-    * Ctrl-C could not leave a sweep at all, though the command prints "Ctrl-C
-      to leave early". The interrupt was caught, turned into a blank answer,
-      and the sweep carried on marking everything wrong.
-    * `cli checkpoint` did the same and then wrote a *failed checkpoint* and
-      pushed every un-shown item into the review queue.
-
-    Those attempts are not cosmetic. Wrong answers fill the accuracy window
-    that gates mastery, and the checkpoint row feeds the readiness verdict —
-    the one that decides A2-then-B1 against B1-alone. A record of practice
-    nobody did makes the learner look worse than they are, which is the
-    direction that costs something.
-
-    So the absence of an answer is its own signal and it stops the session.
-    Raising rather than returning a sentinel is deliberate: a caller that
-    forgets to check a `None` grades it as wrong, which is exactly the bug.
+    Raised, never returned as a blank answer: a blank grades as wrong, and wrong
+    answers written for items nobody saw would feed mastery, checkpoints and the
+    readiness verdict.
     """
 
 
@@ -132,11 +66,8 @@ def probe(
     required: int = PROBE_REQUIRED,
     seed: int | None = None,
 ) -> ProbeResult:
-    """Ask a short set on one topic; mark it known only on a clean sweep.
-
-    `ask` is injected rather than reading stdin here, so the same code serves the
-    CLI, a future web route, and the tests without any of them pretending to be
-    a terminal.
+    """Ask a short set on one topic; mark it known only on a clean sweep. `ask` is
+    injected, so the CLI and tests share this code.
     """
     from .practice import items_for
     from .progress import is_mastered, mark_mastered, record
@@ -168,11 +99,7 @@ def candidates(
     progress: sqlite3.Connection,
     levels: tuple[str, ...] = LEVELS,
 ) -> list:
-    """Topics worth probing right now, in study order.
-
-    Recomputed as the sweep goes, because passing `gen-stem` unlocks eleven
-    topics that were not offerable a moment earlier.
-    """
+    """Topics worth probing right now, in study order — recomputed as passes unlock more."""
     from .curriculum import available
     from .progress import unlocked
 
@@ -192,12 +119,8 @@ def sweep(
     seed: int | None = None,
     on_result: Callable[[ProbeResult], None] | None = None,
 ) -> list[ProbeResult]:
-    """Probe the syllabus, pruning by the graph rather than stopping at the first wall.
-
-    A failed topic removes its **dependants** from the sweep — they are built on
-    it, so the answer is already known — and leaves every independent branch
-    still to be asked about. That is what lets a learner who is strong on verbs
-    and weak on nouns be placed correctly on both.
+    """Probe the syllabus, pruning each failed topic's dependants and continuing on
+    independent branches.
     """
     from .curriculum import unlocks
 
@@ -219,12 +142,8 @@ def sweep(
         try:
             result = probe(progress, topic.id, ask, seed=seed)
         except Stopped:
-            # "Ctrl-C to leave early" is printed by the command, and until this
-            # line it was untrue: the interrupt became a blank answer and the
-            # sweep carried on marking topics wrong. Whatever was genuinely
-            # answered before the stop stays recorded and is returned; the
-            # topic that was interrupted yields no result, because a partial
-            # probe cannot place anybody.
+            # Stop on Ctrl-C/EOF: answered topics stay recorded; the interrupted topic yields
+            # no result.
             break
         results.append(result)
         if on_result is not None:
@@ -234,16 +153,11 @@ def sweep(
             continue
         if not result.passed:
             failures += 1
-            # Everything downstream rests on what was just missed. Asking about
-            # it would only confirm what the failure already established.
+            # Everything downstream rests on what was just missed.
             pruned |= set(unlocks(topic.id))
     return results
 
 
 def entry_points(results: Iterable[ProbeResult]) -> list[str]:
-    """Every topic the learner failed — one entry point per independent branch.
-
-    A list rather than a single topic on purpose: being at A2 on verbs and A1 on
-    nouns is an ordinary way to be, and one "you are here" cannot say it.
-    """
+    """Every topic the learner failed — one entry point per independent branch."""
     return [r.topic for r in results if r.ran and not r.passed]

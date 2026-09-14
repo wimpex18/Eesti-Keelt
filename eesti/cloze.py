@@ -1,61 +1,23 @@
 """Drills built from sentences Estonians actually wrote.
 
-Every drill in this project so far came out of a template I wrote by hand. That
-caps variety at my imagination and it has already gone wrong once: pairing every
-frame with every level-appropriate noun produced *"Ma ostsin haigla ära"* — "I
-bought the hospital" — until each template had to declare a semantic pool of
-objects it accepts. Maintaining those pools is a permanent tax, and the ceiling
-is still a few dozen frames.
+Blanking a word in a harvested sentence gives unlimited variety and an answer
+that is correct because a native wrote it — but only where the answer is
+**forced**:
 
-There are **2 073 usable sentences** of real Estonian already on disk, harvested
-from Selges keeles and lemmatised by Vabamorf. Blanking a word in one of those
-gives a drill with no pool to maintain and a guarantee no template can offer:
-**the answer is correct because a native speaker wrote it.** This is
-Clozemaster's move, done against a corpus that is already graded for difficulty.
+1. **The prompt names the case** (*"Ma elan ____ (Tallinn, seesütlev)"*):
+   morphology decides the form, and nothing is claimed about which case the
+   sentence needed.
+2. **A trigger makes the case obligatory:** negation takes the partitive
+   without exception. Genitive-vs-partitive choices are generated only there;
+   elsewhere both are often licit (telicity is semantics).
 
-## The trap, and how the answer stays decidable
+**Distractors are the real error:** the same case built on the nominative stem
+instead of the genitive stem (`sõber` + `-s` → `sõbers`, not `sõbras`). No
+contrast, no item.
 
-The obvious version of this is unsafe. Blank the object in *"Ta luges raamatut"*
-and ask genitive-or-partitive, and you are asserting that the genitive would be
-wrong — which depends on telicity, which is semantics, not morphology. Estonian
-frequently licenses both. A drill that marks a licit answer wrong is worse than
-no drill: it teaches a rule that does not exist.
-
-So an item is generated only where the target form is **forced**, by one of two
-routes:
-
-1. **The prompt names the case.** *"Ma elan ____ (Tallinn, seesütlev)"* has
-   exactly one answer, because the case is given and morphology decides the rest.
-   Nothing is being claimed about which case the sentence needed — the learner is
-   asked to produce a form, which is the skill the error log actually records.
-2. **A trigger makes the case obligatory.** Under negation the partitive is
-   exception-free — the one object-case rule that needs no aspect judgement.
-   That, and only that, is generated as a genitive/partitive choice.
-
-Anything else stays with the templates, which can supply the aspect context that
-a corpus sentence leaves implicit.
-
-## Why the wrong answer is not invented
-
-The distractor is the same case built from the **nominative stem instead of the
-genitive stem** — `sõber` + `-s` gives `sõbers` where Estonian says `sõbras`.
-That is not a plausible-looking decoy; it is the error, and it is the reason
-`gen-stem` sits upstream of eleven other topics in the curriculum graph. Where
-the naive form happens to be right, there is no contrast and no multiple-choice
-item — the same rule that drops `kino` from the object-case pool.
-
-## Three gates before an item ships
-
-Corpus text is not clean, and a wrong "correct answer" is the worst possible
-output. So each candidate must pass:
-
-* **unambiguous lemma** — a token that reads as two different lemmas cannot be
-  pinned by naming one of them in the prompt;
-* **round-trip** — Vabamorf's synthesis of `(lemma, case)` must reproduce the
-  attested surface form exactly. Where the corpus and the synthesiser disagree,
-  something is wrong with one of them and the item is dropped rather than
-  guessed at. This is also what keeps grading deterministic;
-* **a real contrast** — answer and distractor must differ.
+**Gates before an item ships:** an unambiguous lemma; Vabamorf's synthesis of
+`(lemma, case)` reproduces the attested form exactly; answer and distractor
+differ.
 """
 
 from __future__ import annotations
@@ -74,10 +36,8 @@ from .config import LEVELS
 from .item import BLANK, GradedItem
 from .morph import _readings, analyze, case_forms, split_sentences
 
-# Vabamorf case tags -> the Estonian name (what the exam uses) and a Russian
-# gloss (what the learner will recognise). Nominative and the short illative are
-# deliberately absent: the nominative is the prompt's own citation form, and the
-# short illative is optional in a way that makes "the" answer a fiction.
+# Vabamorf case tags -> Estonian name and Russian gloss. Nominative (the prompt's
+# citation form) and the short illative (optional) are excluded.
 CASES: dict[str, tuple[str, str]] = {
     "sg g": ("omastav", "родительный"),
     "sg p": ("osastav", "частичный"),
@@ -113,12 +73,8 @@ TOPIC_CASES: dict[str, tuple[str, ...]] = {
 NEGATORS = frozenset({"ei", "ega", "ära", "ärge", "ärgem", "ärme"})
 _CONTRACTED = frozenset({"pole", "polnud", "poleks", "polevat"})
 
-# Negation scopes over its own clause, not the sentence. Without this the
-# generator produced *"Kui jahipidamisõigust tõendavad dokumendid ..., siis ei
-# pea ..."* as a negation item: the partitive is right, but it has nothing to do
-# with the `ei` in the other clause, so the explanation would have taught a
-# connection that is not there. Splitting on punctuation and clause-introducing
-# words is crude next to real parsing, and errs towards dropping items.
+# Negation scopes over its own clause: split on punctuation and clause-introducing
+# words, erring towards dropping items.
 _CLAUSE_RE = re.compile(
     r"[,;:—–]|\b(?:kui|et|sest|kuid|aga|siis|mis|mida|kes|keda|kuna|ehkki|"
     r"kuigi|ning|või)\b",
@@ -133,22 +89,8 @@ _WORD_RE = re.compile(r"\w", re.UNICODE)
 
 @dataclass(frozen=True)
 class Cloze(GradedItem):
-    """One item. Same surface as `drills.Drill`, plus where it came from.
-
-    It said "same surface" and meant it literally: this class predated
-    `item.GradedItem` and carried its own copy of `check`, `solution`,
-    `reference` and `to_dict` — the five methods that mixin exists to keep
-    identical across generators. Four of the five had already drifted apart in
-    one way or another, and the fifth was simply missing, which is how a cloze
-    item reached the page with no case in its instruction row.
-
-    Measured over 425 real items before removing the copies: `check` graded
-    the same for every answer (`lower` and `casefold` differ on no Estonian
-    letter), `reference` returned the same object for all 425, and no prompt
-    could open with the blank — the round-trip gate rejects a capitalised
-    common noun, so the mixin's sentence-initial capitalisation is a defence
-    rather than a change. `hint` is still overridden, because for rection the
-    case is the question and the em dash says so.
+    """One corpus item, graded through `item.GradedItem`. `hint` is overridden because
+    for rection the case is the question.
     """
 
     prompt: str          # the sentence with one word replaced by ____
@@ -166,12 +108,7 @@ class Cloze(GradedItem):
 
     @property
     def hint(self) -> str:
-        """What the learner is told: which word, and which case to put it in.
-
-        This is the whole reason an authentic sentence is safe to drill — name
-        the case and the answer is forced, so nothing is being asserted about
-        which case the sentence needed.
-        """
+        """What the learner is told: which word, and which case to put it in."""
         if self.governor:
             # For rection the case is the *question*, so naming it would give
             # the answer away. The governing word is the whole prompt.
@@ -180,13 +117,7 @@ class Cloze(GradedItem):
 
     @property
     def label(self) -> str:
-        """The half of `hint` that is not the word — what to produce.
-
-        Every generator defines this; the mixin raises `NotImplementedError`
-        rather than guessing, because what an item asks for is the one thing
-        no two generators share. It went missing here once, and cloze items
-        reached the page with no case in their instruction row.
-        """
+        """The half of `hint` that is not the word — what to produce."""
         return f"{self.governor}?" if self.governor else self.case_et
 
 
@@ -196,10 +127,8 @@ def sentences(
     min_words: int = 5,
     max_words: int = 20,
 ) -> list[str]:
-    """Sentences from the content store, at a length worth drilling.
-
-    Under five words there is rarely enough context to place a case; over twenty
-    the learner is parsing a paragraph rather than practising a form.
+    """Sentences from the content store of 5–20 words: enough context to place a case,
+    short enough not to become parsing practice.
     """
     rows = conn.execute(
         "SELECT body FROM items WHERE source_id = ? AND body <> ''", (source_id,)
@@ -216,11 +145,8 @@ def sentences(
     return out
 
 
-#: Selges keeles appends a glossary to some articles — `vöökiri = vöömuster` —
-#: and the splitter carries the tail into the preceding sentence. 0.7 % of the
-#: pool, which is small until one of them is the sentence a learner is asked to
-#: write down from hearing it. Filtered here rather than at harvest time so it
-#: applies to a `content.db` already pushed to a deployment.
+#: Selges keeles glossary tails (`vöökiri = vöömuster`) glued onto a sentence;
+#: filtered at read time so already-pushed corpora are covered.
 _GLOSS = re.compile(r"\s=\s")
 
 
@@ -231,12 +157,8 @@ def _usable(sentence: str) -> bool:
 def naive_case_form(nominative: str, genitive: str, correct: str) -> str | None:
     """The form a learner builds from the nominative instead of the genitive stem.
 
-    Estonian builds almost every case on the genitive stem, so the characteristic
-    beginner error is attaching the ending to the citation form: `sõber` + `-s`
-    gives `sõbers` where the language says `sõbras`. Recovering the ending by
-    stripping the genitive off the correct form means we never have to hard-code
-    a table of endings — and it returns None exactly when the genitive is not a
-    prefix of the form, which is where this model of the error stops applying.
+    Recovers the ending by stripping the genitive off the correct form, so no
+    ending table is needed; None when the genitive is not a prefix of the form.
     """
     if not genitive or not correct.startswith(genitive):
         return None
@@ -251,15 +173,9 @@ def _distractor(
 ) -> str | None:
     """The wrong answer, chosen to be the error the learner would actually make.
 
-    Three cases, because the characteristic mistake differs:
-
-    * **genitive** — the learner leaves the word in its citation form. Stripping
-      the genitive off itself yields no ending, so the nominative-stem model has
-      nothing to say here; the nominative *is* the error.
-    * **partitive** — the documented weakness: genitive where partitive belongs,
-      and the other way round. The contrast is the drill.
-    * **everything else** — built on the nominative stem instead of the genitive
-      one, which is why `gen-stem` is upstream of eleven topics.
+    - **genitive** — the citation form is the error;
+    - **partitive** — the genitive/partitive contrast itself;
+    - **everything else** — built on the nominative stem.
     """
     if tag == "sg g":
         return lemma if lemma != correct else forms.get("partitive")
@@ -290,11 +206,7 @@ def _why(
 
 
 def _unambiguous_lemma(surface: str, lemma: str, tag: str) -> bool:
-    """The surface form must read back as this lemma in this case, and no other lemma.
-
-    Naming the lemma in the prompt is what makes the answer unique, so a token
-    that two different lemmas could produce cannot be used.
-    """
+    """The surface form must read back as this lemma in this case, and no other lemma."""
     readings = _readings(surface)
     if (lemma, tag) not in readings:
         return False
@@ -302,10 +214,8 @@ def _unambiguous_lemma(surface: str, lemma: str, tag: str) -> bool:
 
 
 def _synthesises_back(lemma: str, tag: str, surface: str) -> bool:
-    """Vabamorf must produce the attested form from the lemma and case.
-
-    Where the corpus and the synthesiser disagree the item is dropped. That
-    costs yield and buys the thing that matters: a grader that is right.
+    """Vabamorf must produce the attested form from the lemma and case; otherwise the
+    item is dropped.
     """
     return surface in (synthesize(lemma, tag) or [])
 
@@ -327,12 +237,7 @@ def _blank(sentence: str, start: int, end: int) -> str:
 
 
 def _hyphenated(sentence: str, start: int, end: int) -> bool:
-    """Is this token glued to a neighbour by a hyphen?
-
-    Blanking half of *"Selges keeles-žürii"* asks the learner to inflect a word
-    that is not standing on its own, and the surviving fragment gives the answer
-    away as often as it hides it.
-    """
+    """Is this token glued to a neighbour by a hyphen? Such fragments are not blanked."""
     # A two-character window, not one: the corpus writes *"Selges keeles
     # -žürii"* with a space before the hyphen, which a one-character check
     # walks straight past.
@@ -356,14 +261,8 @@ _ABOVE = ("B2", "C1", "C2")
 def _above_level(level: str | None, levels: tuple[str, ...]) -> bool:
     """Is this word's tag a claim that it is too hard?
 
-    The asymmetry matters, and it is the same one the reading library uses: a
-    tag of B2 is evidence, absence of a tag is not. Only 6.2 % of the 160 316
-    lemmas carry a CEFR tag at all, so treating "untagged" as "too hard" would
-    throw away 36 % of the corpus targets for no reason anyone could defend.
-
-    Measured over 272 generated `osastav` items: 57 % tagged A1-B1, 36 %
-    untagged, and 7 % tagged B2 or C1 -- `hooldustöö`, `riigivisiit`. It is
-    those 7 % this drops.
+    A B2/C1 tag is evidence; no tag is not (most lemmas carry none), so only words
+    tagged above the target levels are dropped.
     """
     if level is None:
         return False
@@ -373,15 +272,9 @@ def _above_level(level: str | None, levels: tuple[str, ...]) -> bool:
 def _ease(conn: sqlite3.Connection | None, tokens) -> float:
     """Share of a sentence's content words that the word list calls A1 or A2.
 
-    `difficulty.score` is the same measurement and says in its own docstring
-    that ordering is what it is for. It is not reused directly because it runs
-    a second Vabamorf pass -- 14.3 s over the 2 038-sentence pool, inside a
-    request the learner is waiting on. Here the analysis is already in hand, so
-    the same number costs one indexed query.
-
-    Ordering, never a threshold. The scale is uncalibrated -- that is the whole
-    lesson of `eesti/difficulty.py` -- so this decides which authentic sentence
-    comes first, and nothing at all about what level it is.
+    The same measure as `difficulty.score`, but computed from the analysis already
+    in hand instead of a second Vabamorf pass. Used for ordering only, never as a
+    level threshold.
     """
     if conn is None:
         return 0.0
@@ -397,13 +290,7 @@ def _ease(conn: sqlite3.Connection | None, tokens) -> float:
     return (row[0] or 0) / len(lemmas)
 
 
-#: How many candidates to gather before keeping the easiest `count`.
-#:
-#: The pool was shuffled and the first `count` hits were shipped, so a practice
-#: set was a random sample of authentic sentences -- which is how "Neid pakkuvad
-#: ettevõted peavad esitama oma pakkumised enne jaanuari ____" reached an A1
-#: topic. Three times is enough to have a real choice without walking the whole
-#: corpus on every request.
+#: Gather this many times `count` candidates, then keep the easiest.
 OVERSAMPLE = 3
 
 
@@ -420,15 +307,7 @@ def case_clozes(
 ) -> list[Cloze]:
     """Case-production items: the sentence is real, the case is named, produce the form.
 
-    The prompt gives the lemma and the case, so the answer is forced by
-    morphology alone and nothing is being claimed about which case the sentence
-    *needed*. That is what makes an authentic sentence safe to drill.
-
-    `levels` gates the **target word**, and candidates are ordered so the
-    easiest sentences are drilled first. Both used to be missing: `levels` was
-    threaded from `items_for` into this module and then dropped, taking effect
-    only when a theme happened to be chosen, so the default run of every corpus
-    topic drilled B2 nouns inside newspaper prose.
+    `levels` gates the target word, and candidates are ordered easiest first.
     """
     wanted: set[str] = set()
     for topic in topics or tuple(TOPIC_CASES):
@@ -505,12 +384,8 @@ def negation_clozes(
     source_id: str = "selges-keeles",
     levels: tuple[str, ...] = LEVELS,
 ) -> list[Cloze]:
-    """The one object-case rule a corpus sentence can settle on its own.
-
-    Under negation Estonian takes the partitive without exception, so no aspect
-    judgement is needed and the genitive really is wrong. The completed/ongoing
-    contrast is *not* generated from the corpus — both cases are often licit
-    there, and marking a licit answer wrong teaches a rule that does not exist.
+    """The one object-case rule a corpus sentence can settle on its own: negation
+    takes the partitive without exception.
     """
     rng = random.Random(seed)
     pool = list(sents)
@@ -579,15 +454,9 @@ def negation_clozes(
 # Rection
 # ---------------------------------------------------------------------------
 #
-# These are generated from a frame rather than from the corpus, which inverts
-# the choice made everywhere else in this module — deliberately. A corpus is
-# authoritative about case *forms*, because morphology is not something a
-# journalist gets wrong. It is **not** authoritative about case *choice* after
-# a verb, because that is precisely what people get wrong: searching the 2 073
-# harvested sentences for these verbs returned three hits, and one of them was
-# *"süsteem põhineb kaartidele"* — the exact error EKK stars under `põhinema`,
-# in published simplified news. Mining that sentence would have taught the
-# mistake as the answer.
+# Generated from frames, not the corpus: published text is reliable about case
+# forms but not about case choice after a verb, which is exactly the error being
+# taught.
 
 # Semantically bleached fillers, split only by what the frame itself says: a
 # `keda`/`kelle` frame wants a person, a `mida`/`mille` frame wants a thing.
@@ -621,12 +490,8 @@ def rection_clozes(
     count: int = 10,
     seed: int | None = None,
 ) -> list[Cloze]:
-    """Which case does this word govern? The contrast comes from EKK, not from me.
-
-    Both halves are the handbook's: `kohanema` takes *millega*, and EKK stars
-    *millele* as what people write instead. So the distractor is a documented
-    error rather than a plausible-looking decoy — the same standard the verb
-    drills hold themselves to.
+    """Which case does this word govern? Both the right case and the distractor come
+    from EKK SÜ 64's list of attested confusions.
     """
     rng = random.Random(seed)
     out: list[Cloze] = []
