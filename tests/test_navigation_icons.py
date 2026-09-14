@@ -1,23 +1,9 @@
 """Every destination has a mark, and every mark has a destination.
 
-`NAV_ICON` and `MODE_ICON` are hand-written maps keyed on the tab and mode
-names — exactly the kind of second list this repo keeps getting caught by. The
-`TABS` list drifted from the panels it described and three of ten panels never
-showed; `RU` drifted from `progress.TopicProgress.state` and a finished topic
-rendered the English word `mastered`. Both failed silently, because every row
-still rendered *something*.
-
-An icon map fails the same way and even more quietly: a tab with no entry keeps
-its label and simply has no picture, which looks like a design choice rather
-than a gap. So this asks the page which destinations exist and checks the maps
-against that, in both directions.
-
-The spacing checks below are here for the same reason. Eleven different
-vertical margins had been chosen one element at a time, and the `margin-top:0`
-idiom — "I am first in this panel, the padding already spaces me" — had been
-copied onto four elements that are *not* first, where it silently deleted the
-space they needed. One of the four was the crowding on the path screen that
-started this work.
+`NAV_ICON` and `MODE_ICON` are hand-written maps, so they are checked against
+the tabs and modes the page actually has, in both directions. Spacing checks:
+margins use the scale tokens, and only the real first child of a panel has its
+top margin reset.
 """
 
 from __future__ import annotations
@@ -38,8 +24,7 @@ def page() -> str:
 
 @pytest.fixture(scope="module")
 def css(page) -> str:
-    # The stylesheet is `eesti/web/app.css` now, not a `<style>` block in the
-    # page. Same text, one fewer slice.
+    # The stylesheet is `eesti/web/app.css`.
     return styles()
 
 
@@ -49,17 +34,8 @@ def map_keys(page: str, name: str) -> set[str]:
 
 
 def _markup(_page: str) -> str:
-    """The authored HTML only.
-
-    Scanning the whole app picks up `data-tab="${tab}"` out of the selector
-    strings in the modules, which is not a destination — it is the code that
-    goes looking for one. So this reads `index.html` and nothing else, and
-    still strips the one inline script in it.
-
-    Strips the script blocks rather than truncating at the first one: the
-    theme is applied by a small inline script immediately after `<body>`, so
-    cutting at `index("<script>")` leaves the head and nothing else, and every
-    check below passes on an empty set.
+    """The authored HTML only (`index.html` with script blocks stripped), so selector
+    strings in modules are not mistaken for destinations.
     """
     return re.sub(r"<script>.*?</script>", "", markup(), flags=re.S)
 
@@ -113,9 +89,7 @@ class TestSpacingComesFromTheScale:
             assert f"{step}:" in css, f"{step} is not defined"
 
     def test_no_element_carries_a_raw_pixel_margin_inline(self, page):
-        """Twenty-eight inline declarations used ten different values. An
-        inline margin is unreachable from the stylesheet, so the only way to
-        change spacing was to find every one of them."""
+        """No inline margins: spacing lives in the stylesheet."""
         # Only the margin declaration itself. A `font-size:17px` sitting after
         # it in the same attribute is type, not layout, and is not this rule's
         # business -- the first version of this regex flagged two of those.
@@ -125,8 +99,9 @@ class TestSpacingComesFromTheScale:
         assert not raw, f"inline pixel margins left: {raw}"
 
     def test_first_child_spacing_is_a_rule_not_an_attribute(self, page, css):
-        """Thirteen elements said "I am first in this panel" by hand. Four of
-        them were not first, and there the reset deleted real space."""
+        """Only a panel's real first child has its top margin reset (`.panel >
+        :first-child`).
+        """
         assert ".panel > :first-child{margin-top:0}" in css
         assert 'style="margin-top:0"' not in page, (
             "an inline reset is back; it cannot distinguish a first child from "
@@ -153,12 +128,7 @@ def _button_map() -> dict[str, str]:
 
 
 def _asked() -> set[str]:
-    """Every mark the app asks for, however it asks.
-
-    Two call shapes, and missing the second is how the first draft of this
-    file reported three live icons as dead: `uiIcon("note")` directly, and
-    `emptyState({icon: "inbox"})`, which reaches `uiIcon` one layer down.
-    """
+    """Every mark the app asks for, via `uiIcon("x")` or `emptyState({icon: "x"})`."""
     src = markup_and_script()
     return (set(re.findall(r'uiIcon\(\s*"([a-z]+)"', src))
             | set(re.findall(r'icon:\s*"([a-z]+)"', src))
@@ -166,17 +136,8 @@ def _asked() -> set[str]:
 
 
 class TestTheInterfaceMarks:
-    """`UI_ICON` and `BUTTON_ICON` are two more hand-written maps, and they
-    fail in the two ways this file already exists to catch.
-
-    `BUTTON_ICON` maps an element id to a mark. An id that no longer exists in
-    the page paints nothing at all — no error, no warning, just a button that
-    quietly has no picture while every other one does. `uiIcon("typo")` is the
-    same failure from the other end: the helper returns an empty string, so a
-    misspelt name is invisible rather than loud.
-
-    Both directions, asked of the page and the modules rather than of a list
-    kept beside them.
+    """`UI_ICON` and `BUTTON_ICON` agree with the page and modules in both directions:
+    no id without an element, no requested name without a mark.
     """
 
     def test_every_button_it_decorates_is_in_the_page(self):

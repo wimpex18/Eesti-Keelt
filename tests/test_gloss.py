@@ -1,22 +1,8 @@
-"""Word meanings: the layer the app did not have, and the request it kept repeating.
+"""Word meanings: stored once per word, never re-requested.
 
-Two separate defects meet here.
-
-**The app could not say what any word meant.** 160 316 words, each with a CEFR
-level and a full paradigm, and no meaning attached to one of them. Generate
-twelve B1 object-case drills and you get `etendus`, `luuletus`, `rahakott`,
-`kingitus`, `kleit` — a learner produces `kleidi` for "Ma ostsin ____", is
-marked correct, and has practised morphology on a token. The project's stated
-scope is learning Estonian, not only sitting the exam.
-
-**And it asked Sõnaveeb the same questions forever.** `sonapi`'s cache was in
-`data/cache/`, which is git-ignored, is not the content volume, and is not in
-the state snapshot. Cloud Run scales to zero, so every cold start began with an
-empty cache and re-requested every word the learner looked at — and spaced
-repetition guarantees the same words come back. The module whose central promise
-is "single lookups only, they ask not to be batched" had storage that made it
-re-ask indefinitely. Same shape as the circuit breaker keeping its counts in a
-module-level dict: state that protects against restarts must survive one.
+Drills on untranslated words teach only morphology, so words get glosses; and
+because Cloud Run scales to zero, the store lives in `vocab.db` (snapshotted),
+so a word is never asked about twice.
 """
 
 from __future__ import annotations
@@ -49,13 +35,8 @@ def conn(tmp_path):
 
 
 def _redirect(monkeypatch, app_module, tmp_path):
-    """Point the learner databases at a scratch directory, on both names.
-
-    `config` is the single source the application reads; `app` keeps copies
-    that several tests here write through. Setting them together means a test
-    cannot write to one file while the endpoint under test reads another --
-    which is precisely what happened when the application stopped reading its
-    own copies.
+    """Point the learner databases at a scratch directory via `config`, the single
+    source the application reads.
     """
     from eesti import config as config_module
 
@@ -76,9 +57,7 @@ class TestAWordIsAskedAboutOnce:
         assert gloss.remember(conn, "kleit").russian == ("платье",)
 
     def test_a_miss_is_stored_too(self, conn, monkeypatch):
-        """"No such word" is a fact worth keeping. Re-asking for it every
-        session is the same load on someone else's server with none of the
-        benefit."""
+        """A miss ("no such word") is stored too."""
         calls = []
         monkeypatch.setattr(sonapi, "lookup",
                             lambda w, **k: calls.append(w) or None)
@@ -100,8 +79,7 @@ class TestAWordIsAskedAboutOnce:
         assert gloss.remember(second, "kleit").russian == ("платье",)
 
     def test_it_lives_where_the_snapshot_will_carry_it(self):
-        """`vocab.db` is in STATE_DATABASES. Any other file and the store would
-        reproduce exactly the bug it was written to fix."""
+        """`vocab.db` is in `STATE_DATABASES`, so stored glosses survive cold starts."""
         from eesti.api import state as state_module
 
         assert "vocab" in state_module.STATE_DATABASES
@@ -193,14 +171,8 @@ class TestThePracticeSetShowsWhatTheWordsMean:
 
         from eesti import app as app_module
 
-        # Redirected, because a path opened inside a function cannot be pointed
-        # anywhere else by its caller -- and a test that writes into the
-        # developer's real vocab.db reports differently in CI.
-        #
-        # On `config` *and* on `app`. `config` is what the application reads
-        # now; the copies on `app` are kept in step because tests in this file
-        # write their fixtures through `config_db.VOCAB_DB`, and two names for
-        # one file that disagree is the bug this consolidation removed.
+        # Redirect the learner databases so the test never writes the developer's real
+        # `vocab.db`.
         _redirect(monkeypatch, app_module, tmp_path)
         return TestClient(app_module.app)
 
@@ -236,10 +208,9 @@ class TestThePracticeSetShowsWhatTheWordsMean:
     def test_answering_glosses_exactly_the_word_just_answered(
         self, client, monkeypatch
     ):
-        """At most one lookup, for the one word the learner spent thought on —
-        and none when the answer is already local. `kleit` is a seed word, so
-        grading it spends no request; `helikopter` is not, so it spends one.
-        (Before `meaning.py`, a seeded word still cost a live lookup here.)"""
+        """Grading does at most one lookup, for the answered word, and none when the answer
+        is already local (`kleit` is seeded; `helikopter` is not).
+        """
         asked = []
         monkeypatch.setattr(sonapi, "lookup",
                             lambda w, **k: asked.append(w) or info(word=w, ru=("вертолёт",)))
@@ -265,10 +236,7 @@ class TestThePracticeSetShowsWhatTheWordsMean:
         assert got.status_code == 200
         assert got.json()["correct"] is True
 
-        # It used to assert `russian == []` here, and that is no longer the
-        # right guarantee: `kleit` is in the shipped glossary, so a dead
-        # dictionary now costs the learner nothing at all rather than costing
-        # them the translation. The grade was never at risk either way.
+        # A seeded word keeps its translation even with the dictionary down.
         assert got.json()["russian"] == ["платье"]
 
     def test_an_unseeded_word_degrades_quietly(self, client, monkeypatch):
