@@ -68,11 +68,9 @@ export async function mountAudio(host, url) {
 
 
 export async function speakWord(word, onError) {
-  /* An empty catch here would be the pronunciation-privacy mistake again in
-     miniature: the button appears to work, nothing happens, and the learner
-     has no way to tell a dead synthesiser from a silent word. The URL is
-     revoked once the clip ends -- a review session plays dozens, and each one
-     pins its blob in memory until the page is closed. */
+  /* Errors are shown, so a failed synthesiser is distinguishable from a silent word.
+     The URL is revoked once the clip ends: a review session plays dozens, and each
+     would otherwise pin its blob until the page closes. */
   let url = null;
   try {
     const r = await api("/api/speak", {text: word, speed: 0.9});

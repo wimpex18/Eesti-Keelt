@@ -87,9 +87,8 @@ else
   echo "    $PROJECT"
 fi
 
-# Rather than asking you which region you deployed to, ask Google. A Cloud Run
-# service is findable by name across every region at once, and guessing wrong
-# was the first thing that went wrong here.
+# Rather than asking which region you deployed to, ask Google: a Cloud Run
+# service is findable by name across every region at once.
 echo "==> Finding the Cloud Run service"
 SERVICES="$(gcloud run services list \
   --format='value(metadata.name,metadata.labels."cloud.googleapis.com/location")' \

@@ -24,17 +24,12 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt pytest
 
-      # Third-party data from HuggingFace. It has returned 502 mid-run, and this
-      # project's whole point is not to let someone else's bad minute break the
-      # parts we own — so a failure here must not fail the build. The fetcher
-      # retries 5xx with backoff; if it still cannot get the data, the validation
-      # step below is skipped loudly rather than silently.
-      # `--required-only`: the morphology gate needs `inflection_et` and
-      # nothing here reads the two extra word-order pools — the drill tests run
-      # on fixtures. Fetching them anyway cost 160 requests per push across the
-      # two legs and earned a 429 from the datasets server, which skipped the
-      # gate. Asking someone else's server for 7 937 rows that this job will
-      # not open is the shape this project has a rule about.
+      # Third-party data from HuggingFace. A failure here must not fail the build:
+      # the fetcher retries 5xx with backoff, and if it still cannot get the data the
+      # validation step below is skipped loudly rather than silently.
+      # `--required-only`: the morphology gate needs only `inflection_et`; the drill
+      # tests run on fixtures, and fetching the word-order pools too would spend
+      # requests (and risk a 429) on data this job never opens.
       - name: Fetch benchmark data
         id: bench
         continue-on-error: true

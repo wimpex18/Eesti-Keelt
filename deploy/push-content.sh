@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
-#
 # Send a harvested reading library to the deployment. Run in Google Cloud Shell.
 #
 #   bash deploy/push-content.sh path/to/content.db
 #
-# Why this exists rather than "copy the file into the container": Cloud Run's
-# disk is ephemeral, so a file copied in by hand is gone at the next cold start.
-# And the library cannot ride along inside the image, because ERR transcripts
-# are © ERR and Selges keeles carries no reuse grant -- putting them in an image
-# built from a public repository would be redistribution.
+# Cloud Run's disk is ephemeral, so a file copied in by hand is gone at the next
+# cold start, and the library cannot ride in the image: ERR transcripts are
+# © ERR and Selges keeles carries no reuse grant, and the image is built from a
+# public repository.
 #
-# Why it targets Cloud Run rather than the Worker: Cloudflare Access guards the
-# Worker, and Access is an interactive login that a script cannot satisfy. The
-# origin is guarded by PROXY_TOKEN instead, which a script can send. The Worker
-# then archives the corpus from the origin and pushes it into every container
-# that starts afterwards.
+# It targets Cloud Run rather than the Worker because Cloudflare Access is an
+# interactive login a script cannot satisfy; the origin is guarded by
+# PROXY_TOKEN, which a script can send. The Worker then archives the corpus from
+# the origin and restores it into every container that starts afterwards.
 #
 # You never see or type either token: they are read straight out of the running
 # Cloud Run service, which is the only place they need to exist.
@@ -30,15 +27,9 @@ find_service
 echo "    $SERVICE in $REGION"
 
 echo "==> Reading the service's own tokens"
-#
-# Read as JSON and picked out by name, not with gcloud's projection DSL.
-#
-# The DSL version --
-#   --format="value(...env.filter(\"name:$1\").extract(value))" | tr -d '[]'
-# -- returned something non-empty for both tokens while at least one of them
-# was wrong, so the script sailed past its own emptiness check, uploaded a
-# megabyte, and got a 403 that looked like a server problem. A value that is
-# almost right is worse than one that is missing.
+# Read as JSON and picked out by name, not with gcloud's projection DSL: the DSL
+# form (`env.filter(...).extract(value)`) can return a non-empty but wrong value,
+# which passes the emptiness check and fails later as an unexplained 403.
 DESCRIBE="$(gcloud run services describe "$SERVICE" --region "$REGION" \
             --format=json 2>/dev/null)"
 read_env() {

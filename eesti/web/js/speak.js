@@ -8,11 +8,9 @@ import {$, api, esc, setLabel} from "./core.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
-// getUserMedia needs a secure context. On a phone that means HTTPS, which is
-// what the Cloudflare deployment provides and what `serve` on localhost also
-// counts as — so the failure is only ever "opened over plain http from another
-// machine", and it is worth saying which of those you are in rather than
-// leaving a dead button.
+// getUserMedia needs a secure context: HTTPS (the Cloudflare deployment) or
+// localhost. The only failing case is plain http from another machine, and the
+// page says which one applies rather than leaving a dead button.
 const canRecord = window.isSecureContext &&
   navigator.mediaDevices && typeof MediaRecorder !== "undefined";
 
@@ -210,14 +208,11 @@ if (!canRecord) {
       $("#recState").textContent = "Микрофон не открылся: " + e.message;
     }
   };
-  /* Said once, plainly: this records, it does not score. Pronunciation
-     scoring from audio is a research problem, and EKI already publishes free
-     exercises.
+  /* Said once, plainly: this records, it does not score. Pronunciation scoring
+     from audio is a research problem, and EKI already publishes free exercises.
 
-     It used to open by promising the recording never left the device, which
-     stopped being true when recognition moved to Cloudflare — and sat
-     directly under `#recPrivacy` saying the opposite. Where the audio goes is
-     that notice's job; this one is only about what the practice is worth. */
+     Where the audio goes is `#recPrivacy`'s job; this note is only about what the
+     practice is worth. */
   $("#recNote").innerHTML =
     "Здесь <b>не выставляют баллов</b> — произношение по записи не " +
     "оценивается. <b>Rääkimiseksam</b> на B1 — <b>парный</b>: два кандидата " +

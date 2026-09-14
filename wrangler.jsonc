@@ -7,13 +7,11 @@
 
   // The Worker is a doorman, not the app. The FastAPI process runs on Google
   // Cloud Run, because it needs Vabamorf — a compiled C++ Python extension that
-  // cannot run in a Worker. Cloudflare Containers would have hosted it here,
-  // but they require the Workers Paid plan; Cloud Run's always-free tier runs
-  // the same image for nothing. See docs/deploy.md.
+  // cannot run in a Worker. Cloudflare Containers require the Workers Paid plan;
+  // Cloud Run's always-free tier runs the same image. See docs/deploy.md.
   //
-  // Everything below is therefore free-plan only: a Worker, and one
-  // SQLite-backed Durable Object, which Cloudflare made available on the
-  // Workers Free plan in April 2025.
+  // Everything below is free-plan only: a Worker and one SQLite-backed Durable
+  // Object.
   "durable_objects": {
     "bindings": [{ "name": "LEARNER_STATE", "class_name": "LearnerState" }]
   },
@@ -34,7 +32,9 @@
   //   PROXY_TOKEN     shared with the Cloud Run service; without it the
   //                   run.app URL would be a way around Cloudflare Access
   //   STATE_TOKEN     guards the snapshot endpoints
-  //   OPENROUTER_API_KEY  optional: grammar explanations
+  //
+  // LLM keys are not Worker secrets: the app reads them on Cloud Run
+  // (deploy/set-llm-key.sh).
   //
   // And one plain variable, only if you mean it:
   //   ALLOW_UNAUTHENTICATED=1   serve without Cloudflare Access

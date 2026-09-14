@@ -54,26 +54,16 @@ interface Env {
   ALLOW_UNAUTHENTICATED?: string;
 }
 
-/**
- * Refuse anything that did not come through Cloudflare Access.
- *
- * Access is configured in a dashboard, and a dashboard setting is a thing that
- * can be switched off by accident, reset by a future change, or simply never
- * have applied in the first place -- which is exactly what happened here: the
- * policy was created, "Apply Access" was pressed, and an anonymous request kept
- * returning 200 for a quarter of an hour.
- *
- * Nothing complained, because nothing was watching. That is the same failure
- * shape as the `origin_guarded` flag on the Cloud Run side, and it gets the
- * same answer: the protection is enforced in code, so losing it is a locked
- * door rather than a silent opening.
- *
- * When Access is enabled, the runtime puts an identity on every request that
- * passed it. When it is not, there is no identity, and this returns a page
- * saying so. `ALLOW_UNAUTHENTICATED` exists for deliberately serving without
- * Access, and is deliberately awkward: the default has to be the safe one,
- * because the unsafe one is invisible.
- */
+/* Refuse anything that did not come through Cloudflare Access.
+
+   Access is a dashboard setting, which can be switched off by accident or fail to
+   apply without anything complaining. Enforcing it in code makes losing it a
+   locked door rather than a silent opening.
+
+   When Access is enabled, the runtime puts an identity on every request that
+   passed it; without one this returns a page saying so. `ALLOW_UNAUTHENTICATED`
+   exists for deliberately serving without Access, and is deliberately awkward:
+   the default has to be the safe one. */
 function requireAccess(env: Env, ctx: ExecutionContext): Response | null {
   if (ctx.access || env.ALLOW_UNAUTHENTICATED === "1") return null;
   return new Response(
@@ -104,17 +94,14 @@ const SNAPSHOT_MIN_GAP_MS = 60 * 1000;
  */
 const CHUNK = 96 * 1024;
 
-/**
- * Two blobs live in this store and they are not the same kind of thing.
- *
- * `snap` is the learner's progress: written constantly, never overwritten on
- * restore, and the thing the whole snapshot mechanism exists to protect.
- *
- * `corpus` is the harvested reading library: written once from a laptop,
- * overwritten freely, and owner-only by licence -- which is why it cannot ship
- * inside an image built from a public repository, and why it has to travel this
- * way at all.
- */
+/* Two blobs live in this store and they are not the same kind of thing.
+
+   `snap` is the learner's progress: written constantly, never overwritten on
+   restore, and the thing the snapshot mechanism exists to protect.
+
+   `corpus` is the harvested reading library: written once from a laptop,
+   overwritten freely, and owner-only by licence — so it cannot ship inside an
+   image built from a public repository, and travels this way instead. */
 type Blob = "snap" | "corpus";
 
 interface BlobMeta {
@@ -195,26 +182,23 @@ export class LearnerState extends DurableObject<Env> {
     });
   }
 
-  /**
-   * Keep the harvested library alive across cold starts, in whichever
-   * direction is needed.
-   *
-   * The corpus cannot ship in the image -- it is owner-only by licence, and the
-   * image is built from a public repository -- and it cannot be uploaded
-   * through this Worker either, because Cloudflare Access is an interactive
-   * login that a script cannot satisfy. So it is pushed to the origin, which a
-   * machine *can* authenticate to, and archived from there.
-   *
-   * Which way it moves depends on who has it:
-   *
-   * - the container has one and this store does not  ->  **archive it**, which
-   *   is how a freshly pushed harvest becomes permanent
-   * - this store has one and the container does not  ->  **restore it**, which
-   *   is every cold start after that
-   *
-   * Both are no-ops once they agree, so this runs on every boot change without
-   * costing anything in the ordinary case.
-   */
+  /* Keep the harvested library alive across cold starts, in whichever direction
+     is needed.
+
+     The corpus cannot ship in the image (owner-only by licence, public
+     repository) and cannot be uploaded through this Worker (Access is an
+     interactive login a script cannot satisfy). So it is pushed to the origin,
+     which a script can authenticate to, and archived from there.
+
+     Which way it moves depends on who has it:
+
+     - the container has one and this store does not  ->  **archive it**, which
+       is how a freshly pushed harvest becomes permanent
+     - this store has one and the container does not  ->  **restore it**, which
+       is every cold start after that
+
+     Both are no-ops once they agree, so this runs on every boot change without
+     costing anything in the ordinary case. */
   private async syncCorpus(): Promise<void> {
     let onContainer = false;
     try {
@@ -456,20 +440,12 @@ export default {
     // The Worker's own back channel. Exposing these through the proxy would let
     // anyone past Access overwrite everything.
     //
-    // This was `startsWith("/api/state/")`, which is a naming convention rather
-    // than the actual set. Five origin routes require `STATE_TOKEN`, and that
-    // prefix covered two of them: `/api/progress/reset`, which erases the
-    // learner's practice history, and `/api/content/import`, which overwrites
-    // the corpus, were both proxied straight through.
+    // The exact set of origin routes that require `STATE_TOKEN`, not a path prefix:
+    // the reset and content-import routes do not share the `/api/state/` prefix. The
+    // origin still demands the token; this is the second layer.
     //
-    // Not an open door -- the origin still demands the token, so a request
-    // without it gets 403 either way. But `_require_state_token` says in its
-    // own docstring that a restore endpoint "does not rely on a single layer",
-    // and for three of the five that second layer was not there.
-    //
-    // Hand-maintained, because a Worker cannot import Python -- so, like
-    // `eval.yml`'s provider list, a test checks it against `eesti/api/state.py`
-    // in both directions.
+    // Hand-maintained, because a Worker cannot import Python — so a test checks it
+    // against `eesti/api/state.py` in both directions.
     const BACK_CHANNEL = [
       "/api/state/export",
       "/api/state/import",

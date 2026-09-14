@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
-#
 # Say what the deployment is actually configured with. Run in Google Cloud
 # Shell. Changes nothing.
 #
 #   bash deploy/check-service.sh
 #
-# Why this exists: the grammar checker sat in offline mode for weeks because
-# OPENROUTER_API_KEY was on the Worker, where nothing reads it. It was then set
-# on Cloud Run -- and still was not there, which nobody could see, because the
-# only symptom is corrections quietly arriving without explanations.
-#
-# The smoke workflow can now ask the running app the same question from
-# outside. This script answers it from the operator's side, and it is the one
-# that can tell you *which* service and *which* revision, which is where the
-# discrepancy usually lives.
+# A key set in the wrong place (e.g. on the Worker, where nothing reads it) has
+# no visible symptom beyond corrections arriving without explanations. The smoke
+# workflow asks the running app from outside; this script answers from the
+# operator's side and names the service and revision.
 #
 # Variable NAMES only. No value is ever fetched, printed, or written anywhere.
 set -euo pipefail

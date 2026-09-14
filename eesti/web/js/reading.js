@@ -16,11 +16,8 @@ async function loadLibrary(append = false) {
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
-  /* A failed request must say what the server said. Reading `.items` off an
-     error payload threw, and the catch below printed the TypeError itself:
-     the learner was shown "Viga: Cannot read properties of undefined (reading
-     'length')". The drill and the writing check both surface `detail`
-     correctly; this path was the odd one out. */
+  /* Show the server's `detail` on a failed request; an error payload has no
+     `.items`. */
   const ask = async (url) => {
     const r = await fetch(url);
     const body = await r.json().catch(() => ({}));
@@ -35,18 +32,15 @@ async function loadLibrary(append = false) {
     if (choice === "soovitatud") {
       const d = await ask("/api/reading/next?limit=25");
       items = d.items;
-      // With nothing marked known, every text scores 0 % — true, and it reads
-      // as "you know nothing" rather than "we have not measured yet". Suppress
-      // the number until there is a vocabulary to measure against, and say why.
+      // With nothing marked known, every text would score 0 %, which reads as "you
+      // know nothing" rather than "not measured yet". Hide the number until there is a
+      // vocabulary to measure against, and say why.
       measured = d.known_words > 0;
       note = measured
         ? `${d.known_words} слов знакомо`
         : "Слова ещё не отмечены — показаны самые простые тексты.";
-      /* Counted by the endpoint on purpose -- its comment says a text dropped
-         silently here is what produced "0 teksti · 411 слов знакомо", a
-         contradiction with no explanation. The count existed; the page threw
-         it away, which restores exactly the contradiction it was added to
-         prevent. */
+      /* The endpoint counts texts it could not score; showing the count explains why
+         "texts known" and the list size can disagree. */
       if (d.unmeasurable)
         note += ` · ${d.unmeasurable} без разбора слов`;
     } else {
@@ -60,10 +54,8 @@ async function loadLibrary(append = false) {
     }
     libShown += items.length;
 
-    /* The number said `items.length`, which is the page size and not the
-       library size: 80 came back against 349 indexed, so the screen read "80
-       текстов" and the other 269 could not be reached at all. `total` comes
-       from the server counting the same filter it selected on. */
+    /* `total` is the server's count for the same filter; `items.length` is only the
+       page size. */
     $("#libCount").textContent = total != null && total > libShown
       ? `показано ${libShown} из ${total}${note ? " · " + note : ""}`
       : `${libShown} текстов${note ? " · " + note : ""}`;
@@ -80,17 +72,14 @@ async function loadLibrary(append = false) {
     for (const it of items) {
       const el = document.createElement("div");
       el.className = "lib-item" + (it.external ? " external" : "");
-      // Coverage only appears where it was actually computed. Showing "0 %"
-      // for a list that never measured it would read as "you know nothing".
+      // Coverage appears only where it was computed, so an unmeasured list never
+      // shows "0 %".
       const cover = (measured && it.coverage !== undefined)
         ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
       const size = it.words !== undefined ? `${it.words} слов`
         : (it.total !== undefined ? `${it.total} слов` : "");
-      /* HARNO's own tasks are indexed, never copied -- their `body` is empty
-         by licence and a test asserts it. The list rendered them like any
-         other text, so "Lugemine 1 (A2-tase)" advertised **0 слов** and opened
-         a reader on nothing. The API has said `external` and carried the url
-         since it was written; the page had never read either. */
+      /* HARNO's tasks are indexed, never copied: `body` is empty by licence. They
+         open the official page (`external`, `url`) instead of an empty reader. */
       if (it.external) {
         el.innerHTML = `<h4>${esc(it.title)}</h4>
           <span class="lib-meta">HARNO · задание на сайте экзамена ↗</span>`;
