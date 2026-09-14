@@ -1,36 +1,16 @@
 """The EVKK tag map, checked without redistributing EVKK.
 
-`TAG_MAP` translates this project's nine error tags into EVKK's category names,
-and the curriculum weights topic order by what comes out. Three things about it
-need checking, and **they do not have the same dependency** — which is the whole
-design of this file.
-
-| Check | Actually needs |
+| Check | Needs |
 |---|---|
-| the unmapped remainder is counted, not dropped | arithmetic over *any* taxonomy |
-| no mapped subtree swallows a differently-tagged node | `TAG_MAP` + `LEAF_ONLY` + a tree *shape* |
-| every mapped name is really on the page | the live page — irreducibly |
+| the unmapped remainder stays in the denominator | arithmetic over any taxonomy |
+| no mapped subtree swallows a differently-tagged node | `TAG_MAP` + `LEAF_ONLY` + a tree shape |
+| every mapped name is really on the page | the live page |
 
-The first two are invariants of **our own code** and are proved here against a
-taxonomy this project writes itself: real `TAG_MAP` names, invented structure
-and counts. They run everywhere, including CI, with no third-party data in the
-repository.
-
-**Why there is no committed fixture.** `sources.REGISTRY` records EVKK as "no
-explicit reuse licence on the corpus", `redistributable = 0`. Their taxonomy
-page is TLU's work, and committing it to a public repository is redistribution
-— the thing this project refuses for ERR, HARNO and Selges keeles. A test
-fixture is not an exception to that rule; it is the same bytes in a different
-directory. And CI is not allowed to fetch it either: the host answered 500 on
-two of three attempts the day this was written, so the test would be flaky, and
-a research server should not be hit on every push.
-
-**So the third check moved to where real data actually exists.** The risk it
-guards is that a `TAG_MAP` name stops matching and its tag silently weighs
-zero. `cli evkk` fetches the live taxonomy and now refuses to finish if any tag
-comes back at zero — which is a better place for it than CI against a snapshot,
-because it runs on real data every time the taxonomy is actually read. What
-remains here is the same check against a cached copy when one happens to exist.
+The first two run here against a taxonomy written for the test (real `TAG_MAP`
+names, invented structure and counts). EVKK's page carries no reuse licence and
+its host is unreliable, so it is neither committed nor fetched in CI; `cli evkk`
+checks the third on live data, and this file checks it against a cached copy
+when one exists.
 """
 
 from __future__ import annotations
@@ -57,11 +37,8 @@ def marks() -> list[evkk.Mark]:
 
 @pytest.fixture
 def taxonomy() -> list[evkk.Mark]:
-    """A taxonomy of this project's own making, shaped like EVKK's.
-
-    The **names** come from `TAG_MAP`, which lives in this repository; the tree
-    and the counts are invented. That is enough to prove every invariant below,
-    and it carries nothing of TLU's.
+    """A taxonomy of this project's own making, shaped like EVKK's (names from
+    `TAG_MAP`, invented tree and counts).
     """
     marks = []
     for n, (tag, names) in enumerate(evkk.TAG_MAP.items()):
@@ -76,18 +53,9 @@ def taxonomy() -> list[evkk.Mark]:
     return marks
 
 
-#: EVKK's page markup, written here rather than copied from theirs.
-#:
-#: The shape is faithful — a `margin-left` div, an anchor whose href carries the
-#: node's ancestry as `global_N/` segments, a `<span>` holding the count, and
-#: real newlines and indentation between them — but every name, id and number
-#: below was made up for this test. Same approach as the EKI TSV and PSV XML
-#: fixtures: a format can be reproduced without reproducing anyone's data.
-#:
-#: This exists because `parse()` was **not tested at all**. The checks below it
-#: build `Mark` objects directly, so `_ROW_RE`, the markup flattening and the
-#: placeholder filter had no coverage — and a restyle of their page is the one
-#: change most likely to break this harvester.
+#: EVKK-shaped page markup written for the test (a `margin-left` div, an anchor
+#: whose href carries `global_N/` ancestry, a count `<span>`), so `parse()` is
+#: covered without copying their data.
 MARKUP = """
 <div style="margin-left:20px">
         <a href="https://evkk.tlu.ee/vers1/Marks/global_marks/global_100/markdown.html"
@@ -132,8 +100,7 @@ class TestReadingTheirMarkup:
             by_name["Leksikaalsed"].key + "/")
 
     def test_markup_inside_a_label_is_joined_with_a_space(self):
-        """It was `sub("")` once, which turned `<p>Esimene</p><p>Teine</p>` into
-        the single word `EsimeneTeine`."""
+        """Tags become spaces, so adjacent paragraphs do not merge into one word."""
         assert "Sobimatu sõnavalik" in {m.name for m in evkk.parse(MARKUP)}
 
     def test_a_node_labelled_with_its_own_id_is_dropped(self):
@@ -156,10 +123,7 @@ class TestTheInvariantsOfOurOwnCode:
     """These run everywhere. No third-party data, no network, no cache."""
 
     def test_the_unmapped_remainder_is_counted_not_dropped(self, taxonomy):
-        """The weights are a share of *all* annotated errors, not of the mapped
-        ones. Roughly 40 % of the corpus falls outside these nine tags, and that
-        share has to stay in the denominator or every tag's percentage is
-        inflated by exactly the amount this app cannot practise."""
+        """Weights are a share of all annotated errors, including the unmapped remainder."""
         total = sum(m.count for m in taxonomy)
         assert sum(evkk.tag_weights(taxonomy).values()) + evkk.unmapped(taxonomy) == total
 
@@ -171,11 +135,8 @@ class TestTheInvariantsOfOurOwnCode:
         assert set(weights) == set(evkk.TAG_MAP)
 
     def test_no_mapped_subtree_swallows_a_differently_tagged_node(self, taxonomy):
-        """What `LEAF_ONLY` is for, checked rather than commented.
-
-        If one mapped node is an ancestor of another carrying a different tag,
-        the descendant's errors are counted under both — and the fix is to list
-        the ancestor in `LEAF_ONLY`.
+        """No mapped node is an ancestor of a differently-tagged mapped node unless listed
+        in `LEAF_ONLY`.
         """
         keys: dict[str, list[str]] = {}
         for mark in taxonomy:
@@ -196,8 +157,7 @@ class TestTheInvariantsOfOurOwnCode:
         assert not overlaps, f"double-counted {overlaps} — list the outer in LEAF_ONLY"
 
     def test_every_tag_it_weights_is_one_the_error_log_uses(self):
-        """`TAG_MAP`'s keys have to be the Notion log's fixed options, or a
-        weight is computed for a tag nothing can ever be filed under."""
+        """`TAG_MAP`'s keys are exactly the Notion log's tags."""
         assert set(evkk.TAG_MAP) <= set(TAGS)
 
     def test_a_name_that_matches_nothing_weighs_zero(self, taxonomy):

@@ -1,32 +1,11 @@
-"""`cli placement` wrote fifteen wrong answers into a record nobody had made.
+"""Read-only CLI commands write nothing, and "nobody answering" is not a wrong answer.
 
-The CLI keeps a list called `READ_ONLY`, and the name is a promise. `placement`
-is on it, and running it with nothing on stdin wrote **fifteen attempts, all
-marked wrong**, to the learner's own `data/progress.db`.
+`READ_ONLY` is a promise. `_ask_terminal` raises `Stopped` on EOF and Ctrl-C
+instead of returning a blank answer, which would grade as wrong and write
+attempts, failed checkpoints and review items for questions nobody saw.
 
-The cause is one line. `_helpers._ask_terminal` caught `EOFError` and
-`KeyboardInterrupt` and returned `""` — and `""` is not "no answer", it is a
-*wrong answer*. Every consumer of the `Ask` contract then graded and recorded
-items the learner never saw:
-
-* `cli placement </dev/null` fabricated an entire failed sweep.
-* Ctrl-C could not leave a sweep, though `cmd_placement` prints "Ctrl-C to
-  leave early". The interrupt became a blank answer and the sweep went on.
-* `cli checkpoint` did the same, wrote a **failed checkpoint row**, and pushed
-  every un-shown item into the review queue.
-
-None of that is cosmetic. Wrong answers fill the accuracy window that gates
-mastery, and the checkpoint row feeds the readiness verdict — the one deciding
-A2-then-B1 against B1-alone in 2027. Practice nobody did makes the learner look
-worse than they are, and git history records the incident: fifteen
-attempts on the deployment, none of them the learner's.
-
-**Why the existing suite could not see it.** `test_cli_smoke` runs every
-`READ_ONLY` command and asserts each exits clean — but it calls `cli.main()`
-*in-process*, where the autouse fixture in `conftest.py` redirects all four
-learner databases. The promise the list makes was never actually tested. Same
-blind spot, and the same fix, as the phantom word list: ask the property of a
-real subprocess.
+Checked in real subprocesses: in-process runs use `conftest`'s redirected
+databases and cannot see the learner's real files.
 """
 
 from __future__ import annotations
@@ -56,19 +35,8 @@ def _read_only_commands() -> list[list[str]]:
 
 @pytest.fixture
 def learner(tmp_path, fixture_data):
-    """A learner's data directory with a word list that actually drives a drill.
-
-    It must be non-empty: `placement` only reaches the ask loop when a generator
-    produces items, so an empty lexicon would make every assertion here pass for
-    the wrong reason — the bug hidden behind "generator produced nothing".
-
-    The **fixture** lexicon rather than the real one, though. Gating on
-    `data/eesti.db` meant skipping on every CI runner, where `data/` is
-    git-ignored and nothing runs `cli build` — so the one property this file
-    exists to check would have been checked nowhere but a developer's machine.
-    That is the undeclared-local-state failure this repository has now paid for
-    twice. 250 words is enough: `kusisonad`, the topic the real bug recorded
-    against, is built from closed-class patterns and needs no corpus at all.
+    """A data directory with the fixture word list, non-empty so `placement` actually
+    reaches its ask loop.
     """
     data = tmp_path / "data"
     data.mkdir()
@@ -77,11 +45,8 @@ def learner(tmp_path, fixture_data):
 
 
 def _run(argv: list[str], data: Path, stdin: str = "") -> subprocess.CompletedProcess:
-    """Run a command in a real subprocess, with cwd at the data directory.
-
-    `config.REVIEW_DB` and friends are *relative* strings, so they resolve
-    against the working directory — which is what makes cwd the whole fixture
-    here, and what made the real bug reach `data/progress.db` in the repo root.
+    """Run a command in a subprocess with cwd at the data directory (learner database
+    paths are relative).
     """
     env = {
         **os.environ,
@@ -100,12 +65,8 @@ def _snapshot(data: Path) -> dict[str, bytes | None]:
 
 
 class TestAReadOnlyCommandWritesNothing:
-    """Asked of every entry in `READ_ONLY`, as a subprocess, byte for byte.
-
-    Byte comparison rather than a row count: a command could add a row and
-    delete another, or touch `topic_state` without touching `attempts`, and
-    "the learner's record is unchanged" is the property, not "attempts did not
-    grow".
+    """Every `READ_ONLY` command, as a subprocess, leaves the learner databases
+    byte-identical.
     """
 
     @pytest.mark.parametrize("argv", _read_only_commands(),
@@ -134,8 +95,7 @@ class TestNobodyAnsweringIsNotAWrongAnswer:
             _ask_terminal(_Item())
 
     def test_an_interrupt_stops_too(self, monkeypatch):
-        """`cmd_placement` prints "Ctrl-C to leave early". It was caught,
-        turned into a blank answer, and the sweep carried on."""
+        """Ctrl-C stops a sweep."""
         from eesti.cli._helpers import _ask_terminal
         from eesti.placement import Stopped
 
@@ -147,8 +107,7 @@ class TestNobodyAnsweringIsNotAWrongAnswer:
             _ask_terminal(_Item())
 
     def test_a_real_blank_answer_still_gets_through(self, monkeypatch):
-        """Someone who presses Enter *has* answered, and wrongly. Collapsing
-        the two is the bug; refusing both would be a different one."""
+        """A real blank answer (Enter) is still graded as an answer."""
         from eesti.cli._helpers import _ask_terminal
 
         monkeypatch.setattr("builtins.input", lambda _prompt="": "")
@@ -181,8 +140,7 @@ class TestStoppingRecordsNothing:
         assert progress.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 0
 
     def test_a_sweep_ends_instead_of_marking_everything_wrong(self, progress):
-        """It returns what it genuinely probed — here, nothing — rather than
-        walking the whole syllabus recording blanks."""
+        """A stopped sweep returns what it genuinely probed."""
         from eesti.placement import sweep
 
         assert sweep(progress, self._stop) == []

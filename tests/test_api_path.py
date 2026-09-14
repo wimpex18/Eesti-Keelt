@@ -1,10 +1,5 @@
-"""The HTTP surface for the curriculum path.
-
-Steps 1-9 were terminal-only, which meant none of it was reachable from the
-phone the app is meant to run on. These tests cover the endpoints that close
-that gap, and in particular the two places where a client could be wrong: the
-server, not the browser, decides whether an answer is correct and whether a
-topic has been mastered.
+"""The HTTP surface for the curriculum path: the server, not the browser, decides
+whether an answer is correct and whether a topic is mastered.
 """
 
 from __future__ import annotations
@@ -83,12 +78,9 @@ class TestPractice:
 
     def test_a_topic_with_no_generator_answers_in_russian_rather_than_erroring(
             self, client):
-        """It used to be a 400 carrying a Python exception message -- English,
-        naming `docs/curriculum-plan.md`, rendered by the page as `Viga: ...`.
-
-        The request is valid and the answer is "there is no exercise for this
-        yet", which is the same shape as a topic whose corpus has not been
-        uploaded: 200, no items, and a readable reason."""
+        """A topic with no generator answers 200, no items, and a Russian reason (no
+        `docs/` path).
+        """
         r = client.post("/api/practice", json={"topic": "lauseehitus"})
         assert r.status_code == 200
         body = r.json()
@@ -97,10 +89,7 @@ class TestPractice:
         assert any("Ѐ" <= ch <= "ӿ" for ch in body["detail"]), body["detail"]
 
     def test_an_unknown_topic_is_still_an_error(self, client):
-        """Distinct from the above: `lauseehitus` exists and has no drill;
-        `nonesuch` is not a topic at all. Guarding the lookup is what keeps
-        these two apart -- moving it above the try once turned this into a
-        500."""
+        """An unknown topic is still an error, distinct from a topic with no drill."""
         r = client.post("/api/practice", json={"topic": "nonesuch"})
         assert r.status_code == 400
 
@@ -184,10 +173,7 @@ class TestOtherSurfaces:
         assert client.get("/api/checkpoint/C2").status_code == 404
 
     def test_marking_a_word_known_is_explicit(self, client):
-        """Read back through `/api/status`, which is where the vocabulary
-        numbers are actually shown. `/api/vocab` returned the same figures to
-        nobody — it had no caller anywhere, and a second route serving one
-        screen is a second thing to keep in step."""
+        """Vocabulary numbers are read back through `/api/status`, where they are shown."""
         def known():
             return client.get("/api/status").json()["sections"]["sonavara"][
                 "known_in_top"]
@@ -206,12 +192,7 @@ class TestOtherSurfaces:
 
 
 class TestStateSnapshots:
-    """The endpoints that stop a Cloudflare deploy eating the learner's progress.
-
-    Container disk is ephemeral — "when a Container instance goes to sleep, the
-    next time it is started, it will have a fresh disk" — so mastery, the review
-    queue and the vocabulary table have to be handed out and taken back.
-    """
+    """The state snapshot endpoints, which carry learner progress across cold starts."""
 
     @pytest.fixture
     def secured(self, client, monkeypatch):
@@ -228,13 +209,9 @@ class TestStateSnapshots:
         assert r.status_code == 403
 
     def test_export_returns_only_the_learners_databases(self, secured):
-        """Not the word list, the form index or the harvested corpus: those are
-        baked in or pushed separately, so shipping them would be 58 MB of
-        copying something every container already has.
-
-        `notion` is here because it holds queued corrections waiting for a
-        person to review them. Leaving it out meant the queue was emptied by
-        every cold start -- silently, which is how it went unnoticed."""
+        """Only the learner databases travel (including `notion`, the queued corrections);
+        the word list, form index and corpus do not.
+        """
         data = secured.get("/api/state/export",
                            headers={"x-state-token": "s3cret"}).json()
         assert set(data["databases"]) == {"progress", "review", "vocab", "notion"}
@@ -255,10 +232,7 @@ class TestStateSnapshots:
                            headers={"x-state-token": "s3cret"}).json()
         assert blob["databases"]["progress"], "nothing was captured to restore"
 
-        # A fresh container: new, empty paths. Redirected on `config`, which is
-        # the single place the application resolves these from -- `app` used to
-        # keep its own copies, and having two names for one file is how a
-        # restore came to land somewhere the app did not read.
+        # A fresh container: new, empty paths, redirected on `config`.
         from eesti import config as config_module
 
         fresh = {name: tmp_path / f"{name}.db" for name in ("progress", "review", "vocab")}
@@ -272,12 +246,8 @@ class TestStateSnapshots:
         ).json()
         assert "progress" in restored["restored"]
 
-        # Byte-equality used to be asserted here and is no longer true, on
-        # purpose: a restore now runs `repair_fabricated_attempts`, which
-        # records that it ran. Demanding identical bytes would forbid the
-        # restore from ever annotating the database it just wrote — and the
-        # claim that matters was always the one below, which the comment under
-        # the old assertion admitted by saying "not just the bytes".
+        # Not byte-equal: a restore runs `repair_fabricated_attempts`, which records that
+        # it ran. The learner rows are what must match.
         import sqlite3
 
         conn = sqlite3.connect(fresh["progress"])
@@ -285,8 +255,7 @@ class TestStateSnapshots:
             "SELECT COUNT(*) FROM attempts WHERE topic = 'kusisonad'"
         ).fetchone()[0] == 1
 
-        # The repair ran and found nothing, which is the expected outcome for a
-        # database whose only attempt is a real graded answer.
+        # The repair ran and found nothing to remove.
         assert restored["repair"]["removed"] == 0
 
     def test_restore_refuses_to_overwrite_real_work(self, secured, tmp_path, monkeypatch):
@@ -315,10 +284,9 @@ class TestStateSnapshots:
         assert live.read_bytes() == before
 
     def test_an_empty_schema_is_not_treated_as_work(self, secured, tmp_path, monkeypatch):
-        """The bug this replaces, found by running the real container: a fresh
-        instance served one request, which created progress.db with an empty
-        schema, and the restore then refused to overwrite it — silently
-        discarding the snapshot it existed to restore."""
+        """A fresh instance whose first request created an empty schema still accepts the
+        restore.
+        """
         import base64
 
         from eesti.progress import connect as progress_connect
@@ -365,12 +333,7 @@ class TestStateSnapshots:
 
 
 class TestAnEmptyTopicSaysWhy:
-    """Comparing two content.db files exposed this: with the older one,
-    `sonajark` returned 200 with zero items and no `detail`, and the page can
-    only print what it is given — so the learner saw a bare "midagi ei tulnud".
-
-    "The corpus has not been uploaded yet" and "the generator is broken" are
-    different problems and only one of them is the learner's to fix."""
+    """A corpus topic with no corpus answers with a reason, not a bare empty list."""
 
     @pytest.fixture
     def client(self, monkeypatch, tmp_path):
