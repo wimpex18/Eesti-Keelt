@@ -1,20 +1,9 @@
-"""Fixture databases, so no test depends on the developer's own build.
+"""Fixture databases, so no test depends on the developer's own build or data.
 
-This exists because of a failure that has now happened twice: a test passes
-locally because `data/eesti.db` is sitting there from a real `cli build`, and
-fails in CI where it is not. The second time it took out 21 tests at once.
-
-The cause was structural rather than careless. `config.DB_PATH` was read at
-**import** time, so the database location could not be redirected once the
-module was loaded — a test had no way to point the code somewhere else even if
-it wanted to. `wordlist.connect` and `lookup._db` now resolve their paths when
-called, and this file redirects all three databases at every test.
-
-The fixture data is small and real: genuine Estonian words with their genuine
-forms, so a test that says `läksin` is the past of `minema` is checking Vabamorf
-rather than checking a mock. What it is not is *complete* — 25 words instead of
-160 316 — which keeps the suite fast and means a test that needs breadth has to
-say so.
+Paths resolve at call time, and this file redirects every database for every
+test. The fixture data is small and real — genuine Estonian words with forms
+from Vabamorf — so tests check real morphology; a test that needs the full
+lexicon uses `real_wordlist`.
 """
 
 from __future__ import annotations
@@ -76,11 +65,8 @@ TEXTS: tuple[str, ...] = (
 
 
 def _theme_words() -> list[tuple[str, int, str, str]]:
-    """Every themed lemma, so theme tests measure the themes and not the fixture.
-
-    Deliberately *not* how the "are these real Estonian words?" check is run —
-    inserting them here would make that check circular. That one uses the real
-    160 316-word lexicon and skips when it is not built.
+    """Every themed lemma, so theme tests measure the themes. The "are these real
+    words?" check uses the real lexicon instead, or it would be circular.
     """
     from eesti.themes import THEMES
 
@@ -98,17 +84,13 @@ def _build_wordlist(path) -> None:
 
     conn = sqlite3.connect(path)
     conn.executescript(SCHEMA)
-    # Columns named, not positional. A positional insert binds the fixture to
-    # the table's column *count*, so adding `level_source` to the schema broke
-    # sixteen tests that have nothing to do with where a level came from.
+    # Columns named, not positional, so schema additions do not break the fixture.
     cols = "INSERT OR %s INTO words(word, freq_rank, proficiency, pos) VALUES (?,?,?,?)"
     conn.executemany(cols % "REPLACE", WORDS)
     # Inserted second so a word named in WORDS keeps its declared level.
     conn.executemany(cols % "IGNORE", _theme_words())
-    # Rections live in the word database and are fetched by a deliberate `cli
-    # rections` run, never during a lesson. Seeding two here means the generator
-    # is exercised offline — CI proved why that matters by getting a 403 from
-    # EKI when a test reached for the live page.
+    # Seed two rections, so the generator runs offline (rections are normally fetched
+    # once by `cli rections`).
     from eesti.rection import SCHEMA as RECTION_SCHEMA
 
     conn.executescript(RECTION_SCHEMA)
@@ -154,16 +136,8 @@ def _build_edge(path) -> None:
 
 
 def _build_content(path) -> None:
-    """A content database built by the app's own opener, not by hand.
-
-    This used to write one `CREATE TABLE items` of its own. That is a second
-    copy of a schema `eesti/sources.py` already owns, and it had drifted:
-    `sources` was missing entirely, so anything reading the library through
-    `library.sections` — the `library` and `status` commands, `/api/library` —
-    hit "no such table: sources" against a fixture that looked complete.
-
-    Using the real opener means the fixture cannot drift from the schema again,
-    and a test that passes here is testing the shape production actually has.
+    """A content database built by the app's own opener, so the fixture has the
+    production schema.
     """
     from eesti.sources import Item, add_items, connect as open_content, register
 
@@ -182,21 +156,10 @@ def _build_content(path) -> None:
 
 @pytest.fixture
 def real_wordlist():
-    """The actual 160 316-word Ekilex build, or a skip.
+    """The real Ekilex word list, or a skip.
 
-    A handful of tests check curated content *against the lexicon* — "is
-    `kingad` a word?" — and a fixture cannot answer that about itself. They opt
-    out of the redirect and skip loudly where the build is absent, which is what
-    CI sees.
-
-    "Absent" means *no words in it*, not "no file". This asked `exists()`, which
-    is this project's oldest recurring bug written into the very fixture that
-    exists to avoid it: something in a full run leaves an empty `data/eesti.db`
-    behind — 0 rows, correct schema — and on the *next* run these tests then
-    stopped skipping and checked curated Estonian against an empty lexicon.
-    Two failures, in a file nothing had touched, that read exactly like a
-    regression. Counting a row makes an empty phantom skip, which is the honest
-    answer for it.
+    For tests that check curated content against the lexicon. Skips unless the
+    build has rows (an empty file does not count).
     """
     import sqlite3 as _sqlite3
     from pathlib import Path
@@ -218,24 +181,14 @@ def real_wordlist():
 # What this machine has, said out loud
 # ---------------------------------------------------------------------------
 #
-# The same command reports very different runs depending on state that is
-# invisible in its output: `data/` is git-ignored, so a machine with a built
-# word list runs tests that a fresh checkout skips, and a machine without
-# Playwright skips the browser journeys entirely. Both print "passed".
-#
-# That cost a real mistake in the session that split this repository up: a
-# browser run reported "144 skipped" after the dataset had been deleted, and
-# the comparison it was being used for measured nothing. A skip is a fine
-# answer; a skip nobody can see in the result is not.
+# `data/` is git-ignored and Playwright optional, so the same command runs
+# different suites on different machines. The header and summary line say which
+# inputs were present.
 
 
 def dataset_state() -> dict[str, object]:
-    """Which optional inputs are present, and how much they hold.
-
-    Read-only and failure-proof by construction: `available()` opens read-only
-    and counts a row, because presence of a database is not presence of data --
-    opening one to look would *create* it, which is this project's oldest
-    recurring bug.
+    """Which optional inputs are present and how much they hold, read-only (opening a
+    database to look would create it).
     """
     from pathlib import Path
 
@@ -261,14 +214,8 @@ def dataset_state() -> dict[str, object]:
     try:
         import importlib.util
 
-        # Both halves matter and they fail differently: no `playwright` package
-        # is "the journeys cannot run at all", an empty browser directory is
-        # "they can run and have nothing to run in". Either way the suite
-        # skips, so the line says the same thing -- but the directory scan is
-        # its own function because it is the part worth testing, and testing it
-        # through this branch would have meant a test that only runs where
-        # playwright happens to be installed. Which is the failure this whole
-        # report exists to stop.
+        # No `playwright` package and an empty browser directory both mean the journeys
+        # skip; the directory scan is a separate function so it can be tested anywhere.
         if importlib.util.find_spec("playwright") is not None:
             state["browsers"] = installed_engines()
         state["evkk"] = (Path(config.CACHE) / "evkk_marks.html").exists()
@@ -280,14 +227,8 @@ def dataset_state() -> dict[str, object]:
 def browsers_root(env: "dict | None" = None, home: "Path | None" = None,
                   platform: "str | None" = None,
                   container: Path = Path("/opt/pw-browsers")) -> Path:
-    """Where Playwright's browsers are, on this machine.
-
-    `/opt/pw-browsers` is the cloud container's path, and it was the only
-    answer: on a Mac, where `playwright install` unpacks into
-    `~/Library/Caches/ms-playwright`, all 170 journeys skipped with "no
-    Chromium binary — run `playwright install chromium`" on a machine that had
-    just run it. So the container's path still wins where it exists, and
-    otherwise Playwright's own default for the platform is used.
+    """Where Playwright's browsers are: `PLAYWRIGHT_BROWSERS_PATH`, else
+    `/opt/pw-browsers` where it exists, else Playwright's platform default.
     """
     import os
     import sys
@@ -305,11 +246,8 @@ def browsers_root(env: "dict | None" = None, home: "Path | None" = None,
 
 
 def chromium_binary(root: Path) -> "str | None":
-    """The Chromium executable under `root`, whichever OS laid it out.
-
-    The folder name carries a build number, so it is discovered rather than
-    hardcoded. Linux unpacks `chrome-linux/chrome`; macOS unpacks an app
-    bundle, where no file is called `chrome` at all.
+    """The Chromium executable under `root`, on Linux (`chrome-linux/chrome`) or macOS
+    (an app bundle); the folder name carries a build number.
     """
     if not root.is_dir():
         return None
@@ -323,10 +261,8 @@ def chromium_binary(root: Path) -> "str | None":
 
 
 def installed_engines(root: "Path | None" = None) -> list[str]:
-    """Which browser engines Playwright has unpacked, named once each.
-
-    `chromium-1194` and `chromium_headless_shell-1194` sit beside each other
-    and are one engine, not two.
+    """Which browser engines Playwright has unpacked, each named once (Chromium and its
+    headless shell are one engine).
     """
     root = Path(root) if root else browsers_root()
     found = set()
@@ -344,10 +280,7 @@ def describe_dataset(state: dict[str, object]) -> str:
     """One line naming what will and will not run."""
     words, corpus, browsers = state["words"], state["corpus"], state["browsers"]
     parts = [
-        # EVKK joins this line because its absence used to be *silent*: two
-        # checks on the tag map skipped in CI and the run still read green.
-        # A skip nobody can see is the same defect as a measurement with no
-        # writer, which this project has paid for five times.
+        # EVKK is listed because two tag-map checks skip without it.
         "evkk: cached" if state.get("evkk")
         else "evkk: absent (tag-map check vs the live page skips -- `cli evkk`)",
         f"word list: {words:,} words" if words
@@ -366,12 +299,7 @@ def pytest_report_header(config) -> str:
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
-    """The same line at the end, because `-q` hides the header.
-
-    `pytest tests/ -q` is the command every document in this repository names,
-    and under `-q` the header above is not printed at all -- so the one place
-    the run's context would have been visible is the one place it was not.
-    """
+    """The same line at the end, because `-q` hides the header."""
     skipped = terminalreporter.stats.get("skipped", [])
     line = describe_dataset(dataset_state())
     if skipped:
@@ -398,13 +326,8 @@ def fixture_data(tmp_path_factory):
 
 @pytest.fixture(autouse=True)
 def _no_real_keys(monkeypatch):
-    """No test sees a key from the developer's `.env`.
-
-    `eesti/__init__.py` loads `.env` on import, so a key sitting there was in
-    every test's environment. It went unnoticed while `.env` held nothing a test
-    reaches; the first real `EKILEX_API_KEY` sent the gloss tests to ekilex.ee
-    with the learner's key, past the stubs they had set on `sonapi`. A test
-    that needs a key sets one.
+    """No test sees a key from the developer's `.env` (`eesti/__init__.py` loads it on
+    import); a test that needs a key sets one.
     """
     from eesti.env import KNOWN_KEYS
 
@@ -414,17 +337,8 @@ def _no_real_keys(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _redirect_data(monkeypatch, tmp_path, fixture_data):
-    """Point every database at a fixture or a scratch file, for every test.
-
-    Autouse rather than opt-in: the failure mode is a test that *accidentally*
-    reads real data and passes, which no one notices until CI. Making the safe
-    thing automatic is the only version of this that works.
-
-    It said "every database" and redirected three. The learner's own four --
-    progress, review, vocabulary, queued corrections -- were left pointing at
-    `data/`, so running the suite on a machine where somebody actually studies
-    wrote into their record of what they had practised. Reading the
-    developer's data makes a test lie; writing to it loses their work.
+    """Point every database at a fixture or a scratch file, for every test (autouse):
+    the word list, corpus, form index, and the four learner databases.
     """
     from eesti import config, lookup
 
@@ -433,11 +347,7 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     monkeypatch.setattr(config, "CACHE", fixture_data["cache"])
     monkeypatch.setattr(lookup, "EDGE_DB", fixture_data["edge"])
 
-    # Writable, per-test, and never the real ones. `config` is the one place
-    # these are read from -- every helper in `eesti/api/deps.py` resolves them
-    # when it opens the file. `app` is redirected too because it re-exports the
-    # four names and a couple of tests read them back off it; nothing in the
-    # application reads that copy.
+    # Writable, per-test learner databases; every helper reads them from `config`.
     scratch = tmp_path / "live"
     scratch.mkdir(exist_ok=True)
 
@@ -445,12 +355,8 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
 
-    # `app.py` calls `_bind_breaker()` at *import* time, so the circuit breaker
-    # holds a connection to the real `data/progress.db` from the first moment
-    # anything imports the app -- before any redirect can apply, and for the
-    # rest of the session, because it lives in a module global. Every
-    # `breaker.reset()` in the suite then wrote to the learner's own database.
-    # Drop it; the tests that exercise the breaker bind their own store.
+    # Unbind the breaker, which importing the app binds to the real `progress.db`;
+    # tests that exercise it bind their own store.
     from eesti.providers import breaker
 
     breaker.bind(None)
