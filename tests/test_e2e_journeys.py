@@ -201,7 +201,13 @@ def _engines() -> list[str]:
     return engines
 
 
-@pytest.fixture(scope="session", params=_engines())
+#: One browser per test class, not per session. With the Mac's display off, a
+#: single WebKit browser kept alive across the session stopped loading pages
+#: after 63 tests: the last 22 errored with `Page.goto` timeouts, identically in
+#: four runs. It reproduced with `pmset displaysleepnow`. `caffeinate -i` did
+#: not stop it; those 22 passed alone; with a browser per class all 84 passed,
+#: display still off (2026-09-14). A launch costs well under a second.
+@pytest.fixture(scope="class", params=_engines())
 def _pw(request, chromium_path):
     with sync_playwright() as p:
         if request.param == "webkit":
