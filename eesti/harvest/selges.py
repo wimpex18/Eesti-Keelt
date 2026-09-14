@@ -1,20 +1,10 @@
 """Harvest "Selges keeles" — simplified Estonian news.
 
-This is the reading material the ERR radio archives turned out not to be. Those
-transcripts measured **12 % Estonian** (Russian grammar lessons with Estonian
-examples); these posts are **100 % Estonian**, short (35–80 words), and written
-in deliberately plain language for people still learning it.
+Short posts in plain Estonian, the reading corpus. Fetched through
+WordPress.com's public REST API (no key, proper pagination). The project stopped
+publishing, so this is a fixed corpus: harvest once.
 
-Fetched through WordPress.com's public REST API rather than by scraping: no key,
-proper pagination, clean text. 349 posts at time of writing.
-
-The project stopped publishing in 2018, which makes it a fixed corpus — harvest
-once, never re-fetch. Older news is no loss for language practice: the point is
-graded Estonian prose, not current affairs.
-
-Content is the authors'. Registered as owner-only pending a licence check —
-a WordPress blog carries no explicit reuse grant, and absence of a licence means
-no permission, not open permission.
+Owner-only: a WordPress blog carries no reuse grant.
 """
 
 from __future__ import annotations
@@ -58,12 +48,7 @@ class Post:
 
 
 def _clean(markup: str) -> str:
-    """Markup to prose. See `eesti/harvest/clean.py` for what and why.
-
-    This module's own version was the most complete of the four and is where
-    the shared one came from — including decoding entities twice, which
-    WordPress makes necessary.
-    """
+    """Markup to prose via `eesti/harvest/clean.py`."""
     from .clean import text
 
     return text(markup)
@@ -75,11 +60,8 @@ def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
     page = 1
     while True:
         url = f"{API.format(site=site)}?number={PAGE_SIZE}&page={page}"
-        # Three attempts at 90 seconds, unchanged -- this pages through a
-        # whole archive and a WordPress.com cold start is slow. What is new is
-        # the User-Agent: this request went out anonymous, and a tool that
-        # fetches somebody else's server should be identifiable in their logs,
-        # which is the posture the rest of this project already takes.
+        # Three attempts at 90 seconds (a WordPress.com cold start is slow), with the
+        # app's User-Agent so the fetcher is identifiable.
         payload = json.loads(
             net.get(url, "Selges keeles", timeout=TIMEOUT, retries=RETRIES))
 
@@ -110,12 +92,7 @@ def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
 
 
 def rank_difficulty(posts: list[Post]) -> dict[str, str]:
-    """Order this corpus by difficulty, relative to itself.
-
-    The reasoning, and the failed attempt it replaces, now live in
-    `eesti/difficulty.py` — every prose source needs the same treatment, and
-    the news feed and radio transcripts were getting no band at all.
-    """
+    """Order this corpus by difficulty relative to itself (`eesti/difficulty.py`)."""
     from ..difficulty import rank
 
     return rank({post.url: post.body for post in posts})
@@ -134,8 +111,7 @@ def to_items(posts: list[Post]) -> list:
             # No CEFR claim: nobody credible has rated these, and the one
             # attempt to derive it rated 342 of 349 simplified items as B2.
             level=None,
-            # A relative band, in its own column. It lived in `level` until a
-            # learner filtering "B1" got only exam material and none of these.
+            # A relative band in its own column; `level` is reserved for CEFR.
             band=bands.get(post.url, "keskmine"),
             meta={
                 "url": post.url,

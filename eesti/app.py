@@ -31,25 +31,12 @@ from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read th
     review_db,
     vocab_db,
 )
-# The four learner database paths are deliberately NOT re-exported here.
-#
-# They were, and `.claude/rules/python.md` has the rule: two names for one file is a
-# fork waiting to happen. It happened twice. `app.py` first kept its own copies
-# bound at import, so `_state_paths()` read one set and the database helpers
-# the other and a restore could land in a file the app never opened. That was
-# fixed by importing them from `config` -- which left a second *name* for each
-# path, and ten test fixtures patching both, and one loop that deletes files
-# reading whichever name it happened to be given.
-#
-# Everything reads `eesti.config` now, at call time, including the tests.
+# Learner database paths are not re-exported here: everything reads
+# `eesti.config` at call time, so each file has one name.
 
-# Generated items are not stored, so an answer arrives without the question. The
-# client sends the item back with the answer and the server re-grades it, which
-# keeps the API stateless -- but it also means the client could send an item it
-# was never given. That is fine for a single-user app behind Cloudflare Access
-# and would not be for a multi-user one: the fix there is to sign the item or
-# hold the session server-side, and this note exists so that is a decision
-# rather than an oversight.
+# Generated items are not stored: the client returns the item with the answer
+# and the server re-grades it. Fine for one learner behind Access; a multi-user
+# app would need signed items or server-side sessions.
 
 app = FastAPI(title="Eesti-Keelt", docs_url="/api/docs")
 
@@ -58,17 +45,10 @@ app = FastAPI(title="Eesti-Keelt", docs_url="/api/docs")
 async def _proxy_guard(request: Request, call_next):
     """Keep the origin from becoming a way around the front door.
 
-    On Cloud Run the service is invoked unauthenticated -- that is what makes it
-    free -- so its `run.app` URL answers the whole internet. Cloudflare Access
-    sits in front of the *Worker*, not in front of that URL, so without this the
-    Access policy would guard one of two doors and the harvested material it
-    exists to protect would be a hostname guess away.
-
-    `PROXY_TOKEN` is a secret only the Worker holds. Unset, the guard is off,
-    because the default way to run this app is `cli serve` on a laptop and
-    demanding a token there would be ceremony. `/api/health` reports which of
-    the two it is, so "is the deployment actually closed?" has an answer you can
-    check rather than assume.
+    Cloud Run is invoked unauthenticated, so its `run.app` URL is public while
+    Access guards only the Worker. With `PROXY_TOKEN` set, every request must carry
+    it (only the Worker holds it); unset, as under `cli serve`, the guard is off.
+    `/api/health` reports `origin_guarded`.
     """
     expected = os.environ.get("PROXY_TOKEN")
     if expected and not hmac.compare_digest(

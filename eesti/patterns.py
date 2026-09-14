@@ -1,30 +1,15 @@
 """Comparison, numerals and question words — the closed classes.
 
-The last three topics named in step 2 of the curriculum plan, and they need a
-different treatment from the rest, because what they test is not a paradigm.
+**Comparison:** Vabamorf does not synthesise comparatives (they are separate
+lemmas). The rule "genitive stem + `-m`" over-generates (`vanam` for `vanem`),
+so a generated form must be an Ekilex lemma **and** carry a non-zero frequency
+rank (actually used); failures are dropped, not taught.
 
-**Comparison** is a paradigm, but not one Vabamorf will synthesise: ask it for
-the comparative of `suur` and it returns nothing, because Estonian comparatives
-are separate lemmas in its lexicon. The rule — genitive stem plus `-m` — is easy
-to write and dangerous to trust: it yields `suurem` and `väiksem` correctly, and
-also `vanam` for `vanem`, `pikam` for `pikem`, and `omam` for a word that has no
-comparative at all.
+**Numerals** test government: after a cardinal above one the noun is partitive
+singular (*kaks raamatut*); both forms come from Vabamorf.
 
-So the generated form is **checked against the 160 316-lemma Ekilex list, and
-required to have been observed in a real corpus** (`freq_rank > 0`). That second
-condition is what removes `hullum`, `täiem` and `ainsam` — all of which the
-lexicon accepts as productively formed and no one says. 96 comparatives survive
-at A1–B1, and the rule's failures are dropped rather than taught.
-
-**Numerals** are not about forms at all, they are about **government**: after a
-cardinal above one, the noun goes into the partitive singular — *kaks raamatut*,
-not *kaks raamatud*. That is an A1 rule with an A1 error, and both forms come
-straight from Vabamorf.
-
-**Question words** are a genuinely closed class, so a table is the right
-representation rather than a tax. There are about a dozen, the confusions between
-them are specific and well known (`kus`/`kuhu`, `kes`/`mis`, `kellele`/`kellelt`),
-and no amount of generation would improve on naming them.
+**Question words** are a closed class, so a table of about a dozen with their
+known confusions (`kus`/`kuhu`, `kes`/`mis`, `kellele`/`kellelt`) is right.
 """
 
 from __future__ import annotations
@@ -70,11 +55,8 @@ def comparatives(
     levels: tuple[str, ...] = LEVELS,
     limit: int = 300,
 ) -> list[tuple[str, str, str | None]]:
-    """(positive, comparative, level) for adjectives whose comparative is attested.
-
-    Two gates, and the second is the one that matters: the candidate must be a
-    lemma Ekilex knows **and** carry a non-zero frequency rank, i.e. someone has
-    actually written it. Productive morphology alone accepts far too much.
+    """(positive, comparative, level) for adjectives whose comparative is an Ekilex
+    lemma with a non-zero frequency rank.
     """
     marks = ",".join("?" * len(levels))
     rows = conn.execute(
@@ -126,8 +108,7 @@ def comparison_drills(
             )
         else:
             prompt = SUPERLATIVE_FRAME.format(BLANK)
-            # The superlative is analytic, and the whole lesson is that `kõige`
-            # governs the *comparative*, not the positive.
+            # The superlative is analytic: `kõige` governs the comparative, not the positive.
             answer, wrong = f"kõige {comparative}", f"kõige {positive}"
             label, why = (
                 "ülivõrre",
@@ -179,11 +160,8 @@ def numeral_drills(
     out: list[PatternDrill] = []
 
     if "arvsonad" in topics:
-        # Countable nouns only. Frequency order alone produced *"Mul on kaks
-        # tähelepanu"* — two attentions — because nothing in the word list marks
-        # countability. The object-case pools already enumerate concrete
-        # everyday things, which is exactly the property needed, so they are
-        # reused rather than a new list invented.
+        # Countable nouns only, taken from the object-case pools (the word list does not
+        # mark countability).
         from .drills import POOLS
 
         countable = sorted({w for pool_ in ("buyable", "edible", "readable",
