@@ -1,37 +1,17 @@
 """The licence ledger: every third party this project touches, and its terms.
 
-Split out of `eesti/sources.py` on 2026-09-12, where it was 250 of 672 lines
-and the larger half of a file whose other job is storing harvested text. The
-two have nothing to do with each other at runtime — the store never reads a
-`note` and the ledger never opens a database — and everything to do with each
-other in review, which is why they were written together and why they should
-not stay that way. A session opening `sources.py` to change a query was loading
-seventeen licence essays to get to it.
-
-## Why licence and redistributable are columns
-
-Once the app is on a public URL, "may this be served to an anonymous visitor?"
-is a question every item must be able to answer, and a flag on the row is the
-only way to answer it reliably.
-
     redistributable = 1  ->  may be served publicly (CC-BY, CC-BY-SA, public API)
-    redistributable = 0  ->  owner only, behind auth (HARNO exam material,
+    redistributable = 0  ->  owner only, behind auth (HARNO material,
                              copyrighted transcripts, anything hand-fed)
 
-HARNO material is the case that forces it. Downloading the official exam PDFs
-to study from is ordinary personal use; serving them from a public URL is
-redistribution of a state agency's copyrighted work. The same file is fine in
-one place and not the other, so access control has to be data-driven — and it
-means Cloudflare Access is not a nice-to-have but the thing that keeps this
-legitimate.
+Access control is data-driven: the same HARNO PDF is fine to study from and not
+to serve publicly, which is why Cloudflare Access is required.
 
-`changes` is the other obligation, and it is a field for the same reason:
-CC BY 4.0 does not ask for a tidy README, it asks that the source be named
-**and the changes indicated** wherever the material is presented. `/api/sources`
-serves this ledger so the page can do that.
+`changes` is a field because CC BY 4.0 requires naming the source **and
+indicating changes** wherever the material is presented; `/api/sources` serves
+this ledger to the page.
 
-Everything here is re-exported by `eesti.sources`, so `from ..sources import
-REGISTRY` keeps working and no call site moved.
+Re-exported by `eesti.sources` (`from ..sources import REGISTRY`).
 """
 
 from __future__ import annotations
@@ -48,40 +28,22 @@ class Source:
     redistributable: bool
     url: str | None = None
     note: str = ""
-    #: What this project did to the material, in the words a licence asks for.
-    #:
-    #: A field rather than a sentence inside `note`, for the same reason
-    #: `licence` and `redistributable` are fields: CC BY 4.0 does not ask you to
-    #: keep a nice README, it asks you to state the source **and indicate
-    #: changes** wherever the material is presented. EKI put it in their own
-    #: terms -- process and present it any way needed, provided the reference to
-    #: EKI is retained and the modifications are described -- and Ekilex repeats
-    #: it. An obligation that has to be *served* cannot live in prose nothing
-    #: parses; `/api/sources` renders this one.
-    #:
-    #: Empty for sources that are only linked to, only counted, or our own.
+    #: What this project did to the material, as CC BY 4.0 asks ("indicate changes"),
+    #: served by `/api/sources`. Empty for sources only linked to, counted, or our own.
     changes: str = ""
 
 
-# The registry. Every source this app is allowed to touch, with the licence that
-# governs it. Adding a source means making a licence decision, deliberately.
-#: The licence ledger. Two kinds of entry live here, and the difference is worth
-#: knowing before reading a "nothing produces this" as a gap:
-#:
-#: * **Corpus producers** — `err-r4`, `err-lihtsad`, `harno`, `eis`,
-#:   `selges-keeles`, `oma-materjal`. A harvester (or `cli ingest`) writes rows
-#:   into `items` carrying the id, and `add_items` refuses any id not listed
-#:   here. That refusal is the gate.
-#: * **Provenance records** — `ekilex-wordlist` (fills `words`), `taltech-gec`
-#:   (the attested word-order corrections), `evkk` (an error taxonomy),
-#:   `sonapi` and `tartunlp-tts` (live APIs, answers cached not archived),
-#:   `ekk` (linked to, with 62 lexical facts stored), `generated` (drills, which
-#:   are computed and never stored). Nothing writes `items` for these, and that
-#:   is correct: they are here because this project touches them and every
-#:   third party it touches has to have its licence written down.
-#:
-#: `tests/test_sections.py` checks the ledger covers every source id the code
-#: writes; it cannot check the second kind, which is why they are named here.
+# The registry: every source this app may touch, with its licence. Two kinds:
+#
+# * **Corpus producers** — `err-r4`, `err-lihtsad`, `harno`, `eis`,
+#   `selges-keeles`, `oma-materjal`: rows in `items` carry the id, and
+#   `add_items` refuses ids not listed here.
+# * **Provenance records** — `ekilex-wordlist`, `taltech-gec`, `evkk`, `sonapi`,
+#   `tartunlp-tts`, `ekk`, `generated`, the EKI dictionaries: touched by the
+#   project but writing no `items` rows.
+#
+# `tests/test_sections.py` checks the ledger covers every source id the code
+# writes.
 REGISTRY: tuple[Source, ...] = (
     Source(
         "err-r4", "ERR Raadio 4 keeleõppesaated", "harvest",

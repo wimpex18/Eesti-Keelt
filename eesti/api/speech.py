@@ -58,11 +58,8 @@ class DictationAnswer(BaseModel):
 
 @router.get("/api/dictation/next")
 def dictation_next(count: int = 1, seed: int | None = None) -> dict:
-    """Sentences to write down, easiest-first for this learner.
-
-    The corpus is owner-only and supplied at runtime, so an empty library is a
-    supported state and answers 200 with an empty list — the same contract the
-    reading views use. A 404 here would read as a broken feature.
+    """Sentences to write down, easiest first. An empty corpus is a supported state:
+    200 with an empty list.
     """
     from ..dictation import CAVEAT, MAX_WORDS, MIN_WORDS, choose
 
@@ -77,10 +74,8 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         "passages": [p.to_dict() for p in passages],
         "words": [MIN_WORDS, MAX_WORDS],
         "caveat": CAVEAT,
-        # Both of these EXPLAIN, so both are Russian: one says how the
-        # exercise works, the other says why there is no exercise and what
-        # would produce one. The second was the worse failure -- it is the
-        # only thing standing between the learner and an empty panel.
+        # Both explain, so both are Russian: how the exercise works, and why there is no
+        # exercise and what would produce one.
         "note": ("Прослушай и запиши услышанное. Слушать можно сколько нужно."
                  if passages else
                  "Корпус текстов пуст, поэтому диктантов (etteütlus) сейчас "
@@ -91,14 +86,7 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
 
 @router.post("/api/dictation/answer")
 def dictation_answer(req: DictationAnswer) -> dict:
-    """Grade a submission, and write it down.
-
-    Graded server-side for the same reason every other answer is: a page can
-    be edited, and a score the browser computed measures nothing. Recorded in
-    the same call, because a listening exercise whose result nothing stores is
-    how the verdict came to report this part as untouched no matter how much
-    had been played.
-    """
+    """Grade a submission server-side and record it in the same call."""
     from ..dictation import Passage, grade, key_of, record
 
     passage = Passage(req.text, key_of(req.text), len(req.text.split()))
@@ -119,20 +107,9 @@ def asr_available() -> dict:
 async def transcribe(request: Request) -> dict:
     """Transcribe a recording. Optional everywhere: no engine is still a 200.
 
-    **Where the voice goes, stated plainly.** This docstring used to say the
-    local engine was preferred and nothing left the machine. That stopped being
-    true when recognition moved to the Worker's Workers AI binding: on the
-    deployment there is no local engine, and the recording is sent to
-    Cloudflare. Describing a privacy posture the code no longer has is worse
-    than never having described one.
-
-    What is still true: the audio is **not stored** — not here, not in the
-    Worker, not in any database. It is held in memory for one request and the
-    transcript is what survives.
-
-    The original reasoning stands and is why this is worth saying out loud: text
-    is disposable and a voice is biometric. Running `cli serve` locally with
-    whisper.cpp keeps it on your own machine; the hosted app cannot.
+    On the deployment, recognition runs on Cloudflare Workers AI via the Worker, so
+    the recording leaves the device; the audio is held in memory for one request and
+    never stored. Under `cli serve` with local whisper.cpp it stays on the machine.
     """
     from ..providers import asr
 
@@ -170,22 +147,9 @@ class TranscriptIn(BaseModel):
 
 @router.post("/api/transcribe/text")
 def transcribe_text(blob: TranscriptIn, request: Request) -> dict:
-    """Grade a transcript the Worker recognised, rather than recognising it here.
-
-    Cloudflare Workers AI is reachable two ways: over REST with an API token, or
-    through the Worker's own `AI` binding. The binding wins on every count that
-    matters here. It needs no token at all, so the origin never holds a
-    credential that can edit Workers; it runs recognition on the platform the
-    app is already fronted by; and it keeps the split this project is built on
-    intact -- **a model may say what it heard, and nothing else.**
-
-    Everything downstream of the transcript stays here and stays deterministic:
-    the target sentence is known, so `compare` is string alignment, not
-    judgement. That is the whole reason read-aloud can be scored honestly while
-    pronunciation cannot.
-
-    `/api/transcribe` remains for local `cli serve`, where there is no Worker and
-    the provider chain does the recognising.
+    """Grade a transcript the Worker recognised via its `AI` binding (no API token on
+    the origin). The target sentence is known, so comparison is deterministic string
+    alignment. `/api/transcribe` remains for local `cli serve`.
     """
     result = blob.model_dump()
     target = request.query_params.get("target", "")[:400]
@@ -219,24 +183,17 @@ class SpokenAnswer(BaseModel):
 
 @router.post("/api/speaking/feedback")
 def speaking_feedback(req: SpokenAnswer) -> dict:
-    """Feedback on an open spoken answer — on the words, not on the sounds.
+    """Feedback on an open spoken answer — on the words, not the sounds.
 
-    Once there is a transcript, a spoken answer is text, and this project
-    already knows what to do with Estonian text: the same grammar chain that
-    checks writing, and the same vocabulary tables that measure a reading. What
-    it still refuses to do is grade the audio.
-
-    Pace is reported only when the client supplies a duration, and as a plain
-    number: 100-130 words a minute is ordinary conversational Estonian, and a
-    learner reading haltingly will see why the number is low without anyone
-    inventing a fluency score.
+    The transcript goes through the writing grammar chain and the vocabulary
+    tables. Pace is reported as a plain words-per-minute number only when the client
+    sends a duration.
     """
     from ..lookup import annotate
     from ..providers import grammar as grammar_provider
 
-    # A transcript is evidence about two things at once — what was said and what
-    # the model heard — and nothing here can separate them, so the result is
-    # re-read as advisory and the recogniser-shaped corrections are dropped.
+    # A transcript mixes what was said with what was heard, so the result is re-read
+    # as advisory and recogniser-shaped corrections are dropped.
     checked = grammar_provider.from_transcript(
         grammar_provider.check(req.transcript), req.transcript
     )
