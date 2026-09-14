@@ -27,7 +27,7 @@ def client():
 class TestTheRasterIsReallyARaster:
     def test_the_file_is_checked_in(self):
         assert (WEB / "icon.png").exists(), (
-            "no icon.png — the route used to paper over this by serving SVG")
+            "no icon.png is checked in")
 
     def test_the_route_serves_png_bytes(self, client):
         r = client.get("/icon.png")

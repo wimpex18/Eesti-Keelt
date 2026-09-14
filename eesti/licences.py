@@ -50,24 +50,16 @@ REGISTRY: tuple[Source, ...] = (
         "© ERR — personal study only", False,
         "https://r4.err.ee/arhiiv/kak_eto_po_estonski",
         "72 episodes across 3 archives: 28 carrying transcripts, 44 audio "
-        "with a blurb. Archives are closed and static, so harvest once and "
-        "never re-fetch. **Not ~170** — that figure was extrapolated from the "
-        "one series that has transcripts (2010; the 2015 and 2019 series do "
-        "not), and it stood in this ledger after README had recorded the "
-        "correction, which is what a fact with two homes does.",
+        "with a blurb (only the 2010 series has transcripts). Archives are "
+        "closed and static, so harvest once and never re-fetch.",
     ),
     Source(
         "err-lihtsad", "ERR Lihtsad uudised", "harvest",
         "© ERR — personal study only", False,
         "https://news.err.ee/k/lihtsad-uudised",
         "Simplified Estonian news for learners. Weekly, ongoing — the one live "
-        "feed in the app. **Text only.** This note said 'audio + text' until "
-        "2026-09-11, when the pages were read: an issue carries no per-issue "
-        "audio at all, only ERR's site-wide radio-app banner. `harvest/"
-        "lihtsad.py` had it right the whole time — it writes `audio: False` "
-        "into every item's meta — so the claim lived in the ledger and "
-        "nowhere else, which is the worst place for it: nothing reads a note, "
-        "so nothing could contradict it.",
+        "feed in the app. **Text only**: an issue carries no per-issue audio "
+        "(`harvest/lihtsad.py` writes `audio: False`).",
     ),
     Source(
         "taltech-gec", "TalTechNLP grammar_et (both splits) + grammar2_et",
@@ -95,9 +87,8 @@ REGISTRY: tuple[Source, ...] = (
         "`R:WO` is a **label** rather than the inference `wordorder.py` makes "
         "over TalTech's unannotated pairs, and it is the only source of items "
         "here that says what level its writer was sitting at. Merged with the "
-        "TalTech pool, not swapped for it: measured 2026-09-12, the two share "
-        "not one corrected sentence, and 232 of 237 pass `is_reordering` "
-        "unchanged, so one gate still governs both. "
+        "TalTech pool, not swapped for it: the two share no corrected sentence, "
+        "and 232 of 237 pass `is_reordering` unchanged, so one gate governs both. "
         "`redistributable = 0` is a choice, not a limit — GPL-3.0 permits "
         "conveying the work with its licence and source, and this app conveys "
         "nothing: the corpus rides `content.db` to one deployment behind "
@@ -137,8 +128,7 @@ REGISTRY: tuple[Source, ...] = (
         "B1 — the claim the enriched Ekilex list could only estimate, and it "
         "estimated it for 6.2 % of its lemmas. Imported by `cli import-levels` "
         "from a file the learner downloaded, committed as `deploy/eki/A1A2B1.txt` "
-        "since 2026-09-13 (4 456 rows). On 2026-09-12 EKI's page asked for an "
-        "ID card; direct links worked the next day. Nothing here fetches it. Stored "
+        "(4 456 rows). Nothing here fetches it. Stored "
         "verbatim in `official_levels` and applied to "
         "`words.proficiency` with `words.level_source = 'eki'`. Licence terms "
         "are EKI's own: process and present it any way needed, an app "
@@ -213,8 +203,7 @@ REGISTRY: tuple[Source, ...] = (
         "eki-ekss", "Eesti keele seletav sõnaraamat (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
         "EKI's full explanatory dictionary: 145 882 articles, 117 937 lemmas "
-        "with a definition, 96 058 of them in the word list (measured "
-        "2026-09-13). Native-level wording, so the last definition fallback, "
+        "with a definition, 96 058 of them in the word list. Native-level wording, so the last definition fallback, "
         "after PSV, Sõnaveeb and VSL — the one that still answers offline for "
         "almost every word the learner can click. `cli import-ekss`, table "
         "`ekss_gloss`, committed gzipped and imported by the image build.",
@@ -228,8 +217,8 @@ REGISTRY: tuple[Source, ...] = (
         "About 6 000 basic words defined in language a learner can read — the "
         "thing *Keeleõppija Sõnaveeb* exists for, published for download "
         "instead of scraped. Imported by `cli import-psv` from a file the "
-        "learner downloaded, committed gzipped in `deploy/eki/` since "
-        "2026-09-13, so the image build imports it. Nothing here fetches it. Stored "
+        "learner downloaded, committed gzipped in `deploy/eki/`, so the "
+        "image build imports it. Nothing here fetches it. Stored "
         "in the words database as `psv_gloss`, not in `vocab.db`: it is "
         "reference data, and `vocab.db` travels in the state snapshot, where "
         "a restore replaces the file whole. `/api/enrich` reads it beside "
@@ -309,18 +298,14 @@ REGISTRY: tuple[Source, ...] = (
         "(headword, correct frame, marked wrong frame). EKK's example "
         "sentences are **not** stored; rection drills are built over the "
         "harvested corpus instead, so nothing of the prose is reproduced and "
-        "the sentences sit at the learner's level rather than the handbook's. "
-        "It was the one third party the app uses that this ledger did not "
-        "record, found by asking which source ids the code writes.\n\n"
-        "EKK 2009 is still the handbook, and this still links to it — but the "
-        "norm underneath it moved: **ÕS 2025 became the basis of the written-"
-        "language norm on 2026-01-01**, and EKI now route current rection and "
-        "usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
-        "selgitab`). That matters here because SÜ 64's 23 contrasts are "
-        "asserted *normatively* — the `rektsioon` drill marks an answer wrong "
-        "and `rection.errors` corrects free writing — so a contrast ÕS has "
-        "since revised would be taught stale. Checked as prose, not as code: "
-        "see docs/sources.md.",
+        "the sentences sit at the learner's level rather than the handbook's.\n\n"
+        "EKK 2009 is the handbook linked to, but **ÕS 2025 is the basis of the "
+        "written-language norm from 2026-01-01**, and EKI route current rection "
+        "and usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
+        "selgitab`). SÜ 64's 23 contrasts are asserted *normatively* — the "
+        "`rektsioon` drill marks an answer wrong and `rection.errors` corrects "
+        "free writing — so a contrast ÕS has revised would be taught stale. "
+        "Checked as prose, not as code: see docs/sources.md.",
     ),
     Source(
         "oma-materjal", "Oma materjal — käsitsi lisatud", "file",
