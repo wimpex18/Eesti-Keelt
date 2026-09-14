@@ -1,8 +1,5 @@
-"""Where you stand: the path, the syllabus, the shelf and the verdict.
-
-Read-only, all of them, which is why every one runs in the test suite with
-stdin at EOF. `--help` proves the parser; only running the body proves the
-command.
+"""Where you stand: the path, the syllabus, the shelf and the verdict. All
+read-only, and all run in the test suite with stdin at EOF.
 """
 
 from __future__ import annotations
@@ -13,10 +10,8 @@ from ..config import LEVELS
 from ._helpers import content_db, learner_db, words_db
 
 def cmd_curriculum(args: argparse.Namespace) -> int:
-    """Show the syllabus: the study path, and what can actually be practised.
-
-    The path is derived from the prerequisite graph, not hand-written, so it
-    cannot offer a case before the stem that case is built from.
+    """Show the syllabus: the study path (derived from the prerequisite graph) and what
+    can be practised.
     """
     from ..curriculum import at_level, coverage, order, practice_order, validate
 
@@ -56,10 +51,7 @@ def cmd_progress(args: argparse.Namespace) -> int:
 
     progress = connect(learner_db(args, "progress_db"))
     rows = report(progress)
-    # Same substitution the API makes: `blocked_by` holds ids, and a learner
-    # reading "<- gen-stem" has been shown a database key rather than the name
-    # of the thing they have to study. The terminal prints the topic id in its
-    # own column already, so nothing is lost by naming the prerequisite.
+    # Print prerequisite names, not ids; the id is in its own column.
     names = {row.topic: row.et for row in rows}
     level = None
     for row in rows:
@@ -82,12 +74,7 @@ def cmd_progress(args: argparse.Namespace) -> int:
 
 
 def cmd_themes(args: argparse.Namespace) -> int:
-    """The situations a grammar topic can be drilled inside.
-
-    Keeleklikk's insight — grammar arrives in service of a situation — but with
-    theme and rule as separate axes, so eleven themes times twenty-one drillable
-    topics come out of the same generators.
-    """
+    """The situations a grammar topic can be drilled inside (theme × rule)."""
     from ..themes import coverage, validate
 
     # `words_db`, not `wordlist.connect`: the latter creates the file and lays
@@ -194,11 +181,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     from ..review import connect as review_connect
     from ..vocab import connect as vocab_connect
 
-    # A missing corpus must not take the whole status page down: every other
-    # section still has something true to say. The same is true of a missing
-    # word list, and `overview` already takes None for each of them -- but this
-    # asked `wordlist.connect()`, which *creates* one, so the section reported
-    # an empty lexicon instead of an absent one and left the file behind.
+    # A missing corpus or word list must not take the status page down; the word list
+    # is checked without creating a file.
     content = content_db(args)
     data = overview(
         progress=progress_connect(learner_db(args, "progress_db")),
@@ -238,11 +222,8 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 
 def cmd_readiness(args: argparse.Namespace) -> int:
-    """Say what the evidence shows about sitting a level, and what is missing.
-
-    Deliberately not a score. Nothing here has seen a graded exam, so a number
-    would be invented — and the number is exactly what someone facing a
-    registration deadline would most want to believe.
+    """Say what the evidence shows about sitting a level and what is missing —
+    deliberately not a score.
     """
     from ..config import PROGRESS_DB, VOCAB_DB
     from ..progress import connect as progress_connect
@@ -283,12 +264,7 @@ def cmd_readiness(args: argparse.Namespace) -> int:
 
 
 def register(sub) -> None:
-    """Add this group's commands to the subparser table.
-
-    Beside the handlers rather than a thousand lines away in one
-    argparse block: a flag and the code that reads it drift apart
-    when they cannot be seen together.
-    """
+    """Register this group's commands beside their handlers."""
     p = sub.add_parser("progress", help="where you stand on every topic")
     p.add_argument("--todo", action="store_true", help="hide mastered and locked")
     p.add_argument("--progress-db", default=None)

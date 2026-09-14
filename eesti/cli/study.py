@@ -70,11 +70,8 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_wordorder(args: argparse.Namespace) -> int:
-    """Ingest the attested word-order corrections.
-
-    Run after `fetch-bench`. The pairs are ungranted third-party data, so they
-    go into `content.db` and travel by `deploy/push-content.sh` — never into
-    the image.
+    """Ingest the attested word-order corrections (run after `fetch-bench`) into
+    `content.db`; they travel by `deploy/push-content.sh`, never in the image.
     """
     from collections import Counter
 
@@ -94,10 +91,7 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
             print(f"  {path.name if hasattr(path, 'name') else path}: {found}")
         added += found
 
-    # The second feeder, unless `--file` named one. Fetched here rather than by
-    # `fetch-bench`: five files from a public GitHub repository under GPL-3.0,
-    # nothing to gate and nobody to hammer. Allowed to come back empty, like
-    # every other third party in this project.
+    # The EstGEC-L2 feeder, fetched here unless `--file` is given; may come back empty.
     if not args.file:
         estgec.fetch()
         found = ingest_estgec(conn)
@@ -123,11 +117,8 @@ def cmd_wordorder(args: argparse.Namespace) -> int:
 
 
 def cmd_cloze(args: argparse.Namespace) -> int:
-    """Drill on sentences Estonians actually wrote, not on templates.
-
-    The case is named in the prompt, so the answer is forced by morphology and
-    nothing is claimed about which case the sentence needed — that is what makes
-    an authentic sentence safe to grade.
+    """Drill on real harvested sentences; the case is named in the prompt, so the
+    answer is forced by morphology.
     """
     from ..cloze import case_clozes, negation_clozes, rection_clozes, sentences
 
@@ -182,10 +173,8 @@ def cmd_cloze(args: argparse.Namespace) -> int:
 
 
 def cmd_conjugate(args: argparse.Namespace) -> int:
-    """Drill tenses, moods, infinitives and voice.
-
-    The distractor is the neighbouring form the learner confuses this one with —
-    `õpiks` against `õpib` — so what is being tested is the marker, not the stem.
+    """Drill tenses, moods, infinitives and voice against the neighbouring form
+    (`õpiks` vs `õpib`).
     """
     from ..conjugation import FRAMES, generate
 
@@ -256,10 +245,8 @@ def cmd_patterns(args: argparse.Namespace) -> int:
 
 
 def cmd_practice(args: argparse.Namespace) -> int:
-    """A graded practice session on one topic, with progress recorded.
-
-    Defaults to wherever the learner left off, because the research on paths
-    versus trees is consistent: removing the choice improves outcomes.
+    """A graded practice session on one topic, with progress recorded; defaults to
+    where the learner left off.
     """
     from .. import handoff, review
     from ..curriculum import by_id
@@ -287,8 +274,7 @@ def cmd_practice(args: argparse.Namespace) -> int:
 
     items = items_for(topic, count=args.count, seed=args.seed, theme=args.theme)
     if not items and args.theme:
-        # Keeleklikk pairs a rule with a situation; not every pairing exists.
-        # Say so and fall back rather than ending the session empty-handed.
+        # Not every rule × theme pairing exists: say so and fall back to no theme.
         print(f"  ({args.theme} has no words this topic can drill — "
               "using the full vocabulary instead)")
         items = items_for(topic, count=args.count, seed=args.seed)
@@ -333,12 +319,7 @@ def cmd_practice(args: argparse.Namespace) -> int:
 
 
 def register(sub) -> None:
-    """Add this group's commands to the subparser table.
-
-    Beside the handlers rather than a thousand lines away in one
-    argparse block: a flag and the code that reads it drift apart
-    when they cannot be seen together.
-    """
+    """Register this group's commands beside their handlers."""
     p = sub.add_parser("drill", help="practise object case")
     p.add_argument("-n", "--count", type=int, default=10)
     p.add_argument("--levels", nargs="+", default=list(LEVELS))

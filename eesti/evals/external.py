@@ -1,31 +1,16 @@
 """Second eval track: TalTech's grammar_et, 1 000 real error/correct pairs.
 
-Why both tracks
----------------
-`gec.py` is 18 hand-written sentences aimed at *this* learner's documented
-errors, half of them already correct so precision is measurable. It is targeted
-and small.
-
-`grammar_et` is 1 000 pairs from the Estonian Native LLM Benchmark (LREC 2026),
-written by other people about other things. Measured against our CEFR word list,
-**88 % of its vocabulary is A1–B1** and the median sentence is 13 words — so it
-is at the right level, not an advanced-writing corpus. Its errors are the same
-classes the error log tracks:
+`gec.py` is 18 targeted sentences; `grammar_et` (Estonian Native LLM Benchmark,
+LREC 2026) is broad, mostly A1–B1 vocabulary, with the same error classes:
 
     ülikoolid → ülikoole      object case
     käigul → käigus           locative case
     inimesteid → inimesi      plural partitive
     täiusliku → täiuslikuks   translative
 
-Targeted and broad answer different questions. A model can look good on 18
-sentences by luck; 1 000 pairs it has never seen is harder to fake.
-
-Scoring
--------
-Exact sentence match would be too harsh — there are several valid ways to fix a
-sentence, and a model that also improves the style is not wrong. So we score
-**token-level**: which words differ between original and gold, and did the model
-change those words to those values.
+Scored **token-level** — did the model change the words that differ between
+original and gold to the gold values — because several whole-sentence fixes can
+be valid.
 """
 
 from __future__ import annotations
@@ -53,16 +38,9 @@ _PUNCT = ".,;:!?\"'()«»"
 def changed_tokens(original: str, correct: str) -> dict[str, str]:
     """Words that differ between the erroneous and corrected sentence.
 
-    Positional alignment, which is right for substitutions — the dominant error
-    type in this corpus — and returns nothing for the cases where it would lie:
-
-    * different lengths (an insertion or deletion);
-    * **word reorderings**, which align as a cascade of bogus substitutions.
-      A swap like "tuleb rahvas" → "rahvas tuleb" reads positionally as
-      `tuleb→rahvas` and `rahvas→tuleb`, neither of which is a correction. If
-      the two sentences contain the same words, nothing was substituted.
-    * more than `MAX_CHANGES` differences, which indicates a rewrite rather
-      than a targeted error.
+    Positional alignment, right for substitutions. Returns nothing for different
+    lengths, for reorderings (same words: nothing was substituted), and for more
+    than `MAX_CHANGES` differences (a rewrite).
     """
     before, after = original.split(), correct.split()
     if len(before) != len(after):
@@ -102,10 +80,8 @@ def run(
     seed: int = 0,
     verbose: bool = True,
 ) -> dict:
-    """Score a model on a sample of grammar_et.
-
-    Default sample is small on purpose: OpenRouter's free tier allows 50
-    requests a day, and an eval that cannot finish tells you nothing.
+    """Score a model on a sample of grammar_et; the default sample is small so a
+    free-tier daily quota can finish it.
     """
     rows = load()
     scorable = [

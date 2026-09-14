@@ -1,10 +1,6 @@
-"""Resolving the databases a command reads and writes.
-
-Every path is resolved when the command runs, from `config` or from the flag —
-never from a literal in an argparse default, which is what these replaced. A
-literal there ignored `EESTI_CONTENT_DB` (how the Dockerfile points the app at
-its content volume) and could not be redirected by a test, so the suite wrote
-into the learner's own `data/progress.db`.
+"""Resolving the databases a command reads and writes: at run time, from `config`
+or the flag — never a literal argparse default, which would ignore
+`EESTI_CONTENT_DB` and escape test redirection.
 """
 
 from __future__ import annotations
@@ -14,16 +10,8 @@ import sqlite3
 from pathlib import Path
 
 def words_db(path=None) -> sqlite3.Connection | None:
-    """The word list, and never an empty one invented on the spot.
-
-    The twin of `content_db`, for the same reason and the fourth instance of
-    the same bug: `wordlist.connect` creates the file and applies the schema,
-    so a wrong or unbuilt path hands back a database that looks complete and
-    holds nothing. Downstream that surfaces as a drill generator reporting "no
-    usable templates" or a lookup finding no word -- both of which read as
-    "this feature is broken" rather than "nothing has been built here yet".
-
-    Returns None, having said what to run, when there is no word list.
+    """The word list, or None (after printing what to run) when none is built.
+    `wordlist.connect` would create an empty file.
     """
     from ..wordlist import available
     from ..wordlist import connect as wordlist_connect
@@ -36,20 +24,8 @@ def words_db(path=None) -> sqlite3.Connection | None:
 
 
 def content_db(args: argparse.Namespace) -> sqlite3.Connection | None:
-    """The harvested library, resolved at call time and never invented.
-
-    Three commands carried `default="data/content.db"` in their argparse
-    definition. That is a literal, so it ignored `EESTI_CONTENT_DB` -- which is
-    exactly how the Dockerfile points the app at its content volume -- and no
-    caller or test could redirect it.
-
-    Worse, `sqlite3.connect` on a path that does not exist *creates* an empty
-    file. So a missing corpus did not report a missing corpus: it reported
-    `no such table: items`, three frames deep. That is the third time this
-    project has been bitten by presence of a database being read as presence
-    of data.
-
-    Returns None, having said why, when there is no corpus to read.
+    """The harvested library, resolved at call time, or None (after saying why) when
+    there is no corpus. `sqlite3.connect` would create an empty file.
     """
     import sqlite3
 
@@ -92,11 +68,8 @@ def learner_db(args: argparse.Namespace, which: str) -> str:
 
 
 def _ask_terminal(item) -> str:
-    """Ask one item at the terminal, or raise `Stopped` if nobody is there.
-
-    It returned `""` on EOF and Ctrl-C, and `""` is a wrong answer — so every
-    caller graded and recorded items the learner never saw. See
-    `placement.Stopped` for what that cost.
+    """Ask one item at the terminal, or raise `Stopped` on EOF/Ctrl-C — never return a
+    blank, which would grade as wrong (see `placement.Stopped`).
     """
     from ..placement import Stopped
 

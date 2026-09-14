@@ -1,9 +1,4 @@
-"""The error log: queueing a correction, and sending the queue to Notion.
-
-A queue with no drain is not a feature — corrections used to be queueable from
-the app and sendable only from a CLI that does not exist on the deployment, so
-the queue filled forever and the readiness verdict counted queued rows as
-though they had been logged.
+"""The error log: queueing a correction, and sending chosen rows to Notion.
 
 `config.NOTION_DB` is read when the queue is opened, not bound at import.
 """
@@ -30,11 +25,8 @@ class QueueError(BaseModel):
 def notion_queue(row: QueueError) -> dict:
     """Hold a confirmed error for the Notion log. Queued, never sent.
 
-    The `Vead` log is hand-curated, and its "three of a tag becomes this week's
-    focus" rule is what identified `obj-case` as the priority at all. Appending
-    every suspicion would turn a picked record into a dump and start that rule
-    firing on noise -- so this endpoint only ever queues. `cli notion --push`
-    is the one thing that writes, and it shows you the rows first.
+    The `Vead` log is hand-curated (three rows sharing a tag set the week's focus),
+    so nothing is sent without the learner choosing it.
     """
     from ..notion import Row, queue
 
@@ -68,22 +60,8 @@ class NotionPush(BaseModel):
 def notion_push(req: NotionPush) -> dict:
     """Send named rows to the `Vead` log. Nothing else, ever.
 
-    This was missing, and its absence was quiet in the worst way. Corrections
-    could be queued from the app but pushed only by `cli notion --push` — and
-    the CLI does not exist on the deployment: the container is ephemeral and
-    the learner is on a phone. So the queue filled and never drained, and the
-    readiness verdict counted queued rows as writing evidence, which measured
-    the queue rather than the log it is supposed to feed.
-
-    It takes **ids**, not "push everything". The `Vead` log's worth is that it
-    is curated — three rows sharing a tag become the focus of the week, and
-    that rule is what identified `obj-case` in the first place. An endpoint
-    that drained the queue wholesale would be the same mistake as appending
-    every suspicion, one step later. The page shows the rows and sends the ones
-    ticked.
-
-    A row that fails to send stays queued. The queue is the record until Notion
-    says it has one.
+    Takes ids, not "push everything": the page shows the queue and sends the ticked
+    rows. A row that fails to send stays queued.
     """
     from ..notion import Row, mark_pushed, pending, push
 
