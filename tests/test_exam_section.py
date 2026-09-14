@@ -1,16 +1,8 @@
 """The exam section in one request, and a verdict that names what to open.
 
-Two changes with the same shape: replacing a count with a thing.
-
-`exam_material` groups a level's official material by **what it is for** rather
-than listing it flat. A sample performance, a workbook and a reading task are
-three different activities that happen to share a level, and a single list
-buries the one a learner who has never sat the exam most needs — the annotated
-sample, which is the only artefact that shows what a pass looks like.
-
-`readiness` used to say "13 official listening tasks". That tells you the shelf
-is stocked. Naming one tells you what to do this evening, and only the second
-changes what happens.
+`exam_material` groups a level's official material by what it is for (samples,
+workbooks, tasks by part). `readiness` names one official task to open, not just
+a count.
 """
 
 from __future__ import annotations
@@ -130,11 +122,7 @@ class TestTheVerdictNamesSomething:
         assert all(p.next_task is None for p in result.parts)
 
     def test_it_names_a_task_and_not_a_workbook(self, progress, content):
-        """Found by reading the rendered page: the first row by title for A2
-        listening was a consultation workbook. That is study material, not a
-        rehearsal, and offering it under "you have never practised listening"
-        is worse than the count it replaced — naming the wrong thing is a
-        stronger claim than naming nothing."""
+        """The suggested task is a real task, never a consultation workbook."""
         from eesti.readiness import _next_task
         from eesti.sources import Item, add_items
 

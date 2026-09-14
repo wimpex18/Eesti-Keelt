@@ -1,20 +1,8 @@
-"""Two different questions about a text, kept apart.
+"""Two questions about a text, kept apart.
 
-**Band** — how hard is this text compared with others from the same source?
-Answers "where do I start". A property of the corpus.
-
-**Comprehensibility** — how much of this text does *this learner* have words
-for? Answers "what should I read next". A property of the pairing.
-
-They were one thing, and worse, the band was being written into the `level`
-column alongside real CEFR levels. A learner filtering "B1" got only exam
-material: 349 reading texts and 20 news issues were invisible to the one filter
-anybody would use.
-
-Neither is a CEFR level and neither pretends to be. That refusal is load-bearing
-here: an earlier attempt to derive a level from vocabulary coverage rated 342 of
-349 deliberately-simplified news items as B2, because only 6.2 % of lemmas in
-the word list carry a CEFR tag at all.
+**Band** — difficulty relative to other texts from the same source ("where do I
+start"). **Comprehensibility** — the share of lemmas this learner knows ("what
+next"). Neither is a CEFR level, and `band` never goes in the `level` column.
 """
 
 from __future__ import annotations
@@ -47,10 +35,9 @@ class TestBands:
 
 class TestComprehensibility:
     def test_a_text_of_known_words_is_independent(self):
-        """Coverage is computed over *lemmas*, so the known-set is built from
-        the same lemmatiser rather than from guessed dictionary forms — under
-        the real word list `ma` resolves to `mina`, and a test that hard-coded
-        either spelling would be testing the dictionary, not the arithmetic."""
+        """Coverage uses the same lemmatiser for the known set, so the test checks the
+        arithmetic, not dictionary spellings.
+        """
         from eesti.lookup import lemmas_in
 
         text = "Ma olen kodus."

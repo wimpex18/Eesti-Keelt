@@ -1,9 +1,5 @@
-"""Spaced repetition scheduling.
-
-The behaviours worth pinning are the ones that would silently corrupt a study
-history: re-adding an item must not reset it, a wrong answer must bring the item
-back sooner than a right one, and lapses must be counted so struggling items can
-be surfaced.
+"""Spaced repetition scheduling: re-adding an item keeps its schedule, a wrong
+answer brings it back sooner, and lapses are counted.
 """
 
 
@@ -84,16 +80,7 @@ def test_item_id_is_stable(db):
 
 
 class TestExplanationsAlreadyInTheQueueAreRepaired:
-    """A generator fix does not reach rows that were written before it.
-
-    `omastav` was stored as **омастав** in the `why_ru` of every item the
-    affected drills queued. Correcting `cloze.py` and `grammar.py` fixes what
-    is generated next and nothing that is already scheduled -- and this is a
-    spaced-repetition queue, so those items are not stale, they are guaranteed
-    to come back and teach the wrong spelling again. Same shape as the seed
-    glossary and the sonapi cache: state that outlives the process needs the
-    fix applied where it sits.
-    """
+    """Stored explanations with the transliteration **омастав** are repaired in place."""
 
     def test_a_stored_transliteration_is_rewritten(self, tmp_path):
         db = tmp_path / "review.db"
@@ -141,10 +128,8 @@ class TestExplanationsAlreadyInTheQueueAreRepaired:
         assert repair_explanations(conn) == 0
 
     def test_it_does_not_write_when_there_is_nothing_to_repair(self, tmp_path):
-        """Running on every `connect` is only safe if the common case is a
-        read. The first version issued the UPDATE unconditionally, which made
-        every open of the queue a writer -- including the read-only ones behind
-        `GET /api/status` -- and the next connection got `database is locked`.
+        """The repair only writes when there is something to repair, so read-only opens
+        take no write lock.
         """
         db = tmp_path / "review.db"
         conn = connect(db)

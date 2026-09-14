@@ -1,21 +1,8 @@
-"""The path's five states, checked against the code that produces them.
+"""The path's states, checked against the code that produces them.
 
-`progress.TopicProgress.state` is the only thing that decides what state a
-topic is in. The page has to gloss each one in Russian and mark each one with
-an icon, and both of those lists were written by hand from what happened to be
-on screen at the time.
-
-That is how `mastered` stayed English. A previous pass found three state
-badges rendering as `REFERENCE`, `READY` and `LOCKED` and glossed exactly
-those three -- because those three are what an account with no progress shows.
-`mastered` and `in progress` only appear *after* the learner has answered
-something, so nobody saw them, and `RU` acquired `done` and `review` instead,
-which the code has never emitted. A learner who finished a topic was shown the
-English word `mastered` as their reward.
-
-The lesson is the one this repo keeps relearning: a list of things that already
-exist somewhere else drifts from the thing it describes, and it drifts silently,
-because every row still renders *something*. So this asks the source.
+`progress.TopicProgress.state` decides a topic's state; the page's Russian glosses
+and icons must cover exactly the states it emits (read from its source), so no
+state reaches the screen as raw English.
 """
 
 from __future__ import annotations

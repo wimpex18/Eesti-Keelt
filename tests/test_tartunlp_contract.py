@@ -1,15 +1,8 @@
 """The TartuNLP GEC contract, pinned to their published OpenAPI spec.
 
-`api.tartunlp.ai/grammar/openapi.json` is public and was read on 2026-09-11.
-Both of its endpoints answer HTTP 500 after ~61 s — reproduced with the spec's
-own example, `{"text": "Aitähh!"}` — so nothing here can be verified against a
-live answer. What *can* be pinned is that when their worker comes back, this
-app parses what they publish: these tests replay the two response shapes from
-the spec and check the corrections that come out.
-
-A `GET` to the same URL returns 405. That is the trap: the route exists and the
-host is up, so a liveness check built on `GET` reports a healthy service that
-has never once returned a correction.
+Their endpoints are usually unresponsive, so these replay the two response
+shapes from the spec and check the corrections parsed from them. A `GET` answers
+405 even when POSTs fail, so it is not a liveness check.
 """
 
 from __future__ import annotations
@@ -62,8 +55,7 @@ class TestTheMinimalSpan:
 
 
 class TestTheTag:
-    """TartuNLP returns no error type, so everything was filed as `vocab` —
-    and the Notion error log groups on that field."""
+    """A pure re-ordering is tagged `word-order`; other corrections stay `vocab`."""
 
     def test_a_pure_reordering_is_tagged_word_order(self):
         assert _tag_of("Oktoobris vihmased päevad vahelduvad.",
@@ -124,12 +116,8 @@ class TestTheChain:
         assert [c.wrong for c in result.corrections] == ["autot"]
 
     def test_two_attempts_share_one_budget(self, monkeypatch):
-        """A fallback must not double what the learner waits.
-
-        This provider is first in the chain and has answered 500 after ~61 s
-        since the research phase. Its short timeout is the whole reason that
-        never reaches the page; spending it once per endpoint would have made
-        the dead provider twice as expensive as it was before the fallback.
+        """Both endpoints share one timeout budget, so the fallback does not double the
+        wait.
         """
         spent = []
 

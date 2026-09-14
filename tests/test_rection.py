@@ -1,9 +1,8 @@
-"""Verb government parsed from EKK's own list of error-prone rections.
+"""Verb government parsed from EKK's list of error-prone rections.
 
-The parser's job is mostly refusal. EKK's table is prose written for humans:
-some entries list two correct frames, some license the starred case elsewhere in
-the same row, and some are not case frames at all. Every one of those, drilled
-naively, marks a correct answer wrong.
+Mostly refusal: entries with two correct frames, a starred case licensed
+elsewhere in the row, or frames that are not cases would mark correct answers
+wrong if drilled.
 """
 
 from __future__ import annotations
@@ -142,16 +141,9 @@ class TestRectionDrills:
 
 
 class TestTheExplanationClaimsWhatEkiClaims:
-    """Audited 2026-09-12: for 7 of the 23 contrasts, EKI's own ühendsõnastik
-    lists the form SÜ 64 stars among that word's attested rections.
-
-    The advice is unchanged — EKI's keelenõuanne still says `põhinema millel`,
-    `tuginema millele`, and the exam marks by that. What changed is the claim
-    the app makes about it. "Требует X, а не Y" is a rule; EKI state a strong
-    recommendation, and Y is a documented drift their dictionary records. This
-    project already learned that distinction once, on V2, where the explanation
-    says *обычно* rather than *всегда* precisely so the learner does not go and
-    "correct" Estonian that natives write.
+    """Explanations say "рекомендует", not "требует": for some contrasts EKI's current
+    dictionary also records the starred form, so the handbook's choice is a
+    recommendation (as the exam marks it).
     """
 
     def test_it_recommends_rather_than_requires(self):

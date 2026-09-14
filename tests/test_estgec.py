@@ -1,11 +1,8 @@
-"""EstGEC-L2: word-order errors a linguist labelled, merged with the inferred ones.
+"""EstGEC-L2: labelled word-order errors, merged with the inferred ones.
 
-The M2 fixture below is written, not copied. Its shape is faithful — `S` line,
-`A` lines with token spans, the `|||`-separated tag, replacement and annotator
-id, `noop` for a sentence that needed nothing, and the overlapping spans the
-corpus allows deliberately — and every sentence in it was made up for the test.
-Same approach as the EVKK taxonomy fixture and the EKI TSV and PSV XML ones: a
-format can be reproduced without reproducing anyone's data.
+The M2 fixture is written for the test in the corpus's real shape (`S` and `A`
+lines, `|||`-separated fields, `noop`, overlapping spans); every sentence is
+invented.
 """
 
 from __future__ import annotations
@@ -90,10 +87,7 @@ class TestTheSentencesReadLikeSentences:
 
 
 class TestOneGateTwoFeeders:
-    """Merged rather than swapped, and the reason is measured: the two corpora
-    share not one corrected sentence, so replacing would throw 322 items away
-    for nothing — and 232 of EstGEC-L2's 237 pass `is_reordering` unchanged, so
-    merging does not mix two standards of item."""
+    """Both sources feed one pool through the same `is_reordering` gate."""
 
     def test_both_sources_are_drawn_from(self):
         assert wordorder.SOURCE_IDS == ("taltech-gec", "estgec-l2")
@@ -114,8 +108,7 @@ class TestOneGateTwoFeeders:
         assert items[0].rule == "v2", "the fronted adverbial and the verb second"
 
     def test_a_pair_with_no_level_is_still_an_item(self):
-        """The dev split is published as one file with no level, and a level
-        this project was not given is not one it invents."""
+        """The dev split has no level, so its items carry `None`."""
         items = wordorder.from_pairs([("Eile ma tulin.", "Eile tulin ma.")])
         assert len(items) == 1 and items[0].level is None
 

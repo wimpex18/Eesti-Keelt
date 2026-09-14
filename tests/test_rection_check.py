@@ -1,19 +1,8 @@
-"""Rection in free writing: EVKK's `&err-gov`, the second-largest error class.
+"""Rection in free writing: EVKK's `&err-gov`.
 
-5 170 annotated marks against object case's 653, and until now this app could
-only *drill* it.
-
-**Why it is checkable when object case is not.** General rection checking needs
-valency — which phrase is this verb's complement, and may it stand in that case
-— and that is syntax. EKK SÜ 64 sidesteps it by being a list of *specific
-attested confusions*: not "kohanema takes the comitative" but "people write
-`millele` where `millega` belongs". The question becomes a lookup rather than a
-parse.
-
-Three conditions must all hold, because a checker that invents errors teaches
-that correct Estonian is wrong: the headword is one of EKK's contrasts, a word
-**in its own clause** stands in the starred wrong case, and **nothing** in that
-clause stands in the correct case.
+A lookup against EKK SÜ 64's attested confusions, flagged only when: the headword
+is an EKK contrast, a word in its own clause stands in the starred wrong case,
+and nothing in that clause stands in the correct case.
 """
 
 from __future__ import annotations
@@ -48,10 +37,7 @@ class TestItCatchesTheAttestedConfusion:
             assert [(m.wrong, m.correct) for m in found] == [(wrong, correct)]
 
     def test_the_number_the_learner_used_is_kept(self):
-        """EKK writes its frames in the singular — `millele` — so the stored
-        tag is `sg all`. A learner writes about more than one thing as readily
-        as one, and comparing whole tags meant every plural complement went
-        unchecked. The case is the claim; the number is the learner's."""
+        """Plural complements are checked too: the case is compared, not the number."""
         assert rection.errors("See põhineb faktidele.", RULES)[0].correct == "faktidel"
 
     def test_an_agreeing_modifier_is_part_of_the_complement_not_a_rival(self):
