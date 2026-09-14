@@ -48,11 +48,8 @@ def review_queue(limit: int = 20, kind: str | None = None) -> dict:
             }
             for i in items
         ],
-        # The queue is where the same words come back by design, so it is the
-        # place a missing meaning compounds: an item can be answered correctly
-        # from the form alone, review after review, without the word ever
-        # meaning anything. Local store only -- twenty items would be twenty
-        # live lookups.
+        # Glosses from the local store only: the queue brings the same words back, but a
+        # live lookup per item would be a batch request.
         "glosses": _glosses_for([i.lemma for i in items]),
     }
 
@@ -85,10 +82,8 @@ class MineRequest(BaseModel):
 
 @router.post("/api/mine")
 def mine(req: MineRequest) -> dict:
-    """Queue the grammar pattern behind a word met while reading.
-
-    Refusals carry a reason, so the reader can explain why a word was not added
-    rather than appearing to do nothing.
+    """Queue the grammar pattern behind a word met while reading; refusals carry a
+    reason.
     """
     result = mining.from_reading(review_db(), req.word, context=req.context)
     return {"queued": result.queued, "reason": result.reason,
@@ -97,13 +92,8 @@ def mine(req: MineRequest) -> dict:
 
 @router.get("/api/review/stats")
 def review_stats() -> dict:
-    """Queue size, and the words that keep coming back wrong.
-
-    `kind` is a topic id. `/api/review` has sent `kind_et` beside every item
-    since it was written, for the documented reason that a page which turns ids
-    into names will eventually meet an id nobody taught it about -- and this
-    endpoint sent the bare id, so the struggling list showed `osastav` where
-    the topic is called `osastav kääne`. Resolved here, beside the other one.
+    """Queue size, and the words that keep coming back wrong, with topic names
+    resolved (`kind_et`).
     """
     body = review.stats(review_db())
     for row in body.get("struggling", []):

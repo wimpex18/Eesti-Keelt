@@ -1,20 +1,12 @@
 """Irregular verb stems — the `verb-form` gap.
 
-The insight that makes these drills work: **the form a learner would build by
-naive rule is exactly the error they actually make.** Estonian verbs are cited
-in the ma-infinitive (`minema`), and the obvious way to make "I go" is to strip
-`-ma` and add `-n` — giving `minen`. The real form is `lähen`. That naive form is
-not a random distractor invented for the exercise; it is the mistake, and it
-appears verbatim in this project's own error log and eval set.
-
-So the generator computes both:
+The naive form is the real error: strip `-ma` from `minema` and add `-n` to get
+`minen`, where Estonian says `lähen`.
 
   naive   lemma minus -ma, plus the ending   ->  what the learner will guess
   actual  Vabamorf synthesis                 ->  what Estonian does
 
-and drills only the verbs where they differ. A verb whose naive form is already
-right teaches nothing, exactly as a noun whose genitive equals its partitive
-teaches nothing.
+Only verbs where the two differ are drilled.
 """
 
 from __future__ import annotations
@@ -85,15 +77,9 @@ def irregular_verbs(
     levels: tuple[str, ...] = ("A1", "A2", "B1"),
     limit: int = 300,
 ) -> list[VerbForm]:
-    """Level-appropriate verbs whose forms a naive rule gets wrong.
-
-    Ordered by frequency, so the verbs a learner meets constantly — minema,
-    tegema, saama — come first. Those are also the most irregular, which is not
-    a coincidence: high-frequency verbs resist regularisation.
-
-    Which verbs count as level-appropriate is `wordlist.verbs_at_level`, not a
-    second copy of its SQL here: this module and `conjugation.py` have to agree
-    about that, and two identical queries agree only until one is edited.
+    """Level-appropriate verbs whose naive forms are wrong, most frequent first (the
+    commonest verbs are also the most irregular). The verb pool comes from
+    `wordlist.verbs_at_level`, shared with `conjugation.py`.
     """
     from .wordlist import verbs_at_level
 

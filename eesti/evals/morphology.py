@@ -1,20 +1,11 @@
 """Validate Vabamorf against TalTech's native-curated inflection data.
 
-Everything in this app rests on one assumption: that Vabamorf's synthesized forms
-are correct. That assumption was previously untested — the drills, the reverse
-index and the exported dataset all inherit whatever Vabamorf says.
+Every drill answer inherits Vabamorf's forms. `TalTechNLP/inflection_et`
+(Estonian Native LLM Benchmark, LREC 2026) has 1 400 noun phrases with their
+correct form per case.
 
-`TalTechNLP/inflection_et` (from the Estonian Native LLM Benchmark, LREC 2026) is
-an independent check: 1 400 noun phrases built from native Estonian sources, each
-with its correct form per case, labelled in Estonian grammar terms
-(`omastav` = genitive, `osastav` = partitive).
-
-Measured agreement: **98.1 % overall, 98 % on both genitive and partitive.**
-
-The disagreements are a real but narrow class — invariant adjectives. In
-`täis pudel` ("a full bottle") the modifier does not decline, so the gold form is
-`täis pudeli` while Vabamorf offers `täie pudeli`. Worth knowing, and worth
-keeping such words out of drill pools; not a reason to distrust the engine.
+Agreement is about 98 %. Disagreements are a narrow class: invariant adjectives
+(`täis pudeli`, where Vabamorf gives `täie pudeli`).
 """
 
 from __future__ import annotations

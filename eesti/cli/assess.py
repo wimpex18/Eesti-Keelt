@@ -1,9 +1,7 @@
 """Measuring rather than practising: review, placement, checkpoint, test-out.
 
-The difference from `study.py` is what the answer is *for*. A drill teaches;
-these four decide something — what is due, where in the syllabus to start,
-whether a level is finished, whether a topic can be skipped. All four schedule
-or gate, and all four are deterministic.
+These decide something — what is due, where to start, whether a level is
+finished, whether a topic can be skipped — deterministically.
 """
 
 from __future__ import annotations
@@ -14,11 +12,8 @@ from ..config import LEVELS
 from ._helpers import _ask_terminal, learner_db
 
 def cmd_placement(args: argparse.Namespace) -> int:
-    """Find where to start, instead of starting at lesson one.
-
-    Walks the syllabus in study order, probing each topic with a short set, and
-    stops once failures accumulate. It places you; it does not audit you — use
-    `test-out --topic X` for any single topic you already know.
+    """Find where to start: probe topics in study order, pruning dependants of failed
+    topics. For one topic, use `test-out --topic X`.
     """
     from ..placement import PROBE_ITEMS, PROBE_REQUIRED, entry_points, sweep
     from ..progress import connect
@@ -80,11 +75,8 @@ def cmd_test_out(args: argparse.Namespace) -> int:
 
 
 def cmd_review(args: argparse.Namespace) -> int:
-    """Interleaved review: whatever is due, mixed across topics by construction.
-
-    This is the second half of the blocked-then-interleaved schedule. Items
-    arrive here two ways — missed during practice, or seeded when their topic
-    was mastered — and FSRS decides when each comes back.
+    """Interleaved review of whatever is due: items missed in practice or seeded at
+    mastery; FSRS decides when each returns.
     """
     from .. import handoff, review
     from ..progress import connect as progress_connect
@@ -92,8 +84,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     reviews = review.connect(learner_db(args, "review_db"))
     progress = progress_connect(learner_db(args, "progress_db"))
 
-    # Catch topics mastered before the handoff existed, or in a session that
-    # ended early, so nothing sits outside the review pool forever.
+    # Hand off mastered topics that have nothing in the review queue yet.
     for topic in handoff.pending_handoffs(progress, reviews):
         added = handoff.seed_mastered(reviews, topic)
         if added:
@@ -107,9 +98,8 @@ def cmd_review(args: argparse.Namespace) -> int:
         ).fetchone()[0]
         print(f"nothing due. {info['total']} item(s) in the queue.")
         if nxt:
-            # Worth saying: an item missed a minute ago is *supposed* to be a
-            # few minutes out, and an empty queue right after practice
-            # otherwise reads as a bug.
+            # An item missed a minute ago is due in a few minutes; say so, or an empty queue
+            # reads as a bug.
             print(f"next due at {nxt}.")
         return 0
 
@@ -186,12 +176,7 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 
 
 def register(sub) -> None:
-    """Add this group's commands to the subparser table.
-
-    Beside the handlers rather than a thousand lines away in one
-    argparse block: a flag and the code that reads it drift apart
-    when they cannot be seen together.
-    """
+    """Register this group's commands beside their handlers."""
     p = sub.add_parser("review", help="interleaved review of whatever is due")
     p.add_argument("-n", "--count", type=int, default=20)
     p.add_argument("--review-db", default=None)
