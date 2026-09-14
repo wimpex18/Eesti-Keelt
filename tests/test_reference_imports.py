@@ -1,17 +1,8 @@
 """The reference imports, and whether a deployment can tell they ran.
 
-All three — EKK's rection table, EKI's level vocabulary, EKI's learner
-dictionary — happen at image build time and are all allowed to fail without
-failing the build. `cli rections` needs EKI to answer a datacenter IP, and they
-have already returned 403 to a GitHub runner on that exact URL; the two EKI
-downloads need files a person has to fetch from behind ID-card authentication. Failing the
-image on any of them would trade one feature for the whole deploy.
-
-That trade is only defensible if the deployment can be *asked* which ones
-landed — otherwise "never imported" and "imported and empty" look identical
-from outside, which is this project's oldest recurring bug in a new costume
-(`.claude/rules/python.md`). Hence counts, not flags,
-and a check in the smoke workflow that reads them.
+EKK's rection table and the EKI dictionaries are imported at image build and
+may fail without failing it, so `/api/health` reports row counts (not flags) and
+the smoke workflow reads them.
 """
 
 from __future__ import annotations
@@ -50,9 +41,7 @@ class TestHealthReportsThem:
 
 
 class TestTheBuildActuallyRunsThem:
-    """A command nothing calls is a command that never ran. All three sat in
-    the CLI with no caller on the deployment, which is why every one of these
-    counts was zero in production while the code to fill them was shipped."""
+    """Each import command is run by the Dockerfile, which ends each step in `||`."""
 
     @pytest.fixture
     def dockerfile(self):
@@ -70,11 +59,9 @@ class TestTheBuildActuallyRunsThem:
         assert line.rstrip().endswith("|| \\"), line
 
     def test_every_file_the_image_imports_is_in_git(self):
-        """Cloud Build builds from a git checkout, so a file the Dockerfile
-        imports and git ignores is a file production never has. That was the
-        state until 2026-09-13 — smoke read `eki_levels` 0 and
-        `eki_definitions` 0 — while the README promised "baked into the next
-        image". Derived from the Dockerfile, so a new import cannot repeat it."""
+        """Every file the Dockerfile imports is tracked by git (Cloud Build checks out
+        git), derived from the Dockerfile.
+        """
         import re
         import subprocess
 
@@ -87,9 +74,9 @@ class TestTheBuildActuallyRunsThem:
         assert not ignored, f"git ignores what the image imports: {ignored}"
 
     def test_the_file_names_agree_with_what_the_cli_tells_you_to_download(self):
-        """The Dockerfile looks for a fixed name; the CLI prints one. They
-        drifted once already — `tasemesonavara.txt` against `A1A2B1.txt` — and
-        a build that silently skips the import is exactly what that costs."""
+        """File names agree between the Dockerfile, the CLI's messages and
+        `docs/sources.md`.
+        """
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         cli = (ROOT / "eesti" / "cli" / "build.py").read_text(encoding="utf-8")
         readme = (ROOT / "docs" / "sources.md").read_text(encoding="utf-8")

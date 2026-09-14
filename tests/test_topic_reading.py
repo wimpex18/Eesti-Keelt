@@ -1,14 +1,7 @@
 """The join between a grammar topic and something to read.
 
-The plan called this "what makes it one tool rather than four", and it was the
-one MVP item that never got built. Practice on its own is a drill machine; a
-reading list on its own is a folder of texts. The value is in *"you keep missing
-the completed-object contrast — here is an episode that is about it."*
-
-The link is earned rather than asserted: a text is offered for a topic only if
-the topic's own generator can cut a valid exercise out of it. So the claim has
-already been checked by the machinery that refuses ambiguous cases, instead of
-being a label somebody typed.
+A text is linked only if the topic's own generator can cut a valid exercise
+from it, so the link is checked, not typed.
 """
 
 from __future__ import annotations
@@ -71,7 +64,7 @@ class TestLinking:
         assert "Tervitused" not in titles
 
     def test_relinking_replaces_rather_than_accumulates(self, corpus, words):
-        """A re-harvest must not leave the previous run's links behind."""
+        """A re-link clears the previous run's links."""
         link_topics(corpus, words, topics=("obj-case",))
         first = related(corpus, "obj-case", limit=10)
         link_topics(corpus, words, topics=("obj-case",))
@@ -101,18 +94,8 @@ class TestLicence:
 
 
 class TestLessonLabels:
-    """Two thirds of the ERR archive is audio with no transcript.
-
-    Those episodes looked like empty rows, and the first version of this feature
-    skipped them entirely — there is nothing to analyse. But every one carries
-    the teacher's own one-line label saying which grammar point it teaches, and
-    lessons 22 and 23 of the second course are precisely the completed and
-    incomplete object contrast: the documented weakness this app exists for.
-
-    A label is stronger evidence than a derived link. "This lesson is about the
-    object case in completed actions" is someone stating the subject; three
-    genitive objects going past in a news article is a program noticing a
-    pattern. So labels outrank, and they are read, never guessed.
+    """Audio-only ERR episodes are linked by their lesson labels, which outrank derived
+    links.
     """
 
     def test_the_object_case_lessons_are_recognised(self):
@@ -153,8 +136,7 @@ class TestLessonLabels:
         assert set(LABEL_TOPICS) <= {t.id for t in TOPICS}
 
     def test_a_labelled_episode_outranks_a_demonstrating_text(self, corpus, words):
-        """Ordering is the whole point: when obj-case keeps going wrong, the
-        lesson about it should come before an article that happens to use it."""
+        """Labelled lessons come before texts that merely use the rule."""
         from eesti.topiclinks import link_labelled, link_topics, related
 
         corpus.execute(

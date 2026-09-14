@@ -1,19 +1,7 @@
-"""Text to speech: the feature that turns any text into listening practice.
+"""Text to speech via TartuNLP: synthesis, validation and the disk cache.
 
-The plan asked for exactly this check — *"synthesise one sentence, assert WAV
-≥100 KB and <5 s, confirm disk-cache hit on repeat"* — and it was never
-written. TTS is what makes 397 harvested texts into listening material, and it
-was the one core provider with no test at all.
-
-The cache is not an optimisation here, it is the availability story. TartuNLP's
-inference endpoints were **down** during the research that started this project
-— four of them, at two universities, simultaneously. Audio that has been
-synthesised once must keep playing when the synthesiser is unreachable, and
-that is a property worth pinning rather than assuming.
-
-Network tests are skipped when TartuNLP is unreachable. That is the same rule
-the rest of the suite follows: a third party having a bad afternoon must never
-fail this build.
+Audio synthesised once keeps playing from the cache when the service is
+unreachable. Network tests skip when TartuNLP is unreachable.
 """
 
 from __future__ import annotations
@@ -27,13 +15,12 @@ from eesti.providers import tts
 
 class TestArgumentChecking:
     def test_empty_text_is_refused(self):
-        """Synthesising nothing wastes a request and caches a silent file."""
+        """Empty text is not synthesised."""
         with pytest.raises(ValueError):
             tts.synthesize("   ")
 
     def test_an_unknown_voice_is_refused_with_the_list(self):
-        """TartuNLP answers 200 with an error body for a bad speaker, which
-        would have been cached as if it were audio."""
+        """An error body returned with 200 (bad speaker) is not cached as audio."""
         with pytest.raises(ValueError) as caught:
             tts.synthesize("Tere", speaker="kellegi-teise-hääl")
         assert "mari" in str(caught.value)
@@ -65,7 +52,7 @@ class TestCacheKey:
 
 
 class TestAgainstTheLiveService:
-    """The plan's numbers: 310 KB in 2.0 s, measured during research."""
+    """A sentence synthesises to a real WAV within a few seconds."""
 
     @pytest.fixture(scope="class")
     @classmethod
@@ -94,9 +81,7 @@ class TestAgainstTheLiveService:
         assert elapsed < 5.0
 
     def test_the_second_call_never_touches_the_network(self, spoken):
-        """The availability property, not a speed one: four research endpoints
-        were down simultaneously when this project started, and audio already
-        synthesised has to keep playing through that."""
+        """A cached sentence plays without the network."""
         path, _, directory = spoken
 
         def explode(*args, **kwargs):  # pragma: no cover - must not run
