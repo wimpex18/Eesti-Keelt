@@ -1,13 +1,5 @@
-"""How the meaning is presented, which is most of whether it helps.
-
-The store landed first and the screen got the leftovers: one 12px grey line,
-`protsent, osastav — процент · A2`, four kinds of information joined by three
-different separators at one weight. The word you operate on, the form to
-produce, what the word means and where it sits on the CEFR scale all looked
-identical, and the new information — the meaning — was the least visible thing
-on the card.
-
-Four roles, four treatments, and one token for the one that was missing.
+"""How a meaning is presented: the word, the form to produce, what the word means
+and its CEFR level each get their own treatment and colour role.
 """
 
 from __future__ import annotations
@@ -37,11 +29,7 @@ class TestTheInstructionIsNotOneGreyRunOn:
         assert "function taskLine(" in PAGE
 
 class TestBothHalvesOfTheHintAreAvailable:
-    """`hint` glues lemma and label together, so a page that wants them apart
-    needs the label on its own. Every generator gets it from the mixin —
-    except `Cloze`, which predates the mixin and carries a private copy of the
-    whole surface. That went unnoticed until cloze items came back with the
-    case missing from the row."""
+    """Every generator, including `Cloze`, exposes `label` separately from `hint`."""
 
     def test_the_mixin_hands_out_a_label(self):
         from eesti import drills, wordlist
@@ -72,9 +60,9 @@ class TestBothHalvesOfTheHintAreAvailable:
 
 
 class TestTheGlossHasItsOwnColour:
-    """A verdict answers three questions at once — what the right form was, why
-    the rule made it right, and what the word is. The first two had colours;
-    the third arrived as more grey prose and read as part of the rule."""
+    """A verdict shows the right form, the rule, and the word's meaning, each styled
+    distinctly.
+    """
 
     def test_the_token_exists(self):
         assert "--gloss:" in CSS
@@ -111,10 +99,7 @@ class TestTheGlossHasItsOwnColour:
 
 
 class TestTheQueueDoesNotPrintDatabaseKeys:
-    """`obj-case` is a curriculum id. The path panel already resolves those —
-    `overview.py` does it for exactly this reason — and the review queue was
-    still printing the raw key beside every card, in accented capitals wider
-    than the word it described."""
+    """The review queue shows topic names, not curriculum ids."""
 
     def test_the_endpoint_resolves_the_name(self):
         from eesti.api.render import _topic_name
@@ -145,15 +130,12 @@ class TestTheQueueDoesNotPrintDatabaseKeys:
         assert "it.kind_et || it.kind" in PAGE
 
     def test_a_topic_name_is_provenance_not_an_instruction(self):
-        """In a practice set the label says what to produce and earns the
-        accent. In the queue it says which lesson filed the card, which is a
-        different thing and gets the quiet chip."""
+        """In a practice set the label is the accent; in the queue it is a quiet chip."""
         assert "{quiet: true}" in PAGE
 
 
 class TestTheCountHasAReader:
-    """`gloss.stats` was written with nothing calling it, which is the same
-    defect as a measurement with no writer."""
+    """`gloss.stats` has a reader on the status screen."""
 
     def test_the_overview_carries_it(self, tmp_path):
         from eesti import gloss, overview, vocab
@@ -193,10 +175,7 @@ class TestTheCountHasAReader:
 
 
 class TestTheWordCardPutsMeaningWithTheWord:
-    """The enrichment arrives after the card is drawn and has to be inserted
-    somewhere. It went in before `#mineNote`, which sits *under* the buttons —
-    so what the word means appeared below "+ Kordamisse", after the actions
-    rather than beside the word they act on."""
+    """Enrichment is inserted beside the word, above the card's action buttons."""
 
     def test_there_is_an_anchor_above_the_buttons(self):
         assert 'id="cardExtra"' in PAGE
@@ -211,13 +190,7 @@ class TestTheWordCardPutsMeaningWithTheWord:
 
 
 class TestEveryGeneratorSharesOneDefinition:
-    """`item.GradedItem` exists because each generator kept its own copy of the
-    same five methods, and copies drift. `Cloze` predated the mixin and was
-    still carrying all five — which is how a cloze item reached the page with
-    no case in its instruction row, months after every other generator had been
-    unified.
-
-    A one-off fix would have been `label`. The bug was the copies."""
+    """`Cloze` inherits `item.GradedItem` instead of carrying its own copies."""
 
     @staticmethod
     def _shaped():
@@ -269,10 +242,9 @@ class TestEveryGeneratorSharesOneDefinition:
         assert cloze.BLANK is item.BLANK
 
     def test_cloze_grades_exactly_as_it_did(self):
-        """Measured over 425 real items before the copies were removed:
-        `lower` and `casefold` differ on no Estonian answer, and no prompt can
-        open with the blank because the round-trip gate rejects a capitalised
-        common noun."""
+        """Inherited grading equals the removed copies on real items (`lower` vs
+        `casefold` differ on no Estonian answer).
+        """
         from eesti.cloze import Cloze
 
         item = Cloze(prompt="Ma ostsin ____.", answer="kleidi", distractor="kleiti",
