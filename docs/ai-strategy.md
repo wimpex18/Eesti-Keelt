@@ -301,8 +301,30 @@ gain was on Estonian, +8.25 GLEU), and it accepts the parameter we send.
 eval cases — the free model saturated — while `dots-studio/dots-3-note-preview:free`
 scored precision 1.0, recall 0.714 (run 34811299690), and it is the pin now. The
 chain also gained two free lanes, Mistral (`mistral-large-latest`) and NVIDIA
-(`deepseek-ai/deepseek-v4-pro-0813`), and lost Groq, whose firewall refuses
+(`deepseek-ai/deepseek-v4-flash-0731`), and lost Groq, whose firewall refuses
 datacenter IPs.
+
+**Measured the same day, one eval run each** (18 cases: 10 object-case errors,
+8 correct sentences; precision is the number that matters):
+
+| Lane | Model | Precision | Recall | Seconds per check, from a Mac | Run |
+|---|---|---|---|---|---|
+| nvidia | `deepseek-ai/deepseek-v4-flash-0731` | 1.0 | 1.0 (2 of 18 timed out) | 40, 229, 53 | 34827285002 |
+| workers-ai | `@cf/openai/gpt-oss-120b` | 1.0 | 0.8 | 3, 8 | 34827293416 |
+| openrouter | `dots-studio/dots-3-note-preview:free` | 1.0 | 0.714 | not timed | 34811299690 |
+| mistral | `mistral-large-latest` | 1.0 | 0.3 | 1, 4 | 34827290722 |
+| nvidia | `moonshotai/kimi-k3` | — | 5/5 of those reached; 13 × 429 | over 360 on a one-word probe | 34827287680 |
+| nvidia | `deepseek-ai/deepseek-v4-pro-0813` | — | 18 × 410 Gone, end of life 2026-09-14 | — | 34827282118 |
+
+The chain order (`grammar.LLM_PREFERENCE`) is Workers AI, NVIDIA, Mistral,
+OpenRouter: the best recall a learner does not wait a minute for comes first,
+and NVIDIA's better answer is the fallback rather than the default.
+
+Mistral Large leads Tartu's human-vote Estonian leaderboard for fluent
+Estonian, and is last here at *spotting* object-case errors, which is what the
+chain is for. So the chain follows the eval, not the leaderboard. Kimi K3 was
+rate-limited by three evals sharing one key, and took over six minutes on a
+one-word probe; it is not a lane a learner can wait on.
 
 One trap worth recording: **`structured_outputs` and `response_format` are
 different capabilities.** The eval workflow filtered its model list on the

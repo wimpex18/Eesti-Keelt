@@ -62,13 +62,10 @@ on:
           # model_not_supported`. The lane sets `json_mode=False` and asks for
           # JSON in the prompt instead.
           - tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125
-          # nvidia and mistral: their lanes' own pinned defaults, then the other
-          # NVIDIA candidates. Kimi K2 and DeepSeek V3 are second and third on
-          # Tartu's Estonian leaderboard (baromeeter.tartunlp.ai); these are
-          # their successors, and only an eval run picks between them.
-          - deepseek-ai/deepseek-v4-pro-0813
+          # nvidia and mistral: their lanes' own pinned defaults. Measured
+          # against them on 2026-09-14 and dropped (docs/ai-strategy.md):
+          # deepseek-v4-pro-0813, 410 Gone; kimi-k3, 429s and a six-minute reply.
           - deepseek-ai/deepseek-v4-flash-0731
-          - moonshotai/kimi-k3
           - mistral-large-latest
       evidence:
         description: >-

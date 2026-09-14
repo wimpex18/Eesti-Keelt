@@ -540,14 +540,18 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 #: Cloud Run container can never reach it. NVIDIA and Mistral joined as the
 #: largest free allowances reachable from a server.
 #:
-#: The order is Estonian quality first, then how much free use survives a day.
-#: Tartu's human-vote Estonian leaderboard (baromeeter.tartunlp.ai, updated
-#: 2026-05-31, open and API models only) puts Mistral Large 3 first (1470),
-#: DeepSeek V3 second (1457) and Kimi K2 third (1439); NVIDIA serves their
-#: successors. Workers AI goes ahead of OpenRouter because OpenRouter's free
-#: tier is 50 requests a day and a 429 still spends one. Re-order on an eval
-#: run, not on this comment.
-LLM_PREFERENCE = ("local", "huggingface", "mistral", "nvidia", "workers-ai", "openrouter")
+#: The order weighs eval recall (all at precision 1.0) against how long the
+#: learner waits, both measured 2026-09-14 and tabled in `docs/ai-strategy.md`:
+#:
+#: * workers-ai, gpt-oss-120b: recall 0.8, 3-8 s — first.
+#: * nvidia, DeepSeek V4 Flash: recall 1.0, but 40-229 s per check on the free
+#:   endpoint. The best answer, and too slow to be the first one; behind
+#:   Workers AI it only runs when that lane has failed.
+#: * mistral, Large: recall 0.3, 1-4 s. Mostly answers "no errors". Mistral
+#:   leads Tartu's Estonian leaderboard for fluency, so fluency did not decide it.
+#: * openrouter, dots-3: recall 0.714, but 50 free requests a day and a 429
+#:   still spends one.
+LLM_PREFERENCE = ("local", "huggingface", "workers-ai", "nvidia", "mistral", "openrouter")
 
 #: Lanes defined in `PROVIDERS` and deliberately left out of the chain, each with
 #: the reason. The only way past the "defined but never tried" check.
