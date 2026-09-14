@@ -150,11 +150,10 @@ _B1: tuple[Topic, ...] = (
           requires=("lauseehitus",), tag="word-order",
           generator="wordorder",
           note="11.4 % of all EVKK marks and 19.3 % of the marks these nine "
-               "tags cover — second only to vocabulary either way, and until "
-               "now the largest tag with no drill at all. Items are attested "
+               "tags cover — second only to vocabulary either way. Items are attested "
                "learner corrections, never generated: see eesti/wordorder.py "
                "for the measurement that ruled generation out. Corroborated "
-               "2026-09-12 against EstGEC-L2, a second L2 corpus annotated "
+               "by EstGEC-L2, a second L2 corpus annotated "
                "independently of EVKK: `R:WO` is its second-largest error tag, "
                "872 edits in 2 029 sentences. Two corpora, two methods, both "
                "putting word order at the top."),

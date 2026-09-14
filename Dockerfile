@@ -29,8 +29,8 @@ RUN python -m eesti.cli rections || \
     echo "WARNING: EKK rection table unavailable at build time; \
 run 'python -m eesti.cli rections' later to enable the rektsioon topic."
 
-# EKI's CC BY 4.0 dictionaries, committed gzipped in `deploy/eki/` (see its
-# README). Reference data goes into `data/eesti.db` in the image — never into a
+# EKI's CC BY 4.0 dictionaries, committed gzipped in `deploy/eki/` (see
+# docs/sources.md). Reference data goes into `data/eesti.db` in the image — never into a
 # learner database, which a state restore replaces. Each import ends in `||` so
 # a missing or unreadable file costs one feature; `/api/health` `reference`
 # counts and the smoke workflow report what is missing.

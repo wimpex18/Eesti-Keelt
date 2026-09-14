@@ -60,9 +60,7 @@ class TestCurriculumCounts:
         from eesti.curriculum import TOPICS
 
         actual = sum(1 for t in TOPICS if not t.generator)
-        # `\w+ ` for an adverb: README says "10 curriculum topics **still**
-        # have no generator", which the tighter pattern skipped -- a live claim
-        # in a covered document, unchecked because of one word.
+        # `\w+ ` allows an adverb ("topics still have no generator").
         found = _claims(r"(\d+) curriculum topics (?:\w+ )?have no generator")
         for doc, line, value, text in found:
             assert int(value) == actual, (

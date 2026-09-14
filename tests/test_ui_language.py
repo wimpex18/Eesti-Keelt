@@ -142,7 +142,7 @@ class TestExplanationsAreRussian:
 
     def test_the_no_part_may_be_zero_warning_is_readable(self, page):
         """The one that decides whether a learner fails the exam for ignoring a
-        section. It sat in Estonian for months."""
+        section."""
         assert "Ни одна часть не должна быть нулём." in page
 
     def test_the_readiness_verdict_is_russian(self):
