@@ -27,7 +27,6 @@ def test_there_is_no_overall_percentage(dbs):
     """The exam scores four parts separately and fails you for a zero in any
     one, so an aggregate would hide the thing that decides the outcome."""
     data = overview(**dbs)
-    flat = str(data).lower()
     assert "overall" not in data["sections"]
     for section in data["sections"].values():
         assert "total_progress" not in section

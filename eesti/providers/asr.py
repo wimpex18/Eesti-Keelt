@@ -53,7 +53,6 @@ HF_URL = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 
 # TalTech's Estonian verbatim Whisper (MIT); self-hosted only, via whisper.cpp.
 ESTONIAN_MODEL = "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
-ESTONIAN_GGML = f"https://huggingface.co/{ESTONIAN_MODEL}/resolve/main/ggml/ggml-model.bin"
 
 # TalTech's Estonian Voxtral (`TalTechNLP/Voxtral-Mini-3B-2507-estonian`; GGUF
 # builds by the third-party requantiser `mradermacher`) needs an instruction and

@@ -9,7 +9,6 @@ optional enrichment. TartuNLP's failure mode is a ~60 s gateway timeout, so
 from __future__ import annotations
 
 import io
-import io
 import urllib.error
 
 import pytest
@@ -392,7 +391,7 @@ class TestTheEvalSaysWhyItCouldNotMeasure:
 
         raw = json.dumps(body).encode() if body is not None else b""
         return urllib.error.HTTPError(
-            "https://router.huggingface.co/v1/chat/completions", code,
+            "https://openrouter.ai/api/v1/chat/completions", code,
             "Bad Request", {}, io.BytesIO(raw))
 
     def test_the_renderer_names_a_400s_cause(self):

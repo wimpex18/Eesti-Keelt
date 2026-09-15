@@ -22,9 +22,6 @@ LLM lanes (`providers/llm.py`, all OpenAI-compatible, all free):
 | 4 | `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | Experiment plan, ~1B tokens/month | P 1.0 · R 0.3 · 1–4 s |
 | 5 | `openrouter` | `dots-studio/dots-3-note-preview:free` | `OPENROUTER_API_KEY` | 50 req/day, failures count | P 1.0 · R 0.71 |
 
-Groq (blocks datacenter IPs) and Hugging Face-hosted EstLLM (paid only) are
-not lanes.
-
 **Order = recall at precision 1.0, weighed against how long the learner
 waits.** NVIDIA gives the best answer but is too slow to go first. Mistral
 leads Tartu's human-vote Estonian leaderboard for fluency yet mostly answers

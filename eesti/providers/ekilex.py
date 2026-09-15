@@ -172,13 +172,11 @@ def parse(details: dict) -> Info | None:
                   if l.get("lexemeProficiencyLevelCode")), None)
     examples = tuple(u["value"] for l in senses[:1] for u in l.get("usages") or []
                      if u.get("lang") == "est" and u.get("value"))[:3]
-    pos = tuple(dict.fromkeys(p["code"] for l in senses for p in l.get("pos") or [] if p.get("code")))
 
     if not (russian or learner or native or rection):
         return None
     return Info(
         word=word.get("wordValue") or "",
-        word_classes=pos,
         rection=rection or None,
         inflection_type=paradigm["inflectionType"] if paradigm else None,
         definition=native,

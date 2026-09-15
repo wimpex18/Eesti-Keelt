@@ -28,9 +28,6 @@ router = APIRouter()
 # in and out. Only the learner's databases travel — the word list, form index and
 # corpus are baked into the image or pushed separately.
 
-STATE_DATABASES = ("progress", "review", "vocab")
-
-
 def _state_paths() -> dict[str, Path]:
     """Every database the snapshot carries, resolved from `config` when asked."""
     from .. import config

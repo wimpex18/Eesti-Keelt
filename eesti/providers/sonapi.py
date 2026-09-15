@@ -47,7 +47,6 @@ _LANG = {"rus": "ru", "eng": "en", "fra": "fr", "deu": "de", "ukr": "uk",
 @dataclass(frozen=True)
 class WordInfo:
     word: str
-    word_classes: tuple[str, ...]
     rection: str | None          # which case(s) the word governs
     inflection_type: str | None  # muuttüüp
     definition: str | None
@@ -148,7 +147,6 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
 
     return WordInfo(
         word=payload.get("estonianWord") or word,
-        word_classes=tuple(first.get("wordClasses") or ()),
         rection=(meaning.get("rection") or None),
         inflection_type=str(inflection_type) if inflection_type else None,
         definition=(meaning.get("definition") or None),

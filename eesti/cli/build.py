@@ -143,7 +143,7 @@ def cmd_import_psv(args: argparse.Namespace) -> int:
         print(f"  {len(entries):,} articles with a headword "
               f"(e.g. {', '.join(e.lemma for e in entries[:3])})")
         print(f"  {defined:,} with a definition, {examples:,} with usage examples")
-        print(f"  parts of speech: "
+        print("  parts of speech: "
               + ", ".join(f"{k} {v:,}" for k, v in pos.most_common()))
         if not defined:
             print("  NO DEFINITIONS FOUND — the headwords matched but `d` did not. "

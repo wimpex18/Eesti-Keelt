@@ -12,6 +12,11 @@ import argparse
 
 from ._helpers import content_path
 
+#: Printed after anything that changes the corpus: only `link-topics` refills
+#: `topic_items`, and nothing on the deploy path runs it.
+NEXT_LINK_TOPICS = "next: python -m eesti.cli link-topics (drills show no reading until it runs)"
+
+
 def cmd_harvest(args: argparse.Namespace) -> int:
     """Crawl the ERR language-course archives into the content store.
 
@@ -32,6 +37,7 @@ def cmd_harvest(args: argparse.Namespace) -> int:
         audio = sum(1 for e in episodes if e.audio_url)
         print(f"  {series}: {len(episodes)} episodes, {words:,} words, {audio} with audio")
     print(f"\nstored {len(items)} items in {content_path(args)} (owner-only, (c) ERR)")
+    print(NEXT_LINK_TOPICS)
     return 0
 
 
@@ -53,6 +59,7 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
         bands[item.band or "?"] = bands.get(item.band or "?", 0) + 1
     print(f"  {len(items)} texts, {words:,} words, 100% Estonian")
     print(f"  difficulty: {bands}")
+    print(NEXT_LINK_TOPICS)
     return 0
 
 
@@ -183,6 +190,7 @@ def cmd_harvest_news(args: argparse.Namespace) -> int:
     newest = max((i.published or "") for i in issues)[:10]
     print(f"  {len(issues)} issues, {words:,} words, newest {newest}")
     print(f"\nstored {stored} items (owner-only, (c) ERR)")
+    print(NEXT_LINK_TOPICS)
     return 0
 
 
@@ -265,6 +273,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     if not added:
         print("  nothing was added — an empty file, or a JSON array with no "
               "items in it")
+    else:
+        print(NEXT_LINK_TOPICS)
     return 0
 
 

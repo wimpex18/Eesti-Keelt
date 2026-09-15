@@ -62,7 +62,8 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - **`cli link-topics` is a manual step.** It fills `topic_items`, the join that
   puts reading texts beside a drill. Nothing on the deploy path runs it: after
   a re-harvest, run it before `deploy/push-content.sh`. `/api/health` reports
-  `corpus.topic_links`, and smoke warns when it is zero.
+  `corpus.topic_links`; the harvest commands print the reminder, and
+  `cli push-content` and smoke warn when it is zero.
 - **Grammar providers are free tiers with limits.** Workers AI (10 000
   neurons/day) answers first; NVIDIA's DeepSeek V4 Flash is accurate but takes
   40–230 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests

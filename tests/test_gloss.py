@@ -19,7 +19,7 @@ from pagesrc import markup_and_script
 
 def info(word="kleit", ru=("платье",), rection=None, itype="2"):
     return sonapi.WordInfo(
-        word=word, word_classes=("noomen",), rection=rection,
+        word=word, rection=rection,
         inflection_type=itype, definition="…", examples=(),
         translations={"ru": ru, "en": ("dress",)},
     )
@@ -79,10 +79,10 @@ class TestAWordIsAskedAboutOnce:
         assert gloss.remember(second, "kleit").russian == ("платье",)
 
     def test_it_lives_where_the_snapshot_will_carry_it(self):
-        """`vocab.db` is in `STATE_DATABASES`, so stored glosses survive cold starts."""
+        """`vocab.db` travels in the state snapshot, so stored glosses survive cold starts."""
         from eesti.api import state as state_module
 
-        assert "vocab" in state_module.STATE_DATABASES
+        assert "vocab" in state_module._state_paths()
 
 
 class TestNothingHereCanBecomeAHarvest:

@@ -109,7 +109,6 @@ class TestWhatComesFirst:
     def test_the_main_sense_leads_over_a_later_senses_neutral_word(self, tmp_path):
         """`poiss` is a boy. Taking one neutral word from every sense in turn put
         its interjection sense, "смотри", third on the card."""
-        senses = [("мальчик", ""), ("мальчишка", "kõnek"), ("подросток", ""), ("смотри", "")]
         body = ('<x:A><x:P><x:mg><x:m>poiss</x:m></x:mg></x:P><x:S>'
                 '<x:tp x:tnr="1"><x:tg><x:xp xml:lang="ru">'
                 '<x:xg><x:x>м"альчик</x:x></x:xg><x:xg><x:x>мальч"ишка</x:x><x:s>kõnek</x:s></x:xg>'

@@ -139,7 +139,6 @@ class TestAsrChain:
     def test_it_names_the_estonian_model_rather_than_a_generic_one(self):
         """The recommendation belongs next to the code that would use it."""
         assert "et-verbatim-2604" in asr.ESTONIAN_MODEL
-        assert asr.ESTONIAN_GGML.endswith(".bin")
 
 
 class TestApi:

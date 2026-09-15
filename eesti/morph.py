@@ -11,7 +11,7 @@ fetches NLTK's punkt tokenizer over the network.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 
 from estnltk.vabamorf.morf import Vabamorf, spellcheck, synthesize
@@ -51,7 +51,6 @@ class Token:
     form: str
     start: int
     end: int
-    alternatives: tuple[tuple[str, str], ...] = field(default=())
 
     @property
     def is_genitive_sg(self) -> bool:
@@ -90,9 +89,6 @@ def analyze(text: str) -> list[Token]:
 
         options = item.get("analysis") or []
         best = options[0] if options else {}
-        alts = tuple(
-            sorted({(o.get("partofspeech", ""), o.get("form", "")) for o in options})
-        )
         tokens.append(
             Token(
                 text=surface,
@@ -101,7 +97,6 @@ def analyze(text: str) -> list[Token]:
                 form=best.get("form", ""),
                 start=start,
                 end=end,
-                alternatives=alts,
             )
         )
     return tokens

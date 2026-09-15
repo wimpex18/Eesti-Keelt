@@ -147,7 +147,7 @@ class TestTheCountHasAReader:
         # counted, and 294 seeded rows would make the number about the file.
         store = gloss.connect(path, seed_glosses=False)
         gloss.save(store, "kleit", sonapi.WordInfo(
-            word="kleit", word_classes=(), rection=None, inflection_type="2",
+            word="kleit", rection=None, inflection_type="2",
             definition=None, examples=(), translations={"ru": ("платье",)}))
         data = overview.overview(vocabulary=vocab.connect(path),
                                  words=wordlist_connect())

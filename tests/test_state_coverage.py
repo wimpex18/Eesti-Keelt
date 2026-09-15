@@ -106,7 +106,7 @@ class TestWordMeaningsTravelToo:
         # A word the shipped glossary does not carry, so only a real restore can supply
         # its translation.
         gloss.save(conn, "seinamaaling", sonapi.WordInfo(
-            word="seinamaaling", word_classes=(), rection=None,
+            word="seinamaaling", rection=None,
             inflection_type="2", definition=None, examples=(),
             translations={"ru": ("настенная роспись",)}))
         return conn

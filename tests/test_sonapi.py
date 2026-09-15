@@ -182,7 +182,7 @@ class TestTheDictionaryIsLinkedNotRebuilt:
 
     def test_the_endpoint_hands_the_link_out(self, client, monkeypatch):
         monkeypatch.setattr(sonapi, "lookup", lambda w, **k: sonapi.WordInfo(
-            word="lugema", word_classes=(), rection="mida", inflection_type="28",
+            word="lugema", rection="mida", inflection_type="28",
             definition=None, examples=(),
             translations={"ru": ("читать", "прочитать")}))
         got = client.get("/api/enrich/lugema").json()
