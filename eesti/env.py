@@ -21,7 +21,7 @@ ENV_FILE = ROOT / ".env"
 KNOWN_KEYS = {
     "OPENROUTER_API_KEY": "OpenRouter — 412 models, 15 free. The recommended one.",
     "MISTRAL_API_KEY": "Mistral — free Experiment plan, ~1B tokens/month, Mistral Large.",
-    "NVIDIA_API_KEY": "NVIDIA Build — free developer key, 40 req/min, DeepSeek V4 Pro and 100+ models.",
+    "NVIDIA_API_KEY": "NVIDIA Build — free developer key, 40 req/min, GLM-5.3-Flash and 100+ models.",
     "CLOUDFLARE_API_TOKEN": "Workers AI — runs inside Cloudflare, 10k neurons/day.",
     "CLOUDFLARE_ACCOUNT_ID": "Required alongside CLOUDFLARE_API_TOKEN.",
     "HF_TOKEN": "Hugging Face — hosted Whisper fallback for speech recognition.",

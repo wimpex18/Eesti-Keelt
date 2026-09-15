@@ -18,7 +18,7 @@ LLM lanes (`providers/llm.py`, all OpenAI-compatible, all free):
 |---|---|---|---|---|---|
 | 1 | `local` | EstLLM 8B GGUF via Ollama | `LOCAL_LLM_URL` | unmetered, your machine | — |
 | 2 | `workers-ai` | `@cf/openai/gpt-oss-120b` | `CLOUDFLARE_API_TOKEN` (Workers AI Read) + `CLOUDFLARE_ACCOUNT_ID` | 10 000 neurons/day | P 1.0 · R 0.8 · 3–8 s |
-| 3 | `nvidia` | `deepseek-ai/deepseek-v4-flash-0731` | `NVIDIA_API_KEY` | 40 req/min | P 1.0 · R 1.0 · 40–230 s |
+| 3 | `nvidia` | `z-ai/glm-5.3-flash` | `NVIDIA_API_KEY` | 40 req/min | P 1.0 · R 1.0 · 20–60 s, 1 of 18 timed out |
 | 4 | `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | Experiment plan, ~1B tokens/month | P 1.0 · R 0.3 · 1–4 s |
 | 5 | `openrouter` | `dots-studio/dots-3-note-preview:free` | `OPENROUTER_API_KEY` | 50 req/day, failures count | P 1.0 · R 0.71 |
 
@@ -47,7 +47,7 @@ checker that flags every partitive teaches the wrong rule. Exits non-zero below
 
 ```bash
 python -m eesti.cli models --provider nvidia --limit 10   # is the pinned id still live?
-python -m eesti.cli eval --provider nvidia --model deepseek-ai/deepseek-v4-flash-0731
+python -m eesti.cli eval --provider nvidia --model z-ai/glm-5.3-flash
 ```
 
 In CI: **Actions → Estonian model eval** (`eval.yml`), choose a provider and a

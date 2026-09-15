@@ -37,7 +37,7 @@ Never in chat, a commit, an issue or the Claude environment-variables box. In
 | Key | Enables | Get it |
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | Workers AI grammar lane (token needs **Account → Workers AI → Read** only) | dash.cloudflare.com → My Profile → API Tokens; account ID is in the dashboard URL |
-| `NVIDIA_API_KEY` | NVIDIA Build lane (DeepSeek V4 Flash) | build.nvidia.com → Get API Key |
+| `NVIDIA_API_KEY` | NVIDIA Build lane (GLM-5.3-Flash) | build.nvidia.com → Get API Key |
 | `MISTRAL_API_KEY` | Mistral lane (Experiment plan, phone verification) | console.mistral.ai → API Keys |
 | `OPENROUTER_API_KEY` | OpenRouter free models | openrouter.ai/keys |
 | `HF_TOKEN` | hosted Whisper fallback for speech | huggingface.co/settings/tokens |

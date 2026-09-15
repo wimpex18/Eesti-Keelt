@@ -65,8 +65,8 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   `corpus.topic_links`; the harvest commands print the reminder, and
   `cli push-content` and smoke warn when it is zero.
 - **Grammar providers are free tiers with limits.** Workers AI (10 000
-  neurons/day) answers first; NVIDIA's DeepSeek V4 Flash is accurate but takes
-  40–230 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
+  neurons/day) answers first; NVIDIA's GLM-5.3-Flash is accurate but takes
+  20–60 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
   a day and counts failures. When all fail the check degrades to Vabamorf
   offline evidence. See `docs/ai-providers.md`.
 - **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
