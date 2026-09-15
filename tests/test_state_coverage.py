@@ -1,19 +1,8 @@
-"""Every learner database must travel with the snapshot.
+"""Every learner database travels with the state snapshot.
 
-Cloud Run's disk is ephemeral and the service scales to zero, so anything not
-in the snapshot is deleted the first time the learner takes a break. The
-snapshot is not a backup; it is the only reason state exists at all.
-
-`notion.db` was missed. Queued corrections — the ones waiting for a person to
-review before they go to the Notion log — were dropped on every cold start, so
-a queue whose entire purpose is to hold things until someone looks at them held
-nothing across fifteen idle minutes. Nothing failed, nothing logged, the list
-was just empty again.
-
-That is the shape of the failure worth guarding: adding a database is easy and
-remembering to add it here is not, and forgetting is silent. So this test walks
-the app's own module-level database paths and demands each one is either
-snapshotted or listed as deliberately excluded.
+Cloud Run's disk is ephemeral, so a database outside the snapshot is emptied on
+the first cold start. This walks every database path in `config` and requires
+each to be snapshotted or excluded with a reason.
 """
 
 from __future__ import annotations
@@ -31,20 +20,13 @@ EXCLUDED = {
     # Derived from the public word list and baked into the image; ~46 MB of
     # copying something every container already has.
     "DB_PATH",
-    # The harvested corpus. It has its own path -- pushed once, archived by the
-    # Worker -- because it is far larger and never changes as the learner works.
+    # The harvested corpus is pushed and archived separately.
     "CONTENT_DB",
 }
 
 
 def _declared_databases() -> dict[str, str]:
-    """`{constant name: path}` for every database path the app declares.
-
-    From `config`, which is where they are declared. It read `vars(app_module)`
-    while `app.py` re-exported the four learner paths -- a second name for each
-    file, agreeing with the first only for as long as every fixture remembered
-    to patch both. The re-exports are gone; this reads the one declaration.
-    """
+    """`{constant name: path}` for every database path declared in `config`."""
     from eesti import config
 
     return {
@@ -66,23 +48,22 @@ def test_every_declared_database_is_snapshotted_or_excluded():
 
 
 def test_the_notion_queue_is_one_of_them():
-    """Named explicitly, because it is the one that was missed."""
+    """The Notion queue travels too."""
     assert str(config_db.NOTION_DB) in {
         str(p) for p in state_module._state_paths().values()
     }
 
 
 def test_every_snapshotted_database_knows_its_learner_table():
-    """The restore guard reads a table per database to decide whether there is
-    real work to protect. A database in the snapshot with no entry here would
-    raise a KeyError mid-restore -- losing the snapshot it was restoring."""
+    """Every snapshotted database names the table that means "learner data", or the
+    restore guard would raise mid-restore.
+    """
     assert set(state_module._state_paths()) == set(state_module.LEARNER_ROWS)
 
 
 @pytest.mark.parametrize("name,table", sorted(state_module.LEARNER_ROWS.items()))
 def test_each_learner_table_exists_in_its_schema(name, table, tmp_path):
-    """A renamed table would make `_has_learner_data` return True forever --
-    the failure mode that once made every restore silently refuse."""
+    """That table exists in the database's schema."""
 
     connectors = {
         "progress": ("eesti.progress", "connect"),
@@ -101,24 +82,14 @@ def test_each_learner_table_exists_in_its_schema(name, table, tmp_path):
 
 
 class TestWordMeaningsTravelToo:
-    """`gloss.py` says its store "lives in `vocab.db`, which the state snapshot
-    carries". That is the whole reason the table is there rather than in a file
-    of its own — a gloss store outside the snapshot would be emptied on every
-    cold start, and the module exists because `sonapi`'s disk cache already
-    was. A claim like that is a fact about the code, so it gets a test.
-    """
+    """A gloss stored in `vocab.db` survives the container being replaced."""
 
     @pytest.fixture
     def client(self, tmp_path, monkeypatch):
         from fastapi.testclient import TestClient
 
         monkeypatch.setenv("STATE_TOKEN", "test-token")
-        # Redirected on `config`, which is now the single place the app reads
-        # these from. It used to be patched on `app` instead, because `app`
-        # kept its own copies bound at import -- and that split is exactly the
-        # bug that was fixed: `_state_paths()` read one set and the database
-        # helpers the other, so a restore could land in a different file from
-        # the one the app then opened.
+        # Redirect on `config`, the single place the app reads these paths from.
         from eesti import config as config_module
 
         for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
@@ -132,12 +103,10 @@ class TestWordMeaningsTravelToo:
         from eesti.providers import sonapi
 
         conn = gloss.connect(config_db.VOCAB_DB)
-        # Deliberately a word the shipped glossary does NOT carry. With a
-        # seeded word such as `kleit`, the assertion at the end would pass
-        # whether or not the snapshot restored anything -- the seed supplies
-        # that translation on any fresh open.
+        # A word the shipped glossary does not carry, so only a real restore can supply
+        # its translation.
         gloss.save(conn, "seinamaaling", sonapi.WordInfo(
-            word="seinamaaling", word_classes=(), rection=None,
+            word="seinamaaling", rection=None,
             inflection_type="2", definition=None, examples=(),
             translations={"ru": ("настенная роспись",)}))
         return conn
@@ -153,14 +122,7 @@ class TestWordMeaningsTravelToo:
         assert snapshot.status_code == 200
         assert "vocab" in snapshot.json()["databases"]
 
-        # What Cloud Run does when it scales to zero.
-        #
-        # `config`, and it matters more here than anywhere: this loop deletes
-        # files. Read off `app` it named whatever `app` last re-exported, which
-        # was only ever the redirected path because a fixture patched a second
-        # copy of the same four names -- and on a machine where somebody
-        # actually studies, the unredirected version of this loop deletes their
-        # record of what they have practised.
+        # Simulate scale-to-zero: delete the learner databases (redirected via `config`).
         for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
             path = pathlib.Path(getattr(config_db, name))
             if path.exists():
@@ -198,19 +160,7 @@ class TestWordMeaningsTravelToo:
 
 
 class TestOnePlaceDecidesWhereTheDatabasesAre:
-    """`app.py` used to keep its own copies of the four learner paths, bound at
-    import from `config`.
-
-    Two names for one file is a fork waiting to happen, and it forked: the
-    database helpers read `app`'s copies while `_state_paths()` — the snapshot
-    — read the same names, so redirecting one without the other pointed the
-    restore at a different file from the one the app then opened. Nothing
-    failed in production, because nothing redirects them there; it failed in
-    tests, silently, by writing somewhere real.
-
-    Both now resolve `config` when called. These tests exist so the next reader
-    who adds a fifth database is told where it belongs.
-    """
+    """The snapshot and the database helpers resolve the same files from `config`."""
 
     def test_the_snapshot_follows_a_redirect_of_config_alone(self, tmp_path,
                                                              monkeypatch):
@@ -245,9 +195,7 @@ class TestOnePlaceDecidesWhereTheDatabasesAre:
         assert set(opened) == {tmp_path}, opened
 
     def test_importing_the_app_opens_no_database(self):
-        """The breaker used to bind at import, which resolved `progress.db`
-        before anything could redirect it — the anti-pattern this project has
-        a written habit about, and one the test suite had to work around."""
+        """Importing the app opens no database."""
         import importlib
         import sqlite3
 
@@ -267,14 +215,7 @@ class TestOnePlaceDecidesWhereTheDatabasesAre:
 
 
 def test_the_app_does_not_declare_its_own_copy_of_a_database_path():
-    """One name per file.
-
-    `app.py` re-exported the four learner paths so that fixtures could patch
-    them there. That made a second name for each file, agreeing with the first
-    only while every fixture remembered to patch both -- and one of them was a
-    loop that *deletes* files, which unredirected deletes the learner's record
-    of what they have practised.
-    """
+    """The app declares no copy of a database path."""
     from eesti import app as app_mod
 
     copies = sorted(name for name, value in vars(app_mod).items()

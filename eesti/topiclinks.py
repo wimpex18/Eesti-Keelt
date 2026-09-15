@@ -1,40 +1,15 @@
-"""The join between a grammar topic and something to read.
+"""The join between a grammar topic and something to read (`topic_items`).
 
-Split out of `library.py`, which had grown to 638 lines around two different
-jobs: the shelf — what is in the library, what has been opened, for how long —
-and this, which decides which texts *demonstrate* a grammar topic and writes
-that into `topic_items`. They share a database and nothing else.
-
-The join is earned, not asserted. A text is linked to a topic only if the
-topic's own generator can cut a valid exercise out of it, so the claim has
-already been checked by the machinery that refuses ambiguous cases. A
-hand-typed label would have been faster and would have been a guess.
-
-It is the piece that makes the app one tool rather than four: practice on its
-own is a drill machine and a reading list on its own is a folder of texts. The
-value is in "you keep missing the completed-object contrast — here is an ERR
-episode that is *about* it."
+A text is linked to a topic only if that topic's own generator can cut a valid
+exercise from it, so the link is checked by the same machinery that refuses
+ambiguous cases. This is what lets a drill offer "here is a text that uses this
+rule".
 """
 
 from __future__ import annotations
 
 import sqlite3
 
-
-
-# ---------------------------------------------------------------------------
-# The join between a grammar topic and something to read
-# ---------------------------------------------------------------------------
-#
-# This is the piece that makes the app one tool rather than four. Practice on
-# its own is a drill machine; a reading list on its own is a folder of texts.
-# The value is in "you keep missing the completed-object contrast — here is an
-# ERR episode that is *about* it."
-#
-# The join is earned, not asserted. A text is linked to a topic only if the
-# topic's own generator can cut a valid exercise out of it, which means the
-# claim has already been checked by the machinery that refuses ambiguous cases.
-# A hand-typed label would have been faster and would have been a guess.
 
 #: Topics whose exercises come out of real sentences. Others -- conjugation,
 #: question words, ordinals -- are generated from the word list, so no text
@@ -70,18 +45,9 @@ def _demonstrations(topic: str, sents: list[str], words) -> int:
 
 
 
-#: Grammar terms a teacher used to label a lesson, mapped to the topic they name.
-#:
-#: This is a different kind of evidence from `_demonstrations`, and a stronger
-#: one. That function asks "can a drill be cut from this text?"; this reads what
-#: the person who made the lesson said it was about. Two thirds of the ERR
-#: archive is audio with no transcript, so there is nothing to analyse — but
-#: every episode carries a one-line label, and lessons 22 and 23 of the second
-#: course are *precisely* the completed and incomplete object contrast.
-#:
-#: Estonian terms are matched because they are unambiguous. The two Russian
-#: phrases are here because the object-case lessons name the contrast only in
-#: Russian, and those are the two episodes that matter most.
+#: Grammar terms from ERR lesson labels, mapped to the topic they name. A label
+#: says what a lesson teaches, which covers audio-only episodes. Estonian terms,
+#: plus the two Russian phrases the object-case lessons use.
 LABEL_TOPICS: dict[str, tuple[str, ...]] = {
     "obj-case": ("падеж дополнения",),
     "osastav": ("osastav",),
@@ -111,15 +77,9 @@ def labelled_topics(text: str) -> list[str]:
 
 
 def link_labelled(content: sqlite3.Connection) -> dict:
-    """Link episodes to the topic their own label names.
-
-    Runs alongside `link_topics` rather than instead of it: a transcript is
-    evidence a text *uses* a form, a label is evidence a lesson *teaches* it,
-    and the second is what you want when a topic keeps going wrong.
-
-    Scored above any derived link, because a teacher saying "this lesson is
-    about the object case in completed actions" outranks a program noticing
-    three genitive objects went past.
+    """Link episodes to the topic their own label names, alongside `link_topics`, and
+    scored above derived links: a lesson that teaches a rule outranks a text that
+    merely uses it.
     """
     LABEL_HITS = 999
     found = []
@@ -150,11 +110,9 @@ def link_labelled(content: sqlite3.Connection) -> dict:
 
 
 def link_topics(content: sqlite3.Connection, words, topics=LINKABLE) -> dict:
-    """Work out which texts demonstrate which topic, and store it.
-
-    Slow on purpose and run rarely: it puts every sentence of the corpus through
-    Vabamorf. The result lives in `content.db`, so pushing a harvest to the
-    deployment carries the links with it and no container ever repeats this.
+    """Work out which texts demonstrate which topic, and store it in `content.db`.
+    Slow (every sentence through Vabamorf), so it runs before a push, not per
+    request.
     """
     from .morph import split_sentences
 
@@ -193,12 +151,7 @@ def related(
     limit: int = 3,
     public_only: bool = False,
 ) -> list[dict]:
-    """Texts worth reading for one topic, strongest first.
-
-    `public_only` is honoured here for the same reason it exists everywhere
-    else: most of this corpus is owner-only by licence, and a follow-up
-    suggestion is still a way of serving it.
-    """
+    """Texts worth reading for one topic, strongest first; honours `public_only`."""
     sql = """SELECT i.id, i.title, i.level, i.skill, i.audio_url,
                     s.name AS source_name, s.licence, t.hits
              FROM topic_items t

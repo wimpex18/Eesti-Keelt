@@ -1,20 +1,14 @@
 #!/usr/bin/env bash
-#
 # Give the Cloud Run service one of the keys it reads. Run in Cloud Shell.
 #
 #   bash deploy/set-llm-key.sh                 # OPENROUTER_API_KEY, the default
 #   bash deploy/set-llm-key.sh NOTION_TOKEN    # or any other key in env.py
 #
-# The name is narrower than the job: it was written for the grammar key and
-# kept when it grew, because that name is what the smoke warning and the docs
-# tell you to run.
+# The name is narrower than the job; it is kept because the smoke warning and the
+# docs refer to it.
 #
-# Why this exists as its own script: the key is read by
-# eesti/providers/llm.py, which runs in the *container*, not in the Worker.
-# It was being deployed as a Worker secret, where nothing reads it -- so the
-# grammar checker stayed in offline mode (object-case candidates and typos, but
-# no corrections) while the key sat somewhere useless. That is all of the risk
-# of holding a credential and none of the benefit.
+# Keys are read by eesti/providers/llm.py in the container, so they belong on
+# Cloud Run, not on the Worker where nothing reads them.
 #
 # The value is read from the terminal without echoing and passed to gcloud on
 # stdin, so it never reaches your shell history or the process table. It is
@@ -23,13 +17,8 @@ set -euo pipefail
 
 VAR="${1:-OPENROUTER_API_KEY}"
 
-# The allowed list is read out of eesti/env.py, not written here.
-#
-# It used to be four names hardcoded in this file, and it had already drifted:
-# `check-service.sh` reported NOTION_TOKEN missing and told you what its
-# absence costs, and then this script refused to set it. Two lists of the same
-# thing become two different lists; the app's own KNOWN_KEYS is the one that
-# decides.
+# The allowed list is read out of eesti/env.py (`KNOWN_KEYS`), not written here,
+# so the two cannot drift apart.
 #
 # Parsed with sed rather than imported, because Cloud Shell has no virtualenv
 # and `import eesti` would drag in the whole dependency tree to read a dict.
@@ -60,11 +49,9 @@ gcloud run services update "$SERVICE" --region "$REGION" --quiet \
   --update-env-vars "^@^$VAR=$VALUE" >/dev/null
 unset VALUE
 
-# Confirm rather than assume. This script used to print "Done" and tell you to
-# go and look -- and a run of it left the service without the variable, which
-# nobody noticed until the deployment was asked directly weeks later. Read the
-# *names* back off the service that is actually serving traffic; the value is
-# never fetched, so nothing secret is printed or stored.
+# Confirm rather than assume: read the variable *names* back off the service that
+# is serving traffic. The value is never fetched, so nothing secret is printed or
+# stored.
 echo "==> Verifying"
 NAMES="$(gcloud run services describe "$SERVICE" --region "$REGION" \
   --format='value(spec.template.spec.containers[0].env.name)' 2>/dev/null)"

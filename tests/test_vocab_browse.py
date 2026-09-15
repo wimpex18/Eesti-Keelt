@@ -1,19 +1,8 @@
-"""The list the app did not have.
+"""Browsing the word list ("which words should I learn").
 
-`/api/lookup/{word}` answers "what is this word". Nothing answered "which
-words should I learn", and only the second question is askable by somebody who
-does not yet know the vocabulary — which is the entire user base of a language
-app. 160 316 words were reachable only by a person who already knew what was
-in there.
-
-Three of these tests exist because the feature was wrong the first time, in
-ways no assertion caught and a screenshot did:
-
-  * ordering treated `freq_rank = 0` as the commonest word rather than as
-    "unranked", so the first page was alphabetical a-words;
-  * the Russian gloss column packs senses with `\\x1f`, and handing it to the
-    page raw rendered the separator as tofu;
-  * "veel sõnu" appended each page twice.
+Guards: `freq_rank = 0` means unranked and sorts last; the Russian gloss
+separator (`\x1f`) is joined server-side, never shown; "veel sõnu" appends each
+page once.
 """
 
 from __future__ import annotations
@@ -61,9 +50,7 @@ def store(tmp_path):
 
 class TestOrdering:
     def test_the_commonest_word_comes_first(self, words, store):
-        """`freq_rank = 0` means unranked in this dataset, not rank zero. Sorting
-        on the raw column put all 597 unranked B1 words ahead of the 1 912
-        ranked ones, so the first page a learner saw was alphabetical."""
+        """Unranked words (`freq_rank = 0`) sort after ranked ones."""
         got = [i["word"] for i in vocab.browse(words, store, level="B1")["items"]]
         assert got[0] == "kurat", got
         assert got.index("kurat") < got.index("aabits")
@@ -173,18 +160,8 @@ class TestPaging:
 
 
 class TestSettlingAWord:
-    """The status ladder has five values and, until 2026-08-21, three had no
-    writer at all.
-
-    `õpin` is set automatically on the first encounter while reading and `tean`
-    by the word card's button. `tuttav`, `eiran` and `teadsin ammu` were
-    modelled, stored, counted by the overview — and unreachable from anywhere a
-    learner could click. That is this project's most recurring bug (a
-    measurement with no writer, an endpoint with no caller) in a third costume.
-
-    `eiran` is the one a vocabulary list needs and a reader does not: browsing
-    B1 nouns turns up `riigivisiit` and `seinamaaling`, which are real words,
-    correctly listed, and not what this learner will spend a morning on.
+    """Every settled status the learner can set is reachable: `tean`, `teadsin ammu`
+    and `eiran` ("Pole vaja"); `õpin` is set by reading.
     """
 
     @pytest.fixture
@@ -230,9 +207,7 @@ class TestSettlingAWord:
         assert self._status(client, "ema") == WELL_KNOWN
 
     def test_the_older_flag_still_works(self, client):
-        """`long_known` was the only way to reach `teadsin ammu` and no caller
-        ever sent it. Kept working rather than removed, since removing it would
-        be a second change riding on this one."""
+        """`long_known` keeps working."""
         from eesti.vocab import WELL_KNOWN
 
         client.post("/api/vocab/known",
@@ -266,8 +241,7 @@ class TestSettlingAWord:
         assert self._status(client, "riigivisiit") in SETTLED
 
     def test_the_page_can_reach_every_settled_status(self):
-        """The contract that was broken: a status the page cannot set is a
-        status that does not exist for the learner."""
+        """Every status the page offers is accepted by the API."""
 
         page = markup_and_script()
         assert '"ignore"' in page, "the page cannot reach `eiran`"
@@ -275,14 +249,7 @@ class TestSettlingAWord:
 
 
 class TestTheBrowseRouteItself:
-    """`GET /api/vocab` is the whole `Sõnavara` screen, and nothing tested it.
-
-    Everything in this file exercised `vocab.browse` directly or posted to
-    `/api/vocab/known`; the route that *reads* the ladder had no caller in the
-    suite at all. So when it lost the helper it imported, 1 400 tests stayed
-    green and the screen answered 500 -- found by opening the app in a browser,
-    which is the habit this project already has written down twice.
-    """
+    """`GET /api/vocab`, the whole Sõnavara screen, answers."""
 
     @pytest.fixture
     def client(self, tmp_path, monkeypatch):

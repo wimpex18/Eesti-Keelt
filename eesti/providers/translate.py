@@ -1,35 +1,12 @@
-"""Sentence translation, from the one Estonian-specific service that stayed up.
+"""Sentence translation via TartuNLP (Estonian-trained NMT, free, no key).
 
-## Why this exists at all
+Word glosses cannot unpick a clause (`Neist 52 on kasvatatud Eestis`); this can.
+TartuNLP rather than an LLM: it is built for Estonian, reliable, and spends no
+grammar-lane quota.
 
-The app can already say what a *word* means: `gloss.py` keeps Sõnaveeb's Russian
-glosses per lemma. It could not say what a *sentence* means, and those are not
-the same problem. A reader stuck on `Neist 52 on kasvatatud Eestis` knows every
-word in it and still cannot parse the clause; a learner drilling the partitive of
-`süütamine` needs the sentence, not the headword.
-
-## Why TartuNLP rather than an LLM
-
-Three reasons, in order of how much they matter:
-
-1. **It is built for Estonian.** The University of Tartu's NMT models are trained
-   on Estonian, not on 119 languages of which Estonian is one. General models are
-   measurably weaker at Estonian (`docs/ai-providers.md`).
-2. **It is reliable**, unlike the grammar endpoint on the same host.
-3. **It costs nothing and needs no key.** No quota to exhaust, so nothing here
-   competes with the grammar chain for OpenRouter's free tier.
-
-## What it deliberately does not do
-
-Translation is a **crutch, offered on request**. It is never shown beside a text
-by default, because a reader who is handed Russian will read the Russian: the
-comprehensible-input case for this app rests on the learner working at the edge
-of what they understand, not past it. `/api/translate` exists so the crutch is
-there when a sentence genuinely blocks; nothing calls it automatically.
-
-It is also not a grader. Nothing about a translation feeds the drill loop, the
-review queue or the readiness verdict — those stay deterministic, and a machine
-translation is evidence about a model, not about the learner.
+**Offered on request only**, never beside a text by default: a reader handed
+Russian reads the Russian. **Not a grader:** nothing about a translation feeds
+drills, review or readiness.
 """
 
 from __future__ import annotations
@@ -61,10 +38,8 @@ class Translation:
 
 def translate(text: str, target: str = "rus",
               timeout: float | None = None) -> Translation | None:
-    """One sentence in, one translation out. None if the service cannot answer.
-
-    None rather than an exception: this is a crutch, and a crutch that raises
-    is worse than one that is quietly absent for a minute.
+    """One sentence in, one translation out; None (not an exception) when the service
+    cannot answer.
     """
     text = (text or "").strip()
     if not text or target not in LANGUAGES:

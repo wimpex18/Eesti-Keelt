@@ -1,10 +1,7 @@
 /* The frame around the panels: icons, the Russian glosses, the theme.
 
-   `RU` is the one place a tab's gloss lives, so a tab added later gets one by
-   being in the map rather than by somebody remembering. It covers every state
-   `progress.TopicProgress.state` can emit, including the two that only appear
-   after you finish something -- they reached the screen as raw English for
-   months because the earlier fix glossed what was visible on a screenshot. */
+   `RU` is the one place a tab's gloss lives. It covers every state
+   `progress.TopicProgress.state` can emit. */
 
 import {$, gloss} from "./core.js";
 
@@ -27,20 +24,10 @@ export const RU = {
   // rail
   "Eksamini": "до экзамена", "Puudutamata": "не начато",
   "Läbitud": "пройдено", "Järgmine": "следующая", "Kordamist ootab": "к повторению",
-  /* Path states. These were English, and glossing them was a previous fix --
-     which glossed the three that were on screen at the time and missed the
-     two that only appear once the learner has actually done something.
-     `progress.TopicProgress.state` emits exactly five, and `done` and
-     `review` were never among them: a topic that had been mastered rendered
-     the raw word `mastered`, and one in flight rendered `in progress`.
-     `tests/test_path_states.py` now checks the two lists against each
-     other in both directions. */
-  /* Each answers "can I do this now, and if not, why not?". The first set
-     answered a different question and two of them answered none: `можно` said
-     permission where the learner wanted to know what to press, and `закрыто`
-     said a door was shut without saying that it opens by itself once the
-     topics it names are done. `справка` read as a help page rather than as a
-     rule with no exercises behind it. */
+  /* Path states: exactly the five `progress.TopicProgress.state` emits.
+     `tests/test_path_states.py` checks the two lists against each other. */
+  /* Each answers "can I do this now, and if not, why not?": what to press, or that
+     the topic opens by itself once the named topics are done. */
   "reference": "теория", "ready": "открыто", "locked": "откроется позже",
   "in progress": "в работе", "mastered": "пройдено",
 };
@@ -104,21 +91,14 @@ export function navIcon(d) {
 }
 
 /* ── The interface's own marks ───────────────────────────────────────
-   The navigation has had drawn icons since it was built; everything else in
-   the app used a text character where it wanted a mark -- `✓ Tean seda sõna`,
-   `⊘ Pole vaja`, `▶ Kuula`, `● Salvesta vastus`, `← Nimekirja`, `· ♪`.
+   Drawn icons instead of text characters (`✓`, `⊘`, `▶`, `♪`): a character is
+   drawn by whatever font the platform picks, changes size and baseline between
+   platforms, may fall back to another face mid-sentence, and cannot take the
+   stroke weight of the icons beside it.
 
-   A character is not an icon. It is drawn by whichever font the platform
-   picks, so it changes size, weight and baseline between Android, iOS and a
-   desktop browser; `⊘` and `♪` are not in every system face at all and fall
-   back to a different one mid-sentence. They cannot take the stroke weight of
-   the icons beside them, and they cannot be sized in the stylesheet.
-
-   Same grammar as `NAV_ICON`, which is also the grammar every mainstream
-   icon set converged on: a 24-unit box, one stroke weight, round caps and
-   joins. Drawn here rather than pulled from a library because this app ships
-   no third-party requests and caches its own shell -- an icon font or a CDN
-   sprite would be both. */
+   Same grammar as `NAV_ICON`: a 24-unit box, one stroke weight, round caps and
+   joins. Drawn here rather than pulled from a library because the app makes no
+   third-party requests and caches its own shell. */
 const UI_ICON = {
   plus:    '<path d="M12 5.4v13.2M5.4 12h13.2"/>',
   check:   '<path d="m5 12.6 4.6 4.6L19 6.8"/>',
@@ -142,8 +122,7 @@ const UI_ICON = {
 /* A mark for a button, a heading or an empty view.
 
    `class="btn-ico"` is what `setLabel` looks for when it rewrites a button's
-   text, so a control whose label changes ("Kuula" -> "Laen…") keeps its mark.
-*/
+   text, so a control whose label changes ("Kuula" -> "Laen…") keeps its mark. */
 export function uiIcon(name, cls = "btn-ico") {
   const d = UI_ICON[name];
   if (!d) return "";
@@ -153,17 +132,8 @@ export function uiIcon(name, cls = "btn-ico") {
 }
 
 
-/* The shape of the answer, while the answer is on its way.
-
-   Both big lists used to say nothing at all: the reading list emptied itself
-   and waited, and the vocabulary grid printed `загружаю…` in grey. Neither
-   tells the eye where to be, and the moment the rows arrive the page jumps by
-   whatever height they turned out to need.
-
-   A skeleton is not decoration -- it is the same layout, drawn empty, so the
-   arrival costs no movement. `rows` is what the request actually asked for,
-   so twelve requested words leave room for twelve.
-*/
+/* A skeleton while a list loads: the same layout drawn empty, so the arrival
+   causes no layout shift. `rows` is what the request asked for. */
 export function skeleton(rows = 6, kind = "row") {
   const one = kind === "tile"
     ? `<div class="skel-tile"><span class="skel" style="width:52%"></span>
@@ -175,17 +145,11 @@ export function skeleton(rows = 6, kind = "row") {
 }
 
 
-/* An empty view that says what it is, why, and what to do about it.
+/* An empty view that says what it is, why, and what to do about it: a mark, a
+   statement and a next step.
 
-   `<p class="empty">Текстов нет…</p>` was a grey sentence where a panel's
-   content should be, which reads as a page that failed rather than as a
-   state the app understands. A mark, a statement and a next step is the
-   same information with a shape.
-
-   Russian throughout, including the heading: an empty view EXPLAINS -- why
-   there is nothing here and what would put something here -- and the rule
-   for anything that explains is that the learner has to be able to read it.
-*/
+   Russian throughout, including the heading: an empty view explains, and the
+   learner has to be able to read it. */
 export function emptyState({icon, title, note, action}) {
   return `<div class="empty-state">
     <div class="empty-mark">${uiIcon(icon, "")}</div>
@@ -198,10 +162,8 @@ export function emptyState({icon, title, note, action}) {
 
 /* Buttons that live in the markup rather than in a template string.
 
-   The page cannot call `uiIcon`, and inlining twenty lines of SVG into
-   `index.html` would put the drawing in two places. So the id says which
-   mark a control wants and this file decides what that mark is -- the same
-   arrangement the navigation has always had. */
+   The page cannot call `uiIcon`, and inlining the SVG into `index.html` would put
+   the drawing in two places. The id names the mark; this file draws it. */
 const BUTTON_ICON = {
   dictPlay: "play", dictNext: "skip", dictCheck: "check",
   recBtn: "record", speakPlay: "volume", speakNext: "skip",
@@ -227,12 +189,8 @@ export function paintIcons() {
     /* A name that does not depend on the label being painted.
 
        Between 720 and 1079px the skills are a rail of marks and `.lbl` is
-       `display:none` -- which takes the text out of the accessibility tree
-       with it, leaving seven buttons called nothing at all. The label is
-       still the name; it is just carried by the attribute rather than by the
-       glyph. `title` for a pointer, `aria-label` for everything else, and
-       both are set at every width because a tooltip on a mark is useful on
-       the desktop too. */
+       `display:none`, which removes the text from the accessibility tree. `title`
+       serves a pointer, `aria-label` everything else; both are set at every width. */
     const label = b.querySelector(".lbl");
     const name = label && label.textContent.trim();
     if (name) {

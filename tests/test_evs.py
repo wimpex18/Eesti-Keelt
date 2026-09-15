@@ -1,10 +1,9 @@
 """EKI's Estonian–Russian dictionary: the Russian on a word card, offline.
 
-The fixture is the real file's shape, trimmed from real articles
-(`evs_EKI_CCBY40.xml`, measured 2026-09-13): no root, undeclared `x:` prefixes,
-`xml:lang="ru"` on the translations, stress marked with `"`, perfective with
-`*`, `&amp;v;` for "or", `_` for "no single-word translation", and homonyms as
-separate articles.
+The fixture follows `evs_EKI_CCBY40.xml`'s shape, trimmed from real articles: no
+root, undeclared `x:` prefixes, `xml:lang="ru"` translations, stress `"`,
+perfective `*`, `&amp;v;` for "or", `_` for "no single-word translation", and
+homonyms as separate articles.
 """
 
 from __future__ import annotations
@@ -82,7 +81,7 @@ class TestReadingTheRealShape:
 
 
 class TestWhatComesFirst:
-    """Rules read off `evs_tyybid.xsd` and measured on the real file."""
+    """Ordering rules from `evs_tyybid.xsd`, checked on real-shaped articles."""
 
     @staticmethod
     def _parse(tmp_path, body):
@@ -110,7 +109,6 @@ class TestWhatComesFirst:
     def test_the_main_sense_leads_over_a_later_senses_neutral_word(self, tmp_path):
         """`poiss` is a boy. Taking one neutral word from every sense in turn put
         its interjection sense, "смотри", third on the card."""
-        senses = [("мальчик", ""), ("мальчишка", "kõnek"), ("подросток", ""), ("смотри", "")]
         body = ('<x:A><x:P><x:mg><x:m>poiss</x:m></x:mg></x:P><x:S>'
                 '<x:tp x:tnr="1"><x:tg><x:xp xml:lang="ru">'
                 '<x:xg><x:x>м"альчик</x:x></x:xg><x:xg><x:x>мальч"ишка</x:x><x:s>kõnek</x:s></x:xg>'

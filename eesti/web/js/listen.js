@@ -19,11 +19,8 @@ export async function loadDictation() {
     $("#dictAudio").innerHTML = "";
     $("#dictOut").innerHTML = "";
     $("#dictScore").textContent = "";
-    /* No corpus is a supported state, not an error — say which it is, in a
-       place that survives the box being hidden. `#dictState` is inside
-       `#dictBox`, so writing the explanation there and then hiding the box
-       left the panel opening on the text-to-speech form with no hint that a
-       dictation exercise exists at all. */
+    /* No corpus is a supported state, not an error. The explanation goes outside
+       `#dictBox`, because `#dictState` is hidden with the box. */
     $("#dictBox").hidden = !dictNow;
     const empty = $("#dictEmpty");
     empty.hidden = !!dictNow;
@@ -104,9 +101,7 @@ export async function loadListenLibrary() {
     // Everything in this mode except reading, which has its own tab.
     const wanted = (learn?.sections || []).filter(
       sec => sec.id !== "lugemine" && sec.items > 0);
-    /* Silence is the one answer that cannot be acted on. An archive with
-       nothing in it looked identical to an archive that failed to load and
-       to a panel that never had one. */
+    /* An empty archive says so, rather than looking like one that failed to load. */
     if (!wanted.length) {
       box.innerHTML = emptyState({
         icon: "note",
@@ -117,10 +112,8 @@ export async function loadListenLibrary() {
       return;
     }
 
-    /* A mark before the section name, and a drawn note instead of the `♪`
-       character for the audio count -- the same reason every other glyph
-       went: it is font-dependent and cannot take the stroke weight beside
-       it. */
+    /* A mark before the section name, and a drawn note for the audio count: text
+       glyphs are font-dependent (see `chrome.js`). */
     box.innerHTML = wanted.map(sec => `
       <h3 class="sec-head"><span class="mark-chip">${uiIcon("note", "")}</span>${esc(sec.et)}
         <span class="hint">${sec.items}${sec.with_audio
@@ -132,10 +125,8 @@ export async function loadListenLibrary() {
       const id = el.dataset.section;
       const {items} = await (await fetch(
         `/api/library?section=${encodeURIComponent(id)}&limit=60`)).json();
-      // A pointer is a link, not a player. Ten of these are EIS tasks whose
-      // audio and scoring live on eis.harno.ee — nothing of theirs is stored
-      // here, so an expandable row would open on an empty panel. The exam
-      // section already made this distinction; this list has to make it too.
+      // A pointer is a link, not a player: EIS tasks keep their audio and scoring on
+      // eis.harno.ee and nothing of theirs is stored here.
       el.innerHTML = (items || []).map(it => it.external
         ? `<a class="lib-item" href="${esc(it.url || "#")}" target="_blank"
               rel="noopener">

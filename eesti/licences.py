@@ -1,37 +1,17 @@
 """The licence ledger: every third party this project touches, and its terms.
 
-Split out of `eesti/sources.py` on 2026-09-12, where it was 250 of 672 lines
-and the larger half of a file whose other job is storing harvested text. The
-two have nothing to do with each other at runtime — the store never reads a
-`note` and the ledger never opens a database — and everything to do with each
-other in review, which is why they were written together and why they should
-not stay that way. A session opening `sources.py` to change a query was loading
-seventeen licence essays to get to it.
-
-## Why licence and redistributable are columns
-
-Once the app is on a public URL, "may this be served to an anonymous visitor?"
-is a question every item must be able to answer, and a flag on the row is the
-only way to answer it reliably.
-
     redistributable = 1  ->  may be served publicly (CC-BY, CC-BY-SA, public API)
-    redistributable = 0  ->  owner only, behind auth (HARNO exam material,
+    redistributable = 0  ->  owner only, behind auth (HARNO material,
                              copyrighted transcripts, anything hand-fed)
 
-HARNO material is the case that forces it. Downloading the official exam PDFs
-to study from is ordinary personal use; serving them from a public URL is
-redistribution of a state agency's copyrighted work. The same file is fine in
-one place and not the other, so access control has to be data-driven — and it
-means Cloudflare Access is not a nice-to-have but the thing that keeps this
-legitimate.
+Access control is data-driven: the same HARNO PDF is fine to study from and not
+to serve publicly, which is why Cloudflare Access is required.
 
-`changes` is the other obligation, and it is a field for the same reason:
-CC BY 4.0 does not ask for a tidy README, it asks that the source be named
-**and the changes indicated** wherever the material is presented. `/api/sources`
-serves this ledger so the page can do that.
+`changes` is a field because CC BY 4.0 requires naming the source **and
+indicating changes** wherever the material is presented; `/api/sources` serves
+this ledger to the page.
 
-Everything here is re-exported by `eesti.sources`, so `from ..sources import
-REGISTRY` keeps working and no call site moved.
+Re-exported by `eesti.sources` (`from ..sources import REGISTRY`).
 """
 
 from __future__ import annotations
@@ -48,64 +28,38 @@ class Source:
     redistributable: bool
     url: str | None = None
     note: str = ""
-    #: What this project did to the material, in the words a licence asks for.
-    #:
-    #: A field rather than a sentence inside `note`, for the same reason
-    #: `licence` and `redistributable` are fields: CC BY 4.0 does not ask you to
-    #: keep a nice README, it asks you to state the source **and indicate
-    #: changes** wherever the material is presented. EKI put it in their own
-    #: terms -- process and present it any way needed, provided the reference to
-    #: EKI is retained and the modifications are described -- and Ekilex repeats
-    #: it. An obligation that has to be *served* cannot live in prose nothing
-    #: parses; `/api/sources` renders this one.
-    #:
-    #: Empty for sources that are only linked to, only counted, or our own.
+    #: What this project did to the material, as CC BY 4.0 asks ("indicate changes"),
+    #: served by `/api/sources`. Empty for sources only linked to, counted, or our own.
     changes: str = ""
 
 
-# The registry. Every source this app is allowed to touch, with the licence that
-# governs it. Adding a source means making a licence decision, deliberately.
-#: The licence ledger. Two kinds of entry live here, and the difference is worth
-#: knowing before reading a "nothing produces this" as a gap:
-#:
-#: * **Corpus producers** — `err-r4`, `err-lihtsad`, `harno`, `eis`,
-#:   `selges-keeles`, `oma-materjal`. A harvester (or `cli ingest`) writes rows
-#:   into `items` carrying the id, and `add_items` refuses any id not listed
-#:   here. That refusal is the gate.
-#: * **Provenance records** — `ekilex-wordlist` (fills `words`), `taltech-gec`
-#:   (the attested word-order corrections), `evkk` (an error taxonomy),
-#:   `sonapi` and `tartunlp-tts` (live APIs, answers cached not archived),
-#:   `ekk` (linked to, with 62 lexical facts stored), `generated` (drills, which
-#:   are computed and never stored). Nothing writes `items` for these, and that
-#:   is correct: they are here because this project touches them and every
-#:   third party it touches has to have its licence written down.
-#:
-#: `tests/test_sections.py` checks the ledger covers every source id the code
-#: writes; it cannot check the second kind, which is why they are named here.
+# The registry: every source this app may touch, with its licence. Two kinds:
+#
+# * **Corpus producers** — `err-r4`, `err-lihtsad`, `harno`, `eis`,
+#   `selges-keeles`, `oma-materjal`: rows in `items` carry the id, and
+#   `add_items` refuses ids not listed here.
+# * **Provenance records** — `ekilex-wordlist`, `taltech-gec`, `evkk`, `sonapi`,
+#   `tartunlp-tts`, `ekk`, `generated`, the EKI dictionaries: touched by the
+#   project but writing no `items` rows.
+#
+# `tests/test_sections.py` checks the ledger covers every source id the code
+# writes.
 REGISTRY: tuple[Source, ...] = (
     Source(
         "err-r4", "ERR Raadio 4 keeleõppesaated", "harvest",
         "© ERR — personal study only", False,
         "https://r4.err.ee/arhiiv/kak_eto_po_estonski",
         "72 episodes across 3 archives: 28 carrying transcripts, 44 audio "
-        "with a blurb. Archives are closed and static, so harvest once and "
-        "never re-fetch. **Not ~170** — that figure was extrapolated from the "
-        "one series that has transcripts (2010; the 2015 and 2019 series do "
-        "not), and it stood in this ledger after README had recorded the "
-        "correction, which is what a fact with two homes does.",
+        "with a blurb (only the 2010 series has transcripts). Archives are "
+        "closed and static, so harvest once and never re-fetch.",
     ),
     Source(
         "err-lihtsad", "ERR Lihtsad uudised", "harvest",
         "© ERR — personal study only", False,
         "https://news.err.ee/k/lihtsad-uudised",
         "Simplified Estonian news for learners. Weekly, ongoing — the one live "
-        "feed in the app. **Text only.** This note said 'audio + text' until "
-        "2026-09-11, when the pages were read: an issue carries no per-issue "
-        "audio at all, only ERR's site-wide radio-app banner. `harvest/"
-        "lihtsad.py` had it right the whole time — it writes `audio: False` "
-        "into every item's meta — so the claim lived in the ledger and "
-        "nowhere else, which is the worst place for it: nothing reads a note, "
-        "so nothing could contradict it.",
+        "feed in the app. **Text only**: an issue carries no per-issue audio "
+        "(`harvest/lihtsad.py` writes `audio: False`).",
     ),
     Source(
         "taltech-gec", "TalTechNLP grammar_et (both splits) + grammar2_et",
@@ -133,9 +87,8 @@ REGISTRY: tuple[Source, ...] = (
         "`R:WO` is a **label** rather than the inference `wordorder.py` makes "
         "over TalTech's unannotated pairs, and it is the only source of items "
         "here that says what level its writer was sitting at. Merged with the "
-        "TalTech pool, not swapped for it: measured 2026-09-12, the two share "
-        "not one corrected sentence, and 232 of 237 pass `is_reordering` "
-        "unchanged, so one gate still governs both. "
+        "TalTech pool, not swapped for it: the two share no corrected sentence, "
+        "and 232 of 237 pass `is_reordering` unchanged, so one gate governs both. "
         "`redistributable = 0` is a choice, not a limit — GPL-3.0 permits "
         "conveying the work with its licence and source, and this app conveys "
         "nothing: the corpus rides `content.db` to one deployment behind "
@@ -175,8 +128,7 @@ REGISTRY: tuple[Source, ...] = (
         "B1 — the claim the enriched Ekilex list could only estimate, and it "
         "estimated it for 6.2 % of its lemmas. Imported by `cli import-levels` "
         "from a file the learner downloaded, committed as `deploy/eki/A1A2B1.txt` "
-        "since 2026-09-13 (4 456 rows). On 2026-09-12 EKI's page asked for an "
-        "ID card; direct links worked the next day. Nothing here fetches it. Stored "
+        "(4 456 rows). Nothing here fetches it. Stored "
         "verbatim in `official_levels` and applied to "
         "`words.proficiency` with `words.level_source = 'eki'`. Licence terms "
         "are EKI's own: process and present it any way needed, an app "
@@ -251,8 +203,7 @@ REGISTRY: tuple[Source, ...] = (
         "eki-ekss", "Eesti keele seletav sõnaraamat (EKI)", "file", "CC-BY-4.0", True,
         "https://arhiiv.eki.ee/litsents/",
         "EKI's full explanatory dictionary: 145 882 articles, 117 937 lemmas "
-        "with a definition, 96 058 of them in the word list (measured "
-        "2026-09-13). Native-level wording, so the last definition fallback, "
+        "with a definition, 96 058 of them in the word list. Native-level wording, so the last definition fallback, "
         "after PSV, Sõnaveeb and VSL — the one that still answers offline for "
         "almost every word the learner can click. `cli import-ekss`, table "
         "`ekss_gloss`, committed gzipped and imported by the image build.",
@@ -266,8 +217,8 @@ REGISTRY: tuple[Source, ...] = (
         "About 6 000 basic words defined in language a learner can read — the "
         "thing *Keeleõppija Sõnaveeb* exists for, published for download "
         "instead of scraped. Imported by `cli import-psv` from a file the "
-        "learner downloaded, committed gzipped in `deploy/eki/` since "
-        "2026-09-13, so the image build imports it. Nothing here fetches it. Stored "
+        "learner downloaded, committed gzipped in `deploy/eki/`, so the "
+        "image build imports it. Nothing here fetches it. Stored "
         "in the words database as `psv_gloss`, not in `vocab.db`: it is "
         "reference data, and `vocab.db` travels in the state snapshot, where "
         "a restore replaces the file whole. `/api/enrich` reads it beside "
@@ -347,18 +298,14 @@ REGISTRY: tuple[Source, ...] = (
         "(headword, correct frame, marked wrong frame). EKK's example "
         "sentences are **not** stored; rection drills are built over the "
         "harvested corpus instead, so nothing of the prose is reproduced and "
-        "the sentences sit at the learner's level rather than the handbook's. "
-        "It was the one third party the app uses that this ledger did not "
-        "record, found by asking which source ids the code writes.\n\n"
-        "EKK 2009 is still the handbook, and this still links to it — but the "
-        "norm underneath it moved: **ÕS 2025 became the basis of the written-"
-        "language norm on 2026-01-01**, and EKI now route current rection and "
-        "usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
-        "selgitab`). That matters here because SÜ 64's 23 contrasts are "
-        "asserted *normatively* — the `rektsioon` drill marks an answer wrong "
-        "and `rection.errors` corrects free writing — so a contrast ÕS has "
-        "since revised would be taught stale. Checked as prose, not as code: "
-        "see docs/sources.md.",
+        "the sentences sit at the learner's level rather than the handbook's.\n\n"
+        "EKK 2009 is the handbook linked to, but **ÕS 2025 is the basis of the "
+        "written-language norm from 2026-01-01**, and EKI route current rection "
+        "and usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
+        "selgitab`). SÜ 64's 23 contrasts are asserted *normatively* — the "
+        "`rektsioon` drill marks an answer wrong and `rection.errors` corrects "
+        "free writing — so a contrast ÕS has revised would be taught stale. "
+        "Checked as prose, not as code: see docs/sources.md.",
     ),
     Source(
         "oma-materjal", "Oma materjal — käsitsi lisatud", "file",

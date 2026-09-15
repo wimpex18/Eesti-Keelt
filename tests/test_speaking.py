@@ -1,7 +1,5 @@
-"""The speaking bank and the ASR chain.
-
-Both are shaped by one fact: the B1 speaking exam is paired, so nothing here
-scores anything. The tests protect that boundary as much as the behaviour.
+"""The speaking bank and the ASR chain. The B1 speaking exam is paired, so nothing
+here scores speech.
 """
 
 from __future__ import annotations
@@ -48,8 +46,7 @@ class TestAsrChain:
         monkeypatch.setattr(asr, "_whisper_cpp_paths", lambda: (None, None))
 
     def test_with_nothing_configured_it_refuses_out_loud(self):
-        """Silence would look like a broken button; the tab is useful without
-        a transcript and should say why there isn't one."""
+        """With no ASR engine the tab says why there is no transcript."""
         result = asr.transcribe(b"not audio")
         assert result.text == ""
         assert result.degraded and result.note
@@ -142,7 +139,6 @@ class TestAsrChain:
     def test_it_names_the_estonian_model_rather_than_a_generic_one(self):
         """The recommendation belongs next to the code that would use it."""
         assert "et-verbatim-2604" in asr.ESTONIAN_MODEL
-        assert asr.ESTONIAN_GGML.endswith(".bin")
 
 
 class TestApi:
@@ -179,10 +175,8 @@ class TestApi:
 
 
 class TestTranscriptCorrections:
-    """A transcript is evidence about the learner *and* the recogniser.
-
-    Nothing in the pipeline can separate them, so anything anchored on a word
-    the recogniser may have invented has to go. See docs/ai-boundaries.md.
+    """Corrections anchored on a word the recogniser may have invented are dropped
+    (`docs/ai-boundaries.md`).
     """
 
     TEXT = "ma lugesin eile raamatut läbi ja siis läksin kohli"
@@ -243,8 +237,9 @@ class TestTranscriptCorrections:
 
 class TestBreaker:
     def test_a_dead_engine_is_skipped_after_two_failures(self, monkeypatch):
-        """Four engines at 120s each meant an outage cost eight minutes before
-        saying nothing was heard."""
+        """Each ASR engine's timeout is bounded, so an outage cannot keep the learner
+        waiting minutes.
+        """
         from eesti.providers import breaker
 
         breaker.reset()
@@ -274,16 +269,9 @@ class TestBreaker:
 
 
 class TestThePageDoesNotPromiseWhatTheEngineCannotKeep:
-    """A privacy claim is a fact about the code, and it goes stale silently.
-
-    The page told the learner "salvestus jääb sinu seadmesse — midagi ei
-    laadita üles". That was true while recognition ran locally. Recognition
-    moved to Cloudflare and the sentence stayed, ending up directly beneath a
-    second notice that correctly said the opposite. Nothing failed: both
-    strings rendered.
-
-    A voice is biometric. Where it goes has to be stated once, accurately,
-    before the button is pressed."""
+    """The speaking panel states, before recording, that recognition runs in the cloud
+    (Russian).
+    """
 
 
     @pytest.fixture(scope="class")

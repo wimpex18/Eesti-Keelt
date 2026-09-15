@@ -1,20 +1,9 @@
 """The origin must not be a way around the front door.
 
-The app runs on Cloud Run with unauthenticated invocations allowed, because
-that is what the free tier requires. Cloudflare Access sits in front of the
-*Worker*, not in front of the `run.app` URL, so on its own Access would guard
-one of two doors and the owner-only harvested material would be a hostname
-guess away.
-
-`PROXY_TOKEN` is the second door's lock: a secret only the Worker holds. These
-tests pin the two halves of that — the lock works when a key is configured, and
-it stays out of the way when none is, because the default way to run this app
-is `cli serve` on a laptop.
-
-They also pin the boot id, which is not decoration: it is the only signal the
-Worker gets that Cloud Run replaced the instance and its learner databases are
-gone. If it stops changing across processes, or stops appearing on responses,
-snapshots stop being restored and the failure is silent.
+Cloud Run allows unauthenticated invocations, and Access guards only the Worker,
+so `PROXY_TOKEN` (held only by the Worker) locks the origin when configured and
+stays out of the way under `cli serve`. Also pins the boot id, the Worker's only
+signal that the instance was replaced and needs its snapshot.
 """
 
 from __future__ import annotations
@@ -88,25 +77,8 @@ class TestBootId:
 
 
 class TestTheWorkerRefusesTheBackChannel:
-    """The second lock on the endpoints that overwrite the learner.
-
-    `_require_state_token` says in its own docstring that a restore endpoint
-    "does not rely on a single layer" — Access guards the Worker, the token
-    guards the route. The Worker's half of that was
-    `startsWith("/api/state/")`, which is a naming convention rather than the
-    set it meant. Five origin routes require `STATE_TOKEN` and that prefix
-    covered two: `/api/progress/reset`, which erases the learner's practice
-    history, and `/api/content/import`, which overwrites the corpus, were
-    proxied straight through.
-
-    Never an open door — the origin demands the token either way, and a request
-    without it gets 403. What was missing is the layer the design says it has.
-
-    A Worker cannot import Python, so the list is hand-maintained and therefore
-    checked in both directions, the way `api.ROUTERS`, `cli.GROUPS` and
-    `eval.yml`'s provider list are. Deriving the origin half rather than
-    restating it is the point: a route that starts requiring the token is
-    covered here without anybody remembering to come back.
+    """The Worker blocks exactly the origin routes that require `STATE_TOKEN`, derived
+    from the origin and checked in both directions (a Worker cannot import Python).
     """
 
     @staticmethod
@@ -158,14 +130,8 @@ class TestTheWorkerRefusesTheBackChannel:
             f"either it is dead weight or it broke a working endpoint")
 
     def test_it_matches_on_the_whole_path_not_a_prefix(self):
-        """The original bug. A prefix is a naming convention; the thing being
-        guarded is a set of routes, and the two drifted the moment a guarded
-        route was named something else.
-
-        Comments stripped first: the comment above the fix *quotes* the old
-        `startsWith` so the next reader knows what changed, and a naive search
-        finds it there. Three assertions in this repository have now been
-        written that way and passed on their own prose.
+        """A prefix is not the set: every guarded route is blocked by name. Comments are
+        stripped before searching the Worker source.
         """
         import re
 

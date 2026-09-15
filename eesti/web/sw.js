@@ -1,68 +1,24 @@
-/* Service worker: makes the installed app start, and say something useful
-   when there is no connection.
+/* Service worker: the installed app starts, and says something useful offline.
 
-   What this deliberately does NOT do is pretend the app works offline. Drills
-   are generated on the server -- `POST /api/practice` runs Vabamorf against
-   the wordlist -- so no amount of caching puts an exercise on the screen
-   without a connection. The manifest already made the app installable; what
-   was missing was any behaviour once installed, so an installed copy failed
-   exactly like a browser tab with the network off, which is the worst of both.
+   It does not pretend the app works offline: drills are generated on the server.
 
-   Three rules, and the second two matter more than the first:
+   1. **Code is never served stale.** Icons and the manifest are cache-first. The
+      page, stylesheet and ES modules are network-first with a cached fallback,
+      because their URLs are unhashed (no build step).
+   2. **The API is never cached** — it is learner state or freshly generated.
+   3. **Only clean 200 responses from this origin are stored** — caching Access's
+      302 to a login page would pin it in front of the app. */
 
-   1. **The shell is cached, but code is never served stale.** The icons and
-      the manifest are cache-first: they change when the app is redeployed and
-      almost never otherwise. The page, the stylesheet and the ES modules are
-      *network-first with a cached fallback* -- fetched fresh when there is a
-      connection, served from disk when there is not.
-
-      That distinction is load-bearing, and it was not needed until the app
-      stopped being one file. While every line of JavaScript lived inside
-      `index.html`, the navigation branch below fetched it fresh on every load
-      and staleness was impossible. Split into `/app.css` and `/js/*.js`, with
-      no build step to put a hash in the filename, cache-first would mean a
-      redeploy that did not also edit this file served last week's code against
-      this week's markup -- for ever, because the URLs never change.
-
-   2. **The API is never cached. Not once, not stale-while-revalidate.**
-      Every endpoint here is either the learner's own state (progress, review
-      queue, vocabulary status) or freshly generated (drills, dictation). A
-      cached `/api/review` would show a due count that is already wrong; a
-      cached `/api/practice` would serve the same ten items forever and the
-      mastery gate would count them. Study data has to be true, and a drill
-      that is quietly a day old is worse than a drill that is unavailable.
-
-   3. **Nothing that is not a clean 200 from this origin is stored.**
-      Cloudflare Access guards this app, and a signed-out request gets a 302 to
-      a login page. Caching that would pin the login redirect in front of the
-      app until the cache was cleared -- from the learner's side, an app that
-      had permanently broken itself. */
-
-/* Stamped by the server with the running build's revision -- see
-   `api/assets.py::service_worker`. The literal below is what a source checkout
-   uses, and what the tests read.
-
-   It has to be derived, not typed. The cache name is the only thing that
-   retires an old shell: `activate` deletes every cache that is not the current
-   one, so a redeploy that did not also edit this line left the previous
-   `index.html` in the cache for ever -- and that page names the modules it
-   loads. A hand-bumped version is a hand-maintained list of one. */
+/* Stamped by the server with the build's revision (`api/assets.py::service_worker`);
+   the literal is what a source checkout uses and what the tests read. The cache
+   name retires old shells, so it must change with every build. */
 const VERSION = "dev";
 const SHELL = `shell-${VERSION}`;
 
-/* `/` is listed rather than `/index.html`: it is what the manifest's
-   `start_url` opens and what a navigation requests.
-
-   The stylesheet and the modules are listed too, and they have to be: the page
-   is cached shell-first, so an offline open that could not fetch `/app.css`
-   and `/js/*.js` would paint an unstyled document with no behaviour -- worse
-   than the offline notice, because it looks like the app.
-
-   This list and the page's own `<link>`/`<script src>` tags are two halves of
-   one fact, and `tests/test_service_worker.py` checks them against each other
-   in both directions. A hand-kept list that drifts from the thing it describes
-   is the failure mode this project keeps paying for; here it cannot drift
-   silently. */
+/* The precached shell. `/`, not `/index.html` (what `start_url` opens). The
+   stylesheet and modules are included so an offline open is not unstyled.
+   `tests/test_service_worker.py` checks this list against the page's tags in both
+   directions. */
 const ASSETS = [
   "/", "/manifest.webmanifest", "/icon.svg", "/icon.png", "/app.css",
   "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js",
@@ -74,17 +30,14 @@ const ASSETS = [
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL);
-    // Individually, not `addAll`: that rejects the whole install if one asset
-    // 404s, and a worker that fails to install leaves the app with no offline
-    // behaviour at all because one icon was renamed.
+    // Individually, not `addAll`, so one missing asset does not fail the install.
     await Promise.all(ASSETS.map(async url => {
       try {
         const res = await fetch(url, {cache: "reload"});
         if (res.ok && !res.redirected) await cache.put(url, res);
       } catch (err) { /* offline during install: nothing to cache, carry on */ }
     }));
-    // Take over on the next load rather than waiting for every tab to close.
-    // Safe here because the worker holds no state a previous version could be
+    // Take over on the next load; the worker holds no state an old version could be
     // mid-way through.
     await self.skipWaiting();
   })());
@@ -92,8 +45,7 @@ self.addEventListener("install", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
-    // Drop caches from earlier versions, or a redeploy leaves the previous
-    // shell on disk forever and the app boots into last week's page.
+    // Delete caches from earlier versions.
     const names = await caches.keys();
     await Promise.all(
       names.filter(n => n !== SHELL).map(n => caches.delete(n)));
@@ -105,14 +57,11 @@ self.addEventListener("fetch", event => {
   const {request} = event;
   const url = new URL(request.url);
 
-  // Only this origin, only GET. A POST is an action -- answering a drill,
-  // marking a word known -- and replaying one from a cache would record
-  // something the learner did not do.
+  // Only this origin, only GET: replaying a POST would record something the learner
+  // did not do.
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Rule 2. Let the API go to the network untouched, including its failures:
-  // the page already knows how to render an error, and a stale success would
-  // be indistinguishable from a real one.
+  // Rule 2: API requests go to the network untouched, including failures.
   if (url.pathname.startsWith("/api/")) return;
 
   // A navigation is the case that decides whether the app opens at all.
@@ -120,10 +69,8 @@ self.addEventListener("fetch", event => {
     event.respondWith((async () => {
       try {
         const res = await fetch(request);
-        // Keep the offline copy current. Without this the cached shell is
-        // whatever `install` happened to fetch and never changes again inside
-        // one version -- so the page served with no connection could name
-        // modules the deployment has since renamed.
+        // Refresh the cached page on every successful load, so the offline copy matches the
+        // deployment.
         if (res.ok && !res.redirected && res.type === "basic") {
           const cache = await caches.open(SHELL);
           cache.put("/", res.clone());

@@ -1,20 +1,7 @@
-"""Reading has to leave a trace, or half the app measures nothing.
+"""Opening a text records exposure and word encounters.
 
-`library.open_item` writes two things when a text is opened: an exposure row,
-and a vocabulary encounter for every content lemma. `/api/library/{item_id}` --
-the only way the web app ever opens a text -- did a raw SELECT instead and
-wrote neither.
-
-Everything downstream quietly reported nothing:
-
-- readiness said "0 текстов" for Lugemine however much was read
-- `parts_touched` saw no contact, so every exam part stayed untouched forever
-- `vocab_status` stayed empty, so the reading recommendation could never rank
-  by what the learner knows
-
-This is the third time this project has built a measurement without its writer
--- the vocabulary table, the snapshot restore, and now this -- so the tests are
-about the *writing*, which is the half that keeps going missing.
+`/api/library/{item_id}` goes through `library.open_item`, so readiness,
+`parts_touched` and the reading recommendation have data to read.
 """
 
 from __future__ import annotations
@@ -34,11 +21,8 @@ from eesti.progress import connect as progress_connect  # noqa: E402
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    """A client with its own corpus as well as its own learner state.
-
-    Seeded rather than borrowed: an earlier version read whatever corpus the
-    developer happened to have, which meant these tests skipped in CI and
-    proved nothing about the writer they exist to protect.
+    """A client with its own seeded corpus and learner state (never the developer's
+    corpus).
     """
     from eesti import config
     from eesti.sources import Item, add_items, connect as content_connect
@@ -116,9 +100,9 @@ class TestOpeningATextRecordsIt:
 
 class TestTheReadinessCountIsPerPart:
     def test_opening_a_listening_task_does_not_credit_reading(self, client):
-        """`exposure` counts everything opened, so a learner who had only
-        played listening tasks was credited with reading — the exact confusion
-        the no-part-may-be-zero rule exists to punish."""
+        """Exposure is counted per exam part, so opened listening tasks do not count as
+        reading.
+        """
         listening = client.get(
             "/api/library?skill=kuulamine&limit=1").json()["items"]
         assert listening, "the fixture seeds one listening item"
@@ -131,14 +115,9 @@ class TestTheReadinessCountIsPerPart:
 
 
 class TestTheRecommendationRanksRatherThanFilters:
-    """A learner with 411 known words scores about 13 % coverage on the
-    harvested news — nowhere near the 90 % instructional threshold. If that
-    threshold were a filter, the *default* reading view would be empty for a
-    real beginner, and an empty list cannot be told apart from an empty
-    library.
-
-    The docstring claimed a filter the code has never had. Fixed the docstring,
-    not the code."""
+    """`/api/reading/next` ranks and never filters: a beginner with low coverage still
+    gets a list.
+    """
 
     @pytest.fixture
     def client(self, monkeypatch, tmp_path):
@@ -172,8 +151,6 @@ class TestTheRecommendationRanksRatherThanFilters:
                                                             "iseseisev"}
 
     def test_unmeasurable_is_reported_separately_from_empty(self, client):
-        """"The library is empty" and "nothing could be measured" look
-        identical in a list of length zero, and only one of them is the
-        learner's problem."""
+        """"Nothing could be measured" is reported separately from an empty library."""
         got = client.get("/api/reading/next?limit=5").json()
         assert "unmeasurable" in got

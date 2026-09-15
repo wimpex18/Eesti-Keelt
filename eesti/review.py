@@ -1,23 +1,10 @@
 """Spaced repetition over the errors you actually made.
 
-What the 2026 apps get right, and what they cannot do
------------------------------------------------------
-The consistent finding across current reviews is that people abandon streak-based
-apps when "the streak no longer improves the skill they care about", and that the
-tools which work pair **spaced repetition** with **real content you met yourself**
-— Migaku and LingQ build cards from the sentence you were actually reading, so
-recall reloads the context.
+Like Migaku and LingQ, cards come from material the learner met, but as
+**grammar** cards: Vabamorf knows `raamatut` is the partitive of `raamat`, so a
+word met while reading becomes a card for the pattern behind it.
 
-Both are worth copying. But they build *vocabulary* cards, because a general tool
-cannot know why a word was hard. This app can: Vabamorf knows `raamatut` is the
-partitive of `raamat`, and the error log knows partitive-for-genitive is the
-learner's documented weakness. So a word met while reading becomes a **grammar**
-card for the pattern behind it, not just a translation to memorise.
-
-Scheduling uses FSRS-6 via `py-fsrs` (MIT) rather than a hand-rolled interval
-scheme. It models difficulty, stability and retrievability per item and needs
-20-30% fewer reviews than SM-2 for the same retention — there is no reason to
-invent a worse scheduler.
+Scheduling uses FSRS-6 via `py-fsrs` (MIT).
 """
 
 from __future__ import annotations
@@ -36,9 +23,8 @@ from fsrs import Card, Rating, Scheduler
 RATINGS = {"again": Rating.Again, "hard": Rating.Hard, "good": Rating.Good,
            "easy": Rating.Easy}
 
-# How far past the requested count to look when building an interleaved session.
-# Wide enough that several topics are in view even when one has a long overdue
-# run; capped so a large backlog is never loaded whole.
+# How far past the requested count to look when building an interleaved session;
+# capped so a large backlog is never loaded whole.
 FETCH_FACTOR = 10
 FETCH_CAP = 1000
 
@@ -79,14 +65,8 @@ class ReviewItem:
     lapses: int
 
 
-# One-time repair of explanations already in the queue.
-#
-# `omastav` was being written as **омастав** -- a spelling in neither language,
-# which a learner can look up nowhere. Fixing the generators corrects what is
-# produced from now on and reaches none of the rows already stored, and this is
-# a spaced-repetition queue: those items are guaranteed to come back. So the
-# text is repaired where it sits. Idempotent -- the replaced form contains no
-# match, so a second run changes nothing.
+# One-time repair: stored explanations that transliterated `omastav` as
+# **омастав** are rewritten in place. Idempotent.
 REPAIRS = (
     ("основы омастава", "основы генитива (omastav)"),
     ("основа омастава", "основа генитива (omastav)"),
@@ -97,15 +77,8 @@ REPAIRS = (
 def repair_explanations(conn: sqlite3.Connection) -> int:
     """Rewrite stored `why_ru` that transliterated an Estonian grammar term.
 
-    Looks before it writes. Running the UPDATE unconditionally turned every
-    open of the queue -- including the read-only ones behind `GET /api/status`
-    -- into a writer, and a second connection anywhere in the process then got
-    `database is locked`. There is nothing to repair on all but the first open,
-    so the write happens once and every later open pays only the check.
-
-    That check is a `LIKE '%...%'`, which cannot use an index and scans the
-    table -- fine against one learner's queue, and cheap next to the lock
-    contention it removes, but it is a scan and not a lookup.
+    Checks before writing, so read-only opens never take a write lock. The check is
+    an unindexed `LIKE` scan, fine for one learner's queue.
     """
     total = 0
     for bad, good in REPAIRS:
@@ -140,8 +113,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 
 def _scheduler() -> Scheduler:
-    # Default parameters were trained on ~700M reviews; personal optimisation
-    # needs a review history we do not have yet, so defaults are the right start.
+    # Default FSRS parameters; personal optimisation needs more review history.
     return Scheduler()
 
 
@@ -163,19 +135,9 @@ def add(
 ) -> str:
     """Queue an item for review. Re-adding an existing one keeps its schedule.
 
-    That last part matters: meeting `raamatut` again in another text must not
-    reset the memory model built from earlier reviews.
-
-    What it does *not* mean is that the card is frozen. Returning early on an
-    existing id kept the text as well as the schedule, so a meaning card built
-    from a one-word seed gloss stayed a one-word card for ever, even after
-    Sõnaveeb supplied richer senses -- and re-mining still said "lisatud
-    kordamisse" as though something had happened. The schedule is a fact about
-    the learner; the prompt and answer are renderings of what the app currently
-    knows, and those are refreshed.
-
-    `context` is neither: it is the sentence the word was first met in, which a
-    later encounter does not improve. It is only filled if it was empty.
+    The schedule belongs to the learner and is kept; prompt and answer are
+    refreshed from what the app now knows. `context` (the sentence the word was
+    first met in) is filled only if empty.
     """
     key = item_id(kind, lemma, tag)
     existing = conn.execute(
@@ -209,17 +171,8 @@ def add(
 def interleave(items: list[ReviewItem]) -> list[ReviewItem]:
     """Deal the queue round-robin by topic, keeping each topic's own order.
 
-    Without this the queue is interleaved only by accident. Items enter in
-    batches — six seeded the moment a topic is mastered — so they carry
-    near-identical due times, and ordering by due date hands them back in the
-    order they went in: all of one topic, then all of the next. That is
-    *blocked* review, which is precisely what the practice phase already did and
-    what the handoff exists to stop doing.
-
-    Mixing here rather than in the scheduler is deliberate. FSRS decides *when*
-    an item should come back and is good at it; nothing about its answer changes
-    if two items due the same minute swap places. This reorders within what is
-    already due, so it costs the scheduler nothing.
+    Items enter in batches with near-identical due times, so due-date order alone
+    would return one topic at a time. This reorders only within what is due.
     """
     by_kind: dict[str, list[ReviewItem]] = {}
     for item in items:
@@ -235,23 +188,15 @@ def interleave(items: list[ReviewItem]) -> list[ReviewItem]:
 
 
 def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> list[ReviewItem]:
-    """Items ready for review: the most overdue, dealt out across topics.
-
-    Selection is by due date — the scheduler's judgement, untouched. Only the
-    order they are asked in is mixed, so a session interleaves instead of
-    marching through one topic at a time.
-    """
+    """Items ready for review: the most overdue, dealt out across topics."""
     now = datetime.now(timezone.utc).isoformat()
     sql = "SELECT * FROM review_items WHERE due <= ?"
     params: list = [now]
     if kind:
         sql += " AND kind = ?"
         params.append(kind)
-    # Over-fetch, then interleave, then truncate. Applying LIMIT first defeats
-    # the whole thing: a ten-item session takes the ten most overdue, which are
-    # the ten that entered together, which is one topic — and there is nothing
-    # left to mix. Selection is still "the most overdue window"; only the order
-    # inside it changes.
+    # Over-fetch, interleave, then truncate: truncating first would leave a single
+    # topic to mix.
     sql += " ORDER BY due LIMIT ?"
     params.append(limit if kind else min(limit * FETCH_FACTOR, FETCH_CAP))
 

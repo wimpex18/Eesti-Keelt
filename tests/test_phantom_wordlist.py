@@ -1,27 +1,10 @@
-"""The commands that created an empty word list by looking at one.
+"""Reading the word list never creates one.
 
-This is the answer to a question that stayed open across three commits. An
-empty `data/eesti.db` — zero rows, complete schema — kept appearing, and the
-run that tripped over it was never the run that made it: `real_wordlist` gated
-on `exists()`, so the *next* run stopped skipping two curated-content tests and
-checked Estonian against an empty lexicon. Two failures, in a file nobody had
-touched, reading exactly like a regression.
-
-**It was never the test suite.** Five full runs under an audit hook injected
-into every subprocess (a `sitecustomize` audit hook) recorded not one read-write open of
-that path. No test in the pytest process can do it — the autouse fixture in
-`conftest.py` redirects `config.DB_PATH` for all of them — and the uvicorn
-subprocess is ruled out by construction: `live_server` skips when the word list
-is absent, which is the only condition under which the file could be created.
-
-It was `python -m eesti.cli status`, `themes` and `vocab`, typed by a person
-before `cli build`. Each called `wordlist.connect()`, which creates the file and
-applies the schema, so *reading* the lexicon manufactured one. `test_cli_smoke`
-runs those same commands **in-process**, where the fixture redirects the path —
-which is exactly why a suite that exercises all three never showed it.
-
-`_helpers.words_db` already existed for this, and its docstring already called
-it "the fourth instance of the same bug". These three bypassed it.
+`wordlist.connect()` creates the file and schema, so a read-only command run
+before `cli build` would leave an empty `data/eesti.db` that later looks like a
+built lexicon. Read-only commands go through `_helpers.words_db`, which checks
+`available()` first. Checked in subprocesses: in-process runs use `conftest`'s
+redirected paths.
 """
 
 from __future__ import annotations
@@ -36,19 +19,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 def _read_only_commands() -> list[list[str]]:
-    """Every command the smoke suite calls read-only, taken from that list.
-
-    Derived rather than written again: a second hand-maintained list beside the
-    first is how this repository's most-repeated bug reproduces. It also means a
-    command added there is covered here without anybody remembering to.
-    """
+    """Every read-only command, taken from `test_cli_smoke.READ_ONLY`."""
     from test_cli_smoke import READ_ONLY
 
     return [argv for argv, _ in READ_ONLY]
 
 
-#: The three that actually did it, kept by name so the regression is legible
-#: even if the list above changes shape.
+#: The commands that once created it, named so a regression is legible.
 CONFIRMED_CREATORS = ["status", "themes", "vocab"]
 
 
@@ -100,10 +77,7 @@ class TestReadingTheLexiconDoesNotCreateOne:
 
 
 class TestTheServeGuardCountsRows:
-    """`cli serve` refuses to start without a database. That guard asked
-    `exists()`, which is precisely what an empty word list satisfies — so the
-    phantom defeated it and the app served every drill empty and every lookup
-    missing, with no message anywhere."""
+    """`cli serve` refuses an empty word list (rows, not `exists()`)."""
 
     def test_an_empty_word_list_is_still_no_database(self, unbuilt):
         import sqlite3
@@ -120,8 +94,7 @@ class TestTheServeGuardCountsRows:
         assert "No database yet" in done.stderr
 
     def test_the_guard_reads_from_the_source(self):
-        """Read the source, because the whole failure was a guard that looked
-        right."""
+        """The guard reads `available`, checked in its source."""
         source = (ROOT / "eesti" / "cli" / "ops.py").read_text(encoding="utf-8")
         block = source[source.index("def cmd_serve"):]
         block = block[:block.index("uvicorn.run")]
@@ -130,9 +103,7 @@ class TestTheServeGuardCountsRows:
 
 
 class TestTheJourneyGateCountsRowsToo:
-    """Same gate, same reason, loudest consequence: an empty word list passes
-    `exists()` and the whole browser suite runs against a zero-word lexicon —
-    ~140 failures that look like a regression and are a missing build."""
+    """The browser-suite gate counts rows too."""
 
     def test_it_asks_for_rows(self):
         source = (ROOT / "tests" / "test_e2e_journeys.py").read_text(encoding="utf-8")
@@ -144,9 +115,7 @@ class TestTheJourneyGateCountsRowsToo:
 
 class TestTheHelperThatAlreadyExisted:
     def test_words_db_refuses_rather_than_creating(self, unbuilt, capsys):
-        """`_helpers.words_db` is the thing the three commands should have been
-        calling all along — its docstring already called this "the fourth
-        instance of the same bug"."""
+        """`_helpers.words_db` refuses rather than creating a word list."""
         from eesti.cli._helpers import words_db
 
         assert words_db(unbuilt) is None

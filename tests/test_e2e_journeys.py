@@ -1,33 +1,14 @@
 """The journeys a learner actually walks, driven in a real browser.
 
-Why this exists at all. `test_ui_contract.py` asks whether the page and the API
-agree about *names*, and `test_web_layout.py` pins one CSS line because a
-browser found a bug no markup test could see -- two fixed navigation bars
-painting on top of each other, because `nav{display:flex}` out-specifies
-`[hidden]{display:none}`. Both are proxies. Neither can answer "can a person
-open this panel, answer this item, and see a verdict", which is the only
-question that matters and the one that has repeatedly gone wrong here: 82
-indexed-but-unopenable items, a reading list that returned zero texts for every
-filter, `POST /api/vocab/known` with no caller on the deployment.
+Contract tests check names; these check that a person can open a panel, answer
+an item and see a verdict, at desktop and phone sizes, in Chromium and WebKit.
 
-Why it skips instead of failing. This project's rule is that an optional
-dependency or a third party must never fail the build, and the deliberate
-choice on record is *not* to put a browser in CI. So every test here skips
-unless Playwright, a Chromium binary and a live server are all present. On a
-developer machine `pytest tests/test_e2e_journeys.py` runs them; in CI they
-report as skipped, which is honest, rather than as passed, which would not be.
+Skipped (never failed) without Playwright, a browser or a built dataset; not
+run in CI. The server runs in a temp working directory, so the learner databases
+(relative `data/*.db` paths) are isolated, and the content databases point at
+the real read-only ones via `EESTI_DB` / `EESTI_CONTENT_DB`.
 
-Conventions followed from the rest of the suite: no test touches the learner's
-real databases -- the server subprocess runs in a temp working directory, so
-the four relative learner paths (`data/progress.db` and friends) resolve inside
-it, and the two content databases are pointed at the real read-only ones
-through `EESTI_DB` / `EESTI_CONTENT_DB`.
-
-Tests are written against roles, labels and user-visible outcomes rather than
-CSS classes, so a restyle does not break them. Where a real defect was found
-during the UAT pass it is marked `xfail(strict=True)`: the suite stays green,
-the defect stays documented, and the day somebody fixes it the strict marker
-turns the unexpected pass into a failure that says "delete this marker".
+Tests target roles, labels and visible outcomes rather than CSS classes.
 """
 
 from __future__ import annotations
@@ -75,14 +56,8 @@ def chromium_path() -> str:
 
 
 def _has_texts(path: Path) -> bool:
-    """Rows, not a file — the same gate `available()` applies to the word list.
-
-    `content.exists()` was the whole check, and `sources.connect()` CREATES
-    the file: opening the content database once, for any reason, left a
-    complete-looking store with zero items behind. The reading journeys then
-    ran against it and reported eleven failures that were a missing harvest
-    wearing the costume of a regression. Presence of a database is not
-    presence of data; this project has now paid for that sentence three times.
+    """The corpus has rows (opening it creates an empty file, so existence is not
+    enough).
     """
     if not path.exists():
         return False
@@ -95,13 +70,7 @@ def _has_texts(path: Path) -> bool:
 
 
 def _has_forms(path: Path) -> bool:
-    """Rows in the forms table `cli export` writes, which every word card reads.
-
-    `build` and `harvest-reading` were the whole gate, so a checkout that had
-    run both and not `export` passed it, and 24 journeys across both engines
-    failed with "«maja» — такого слова в словаре нет": a missing build step
-    wearing a regression's costume, in the one file written to prevent that.
-    """
+    """The form index `cli export` writes has rows; every word card reads it."""
     if not path.exists():
         return False
     try:
@@ -115,20 +84,15 @@ def _has_forms(path: Path) -> bool:
 def live_server(tmp_path_factory) -> str:
     """A real uvicorn process, isolated from the learner's study record.
 
-    The learner databases are *relative* paths resolved at call time
-    (`data/progress.db`), which is what makes this isolation possible: run the
-    server from a scratch directory and they land there. The content databases
-    are absolute and read-only for our purposes, so they are passed through --
-    building a 160 000-word wordlist per test run would make this unrunnable.
+    Learner databases are relative paths resolved at call time, so running the
+    server from a scratch directory isolates them; content databases are passed
+    through read-only.
     """
     from eesti.wordlist import available
 
     words, content = ROOT / "data" / "eesti.db", ROOT / "data" / "content.db"
-    # Rows for the word list, not existence. An empty one passes `exists()`,
-    # and then the whole journey suite runs against a zero-word lexicon: every
-    # drill empty, every lookup missing, ~140 failures that look like a
-    # regression and are a missing build. That is the same gate `real_wordlist`
-    # was fixed for, in the file where it would be loudest.
+    # Rows for the word list, not existence: an empty one would run every journey
+    # against no lexicon.
     from eesti.lookup import EDGE_DB
 
     if not available(words) or not _has_texts(content) or not _has_forms(EDGE_DB):
@@ -148,12 +112,9 @@ def live_server(tmp_path_factory) -> str:
         "EESTI_DB": str(words),
         "EESTI_CONTENT_DB": str(workdir / "data" / "content.db"),
         "PYTHONPATH": str(ROOT),
-        # Keep the run offline and deterministic: no provider key means the
-        # grammar chain degrades to Vabamorf, which is what we want to assert.
-        # The server loads `.env` itself, so every key it knows is blanked —
-        # derived from `env.KNOWN_KEYS`, not listed. The list this replaced
-        # predated MISTRAL_API_KEY and NVIDIA_API_KEY, and the first real
-        # NVIDIA key in a local `.env` held a writing check past its 90 s wait.
+        # Keep the run offline and deterministic: every key the app knows
+        # (`env.KNOWN_KEYS`) is blanked, since the server loads `.env` itself, so the
+        # grammar chain degrades to Vabamorf.
         **{name: "" for name in KNOWN_KEYS},
     }
     proc = subprocess.Popen(
@@ -185,14 +146,8 @@ def live_server(tmp_path_factory) -> str:
 
 
 def _engines() -> list[str]:
-    """Which engines this machine can actually drive.
-
-    Chromium is always expected; WebKit is included only when installed, so
-    the suite still runs on a machine that has not fetched it. WebKit is not
-    decoration: it is Safari's engine, this app is used on a phone, and the
-    first WebKit run found a real error both engines had -- Chromium reported
-    it as an unhandled rejection nobody was listening for, WebKit raised it
-    where it could be seen.
+    """Which engines this machine can drive: Chromium always, WebKit (Safari's engine)
+    when installed.
     """
     root = browsers_root()
     engines = ["chromium"]
@@ -201,12 +156,8 @@ def _engines() -> list[str]:
     return engines
 
 
-#: One browser per test class, not per session. With the Mac's display off, a
-#: single WebKit browser kept alive across the session stopped loading pages
-#: after 63 tests: the last 22 errored with `Page.goto` timeouts, identically in
-#: four runs. It reproduced with `pmset displaysleepnow`. `caffeinate -i` did
-#: not stop it; those 22 passed alone; with a browser per class all 84 passed,
-#: display still off (2026-09-14). A launch costs well under a second.
+#: One browser per test class, not per session: a long-lived WebKit browser stops
+#: loading pages after many tests while the Mac's display is off.
 @pytest.fixture(scope="class", params=_engines())
 def _pw(request, chromium_path):
     with sync_playwright() as p:
@@ -219,9 +170,7 @@ def _pw(request, chromium_path):
         browser.close()
 
 
-#: The two shapes that matter. The phone is the one this app is mostly used on;
-#: the desktop is the one where a whole column of layout went unlooked-at for
-#: months. Both, every time, is the lesson already written down in CLAUDE.md.
+#: The two viewports: phone (the main use) and desktop.
 VIEWPORTS = {
     "desktop": {"viewport": {"width": 1440, "height": 900}},
     "phone": {"viewport": {"width": 390, "height": 844},
@@ -231,11 +180,8 @@ VIEWPORTS = {
 
 @pytest.fixture(params=list(VIEWPORTS), ids=list(VIEWPORTS))
 def page(request, _pw, live_server):
-    """A page at one viewport, with console and network errors collected.
-
-    Errors are attached to the page object so any test can assert on them, and
-    a few do: a journey that "works" while throwing a TypeError on every click
-    is not working, it is failing quietly.
+    """A page at one viewport, with console errors, page errors and 5xx responses
+    collected for assertions.
     """
     context = _pw.new_context(**VIEWPORTS[request.param])
     pg = context.new_page()
@@ -252,21 +198,13 @@ def page(request, _pw, live_server):
     context.close()
 
 
-#: mode -> the tabs its navigation offers. Derived from the page in
-#: `test_every_advertised_tab_is_reachable`, not trusted from here: a
-#: hand-maintained copy of a list that already exists is exactly how `TABS`
-#: drifted from the panels and three of ten never showed.
+#: mode -> tabs its navigation offers; derived from the page in
+#: `test_every_advertised_tab_is_reachable`.
 MODES = ("learn", "revise", "exam")
 
 
 def mode_of(page, tab: str) -> str:
-    """Which mode's navigation offers this tab, asked of the page.
-
-    `open_tab(page, "exam", "drill")` was hardcoded, and when free practice
-    moved out of the exam mode and into Õppimine on 2026-08-21 it broke twelve
-    journeys at once. The rest of this file already derives its tab lists for
-    exactly that reason; this closes the last place that did not.
-    """
+    """Which mode's navigation offers this tab, asked of the page."""
     owner = page.evaluate(
         """(t) => {
              const b = document.querySelector(
@@ -278,12 +216,8 @@ def mode_of(page, tab: str) -> str:
 
 
 def open_tab(page, mode: str, tab: str) -> None:
-    """Switch mode only when the mode is not already showing.
-
-    A learner moving from Lugemine to Kirjutamine taps one button, not two.
-    Clicking the mode every time made the helper walk a path no user walks,
-    and once the open tab lived in the URL that difference showed up as a
-    history entry nobody had chosen.
+    """Switch mode only when it is not already showing, as a learner would (one tap,
+    no extra history entry).
     """
     if page.get_attribute(f'button[data-mode="{mode}"]', "aria-selected") != "true":
         page.click(f'button[data-mode="{mode}"]')
@@ -298,8 +232,7 @@ def advertised_tabs(page, mode: str) -> list[str]:
 
 
 class TestNavigation:
-    """The seam that has broken most often: a panel that exists and cannot be
-    opened, or two that open at once."""
+    """Every panel opens, and only one at a time."""
 
     def test_every_advertised_tab_is_reachable(self, page):
         """Both directions, as `test_ui_contract` learned to do: every button
@@ -313,8 +246,7 @@ class TestNavigation:
         assert not unreachable, f"advertised but never shown: {unreachable}"
 
     def test_exactly_one_panel_is_visible_at_a_time(self, page):
-        """Two panels painting at once is the documented `[hidden]` bug in its
-        general form. Counted at every tab, because it only showed on one."""
+        """Exactly one panel visible at every tab."""
         for mode in MODES:
             for tab in advertised_tabs(page, mode):
                 open_tab(page, mode, tab)
@@ -323,8 +255,7 @@ class TestNavigation:
                 assert shown == [f"tab-{tab}"], f"{mode}/{tab}: visible panels {shown}"
 
     def test_only_one_navigation_bar_is_laid_out(self, page):
-        """The bug `test_web_layout` pins one CSS line for, asserted as the
-        geometry a person would see rather than as a rule in a stylesheet."""
+        """Only one navigation bar is laid out, measured as geometry."""
         for mode in MODES:
             page.click(f'button[data-mode="{mode}"]')
             page.wait_for_timeout(250)
@@ -342,8 +273,7 @@ class TestNavigation:
 
 
 class TestTheGrammarDrill:
-    """The offline core: generated items, graded without a model. If anything
-    in this class needs the network, the app's central property has broken."""
+    """The offline core: generated items graded without a model or the network."""
 
     def _start(self, page):
         open_tab(page, mode_of(page, "drill"), "drill")
@@ -369,8 +299,7 @@ class TestTheGrammarDrill:
         assert len(verdict.inner_text()) > 20, "marked wrong with no explanation"
 
     def test_an_answered_item_cannot_be_answered_twice(self, page):
-        """Found in a browser once already: a second click submitted another
-        answer for a graded item and the accuracy gate counted it."""
+        """A second click cannot submit another answer for a graded item."""
         self._start(page)
         item = page.locator("#drillOut .drill").first
         item.locator("input").fill("vale")
@@ -383,9 +312,7 @@ class TestTheGrammarDrill:
         assert item.locator(".verdict").inner_text() == first
 
     def test_an_empty_answer_does_not_consume_the_item(self, page):
-        """QA-3, fixed. The first item is focused on load, so one stray Enter
-        used to lock a question, score it wrong, and count that against the
-        accuracy which gates mastery."""
+        """The first item is focused on load, but a stray Enter does not submit it."""
         self._start(page)
         item = page.locator("#drillOut .drill").nth(2)
         item.locator("input").press("Enter")
@@ -454,10 +381,8 @@ class TestReading:
         page.wait_for_selector("#readerBody w", timeout=15000)
         page.locator("#readerBody w").first.click()
         page.wait_for_selector("#wordCard:not([hidden])", timeout=10000)
-        # The card unhides at once with an empty skeleton and fills when
-        # `/api/lookup` answers. Reading it on unhide raced that request, and
-        # Chromium lost the race most runs -- so wait for the answer, then
-        # check it is an analysis rather than one of the two refusals.
+        # The card unhides with a skeleton and fills when `/api/lookup` answers: wait for
+        # the answer, then check it is an analysis rather than a refusal.
         page.wait_for_function(
             "document.querySelector('#wordCard').innerText.trim().length > 0",
             timeout=10000)
@@ -470,9 +395,7 @@ class TestWriting:
     degradation is a feature here, not a failure."""
 
     def test_an_empty_submission_says_what_is_missing(self, page):
-        """QA-4, fixed. It used to return silently, which is indistinguishable
-        from a dead button. The message is Russian because that is the language
-        every explanation in this app is written in."""
+        """An empty submission shows a Russian message instead of doing nothing."""
         open_tab(page, "learn", "write")
         page.click("#checkBtn")
         page.wait_for_timeout(800)
@@ -522,10 +445,9 @@ class TestTheExamOverview:
 
 
 class TestTheTabsKeyboardPattern:
-    """QA-7, fixed. The page declared `role="tab"` on every navigation button
-    and implemented none of the rest: no `aria-controls`, no `role="tabpanel"`,
-    arrow keys inert. A screen reader announces a tab list, which tells its
-    user to expect exactly those things."""
+    """The tab list is a real ARIA tab list: `aria-controls`, `role="tabpanel"`, arrow
+    keys.
+    """
 
     def test_every_tab_points_at_the_panel_it_opens(self, page):
         wiring = page.evaluate("""()=>{
@@ -541,13 +463,7 @@ class TestTheTabsKeyboardPattern:
             assert w["labelled"], w
 
     def test_arrow_keys_move_between_tabs(self, page):
-        """The *neighbour* is read off the page, not named here.
-
-        This asserted `path -> read`, which stopped being true the moment a tab
-        was inserted between them. What the test is about is that ArrowRight
-        moves one tab and takes the panel with it; which tab that happens to be
-        is a fact about the navigation, and the navigation is right there to
-        ask."""
+        """The neighbour tab is read off the page: ArrowRight moves one tab and its panel."""
         order = page.evaluate(
             """()=>[...document.querySelectorAll(
                  'nav[data-mode-nav="learn"] button[data-tab]')]
@@ -590,15 +506,8 @@ class TestTheTabsKeyboardPattern:
 
 
 class TestTheSelectedSkillIsVisible:
-    """Where the learner is has to be visible in the navigation, not only in
-    the panel.
-
-    The skills scroll sideways on a phone, and the row does not start where the
-    selected chip is. Opening `#write` -- a pasted link, a reload, the tab you
-    were last on -- rendered Kirjutamine 512px to the right of the viewport
-    with the row at scrollLeft 0: the panel was correct and the navigation
-    said Rada. The old bottom bar could not have this bug because all seven
-    tabs were on screen at once, squeezed to 10.5px.
+    """The selected tab is scrolled into view in the phone's horizontally scrolling
+    navigation, whatever tab the page opened on.
     """
 
     @pytest.mark.parametrize("tab", ["write", "speak", "sonad"])
@@ -615,21 +524,15 @@ class TestTheSelectedSkillIsVisible:
         assert verdict is None, f"{page.viewport_name}: {verdict}"
 
     def test_the_page_itself_is_not_scrolled_to_do_it(self, page, live_server):
-        """`scrollIntoView` would drag the document down to the navigation on a
-        phone, which is a worse bug than the one being fixed."""
+        """Without scrolling the document itself (`scrollIntoView` would)."""
         page.goto(f"{live_server}#write", wait_until="networkidle")
         page.wait_for_timeout(400)
         assert page.evaluate("()=>Math.round(window.scrollY)") == 0
 
 
 class TestTheMiddleWidth:
-    """720-1079px: not a wide phone, not a narrow desktop.
-
-    It had the phone's answer -- a row of seven bilingual tabs that has to
-    scroll -- on a screen with 300px of empty margin either side. It gets a
-    rail of marks now, and the two things that can go wrong with a rail are
-    both things this suite has already caught once elsewhere: marks with no
-    size, and buttons with no accessible name once the label is hidden.
+    """720-1079px: the rail layout. Marks must have real size and buttons an
+    accessible name when labels are hidden.
     """
 
     @pytest.fixture
@@ -682,8 +585,7 @@ class TestTheMiddleWidth:
 
 
 class TestMobileLayout:
-    """Everything here is a phone-only failure mode. They run at both sizes on
-    purpose: a rule that only holds on one is the bug, not the test."""
+    """Phone failure modes, asserted at both sizes."""
 
     def test_the_page_never_scrolls_sideways(self, page):
         for mode in MODES:
@@ -694,20 +596,17 @@ class TestMobileLayout:
                 assert over <= 1, f"{page.viewport_name} {mode}/{tab}: {over}px of sideways scroll"
 
     def test_the_last_control_is_not_trapped_under_the_navigation(self, page):
-        """Scrolled to the bottom, the final control of each panel must be the
-        thing the browser hits at its own centre -- not the fixed bar."""
+        """Scrolled to the bottom, each panel's last control is what the browser hits at
+        its centre — not the fixed bar.
+        """
         trapped = []
         for mode in MODES:
             for tab in advertised_tabs(page, mode):
                 open_tab(page, mode, tab)
                 page.evaluate("()=>window.scrollTo(0,document.body.scrollHeight)")
                 page.wait_for_timeout(300)
-                # `checkVisibility()` rather than a non-zero box: a descendant
-                # of a collapsed <details> still reports a bounding rect in
-                # Chromium while being unrendered and unhittable. Filtering on
-                # the rect alone reported the phone's collapsed 36-topic list
-                # as six controls trapped under the navigation, which is a test
-                # bug wearing the costume of a layout bug.
+                # `checkVisibility()` rather than a non-zero box: descendants of a collapsed
+                # <details> have a rect while unrendered.
                 verdict = page.evaluate("""()=>{
                   const p=document.querySelector('section.panel:not([hidden])');
                   const els=[...p.querySelectorAll('button,input,select,a')]
@@ -737,18 +636,10 @@ class TestMobileLayout:
 
 
 class TestDiscoveredDefects:
-    """Defects found in the UAT pass of 2026-08-20, encoded as the behaviour a
-    learner should get.
-
-    `strict=True` is the point: while the defect stands the suite is green and
-    the defect is documented; the moment somebody fixes it, the unexpected pass
-    fails the build and says "this marker is stale, delete it". A skip would
-    rot silently and a plain failure would train everyone to ignore red.
-    """
+    """Routing and preference behaviours a learner relies on."""
 
     def test_a_reload_keeps_you_where_you_were(self, page):
-        """QA-2, fixed: the open tab is in the hash, so a refresh returns to
-        it instead of dropping the learner on Rada."""
+        """The open tab is in the hash, so a refresh returns to it."""
         open_tab(page, "exam", "status")
         assert page.is_visible("#tab-status")
         page.reload(wait_until="networkidle")
@@ -760,17 +651,16 @@ class TestDiscoveredDefects:
         page.goto(live_server + "/#drill", wait_until="networkidle")
         page.wait_for_timeout(800)
         assert page.is_visible("#tab-drill")
-        # Which nav owns the tab is asked of the page: free practice moved from
-        # Eksam to Õppimine, and a hardcoded mode here would assert on where the
-        # tab used to live rather than on deep linking, which is the subject.
+        # Which nav owns the tab is asked of the page.
         owner = mode_of(page, "drill")
         assert page.get_attribute(
             f'nav[data-mode-nav="{owner}"] button[data-tab="drill"]',
             "aria-selected") == "true", "the tab opened but its button is not selected"
 
     def test_back_returns_to_the_previous_tab_not_out_of_the_app(self, page):
-        """The half of QA-2 that matters most on a phone, where Back is a
-        system gesture: it used to leave the app entirely."""
+        """Back returns to the previous tab instead of leaving the app (a system gesture
+        on phones).
+        """
         open_tab(page, "learn", "read")
         open_tab(page, "learn", "write")
         assert page.is_visible("#tab-write")
@@ -782,17 +672,10 @@ class TestDiscoveredDefects:
         assert page.is_visible("#tab-write")
 
     def test_deep_linking_to_any_tab_raises_nothing(self, page, live_server):
-        """The bug the hash routing itself introduced, and the reason Safari
-        is in this suite.
+        """Deep-linking to any tab raises nothing.
 
-        Opening a tab runs its `ON_OPEN` loader. Landing directly on an
-        exam-mode hash ran `loadExam()` before `let examLevel` had been
-        evaluated -- a temporal dead zone, in *both* engines. It stayed
-        invisible because the loader is `async`, so the failure arrived as an
-        unhandled rejection rather than an error anybody had subscribed to;
-        the panel still rendered, so every visibility assertion passed.
-
-        Hence both halves here: visit each tab by URL, and demand silence.
+        Opening a tab runs its loader, which may touch late declarations; failures
+        arrive as unhandled rejections, so visit each tab by URL and demand silence.
         """
         page.add_init_script(
             "window.addEventListener('unhandledrejection',"
@@ -813,9 +696,9 @@ class TestDiscoveredDefects:
         assert shown == ["tab-path"], shown
 
     def test_the_chosen_exam_level_survives_a_reload(self, page):
-        """QA-2b, fixed. The level is a preference about a view, so it lives in
-        localStorage rather than the learner's database, which is for things
-        that were actually done."""
+        """The chosen exam level survives a reload (localStorage: a view preference, not
+        learner data).
+        """
         open_tab(page, "exam", "exam")
         page.click('#tab-exam button[data-level="B1"]')
         page.wait_for_timeout(800)
@@ -829,8 +712,7 @@ class TestDiscoveredDefects:
             "both levels highlighted at once"
 
     def test_choosing_all_shows_more_than_one_difficulty(self, page):
-        """QA-1, fixed: unfiltered browsing interleaves the bands instead of
-        letting the newest harvest fill the whole limit."""
+        """Unfiltered browsing shows more than one difficulty band."""
         open_tab(page, "learn", "read")
         page.select_option("#readLevel", "")
         page.click("#loadLib")
@@ -841,21 +723,7 @@ class TestDiscoveredDefects:
         assert len(bands) > 1, f"'kõik' returned only {bands}"
 
 class TestEveryMarkIsActuallyDrawn:
-    """An icon with no dimensions is not a small icon, it is no icon.
-
-    The nav marks were sized by `nav[data-mode-nav] .ico svg{width:16px}`
-    inside `@media (min-width:720px)`. Below that width the `<svg>` had no
-    width and no height and collapsed to 0x0, so the phone bar — the one this
-    app is mostly used in — showed seven bare words. Nothing threw, nothing
-    overflowed, and the desktop was perfect, so every check that existed
-    passed.
-
-    It is the same defect as an `<svg>` with no size rule at all rendering at
-    the default 300x150, which had already been found and written down once;
-    it just wears the opposite symptom when the parent gives it no basis to
-    grow into. Both are only visible if something asks how big the thing
-    actually came out.
-    """
+    """Every navigation mark has a real rendered size, on phone and desktop."""
 
     def test_every_tab_mark_has_a_real_size(self, page):
         sizes = page.evaluate("""() =>
@@ -885,29 +753,13 @@ class TestEveryMarkIsActuallyDrawn:
         assert not big, f"oversized marks at {page.viewport_name}: {big}"
 
 class TestTheMeaningCardIsAFlashcard:
-    """The whole vocabulary feature was reachable by no test.
-
-    `renderVocabCard`, `wireGrading`, `speakWord` and the `kind === "vocab"`
-    dispatch could all be deleted and the suite stayed green -- a feature with
-    no caller in the test suite, which is the same shape as a measurement with
-    no writer. It needs a browser because the thing worth asserting is the
-    order: the ratings must not be reachable until the answer is on screen,
-    and that is layout, not markup.
+    """The vocabulary meaning card: the ratings are not reachable until the answer is
+    shown (layout, so it needs a browser).
     """
 
-    #: A word per viewport. `live_server` is session-scoped, so both
-    #: parametrisations share one `review.db` -- and `review.add` keeps an
-    #: existing item's schedule by design, so the run that grades a card leaves
-    #: it not-due for the run after it. Two words, no ordering coupling. Both
-    #: have identical genitive and partitive and a shipped Russian gloss, which
-    #: is exactly the pair of conditions a meaning card needs.
-    #: One word per engine *and* viewport. The live server is one per session,
-    #: shared by both engines, so keyed by viewport alone WebKit re-queued the
-    #: card Chromium had just graded, found it no longer due, and timed out --
-    #: on every run, and only on a machine with both engines installed.
-    #: Each is a glossed noun whose genitive and partitive coincide: a noun in
-    #: the obj-case pool (`laud`, `raamat`) is mined as that pattern, not as a
-    #: meaning card.
+    #: One word per engine and viewport: the live server and its `review.db` are shared,
+    #: and grading a card leaves it not due for the next run. Each word is a glossed
+    #: noun whose genitive and partitive coincide, so it is mined as a meaning card.
     WORD = {
         ("chromium", "desktop"): ("maja", "дом"),
         ("chromium", "phone"): ("tool", "стул"),
@@ -929,14 +781,7 @@ class TestTheMeaningCardIsAFlashcard:
         }""", [live_server, word])
 
     def test_reveal_then_rate(self, page, live_server):
-        """One flow, not two tests.
-
-        `review.add` keeps an existing item's schedule on purpose, so a card
-        graded by an earlier test is no longer due for the next one -- split
-        across two tests and two viewports, the fourth run found an empty
-        queue. The reveal and the grade are one sequence; asserting them
-        together is both more honest and free of the ordering coupling.
-        """
+        """Reveal then grade, as one flow: a graded card is no longer due for a later test."""
         word, meaning = self._word(page)
         queued = self._queue_a_meaning_card(page, live_server)
         assert queued["queued"] and queued["kind"] == "vocab", queued

@@ -1,11 +1,9 @@
 /* The little state two screens share.
 
-   The chosen exam level is written by the exam screen and read by the rail on
-   the review side. It lives here, behind functions, for one reason: an
-   `export let` cannot be assigned from another module, and reading one during
-   another module's evaluation is the temporal-dead-zone crash this page has
-   already had once ("Cannot access 'examLevel' before initialization"). A
-   function call has neither problem, whatever order the modules load in. */
+   The chosen exam level is written by the exam screen and read by the review
+   rail. It sits behind functions because an `export let` cannot be assigned from
+   another module, and reading one during another module's evaluation hits the
+   temporal dead zone. A function call works whatever order the modules load in. */
 
 export const LEVELS_UI = ["A2", "B1"];
 

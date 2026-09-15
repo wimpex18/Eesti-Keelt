@@ -1,14 +1,8 @@
-"""Vabamorf's dictionary does not lose to a model's opinion.
+"""Deterministic spelling is merged into every grammar answer.
 
-`check()` returns the **first** provider that answers, which was quietly
-breaking this project's central rule. The moment an LLM lane is configured it
-answers — so Vabamorf's spelling verdict was thrown away on every request.
-
-And the LLM does not cover for it. The prompt it ships with is aimed at object
-case and says in as many words that most text is already correct and to report
-a correction only where one of those rules is broken. `tanav` for `tänav`
-breaks none of them, so nothing in the chain reported the single commonest way
-a Russian speaker mistypes Estonian: a missing täpitäht.
+`check()` returns the first provider that answers; without the merge an LLM answer
+would drop Vabamorf's spelling verdict, and the LLM prompt does not cover a
+missing täpitäht (`tanav` for `tänav`).
 """
 
 from __future__ import annotations
@@ -110,22 +104,16 @@ class TestWhatTheDictionaryActuallyCatches:
         assert TEXT[found[0].start:found[0].end] == found[0].wrong
 
     def test_it_explains_in_russian_and_names_its_authority(self):
-        """The language rule: everything explaining or warning is Russian. And
-        "not in the dictionary" from Vabamorf is a different kind of claim from
-        "I think this is wrong" from a model — the learner can tell them
-        apart."""
+        """Spelling explanations are Russian and name Vabamorf's dictionary as the
+        authority.
+        """
         why = grammar.SPELLING_WHY
         assert "Vabamorf" in why
         assert any("Ѐ" <= ch <= "ӿ" for ch in why), "must be Russian"
 
     def test_the_offline_provider_locates_its_spelling_too(self):
-        """Found end to end, through the real endpoint, not by a test.
-
-        `VabamorfFallback` built its own unlocated `Correction`s, so every
-        misspelling it reported arrived with `start`/`end` of `None` and the
-        page had nothing to highlight. It survived the merge as well: a word
-        the provider already named is the one the merge keeps, so the located
-        copy lost to the unlocated one.
+        """Spelling corrections carry `start`/`end`, so the page can highlight them, and the
+        located copy survives the merge.
         """
         text = "See on tanav siin."
         answer = grammar.check(text, providers=[grammar.VabamorfFallback()])

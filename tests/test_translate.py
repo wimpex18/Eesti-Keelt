@@ -1,14 +1,5 @@
-"""Sentence translation — the endpoint that was configured and never called.
-
-`TARTUNLP_TRANSLATE` sat in `config.py` from the first week with no caller
-anywhere in the codebase. That is the same defect as a measurement with no
-writer, and it cost more than a dead constant: it is a free, keyless,
-Estonian-trained service sitting unused beside a grammar endpoint on the same
-host that has failed every probe since the first research round.
-
-The tests here never touch the network. What they pin is the shape and the
-posture — that it degrades to None rather than raising, and that nothing calls
-it automatically, because a reader handed Russian reads the Russian.
+"""Sentence translation via TartuNLP. Never touches the network in tests: it
+degrades to None rather than raising, and nothing calls it automatically.
 """
 
 from __future__ import annotations
@@ -142,19 +133,15 @@ class TestTheEndpointAndItsPosture:
         assert "#xlBtn" in before, "translation is not behind an explicit action"
 
     def test_the_route_has_a_caller(self):
-        """The bug being fixed: `TARTUNLP_TRANSLATE` was configured with none."""
+        """`TARTUNLP_TRANSLATE` has a caller."""
 
         page = markup_and_script()
         assert "/api/translate" in page
 
 
 class TestBackTranslationInTheWritingCheck:
-    """A grammar chain says whether the Estonian is well formed. It cannot say
-    whether it means what was intended, and that second failure is the more
-    common and the far more invisible one for a learner.
-
-    `Ma käisin arstiga` is perfect Estonian and means you went *with* a doctor.
-    Nothing in the chain flags it; reading it back in Russian does.
+    """The writing check returns a back-translation, which shows meaning errors a
+    grammar chain cannot (`Ma käisin arstiga` is correct and means "with a doctor").
     """
 
     @pytest.fixture

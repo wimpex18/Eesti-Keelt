@@ -1,18 +1,10 @@
-"""The reading library has to survive a disk that does not.
+"""The reading library survives an ephemeral disk.
 
-Two constraints meet here and neither bends. The corpus is **owner-only** --
-ERR transcripts are © ERR, Selges keeles carries no reuse grant -- so it cannot
-ship inside an image built from a public repository. And Cloud Run's disk is
-**ephemeral**, so a file copied into a container is gone at the next cold start.
-
-So a harvest is pushed to the origin, the Worker archives it, and every
-container that starts afterwards is handed it back. These tests cover the two
-ends the app owns: receiving a push, and handing the archive back.
-
-The push is authenticated by `STATE_TOKEN`, not by Cloudflare Access. That is
-not a shortcut -- Access is an interactive login, and a script cannot satisfy
-one. The Worker is guarded by Access; the origin is guarded by tokens; the
-upload is a machine, so it goes to the origin.
+The corpus is owner-only (not in the image) and Cloud Run's disk is ephemeral, so
+a harvest is pushed to the origin, the Worker archives it, and each new
+container gets it back. These tests cover receiving a push and handing the
+archive back. The push is authenticated by `STATE_TOKEN`, since a script cannot
+pass Cloudflare Access.
 """
 
 from __future__ import annotations
@@ -146,15 +138,9 @@ class TestHandingItBack:
 
 
 class TestThePushScriptFailsBeforeSpendingAMegabyte:
-    """A real push refused with `403 {"detail":"not authorised"}` — the proxy
-    guard, not the state-token guard, so the token the script had read off the
-    service was not the one the app compares against.
-
-    The script had already checked both tokens were non-empty and passed,
-    because gcloud's projection DSL returned *something* for each. A value that
-    is almost right is worse than one that is missing: it sails through an
-    emptiness check, uploads a megabyte, and fails at the end with a message
-    that does not name which token was at fault."""
+    """`push-content.sh` reads tokens as JSON (not gcloud's projection DSL), runs a
+    preflight behind the same guard, and names which token was refused.
+    """
 
     SCRIPT = ROOT / "deploy" / "push-content.sh"
 
@@ -164,9 +150,7 @@ class TestThePushScriptFailsBeforeSpendingAMegabyte:
         return cls.SCRIPT.read_text(encoding="utf-8")
 
     def test_tokens_are_parsed_from_json_not_the_projection_dsl(self, script):
-        """Checked against the executable lines only. The comment quotes the
-        old expression on purpose — the reason it was replaced is worth more
-        than the tidiness of never naming it."""
+        """Checked against executable lines only."""
         assert "--format=json" in script
         code = "\n".join(line for line in script.splitlines()
                          if not line.lstrip().startswith("#"))
@@ -211,27 +195,12 @@ class TestThePushScriptFailsBeforeSpendingAMegabyte:
 
 
 class TestThePushWarnsAboutAnUnlinkedCorpus:
-    """`topic_items` is the join, and nothing fills it on its own.
-
-    `topiclinks.related()` reads it and `/api/practice` returns the result as the
-    `reading` beside every drill — "the join that makes practice and the
-    reading library one tool", in that endpoint's own words. The only thing
-    that writes it is `cli link-topics`, run by hand: no harvest calls it, no
-    deploy step calls it. So a freshly harvested corpus pushes with the table
-    empty and every drill offers nothing to read, silently.
-
-    Found with the table at **0 rows** locally against 349 items, which is
-    exactly the shape the item-count check on the line above was added to
-    catch — applied to one table and not to the other.
+    """`topic_items` is filled only by `cli link-topics`; the push warns when a corpus
+    has texts but no links.
     """
 
     def _corpus(self, tmp_path, *, links: int):
-        """Built by the app's own opener, like `conftest._build_content`.
-
-        Three hand-written INSERTs here failed on three different NOT NULL
-        columns in a row — `sources.kind`, then `items.added_on` — which is the
-        drift that docstring warns about, reproduced immediately.
-        """
+        """Built by the app's own opener, like `conftest._build_content`."""
         from eesti.sources import Item, add_items, connect, register
 
         path = tmp_path / "content.db"
@@ -275,17 +244,8 @@ class TestThePushWarnsAboutAnUnlinkedCorpus:
 
 
 class TestTheRunningServiceCanBeAskedTheSameQuestion:
-    """The push warns about an unlinked corpus. Only the push.
-
-    `push-content.sh` catches it for the operator running it, once. A
-    deployment pushed before that check existed, or answered past it, cannot be
-    asked afterwards — and `/api/health` said `"library": true`, which is true
-    and useless: the texts are there, the join is empty, every drill returns
-    `reading: []`, and the library page looks perfect.
-
-    Two numbers, because they fail separately. Same treatment `reference` got
-    for the three build-time imports, and the same rule underneath: presence of
-    a database is not presence of data, so count the rows.
+    """Health reports corpus items and topic links as separate counts, and the smoke
+    check reads both.
     """
 
     def _corpus(self, tmp_path, *, items: int, links: int):
@@ -362,11 +322,9 @@ class TestTheRunningServiceCanBeAskedTheSameQuestion:
         assert "link-topics" in body, "and says how to fix it"
 
     def test_the_operator_sequence_links_before_it_pushes(self):
-        """The machine that has `content.db` is the one that harvested it —
-        Cloud Shell, where `push-content.sh` runs, has neither the harvest nor
-        the word list `link-topics` needs. So the only place the join can be
-        written is between harvesting and pushing, and the deploy document is
-        the only place that order is written down."""
+        """The deploy doc orders `link-topics` before the push: only the harvesting machine
+        has the corpus and word list the join needs.
+        """
         doc = (ROOT / "docs" / "deploy.md").read_text(encoding="utf-8")
         link = doc.index("python -m eesti.cli link-topics")
         push = doc.index("bash deploy/push-content.sh")

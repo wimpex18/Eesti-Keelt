@@ -1,24 +1,10 @@
-"""Which language each part of the interface is written in.
+"""Which language each part of the interface is written in (rule in `CLAUDE.md`).
 
-`CLAUDE.md` states the rule before it states anything else, because getting it
-wrong is not cosmetic: the learner is a Russian speaker learning Estonian.
-
-  * **UI labels stay Estonian** — `Kirjutamine`, `Kuulamine`, `Rada`. They are
-    the words printed on the exam paper, and a learner who has only ever seen
-    "Письмо" has to translate under time pressure on the day.
-  * **Grammar terms stay Estonian** — they have to be learned, and a
-    translation would have to be unlearned.
-  * **Anything explaining, warning or instructing is Russian** — "a caveat
-    nobody can read is not a caveat".
-
-Audited 2026-08-21 against the rendered page and it had drifted three ways at
-once: explanatory strings still in Estonian (`Ükski osa ei tohi olla null.`,
-`Kuula ja kirjuta üles.`), the readiness verdict in Estonian above its own
-Russian reasons, and the path state badges in **English** — `REFERENCE`,
-`READY`, `LOCKED` — which serves neither language.
-
-The fix keeps the Estonian and puts Russian beside it, so the label still
-teaches and the interface is still usable.
+  * **UI labels stay Estonian** — `Kirjutamine`, `Kuulamine`, `Rada`: the exam's
+    own words.
+  * **Grammar terms stay Estonian** — they must be learned.
+  * **Anything explaining, warning or instructing is Russian** — a caveat nobody
+    can read is not a caveat.
 """
 
 from __future__ import annotations
@@ -44,32 +30,23 @@ CODEISH = re.compile(r"[;{}`]|=>|===|!==|\|\||&&|\$\(")
 def ui_sentences(page: str):
     """Every run of user-facing text on the page that ends like a sentence.
 
-    Covers the HTML body and the template literals the script renders from,
-    by reading text between tags rather than parsing either -- nested template
-    literals make backtick matching unreliable, and `>...<` does not care.
-    Comments are stripped first so prose *about* the code is not mistaken for
-    prose *in* it, and `${...}` is blanked so an interpolated value cannot
-    complete a sentence that is not really there.
+    Reads text between tags (not a parser; nested template literals defeat
+    backtick matching). Comments are stripped and `${...}` blanked first.
     """
     src = re.sub(r"<!--.*?-->", "", page, flags=re.S)
     src = re.sub(r"<style.*?</style>", "", src, flags=re.S)
     src = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
     src = re.sub(r"^\s*//.*$", "", src, flags=re.M)
-    # Entities first. `&#10;` is a line break written with a semicolon in it,
-    # and the semicolon made the CODEISH filter below discard the whole
-    # attribute as JavaScript -- which is how the writing placeholder stayed
-    # Estonian while this check reported the page clean.
+    # Decode entities first: `&#10;` contains a semicolon that the CODEISH filter
+    # would otherwise treat as JavaScript.
     src = html.unescape(src)
     src = INTERPOLATION.sub("\x00", src)
 
     chunks = re.findall(r">([^<>]{4,400})<", src)
     chunks += [m.group(1) or m.group(2) for m in
                re.finditer(r'"([^"\\\n]{4,300})"|\'([^\'\\\n]{4,300})\'', src)]
-    # The attributes a person actually reads or hears. `placeholder` is where
-    # the writing screen's instruction lived: it spans two lines via `&#10;`,
-    # so neither the text-between-tags pass nor the single-line literal pass
-    # above could see it, and the semicolon inside the entity made the CODEISH
-    # filter throw the whole string away as JavaScript.
+    # Attributes a person reads or hears, including multi-line `placeholder`s written
+    # with `&#10;`.
     chunks += [m.group(1) for m in re.finditer(
         r'(?:placeholder|title|aria-label|alt)\s*=\s*"([^"]{4,400})"', src)]
     for chunk in chunks:
@@ -130,10 +107,8 @@ class TestNothingUserFacingIsEnglish:
             "English key")
 
 
-#: Explanations that were once written in Estonian, each removed for the same
-#: reason: the person they are addressed to could not read them. The list is
-#: here rather than inside one test because it now has to hold in two places --
-#: the page and its modules, and the API responses those elements display.
+#: Estonian explanations that must stay removed, checked on the page and in API
+#: responses.
 ESTONIAN_EXPLANATIONS = [
     "Ükski osa ei tohi olla null.",
     "Kuula ja kirjuta üles.",
@@ -143,8 +118,7 @@ ESTONIAN_EXPLANATIONS = [
     # The page said this with parentheses, so the version listed here for
     # months matched nothing. Corrected to what the code actually had.
     "Mikrofon vajab HTTPS-i (või localhost'i).",
-    # Served by `api/speech.py` into `#dictState`, where it told the learner
-    # in Estonian why there were no dictations.
+    # Served by `api/speech.py` into `#dictState`.
     "Tekstikogu on tühi",
 ]
 
@@ -158,17 +132,7 @@ class TestExplanationsAreRussian:
 
     @pytest.mark.parametrize("gone", ESTONIAN_EXPLANATIONS)
     def test_the_api_does_not_explain_in_estonian_either(self, gone):
-        """The same rule, over the half of the app the scan could not see.
-
-        `page` is the markup and the modules. An explanation SERVED by the API
-        reaches the learner through exactly the same elements and was never
-        looked at -- so `Kuula ja kirjuta üles.` sat in `api/speech.py` for
-        months, was written straight into `#dictState`, and this file's own
-        forbidden list passed it every run while the phone displayed it.
-
-        Scanning the API layer for the same strings rather than keeping a
-        second list: one list, two places it has to hold.
-        """
+        """The same rule over the API layer, whose explanations reach the same elements."""
         from pathlib import Path
         api = Path(__file__).resolve().parents[1] / "eesti" / "api"
         for mod in sorted(api.glob("*.py")):
@@ -178,7 +142,7 @@ class TestExplanationsAreRussian:
 
     def test_the_no_part_may_be_zero_warning_is_readable(self, page):
         """The one that decides whether a learner fails the exam for ignoring a
-        section. It sat in Estonian for months."""
+        section."""
         assert "Ни одна часть не должна быть нулём." in page
 
     def test_the_readiness_verdict_is_russian(self):
@@ -196,33 +160,12 @@ class TestExplanationsAreRussian:
 
 
 class TestEverySentenceOnThePageIsReadable:
-    """The rule above, derived instead of listed.
+    """Sentence-shaped user-facing text must contain Cyrillic.
 
-    `TestExplanationsAreRussian` names six strings that must be gone. It has
-    passed since it was written, and one of the six was never actually in the
-    page: the code said `Mikrofon vajab HTTPS-i (või localhost'i).` with
-    parentheses and the test looked for the version without them. The assert
-    was `not in page`, so a string the code did not contain passed trivially
-    while the Estonian sentence it was meant to remove sat on the speaking
-    screen untouched. A hand-maintained list of forbidden strings cannot fail
-    that way loudly -- it fails silently, which is worse.
-
-    What can be derived is the shape of an explanation. **Labels do not end in
-    a full stop.** `Kontrolli`, `Kuula ette`, `Rada` are labels and stay
-    Estonian; anything that runs to a sentence is explaining, warning or
-    instructing, and by the rule that is Russian. So: every sentence-shaped run
-    of user-facing text on the page must contain Cyrillic.
-
-    Run against the page as it stood before the translation work, this flags 22
-    strings -- including *both* microphone variants.
-
-    **What it cannot see**, stated so the green tick is not read as more than
-    it is: a run built around an interpolation. `` `, ebaõnnestus ${n}.` `` is
-    one word once the `${...}` is blanked, far below any threshold that does
-    not also flag every label. Two strings escaped that way and were found by
-    reading the diff, not by this test. Distinguishing a short Estonian
-    fragment from a short Estonian *label* needs judgement, and a word list
-    that encoded that judgement would be the hand-maintained list this replaced.
+    Labels do not end in a full stop (`Kontrolli`, `Rada`), so anything that runs to
+    a sentence is explaining and must be Russian. Limitation: a short run built
+    around an interpolation (`, ebaõnnestus ${n}.`) is below the threshold and is
+    not seen.
     """
 
     def test_no_sentence_is_written_in_a_language_the_learner_cannot_read(self, page):
@@ -255,10 +198,8 @@ class TestTheMaterialIsNeverGlossed:
         assert "esc(it.word)" in block, "the Estonian word must be the row label"
 
 
-# Estonian is written in the Latin alphabet. A naive letter-for-letter map is
-# enough to generate what a transliteration of an Estonian term *would* look
-# like, which is all this needs -- it is looking for a spelling that should
-# never occur, not parsing Russian.
+# Generate what a letter-for-letter Cyrillic transliteration of an Estonian term
+# would look like, to search for spellings that must never occur.
 _TO_CYRILLIC = str.maketrans({
     "a": "а", "b": "б", "d": "д", "e": "е", "f": "ф", "g": "г", "h": "х",
     "i": "и", "j": "й", "k": "к", "l": "л", "m": "м", "n": "н", "o": "о",
@@ -266,18 +207,9 @@ _TO_CYRILLIC = str.maketrans({
     "õ": "о", "ä": "а", "ö": "о", "ü": "ю", "š": "ш", "ž": "ж",
 })
 
-#: The modules that carry Russian explanation prose -- found rather than
-#: listed. The first version was a hand-written tuple of seven filenames, and
-#: `mining.py` was not among them; a Cyrillic `омастав` went into its refusal
-#: message and this check, which exists for exactly that, said nothing. A list
-#: of the files to look at is the same kind of second list as the strings it
-#: replaced. Any module with Cyrillic in it is prose, and prose is what this
-#: is about.
-#: What the learner can actually read: the string literals. A comment saying
-#: "`omastav` was being written as **омастав**" is this file's own history
-#: written down, and a `REPAIRS` table has to contain the misspelling it
-#: rewrites -- neither reaches a screen. Scanning the raw text flagged both and
-#: would have kept flagging every future note about the bug.
+#: Modules with Cyrillic in them are prose and are scanned (found, not listed).
+#: Only string literals are checked — comments and the `REPAIRS` table must be
+#: able to quote the misspelling.
 def _literals(path: Path) -> str:
     tree = ast.parse(path.read_text(encoding="utf-8"))
 
@@ -323,19 +255,11 @@ def estonian_terms() -> set[str]:
 
 
 class TestAGrammarTermIsNeverTransliterated:
-    """`omastav` appeared as **омастав** in nine explanation strings.
+    """Estonian grammar terms never appear transliterated into Cyrillic (`омастав`).
 
-    That is neither language. The rule says the Estonian term stays Estonian
-    *because it has to be learned*, and a learner who meets `основа омастава`
-    has been taught a spelling that appears in no textbook, no dictionary and
-    no exam paper -- they cannot look it up and cannot recognise it when EKK
-    writes `omastav`. It is strictly worse than either translating the term or
-    leaving it alone.
-
-    The tell was that the codebase already had the right Russian rendering:
-    `ru_term="основа генитива"` on the `gen-stem` reference, sitting three
-    lines above prose that invented a second one. The same job written twice
-    became two behaviours -- so this checks the terms rather than the strings.
+    A transliteration exists in no textbook or exam, so the learner can neither look
+    it up nor recognise it. Use the Estonian term or a real Russian rendering
+    (`основа генитива`).
     """
 
     def test_no_estonian_term_appears_in_cyrillic_letters(self):
@@ -353,13 +277,7 @@ class TestAGrammarTermIsNeverTransliterated:
             "nowhere:\n  " + "\n  ".join(sorted(set(found))))
 
     def test_there_is_something_to_check(self):
-        """The guard against a rule that silently matches nothing.
-
-        Written first as `len(estonian_terms()) >= 10`, which checked the
-        half that was never in doubt: the path was wrong, every file was
-        skipped, and the check above passed on the nine transliterations it
-        was written to catch. Assert on both sides of the search.
-        """
+        """Guard that the search finds both the terms and the files it scans."""
         assert len(estonian_terms()) >= 10
         assert len(_prose_modules()) >= 8
 
@@ -375,21 +293,8 @@ def glossed_button_labels(page: str) -> dict[str, str]:
 
 
 class TestAGlossSurvivesTheButtonBeingUsed:
-    """`el.textContent = "..."` replaces every child of the element.
-
-    On a glossed button the Russian span *is* one of those children, so the
-    progress-and-restore dance every async button does --
-
-        btn.textContent = "Проверяю…";   ...   btn.textContent = "Kontrolli";
-
-    -- destroyed the gloss on the first click and never put it back. It
-    affected `Kontrolli` and `Harjuta`, the two most-used controls in the app:
-    the learner pressed the primary button once and the only word on it they
-    could read was gone until they reloaded the page.
-
-    Nothing failed and nothing looked broken, which is why it survived the
-    translation pass that added the glosses in the first place. `setLabel`
-    re-appends the span; this checks nobody goes back to the raw assignment.
+    """No raw `textContent =` on glossed buttons: it deletes the Russian gloss span.
+    `setLabel` restores it.
     """
 
     def test_no_restore_assignment_wipes_a_gloss(self, page):
@@ -414,8 +319,7 @@ class TestAGlossSurvivesTheButtonBeingUsed:
             "setLabel must re-attach the gloss after replacing the text")
 
     def test_every_labelled_button_carries_one(self, page):
-        """The glosses were added to the buttons on the screens somebody
-        happened to open; ten others never got one."""
+        """Every primary button carries a Russian gloss."""
         bare = re.findall(r'<button(?![^>]*\baria-)[^>]*\bid="([^"]+)"[^>]*>'
                           r'([A-ZÕÄÖÜ][^<]{2,40})</button>', page)
         assert not bare, f"button with an Estonian label and no gloss: {bare}"

@@ -1,9 +1,5 @@
-"""Read-aloud comparison.
-
-The claim this file has to earn: comparing a transcript against a *known
-target* is a real measurement, unlike scoring pronunciation from audio. So the
-tests are about the alignment being right — including the case that makes a
-naive implementation useless, a dropped word early in the sentence.
+"""Read-aloud comparison against a known target: a deterministic measurement, tested
+for correct alignment — including a word dropped early in the sentence.
 """
 
 from __future__ import annotations
@@ -65,9 +61,9 @@ class TestCompare:
         assert "произношения" in got["caveat"]
 
     def test_the_caveat_is_in_a_language_the_learner_reads(self):
-        """It was Estonian. The person it protects is a Russian speaker still
-        learning Estonian, so the sentence that stops them blaming their own
-        mouth for the recogniser's limits was unreadable to them."""
+        """The caveat is Russian, so the learner can read that a miss may be the
+        recogniser's.
+        """
         caveat = compare("Tere", "tere").to_dict()["caveat"]
         assert any("\u0400" <= ch <= "\u04ff" for ch in caveat)
 
@@ -129,8 +125,7 @@ class TestApi:
         assert client.get("/api/speaking/readaloud?kind=laul").status_code == 400
 
     def test_feedback_treats_a_transcript_as_text(self, client):
-        """Once transcribed, a spoken answer is text — and this project already
-        knows what to do with Estonian text."""
+        """An open spoken answer goes through the grammar chain as text."""
         data = client.post("/api/speaking/feedback", json={
             "transcript": "Ma lugesin eile raamatut läbi.", "seconds": 6,
         }).json()

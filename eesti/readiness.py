@@ -1,36 +1,15 @@
 """Should you sit the exam? An answer built only from evidence that exists.
 
-## No target date
+No sitting is booked, so `TARGET` is `None` and no countdown is shown. Set
+`TARGET` when a session is chosen; HARNO runs quarterly and closes registration
+about five weeks ahead.
 
-No sitting is booked (planned for 2027: A2 then B1, or B1 alone), so `TARGET`
-is `None` and no countdown is shown. Set `TARGET` when a session is chosen;
-HARNO runs quarterly and closes registration about five weeks ahead.
-
-## What this refuses to do
-
-**It does not predict a result.** No model here has seen a graded exam, there is
-no population of candidates to calibrate against, and a number like "78 % likely
-to pass" would be invented. The same refusal that keeps this project from
-claiming IRT scores and pronunciation grades applies here, and it applies hardest
-where the learner most wants a number.
-
-What it does instead is report **what the evidence shows and what is missing**,
-against the exam's own structure, and let a person decide.
-
-## Why it reports four parts and never one total
-
-The pass rule is **≥60 % overall AND no part scoring zero**. That second clause
-is the trap: perfecting writing while never once practising listening can still
-fail, and an aggregate percentage hides exactly that. So every part is reported
-separately and an untouched part is called out as the risk it is, no matter how
-strong the rest looks.
-
-## The one part it cannot judge at all
-
-**Rääkimine is paired and dialogic** — two candidates talking to each other,
-negotiating agreement from a situation card. Nothing here simulates that. The app
-can offer the question bank in the right shape and voice the other side with TTS,
-and that is preparation, not assessment. It says so rather than scoring it.
+- **No prediction.** Nothing here can calibrate a pass probability, so the
+  verdict reports what the evidence shows and what is missing.
+- **Four parts, never one total.** The pass rule is ≥60 % overall and no part
+  at zero, so an untouched part is called out however strong the rest is.
+- **Rääkimine is not judged.** The exam is paired and dialogic; the app offers
+  preparation, not assessment, and says so.
 """
 
 from __future__ import annotations
@@ -39,11 +18,8 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import date
 
-#: The sitting being prepared for, or None while none is chosen.
-#:
-#: `(registration_closes, sitting)`. `registration_closes` is the day HARNO
-#: closes the list — a hard deadline, not a personal checkpoint. None: no
-#: sitting is chosen.
+#: The sitting being prepared for: `(registration_closes, sitting)`, or None.
+#: `registration_closes` is HARNO's hard deadline, not a personal checkpoint.
 TARGET: tuple[date, date] | None = None
 
 #: The shape of a target: registration closes about five weeks before the sitting.
@@ -104,8 +80,7 @@ class Readiness:
         true, and it is the fact that actually applies pressure.
         """
         if self.days_to_decide is None:
-            # No session chosen. Saying so beats counting down to one that was
-            # declined, and beats an empty box that reads like a bug.
+            # No session chosen: say so rather than count down to nothing.
             return "экзамен ещё не выбран"
         if self.days_to_decide > 0:
             return f"до регистрации {self.days_to_decide} дн."
@@ -114,11 +89,7 @@ class Readiness:
         return "дата прошла"
 
     def _deadline(self) -> dict | None:
-        """The registration date, or None while no session is chosen.
-
-        None rather than a placeholder: a caller that renders whatever it is
-        given would otherwise print a date nobody is working toward.
-        """
+        """The registration date, or None while no session is chosen."""
         decide, sitting = _target()
         if decide is None or sitting is None:
             return {
@@ -159,10 +130,8 @@ class Readiness:
                 "то, что не тронуто. Говорение (rääkimine) оценить нельзя: на "
                 "экзамене говорят в паре."
             ),
-            # The deadline is external and hard, and the countdown alone does
-            # not say so — registration closes weeks before a sitting, and
-            # after it the date is not a choice any more. None while no
-            # session is chosen; see `_deadline`.
+            # Registration closes weeks before a sitting; None while no session is chosen
+            # (see `_deadline`).
             "deadline": self._deadline(),
         }
 
@@ -178,17 +147,8 @@ def _grammar(progress: sqlite3.Connection, level: str) -> dict:
     return {
         "topics": len(topics),
         "mastered": len(mastered),
-        # Names, not ids. `uhildumine` and `sonajark` are database keys with
-        # the diacritics stripped; the things a learner has to go and study are
-        # called **ühildumine** and **sõnajärg**, and the whole point of an
-        # Estonian label in this app is that the term itself gets learned.
-        #
-        # This is the fourth place the same bug has been fixed -- `kusisonad`
-        # on the path panel, `obj-case` in the review queue, `blocked_by` in
-        # `/api/curriculum` -- and it is the one that reached furthest, because
-        # `reasons` puts the list straight onto the readiness screen. Resolved
-        # here for the same reason as the others: a page that has to turn ids
-        # into names will eventually meet an id nobody taught it about.
+        # Topic names, not ids: the learner studies **ühildumine**, not `uhildumine`.
+        # `reasons` puts this list straight onto the readiness screen.
         "outstanding": [t.et for t in left],
         # Kept as well, for a caller that needs identity rather than a label.
         "outstanding_ids": [t.id for t in left],
@@ -199,36 +159,11 @@ def _grammar(progress: sqlite3.Connection, level: str) -> dict:
 def _vocabulary(vocabulary, words, level: str) -> dict:
     """Words known at this level, against what the level contains.
 
-    A count rather than a verdict: knowing every A2 word does not make anyone
-    ready, and meeting few of them does not make the exam impossible.
-
-    **This read zero for every learner, always.** It asked
-    `WHERE known = 1`, and `vocab_status` has no `known` column -- the column
-    is `status`, and the ladder is
-    `UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 5, 98, 99`. So every
-    call raised `OperationalError`, the `except` below turned it into `0`, and
-    the screen said **"0 из 997 слов уровня"** to somebody who had marked
-    hundreds. Measured: three words marked known through `vocab.set_status`
-    still produced `{"known": 0, ..., "measured": True}`.
-
-    Two separate faults, and the second is the worse one. A wrong column name
-    is a typo. Reporting the failure as a *measurement of zero* is the thing
-    that made it invisible for as long as it lasted: `measured: True` is what
-    the page gates the line on, so the app asserted it had counted. A read that
-    cannot happen now says `measured: False` and the line disappears, which is
-    the same rule the rest of this file follows -- an unmeasurable part is
-    reported as unmeasured, never as a zero.
-
-    `IGNORED` is excluded deliberately. "Ei ole minu jaoks" is a word the
-    learner has decided not to spend time on; counting it as known would
-    inflate the number with exactly the words they chose to skip. That is the
-    same set `vocab.bands` uses.
-
-    Scoped to the level, because the line reads *"N из M слов уровня"*. The
-    lemmas live in `vocab.db` and the levels in `eesti.db`, so the intersection
-    happens here rather than in SQL; at 997 words for A2 that costs nothing.
-    Without it the numerator counted every known word at any level against one
-    level's total, which can exceed 100 % and means nothing when it does.
+    A count, not a verdict. Known means `KNOWN` or `WELL_KNOWN` in
+    `vocab_status.status`; `IGNORED` is excluded (words the learner chose to
+    skip). Scoped to the level because the line reads "N из M слов уровня"; the
+    intersection happens here because lemmas and levels live in different
+    databases. A failed read returns `measured: False`, never a zero.
     """
     from .vocab import IGNORED, SETTLED
 
@@ -246,20 +181,14 @@ def _vocabulary(vocabulary, words, level: str) -> dict:
                 f"({','.join('?' * len(settled))})", settled)
         }
     except sqlite3.Error:
-        # Not a zero. Nothing was counted, and saying "0 known" would be a
-        # claim about the learner rather than about this read.
+        # Nothing was counted; "0 known" would be a claim about the learner.
         return {"known": 0, "level_words": len(at_level), "measured": False}
     return {"known": len(known & at_level), "level_words": len(at_level),
             "measured": True}
 
 
 def _official(content, level: str) -> dict[str, int]:
-    """How much official material exists per exam part at this level.
-
-    This is what turns "practise listening" into "there are five official A2
-    listening tasks, here they are". Nothing of HARNO's is stored — these are
-    the indexed pointers — so the count is of links, not of content.
-    """
+    """How many official task pointers exist per exam part at this level."""
     if content is None:
         return {}
     try:
@@ -278,14 +207,7 @@ def _official(content, level: str) -> dict[str, int]:
 def _next_task(content, level: str, skill: str) -> dict | None:
     """One official task for this part, or None if there are none indexed.
 
-    Restricted to actual **tasks**. Without that filter the first row by title
-    for A2 listening was a consultation workbook — which is study material, not
-    a rehearsal, and pointing someone at it under "you have never practised
-    listening" is worse than the count it replaced. Naming the wrong thing is a
-    stronger claim than naming nothing.
-
-    First by title otherwise: HARNO numbers them, so "first" is the one the
-    exam board put first rather than whichever row SQLite happened to return.
+    Tasks only (not workbooks), first by title so HARNO's own numbering decides.
     """
     if content is None:
         return None
@@ -319,10 +241,7 @@ def _parts(progress: sqlite3.Connection, level: str,
     read = exposure(progress)
     official = _official(content, level)
 
-    # Opened items, counted per exam part rather than in total. "You have
-    # opened 14 texts" and "you have never opened a listening task" are
-    # different facts, and only the second is what the no-part-may-be-zero rule
-    # punishes.
+    # Opened items per exam part: the no-part-may-be-zero rule is per part.
     from .library import parts_touched
 
     touched = parts_touched(progress, content) if content is not None else {}
@@ -331,19 +250,9 @@ def _parts(progress: sqlite3.Connection, level: str,
         n = official.get(skill, 0)
         return f" · {n} офиц. заданий" if n else ""
 
-    # Writing: corrections queued for the error log are the only durable trace
-    # a writing check leaves, which makes them the honest count here.
-    #
-    # Queued and sent are counted separately. While there was no way to push
-    # from the app the distinction did not exist, and "N исправлений в логе"
-    # described rows that had never reached the log. Both are contact; only one
-    # is in the Vead database where the "three of a tag" rule can see it.
-    #
-    # The connection is passed in. It used to be opened from `app.NOTION_DB`
-    # inside this function, which made the verdict depend on a module-level
-    # path no caller could redirect: a test with its own fixtures still read
-    # the developer's real queue, so the suite reported one thing locally and
-    # another in CI. Same shape as every other path-frozen-at-import bug here.
+    # Writing: corrections queued for the error log are its durable trace. Queued
+    # and sent are counted separately — only sent rows are in the Vead database.
+    # The connection is passed in so callers and tests control which queue is read.
     queued = pushed = 0
     if notion is not None:
         try:
@@ -367,11 +276,8 @@ def _parts(progress: sqlite3.Connection, level: str,
         note="На экзамене четыре задания по письму.",
         next_task=_next_task(content, level, "kirjutamine"),
     ))
-    # Listening counts two different things, and the second is the stronger of
-    # the two. Opening a task means audio was played; a dictation means what
-    # was said had to be written down and was scored against the transcript.
-    # Either one is contact, but the evidence line says which happened, so
-    # "I listened a lot" cannot quietly stand in for having been tested.
+    # Listening counts opened tasks and dictations separately: a dictation is scored
+    # evidence, an opened task is only contact.
     try:
         from .dictation import stats as dictation_stats
 
@@ -393,11 +299,8 @@ def _parts(progress: sqlite3.Connection, level: str,
     ))
     out.append(Part(
         "lugemine", "Lugemine", "чтение",
-        # Per part, like the others. `exposure` counts every item opened, so
-        # a learner who had only ever played listening tasks was credited with
-        # reading -- which is exactly the confusion the no-part-may-be-zero
-        # rule punishes. Minutes stay from `exposure`: they are read time in
-        # total and no part-level figure exists.
+        # Reading is counted per part; minutes come from total `exposure` because no
+        # per-part figure exists.
         evidence=(f"{touched.get('lugemine', 0)} текстов, "
                   f"{read['minutes']} мин" + material("lugemine")),
         touched=touched.get("lugemine", 0) >= CONTACT,
@@ -457,17 +360,8 @@ def readiness(
     if grammar and not grammar["checkpoint_passed"]:
         reasons.append(f"Контрольная работа {level} не сдана.")
 
-    # The verdict reads next to its own reasons, and those have been Russian
-    # since the language rule was written down -- so the app was rendering
-    # "A2 · ei ole veel" above a paragraph of Russian explaining why. The
-    # verdict is a judgement about the learner, which is exactly the category
-    # `CLAUDE.md` puts in Russian: this is where comprehension has to win.
-    #
-    # The Estonian is kept beside it rather than dropped. `tõendid toetavad`
-    # is the phrase that would appear on nothing official, but the level names
-    # and part names around it are exam vocabulary, and a verdict that reads as
-    # a foreign island in its own card is worse than one that teaches its own
-    # two words.
+    # The verdict is a judgement about the learner, so it is Russian; the Estonian
+    # level and part names stay beside it as exam vocabulary.
     if not grammar:
         verdict = "неизвестно"
     elif not reasons:

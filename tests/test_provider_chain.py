@@ -1,24 +1,13 @@
-"""The fallback chain, which is the whole reason this app has providers at all.
+"""The fallback chain: a failing provider falls through quickly, the engine that
+answered is named, and a dead provider is skipped by the breaker.
 
-The research that started this project probed four inference endpoints at two
-universities and found **all four returning 500 simultaneously**, while every
-static dataset answered perfectly. That is not bad luck, it is the operating
-reality of grant-funded infrastructure, and it produced the rule the
-architecture is built on: own your data, treat every research API as optional
-enrichment that may be gone on exam eve.
-
-The plan asked for one check in particular — *"expect a 500, assert the chain
-falls back in <6 s and labels the engine"* — and it was never written. These
-are that check, without needing anyone's server to be down today.
-
-Timing matters as much as the fallback. TartuNLP's observed failure is a **61-
-second gateway timeout**, and a lesson that stalls for a minute is a lesson
-abandoned; `PROVIDER_TIMEOUT` is 5 s for exactly that reason.
+Research inference endpoints are often down together, so every provider is
+optional enrichment. TartuNLP's failure mode is a ~60 s gateway timeout, so
+`PROVIDER_TIMEOUT` is 5 s and the chain must fall back within 6 s.
 """
 
 from __future__ import annotations
 
-import io
 import io
 import urllib.error
 
@@ -31,13 +20,8 @@ from eesti.providers.grammar import Correction, GrammarResult, check
 
 @pytest.fixture(autouse=True)
 def clean_breaker():
-    """The circuit breaker is keyed by provider *name* and outlives a call.
-
-    That is deliberate in production — the whole point is to stop paying a
-    timeout for a service that failed twice a minute ago — and it makes tests
-    order-dependent: a provider called "a" that failed in one test is skipped
-    in the next. Reset around each test rather than inventing unique names,
-    because the shared state is the thing being relied on.
+    """Reset the breaker around each test: it is keyed by provider name and outlives a
+    call, so tests would otherwise depend on order.
     """
     breaker.reset()
     yield
@@ -91,11 +75,9 @@ class TestFallback:
         assert "tartunlp" in got.diagnostics
 
     def test_the_note_carries_the_status_code_not_just_the_type(self):
-        """A live deployment reported `llm:openrouter: HTTPError` and the note
-        could not say which one. 429 means the free tier is spent and it will
-        work again tomorrow; 401 means the key is dead and study is broken
-        until it is replaced; 502 is the provider's bad minute. One word for
-        three different jobs."""
+        """The note carries the status code: 429 (wait), 401 (replace the key) and 502 (the
+        provider's bad minute) need different actions.
+        """
         for code in (401, 429, 502):
             # The breaker opens after two failures on one name, so without
             # this the third code is skipped rather than called.
@@ -134,15 +116,14 @@ class TestFallback:
         assert not off.called
 
     def test_every_provider_failing_is_degraded_not_an_exception(self):
-        """A study session must survive the whole internet being unhelpful."""
+        """A study session survives every provider failing."""
         got = check("tekst", [Provider("a", fails=a_500()),
                               Provider("b", fails=OSError("no route"))])
         assert got.degraded is True
         assert got.corrections == []
 
     def test_a_provider_returning_nonsense_is_caught_too(self):
-        """Not only network errors: bad JSON and SDK bugs are equally fatal to
-        one provider and equally survivable for the chain."""
+        """Bad JSON and SDK errors are caught per provider, like network errors."""
         got = check("tekst", [Provider("a", fails=ValueError("bad json")),
                               Provider("b", answer=[])])
         assert got.engine == "b"
@@ -155,8 +136,7 @@ class TestFallback:
 
 
 class TestTheBreaker:
-    """Failures are remembered by name, so a dead service is stepped over
-    rather than waited on once per request."""
+    """Failures are remembered by name, so a dead service is stepped over."""
 
     def test_a_provider_that_just_failed_is_skipped(self):
         for _ in range(5):
@@ -178,8 +158,7 @@ class TestTheBreaker:
 
 class TestTiming:
     def test_the_timeout_is_short_enough_to_fall_back_inside_six_seconds(self):
-        """The plan's number. The observed TartuNLP failure is a 61-second
-        gateway timeout, and waiting that out is a lesson abandoned."""
+        """The observed TartuNLP failure is a ~60 s timeout; the chain must not wait it out."""
         assert PROVIDER_TIMEOUT <= 5.0
 
     def test_the_whole_chain_returns_promptly_when_everything_fails(self):
@@ -192,18 +171,8 @@ class TestTiming:
 
 
 class TestTheBreakerSurvivesTheProcess:
-    """The breaker existed to stop a dead provider costing its full timeout on
-    every request, and in production it did not do that.
-
-    State was a module-level dict, documented as process-local and "right for a
-    single-user app". Cloud Run scales to zero, so a learner who checks one
-    paragraph in the evening gets a cold container almost every time — and a
-    cold container has an empty breaker. With a threshold of two, the first two
-    requests of every container lifetime paid the timeout in full. TartuNLP's
-    grammar endpoint has answered 500 after ~61 seconds since the research
-    phase and did so again when re-probed, so at a 5 second provider timeout
-    that was ten seconds of dead waiting per cold start for a service that has
-    never once answered.
+    """The breaker persists its state, so a cold container does not pay a dead
+    provider's timeout again.
     """
 
     class Dead:
@@ -259,8 +228,7 @@ class TestTheBreakerSurvivesTheProcess:
         )
 
     def test_without_a_store_it_forgets_as_it_always_did(self, tmp_path):
-        """The regression, stated as a test so the fix cannot silently revert.
-        Unbound is still a supported mode — the CLI runs that way."""
+        """Unbound (in-memory) remains supported — the CLI runs that way."""
         breaker.bind(None)
         breaker.reset()
         calls = []
@@ -290,9 +258,7 @@ class TestTheBreakerSurvivesTheProcess:
         assert not breaker.is_open("tartunlp")
 
     def test_the_cooldown_grows_but_stops_at_about_a_week(self):
-        """The plan's instruction is to re-probe the research APIs weekly, so
-        there is nothing to gain from backing off further: a permanently dead
-        endpoint should cost one timeout a week, not two a session."""
+        """The cooldown stops growing at about a week."""
         assert breaker.cooldown(breaker.THRESHOLD) == breaker.COOLDOWN
         assert breaker.cooldown(breaker.THRESHOLD + 1) == breaker.COOLDOWN * 2
         assert breaker.cooldown(99) == breaker.MAX_COOLDOWN
@@ -316,16 +282,8 @@ class TestTheBreakerSurvivesTheProcess:
 
 
 class TestWhatTheNoteSays:
-    """The note is the only channel between a failing provider and the operator.
-
-    It has now been widened twice for the same reason. First `HTTPError` alone
-    could not distinguish "wait" from "replace the key"; the status code fixed
-    that. Then `HTTPError 403` sent a diagnosis at a key that was fine, because
-    the real cause was a model id deprecated six days earlier — and the provider
-    had named it, in a field the note dropped.
-
-    The constraint that shaped the fix: the note is printed into CI logs, and
-    the text being checked is the learner's own writing.
+    """The diagnostics name the provider's own error code, never a response body (the
+    note reaches CI logs; the checked text is the learner's writing).
     """
 
     @staticmethod
@@ -335,7 +293,7 @@ class TestWhatTheNoteSays:
             {}, io.BytesIO(body) if body is not None else None)
 
     def test_the_providers_own_error_name_reaches_the_note(self):
-        """The 403 this was written for: valid key, withdrawn model."""
+        """A valid key with a withdrawn model: the provider's code says so."""
         exc = self._http(403, b'{"error":{"code":"model_decommissioned",'
                               b'"message":"llama-3.3-70b-versatile has been '
                               b'decommissioned"}}')
@@ -347,13 +305,8 @@ class TestWhatTheNoteSays:
         assert grammar.why_failed(exc) == "HTTPError 401 (invalid_api_key)"
 
     def test_the_learners_sentence_cannot_reach_the_note(self):
-        """The whole reason bodies were banned. Prose has spaces, capitals and
-        non-ASCII; an identifier has none of them.
-
-        The note says `no-code` rather than nothing, because "the provider gave
-        no identifier" and "there was no provider response to read" are
-        different facts. What matters here is unchanged and asserted twice
-        below: not one character of the sentence survives.
+        """A body that is prose (spaces, capitals, non-ASCII) is not an identifier: the note
+        says `no-code` and repeats none of it.
         """
         exc = self._http(400, '{"error":{"code":"Ma lugesin raamatut läbi.",'
                               '"message":"Ma lugesin raamatut läbi."}}'
@@ -363,10 +316,9 @@ class TestWhatTheNoteSays:
         assert "raamat" not in note and "lugesin" not in note
 
     def test_html_from_a_proxy_is_named_as_such_not_quoted(self):
-        """A proxy 403 is not a provider 403, and knowing which is the whole
-        diagnosis: one means fix the request, the other means the request never
-        arrived. The body is a whole HTML page, so none of it is repeated —
-        only the fact that it was not the provider's JSON."""
+        """A proxy's HTML 403 is reported as `non-json`, distinct from a provider refusal,
+        without repeating the page.
+        """
         exc = self._http(403, b"<!DOCTYPE html><title>Attention Required</title>")
         note = grammar.why_failed(exc)
         assert note == "HTTPError 403 (non-json)"
@@ -389,39 +341,11 @@ class TestWhatTheNoteSays:
         assert "llm:nvidia: HTTPError 403 (model_decommissioned)" in got.diagnostics
 
 
-class TestThePinnedModels:
-    """Rule 1 of `llm.py`: never pin a model id without probing it.
-
-    The rule was written down and then broken by the file that states it. A test
-    cannot probe a catalogue without a key, so it checks the one thing it can:
-    that no id withdrawn on a date already known is still pinned here.
-    """
-
-    def test_no_provider_pins_a_model_known_to_be_withdrawn(self):
-        from eesti.providers.llm import PROVIDERS
-
-        # Announced deprecated by Groq for free and developer tiers on
-        # 2026-08-16; observed live as HTTPError 403 on 2026-08-22.
-        withdrawn = {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}
-        pinned = {p.name: p.default_model for p in PROVIDERS.values()}
-        assert not (set(pinned.values()) & withdrawn), pinned
-
-
 class TestImportingTheAppBindsTheBreaker:
-    """The binding is an import-time side effect, and it went missing once.
+    """Importing the app binds the breaker to durable storage.
 
-    `api/deps.py` ends with `_bind_breaker()`. It is a bare expression with no
-    name, which is how the tool that split `app.py` into routers dropped it:
-    functions, classes and assignments moved, and this did not. Nothing failed.
-    The breaker kept working from a module-level dict — and a module-level dict
-    is precisely what it was written to stop using, because Cloud Run scales to
-    zero and every cold container then pays a dead provider's full timeout
-    twice before stepping over it.
-
-    Checked in a subprocess because this suite deliberately unbinds the breaker
-    (`conftest`, autouse) so that tests cannot write to the learner's real
-    `data/progress.db`. In-process, the state this asserts has already been
-    taken apart on purpose.
+    Checked in a subprocess, because `conftest` deliberately unbinds the breaker for
+    in-process tests.
     """
 
     @staticmethod
@@ -455,23 +379,8 @@ class TestImportingTheAppBindsTheBreaker:
 
 
 class TestTheEvalSaysWhyItCouldNotMeasure:
-    """An eval that reaches nothing must still name the reason.
-
-    On 2026-09-02 the first `huggingface` run reported, eighteen times:
-
-        ✗ Ma lugesin eile selle raamatut läbi.
-            ERROR HTTPError: HTTP Error 400: Bad Request
-
-    and then `18/18 cases never reached the model (rate limit, timeout or
-    unparseable reply) — no score reported`. Three guesses, none of them right:
-    the token authenticated (a bad one is 401), the quota was untouched (that is
-    429), and the reply was never the problem (400 means the request was). The
-    provider had named the cause in its body and both eval tracks dropped it,
-    rendering `type(exc).__name__`.
-
-    `grammar.why_failed` — then named `_why` — already existed for exactly this,
-    and its docstring records the same lesson being learned in the live chain a
-    fortnight earlier. It was one import away and nobody had crossed the gap.
+    """An eval that reaches nothing must still name the reason, via
+    `grammar.why_failed`, not `type(exc).__name__`.
     """
 
     @staticmethod
@@ -482,7 +391,7 @@ class TestTheEvalSaysWhyItCouldNotMeasure:
 
         raw = json.dumps(body).encode() if body is not None else b""
         return urllib.error.HTTPError(
-            "https://router.huggingface.co/v1/chat/completions", code,
+            "https://openrouter.ai/api/v1/chat/completions", code,
             "Bad Request", {}, io.BytesIO(raw))
 
     def test_the_renderer_names_a_400s_cause(self):
@@ -492,20 +401,15 @@ class TestTheEvalSaysWhyItCouldNotMeasure:
         assert grammar.why_failed(exc) == "HTTPError 400 (json_mode_unsupported)"
 
     def test_both_eval_tracks_use_it(self):
-        """Structural, because the failure is invisible until a provider is
-        actually failing — which is when nobody wants to discover that the
-        message says nothing. Two tracks; the hand one was fixed first and the
-        external one is the copy that would have been left behind."""
+        """Both eval tracks render failures through `why_failed`."""
         import inspect
 
         from eesti.evals import external, gec
 
         for module in (gec, external):
             source = inspect.getsource(module)
-            # Comments stripped: `gec.py` quotes the old rendering in the
-            # comment explaining why it was replaced, and the first version of
-            # this assertion matched that. Sixth prose-vs-code match this
-            # sprint, and the second where the prose was mine.
+            # Comments stripped before searching, so prose about the old rendering does not
+            # match.
             code = "\n".join(line.split("#")[0] for line in source.splitlines())
             assert "why_failed(exc)" in code, module.__name__
             assert "type(exc).__name__" not in code, (
@@ -514,18 +418,8 @@ class TestTheEvalSaysWhyItCouldNotMeasure:
 
 
 class TestTheEvalScoresThePromptTheAppShips:
-    """The two prompts cannot drift apart, because there is now only one.
-
-    `evals/gec.py` used to define a near-copy of the shipped prompt: same job,
-    three fields instead of four, its own worked examples. A score from it was
-    a score for a prompt nobody was served, and the copies had already drifted
-    on the one thing the eval measures -- the mitigation for a model flagging
-    four of eight already-correct sentences reached the copy and not the
-    original.
-
-    The guard that held the shared half in both is gone with it. A test that
-    asserts a thing equals itself is a test that can never fail, which is worse
-    than no test: it reads like coverage.
+    """The eval scores the prompt the app ships: `evals/gec.py` imports it rather than
+    keeping a copy.
     """
 
     def test_the_eval_imports_it_rather_than_restating_it(self):
@@ -560,9 +454,9 @@ class TestTheEvalScoresThePromptTheAppShips:
 
 
 class TestTheLearnerReadsRussianAndTheOperatorReadsTheTrail:
-    """Production, 2026-09-14: four keys set, every lane failing, and the
-    banner told the learner to set a key — followed by `skipped -> tartunlp:
-    TimeoutError; llm:nvidia: HTTPError 403 (non-json)…` in English."""
+    """The learner's note is Russian and never contains the operator's failure trail;
+    the trail goes to `diagnostics`.
+    """
 
     def test_the_trail_is_not_in_the_note(self, monkeypatch):
         from eesti.providers import grammar

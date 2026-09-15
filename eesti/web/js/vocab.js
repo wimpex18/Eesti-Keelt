@@ -8,13 +8,9 @@ export async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
   const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
-  /* `found:false` covers two different answers and used to render as one.
-     A word can be genuinely absent from the lexicon -- or the lookup can be
-     unable to run at all, which is what `error` says ("run `cli export`
-     first" when the forms table was never exported). Reported as "не найдено"
-     the second one blames the word for a missing build step, and the learner
-     is told nothing they can act on about a card that would work fine
-     tomorrow. The API knew; the card threw it away. */
+  /* `found:false` covers two answers: the word is absent from the lexicon, or the
+     lookup could not run (`error`, e.g. the forms table was never exported). The
+     second must not read as "not found". */
   if (!d.found) {
     card.innerHTML = d.error
       ? `<span class="hint">${esc(d.word)} — разбор недоступен.
@@ -23,21 +19,12 @@ export async function showWordCard(word, card, contextFor) {
       : `<span class="hint">${esc(d.word)} — не найдено</span>`;
     return;
   }
-  /* Two different things to say about a word, and until now only one of them
-     could be said.
-
-     "Add to review" queues the grammar pattern behind it. "I know this"
-     records the lemma as known — and that was reachable only through
-     `POST /api/vocab/known`, which nothing called, and `cli vocab`, which does
-     not exist on the deployment. So on the running app no word could ever
-     become known, and everything downstream of that sat at zero for good: the
-     reading list's comprehensible-input ordering, dictation's easiest-first
-     ordering, the vocabulary line in the readiness verdict, and the "N of the
-     first 4000" counter. A whole pillar of the app with no input path. */
-  // An anchor the late-arriving enrichment can insert *before*. It used to
-  // insert before `#mineNote`, which sits under the buttons -- so what the word
-  // means appeared below "+ Kordamisse", after the actions rather than with the
-  // word they act on.
+  /* Two actions on a word: "Add to review" queues the grammar pattern behind it;
+     "I know this" records the lemma as known. Known words drive the reading
+     order, dictation order, the vocabulary line of the readiness verdict and the
+     "N of the first 4000" counter. */
+  // The anchor late-arriving enrichment inserts before, so the meaning sits with
+  // the word rather than below the actions.
   const mineBtn = `<div id="cardExtra"></div>
     <div class="row" style="margin-top:var(--s2)">
       <button class="ghost" id="mineBtn">${uiIcon("plus")}Kordamisse</button>
@@ -60,24 +47,17 @@ export async function showWordCard(word, card, contextFor) {
     note.className = "mine-note" + (r.queued ? "" : " no");
     note.textContent = r.reason;
     if (r.queued) refreshDueBadge();
-    // A refusal is often temporary: the commonest one is "we do not know what
-    // this word means yet", and the meaning arrives moments later from the
-    // enrichment call this same card fires. Leaving the button disabled made
-    // the advice to try again impossible to follow -- the only control that
-    // could act on it was the one that had just switched itself off.
+    // A refusal is often temporary ("meaning not known yet") and the meaning arrives
+    // moments later from enrichment, so the button is re-enabled.
     else e.target.disabled = false;
   };
 
   /* Rection and inflection type, from Sõnaveeb.
 
-     Fetched separately and appended when it arrives: this is the only call in
-     the app that leaves the machine while the learner is waiting, and a word
-     card must not be slower, or emptier, because a third party is having a bad
-     afternoon. Nothing here is awaited before the card is usable. */
-  // The LEMMA, not the word as it appears in the text. Sõnaveeb is a
-  // dictionary: it knows `jätkuma`, not `jätkuvad`, and sending the surface
-  // form returned "found: false" for every inflected word — which in Estonian
-  // is most of them, so the enrichment looked like it simply never worked.
+     Fetched separately and appended when it arrives: the card is usable before any
+     third-party call returns. */
+  // The lemma, not the surface form: Sõnaveeb is a dictionary and does not know
+  // inflected forms.
   const enrichLemma = d.analyses[0]?.lemma || word;
   fetch("/api/enrich/" + encodeURIComponent(enrichLemma))
     .then(r => r.json())
@@ -86,27 +66,18 @@ export async function showWordCard(word, card, contextFor) {
       const bits = [];
       if (x.governs?.length) bits.push(`rektsioon: <b>${esc(x.governs.join(", "))}</b>`);
       if (x.inflection_type) bits.push(`muuttüüp <b>${esc(String(x.inflection_type))}</b>`);
-      // The gloss, in the language this app explains things in. The API had
-      // carried it all along under a key the provider never read, so the card
-      // showed a muuttüüp number to someone who did not yet know the word.
+      // The gloss, in the language the app explains things in.
       if (x.russian?.length)
         bits.push(`<span class="gloss">${esc(x.russian.join(", "))}</span>`);
-      // EKI's Estonian-Russian dictionary is CC BY 4.0 like the definition
-      // below, so its Russian carries the same credit -- and only when it is
-      // EKI's: Sõnaveeb's gloss in the same slot is not theirs to be credited.
+      // EKI's Estonian-Russian dictionary is CC BY 4.0, so its Russian is credited —
+      // only when it is EKI's, not Sõnaveeb's gloss in the same slot.
       if (x.russian_source === "ekilex")
         bits.push(`<span class="attrib">allikas: Ekilex (EKI) · CC BY 4.0</span>`);
       if (x.russian_source === "eki-evs")
         bits.push(`<span class="attrib">allikas: EKI eesti-vene sõnaraamat · CC BY 4.0</span>`);
       if (x.russian_source === "eki-har")
         bits.push(`<span class="attrib">allikas: EKI haridussõnastik · CC BY 4.0</span>`);
-      /* The definition and the examples, from EKI's põhisõnavara sõnastik.
-
-         Both were already in the response and neither was ever drawn:
-         `definition` arrived and was dropped, `examples` arrived hardcoded to
-         `[]`. A card that shows a muuttüüp number and not what the word means
-         is the same defect as a gloss the provider never read — which this
-         file fixed once already, one field along. */
+      /* The definition and the examples, from EKI's põhisõnavara sõnastik. */
       const meaning = [];
       if (x.definition)
         meaning.push(`<div class="def">${esc(x.definition)}</div>`);
@@ -115,17 +86,12 @@ export async function showWordCard(word, card, contextFor) {
           x.examples.map(e => `<li>${esc(e)}</li>`).join("") + `</ul>`);
       /* Whose words those are.
 
-         EKI publish the põhisõnavara sõnastik under CC BY 4.0, and their terms
-         are that the material may be processed and presented any way needed
-         provided the reference to EKI is retained and the changes described.
-         The card renders their definition and their examples verbatim, so this
-         is where the reference has to be — the licence follows the text, not
-         the repository, and until now the credit existed only in `docs/` and
-         in a registry note that nothing served.
+         EKI publish the põhisõnavara sõnastik under CC BY 4.0: the material may be
+         presented any way needed provided the reference to EKI is retained and changes
+         are described. The card renders their text verbatim, so the credit goes here —
+         the licence follows the text.
 
-         Estonian, and the source's own name: it is a label, and the language
-         rule keeps those in Estonian. The word "allikas" is not the caveat
-         kind of string that has to be readable to do its job. */
+         The label is Estonian (a label, per the language rule), not an explanation. */
       if (x.definition_source === "eki-psv")
         meaning.push(`<div class="attrib">allikas: EKI põhisõnavara sõnastik` +
           ` 2014 · CC BY 4.0</div>`);
@@ -135,10 +101,9 @@ export async function showWordCard(word, card, contextFor) {
         meaning.push(`<div class="attrib">allikas: EKI võõrsõnade leksikon · CC BY 4.0</div>`);
       if (x.definition_source === "eki-ekss")
         meaning.push(`<div class="attrib">allikas: EKI eesti keele seletav sõnaraamat · CC BY 4.0</div>`);
-      /* The fuller, native-level wording beside PSV's learner definition.
-         Folded, because the learner-level one is the one meant to be read
-         first; open when the simple wording is not enough. Credited by whose
-         words they are: Sõnaveeb's (EKI's live database) or EKI's files. */
+      /* The fuller, native-level wording beside PSV's learner definition. Folded,
+         because the learner-level one is meant to be read first. Credited by source:
+         Sõnaveeb (EKI's live database) or EKI's files. */
       if (x.full_definition) {
         const who = {
           "sonapi": "Sõnaveeb (EKI) · CC BY 4.0",
@@ -163,9 +128,8 @@ export async function showWordCard(word, card, contextFor) {
         extra.innerHTML = bits.join(" · ");
         slot.append(extra);
       }
-      // Out to the real dictionary. Three fields is a reminder; the paradigm,
-      // the audio and the rest live in Sõnaveeb, which this app deliberately
-      // does not reimplement.
+      // Out to the real dictionary. The paradigm, audio and the rest live in
+      // Sõnaveeb, which this app does not reimplement.
       if (x.sonaveeb) {
         const out = document.createElement("div");
         out.className = "hint";
@@ -177,19 +141,14 @@ export async function showWordCard(word, card, contextFor) {
     })
     .catch(() => {});
 
-  // Marking a word known is an explicit act, never inferred from having read
-  // it -- meeting a word is not knowing it, and a counter that inflates itself
-  // measures reading rather than vocabulary.
-  /* "Not worth my time" — the action a vocabulary list needs and a reader does
-     not. Browsing B1 nouns turns up `riigivisiit` and `seinamaaling`: real
-     words, correctly listed, and not what this learner is going to spend a
-     morning on. Without this they return on every page and the "still to
-     learn" count never means anything.
+  // Marking a word known is an explicit act, never inferred from having read it:
+  // meeting a word is not knowing it.
+  /* "Not worth my time": rare but correctly listed words (`riigivisiit`,
+     `seinamaaling`) would otherwise return on every page and keep the "still to
+     learn" count meaningless.
 
-     Stored as `eiran` rather than as `tean`, because "I know this" and "this
-     is not for me" are different facts and collapsing them would make the
-     known-word count — which orders the reading list and feeds the verdict —
-     quietly wrong. */
+     Stored as `eiran`, not `tean`: "I know this" and "not for me" are different
+     facts, and the known-word count orders the reading list and feeds the verdict. */
   card.querySelector("#skipBtn").onclick = async e => {
     e.target.disabled = true;
     const lemma = d.analyses[0]?.lemma || word;

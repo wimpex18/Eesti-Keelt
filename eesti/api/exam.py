@@ -27,11 +27,8 @@ def exam(level: str) -> dict:
 
 @router.get("/api/readiness/{level}")
 def exam_readiness(level: str) -> dict:
-    """Evidence for and against sitting a level, with the reasons named.
-
-    Not a prediction. The pass rule is 60% overall *and* no part at zero, so
-    this reports every part separately — an aggregate would hide the untouched
-    part that is the actual risk.
+    """Evidence for and against sitting a level. Not a prediction: every part is
+    reported separately, since any part at zero fails.
     """
     from ..readiness import readiness
 
@@ -58,16 +55,7 @@ def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> di
         "pass_mark": PASS_MARK,
         "topics": topics_at(level),
         "items": [i.to_dict() for i in items],
-        # What the words in this set mean, from the local store only.
-        #
-        # A B1 object-case set comes back on lemmas like `etendus`, `luuletus`
-        # and `rahakott`. A learner can inflect those correctly without knowing
-        # one of them, and then has practised morphology on a token -- which is
-        # half of what the exercise looks like it is teaching.
-        #
-        # Local reads only: a live lookup per item would be the batch request
-        # `sonapi` refuses to have a helper for, and would make a practice set
-        # wait on a third party. Words not yet stored are simply not glossed,
-        # and get filled one at a time as each item is answered.
+        # Glosses for the checkpoint's words from the local store only, never a live
+        # lookup per item.
         "glosses": _glosses_for([i.lemma for i in items]),
     }

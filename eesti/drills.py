@@ -1,25 +1,14 @@
 """Offline generator for object-case (obj-case) drills.
 
-This targets the #1 documented gap in the Notion error log: choosing partitive
-where a completed, whole object requires genitive. Everything here runs without
-a network — templates supply the aspect context, Vabamorf supplies the real
-inflected forms, so every answer is deterministic and nothing can go down.
+Templates supply the aspect context and Vabamorf the forms, so every answer is
+deterministic and offline.
 
-The three rules drilled, in the order they actually bite a learner:
-
-  1. Completed action + whole object -> GENITIVE  ("Ma lugesin raamatu labi")
-  2. Ongoing / repeated / partial    -> PARTITIVE ("Ma lugesin raamatut terve ohtu")
+  1. Completed action + whole object -> GENITIVE  ("Ma lugesin raamatu läbi")
+  2. Ongoing / repeated / partial    -> PARTITIVE ("Ma lugesin raamatut terve õhtu")
   3. Negation                        -> ALWAYS PARTITIVE (no exceptions)
 
-Rule 3 is exception-free, so it gives quick wins and a foothold before the
-harder aspect judgement in rules 1-2.
-
-Design note — why templates carry their own object pool. Pairing every template
-with every level-appropriate noun generates grammatically valid nonsense
-("Ma ostsin haigla ara" — I bought the hospital). The case rule is what is being
-taught, but implausible sentences are demotivating and teach bad collocations, so
-each frame declares the semantic class of object it accepts. Vocabulary breadth
-is the vocab drill's job, not this one's.
+Each frame declares the semantic class of object it accepts, so sentences stay
+plausible ("I bought the hospital" is excluded).
 """
 
 from __future__ import annotations
@@ -138,9 +127,8 @@ class Drill(GradedItem):
     rule: str
     why_ru: str
     level: str | None
-    # These drills predate the curriculum model, so the topic they belong to was
-    # implicit in which function built them. Naming it is what lets the review
-    # handoff and the progress gate treat them like every other generator.
+    # The curriculum topic these drills file under, so review handoff and the
+    # progress gate treat them like any generator.
     topic: str = "obj-case"
 
     @property
@@ -155,10 +143,8 @@ def generate(
     rules: tuple[str, ...] | None = None,
     seed: int | None = None,
 ) -> list[Drill]:
-    """Build `count` drills, each pairing a frame with a semantically fitting noun.
-
-    Nouns whose genitive and partitive are identical are excluded: for "maja"/
-    "maja" there is no wrong answer, so such an item would measure nothing.
+    """Build `count` drills, each pairing a frame with a semantically fitting noun;
+    nouns whose genitive and partitive are identical are excluded.
     """
     rng = random.Random(seed)
     templates = [t for t in TEMPLATES if not rules or t.rule in rules]
@@ -176,22 +162,8 @@ def generate(
             "no usable templates — run `python -m eesti.cli build` to index forms."
         )
 
-    # Enumerate every valid (frame, noun) pairing, then take them a frame at a
-    # time rather than at random.
-    #
-    # Sampling the flat list uniformly looked right and read badly: the noun is
-    # blanked, so two pairings that share a frame are the *same sentence* on
-    # screen. Measured over twelve seeds, a ten-item set held only 5-8 distinct
-    # prompts and one sentence could appear five times, out of twelve frames
-    # available -- the docstring above promised the opposite and no test had
-    # ever looked. Found by reading a screenshot of the drill, not by an
-    # assertion.
-    #
-    # Round-robin over the frames instead: shuffle the nouns within each frame,
-    # shuffle the order of the frames, then deal one item from each in turn. A
-    # set of ten across twelve frames now repeats no sentence at all, and where
-    # count exceeds the frames available the repeats are spread evenly rather
-    # than clustered.
+    # Deal pairings round-robin across shuffled frames (nouns shuffled within each),
+    # so a set repeats no sentence until the frames run out, then spreads repeats.
     by_frame: dict[str, list] = {}
     for tpl in usable:
         pool = [(tpl, word) for word in POOLS[tpl.pool] if word in forms]
@@ -258,12 +230,8 @@ def generate_verb_drills(
     levels: tuple[str, ...] = LEVELS,
     seed: int | None = None,
 ) -> list[Drill]:
-    """Drills on irregular verb stems.
-
-    The distractor is not invented: it is the form the learner would build by
-    stripping `-ma` and adding the ending, which is the mistake they actually
-    make (`minema` -> `minen`, where Estonian says `lähen`). Only verbs where
-    that naive form is wrong are drilled.
+    """Drills on irregular verb stems: the distractor is the naive form (`minema` →
+    `minen`, not `lähen`); only verbs where it is wrong are drilled.
     """
     from .verbs import irregular_verbs
 

@@ -1,54 +1,29 @@
 """Ekilex — EKI's own dictionary API, the database Sõnaveeb shows.
 
-## Why it replaces `api.sonapi.ee`
+Used instead of the `api.sonapi.ee` mirror when `EKILEX_API_KEY` is set.
 
-`sonapi` is a third party's mirror over Sõnaveeb. It has already cost this app
-two defects that belong to the mirror, not to EKI: definitions joined by a bare
-comma, and translations packed into one string. Ekilex is the source itself,
-and EKI give it a key for exactly this use.
+API: base `https://ekilex.ee/api`, key in the `ekilex-api-key` header (403
+without); `GET /word/search/{word}`, `GET /word/ids/{word}/{dataset}/est`,
+`GET /word/details/{wordId}/{dataset}`, `GET /paradigm/details/{wordId}`.
+Licence CC BY 4.0: credit EKI and Ekilex, describe changes.
 
-## What is known, and from where
+The parser follows real responses (fixtures in `tests/fixtures/ekilex/`, saved
+with `cli ekilex-probe`). From `/word/details/{id}/eki`, `lexemes` in EKI's order:
 
-Documented by EKI and confirmed in EKI-adjacent client code (2026-09-13):
-
-* base `https://ekilex.ee/api`, key in the `ekilex-api-key` header — without it
-  every call answers 403;
-* `GET /word/search/{word}`, `GET /word/ids/{word}/{dataset}/est`,
-  `GET /word/details/{wordId}/{dataset}`, `GET /paradigm/details/{wordId}`;
-* licence CC BY 4.0: EKI and Ekilex credited, changes described.
-
-## What the parser reads, and where it learnt it
-
-Built from real responses (`cli ekilex-probe` for `maja`, `lugema`, `poiss`,
-`kohus`, 2026-09-13; trimmed copies in `tests/fixtures/ekilex/`), not from a
-description — this project has watched two parsers written that way fail on
-their first real input.
-
-`/word/details/{id}/eki` answers `word` (with `paradigms`) and `lexemes`, one
-per sense, in EKI's order. From them:
-
-* **learner definition** — a definition flagged `wwLite`: the *Keeleõppija
-  Sõnaveeb* wording, the same text PSV has for `maja` but maintained today;
+* **learner definition** — flagged `wwLite` (Keeleõppija Sõnaveeb wording);
 * **native definition** — flagged `wwUnif`;
-* **Russian** — `synonymLangGroups` of `lang: rus`, **`MEANING_WORD` only**.
-  `MEANING_REL` entries are words of *related* meanings, weighted below 1:
-  counted, `kohus` ("duty") read угнетение, давление, иго;
-* **rection** — `governments` (`lugema`: mida, kust, kellele — the object PSV lacks);
-* **muuttüüp** — the first paradigm's `inflectionType`; a parenthesised one
-  (`poiss`: `(22e)`) is secondary;
-* **CEFR level** — `lexemeProficiencyLevelCode` (`maja` A1, `kohus` B1);
-* **examples** — `usages` in Estonian.
+* **Russian** — `synonymLangGroups` with `lang: rus`, `MEANING_WORD` only
+  (`MEANING_REL` are related meanings);
+* **rection** — `governments`;
+* **muuttüüp** — the first paradigm's `inflectionType` (parenthesised = secondary);
+* **CEFR level** — `lexemeProficiencyLevelCode`;
+* **examples** — Estonian `usages`.
 
-A sense EKI mark archaic (`registers: van`, `kohus` → "право") is skipped.
-Homonyms are separate word ids (`kohus`: duty, then court); the first is read,
-one details request per word.
+Archaic senses (`registers: van`) are skipped. Homonyms are separate word ids;
+the first is read.
 
-## Restraint
-
-The same as `sonapi`, because the server is the same institute's: single
-lookups only, one live request a second under a lock, no bulk helper, and every
-answer kept so a word is asked about once. No rate limit is published; this is
-the posture, not a workaround for one.
+Restraint as for `sonapi`: single lookups, one live request a second under a
+lock, no bulk helper, every answer stored.
 """
 
 from __future__ import annotations
@@ -109,8 +84,9 @@ def get(path: str, timeout: float = TIMEOUT):
 
 
 def probe(word: str, out_dir: Path | None = None) -> Path:
-    """Ask Ekilex about one word through every endpoint the parser will need,
-    and save the raw answers side by side. Four requests, one word, once."""
+    """Ask Ekilex about one word through every endpoint the parser needs, and save the
+    raw answers. Four requests, once.
+    """
     quoted = urllib.parse.quote(word)
     found: dict = {"word": word}
     found["search"] = get(f"/word/search/{quoted}")
@@ -196,13 +172,11 @@ def parse(details: dict) -> Info | None:
                   if l.get("lexemeProficiencyLevelCode")), None)
     examples = tuple(u["value"] for l in senses[:1] for u in l.get("usages") or []
                      if u.get("lang") == "est" and u.get("value"))[:3]
-    pos = tuple(dict.fromkeys(p["code"] for l in senses for p in l.get("pos") or [] if p.get("code")))
 
     if not (russian or learner or native or rection):
         return None
     return Info(
         word=word.get("wordValue") or "",
-        word_classes=pos,
         rection=rection or None,
         inflection_type=paradigm["inflectionType"] if paradigm else None,
         definition=native,

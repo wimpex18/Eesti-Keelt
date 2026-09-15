@@ -1,21 +1,9 @@
 """Should you sit the exam? An answer, and the things it refuses to claim.
 
-The A2 sitting is 07.11.2026 and the decision is due 01.10.2026. That is a real
-deadline with a real cost either way, which is exactly the situation in which a
-confident number would be most welcome and least earned.
-
-So the properties worth testing here are mostly refusals.
-
-**No prediction.** Nothing in this project has seen a graded exam and there is
-no population to calibrate against, so there is no probability and no score.
-
-**Four parts, never one total.** The pass rule is ≥60% overall *and* no part at
-zero. An aggregate hides the untouched part, which is the failure mode the rule
-exists to punish.
-
-**"Cannot tell" is not "none".** Rääkimine is paired and dialogic; nothing here
-simulates two candidates negotiating agreement. Reporting that as zero practice
-would be a claim the learner would reasonably act on.
+- **No prediction** — no probability, no score.
+- **Four parts, never one total** — ≥60 % overall and no part at zero.
+- **"Cannot tell" is not "none"** — Rääkimine is paired and cannot be judged
+  here; reporting it as zero practice would mislead.
 """
 
 from __future__ import annotations
@@ -109,9 +97,7 @@ def target(monkeypatch):
 
 class TestTheDeadline:
     def test_no_session_is_chosen_by_default(self):
-        """The November 2026 A2 rehearsal was declined on 2026-08-20 in favour
-        of another year's study. Counting down to it after that is not
-        motivation, it is a reproach for a decision already made."""
+        """With no sitting chosen, no countdown is shown."""
         from eesti import readiness as module
 
         assert module.TARGET is None
@@ -142,9 +128,9 @@ class TestTheDeadline:
         assert result.days_to_decide < 0
 
     def test_the_example_keeps_the_calendar_shape(self):
-        """Kept so choosing a 2027 session is copying a shape rather than
-        re-reading HARNO's calendar: registration closes about five weeks
-        before the sitting."""
+        """`EXAMPLE_TARGET` keeps the calendar shape: registration closes about five weeks
+        before the sitting.
+        """
         decide, sitting = EXAMPLE_TARGET
         assert 28 <= (sitting - decide).days <= 45
 
@@ -157,12 +143,9 @@ class TestContactThreshold:
 
 
 class TestTheVerdictReadsOnlyWhatItIsGiven:
-    """`_parts` opened the Notion queue from `app.NOTION_DB` itself, so the
-    verdict depended on a module-level path no caller could redirect. A test
-    with its own fixtures still read the developer's real queue — the suite
-    reported one thing locally and another in CI, and it only ever passed
-    because that queue happened to be empty. Same shape as every other
-    path-frozen-at-import bug in this project."""
+    """The verdict reads the Notion queue from the connection passed in, never a
+    module-level path.
+    """
 
     def test_writing_is_zero_when_no_queue_is_supplied(self, progress):
         part = {p.id: p for p in readiness("A2", progress=progress).parts}
@@ -202,18 +185,8 @@ class TestTheVerdictReadsOnlyWhatItIsGiven:
 
 
 class TestTheVocabularyLineCountedNothing:
-    """It read zero for every learner, always, and said it had measured.
-
-    `_vocabulary` asked `WHERE known = 1`. `vocab_status` has no `known`
-    column — it is `status`, on the ladder
-    `UNKNOWN, LEARNING, KNOWN, IGNORED, WELL_KNOWN = 0, 1, 5, 98, 99`. Every
-    call raised `OperationalError`, a bare `except sqlite3.Error` turned it
-    into `0`, and the screen told a learner who had marked hundreds of words
-    **"0 из 997 слов уровня"**.
-
-    Two faults, and the second is the worse one. A wrong column name is a typo.
-    Reporting the failure as a *measurement of zero* — `measured: True`, which
-    is what the page gates the line on — is what kept it invisible.
+    """Known-word counts read `vocab_status.status` (KNOWN, WELL_KNOWN), and a failed
+    read reports `measured: False`, never a measured zero.
     """
 
     @pytest.fixture
@@ -295,8 +268,7 @@ class TestTheVocabularyLineCountedNothing:
         assert _vocabulary(vocabulary, words, "A2")["measured"] is True
 
     def test_the_query_names_a_column_that_exists(self, vocabulary):
-        """Read from the schema, because the whole bug was a column name that
-        looked plausible and was not there."""
+        """Checked against the real schema's column names."""
         cols = {r[1] for r in vocabulary.execute("PRAGMA table_info(vocab_status)")}
         assert "status" in cols
         assert "known" not in cols

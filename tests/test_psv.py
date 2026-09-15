@@ -1,18 +1,8 @@
-"""EKI's learner dictionary: definitions written for someone learning the word.
+"""EKI's learner dictionary (PSV).
 
-Two things are worth pinning, and the second is the one that moved.
-
-* The parser has to survive EKI's own XML, which they warn does not validate
-  against the schema they publish for it.
-* The store has to be somewhere a Cloud Run cold start cannot empty. It began
-  in `vocab.db` beside the Sõnaveeb glosses, which was wrong twice over: that
-  file is carried by the **state snapshot** and a restore replaces it whole, so
-  six thousand reference definitions would have survived until the first
-  restore and then vanished; and sharing a row with `word_gloss` meant every
-  write had to be careful not to overwrite the other source. Its own table in
-  the words database — the one baked into the image — dissolves both. The
-  tests that used to guard the sharing are gone with the sharing; what is left
-  is a test that says the two stores do not touch.
+The parser survives EKI's real XML (which does not validate against its own
+schema), and the definitions live in the words database — reference data baked
+into the image — separate from the learner's `vocab.db`.
 """
 
 from __future__ import annotations
@@ -144,10 +134,7 @@ class TestWhereItLives:
         assert psv.imported(conn) == 0
 
     def test_it_does_not_touch_the_sonaveeb_glosses(self, store, xml, tmp_path):
-        """The two stores are separate files with separate lifetimes: this one
-        ships in the image, `vocab.db` travels in the state snapshot. Importing
-        the dictionary must leave the learner's store alone — and, the way the
-        sharing used to fail, must not deny those 6 000 words their Russian."""
+        """Importing PSV leaves the learner's `vocab.db` untouched."""
         glosses = gloss.connect(tmp_path / "vocab.db", seed_glosses=False)
         gloss.save(glosses, "raamat", _Info())
         psv.store(store, psv.parse(xml))
@@ -210,9 +197,8 @@ class _Info:
     inflection_type = "2"
 
 
-#: Three articles in the shape of the real `psv_EKI_CCBY40.xml`, measured
-#: 2026-09-13: no root element, undeclared `c:` prefixes, one article per line,
-#: EKI's entity codes escaped as `&amp;ba;`. Trimmed from real entries.
+#: Three articles in the real file's shape: no root element, undeclared `c:`
+#: prefixes, one article per line, entity codes escaped as `&amp;ba;`.
 REAL_SHAPE = (
     '<c:A c:KF="psv1"><c:P><c:mg><c:m c:i="1" c:O="arm1">arm</c:m><c:sl>S</c:sl>'
     '</c:mg></c:P><c:S><c:tp c:tnr="1"><c:tg><c:dg><c:d>paranenud haavast jäänud '

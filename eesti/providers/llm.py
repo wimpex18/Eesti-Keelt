@@ -69,12 +69,8 @@ class Provider:
 
     @property
     def available(self) -> bool:
-        """A provider is available when it has what it needs to be called.
-
-        For a hosted provider that is a key. For a self-hosted one there is no
-        key to have, so availability is a deliberate opt-in: set `LOCAL_LLM_URL`
-        and the lane turns on. Treating "no key" as "unavailable" would have
-        made a keyless provider permanently invisible.
+        """Available when it has what it needs: a key for hosted lanes, `LOCAL_LLM_URL`
+        for the keyless local lane.
         """
         if not self.key_env:
             return bool(os.environ.get("LOCAL_LLM_URL"))
@@ -97,7 +93,7 @@ PROVIDERS: dict[str, Provider] = {
         "nvidia",
         "https://integrate.api.nvidia.com/v1",
         "NVIDIA_API_KEY",
-        "deepseek-ai/deepseek-v4-flash-0731",
+        "z-ai/glm-5.3-flash",
         "Free NVIDIA Developer Program key, 40 req/min; 100+ hosted models.",
         json_mode=False,
     ),
@@ -160,11 +156,7 @@ def _user_agent() -> str:
 
 
 def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
-    """Fetch the provider's live catalogue.
-
-    OpenRouter serves this without a key, which makes it the cheapest way to
-    check whether a pinned id still exists.
-    """
+    """Fetch the provider's live catalogue."""
     provider = PROVIDERS[provider_name]
     url = f"{_base_url(provider)}/models"
     if provider.name == "workers-ai":
@@ -195,11 +187,8 @@ RETRY_CEILING = 60.0
 
 
 def _retry_after(exc) -> float | None:
-    """Seconds the provider asks us to wait, or None if it did not say.
-
-    `Retry-After` is either a count of seconds or an HTTP date; OpenRouter also
-    sends `X-RateLimit-Reset` as a Unix timestamp in milliseconds. Read all
-    three rather than only the easy one -- guessing here is what costs quota.
+    """Seconds the provider asks us to wait, or None: `Retry-After` (seconds or an
+    HTTP date) or OpenRouter's `X-RateLimit-Reset` (Unix ms).
     """
     import email.utils
 
@@ -244,11 +233,7 @@ def complete(
             {"role": "user", "content": user},
         ],
         "max_tokens": max_tokens,
-        # Grading here is deterministic and that is the one property that must
-        # not break. Every remaining lane is OpenAI-compatible and accepts it;
-        # the one that did not -- `anthropic`, where sampling parameters are
-        # removed on `claude-sonnet-5` -- was deleted rather than special-cased,
-        # so the per-provider flag that briefly guarded it went with it.
+        # Temperature 0 on every lane (all are OpenAI-compatible and accept it).
         "temperature": 0,
     }
     # Both must agree: the caller wants JSON, and the lane can ask for it. A
@@ -284,22 +269,10 @@ def complete(
             if attempt == RETRIES - 1:
                 raise
             if exc.code == 429:
-                # Two different 429s wear one status code, and retrying is
-                # right for exactly one of them.
-                #
-                # OpenRouter's free tier allows 20 requests a minute and 50 a
-                # day, and **a failed attempt still counts against the daily
-                # quota**. So when the daily cap is what was hit, every retry
-                # spends another of the 50 to be told the same thing, and the
-                # learner waits 5s then 10s to arrive at the answer the first
-                # call already gave. Three requests and fifteen seconds for one
-                # guaranteed failure -- and the whole point of a provider chain
-                # is that falling through to the next one is cheap.
-                #
-                # The provider is the only thing that knows which cap it was,
-                # and it says so in `Retry-After`. A short wait is the
-                # per-minute cap and worth sleeping through; a long one, or none
-                # at all, is not something to spend quota guessing about.
+                # Two 429s share one status code. A per-minute limit is worth a short wait; a
+                # daily cap is not, and on OpenRouter a failed attempt still counts against the
+                # daily quota. Retry only when `Retry-After` asks for a short wait; otherwise fall
+                # through to the next lane.
                 wait = _retry_after(exc)
                 if wait is None or wait > RETRY_CEILING:
                     raise

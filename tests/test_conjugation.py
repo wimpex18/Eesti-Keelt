@@ -1,9 +1,5 @@
-"""Tense, mood, infinitive and voice drills.
-
-The distinguishing claim of this generator is that the distractor is the
-neighbouring form a learner confuses the answer with, not an invented string.
-Most of these tests check that claim holds and that an item measuring nothing
-never ships.
+"""Tense, mood, infinitive and voice drills: the distractor is the neighbouring form
+the learner confuses, and an item whose two forms coincide never ships.
 """
 
 from __future__ import annotations
@@ -109,8 +105,7 @@ def test_an_unknown_topic_is_rejected_rather_than_ignored(words):
 
 
 def test_a_sentence_initial_blank_is_capitalised(words):
-    """The imperative frames start with the blank; a lowercase sentence start
-    looks like a bug to the learner."""
+    """Sentence-initial blanks are capitalised in the solution."""
     items = generate(words, topics=("kaskiv",), count=6, seed=7)
     starting = [i for i in items if i.prompt.startswith("____")]
     assert starting
@@ -143,16 +138,8 @@ def test_an_empty_verb_table_fails_loudly(tmp_path):
 
 
 class TestOneAnswerAboutWhichVerbsAreReady:
-    """`conjugation.py` and `verbs.py` must agree about the verb pool.
-
-    They each held the same SQL for it — same `pos` test, same frequency
-    ordering, same limit — with nothing keeping them in step. Either one being
-    edited would have changed which verbs the drill offered *or* which verbs
-    the form model considered irregular, and not both, and neither would have
-    failed anything.
-
-    They read `wordlist.verbs_at_level` now. This is the property that made
-    that worth doing, stated where it can fail.
+    """`conjugation.py` and `verbs.py` draw from the same verb pool
+    (`wordlist.verbs_at_level`).
     """
 
     def test_the_drill_and_the_form_model_draw_on_the_same_pool(self, words):

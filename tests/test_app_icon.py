@@ -1,18 +1,5 @@
-"""The mark on the home screen, and the two ways it was not there.
-
-`/icon.png` existed as a route and returned SVG bytes: no PNG file had ever
-been checked in, and the handler fell back to `ICON_SVG` under a `.png` name.
-The one platform that fallback was written for is the one that cannot use it
--- iOS ignores SVG for `apple-touch-icon`, which the handler's own docstring
-said -- so adding the app to a home screen produced a screenshot of the page
-rather than the icon. A route returning 200 is not the same as a route
-returning what it claims, and nothing here was checking the bytes.
-
-The second failure was inside the artwork. The `ä` was a `<text>` element in a
-system font stack, which is a font dependency inside an icon: the glyph is
-drawn by whichever face the renderer resolves, so it changes weight and
-metrics between platforms and can be missing entirely from a rasteriser's
-environment. An icon has to be the same picture everywhere it is pasted.
+"""The home-screen icon: `/icon.png` returns real PNG bytes (iOS ignores SVG for
+`apple-touch-icon`), and the SVG mark is drawn as paths, with no font dependency.
 """
 
 from __future__ import annotations
@@ -40,7 +27,7 @@ def client():
 class TestTheRasterIsReallyARaster:
     def test_the_file_is_checked_in(self):
         assert (WEB / "icon.png").exists(), (
-            "no icon.png — the route used to paper over this by serving SVG")
+            "no icon.png is checked in")
 
     def test_the_route_serves_png_bytes(self, client):
         r = client.get("/icon.png")

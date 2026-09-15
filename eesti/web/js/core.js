@@ -1,10 +1,8 @@
 /* The four things every other module needs: the DOM shorthand, escaping, the
    API call, and the two helpers that write to a control without destroying it.
 
-   `setLabel` is here rather than beside a button because of what it prevents:
-   `btn.textContent = "…"` replaces *every* child, and once the buttons carried
-   a Russian gloss that assignment silently deleted the only word on them the
-   learner can read. Anything that changes a label goes through it. */
+   `btn.textContent = "…"` replaces every child, including the Russian gloss and
+   the icon. Anything that changes a label goes through `setLabel`. */
 
 
 export const $ = s => document.querySelector(s);
@@ -35,16 +33,10 @@ export async function api(path, body, method) {
   try {
     r = await fetch(path, init);
   } catch (err) {
-    /* A failed fetch throws a TypeError whose message is the browser's own
-       English string -- "Failed to fetch" in Chrome, "NetworkError when
-       attempting to fetch resource" in Firefox. Every caller renders
-       `err.message` into a banner, so with no connection the app told a
-       Russian-speaking learner "Failed to fetch".
-
-       Made reachable by the service worker: before it, losing the connection
-       gave the browser's own offline page and the app never got to speak. Now
-       the shell loads and this is what it says, so it has to say something
-       true and readable. */
+    /* A failed fetch throws the browser's own English message ("Failed to fetch").
+       Every caller renders `err.message`, so it is replaced with a Russian one —
+       with the service worker serving the shell offline, this is what the learner
+       sees. */
     throw new Error(
       "Нет соединения с сервером. Упражнения создаются на сервере, "
       + "поэтому без интернета их не открыть.");
@@ -58,10 +50,8 @@ export function taskLine(it, ru, opts) {
   if (it.lemma) bits.push(`<span class="word">${esc(it.lemma)}</span>`);
   const form = it.label || (it.lemma ? "" : it.hint || "");
   // The same string plays two roles. In a practice set it is the instruction
-  // -- "produce the osastav" -- and earns the accent. In the review queue it
-  // is which topic the card came from, which is provenance, not a task, and
-  // rendering "TÄISSIHITIS JA OSASIHITIS" in accented capitals made the label
-  // wider and louder than the word it described.
+  // ("produce the osastav") and earns the accent. In the review queue it is the
+  // card's topic — provenance, not a task — so it takes the quiet shape.
   const quiet = !!(opts && opts.quiet);
   if (form && !quiet) bits.push(`<span class="form">${esc(form)}</span>`);
   if (ru && ru.length)
@@ -76,9 +66,7 @@ export function taskLine(it, ru, opts) {
 export function setLabel(el, text) {
   if (!el) return;
   const ru = el.querySelector(".ru");
-  /* The mark survives a label change for the same reason the gloss does:
-     `textContent =` wipes every child, and a button that loses its icon the
-     first time it says "Laen…" never gets it back. */
+  /* The mark survives a label change: `textContent =` wipes every child. */
   const ico = el.querySelector(".btn-ico");
   el.textContent = text;
   if (ico) el.prepend(ico);

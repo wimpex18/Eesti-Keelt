@@ -1,17 +1,7 @@
 """Tenses, moods, infinitives and voice — the rest of the verb.
 
-`verbs.py` drills **irregular stems**: verbs where stripping `-ma` and adding the
-ending gives the wrong answer, so the distractor writes itself. That covers one
-topic, `verb-form`, and it deliberately skips every regular verb, because a verb
-whose naive form is already right teaches nothing about *stems*.
-
-But it teaches plenty about everything else. A learner who can build `õpib` still
-has to choose between `õpib` and `õppis`, between `õpiks` and `õpib`, between
-`pean õppima` and `tahan õppida`. Those are nine separate curriculum topics, and
-what they test is not the stem — it is **the marker**.
-
-So the distractor here is not a naive form. It is **the same verb in the
-neighbouring form the learner confuses it with**:
+`verbs.py` drills irregular stems. Here the distractor is the same verb in the
+neighbouring form the learner confuses it with:
 
     tingiv kõneviis   õpiks    against the present   õpib
     lihtminevik       õppis    against the present   õpib
@@ -19,15 +9,9 @@ neighbouring form the learner confuses it with**:
     umbisikuline      õpitakse against the personal  õpib
     ma-/da-infinitiiv õppima   against               õppida
 
-Every one of those pairs is a real confusion with a real marker to learn, and
-both halves come from Vabamorf rather than from a table I typed. Where a verb
-happens to produce the same string for both, there is no contrast and the item is
-dropped — the same rule that excludes `kino` from the object-case pool.
-
-The `ma`/`da` pair is the one that is not a marker but a **list**: which
-infinitive you use is decided by the governing verb, not by meaning. That is why
-its frames come in pairs — *pean* takes `ma`, *tahan* takes `da` — and why the
-explanation says so rather than pretending there is a rule to derive.
+Both forms come from Vabamorf; identical pairs are dropped. The `ma`/`da` choice
+is decided by the governing verb, so its frames come in pairs (*pean* + ma,
+*tahan* + da).
 """
 
 from __future__ import annotations
@@ -53,16 +37,9 @@ class Frame:
     why_ru: str
 
 
-# Keyed by curriculum topic id, so a generated item files itself against the
-# syllabus. Frames use the pronoun that agrees with the form, so the sentence is
-# grammatical whichever verb is dropped into it.
-#
-# They are also **object-free**, which is not cosmetic. The first version wrote
-# the impersonal as *"Seda ____ iga päev"*, and `seda` is a partitive object —
-# fine for `tegema`, wrong for `liikuma`, and there is no transitivity flag in
-# the data to filter on. A locative frame (*"Siin ____ iga päev"*) reads
-# correctly for transitive and intransitive verbs alike, which removes the need
-# for the per-verb semantic pool that the object-case templates have to carry.
+# Frames per curriculum topic, with the pronoun agreeing with the form. Frames
+# have no object (*"Siin ____ iga päev"*), so they suit transitive and
+# intransitive verbs alike.
 FRAMES: dict[str, tuple[Frame, ...]] = {
     "olevik": (
         Frame("n", "sin", "olevik, mina", "Ma ____ iga päev.",
@@ -150,11 +127,7 @@ def verbs_at_levels(
     levels: tuple[str, ...] = LEVELS,
     limit: int = 400,
 ) -> list[tuple[str, str]]:
-    """Level-appropriate verbs, most frequent first.
-
-    The query lives in `wordlist.py`, beside `nouns_at_level`, because
-    `verbs.py` asked the same question with its own copy of the same SQL.
-    """
+    """Level-appropriate verbs, most frequent first (`wordlist.verbs_at_levels`)."""
     from .wordlist import verbs_at_level
 
     return verbs_at_level(conn, levels, limit)
@@ -174,12 +147,8 @@ def generate(
     top: int = 150,
     only: frozenset[str] | None = None,
 ) -> list[VerbDrill]:
-    """Drills for the tense, mood, infinitive and voice topics.
-
-    An item ships only when the answer and the neighbouring form actually
-    differ. For a few verbs they collide — the present and the imperative of some
-    stems, for instance — and an item whose two options are the same string
-    measures nothing.
+    """Drills for the tense, mood, infinitive and voice topics; an item ships only when
+    answer and neighbouring form differ.
     """
     wanted = tuple(topics) if topics else tuple(FRAMES)
     unknown = set(wanted) - set(FRAMES)
@@ -187,16 +156,11 @@ def generate(
         raise ValueError(f"no frames for topic(s): {sorted(unknown)}")
 
     rng = random.Random(seed)
-    # Frequency-ordered, then shuffled *within the common band*. The frames are
-    # deliberately bleached ("Eile ta ____"), which reads fine with a verb the
-    # learner meets daily and oddly with one they never will — "Hirmutage palun
-    # kohe!" is grammatical and useless. Restricting to the frequent end costs
-    # nothing, since those are also the verbs worth conjugating correctly.
+    # Frequency-ordered, then shuffled within the common band: the bleached frames
+    # read naturally only with common verbs.
     pool = verbs_at_levels(conn, levels)
     if only is not None:
-        # A theme restriction bypasses the frequency cut: its words were chosen
-        # for belonging to the theme, and slicing the common band on top would
-        # silently drop the ones that make it that theme.
+        # A theme restriction skips the frequency cut, so the theme's words are kept.
         pool = [(lemma, level) for lemma, level in pool if lemma in only]
     else:
         pool = pool[:top]

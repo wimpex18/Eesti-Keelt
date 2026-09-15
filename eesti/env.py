@@ -21,7 +21,7 @@ ENV_FILE = ROOT / ".env"
 KNOWN_KEYS = {
     "OPENROUTER_API_KEY": "OpenRouter — 412 models, 15 free. The recommended one.",
     "MISTRAL_API_KEY": "Mistral — free Experiment plan, ~1B tokens/month, Mistral Large.",
-    "NVIDIA_API_KEY": "NVIDIA Build — free developer key, 40 req/min, DeepSeek V4 Pro and 100+ models.",
+    "NVIDIA_API_KEY": "NVIDIA Build — free developer key, 40 req/min, GLM-5.3-Flash and 100+ models.",
     "CLOUDFLARE_API_TOKEN": "Workers AI — runs inside Cloudflare, 10k neurons/day.",
     "CLOUDFLARE_ACCOUNT_ID": "Required alongside CLOUDFLARE_API_TOKEN.",
     "HF_TOKEN": "Hugging Face — hosted Whisper fallback for speech recognition.",
@@ -38,15 +38,8 @@ _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 def load(path: Path | None = None, override: bool = False) -> list[str]:
     """Read KEY=value lines into the environment. Returns the names it set.
 
-    Only names it actually set. That distinction is the point: a line reading
-    `export OPENROUTER_API_KEY=sk-...` -- which is what you get from copying
-    any shell instruction -- used to set a variable literally called
-    `"export OPENROUTER_API_KEY"`, report it as loaded, and leave the real key
-    unset. The grammar chain then ran in offline mode with the key apparently
-    configured, which is a confusion this project has already paid for once.
-
-    So `export ` is stripped, and a name that is not a legal environment
-    variable is skipped rather than set and announced.
+    A leading `export ` is stripped and invalid names are skipped, so a pasted shell
+    line sets the real variable and nothing is reported as loaded that was not.
     """
     path = Path(path or ENV_FILE)
     if not path.exists():

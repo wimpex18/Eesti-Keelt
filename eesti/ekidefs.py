@@ -1,24 +1,14 @@
-"""Estonian definitions from EKI's native-level dictionaries: VSL, and EKSS if imported.
+"""Estonian definitions from EKI's native-level dictionaries: VSL and EKSS.
 
-Two downloads from arhiiv.eki.ee/litsents share one shape:
-a headword `m`, and definitions `d` under the article's `S`.
+Both share one shape — a headword `m` and definitions `d` under `S`:
 
-* **vsl** — *Võõrsõnade leksikon*: 31 794 articles on loanwords (`idee`,
-  `aktiivne`), definitions written for a native reader.
-* **ekss** — *Eesti keele seletav sõnaraamat*: 145 882 articles, 117 937
-  lemmas with a definition — 96 058 of them in the word list. Committed and
-  imported by the build.
+* **vsl** — *Võõrsõnade leksikon*: loanwords, native-level definitions;
+* **ekss** — *Eesti keele seletav sõnaraamat*: the explanatory dictionary.
 
-Both are the **last** Estonian definition a word card falls back to: EKI's
-learner-level PSV first, Sõnaveeb second, these third — so they fill a gap only
-when Sõnaveeb has nothing to say or cannot be asked (offline, over budget,
-down). Native-level wording is the thing PSV exists to replace, so it never
-goes ahead of either. The order is stated once, in `api/grammar._meaning`.
-
-Kept per lemma: the first definition of the first article. Sub-articles (`AA`,
-VSL's phrase entries like *aktiivne kaubabilanss*) are not headwords a learner
-clicks and are skipped. Each dictionary has its own table and neither writes the
-other's, or `psv_gloss`, or the learner's `word_gloss`.
+They are the last definition fallback (PSV, then the live dictionary, then
+these), ordered in `api/grammar._meaning`. Kept per lemma: the first current
+definition of the first article; sub-articles (`AA`, phrase entries) are
+skipped. Each dictionary has its own table.
 """
 
 from __future__ import annotations

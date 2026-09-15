@@ -1,22 +1,13 @@
 """Estonian grammar eval: does this model actually know Estonian?
 
-The tempting assumption is that a model strong in English or Russian is
-automatically usable for Estonian. It is a reasonable hypothesis and it is
-testable, so this tests it rather than assuming either way.
+Whether an object should be genitive (completed) or partitive (ongoing,
+partial, negated) depends on aspect, which thins out in multilingual models.
 
-Estonian is low-resource, and the specific judgement this app needs — whether an
-object should be genitive (completed, whole) or partitive (ongoing, partial,
-negated) — depends on aspect, which is exactly the kind of language-specific
-semantics that thins out in a multilingual model's training data.
+  recall     — of sentences with a planted error, how many were caught
+  precision  — of sentences already correct, how many were left alone
 
-Two scores, and the second is the one that separates models:
-
-  recall     — of the sentences that DO contain a planted error, how many were caught
-  precision  — of the sentences that are ALREADY CORRECT, how many were left alone
-
-A model that flags everything scores perfect recall and is worse than useless: it
-would teach the learner that every partitive is a mistake. Half the eval set is
-deliberately correct Estonian for that reason.
+Precision separates models: flagging everything scores perfect recall and
+teaches that every partitive is wrong. Half the set is correct Estonian.
 """
 
 from __future__ import annotations
@@ -28,34 +19,15 @@ from ..providers.grammar import SYSTEM_PROMPT as SYSTEM
 from ..providers.grammar import why_failed
 from ..providers.llm import complete, parse_json
 
-# The prompt under test is the one the app ships. It is not defined here.
-#
-# It was, and the two drifted. `providers/grammar.py` is what a learner's
-# sentence actually meets; this file kept a near-copy with a three-field
-# contract and its own worked examples, so a score from here was a score for a
-# prompt nobody was served. The drift was on precisely the axis this eval
-# exists to measure: the mitigation for a real failure -- a model flagging four
-# of eight already-correct sentences -- went into the copy and not into the
-# original.
-#
-# Importing it settles that permanently: one prompt, one number, and a change
-# to the shipped prompt is measured by the next run rather than by a test
-# asserting two files still agree.
-#
-# The extra field costs nothing here. The shipped contract carries a Russian
-# `why` alongside `wrong`/`correct`/`tag`, and `_flagged` reads only `wrong`.
+# The prompt under test is the one the app ships (`providers/grammar.py`), so the
+# score describes what learners get. `_flagged` reads only `wrong`; the extra
+# Russian `why` field costs nothing.
 
 
 def with_evidence(sentence: str) -> str:
-    """Attach Vabamorf's reading of each object-position word.
-
-    Vabamorf knows which case was actually written; the model only has to judge
-    whether that case fits the aspect. Supplying the fact removes the part of the
-    job the model is worst at — and this is the design the app already uses, so
-    the eval should measure the prompt the app will really send.
-
-    Falls back to the bare sentence if Vabamorf is unavailable, which keeps the
-    eval runnable on a bare CI image.
+    """Attach Vabamorf's reading of each object-position word, as the app does, so the
+    model only judges whether the case fits the aspect. Falls back to the bare
+    sentence when Vabamorf is unavailable.
     """
     try:
         from ..morph import object_case_candidates
@@ -169,10 +141,7 @@ def run(
                 if attempt:
                     failures.append((case.sentence, "ERROR: no valid JSON after retry"))
             except Exception as exc:
-                # The provider's own name for the failure, via the same
-                # renderer the live chain uses. `type(exc).__name__` printed
-                # `HTTPError: HTTP Error 400: Bad Request` for all 18 cases and
-                # named neither the cause nor the fix.
+                # The provider's own name for the failure, via the live chain's renderer.
                 failures.append((case.sentence, f"ERROR {why_failed(exc)}"))
                 break
         if result is None:
@@ -190,11 +159,8 @@ def run(
                 got = [c.get("wrong") for c in result["corrections"]]
                 failures.append((case.sentence, f"false flag {got} ({case.note})"))
 
-    # A case that never reached the model is not evidence about the model.
-    # An earlier run had all 18 cases fail with HTTP 429 and still reported
-    # precision 1.0 — nothing was flagged, because nothing was asked — which
-    # reads as a perfect score. Scores are computed over answered cases only,
-    # and a run with too few answers reports no score at all.
+    # Cases that never reached the model are excluded from scoring; with too few
+    # answers no score is reported (all-429 runs must not read as precision 1.0).
     answered_errors = len(errors) - sum(
         1 for c in errors if any(c.sentence == s and "ERROR" in w for s, w in failures)
     )

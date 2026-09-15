@@ -1,23 +1,9 @@
-"""The two ways a stylesheet lies quietly.
+"""The stylesheet asked about itself.
 
-A CSS declaration that cannot work does not fail, does not warn and does not
-show up in any screenshot as anything other than "the default". Both kinds
-found on 2026-08-21 had been in the file for as long as anyone had looked at
-it:
-
-  * ``.vocword{color:var(--fg)}`` -- there is no ``--fg``; the token is
-    ``--ink``. The chip took its colour from inheritance, which happened to be
-    the same, so the line was decorative in the literal sense.
-  * ``.topic.mastered .st{color:var(--ok)}`` -- there is no ``--ok`` either.
-    This one *did* match a real element: ``mastered`` is a state
-    ``progress.TopicProgress.state`` emits. So the one row in the whole path
-    list that represents finished work was styled by a rule that resolved to
-    nothing.
-
-Neither is catchable by review -- ``var(--ok)`` reads as correct until you go
-looking for the definition -- and neither is catchable by a layout assertion,
-because the element is present, sized and visible. What catches them is asking
-the sheet about itself.
+A declaration that cannot work fails silently: `var(--ok)` with no `--ok`
+defined renders as inheritance, invisible in review and screenshots. So every
+token read is a token defined, painting tokens exist in both palettes, and
+related values stay derived.
 """
 
 from __future__ import annotations
@@ -65,16 +51,12 @@ class TestEveryTokenReadIsATokenWritten:
 
 
 class TestBothThemesDefineTheSameTokens:
-    """A token defined only in the light palette renders as *nothing* in dark,
-    which is the unreadable-artifact bug: text painted with an unresolved
-    colour falls back to `inherit` and can land on its own background."""
+    """Every painting token is defined in the dark palette too, or it falls back to
+    `inherit` and may land on its own background.
+    """
 
-    #: A token that *paints* has to exist in both palettes. One that measures
-    #: -- a length, a duration, an easing curve -- is theme-neutral and is
-    #: declared once. Classified by what the value is rather than by a list of
-    #: names to keep updated, which is the mistake this file is about: the
-    #: first version filtered on `radius|nav-h|ease|quick` and failed the
-    #: moment a spacing scale was added, on tokens that were never colours.
+    #: A token paints when its value is a colour; lengths, durations and easings are
+    #: theme-neutral. Classified by value, not by a name list.
     COLOURISH = re.compile(r"#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|color-mix\(")
 
     def _block(self, css: str, opener: str) -> dict[str, str]:
@@ -125,15 +107,8 @@ class TestMotionIsOptional:
 
 
 class TestTheRingCanActuallyAnimate:
-    """`transition:--pct` on its own does nothing at all.
-
-    To the animation engine an unregistered custom property is an unparsed
-    string, and strings do not interpolate -- so the declaration is accepted,
-    inherited, and silently inert. `@property` giving it `syntax:"<number>"`
-    is the whole reason it works. Measured in Chromium the ring steps
-    36 -> 55 -> 68 -> 73 -> 77 -> 79 across the transition; without the
-    `@property` block it jumps straight to the final value and the transition
-    line is decoration.
+    """`--pct` is registered with `@property` (`syntax:"<number>"`), without which its
+    transition does not animate.
     """
 
     def test_the_property_is_registered(self, css):
@@ -157,15 +132,7 @@ def page() -> str:
 
 
 class TestTheThemeAttributeHasAWriter:
-    """`[data-theme]` was read by two CSS blocks and set by nothing.
-
-    A complete explicit-theme mechanism with no control anywhere in the app --
-    the third costume of the bug this repo keeps meeting, after the measurement
-    with no writer, the endpoint with no caller and the three vocabulary
-    statuses nothing could set. The tell is always the same: nothing fails,
-    because the *other* path (here, `prefers-color-scheme`) keeps the feature
-    looking finished.
-    """
+    """`[data-theme]` has a control that sets it."""
 
     def test_something_sets_what_the_stylesheet_reads(self, page):
         css = styles()
@@ -201,16 +168,8 @@ class TestTheThemeAttributeHasAWriter:
 
 
 class TestTheChromeOutsideThePageAgreesWithIt:
-    """The three surfaces the stylesheet cannot reach, and therefore forgets.
-
-    `--bg` moved from `#f7f7f5` to `#faf9f6` and the stylesheet's own comment
-    records the move -- while the status-bar colour, the installed app's splash
-    and the offline page kept the old white for months. Nobody sees them beside
-    the page, which is exactly why nobody noticed: an iOS status bar two points
-    off the page it sits above reads as a seam, not as a colour.
-
-    Derived rather than restated: the value is read out of the stylesheet, so
-    the next change to `--bg` fails here instead of drifting.
+    """The theme-colour meta tag, the manifest's colours and the offline page use the
+    stylesheet's `--bg`, read from the stylesheet.
     """
 
     @pytest.fixture

@@ -1,11 +1,4 @@
-"""Listening practice that can be got wrong, and that gets written down.
-
-The Kuulamine tab was a text-to-speech box. Nothing could be answered, so
-nothing could be scored, so nothing was recorded — and the readiness verdict
-reported listening as untouched however much had been played. On an exam where
-a zero in one part fails you regardless of the other three, that was the worst
-place in the app to have no exercise at all.
-"""
+"""Dictation: listening practice that is graded and recorded."""
 
 from __future__ import annotations
 
@@ -70,8 +63,7 @@ class TestWhatGetsDictated:
         assert dictation.choose(conn, count=3) == []
 
     def test_it_does_not_serve_the_same_sentence_every_session(self, content):
-        """With no vocabulary history there is nothing to order by. Returning
-        the corpus in table order would mean the first sentence, forever."""
+        """With no vocabulary history the order is random, not table order."""
         first = {dictation.choose(content, count=1, seed=s)[0].text
                  for s in range(8)}
         assert len(first) > 1
@@ -135,9 +127,7 @@ class TestGrading:
 
 
 class TestItIsWrittenDown:
-    """Three bugs in this project have been a reader with no writer behind it.
-    Listening is where that would matter most: noticing an untouched part is
-    the verdict's whole job."""
+    """Every attempt is recorded; readiness reads it as listening evidence."""
 
     def test_an_attempt_is_stored(self, progress):
         text = "Ma elan Tallinnas ja töötan siin."
@@ -157,9 +147,7 @@ class TestItIsWrittenDown:
         assert dictation.key_of("Ma elan siin.") == dictation.key_of("ma elan siin")
 
     def test_it_rides_the_existing_snapshot(self, progress):
-        """In progress.db rather than a database of its own. A new file would
-        have had to be added to the state export, and that omission is exactly
-        what once deleted the Notion queue on a cold start."""
+        """The table lives in `progress.db`, so it travels with the snapshot."""
         names = {r[0] for r in progress.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"attempts", "topic_state"} <= names
@@ -191,8 +179,7 @@ class TestTheVerdictMoves:
         assert self.part(progress).touched is True
 
     def test_the_evidence_says_which_kind_of_contact_it_was(self, progress):
-        """"Opened a task" and "wrote down what was said" are different facts,
-        and the stronger one should not be able to hide behind the weaker."""
+        """Readiness distinguishes dictations from opened listening tasks."""
         text = "Ma elan Tallinnas ja töötan siin."
         p = dictation.Passage(text, dictation.key_of(text), 6)
         dictation.record(progress, dictation.grade(p, text))
@@ -203,12 +190,9 @@ class TestTheVerdictMoves:
 
 
 class TestNothingUnwritableIsServed:
-    """The first sentence the rebuilt corpus offered was
-    "Saaremaa sadamas kestab kruiisihooaeg 3." — a fragment. Estonian writes
-    ordinals as `3.`, and the sentence splitter treated that as a full stop,
-    cutting 7.2 % of the pool short and orphaning another 4.7 % as lowercase
-    tails. A learner cannot write down a sentence whose ending was removed,
-    and has no way to know it was."""
+    """Sentences cut at an ordinal (`… kruiisihooaeg 3.`) and lowercase tails are not
+    offered.
+    """
 
     def test_a_sentence_cut_at_an_ordinal_is_refused(self):
         assert not dictation._writable("Maailmameister selgub pühapäeval, 28.")
@@ -230,10 +214,7 @@ class TestNothingUnwritableIsServed:
 
 
 class TestTheExamIsNotOnePerson:
-    """Dictation always used `mari`. HARNO's listening tasks use several
-    speakers, and a learner who has only ever parsed one voice has practised
-    that voice rather than Estonian — the same reason the reading library is
-    ranked by comprehensibility rather than served in one register."""
+    """Different sentences use different TTS voices, deterministically per sentence."""
 
     def test_a_sentence_always_gets_the_same_voice(self):
         """Replaying must sound identical, or the exercise changes underneath

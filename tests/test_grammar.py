@@ -25,11 +25,8 @@ class TestGrammarReferences:
         assert "täissihitis" in ref.et_term and "osasihitis" in ref.et_term
 
     def test_section_labels_match_the_chapter_they_link_to(self):
-        """EKK numbers morphology `M` and syntax `SÜ`, on different chapter ids.
-
-        A mismatch here is the signature of the bug this caught once already:
-        a reference that resolves to a real handbook page carrying a different
-        section. That is worse than a missing link, because it looks verified.
+        """EKK numbers morphology `M` and syntax `SÜ` on different chapter ids; a mismatch
+        means a link to the wrong section.
         """
         prefix = {3: "M ", 5: "SÜ "}
         for ref in REFERENCES.values():
@@ -85,15 +82,8 @@ class TestPrincipalForms:
 
 
 class TestEveryDrillableTopicLinksToTheHandbook:
-    """Measured before this existed: of the 23 topics that generate exercises,
-    only **5** carried a reference. A learner who got an item wrong received an
-    explanation in Russian and no way to read the underlying rule.
-
-    Section numbers were read off the handbook rather than inferred, and that
-    distinction earned itself: a summarising fetch of the same page returned
-    numbers shifted by one, which would have pointed `M 51` at the partitive
-    instead of the genitive. `M 77` is the other trap — *Oleviku kesksõna*, the
-    present participle, not the present tense, which is `M 85`.
+    """Drillable topics carry handbook references, with section numbers read off the
+    handbook (`M 85` is the present tense; `M 77` the present participle).
     """
 
     @staticmethod
@@ -111,9 +101,7 @@ class TestEveryDrillableTopicLinksToTheHandbook:
             if by_tag.get("known") or describe(topic.id).get("known"):
                 continue
             missing.append(topic.id)
-        # `kusisonad` is the one gap: no section of the handbook was found that
-        # covers question words specifically, and a confidently wrong link is
-        # worse than none.
+        # `kusisonad` has no reference: no handbook section covers question words.
         assert missing == ["kusisonad"], f"unexpected topics without a rule: {missing}"
 
     def test_no_reference_invents_a_chapter(self):
@@ -132,9 +120,9 @@ class TestEveryDrillableTopicLinksToTheHandbook:
             assert any("Ѐ" <= ch <= "ӿ" for ch in ref.summary_ru), ref.tag
 
     def test_the_two_tables_do_not_disagree(self):
-        """`REFERENCES` is keyed by the fixed nine error tags and must not grow;
-        `TOPIC_REFERENCES` is keyed by topic id. Where a key is in both, the
-        error-tag entry wins, so they must be describing the same rule."""
+        """Where a key is in both `REFERENCES` (error tags) and `TOPIC_REFERENCES` (topic
+        ids), both describe the same rule.
+        """
         from eesti.grammar import REFERENCES, TOPIC_REFERENCES
 
         for key in set(REFERENCES) & set(TOPIC_REFERENCES):

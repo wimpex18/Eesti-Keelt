@@ -1,25 +1,14 @@
 """A question bank shaped like the real speaking exam.
 
-What the B1 exam actually does, from HARNO's own task PDFs: **task 1** gives the
-examiner a topic sheet, the two candidates answer in turn, and then they talk to
-*each other* to reach agreement from a situation description, with an idea card
-of pictures. **Task 2** is a role-play — one candidate phones an institution,
-the other is its employee.
+B1 speaking (from HARNO's task PDFs): **task 1** — the examiner asks from a
+topic sheet, the candidates answer in turn, then reach agreement with each other
+from a situation and an idea card; **task 2** — a role-play phone call to an
+institution. Both are **paired**, so a solo app cannot grade them.
 
-Both halves are **paired**. That is the fact that decides what is worth
-building. A solo record-and-score loop trains almost none of what is graded:
-turn-taking, picking up the other person's point, negotiating agreement. And
-scoring pronunciation from audio is a research problem, not a feature — EKI
-already publishes free pronunciation exercises, which is a better use of the
-learner's time than a number this app would have to invent.
-
-So what is here is the part a phone can honestly do: **the questions, in the
-exam's shape, with the other side voiced by TTS.** No score, no transcript, no
-upload — the recording stays in the browser. The value is rehearsal and hearing
-yourself, and the interface says exactly that rather than implying a grade.
-
-Questions are written to the exam's topic areas (the everyday domains the
-level descriptors name) and kept short, because the point is to start talking.
+This supplies the questions in the exam's shape, with the other side voiced by
+TTS, for rehearsal. Questions follow the level descriptors' everyday topics and
+are short, because the point is to start talking. Read-aloud comparison and
+open-answer feedback live in `pronunciation.py` and `api/speech.py`.
 """
 
 from __future__ import annotations

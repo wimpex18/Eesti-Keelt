@@ -1,10 +1,9 @@
 /* Which panel is open, and keeping that in the URL.
 
-   A tab that is not in the URL is a tab the browser cannot help with: refresh
-   lost the learner's place, `#status` did nothing, and Back left the app.
-   `pushState` per change, `replaceState` for the landing tab, and re-selecting
-   the tab you are already on pushes nothing -- otherwise Back lands somewhere
-   the learner never chose. */
+   The tab lives in the URL so refresh keeps the place, `#status` links work, and
+   Back stays in the app. `pushState` per change, `replaceState` for the landing
+   tab, and re-selecting the current tab pushes nothing, so Back never lands
+   somewhere the learner did not choose. */
 
 import {$, once} from "./core.js";
 import {loadExam, loadVihikud} from "./exam.js";
@@ -55,17 +54,10 @@ document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
 
 /* Keep the selected tab where the learner can see it.
 
-   On a phone the skills are a row that scrolls, and the selected one is not
-   always inside the part of it that is on screen: opening `#write` -- from a
-   pasted link, from a reload, or from the landing tab -- put Kirjutamine 512px
-   to the right of the viewport with the row still scrolled to zero. The panel
-   was correct and the navigation said the learner was on Rada.
-
-   Only the row is scrolled, never the page: `scrollIntoView` would also drag
-   the document down to the nav on a phone, which is the cure being worse. The
-   guard means this does nothing at any width where the row already fits, so
-   the desktop column and the tablet rail are untouched.
-*/
+   On a phone the skills are a scrolling row, and a tab opened from a link or a
+   reload can be off screen. Only the row is scrolled, never the page:
+   `scrollIntoView` would also drag the document. At widths where the row fits
+   this does nothing. */
 function keepVisible(button) {
   const nav = button.closest("nav");
   if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
@@ -96,11 +88,8 @@ document.querySelectorAll("nav button").forEach(
 
 
 function selectMode(m) {
-  // Re-tapping the mode you are already in used to bounce you to that mode's
-  // first tab -- so pressing Eksam while reading Edenemine threw you back to
-  // Ülevaade. Harmless-looking until the tab lives in history, at which point
-  // it also pushed an entry and made Back land somewhere the learner had never
-  // chosen. Staying put is both the better behaviour and the honest one.
+  // Re-tapping the current mode stays put: jumping to the mode's first tab would
+  // also push a history entry the learner never chose.
   if (m.getAttribute("aria-selected") === "true") return;
   document.querySelectorAll(".modes button").forEach(x =>
     x.setAttribute("aria-selected", x === m));

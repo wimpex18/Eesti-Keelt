@@ -1,26 +1,18 @@
 /* The entry point, and the only file that runs anything on load.
 
-   Every import above the bootstrap, and the bootstrap last. That position is
-   the fix for a real bug rather than tidiness: opening a tab runs its loader,
-   a loader may touch anything declared anywhere, and from the middle of a file
-   everything below it is in the temporal dead zone. Bootstrapping after every
-   module has evaluated means there is nothing left to be too early for. */
+   Every import first, the bootstrap last: opening a tab runs its loader, which
+   may touch anything in any module, so bootstrapping after every module has
+   evaluated avoids the temporal dead zone. */
 
 import {glossChrome, paintIcons} from "./chrome.js";
 import {goToPlace, selectTab} from "./router.js";
 
 /* Imported for their wiring, not for a name.
 
-   `reading.js` and `write.js` export nothing anybody calls: they attach the
-   handlers for the reader and the writing check when they evaluate, which in
-   one file happened by being in the file. In a module graph a file nobody
-   imports is a file that never runs -- and the failure is silent, because the
-   panel still opens and every button on it is simply dead. That is what
-   happened to `Kirjutamine` for the length of one commit: the check button,
-   the drill button and the error queue, all present and all inert, with no
-   console error to say so. It is the "endpoint with no caller" bug in a third
-   costume, and `tests/test_ui_contract.py` now fails on a module the entry
-   point cannot reach. */
+   `reading.js` and `write.js` export nothing; they attach their handlers when
+   they evaluate. A module nobody imports never runs, and the panel would open
+   with every button silently dead. `tests/test_ui_contract.py` fails on a module
+   the entry point cannot reach. */
 import "./reading.js";
 import "./sources.js";
 import "./write.js";

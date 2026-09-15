@@ -1,19 +1,11 @@
-"""Content library: many sources, one shape, licence-aware.
+"""Content library store: many sources, one shape, licence-aware.
 
-The app pulls study material from very different places — public APIs, harvested
-web pages, official exam PDFs, and files the user drops in by hand. They differ
-in format and in something more important: **what you are allowed to do with
-them.** So every row carries its `licence` and a `redistributable` flag, and
-`add_items` refuses an id the ledger does not know.
+Every row carries its source's `licence` and `redistributable` flag, and
+`add_items` refuses a source id the ledger does not know. The ledger itself
+(`Source`, `REGISTRY`) is in `eesti/licences.py` and re-exported here.
 
-**The terms themselves are in `eesti/licences.py`**, with `Source` and
-`REGISTRY`, and this module re-exports both. They were 250 of this file's 672
-lines and had nothing to do with the rest of it at runtime: the store never
-reads a `note`, the ledger never opens a database. Why a licence is a column
-rather than a README paragraph is argued there, once.
-
-What is left here is the store: the schema, the content-hash id that makes
-ingestion idempotent, and the queries the library reads.
+This module holds the schema, the content-hash id that makes ingestion
+idempotent, and the queries the library reads.
 """
 
 from __future__ import annotations
@@ -30,15 +22,10 @@ from pathlib import Path
 # files. `Source` comes with it because `register()` defaults to the ledger.
 from .licences import REGISTRY, Source  # noqa: F401
 
-# Skills map to the four exam parts, so progress can be tracked the way the exam
-# scores it — 25 points each, and no part may be zero.
-#
-# Two are not exam parts. `grammatika` is the radio courses: Russian-language
-# lessons about Estonian, which belong with grammar rather than with listening
-# practice. `eksam` is material that belongs to a *level as a whole* rather than
-# to one part — the annotated sample performance, the intro video, the CEFR
-# descriptor, the information sheet. Forcing those into one of the four would
-# have put the sample answer for writing into the writing practice list.
+# Skills map to the four exam parts (25 points each, none may be zero). Two are
+# not parts: `grammatika` (the Russian-language radio courses) and `eksam`
+# (material for a level as a whole: sample performances, intro videos,
+# descriptors).
 SKILLS = ("lugemine", "kuulamine", "kirjutamine", "raakimine", "grammatika",
           "eksam")
 
@@ -119,20 +106,8 @@ class Item:
 
 
 def available(path: Path | str) -> bool:
-    """Whether the harvested library actually holds anything.
-
-    Reported by `/api/health`, so "the reading list is empty" can be told apart
-    from "the reading list is broken" without reading logs.
-
-    It asks for **rows**, not for a file. The first version asked whether the
-    file existed and was non-empty, which was true five minutes after deploying:
-    `connect` creates the database *with its schema* on the first request, so an
-    unharvested deployment reported a library it did not have.
-
-    That is the second time this exact mistake has been made here -- the
-    snapshot restore had it too, and `_has_learner_data` in `app.py` exists
-    because of it. The rule both landed on: **presence of a database is not
-    presence of data.**
+    """Whether the harvested library holds any rows (reported by `/api/health`).
+    Asks for rows, not a file: opening creates the schema.
     """
     target = Path(path)
     if not target.exists() or target.stat().st_size == 0:
@@ -147,23 +122,11 @@ def available(path: Path | str) -> bool:
 
 
 def corpus_counts(path: Path | str) -> dict[str, int]:
-    """How much material is here, and how much of it a drill can reach.
+    """Corpus size (`items`) and how much a drill can reach (`topic_links`).
 
-    Two numbers rather than one, because they fail separately and only one of
-    them is visible. `items` is the reading library. `topic_links` is
-    `topic_items`, the join `topiclinks.related()` reads and `/api/practice`
-    returns as the `reading` beside every drill.
-
-    Nothing fills `topic_items` except `cli link-topics`, run by hand: no
-    harvest calls it and no deploy step does. So a freshly harvested corpus can
-    be pushed with the table empty, every drill's `reading` comes back `[]`,
-    and nothing anywhere says why. `deploy/push-content.sh` warns about exactly
-    that -- but only at push time, and only for the operator running it. A
-    deployment pushed before that warning existed, or answered with `-y`,
-    cannot be asked. Now it can.
-
-    Missing tables read as zero, like every other count here: presence of a
-    database is not presence of data, and absence is not an error.
+    `topic_items` is filled only by `cli link-topics`, so a pushed corpus can have
+    texts and no links; reporting both makes that visible. Missing tables read as
+    zero.
     """
     counts = {"items": 0, "topic_links": 0}
     target = Path(path)
@@ -183,11 +146,8 @@ def corpus_counts(path: Path | str) -> dict[str, int]:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Add columns that older content databases do not have.
-
-    The corpus is pushed to the deployment as a file, so a learner can be
-    carrying a database built before a column existed. Failing to open it would
-    lose the whole reading library over one `ALTER TABLE`.
+    """Add columns that older content databases lack, so a pushed older file still
+    opens.
     """
     have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
     if "band" not in have:
@@ -197,17 +157,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
 def connect(path: Path | str) -> sqlite3.Connection:
     """Open the content library, degrading to empty rather than failing.
 
-    The harvested corpus is deliberately not in the image -- it is owner-only by
-    licence -- and everything else is documented to keep working without it. On
-    Cloud Run that promise broke: `EESTI_CONTENT_DB` points inside a directory
-    the `VOLUME` declaration was supposed to provide, Cloud Run ignores
-    `VOLUME`, and SQLite cannot create a database in a directory that is not
-    there. `/api/library` and `/api/status` both returned 500 in production
-    while every test passed, because every test had a writable path.
-
-    So: make the directory if we can, and if we still cannot open the file, hand
-    back an empty in-memory library. An absent corpus is a supported state; a
-    500 on the status page is not.
+    The corpus is not in the image, and Cloud Run ignores `VOLUME`, so the
+    directory may not exist: create it if possible, otherwise return an empty
+    in-memory library.
     """
     target = Path(path)
     try:
@@ -260,11 +212,8 @@ def add_items(conn: sqlite3.Connection, items: list[Item]) -> int:
 
 
 def clear_source(conn: sqlite3.Connection, source_id: str) -> int:
-    """Drop every item from one source.
-
-    Item ids are content hashes, so improving the cleaning step changes the hash
-    and `add_items` inserts alongside the old rows rather than replacing them.
-    Re-harvesting is a normal operation, so it clears first.
+    """Drop every item from one source before re-harvesting: ids are content hashes,
+    so changed cleaning would otherwise insert duplicates.
     """
     with conn:
         cur = conn.execute("DELETE FROM items WHERE source_id = ?", (source_id,))
@@ -274,12 +223,7 @@ def clear_source(conn: sqlite3.Connection, source_id: str) -> int:
 def _filters(
     skill: str | None, level: str | None, band: str | None, public_only: bool,
 ) -> tuple[list[str], list]:
-    """The WHERE shared by `query` and `count`.
-
-    Written once because the two must never disagree: a count computed from a
-    different set of conditions than the rows it counts is a number that looks
-    authoritative and is not.
-    """
+    """The WHERE shared by `query` and `count`, so they never disagree."""
     where, params = ["1=1"], []
     if skill:
         where.append("i.skill = ?")
@@ -302,17 +246,7 @@ def count(
     band: str | None = None,
     public_only: bool = False,
 ) -> int:
-    """How many items match, ignoring any page size.
-
-    `query` takes a `limit`, and the page printed the number of rows it got
-    back as though it were the number of rows there are. Asking for 80 of 349
-    reading texts produced "80 текстов" -- a page size wearing the clothes of a
-    total, with no way to tell and no way to reach the other 269.
-
-    That is the second half of a bug this file already carries the first half
-    of: the comment below explains how the limit used to hide two thirds of the
-    library behind one band. The ordering was fixed then; the cap was not.
-    """
+    """How many items match, ignoring any page size."""
     where, params = _filters(skill, level, band, public_only)
     return conn.execute(
         f"""SELECT COUNT(*) FROM items i JOIN sources s ON s.id = i.source_id
@@ -332,27 +266,16 @@ def query(
 ) -> list[sqlite3.Row]:
     """Fetch study items.
 
-    `public_only=True` is what a public, unauthenticated request must use. It is
-    a filter on the source's licence, not on anything about the item, so a new
-    source cannot leak by forgetting to tag its items.
+    `public_only=True` is what an unauthenticated request must use; it filters on
+    the source's licence.
     """
     where, params = _filters(skill, level, band, public_only)
     params.append(limit)
     params.append(offset)
 
-    # Newest-first is right for a live feed and wrong for browsing everything.
-    # The harvesters write one band per run, so the newest `limit` rows are all
-    # one band: with 117 raskem / 116 keskmine / 116 kergem indexed, asking
-    # unfiltered for 60 returned 60 kergem, and the `kõik` option showed a list
-    # identical to `kergem` while hiding two thirds of the library. The filter
-    # was never wrong -- the limit reached its count before the ordering
-    # reached another band.
-    #
-    # So when no band is asked for, rank within each band and interleave: the
-    # newest of every band, then the second newest of every band, and so on.
-    # Recency still orders what the learner sees inside a band, and no band can
-    # be crowded out by another's harvest schedule. A specific band keeps the
-    # plain newest-first ordering, because there is nothing to interleave.
+    # With no band filter, interleave bands (newest of each, then second newest…):
+    # harvesters write one band per run, so plain newest-first would fill the limit
+    # with a single band.
     if band:
         order = "ORDER BY i.added_on DESC"
         select, tail = "SELECT i.*, s.name AS source_name, s.licence, s.redistributable", ""
@@ -377,11 +300,8 @@ def ingest_file(
     conn: sqlite3.Connection, path: Path, source_id: str, skill: str,
     level: str | None = None,
 ) -> int:
-    """Ingest material the user supplies by hand.
-
-    Accepts a JSON array of item dicts, or a plain text/markdown file taken as a
-    single passage. This is the "feed it files" path — a textbook chapter, a
-    tutor's handout, a transcript typed up by hand.
+    """Ingest material the user supplies by hand: a JSON array of item dicts, or a
+    text/markdown file as one passage.
     """
     path = Path(path)
     raw = path.read_text(encoding="utf-8")

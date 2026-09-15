@@ -1,9 +1,4 @@
-"""The syllabus graph.
-
-Most of these are structural: a curriculum that silently drops a topic or
-teaches a case before its stem is worse than no curriculum, and both failures
-are invisible at a glance.
-"""
+"""The syllabus graph: no dropped topics, no case before its stem."""
 
 from __future__ import annotations
 
@@ -56,10 +51,8 @@ def test_order_is_deterministic():
 
 
 def test_path_order_ignores_corpus_weight():
-    """Sequencing and practice priority are different questions.
-
-    Weighting the path by error frequency put verb stems ahead of the genitive
-    and the alphabet last; the tie-break is declaration order for that reason.
+    """The study path follows declaration order among free topics; error frequency
+    orders practice priority instead.
     """
     path = [t.id for t in c.order()]
     assert path.index("pohivormid") < path.index("verb-form")
@@ -131,6 +124,5 @@ def test_order_rejects_a_cycle():
 def test_coverage_reports_the_gap_rather_than_hiding_it():
     cov = c.coverage()
     assert cov["topics"] == len(c.TOPICS)
-    # Most topics have no generator yet. That is the point of step 2, and the
-    # number is meant to be embarrassing until it moves.
+    # Coverage reports how many topics have a generator.
     assert cov["with_generator"] < cov["topics"]

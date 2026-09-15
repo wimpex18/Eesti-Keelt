@@ -7,20 +7,17 @@ import {loadRail} from "./review.js";
 
 async function runCheck() {
   const text = $("#text").value.trim();
-  /* Clicking Kontrolli with an empty box used to do nothing at all -- no
-     message, no change, indistinguishable from a dead button. Say what is
-     missing, in the language the explanations are written in. */
+  /* An empty box gets a message, in the language explanations are written in,
+     rather than a button that appears dead. */
   if (!text) {
     $("#checkOut").innerHTML =
       `<p class="hint">Вставь эстонский текст — тогда проверю.</p>`;
     return;
   }
   const btn = $("#checkBtn"); btn.disabled = true; setLabel(btn, "Проверяю…");
-  /* The chain can take six or seven seconds when a provider has to time out
-     before the offline fallback answers. Emptying the box and changing one
-     button label is not enough to say that: for those seconds the screen
-     shows nothing at all, and a person who cannot tell a slow check from a
-     dead one presses the button again. Say it where the answer will appear. */
+  /* The chain can take six or seven seconds when a provider times out before the
+     offline fallback answers. Say so where the answer will appear, so a slow check
+     is not mistaken for a dead one and pressed again. */
   const out = $("#checkOut");
   out.innerHTML = `<p class="hint">Проверяю… это может занять несколько
     секунд, если провайдер не отвечает и подключается офлайн-разбор.</p>`;
@@ -32,15 +29,12 @@ async function runCheck() {
     if (res.degraded && res.note) html += `<div class="banner info">${esc(res.note)}</div>`;
     /* What the text actually says, read back in Russian.
 
-       A grammar chain tells you whether your Estonian is well formed. It cannot
-       tell you whether it says what you meant, and for a learner that second
-       failure is the more common and the far more invisible one: `Ma käisin
-       arstiga` is perfect Estonian and means you went *with* a doctor. Nothing
-       flags it. Reading it back does.
+       A grammar chain tells you whether the Estonian is well formed, not whether it
+       says what you meant: `Ma käisin arstiga` is correct and means you went *with*
+       a doctor. Reading it back catches that.
 
-       TartuNLP's NMT rather than the LLM: Estonian-trained, free, keyless, and
-       on the one endpoint of theirs that has never been down. Absent rather
-       than blocking when it is. */
+       TartuNLP's NMT rather than the LLM: Estonian-trained, free and keyless. Absent
+       rather than blocking when unavailable. */
     if (res.back_translation) {
       html += `<div class="corr"><span class="tag">Mida sa ütlesid <i class="ru">что ты сказал</i></span>
         <div class="gloss-late">${esc(res.back_translation)}</div>
@@ -129,9 +123,8 @@ $("#queueSend").onclick = async () => {
   const btn = $("#queueSend"); btn.disabled = true;
   try {
     const r = await (await api("/api/notion/push", {ids})).json();
-    // A row that failed stays queued, so reloading is the honest report of
-    // what is left. The outcome line goes AFTER the reload: written before it,
-    // `loadQueue` overwrote the one sentence saying what had just happened.
+    // A row that failed stays queued, so reloading is the honest report of what is
+    // left. The outcome line goes after the reload, or `loadQueue` would overwrite it.
     await loadQueue();
     $("#queueNote").textContent =
       `Отправлено ${r.sent.length}${r.failed.length
@@ -185,11 +178,9 @@ function renderDrill(d, i) {
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
   const grade = () => {
     if (input.disabled) return;
-    /* An empty box is not an answer. Submitting one used to lock the item and
-       score it wrong, and the first item is focused on load, so a single stray
-       Enter burned a question and counted it against the accuracy that gates
-       mastery. Ask again instead; the learner can still see the answer by
-       giving a wrong one deliberately. */
+    /* An empty box is not an answer: submitting one would lock the item and score it
+       wrong, and the first item is focused on load, so a stray Enter would count
+       against the accuracy that gates mastery. Ask again instead. */
     if (!input.value.trim()) {
       verdict.className = "verdict";
       verdict.innerHTML = `<span class="hint">Впиши форму — тогда проверю.</span>`;

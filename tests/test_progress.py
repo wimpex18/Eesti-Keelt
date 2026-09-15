@@ -1,8 +1,5 @@
-"""Mastery gating and where the learner left off.
-
-The most important test here is the reachability one. Everything else can be
-slightly wrong and still be useful; a syllabus with an unreachable topic is a
-course the learner cannot finish, and nothing on screen says so.
+"""Mastery gating and where the learner left off. Most important: every topic is
+reachable.
 """
 
 from __future__ import annotations
@@ -67,17 +64,14 @@ class TestMasteryGate:
         assert accuracy(db, "olevik") == 0.0
 
     def test_the_same_two_items_cannot_clear_the_gate(self, db):
-        """Ten attempts, eight correct, window full — and nothing demonstrated
-        but short-term memory. `item_key` was stored and never read, which is
-        what made this hole invisible."""
+        """Repeating the same items cannot pass the gate."""
         for i in range(MASTERY_WINDOW):
             record(db, Item(topic="olevik", prompt=f"q{i % 2}"), correct=True)
         assert distinct_recent(db, "olevik") == 2
         assert not is_mastered(db, "olevik")
 
     def test_enough_variety_still_masters_normally(self, db):
-        """A real ten-item session produces ten distinct items, so the variety
-        condition costs an honest learner nothing."""
+        """A normal ten-item session meets the distinct-items condition."""
         _run(db, "olevik", [1] * MASTERY_WINDOW)
         assert distinct_recent(db, "olevik") == MASTERY_WINDOW
         assert is_mastered(db, "olevik")
@@ -140,10 +134,7 @@ class TestReachability:
         assert drillable <= reached
 
     def test_topics_without_practice_do_not_gate(self, db):
-        """`lauseehitus` rather than `pohivormid`: the latter was the example
-        here until it got a generator, at which point it stopped being a
-        reference topic and started being a real gate -- which is the point of
-        having built one."""
+        """A topic with no generator (`lauseehitus`) is a reference topic and never gates."""
         from eesti.curriculum import by_id
 
         assert by_id("lauseehitus").generator is None
@@ -155,10 +146,7 @@ class TestReachability:
         assert states["olevik"] == "ready"
 
     def test_a_topic_that_gains_a_generator_becomes_a_gate(self, db):
-        """The other half of the same rule, and a real change in the path:
-        `pohivormid` was passed over silently because nothing could drill it,
-        so `gen-stem` unlocked without it. It is drillable now, so it gates --
-        which is what a prerequisite is for."""
+        """A drillable prerequisite (`pohivormid`) gates what depends on it."""
         from eesti.curriculum import by_id
 
         assert by_id("pohivormid").generator == "forms"

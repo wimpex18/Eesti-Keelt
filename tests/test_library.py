@@ -78,14 +78,7 @@ class TestExposure:
         assert exposure(progress) == {"openings": 1, "items": 1, "minutes": 4.5}
 
     def test_reopening_counts_time_without_double_counting_the_item(self, progress):
-        """Two opens in the same second must both count.
-
-        This test used to sleep 1.05s, which was it accommodating a bug: the
-        primary key was (item_id, seen_at) at second granularity, so the second
-        open REPLACEd the first and its minutes were *lost*. A test that has to
-        wait to observe correct behaviour is describing the defect, not the
-        requirement.
-        """
+        """Two opens in the same second both count."""
         mark_seen(progress, "abc", minutes=2)
         mark_seen(progress, "abc", minutes=3)
         got = exposure(progress)
@@ -104,13 +97,10 @@ class TestExposure:
 
 
 def test_a_multi_skill_section_reaches_every_skill(content):
-    """`eksam` covers writing and speaking. Asking each skill for `limit` rows
-    and truncating meant that with eight writing tasks and a limit of five, no
-    speaking task was ever reachable."""
+    """Every skill in a section is reachable despite the limit."""
     from eesti.sources import Item, add_items
 
-    # `kind` is required now that sections filter on purpose as well as skill:
-    # the exam section holds tasks, not samples or workbooks.
+    # `kind` is required: sections filter on purpose as well as skill.
     add_items(content, [
         Item("harno", "kirjutamine", body=f"w{i}", title=f"W{i}",
              meta={"kind": "ulesanne"}) for i in range(8)
@@ -135,13 +125,7 @@ def test_the_library_is_not_ordered_by_anything_the_learner_must_follow(content)
 
 
 class TestOpeningRecordsVocabulary:
-    """The writer that was missing.
-
-    `vocab.py` could measure coverage and `band_progress` could report known
-    words per band, and nothing in the app ever wrote a word into that table —
-    so both measured something permanently empty. The measurement had been
-    built without the recording.
-    """
+    """Opening an item records the words met."""
 
     def test_opening_a_text_records_the_words_met(self, content, progress, tmp_path):
         from eesti.vocab import connect as vocab_connect
@@ -199,34 +183,21 @@ class TestOpeningRecordsVocabulary:
 
 
 class TestBrowsingEverything:
-    """`kõik` — no band filter — is the option a learner picks to see the whole
-    shelf, and it is the one that shows least of it.
-
-    Found in a browser on 2026-08-20: choosing `kõik` returned a list
-    indistinguishable from `kergem`. The `WHERE` clause is right (`if band:`
-    correctly treats the empty string as "no filter"); the loss is downstream,
-    in `ORDER BY added_on DESC LIMIT n`. The harvesters wrote one band last, so
-    the newest `n` rows are all that band and the other two never survive the
-    limit. On the real corpus — 117 raskem, 116 keskmine, 116 kergem — the
-    unfiltered first 60 were 60 kergem, hiding two thirds of the library behind
-    a filter that looks like it is doing nothing.
-
-    This is the shape the project has already paid for twice: material that is
-    indexed, sectioned, API-tested and unreachable from the page.
+    """Unfiltered browsing (`kõik`) shows every band, not just the most recently
+    harvested one.
     """
 
     @pytest.fixture
     def banded(self, tmp_path):
-        """Three bands, written in a fixed order so the newest rows are all one
-        band — reproducing the harvest ordering rather than hoping for it."""
+        """Three bands written in a fixed order, so the newest rows are all one band — the
+        real harvest ordering.
+        """
         from eesti.sources import Item, add_items, connect, register
 
         conn = connect(tmp_path / "bands.db")
         register(conn)
-        # `add_items` stamps `added_on` itself, and one test run stamps every
-        # batch within the same second -- which does not reproduce anything.
-        # The dates are therefore set explicitly, standing in for three harvest
-        # runs on three different days, which is how the real corpus got here.
+        # Dates are set explicitly (one test run stamps every batch in the same second),
+        # standing in for three harvest days.
         for day, band in enumerate(("raskem", "keskmine", "kergem"), start=1):
             add_items(conn, [
                 Item("selges-keeles", "lugemine", body=f"Tekst {band} {i}.",
@@ -241,13 +212,8 @@ class TestBrowsingEverything:
         return conn
 
     def test_the_fixture_really_is_ordered_by_band(self, banded):
-        """Guard the guard.
-
-        The defect needs the newest rows to be one band; if the fixture ever
-        stops arranging that, every test below would pass for the wrong reason
-        -- which is exactly what the first version of this fixture did. Asked
-        of the table directly rather than through `query`, because `query` is
-        now the thing under test and interleaves on purpose.
+        """Guard the fixture: the newest rows really are one band, asked of the table
+        directly.
         """
         newest = [r[0] for r in banded.execute(
             "SELECT band FROM items ORDER BY added_on DESC LIMIT 4")]
@@ -259,10 +225,8 @@ class TestBrowsingEverything:
             assert rows and {r["band"] for r in rows} == {band}
 
     def test_browsing_unfiltered_reaches_every_band(self, banded):
-        # The limit must be smaller than a single band, which is the real
-        # ratio: the page asks for 60 and the newest band holds 116. A limit
-        # wider than one band hides the defect, which is why the number here
-        # is 3 against batches of 4 rather than something round.
+        # The limit is smaller than one band (as the page's 60 is smaller than a band), or
+        # the defect cannot show.
         rows = query(banded, skill="lugemine", band=None, limit=3)
         assert {r["band"] for r in rows} == {"kergem", "keskmine", "raskem"}, \
             f"'kõik' surfaced only {[r['band'] for r in rows]}"
@@ -276,18 +240,7 @@ class TestBrowsingEverything:
 
 
 class TestBrowseAndCountAgree:
-    """The invariant `_filters` exists for, asked of the app rather than read.
-
-    `count`'s docstring has always said it is "built from `browse`'s own
-    filters rather than beside them"; until this was extracted it was *beside*
-    them — the same three clauses written twice, in two functions whose only
-    contract is that they agree. Sharing the code makes drift harder; this
-    makes it fail.
-
-    Why it matters: a count computed from different conditions than the rows it
-    counts is worse than no count, because it looks authoritative. The reading
-    shelf said "80 текстов" against 349 indexed once already.
-    """
+    """`count` and `browse` agree for every filter combination."""
 
     @staticmethod
     def _both(content, section, **filters):

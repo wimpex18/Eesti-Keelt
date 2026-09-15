@@ -1,9 +1,7 @@
 """Cloze drills generated from authentic corpus sentences.
 
-The danger with a corpus is the opposite of the danger with templates. Templates
-produce nonsense that a reader spots immediately; a corpus produces fluent
-Estonian whose *drill* may be unsound in ways nothing on screen reveals. So most
-of these tests are about what must be refused.
+A corpus produces fluent Estonian whose drill may still be unsound, so most of
+these tests are about what must be refused.
 """
 
 from __future__ import annotations
@@ -17,11 +15,8 @@ from eesti import cloze
 
 @pytest.fixture
 def content(tmp_path):
-    """A content store with a handful of real sentences, built from scratch.
-
-    Deliberately not the developer's `data/content.db`: a test that passes only
-    where the harvest has been run is a test that fails in CI for the wrong
-    reason.
+    """A content store with a handful of real sentences, built from scratch (not the
+    developer's `data/content.db`).
     """
     conn = sqlite3.connect(tmp_path / "content.db")
     conn.row_factory = sqlite3.Row
@@ -118,8 +113,7 @@ class TestNegationClozes:
             assert clause_words & (cloze.NEGATORS | cloze._CONTRACTED)
 
     def test_the_negator_must_be_in_the_same_clause(self):
-        """The bug this caught: a partitive in one clause was explained by an
-        `ei` in another, teaching a connection that is not there."""
+        """A negation item's `ei` is in the same clause as the partitive."""
         sentence = (
             "Kui jahipidamisõigust tõendavad dokumendid on väljastatud, "
             "siis ei pea neid kaasas olema."
@@ -164,8 +158,9 @@ class TestSafetyGates:
         assert not cloze._hyphenated(s2, start2, start2 + len("Tallinnas"))
 
     def test_the_partitive_distractor_is_the_genitive_not_a_naive_form(self):
-        """For the object cases the contrast *is* the lesson; a mechanical
-        nominative-plus-ending string would teach nothing."""
+        """For object cases the distractor is the other object case, not a nominative-stem
+        string.
+        """
         forms = {"genitive": "raamatu", "partitive": "raamatut"}
         assert cloze._distractor("raamat", "sg p", "raamatut", forms) == "raamatu"
         assert cloze._distractor("raamat", "sg g", "raamatu", forms) == "raamat"
@@ -175,11 +170,7 @@ class TestSafetyGates:
         assert covered == set(cloze.CASES)
 
     def test_the_topics_it_files_under_are_the_ones_that_dispatch_here(self):
-        """`TOPIC_CASES` is a hand-written map into the syllabus, and the
-        syllabus is where a topic's generator is declared. A key that is not a
-        `corpus_cloze` topic is a case this module will never be asked for —
-        the same disconnect that left the negation lane unreachable, one file
-        further along."""
+        """Every `TOPIC_CASES` key is a `corpus_cloze` topic in the curriculum."""
         from eesti.curriculum import by_id
 
         for topic in cloze.TOPIC_CASES:
@@ -214,18 +205,7 @@ def test_untagged_topics_report_no_reference_rather_than_a_wrong_one(content):
 
 
 class TestTheNegationLaneReachedNobody:
-    """`negation_clozes` was generated, tested, filed under `obj-case` — and
-    never ran outside the CLI.
-
-    `items_for` dispatches on `by_id(topic).generator`. The call sat inside the
-    `generator == "corpus_cloze"` branch, guarded by `topic == "obj-case"`; but
-    `obj-case`'s generator is `object_case`, so that comparison could not be
-    true. A generator with no caller, this project's most-repeated bug shape,
-    and this time on the topic `CLAUDE.md` names as the documented #1
-    weakness: negation is the *one* object-case rule a corpus sentence settles
-    on its own, so the learner's only authentic obj-case material was the half
-    that never shipped.
-    """
+    """`obj-case` practice includes authentic negation clozes via `items_for`."""
 
     def test_an_object_case_set_contains_authentic_sentences(self):
         from eesti.cloze import Cloze
@@ -236,21 +216,15 @@ class TestTheNegationLaneReachedNobody:
             "obj-case is back to templates only")
 
     def test_the_set_is_still_the_size_that_was_asked_for(self):
-        """Blending must not cost items. The corpus share replaces frames, it
-        does not shrink the lesson."""
+        """Blending keeps the requested set size."""
         from eesti.practice import items_for
 
         assert len(items_for("obj-case", count=9, seed=1)) == 9
 
     def test_the_templates_still_carry_most_of_it(self, monkeypatch):
-        """The frames supply the completed/ongoing contrast a corpus sentence
-        leaves implicit, which is the topic's actual subject. Negation is the
-        supplement, not the lesson.
-
-        Asked of the *request*, not of the result. The fixture corpus is four
-        short passages and yields two negation items for a set of nine, so
-        counting what came back would pass however large the share was asked
-        to be — a guard that holds for a reason unrelated to what it claims.
+        """Negation clozes are a minority share of the request; the frames carry the
+        completed/ongoing contrast. Asked of the request, since the small fixture corpus
+        would pass any share.
         """
         from eesti import cloze
         from eesti.practice import CORPUS_SHARE, items_for
@@ -274,11 +248,8 @@ class TestTheNegationLaneReachedNobody:
         assert len(items_for("obj-case", count=9, seed=1)) == 9
 
     def test_a_branch_never_tests_a_topic_its_generator_cannot_own(self):
-        """The shape of the bug, asked of `items_for` as a whole.
-
-        Derived from the curriculum rather than written out here: every
-        `topic == "x"` inside an `if generator == "y"` block is a claim that
-        `x` is generated by `y`, and `curriculum.py` is where that is decided.
+        """Every `topic == "x"` check inside an `if generator == "y"` branch of `items_for`
+        matches the curriculum (so no branch is unreachable).
         """
         import ast
         import inspect

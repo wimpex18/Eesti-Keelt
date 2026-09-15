@@ -7,15 +7,10 @@
     python -m eesti.cli serve         # local web app
 """
 
-# This docstring is what `--help` prints, so it stays short and about the tool.
-#
-# The package was one 1 620-line module in which every command's flags sat in a
-# single argparse block at the bottom, a thousand lines from the function that
-# read them. Commands are grouped by what they are for now, and each group
-# registers its own subparsers, so a flag and its handler are on one screen.
-#
-# `main` and every `cmd_*` are re-exported here, because `eesti.cli` is the
-# name the tests, the Dockerfile and the deploy scripts use.
+# This docstring is what `--help` prints. Commands are grouped by purpose and each
+# group registers its own subparsers beside its handlers. `main` and every `cmd_*`
+# are re-exported, because `eesti.cli` is the name tests, the Dockerfile and deploy
+# scripts use.
 
 from __future__ import annotations
 
@@ -34,11 +29,7 @@ from ._helpers import (  # noqa: F401  -- part of `eesti.cli`'s surface
 #: where you stand, operate the deployment.
 GROUPS = (build, harvest, study, assess, report, ops)
 
-# `eesti.cli.cmd_status` and friends keep working: the tests, and anything that
-# imported a handler by name, address this package rather than a module inside
-# it. Derived from the groups rather than written out, because a list of 36
-# names maintained by hand is the thing this project has a rule against -- and
-# the list would be wrong the first time a command moved between groups.
+# Re-export every handler, derived from the groups.
 for _group in GROUPS:
     globals().update({name: value for name, value in vars(_group).items()
                       if name.startswith("cmd_")})

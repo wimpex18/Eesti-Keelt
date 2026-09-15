@@ -1,10 +1,7 @@
 """The resources a route opens, and the facts about this process.
 
-Split out of `app.py` so that a router imports what it needs rather than the
-whole application. Every database here is resolved from `config` **when it is
-opened**, never from a copy bound at import: a path frozen at import cannot be
-pointed anywhere else, which is the bug this project has paid for often enough
-to have a rule about it (`.claude/rules/python.md`, *Paths, connections, state*).
+Every database is resolved from `config` when opened, never bound at import,
+so tests and callers can redirect it (`.claude/rules/python.md`).
 """
 
 from __future__ import annotations
@@ -17,14 +14,7 @@ from ..sources import connect as content_connect
 from ..wordlist import connect
 
 def content_db():
-    """The harvested material, resolved when called.
-
-    A module-level `CONTENT_DB = "data/content.db"` sat here and bypassed
-    `config.CONTENT_DB` entirely, so redirecting the database had no effect on
-    the web app — which is how a read-aloud endpoint passed locally and returned
-    an empty list in CI. Same shape as the bug in `wordlist.connect`: a path
-    frozen at import cannot be pointed anywhere else.
-    """
+    """The harvested material, resolved from `config` when called."""
     from .. import config
 
     return content_connect(config.CONTENT_DB)
@@ -44,12 +34,8 @@ def content_counts() -> dict:
     return corpus_counts(config.CONTENT_DB)
 
 
-# Every learner database is resolved from `config` when opened, never from a
-# copy bound here at import. `app.py` used to hold its own module globals for
-# these four, so redirecting them meant patching two modules that could drift
-# apart -- and they did: `_state_paths()` read one set and these helpers the
-# other, so a snapshot could restore into a different file from the one the
-# app then read. One source, read at call time.
+# Learner databases, resolved from `config` when opened — one source of truth for
+# the app and the state snapshot.
 def review_db():
     from .. import config
 
@@ -69,13 +55,7 @@ def vocab_db():
 
 
 def notion_db():
-    """The queued corrections, resolved when called.
-
-    This was the last path in the app read from a module global bound at
-    import — the notion routes closed over `app.NOTION_DB` while every other
-    database went through `config`, which is the two-homes-for-one-value shape
-    `.claude/rules/python.md` warns about. One source, read at call time.
-    """
+    """The queued corrections, resolved from `config` when called."""
     from .. import config
     from ..notion import connect
 
@@ -83,34 +63,25 @@ def notion_db():
 
 
 def gloss_db():
-    """Word meanings, in `vocab.db` so the state snapshot carries them.
-
-    Anywhere else and the store would evaporate on every Cloud Run cold start,
-    which is the bug it exists to fix — see `eesti/gloss.py`.
+    """Word meanings, in `vocab.db` so the state snapshot carries them (see
+    `eesti/gloss.py`).
     """
     from .. import config, gloss
 
     return gloss.connect(config.VOCAB_DB)
 
 
-# Generated items are not stored, so an answer arrives without the question. The
-# client sends the item back with the answer and the server re-grades it, which
-# keeps the API stateless — but it also means the client could send an item it
-# was never given. That is fine for a single-user app behind Cloudflare Access
-# and would not be for a multi-user one: the fix there is to sign the item or
-# hold the session server-side, and this note exists so that is a decision
-# rather than an oversight.
+# Generated items are not stored: the client returns the item with the answer and
+# the server re-grades it. Fine for one learner behind Access; a multi-user app
+# would need signed items or server-side sessions.
 
 #: The page and its static files. `parents[1]`, not `parent`: this module
 #: lives in `eesti/api/` and the web directory is `eesti/web/`.
 WEB = Path(__file__).resolve().parents[1] / "web"
 
 
-# Identifies this process. The Worker in front of the deployment reads it off
-# every response: when it changes, the container it was talking to has been
-# replaced and its disk is empty again, which is the cue to push the snapshot
-# back in. Cloud Run scales to zero and gives no shutdown hook the Worker can
-# see, so the boot id is how a restart is noticed at all.
+# Identifies this process. The Worker reads it from every response; a new id means
+# a fresh container with an empty disk, so the snapshot is pushed back in.
 BOOT_ID = secrets.token_hex(8)
 
 
@@ -124,51 +95,25 @@ def db():
 def _bind_breaker() -> None:
     """Point the provider breaker at the learner's database.
 
-    Without this the breaker is per-process, and on Cloud Run — which scales to
-    zero — that meant every cold container paid a dead provider's full timeout
-    twice before stepping over it. `progress.db` rather than a file of its own
-    so it rides the existing snapshot; the table is tiny and its lifetime is
-    the same as the deployment's.
-
-    Registered rather than opened. This used to call `progress_db()` here, at
-    module scope, which resolved the database path at *import* — the exact
-    anti-pattern this project has a written habit about, and the reason the
-    test suite had to re-bind after the fact to stop the breaker reaching for
-    the learner's real file. The breaker now opens it the first time it has
-    something to remember, by which point any caller has had its chance to
-    point the path somewhere else.
+    Persisting in `progress.db` means it survives Cloud Run cold starts via the
+    snapshot. An opener is registered, so no path is resolved until the breaker
+    first has something to record.
     """
     from ..providers import breaker
 
     breaker.bind_later(progress_db)
 
 
-# Called here, at import, and that placement is the whole point: the breaker
-# has to be pointed at the learner's database before anything asks it whether a
-# provider is dead. Registering an *opener* is what makes that safe -- no path
-# is resolved until the breaker first has something to remember.
-#
-# It was lost for one commit in the split that made this module: the call is a
-# bare expression with no name, and the tool that carved `app.py` up moved
-# functions, classes and assignments. Nothing failed. The breaker fell back to
-# a module-level dict, which on Cloud Run means every cold container pays a
-# dead provider's full timeout twice -- the exact thing the durable store
-# exists to prevent, and invisible to the suite because `conftest` unbinds it
-# deliberately.
+# Must run at import, before any provider is asked whether it is dead;
+# registering an opener keeps that safe. (`conftest` unbinds it in tests.)
 _bind_breaker()
 
 
 def build_info() -> dict:
     """When this image was built, and from what commit if the builder said.
 
-    Read once and cached by the module-level call below: it is a file written
-    at image build time and it cannot change while the process runs.
-
-    Why it exists: a Python change was merged, the Worker redeployed, and the
-    new endpoint was still absent from production — with no way to tell whether
-    the container build had not run yet, had failed, or was never wired up.
-    Running from a source checkout there is no file and no build, which is
-    itself the honest answer.
+    Read once from `/app/BUILD_INFO`; a source checkout has none, which is itself
+    the answer.
     """
     import json
     from pathlib import Path

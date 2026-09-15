@@ -1,8 +1,5 @@
-"""Known-word tracking.
-
-Adapted from Lute/LWT: statuses 1–5 plus ignored and well-known. The two
-behaviours worth pinning are the ones that would quietly distort the coverage
-number a reader uses to pick a text.
+"""Known-word tracking (after Lute/LWT): statuses per lemma, plus ignored and
+well-known.
 """
 
 import pytest
@@ -20,11 +17,7 @@ def test_unseen_words_are_unknown(db):
 
 
 def test_encounters_count_without_claiming_knowledge(db):
-    """Meeting a word is exposure, not learning.
-
-    Automatically promoting on sight is what makes 'known word' counts
-    meaningless — a word skimmed past is not a word learned.
-    """
+    """Meeting a word is exposure, not learning: it never promotes a status."""
     vocab.record_encounter(db, ["raamat", "auto", "raamat"])
     assert vocab.statuses(db, ["raamat"])["raamat"] == vocab.LEARNING
     met = db.execute(
@@ -134,19 +127,7 @@ class TestFrequencyBands:
 
 
 class TestEveryRungOnTheLadderCanBeReached:
-    """A status nothing can set is a status that does not exist.
-
-    `FAMILIAR` (3, `tuttav`) sat in `STATUS_NAMES` between "met it" and "know
-    it" with **no writer anywhere**: no endpoint set it, no encounter produced
-    it, and the store held zero rows at that value. Its one reader was an
-    `in (LEARNING, FAMILIAR)` whose second term could never be true, so nothing
-    misbehaved and nothing pointed at it.
-
-    Same shape as the measurement with no writer, the endpoint with no caller,
-    `[data-theme]` with nothing setting it, and `kind="vocab"` that no code
-    produced — four found in four sprints, which is why this one is a test
-    rather than a note.
-    """
+    """Every named status has a writer."""
 
     #: How each rung is reached. `LEARNING` comes from meeting a word while
     #: reading; the settled three are choices the learner makes on the card.

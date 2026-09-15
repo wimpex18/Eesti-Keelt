@@ -1,36 +1,12 @@
-"""One circuit breaker, shared by every provider chain.
+"""One circuit breaker, shared by the grammar and speech provider chains.
 
-The grammar chain has had one since the research APIs turned out to hang for 61
-seconds before failing: an endpoint that is down tends to stay down for hours,
-and paying that timeout on every request makes the whole tool feel broken.
+A dead endpoint tends to stay dead for hours, so after `THRESHOLD` failures a
+provider is skipped for a cooldown that doubles per further failure, up to
+about a week; `reset()` forces a retry.
 
-The speech chain needed the same thing and did not have it, which was worse
-there than in grammar: speech has **four** engines and a long timeout each,
-because a minute of audio takes real time to transcribe. A Cloudflare outage
-therefore cost the learner every engine's timeout in series before they were
-told anything — a multi-minute wait to be told nothing was heard.
-
-Copying twenty lines of stateful logic into a second module is how two copies
-drift into two behaviours, so it lives here and both import it.
-
-**State outlives the process, and it has to.** It used to be a module-level
-dict, described as process-local and "right for a single-user app". That was
-wrong in exactly the environment this runs in. Cloud Run scales to zero, so a
-learner who checks one paragraph in the evening gets a cold container almost
-every time — and a cold container has an empty breaker. With a threshold of
-two, the first *two* requests of every container lifetime paid the full
-timeout. TartuNLP's grammar endpoint has returned 500 after ~61 seconds since
-the research phase and was re-probed today with the same result, so at a 5
-second provider timeout that was ten seconds of dead waiting per cold start,
-for a service that has never once answered.
-
-Wall-clock time, not `monotonic`: a monotonic timestamp means nothing to the
-next process, and this state is now read by one.
-
-The cooldown doubles with each failure beyond the threshold, up to about a
-week. That is the re-probe cadence the plan asks for — often enough to notice a
-recovery, rare enough that a permanently dead endpoint costs one timeout a week
-instead of two per session. `reset()` forces an immediate retry.
+State is persisted (in `progress.db`, via `bind_later`), because Cloud Run
+scales to zero and an in-memory breaker would pay a dead provider's timeout on
+every cold start. Timestamps are wall-clock so the next process can read them.
 """
 
 from __future__ import annotations
@@ -41,9 +17,7 @@ import time
 THRESHOLD = 2
 COOLDOWN = 900.0  # seconds
 
-#: Cap on the doubling. The plan's instruction is to re-probe the research APIs
-#: weekly and compare against the regression set before promoting one, so there
-#: is no value in backing off further than that.
+#: Cap on the doubling: re-probe a dead provider about weekly.
 MAX_COOLDOWN = 6 * 24 * 3600.0
 
 SCHEMA = """
@@ -57,18 +31,15 @@ CREATE TABLE IF NOT EXISTS breaker (
 _failures: dict[str, tuple[int, float]] = {}
 _store: sqlite3.Connection | None = None
 
-#: Set by `bind_later`. Called at most once, the first time the breaker needs
-#: storage -- which is what keeps the database path out of import time.
+#: Set by `bind_later`; called once, when the breaker first needs storage, which
+#: keeps the database path out of import time.
 _opener = None
 _loaded = False
 
 
 def bind(conn: sqlite3.Connection | None) -> None:
-    """Give the breaker somewhere to remember, or `None` to forget.
-
-    Optional on purpose: the CLI and the tests run without one, and a breaker
-    that refused to work unbound would make every caller responsible for
-    storage it does not care about.
+    """Give the breaker somewhere to remember, or `None` for in-memory state (CLI,
+    tests).
     """
     global _store, _loaded, _opener
     _store = conn
@@ -79,17 +50,8 @@ def bind(conn: sqlite3.Connection | None) -> None:
 
 
 def bind_later(opener) -> None:
-    """Bind to whatever `opener()` returns, the first time storage is needed.
-
-    `app.py` used to call `bind(progress_db())` at module scope, which opened
-    the database -- and so resolved its path -- at import. This project has a
-    written habit about exactly that: a module-level constant cannot be pointed
-    anywhere else, and three bugs in a row came from it. The test suite had to
-    work around this one by re-binding after the fact.
-
-    Deferring the call is the whole fix. Nothing about the breaker's behaviour
-    changes; it simply learns its path at the moment it first has something to
-    remember, by which time a caller has had every chance to redirect it.
+    """Bind to whatever `opener()` returns, the first time storage is needed, so the
+    path is resolved only after callers have had a chance to redirect it.
     """
     global _store, _loaded, _opener
     _store = None

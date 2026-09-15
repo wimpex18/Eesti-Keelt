@@ -1,19 +1,8 @@
-"""Indexing the exam board's own practice tasks.
+"""Indexing the exam board's own EIS practice tasks — pointers, not copies.
 
-This is the only material in the project written by the people who write the
-real exam. Everything else is generated from a word list or harvested from a
-radio archive; these 23 tasks are what the learner will actually be graded
-against the shape of.
-
-**Pointers, not copies.** The tasks are copyright Haridus- ja Noorteamet, they
-live in an iframe on HARNO's site, and the scoring and immediate feedback that
-make them worth doing only work there. A scraped copy would be dead text *and* a
-redistribution risk; a link is strictly better on both counts. So nothing of
-theirs is ever in this database, and these tests are where that is enforced
-rather than promised.
-
-Network tests are skipped when EIS is unreachable — a third party being down
-must never fail this build, which is the rule the whole project runs on.
+The tasks are © Haridus- ja Noorteamet and score only on HARNO's site, so nothing
+of theirs is stored; these tests enforce that. Network tests skip when EIS is
+unreachable.
 """
 
 from __future__ import annotations
@@ -66,8 +55,7 @@ class TestClassification:
 
 
 class TestAgainstTheLiveCatalogue:
-    """These would have caught the plan's wrong assumption before it was built
-    on: it said to filter by `aine=R`, which returns nothing at all."""
+    """The search filters by `keeletase`; `aine=R` returns nothing."""
 
     @pytest.fixture(scope="class")
     @classmethod

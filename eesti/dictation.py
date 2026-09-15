@@ -1,46 +1,15 @@
-"""Listening practice that can be got wrong.
+"""Listening practice that can be got wrong: dictation.
 
-The Kuulamine tab was a text-to-speech box: paste a passage, hear it read. That
-is a *tool*, not an exercise. Nothing could be answered, so nothing could be
-scored, so nothing was recorded — and the readiness verdict went on reporting
-listening as untouched no matter how much was played. On an exam where a zero
-in any one part fails you regardless of the other three, that is the worst
-place in the app to have no exercise at all.
+- Sentences come from the harvested corpus, so the answer is correct because a
+  native wrote it.
+- Grading is deterministic: the submission is aligned against the sentence
+  word by word, with no model and no recogniser caveat.
+- Writing down what you hear trains decoding; nothing can be skipped.
 
-Dictation is the exercise, for four reasons that are specific to this project
-rather than to listening in general:
-
-  * **The answer is known correct because a native wrote it.** Sentences come
-    from the 349 harvested texts, the same corpus the cloze drills use. There
-    is no answer key to author and no way for a generated sentence to be
-    subtly wrong Estonian.
-  * **Grading is deterministic and needs no model.** What was said is known
-    exactly, so a submission is aligned against it word by word.
-  * **A miss is a real miss.** The read-aloud loop compares a target against
-    what a *recogniser* heard, and has to say so — a miss there might be the
-    model's failure rather than the learner's. Here the learner types, so what
-    arrives is what they understood, and the result carries no such caveat.
-  * **It is the one thing that trains decoding.** Reading a transcript with the
-    audio playing tests reading. Writing down what you hear does not let you
-    skip a word you did not catch.
-
-Missed words are **not** queued for review, which breaks the pattern the rest
-of the app follows. A word missed in a drill is evidence about grammar; a word
-missed in dictation may be evidence about *hearing* — an unstressed syllable, a
-word boundary that ran together, a speaker at 0.7x still faster than the
-learner reads. Queuing an object-case card because a word was mis-heard would
-teach the wrong lesson from the right mistake. Listening misses stay listening
-evidence.
-
-Deliberately not built: comprehension questions. They would have to be authored
-or generated, and a generated question about an Estonian text is exactly the
-kind of plausible-and-wrong artefact this project refuses everywhere else.
-
-Length is capped low on purpose. Past about a dozen words a learner is holding
-a sentence in working memory and the exercise measures memory rather than
-listening; the research on partial dictation uses short chunks for the same
-reason. Replaying is unlimited and untracked — rationing replays would measure
-memory again.
+Missed words are **not** queued for review: a dictation miss may be about
+hearing, not grammar. No comprehension questions — they would have to be
+generated. Sentences are short so the exercise measures listening, not memory;
+replays are unlimited and untracked.
 """
 
 from __future__ import annotations
@@ -84,11 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_dictation_key ON dictation(key, id);
 """
 
 
-#: A sentence ending in a bare number is one the splitter cut at an Estonian
-#: ordinal — `28.` is "28th", not a full stop. Fixing the splitter took the
-#: rate from 7.2 % of the pool to 2.4 %; the rest genuinely end in a number,
-#: and either way the learner is being asked to write down a sentence whose
-#: ending was removed. Harmless in a cloze that blanks one word, unfair here.
+#: Sentences ending in a bare number were usually cut at an ordinal (`28.`), so
+#: they are excluded.
 _TRUNCATED = re.compile(r"\b\d+\.$")
 
 
@@ -104,15 +70,8 @@ def _writable(sentence: str) -> bool:
 def voice_for(sentence: str) -> str:
     """Which TTS voice reads this sentence.
 
-    Always `mari` until now, and the exam is not one person. HARNO's listening
-    tasks use several speakers, and a learner who has only ever parsed one voice
-    has practised that voice rather than Estonian — the same reason the reading
-    library is ranked by comprehensibility rather than served in one register.
-
-    Deterministic from the sentence, not random: replaying must sound identical,
-    or the exercise changes underneath the learner between attempts. Same
-    sentence, same speaker, every time; different sentences spread across all
-    twelve.
+    Varied across speakers like the exam, but deterministic from the sentence so a
+    replay sounds identical.
     """
     from .providers.tts import VOICES
 
@@ -182,13 +141,7 @@ def connect(path) -> sqlite3.Connection:
 
 
 def ensure(conn: sqlite3.Connection) -> sqlite3.Connection:
-    """Add the table to an existing progress database.
-
-    Dictation lives in `progress.db` rather than a database of its own so it
-    rides the existing snapshot without anything else being told about it — a
-    new file would have had to be added to the state export, and that is
-    precisely the omission that once deleted the Notion queue on a cold start.
-    """
+    """Add the table to `progress.db`, so dictation rides the existing snapshot."""
     conn.executescript(SCHEMA)
     return conn
 
@@ -202,14 +155,8 @@ def choose(
     seed: int | None = None,
     source_id: str = "selges-keeles",
 ) -> list[Passage]:
-    """Sentences to dictate, easiest-first for this particular learner.
-
-    Ordered by known-word coverage rather than by length or by a difficulty
-    band: a short sentence full of unknown words is harder to write down than a
-    longer one made of words already met. With no vocabulary history there is
-    nothing to order by, so the choice is random among sentences of a workable
-    length — which is honest, and stops the first session serving the same
-    sentence every time.
+    """Sentences to dictate, easiest first for this learner by known-word coverage;
+    random among workable lengths when there is no vocabulary history.
     """
     from .cloze import sentences
 
@@ -253,12 +200,8 @@ def choose(
 
 
 def grade(passage: Passage, typed: str) -> Result:
-    """Align what was written against what was said, word by word.
-
-    `pronunciation.compare` does the alignment, and it is the right tool for a
-    reason worth stating: a learner who drops one word would otherwise fail
-    every word after it, and the score would measure the alignment rather than
-    the listening.
+    """Align what was written against what was said, word by word
+    (`pronunciation.compare`), so one dropped word does not fail the rest.
     """
     from .pronunciation import compare
 
@@ -279,12 +222,8 @@ def grade(passage: Passage, typed: str) -> Result:
 
 
 def record(progress: sqlite3.Connection, result: Result) -> None:
-    """Write the attempt down.
-
-    Not optional and not an afterthought. Three bugs in this project have been
-    a reader with no writer behind it — a measurement nothing stored, so a
-    screen that always said zero. Listening is the part where that would matter
-    most: the verdict's whole job is to notice an untouched part.
+    """Record the attempt; the readiness verdict counts dictations as listening
+    evidence.
     """
     from datetime import datetime, timezone
 

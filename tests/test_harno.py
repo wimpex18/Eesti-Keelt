@@ -1,26 +1,15 @@
 """The exam board's published task material — PDFs and listening audio.
 
-Distinct from `eis.py`: that indexes the interactive self-scoring tasks, this
-indexes the per-task files on the exam page, including the four writing types a
-candidate is graded on and every listening track.
+Complements `eis.py`: per-task files on the exam page. **© Haridus- ja
+Noorteamet, indexed and never downloaded:** `body` stays empty, enforced here.
 
-**© Haridus- ja Noorteamet, indexed and never downloaded.** Studying from these
-is ordinary personal use; copying a hundred of someone else's exam files into a
-database on a public deployment is not. `body` stays empty and this file is
-where that is enforced.
+Pinned:
 
-Two bugs are pinned here, both found by running the thing rather than reading
-it, and both silent:
-
-- the link pattern required a URL to *end* in `.mp3`, and every audio track is
-  served with `?version=1&...` — so all seventeen were missing and nothing said so
-- classification looked only for whole words, and HARNO's B1 files use codes
-  (`B1_Ki2B`, `B1_Lu1`, `B1_Ku3`, `B1_R2`), so every B1 file was dropped: the
-  level this app exists for
-- the level was read off the *filename*, which was structurally wrong: the page
-  is four tab panels and inside a panel the files are named generically
-  (`teade`, `Kuulamine 3`). Requiring a level in the name threw away 72 of 111
-  files, including all four B1 writing task types and both speaking cards
+- audio URLs carry `?version=1&...`, so the pattern must not require `.mp3` at
+  the end;
+- B1 files use codes (`B1_Ki2B`, `B1_Lu1`, `B1_Ku3`, `B1_R2`), which classification
+  must read;
+- the level comes from the page's tab panel, not the filename.
 """
 
 from __future__ import annotations
@@ -124,7 +113,7 @@ class TestAgainstTheLivePage:
         assert {"A2", "B1"} <= levels
 
     def test_the_listening_audio_is_found(self, live):
-        """The bug that made this test exist: zero MP3s, silently."""
+        """Audio tracks with query strings are found."""
         assert [m for m in live if m.fmt in ("mp3", "wav")]
 
     def test_b1_material_is_found(self, live):
@@ -136,8 +125,9 @@ class TestAgainstTheLivePage:
         assert b1 == {"kirjutamine", "kuulamine", "lugemine", "raakimine"}
 
     def test_the_four_b1_writing_tasks_are_all_there(self, live):
-        """The ones the plan named: a notice, a questionnaire, a piece on a set
-        topic, a personal letter. All four were being dropped."""
+        """The four B1 writing task types (notice, questionnaire, set topic, letter) are
+        classified.
+        """
         titles = " ".join(
             m.title.casefold() for m in live
             if m.level == "B1" and m.skill == "kirjutamine"

@@ -1,16 +1,9 @@
-"""Subject–verb agreement: the one syntactic error this app can decide.
+"""Subject–verb agreement: decided from morphology and corrected with a
+Vabamorf-synthesised form.
 
-`object_case_candidates` reports the case a word is in and refuses to say
-whether it is right, because that needs telicity, which is semantics. Agreement
-is the opposite — `ma elab` is wrong for a reason visible entirely in two
-adjacent words — so it is *corrected* rather than flagged, with the correct
-form synthesised by the same Vabamorf that grades every drill.
-
-The rules, and much more importantly the **exceptions**, come from GiellaLT's
-Estonian Constraint Grammar (`giellalt/lang-est-x-utee`, `&err-agr`). Their
-toolchain is not adopted; their linguistic analysis is. The exceptions are the
-valuable half: a checker that did not know `sa elasid` is correct would call
-correct Estonian wrong every time the learner used the past tense with `sa`.
+Rules and exceptions follow GiellaLT's Estonian Constraint Grammar
+(`giellalt/lang-est-x-utee`, `&err-agr`); the exceptions keep correct Estonian
+from being flagged.
 """
 
 from __future__ import annotations
@@ -60,10 +53,7 @@ class TestItDoesNotInventErrors:
     @pytest.mark.parametrize("text", ["Sa elasid seal.", "Sa elaksid seal.",
                                       "Nad elasid seal.", "Nad elaksid seal."])
     def test_a_form_ambiguous_between_two_persons_agrees_with_both(self, text):
-        """`sid` and `ksid` are 2sg **and** 3pl. GiellaLT's own rule comment
-        says so — "sa elasid, sa elaksid is OK" — and this is the exception
-        that matters most: without it, the past tense with `sa` is flagged
-        every single time."""
+        """`sid` and `ksid` are 2sg and 3pl: `sa elasid` is correct."""
         assert morph.agreement_errors(text) == []
 
     def test_negation_carries_no_person_and_is_not_checked(self):

@@ -1,14 +1,7 @@
 """Push confirmed errors into the existing Notion `Vead` log.
 
-## Why this feeds an existing system instead of replacing it
-
-There is already an error log, hand-kept, with a rule attached to it: three or
-more rows sharing a tag become the focus of the week. That rule is what made
-`obj-case` the priority in the first place. A second log inside this app would
-have split the evidence in half and quietly broken the rule.
-
-So this appends, and it appends in exactly the shape the log already has. The
-schema was read off the live database rather than remembered:
+The hand-kept log has a rule: three rows sharing a tag set the week's focus. So
+this appends in the log's own shape (read off the live database):
 
 | Property | Type | What goes in |
 |---|---|---|
@@ -18,15 +11,9 @@ schema was read off the live database rather than remembered:
 | `Tag` | multi_select | one of the fixed nine in `config.TAGS` |
 | `Kuupäev` | date | when it was checked |
 
-## Why nothing is pushed automatically
-
-**The log's value is that it is curated.** A checker that appended every
-suspicion would turn a hand-picked record of real mistakes into a dump of model
-output, and the "3+ occurrences" rule would start firing on noise. So a
-correction is queued locally, shown, and pushed only when a person says so.
-
-Queueing locally also means the network is never in the way of a study session:
-Notion being unreachable delays a row, it does not interrupt a lesson.
+Nothing is pushed automatically: corrections are queued locally and sent only
+when the learner chooses, so the log stays curated and Notion being down never
+interrupts a lesson.
 """
 
 from __future__ import annotations
@@ -133,10 +120,8 @@ def mark_pushed(conn: sqlite3.Connection, row_id: int) -> None:
 
 
 def push(row: Row, token: str | None = None) -> tuple[bool, str]:
-    """Send one row. Returns (ok, detail) rather than raising.
-
-    A failed push must leave the row queued, not lost: the queue is the record
-    until Notion confirms it has one.
+    """Send one row. Returns (ok, detail) rather than raising; a failed row stays
+    queued.
     """
     token = token or os.environ.get("NOTION_TOKEN")
     if not token:

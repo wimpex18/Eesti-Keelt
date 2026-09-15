@@ -1,7 +1,5 @@
-"""Ekilex: the key, the header, the restraint — everything before the parser.
-
-The parser is deliberately not here yet: it is built from a real response
-saved by `cli ekilex-probe`, never from a description of one.
+"""Ekilex: the key and header, the probe, parsing real (trimmed) responses, and the
+word card's use of them.
 """
 
 from __future__ import annotations
@@ -70,7 +68,7 @@ def _fixture(word):
 
 
 class TestReadingRealResponses:
-    """Trimmed from `cli ekilex-probe` answers, 2026-09-13."""
+    """Trimmed from real `cli ekilex-probe` answers."""
 
     def test_russian_is_the_senses_own_words_not_related_meanings(self):
         """`MEANING_REL` entries counted, `kohus` ("duty") read угнетение, иго."""

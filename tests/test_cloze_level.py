@@ -1,19 +1,7 @@
-"""The level parameter that was accepted, threaded through, and then dropped.
+"""Corpus cloze drills honour the level and serve easy sentences first.
 
-`items_for(topic, levels=...)` passes `levels` to every generator. The corpus
-ones took it and used it for nothing: `only` is None unless a *theme* is
-chosen, so the default run — "kõik sõnad", which is what the page sends —
-drilled whatever noun the sentence happened to contain.
-
-Measured over 272 generated `osastav` items before the fix: 57 % of target
-words tagged A1–B1, 36 % untagged, and 7 % tagged **B2 or C1** — `hooldustöö`,
-`riigivisiit`. And because the pool was shuffled and the first hits shipped,
-the sentence around the blank was a random sample of newspaper prose: "Neid
-pakkuvad ettevõted peavad esitama oma pakkumised enne jaanuari ____" arrived
-in an A1 topic.
-
-Two separate defects, so two separate fixes: gate the target word by level, and
-order candidates so the easiest sentences come first.
+`levels` gates the target word (a word tagged above the level is dropped), and
+candidates are ordered by easiest sentence before the set is cut.
 """
 
 from __future__ import annotations
@@ -36,10 +24,7 @@ class TestTheTargetWordIsGatedByLevel:
             assert cloze._above_level(level, LEVELS) is False
 
     def test_an_untagged_word_is_kept(self):
-        """The asymmetry is the whole design. A tag of B2 is evidence; absence
-        of a tag is not. Only 6.2 % of the 160 316 lemmas carry a CEFR tag, so
-        treating untagged as too-hard would throw away 36 % of the corpus
-        targets for no defensible reason."""
+        """A B2/C1 tag drops a word; no tag does not (most lemmas carry none)."""
         assert cloze._above_level(None, LEVELS) is False
 
     def test_b2_is_kept_when_b2_is_what_was_asked_for(self):
@@ -87,13 +72,14 @@ class TestEaseOrdersAndNeverJudges:
         assert cloze._ease(words, tokens) == 0.5
 
     def test_candidates_are_gathered_before_being_ranked(self):
-        """Ordering only means something if there is something to order. The
-        old loop stopped at `count`, so the first hits *were* the set."""
+        """More candidates are gathered than requested, so ordering has something to
+        choose from.
+        """
         assert cloze.OVERSAMPLE > 1
 
 
 class TestAgainstTheRealCorpus:
-    """The measurement that found this, run as an assertion."""
+    """On the real corpus, no target word is tagged above the requested levels."""
 
     @pytest.fixture(scope="class")
     @classmethod
