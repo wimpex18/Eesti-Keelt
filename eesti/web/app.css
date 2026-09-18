@@ -44,6 +44,11 @@
        webfont request to a third party. */
     --f-read:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     --f-ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    /* Type roles. Ten sizes, each a job: nothing smaller than 11px, no half-pixel
+       steps. `--fs-input` is 16px so iOS never zooms a focused field. */
+    --fs-gloss:11px; --fs-meta:12px; --fs-note:13px; --fs-ui:14px; --fs-body:15px;
+    --fs-input:16px; --fs-read:17.5px; --fs-prompt:18.5px; --fs-lead:19px;
+    --fs-title:21px; --fs-title-wide:23px;
   }
   /* Native controls (selects, scrollbars, the iOS keyboard) follow the page's scheme. */
   :root{color-scheme:light dark}
@@ -72,7 +77,7 @@
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.55 var(--f-ui);
+    font:var(--fs-body)/1.55 var(--f-ui);
     -webkit-font-smoothing:antialiased;
     /* iOS taps: no grey flash, no 300ms delay, no accidental double-tap zoom. */
     -webkit-tap-highlight-color:transparent;touch-action:manipulation;
@@ -114,7 +119,7 @@
       padding:7px var(--s3);border-radius:var(--radius-sm)}
     nav[data-mode-nav] button .ico{grid-column:1;grid-row:1 / span 2}
     nav[data-mode-nav] .lbl{grid-column:2;grid-row:1;
-      font-size:14px;font-weight:500;
+      font-size:var(--fs-ui);font-weight:500;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     nav[data-mode-nav] .ru{grid-column:2;grid-row:2;margin-top:0}
     nav[data-mode-nav] .badge{grid-column:3;grid-row:1 / span 2}
@@ -132,44 +137,44 @@
   .w-no{color:var(--warn);font-weight:600;text-decoration:underline;
     text-decoration-style:wavy;text-underline-offset:3px}
   #dictTyped{min-height:56px}
-  .sec-head{margin:20px 0 2px;font-size:15px;display:flex;gap:8px;
+  .sec-head{margin:20px 0 2px;font-size:var(--fs-body);display:flex;gap:8px;
     align-items:baseline}
   .sec-note{margin:0 0 8px}
   .sec-list{display:flex;flex-direction:column;gap:7px}
   .lib-open{margin-top:var(--s2);flex:0 0 100%;min-width:0}
   .lib-open audio{width:100%}
   /* Long unbroken tokens wrap, so the reading column never scrolls sideways. */
-  .listen-text{margin-top:var(--s2);font-size:14px;line-height:1.6;
+  .listen-text{margin-top:var(--s2);font-size:var(--fs-ui);line-height:1.6;
     white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;
     overflow-y:auto;border-top:1px solid var(--line);padding-top:9px}
   /* Two whole sentences, stacked. Side by side they would wrap into an
      unreadable pair on a phone, and reading both is the exercise. */
   .choices{display:flex;flex-direction:column;gap:8px;margin:10px 0}
   .choice{text-align:left;background:var(--bg);border:1px solid var(--line);
-    border-radius:10px;padding:10px 13px;font:inherit;font-size:14.5px;
+    border-radius:10px;padding:10px 13px;font:inherit;font-size:var(--fs-body);
     color:var(--ink);cursor:pointer;line-height:1.45}
   .choice:hover:not(:disabled){border-color:var(--accent)}
   .choice.picked{border-color:var(--accent);background:var(--accent-soft)}
   .choice:disabled{cursor:default;opacity:.75}
   .choice.picked:disabled{opacity:1}
   .qrow{display:flex;gap:9px;align-items:baseline;padding:6px 0;
-    border-bottom:1px solid var(--line);font-size:14px}
+    border-bottom:1px solid var(--line);font-size:var(--fs-ui)}
   .qrow:last-of-type{border-bottom:0}
   .rail-card{background:var(--panel);border:1px solid var(--line);
     border-radius:16px;padding:14px 16px;display:flex;
     flex-direction:column;gap:8px}
-  .rail-card h3{margin:0;font-size:12px;letter-spacing:.06em;
+  .rail-card h3{margin:0;font-size:var(--fs-meta);letter-spacing:.06em;
     text-transform:uppercase;color:var(--muted);font-weight:600}
-  .rail-big{font-size:22px;font-weight:650;line-height:1.1;
+  .rail-big{font-size:var(--fs-title);font-weight:650;line-height:1.1;
     font-variant-numeric:tabular-nums}
-  .rail-note{font-size:12.5px;color:var(--muted)}
+  .rail-note{font-size:var(--fs-note);color:var(--muted)}
   .rail-row{display:flex;justify-content:space-between;gap:10px;
-    font-size:13.5px;align-items:baseline}
+    font-size:var(--fs-ui);align-items:baseline}
   .rail-row b{font-variant-numeric:tabular-nums}
   .rail a{color:var(--accent);text-decoration:none}
   /* The next topic is the rail's headline; it may wrap, never truncate. */
-  .rail-topic{font-size:19px;overflow-wrap:anywhere}
-  .rail-go{align-self:flex-start;font-weight:600;font-size:13.5px}
+  .rail-topic{font-size:var(--fs-lead);overflow-wrap:anywhere}
+  .rail-go{align-self:flex-start;font-weight:600;font-size:var(--fs-ui)}
   .rail-row a{color:inherit}
   .rail-row a:hover{color:var(--accent)}
   /* A rail card whose panel is open says nothing the panel does not. */
@@ -178,8 +183,8 @@
   .rail a:hover{text-decoration:underline}
   header{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
     margin-bottom:var(--s4)}
-  h1{font-size:21px;margin:0;letter-spacing:-.022em;font-weight:650}
-  @media (min-width:1080px){h1{font-size:23px}}
+  h1{font-size:var(--fs-title);margin:0;letter-spacing:-.022em;font-weight:650}
+  @media (min-width:1080px){h1{font-size:var(--fs-title-wide)}}
   .hdr-actions{display:flex;gap:var(--s2);flex:none;margin-left:auto}
   /* The modes control keeps its own `margin-left:auto` so it stays right of
      the title; the actions then sit right of it without a second push. */
@@ -219,7 +224,7 @@
   [hidden]{display:none !important}
   nav{display:flex;gap:2px;margin:0 0 18px;overflow-x:auto;scrollbar-width:none}
   nav::-webkit-scrollbar{display:none}
-  nav button{background:none;border:0;padding:8px 13px;font:inherit;font-size:14px;
+  nav button{background:none;border:0;padding:8px 13px;font:inherit;font-size:var(--fs-ui);
     color:var(--muted);cursor:pointer;border-radius:999px;white-space:nowrap;
     display:flex;align-items:center;gap:6px}
   nav button[aria-selected="true"]{color:var(--ink);background:var(--panel);
@@ -243,7 +248,7 @@
       padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
     .modes button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;
       align-items:center;justify-content:center;gap:3px;
-      padding:4px 2px;border-radius:14px;font-size:11.5px}
+      padding:4px 2px;border-radius:14px;font-size:var(--fs-gloss)}
     .modes button .ico{margin:0;line-height:0}
     .modes button .ico svg{width:22px;height:22px}
     .modes button[aria-selected="true"]{background:var(--accent-soft);
@@ -263,7 +268,7 @@
       }
     nav[data-mode-nav] button{flex:0 0 auto;min-height:38px;padding:0 14px;
       border:1px solid var(--line);border-radius:999px;background:var(--panel);
-      font-size:13.5px}
+      font-size:var(--fs-ui)}
     nav[data-mode-nav] button .ru{display:none}
     nav[data-mode-nav] button[aria-selected="true"]{background:var(--accent-soft);
       border-color:transparent;color:var(--accent);font-weight:600;
@@ -281,7 +286,7 @@
      screen. */
   @media (max-width:719px){
     header{align-items:center;gap:var(--s2);margin-bottom:var(--s3)}
-    h1{font-size:19px}
+    h1{font-size:var(--fs-lead)}
     .hdr-actions{margin-left:auto}
   }
 
@@ -300,7 +305,7 @@
      Every button class used in the markup has a base rule here. */
   button.go, button.primary, button.ghost, a.ghost{
     padding:10px 18px;border-radius:var(--radius-sm);font:inherit;
-    font-size:14.5px;font-weight:600;
+    font-size:var(--fs-body);font-weight:600;
     cursor:pointer;min-height:44px;text-align:center;
     transition:transform .06s ease, opacity .15s ease}
   /* Not a flex container: that would blockify inline children and put the inline
@@ -321,7 +326,7 @@
   select,input[type=text],input[type=number]{padding:10px 12px;border:1px solid var(--line);
     border-radius:var(--radius-sm);background:var(--bg);color:var(--ink);font:inherit;
     /* 16px stops iOS Safari zooming the page when a field is focused. */
-    font-size:16px;min-height:44px}
+    font-size:var(--fs-input);min-height:44px}
   textarea{border-radius:var(--radius-sm)}
   /* A label sits above its control, so controls share a left edge.
      `align-items:stretch` is needed: in a column, `flex:1` sets height, and centring
@@ -332,13 +337,13 @@
   /* The gloss is its own line here, so no inline indent. */
   .row > label > i.ru{margin-left:0}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .engine{font-size:12px;color:var(--muted);margin-top:var(--s4)}
+  .engine{font-size:var(--fs-meta);color:var(--muted);margin-top:var(--s4)}
   .engine b{color:var(--ink)}
   /* ── The three things a banner can be ──────────────────────────────
      An error, a reference, and a success each get their own colour, so the colour
      agrees with the sentence inside. */
   .banner{background:var(--warn-soft);border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);
-    color:var(--warn);padding:12px 14px;border-radius:12px;font-size:13px;
+    color:var(--warn);padding:12px 14px;border-radius:12px;font-size:var(--fs-note);
     line-height:1.6;margin-top:14px}
   /* Neutral: a reference, or a note about how the app is running. */
   .banner.info{background:var(--tint);border-color:var(--line);color:var(--ink-2)}
@@ -353,78 +358,78 @@
     border-radius:12px;padding:14px 16px;margin-top:12px;background:var(--bg)}
   .corr.objcase{border-left-color:var(--warn)}
   .logbtn{margin-top:8px;background:none;border:1px solid var(--line);
-    border-radius:7px;padding:5px 10px;font:inherit;font-size:13px;
+    border-radius:7px;padding:5px 10px;font:inherit;font-size:var(--fs-note);
     color:var(--muted);cursor:pointer}
   .logbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
   .logbtn:disabled{cursor:default;opacity:.75}
-  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;
+  .tag{display:inline-block;font-size:var(--fs-gloss);font-weight:700;letter-spacing:.04em;
     text-transform:uppercase;padding:2px 7px;border-radius:5px;
     background:var(--accent-soft);color:var(--accent)}
   .corr.objcase .tag{background:var(--warn-soft);color:var(--warn)}
-  .fix{margin:8px 0 6px;font-size:15px}
+  .fix{margin:8px 0 6px;font-size:var(--fs-body)}
   .fix del{color:var(--bad);text-decoration:line-through}
   .fix ins{color:var(--good);text-decoration:none;font-weight:600}
-  .why{color:var(--muted);font-size:13.5px}
+  .why{color:var(--muted);font-size:var(--fs-ui)}
   .why strong{color:var(--ink)}
   .drill{border:1px solid var(--line);border-radius:14px;padding:var(--s5) var(--s4);
     margin-top:var(--s3);background:var(--bg)}
-  .prompt{font-family:var(--f-read);font-size:18.5px;line-height:1.6;
+  .prompt{font-family:var(--f-read);font-size:var(--fs-prompt);line-height:1.6;
     margin-bottom:12px}
   .prompt .blank{color:var(--accent);font-weight:700}
   /* An instruction under a prompt is Russian interface, not Estonian material. */
   .prompt .instr{font-family:var(--f-ui)}
-  .hint{font-size:12px;color:var(--muted)}
+  .hint{font-size:var(--fs-meta);color:var(--muted)}
   /* Explanatory paragraph for a control: louder than `.hint`, quieter than body text. */
-  .note{font-size:13px;line-height:1.6;color:var(--muted);max-width:62ch}
+  .note{font-size:var(--fs-note);line-height:1.6;color:var(--muted);max-width:62ch}
   /* A measured line in the readiness verdict: between a part row and a hint. */
-  .verdict-detail{margin-top:var(--s3);font-size:13px}
+  .verdict-detail{margin-top:var(--s3);font-size:var(--fs-note)}
   .verdict-detail b{font-weight:600}
   .note b{color:var(--ink);font-weight:600}
   /* The instruction under a drill: the word, the form to produce, the meaning and the
      CEFR level each get their own treatment. */
   .task{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;
-    font-size:12.5px;line-height:1.5}
-  .task .word{color:var(--ink);font-weight:600;font-size:13.5px}
-  .task .form{color:var(--accent);font-size:10.5px;font-weight:650;
+    font-size:var(--fs-note);line-height:1.5}
+  .task .word{color:var(--ink);font-weight:600;font-size:var(--fs-ui)}
+  .task .form{color:var(--accent);font-size:var(--fs-gloss);font-weight:650;
     text-transform:uppercase;letter-spacing:.07em}
-  .task .gloss{color:var(--gloss);font-size:13px}
-  .task .lvl{color:var(--muted);font-size:10px;border:1px solid var(--line);
+  .task .gloss{color:var(--gloss);font-size:var(--fs-note)}
+  .task .lvl{color:var(--muted);font-size:var(--fs-gloss);border:1px solid var(--line);
     border-radius:999px;padding:0 6px;letter-spacing:.04em}
   /* The learner-level definition (EKI põhisõnavara) and its examples. New class names
      with no competing rules, so no specificity contest. */
-  .meaning .def{color:var(--ink);font-size:13.5px;line-height:1.55}
+  .meaning .def{color:var(--ink);font-size:var(--fs-ui);line-height:1.55}
   .meaning .examples{margin:6px 0 0;padding-left:18px;color:var(--gloss);
-    font-size:12.5px;line-height:1.6}
+    font-size:var(--fs-note);line-height:1.6}
   .meaning .examples li{margin-bottom:2px}
   /* Attribution. Quiet enough not to compete with the definition it credits,
      legible enough to be an attribution rather than a gesture at one. */
-  .meaning .attrib{margin-top:6px;color:var(--muted);font-size:11.5px}
+  .meaning .attrib{margin-top:6px;color:var(--muted);font-size:var(--fs-gloss)}
   /* The native-level wording, folded under the learner one. A new class under
      `.meaning`, so no rule elsewhere competes for it. */
   .meaning .fuller{margin-top:8px}
-  .meaning .fuller summary{cursor:pointer;color:var(--muted);font-size:12px}
+  .meaning .fuller summary{cursor:pointer;color:var(--muted);font-size:var(--fs-meta)}
   .meaning .fuller .def{margin-top:4px;color:var(--gloss)}
   /* Attribution, in full. A footer rather than a panel: it is an obligation
      the page carries, not a place the learner goes. */
   /* Bottom padding clears the phone's fixed mode bar, so the footer is not covered. */
   footer.sources{max-width:860px;margin:var(--s5) auto 0;
-    padding:0 var(--s3) 96px;color:var(--muted);font-size:12px}
+    padding:0 var(--s3) 96px;color:var(--muted);font-size:var(--fs-meta)}
   @media (min-width:1080px){footer.sources{padding-bottom:var(--s5)}}
   footer.sources summary{cursor:pointer}
   footer.sources .src{padding:6px 0;border-top:1px solid var(--line)}
   footer.sources .lic{color:var(--ink-2)}
-  footer.sources .changed{margin-top:3px;font-size:11.5px;line-height:1.5}
+  footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5}
   /* A meaning that arrived with the grade rather than with the item. */
-  .gloss-late{color:var(--gloss);font-size:13px;display:block;margin-top:5px}
+  .gloss-late{color:var(--gloss);font-size:var(--fs-note);display:block;margin-top:5px}
   .gloss-late b{font-weight:600;color:var(--ink)}
-  .verdict{margin-top:var(--s3);font-size:14px}
+  .verdict{margin-top:var(--s3);font-size:var(--fs-ui)}
   .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
   /* A wrong answer: what was written, struck, then the right form in the "right"
      colour, the same pair as a correction card. */
   .verdict del{color:var(--bad);text-decoration-thickness:1.5px}
   .verdict ins{color:var(--good);text-decoration:none;font-weight:600}
-  .score{font-size:13px;color:var(--muted);margin-top:var(--s4)}
-  .empty{color:var(--muted);font-size:14px;margin-top:var(--s4)}
+  .score{font-size:var(--fs-note);color:var(--muted);margin-top:var(--s4)}
+  .empty{color:var(--muted);font-size:var(--fs-ui);margin-top:var(--s4)}
   /* An expanded panel wraps onto its own full-width line instead of squeezing beside
      the title. */
   .lib-item{border:1px solid var(--line);border-radius:12px;padding:12px 14px;
@@ -436,10 +441,10 @@
   .lib-item.external{border-style:dashed}
   .lib-item.external .lib-meta{color:var(--accent)}
   a.lib-item{text-decoration:none;color:inherit}
-  .lib-item h4{margin:0;font-size:14.5px;font-weight:600}
-  .lib-meta{font-size:12px;color:var(--muted);white-space:nowrap}
+  .lib-item h4{margin:0;font-size:var(--fs-body);font-weight:600}
+  .lib-meta{font-size:var(--fs-meta);color:var(--muted);white-space:nowrap}
   .prose{margin-top:var(--s3);font-family:var(--f-read);
-    font-size:17.5px;line-height:1.8}
+    font-size:var(--fs-read);line-height:1.8}
   .prose w{cursor:pointer;border-bottom:1px dotted transparent}
   .prose w:hover{border-bottom-color:var(--accent);color:var(--accent)}
   .prose w.hard{background:var(--warn-soft);border-radius:3px;padding:0 1px}
@@ -451,24 +456,24 @@
     font:inherit;min-height:44px}
   .vocword:hover{border-color:var(--accent)}
   .vocword .w{font-weight:650}
-  .vocword .lv{font-size:12px;color:var(--muted);border:1px solid var(--line);
+  .vocword .lv{font-size:var(--fs-meta);color:var(--muted);border:1px solid var(--line);
     border-radius:5px;padding:0 5px}
-  .vocword .pair{font-size:12.5px;color:var(--muted)}
-  .vocword .gloss{font-size:12.5px;color:var(--gloss);width:100%}
+  .vocword .pair{font-size:var(--fs-note);color:var(--muted)}
+  .vocword .gloss{font-size:var(--fs-note);color:var(--gloss);width:100%}
   /* A settled word stays in the list -- it is still vocabulary -- but stops
      competing for attention with the words still to learn. */
   .vocword.settled{opacity:.62}
   #vocCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
-  .ru{display:block;font-size:11px;font-weight:400;color:var(--muted);
+  .ru{display:block;font-size:var(--fs-gloss);font-weight:400;color:var(--muted);
     letter-spacing:0;text-transform:none;margin-top:1px}
   /* The gloss inside a filled button inherits the button colour and uses opacity, so
      it stays readable on the accent. */
   button.primary .ru, button.go .ru{color:currentColor;opacity:.72}
-  i.ru{display:inline;font-size:11.5px;font-style:normal;margin-left:5px}
-  h3 .ru{display:inline;font-size:11px;margin-left:6px;text-transform:none}
-  nav button .ru{font-size:10.5px;line-height:1.15}
+  i.ru{display:inline;font-size:var(--fs-gloss);font-style:normal;margin-left:5px}
+  h3 .ru{display:inline;font-size:var(--fs-gloss);margin-left:6px;text-transform:none}
+  nav button .ru{font-size:var(--fs-gloss);line-height:1.15}
   .st .ru, .lv .ru{display:none}
   #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
@@ -478,9 +483,9 @@
   @media (max-width:719px){
     #wordCard, #vocCard{bottom:calc(var(--nav-h) + 12px)}
   }
-  #wordCard .lemma{font-size:16px;font-weight:700}
-  #wordCard .tags{font-size:13px;color:var(--muted);margin-top:3px}
-  #wordCard .pair{margin-top:7px;font-size:13.5px}
+  #wordCard .lemma{font-size:var(--fs-input);font-weight:700}
+  #wordCard .tags{font-size:var(--fs-note);color:var(--muted);margin-top:3px}
+  #wordCard .pair{margin-top:7px;font-size:var(--fs-ui)}
   #wordCard .pair b{color:var(--accent)}
   audio{width:100%;margin-top:var(--s3)}
   /* 16:9 via `aspect-ratio`. */
@@ -489,12 +494,12 @@
     gap:12px;flex-wrap:wrap;margin-bottom:14px}
   .levels{display:flex;gap:4px}
   .levels button{background:none;border:1px solid var(--line);border-radius:8px;
-    padding:6px 14px;font:inherit;font-size:14px;color:var(--muted);cursor:pointer}
+    padding:6px 14px;font:inherit;font-size:var(--fs-ui);color:var(--muted);cursor:pointer}
   .levels button[aria-selected="true"]{background:var(--accent-soft);
     border-color:transparent;color:var(--accent);font-weight:600}
   /* The one motivating number that is true: a date does not reset when you
      fall ill, which is exactly why a streak does. */
-  .countdown{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .countdown{font-size:var(--fs-note);color:var(--muted);font-variant-numeric:tabular-nums}
   .part-row{display:flex;gap:10px;align-items:baseline;padding:9px 0;
     border-bottom:1px solid var(--line)}
   .part-row:last-child{border-bottom:0}
@@ -503,23 +508,23 @@
   .part-mark.unknown{color:var(--muted)}
   .part-body{flex:1;min-width:0}
   .part-name{font-weight:600}
-  .part-ev{font-size:13px;color:var(--muted)}
-  .part-next{font-size:13px;margin-top:3px}
+  .part-ev{font-size:var(--fs-note);color:var(--muted)}
+  .part-next{font-size:var(--fs-note);margin-top:3px}
   .kindgroup{margin-top:var(--s5)}
-  .kindgroup h3{font-size:15px;margin:0 0 6px}
-  .kindgroup .why{font-size:13px;color:var(--muted);margin:0 0 8px}
+  .kindgroup h3{font-size:var(--fs-body);margin:0 0 6px}
+  .kindgroup .why{font-size:var(--fs-note);color:var(--muted);margin:0 0 8px}
   .video iframe{width:100%;height:100%;border:0;border-radius:10px}
   /* Topic rows are four grid columns — state, level, name, action — so badges and
      names align despite long Russian state words. */
   .topic{display:grid;
     grid-template-columns:minmax(0,146px) auto minmax(0,1fr) auto;
-    gap:10px;align-items:center;padding:4px 0;font-size:14px}
-  .topic .st{font-size:12px;
+    gap:10px;align-items:center;padding:4px 0;font-size:var(--fs-ui)}
+  .topic .st{font-size:var(--fs-meta);
     color:var(--muted)}
   .topic.locked{opacity:.45}
-  .topic .lv{color:var(--muted);font-size:12px}
-  .topic button{font-size:12px;padding:2px 8px;min-height:32px}
-  label{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;
+  .topic .lv{color:var(--muted);font-size:var(--fs-meta)}
+  .topic button{font-size:var(--fs-meta);padding:2px 8px;min-height:32px}
+  label{font-size:var(--fs-note);color:var(--muted);display:inline-flex;align-items:center;gap:6px;
     /* `min-width:0` on the select's label: a `<select>` is as wide as its widest option
        and would push the page sideways on narrow phones. */
     min-width:0;max-width:100%}
@@ -531,7 +536,7 @@
   /* Segmented control, iOS-style: two states, both visible, one obviously on. */
   .modes{display:inline-flex;background:var(--bg);border:1px solid var(--line);
     border-radius:999px;padding:3px;gap:2px;margin-left:auto}
-  .modes button{background:none;border:0;font:inherit;font-size:13px;
+  .modes button{background:none;border:0;font:inherit;font-size:var(--fs-note);
     color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;
     min-height:34px}
   .modes button[aria-selected="true"]{background:var(--panel);color:var(--ink);
@@ -543,13 +548,13 @@
     display:grid;place-items:center;position:relative}
   .ring::after{content:"";position:absolute;inset:4px;border-radius:50%;
     background:var(--panel)}
-  .ring span{position:relative;z-index:1;font-size:11px;font-weight:700}
+  .ring span{position:relative;z-index:1;font-size:var(--fs-gloss);font-weight:700}
   .pathtop{display:flex;align-items:center;gap:var(--s4)}
-  .pathtop .now{font-size:15px;font-weight:600}
-  .pathtop .of{color:var(--muted);font-size:12.5px}
+  .pathtop .now{font-size:var(--fs-body);font-weight:600}
+  .pathtop .of{color:var(--muted);font-size:var(--fs-note)}
 
   .badge{display:inline-block;min-width:17px;padding:1px 5px;border-radius:999px;
-    background:var(--accent);color:var(--on-accent);font-size:10.5px;font-weight:700;
+    background:var(--accent);color:var(--on-accent);font-size:var(--fs-gloss);font-weight:700;
     text-align:center;line-height:1.5}
 
   /* Recorder */
@@ -631,7 +636,7 @@
   /* CEFR badge, distinct from the text beside it. */
   .lv{font-variant-numeric:tabular-nums}
   .topic .lv, .vocword .lv{border:1px solid var(--line);border-radius:5px;
-    padding:0 5px;font-size:11.5px;font-weight:600;letter-spacing:.02em;
+    padding:0 5px;font-size:var(--fs-gloss);font-weight:600;letter-spacing:.02em;
     color:var(--muted);background:var(--bg)}
   .topic.mastered .lv{border-color:var(--good);color:var(--good)}
   .lv[data-level="B1"], .lv[data-level="B2"], .lv[data-level="C1"]{
@@ -705,7 +710,7 @@
   .fc-say{width:32px;height:32px;flex:none}
   .flashcard .row{justify-content:center}
   .flashcard .rev-ctx{text-align:center}
-  .fc-meaning{font-size:19px;font-weight:600;color:var(--gloss);
+  .fc-meaning{font-size:var(--fs-lead);font-weight:600;color:var(--gloss);
     margin-top:var(--s2)}
   .flashcard .why{margin-top:var(--s2)}
   /* The reveal is the moment the card exists for. Enough motion to read as
@@ -782,7 +787,7 @@
     nav[data-mode-nav] .lbl, nav[data-mode-nav] .ru{display:none}
     nav[data-mode-nav] .ico svg{width:20px;height:20px}
     nav[data-mode-nav] .badge{position:absolute;top:3px;right:3px;
-      min-width:16px;padding:0 4px;font-size:9.5px;
+      min-width:16px;padding:0 4px;font-size:var(--fs-gloss);
       /* A ring in the rail's own colour: the count sits ON the mark here, and
          without it the glyph reads through the digits. */
       box-shadow:0 0 0 2px var(--panel)}
@@ -830,7 +835,7 @@
     align-items:stretch}
   /* 13.5px keeps `Ei mäleta` on one line in a third of a 390px screen. */
   .row:has(> button[data-r]) > button[data-r]{width:100%;min-height:48px;
-    font-size:13.5px;padding:8px 6px}
+    font-size:var(--fs-ui);padding:8px 6px}
   .row:has(> button[data-r]) > :not(button[data-r]){grid-column:1 / -1}
 
   /* ── Marks in the interface ──────────────────────────────────────
@@ -848,16 +853,16 @@
     display:grid;place-items:center;background:var(--accent-soft);
     color:var(--accent)}
   .empty-mark svg{width:22px;height:22px}
-  .empty-state h4{margin:0;font-size:15px;font-weight:650}
-  .empty-state p{margin:6px auto 0;max-width:44ch;font-size:13px;
+  .empty-state h4{margin:0;font-size:var(--fs-body);font-weight:650}
+  .empty-state p{margin:6px auto 0;max-width:44ch;font-size:var(--fs-note);
     line-height:1.6;color:var(--muted)}
   .empty-state .row{justify-content:center;margin-top:14px}
   /* The end of a set: a quiet card in the accent's softest fill, the score in plain
      numbers and the next set under the thumb. */
   .set-end{margin-top:var(--s4);padding:var(--s5) var(--s4);text-align:center;
     border-radius:14px;background:var(--accent-soft)}
-  .set-end h4{margin:0;font-size:15px;font-weight:650;color:var(--accent)}
-  .set-end .set-score{margin:var(--s2) 0 0;font-size:19px;font-weight:650;
+  .set-end h4{margin:0;font-size:var(--fs-body);font-weight:650;color:var(--accent)}
+  .set-end .set-score{margin:var(--s2) 0 0;font-size:var(--fs-lead);font-weight:650;
     font-variant-numeric:tabular-nums;color:var(--ink)}
   .set-end .hint{margin:var(--s2) auto 0;max-width:44ch}
   .set-end .row{justify-content:center;margin-top:var(--s3)}
@@ -938,7 +943,7 @@
        keyboard is a form, not a drill. */
     :is(#practiceOut, #freeOut, #checkpointOut, #reviewOut) > .drill:not(.done) ~ .drill{
       display:none}
-    .drill-pos{display:block;font-size:12px;color:var(--muted);
+    .drill-pos{display:block;font-size:var(--fs-meta);color:var(--muted);
       font-variant-numeric:tabular-nums;margin-bottom:var(--s2)}
     /* A verdict scrolled into view stops above the thumb bar, not under it. */
     .verdict, .drill input{scroll-margin-bottom:calc(var(--nav-h) + var(--s4))}
@@ -981,7 +986,16 @@
     nav[data-mode-nav]{align-items:stretch;-webkit-mask-image:none;mask-image:none}
     nav[data-mode-nav] button{width:100%;justify-content:flex-start;gap:10px;
       padding:0 var(--s3)}
-    nav[data-mode-nav] .lbl{display:block;font-size:14px;overflow:hidden;
+    nav[data-mode-nav] .lbl{display:block;font-size:var(--fs-ui);overflow:hidden;
       text-overflow:ellipsis;white-space:nowrap}
     nav[data-mode-nav] .badge{position:static;margin-left:auto;box-shadow:none}
   }
+
+  /* ── Headings for a screen reader ────────────────────────────────
+     Each panel and the rail open with an h2 that is read, not drawn, so the outline
+     runs h1 → h2 (panel) → h3 (section) → h4 (item). It is the panel's first child;
+     the flow rule would otherwise push the first visible element down. */
+  .sr-only{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;
+    clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+  .panel > .sr-only + *{margin-top:0}
+  #railCards{display:flex;flex-direction:column;gap:12px}

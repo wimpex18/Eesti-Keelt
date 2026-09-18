@@ -6,7 +6,8 @@ import {speakWord} from "./media.js";
 import {examLevel} from "./state.js";
 
 export async function loadRail() {
-  const rail = $("#rail");
+  // The cards, not the rail: the rail keeps its heading.
+  const rail = $("#railCards");
   if (!rail || !matchMedia("(min-width:1080px)").matches) return;
   try {
     /* `await` inside the array would serialise these — the promises have to

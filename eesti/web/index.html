@@ -84,6 +84,7 @@
        learner sees one next topic first. `Vaba harjutus`: any topic, graded by the
        same code, recorded nowhere. -->
   <section class="panel" id="tab-path">
+    <h2 class="sr-only">Rada</h2>
     <div class="levels" id="pathModes" role="tablist" aria-label="Harjutamine — режим">
       <button role="tab" aria-selected="true"  data-pm="rada" aria-controls="pathRada">Rada <i class="ru">по порядку</i></button>
       <button role="tab" aria-selected="false" data-pm="vaba" aria-controls="pathFree">Vaba harjutus <i class="ru">без записи</i></button>
@@ -147,6 +148,7 @@
        The B1 speaking exam is paired, so this voices the other side and lets the
        learner hear themselves; it does not score speech. -->
   <section class="panel" id="tab-speak" hidden>
+    <h2 class="sr-only">Rääkimine</h2>
     <div class="row">
       <select id="speakMode" aria-label="Harjutus — упражнение">
         <option value="lause">Loe ette: laused — вслух</option>
@@ -189,11 +191,13 @@
   <!-- ── Progress ──────────────────────────────────────────────────
        Five measures, no aggregate: the exam fails a zero in any part. -->
   <section class="panel" id="tab-status" hidden>
+    <h2 class="sr-only">Edenemine</h2>
     <div id="statusOut" class="empty">Загружаю…</div>
   </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
   <section class="panel" id="tab-write" hidden>
+    <h2 class="sr-only">Kirjutamine</h2>
     <textarea id="text" placeholder="Напиши или вставь эстонский текст…"></textarea>
     <div class="row">
       <button class="go" id="checkBtn">Kontrolli<span class="ru">проверить</span></button>
@@ -214,6 +218,7 @@
 
   <!-- ── Exam ──────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-exam" hidden>
+    <h2 class="sr-only">Ülevaade</h2>
     <div class="exam-head">
       <div class="levels" role="tablist" aria-label="Tase — уровень">
         <button role="tab" aria-selected="true"  data-level="A2">A2</button>
@@ -243,12 +248,14 @@
   </section>
 
   <section class="panel" id="tab-vihikud" hidden>
+    <h2 class="sr-only">Töövihikud</h2>
     <p class="hint">Официальные консультационные тетради, в том числе
       заполняемые на компьютере. Это домашняя работа, а не экзамен.</p>
     <div id="vihikudList" class="lib-list"></div>
   </section>
 
   <section class="panel" id="tab-review" hidden>
+    <h2 class="sr-only">Järjekord</h2>
     <p class="hint">
       Сюда попадают ошибки и слова, отмеченные при чтении. Каждая карточка
       возвращается тем раньше, чем труднее она тебе далась.
@@ -266,6 +273,7 @@
        The word list, commonest first. The level filter selects the CEFR-tagged
        minority, which is the A1–B1 exam vocabulary. -->
   <section class="panel" id="tab-sonad" hidden>
+    <h2 class="sr-only">Sõnavara</h2>
     <div class="row">
       <label>Tase <i class="ru">уровень</i>
         <select id="vocLevel">
@@ -308,6 +316,7 @@
 
   <!-- ── Reading ───────────────────────────────────────────────────── -->
   <section class="panel" id="tab-read" hidden>
+    <h2 class="sr-only">Lugemine</h2>
     <div class="row">
       <label>Valik <i class="ru">подборка</i>
         <select id="readLevel">
@@ -333,7 +342,7 @@
         <button class="ghost" id="backToLib">Nimekirja<span class="ru">к списку</span></button>
         <span class="hint" id="readerMeta"></span>
       </div>
-      <h3 id="readerTitle" style="margin:var(--s3) 0 var(--s1);font-size:17px"></h3>
+      <h3 id="readerTitle" style="margin:var(--s3) 0 var(--s1);font-size:var(--fs-read)"></h3>
       <div id="readerAudio"></div>
       <p class="hint" id="readerProfile"></p>
       <div id="readerBody" class="prose"></div>
@@ -349,6 +358,7 @@
 
   <!-- ── Listening ─────────────────────────────────────────────────── -->
   <section class="panel" id="tab-listen" hidden>
+    <h2 class="sr-only">Kuulamine</h2>
     <!-- Dictation first (graded), the text-to-speech box second. -->
     <!-- Outside `#dictBox`, so the reason there is no dictation stays visible when the
          box is hidden. -->
@@ -392,7 +402,7 @@
     <div id="ttsOut"></div>
   </section>
   <!-- Desktop-only context rail: countdown, resume point, due count. -->
-  <aside class="rail" id="rail" aria-label="Ülevaade — обзор"></aside>
+  <aside class="rail" id="rail" aria-labelledby="railHead"><h2 class="sr-only" id="railHead">Kokkuvõte — сводка</h2><div id="railCards"></div></aside>
 
 </div>
 
