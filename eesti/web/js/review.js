@@ -202,6 +202,7 @@ function wireGrading(el, it) {
       return;
     }
     reviewRated++;
+    el.classList.add("done");
     if (reviewSize && reviewRated === reviewSize) finishReview();
     verdict.className = "verdict ok";
     verdict.innerHTML =

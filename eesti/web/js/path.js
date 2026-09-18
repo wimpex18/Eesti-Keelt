@@ -254,7 +254,9 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
-  el.innerHTML = `
+  // Where this item sits in its set; shown on a phone, where one item is on screen.
+  const pos = tally.size ? `<div class="drill-pos">${i + 1} / ${tally.size}</div>` : "";
+  el.innerHTML = `${pos}
     <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.choices && it.choices.length ? `
     <!-- Word order is the one topic whose unit is the whole sequence, so it
@@ -323,6 +325,10 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       return;
     }
     tally.answered++; if (res.correct) tally.correct++;
+    /* Graded: on a phone the next item appears under this one (see `.drill.done`
+       in app.css). Keep this verdict in view above the keyboard and the thumb bar. */
+    el.classList.add("done");
+    requestAnimationFrame(() => verdict.scrollIntoView({block: "nearest"}));
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
     // A choice item's prompt is a question with no blank, so the answered sentence is
     // shown instead. The rule is shown either way: on a right answer it says why,

@@ -921,3 +921,29 @@
     background-size:16px 16px}
   :root[data-theme="dark"] select, :root:not([data-theme="light"]) select{
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235fbf9b' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6.5 9.5 5.5 5.5 5.5-5.5'/%3E%3C/svg%3E")}
+
+  /* ── A phone is one thumb and a keyboard ─────────────────────────
+     Placed last: these override phone rules of equal specificity earlier on. */
+  /* Every tap target at 44px on touch: the skill chips (38px) and the round header
+     buttons (36px) were under the floor. */
+  @media (hover:none){
+    nav[data-mode-nav] button{min-height:44px}
+    .iconbtn{width:44px;height:44px}
+  }
+  .drill-pos{display:none}
+  @media (max-width:719px){
+    /* One item at a time: answered items stay (they carry the verdict and the rule),
+       the first unanswered one is shown, the rest wait. Ten stacked inputs under a
+       keyboard is a form, not a drill. */
+    :is(#practiceOut, #freeOut, #checkpointOut, #reviewOut) > .drill:not(.done) ~ .drill{
+      display:none}
+    .drill-pos{display:block;font-size:12px;color:var(--muted);
+      font-variant-numeric:tabular-nums;margin-bottom:var(--s2)}
+    /* A verdict scrolled into view stops above the thumb bar, not under it. */
+    .verdict, .drill input{scroll-margin-bottom:calc(var(--nav-h) + var(--s4))}
+  }
+  /* While typing, the keyboard owns the bottom of the screen: the fixed mode bar
+     would ride on top of it and cover the field. */
+  @media (max-width:719px) and (hover:none){
+    body:has(:is(input[type=text], textarea):focus) .modes{display:none}
+  }

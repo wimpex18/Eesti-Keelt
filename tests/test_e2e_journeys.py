@@ -318,7 +318,7 @@ class TestTheGrammarDrill:
     def test_an_empty_answer_does_not_consume_the_item(self, page):
         """The first item is focused on load, but a stray Enter does not submit it."""
         self._start(page)
-        item = page.locator("#freeOut .drill").nth(2)
+        item = page.locator("#freeOut .drill").first
         item.locator("input").press("Enter")
         page.wait_for_timeout(500)
         assert not item.locator("input").is_disabled(), "empty answer locked the item"
@@ -637,6 +637,31 @@ class TestMobileLayout:
                  return r.height>0 && (r.height<32||r.width<32);})
                .map(e=>e.dataset.tab+':'+Math.round(e.getBoundingClientRect().height))""")
         assert not small, f"navigation targets under 32px: {small}"
+
+    def test_touch_targets_meet_the_44px_floor(self, page):
+        """Skill chips and the round header buttons, on a touch screen."""
+        if page.viewport_name != "phone":
+            pytest.skip("the 44px floor applies to touch viewports")
+        small = page.eval_on_selector_all(
+            "nav[data-mode-nav]:not([hidden]) button, .hdr-actions .iconbtn",
+            """els=>els.filter(e=>{const r=e.getBoundingClientRect();
+                 return r.height>0 && r.height<44;})
+               .map(e=>(e.dataset.tab||e.id)+':'+Math.round(e.getBoundingClientRect().height))""")
+        assert not small, f"touch targets under 44px: {small}"
+
+    def test_a_phone_drill_shows_one_item_at_a_time(self, page):
+        """Answered items and the next one are shown; the rest wait."""
+        if page.viewport_name != "phone":
+            pytest.skip("one item at a time is the phone layout")
+        TestTheGrammarDrill()._start(page)
+        visible = lambda: page.eval_on_selector_all(
+            "#freeOut .drill", "els=>els.filter(e=>e.checkVisibility()).length")
+        assert visible() == 1
+        first = page.locator("#freeOut .drill").first
+        first.locator("input").fill("vale")
+        first.locator("input").press("Enter")
+        page.wait_for_timeout(500)
+        assert visible() == 2
 
 
 class TestDiscoveredDefects:
