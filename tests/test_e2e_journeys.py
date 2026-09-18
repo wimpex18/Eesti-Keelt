@@ -548,6 +548,13 @@ class TestTheMiddleWidth:
         yield pg
         context.close()
 
+    def test_the_rail_shows_its_labels(self, tablet):
+        """A learner still learning the Estonian names cannot navigate by icon alone."""
+        fits = tablet.eval_on_selector_all(
+            "nav[data-mode-nav]:not([hidden]) .lbl",
+            "els=>els.map(e=>e.checkVisibility() && e.scrollWidth <= e.clientWidth + 1)")
+        assert fits and all(fits), fits
+
     def test_the_skills_are_a_column(self, tablet):
         assert tablet.eval_on_selector(
             "nav[data-mode-nav]:not([hidden])",
@@ -845,3 +852,32 @@ class TestTheMeaningCardIsAFlashcard:
         verdict = card.locator(".verdict").inner_text()
         assert meaning in verdict and "снова" in verdict, verdict
         assert not page.errors, page.errors
+
+
+class TestPhoneInLandscape:
+    """iPhone 17 on its side: 874×402, touch. Wider than the phone breakpoint, so
+    the layout has to recognise it by height and input, not width."""
+
+    @pytest.fixture
+    def landscape(self, _pw, live_server):
+        context = _pw.new_context(viewport={"width": 874, "height": 402},
+                                  has_touch=True)
+        pg = context.new_page()
+        pg.goto(live_server + "/#path", wait_until="networkidle")
+        pg.wait_for_selector("#practiceOut .drill", timeout=20000)
+        yield pg
+        context.close()
+
+    def test_one_drill_at_a_time(self, landscape):
+        visible = landscape.eval_on_selector_all(
+            "#practiceOut .drill", "els=>els.filter(e=>e.checkVisibility()).length")
+        assert visible == 1
+
+    def test_the_drill_starts_in_the_upper_part_of_the_screen(self, landscape):
+        top = landscape.eval_on_selector(
+            "#practiceOut .drill", "e=>e.getBoundingClientRect().top")
+        assert top < 402 * 0.8, f"first drill starts at {top}px of 402"
+
+    def test_nothing_scrolls_sideways(self, landscape):
+        assert landscape.evaluate(
+            "document.scrollingElement.scrollWidth <= innerWidth + 1")

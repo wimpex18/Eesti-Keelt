@@ -931,7 +931,8 @@
     .iconbtn{width:44px;height:44px}
   }
   .drill-pos{display:none}
-  @media (max-width:719px){
+  /* Phones in either orientation and the iPad: anything held in the hand. */
+  @media (max-width:719px), (hover:none){
     /* One item at a time: answered items stay (they carry the verdict and the rule),
        the first unanswered one is shown, the rest wait. Ten stacked inputs under a
        keyboard is a form, not a drill. */
@@ -946,4 +947,41 @@
      would ride on top of it and cover the field. */
   @media (max-width:719px) and (hover:none){
     body:has(:is(input[type=text], textarea):focus) .modes{display:none}
+  }
+
+  /* ── iPhone in landscape (874×402) ───────────────────────────────
+     The Dynamic Island sits on one side: `viewport-fit=cover` lets the page run
+     under it, so the sides take the safe-area inset. In portrait the insets are 0
+     and the 20px gutter (which the phone's edge-to-edge bleeds match) is unchanged. */
+  .wrap, footer.sources{
+    padding-left:max(20px, env(safe-area-inset-left));
+    padding-right:max(20px, env(safe-area-inset-right))}
+  /* 402px of height: the Russian glosses under the mode and skill labels go, so the
+     drill starts in the first third of the screen instead of the second half. */
+  @media (hover:none) and (max-height:500px){
+    header{margin-bottom:var(--s2)}
+    .modes button .ru, nav[data-mode-nav] button .ru{display:none}
+    .modes button{min-height:44px}
+    nav[data-mode-nav]{margin-bottom:var(--s2)}
+    .panel{padding:16px 20px}
+    /* Rada's topic line and its button share one line, so the drill starts higher. */
+    #pathRada{display:grid;grid-template-columns:auto 1fr;column-gap:var(--s4);
+      align-items:center}
+    #pathRada > .pathtop{grid-column:1;grid-row:1}
+    #pathRada > .row{grid-column:2;grid-row:1;margin-top:0;justify-content:flex-end}
+    #pathRada > :not(.pathtop):not(.row){grid-column:1 / -1}
+  }
+
+  /* ── iPad mini in portrait (744×1133) ────────────────────────────
+     The skills rail carries its labels: icon-only marks are a guess for someone still
+     learning the Estonian names. The Russian gloss stays in the button's name. */
+  @media (min-width:720px) and (max-width:1079px) and (min-height:560px){
+    .wrap{grid-template-columns:168px minmax(0,1fr)}
+    /* A column, not a scrolling row: the row's trailing fade would clip its edge. */
+    nav[data-mode-nav]{align-items:stretch;-webkit-mask-image:none;mask-image:none}
+    nav[data-mode-nav] button{width:100%;justify-content:flex-start;gap:10px;
+      padding:0 var(--s3)}
+    nav[data-mode-nav] .lbl{display:block;font-size:14px;overflow:hidden;
+      text-overflow:ellipsis;white-space:nowrap}
+    nav[data-mode-nav] .badge{position:static;margin-left:auto;box-shadow:none}
   }
