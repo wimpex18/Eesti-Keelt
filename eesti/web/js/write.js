@@ -138,6 +138,27 @@ $("#queueSend").onclick = async () => {
 
 $("#checkBtn").onclick = runCheck;
 
+
+/* Before the first check: what this does, what leaves the device, and one sentence
+   to try it on. The sentence is the #1 weakness in the wild (`läbi` makes the action
+   complete, so the object wants omastav), so the first check shows the tool at
+   work rather than an empty "no errors". It is inserted, not sent: checking stays
+   the learner's press. */
+$("#checkOut").innerHTML = emptyState({
+  icon: "check",
+  title: "Проверка письма",
+  note: `Напиши пару предложений по-эстонски. Орфографию, согласование и управление
+    (rektsioon) проверяет код; остальные ошибки находит и объясняет по-русски
+    языковая модель — для этого текст отправляется внешнему провайдеру.`,
+  action: `<button class="ghost" id="tryExample">Proovi näitega<span class="ru">на примере</span></button>`,
+});
+// Material, not interface copy: written without the final stop that
+// `tests/test_ui_language.py` reads as "a sentence the learner is told".
+$("#tryExample").onclick = () => {
+  $("#text").value = "Ma lugesin eile raamatut läbi";
+  $("#text").focus();
+};
+
 $("#text").addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCheck();
 });

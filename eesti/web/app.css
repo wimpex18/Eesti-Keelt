@@ -852,6 +852,15 @@
   .empty-state p{margin:6px auto 0;max-width:44ch;font-size:13px;
     line-height:1.6;color:var(--muted)}
   .empty-state .row{justify-content:center;margin-top:14px}
+  /* The end of a set: a quiet card in the accent's softest fill, the score in plain
+     numbers and the next set under the thumb. */
+  .set-end{margin-top:var(--s4);padding:var(--s5) var(--s4);text-align:center;
+    border-radius:14px;background:var(--accent-soft)}
+  .set-end h4{margin:0;font-size:15px;font-weight:650;color:var(--accent)}
+  .set-end .set-score{margin:var(--s2) 0 0;font-size:19px;font-weight:650;
+    font-variant-numeric:tabular-nums;color:var(--ink)}
+  .set-end .hint{margin:var(--s2) auto 0;max-width:44ch}
+  .set-end .row{justify-content:center;margin-top:var(--s3)}
 
   /* ── Depth, in one hue ───────────────────────────────────────────
      Subtle analogous gradients within the accent to lift raised surfaces; never a

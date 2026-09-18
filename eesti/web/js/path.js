@@ -9,8 +9,15 @@ let pathTopic = null;
 
 /* A running score for one set. Rada's is recorded by the server and shows the
    mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
-const pathTally = {answered: 0, correct: 0, out: "#pathScore", record: true};
-const freeTally = {answered: 0, correct: 0, out: "#freeScore", record: false};
+const pathTally = {answered: 0, correct: 0, size: 0, out: "#pathScore", box: "#practiceOut",
+                   record: true, gate: true, again: () => startPractice()};
+const freeTally = {answered: 0, correct: 0, size: 0, out: "#freeScore", box: "#freeOut",
+                   record: false, again: () => $("#freeBtn").click()};
+
+/* A tally for a set rendered somewhere else (the Kontrolltöö). */
+export function newTally(out, box, again) {
+  return {answered: 0, correct: 0, size: 0, out, box, record: true, again};
+}
 
 let pathMeta = {};
 let autoStarted = false, practiceRequest = 0;
@@ -149,7 +156,8 @@ async function startPractice({focus = true} = {}) {
      the latest may paint, or a slow first answer replaces the learner's choice. */
   const mine = ++practiceRequest;
   const out = $("#practiceOut"); out.innerHTML = "";
-  pathTally.answered = pathTally.correct = 0; $("#pathScore").textContent = "";
+  pathTally.answered = pathTally.correct = pathTally.size = 0;
+  $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
   try {
     const body = {count: 10};
@@ -194,6 +202,7 @@ async function startPractice({focus = true} = {}) {
     out.innerHTML = bits.length
       ? `<div class="banner info">${bits.join(" · ")}</div>` : "";
     loaded = true;
+    pathTally.size = res.items.length;
     res.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {}, focus)));
   } catch (e) {
@@ -212,6 +221,28 @@ async function startPractice({focus = true} = {}) {
     setLabel(btn, et);
     btn.querySelector(".ru").textContent = ru;
   }
+}
+
+
+/* The end of a set: the one moment a session has. It says how the set went in one
+   line and puts the next set under the thumb. No streak, no confetti: the count is
+   the reward, and the path's own gate says how far there is to go. */
+function finishSet(tally, res) {
+  const box = $(tally.box);
+  if (!box || box.querySelector(".set-end")) return;
+  const [need, of] = (res.gate || "").split("/");
+  // Only Rada's set is one topic, so only there does the topic's gate apply.
+  const gate = tally.gate && res.accuracy !== null && !res.just_mastered
+    ? `<p class="hint">Тема засчитывается, когда из последних ${esc(of)} ответов
+         верны ${esc(need)}. Сейчас: ${Math.round(res.accuracy * 100)}%.</p>` : "";
+  const end = document.createElement("div");
+  end.className = "set-end";
+  end.setAttribute("role", "status");
+  end.innerHTML = `<h4>Komplekt tehtud <i class="ru">набор пройден</i></h4>
+    <p class="set-score">${tally.correct} из ${tally.size} верно</p>${gate}
+    <div class="row"><button class="go">${uiIcon("next")}Uued laused<span class="ru">новые задания</span></button></div>`;
+  end.querySelector("button").onclick = tally.again;
+  box.appendChild(end);
 }
 
 
@@ -311,6 +342,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     let line = `${tally.correct}/${tally.answered} верных`;
     if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $(tally.out).textContent = line;
+    if (tally.size && tally.answered === tally.size) finishSet(tally, res);
     if (res.just_mastered) {
       // Good news wears the accent. `#pathHead` is shared with the error path, so the
       // class is set at each use.
@@ -389,7 +421,8 @@ $("#freeTopic").onchange = paintFreeRule;
 $("#freeBtn").onclick = async () => {
   const out = $("#freeOut"), btn = $("#freeBtn");
   out.innerHTML = "";
-  freeTally.answered = freeTally.correct = 0; $("#freeScore").textContent = "";
+  freeTally.answered = freeTally.correct = freeTally.size = 0;
+  $("#freeScore").textContent = "";
   btn.disabled = true;
   try {
     const rule = $("#freeRule").value;
@@ -402,6 +435,7 @@ $("#freeBtn").onclick = async () => {
       out.innerHTML = `<div class="banner">${esc(res.detail || "ничего не пришло")}</div>`;
       return;
     }
+    freeTally.size = res.items.length;
     res.items.forEach((it, i) => out.appendChild(
       renderPracticeItem(it, res.topic, i, res.glosses || {}, true, freeTally)));
   } catch (e) {

@@ -66,11 +66,25 @@ export async function loadLibrary(append = false) {
       : `${ruCount(libShown, TEXTS)}${note ? " · " + note : ""}`;
     $("#libMore").hidden = !more;
     if (!items.length && !append) {
-      list.innerHTML = emptyState({
-        icon: "inbox",
-        title: "Текстов нет",
-        note: `Тексты появятся здесь, когда библиотеку загрузят на сервер
-          <span class="hint">(<code>cli harvest-reading</code>, <code>cli harvest-news</code>)</span>.`,
+      /* A band that happens to be empty is not an empty library: say which it is,
+         and give the way back to the whole shelf. */
+      const band = choice && choice !== "soovitatud";
+      list.innerHTML = band
+        ? emptyState({
+            icon: "inbox",
+            title: "В этой подборке текстов нет",
+            note: "Другие подборки могут быть не пусты.",
+            action: `<button class="ghost" id="libAll">Kõik tekstid<span class="ru">все тексты</span></button>`,
+          })
+        : emptyState({
+            icon: "inbox",
+            title: "Текстов нет",
+            note: `Тексты появятся здесь, когда библиотеку загрузят на сервер
+              <span class="hint">(<code>cli harvest-reading</code>, <code>cli harvest-news</code>)</span>.`,
+          });
+      $("#libAll")?.addEventListener("click", () => {
+        $("#readLevel").value = "";
+        loadLibrary(false);
       });
       return;
     }

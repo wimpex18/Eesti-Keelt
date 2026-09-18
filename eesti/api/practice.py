@@ -119,7 +119,8 @@ def practice_items(req: PracticeRequest) -> dict:
     topic = req.topic or resume(progress_db())
     if topic is None:
         return {"topic": None, "items": [],
-                "detail": "Пока нечего повторять — начни с «Rada»."}
+                "detail": "Все открытые темы пройдены. Их можно повторить в "
+                          "«Vaba harjutus», а весь список — в «Kogu rada»."}
 
     # An unknown topic is a 400, distinct from a topic with no generator.
     try:

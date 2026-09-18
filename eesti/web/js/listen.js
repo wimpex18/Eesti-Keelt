@@ -27,7 +27,9 @@ export async function loadDictation() {
     if (dictNow) {
       state.textContent = d.note || "";
     } else {
-      empty.textContent = d.note || "";
+      empty.innerHTML = emptyState({
+        icon: "note", title: "Диктантов пока нет", note: esc(d.note || ""),
+      });
     }
   } catch (e) {
     state.textContent = "Не удалось получить предложение: " + e.message;

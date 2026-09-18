@@ -194,7 +194,7 @@
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
   <section class="panel" id="tab-write" hidden>
-    <textarea id="text" placeholder="Напиши или вставь эстонский текст…&#10;Например: Ma lugesin eile raamatut läbi."></textarea>
+    <textarea id="text" placeholder="Напиши или вставь эстонский текст…"></textarea>
     <div class="row">
       <button class="go" id="checkBtn">Kontrolli<span class="ru">проверить</span></button>
       <span class="hint kbd-hint">Ctrl+Enter</span>
@@ -212,7 +212,6 @@
     </details>
   </section>
 
-  <!-- ── Drills ────────────────────────────────────────────────────── -->
   <!-- ── Exam ──────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-exam" hidden>
     <div class="exam-head">
@@ -235,6 +234,7 @@
     <div class="row" style="margin-top:var(--s5)">
       <button class="go" id="checkpointBtn">Kontrolltöö<span class="ru">контрольная</span></button>
       <span class="hint" id="checkpointNote"></span>
+      <span class="hint" id="checkpointScore"></span>
     </div>
     <div id="checkpointOut"></div>
 
@@ -352,7 +352,7 @@
     <!-- Dictation first (graded), the text-to-speech box second. -->
     <!-- Outside `#dictBox`, so the reason there is no dictation stays visible when the
          box is hidden. -->
-    <div id="dictEmpty" class="empty" hidden></div>
+    <div id="dictEmpty" hidden></div>
 
     <div id="dictBox">
       <div class="row">

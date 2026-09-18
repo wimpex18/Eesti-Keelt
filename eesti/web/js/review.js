@@ -1,7 +1,7 @@
 /* Kordamine: the queue, the due badge, grading a card, and the desktop rail. */
 
 import {emptyState, navIcon} from "./chrome.js";
-import {$, api, esc, md, taskLine} from "./core.js";
+import {$, api, esc, md, ruCount, taskLine} from "./core.js";
 import {speakWord} from "./media.js";
 import {examLevel} from "./state.js";
 
@@ -117,8 +117,30 @@ $("#loadReview").onclick = async () => {
     });
     return;
   }
+  reviewSize = items.length; reviewRated = 0;
   for (const it of items) out.appendChild(renderReview(it, glosses || {}));
 };
+
+
+/* The end of a review session. Says it is done and, when more cards came due while
+   the learner worked (an "again" rating brings one back today), offers them. */
+let reviewSize = 0, reviewRated = 0;
+async function finishReview() {
+  const out = $("#reviewOut");
+  if (out.querySelector(".set-end")) return;
+  let due = 0;
+  try { due = (await (await api("/api/review/stats", null, "GET")).json()).due; } catch {}
+  const end = document.createElement("div");
+  end.className = "set-end";
+  end.setAttribute("role", "status");
+  end.innerHTML = `<h4>Kordamine tehtud <i class="ru">повторение пройдено</i></h4>
+    <p class="set-score">${ruCount(reviewSize, ["карточка", "карточки", "карточек"])}</p>
+    ${due ? `<div class="row"><button class="go">Veel kaarte<span class="ru">ещё ${due}</span></button></div>`
+          : `<p class="hint">На сегодня всё. Новые карточки появятся из ошибок и из
+               слов, отмеченных при чтении.</p>`}`;
+  end.querySelector("button")?.addEventListener("click", () => $("#loadReview").click());
+  out.appendChild(end);
+}
 
 function renderVocabCard(it) {
   const el = document.createElement("div");
@@ -179,6 +201,8 @@ function wireGrading(el, it) {
         <span class="hint">Попробуй ещё раз.</span>`;
       return;
     }
+    reviewRated++;
+    if (reviewSize && reviewRated === reviewSize) finishReview();
     verdict.className = "verdict ok";
     verdict.innerHTML =
       `<strong>${esc(it.answer)}</strong> — снова ${r.interval_days < 1

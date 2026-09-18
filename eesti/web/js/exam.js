@@ -2,7 +2,7 @@
 
 import {emptyState, markIcon, uiIcon} from "./chrome.js";
 import {$, api, esc} from "./core.js";
-import {renderPracticeItem} from "./path.js";
+import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
 import {examLevel, setExamLevel} from "./state.js";
 
@@ -138,6 +138,7 @@ async function runCheckpoint() {
   const out = $("#checkpointOut"), note = $("#checkpointNote");
   const btn = $("#checkpointBtn");
   btn.disabled = true; out.innerHTML = ""; note.textContent = "Загружаю…";
+  $("#checkpointScore").textContent = "";
   try {
     const d = await (await api(`/api/checkpoint/${examLevel()}?count=15`, null, "GET")).json();
     if (!d.items?.length) {
@@ -147,8 +148,11 @@ async function runCheckpoint() {
     note.innerHTML = `${d.items.length} вопросов · для прохода ` +
       `<b>${Math.round(d.pass_mark * 100)}%</b>` +
       (d.ready === false ? " · <span class=\"hint\">уровень ещё не пройден</span>" : "");
+    // Its own score line and end card: Rada's live in a panel that is not on screen.
+    const tally = newTally("#checkpointScore", "#checkpointOut", runCheckpoint);
+    tally.size = d.items.length;
     d.items.forEach((it, i) =>
-      out.appendChild(renderPracticeItem(it, it.topic, i)));
+      out.appendChild(renderPracticeItem(it, it.topic, i, {}, true, tally)));
   } catch (e) {
     note.textContent = "Ошибка: " + e.message;
   } finally { btn.disabled = false; }
