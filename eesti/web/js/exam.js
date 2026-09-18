@@ -113,8 +113,8 @@ const linkRow = it => `<div class="lib-item">
     it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
 
 
-document.querySelectorAll(".levels button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".levels button").forEach(x =>
+document.querySelectorAll("#tab-exam .levels button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tab-exam .levels button").forEach(x =>
     x.setAttribute("aria-selected", x === b));
   setExamLevel(b.dataset.level);
   loadExam();

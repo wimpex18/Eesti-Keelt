@@ -5,7 +5,12 @@ import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core
 import {loadRail, refreshDueBadge} from "./review.js";
 
 // ── the path ────────────────────────────────────────────────────────
-let pathTopic = null, pathAnswered = 0, pathCorrect = 0;
+let pathTopic = null;
+
+/* A running score for one set. Rada's is recorded by the server and shows the
+   mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
+const pathTally = {answered: 0, correct: 0, out: "#pathScore", record: true};
+const freeTally = {answered: 0, correct: 0, out: "#freeScore", record: false};
 
 let pathMeta = {};
 let autoStarted = false;
@@ -141,7 +146,7 @@ async function loadThemes() {
 async function startPractice({focus = true} = {}) {
   let loaded = false;
   const out = $("#practiceOut"); out.innerHTML = "";
-  pathAnswered = 0; pathCorrect = 0; $("#pathScore").textContent = "";
+  pathTally.answered = pathTally.correct = 0; $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
   try {
     const body = {count: 10};
@@ -203,7 +208,7 @@ async function startPractice({focus = true} = {}) {
 }
 
 
-export function renderPracticeItem(it, topic, i, glosses, focus = true) {
+export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = pathTally) {
   /* What the word means, when the app already knows.
 
      The gloss comes from the local store, so it is either instantly there or
@@ -268,18 +273,18 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true) {
         topic, prompt: it.prompt, answer: it.answer,
         given: input ? input.value : picked,
         distractor: it.distractor || "", lemma: it.lemma || "",
-        label: it.hint || "", why_ru: it.why_ru || "",
+        label: it.hint || "", why_ru: it.why_ru || "", record: tally.record,
       })).json();
     } catch (e) {
       /* Nothing was recorded, so the item is not spent: unlock it and keep what was
          typed, so the learner can send it again once the connection is back. */
       unlock();
       verdict.className = "verdict no";
-      verdict.innerHTML = `Ответ не записан. ${esc(e.message)}
+      verdict.innerHTML = `Ответ не проверен. ${esc(e.message)}
         <span class="hint">Попробуй ещё раз.</span>`;
       return;
     }
-    pathAnswered++; if (res.correct) pathCorrect++;
+    tally.answered++; if (res.correct) tally.correct++;
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
     // A choice item's prompt is a question with no blank, so the answered sentence is
     // shown instead. The rule is shown either way: on a right answer it says why,
@@ -296,9 +301,9 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true) {
       verdict.innerHTML += `<span class="gloss-late"><b>${esc(it.lemma)}</b> — `
         + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
     }
-    let line = `${pathCorrect}/${pathAnswered} верных`;
+    let line = `${tally.correct}/${tally.answered} верных`;
     if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
-    $("#pathScore").textContent = line;
+    $(tally.out).textContent = line;
     if (res.just_mastered) {
       // Good news wears the accent. `#pathHead` is shared with the error path, so the
       // class is set at each use.
@@ -329,5 +334,72 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true) {
 
 
 $("#practiceBtn").onclick = () => startPractice();
+
+
+// ── Rada or Vaba harjutus ───────────────────────────────────────────
+/* One panel, two ways through the same drills. The switch changes only what is
+   recorded: Vaba harjutus is graded by the same server code, with `record: false`. */
+export function setPathMode(mode) {
+  document.querySelectorAll("#pathModes button").forEach(b =>
+    b.setAttribute("aria-selected", b.dataset.pm === mode));
+  $("#pathRada").hidden = mode !== "rada";
+  $("#pathFree").hidden = mode !== "vaba";
+  if (mode === "vaba") fillFreeTopics();
+}
+
+document.querySelectorAll("#pathModes button").forEach(b =>
+  b.onclick = () => setPathMode(b.dataset.pm));
+
+
+/* Every topic with drills, by level, locked ones included: free practice is where a
+   learner looks ahead or goes back. Object case first selected — the #1 weakness. */
+async function fillFreeTopics() {
+  const sel = $("#freeTopic");
+  if (sel.options.length) return;
+  try {
+    const p = await (await api("/api/curriculum", null, "GET")).json();
+    const levels = [...new Set(p.topics.map(t => t.level))];
+    sel.innerHTML = levels.map(lv => `<optgroup label="${esc(lv)}">${
+      p.topics.filter(t => t.level === lv && t.state !== "reference").map(t =>
+        `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("")}</optgroup>`
+    ).join("");
+    sel.value = "obj-case";
+    paintFreeRule();
+  } catch (e) {
+    $("#freeOut").innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+// Object case alone has sub-rules; the control exists only where it narrows something.
+function paintFreeRule() {
+  const on = $("#freeTopic").value === "obj-case";
+  $("#freeRuleLabel").hidden = !on;
+  if (!on) $("#freeRule").value = "";
+}
+$("#freeTopic").onchange = paintFreeRule;
+
+
+$("#freeBtn").onclick = async () => {
+  const out = $("#freeOut"), btn = $("#freeBtn");
+  out.innerHTML = "";
+  freeTally.answered = freeTally.correct = 0; $("#freeScore").textContent = "";
+  btn.disabled = true;
+  try {
+    const rule = $("#freeRule").value;
+    const res = await (await api("/api/practice", {
+      topic: $("#freeTopic").value, count: 10,
+      levels: $("#freeLevel").value.split(","),
+      ...(rule ? {rules: [rule]} : {}),
+    })).json();
+    if (!res.items.length) {
+      out.innerHTML = `<div class="banner">${esc(res.detail || "ничего не пришло")}</div>`;
+      return;
+    }
+    res.items.forEach((it, i) => out.appendChild(
+      renderPracticeItem(it, res.topic, i, res.glosses || {}, true, freeTally)));
+  } catch (e) {
+    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; }
+};
 
 loadThemes();

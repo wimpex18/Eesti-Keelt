@@ -16,7 +16,7 @@ fetch("/api/health").then(r => r.json()).then(h => {
 export const RU = {
   // modes and tabs — the exam's own words, so glossed rather than replaced
   "Õppimine": "обучение", "Kordamine": "повторение", "Eksam": "экзамен",
-  "Rada": "путь", "Harjutused": "упражнения", "Lugemine": "чтение",
+  "Rada": "путь", "Lugemine": "чтение",
   "Sõnavara": "словарь", "Kuulamine": "аудирование",
   "Rääkimine": "говорение", "Kirjutamine": "письмо",
   "Järjekord": "очередь", "Töövihikud": "тетради",
@@ -58,13 +58,12 @@ const NAV_ICON = {
   // the route
   path:    '<circle cx="6" cy="19" r="2.6"/><circle cx="18" cy="5" r="2.6"/><path d="M8.6 19h8.9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7h8.9"/>',
   // skills -- what the exam grades
-  drill:   '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
   read:    '<path d="M12 7.5v12.5"/><path d="M3 5h5a4 4 0 0 1 4 4v11a3 3 0 0 0-3-2.5H3z"/><path d="M21 5h-5a4 4 0 0 0-4 4v11a3 3 0 0 1 3-2.5h6z"/>',
-  sonad:   '<path d="m11 3 1.9 4.7L17.6 9.6l-4.7 1.9L11 16.2 9.1 11.5 4.4 9.6 9.1 7.7z"/><path d="m18.4 14.6.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>',
   listen:  '<path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><path d="M4 14.5h1.5a1.5 1.5 0 0 1 1.5 1.5v2.5a1.5 1.5 0 0 1-1.5 1.5H4z"/><path d="M20 14.5h-1.5a1.5 1.5 0 0 0-1.5 1.5v2.5a1.5 1.5 0 0 0 1.5 1.5H20z"/>',
   speak:   '<rect x="9.2" y="2.8" width="5.6" height="10.4" rx="2.8"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.6V21"/>',
   write:   '<path d="m14.8 4.6 4.6 4.6"/><path d="M17.2 2.4a2.2 2.2 0 0 1 3.1 3.1L7 19.2l-4.2 1.1L4 16.1z"/>',
   // revise
+  sonad:   '<path d="m11 3 1.9 4.7L17.6 9.6l-4.7 1.9L11 16.2 9.1 11.5 4.4 9.6 9.1 7.7z"/><path d="m18.4 14.6.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>',
   review:  '<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/>',
   vihikud: '<path d="M6.5 3H17a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6.5z"/><path d="M6.5 3v18"/><path d="M3.4 7.2h3.1M3.4 12h3.1M3.4 16.8h3.1"/><path d="M10.2 8.4h5M10.2 12.6h5"/>',
   // exam
@@ -188,7 +187,7 @@ const BUTTON_ICON = {
   recBtn: "record", speakPlay: "volume", speakNext: "skip",
   backToLib: "back", speakBtn: "volume", loadReview: "play",
   queueSend: "send", checkBtn: "check", practiceBtn: "play",
-  drillBtn: "play", checkpointBtn: "paper", loadLib: "download",
+  freeBtn: "play", checkpointBtn: "paper", loadLib: "download",
   vocBtn: "eye", vocMoreBtn: "plus", libMoreBtn: "plus",
 };
 

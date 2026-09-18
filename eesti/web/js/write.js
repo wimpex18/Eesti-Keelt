@@ -1,7 +1,7 @@
-/* Kirjutamine: the grammar check, the error queue, and the written drill. */
+/* Kirjutamine: the grammar check and the error queue. */
 
 import {emptyState} from "./chrome.js";
-import {$, api, esc, md, setLabel, wrongVerdict} from "./core.js";
+import {$, api, esc, md, setLabel} from "./core.js";
 import {loadRail} from "./review.js";
 
 
@@ -141,63 +141,3 @@ $("#checkBtn").onclick = runCheck;
 $("#text").addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCheck();
 });
-
-
-// ── drills ──────────────────────────────────────────────────────────
-let answered = 0, correct = 0;
-
-$("#drillBtn").onclick = async () => {
-  const rule = $("#rule").value;
-  const body = {
-    count: +$("#count").value,
-    levels: $("#level").value.split(","),
-    ...(rule ? {rules: [rule]} : {})
-  };
-  answered = correct = 0; $("#score").textContent = "";
-  const out = $("#drillOut"); out.innerHTML = "";
-  try {
-    const {drills} = await (await api("/api/drills", body)).json();
-    drills.forEach((d, i) => out.appendChild(renderDrill(d, i)));
-  } catch (e) {
-    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
-  }
-};
-
-
-function renderDrill(d, i) {
-  const el = document.createElement("div");
-  el.className = "drill";
-  el.innerHTML = `
-    <div class="prompt">${esc(d.prompt).replace("____", '<span class="blank">____</span>')}</div>
-    <div class="row">
-      <input type="text" placeholder="?" size="18">
-      <button class="ghost">Kontrolli</button>
-      <span class="hint">${esc(d.lemma)}${d.level ? " · " + esc(d.level) : ""}</span>
-    </div>
-    <div class="verdict" role="status"></div>`;
-  const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
-  const grade = () => {
-    if (input.disabled) return;
-    /* An empty box is not an answer: submitting one would lock the item and score it
-       wrong, and the first item is focused on load, so a stray Enter would count
-       against the accuracy that gates mastery. Ask again instead. */
-    if (!input.value.trim()) {
-      verdict.className = "verdict";
-      verdict.innerHTML = `<span class="hint">Впиши форму — тогда проверю.</span>`;
-      input.focus();
-      return;
-    }
-    const ok = input.value.trim().toLowerCase() === d.answer.toLowerCase();
-    input.disabled = true;
-    answered++; if (ok) correct++;
-    verdict.className = "verdict " + (ok ? "ok" : "no");
-    verdict.innerHTML = ok
-      ? `✓ õige <i class="ru">верно</i> — <strong>${esc(d.prompt.replace("____", d.answer))}</strong>`
-      : wrongVerdict(input.value, d.answer, d.why_ru);
-    $("#score").textContent = `${correct}/${answered} верных`;
-  };
-  el.querySelector("button").onclick = grade;
-  input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
-  if (i === 0) setTimeout(() => input.focus(), 0);
-  return el;
-}

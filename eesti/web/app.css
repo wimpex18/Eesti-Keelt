@@ -203,6 +203,9 @@
      override with a later rule. */
   .panel > * + *:not(:empty){margin-top:var(--s4)}
   .panel > :first-child{margin-top:0}
+  /* Rada's two modes are panels inside the panel: the same flow inside each. */
+  .panel > [role="tabpanel"] > * + *:not(:empty){margin-top:var(--s4)}
+  .panel > [role="tabpanel"] > :first-child{margin-top:0}
   .panel{background:var(--panel);border:1px solid var(--line);
     border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow)}
   @media (max-width:719px){.panel{padding:18px 20px}}

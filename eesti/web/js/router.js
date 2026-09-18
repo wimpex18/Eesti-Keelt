@@ -8,7 +8,7 @@
 import {$, once} from "./core.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
-import {loadPath, loadStatus} from "./path.js";
+import {loadPath, loadStatus, setPathMode} from "./path.js";
 import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions} from "./speak.js";
 import {loadVocab} from "./vocab.js";
@@ -115,6 +115,13 @@ function rememberPlace() {
 
 
 export function goToPlace(tab) {
+  /* `#drill` was the free-practice tab; it is Rada's second mode now, so an old
+     bookmark still lands on the same drills. */
+  if (tab === "drill") {
+    const ok = goToPlace("path");
+    setPathMode("vaba");
+    return ok;
+  }
   const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${tab}"]`);
   if (!button) return false;
   const mode = button.closest("nav").dataset.modeNav;

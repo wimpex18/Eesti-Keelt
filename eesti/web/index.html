@@ -54,31 +54,41 @@
     </div>
   </header>
 
-  <!-- The destinations; on a phone this bar is fixed to the bottom. -->
+  <!-- The destinations; on a phone this bar is fixed to the bottom.
+       Each mode answers one question. Õppimine: the path, then the exam's four
+       skills. Kordamine: what the app brings back, the words it brings back from,
+       and the official homework. Eksam: where you stand. -->
   <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Rada</span></button>
-    <button role="tab" aria-selected="false" data-tab="drill"><span class="ico" aria-hidden="true">✦</span><span class="lbl">Harjutused</span></button>
     <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Lugemine</span></button>
-    <button role="tab" aria-selected="false" data-tab="sonad"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Sõnavara</span></button>
     <button role="tab" aria-selected="false" data-tab="listen"><span class="ico" aria-hidden="true">♪</span><span class="lbl">Kuulamine</span></button>
     <button role="tab" aria-selected="false" data-tab="speak"><span class="ico" aria-hidden="true">◉</span><span class="lbl">Rääkimine</span></button>
     <button role="tab" aria-selected="false" data-tab="write"><span class="ico" aria-hidden="true">✎</span><span class="lbl">Kirjutamine</span></button>
   </nav>
 
-  <!-- "What am I forgetting?" — the only mode where the app, not the learner,
-       decides what comes next. -->
+  <!-- "What am I forgetting?" — the queue the app schedules, the word list the
+       learner feeds it from, and the consultation workbooks (homework, not exam). -->
   <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine — повторение">
     <button role="tab" aria-selected="true"  data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl">Järjekord</span><span id="dueBadge" class="badge" hidden></span></button>
+    <button role="tab" aria-selected="false" data-tab="sonad"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Sõnavara</span></button>
     <button role="tab" aria-selected="false" data-tab="vihikud"><span class="ico" aria-hidden="true">▤</span><span class="lbl">Töövihikud</span></button>
   </nav>
 
   <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
-    <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl">Ülevaade</span></button>    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Edenemine</span></button>
+    <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl">Ülevaade</span></button>
+    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl">Edenemine</span></button>
   </nav>
 
   <!-- ── The path ──────────────────────────────────────────────────
-       Ordered, gated, pass/fail. The learner sees one next topic first. -->
+       Two ways through the same drills. `Rada`: ordered, gated, recorded; the
+       learner sees one next topic first. `Vaba harjutus`: any topic, graded by the
+       same code, recorded nowhere. -->
   <section class="panel" id="tab-path">
+    <div class="levels" id="pathModes" role="tablist" aria-label="Harjutamine — режим">
+      <button role="tab" aria-selected="true"  data-pm="rada" aria-controls="pathRada">Rada <i class="ru">по порядку</i></button>
+      <button role="tab" aria-selected="false" data-pm="vaba" aria-controls="pathFree">Vaba harjutus <i class="ru">без записи</i></button>
+    </div>
+    <div id="pathRada" role="tabpanel">
     <div class="pathtop">
       <div class="ring" id="pathRing" aria-hidden="true"><span>0%</span></div>
       <div>
@@ -102,6 +112,35 @@
       <p class="note">Тема открывается, когда пройдены те, на которых она стоит.</p>
       <div id="pathList"></div>
     </details>
+    </div>
+    <div id="pathFree" role="tabpanel" hidden>
+      <div class="row">
+        <label>Teema <i class="ru">тема</i>
+          <select id="freeTopic"></select>
+        </label>
+        <label id="freeRuleLabel" hidden>Reegel <i class="ru">правило</i>
+          <select id="freeRule">
+            <option value="">kõik</option>
+            <option value="negation">eitus → osastav</option>
+            <option value="completed">lõpetatud → omastav</option>
+            <option value="ongoing">kestev → osastav</option>
+          </select>
+        </label>
+        <label>Raskus <i class="ru">уровень слов</i>
+          <select id="freeLevel">
+            <option value="A1,A2,B1">A1–B1</option>
+            <option value="A1">A1</option>
+            <option value="A1,A2">A1–A2</option>
+            <option value="B1">B1</option>
+          </select>
+        </label>
+        <button class="go" id="freeBtn">Alusta<span class="ru">начать</span></button>
+      </div>
+      <p class="hint">Ответы не записываются — ни в прогресс по Rada, ни в очередь
+        повторения. Любая тема, даже ещё закрытая.</p>
+      <div id="freeOut"></div>
+      <div class="score" id="freeScore"></div>
+    </div>
   </section>
 
   <!-- ── Speaking ──────────────────────────────────────────────────
@@ -174,31 +213,6 @@
   </section>
 
   <!-- ── Drills ────────────────────────────────────────────────────── -->
-  <section class="panel" id="tab-drill" hidden>
-    <div class="row">
-      <label>Reegel <i class="ru">правило</i>
-        <select id="rule">
-          <option value="">kõik</option>
-          <option value="negation">eitus → partitiiv</option>
-          <option value="completed">lõpetatud → genitiiv</option>
-          <option value="ongoing">kestev → partitiiv</option>
-          <option value="verb-form">ebareeglipärased verbid</option>
-        </select>
-      </label>
-      <label>Raskus <i class="ru">уровень</i>
-        <select id="level">
-          <option value="A1,A2,B1">A1–B1</option>
-          <option value="A1,A2">A1–A2</option>
-          <option value="B1">B1</option>
-        </select>
-      </label>
-      <label>Arv <i class="ru">количество</i> <input type="number" id="count" value="10" min="1" max="30" style="width:70px"></label>
-      <button class="go" id="drillBtn">Alusta<span class="ru">начать</span></button>
-    </div>
-    <div id="drillOut"></div>
-    <div class="score" id="score"></div>
-  </section>
-
   <!-- ── Exam ──────────────────────────────────────────────────────── -->
   <section class="panel" id="tab-exam" hidden>
     <div class="exam-head">
