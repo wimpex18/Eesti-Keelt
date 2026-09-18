@@ -274,7 +274,7 @@ class TestThePageShowsIt:
     def test_the_practice_item_is_handed_the_gloss_map(self):
         page = self._page()
         assert "res.glosses || {}" in page
-        assert "function renderPracticeItem(it, topic, i, glosses)" in page
+        assert "function renderPracticeItem(it, topic, i, glosses" in page
 
     def test_the_verdict_shows_a_freshly_fetched_meaning(self):
         assert "res.russian?.length" in self._page()

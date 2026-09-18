@@ -1,16 +1,20 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
-import {emptyState, skeleton, uiIcon} from "./chrome.js";
-import {$, api, esc} from "./core.js";
+import {actsAsButton, emptyState, skeleton, uiIcon} from "./chrome.js";
+import {$, api, esc, ruCount} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
 
-let libShown = 0;
+let libShown = 0, libRequest = 0;
+const WORDS = ["слово", "слова", "слов"], TEXTS = ["текст", "текста", "текстов"];
 
 
-async function loadLibrary(append = false) {
+export async function loadLibrary(append = false) {
   const choice = $("#readLevel").value;
   const list = $("#libList");
+  /* The list loads when the tab opens and again on `Näita`; only the latest request
+     may paint, or a slow first answer lands on top of the filter chosen after it. */
+  const mine = ++libRequest;
   // The shape of the answer while it is fetched, rather than a blank panel.
   if (!append) { list.innerHTML = skeleton(5); libShown = 0; }
   $("#reader").hidden = true;
@@ -37,7 +41,7 @@ async function loadLibrary(append = false) {
       // vocabulary to measure against, and say why.
       measured = d.known_words > 0;
       note = measured
-        ? `${d.known_words} слов знакомо`
+        ? `${ruCount(d.known_words, WORDS)} знакомо`
         : "Слова ещё не отмечены — показаны самые простые тексты.";
       /* The endpoint counts texts it could not score; showing the count explains why
          "texts known" and the list size can disagree. */
@@ -52,47 +56,54 @@ async function loadLibrary(append = false) {
       total = d.total;
       more = libShown + items.length < d.total;
     }
+    if (mine !== libRequest) return;
     libShown += items.length;
 
     /* `total` is the server's count for the same filter; `items.length` is only the
        page size. */
     $("#libCount").textContent = total != null && total > libShown
       ? `показано ${libShown} из ${total}${note ? " · " + note : ""}`
-      : `${libShown} текстов${note ? " · " + note : ""}`;
+      : `${ruCount(libShown, TEXTS)}${note ? " · " + note : ""}`;
     $("#libMore").hidden = !more;
     if (!items.length && !append) {
       list.innerHTML = emptyState({
         icon: "inbox",
         title: "Текстов нет",
-        note: `Библиотека ещё не наполнена. Её собирают
-          <code>cli harvest-reading</code> и <code>cli harvest-news</code>.`,
+        note: `Тексты появятся здесь, когда библиотеку загрузят на сервер
+          <span class="hint">(<code>cli harvest-reading</code>, <code>cli harvest-news</code>)</span>.`,
       });
       return;
     }
+    // The skeleton stood in for this page of rows; they replace it, not follow it.
+    if (!append) list.innerHTML = "";
     for (const it of items) {
-      const el = document.createElement("div");
+      // An external row goes somewhere else, so it is a real link.
+      const el = document.createElement(it.external ? "a" : "div");
       el.className = "lib-item" + (it.external ? " external" : "");
       // Coverage appears only where it was computed, so an unmeasured list never
       // shows "0 %".
       const cover = (measured && it.coverage !== undefined)
         ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
-      const size = it.words !== undefined ? `${it.words} слов`
-        : (it.total !== undefined ? `${it.total} слов` : "");
+      const n = it.words ?? it.total;
+      const size = n !== undefined ? ruCount(n, WORDS) : "";
       /* HARNO's tasks are indexed, never copied: `body` is empty by licence. They
          open the official page (`external`, `url`) instead of an empty reader. */
       if (it.external) {
         el.innerHTML = `<h4>${esc(it.title)}</h4>
           <span class="lib-meta">HARNO · задание на сайте экзамена ↗</span>`;
-        el.onclick = () => window.open(it.url, "_blank", "noopener");
+        el.href = it.url;
+        el.target = "_blank";
+        el.rel = "noopener";
       } else {
         el.innerHTML = `<h4>${esc(it.title)}</h4>
           <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
             it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${cover}</span>`;
-        el.onclick = () => openItem(it.id);
+        actsAsButton(el, () => openItem(it.id));
       }
       list.appendChild(el);
     }
   } catch (e) {
+    if (mine !== libRequest) return;
     list.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 }

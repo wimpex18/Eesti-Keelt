@@ -7,16 +7,16 @@ import {$, gloss} from "./core.js";
 
 
 // ── health ──────────────────────────────────────────────────────────
+/* The health payload also counts words and drillable nouns; those describe the
+   dataset, not the learner, and are not shown. */
 fetch("/api/health").then(r => r.json()).then(h => {
-  $("#stats").textContent =
-    `${h.words.toLocaleString("ru")} слов · ${h.drillable_nouns.toLocaleString("ru")} существительных для упражнений`;
   $("#voice").innerHTML = h.voices.map(v => `<option${v === "mari" ? " selected" : ""}>${v}</option>`).join("");
 });
 
 export const RU = {
   // modes and tabs — the exam's own words, so glossed rather than replaced
   "Õppimine": "обучение", "Kordamine": "повторение", "Eksam": "экзамен",
-  "Rada": "путь", "Harjutused": "упражнения", "Lugemine": "чтение",
+  "Rada": "путь", "Lugemine": "чтение",
   "Sõnavara": "словарь", "Kuulamine": "аудирование",
   "Rääkimine": "говорение", "Kirjutamine": "письмо",
   "Järjekord": "очередь", "Töövihikud": "тетради",
@@ -58,13 +58,12 @@ const NAV_ICON = {
   // the route
   path:    '<circle cx="6" cy="19" r="2.6"/><circle cx="18" cy="5" r="2.6"/><path d="M8.6 19h8.9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7h8.9"/>',
   // skills -- what the exam grades
-  drill:   '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
   read:    '<path d="M12 7.5v12.5"/><path d="M3 5h5a4 4 0 0 1 4 4v11a3 3 0 0 0-3-2.5H3z"/><path d="M21 5h-5a4 4 0 0 0-4 4v11a3 3 0 0 1 3-2.5h6z"/>',
-  sonad:   '<path d="m11 3 1.9 4.7L17.6 9.6l-4.7 1.9L11 16.2 9.1 11.5 4.4 9.6 9.1 7.7z"/><path d="m18.4 14.6.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>',
   listen:  '<path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><path d="M4 14.5h1.5a1.5 1.5 0 0 1 1.5 1.5v2.5a1.5 1.5 0 0 1-1.5 1.5H4z"/><path d="M20 14.5h-1.5a1.5 1.5 0 0 0-1.5 1.5v2.5a1.5 1.5 0 0 0 1.5 1.5H20z"/>',
   speak:   '<rect x="9.2" y="2.8" width="5.6" height="10.4" rx="2.8"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.6V21"/>',
   write:   '<path d="m14.8 4.6 4.6 4.6"/><path d="M17.2 2.4a2.2 2.2 0 0 1 3.1 3.1L7 19.2l-4.2 1.1L4 16.1z"/>',
   // revise
+  sonad:   '<path d="m11 3 1.9 4.7L17.6 9.6l-4.7 1.9L11 16.2 9.1 11.5 4.4 9.6 9.1 7.7z"/><path d="m18.4 14.6.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>',
   review:  '<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/>',
   vihikud: '<path d="M6.5 3H17a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6.5z"/><path d="M6.5 3v18"/><path d="M3.4 7.2h3.1M3.4 12h3.1M3.4 16.8h3.1"/><path d="M10.2 8.4h5M10.2 12.6h5"/>',
   // exam
@@ -114,7 +113,6 @@ const UI_ICON = {
   inbox:   '<path d="M5.4 5.4h13.2l2 8.2v5a1.6 1.6 0 0 1-1.6 1.6H5A1.6 1.6 0 0 1 3.4 18.6v-5z"/><path d="M3.4 13.6h4.2l1.2 2.4h6.4l1.2-2.4h4.2"/>',
   done:    '<circle cx="12" cy="12" r="8.6"/><path d="m8.4 12.3 2.6 2.6 4.7-5.4"/>',
   eye:     '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="3.1"/>',
-  download:'<path d="M12 3.6v10.8"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.6 17.4v1.4a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-1.4"/>',
   paper:   '<path d="M6.4 3.4h7.8l4 4v13.2H6.4z"/><path d="M14 3.4v4.2h4.2"/><path d="m9.2 14.4 1.9 1.9 4-4.4"/>',
 };
 
@@ -145,6 +143,25 @@ export function skeleton(rows = 6, kind = "row") {
 }
 
 
+/* A row that opens something, reachable by keyboard.
+
+   Rows hold a heading and, once opened, a player, so they cannot be `<button>`s.
+   A click anywhere on `el` opens it; `handle` (the row itself unless given)
+   takes the button role, is focusable, and opens on Enter or Space. A row that
+   grows its own controls passes its heading as the handle: a button's contents
+   are hidden from a screen reader, and the player inside must not be. */
+export function actsAsButton(el, open, handle = el) {
+  handle.tabIndex = 0;
+  handle.setAttribute("role", "button");
+  el.addEventListener("click", open);
+  handle.addEventListener("keydown", e => {
+    if (e.target !== handle || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    open(e);
+  });
+}
+
+
 /* An empty view that says what it is, why, and what to do about it: a mark, a
    statement and a next step.
 
@@ -169,7 +186,7 @@ const BUTTON_ICON = {
   recBtn: "record", speakPlay: "volume", speakNext: "skip",
   backToLib: "back", speakBtn: "volume", loadReview: "play",
   queueSend: "send", checkBtn: "check", practiceBtn: "play",
-  drillBtn: "play", checkpointBtn: "paper", loadLib: "download",
+  freeBtn: "play", checkpointBtn: "paper", loadLib: "eye",
   vocBtn: "eye", vocMoreBtn: "plus", libMoreBtn: "plus",
 };
 

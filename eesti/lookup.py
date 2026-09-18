@@ -16,18 +16,51 @@ from .config import DATA
 EDGE_DB = DATA / "edge.db"
 
 # Human-readable Estonian names for the tags the export stores, so the reader
-# teaches the grammar vocabulary the exam uses rather than terse codes.
+# teaches the grammar vocabulary the exam uses rather than terse codes. The tags and
+# what each denotes are Vabamorf's own categories (filosoft.ee, "Morfoloogilise
+# analüüsi väljund"); every tag in `forms` has a name, so no code reaches the card.
+_CASES = {
+    "n": "nimetav", "g": "omastav", "p": "osastav", "ill": "sisseütlev",
+    "in": "seesütlev", "el": "seestütlev", "all": "alaleütlev", "ad": "alalütlev",
+    "abl": "alaltütlev", "tr": "saav", "ter": "rajav", "es": "olev",
+    "ab": "ilmaütlev", "kom": "kaasaütlev",
+}
+# The Russian gloss for each case, as the drills explain it (`cloze.CASES`, which
+# `tests/test_lookup_tags.py` holds this table to). Nominative is not drilled there.
+_CASES_RU = {
+    "n": "именительный", "g": "родительный", "p": "частичный",
+    "ill": "иллатив (куда)", "in": "инессив (где, внутри)",
+    "el": "элатив (откуда, изнутри)", "all": "аллатив (кому, на что)",
+    "ad": "адессив (у кого, на чём)", "abl": "аблатив (от кого, с чего)",
+    "tr": "транслатив (кем/чем становится)", "ter": "терминатив (до)",
+    "es": "эссив (в качестве)", "ab": "абессив (без)",
+    "kom": "комитатив (с кем/чем)",
+}
 TAG_NAMES = {
-    "sg n": "ainsuse nimetav", "sg g": "ainsuse omastav", "sg p": "ainsuse osastav",
-    "sg ill": "sisseütlev", "sg in": "seesütlev", "sg el": "seestütlev",
-    "sg all": "alaleütlev", "sg ad": "alalütlev", "sg abl": "alaltütlev",
-    "sg tr": "saav", "sg ter": "rajav", "sg es": "olev", "sg ab": "ilmaütlev",
-    "sg kom": "kaasaütlev",
-    "pl n": "mitmuse nimetav", "pl g": "mitmuse omastav", "pl p": "mitmuse osastav",
+    **{f"sg {c}": f"ainsuse {name}" for c, name in _CASES.items()},
+    **{f"pl {c}": f"mitmuse {name}" for c, name in _CASES.items()},
     "n": "olevik, mina", "d": "olevik, sina", "b": "olevik, tema",
-    "sin": "minevik, mina", "nud": "mineviku kesksõna", "tud": "umbisikuline",
+    "me": "olevik, meie", "te": "olevik, teie", "vad": "olevik, nemad",
+    "sin": "minevik, mina", "s": "minevik, tema", "sime": "minevik, meie",
+    "site": "minevik, teie", "sid": "minevik, sina / nemad",
+    "takse": "umbisikuline olevik", "ti": "umbisikuline minevik",
+    "nud": "mineviku kesksõna", "tud": "umbisikuline kesksõna",
+    "ge": "käskiv kõneviis, teie", "gu": "käskiv kõneviis, tema / nemad",
     "da": "da-infinitiiv", "ma": "ma-infinitiiv", "ks": "tingiv kõneviis",
 }
+TAG_RU = {
+    **{f"sg {c}": f"ед. ч., {ru}" for c, ru in _CASES_RU.items()},
+    **{f"pl {c}": f"мн. ч., {ru}" for c, ru in _CASES_RU.items()},
+    "n": "наст. вр., я", "d": "наст. вр., ты", "b": "наст. вр., он/она",
+    "me": "наст. вр., мы", "te": "наст. вр., вы", "vad": "наст. вр., они",
+    "sin": "прош. вр., я", "s": "прош. вр., он/она", "sime": "прош. вр., мы",
+    "site": "прош. вр., вы", "sid": "прош. вр., ты / они",
+    "takse": "безличная форма, наст. вр.", "ti": "безличная форма, прош. вр.",
+    "nud": "причастие прошедшего времени", "tud": "безличное причастие",
+    "ge": "повелительное, вы", "gu": "повелительное, пусть он/они",
+    "da": "инфинитив на -da", "ma": "инфинитив на -ma", "ks": "условное наклонение",
+}
+
 
 WORD_RE = re.compile(r"[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+", re.UNICODE)
 
@@ -78,7 +111,8 @@ def lookup(word: str) -> dict:
         ).fetchone()
         out.append({
             "lemma": lemma,
-            "tags": [{"tag": t, "name": TAG_NAMES.get(t, t)} for t in tags],
+            "tags": [{"tag": t, "name": TAG_NAMES.get(t, t), "ru": TAG_RU.get(t, "")}
+                     for t in tags],
             "level": meta["proficiency"] if meta else None,
             "pos": meta["pos"] if meta else None,
             "genitive": cases["genitive"] if cases else None,

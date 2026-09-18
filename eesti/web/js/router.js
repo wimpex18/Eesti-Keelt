@@ -8,7 +8,9 @@
 import {$, once} from "./core.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
-import {loadPath, loadStatus} from "./path.js";
+import {loadLibrary} from "./reading.js";
+import {loadPath, loadStatus, setPathMode} from "./path.js";
+import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions} from "./speak.js";
 import {loadVocab} from "./vocab.js";
 
@@ -19,8 +21,11 @@ const ON_OPEN = {
   exam: () => loadExam(),
   vihikud: () => loadVihikud(),
   path: () => loadPath(),
+  review: () => refreshDueBadge(),
   status: () => loadStatus(),
   sonad: once(() => loadVocab(false)),
+  // Like Sõnavara: the list is there when the tab opens; `Näita` re-filters.
+  read: once(() => loadLibrary(false)),
   listen: once(() => { loadDictation(); loadListenLibrary(); }),
   speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
 };
@@ -113,6 +118,16 @@ function rememberPlace() {
 
 
 export function goToPlace(tab) {
+  /* `#drill` was the free-practice tab; it is Rada's second mode now, so an old
+     bookmark still lands on the same drills. */
+  if (tab === "drill") {
+    const ok = goToPlace("path");
+    setPathMode("vaba");
+    return ok;
+  }
+  // `#path` itself means the path: a link to it (the rail's Harjuta) lands on Rada,
+  // not on whichever mode the panel was last left in.
+  if (tab === "path") setPathMode("rada");
   const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${tab}"]`);
   if (!button) return false;
   const mode = button.closest("nav").dataset.modeNav;

@@ -276,20 +276,24 @@ class TestTheGrammarDrill:
     """The offline core: generated items graded without a model or the network."""
 
     def _start(self, page):
-        open_tab(page, mode_of(page, "drill"), "drill")
-        page.click("#drillBtn")
-        page.wait_for_selector("#drillOut .drill", timeout=15000)
+        """Rada's Vaba harjutus: the same drills, recorded nowhere, so these checks
+        leave the learner's path as they found it."""
+        open_tab(page, mode_of(page, "path"), "path")
+        page.click('#pathModes button[data-pm="vaba"]')
+        page.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
+        page.click("#freeBtn")
+        page.wait_for_selector("#freeOut .drill", timeout=15000)
 
     def test_starting_a_drill_renders_items(self, page):
         self._start(page)
-        assert page.locator("#drillOut .drill").count() >= 1
+        assert page.locator("#freeOut .drill").count() >= 1
 
     def test_a_wrong_answer_is_marked_wrong_and_explained(self, page):
         """A verdict without the reason teaches the answer, not the rule --
         and the reason is in Russian by the project's language rule, while the
         term stays Estonian."""
         self._start(page)
-        item = page.locator("#drillOut .drill").first
+        item = page.locator("#freeOut .drill").first
         item.locator("input").fill("kindlasti-vale-vorm")
         item.locator("input").press("Enter")
         verdict = item.locator(".verdict")
@@ -301,7 +305,7 @@ class TestTheGrammarDrill:
     def test_an_answered_item_cannot_be_answered_twice(self, page):
         """A second click cannot submit another answer for a graded item."""
         self._start(page)
-        item = page.locator("#drillOut .drill").first
+        item = page.locator("#freeOut .drill").first
         item.locator("input").fill("vale")
         item.locator("input").press("Enter")
         page.wait_for_timeout(400)
@@ -314,21 +318,21 @@ class TestTheGrammarDrill:
     def test_an_empty_answer_does_not_consume_the_item(self, page):
         """The first item is focused on load, but a stray Enter does not submit it."""
         self._start(page)
-        item = page.locator("#drillOut .drill").nth(2)
+        item = page.locator("#freeOut .drill").nth(2)
         item.locator("input").press("Enter")
         page.wait_for_timeout(500)
         assert not item.locator("input").is_disabled(), "empty answer locked the item"
         assert item.locator(".verdict").inner_text().strip(), "no nudge shown"
         assert "✗" not in item.locator(".verdict").inner_text()
-        assert page.locator("#score").inner_text().strip() == "", "empty answer was scored"
+        assert page.locator("#freeScore").inner_text().strip() == "", "empty answer was scored"
 
     def test_the_score_counts_only_answered_items(self, page):
         self._start(page)
-        item = page.locator("#drillOut .drill").first
+        item = page.locator("#freeOut .drill").first
         item.locator("input").fill("vale")
         item.locator("input").press("Enter")
         page.wait_for_timeout(400)
-        assert "/1" in page.locator("#score").inner_text()
+        assert "/1" in page.locator("#freeScore").inner_text()
 
 
 class TestReading:
@@ -648,14 +652,23 @@ class TestDiscoveredDefects:
 
     def test_a_pasted_link_opens_that_tab(self, page, live_server):
         """Deep linking, which the page had no way to express before."""
+        page.goto(live_server + "/#sonad", wait_until="networkidle")
+        page.wait_for_timeout(800)
+        assert page.is_visible("#tab-sonad")
+        # Which nav owns the tab is asked of the page.
+        owner = mode_of(page, "sonad")
+        assert page.get_attribute(
+            f'nav[data-mode-nav="{owner}"] button[data-tab="sonad"]',
+            "aria-selected") == "true", "the tab opened but its button is not selected"
+
+    def test_the_retired_drill_link_opens_free_practice(self, page, live_server):
+        """`#drill` was Harjutused; a bookmark to it lands on the same drills."""
         page.goto(live_server + "/#drill", wait_until="networkidle")
         page.wait_for_timeout(800)
-        assert page.is_visible("#tab-drill")
-        # Which nav owns the tab is asked of the page.
-        owner = mode_of(page, "drill")
-        assert page.get_attribute(
-            f'nav[data-mode-nav="{owner}"] button[data-tab="drill"]',
-            "aria-selected") == "true", "the tab opened but its button is not selected"
+        assert page.is_visible("#tab-path")
+        assert page.is_visible("#pathFree") and not page.is_visible("#pathRada")
+        assert page.get_attribute('#pathModes button[data-pm="vaba"]',
+                                  "aria-selected") == "true"
 
     def test_back_returns_to_the_previous_tab_not_out_of_the_app(self, page):
         """Back returns to the previous tab instead of leaving the app (a system gesture

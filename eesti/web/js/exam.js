@@ -103,7 +103,7 @@ export async function loadExam() {
     emptyState({
       icon: "inbox",
       title: "Официальные материалы не загружены",
-      note: "Их индексирует <code>cli harvest-exam</code> — ссылками, не копиями.",
+      note: `Здесь будут ссылки на официальные задания HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами задания открываются на сайте экзамена.`,
     });
 }
 
@@ -113,8 +113,8 @@ const linkRow = it => `<div class="lib-item">
     it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
 
 
-document.querySelectorAll(".levels button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".levels button").forEach(x =>
+document.querySelectorAll("#tab-exam .levels button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tab-exam .levels button").forEach(x =>
     x.setAttribute("aria-selected", x === b));
   setExamLevel(b.dataset.level);
   loadExam();
@@ -130,7 +130,7 @@ export async function loadVihikud() {
     : emptyState({
       icon: "inbox",
       title: "Тетради не загружены",
-      note: "Их индексирует <code>cli harvest-exam</code> — ссылками, не копиями.",
+      note: `Здесь будут ссылки на консультационные тетради HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами тетради открываются на сайте HARNO.`,
     });
 }
 

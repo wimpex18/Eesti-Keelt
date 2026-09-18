@@ -8,16 +8,16 @@ diagram below against the page in both directions.
 
 ```
 Õppimine — "what am I learning today?"
-├── Rada          the path: grammar topics in prerequisite order, mastery-gated
-├── Harjutused    the same generators, free choice of rule, nothing recorded
+├── Rada          the drills, two ways: Rada (prerequisite order, mastery-gated,
+│                 opens on today's set) and Vaba harjutus (any topic, nothing recorded)
 ├── Lugemine      reading texts ranked by how much of each the learner knows
-├── Sõnavara      the word list by CEFR level and part of speech, commonest first
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
 ├── Rääkimine     paired-exam question bank, read-aloud, open answers
 └── Kirjutamine   grammar check through the provider chain, back-translation
 
 Kordamine — "what am I forgetting?"
 ├── Järjekord     the FSRS queue: wrong answers and words mined from reading
+├── Sõnavara      the word list by CEFR level and part of speech, commonest first
 └── Töövihikud    official HARNO consultation workbooks (pointers only)
 
 Eksam — "am I ready?"
@@ -25,15 +25,17 @@ Eksam — "am I ready?"
 └── Edenemine     progress report
 ```
 
-Tabs are in the URL hash (`#write`); each change pushes history, re-selecting
-the current tab pushes nothing.
+Õppimine is the path plus the exam's four skills, so the phone's skill row holds
+five chips. Tabs are in the URL hash (`#write`); each change pushes history,
+re-selecting the current tab pushes nothing. The retired `#drill` opens Rada in
+Vaba harjutus.
 
 ## What grades each screen
 
 | Screen | Kind | Graded by | Writes |
 |---|---|---|---|
-| Rada | generated exercise | code | mastery, review queue |
-| Harjutused | generated exercise | code | nothing |
+| Rada · Rada | generated exercise | code | mastery, review queue |
+| Rada · Vaba harjutus | generated exercise | code (same endpoint, `record: false`) | nothing |
 | Järjekord | scheduled exercise | code | FSRS card state |
 | Kuulamine · dictation | generated exercise | code, word-aligned | dictation history |
 | Sõnavara | list | — | word status |
@@ -47,13 +49,15 @@ answer is right (`docs/ai-boundaries.md`).
 
 ## Deliberate overlaps
 
-- **Harjutused vs Rada** — same generators; Rada decides what is next and
-  records mastery, Harjutused is an unrecorded sandbox.
+- **Rada vs Vaba harjutus** — one tab, one generator path, one grader
+  (`/api/practice`, `/api/practice/answer`). Rada decides what is next and
+  records mastery; Vaba harjutus lets the learner pick any topic (and, for
+  object case, one sub-rule) and records nothing.
 - **Sõnavara vs Järjekord** — a word is chosen in Sõnavara and comes back in
   Järjekord. Both use one word card (`showWordCard()`) with `+ Kordamisse` and
   `Tean seda sõna`.
 - **Lugemine vs Sõnavara** — reading records encounters; Sõnavara lists them.
-- **Sections vs tabs** — seven library sections, eleven tabs. Other `oppimine`
+- **Sections vs tabs** — seven library sections, ten tabs. Other `oppimine`
   sections render inside Kuulamine from `/api/modes`; `eksam` sections are
   reached through `exam_material`. `tests/test_ui_contract.py` checks both
   directions.

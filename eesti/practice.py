@@ -57,8 +57,12 @@ def items_for(
     seed: int | None = None,
     content_db: str | Path | None = None,
     theme: str | None = None,
+    rules: tuple[str, ...] | None = None,
 ) -> list:
     """Practice items for one curriculum topic, from whichever generator owns it.
+
+    `rules` narrows `obj-case` to some of its sub-rules (`negation`, `completed`,
+    `ongoing`); no other generator has sub-rules, so it is ignored elsewhere.
 
     Raises when a topic has no generator, so "nothing to practise" is not mistaken
     for "the generator produced nothing".
@@ -165,7 +169,7 @@ def items_for(
         )
 
     if generator == "object_case":
-        return _object_case(words, count, levels, seed, content_db)
+        return _object_case(words, count, levels, seed, content_db, rules)
 
     if generator == "verb_stems":
         from .drills import generate_verb_drills
@@ -185,6 +189,7 @@ def _object_case(
     levels: tuple[str, ...],
     seed: int | None,
     content_db: str | Path | None,
+    rules: tuple[str, ...] | None = None,
 ) -> list:
     """Template drills for `obj-case`, blended with authentic negation clozes.
 
@@ -193,7 +198,8 @@ def _object_case(
     """
     from .drills import generate as generate_objcase
 
-    share = count // CORPUS_SHARE
+    # Corpus clozes are all negation, so they join only a set that includes it.
+    share = count // CORPUS_SHARE if not rules or "negation" in rules else 0
     authentic: list = []
     if share:
         from .cloze import negation_clozes, sentences
@@ -208,7 +214,7 @@ def _object_case(
             authentic = []
 
     items = generate_objcase(
-        words, count=count - len(authentic), levels=levels, seed=seed)
+        words, count=count - len(authentic), levels=levels, seed=seed, rules=rules)
     items += authentic
     # Interleaved rather than a block of corpus sentences after a block of
     # frames, which reads as two exercises stapled together.

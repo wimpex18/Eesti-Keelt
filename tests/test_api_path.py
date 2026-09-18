@@ -153,6 +153,38 @@ class TestAnswering:
         assert "kusisonad" in kinds
 
 
+class TestFreePractice:
+    """Rada's Vaba harjutus: the same items and the same grader, recorded nowhere."""
+
+    def test_an_unrecorded_answer_is_graded_by_the_same_rule(self, client):
+        _, item = _first_item(client)
+        body = {"topic": "tingiv", "prompt": item["prompt"], "answer": item["answer"],
+                "record": False}
+        assert client.post("/api/practice/answer",
+                           json={**body, "given": item["answer"]}).json()["correct"]
+        assert not client.post("/api/practice/answer",
+                               json={**body, "given": "vale"}).json()["correct"]
+
+    def test_an_unrecorded_miss_leaves_no_trace(self, client):
+        _, item = _first_item(client)
+        r = client.post("/api/practice/answer", json={
+            "topic": "tingiv", "prompt": item["prompt"], "answer": item["answer"],
+            "given": "vale", "record": False}).json()
+        assert r["accuracy"] is None and not r["just_mastered"]
+        assert client.get("/api/review/stats").json()["total"] == 0
+        rows = {t["id"]: t for t in client.get("/api/curriculum").json()["topics"]}
+        assert rows["tingiv"]["attempts"] == 0
+
+    def test_object_case_narrows_to_one_rule(self, client):
+        """The #1 weakness, drilled one rule at a time."""
+        items = client.post("/api/practice", json={
+            "topic": "obj-case", "count": 8, "seed": 3, "rules": ["completed"],
+        }).json()["items"]
+        assert items
+        # Completed actions take the genitive; no partitive answer can appear.
+        assert {it["label"] for it in items} == {"omastav"}
+
+
 class TestOtherSurfaces:
     def test_status_has_no_overall_number(self, client):
         data = client.get("/api/status").json()

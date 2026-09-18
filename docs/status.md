@@ -24,7 +24,7 @@ the same change that makes it untrue.
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
 | **Deployment** | Cloud Run behind a Cloudflare Worker + Access; learner state snapshotted across cold starts; all EKI reference data and the reading corpus present. |
 
-52 route handlers across `eesti/api/` serve 44 API endpoints; every endpoint
+51 route handlers across `eesti/api/` serve 43 API endpoints; every endpoint
 has a caller (`tests/test_route_inventory.py`).
 
 ## What is missing

@@ -43,6 +43,7 @@
     /* Serif for reading prose, system sans for the interface. System faces only: no
        webfont request to a third party. */
     --f-read:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --f-ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
   /* Native controls (selects, scrollbars, the iOS keyboard) follow the page's scheme. */
   :root{color-scheme:light dark}
@@ -71,7 +72,7 @@
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font:15px/1.55 var(--f-ui);
     -webkit-font-smoothing:antialiased;
     /* iOS taps: no grey flash, no 300ms delay, no accidental double-tap zoom. */
     -webkit-tap-highlight-color:transparent;touch-action:manipulation;
@@ -166,6 +167,14 @@
     font-size:13.5px;align-items:baseline}
   .rail-row b{font-variant-numeric:tabular-nums}
   .rail a{color:var(--accent);text-decoration:none}
+  /* The next topic is the rail's headline; it may wrap, never truncate. */
+  .rail-topic{font-size:19px;overflow-wrap:anywhere}
+  .rail-go{align-self:flex-start;font-weight:600;font-size:13.5px}
+  .rail-row a{color:inherit}
+  .rail-row a:hover{color:var(--accent)}
+  /* A rail card whose panel is open says nothing the panel does not. */
+  body:has(#tab-path:not([hidden])) .rail-card[data-for="path"],
+  body:has(#tab-exam:not([hidden])) .rail-card[data-for="exam"]{display:none}
   .rail a:hover{text-decoration:underline}
   header{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
     margin-bottom:var(--s4)}
@@ -185,7 +194,6 @@
   .iconbtn:hover{color:var(--accent);border-color:var(--accent);
     background:var(--accent-soft)}
   .iconbtn svg{width:17px;height:17px}
-  .sub{color:var(--muted);font-size:12.5px}
   /* The first child of a panel has no top margin: the panel's padding already spaces
      it. */
   /* ── Flow spacing ──────────────────────────────────────────────────
@@ -195,6 +203,9 @@
      override with a later rule. */
   .panel > * + *:not(:empty){margin-top:var(--s4)}
   .panel > :first-child{margin-top:0}
+  /* Rada's two modes are panels inside the panel: the same flow inside each. */
+  .panel > [role="tabpanel"] > * + *:not(:empty){margin-top:var(--s4)}
+  .panel > [role="tabpanel"] > :first-child{margin-top:0}
   .panel{background:var(--panel);border:1px solid var(--line);
     border-radius:var(--radius);padding:22px 24px;box-shadow:var(--shadow)}
   @media (max-width:719px){.panel{padding:18px 20px}}
@@ -221,7 +232,7 @@
   @media (max-width:719px){
     /* ── What the bar at the bottom is for ──────────────────────────
        On a phone the fixed thumb bar carries the three MODES (three 54px targets with
-       icon and label), and the seven skills are a horizontally scrolling chip row at the
+       icon and label), and the tabs of the open mode are a horizontally scrolling chip row at the
        top. The desktop shows the two rows the other way round; the markup is the same. */
     .modes{position:fixed;left:0;right:0;bottom:0;z-index:40;
       display:flex;margin:0;gap:var(--s1);
@@ -241,7 +252,7 @@
     .modes button .ru{display:none}
 
     /* The skills, as chips. `flex:0 0 auto` is what makes the row scroll
-       instead of squeezing eleven destinations into 350px. */
+       instead of squeezing five destinations into 350px. */
     /* The bleed equals `.wrap`'s 20px padding exactly (not `--s5`, 24px), or the row
        overhangs the viewport and the document scrolls sideways. `.panel` uses the same
        value. */
@@ -266,14 +277,12 @@
       padding:18px 20px;box-shadow:none}
   }
   /* ── The phone's permanent chrome ────────────────────────────────
-     Title and actions share one row and the statistics are a small line below, so
-     the header does not cost a quarter of the screen. */
+     Title and actions share one row, so the header does not cost a quarter of the
+     screen. */
   @media (max-width:719px){
     header{align-items:center;gap:var(--s2);margin-bottom:var(--s3)}
     h1{font-size:19px}
     .hdr-actions{margin-left:auto}
-    #stats{order:3;flex:1 1 100%;font-size:11.5px;line-height:1.35;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   }
 
   textarea{width:100%;min-height:130px;padding:12px;border:1px solid var(--line);
@@ -362,6 +371,8 @@
   .prompt{font-family:var(--f-read);font-size:18.5px;line-height:1.6;
     margin-bottom:12px}
   .prompt .blank{color:var(--accent);font-weight:700}
+  /* An instruction under a prompt is Russian interface, not Estonian material. */
+  .prompt .instr{font-family:var(--f-ui)}
   .hint{font-size:12px;color:var(--muted)}
   /* Explanatory paragraph for a control: louder than `.hint`, quieter than body text. */
   .note{font-size:13px;line-height:1.6;color:var(--muted);max-width:62ch}
@@ -408,6 +419,10 @@
   .gloss-late b{font-weight:600;color:var(--ink)}
   .verdict{margin-top:var(--s3);font-size:14px}
   .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
+  /* A wrong answer: what was written, struck, then the right form in the "right"
+     colour, the same pair as a correction card. */
+  .verdict del{color:var(--bad);text-decoration-thickness:1.5px}
+  .verdict ins{color:var(--good);text-decoration:none;font-weight:600}
   .score{font-size:13px;color:var(--muted);margin-top:var(--s4)}
   .empty{color:var(--muted);font-size:14px;margin-top:var(--s4)}
   /* An expanded panel wraps onto its own full-width line instead of squeezing beside
@@ -499,7 +514,7 @@
   .topic{display:grid;
     grid-template-columns:minmax(0,146px) auto minmax(0,1fr) auto;
     gap:10px;align-items:center;padding:4px 0;font-size:14px}
-  .topic .st{font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  .topic .st{font-size:12px;
     color:var(--muted)}
   .topic.locked{opacity:.45}
   .topic .lv{color:var(--muted);font-size:12px}
@@ -509,6 +524,9 @@
        and would push the page sideways on narrow phones. */
     min-width:0;max-width:100%}
   label select{min-width:0;max-width:100%}
+  /* A bare select in a row is as wide as its longest option; on a phone that pushes
+     the page sideways. It may shrink, and the option text is cut instead. */
+  .row > select{min-width:0;max-width:100%}
 
   /* Segmented control, iOS-style: two states, both visible, one obviously on. */
   .modes{display:inline-flex;background:var(--bg);border:1px solid var(--line);
@@ -788,6 +806,8 @@
      the one-line anchor), and the A2/B1 switch. `hover:none` rather than a width, so
      tablets are included and desktops unaffected. */
   @media (hover:none){
+    /* A keyboard shortcut means nothing on a touch screen. */
+    .kbd-hint{display:none}
     .topic button, .levels button, .logbtn{min-height:44px}
     /* A disclosure is a one-line control with no box of its own; padding is
        the only thing that can give it a thumb's worth of height. */

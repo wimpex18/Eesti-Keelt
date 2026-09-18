@@ -1,6 +1,6 @@
 /* Kuulamine: dictation, the listening shelf, and turning any text into audio. */
 
-import {emptyState, uiIcon} from "./chrome.js";
+import {actsAsButton, emptyState, uiIcon} from "./chrome.js";
 import {$, api, esc, md, setLabel} from "./core.js";
 import {mountAudio} from "./media.js";
 import {loadRail} from "./review.js";
@@ -106,8 +106,8 @@ export async function loadListenLibrary() {
       box.innerHTML = emptyState({
         icon: "note",
         title: "Архив передач пуст",
-        note: `Материал ещё не загружен. Его наполняют <code>cli harvest</code>
-          и <code>cli harvest-reading</code>.`,
+        note: `Передачи появятся здесь, когда архив загрузят на сервер
+          <span class="hint">(<code>cli harvest</code>, <code>cli harvest-reading</code>)</span>.`,
       });
       return;
     }
@@ -134,14 +134,18 @@ export async function loadListenLibrary() {
              <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}EIS ↗</span>
            </a>`
         : `<div class="lib-item" data-id="${esc(it.id)}">
-             <h4>${esc(it.title)}</h4>
+             <h4 aria-expanded="false">${esc(it.title)}</h4>
              <span class="lib-meta">${it.words ? it.words + " слов" : "аудио"}${
                it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${
                it.level ? " · " + esc(it.level) : ""}</span>
              <div class="lib-open" hidden></div>
            </div>`).join("");
+      /* A click on the opened player or text belongs to it: it must not fold the
+         row shut under the learner's hand. */
       el.querySelectorAll(".lib-item[data-id]").forEach(row =>
-        row.onclick = () => openListenItem(row));
+        actsAsButton(row, e => {
+          if (!e.target.closest(".lib-open")) openListenItem(row);
+        }, row.querySelector("h4")));
     }
   } catch (e) {
     box.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
@@ -149,9 +153,13 @@ export async function loadListenLibrary() {
 }
 
 async function openListenItem(row) {
-  const out = row.querySelector(".lib-open");
-  if (!out.hidden) { out.hidden = true; out.innerHTML = ""; return; }
+  const out = row.querySelector(".lib-open"), head = row.querySelector("h4");
+  if (!out.hidden) {
+    out.hidden = true; out.innerHTML = ""; head.setAttribute("aria-expanded", "false");
+    return;
+  }
   out.hidden = false;
+  head.setAttribute("aria-expanded", "true");
   out.innerHTML = `<span class="hint">Загружаю…</span>`;
   try {
     const d = await (await api("/api/library/" + row.dataset.id, null, "GET")).json();

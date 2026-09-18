@@ -14,44 +14,12 @@ from pydantic import BaseModel, Field
 
 from ..config import LEVELS
 
-from ..drills import generate, generate_verb_drills
-
 from .deps import db, gloss_db, progress_db, review_db
 
 from .render import _glosses_for, _topic_reference, reading_for
 
 
 router = APIRouter()
-
-
-class DrillRequest(BaseModel):
-    count: int = Field(default=10, ge=1, le=50)
-    levels: list[str] = Field(default_factory=lambda: list(LEVELS))
-    rules: list[str] | None = None
-    seed: int | None = None
-
-
-@router.post("/api/drills")
-def drills(req: DrillRequest) -> dict:
-    """Generate object-case drills. Fully offline."""
-    try:
-        # verb-form is a different generator: it drills irregular stems rather
-        # than object case, so it does not share the template pool.
-        if req.rules == ["verb-form"]:
-            items = generate_verb_drills(
-                db(), count=req.count, levels=tuple(req.levels), seed=req.seed
-            )
-        else:
-            items = generate(
-                db(),
-                count=req.count,
-                levels=tuple(req.levels),
-                rules=tuple(req.rules) if req.rules else None,
-                seed=req.seed,
-            )
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"drills": [d.to_dict() for d in items]}
 
 
 # --------------------------------------------------------------------------
@@ -64,6 +32,9 @@ class PracticeRequest(BaseModel):
     count: int = Field(default=10, ge=1, le=30)
     levels: list[str] = Field(default_factory=lambda: list(LEVELS))
     seed: int | None = None
+    # Object-case sub-rules (`negation`, `completed`, `ongoing`) for free practice on
+    # the #1 weakness. Only `obj-case` reads it; other topics ignore it.
+    rules: list[str] | None = None
 
 
 class AnswerRequest(BaseModel):
@@ -75,6 +46,9 @@ class AnswerRequest(BaseModel):
     lemma: str = ""
     label: str = ""
     why_ru: str = ""
+    # Free practice (Rada's "Vaba harjutus") is graded here by the same rule but
+    # leaves no trace: no attempt, no mastery, no review card.
+    record: bool = True
 
 
 class _Answered:
@@ -174,7 +148,7 @@ def practice_items(req: PracticeRequest) -> dict:
     try:
         items = items_for(
             topic, count=req.count, levels=tuple(req.levels), seed=req.seed,
-            theme=req.theme,
+            theme=req.theme, rules=tuple(req.rules) if req.rules else None,
         )
     except (ValueError, RuntimeError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -225,13 +199,23 @@ def practice_items(req: PracticeRequest) -> dict:
 
 @router.post("/api/practice/answer")
 def practice_answer(req: AnswerRequest) -> dict:
-    """Grade one answer, record it, and queue it for review if it was missed."""
+    """Grade one answer, record it, and queue it for review if it was missed.
+
+    With `record: false` the answer is only graded: free practice must not move the
+    mastery gate or fill the review queue.
+    """
     from ..handoff import queue_failed
     from ..progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy,
                            is_mastered, record)
 
     item = _Answered(req)
     correct = item.check(req.given)
+    if not req.record:
+        return {
+            "correct": correct, "answer": req.answer, "why_ru": req.why_ru,
+            "russian": [], "accuracy": None, "mastered": False,
+            "just_mastered": False, "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",
+        }
     progress = progress_db()
     was_mastered = is_mastered(progress, req.topic)
     record(progress, item, correct, answer=req.given)

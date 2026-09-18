@@ -4,7 +4,7 @@
    and the caveat beside it is Russian on purpose: a miss may be the recogniser
    rather than the learner's mouth, and a caveat nobody can read is not one. */
 
-import {$, api, esc, setLabel} from "./core.js";
+import {$, api, esc, ruCount, setLabel} from "./core.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ function showReadAloud() {
   const it = readAloud[readIdx];
   if (!it) return;
   $("#speakPrompt").innerHTML =
-    `${esc(it.text)}<div class="why" style="margin-top:var(--s2)">Прочитай вслух.
+    `${esc(it.text)}<div class="why instr" style="margin-top:var(--s2)">Прочитай вслух.
      ${it.level ? esc(it.level) : ""}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
@@ -188,7 +188,7 @@ if (!canRecord) {
               const fb = await (await api("/api/speaking/feedback", {
                 transcript: t.text, question: currentQuestion(),
               })).json();
-              html += `<div class="why">${fb.words} слов` +
+              html += `<div class="why">${ruCount(fb.words, ["слово", "слова", "слов"])}` +
                 (fb.pace_wpm ? ` · ${fb.pace_wpm} слов/мин` : "") + `</div>`;
               if (fb.corrections.length) html += fb.corrections.map(c =>
                 `<div class="why">✗ <del>${esc(c.wrong)}</del> →
@@ -214,9 +214,9 @@ if (!canRecord) {
      Where the audio goes is `#recPrivacy`'s job; this note is only about what the
      practice is worth. */
   $("#recNote").innerHTML =
-    "Здесь <b>не выставляют баллов</b> — произношение по записи не " +
-    "оценивается. <b>Rääkimiseksam</b> на B1 — <b>парный</b>: два кандидата " +
-    "отвечают по очереди, а затем разговаривают между собой. Поэтому в " +
-    "одиночку имеет смысл тренировать построение ответа и беглость, а не " +
-    "баллы.";
+    "Здесь <b>не выставляют баллов</b> — произношение по записи не оценивается." +
+    "<details><summary>Почему</summary><b>Rääkimiseksam</b> на B1 — " +
+    "<b>парный</b>: два кандидата отвечают по очереди, а затем разговаривают " +
+    "между собой. В одиночку имеет смысл тренировать построение ответа и " +
+    "беглость, а не баллы.</details>";
 }

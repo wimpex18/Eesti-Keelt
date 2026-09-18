@@ -11,16 +11,16 @@ correction in Russian and to transcribe speech.
 ## Features
 
 - **Rada** — the A1→B1 grammar path: prerequisite-ordered, mastery-gated, with
-  placement, test-out and checkpoints.
-- **Harjutused** — the same drills, unrecorded.
+  placement, test-out and checkpoints; **Vaba harjutus** runs the same drills on
+  any topic, unrecorded.
 - **Lugemine** — simplified Estonian texts ranked by how many of their words
   you know; click any word for its forms, meaning and level.
-- **Sõnavara** — the word list by CEFR level and frequency.
 - **Kuulamine** — graded dictation, TTS on any text, radio episodes.
 - **Rääkimine** — paired-exam questions, read-aloud comparison, spoken answers.
 - **Kirjutamine** — grammar check with explanations in Russian, back-translation,
   and a queue to the Notion error log.
-- **Kordamine** — FSRS review of mistakes and mined words; official workbooks.
+- **Kordamine** — FSRS review of mistakes and mined words; **Sõnavara**, the word
+  list by CEFR level and frequency; official workbooks.
 - **Eksam** — readiness per exam part and a progress report.
 
 ## Quick start

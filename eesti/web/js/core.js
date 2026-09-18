@@ -22,6 +22,28 @@ export function once(fn) {
   return () => { if (!done) { done = true; fn(); } };
 }
 
+/* A count with its Russian noun in the right form: 1 слово, 2 слова, 5 слов.
+   `forms` is [one, few, many]; Intl picks which applies to the number. */
+const RU_PLURAL = new Intl.PluralRules("ru");
+export function ruCount(n, [one, few, many]) {
+  const form = {one, few, many}[RU_PLURAL.select(n)] || many;
+  return `${n.toLocaleString("ru")} ${form}`;
+}
+
+
+/* A wrong answer, shown as what was written and what is right.
+
+   The learner's own attempt is struck through, then the right form. The drill's
+   distractor (the typical confusion, e.g. osastav for omastav) is not printed: when
+   the learner wrote it, it is already the struck form, and when they did not,
+   "а не <distractor>" blamed a form nobody typed. */
+export function wrongVerdict(given, answer, why) {
+  const tried = (given || "").trim();
+  return `✗ ${tried ? `<del>${esc(tried)}</del> → ` : ""}<ins>${esc(answer)}</ins>`
+    + (why ? `<br><span class="why">${md(why)}</span>` : "");
+}
+
+
 export async function api(path, body, method) {
   const verb = method || (body === undefined || body === null ? "GET" : "POST");
   const init = { method: verb };
