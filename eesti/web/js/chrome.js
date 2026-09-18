@@ -113,7 +113,6 @@ const UI_ICON = {
   inbox:   '<path d="M5.4 5.4h13.2l2 8.2v5a1.6 1.6 0 0 1-1.6 1.6H5A1.6 1.6 0 0 1 3.4 18.6v-5z"/><path d="M3.4 13.6h4.2l1.2 2.4h6.4l1.2-2.4h4.2"/>',
   done:    '<circle cx="12" cy="12" r="8.6"/><path d="m8.4 12.3 2.6 2.6 4.7-5.4"/>',
   eye:     '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="3.1"/>',
-  download:'<path d="M12 3.6v10.8"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.6 17.4v1.4a1.6 1.6 0 0 0 1.6 1.6h11.6a1.6 1.6 0 0 0 1.6-1.6v-1.4"/>',
   paper:   '<path d="M6.4 3.4h7.8l4 4v13.2H6.4z"/><path d="M14 3.4v4.2h4.2"/><path d="m9.2 14.4 1.9 1.9 4-4.4"/>',
 };
 
@@ -187,7 +186,7 @@ const BUTTON_ICON = {
   recBtn: "record", speakPlay: "volume", speakNext: "skip",
   backToLib: "back", speakBtn: "volume", loadReview: "play",
   queueSend: "send", checkBtn: "check", practiceBtn: "play",
-  freeBtn: "play", checkpointBtn: "paper", loadLib: "download",
+  freeBtn: "play", checkpointBtn: "paper", loadLib: "eye",
   vocBtn: "eye", vocMoreBtn: "plus", libMoreBtn: "plus",
 };
 

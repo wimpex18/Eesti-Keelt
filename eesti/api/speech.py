@@ -76,7 +76,7 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         "caveat": CAVEAT,
         # Both explain, so both are Russian: how the exercise works, and why there is no
         # exercise and what would produce one.
-        "note": ("Прослушай и запиши услышанное. Слушать можно сколько нужно."
+        "note": ("Прослушай и запиши услышанное."
                  if passages else
                  "Корпус текстов пуст, поэтому диктантов (etteütlus) сейчас "
                  "нет. Они появятся, когда материал будет загружен: "

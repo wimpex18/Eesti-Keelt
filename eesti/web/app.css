@@ -232,7 +232,7 @@
   @media (max-width:719px){
     /* ── What the bar at the bottom is for ──────────────────────────
        On a phone the fixed thumb bar carries the three MODES (three 54px targets with
-       icon and label), and the seven skills are a horizontally scrolling chip row at the
+       icon and label), and the tabs of the open mode are a horizontally scrolling chip row at the
        top. The desktop shows the two rows the other way round; the markup is the same. */
     .modes{position:fixed;left:0;right:0;bottom:0;z-index:40;
       display:flex;margin:0;gap:var(--s1);
@@ -252,7 +252,7 @@
     .modes button .ru{display:none}
 
     /* The skills, as chips. `flex:0 0 auto` is what makes the row scroll
-       instead of squeezing eleven destinations into 350px. */
+       instead of squeezing five destinations into 350px. */
     /* The bleed equals `.wrap`'s 20px padding exactly (not `--s5`, 24px), or the row
        overhangs the viewport and the document scrolls sideways. `.panel` uses the same
        value. */
@@ -806,6 +806,8 @@
      the one-line anchor), and the A2/B1 switch. `hover:none` rather than a width, so
      tablets are included and desktops unaffected. */
   @media (hover:none){
+    /* A keyboard shortcut means nothing on a touch screen. */
+    .kbd-hint{display:none}
     .topic button, .levels button, .logbtn{min-height:44px}
     /* A disclosure is a one-line control with no box of its own; padding is
        the only thing that can give it a thumb's worth of height. */

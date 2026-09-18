@@ -5,13 +5,16 @@ import {$, api, esc, ruCount} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
 
-let libShown = 0;
+let libShown = 0, libRequest = 0;
 const WORDS = ["слово", "слова", "слов"], TEXTS = ["текст", "текста", "текстов"];
 
 
-async function loadLibrary(append = false) {
+export async function loadLibrary(append = false) {
   const choice = $("#readLevel").value;
   const list = $("#libList");
+  /* The list loads when the tab opens and again on `Näita`; only the latest request
+     may paint, or a slow first answer lands on top of the filter chosen after it. */
+  const mine = ++libRequest;
   // The shape of the answer while it is fetched, rather than a blank panel.
   if (!append) { list.innerHTML = skeleton(5); libShown = 0; }
   $("#reader").hidden = true;
@@ -53,6 +56,7 @@ async function loadLibrary(append = false) {
       total = d.total;
       more = libShown + items.length < d.total;
     }
+    if (mine !== libRequest) return;
     libShown += items.length;
 
     /* `total` is the server's count for the same filter; `items.length` is only the
@@ -99,6 +103,7 @@ async function loadLibrary(append = false) {
       list.appendChild(el);
     }
   } catch (e) {
+    if (mine !== libRequest) return;
     list.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
 }

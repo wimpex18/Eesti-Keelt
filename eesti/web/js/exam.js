@@ -130,7 +130,7 @@ export async function loadVihikud() {
     : emptyState({
       icon: "inbox",
       title: "Тетради не загружены",
-      note: `Здесь будут ссылки на официальные задания HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами задания открываются на сайте экзамена.`,
+      note: `Здесь будут ссылки на консультационные тетради HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами тетради открываются на сайте HARNO.`,
     });
 }
 

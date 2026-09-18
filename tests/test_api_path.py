@@ -182,7 +182,7 @@ class TestFreePractice:
         }).json()["items"]
         assert items
         # Completed actions take the genitive; no partitive answer can appear.
-        assert {it.get("label") or it.get("hint") for it in items} == {"genitive"}
+        assert {it["label"] for it in items} == {"omastav"}
 
 
 class TestOtherSurfaces:

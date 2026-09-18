@@ -133,7 +133,14 @@ class Drill(GradedItem):
 
     @property
     def label(self) -> str:
-        return self.case if self.rule != "verb-form" else self.rule
+        """The form to produce, named as the exam names it (`Cloze` does the same
+        through `case_et`). A review card queued before this carried the English
+        name, so a later miss on the same word may add a second card for it."""
+        return LABEL_ET[self.case] if self.rule != "verb-form" else "verbivorm"
+
+
+#: Estonian names for the two object cases.
+LABEL_ET = {"genitive": "omastav", "partitive": "osastav"}
 
 
 def generate(

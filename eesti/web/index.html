@@ -197,7 +197,7 @@
     <textarea id="text" placeholder="Напиши или вставь эстонский текст…&#10;Например: Ma lugesin eile raamatut läbi."></textarea>
     <div class="row">
       <button class="go" id="checkBtn">Kontrolli<span class="ru">проверить</span></button>
-      <span class="hint">Ctrl+Enter</span>
+      <span class="hint kbd-hint">Ctrl+Enter</span>
     </div>
     <div id="checkOut"></div>
 
@@ -243,7 +243,6 @@
   </section>
 
   <section class="panel" id="tab-vihikud" hidden>
-    <h2>Töövihikud</h2>
     <p class="hint">Официальные консультационные тетради, в том числе
       заполняемые на компьютере. Это домашняя работа, а не экзамен.</p>
     <div id="vihikudList" class="lib-list"></div>
@@ -321,7 +320,7 @@
           <option value="raskem">raskem</option>
         </select>
       </label>
-      <button class="go" id="loadLib">Lae tekstid<span class="ru">загрузить тексты</span></button>
+      <button class="primary" id="loadLib">Näita<span class="ru">показать</span></button>
     </div>
     <!-- The count sits outside the wrapping control row, so it does not move. -->
     <p class="hint" id="libCount"></p>
@@ -376,10 +375,8 @@
     <!-- The harvested listening archive, by section. -->
     <div id="listenLib"></div>
 
-    <h3 style="margin:var(--s5) 0 var(--s2);font-size:15px">Mis tahes tekst → heli</h3>
-    <p class="hint">
-      Замедленная речь (0.7×) удобна для тренировки аудирования.
-    </p>
+    <h3 class="sec-head">Mis tahes tekst → heli <i class="ru">озвучить любой текст</i></h3>
+    <p class="hint">Вставь текст — он прозвучит медленно (0.7×) или в обычном темпе.</p>
     <textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
     <div class="row">
       <label>Hääl <i class="ru">голос</i> <select id="voice"></select></label>
@@ -390,7 +387,7 @@
           <option value="1">1× (tavaline)</option>
         </select>
       </label>
-      <button class="go" id="speakBtn">Loe ette<span class="ru">озвучить</span></button>
+      <button class="ghost" id="speakBtn">Loe ette<span class="ru">озвучить</span></button>
     </div>
     <div id="ttsOut"></div>
   </section>
