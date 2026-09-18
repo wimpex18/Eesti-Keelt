@@ -7,9 +7,9 @@ import {$, gloss} from "./core.js";
 
 
 // ── health ──────────────────────────────────────────────────────────
+/* The health payload also counts words and drillable nouns; those describe the
+   dataset, not the learner, and are not shown. */
 fetch("/api/health").then(r => r.json()).then(h => {
-  $("#stats").textContent =
-    `${h.words.toLocaleString("ru")} слов · ${h.drillable_nouns.toLocaleString("ru")} существительных для упражнений`;
   $("#voice").innerHTML = h.voices.map(v => `<option${v === "mari" ? " selected" : ""}>${v}</option>`).join("");
 });
 

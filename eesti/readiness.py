@@ -26,6 +26,17 @@ TARGET: tuple[date, date] | None = None
 EXAMPLE_TARGET = (date(2026, 10, 1), date(2026, 11, 7))
 
 
+def _count(n: int, one: str, few: str, many: str) -> str:
+    """A count with its Russian noun in the right form: 1 текст, 2 текста, 5 текстов."""
+    if n % 10 == 1 and n % 100 != 11:
+        form = one
+    elif 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        form = few
+    else:
+        form = many
+    return f"{n} {form}"
+
+
 def _target() -> tuple[date | None, date | None]:
     return TARGET if TARGET else (None, None)
 
@@ -286,7 +297,7 @@ def _parts(progress: sqlite3.Connection, level: str,
         heard = {"attempts": 0, "passed": 0, "accuracy": None}
 
     opened = touched.get("kuulamine", 0)
-    evidence = f"{opened} заданий открыто"
+    evidence = "открыто: " + _count(opened, "задание", "задания", "заданий")
     if heard["attempts"]:
         evidence += f" · {heard['passed']}/{heard['attempts']} диктантов"
         if heard["accuracy"] is not None:
@@ -301,8 +312,9 @@ def _parts(progress: sqlite3.Connection, level: str,
         "lugemine", "Lugemine", "чтение",
         # Reading is counted per part; minutes come from total `exposure` because no
         # per-part figure exists.
-        evidence=(f"{touched.get('lugemine', 0)} текстов, "
-                  f"{read['minutes']} мин" + material("lugemine")),
+        evidence=(_count(touched.get("lugemine", 0), "текст", "текста", "текстов")
+                  + ", " + _count(round(read["minutes"]), "минута", "минуты", "минут")
+                  + material("lugemine")),
         touched=touched.get("lugemine", 0) >= CONTACT,
         next_task=_next_task(content, level, "lugemine"),
     ))

@@ -1,11 +1,12 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
 import {actsAsButton, emptyState, skeleton, uiIcon} from "./chrome.js";
-import {$, api, esc} from "./core.js";
+import {$, api, esc, ruCount} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
 
 let libShown = 0;
+const WORDS = ["слово", "слова", "слов"], TEXTS = ["текст", "текста", "текстов"];
 
 
 async function loadLibrary(append = false) {
@@ -37,7 +38,7 @@ async function loadLibrary(append = false) {
       // vocabulary to measure against, and say why.
       measured = d.known_words > 0;
       note = measured
-        ? `${d.known_words} слов знакомо`
+        ? `${ruCount(d.known_words, WORDS)} знакомо`
         : "Слова ещё не отмечены — показаны самые простые тексты.";
       /* The endpoint counts texts it could not score; showing the count explains why
          "texts known" and the list size can disagree. */
@@ -58,14 +59,14 @@ async function loadLibrary(append = false) {
        page size. */
     $("#libCount").textContent = total != null && total > libShown
       ? `показано ${libShown} из ${total}${note ? " · " + note : ""}`
-      : `${libShown} текстов${note ? " · " + note : ""}`;
+      : `${ruCount(libShown, TEXTS)}${note ? " · " + note : ""}`;
     $("#libMore").hidden = !more;
     if (!items.length && !append) {
       list.innerHTML = emptyState({
         icon: "inbox",
         title: "Текстов нет",
-        note: `Библиотека ещё не наполнена. Её собирают
-          <code>cli harvest-reading</code> и <code>cli harvest-news</code>.`,
+        note: `Тексты появятся здесь, когда библиотеку загрузят на сервер
+          <span class="hint">(<code>cli harvest-reading</code>, <code>cli harvest-news</code>)</span>.`,
       });
       return;
     }
@@ -79,8 +80,8 @@ async function loadLibrary(append = false) {
       // shows "0 %".
       const cover = (measured && it.coverage !== undefined)
         ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
-      const size = it.words !== undefined ? `${it.words} слов`
-        : (it.total !== undefined ? `${it.total} слов` : "");
+      const n = it.words ?? it.total;
+      const size = n !== undefined ? ruCount(n, WORDS) : "";
       /* HARNO's tasks are indexed, never copied: `body` is empty by licence. They
          open the official page (`external`, `url`) instead of an empty reader. */
       if (it.external) {

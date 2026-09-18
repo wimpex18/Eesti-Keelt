@@ -4,7 +4,7 @@
    and the caveat beside it is Russian on purpose: a miss may be the recogniser
    rather than the learner's mouth, and a caveat nobody can read is not one. */
 
-import {$, api, esc, setLabel} from "./core.js";
+import {$, api, esc, ruCount, setLabel} from "./core.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ function showReadAloud() {
   const it = readAloud[readIdx];
   if (!it) return;
   $("#speakPrompt").innerHTML =
-    `${esc(it.text)}<div class="why" style="margin-top:var(--s2)">Прочитай вслух.
+    `${esc(it.text)}<div class="why instr" style="margin-top:var(--s2)">Прочитай вслух.
      ${it.level ? esc(it.level) : ""}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
@@ -188,7 +188,7 @@ if (!canRecord) {
               const fb = await (await api("/api/speaking/feedback", {
                 transcript: t.text, question: currentQuestion(),
               })).json();
-              html += `<div class="why">${fb.words} слов` +
+              html += `<div class="why">${ruCount(fb.words, ["слово", "слова", "слов"])}` +
                 (fb.pace_wpm ? ` · ${fb.pace_wpm} слов/мин` : "") + `</div>`;
               if (fb.corrections.length) html += fb.corrections.map(c =>
                 `<div class="why">✗ <del>${esc(c.wrong)}</del> →

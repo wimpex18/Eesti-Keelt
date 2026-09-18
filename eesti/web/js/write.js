@@ -1,7 +1,7 @@
 /* Kirjutamine: the grammar check, the error queue, and the written drill. */
 
 import {emptyState} from "./chrome.js";
-import {$, api, esc, md, setLabel} from "./core.js";
+import {$, api, esc, md, setLabel, wrongVerdict} from "./core.js";
 import {loadRail} from "./review.js";
 
 
@@ -170,7 +170,7 @@ function renderDrill(d, i) {
   el.innerHTML = `
     <div class="prompt">${esc(d.prompt).replace("____", '<span class="blank">____</span>')}</div>
     <div class="row">
-      <input type="text" placeholder="${esc(d.lemma)} → ?" size="18">
+      <input type="text" placeholder="?" size="18">
       <button class="ghost">Kontrolli</button>
       <span class="hint">${esc(d.lemma)}${d.level ? " · " + esc(d.level) : ""}</span>
     </div>
@@ -193,8 +193,7 @@ function renderDrill(d, i) {
     verdict.className = "verdict " + (ok ? "ok" : "no");
     verdict.innerHTML = ok
       ? `✓ õige <i class="ru">верно</i> — <strong>${esc(d.prompt.replace("____", d.answer))}</strong>`
-      : `✗ <strong>${esc(d.answer)}</strong>, а не <em>${esc(d.distractor)}</em><br>
-         <span class="why">${md(d.why_ru)}</span>`;
+      : wrongVerdict(input.value, d.answer, d.why_ru);
     $("#score").textContent = `${correct}/${answered} верных`;
   };
   el.querySelector("button").onclick = grade;

@@ -4,6 +4,11 @@ import {$, api, esc} from "./core.js";
 import {skeleton, uiIcon} from "./chrome.js";
 import {refreshDueBadge} from "./review.js";
 
+/* A form's name as the exam says it, with its Russian gloss beside it. */
+const tagLabel = t => t.ru
+  ? `${esc(t.name)} <i class="ru">${esc(t.ru)}</i>` : esc(t.name);
+
+
 export async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
@@ -33,7 +38,7 @@ export async function showWordCard(word, card, contextFor) {
     <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
     <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
-    <div class="tags">${a.tags.map(t => esc(t.name)).join(" · ")}</div>
+    <div class="tags">${a.tags.map(tagLabel).join(" · ")}</div>
     ${a.object_case_contrast ? `<div class="pair">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
       <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>") + mineBtn;
 

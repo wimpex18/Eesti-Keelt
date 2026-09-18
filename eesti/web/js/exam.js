@@ -103,7 +103,7 @@ export async function loadExam() {
     emptyState({
       icon: "inbox",
       title: "Официальные материалы не загружены",
-      note: "Их индексирует <code>cli harvest-exam</code> — ссылками, не копиями.",
+      note: `Здесь будут ссылки на официальные задания HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами задания открываются на сайте экзамена.`,
     });
 }
 
@@ -130,7 +130,7 @@ export async function loadVihikud() {
     : emptyState({
       icon: "inbox",
       title: "Тетради не загружены",
-      note: "Их индексирует <code>cli harvest-exam</code> — ссылками, не копиями.",
+      note: `Здесь будут ссылки на официальные задания HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами задания открываются на сайте экзамена.`,
     });
 }
 

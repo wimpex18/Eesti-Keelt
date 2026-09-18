@@ -1,7 +1,7 @@
 /* Rada: the syllabus, where you stand on it, and one topic's practice. */
 
 import {RU, stateIcon} from "./chrome.js";
-import {$, api, esc, md, setLabel, taskLine} from "./core.js";
+import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 
 if (matchMedia("(min-width:1080px)").matches) {
@@ -99,7 +99,7 @@ export async function loadStatus() {
       <div class="why">Следующая: ${esc(s.rada.next_et || "—")}${
         s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
     if (s.sonavara) html += `<div class="corr"><span class="tag">Sõnavara</span>
-      <div class="fix">${s.sonavara.known_in_top} слов из первых
+      <div class="fix">${ruCount(s.sonavara.known_in_top, ["слово", "слова", "слов"])} из первых
       ${s.sonavara.top}</div><div class="why">` +
       s.sonavara.bands.map(b =>
         `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") +
@@ -107,15 +107,15 @@ export async function loadStatus() {
       // app can translate for them. The second grows on its own, so it is not
       // presented as an achievement.
       (s.sonavara.glossed != null
-        ? `<div class="gloss-late">${s.sonavara.glossed} слов с переводом
+        ? `<div class="gloss-late">${ruCount(s.sonavara.glossed, ["слово", "слова", "слов"])} с переводом
            <span class="hint">(пополняется само · сегодня осталось
            ${s.sonavara.gloss_budget_left})</span></div>` : "") + `</div></div>`;
     if (s.kordamine) html += `<div class="corr"><span class="tag">Kordamine</span>
       <div class="fix">${s.kordamine.due} к повторению,
       ${s.kordamine.scheduled} всего</div></div>`;
-    if (s.raamatukogu) html += `<div class="corr"><span class="tag">Raamatukogu</span>
-      <div class="fix">${s.raamatukogu.items || 0} открыто,
-      ${s.raamatukogu.minutes || 0} минут</div></div>`;
+    if (s.raamatukogu) html += `<div class="corr"><span class="tag">Lugemine · Kuulamine</span>
+      <div class="fix">${ruCount(s.raamatukogu.items || 0, ["материал", "материала", "материалов"])} ·
+      ${ruCount(Math.round(s.raamatukogu.minutes || 0), ["минута", "минуты", "минут"])}</div></div>`;
     // The caveat comes from the API, in Russian, so it is written once and matches
     // what the numbers mean.
     html += `<div class="engine">${esc(d.caveat || "")}</div>`;
@@ -279,8 +279,7 @@ export function renderPracticeItem(it, topic, i, glosses) {
           ? `✓ õige <i class="ru">верно</i> — <strong>${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
           : `✓ õige <i class="ru">верно</i> — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
-      : `✗ <strong>${esc(it.answer)}</strong>${it.distractor ? `, а не <em>${esc(it.distractor)}</em>` : ""}<br>
-         <span class="why">${md(it.why_ru || "")}</span>`;
+      : wrongVerdict(input ? input.value : picked, it.answer, it.why_ru);
     /* The meaning arrives with the grade: `/api/practice/answer` looks up at most
        this one word. Only shown when the hint above did not already carry it. */
     if (res.russian?.length && !ru.length) {

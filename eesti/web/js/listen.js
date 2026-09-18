@@ -106,8 +106,8 @@ export async function loadListenLibrary() {
       box.innerHTML = emptyState({
         icon: "note",
         title: "Архив передач пуст",
-        note: `Материал ещё не загружен. Его наполняют <code>cli harvest</code>
-          и <code>cli harvest-reading</code>.`,
+        note: `Передачи появятся здесь, когда архив загрузят на сервер
+          <span class="hint">(<code>cli harvest</code>, <code>cli harvest-reading</code>)</span>.`,
       });
       return;
     }

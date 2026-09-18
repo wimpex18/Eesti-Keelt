@@ -34,7 +34,6 @@
 <div class="wrap">
   <header>
     <h1>Eesti keel</h1>
-    <span class="sub" id="stats">…</span>
     <!-- Mode, then skill. -->
     <div class="modes" role="tablist" aria-label="Režiim — режим">
       <span class="groupmark" data-group="modes" aria-hidden="true"
@@ -114,9 +113,9 @@
   <section class="panel" id="tab-speak" hidden>
     <div class="row">
       <select id="speakMode" aria-label="Harjutus — упражнение">
-        <option value="lause">Loe ette — laused</option>
-        <option value="sona">Loe ette — sõnad</option>
-        <option value="vastus">Vasta küsimusele</option>
+        <option value="lause">Loe ette: laused — вслух</option>
+        <option value="sona">Loe ette: sõnad — вслух</option>
+        <option value="vastus">Vasta küsimusele — ответ</option>
       </select>
       <select id="speakTopic" aria-label="Teema — тема"></select>
       <button class="ghost" id="speakPlay">Kuula ette<span class="ru">прослушать</span></button>
@@ -132,8 +131,8 @@
     <!-- Shown before recording: the voice leaves the device for recognition. -->
     <p class="hint" id="recPrivacy">Запись отправляется в Cloudflare для
       распознавания речи и <strong>нигде не сохраняется</strong> — ни здесь, ни
-      там. Остаётся только текст. Локально (<code>cli serve</code> +
-      whisper.cpp) запись не покидает компьютер.</p>
+      там. Остаётся только текст. Если приложение запущено на твоём
+      компьютере, запись его не покидает.</p>
     <audio id="recPlayback" controls hidden></audio>
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
@@ -241,8 +240,8 @@
 
   <section class="panel" id="tab-review" hidden>
     <p class="hint">
-      Сюда попадают ошибки и прочитанные слова. Интервалы считает FSRS —
-      чем труднее, тем чаще.
+      Сюда попадают ошибки и слова, отмеченные при чтении. Каждая карточка
+      возвращается тем раньше, чем труднее она тебе далась.
     </p>
     <div class="row">
       <button class="go" id="loadReview" aria-describedby="reviewStats">Alusta kordamist<span class="ru">начать повторение</span></button>
@@ -261,8 +260,8 @@
       <label>Tase <i class="ru">уровень</i>
         <select id="vocLevel">
           <option value="">kõik</option>
-          <option value="A1">A1</option>
-          <option value="A2" selected>A2</option>
+          <option value="A1" selected>A1</option>
+          <option value="A2">A2</option>
           <option value="B1">B1</option>
           <option value="B2">B2</option>
           <option value="C1">C1</option>
