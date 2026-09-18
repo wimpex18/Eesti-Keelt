@@ -13,7 +13,7 @@ const pathTally = {answered: 0, correct: 0, out: "#pathScore", record: true};
 const freeTally = {answered: 0, correct: 0, out: "#freeScore", record: false};
 
 let pathMeta = {};
-let autoStarted = false;
+let autoStarted = false, practiceRequest = 0;
 const START = ["Harjuta", "тренировка"], NEW_SET = ["Uued laused", "новые задания"];
 
 function themeApplies() {
@@ -145,6 +145,9 @@ async function loadThemes() {
 
 async function startPractice({focus = true} = {}) {
   let loaded = false;
+  /* The auto-start and a topic picked from Kogu rada can be in flight together; only
+     the latest may paint, or a slow first answer replaces the learner's choice. */
+  const mine = ++practiceRequest;
   const out = $("#practiceOut"); out.innerHTML = "";
   pathTally.answered = pathTally.correct = 0; $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
@@ -154,6 +157,7 @@ async function startPractice({focus = true} = {}) {
     const theme = themeApplies() ? $("#wordTheme").value : "";
     if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
+    if (mine !== practiceRequest) return;
     if (!res.items.length) {
       // An empty topic is still a topic: those with no generator carry an EKK
       // reference, which is the learner's way forward.
@@ -193,8 +197,11 @@ async function startPractice({focus = true} = {}) {
     res.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {}, focus)));
   } catch (e) {
+    if (mine !== practiceRequest) return;
     out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   } finally {
+    // A superseded request leaves the button to the one that replaced it.
+    if (mine !== practiceRequest) return;
     btn.disabled = false;
     /* With a set on screen, answering is the main action; the button only swaps
        the set, so it steps down to a secondary one. */
