@@ -95,14 +95,11 @@
       <span class="hint" id="pathScore"></span>
     </div>
     <!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
-         drilled over. The list below does not react to the select. -->
-    <p class="note" id="themeNote"></p>
+         drilled over. The label hides for topics it cannot change. -->
     <div id="practiceOut"></div>
     <details id="pathAll">
       <summary>Kogu rada <i class="ru">все темы по порядку</i></summary>
-      <p class="note">Порядок правил, а не список упражнений: тема открывается,
-        когда пройдены те, на которых она стоит. Выбор <b>sõnavara teema</b>
-        выше на этот список не влияет — это разные вещи.</p>
+      <p class="note">Тема открывается, когда пройдены те, на которых она стоит.</p>
       <div id="pathList"></div>
     </details>
   </section>
@@ -288,12 +285,8 @@
       </label>
       <button id="vocBtn" class="primary">Näita<span class="ru">показать</span></button>
     </div>
-    <p class="note" id="vocNote">
-      Список слов по уровню и части речи, начиная с самых частотных.
-      Нажми на слово — откроется карточка. «Tean seda sõna» отмечает слово
-      выученным, «Pole vaja» убирает его из предложений совсем — это разные
-      вещи, и счётчик выученных считает только первое.
-    </p>
+    <p class="note" id="vocNote">Сначала самые частотные слова. Нажми на слово,
+      чтобы открыть карточку.</p>
     <div id="vocOut" aria-live="polite"></div>
     <div class="row" id="vocMore" hidden>
       <button class="ghost" id="vocMoreBtn">Veel sõnu<span class="ru">ещё слова</span></button>

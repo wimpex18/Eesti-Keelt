@@ -79,17 +79,18 @@ class TestTheApiTellsThePageTheTruth:
 
 
 class TestThePageActsOnIt:
-    def test_the_select_is_disabled_rather_than_left_lying(self, page):
+    def test_the_select_leaves_the_screen_rather_than_left_lying(self, page):
+        """Where the theme cannot change the drill, the control is disabled, its value
+        reset, and its label hidden: no dead control, no paragraph apologising for it."""
         assert "themeApplies" in page
-        assert re.search(r"sel\.disabled = true", page)
+        assert re.search(r"sel\.disabled = !applies", page)
+        assert re.search(r'sel\.closest\("label"\)\.hidden = !applies', page)
 
     def test_a_theme_is_not_sent_when_it_would_be_ignored(self, page):
         """A disabled control posts no leftover theme value."""
         assert 'const theme = themeApplies() ? $("#wordTheme").value : "";' in page
 
-    def test_the_two_axes_are_named_on_screen(self, page):
-        """The page explains that the word list and the theme select are separate."""
-        assert 'id="themeNote"' in page
+    def test_the_whole_path_is_one_disclosure_away(self, page):
         assert "Kogu rada" in page
 
 

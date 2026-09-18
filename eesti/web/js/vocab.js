@@ -35,6 +35,8 @@ export async function showWordCard(word, card, contextFor) {
       <button class="ghost" id="mineBtn">${uiIcon("plus")}Kordamisse</button>
       <button class="ghost" id="knowBtn">${uiIcon("check")}Tean seda sõna</button>
       <button class="ghost" id="skipBtn" title="Не тратить время на это слово">${uiIcon("ban")}Pole vaja</button></div>
+    <div class="hint">«Tean» — выучено, идёт в счёт. «Pole vaja» — не предлагать,
+      в счёт не идёт.</div>
     <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
     <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>

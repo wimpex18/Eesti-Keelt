@@ -24,29 +24,37 @@ export async function loadRail() {
     /* `resume` is an id (`kusisonad`); the learner knows the topic by its
        name. The path tab already resolves it this way. */
     const next = (path.topics || []).find(t => t.id === path.resume);
+    /* One thing first: what to do next. Progress sits under it, the untouched exam
+       parts after, and the exam date last — while no date is chosen that is one
+       quiet line, not the loudest words on every screen. `data-for` names the tab
+       whose panel already says the same thing; the rail drops that card there. */
+    const dated = ready.days_to_decide !== null && ready.days_to_decide !== undefined;
     rail.innerHTML = `
-      <div class="rail-card">
-        <h3>Eksamini<span class="ru">до экзамена</span></h3>
-        <div class="rail-big">${esc(ready.countdown || "")}</div>
-        <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
-      </div>
-      <div class="rail-card">
-        <h3>Rada<span class="ru">путь</span></h3>
+      <div class="rail-card" data-for="path">
+        <h3>Järgmine<span class="ru">следующая тема</span></h3>
+        ${next ? `<div class="rail-big rail-topic">${esc(next.et)}</div>
+          <a class="rail-go" href="#path">Harjuta <i class="ru">тренировка</i></a>`
+          : `<div class="rail-note">Все открытые темы пройдены.</div>`}
         <div class="rail-row"><span>Läbitud <i class="ru">пройдено</i></span>
           <b>${path.mastered}/${path.total}</b></div>
-        ${next ? `<div class="rail-row"><span>Järgmine <i class="ru">следующая</i></span>
-          <b>${esc(next.et)}</b></div>` : ""}
-        ${due && due.due !== undefined ? `<div class="rail-row">
-          <span>Kordamist ootab <i class="ru">к повторению</i></span><b>${due.due}</b></div>` : ""}
+        ${due && due.due ? `<div class="rail-row">
+          <a href="#review">Kordamist ootab <i class="ru">к повторению</i></a>
+          <b>${due.due}</b></div>` : ""}
       </div>
-      ${untouched.length ? `<div class="rail-card">
+      ${untouched.length ? `<div class="rail-card" data-for="exam">
         <h3>Puudutamata<span class="ru">не начато</span></h3>
         ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
           ${p.next_task && p.next_task.url
             ? `<a href="${esc(p.next_task.url)}" target="_blank"
                  rel="noopener">ava</a>` : ""}</div>`).join("")}
         <div class="rail-note">Ни одна часть не должна быть нулём.</div>
-      </div>` : ""}`;
+      </div>` : ""}
+      <div class="rail-card" data-for="exam">
+        <h3>Eksamini<span class="ru">до экзамена</span></h3>
+        ${dated ? `<div class="rail-big">${esc(ready.countdown)}</div>`
+          : `<div class="rail-note">${esc(ready.countdown || "")}</div>`}
+        <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
+      </div>`;
   } catch (e) {
     rail.innerHTML = "";
   }
