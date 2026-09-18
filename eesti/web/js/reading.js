@@ -1,6 +1,6 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
-import {emptyState, skeleton, uiIcon} from "./chrome.js";
+import {actsAsButton, emptyState, skeleton, uiIcon} from "./chrome.js";
 import {$, api, esc} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
@@ -69,8 +69,11 @@ async function loadLibrary(append = false) {
       });
       return;
     }
+    // The skeleton stood in for this page of rows; they replace it, not follow it.
+    if (!append) list.innerHTML = "";
     for (const it of items) {
-      const el = document.createElement("div");
+      // An external row goes somewhere else, so it is a real link.
+      const el = document.createElement(it.external ? "a" : "div");
       el.className = "lib-item" + (it.external ? " external" : "");
       // Coverage appears only where it was computed, so an unmeasured list never
       // shows "0 %".
@@ -83,12 +86,14 @@ async function loadLibrary(append = false) {
       if (it.external) {
         el.innerHTML = `<h4>${esc(it.title)}</h4>
           <span class="lib-meta">HARNO · задание на сайте экзамена ↗</span>`;
-        el.onclick = () => window.open(it.url, "_blank", "noopener");
+        el.href = it.url;
+        el.target = "_blank";
+        el.rel = "noopener";
       } else {
         el.innerHTML = `<h4>${esc(it.title)}</h4>
           <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
             it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${cover}</span>`;
-        el.onclick = () => openItem(it.id);
+        actsAsButton(el, () => openItem(it.id));
       }
       list.appendChild(el);
     }

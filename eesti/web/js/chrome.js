@@ -145,6 +145,25 @@ export function skeleton(rows = 6, kind = "row") {
 }
 
 
+/* A row that opens something, reachable by keyboard.
+
+   Rows hold a heading and, once opened, a player, so they cannot be `<button>`s.
+   A click anywhere on `el` opens it; `handle` (the row itself unless given)
+   takes the button role, is focusable, and opens on Enter or Space. A row that
+   grows its own controls passes its heading as the handle: a button's contents
+   are hidden from a screen reader, and the player inside must not be. */
+export function actsAsButton(el, open, handle = el) {
+  handle.tabIndex = 0;
+  handle.setAttribute("role", "button");
+  el.addEventListener("click", open);
+  handle.addEventListener("keydown", e => {
+    if (e.target !== handle || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    open(e);
+  });
+}
+
+
 /* An empty view that says what it is, why, and what to do about it: a mark, a
    statement and a next step.
 

@@ -174,7 +174,7 @@ function renderDrill(d, i) {
       <button class="ghost">Kontrolli</button>
       <span class="hint">${esc(d.lemma)}${d.level ? " · " + esc(d.level) : ""}</span>
     </div>
-    <div class="verdict"></div>`;
+    <div class="verdict" role="status"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
   const grade = () => {
     if (input.disabled) return;

@@ -222,7 +222,7 @@ export function renderPracticeItem(it, topic, i, glosses) {
       <button class="ghost">Kontrolli</button>
       ${taskLine(it, ru)}
     </div>`}
-    <div class="verdict"></div>`;
+    <div class="verdict" role="status"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
   const choices = [...el.querySelectorAll(".choice")];
   // One holder for "what was answered", whichever shape the item took, so the
@@ -232,10 +232,23 @@ export function renderPracticeItem(it, topic, i, glosses) {
     if (input) input.disabled = true;
     choices.forEach(b => b.disabled = true);
   };
+  const unlock = () => {
+    if (input) input.disabled = false;
+    choices.forEach(b => { b.disabled = false; b.classList.remove("picked"); });
+  };
   const locked = () => (input ? input.disabled : choices[0]?.disabled);
 
   const grade = async () => {
     if (locked()) return;
+    /* An empty box is not an answer. Here it would also be recorded: against the
+       accuracy that gates mastery, and into the review queue. The first item is
+       focused on load, so one stray Enter would do it. Ask again instead. */
+    if (input && !input.value.trim()) {
+      verdict.className = "verdict";
+      verdict.innerHTML = `<span class="hint">Впиши форму — тогда проверю.</span>`;
+      input.focus();
+      return;
+    }
     lock();
     let res;
     try {
@@ -248,7 +261,13 @@ export function renderPracticeItem(it, topic, i, glosses) {
         label: it.hint || "", why_ru: it.why_ru || "",
       })).json();
     } catch (e) {
-      verdict.className = "verdict no"; verdict.textContent = e.message; return;
+      /* Nothing was recorded, so the item is not spent: unlock it and keep what was
+         typed, so the learner can send it again once the connection is back. */
+      unlock();
+      verdict.className = "verdict no";
+      verdict.innerHTML = `Ответ не записан. ${esc(e.message)}
+        <span class="hint">Попробуй ещё раз.</span>`;
+      return;
     }
     pathAnswered++; if (res.correct) pathCorrect++;
     verdict.className = "verdict " + (res.correct ? "ok" : "no");

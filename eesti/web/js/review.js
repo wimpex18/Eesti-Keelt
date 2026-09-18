@@ -61,8 +61,17 @@ export async function refreshDueBadge() {
     const s = await (await api("/api/review/stats", null, "GET")).json();
     const b = $("#dueBadge");
     b.hidden = !s.due; b.textContent = s.due || "";
-    $("#reviewStats").textContent =
-      `${s.due} к повторению · ${s.total} всего`;
+    /* Nothing due means the button can only lead to "nothing to review", so it is
+       off, and the line beside it says why and when that changes. The count is
+       refreshed each time Järjekord opens and after every rating, so a card queued
+       elsewhere switches it back on. A failed request leaves it on: the click then
+       reports its own error. */
+    $("#loadReview").disabled = !s.due;
+    $("#reviewStats").textContent = s.due
+      ? `${s.due} к повторению · ${s.total} всего`
+      : s.total
+        ? `Сегодня повторять нечего · ${s.total} в очереди на другие дни`
+        : "Очередь пуста — сюда попадут ошибки и слова, отмеченные при чтении.";
 
     /* Which words keep coming back wrong, named. A count says the queue is
        working; the names say what to look at. `lapses` is how many times the
@@ -84,7 +93,13 @@ refreshDueBadge();
 
 $("#loadReview").onclick = async () => {
   const out = $("#reviewOut"); out.innerHTML = "";
-  const {items, glosses} = await (await api("/api/review?limit=20", null, "GET")).json();
+  let items, glosses;
+  try {
+    ({items, glosses} = await (await api("/api/review?limit=20", null, "GET")).json());
+  } catch (e) {
+    out.innerHTML = `<div class="banner">Очередь не загрузилась. ${esc(e.message)}</div>`;
+    return;
+  }
   if (!items.length) {
     out.innerHTML = emptyState({
       icon: "done",
@@ -121,7 +136,7 @@ function renderVocabCard(it) {
         <button class="go" data-r="good">Teadsin <i class="ru">знал</i></button>
       </div>
     </div>
-    <div class="verdict"></div>`;
+    <div class="verdict" role="status"></div>`;
 
   el.querySelector(".fc-say").innerHTML = navIcon(
     '<path d="M11 5 6.5 9H3v6h3.5L11 19z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'
@@ -141,10 +156,21 @@ function renderVocabCard(it) {
 
 function wireGrading(el, it) {
   const verdict = el.querySelector(".verdict");
+  const rate = on => el.querySelectorAll("button[data-r]").forEach(x => x.disabled = !on);
   el.querySelectorAll("button[data-r]").forEach(b => b.onclick = async () => {
-    el.querySelectorAll("button[data-r]").forEach(x => x.disabled = true);
-    const r = await (await api("/api/review/grade",
-                               {id: it.id, rating: b.dataset.r})).json();
+    rate(false);
+    let r;
+    try {
+      r = await (await api("/api/review/grade",
+                           {id: it.id, rating: b.dataset.r})).json();
+    } catch (e) {
+      // Not recorded, so the card stays due: give the ratings back.
+      rate(true);
+      verdict.className = "verdict no";
+      verdict.innerHTML = `Оценка не записана. ${esc(e.message)}
+        <span class="hint">Попробуй ещё раз.</span>`;
+      return;
+    }
     verdict.className = "verdict ok";
     verdict.innerHTML =
       `<strong>${esc(it.answer)}</strong> — снова ${r.interval_days < 1
@@ -173,7 +199,7 @@ function renderReview(it, glosses) {
                  ru, {quiet: true})}${
         it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
-    <div class="verdict"></div>`;
+    <div class="verdict" role="status"></div>`;
   wireGrading(el, it);
   return el;
 }

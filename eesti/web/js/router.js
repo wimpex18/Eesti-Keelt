@@ -9,6 +9,7 @@ import {$, once} from "./core.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
 import {loadPath, loadStatus} from "./path.js";
+import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions} from "./speak.js";
 import {loadVocab} from "./vocab.js";
 
@@ -19,6 +20,7 @@ const ON_OPEN = {
   exam: () => loadExam(),
   vihikud: () => loadVihikud(),
   path: () => loadPath(),
+  review: () => refreshDueBadge(),
   status: () => loadStatus(),
   sonad: once(() => loadVocab(false)),
   listen: once(() => { loadDictation(); loadListenLibrary(); }),
