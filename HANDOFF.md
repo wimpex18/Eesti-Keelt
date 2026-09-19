@@ -18,9 +18,8 @@ dependencies float on the latest stable.
 
 ## Uncommitted / undecided
 
-- Untracked, not committed: `.claude/agents/`, `.claude/skills/`,
-  `.claude/settings.local.json`, `.github/agents/`, `.github/hooks/`,
-  `.github/skills/`.
+- Local agent, skill, hook and settings folders under .claude and .github
+  are untracked and not committed.
 
 ## Blockers
 - Delete `CLAUDE.md` once Claude for Mac bundles Claude Code 2.1.277 or newer
