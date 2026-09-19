@@ -373,23 +373,6 @@ def index_object_cases(
     return stats
 
 
-def drillable_nouns(
-    conn: sqlite3.Connection, levels: tuple[str, ...] = LEVELS, limit: int = 200
-) -> list[sqlite3.Row]:
-    """Level-appropriate nouns with a genuinely distinct genitive vs partitive."""
-    marks = ",".join("?" * len(levels))
-    return list(
-        conn.execute(
-            f"""SELECT o.word, o.genitive, o.partitive, w.proficiency, w.freq_rank
-                FROM object_cases o JOIN words w ON w.word = o.word
-                WHERE o.distinct_ = 1 AND w.proficiency IN ({marks})
-                ORDER BY (w.freq_rank IS NULL OR w.freq_rank = 0), w.freq_rank
-                LIMIT ?""",
-            (*levels, limit),
-        )
-    )
-
-
 def object_case_rows(conn: sqlite3.Connection, words: list[str]) -> list[sqlite3.Row]:
     """Case forms for specific words, synthesising and caching any not yet indexed
     (curated pools include words without a CEFR tag).

@@ -10,9 +10,14 @@
 | Production smoke | `smoke.yml` | after `deploy`, daily, manual |
 
 ```bash
-python -m pytest tests/ -q                            # everything available on this machine
-python -m pytest tests/test_e2e_journeys.py -q        # browser journeys only
+python -m pytest tests/ -q -n auto                    # everything, in parallel (pytest-xdist)
+python -m pytest tests/test_e2e_journeys.py -q -n 5 --dist loadscope   # browser journeys
 ```
+
+`-n auto` spreads the in-process tests over every core (about 16 s on a 10-core
+Mac). Browser journeys use `--dist loadscope`, so each class keeps its browser
+and the parametrised Chromium/WebKit pairs stay on one worker (about 2 minutes);
+each worker starts its own server on a free port.
 
 Browser tests **skip** (never fail) without Playwright, a browser or a built
 dataset. They need:
@@ -41,7 +46,9 @@ is off).
   caller (`test_route_inventory.py`, `test_ui_contract.py`); every library
   section is reachable (`test_sections.py`).
 - **Language rule:** user-facing sentences contain Cyrillic; no Estonian term
-  is transliterated (`test_ui_language.py`).
+  is transliterated; every Estonian label is marked `lang="et"` and every
+  Russian gloss `lang="ru"`, so a screen reader uses the right voice
+  (`test_ui_language.py`).
 - **Docs:** derivable counts, the tab diagram and cited file paths match the
   code (`test_docs_match_code.py`).
 - **Read-only commands write nothing:** checked in subprocesses, byte for byte
@@ -52,7 +59,9 @@ is off).
   (`test_reference_imports.py`).
 
 Fixtures redirect every database (`conftest.py`) and build them with the app's
-own openers. CI fetches `cli fetch-bench --required-only` first; a Hugging Face
+own openers. Outbound HTTP fails at once in every test except the
+`TestAgainstTheLive…` classes, which skip when their service is down; an
+unstubbed provider call therefore costs nothing and cannot pass by luck. CI fetches `cli fetch-bench --required-only` first; a Hugging Face
 outage skips those tests rather than failing.
 
 ## Not covered

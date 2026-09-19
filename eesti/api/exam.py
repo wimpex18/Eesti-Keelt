@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 
 from ..config import LEVELS
 from .deps import content_db, db, notion_db, progress_db, vocab_db
-from .render import _glosses_for
+from .render import _glosses_for, item_for_page
 
 router = APIRouter()
 
@@ -54,7 +54,7 @@ def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> di
         "ready": ready(progress_db(), level),
         "pass_mark": PASS_MARK,
         "topics": topics_at(level),
-        "items": [i.to_dict() for i in items],
+        "items": [item_for_page(i) for i in items],
         # Glosses for the checkpoint's words from the local store only, never a live
         # lookup per item.
         "glosses": _glosses_for([i.lemma for i in items]),

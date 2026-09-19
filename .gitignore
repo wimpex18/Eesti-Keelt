@@ -31,3 +31,12 @@ deploy/eki/*
 !deploy/eki/ekss_EKI_CCBY40.xml.gz
 
 .DS_Store
+
+# Tool caches and per-machine state.
+.pytest_cache/
+.ruff_cache/
+.claude/worktrees/
+# Impeccable: per-machine settings and the detector's cache stay local.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/live/

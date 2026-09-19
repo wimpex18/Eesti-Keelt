@@ -12,11 +12,12 @@ from __future__ import annotations
 import ast
 import html
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
 
-from pagesrc import markup_and_script
+from pagesrc import markup, markup_and_script, scripts
 
 
 
@@ -285,7 +286,7 @@ def glossed_button_labels(page: str) -> dict[str, str]:
     """Each button that carries a Russian gloss, and its Estonian label."""
     out = {}
     for m in re.finditer(
-            r'<button[^>]*\bid="([^"]+)"[^>]*>([^<]*)<span class="ru">', page):
+            r'<button[^>]*\bid="([^"]+)"[^>]*>([^<]*)<span class="ru"[^>]*>', page):
         label = " ".join(m.group(2).split())
         if label:
             out[m.group(1)] = label
@@ -323,3 +324,270 @@ class TestAGlossSurvivesTheButtonBeingUsed:
         bare = re.findall(r'<button(?![^>]*\baria-)[^>]*\bid="([^"]+)"[^>]*>'
                           r'([A-ZÕÄÖÜ][^<]{2,40})</button>', page)
         assert not bare, f"button with an Estonian label and no gloss: {bare}"
+
+
+# ── Which voice reads each label ─────────────────────────────────────────────
+#
+# The page is `lang="ru"`, so a screen reader speaks everything in a Russian voice
+# unless an element says otherwise. An Estonian label (`Kontrolli`) is marked
+# `lang="et"` on the element that holds it; its Russian gloss (`.ru`) is marked
+# `lang="ru"` again. Checked over the authored page and over every HTML fragment
+# a module writes, by parsing: which elements are labels, and which text is
+# Estonian, is read from the markup, not listed here.
+
+#: Elements whose text names a control or a section.
+LABEL_TAGS = {"button", "summary", "label", "option", "legend", "a",
+              "h1", "h2", "h3", "h4", "h5", "h6"}
+VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+        "meta", "source", "track", "wbr"}
+LATIN = re.compile(r"[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]")
+#: Words no voice mispronounces by language: levels (`A1–B1`), acronyms
+#: (`EKK`, `CC BY 4.0`), numbers and host names.
+NEUTRAL_WORD = re.compile(
+    r"^(?:[A-Z0-9][A-Z0-9.+×–-]*|\d[\d.,×%/–-]*|[a-z0-9-]+(?:\.[a-z0-9-]+)+)$")
+#: Where a module's `${...}` stood.
+HOLE = "\x00"
+
+
+class _Node:
+    def __init__(self, tag, attrs, parent):
+        self.tag, self.attrs, self.parent = tag, dict(attrs), parent
+        self.children = []
+
+    def classes(self):
+        return (self.attrs.get("class") or "").split()
+
+
+class _Tree(HTMLParser):
+    """A forgiving tree: an unmatched end tag is ignored, an unclosed element runs
+    to the end of its fragment."""
+
+    def __init__(self, source):
+        super().__init__(convert_charrefs=True)
+        self.root = _Node("#root", {}, None)
+        self.stack = [self.root]
+        self.feed(source)
+        self.close()
+
+    def handle_starttag(self, tag, attrs):
+        node = _Node(tag, attrs, self.stack[-1])
+        self.stack[-1].children.append(node)
+        if tag not in VOID:
+            self.stack.append(node)
+
+    def handle_startendtag(self, tag, attrs):
+        self.stack[-1].children.append(_Node(tag, attrs, self.stack[-1]))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, 0, -1):
+            if self.stack[i].tag == tag:
+                del self.stack[i:]
+                return
+
+    def handle_data(self, data):
+        if self.stack[-1].tag not in ("script", "style"):
+            self.stack[-1].children.append(data)
+
+
+def _elements(node):
+    for child in node.children:
+        if isinstance(child, _Node):
+            yield child
+            yield from _elements(child)
+
+
+def _texts(node):
+    for child in node.children:
+        if isinstance(child, str):
+            yield child, node
+        else:
+            yield from _texts(child)
+
+
+def _lang(node, default):
+    """The language a node's text is read in: the nearest `lang`, else the
+    document's. A module's fragment does not know where it lands (`None`), so it
+    has to say."""
+    while node is not None:
+        if "lang" in node.attrs:
+            return node.attrs["lang"]
+        node = node.parent
+    return default
+
+
+def _nearest(node, test):
+    while node is not None and node.tag != "#root":
+        if test(node):
+            return node
+        node = node.parent
+    return None
+
+
+def _is_label(node):
+    return node.tag in LABEL_TAGS or "tag" in node.classes()
+
+
+def _in_gloss(node):
+    return _nearest(node, lambda n: "ru" in n.classes()) is not None
+
+
+def _neutral(text):
+    words = re.findall(r"[^\s·—→←↗✓✗■()«»:,;!?+]+", text.replace(HOLE, " "))
+    return all(NEUTRAL_WORD.match(w) for w in words)
+
+
+def _js_literals(src: str) -> list[str]:
+    """Every string and template literal in a module, each `${...}` replaced by
+    `HOLE`. A small tokenizer, so comments, regex literals (`/[&<>"]/g`) and
+    templates nested inside `${...}` are not mistaken for markup."""
+    out, n = [], len(src)
+
+    def string(i, quote):
+        buf = []
+        while src[i] != quote:
+            if src[i] == "\\":
+                buf.append({"n": "\n", "t": "\t"}.get(src[i + 1], src[i + 1]))
+                i += 2
+                continue
+            buf.append(src[i])
+            i += 1
+        out.append("".join(buf))
+        return i + 1
+
+    def template(i):
+        buf = []
+        while src[i] != "`":
+            if src[i] == "\\":
+                buf.append(src[i + 1])
+                i += 2
+            elif src.startswith("${", i):
+                i = code(i + 2, inside=True)
+                buf.append(HOLE)
+            else:
+                buf.append(src[i])
+                i += 1
+        out.append("".join(buf))
+        return i + 1
+
+    def code(i, inside=False):
+        depth, prev, word = 0, "", ""
+        while i < n:
+            c = src[i]
+            if c.isspace():
+                i += 1
+            elif src.startswith("//", i):
+                j = src.find("\n", i)
+                i = n if j < 0 else j
+            elif src.startswith("/*", i):
+                i = src.index("*/", i) + 2
+            elif c in "'\"":
+                i, prev, word = string(i + 1, c), "a", ""
+            elif c == "`":
+                i, prev, word = template(i + 1), "a", ""
+            elif c == "/" and (prev == "" or prev in "(,=:[!&|?{};+-*%<>~^"
+                               or word in ("return", "typeof", "case")):
+                j, klass = i + 1, False
+                while src[j] != "/" or klass:
+                    if src[j] == "\\":
+                        j += 1
+                    elif src[j] == "[":
+                        klass = True
+                    elif src[j] == "]":
+                        klass = False
+                    j += 1
+                i, prev, word = j + 1, "a", ""
+            else:
+                if c == "{":
+                    depth += 1
+                elif c == "}":
+                    if inside and depth == 0:
+                        return i + 1
+                    depth -= 1
+                if c.isalnum() or c in "_$":
+                    word = word + c if prev == "a" else c
+                    prev = "a"
+                else:
+                    prev, word = c, ""
+                i += 1
+        return i
+
+    code(0)
+    return out
+
+
+def _sources():
+    """(where, parsed tree, the language unmarked text is read in)."""
+    yield "index.html", _Tree(markup()), "ru"
+    for path in scripts():
+        for k, lit in enumerate(_js_literals(path.read_text(encoding="utf-8"))):
+            if re.search(r"<[a-z]", lit):
+                yield f"{path.name} #{k}", _Tree(lit), None
+
+
+@pytest.fixture(scope="module")
+def trees():
+    return list(_sources())
+
+
+def _show(text):
+    return " ".join(text.replace(HOLE, "…").split())[:60]
+
+
+class TestEachLabelIsReadInItsLanguage:
+    def test_every_gloss_is_marked_russian(self, trees):
+        """Inside an Estonian label, an unmarked gloss would inherit `et`."""
+        bare = [f"{where}: <{el.tag} class=ru>"
+                for where, tree, _ in trees for el in _elements(tree.root)
+                if "ru" in el.classes() and el.attrs.get("lang") != "ru"]
+        assert not bare, 'a Russian gloss without lang="ru":\n  ' + "\n  ".join(bare)
+
+    def test_what_a_gloss_explains_is_marked_estonian(self, trees):
+        """The element holding a gloss holds the Estonian word it glosses."""
+        wrong = []
+        for where, tree, default in trees:
+            for el in _elements(tree.root):
+                if "ru" in el.classes() and not _in_gloss(el.parent) \
+                        and _lang(el.parent, default) != "et":
+                    own = "".join(t for t in el.parent.children if isinstance(t, str))
+                    wrong.append(f"{where}: <{el.parent.tag}> {_show(own)!r}")
+        assert not wrong, ("a glossed label read in a Russian voice -- put "
+                           'lang="et" on the element holding it:\n  ' + "\n  ".join(wrong))
+
+    def test_every_estonian_label_is_marked_estonian(self, trees):
+        """Latin text in a button, summary, form label, option, link, heading or
+        tag is an Estonian label, unless it is a code no voice mispronounces."""
+        wrong = []
+        for where, tree, default in trees:
+            for text, parent in _texts(tree.root):
+                if not LATIN.search(text) or CYRILLIC.search(text) or _neutral(text):
+                    continue
+                if _nearest(parent, _is_label) and not _in_gloss(parent) \
+                        and _lang(parent, default) != "et":
+                    wrong.append(f"{where}: <{parent.tag}> {_show(text)!r}")
+        assert not wrong, ("an Estonian label read in a Russian voice:\n  "
+                           + "\n  ".join(sorted(set(wrong))))
+
+    def test_nothing_russian_is_marked_estonian(self, trees):
+        """The other direction: marking a container `et` must not take the Russian
+        inside it along."""
+        wrong = [f"{where}: <{parent.tag}> {_show(text)!r}"
+                 for where, tree, default in trees
+                 for text, parent in _texts(tree.root)
+                 if CYRILLIC.search(text) and not LATIN.search(text)
+                 and _lang(parent, default) == "et"]
+        assert not wrong, ('Russian text read in an Estonian voice -- give it '
+                           'lang="ru":\n  ' + "\n  ".join(wrong))
+
+    def test_the_checks_see_the_page_and_the_modules(self, trees):
+        """Each check above would pass on nothing at all."""
+        glosses = sum("ru" in el.classes()
+                      for _, tree, _ in trees for el in _elements(tree.root))
+        labels = sum(
+            1 for _, tree, default in trees for text, parent in _texts(tree.root)
+            if LATIN.search(text) and not CYRILLIC.search(text) and not _neutral(text)
+            and _nearest(parent, _is_label) and _lang(parent, default) == "et")
+        files = {where.split()[0] for where, _, _ in trees}
+        assert glosses >= 70, glosses
+        assert labels >= 80, labels
+        assert len(files) >= 10, files
+

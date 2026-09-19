@@ -137,6 +137,37 @@ class TestCurriculumCounts:
             f"the code has  {sorted(actual)}")
 
 
+class TestTheMaterialPolicy:
+    """The reading floor, the reach levels and the read-aloud length the docs state."""
+
+    def test_the_reading_floor(self):
+        from eesti.difficulty import FLOOR
+
+        found = _claims(r"at least \*?\*?(\d+) %")
+        assert found, "no document states the reading floor"
+        for doc, line, value, text in found:
+            assert int(value) == round(FLOOR * 100), (
+                f"{doc.relative_to(ROOT)}:{line} says {value} %; FLOOR is {FLOOR}")
+
+    def test_the_reach_levels(self):
+        from eesti.difficulty import REACH_LEVELS
+
+        found = _claims(r"(A\d–A\d) on the word list")
+        assert found, "no document states the reach levels"
+        for doc, line, value, text in found:
+            assert value == f"{REACH_LEVELS[0]}–{REACH_LEVELS[-1]}", (
+                f"{doc.relative_to(ROOT)}:{line} says {value}")
+
+    def test_the_read_aloud_length(self):
+        from eesti.pronunciation import SAY_MAX_WORDS, SAY_MIN_WORDS
+
+        found = _claims(r"(\d+–\d+) words\W* (?:all within reach|in which)")
+        assert found, "no document states the read-aloud length"
+        for doc, line, value, text in found:
+            assert value == f"{SAY_MIN_WORDS}–{SAY_MAX_WORDS}", (
+                f"{doc.relative_to(ROOT)}:{line} says {value} words")
+
+
 class TestApiSurface:
     @staticmethod
     def _declared() -> int:
@@ -190,7 +221,7 @@ class TestTheModeStructure:
     @staticmethod
     def _page_tabs() -> set[str]:
         html = markup_and_script()
-        return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl">([^<]+)',
+        return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)',
                               html, re.S))
 
     def test_the_diagram_lists_every_tab_the_page_has(self):

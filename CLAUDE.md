@@ -81,7 +81,7 @@ python -m eesti.cli export                                    # form index the w
 python -m eesti.cli serve                                     # http://127.0.0.1:8000
 python -m eesti.cli keys                                      # which API keys are set
 python -m eesti.cli eval --provider workers-ai                # score a grammar model
-python -m pytest tests/ -q                                    # in-process + browser suites
+python -m pytest tests/ -q -n auto                            # in-process + browser suites, in parallel
 ```
 
 Browser journeys (`tests/test_e2e_journeys.py`) need Playwright Chromium and
@@ -110,3 +110,5 @@ to `eesti/web/`, run them and look at both viewports.
 | `docs/deploy.md` | Cloud Run, Worker, secrets, scripts, verification |
 | `docs/setup.md` | local setup and API keys |
 | `docs/testing.md` | test suites and how to run them |
+| `PRODUCT.md` | who the learner is, product purpose and principles (design context) |
+| `DESIGN.md` | the visual system: colour roles, type roles, layout, components |

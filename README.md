@@ -30,7 +30,7 @@ python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m eesti.cli fetch-data && .venv/bin/python -m eesti.cli build
 .venv/bin/python -m eesti.cli export
 .venv/bin/python -m eesti.cli serve          # http://127.0.0.1:8000
-.venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m pytest tests/ -q -n auto
 ```
 
 No API key is needed for drills, reading and review. Keys and where they go:

@@ -30,7 +30,7 @@ const load = once(async () => {
       // non-empty. Printing "no changes" under everything else would turn a
       // legal statement into decoration.
       const changed = s.changes
-        ? `<div class="changed">Muudatused: ${esc(s.changes)}</div>` : "";
+        ? `<div class="changed"><span lang="et">Muudatused:</span> ${esc(s.changes)}</div>` : "";
       return `<div class="src">${bits.join(" · ")}${changed}</div>`;
     }).join("");
   } catch {

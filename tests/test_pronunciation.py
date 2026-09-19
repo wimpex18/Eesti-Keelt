@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import pytest
 
-from eesti.pronunciation import (ReadAloud, compare, normalise,
+from eesti.pronunciation import (SAY_MAX_WORDS, SAY_MIN_WORDS, ReadAloud,
+                                 compare, normalise,
                                  sentences_to_say, words_to_say)
 
 
@@ -96,7 +97,7 @@ class TestMaterial:
         assert items
         for item in items:
             assert item.kind == "lause"
-            assert 4 <= len(item.text.split()) <= 12
+            assert SAY_MIN_WORDS <= len(item.text.split()) <= SAY_MAX_WORDS
 
     def test_generation_is_reproducible(self):
         from eesti.wordlist import connect

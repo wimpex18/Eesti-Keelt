@@ -78,9 +78,8 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         # exercise and what would produce one.
         "note": ("Прослушай и запиши услышанное."
                  if passages else
-                 "Корпус текстов пуст, поэтому диктантов (etteütlus) сейчас "
-                 "нет. Они появятся, когда материал будет загружен: "
-                 "`cli harvest-reading` или `cli ingest`."),
+                 "Диктанты (etteütlus) берутся из корпуса текстов, а его ещё "
+                 "не добавили в приложение."),
     }
 
 
@@ -169,7 +168,10 @@ def read_aloud(kind: str = "lause", n: int = 8, levels: str = "A1,A2,B1",
     if kind == "sona":
         items = words_to_say(db(), tuple(levels.split(",")), count=n, seed=seed)
     elif kind == "lause":
-        items = sentences_to_say(content_db(), count=n, seed=seed)
+        from ..difficulty import known_lemmas
+
+        items = sentences_to_say(content_db(), count=n, seed=seed, words=db(),
+                                 known=known_lemmas(vocab_db()))
     else:
         raise HTTPException(status_code=400, detail="kind must be sona or lause")
     return {"kind": kind, "items": [i.to_dict() for i in items]}

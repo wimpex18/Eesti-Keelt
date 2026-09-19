@@ -14,6 +14,7 @@ Tests target roles, labels and visible outcomes rather than CSS classes.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sqlite3
 import socket
@@ -272,6 +273,58 @@ class TestNavigation:
         assert not page.failed_requests, page.failed_requests
 
 
+#: The rendered counterpart of `test_ui_language.TestEachLabelIsReadInItsLanguage`,
+#: over what the modules actually wrote: a Russian gloss resolves to `ru`; Latin
+#: text inside a control, form label, option, link, heading or tag resolves to
+#: `et` unless it is a code (`A1–B1`, `EKK 7.2`); Cyrillic text never resolves
+#: to `et`. Text mixing both scripts (an option that cannot hold markup) is
+#: skipped.
+_WRONG_VOICE = r"""() => {
+  const LATIN = /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]/, CYR = /[Ѐ-ӿ]/;
+  const NEUTRAL = /^(?:[A-Z0-9][A-Z0-9.+×–-]*|\d[\d.,×%\/–-]*|[a-z0-9-]+(?:\.[a-z0-9-]+)+)$/;
+  const LABEL = "button,summary,label,option,legend,a,h1,h2,h3,h4,h5,h6,[role=tab],.tag";
+  const langOf = el => el.closest("[lang]")?.getAttribute("lang") || "";
+  const bad = [];
+  for (const g of document.querySelectorAll(".ru"))
+    if (langOf(g) !== "ru") bad.push(`gloss ${g.textContent.trim()}`);
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walk.nextNode());) {
+    const el = n.parentElement, t = n.data.trim();
+    if (!el || !t || el.closest("script,style")) continue;
+    const latin = LATIN.test(t), cyr = CYR.test(t);
+    if (cyr && !latin && langOf(el) === "et") bad.push(`Russian read as et: ${t.slice(0, 40)}`);
+    const words = t.split(/[\s·—→←↗✓✗■()«»:,;!?+]+/).filter(Boolean);
+    if (latin && !cyr && !words.every(w => NEUTRAL.test(w))
+        && el.closest(LABEL) && !el.closest(".ru") && langOf(el) !== "et")
+      bad.push(`Estonian read as ru: <${el.tagName.toLowerCase()}> ${t.slice(0, 40)}`);
+  }
+  return bad;
+}"""
+
+
+class TestEachLabelIsReadInItsLanguage:
+    """A screen reader picks its voice from `lang`; the page is `ru`."""
+
+    def test_every_tab_marks_its_estonian_and_its_russian(self, page):
+        wrong = set()
+        for mode in MODES:
+            for tab in advertised_tabs(page, mode):
+                open_tab(page, mode, tab)
+                wrong |= {f"{mode}/{tab}: {w}" for w in page.evaluate(_WRONG_VOICE)}
+        assert not wrong, (f"{page.viewport_name}: text in the wrong voice:\n  "
+                           + "\n  ".join(sorted(wrong)))
+
+    def test_a_label_changed_at_run_time_changes_its_voice(self, page):
+        """`setLabel` swaps `Kontrolli` for `Проверяю…` while the check runs."""
+        open_tab(page, "learn", "write")
+        page.fill("#text", "Ma lugesin raamatut.")
+        page.click("#checkBtn")
+        page.wait_for_function(
+            "() => !document.querySelector('#checkBtn').disabled", timeout=30000)
+        assert page.get_attribute("#checkBtn", "lang") == "et"
+        assert page.get_attribute("#checkBtn .ru", "lang") == "ru"
+
+
 class TestTheGrammarDrill:
     """The offline core: generated items graded without a model or the network."""
 
@@ -311,20 +364,55 @@ class TestTheGrammarDrill:
         page.wait_for_timeout(400)
         first = item.locator(".verdict").inner_text()
         assert item.locator("input").is_disabled(), "graded item still accepts input"
-        item.locator("button").click()
+        # The check button is spent with the item, so a second submission has no way in.
+        assert item.locator("button").is_disabled(), "graded item's check button is live"
+        item.locator("input").press("Enter")
         page.wait_for_timeout(400)
         assert item.locator(".verdict").inner_text() == first
 
     def test_an_empty_answer_does_not_consume_the_item(self, page):
         """The first item is focused on load, but a stray Enter does not submit it."""
         self._start(page)
-        item = page.locator("#freeOut .drill").nth(2)
+        item = page.locator("#freeOut .drill").first
         item.locator("input").press("Enter")
         page.wait_for_timeout(500)
         assert not item.locator("input").is_disabled(), "empty answer locked the item"
         assert item.locator(".verdict").inner_text().strip(), "no nudge shown"
         assert "✗" not in item.locator(".verdict").inner_text()
         assert page.locator("#freeScore").inner_text().strip() == "", "empty answer was scored"
+
+    def test_a_question_word_blank_carries_a_russian_cue(self, page):
+        """`küsisõnad` has no lemma to gloss; its blank carries EVS's Russian
+        for the wanted word, marked Russian, and never the Estonian answer."""
+        with sqlite3.connect(ROOT / "data" / "eesti.db") as conn:
+            try:
+                cued = conn.execute("SELECT COUNT(*) FROM evs_question").fetchone()[0]
+            except sqlite3.Error:
+                cued = 0
+        if not cued:
+            pytest.skip("no `evs_question` rows — run `cli import-evs`")
+        open_tab(page, mode_of(page, "path"), "path")
+        page.click('#pathModes button[data-pm="vaba"]')
+        page.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
+        page.select_option("#freeTopic", "kusisonad")
+        page.click("#freeBtn")
+        page.wait_for_selector("#freeOut .drill", timeout=15000)
+        # Visibility is asked of the gloss only where its drill is on screen:
+        # the set shows one item at a time, which may be a cue-less one.
+        glosses = page.eval_on_selector_all(
+            "#freeOut .drill .task .gloss",
+            """els=>els.map(e=>[e.lang, e.textContent,
+                 !e.closest('.drill').checkVisibility() || e.checkVisibility()])""")
+        assert glosses, "no question-word item showed a cue"
+        from eesti.patterns import QUESTIONS
+
+        answers = {w for q in QUESTIONS for w in q.word.casefold().split()}
+        for lang, text, visible in glosses:
+            assert lang == "ru"
+            assert re.fullmatch(r"[а-яё ,]+", text), text
+            assert not answers & set(re.findall(r"\w+", text.casefold()))
+            assert visible, "a shown item's cue is hidden"
+        assert not page.errors, page.errors
 
     def test_the_score_counts_only_answered_items(self, page):
         self._start(page)
@@ -548,6 +636,13 @@ class TestTheMiddleWidth:
         yield pg
         context.close()
 
+    def test_the_rail_shows_its_labels(self, tablet):
+        """A learner still learning the Estonian names cannot navigate by icon alone."""
+        fits = tablet.eval_on_selector_all(
+            "nav[data-mode-nav]:not([hidden]) .lbl",
+            "els=>els.map(e=>e.checkVisibility() && e.scrollWidth <= e.clientWidth + 1)")
+        assert fits and all(fits), fits
+
     def test_the_skills_are_a_column(self, tablet):
         assert tablet.eval_on_selector(
             "nav[data-mode-nav]:not([hidden])",
@@ -637,6 +732,31 @@ class TestMobileLayout:
                  return r.height>0 && (r.height<32||r.width<32);})
                .map(e=>e.dataset.tab+':'+Math.round(e.getBoundingClientRect().height))""")
         assert not small, f"navigation targets under 32px: {small}"
+
+    def test_touch_targets_meet_the_44px_floor(self, page):
+        """Skill chips and the round header buttons, on a touch screen."""
+        if page.viewport_name != "phone":
+            pytest.skip("the 44px floor applies to touch viewports")
+        small = page.eval_on_selector_all(
+            "nav[data-mode-nav]:not([hidden]) button, .hdr-actions .iconbtn",
+            """els=>els.filter(e=>{const r=e.getBoundingClientRect();
+                 return r.height>0 && r.height<44;})
+               .map(e=>(e.dataset.tab||e.id)+':'+Math.round(e.getBoundingClientRect().height))""")
+        assert not small, f"touch targets under 44px: {small}"
+
+    def test_a_phone_drill_shows_one_item_at_a_time(self, page):
+        """Answered items and the next one are shown; the rest wait."""
+        if page.viewport_name != "phone":
+            pytest.skip("one item at a time is the phone layout")
+        TestTheGrammarDrill()._start(page)
+        visible = lambda: page.eval_on_selector_all(
+            "#freeOut .drill", "els=>els.filter(e=>e.checkVisibility()).length")
+        assert visible() == 1
+        first = page.locator("#freeOut .drill").first
+        first.locator("input").fill("vale")
+        first.locator("input").press("Enter")
+        page.wait_for_timeout(500)
+        assert visible() == 2
 
 
 class TestDiscoveredDefects:
@@ -820,3 +940,32 @@ class TestTheMeaningCardIsAFlashcard:
         verdict = card.locator(".verdict").inner_text()
         assert meaning in verdict and "снова" in verdict, verdict
         assert not page.errors, page.errors
+
+
+class TestPhoneInLandscape:
+    """iPhone 17 on its side: 874×402, touch. Wider than the phone breakpoint, so
+    the layout has to recognise it by height and input, not width."""
+
+    @pytest.fixture
+    def landscape(self, _pw, live_server):
+        context = _pw.new_context(viewport={"width": 874, "height": 402},
+                                  has_touch=True)
+        pg = context.new_page()
+        pg.goto(live_server + "/#path", wait_until="networkidle")
+        pg.wait_for_selector("#practiceOut .drill", timeout=20000)
+        yield pg
+        context.close()
+
+    def test_one_drill_at_a_time(self, landscape):
+        visible = landscape.eval_on_selector_all(
+            "#practiceOut .drill", "els=>els.filter(e=>e.checkVisibility()).length")
+        assert visible == 1
+
+    def test_the_drill_starts_in_the_upper_part_of_the_screen(self, landscape):
+        top = landscape.eval_on_selector(
+            "#practiceOut .drill", "e=>e.getBoundingClientRect().top")
+        assert top < 402 * 0.8, f"first drill starts at {top}px of 402"
+
+    def test_nothing_scrolls_sideways(self, landscape):
+        assert landscape.evaluate(
+            "document.scrollingElement.scrollWidth <= innerWidth + 1")

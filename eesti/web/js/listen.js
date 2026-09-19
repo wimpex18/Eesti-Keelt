@@ -27,7 +27,9 @@ export async function loadDictation() {
     if (dictNow) {
       state.textContent = d.note || "";
     } else {
-      empty.textContent = d.note || "";
+      empty.innerHTML = emptyState({
+        icon: "note", title: "Диктантов пока нет", note: esc(d.note || ""),
+      });
     }
   } catch (e) {
     state.textContent = "Не удалось получить предложение: " + e.message;
@@ -75,13 +77,13 @@ $("#dictCheck").onclick = async () => {
     })).json();
     // Word by word, so a miss is visible as a miss rather than as a number.
     $("#dictOut").innerHTML =
-      `<div class="corr"><div class="fix">` +
+      `<div class="corr"><div class="fix" lang="et">` +
       r.words.map(w => w.ok
         ? `<span class="w-ok">${esc(w.target)}</span>`
         : `<span class="w-no">${esc(w.target)}</span>`).join(" ") +
       `</div>
-      <div class="why">Правильно: ${esc(r.text)}</div>${r.extra.length
-        ? `<div class="why">Лишнее: ${esc(r.extra.join(" "))}</div>` : ""}
+      <div class="why">Правильно: <span lang="et">${esc(r.text)}</span></div>${r.extra.length
+        ? `<div class="why">Лишнее: <span lang="et">${esc(r.extra.join(" "))}</span></div>` : ""}
       </div>`;
     $("#dictScore").textContent =
       `${r.matched}/${r.total} слов${r.correct ? " · пройдено" : ""}`;
@@ -106,8 +108,7 @@ export async function loadListenLibrary() {
       box.innerHTML = emptyState({
         icon: "note",
         title: "Архив передач пуст",
-        note: `Передачи появятся здесь, когда архив загрузят на сервер
-          <span class="hint">(<code>cli harvest</code>, <code>cli harvest-reading</code>)</span>.`,
+        note: "Передачи появятся здесь, когда архив добавят в приложение.",
       });
       return;
     }
@@ -115,7 +116,7 @@ export async function loadListenLibrary() {
     /* A mark before the section name, and a drawn note for the audio count: text
        glyphs are font-dependent (see `chrome.js`). */
     box.innerHTML = wanted.map(sec => `
-      <h3 class="sec-head"><span class="mark-chip">${uiIcon("note", "")}</span>${esc(sec.et)}
+      <h3 class="sec-head" lang="et"><span class="mark-chip">${uiIcon("note", "")}</span>${esc(sec.et)}
         <span class="hint">${sec.items}${sec.with_audio
           ? " · " + uiIcon("note", "inline-ico") + " " + sec.with_audio : ""}</span></h3>
       <p class="hint sec-note">${esc(sec.note || "")}</p>
@@ -130,11 +131,11 @@ export async function loadListenLibrary() {
       el.innerHTML = (items || []).map(it => it.external
         ? `<a class="lib-item" href="${esc(it.url || "#")}" target="_blank"
               rel="noopener">
-             <h4>${esc(it.title)}</h4>
+             <h4 lang="et">${esc(it.title)}</h4>
              <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}EIS ↗</span>
            </a>`
         : `<div class="lib-item" data-id="${esc(it.id)}">
-             <h4 aria-expanded="false">${esc(it.title)}</h4>
+             <h4 aria-expanded="false" lang="et">${esc(it.title)}</h4>
              <span class="lib-meta">${it.words ? it.words + " слов" : "аудио"}${
                it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${
                it.level ? " · " + esc(it.level) : ""}</span>
@@ -168,6 +169,7 @@ async function openListenItem(row) {
     if (d.body && d.body.trim()) {
       const p = document.createElement("div");
       p.className = "listen-text";
+      p.lang = "et";
       p.textContent = d.body;
       out.appendChild(p);
     }
