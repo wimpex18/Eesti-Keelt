@@ -702,8 +702,18 @@ class TestMobileLayout:
         for mode in MODES:
             for tab in advertised_tabs(page, mode):
                 open_tab(page, mode, tab)
-                page.evaluate("()=>window.scrollTo(0,document.body.scrollHeight)")
-                page.wait_for_timeout(300)
+                # Scroll until the page stops growing: content that lands after
+                # the scroll (Kuulamine's library sections, loaded one by one)
+                # moves the last control, and the check is about the settled page.
+                page.evaluate("""async () => {
+                  let last = -1;
+                  for (let i = 0; i < 40; i++) {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    await new Promise(r => setTimeout(r, 250));
+                    if (document.body.scrollHeight === last) return;
+                    last = document.body.scrollHeight;
+                  }
+                }""")
                 # `checkVisibility()` rather than a non-zero box: descendants of a collapsed
                 # <details> have a rect while unrendered.
                 verdict = page.evaluate("""()=>{
