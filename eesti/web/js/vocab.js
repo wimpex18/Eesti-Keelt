@@ -1,7 +1,7 @@
 /* Sõnavara: the ladder, and the word card that both this and the reader open. */
 
 import {$, api, esc} from "./core.js";
-import {skeleton, uiIcon} from "./chrome.js";
+import {retryableError, skeleton, uiIcon} from "./chrome.js";
 import {refreshDueBadge} from "./review.js";
 
 /* A form's name as the exam says it, with its Russian gloss beside it. */
@@ -12,7 +12,13 @@ const tagLabel = t => t.ru
 export async function showWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
-  const d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
+  let d;
+  try {
+    d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
+  } catch (e) {
+    card.replaceChildren(retryableError(e.message, () => showWordCard(word, card, contextFor)));
+    return;
+  }
   /* `found:false` covers two answers: the word is absent from the lexicon, or the
      lookup could not run (`error`, e.g. the forms table was never exported). The
      second must not read as "not found". */
@@ -49,14 +55,20 @@ export async function showWordCard(word, card, contextFor) {
   card.querySelector("#mineBtn").onclick = async e => {
     e.target.disabled = true;
     const sentence = contextFor ? contextFor(word) : null;
-    const r = await (await api("/api/mine", {word, context: sentence || null})).json();
     const note = card.querySelector("#mineNote");
-    note.className = "mine-note" + (r.queued ? "" : " no");
-    note.textContent = r.reason;
-    if (r.queued) refreshDueBadge();
-    // A refusal is often temporary ("meaning not known yet") and the meaning arrives
-    // moments later from enrichment, so the button is re-enabled.
-    else e.target.disabled = false;
+    try {
+      const r = await (await api("/api/mine", {word, context: sentence || null})).json();
+      note.className = "mine-note" + (r.queued ? "" : " no");
+      note.textContent = r.reason;
+      if (r.queued) refreshDueBadge();
+      // A refusal is often temporary ("meaning not known yet") and the meaning arrives
+      // moments later from enrichment, so the button is re-enabled.
+      else e.target.disabled = false;
+    } catch (err) {
+      note.className = "mine-note no";
+      note.textContent = err.message;
+      e.target.disabled = false;
+    }
   };
 
   /* Rection and inflection type, from Sõnaveeb.
@@ -66,7 +78,7 @@ export async function showWordCard(word, card, contextFor) {
   // The lemma, not the surface form: Sõnaveeb is a dictionary and does not know
   // inflected forms.
   const enrichLemma = d.analyses[0]?.lemma || word;
-  fetch("/api/enrich/" + encodeURIComponent(enrichLemma))
+  api("/api/enrich/" + encodeURIComponent(enrichLemma), null, "GET")
     .then(r => r.json())
     .then(x => {
       if (!x.found) return;

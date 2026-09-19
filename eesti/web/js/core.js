@@ -53,6 +53,45 @@ export function wrongVerdict(given, answer, why) {
 }
 
 
+async function responseError(response) {
+  const body = await response.json().catch(() => ({}));
+  /* Server-side detail is already product copy and can describe a precise recovery.
+     FastAPI's validation payload is an object, though, and the browser's status text is
+     English; neither is a useful explanation for this learner. */
+  if (typeof body.detail === "string" && body.detail.trim())
+    return new Error(body.detail);
+  const byStatus = {
+    400: "Сервер не принял запрос. Проверь введённые данные и попробуй ещё раз.",
+    401: "Доступ к приложению нужно открыть заново через Cloudflare Access.",
+    403: "У этого действия нет доступа. Открой приложение через Cloudflare Access.",
+    404: "Эта часть приложения не найдена. Обнови страницу и попробуй ещё раз.",
+    408: "Сервер не ответил вовремя. Попробуй ещё раз.",
+    422: "Сервер не смог проверить эти данные. Исправь их и попробуй ещё раз.",
+    429: "Слишком много запросов. Подожди немного и попробуй ещё раз.",
+  };
+  return new Error(byStatus[response.status]
+    || (response.status >= 500
+      ? "Сервер временно не ответил. Попробуй ещё раз."
+      : "Не удалось выполнить действие. Попробуй ещё раз."));
+}
+
+
+/* The one raw request escape hatch: speech uploads have a binary body rather than
+   JSON, but deserve the same offline and HTTP-error behaviour as every other call. */
+export async function rawApi(path, init = {}) {
+  let response;
+  try {
+    response = await fetch(path, init);
+  } catch (err) {
+    throw new Error(
+      "Нет соединения с сервером. Упражнения создаются на сервере, "
+      + "поэтому без интернета их не открыть.");
+  }
+  if (!response.ok) throw await responseError(response);
+  return response;
+}
+
+
 export async function api(path, body, method) {
   const verb = method || (body === undefined || body === null ? "GET" : "POST");
   const init = { method: verb };
@@ -60,20 +99,7 @@ export async function api(path, body, method) {
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(body ?? {});
   }
-  let r;
-  try {
-    r = await fetch(path, init);
-  } catch (err) {
-    /* A failed fetch throws the browser's own English message ("Failed to fetch").
-       Every caller renders `err.message`, so it is replaced with a Russian one —
-       with the service worker serving the shell offline, this is what the learner
-       sees. */
-    throw new Error(
-      "Нет соединения с сервером. Упражнения создаются на сервере, "
-      + "поэтому без интернета их не открыть.");
-  }
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
-  return r;
+  return rawApi(path, init);
 }
 
 export function taskLine(it, ru, opts) {

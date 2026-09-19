@@ -3,15 +3,22 @@
    `RU` is the one place a tab's gloss lives. It covers every state
    `progress.TopicProgress.state` can emit. */
 
-import {$, gloss} from "./core.js";
+import {$, esc, gloss} from "./core.js";
 
 
 // ── health ──────────────────────────────────────────────────────────
 /* The health payload also counts words and drillable nouns; those describe the
    dataset, not the learner, and are not shown. */
-fetch("/api/health").then(r => r.json()).then(h => {
-  $("#voice").innerHTML = h.voices.map(v => `<option${v === "mari" ? " selected" : ""}>${v}</option>`).join("");
-});
+fetch("/api/health").then(r => r.ok ? r.json() : Promise.reject())
+  .then(h => {
+    const voice = $("#voice");
+    if (voice && Array.isArray(h.voices))
+      voice.innerHTML = h.voices.map(v =>
+        `<option${v === "mari" ? " selected" : ""}>${esc(v)}</option>`).join("");
+  })
+  /* TTS remains a usable text box when its capability probe is unavailable; a failed
+     health request must not become an unhandled rejection during page startup. */
+  .catch(() => {});
 
 export const RU = {
   // modes and tabs — the exam's own words, so glossed rather than replaced
@@ -168,6 +175,25 @@ export function emptyState({icon, title, note, action}) {
     ${note ? `<p>${note}</p>` : ""}
     ${action ? `<div class="row">${action}</div>` : ""}
   </div>`;
+}
+
+
+/* Failed requests remain a local interruption: the rest of the screen stays useful,
+   the problem is announced, and retry repeats exactly the action that failed. */
+export function retryableError(message, retry) {
+  const box = document.createElement("div");
+  box.className = "banner recoverable-error";
+  box.setAttribute("role", "alert");
+  box.innerHTML = `<strong>Не удалось загрузить данные.</strong> <span>${esc(message)}</span>`;
+  if (retry) {
+    const button = document.createElement("button");
+    button.className = "ghost";
+    button.type = "button";
+    button.innerHTML = `<span lang="et">${uiIcon("next")}Proovi uuesti <span class="ru" lang="ru">попробовать ещё раз</span></span>`;
+    button.addEventListener("click", retry);
+    box.append(button);
+  }
+  return box;
 }
 
 

@@ -4,7 +4,7 @@
    and the caveat beside it is Russian on purpose: a miss may be the recogniser
    rather than the learner's mouth, and a caveat nobody can read is not one. */
 
-import {$, api, esc, ruCount, setLabel} from "./core.js";
+import {$, api, esc, rawApi, ruCount, setLabel} from "./core.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ let recorder = null, chunks = [], recording = false, asrReady = false;
 
 // Ask once what this deployment can do, and say so rather than offering a
 // feature that silently does nothing.
-fetch("/api/asr").then(r => r.json()).then(a => { asrReady = a.ready; })
+api("/api/asr", null, "GET").then(r => r.json()).then(a => { asrReady = a.ready; })
   .catch(() => {});
 
 
@@ -161,7 +161,7 @@ if (!canRecord) {
           const params = new URLSearchParams();
           if (target) params.set("target", target);
           else params.set("q", currentQuestion());
-          const r = await fetch("/api/transcribe?" + params, {
+          const r = await rawApi("/api/transcribe?" + params, {
             method: "POST", headers: {"Content-Type": blob.type}, body: blob,
           });
           const t = await r.json();
