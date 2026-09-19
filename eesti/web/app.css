@@ -137,11 +137,11 @@
   .w-no{color:var(--warn);font-weight:600;text-decoration:underline;
     text-decoration-style:wavy;text-underline-offset:3px}
   #dictTyped{min-height:56px}
-  .sec-head{margin:20px 0 2px;font-size:var(--fs-body);display:flex;gap:8px;
+  .sec-head{margin:var(--s5) 0 var(--s1);font-size:var(--fs-body);display:flex;gap:8px;
     align-items:baseline}
   .sec-note{margin:0 0 8px}
   .sec-list{display:flex;flex-direction:column;gap:7px}
-  .lib-open{margin-top:var(--s2);flex:0 0 100%;min-width:0}
+  .lib-open{margin-top:var(--s2);align-self:stretch;min-width:0}
   .lib-open audio{width:100%}
   /* Long unbroken tokens wrap, so the reading column never scrolls sideways. */
   .listen-text{margin-top:var(--s2);font-size:var(--fs-ui);line-height:1.6;
@@ -149,7 +149,7 @@
     overflow-y:auto;border-top:1px solid var(--line);padding-top:9px}
   /* Two whole sentences, stacked. Side by side they would wrap into an
      unreadable pair on a phone, and reading both is the exercise. */
-  .choices{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .choices{display:flex;flex-direction:column;gap:var(--s2);margin:var(--s3) 0}
   .choice{text-align:left;background:var(--bg);border:1px solid var(--line);
     border-radius:10px;padding:10px 13px;font:inherit;font-size:var(--fs-body);
     color:var(--ink);cursor:pointer;line-height:1.45}
@@ -344,7 +344,7 @@
      agrees with the sentence inside. */
   .banner{background:var(--warn-soft);border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);
     color:var(--warn);padding:12px 14px;border-radius:12px;font-size:var(--fs-note);
-    line-height:1.6;margin-top:14px}
+    line-height:1.6;margin-top:var(--s3)}
   /* Neutral: a reference, or a note about how the app is running. */
   .banner.info{background:var(--tint);border-color:var(--line);color:var(--ink-2)}
   .banner.info strong{color:var(--ink)}
@@ -355,9 +355,9 @@
     color:var(--accent-deep)}
   .banner.ok strong{color:var(--accent-deep)}
   .corr{border:1px solid var(--line);border-left:3px solid var(--accent);
-    border-radius:12px;padding:14px 16px;margin-top:12px;background:var(--bg)}
+    border-radius:12px;padding:14px 16px;margin-top:var(--s3);background:var(--bg)}
   .corr.objcase{border-left-color:var(--warn)}
-  .logbtn{margin-top:8px;background:none;border:1px solid var(--line);
+  .logbtn{margin-top:var(--s2);background:none;border:1px solid var(--line);
     border-radius:7px;padding:5px 10px;font:inherit;font-size:var(--fs-note);
     color:var(--muted);cursor:pointer}
   .logbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
@@ -366,7 +366,7 @@
     text-transform:uppercase;padding:2px 7px;border-radius:5px;
     background:var(--accent-soft);color:var(--accent)}
   .corr.objcase .tag{background:var(--warn-soft);color:var(--warn)}
-  .fix{margin:8px 0 6px;font-size:var(--fs-body)}
+  .fix{margin:var(--s2) 0;font-size:var(--fs-body)}
   .fix del{color:var(--bad);text-decoration:line-through}
   .fix ins{color:var(--good);text-decoration:none;font-weight:600}
   .why{color:var(--muted);font-size:var(--fs-ui)}
@@ -374,7 +374,7 @@
   .drill{border:1px solid var(--line);border-radius:14px;padding:var(--s5) var(--s4);
     margin-top:var(--s3);background:var(--bg)}
   .prompt{font-family:var(--f-read);font-size:var(--fs-prompt);line-height:1.6;
-    margin-bottom:12px}
+    margin-bottom:var(--s3)}
   .prompt .blank{color:var(--accent);font-weight:700}
   /* An instruction under a prompt is Russian interface, not Estonian material. */
   .prompt .instr{font-family:var(--f-ui)}
@@ -398,17 +398,17 @@
   /* The learner-level definition (EKI põhisõnavara) and its examples. New class names
      with no competing rules, so no specificity contest. */
   .meaning .def{color:var(--ink);font-size:var(--fs-ui);line-height:1.55}
-  .meaning .examples{margin:6px 0 0;padding-left:18px;color:var(--gloss);
+  .meaning .examples{margin:var(--s2) 0 0;padding-left:18px;color:var(--gloss);
     font-size:var(--fs-note);line-height:1.6}
   .meaning .examples li{margin-bottom:2px}
   /* Attribution. Quiet enough not to compete with the definition it credits,
      legible enough to be an attribution rather than a gesture at one. */
-  .meaning .attrib{margin-top:6px;color:var(--muted);font-size:var(--fs-gloss)}
+  .meaning .attrib{margin-top:var(--s2);color:var(--muted);font-size:var(--fs-gloss)}
   /* The native-level wording, folded under the learner one. A new class under
      `.meaning`, so no rule elsewhere competes for it. */
-  .meaning .fuller{margin-top:8px}
+  .meaning .fuller{margin-top:var(--s2)}
   .meaning .fuller summary{cursor:pointer;color:var(--muted);font-size:var(--fs-meta)}
-  .meaning .fuller .def{margin-top:4px;color:var(--gloss)}
+  .meaning .fuller .def{margin-top:var(--s1);color:var(--gloss)}
   /* Attribution, in full. A footer rather than a panel: it is an obligation
      the page carries, not a place the learner goes. */
   /* Bottom padding clears the phone's fixed mode bar, so the footer is not covered. */
@@ -420,7 +420,7 @@
   footer.sources .lic{color:var(--ink-2)}
   footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5}
   /* A meaning that arrived with the grade rather than with the item. */
-  .gloss-late{color:var(--gloss);font-size:var(--fs-note);display:block;margin-top:5px}
+  .gloss-late{color:var(--gloss);font-size:var(--fs-note);display:block;margin-top:var(--s1)}
   .gloss-late b{font-weight:600;color:var(--ink)}
   .verdict{margin-top:var(--s3);font-size:var(--fs-ui)}
   .verdict.ok{color:var(--good)} .verdict.no{color:var(--bad)}
@@ -432,9 +432,12 @@
   .empty{color:var(--muted);font-size:var(--fs-ui);margin-top:var(--s4)}
   /* An expanded panel wraps onto its own full-width line instead of squeezing beside
      the title. */
+  /* A list row is a title and one meta line under it, whatever the title's length:
+     side by side, short titles kept the meta inline and long ones pushed it below,
+     so the column's rhythm broke from row to row. */
   .lib-item{border:1px solid var(--line);border-radius:12px;padding:12px 14px;
-    margin-top:var(--s2);background:var(--bg);cursor:pointer;display:flex;gap:var(--s3);
-    align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+    margin-top:var(--s2);background:var(--bg);cursor:pointer;display:flex;
+    flex-direction:column;align-items:flex-start;gap:var(--s1)}
   .lib-item:hover{border-color:var(--accent)}
   /* Indexed, never copied: HARNO's own tasks open on their site. Dashed, so
      the list says which rows leave the app before one is clicked. */
@@ -463,7 +466,7 @@
   /* A settled word stays in the list -- it is still vocabulary -- but stops
      competing for attention with the words still to learn. */
   .vocword.settled{opacity:.62}
-  #vocCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
+  #vocCard{position:sticky;bottom:var(--s3);margin-top:var(--s4);background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
   .ru{display:block;font-size:var(--fs-gloss);font-weight:400;color:var(--muted);
@@ -475,7 +478,7 @@
   h3 .ru{display:inline;font-size:var(--fs-gloss);margin-left:6px;text-transform:none}
   nav button .ru{font-size:var(--fs-gloss);line-height:1.15}
   .st .ru, .lv .ru{display:none}
-  #wordCard{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);
+  #wordCard{position:sticky;bottom:var(--s3);margin-top:var(--s4);background:var(--panel);
     border:1px solid var(--accent);border-radius:10px;padding:12px 14px;
     box-shadow:0 4px 18px rgba(0,0,0,.13)}
   /* Sticky cards clear the fixed bottom navigation on a phone. Placed after the card
@@ -491,7 +494,7 @@
   /* 16:9 via `aspect-ratio`. */
   .video{margin-top:var(--s3);aspect-ratio:16/9;width:100%}
   .exam-head{display:flex;justify-content:space-between;align-items:center;
-    gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
   .levels{display:flex;gap:4px}
   .levels button{background:none;border:1px solid var(--line);border-radius:8px;
     padding:6px 14px;font:inherit;font-size:var(--fs-ui);color:var(--muted);cursor:pointer}
@@ -854,9 +857,9 @@
     color:var(--accent)}
   .empty-mark svg{width:22px;height:22px}
   .empty-state h4{margin:0;font-size:var(--fs-body);font-weight:650}
-  .empty-state p{margin:6px auto 0;max-width:44ch;font-size:var(--fs-note);
+  .empty-state p{margin:var(--s2) auto 0;max-width:44ch;font-size:var(--fs-note);
     line-height:1.6;color:var(--muted)}
-  .empty-state .row{justify-content:center;margin-top:14px}
+  .empty-state .row{justify-content:center;margin-top:var(--s4)}
   /* The end of a set: a quiet card in the accent's softest fill, the score in plain
      numbers and the next set under the thumb. */
   .set-end{margin-top:var(--s4);padding:var(--s5) var(--s4);text-align:center;
