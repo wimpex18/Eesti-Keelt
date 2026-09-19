@@ -73,13 +73,24 @@ Two sources weight what to practise:
 | object case, locative cases, principal forms | Vabamorf synthesis, round-trip validated; nouns whose genitive = partitive are excluded |
 | verb forms, conjugation | Vabamorf; drilled where the naive form differs from the real one |
 | cloze | real harvested sentences, only where the case is named or forced (negation) |
-| comparison, numerals, question words | closed-class tables |
+| comparison, numerals, question words | closed-class tables; a question word's Russian cue is EKI EVS's (below) |
 | word order | attested learner corrections (EstGEC-L2), not generated swaps |
 | rection | EKK SÜ 64's list of attested confusions |
 | punctuation | comma before a subordinate clause |
 
 An item ships only when its answer is unambiguous; a distractor that is
 sometimes correct Estonian is never generated.
+
+**Question-word cues.** A `kusisonad` item shows, beside `küsisõna`, the
+Russian for the word its blank wants (`____ sa elad?` → где), so the learner
+knows what to ask without seeing the Estonian. The Russian is EVS's
+(`eesti/evs.py`, `question_senses`), chosen by rule: the one EVS article with
+an adverb or pronoun headword equal to the answer; in it, the first sense EVS
+illustrates with a direct question opening with the word; that sense's first
+group, neutral translations only. No such article, two of them, or a cue the
+distractor shares — no cue. 8 of 12 answer words have one; `kelle`,
+`kellele`, `kellega` (forms of `kes`, not headwords) and `kui palju` (two
+words) have none. Grading does not read the cue.
 
 ## Not doing
 

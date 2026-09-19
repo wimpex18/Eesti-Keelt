@@ -17,6 +17,7 @@ the same change that makes it untrue.
 | **Meaning** | **294 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). Definitions: EKI PSV → live → VSL → EKSS. |
 | **Live dictionary** | EKI's Ekilex API when `EKILEX_API_KEY` is set, otherwise the Sõnaveeb mirror; answers stored once per word. |
 | **Rules** | 25 of 26 drillable topics link to the handbook. `kusisonad` has none, deliberately: no EKK section covers question words. |
+| **Question-word cues** | A `kusisonad` item shows the Russian for the question word its blank wants, from EKI EVS (`docs/curriculum.md`): 8 of 12 answer words. |
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation from the corpus (graded), TartuNLP TTS on any text, ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud of short sentences made of words within reach, with comparison, and open-answer feedback over the transcript (`docs/speaking.md`). |
@@ -73,5 +74,10 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   by manual dispatch of `eval.yml`.
 - **Browser journeys are not in CI.** They protect a release only when run
   locally (`docs/testing.md`).
+- **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,
+  `kellega` are forms of `kes` and `kui palju` is two words, so EVS has no
+  headword for them. EKI's Russian–Estonian dictionary (VES, same licence
+  page) might attest them from the Russian side (`с кем` → `kellega`); it is
+  not downloaded or checked.
 - **Nothing measures ASR quality** — there is no Estonian speech benchmark wired
   up.

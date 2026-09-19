@@ -14,6 +14,7 @@ Tests target roles, labels and visible outcomes rather than CSS classes.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sqlite3
 import socket
@@ -327,6 +328,39 @@ class TestTheGrammarDrill:
         assert item.locator(".verdict").inner_text().strip(), "no nudge shown"
         assert "✗" not in item.locator(".verdict").inner_text()
         assert page.locator("#freeScore").inner_text().strip() == "", "empty answer was scored"
+
+    def test_a_question_word_blank_carries_a_russian_cue(self, page):
+        """`küsisõnad` has no lemma to gloss; its blank carries EVS's Russian
+        for the wanted word, marked Russian, and never the Estonian answer."""
+        with sqlite3.connect(ROOT / "data" / "eesti.db") as conn:
+            try:
+                cued = conn.execute("SELECT COUNT(*) FROM evs_question").fetchone()[0]
+            except sqlite3.Error:
+                cued = 0
+        if not cued:
+            pytest.skip("no `evs_question` rows — run `cli import-evs`")
+        open_tab(page, mode_of(page, "path"), "path")
+        page.click('#pathModes button[data-pm="vaba"]')
+        page.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
+        page.select_option("#freeTopic", "kusisonad")
+        page.click("#freeBtn")
+        page.wait_for_selector("#freeOut .drill", timeout=15000)
+        # Visibility is asked of the gloss only where its drill is on screen:
+        # the set shows one item at a time, which may be a cue-less one.
+        glosses = page.eval_on_selector_all(
+            "#freeOut .drill .task .gloss",
+            """els=>els.map(e=>[e.lang, e.textContent,
+                 !e.closest('.drill').checkVisibility() || e.checkVisibility()])""")
+        assert glosses, "no question-word item showed a cue"
+        from eesti.patterns import QUESTIONS
+
+        answers = {w for q in QUESTIONS for w in q.word.casefold().split()}
+        for lang, text, visible in glosses:
+            assert lang == "ru"
+            assert re.fullmatch(r"[а-яё ,]+", text), text
+            assert not answers & set(re.findall(r"\w+", text.casefold()))
+            assert visible, "a shown item's cue is hidden"
+        assert not page.errors, page.errors
 
     def test_the_score_counts_only_answered_items(self, page):
         self._start(page)

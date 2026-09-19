@@ -77,7 +77,7 @@ export function taskLine(it, ru, opts) {
   const quiet = !!(opts && opts.quiet);
   if (form && !quiet) bits.push(`<span class="form">${esc(form)}</span>`);
   if (ru && ru.length)
-    bits.push(`<span class="gloss">${esc(ru.slice(0, 2).join(", "))}</span>`);
+    bits.push(`<span class="gloss" lang="ru">${esc(ru.slice(0, 2).join(", "))}</span>`);
   // Chips last, and in the quiet shape the meaning comes before the topic:
   // what the word is matters more than which lesson filed it.
   if (form && quiet) bits.push(`<span class="lvl">${esc(form)}</span>`);

@@ -112,7 +112,7 @@ def items_for(
         from .patterns import comparison_drills, numeral_drills, question_drills
 
         if topic == "kusisonad":
-            return question_drills(count=count, seed=seed)
+            return question_drills(count=count, seed=seed, words=words)
         if topic == "vordlusastmed":
             return comparison_drills(words, levels, count, seed)
         return numeral_drills(words, levels, count, seed, topics=(topic,),

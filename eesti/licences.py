@@ -170,13 +170,18 @@ REGISTRY: tuple[Source, ...] = (
         "on the word card, the Sõnavara list, drills and review cards, offline — "
         "after the hand-written seed and the live dictionary (`meaning.py`). Imported by `cli import-evs` into the words database as "
         "`evs_gloss` — reference data, like `psv_gloss`, never written into "
-        "the learner's `word_gloss`. Same terms as EKI's other downloads: "
+        "the learner's `word_gloss`. The same import stores `evs_question`: "
+        "for each küsisõnad answer word, the Russian of the sense EVS "
+        "illustrates with a direct question (`kus` → где), shown as the cue "
+        "for the drill's blank. Same terms as EKI's other downloads: "
         "process and present it any way needed, with the attribution kept "
         "and the changes described.",
         changes="Из словарной статьи взяты заглавное слово, часть речи и не "
                 "более пяти русских переводов — по одному на значение, затем "
                 "следующие. Отброшены пометы ударения и вида, устаревшие "
-                "переводы, формы, управление и переведённые примеры.",
+                "переводы, формы, управление и переведённые примеры. Для "
+                "вопросительных слов (küsisõnad) отдельно взяты переводы "
+                "того значения, пример к которому — прямой вопрос.",
     ),
     Source(
         "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,

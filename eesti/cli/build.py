@@ -181,18 +181,29 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
               "the right file?")
         return 1
 
+    # The küsisõnad drill's answer words, from the drill's own table: the cue
+    # for its blank is EVS's question sense of each (`evs.question_senses`).
+    from ..patterns import QUESTIONS
+
+    asked = [q.word for q in QUESTIONS]
+    cues = evs.question_senses(path, asked)
+
     if args.check:
         sample = {e.lemma: e for e in entries}
         print(f"  {len(entries):,} lemmas with Russian")
         for word in ("maja", "lugema", "hea"):
             if word in sample:
                 print(f"    {word}: {', '.join(sample[word].russian)}")
+        print(f"  {len(cues)} of {len(asked)} question words with a Russian cue")
         print("  Nothing was written. Drop --check to import.")
         return 0
 
     conn = connect()
     stats = evs.store(conn, entries)
+    evs.store_questions(conn, cues)
     print(f"  {stats['entries']:,} lemmas with Russian stored")
+    print(f"  {len(cues)} of {len(asked)} question words with a Russian cue "
+          "(küsisõnad)")
     print("  Source: Eesti-vene sõnaraamat, EKI, CC BY 4.0.")
     print("  Word cards now show EKI's Russian first and Sõnaveeb's second.")
     return 0

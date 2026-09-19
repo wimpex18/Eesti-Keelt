@@ -17,6 +17,7 @@ learner state). Precedence is in `meaning.py`: seed, live dictionary, EVS, HAR.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -205,6 +206,111 @@ def inflection_type(conn: sqlite3.Connection, lemma: str) -> str | None:
     except sqlite3.Error:
         return None
     return row[0] if row and row[0] else None
+
+
+# ---------------------------------------------------------------------------
+# Question words: the Russian for one sense, not a merged list
+# ---------------------------------------------------------------------------
+
+#: EVS's parts of speech for a question word (`kus` adv, `kes` pron). A homonym
+#: with another part of speech (`miks` the noun, "микс") is a different word.
+QUESTION_POS = frozenset({"adv", "pron"})
+
+QUESTION_SCHEMA = """
+-- The Russian of a question word's first sense in EVS: the cue a küsisõnad
+-- drill shows for its blank. Reference data, like `evs_gloss`.
+CREATE TABLE IF NOT EXISTS evs_question (
+    word    TEXT PRIMARY KEY,
+    russian TEXT NOT NULL      -- \x1f-joined, EKI's order
+);
+"""
+
+
+def _asks(tp, word: str) -> bool:
+    """Whether EVS illustrates this sense with a direct question opening with
+    `word` (`kus sa elad?`, `mitu last sul on?`).
+    """
+    for n in tp.findall("np/ng/n"):
+        example = ekixml.text(n).casefold()
+        if example.endswith("?") and re.match(rf"{re.escape(word)}\b", example):
+            return True
+    return False
+
+
+def _question_sense(article, word: str) -> tuple[str, ...]:
+    """The neutral Russian of the sense EVS uses in a question.
+
+    `evs_gloss` merges every sense and homonym, which is right for a word card
+    but not for a question word: `mitu` there leads with "несколько", and `kes`
+    has the relative "который" beside "кто". Here the sense is the first `tp`
+    whose own examples include a direct question opening with the word
+    (`_asks`) — EVS's examples, not a judgement, say which sense a question
+    uses — and within it the first sense group (`kes` → кто; the relative is
+    the second group). A labelled translation is left out; no such sense, or
+    nothing neutral in it, gives `()`.
+    """
+    tp = next((t for t in article.findall("S/tp") if _asks(t, word)), None)
+    tg = tp.find("tg") if tp is not None else None
+    if tg is None:
+        return ()
+    if set().union(*(_labels(dg) for dg in tg.findall("dg"))):
+        return ()
+    out: list[str] = []
+    for xp in tg.findall("xp"):
+        if xp.get(ekixml.XML_LANG) != "ru":
+            continue
+        for xg in xp.findall("xg"):
+            ru = ekixml.russian(xg.find("x"))
+            if _labels(xg) or not ru or ru == "_" or ru.endswith("-"):
+                continue
+            out.append(ru)
+    return tuple(dict.fromkeys(out))
+
+
+def question_senses(path: Path | str, words) -> dict[str, tuple[str, ...]]:
+    """`{word: Russian}` for the question words EVS answers unambiguously.
+
+    A word gets a cue only when EVS has **exactly one** article for it with a
+    question word's part of speech (`QUESTION_POS`), and that article has a
+    question sense with a neutral translation (`_question_sense`). Anything
+    else — no article (`kelle`
+    is a form of `kes`, not a headword; `kui palju` is two words), two
+    candidate homonyms, a labelled sense — is left out: no cue rather than a
+    guess. Case-insensitive on `words`; keys are lower-case.
+    """
+    wanted = {w.casefold() for w in words}
+    found: dict[str, list[tuple[str, ...]]] = {}
+    for article in ekixml.articles(path):
+        lemmas = [l for l in ekixml.headwords(article) if l in wanted]
+        if not lemmas:
+            continue
+        if ekixml.text(article.find("P/mg/sl")) not in QUESTION_POS:
+            continue
+        for lemma in lemmas:
+            found.setdefault(lemma, []).append(_question_sense(article, lemma))
+    return {w: senses[0] for w, senses in found.items()
+            if len(senses) == 1 and senses[0]}
+
+
+def store_questions(conn: sqlite3.Connection, cues: dict[str, tuple[str, ...]]) -> int:
+    """Replace `evs_question` with `cues`. Idempotent."""
+    conn.executescript(QUESTION_SCHEMA)
+    with conn:
+        conn.execute("DELETE FROM evs_question")
+        conn.executemany("INSERT INTO evs_question (word, russian) VALUES (?,?)",
+                         [(w, SEP.join(ru)) for w, ru in sorted(cues.items())])
+    return len(cues)
+
+
+def question_cues(conn: sqlite3.Connection | None) -> dict[str, tuple[str, ...]]:
+    """Every stored cue; `{}` without a connection or before an import."""
+    if conn is None:
+        return {}
+    try:
+        rows = conn.execute("SELECT word, russian FROM evs_question").fetchall()
+    except sqlite3.Error:
+        return {}
+    return {r[0]: tuple(x for x in r[1].split(SEP) if x) for r in rows}
 
 
 def imported(conn: sqlite3.Connection) -> int:

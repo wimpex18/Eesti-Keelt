@@ -224,7 +224,7 @@ def cmd_patterns(args: argparse.Namespace) -> int:
         "vordlusastmed": lambda n: comparison_drills(conn, levels, n, args.seed),
         "arvsonad": lambda n: numeral_drills(conn, levels, n, args.seed, ("arvsonad",)),
         "jargarvud": lambda n: numeral_drills(conn, levels, n, args.seed, ("jargarvud",)),
-        "kusisonad": lambda n: question_drills(n, args.seed),
+        "kusisonad": lambda n: question_drills(n, args.seed, conn),
     }
     wanted = args.topics.split(",") if args.topics else list(builders)
     unknown = set(wanted) - set(builders)
@@ -236,7 +236,8 @@ def cmd_patterns(args: argparse.Namespace) -> int:
     items = [item for topic in wanted for item in builders[topic](per)]
     for i, item in enumerate(items, 1):
         print(f"\n{i}. {item.prompt}")
-        print(f"   ({item.hint})")
+        cue = ", ".join(getattr(item, "answer_ru", ()))
+        print(f"   ({item.hint}{' — ' + cue if cue else ''})")
         if args.answers:
             print(f"   -> {item.answer}   (не *{item.distractor}*)")
             print(f"   {item.why_ru}")

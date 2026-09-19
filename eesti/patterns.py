@@ -36,6 +36,10 @@ class PatternDrill(GradedItem):
     why_ru: str
     topic: str
     level: str | None = None
+    #: Russian for what the blank asks, shown before answering (`kusisonad`
+    #: only): EKI's EVS for the answer word (`cue_for`). Never the Estonian
+    #: answer; never read by `check`.
+    answer_ru: tuple[str, ...] = ()
 
     @property
     def label(self) -> str:
@@ -271,7 +275,26 @@ QUESTIONS: tuple[Question, ...] = (
 )
 
 
-def question_drills(count: int = 10, seed: int | None = None) -> list[PatternDrill]:
+def cue_for(q: Question, cues: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
+    """The Russian cue for a question's blank, or `()`.
+
+    `cues` is EVS's question sense per word (`evs.question_cues`). A cue that
+    shares a translation with the distractor's would not tell the two apart,
+    so it is dropped rather than shown.
+    """
+    mine = cues.get(q.word.casefold(), ())
+    theirs = cues.get(q.confused_with.casefold(), ())
+    return () if set(mine) & set(theirs) else mine
+
+
+def question_drills(count: int = 10, seed: int | None = None,
+                    words: sqlite3.Connection | None = None) -> list[PatternDrill]:
+    """`words` supplies the Russian cues (`evs_question`); without it, or
+    before `cli import-evs`, the items are the same with no cue.
+    """
+    from .evs import question_cues
+
+    cues = question_cues(words)
     rng = random.Random(seed)
     pool = list(QUESTIONS)
     rng.shuffle(pool)
@@ -282,7 +305,7 @@ def question_drills(count: int = 10, seed: int | None = None) -> list[PatternDri
         PatternDrill(
             f"{q.frame.format(BLANK)} — {q.answer_sentence}",
             q.word, q.confused_with, "", "küsisõna",
-            "question", q.why_ru, "kusisonad", "A1",
+            "question", q.why_ru, "kusisonad", "A1", cue_for(q, cues),
         )
         for q in pool[:count]
     ]

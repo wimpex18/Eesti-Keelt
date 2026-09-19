@@ -282,8 +282,13 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   /* What the word means, when the app already knows.
 
      The gloss comes from the local store, so it is either instantly there or
-     absent — a practice set never waits on a dictionary. */
-  const ru = (glosses || {})[it.lemma] || [];
+     absent — a practice set never waits on a dictionary.
+
+     A küsisõnad item has no lemma — its word is the answer — so it carries
+     `answer_ru` instead: EKI's Russian for the question word the blank wants
+     (где, куда), which says what to ask without printing the Estonian. */
+  const ru = (it.answer_ru && it.answer_ru.length)
+    ? it.answer_ru : (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
   // Where this item sits in its set; shown on a phone, where one item is on screen.
