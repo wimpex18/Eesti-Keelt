@@ -325,6 +325,32 @@ def fixture_data(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
+def _no_accidental_network(request, monkeypatch):
+    """Outbound HTTP fails at once, unless the test is about a live service.
+
+    Every provider degrades when its service is unreachable, so an unstubbed call
+    passes either way; left open, each one waited out a 5-second timeout on the
+    real TartuNLP API. Classes named `TestAgainstTheLive…` keep the network and
+    skip when the service is down. Localhost stays open for the test server.
+    """
+    if "Live" in (request.cls.__name__ if request.cls else ""):
+        return
+    import urllib.error
+    import urllib.request
+    from urllib.parse import urlsplit
+
+    real = urllib.request.urlopen
+
+    def guarded(url, *args, **kwargs):
+        target = url.full_url if isinstance(url, urllib.request.Request) else url
+        if urlsplit(str(target)).hostname in ("127.0.0.1", "localhost", "::1"):
+            return real(url, *args, **kwargs)
+        raise urllib.error.URLError(f"network blocked in tests: {target}")
+
+    monkeypatch.setattr(urllib.request, "urlopen", guarded)
+
+
+@pytest.fixture(autouse=True)
 def _no_real_keys(monkeypatch):
     """No test sees a key from the developer's `.env` (`eesti/__init__.py` loads it on
     import); a test that needs a key sets one.

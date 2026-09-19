@@ -45,8 +45,8 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - `asesonad` (pronouns) cannot be generated: Vabamorf's pronoun paradigms are
   wrong (`mina` → genitive `mina`). It needs a hand-written table **with a cited
   source**; none is in the repo, and TalTech's `inflection_et` has no pronouns.
-- `uhendverbid` and `liitsonad` were checked for the attested-corrections
-  approach behind `word-order`; the corpus lacks enough marked examples.
+- `uhendverbid` and `liitsonad` have too few marked examples in the corpus for
+  the attested-corrections approach behind `word-order`.
 
 ### Not built, by decision
 

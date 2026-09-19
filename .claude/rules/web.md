@@ -5,7 +5,7 @@ paths:
 
 # The page
 
-- Open the page in a browser at desktop (1440×900) and phone (390×844), every tab, and look at screenshots — geometry assertions miss what a picture shows.
+- Open the page in a browser at desktop (1440×900), iPhone 17 (402×874 and 874×402, touch) and iPad mini 6 (744×1133, touch), every tab, and look at screenshots — geometry assertions miss what a picture shows.
 - Visibility is `checkVisibility()`; reachability is `elementFromPoint` at the element's centre. A non-zero bounding box proves neither.
 - Tabs live in the URL hash: `pushState` per change, `replaceState` for the landing tab, re-selecting the current tab does nothing.
 - `main.js` bootstraps last; loaders may touch anything declared.

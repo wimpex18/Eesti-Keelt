@@ -68,4 +68,5 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 3. Every network dependency is optional: provider chains with timeouts and a
    persistent circuit breaker (`providers/breaker.py`); responses name the
    engine that answered.
-4. Tests run offline (`tests/test_offline.py` blocks sockets).
+4. Tests run offline: `tests/test_offline.py` blocks sockets, and `conftest.py`
+   fails any outbound HTTP outside the `TestAgainstTheLive…` classes.

@@ -14,7 +14,8 @@ python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt
 Without any key: drills, grading, the path, reading, review and vocabulary all
 work; the writing check uses Vabamorf offline evidence.
 
-For browser tests: `.venv/bin/playwright install chromium webkit`.
+For tests: `.venv/bin/pip install pytest pytest-xdist` and, for the browser
+journeys, `.venv/bin/playwright install chromium webkit`.
 
 ## Where a key goes
 

@@ -10,9 +10,14 @@
 | Production smoke | `smoke.yml` | after `deploy`, daily, manual |
 
 ```bash
-python -m pytest tests/ -q                            # everything available on this machine
-python -m pytest tests/test_e2e_journeys.py -q        # browser journeys only
+python -m pytest tests/ -q -n auto                    # everything, in parallel (pytest-xdist)
+python -m pytest tests/test_e2e_journeys.py -q -n 5 --dist loadscope   # browser journeys
 ```
+
+`-n auto` spreads the in-process tests over every core (about 16 s on a 10-core
+Mac). Browser journeys use `--dist loadscope`, so each class keeps its browser
+and the parametrised Chromium/WebKit pairs stay on one worker (about 2 minutes);
+each worker starts its own server on a free port.
 
 Browser tests **skip** (never fail) without Playwright, a browser or a built
 dataset. They need:
@@ -54,7 +59,9 @@ is off).
   (`test_reference_imports.py`).
 
 Fixtures redirect every database (`conftest.py`) and build them with the app's
-own openers. CI fetches `cli fetch-bench --required-only` first; a Hugging Face
+own openers. Outbound HTTP fails at once in every test except the
+`TestAgainstTheLive…` classes, which skip when their service is down; an
+unstubbed provider call therefore costs nothing and cannot pass by luck. CI fetches `cli fetch-bench --required-only` first; a Hugging Face
 outage skips those tests rather than failing.
 
 ## Not covered
