@@ -10,7 +10,7 @@ diagram below against the page in both directions.
 Õppimine — "what am I learning today?"
 ├── Rada          the drills, two ways: Minu rada (prerequisite order, mastery-gated,
 │                 opens on today's set) and Vaba harjutus (any topic, nothing recorded)
-├── Lugemine      reading texts ranked by how much of each the learner knows
+├── Lugemine      reading texts ranked by the share of words within the learner's reach
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
 ├── Rääkimine     paired-exam question bank, read-aloud, open answers
 └── Kirjutamine   grammar check through the provider chain, back-translation

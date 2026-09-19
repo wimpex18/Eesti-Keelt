@@ -114,6 +114,8 @@ class ReadAloud:
     kind: str            # sona | lause
     level: str | None
     source: str
+    #: Share of the sentence's words within reach (`difficulty.within_reach`).
+    coverage: float | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -140,21 +142,49 @@ def words_to_say(
     return pool[:count]
 
 
+#: A sentence to read aloud has at most this many words: one breath for a
+#: beginner. Beginner graded material keeps most sentences under ten words.
+SAY_MAX_WORDS = 8
+SAY_MIN_WORDS = 3
+
+
 def sentences_to_say(
     content: sqlite3.Connection,
     count: int = 10,
     seed: int | None = None,
-    min_words: int = 4,
-    max_words: int = 12,
+    min_words: int = SAY_MIN_WORDS,
+    max_words: int = SAY_MAX_WORDS,
+    words: sqlite3.Connection | None = None,
+    known: set[str] | frozenset[str] = frozenset(),
 ) -> list[ReadAloud]:
-    """Real sentences from the harvested corpus, short enough to say in a breath."""
+    """Real corpus sentences of `min_words`–`max_words` words, easiest to say first.
+
+    A sentence qualifies when **every** word — names and numbers included — is one
+    the learner knows or the word list puts at A1–A2 (`difficulty.within_reach`,
+    strict). Qualifying sentences are shuffled by `seed` for variety; when fewer than
+    `count` qualify, the rest are filled with the most within reach, shorter first.
+    Without a word list nothing can qualify and the fill is the whole list.
+    """
     import random
 
     from .cloze import sentences
+    from .dictation import _writable
+    from .difficulty import reach_lemmas, within_reach
 
-    pool = [
-        ReadAloud(s, "lause", None, "selges-keeles")
-        for s in sentences(content, min_words=min_words, max_words=max_words)
-    ]
-    random.Random(seed).shuffle(pool)
-    return pool[:count]
+    reach = reach_lemmas(words)
+    scored: list[ReadAloud] = []
+    for s in sentences(content, min_words=min_words, max_words=max_words):
+        if not _writable(s):
+            continue
+        fit = within_reach(s, known, reach, strict=True)
+        scored.append(ReadAloud(s, "lause", None, "selges-keeles",
+                                coverage=fit["coverage"]))
+
+    ready = [item for item in scored if item.coverage == 1.0]
+    random.Random(seed).shuffle(ready)
+    if len(ready) >= count:
+        return ready[:count]
+    rest = sorted((item for item in scored if item.coverage != 1.0),
+                  key=lambda item: (-(item.coverage or 0.0),
+                                    len(item.text.split()), item.text))
+    return (ready + rest)[:count]

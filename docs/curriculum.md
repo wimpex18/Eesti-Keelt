@@ -33,6 +33,30 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
   drill teaches the rule and the vocabulary together.
 - **Reference topics** (no generator) show in the path and never block.
 
+## Picking material for a beginner
+
+Reading texts and read-aloud sentences are chosen by one measure,
+`difficulty.within_reach`: the share of **running words** (Vabamorf lemmas,
+punctuation dropped) that are *within reach* — marked known by the learner, or
+at **A1–A2** on the word list (EKI's official level where the list has one).
+The level belongs to each word; a text is ranked by the share and never given a
+CEFR level.
+
+| | Lugemine *soovitatud sulle* (`/api/reading/next`) | Rääkimine *Loe ette* (`/api/speaking/readaloud?kind=lause`) |
+|---|---|---|
+| Counted | every word except names, numerals, abbreviations | every word, names and numbers included (`strict`) |
+| Cut-off | at least **80 %** within reach (`FLOOR`) | **3–8 words**, all within reach |
+| Order | by coverage in 5-point steps, shorter first inside a step | qualifying sentences shuffled by seed |
+| Too few | none clears 80 %: the least hard, flagged `fallback`, with a Russian warning | filled with the most within reach, shorter first |
+
+The numbers come from the reading-coverage literature: readers need about
+95–98 % of running words known for unassisted reading (Hu & Nation 2000;
+Laufer & Ravenhorst-Kalovski 2010), and at 80 % none of Hu & Nation's readers
+comprehended adequately. 80 % is therefore the cap on what is recommended, and
+the bands `iseseisev` (≥ 95 %), `arendav` (≥ 90 %) and `raske` say how far each
+text is from unassisted reading. The list note says in Russian how it was
+chosen.
+
 ## Priorities
 
 Two sources weight what to practise:

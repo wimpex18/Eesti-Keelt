@@ -30,23 +30,23 @@ export async function loadLibrary(append = false) {
   };
 
   try {
-    let items, note = "";
-    let measured = true;
+    let items, note = "", why = "", fallback = false;
     let total = null, more = false;
     if (choice === "soovitatud") {
       const d = await ask("/api/reading/next?limit=25");
       items = d.items;
-      // With nothing marked known, every text would score 0 %, which reads as "you
-      // know nothing" rather than "not measured yet". Hide the number until there is a
-      // vocabulary to measure against, and say why.
-      measured = d.known_words > 0;
-      note = measured
+      /* Coverage counts words the learner knows *or* that sit at A1–A2, so it is
+         meaningful before any word is marked known. */
+      note = d.known_words > 0
         ? `${ruCount(d.known_words, WORDS)} знакомо`
-        : "Слова ещё не отмечены — показаны самые простые тексты.";
+        : "слова ещё не отмечены";
       /* The endpoint counts texts it could not score; showing the count explains why
          "texts known" and the list size can disagree. */
       if (d.unmeasurable)
         note += ` · ${d.unmeasurable} без разбора слов`;
+      // How the list was chosen, and whether even the first text is above the learner.
+      why = d.note || "";
+      fallback = !!d.fallback;
     } else {
       const q = new URLSearchParams({
         skill: "lugemine", limit: "80", offset: String(libShown)});
@@ -64,6 +64,10 @@ export async function loadLibrary(append = false) {
     $("#libCount").textContent = total != null && total > libShown
       ? `показано ${libShown} из ${total}${note ? " · " + note : ""}`
       : `${ruCount(libShown, TEXTS)}${note ? " · " + note : ""}`;
+    $("#libNote").textContent = why;
+    $("#libNote").hidden = !why;
+    // Nothing clears the floor: the note is a caution, so it looks like one.
+    $("#libNote").className = fallback ? "banner" : "hint";
     $("#libMore").hidden = !more;
     if (!items.length && !append) {
       /* A band that happens to be empty is not an empty library: say which it is,
@@ -93,10 +97,10 @@ export async function loadLibrary(append = false) {
       // An external row goes somewhere else, so it is a real link.
       const el = document.createElement(it.external ? "a" : "div");
       el.className = "lib-item" + (it.external ? " external" : "");
-      // Coverage appears only where it was computed, so an unmeasured list never
-      // shows "0 %".
-      const cover = (measured && it.coverage !== undefined)
-        ? ` · <b>${Math.round(it.coverage * 100)}%</b> знакомо` : "";
+      // Coverage appears only where it was computed (the recommended list), so a
+      // shelf row never shows "0 %". It is words within reach, not words known.
+      const cover = it.coverage !== undefined
+        ? ` · <b>${Math.round(it.coverage * 100)}%</b> посильных слов` : "";
       const n = it.words ?? it.total;
       const size = n !== undefined ? ruCount(n, WORDS) : "";
       /* HARNO's tasks are indexed, never copied: `body` is empty by licence. They

@@ -11,6 +11,8 @@ would otherwise be ranked by register.
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 BANDS = ("kergem", "keskmine", "raskem")
 
 #: Russian, because this sentence is what stops a band being read as a level.
@@ -109,3 +111,122 @@ def comprehensible(text: str, known: set[str]) -> dict:
         "readability": band,
         "note": READABILITY[band],
     }
+
+
+# ---------------------------------------------------------------------------
+# Within reach: what to recommend to a beginner
+# ---------------------------------------------------------------------------
+#
+# Known-word coverage alone says nothing to a learner who has marked few words:
+# every text scores near zero and the order is noise. A word is *within reach*
+# when the learner has marked it known **or** the word list puts it at A1–A2 —
+# the words an A1 learner meets next. That is a property of each word (EKI's
+# official level where the list has one), never a level for the text: a text is
+# ranked by it and never labelled with a CEFR level.
+#
+# Coverage is counted over running words, as the reading literature measures it
+# (Hu & Nation 2000; Laufer & Ravenhorst-Kalovski 2010), not over distinct lemmas.
+
+#: Word levels counted as within reach for an A1 learner working toward A2.
+REACH_LEVELS = ("A1", "A2")
+
+#: Below this share a text is not recommended: at 80 % coverage no reader in Hu &
+#: Nation (2000) reached adequate comprehension.
+FLOOR = 0.80
+
+#: Coverage steps within which a shorter text goes before a longer one.
+STEP = 0.05
+
+#: Vabamorf parts of speech that are not vocabulary to learn: proper names,
+#: numerals, abbreviations. Left out of the share rather than counted either way.
+TRANSPARENT = frozenset({"H", "N", "O", "Y"})
+
+#: Russian: why this text sits where it does.
+REACH_NOTES = {
+    "iseseisev": "Почти все слова знакомы вам или входят в уровни A1–A2.",
+    "arendav": "Незнакомых слов немного — читается с усилием, именно здесь "
+               "текст учит.",
+    "raske": "Много слов выше A2 — пока это чтение со словарём.",
+}
+
+
+@lru_cache(maxsize=8192)
+def _words(text: str) -> tuple[tuple[str, str], ...]:
+    """`(lemma, part of speech)` for every word of `text`, punctuation dropped.
+
+    Cached because the whole shelf is scored per request and a text never changes
+    under its own string.
+    """
+    from .morph import analyze
+
+    return tuple(
+        (t.lemma.lower(), t.pos) for t in analyze(text)
+        if t.pos != "Z" and any(ch.isalnum() for ch in t.text)
+    )
+
+
+def reach_lemmas(words, levels: tuple[str, ...] = REACH_LEVELS) -> frozenset[str]:
+    """Lemmas the word list puts at `levels` (EKI's official level where it has one)."""
+    if words is None:
+        return frozenset()
+    marks = ",".join("?" * len(levels))
+    try:
+        return frozenset(
+            row[0].lower() for row in words.execute(
+                f"SELECT word FROM words WHERE proficiency IN ({marks})", levels)
+        )
+    except Exception:  # noqa: BLE001 - no word list yet is a valid state
+        return frozenset()
+
+
+def within_reach(text: str, known: set[str] | frozenset[str],
+                 reach: frozenset[str], *, strict: bool = False) -> dict:
+    """Share of `text`'s running words that the learner knows or that sit at A1–A2.
+
+    Names, numerals and abbreviations are left out of the share. `strict` counts
+    them too — for a sentence the learner must *say*, where an unlisted name or a
+    number is as hard as an unlisted word.
+    """
+    words = _words(text or "")
+    counted = [lemma for lemma, pos in words if strict or pos not in TRANSPARENT]
+    if not counted:
+        return {"coverage": 0.0, "known": 0, "in_reach": 0, "total": 0,
+                "words": len(words), "readability": None, "note": ""}
+    hit = sum(1 for lemma in counted if lemma in known or lemma in reach)
+    coverage = hit / len(counted)
+    if coverage >= INDEPENDENT:
+        band = "iseseisev"
+    elif coverage >= INSTRUCTIONAL:
+        band = "arendav"
+    else:
+        band = "raske"
+    return {
+        "coverage": round(coverage, 3),
+        "known": sum(1 for lemma in counted if lemma in known),
+        "in_reach": hit,
+        "total": len(counted),
+        "words": len(words),
+        "readability": band,
+        "note": REACH_NOTES[band],
+    }
+
+
+def order_key(item: dict) -> tuple:
+    """Most within reach first; inside one `STEP` of coverage, shorter first."""
+    return (-int(item["coverage"] / STEP + 1e-9), item["words"], -item["coverage"],
+            str(item["id"]))
+
+
+def recommend(items: list[dict], limit: int) -> dict:
+    """Texts to read next, from items scored by `within_reach` (plus an `id`).
+
+    Items at or above `FLOOR` come in `order_key` order, and a harder text never
+    pads the list. When none clears `FLOOR`, the `limit` most within reach come
+    back with `fallback` set, so a beginner still has something to read and is
+    told it is above them.
+    """
+    ranked = sorted(items, key=order_key)
+    fit = [item for item in ranked if item["coverage"] >= FLOOR]
+    if fit:
+        return {"items": fit[:limit], "fallback": False, "recommendable": len(fit)}
+    return {"items": ranked[:limit], "fallback": bool(ranked), "recommendable": 0}

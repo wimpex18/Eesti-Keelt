@@ -1,7 +1,7 @@
 """The material: what is in it, what to read next, and opening one item.
 
 Sections filter on skill *and* purpose (`meta.kind`); `/api/modes` is the map.
-`/api/reading/next` ranks by comprehensibility for this learner, never by a
+`/api/reading/next` ranks by the share of words within this learner's reach, never by a
 CEFR level derived from vocabulary.
 """
 
@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException
 from ..lookup import annotate
 from ..sources import count as content_count
 from ..sources import query as content_query
-from .deps import content_db, progress_db, vocab_db
+from .deps import content_db, db, progress_db, vocab_db
 
 router = APIRouter()
 
@@ -100,17 +100,20 @@ def _pointer(meta: str | None) -> dict:
 
 @router.get("/api/reading/next")
 def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
-    """Texts to read next, ranked by how readable they are *for this learner*.
+    """Texts to read next, ranked by how much of each is within this learner's reach.
 
-    Sorts by known-word coverage and puts the **instructional** band first — texts
-    the learner can follow with effort. It ranks and never filters: a low coverage
-    shows as `raske` rather than an empty list.
+    `coverage` is the share of running words the learner knows or the word list puts
+    at A1–A2 (`difficulty.within_reach`). Texts below `difficulty.FLOOR` are not
+    recommended; when none clears it, the most reachable come back with `fallback`
+    set rather than an empty list. Inside one coverage step, shorter goes first.
     """
-    from ..difficulty import INSTRUCTIONAL, comprehensible, known_lemmas
+    from ..difficulty import (FLOOR, INSTRUCTIONAL, REACH_LEVELS, known_lemmas,
+                              reach_lemmas, recommend, within_reach)
     from ..library import browse
     from ..library import count as section_count
 
     known = known_lemmas(vocab_db())
+    reach = reach_lemmas(db())
     # Score the whole shelf, so any text can be recommended.
     conn = content_db()
     rows = browse(conn, section, limit=max(1, section_count(conn, section)))
@@ -120,10 +123,13 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
     for row in rows:
         if not (row["body"] or "").strip():
             continue
-        profile = comprehensible(row["body"], known)
+        if not (known or reach):
+            # No word list and nothing marked known: every text would score 0 %,
+            # which is "not measured", not "too hard".
+            unmeasurable += 1
+            continue
+        profile = within_reach(row["body"], known, reach)
         if profile["total"] == 0:
-            # No lemmas resolved (empty text, or no form index — run `cli export`): counted
-            # as unmeasurable rather than silently dropped.
             unmeasurable += 1
             continue
         scored.append({
@@ -132,27 +138,32 @@ def reading_next(limit: int = 6, section: str = "lugemine") -> dict:
             **profile,
         })
 
-    # Instructional first, then by coverage descending within each group. A
-    # learner with no vocabulary recorded yet has no instructional band at all,
-    # so the easiest available text leads instead of an empty list.
-    scored.sort(key=lambda item: (
-        0 if item["readability"] == "arendav" else 1, -item["coverage"]
-    ))
+    picked = recommend(scored, limit)
+    levels = "–".join((REACH_LEVELS[0], REACH_LEVELS[-1]))
     note = (
-        "Отсортировано по доле знакомых слов. Первыми — тексты, которые "
-        "читаются с усилием: именно там текст учит. Это словарное "
-        "покрытие, а не оценка понимания."
+        f"Сначала тексты, где больше всего посильных слов — знакомых вам или "
+        f"уровней {levels} по словарному списку; из похожих — сначала короче. "
+        f"Тексты, где посильных слов меньше {round(FLOOR * 100)} %, не "
+        f"предлагаются. Это доля слов, а не уровень текста и не оценка понимания."
     )
+    if picked["fallback"]:
+        note = (
+            f"Ни в одном тексте посильных слов (знакомых или уровней {levels}) "
+            f"не набирается {round(FLOOR * 100)} % — показаны самые доступные. "
+            f"Читайте их со словарём: нажмите на слово."
+        )
     if not scored and unmeasurable:
         note = (
-            "Словарная база не собрана, поэтому покрытие посчитать нельзя — "
-            "это не значит, что вы не знаете слов. Соберите её командой "
-            "`cli export`; в образе она собирается при сборке."
+            "Словарный список не собран, поэтому долю посильных слов посчитать "
+            "нельзя — это не значит, что тексты трудные. Соберите его командами "
+            "`cli fetch-data` и `cli build`; в образе он собирается при сборке."
         )
     return {
-        "items": scored[:limit],
+        "items": picked["items"],
         "known_words": len(known),
         "threshold": INSTRUCTIONAL,
+        # Nothing cleared `FLOOR`: the items are the least hard, not a fit.
+        "fallback": picked["fallback"],
         # Distinguishes "the library is empty" from "nothing could be measured".
         "unmeasurable": unmeasurable,
         "note": note,

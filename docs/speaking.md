@@ -12,6 +12,10 @@ so `Rääkimine` does what a phone can do honestly.
 | **Loe ette** (read aloud, `pronunciation.py`) | a known sentence | word-by-word `difflib` against what the recogniser heard | ASR only |
 | **Vasta küsimusele** (open answer) | free speech | transcript through the grammar chain, word count and pace | ASR + LLM, advisory |
 
+- Read-aloud sentences are corpus sentences of 3–8 words in which every word,
+  names and numbers included, is known or at A1–A2 on the word list; when too
+  few qualify the rest are the most within reach, shorter first
+  (`pronunciation.sentences_to_say`, policy in `docs/curriculum.md`).
 - Read-aloud reports which words were missed, never a percentage, and always
   carries the caveat (in Russian) that a miss may be the recogniser, not the
   learner.
