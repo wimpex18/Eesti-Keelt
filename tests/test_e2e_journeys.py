@@ -952,6 +952,24 @@ class TestTheMeaningCardIsAFlashcard:
         assert not page.errors, page.errors
 
 
+class TestTodaysPlan:
+    """Rada opens on today's plan; a block's Alusta starts what it names."""
+
+    def test_the_plan_is_there_and_starts_practice(self, page):
+        open_tab(page, "learn", "path")
+        page.wait_for_selector("#todayList .today-block", state="attached", timeout=15000)
+        if not page.locator("#today").evaluate("d => d.open"):
+            page.click("#today > summary")
+        blocks = page.locator("#todayList .today-block")
+        assert blocks.count() >= 1
+        assert "мин" in blocks.first.locator(".today-min").inner_text()
+        start = page.locator('#todayList .today-block[data-kind="new"] button')
+        if start.count():
+            start.first.click()
+            page.wait_for_selector("#practiceOut .drill", timeout=15000)
+        assert not page.errors, page.errors
+
+
 class TestAGrammarCardIsAnswered:
     """A grammar card in the queue is answered, and code rates it; there are no
     self-rating buttons on it (`review.auto_rating`)."""

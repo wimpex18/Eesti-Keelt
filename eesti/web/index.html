@@ -88,6 +88,7 @@
       <button role="tab" aria-selected="false" data-pm="vaba" aria-controls="pathFree" lang="et">Vaba harjutus <i class="ru" lang="ru">без записи</i></button>
     </div>
     <div id="pathRada" role="tabpanel">
+    <!-- Today's plan (`eesti/planning.py`): blocks in order, each with its reason. -->
     <div class="pathtop">
       <div class="ring" id="pathRing" aria-hidden="true"><span>0%</span></div>
       <div>
@@ -106,6 +107,19 @@
     <!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
          drilled over. The label hides for topics it cannot change. -->
     <div id="practiceOut"></div>
+    <!-- Today's plan (`eesti/planning.py`). After the drill in the markup, so a phone
+         shows the drill first; wide screens move it to the top (`app.css`). -->
+    <details class="today" id="today" open>
+      <summary><span lang="et">Täna <i class="ru" lang="ru">план на сегодня</i></span>
+        <span class="hint" id="todaySum"></span></summary>
+      <label class="today-minutes" lang="et">Aega <i class="ru" lang="ru">минут</i>
+        <select id="todayMinutes">
+          <option value="10">10</option><option value="20" selected>20</option>
+          <option value="40">40</option>
+        </select>
+      </label>
+      <ol class="today-list" id="todayList"><li class="hint">Загружаю…</li></ol>
+    </details>
     <details id="pathAll">
       <summary lang="et">Kogu rada <i class="ru" lang="ru">все темы по порядку</i></summary>
       <p class="note">Тема открывается, когда пройдены те, на которых она стоит.</p>

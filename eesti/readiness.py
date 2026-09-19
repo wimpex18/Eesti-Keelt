@@ -40,7 +40,7 @@ def _count(n: int, one: str, few: str, many: str) -> str:
 def _target() -> tuple[date | None, date | None]:
     return TARGET if TARGET else (None, None)
 
-#: The four parts, 25 points each, in the order the exam runs them.
+#: The four parts (A2: 20 points each, B1: 25), in the order the exam runs them.
 PARTS = (
     ("kirjutamine", "Kirjutamine", "письмо"),
     ("kuulamine", "Kuulamine", "аудирование"),

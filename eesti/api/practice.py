@@ -307,3 +307,12 @@ def practice_answer(req: AnswerRequest) -> dict:
         "just_mastered": mastered_now and not was_mastered,
         "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",
     }
+
+
+@router.get("/api/plan")
+def todays_plan(minutes: int = 20) -> dict:
+    """Today's plan: blocks in order, each with its minutes, action and Russian
+    reason (`eesti/planning.py`). Deterministic for the same evidence and day."""
+    from ..planning import issue
+
+    return issue(max(5, min(minutes, 120))).to_dict()

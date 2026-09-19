@@ -5,33 +5,27 @@ append; at most 30 lines.
 
 ## Task in flight
 
-PR #64 (`fix/p0-safety`) carries P0 safety, the Neurotõlge est→est grammar
-lane, the web redesign files with their test fixes, and P1:
+PR #64 (`fix/p0-safety`) carries:
 
-- evidence log (`eesti/evidence.py`), with the learner DBs as projections;
-- signed, regenerable item refs (`eesti/itemref.py`);
-- FSRS auto-rating and review logs;
-- the log in the Worker's Durable Object;
-- `Minu andmed` export.
+- P0 safety; the Neurotõlge grammar lane; the web redesign files;
+- P1: evidence log, signed item refs, FSRS auto-rating, log in the Durable
+  Object, writing and speech evidence;
+- a slimmer test suite (fast by default, `--browser` opt-in);
+- P2: topic representations, weak rules and refresh (`learner.py`), and
+  today's plan (`planning.py`, Rada's Täna).
 
 ## Next step
 
 1. After merge, in Cloud Shell: run `bash deploy/check-service.sh` and set
    maximum instances to 1 if it warns; then run `deploy.yml` for the Worker.
-   The first restore backfills the log from the snapshot.
-2. Remaining P1:
-   - name the Durable Object per Access identity (still `singleton`; the
-     origin is single-tenant);
-   - `DELETE /api/me`;
-   - a nightly log export to R2 or GCS;
-   - the FSRS optimiser once there are about 1 000 reviews.
-3. P2: concept representations and a coverage test, mastery decay and weak
-   rules, the "Täna" planner, replay and similar-task endpoints.
+2. P3 (before registration opens on 2027-01-01): ExamSpec and ExamSession data,
+   a `goal_set` event replacing `readiness.TARGET`, timed mocks with section
+   evidence, readiness v2, `.ics` reminders, a placement API.
 
-## Uncommitted / undecided
+## Deferred on purpose (one learner)
 
-- Local agent, skill, hook and settings folders under `.claude` and `.github`
-  are untracked.
+- A Durable Object per identity; `DELETE /api/me`; a nightly log backup;
+  the FSRS optimiser (after about 1 000 reviews).
 
 ## Blockers
 

@@ -6,6 +6,9 @@ import {loadRail, refreshDueBadge} from "./review.js";
 
 // ── the path ────────────────────────────────────────────────────────
 let pathTopic = null;
+/* Sub-rules for the next Rada set only: set by a plan block (object case, one
+   rule), dropped after that set is fetched. */
+let pathRules = null;
 
 /* A running score for one set. Rada's is recorded by the server and shows the
    mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
@@ -59,7 +62,67 @@ function paintTheme() {
 }
 
 
+// ── today's plan ────────────────────────────────────────────────────
+function todayMinutes() {
+  try { return Number(localStorage.getItem("todayMinutes")) || 20; } catch { return 20; }
+}
+
+export async function loadToday() {
+  const list = $("#todayList");
+  if (!list) return;
+  const minutes = todayMinutes();
+  $("#todayMinutes").value = String(minutes);
+  try {
+    const p = await (await api(`/api/plan?minutes=${minutes}`, null, "GET")).json();
+    if (!p.blocks.length) {
+      list.innerHTML = `<li class="hint">На сегодня ничего не запланировано.</li>`;
+      $("#todaySum").textContent = "";
+      return;
+    }
+    $("#todaySum").textContent = `${p.minutes} мин · ` +
+      ruCount(p.blocks.length, ["шаг", "шага", "шагов"]);
+    list.innerHTML = p.blocks.map((b, i) => {
+      const d = b.detail;
+      const mistake = d ? `<div class="today-mistake" lang="et">
+          <del>${esc(d.answer || "—")}</del> → <ins>${esc(d.expected)}</ins>
+          · ${esc(d.solution)}</div>` : "";
+      return `<li class="today-block" data-kind="${esc(b.kind)}">
+        <span class="today-min">${b.minutes} мин</span>
+        <div class="today-what">
+          <strong lang="et">${esc(b.et)} <i class="ru" lang="ru">${esc(b.ru)}</i></strong>
+          <p class="hint">${esc(b.why)}</p>${mistake}
+        </div>
+        <button class="ghost" data-i="${i}" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
+      </li>`;
+    }).join("");
+    list.querySelectorAll("button[data-i]").forEach(btn => btn.onclick = () =>
+      startBlock(p.blocks[Number(btn.dataset.i)].action));
+  } catch (e) {
+    list.innerHTML = `<li class="hint">План не загрузился: ${esc(e.message)}</li>`;
+  }
+}
+
+function startBlock(action) {
+  if (action.tab === "path") {
+    pathTopic = action.topic;
+    pathRules = action.rules || null;
+    paintTheme();
+    startPractice();
+    $("#practiceOut").scrollIntoView({block: "start", behavior: "smooth"});
+    return;
+  }
+  // The router follows the hash (`main.js`), and Back returns to the plan.
+  location.hash = "#" + action.tab;
+}
+
+$("#todayMinutes").onchange = e => {
+  try { localStorage.setItem("todayMinutes", e.target.value); } catch {}
+  loadToday();
+};
+
+
 export async function loadPath() {
+  loadToday();
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
     pathTopic = p.resume;
@@ -174,6 +237,7 @@ async function startPractice({focus = true} = {}) {
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;
+    if (pathRules) { body.rules = pathRules; pathRules = null; }
     const theme = themeApplies() ? $("#wordTheme").value : "";
     if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();

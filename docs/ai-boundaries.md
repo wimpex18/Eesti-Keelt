@@ -6,7 +6,7 @@ Where a model touches the learner, and where code decides.
 
 | Job | Engine | Model judgement? |
 |---|---|---|
-| What to practise next | prerequisite graph | no |
+| What to practise next | prerequisite graph, evidence arithmetic (`planning.py`) | no |
 | Generating a drill | Vabamorf synthesis, EKK tables, attested corrections | no — round-trip validated, ambiguous words refused |
 | **Grading a drill** | string comparison | **no** |
 | Mastery, placement, checkpoints | arithmetic over recorded attempts | no |

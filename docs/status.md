@@ -10,6 +10,7 @@ the same change that makes it untrue.
 |---|---|
 | **Drills** | 26 of 36 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built. |
+| **Plan** | Rada's Täna: today's blocks in a time budget (reviews, the weakest rule with its last mistake, refresh, the least-practised exam part, the next topic, a text), each with its reason in Russian (`eesti/planning.py`). |
 | **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Placement and test-out run only from the CLI (`cli assess`). |
 | **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
 | **Reading** | Selges keeles texts and the weekly ERR *Lihtsad uudised* feed; click-to-look-up; recommended by the share of running words within reach (known, or A1–A2 on the word list), at least 80 %, shorter first (`docs/curriculum.md`). |
