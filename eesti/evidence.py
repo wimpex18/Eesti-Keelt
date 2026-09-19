@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import sqlite3
 import uuid
@@ -334,7 +335,14 @@ def rebuild(conn: sqlite3.Connection | None = None) -> int:
                         % ",".join("?" * len(tables)), tables)
         n = 0
         for ev in events(conn):
-            apply(stores, ev)
+            # One event this code cannot replay (a type from a newer release, after
+            # a rollback) must not stop the rest: skipped, reported, kept in the log.
+            try:
+                apply(stores, ev)
+            except Exception as exc:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "replay skipped event %s (%s): %s", ev.id, ev.type, exc)
+                continue
             n += 1
         return n
     finally:

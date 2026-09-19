@@ -317,3 +317,16 @@ class TestSkillBalance:
         with evidence.connect() as log:
             counts = learner.skill_activity(log)
         assert counts["kuulamine"] == 1 and counts["lugemine"] == 1
+
+
+def test_an_event_this_code_cannot_replay_is_skipped_not_fatal():
+    """After a rollback the log may hold a type from a newer release."""
+    from eesti import vocab
+
+    vocab.set_status(vocab.connect(config.VOCAB_DB), "raamat", vocab.KNOWN)
+    with evidence.connect() as log:
+        evidence.ingest(log, [{"id": "future-1", "type": "goal-set", "ts": evidence.now(),
+                               "payload": {"level": "B1"}}])
+        replayed = evidence.rebuild(log)
+    assert replayed == len(evidence.events(evidence.connect())) - 1
+    assert vocab.statuses(vocab.connect(config.VOCAB_DB), ["raamat"])["raamat"] == vocab.KNOWN
