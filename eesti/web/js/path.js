@@ -14,6 +14,13 @@ const pathTally = {answered: 0, correct: 0, size: 0, missed: [], out: "#pathScor
 const freeTally = {answered: 0, correct: 0, size: 0, missed: [], out: "#freeScore", box: "#freeOut",
                    record: false, again: () => $("#freeBtn").click()};
 
+/* A new set on a tally. `gen` names the set, so an answer still in flight from the
+   set it replaced is not counted in this one (see `grade`). */
+function newSet(tally) {
+  Object.assign(tally, {answered: 0, correct: 0, size: 0, missed: [],
+                        gen: (tally.gen || 0) + 1});
+}
+
 /* A tally for a set rendered somewhere else (the Kontrolltöö). */
 export function newTally(out, box, again) {
   // A Kontrolltöö is a test: its misses are listed, not re-drilled on the spot.
@@ -161,7 +168,7 @@ async function startPractice({focus = true} = {}) {
      the latest may paint, or a slow first answer replaces the learner's choice. */
   const mine = ++practiceRequest;
   const out = $("#practiceOut"); out.innerHTML = "";
-  pathTally.answered = pathTally.correct = pathTally.size = 0; pathTally.missed = [];
+  newSet(pathTally);
   $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
   try {
@@ -270,7 +277,8 @@ function redoMissed(tally) {
   const again = tally.missed;
   const box = $(tally.box);
   box.innerHTML = "";
-  Object.assign(tally, {answered: 0, correct: 0, size: again.length, missed: []});
+  newSet(tally);
+  tally.size = again.length;
   again.forEach(({it, topic}, i) =>
     box.appendChild(renderPracticeItem(it, topic, i, {}, true, tally)));
 }
@@ -290,6 +298,8 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const el = document.createElement("div");
   el.className = "drill";
   // Where this item sits in its set; shown on a phone, where one item is on screen.
+  // The set this item belongs to; a later set on the same tally has another.
+  const set = tally.gen || 0;
   const place = tally.size ? `${i + 1}/${tally.size}` : `${i + 1}`;
   const pos = tally.size ? `<div class="drill-pos">${i + 1} / ${tally.size}</div>` : "";
   el.innerHTML = `${pos}
@@ -366,6 +376,9 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
         <span class="hint">Попробуй ещё раз.</span>`;
       return;
     }
+    // Answered, but the set was replaced while the answer was on its way: this item
+    // is gone from the screen and must not count in the set that replaced it.
+    if ((tally.gen || 0) !== set) return;
     tally.answered++; if (res.correct) tally.correct++;
     else tally.missed.push({it, topic});
     /* Graded: on a phone the next item appears under this one (see `.drill.done`
@@ -489,7 +502,7 @@ $("#freeEdit").onclick = () => { foldFreeControls(false); $("#freeTopic").focus(
 $("#freeBtn").onclick = async () => {
   const out = $("#freeOut"), btn = $("#freeBtn");
   out.innerHTML = "";
-  freeTally.answered = freeTally.correct = freeTally.size = 0; freeTally.missed = [];
+  newSet(freeTally);
   $("#freeScore").textContent = "";
   btn.disabled = true;
   try {
