@@ -1,7 +1,7 @@
 """The vocabulary ladder: browsing it, and moving a word up it.
 
 `POST /api/vocab/known` is the only way a word becomes known on the deployment;
-every route must have a caller (`tests/test_route_inventory.py`).
+every route must have a caller.
 """
 
 from __future__ import annotations

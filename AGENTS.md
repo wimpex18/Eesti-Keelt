@@ -65,12 +65,12 @@ run in Google Cloud Shell via `deploy/*.sh`. See `docs/deploy.md`.
 python -m eesti.cli fetch-data && python -m eesti.cli build && python -m eesti.cli export
 python -m eesti.cli serve                          # http://127.0.0.1:8000
 python -m eesti.cli eval --provider workers-ai     # score a grammar model
-python -m pytest tests/ -q -n auto                 # in-process + browser suites
+python -m pytest tests/ -q -n auto                 # fast suite (~15 s); --browser adds journeys
 ```
 
-Browser journeys (`tests/test_e2e_journeys.py`) need Playwright Chromium and
-WebKit; CI runs only the in-process tests. After any change to `eesti/web/`,
-run them and look at both viewports.
+Browser journeys run only with `--browser` on `tests/test_e2e_journeys.py`
+(~50 s; see `docs/testing.md`). After any change to `eesti/web/`, run them and
+look at both viewports. Tests guard what a learner feels, not source shape.
 
 ## Session lifecycle and hand-off
 
@@ -89,8 +89,7 @@ carries it between Claude Code and Codex.
 ## Working habits
 
 - Stage named paths; never `git commit -a`. Open small PRs; the user merges.
-- Docs state the current state only; derivable claims are tested
-  (`tests/test_docs_match_code.py`). Path-scoped rules: `.claude/rules/`.
+- Docs state the current state only. Path-scoped rules: `.claude/rules/`.
 
 ## Docs
 

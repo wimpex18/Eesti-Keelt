@@ -26,9 +26,6 @@ the same change that makes it untrue.
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
 | **Deployment** | Cloud Run behind a Cloudflare Worker + Access; the evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus present. |
 
-55 route handlers across `eesti/api/` serve 47 API endpoints; every endpoint
-has a caller (`tests/test_route_inventory.py`).
-
 ## What is missing
 
 ### 10 curriculum topics have no generator

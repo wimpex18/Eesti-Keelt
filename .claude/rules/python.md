@@ -13,7 +13,7 @@ paths:
 
 ## Every value needs a writer and a reader
 - When adding a reader, find its writer; when adding a writer, find its caller. Nothing fails when one side is missing — the feature just looks finished.
-- Every route has a caller (`tests/test_route_inventory.py`); every enumerated state has a code path that sets it.
+- Every route has a caller; every enumerated state has a code path that sets it.
 - Check a presence by counting rows, never by `exists()`: opening a SQLite file creates it with its schema.
 - A queue needs a drain that exists on the deployment, not only in the CLI.
 - In a dispatch, make sure an inner condition can actually be true for the branch it sits in.
