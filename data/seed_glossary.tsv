@@ -10,7 +10,7 @@
 # stored translation on a fresh deployment. The gloss store fills on demand,
 # one word at a time, so `etendus` stays untranslated until somebody looks it
 # up -- and a B1 object-case drill on a word the learner cannot translate
-# teaches morphology on a token. CLAUDE.md names that failure; this closes it
+# teaches morphology on a token. AGENTS.md names that failure; this closes it
 # for the words it actually happens on.
 #
 # A Sõnaveeb answer is richer (senses, rection, muuttüüp) and still wins: this

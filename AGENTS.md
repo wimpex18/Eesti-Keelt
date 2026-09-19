@@ -7,9 +7,6 @@ and answers are graded by code where code can decide and by an LLM where it
 cannot (meaning, writing, conversation). The #1 documented weakness is
 `obj-case` (genitive vs partitive for a completed object).
 
-This file is the single source of instructions for every coding agent (Claude
-Code, OpenAI Codex, others). `CLAUDE.md` only imports it.
-
 No exam is booked; the sitting is planned for 2027. `readiness.TARGET` stays
 `None` until a date is chosen — do not add a countdown.
 
@@ -17,20 +14,15 @@ No exam is booked; the sitting is planned for 2027. `readiness.TARGET` stays
 
 - **Models may grade.** Advanced LLMs are authorised to check answers, judge
   meaning, score conversation and synthesise lessons. Vabamorf code stays as
-  the fast, offline utility and fallback: forms, drill generation and
-  deterministic checks run first where they can decide, and a model covers
-  what code cannot. Show the learner what was checked and by what. See
-  `docs/ai-boundaries.md`.
-- **Stay on the latest stable.** Target the current stable Python, tools,
-  dependencies and external packages; upgrade them routinely rather than
-  pinning. Run the suite after each upgrade, and re-run the eval before
-  trusting a new `estnltk` as the morphology reference.
+  the fast, offline fallback: code decides where it can, a model covers the
+  rest, and the learner is told which checked what. See `docs/ai-boundaries.md`.
+- **Stay on the latest stable** Python, tools and dependencies; don't pin.
+  Run the suite after an upgrade, and the eval before trusting a new `estnltk`.
 - **Never put a credential** in chat, a commit or an environment box. Secrets
   live in GitHub Actions secrets, Cloudflare Worker secrets, Cloud Run env vars
   and a git-ignored `.env`.
 - **Do not invent a linguistic fact.** Forms come from Vabamorf; rules from
-  EKI's handbook (EKK); when a model supplies one, it is labelled as
-  model-generated and checked against Vabamorf where possible.
+  EKI's handbook (EKK); a model-supplied one is labelled as such.
 
 ## Which language a string is in
 

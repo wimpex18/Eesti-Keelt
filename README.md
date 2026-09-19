@@ -60,7 +60,4 @@ The word list is CC-BY-SA-4.0; EKI dictionaries are CC-BY-4.0 with attribution.
 Keep source attribution for every dataset. Details in
 [`docs/sources.md`](docs/sources.md).
 
-## Contributing
-
-Agent instructions live in [`AGENTS.md`](AGENTS.md), read by Claude Code and
-OpenAI Codex alike (`CLAUDE.md` imports it).
+Agent instructions: [`AGENTS.md`](AGENTS.md).
