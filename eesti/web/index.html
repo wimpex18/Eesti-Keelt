@@ -33,7 +33,7 @@
 </script>
 <div class="wrap">
   <header>
-    <h1>Eesti keel</h1>
+    <h1 lang="et">Eesti keel</h1>
     <!-- Mode, then skill. -->
     <div class="modes" role="tablist" aria-label="Režiim — режим">
       <button role="tab" aria-selected="true"  data-mode="learn" lang="et">Õppimine</button>
@@ -84,8 +84,8 @@
   <section class="panel" id="tab-path">
     <h2 class="sr-only" lang="et">Rada</h2>
     <div class="levels" id="pathModes" role="tablist" aria-label="Harjutamine — режим">
-      <button role="tab" aria-selected="true"  data-pm="rada" aria-controls="pathRada">Minu rada <i class="ru">по порядку</i></button>
-      <button role="tab" aria-selected="false" data-pm="vaba" aria-controls="pathFree">Vaba harjutus <i class="ru">без записи</i></button>
+      <button role="tab" aria-selected="true"  data-pm="rada" aria-controls="pathRada" lang="et">Minu rada <i class="ru" lang="ru">по порядку</i></button>
+      <button role="tab" aria-selected="false" data-pm="vaba" aria-controls="pathFree" lang="et">Vaba harjutus <i class="ru" lang="ru">без записи</i></button>
     </div>
     <div id="pathRada" role="tabpanel">
     <div class="pathtop">
@@ -97,8 +97,8 @@
     </div>
     <div id="pathHead" class="banner" hidden></div>
     <div class="row">
-      <button class="go" id="practiceBtn">Harjuta <span class="ru">тренировка</span></button>
-      <label>Sõnavara teema <i class="ru">на каких словах</i>
+      <button class="go" id="practiceBtn" lang="et">Harjuta <span class="ru" lang="ru">тренировка</span></button>
+      <label lang="et">Sõnavara teema <i class="ru" lang="ru">на каких словах</i>
         <select id="wordTheme"><option value="">kõik sõnad</option></select>
       </label>
       <span class="hint" id="pathScore"></span>
@@ -107,7 +107,7 @@
          drilled over. The label hides for topics it cannot change. -->
     <div id="practiceOut"></div>
     <details id="pathAll">
-      <summary>Kogu rada <i class="ru">все темы по порядку</i></summary>
+      <summary lang="et">Kogu rada <i class="ru" lang="ru">все темы по порядку</i></summary>
       <p class="note">Тема открывается, когда пройдены те, на которых она стоит.</p>
       <div id="pathList"></div>
     </details>
@@ -116,13 +116,13 @@
       <!-- While a set runs, the three controls fold into this one line. -->
       <div class="free-summary" id="freeSummary" hidden>
         <span id="freeWhat"></span>
-        <button class="ghost" id="freeEdit">Muuda <span class="ru">изменить</span></button>
+        <button class="ghost" id="freeEdit" lang="et">Muuda <span class="ru" lang="ru">изменить</span></button>
       </div>
       <div class="row" id="freeControls">
-        <label>Teema <i class="ru">тема</i>
+        <label lang="et">Teema <i class="ru" lang="ru">тема</i>
           <select id="freeTopic"></select>
         </label>
-        <label id="freeRuleLabel" hidden>Reegel <i class="ru">правило</i>
+        <label id="freeRuleLabel" lang="et" hidden>Reegel <i class="ru" lang="ru">правило</i>
           <select id="freeRule">
             <option value="">kõik</option>
             <option value="negation">eitus → osastav</option>
@@ -130,7 +130,7 @@
             <option value="ongoing">kestev → osastav</option>
           </select>
         </label>
-        <label>Raskus <i class="ru">уровень слов</i>
+        <label lang="et">Raskus <i class="ru" lang="ru">уровень слов</i>
           <select id="freeLevel">
             <option value="A1,A2,B1">A1–B1</option>
             <option value="A1">A1</option>
@@ -138,7 +138,7 @@
             <option value="B1">B1</option>
           </select>
         </label>
-        <button class="go" id="freeBtn">Alusta <span class="ru">начать</span></button>
+        <button class="go" id="freeBtn" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
       </div>
       <p class="hint" id="freeNote">Ответы не записываются — ни в прогресс по Rada, ни в очередь
         повторения. Любая тема, даже ещё закрытая.</p>
@@ -159,14 +159,14 @@
         <option value="vastus">Vasta küsimusele — ответ</option>
       </select>
       <select id="speakTopic" aria-label="Teema — тема"></select>
-      <button class="ghost" id="speakPlay">Kuula ette <span class="ru">прослушать</span></button>
-      <button class="ghost" id="speakNext" hidden>Järgmine <span class="ru">дальше</span></button>
+      <button class="ghost" id="speakPlay" lang="et">Kuula ette <span class="ru" lang="ru">прослушать</span></button>
+      <button class="ghost" id="speakNext" lang="et" hidden>Järgmine <span class="ru" lang="ru">дальше</span></button>
     </div>
     <div class="prompt" id="speakPrompt" lang="et" style="margin-top:var(--s4)">…</div>
     <audio id="speakModel" controls hidden></audio>
 
     <div class="rec">
-      <button class="go" id="recBtn">Salvesta vastus <span class="ru">записать ответ</span></button>
+      <button class="go" id="recBtn" lang="et">Salvesta vastus <span class="ru" lang="ru">записать ответ</span></button>
       <span class="hint" id="recState">Микрофону нужен HTTPS или localhost.</span>
     </div>
     <!-- Shown before recording: the voice leaves the device for recognition. -->
@@ -183,9 +183,9 @@
     <div style="margin-top:var(--s4)">
       <div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
       <div class="row" style="margin-top:var(--s2)">
-        <a class="ghost" href="https://sonaveeb.ee/pronunciation-exercises/"
+        <a class="ghost" lang="et" href="https://sonaveeb.ee/pronunciation-exercises/"
            target="_blank" rel="noopener">Hääldusharjutused →</a>
-        <a class="ghost" href="https://sonaveeb.ee/learn" target="_blank"
+        <a class="ghost" lang="et" href="https://sonaveeb.ee/learn" target="_blank"
            rel="noopener">Väljendid A1–B1 →</a>
       </div>
     </div>
@@ -204,7 +204,7 @@
     <textarea id="text" lang="et" autocapitalize="sentences" autocorrect="off" spellcheck="false"
       aria-label="Tekst — текст для проверки" placeholder="Напиши или вставь эстонский текст…"></textarea>
     <div class="row">
-      <button class="go" id="checkBtn">Kontrolli <span class="ru">проверить</span></button>
+      <button class="go" id="checkBtn" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
       <span class="hint kbd-hint">Ctrl+Enter</span>
     </div>
     <div id="checkOut"></div>
@@ -214,7 +214,7 @@
       <summary>Журнал ошибок — ожидает отправки <span id="queueCount"></span></summary>
       <div id="queueList"></div>
       <div class="row">
-        <button class="go" id="queueSend">Saada valitud Notionisse <span class="ru">отправить в Notion</span></button>
+        <button class="go" id="queueSend" lang="et">Saada valitud Notionisse <span class="ru" lang="ru">отправить в Notion</span></button>
         <span class="hint" id="queueNote"></span>
       </div>
     </details>
@@ -241,7 +241,7 @@
     <div id="readiness"></div>
     <!-- The checkpoint: a mixed set across the whole level. -->
     <div class="row" style="margin-top:var(--s5)">
-      <button class="go" id="checkpointBtn">Kontrolltöö <span class="ru">контрольная</span></button>
+      <button class="go" id="checkpointBtn" lang="et">Kontrolltöö <span class="ru" lang="ru">контрольная</span></button>
       <span class="hint" id="checkpointNote"></span>
       <span class="hint" id="checkpointScore"></span>
     </div>
@@ -265,13 +265,13 @@
       возвращается тем раньше, чем труднее она тебе далась.
     </p>
     <div class="row">
-      <button class="go" id="loadReview" aria-describedby="reviewStats">Alusta kordamist <span class="ru">начать повторение</span></button>
+      <button class="go" id="loadReview" aria-describedby="reviewStats" lang="et">Alusta kordamist <span class="ru" lang="ru">начать повторение</span></button>
       <span class="hint" id="reviewStats"></span>
     </div>
     <!-- An empty queue says where to go instead: the intro above already says where
          cards come from. -->
     <p class="hint" id="reviewEmpty" hidden>Очередь пока пуста.
-      <a href="#path">Mine Radale <span class="ru">к упражнениям</span></a></p>
+      <a href="#path" lang="et">Mine Radale <span class="ru" lang="ru">к упражнениям</span></a></p>
     <!-- The words the learner keeps getting wrong (`/api/review/stats` `struggling`). -->
     <div id="reviewHard" hidden></div>
     <div id="reviewOut"></div>
@@ -283,7 +283,7 @@
   <section class="panel" id="tab-sonad" hidden>
     <h2 class="sr-only" lang="et">Sõnavara</h2>
     <div class="row">
-      <label>Tase <i class="ru">уровень</i>
+      <label lang="et">Tase <i class="ru" lang="ru">уровень</i>
         <select id="vocLevel">
           <option value="">kõik</option>
           <option value="A1" selected>A1</option>
@@ -293,7 +293,7 @@
           <option value="C1">C1</option>
         </select>
       </label>
-      <label>Sõnaliik <i class="ru">часть речи</i>
+      <label lang="et">Sõnaliik <i class="ru" lang="ru">часть речи</i>
         <select id="vocPos">
           <option value="">kõik</option>
           <option value="s">nimisõna</option>
@@ -302,7 +302,7 @@
           <option value="adv">määrsõna</option>
         </select>
       </label>
-      <label>Olek <i class="ru">статус</i>
+      <label lang="et">Olek <i class="ru" lang="ru">статус</i>
         <select id="vocStatus">
           <option value="">kõik</option>
           <option value="new">uued</option>
@@ -312,13 +312,13 @@
           <option value="ignored">eiran</option>
         </select>
       </label>
-      <button id="vocBtn" class="primary">Näita <span class="ru">показать</span></button>
+      <button id="vocBtn" class="primary" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
     </div>
     <p class="note" id="vocNote">Сначала самые частотные слова. Нажми на слово,
       чтобы открыть карточку.</p>
     <div id="vocOut" aria-live="polite"></div>
     <div class="row" id="vocMore" hidden>
-      <button class="ghost" id="vocMoreBtn">Veel sõnu <span class="ru">ещё слова</span></button>
+      <button class="ghost" id="vocMoreBtn" lang="et">Veel sõnu <span class="ru" lang="ru">ещё слова</span></button>
     </div>
   </section>
 
@@ -326,7 +326,7 @@
   <section class="panel" id="tab-read" hidden>
     <h2 class="sr-only" lang="et">Lugemine</h2>
     <div class="row">
-      <label>Valik <i class="ru">подборка</i>
+      <label lang="et">Valik <i class="ru" lang="ru">подборка</i>
         <select id="readLevel">
           <!-- Default, because it is the only option that knows anything about
                *this* reader. The rest rank texts against each other. -->
@@ -337,7 +337,7 @@
           <option value="raskem">raskem</option>
         </select>
       </label>
-      <button class="primary" id="loadLib">Näita <span class="ru">показать</span></button>
+      <button class="primary" id="loadLib" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
     </div>
     <!-- The count sits outside the wrapping control row, so it does not move. -->
     <p class="hint" id="libCount"></p>
@@ -345,11 +345,11 @@
     <p class="hint" id="libNote" lang="ru" hidden></p>
     <div id="libList"></div>
     <div class="row" id="libMore" hidden>
-      <button class="ghost" id="libMoreBtn">Veel tekste <span class="ru">ещё тексты</span></button>
+      <button class="ghost" id="libMoreBtn" lang="et">Veel tekste <span class="ru" lang="ru">ещё тексты</span></button>
     </div>
     <div id="reader" hidden>
       <div class="row" style="margin-top:var(--s4)">
-        <button class="ghost" id="backToLib">Nimekirja <span class="ru">к списку</span></button>
+        <button class="ghost" id="backToLib" lang="et">Nimekirja <span class="ru" lang="ru">к списку</span></button>
         <span class="hint" id="readerMeta"></span>
       </div>
       <h3 id="readerTitle" lang="et" style="margin:var(--s3) 0 var(--s1);font-size:var(--fs-read)"></h3>
@@ -358,7 +358,7 @@
       <div id="readerBody" class="prose" lang="et"></div>
       <!-- Translation on request only: a reader handed Russian reads the Russian. -->
       <div class="row" style="margin-top:var(--s3)">
-        <button class="ghost" id="xlBtn">Tõlgi valitud lause <span class="ru">перевести предложение</span></button>
+        <button class="ghost" id="xlBtn" lang="et">Tõlgi valitud lause <span class="ru" lang="ru">перевести предложение</span></button>
         <span class="hint" id="xlHint">vali tekstist lause</span>
       </div>
       <div id="xlOut" class="gloss-late" hidden></div>
@@ -370,7 +370,7 @@
   <section class="panel" id="tab-listen" hidden>
     <h2 class="sr-only" lang="et">Kuulamine</h2>
     <!-- Two tools, each under its own heading: the graded dictation, then any text read aloud. -->
-    <h3 class="sec-head">Etteütlus <i class="ru">диктант</i></h3>
+    <h3 class="sec-head" lang="et">Etteütlus <i class="ru" lang="ru">диктант</i></h3>
     <!-- Dictation first (graded), the text-to-speech box second. -->
     <!-- Outside `#dictBox`, so the reason there is no dictation stays visible when the
          box is hidden. -->
@@ -378,15 +378,15 @@
 
     <div id="dictBox">
       <div class="row">
-        <button class="go" id="dictPlay">Kuula <span class="ru">слушать</span></button>
-        <button class="ghost" id="dictNext">Järgmine <span class="ru">дальше</span></button>
+        <button class="go" id="dictPlay" lang="et">Kuula <span class="ru" lang="ru">слушать</span></button>
+        <button class="ghost" id="dictNext" lang="et">Järgmine <span class="ru" lang="ru">дальше</span></button>
         <span class="hint" id="dictState">Прослушай и запиши услышанное.</span>
       </div>
       <textarea id="dictTyped" rows="2" lang="et" autocapitalize="off" autocorrect="off"
         spellcheck="false" aria-label="Etteütlus — что ты услышал"
         placeholder="Запиши, что услышал…"></textarea>
       <div class="row">
-        <button class="go" id="dictCheck">Kontrolli <span class="ru">проверить</span></button>
+        <button class="go" id="dictCheck" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
         <span class="hint" id="dictScore"></span>
       </div>
       <!-- The player and the result are separate containers, so replay survives grading. -->
@@ -398,24 +398,24 @@
     <!-- The harvested listening archive, by section. -->
     <div id="listenLib"></div>
 
-    <h3 class="sec-head">Mis tahes tekst → heli <i class="ru">озвучить любой текст</i></h3>
+    <h3 class="sec-head" lang="et">Mis tahes tekst → heli <i class="ru" lang="ru">озвучить любой текст</i></h3>
     <p class="hint">Вставь текст — он прозвучит медленно (0.7×) или в обычном темпе.</p>
     <textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
     <div class="row">
-      <label>Hääl <i class="ru">голос</i> <select id="voice"></select></label>
-      <label>Kiirus <i class="ru">скорость</i>
+      <label lang="et">Hääl <i class="ru" lang="ru">голос</i> <select id="voice"></select></label>
+      <label lang="et">Kiirus <i class="ru" lang="ru">скорость</i>
         <select id="speed">
           <option value="0.7" selected>0.7× (õppijale)</option>
           <option value="0.85">0.85×</option>
           <option value="1">1× (tavaline)</option>
         </select>
       </label>
-      <button class="ghost" id="speakBtn">Loe ette <span class="ru">озвучить</span></button>
+      <button class="ghost" id="speakBtn" lang="et">Loe ette <span class="ru" lang="ru">озвучить</span></button>
     </div>
     <div id="ttsOut"></div>
   </section>
   <!-- Desktop-only context rail: countdown, resume point, due count. -->
-  <aside class="rail" id="rail" aria-labelledby="railHead"><h2 class="sr-only" id="railHead">Kokkuvõte — сводка</h2><div id="railCards"></div></aside>
+  <aside class="rail" id="rail" aria-labelledby="railHead"><h2 class="sr-only" id="railHead" lang="et">Kokkuvõte <span lang="ru">— сводка</span></h2><div id="railCards"></div></aside>
 
 </div>
 
@@ -424,7 +424,7 @@
      first open. -->
 <footer class="sources">
   <details id="sourceBox">
-    <summary>Allikad ja litsentsid <i class="ru">источники и лицензии</i></summary>
+    <summary lang="et">Allikad ja litsentsid <i class="ru" lang="ru">источники и лицензии</i></summary>
     <p class="note">Материал этого приложения взят из перечисленных источников.
       Отмеченные <b>CC BY 4.0</b> требуют указывать источник и описывать
       изменения — они описаны ниже. Источники без пометки о свободной лицензии

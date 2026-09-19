@@ -277,7 +277,7 @@ $("#homeBtn").onclick = () => {
 
 export function glossChrome() {
   document.querySelectorAll("nav[data-mode-nav] button[data-tab] .lbl")
-    .forEach(el => { el.lang = "et"; gloss(el, RU[el.textContent.trim()]); });
+    .forEach(el => gloss(el, RU[el.textContent.trim()]));
   document.querySelectorAll("#modes button[data-mode], .modes button[data-mode]")
-    .forEach(el => { el.lang = "et"; gloss(el, RU[el.textContent.trim()]); });
+    .forEach(el => gloss(el, RU[el.textContent.trim()]));
 }

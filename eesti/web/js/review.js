@@ -32,26 +32,26 @@ export async function loadRail() {
     const dated = ready.days_to_decide !== null && ready.days_to_decide !== undefined;
     rail.innerHTML = `
       <div class="rail-card" data-for="path">
-        <h3>Järgmine <span class="ru">следующая тема</span></h3>
-        ${next ? `<div class="rail-big rail-topic">${esc(next.et)}</div>
-          <a class="rail-go" href="#path">Harjuta <i class="ru">тренировка</i></a>`
+        <h3 lang="et">Järgmine <span class="ru" lang="ru">следующая тема</span></h3>
+        ${next ? `<div class="rail-big rail-topic" lang="et">${esc(next.et)}</div>
+          <a class="rail-go" href="#path" lang="et">Harjuta <i class="ru" lang="ru">тренировка</i></a>`
           : `<div class="rail-note">Все открытые темы пройдены.</div>`}
-        <div class="rail-row"><span>Läbitud <i class="ru">пройдено</i></span>
+        <div class="rail-row"><span lang="et">Läbitud <i class="ru" lang="ru">пройдено</i></span>
           <b>${path.mastered}/${path.total}</b></div>
         ${due && due.due ? `<div class="rail-row">
-          <a href="#review">Kordamist ootab <i class="ru">к повторению</i></a>
+          <a href="#review" lang="et">Kordamist ootab <i class="ru" lang="ru">к повторению</i></a>
           <b>${due.due}</b></div>` : ""}
       </div>
       ${untouched.length ? `<div class="rail-card" data-for="exam">
-        <h3>Puudutamata <span class="ru">не начато</span></h3>
-        ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
+        <h3 lang="et">Puudutamata <span class="ru" lang="ru">не начато</span></h3>
+        ${untouched.map(p => `<div class="rail-row"><span lang="et">${esc(p.et)}</span>
           ${p.next_task && p.next_task.url
             ? `<a href="${esc(p.next_task.url)}" target="_blank"
-                 rel="noopener">ava</a>` : ""}</div>`).join("")}
+                 rel="noopener" lang="et">ava</a>` : ""}</div>`).join("")}
         <div class="rail-note">Ни одна часть не должна быть нулём.</div>
       </div>` : ""}
       ${dated ? `<div class="rail-card" data-for="exam">
-        <h3>Eksamini <span class="ru">до экзамена</span></h3>
+        <h3 lang="et">Eksamini <span class="ru" lang="ru">до экзамена</span></h3>
         <div class="rail-big">${esc(ready.countdown)}</div>
         <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
       </div>` : ""}`;
@@ -92,7 +92,7 @@ export async function refreshDueBadge() {
       hard.innerHTML = `<div class="note">Не закрепляется — эти слова
         возвращаются чаще всего:</div>` + rows.map(r =>
         `<div class="lib-item"><b lang="et">${esc(r.lemma || "")}</b>
-          <span class="lib-meta">${esc(r.kind_et || r.kind || "")} · ошибок
+          <span class="lib-meta"><span lang="et">${esc(r.kind_et || r.kind || "")}</span> · ошибок
             ${r.lapses} из ${r.reps}</span></div>`).join("");
   } catch {}
 }
@@ -134,9 +134,9 @@ async function finishReview() {
   const end = document.createElement("div");
   end.className = "set-end";
   end.setAttribute("role", "status");
-  end.innerHTML = `<h4>Kordamine tehtud <i class="ru">повторение пройдено</i></h4>
+  end.innerHTML = `<h4 lang="et">Kordamine tehtud <i class="ru" lang="ru">повторение пройдено</i></h4>
     <p class="set-score">${ruCount(reviewSize, ["карточка", "карточки", "карточек"])}</p>
-    ${due ? `<div class="row"><button class="go">Veel kaarte <span class="ru">ещё ${due}</span></button></div>`
+    ${due ? `<div class="row"><button class="go" lang="et">Veel kaarte <span class="ru" lang="ru">ещё ${due}</span></button></div>`
           : `<p class="hint">На сегодня всё. Новые карточки появятся из ошибок и из
                слов, отмеченных при чтении.</p>`}`;
   end.querySelector("button")?.addEventListener("click", () => $("#loadReview").click());
@@ -154,7 +154,7 @@ function renderVocabCard(it) {
     </div>
     ${it.context ? `<div class="rev-ctx" lang="et">${esc(it.context)}</div>` : ""}
     <div class="row">
-      <button class="go fc-show">Näita <i class="ru">показать</i></button>
+      <button class="go fc-show" lang="et">Näita <i class="ru" lang="ru">показать</i></button>
       ${it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
     <div class="fc-note hint" hidden></div>
@@ -162,9 +162,9 @@ function renderVocabCard(it) {
       <div class="fc-meaning">${esc(it.answer)}</div>
       ${it.why_ru ? `<div class="why">${md(it.why_ru)}</div>` : ""}
       <div class="row">
-        <button class="ghost" data-r="again">Ei mäleta <i class="ru">не помню</i></button>
-        <button class="ghost" data-r="hard">Raske <i class="ru">трудно</i></button>
-        <button class="go" data-r="good">Teadsin <i class="ru">знал</i></button>
+        <button class="ghost" data-r="again" lang="et">Ei mäleta <i class="ru" lang="ru">не помню</i></button>
+        <button class="ghost" data-r="hard" lang="et">Raske <i class="ru" lang="ru">трудно</i></button>
+        <button class="go" data-r="good" lang="et">Teadsin <i class="ru" lang="ru">знал</i></button>
       </div>
     </div>
     <div class="verdict" role="status"></div>`;
@@ -224,11 +224,11 @@ function renderReview(it, glosses) {
   el.className = "drill";
   el.innerHTML = `
     <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
-    ${it.context ? `<div class="rev-ctx">${esc(it.context)}</div>` : ""}
+    ${it.context ? `<div class="rev-ctx" lang="et">${esc(it.context)}</div>` : ""}
     <div class="row" style="margin-top:var(--s2)">
-      <button class="ghost" data-r="again">Ei mäleta <i class="ru">не помню</i></button>
-      <button class="ghost" data-r="hard">Raske <i class="ru">трудно</i></button>
-      <button class="go" data-r="good">Teadsin <i class="ru">знал</i></button>
+      <button class="ghost" data-r="again" lang="et">Ei mäleta <i class="ru" lang="ru">не помню</i></button>
+      <button class="ghost" data-r="hard" lang="et">Raske <i class="ru" lang="ru">трудно</i></button>
+      <button class="go" data-r="good" lang="et">Teadsin <i class="ru" lang="ru">знал</i></button>
       ${taskLine({lemma: it.lemma, label: it.kind_et || it.kind || "", level: ""},
                  ru, {quiet: true})}${
         it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}

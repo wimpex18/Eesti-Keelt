@@ -41,7 +41,9 @@ is off).
   caller (`test_route_inventory.py`, `test_ui_contract.py`); every library
   section is reachable (`test_sections.py`).
 - **Language rule:** user-facing sentences contain Cyrillic; no Estonian term
-  is transliterated (`test_ui_language.py`).
+  is transliterated; every Estonian label is marked `lang="et"` and every
+  Russian gloss `lang="ru"`, so a screen reader uses the right voice
+  (`test_ui_language.py`).
 - **Docs:** derivable counts, the tab diagram and cited file paths match the
   code (`test_docs_match_code.py`).
 - **Read-only commands write nothing:** checked in subprocesses, byte for byte

@@ -90,7 +90,7 @@ export async function loadSpeakQuestions() {
   try {
     const {questions} = await (await api("/api/speaking", null, "GET")).json();
     $("#speakTopic").innerHTML = questions
-      .map((q, i) => `<option value="${i}">${esc(q.topic)}</option>`).join("");
+      .map((q, i) => `<option value="${i}" lang="et">${esc(q.topic)}</option>`).join("");
     window.__speak = questions;
     showSpeakQuestion();
   } catch (e) { $("#speakPrompt").textContent = e.message; }
@@ -101,7 +101,7 @@ function showSpeakQuestion() {
   const q = (window.__speak || [])[$("#speakTopic").value | 0];
   if (!q) return;
   $("#speakPrompt").innerHTML =
-    `${esc(q.question)}<div class="why" style="margin-top:var(--s2)">${esc(q.hint_ru)}</div>`;
+    `${esc(q.question)}<div class="why" lang="ru" style="margin-top:var(--s2)">${esc(q.hint_ru)}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
 }
@@ -155,7 +155,7 @@ if (!canRecord) {
         if (!asrReady) return;
         const heard = $("#recHeard");
         heard.hidden = false;
-        heard.innerHTML = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="fix">…</div>`;
+        heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="fix">…</div>`;
         try {
           const target = currentTarget();
           const params = new URLSearchParams();
@@ -166,19 +166,19 @@ if (!canRecord) {
           });
           const t = await r.json();
           if (!t.text) {
-            heard.innerHTML = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="why">${esc(t.note || "не разобрал")}</div>`;
+            heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="why">${esc(t.note || "не разобрал")}</div>`;
             return;
           }
-          let html = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="fix">${esc(t.text)}</div>`;
+          let html = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="fix" lang="et">${esc(t.text)}</div>`;
           if (t.comparison) {
             const c = t.comparison;
             // Word by word, because "7/9" is actionable and "78%" is not: the
             // two that were missed are the two to say again.
-            html += `<div class="fix">` + c.words.map(w =>
+            html += `<div class="fix" lang="et">` + c.words.map(w =>
               w.ok ? `<ins>${esc(w.target)}</ins>`
                    : `<del>${esc(w.target)}</del>`).join(" ") + `</div>`;
             html += `<div class="why">${c.matched}/${c.total} слов распознано.
-              ${c.missed.length ? "Повтори: <b>" + c.missed.map(esc).join(", ") + "</b>. " : ""}
+              ${c.missed.length ? "Повтори: <b lang=\"et\">" + c.missed.map(esc).join(", ") + "</b>. " : ""}
               ${esc(c.caveat)}</div>`;
           } else {
             html += `<div class="why">Движок: ${esc(t.engine)}.</div>`;
@@ -191,13 +191,13 @@ if (!canRecord) {
               html += `<div class="why">${ruCount(fb.words, ["слово", "слова", "слов"])}` +
                 (fb.pace_wpm ? ` · ${fb.pace_wpm} слов/мин` : "") + `</div>`;
               if (fb.corrections.length) html += fb.corrections.map(c =>
-                `<div class="why">✗ <del>${esc(c.wrong)}</del> →
-                 <ins>${esc(c.correct)}</ins> — ${esc(c.why || "")}</div>`).join("");
+                `<div class="why">✗ <del lang="et">${esc(c.wrong)}</del> →
+                 <ins lang="et">${esc(c.correct)}</ins> — ${esc(c.why || "")}</div>`).join("");
             } catch {}
           }
           heard.innerHTML = html;
         } catch (e) {
-          heard.innerHTML = `<span class="tag">Kuuldi <i class="ru">услышано</i></span><div class="why">${esc(e.message)}</div>`;
+          heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="why">${esc(e.message)}</div>`;
         }
       };
       recorder.start();
@@ -215,7 +215,7 @@ if (!canRecord) {
      practice is worth. */
   $("#recNote").innerHTML =
     "Здесь <b>не выставляют баллов</b> — произношение по записи не оценивается." +
-    "<details><summary>Почему</summary><b>Rääkimiseksam</b> на B1 — " +
+    "<details><summary>Почему</summary><b lang=\"et\">Rääkimiseksam</b> на B1 — " +
     "<b>парный</b>: два кандидата отвечают по очереди, а затем разговаривают " +
     "между собой. В одиночку имеет смысл тренировать построение ответа и " +
     "беглость, а не баллы.</details>";

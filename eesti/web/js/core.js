@@ -2,7 +2,16 @@
    API call, and the two helpers that write to a control without destroying it.
 
    `btn.textContent = "…"` replaces every child, including the Russian gloss and
-   the icon. Anything that changes a label goes through `setLabel`. */
+   the icon. Anything that changes a label goes through `setLabel`.
+
+   Which voice reads what. The page is `lang="ru"`, so text is Russian unless it
+   says otherwise: an element whose own text is an Estonian label carries
+   `lang="et"`, and its Russian gloss (`.ru`) carries `lang="ru"` again —
+   `<button lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>`.
+   The language sits on the element that already holds the label, so no wrapper
+   is added and nothing moves. `setLabel` and `gloss` keep it right when a label
+   changes at run time; `tests/test_ui_language.py` checks the markup and the
+   templates. */
 
 
 export const $ = s => document.querySelector(s);
@@ -69,21 +78,23 @@ export async function api(path, body, method) {
 
 export function taskLine(it, ru, opts) {
   const bits = [];
-  if (it.lemma) bits.push(`<span class="word">${esc(it.lemma)}</span>`);
+  if (it.lemma) bits.push(`<span class="word" lang="et">${esc(it.lemma)}</span>`);
   const form = it.label || (it.lemma ? "" : it.hint || "");
   // The same string plays two roles. In a practice set it is the instruction
   // ("produce the osastav") and earns the accent. In the review queue it is the
   // card's topic — provenance, not a task — so it takes the quiet shape.
   const quiet = !!(opts && opts.quiet);
-  if (form && !quiet) bits.push(`<span class="form">${esc(form)}</span>`);
+  if (form && !quiet) bits.push(`<span class="form" lang="et">${esc(form)}</span>`);
   if (ru && ru.length)
     bits.push(`<span class="gloss" lang="ru">${esc(ru.slice(0, 2).join(", "))}</span>`);
   // Chips last, and in the quiet shape the meaning comes before the topic:
   // what the word is matters more than which lesson filed it.
-  if (form && quiet) bits.push(`<span class="lvl">${esc(form)}</span>`);
+  if (form && quiet) bits.push(`<span class="lvl" lang="et">${esc(form)}</span>`);
   if (it.level) bits.push(`<span class="lvl">${esc(it.level)}</span>`);
   return `<span class="task">${bits.join("")}</span>`;
 }
+
+const CYRILLIC = /[\u0400-\u04ff]/;
 
 export function setLabel(el, text) {
   if (!el) return;
@@ -91,14 +102,22 @@ export function setLabel(el, text) {
   /* The mark survives a label change: `textContent =` wipes every child. */
   const ico = el.querySelector(".btn-ico");
   el.textContent = text;
+  /* A label is Estonian ("Kontrolli"); a passing state is Russian ("Проверяю…").
+     The element's language follows the text it now holds, so neither is read in
+     the other's voice. */
+  el.lang = CYRILLIC.test(text) ? "ru" : "et";
   if (ico) el.prepend(ico);
   if (ru) { el.append(" "); el.append(ru); }
 }
 
 
-/* Attach a small Russian gloss to an element without disturbing its label. */
+/* Attach a small Russian gloss to an element without disturbing its label.
+
+   Being glossed makes `el` an Estonian label, so it is marked as one; an element
+   that already declares a language keeps it. */
 export function gloss(el, ru) {
   if (!el || !ru || el.querySelector(".ru")) return;
+  if (!el.lang) el.lang = "et";
   const s = document.createElement("span");
   s.className = "ru";
   s.lang = "ru";

@@ -36,7 +36,7 @@ async function runCheck() {
        TartuNLP's NMT rather than the LLM: Estonian-trained, free and keyless. Absent
        rather than blocking when unavailable. */
     if (res.back_translation) {
-      html += `<div class="corr"><span class="tag">Mida sa ütlesid <i class="ru">что ты сказал</i></span>
+      html += `<div class="corr"><span class="tag" lang="et">Mida sa ütlesid <i class="ru" lang="ru">что ты сказал</i></span>
         <div class="gloss-late">${esc(res.back_translation)}</div>
         <div class="why">Обратный перевод (TartuNLP). Грамматика может быть
         верной, а смысл — не тем, который ты имел в виду.</div></div>`;
@@ -63,12 +63,12 @@ async function runCheck() {
         // by a person, is the whole design.
         html += `<div class="corr ${c.tag === "obj-case" ? "objcase" : ""}">
           <span class="tag">${esc(c.tag)}</span>
-          <div class="fix">${fix}</div>
+          <div class="fix" lang="et">${fix}</div>
           <div class="why">${md(c.why)}</div>
           ${c.correct ? `<button class="logbtn" type="button"
             data-wrong="${esc(c.wrong)}" data-correct="${esc(c.correct)}"
             data-why="${esc(c.why || "")}" data-tag="${esc(c.tag)}"
-            >+ Vigade logisse <i class="ru">в журнал ошибок</i></button>` : ""}</div>`;
+            lang="et">+ Vigade logisse <i class="ru" lang="ru">в журнал ошибок</i></button>` : ""}</div>`;
       }
     }
     html += `<div class="engine">движок: <b>${esc(res.engine)}</b>${res.degraded ? " (ограниченный режим)" : ""}</div>`;
@@ -86,10 +86,13 @@ async function queueError(btn) {
       wrong: btn.dataset.wrong, correct: btn.dataset.correct,
       why: btn.dataset.why, tag: btn.dataset.tag,
     })).json();
+    // The Estonian label and its gloss give way to a Russian outcome.
     btn.textContent = r.queued ? "✓ В журнале" : "✓ Уже в журнале";
+    btn.lang = "ru";
     loadQueue();
   } catch (e) {
     btn.textContent = "Не вышло";
+    btn.lang = "ru";
     btn.disabled = false;
   }
 }
@@ -103,7 +106,7 @@ async function loadQueue() {
     $("#queueList").innerHTML = rows.map(r => `
       <label class="qrow">
         <input type="checkbox" value="${r.id}" checked>
-        <span><b>${esc(r.wrong)}</b> → <b>${esc(r.correct)}</b>
+        <span lang="et"><b>${esc(r.wrong)}</b> → <b>${esc(r.correct)}</b>
           <span class="hint">${esc(r.tag)}</span></span>
       </label>`).join("");
     $("#queueSend").disabled = !d.can_push;
@@ -150,7 +153,7 @@ $("#checkOut").innerHTML = emptyState({
   note: `Напиши пару предложений по-эстонски. Орфографию, согласование и управление
     (rektsioon) проверяет код; остальные ошибки находит и объясняет по-русски
     языковая модель — для этого текст отправляется внешнему провайдеру.`,
-  action: `<button class="ghost" id="tryExample">Proovi näitega <span class="ru">на примере</span></button>`,
+  action: `<button class="ghost" id="tryExample" lang="et">Proovi näitega <span class="ru" lang="ru">на примере</span></button>`,
 });
 // Material, not interface copy: written without the final stop that
 // `tests/test_ui_language.py` reads as "a sentence the learner is told".

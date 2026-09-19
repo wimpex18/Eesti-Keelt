@@ -273,6 +273,58 @@ class TestNavigation:
         assert not page.failed_requests, page.failed_requests
 
 
+#: The rendered counterpart of `test_ui_language.TestEachLabelIsReadInItsLanguage`,
+#: over what the modules actually wrote: a Russian gloss resolves to `ru`; Latin
+#: text inside a control, form label, option, link, heading or tag resolves to
+#: `et` unless it is a code (`A1–B1`, `EKK 7.2`); Cyrillic text never resolves
+#: to `et`. Text mixing both scripts (an option that cannot hold markup) is
+#: skipped.
+_WRONG_VOICE = r"""() => {
+  const LATIN = /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]/, CYR = /[Ѐ-ӿ]/;
+  const NEUTRAL = /^(?:[A-Z0-9][A-Z0-9.+×–-]*|\d[\d.,×%\/–-]*|[a-z0-9-]+(?:\.[a-z0-9-]+)+)$/;
+  const LABEL = "button,summary,label,option,legend,a,h1,h2,h3,h4,h5,h6,[role=tab],.tag";
+  const langOf = el => el.closest("[lang]")?.getAttribute("lang") || "";
+  const bad = [];
+  for (const g of document.querySelectorAll(".ru"))
+    if (langOf(g) !== "ru") bad.push(`gloss ${g.textContent.trim()}`);
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walk.nextNode());) {
+    const el = n.parentElement, t = n.data.trim();
+    if (!el || !t || el.closest("script,style")) continue;
+    const latin = LATIN.test(t), cyr = CYR.test(t);
+    if (cyr && !latin && langOf(el) === "et") bad.push(`Russian read as et: ${t.slice(0, 40)}`);
+    const words = t.split(/[\s·—→←↗✓✗■()«»:,;!?+]+/).filter(Boolean);
+    if (latin && !cyr && !words.every(w => NEUTRAL.test(w))
+        && el.closest(LABEL) && !el.closest(".ru") && langOf(el) !== "et")
+      bad.push(`Estonian read as ru: <${el.tagName.toLowerCase()}> ${t.slice(0, 40)}`);
+  }
+  return bad;
+}"""
+
+
+class TestEachLabelIsReadInItsLanguage:
+    """A screen reader picks its voice from `lang`; the page is `ru`."""
+
+    def test_every_tab_marks_its_estonian_and_its_russian(self, page):
+        wrong = set()
+        for mode in MODES:
+            for tab in advertised_tabs(page, mode):
+                open_tab(page, mode, tab)
+                wrong |= {f"{mode}/{tab}: {w}" for w in page.evaluate(_WRONG_VOICE)}
+        assert not wrong, (f"{page.viewport_name}: text in the wrong voice:\n  "
+                           + "\n  ".join(sorted(wrong)))
+
+    def test_a_label_changed_at_run_time_changes_its_voice(self, page):
+        """`setLabel` swaps `Kontrolli` for `Проверяю…` while the check runs."""
+        open_tab(page, "learn", "write")
+        page.fill("#text", "Ma lugesin raamatut.")
+        page.click("#checkBtn")
+        page.wait_for_function(
+            "() => !document.querySelector('#checkBtn').disabled", timeout=30000)
+        assert page.get_attribute("#checkBtn", "lang") == "et"
+        assert page.get_attribute("#checkBtn .ru", "lang") == "ru"
+
+
 class TestTheGrammarDrill:
     """The offline core: generated items graded without a model or the network."""
 

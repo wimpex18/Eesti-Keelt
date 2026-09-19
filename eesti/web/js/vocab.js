@@ -6,7 +6,7 @@ import {refreshDueBadge} from "./review.js";
 
 /* A form's name as the exam says it, with its Russian gloss beside it. */
 const tagLabel = t => t.ru
-  ? `${esc(t.name)} <i class="ru">${esc(t.ru)}</i>` : esc(t.name);
+  ? `<span lang="et">${esc(t.name)} <i class="ru" lang="ru">${esc(t.ru)}</i></span>` : esc(t.name);
 
 
 export async function showWordCard(word, card, contextFor) {
@@ -32,16 +32,16 @@ export async function showWordCard(word, card, contextFor) {
   // the word rather than below the actions.
   const mineBtn = `<div id="cardExtra"></div>
     <div class="row" style="margin-top:var(--s2)">
-      <button class="ghost" id="mineBtn">${uiIcon("plus")}Kordamisse</button>
-      <button class="ghost" id="knowBtn">${uiIcon("check")}Tean seda sõna</button>
-      <button class="ghost" id="skipBtn" title="Не тратить время на это слово">${uiIcon("ban")}Pole vaja</button></div>
-    <div class="hint">«Tean» — выучено, идёт в счёт. «Pole vaja» — не предлагать,
+      <button class="ghost" id="mineBtn" lang="et">${uiIcon("plus")}Kordamisse</button>
+      <button class="ghost" id="knowBtn" lang="et">${uiIcon("check")}Tean seda sõna</button>
+      <button class="ghost" id="skipBtn" title="Не тратить время на это слово">${uiIcon("ban")}<span lang="et">Pole vaja</span></button></div>
+    <div class="hint">«<span lang="et">Tean</span>» — выучено, идёт в счёт. «<span lang="et">Pole vaja</span>» — не предлагать,
       в счёт не идёт.</div>
     <div id="mineNote"></div>`;
   card.innerHTML = d.analyses.slice(0, 2).map(a => `
-    <div class="lemma">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
-    <div class="tags">${a.tags.map(tagLabel).join(" · ")}</div>
-    ${a.object_case_contrast ? `<div class="pair">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
+    <div class="lemma" lang="et">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
+    <div class="tags" lang="et">${a.tags.map(tagLabel).join(" · ")}</div>
+    ${a.object_case_contrast ? `<div class="pair" lang="et">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
       <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>") + mineBtn;
 
   // Mining the word queues the GRAMMAR pattern behind it, with the sentence as
@@ -71,25 +71,25 @@ export async function showWordCard(word, card, contextFor) {
     .then(x => {
       if (!x.found) return;
       const bits = [];
-      if (x.governs?.length) bits.push(`rektsioon: <b>${esc(x.governs.join(", "))}</b>`);
-      if (x.inflection_type) bits.push(`muuttüüp <b>${esc(String(x.inflection_type))}</b>`);
+      if (x.governs?.length) bits.push(`<span lang="et">rektsioon: <b>${esc(x.governs.join(", "))}</b></span>`);
+      if (x.inflection_type) bits.push(`<span lang="et">muuttüüp <b>${esc(String(x.inflection_type))}</b></span>`);
       // The gloss, in the language the app explains things in.
       if (x.russian?.length)
         bits.push(`<span class="gloss">${esc(x.russian.join(", "))}</span>`);
       // EKI's Estonian-Russian dictionary is CC BY 4.0, so its Russian is credited —
       // only when it is EKI's, not Sõnaveeb's gloss in the same slot.
       if (x.russian_source === "ekilex")
-        bits.push(`<span class="attrib">allikas: Ekilex (EKI) · CC BY 4.0</span>`);
+        bits.push(`<span class="attrib" lang="et">allikas: Ekilex (EKI) · CC BY 4.0</span>`);
       if (x.russian_source === "eki-evs")
-        bits.push(`<span class="attrib">allikas: EKI eesti-vene sõnaraamat · CC BY 4.0</span>`);
+        bits.push(`<span class="attrib" lang="et">allikas: EKI eesti-vene sõnaraamat · CC BY 4.0</span>`);
       if (x.russian_source === "eki-har")
-        bits.push(`<span class="attrib">allikas: EKI haridussõnastik · CC BY 4.0</span>`);
+        bits.push(`<span class="attrib" lang="et">allikas: EKI haridussõnastik · CC BY 4.0</span>`);
       /* The definition and the examples, from EKI's põhisõnavara sõnastik. */
       const meaning = [];
       if (x.definition)
-        meaning.push(`<div class="def">${esc(x.definition)}</div>`);
+        meaning.push(`<div class="def" lang="et">${esc(x.definition)}</div>`);
       if (x.examples?.length)
-        meaning.push(`<ul class="examples">` +
+        meaning.push(`<ul class="examples" lang="et">` +
           x.examples.map(e => `<li>${esc(e)}</li>`).join("") + `</ul>`);
       /* Whose words those are.
 
@@ -100,14 +100,14 @@ export async function showWordCard(word, card, contextFor) {
 
          The label is Estonian (a label, per the language rule), not an explanation. */
       if (x.definition_source === "eki-psv")
-        meaning.push(`<div class="attrib">allikas: EKI põhisõnavara sõnastik` +
+        meaning.push(`<div class="attrib" lang="et">allikas: EKI põhisõnavara sõnastik` +
           ` 2014 · CC BY 4.0</div>`);
       if (x.definition_source === "ekilex")
-        meaning.push(`<div class="attrib">allikas: Ekilex (EKI) · CC BY 4.0</div>`);
+        meaning.push(`<div class="attrib" lang="et">allikas: Ekilex (EKI) · CC BY 4.0</div>`);
       if (x.definition_source === "eki-vsl")
-        meaning.push(`<div class="attrib">allikas: EKI võõrsõnade leksikon · CC BY 4.0</div>`);
+        meaning.push(`<div class="attrib" lang="et">allikas: EKI võõrsõnade leksikon · CC BY 4.0</div>`);
       if (x.definition_source === "eki-ekss")
-        meaning.push(`<div class="attrib">allikas: EKI eesti keele seletav sõnaraamat · CC BY 4.0</div>`);
+        meaning.push(`<div class="attrib" lang="et">allikas: EKI eesti keele seletav sõnaraamat · CC BY 4.0</div>`);
       /* The fuller, native-level wording beside PSV's learner definition. Folded,
          because the learner-level one is meant to be read first. Credited by source:
          Sõnaveeb (EKI's live database) or EKI's files. */
@@ -118,9 +118,9 @@ export async function showWordCard(word, card, contextFor) {
           "eki-vsl": "EKI võõrsõnade leksikon · CC BY 4.0",
           "eki-ekss": "EKI eesti keele seletav sõnaraamat · CC BY 4.0",
         }[x.full_definition_source] || "";
-        meaning.push(`<details class="fuller"><summary>täpsem seletus</summary>` +
-          `<div class="def">${esc(x.full_definition)}</div>` +
-          (who ? `<div class="attrib">allikas: ${esc(who)}</div>` : "") + `</details>`);
+        meaning.push(`<details class="fuller"><summary lang="et">täpsem seletus</summary>` +
+          `<div class="def" lang="et">${esc(x.full_definition)}</div>` +
+          (who ? `<div class="attrib" lang="et">allikas: ${esc(who)}</div>` : "") + `</details>`);
       }
       const slot = card.querySelector("#cardExtra");
       if (meaning.length) {
@@ -141,7 +141,7 @@ export async function showWordCard(word, card, contextFor) {
         const out = document.createElement("div");
         out.className = "hint";
         out.style.marginTop = "6px";
-        out.innerHTML = `<a href="${esc(x.sonaveeb)}" target="_blank" rel="noopener">`
+        out.innerHTML = `<a href="${esc(x.sonaveeb)}" target="_blank" rel="noopener" lang="et">`
           + `Sõnaveebis →</a>`;
         slot.append(out);
       }
@@ -162,7 +162,7 @@ export async function showWordCard(word, card, contextFor) {
     const note = card.querySelector("#mineNote");
     try {
       await api("/api/vocab/known", {lemmas: [lemma], status: "ignore"});
-      e.target.innerHTML = uiIcon("ban") + "Jäetud";
+      e.target.innerHTML = uiIcon("ban") + '<span lang="et">Jäetud</span>';
       note.className = "mine-note";
       note.textContent = `«${lemma}» больше не будет предлагаться.`;
     } catch (err) {
@@ -194,14 +194,14 @@ let vocOffset = 0;
 
 function vocRow(it) {
   const pair = it.genitive
-    ? `<span class="pair">${esc(it.genitive)} / ${esc(it.partitive)}</span>` : "";
+    ? `<span class="pair" lang="et">${esc(it.genitive)} / ${esc(it.partitive)}</span>` : "";
   const ru = it.russian ? `<span class="gloss">${esc(it.russian)}</span>` : "";
   const settled = it.status >= 5;
   return `<button class="vocword${settled ? " settled" : ""}" data-word="${esc(it.word)}">
-    <span class="w">${esc(it.word)}</span>
+    <span class="w" lang="et">${esc(it.word)}</span>
     ${it.level ? `<span class="lv" data-level="${esc(it.level)}">${esc(it.level)}</span>` : ""}
     ${pair}${ru}
-    ${settled ? `<span class="lv">${esc(it.status_name)}</span>` : ""}
+    ${settled ? `<span class="lv" lang="et">${esc(it.status_name)}</span>` : ""}
   </button>`;
 }
 

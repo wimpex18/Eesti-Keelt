@@ -78,7 +78,7 @@ export async function loadLibrary(append = false) {
             icon: "inbox",
             title: "В этой подборке текстов нет",
             note: "Другие подборки могут быть не пусты.",
-            action: `<button class="ghost" id="libAll">Kõik tekstid <span class="ru">все тексты</span></button>`,
+            action: `<button class="ghost" id="libAll" lang="et">Kõik tekstid <span class="ru" lang="ru">все тексты</span></button>`,
           })
         : emptyState({
             icon: "inbox",
@@ -106,14 +106,14 @@ export async function loadLibrary(append = false) {
       /* HARNO's tasks are indexed, never copied: `body` is empty by licence. They
          open the official page (`external`, `url`) instead of an empty reader. */
       if (it.external) {
-        el.innerHTML = `<h4>${esc(it.title)}</h4>
+        el.innerHTML = `<h4 lang="et">${esc(it.title)}</h4>
           <span class="lib-meta">HARNO · задание на сайте экзамена ↗</span>`;
         el.href = it.url;
         el.target = "_blank";
         el.rel = "noopener";
       } else {
-        el.innerHTML = `<h4>${esc(it.title)}</h4>
-          <span class="lib-meta">${it.band ? esc(it.band) + " · " : ""}${size}${
+        el.innerHTML = `<h4 lang="et">${esc(it.title)}</h4>
+          <span class="lib-meta">${it.band ? `<span lang="et">${esc(it.band)}</span> · ` : ""}${size}${
             it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${cover}</span>`;
         actsAsButton(el, () => openItem(it.id));
       }

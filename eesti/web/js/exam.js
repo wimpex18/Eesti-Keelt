@@ -35,8 +35,8 @@ export async function loadExam() {
      A first-day learner meets an action before a column of zeros. */
   const next = (path.topics || []).find(t => t.id === path.resume);
   let html = next ? `<div class="next-step">
-      <span>Järgmine samm <i class="ru">следующий шаг</i></span>
-      <a class="rail-go" href="#path"><b lang="et">${esc(next.et)}</b> → Harjuta</a>
+      <span lang="et">Järgmine samm <i class="ru" lang="ru">следующий шаг</i></span>
+      <a class="rail-go" href="#path" lang="et"><b>${esc(next.et)}</b> → Harjuta</a>
     </div>` : "";
   html += `<div class="parts">`;
   for (const part of ready.parts) {
@@ -44,12 +44,12 @@ export async function loadExam() {
     html += `<div class="part-row">
       <span class="part-mark ${cls}">${markIcon(glyph)}</span>
       <span class="part-body">
-        <span class="part-name">${esc(part.et)}</span>
+        <span class="part-name" lang="et">${esc(part.et)}</span>
         <span class="part-ev"> · ${esc(part.evidence)}</span>
         ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.url
             ? `<a href="${esc(part.next_task.url)}" target="_blank"
-                 rel="noopener">${esc(part.next_task.title)}</a>`
-            : esc(part.next_task.title)}</div>` : ""}
+                 rel="noopener" lang="et">${esc(part.next_task.title)}</a>`
+            : `<span lang="et">${esc(part.next_task.title)}</span>`}</div>` : ""}
       </span></div>`;
   }
   html += `</div>`;
@@ -65,7 +65,7 @@ export async function loadExam() {
      for words. Named, not summarised: the names are a plan. */
   const g = ready.grammar || {}, v = ready.vocabulary || {};
   if (g.topics) {
-    html += `<div class="verdict-detail"><b>Grammatika</b> · ` +
+    html += `<div class="verdict-detail"><b lang="et">Grammatika</b> · ` +
       `${g.mastered}/${g.topics} тем` +
       (g.checkpoint_passed ? " · контрольная пройдена" : "") + `</div>`;
     if ((g.outstanding || []).length)
@@ -73,10 +73,10 @@ export async function loadExam() {
         g.outstanding.map(esc).join(", ") + `</span></div>`;
   }
   if (v.measured)
-    html += `<div class="verdict-detail"><b>Sõnavara</b> · ` +
+    html += `<div class="verdict-detail"><b lang="et">Sõnavara</b> · ` +
       `${v.known} из ${v.level_words} слов уровня</div>`;
   if (detail)
-    html += `<details class="more"><summary>Üksikasjad <i class="ru">что осталось</i></summary>${detail}</details>`;
+    html += `<details class="more"><summary lang="et">Üksikasjad <i class="ru" lang="ru">что осталось</i></summary>${detail}</details>`;
   html += `<p class="hint">${esc(ready.caveat)}</p>`;
   $("#readiness").innerHTML = html;
 
@@ -96,17 +96,17 @@ export async function loadExam() {
   for (const [key, title, why] of groups) {
     const items = material[key] || [];
     if (!items.length) continue;
-    out += `<div class="kindgroup"><h3>${esc(title)}</h3>
+    out += `<div class="kindgroup"><h3 lang="et">${esc(title)}</h3>
       <p class="why">${esc(why)}</p>` + items.map(linkRow).join("") + `</div>`;
   }
   for (const [part, items] of Object.entries(material.ulesanded || {})) {
-    out += `<div class="kindgroup"><h3>${esc(part)} — ${items.length}</h3>` +
+    out += `<div class="kindgroup"><h3 lang="et">${esc(part)} — ${items.length}</h3>` +
       items.map(linkRow).join("") + `</div>`;
   }
   /* Whatever no group above claimed. `exam_material` returns unknown kinds in
      `muu`, so a new kind never vanishes from this screen. */
   if ((material.muu || []).length) {
-    out += `<div class="kindgroup"><h3>Muu materjal <i class="ru">прочее</i></h3>
+    out += `<div class="kindgroup"><h3 lang="et">Muu materjal <i class="ru" lang="ru">прочее</i></h3>
       <p class="why">Официальные файлы, не попавшие в разделы выше.</p>` +
       material.muu.map(linkRow).join("") + `</div>`;
   }
@@ -119,7 +119,7 @@ export async function loadExam() {
 }
 
 const linkRow = it => `<div class="lib-item">
-  <a href="${esc(it.url || "#")}" target="_blank" rel="noopener">${esc(it.title)}</a>
+  <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="et">${esc(it.title)}</a>
   <span class="lib-meta">${esc(it.format || "")}${
     it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
 

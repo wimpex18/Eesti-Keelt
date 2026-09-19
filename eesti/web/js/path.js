@@ -83,11 +83,11 @@ export async function loadPath() {
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
       pathMeta[t.id] = t;
       const testOut = t.state === "ready" || t.state === "in progress"
-        ? `<button class="ghost" data-topic="${esc(t.id)}">harjuta <i class="ru">решать</i></button>` : "";
+        ? `<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>` : "";
       return `<div class="topic ${t.state.replace(" ", "-")}">
         <span class="st">${stateIcon(t.state)}${esc(RU[t.state] || t.state)}</span>
         <span class="lv" data-level="${esc(t.level)}">${esc(t.level)}</span>
-        <span>${esc(t.et)}${esc(blocked)}${acc}</span>
+        <span lang="et">${esc(t.et)}${esc(blocked)}${acc}</span>
         ${testOut}</div>`;
     }).join("");
   } catch (e) {
@@ -104,14 +104,14 @@ export async function loadStatus() {
   try {
     const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";
-    if (s.rada) html += `<div class="corr stat"><span class="tag">Rada</span>
+    if (s.rada) html += `<div class="corr stat"><span class="tag" lang="et">Rada</span>
       <div class="fix">${s.rada.mastered}/${s.rada.total} тем пройдено,
       ${s.rada.available} открыто</div>
-      <div class="why">Следующая: ${esc(s.rada.next_et || "—")}${
+      <div class="why">Следующая: <span lang="et">${esc(s.rada.next_et || "—")}</span>${
         s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
-    if (s.sonavara) html += `<div class="corr stat"><span class="tag">Sõnavara</span>
+    if (s.sonavara) html += `<div class="corr stat"><span class="tag" lang="et">Sõnavara</span>
       <div class="fix">${ruCount(s.sonavara.known_in_top, ["слово", "слова", "слов"])} из первых
-      ${s.sonavara.top}</div><details class="more"><summary>Sageduse järgi <i class="ru">по частотности</i></summary><div class="why">` +
+      ${s.sonavara.top}</div><details class="more"><summary lang="et">Sageduse järgi <i class="ru" lang="ru">по частотности</i></summary><div class="why">` +
       s.sonavara.bands.map(b =>
         `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") + `</div></details><div class="why">` +
       // Two facts, kept apart: "known" is what the learner declared; this is what the
@@ -121,10 +121,10 @@ export async function loadStatus() {
         ? `<div class="gloss-late">${ruCount(s.sonavara.glossed, ["слово", "слова", "слов"])} с переводом
            <span class="hint">(пополняется само · сегодня осталось
            ${s.sonavara.gloss_budget_left})</span></div>` : "") + `</div></div>`;
-    if (s.kordamine) html += `<div class="corr stat"><span class="tag">Kordamine</span>
+    if (s.kordamine) html += `<div class="corr stat"><span class="tag" lang="et">Kordamine</span>
       <div class="fix">${s.kordamine.due} к повторению,
       ${s.kordamine.scheduled} всего</div></div>`;
-    if (s.raamatukogu) html += `<div class="corr stat"><span class="tag">Lugemine · Kuulamine</span>
+    if (s.raamatukogu) html += `<div class="corr stat"><span class="tag" lang="et">Lugemine · Kuulamine</span>
       <div class="fix">${ruCount(s.raamatukogu.items || 0, ["материал", "материала", "материалов"])} ·
       ${ruCount(Math.round(s.raamatukogu.minutes || 0), ["минута", "минуты", "минут"])}</div></div>`;
     // The caveat comes from the API, in Russian, so it is written once and matches
@@ -149,8 +149,8 @@ $("#pathList").addEventListener("click", e => {
 async function loadThemes() {
   try {
     const {themes} = await (await api("/api/themes", null, "GET")).json();
-    $("#wordTheme").innerHTML = '<option value="">kõik sõnad</option>' +
-      themes.map(t => `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("");
+    $("#wordTheme").innerHTML = '<option value="" lang="et">kõik sõnad</option>' +
+      themes.map(t => `<option value="${esc(t.id)}" lang="et">${esc(t.et)}</option>`).join("");
   } catch {}
 }
 
@@ -182,11 +182,9 @@ async function startPractice({focus = true} = {}) {
          corpus cloze needs a sentence containing a theme noun. The way out is one
          click, so it is a button. */
       if (res.theme_emptied) {
-        const again = document.createElement("button");
-        again.className = "ghost";
-        again.innerHTML = 'Proovi ilma teemata <span class="ru">без темы</span>';
-        again.onclick = () => { $("#wordTheme").value = ""; startPractice(); };
-        out.appendChild(again);
+        out.insertAdjacentHTML("beforeend",
+          `<button class="ghost" lang="et">Proovi ilma teemata <span class="ru" lang="ru">без темы</span></button>`);
+        out.lastElementChild.onclick = () => { $("#wordTheme").value = ""; startPractice(); };
       }
       return;
     }
@@ -197,7 +195,7 @@ async function startPractice({focus = true} = {}) {
        when a different one was picked from the list. */
     const bits = [];
     if (res.et !== $("#pathNow").textContent)
-      bits.push(`<strong>${esc(res.et)}</strong> · ${esc(res.level)}`);
+      bits.push(`<strong lang="et">${esc(res.et)}</strong> · ${esc(res.level)}`);
     /* A short set is not a broken one, but silence would read as "this topic only has
        three". */
     if (res.theme && res.items.length < 10)
@@ -248,13 +246,13 @@ function finishSet(tally, res) {
     tally.missed.map(({it}) => `<li>${esc(it.prompt).replace("____",
       `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
-    ? `<button class="ghost" data-act="redo">Korda vigu <span class="ru">ещё раз ошибки</span></button>` : "";
+    ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">ещё раз ошибки</span></button>` : "";
   const end = document.createElement("div");
   end.className = "set-end";
   end.setAttribute("role", "status");
-  end.innerHTML = `<h4>Komplekt tehtud <i class="ru">набор пройден</i></h4>
+  end.innerHTML = `<h4 lang="et">Komplekt tehtud <i class="ru" lang="ru">набор пройден</i></h4>
     <p class="set-score">${tally.correct} из ${tally.size} верно</p>${gate}${missed}
-    <div class="row">${redo}<button class="go" data-act="new">${uiIcon("next")}Uued laused <span class="ru">новые задания</span></button></div>`;
+    <div class="row">${redo}<button class="go" data-act="new" lang="et">${uiIcon("next")}Uued laused <span class="ru" lang="ru">новые задания</span></button></div>`;
   end.querySelector('[data-act="new"]').onclick = tally.again;
   end.querySelector('[data-act="redo"]')?.addEventListener("click", () => redoMissed(tally));
   // The score line said the same thing one line lower; the card says it now.
@@ -313,7 +311,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     <div class="row">
       <input type="text" size="18" placeholder="?" lang="et" ${ANSWER_FIELD}
              aria-label="Vastus ${place} — ответ">
-      <button class="ghost" aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
+      <button class="ghost" lang="et" aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
       ${taskLine(it, ru)}
     </div>`}
     <div class="verdict" role="status"></div>`;
@@ -381,16 +379,16 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // which for word order is the lesson.
     verdict.innerHTML = res.correct
       ? (choices.length
-          ? `✓ õige <i class="ru">верно</i> — <strong>${esc(it.answer)}</strong><br>
+          ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
-          : `✓ õige <i class="ru">верно</i> — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`
+          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", it.answer))}</strong>`
             // A choice topic hid its form until now; the rule is the lesson either way.
             + (it.form_after ? `<br><span class="why">${md(it.why_ru || "")}</span>` : ""))
       : wrongVerdict(input ? input.value : picked, it.answer, it.why_ru);
     /* The meaning arrives with the grade: `/api/practice/answer` looks up at most
        this one word. Only shown when the hint above did not already carry it. */
     if (res.russian?.length && !ru.length) {
-      verdict.innerHTML += `<span class="gloss-late"><b>${esc(it.lemma)}</b> — `
+      verdict.innerHTML += `<span class="gloss-late"><b lang="et">${esc(it.lemma)}</b> — `
         + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
     }
     let line = `${tally.correct}/${tally.answered} верных`;
