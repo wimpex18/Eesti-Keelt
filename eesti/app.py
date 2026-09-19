@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hmac
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -57,7 +58,25 @@ async def _proxy_guard(request: Request, call_next):
         return JSONResponse({"detail": "not authorised"}, status_code=403)
     response = await call_next(request)
     response.headers["x-boot-id"] = BOOT_ID
+    # How far the evidence log has got, so the Worker pulls only when there is
+    # something new (`deploy/worker.ts`, `pullEvents`).
+    seq = _events_seq()
+    if seq is not None:
+        response.headers["x-events-seq"] = str(seq)
     return response
+
+
+def _events_seq() -> int | None:
+    from . import config, evidence
+
+    path = Path(config.EVENTS_DB)
+    if not path.exists():
+        return None
+    try:
+        with evidence.connect(path) as conn:
+            return evidence.last_seq(conn)
+    except Exception:  # noqa: BLE001 - a header is never worth failing a request
+        return None
 
 
 api.register(app)

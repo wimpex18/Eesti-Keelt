@@ -93,12 +93,20 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 def queue(conn: sqlite3.Connection, row: Row) -> bool:
     """Hold a correction for review. True if it is new."""
+    from . import evidence
+
+    payload = {"wrong": row.wrong, "correct": row.correct, "why": row.why,
+               "tag": row.tag, "on_date": row.on_date or date.today().isoformat()}
+    evidence.record("correction-queued", payload)
+    return _queue(conn, payload)
+
+
+def _queue(conn: sqlite3.Connection, p: dict) -> bool:
     with conn:
         cur = conn.execute(
             "INSERT OR IGNORE INTO notion_queue"
             " (wrong, correct, why, tag, on_date) VALUES (?,?,?,?,?)",
-            (row.wrong, row.correct, row.why, row.tag,
-             row.on_date or date.today().isoformat()),
+            (p["wrong"], p["correct"], p["why"], p["tag"], p["on_date"]),
         )
     return cur.rowcount > 0
 
@@ -110,13 +118,30 @@ def pending(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def mark_pushed(conn: sqlite3.Connection, row_id: int) -> None:
-    from datetime import datetime, timezone
+    from . import evidence
 
+    ev = evidence.record("correction-pushed", {"id": row_id})
+    _pushed(conn, row_id, ev.ts)
+
+
+def _pushed(conn: sqlite3.Connection, row_id: int, at: str) -> None:
     with conn:
-        conn.execute(
-            "UPDATE notion_queue SET pushed = ? WHERE id = ?",
-            (datetime.now(timezone.utc).isoformat(timespec="seconds"), row_id),
-        )
+        conn.execute("UPDATE notion_queue SET pushed = ? WHERE id = ?", (at, row_id))
+
+
+def _register() -> None:
+    from . import evidence
+
+    @evidence.applies("correction-queued")
+    def _apply_queued(stores, ev) -> None:
+        _queue(stores["notion"], ev.payload)
+
+    @evidence.applies("correction-pushed")
+    def _apply_pushed(stores, ev) -> None:
+        _pushed(stores["notion"], ev.payload["id"], ev.ts)
+
+
+_register()
 
 
 def push(row: Row, token: str | None = None) -> tuple[bool, str]:

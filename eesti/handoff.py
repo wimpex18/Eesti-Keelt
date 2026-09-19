@@ -55,6 +55,24 @@ def queue_failed(conn: sqlite3.Connection, item) -> str:
     return key
 
 
+def review_correct(conn: sqlite3.Connection, item, latency_ms: int | None = None) -> str | None:
+    """A correct answer to an item whose card is due is that card's review.
+
+    Rated by code (`review.auto_rating`). A card not yet due is left alone: FSRS
+    schedules the next look, and answering early is not a review of it.
+    """
+    from datetime import datetime, timezone
+
+    lemma, tag = _identity(item)
+    key = review.item_id(item.topic, lemma, tag)
+    row = conn.execute("SELECT due FROM review_items WHERE id = ?", (key,)).fetchone()
+    if row is None or row["due"] > datetime.now(timezone.utc).isoformat():
+        return None
+    review.grade(conn, key, review.auto_rating(True, latency_ms), auto=True,
+                 given=item.answer, latency_ms=latency_ms)
+    return key
+
+
 def seed_mastered(
     conn: sqlite3.Connection,
     topic: str,

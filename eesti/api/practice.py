@@ -48,6 +48,11 @@ class AnswerRequest(BaseModel):
     # The item's sub-rule, where its generator has one (`obj-case`, `gen-stem`).
     rule: str = ""
     why_ru: str = ""
+    # The signed item the server issued (`eesti/itemref.py`). When present, the
+    # item is graded from it and the fields above are ignored.
+    token: str = ""
+    # How long the learner took, from showing the item to answering.
+    latency_ms: int | None = Field(default=None, ge=0)
     # Free practice (Rada's "Vaba harjutus") is graded here by the same rule but
     # leaves no trace: no attempt, no mastery, no review card.
     record: bool = True
@@ -58,7 +63,18 @@ class _Answered:
     `progress.record` and `handoff.queue_failed` read).
     """
 
-    def __init__(self, req: "AnswerRequest") -> None:
+    def __init__(self, req: "AnswerRequest", issued: dict | None = None) -> None:
+        if issued is not None:
+            # What the server signed; the page's copy of the answer is not read.
+            self.topic = issued["topic"]
+            self.prompt = issued["prompt"]
+            self.answer = issued["answer"]
+            self.distractor = issued["distractor"]
+            self.lemma = issued["lemma"]
+            self.label = issued["hint"]
+            self.rule = issued["rule"]
+            self.why_ru = issued["why_ru"]
+            return
         self.topic = req.topic
         self.prompt = req.prompt
         self.answer = req.answer
@@ -147,12 +163,18 @@ def practice_items(req: PracticeRequest) -> dict:
             "items": [], "detail": detail, "reference": reference, "glosses": {},
         }
 
+    import secrets
+
+    from ..itemref import practice_ref, sign
     from ..practice import theme_slot
 
+    # A set is always seeded, so every item in it can be generated again.
+    seed = req.seed if req.seed is not None else secrets.randbelow(2**31)
+    rules = tuple(req.rules) if req.rules else None
     try:
         items = items_for(
-            topic, count=req.count, levels=tuple(req.levels), seed=req.seed,
-            theme=req.theme, rules=tuple(req.rules) if req.rules else None,
+            topic, count=req.count, levels=tuple(req.levels), seed=seed,
+            theme=req.theme, rules=rules,
         )
     except (ValueError, RuntimeError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -190,7 +212,12 @@ def practice_items(req: PracticeRequest) -> dict:
         # Report the theme actually applied, so a caller learns when it was dropped.
         "theme": req.theme if (req.theme and theme_slot(topic)) else None,
         "reference": _topic_reference(meta),
-        "items": [item_for_page(i) for i in items],
+        "items": [
+            item_for_page(i) | {"token": sign(i, practice_ref(
+                topic, seed=seed, count=req.count, levels=req.levels,
+                theme=req.theme, rules=rules, index=n))}
+            for n, i in enumerate(items)
+        ],
         # Meanings of the set's words from the local store only — never a live lookup per
         # item. Unstored words are glossed as each item is answered.
         "glosses": _glosses_for([i.lemma for i in items]),
@@ -208,56 +235,74 @@ def practice_answer(req: AnswerRequest) -> dict:
     With `record: false` the answer is only graded: free practice must not move the
     mastery gate or fill the review queue.
     """
-    from ..handoff import queue_failed
+    from ..handoff import queue_failed, review_correct
     from ..progress import (MASTERY_CORRECT, MASTERY_WINDOW, accuracy,
                            is_mastered, record)
 
-    item = _Answered(req)
+    ref = None
+    if req.token:
+        from ..itemref import verify
+
+        try:
+            issued = verify(req.token)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=(
+                "Задание не удалось проверить: оно выдано не этим сервером или "
+                "устарело. Открой новый набор.")) from exc
+        item, ref = _Answered(req, issued["item"]), issued["ref"]
+    else:
+        item = _Answered(req)
     correct = item.check(req.given)
     if not req.record:
         return {
-            "correct": correct, "answer": req.answer, "why_ru": req.why_ru,
+            "correct": correct, "answer": item.answer, "why_ru": item.why_ru,
             "russian": [], "accuracy": None, "mastered": False,
             "just_mastered": False, "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",
         }
     progress = progress_db()
-    was_mastered = is_mastered(progress, req.topic)
-    record(progress, item, correct, answer=req.given)
+    topic = item.topic
+    was_mastered = is_mastered(progress, topic)
+    record(progress, item, correct, answer=req.given, ref=ref,
+           latency_ms=req.latency_ms,
+           mode=ref["kind"] if ref else "path")
 
-    if not correct:
-        try:
+    try:
+        if correct:
+            # A card already in the queue and due counts this as its review.
+            review_correct(review_db(), item, latency_ms=req.latency_ms)
+        else:
             queue_failed(review_db(), item)
-        except Exception:  # noqa: BLE001 - review is enrichment, never a blocker
-            pass
+    except Exception:  # noqa: BLE001 - review is enrichment, never a blocker
+        pass
 
-    mastered_now = is_mastered(progress, req.topic)
+    mastered_now = is_mastered(progress, topic)
     if mastered_now and not was_mastered:
         from ..handoff import seed_mastered
 
-        seed_mastered(review_db(), req.topic)
+        seed_mastered(review_db(), topic)
 
     # One live lookup for the word just answered: the meaning lands right after the
     # learner worked on the form.
     meaning: list[str] = []
-    if req.lemma:
+    if item.lemma:
         from .. import gloss
         from ..meaning import russian
 
         # EKI's dictionary answers most words, and then no request is spent.
-        meaning, source = russian(db(), req.lemma)
+        meaning, source = russian(db(), item.lemma)
         try:
             if source not in ("seed", "eki-evs"):
-                kept = gloss.remember(gloss_db(), req.lemma)
-                meaning, _ = russian(db(), req.lemma, kept.russian if kept else ())
+                kept = gloss.remember(gloss_db(), item.lemma)
+                meaning, _ = russian(db(), item.lemma, kept.russian if kept else ())
         except Exception:  # noqa: BLE001 - a gloss is never worth failing a grade
             pass
 
     return {
         "correct": correct,
-        "answer": req.answer,
-        "why_ru": req.why_ru,
+        "answer": item.answer,
+        "why_ru": item.why_ru,
         "russian": meaning,
-        "accuracy": accuracy(progress, req.topic),
+        "accuracy": accuracy(progress, topic),
         "mastered": mastered_now,
         "just_mastered": mastered_now and not was_mastered,
         "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",

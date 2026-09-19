@@ -104,6 +104,12 @@ const CHUNK = 96 * 1024;
    image built from a public repository, and travels this way instead. */
 type Blob = "snap" | "corpus";
 
+/** The instance this object last restored, and how far its log was copied. */
+interface Origin {
+  boot: string;
+  cursor: number;
+}
+
 interface BlobMeta {
   chunks: number;
   bytes: number;
@@ -125,6 +131,25 @@ export class LearnerState extends DurableObject<Env> {
   private lastBoot: string | null = null;
   private lastSeen = 0;
   private lastSnapshot = 0;
+  /** The origin's event sequence number already copied here, for `lastBoot`. */
+  private cursor = 0;
+  /** One restore at a time: concurrent requests wait for the same one. */
+  private restoring: Promise<boolean> | null = null;
+
+  /* The evidence log (`eesti/evidence.py`): the learner's source of truth.
+     Append-only and keyed by event id, so pulling the same event twice, or
+     pushing it back into an instance that has it, changes nothing. `dseq` keeps
+     the order the events arrived in, which is the order they are replayed in. */
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS events (
+         dseq INTEGER PRIMARY KEY AUTOINCREMENT,
+         id   TEXT NOT NULL UNIQUE,
+         body TEXT NOT NULL
+       )`,
+    );
+  }
 
   private origin(path: string): string {
     return new URL(path, this.env.CLOUD_RUN_URL).toString();
@@ -260,6 +285,15 @@ export class LearnerState extends DurableObject<Env> {
    */
   async ensureRestored(): Promise<boolean> {
     if (this.lastBoot && Date.now() - this.lastSeen < LIVENESS_TTL_MS) return true;
+    // Durable Objects interleave requests at every `await`: without this, two
+    // requests arriving on a cold start would each run a restore.
+    this.restoring ??= this.restore().finally(() => {
+      this.restoring = null;
+    });
+    return this.restoring;
+  }
+
+  private async restore(): Promise<boolean> {
 
     let boot: string;
     try {
@@ -279,10 +313,23 @@ export class LearnerState extends DurableObject<Env> {
       this.lastSeen = Date.now();
       return true;
     }
+    // This object may have been evicted from memory while the instance lived
+    // on: then the instance already holds the log, and a restore would only
+    // replay it again.
+    const known = await this.ctx.storage.get<Origin>("origin");
+    if (known?.boot === boot) {
+      this.lastBoot = boot;
+      this.cursor = known.cursor;
+      this.lastSeen = Date.now();
+      return true;
+    }
 
     await this.syncCorpus();
 
     const saved = await this.load("snap");
+    // The snapshot first: it carries the caches (dictionary answers, the
+    // provider breaker) the log does not. The log second, which rebuilds the
+    // learner's tables over whatever the snapshot put there.
     if (saved) {
       // `/api/state/import` refuses any database that already holds learner
       // rows, so a restore aimed at the wrong moment declines rather than
@@ -300,12 +347,91 @@ export class LearnerState extends DurableObject<Env> {
       }
     }
 
+    const pushed = await this.pushEvents();
+    if (pushed === null) return false;
+
     this.lastBoot = boot;
     this.lastSeen = Date.now();
+    this.cursor = pushed;
+    await this.ctx.storage.put<Origin>("origin", { boot, cursor: pushed });
     // A new instance is the moment to start the clock, so the first session's
     // work gets a snapshot too.
     await this.ctx.storage.setAlarm(Date.now() + SNAPSHOT_EVERY_MS);
     return true;
+  }
+
+  /**
+   * Give a fresh instance the whole log, in batches, then have it settle: rebuild
+   * its projections from the log, or, the first time ever, backfill the log from
+   * the rows it has. Returns the origin's sequence number afterwards, or null.
+   */
+  private async pushEvents(): Promise<number | null> {
+    const BATCH = 500;
+    let after = 0;
+    let last = 0;
+    for (;;) {
+      const rows = this.ctx.storage.sql
+        .exec<{ dseq: number; body: string }>(
+          "SELECT dseq, body FROM events WHERE dseq > ? ORDER BY dseq LIMIT ?",
+          after,
+          BATCH,
+        )
+        .toArray();
+      const settle = rows.length < BATCH;
+      try {
+        const res = await fetch(this.origin("/api/events/import"), {
+          method: "POST",
+          headers: this.headers({ "content-type": "application/json" }),
+          body: JSON.stringify({
+            events: rows.map((r) => JSON.parse(r.body)),
+            settle,
+          }),
+        });
+        if (!res.ok) return null;
+        last = ((await res.json()) as { last_seq?: number }).last_seq ?? 0;
+      } catch {
+        return null;
+      }
+      if (settle) return last;
+      after = rows[rows.length - 1].dseq;
+    }
+  }
+
+  /**
+   * Copy events the origin has and this store lacks. `seen` is the origin's
+   * `x-events-seq`; nothing is fetched when it is not ahead of the cursor. Only
+   * the instance this object restored is asked, as for snapshots.
+   */
+  async pullEvents(seen: number): Promise<void> {
+    if (!this.lastBoot || seen <= this.cursor) return;
+    for (;;) {
+      let body: { events?: { id: string; seq: number }[]; last_seq?: number };
+      try {
+        const res = await fetch(
+          this.origin(`/api/events?after=${this.cursor}&limit=500`),
+          { headers: this.headers() },
+        );
+        if (!res.ok || res.headers.get("x-boot-id") !== this.lastBoot) return;
+        body = await res.json();
+      } catch {
+        return;
+      }
+      const batch = body.events ?? [];
+      for (const ev of batch) {
+        const { seq, ...event } = ev;
+        this.ctx.storage.sql.exec(
+          "INSERT OR IGNORE INTO events (id, body) VALUES (?, ?)",
+          event.id,
+          JSON.stringify(event),
+        );
+        this.cursor = Math.max(this.cursor, seq);
+      }
+      await this.ctx.storage.put<Origin>("origin", {
+        boot: this.lastBoot,
+        cursor: this.cursor,
+      });
+      if (batch.length === 0 || this.cursor >= (body.last_seq ?? 0)) return;
+    }
   }
 
   /**
@@ -470,6 +596,8 @@ export default {
     // Hand-maintained, because a Worker cannot import Python — so a test checks it
     // against `eesti/api/state.py` in both directions.
     const BACK_CHANNEL = [
+      "/api/events",
+      "/api/events/import",
       "/api/state/export",
       "/api/state/import",
       "/api/content/export",
@@ -489,7 +617,11 @@ export default {
     const learner = stub(env);
     const restored = await learner.ensureRestored();
     const writes = request.method !== "GET" && request.method !== "HEAD";
-    if (!restored && writes) {
+    // Any API call may record evidence (opening a text is a GET that does), so
+    // until the instance holds the learner's history only the health probe and
+    // the static shell go through.
+    const api = url.pathname.startsWith("/api/") && url.pathname !== "/api/health";
+    if (!restored && (writes || api)) {
       // A write to an instance that may not hold the learner's history would
       // be recorded against an empty copy. Better to ask for a retry.
       return new Response(
@@ -532,6 +664,11 @@ export default {
     // Durable Object already holds.
     if (writes) {
       ctx.waitUntil(learner.snapshot());
+    }
+    // New evidence is copied out right away, not on the snapshot's timer.
+    const seq = Number(response.headers.get("x-events-seq") ?? "");
+    if (Number.isFinite(seq) && seq > 0) {
+      ctx.waitUntil(learner.pullEvents(seq));
     }
 
     // The origin cannot see the AI binding, so it reports every hosted engine

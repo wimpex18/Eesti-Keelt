@@ -298,6 +298,11 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     ? it.answer_ru : (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
+  /* The answer time starts when the learner turns to the item (its field gets
+     focus), not when the set was built: items wait their turn on a phone. */
+  let started = null;
+  const rendered = performance.now();
+  el.addEventListener("focusin", () => { started ??= performance.now(); });
   // Where this item sits in its set; shown on a phone, where one item is on screen.
   // The set this item belongs to; a later set on the same tally has another.
   const set = tally.gen || 0;
@@ -362,11 +367,15 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     try {
       // The server grades and records: the client must not be the judge of
       // whether a topic has been mastered.
+      // The token is what the server grades from; the rest is for a page
+      // cached from before tokens existed.
       res = await (await api("/api/practice/answer", {
         topic, prompt: it.prompt, answer: it.answer,
         given: input ? input.value : picked,
         distractor: it.distractor || "", lemma: it.lemma || "",
         label: it.hint || "", rule: it.rule || "", why_ru: it.why_ru || "",
+        token: it.token || "",
+        latency_ms: Math.round(performance.now() - (started ?? rendered)),
         record: tally.record,
       })).json();
     } catch (e) {

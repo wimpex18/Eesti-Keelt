@@ -270,12 +270,24 @@ def count(
 
 def mark_seen(progress: sqlite3.Connection, item_id: str, minutes: float = 0.0) -> None:
     """Record that material was opened. Not a pass, and never treated as one."""
+    from . import evidence
+
+    payload = {"item_id": item_id, "minutes": float(minutes)}
+    ev = evidence.record("exposure", payload)
+    _seen(progress, payload, ev.ts)
+
+
+def _seen(progress: sqlite3.Connection, p: dict, at: str) -> None:
     progress.executescript(SCHEMA)
     with progress:
         progress.execute(
             "INSERT INTO exposure (item_id, seen_at, minutes) VALUES (?,?,?)",
-            (item_id, _now(), float(minutes)),
+            (p["item_id"], at, p["minutes"]),
         )
+
+
+def _apply_exposure(stores, ev) -> None:
+    _seen(stores["progress"], ev.payload, ev.ts)
 
 
 def open_item(
@@ -401,3 +413,12 @@ def parts_touched(progress: sqlite3.Connection,
         if row["id"] in seen:
             counts[row["skill"]] = counts.get(row["skill"], 0) + 1
     return counts
+
+
+def _register() -> None:
+    from . import evidence
+
+    evidence.applies("exposure")(_apply_exposure)
+
+
+_register()

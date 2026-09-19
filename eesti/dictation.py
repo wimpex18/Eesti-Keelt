@@ -223,17 +223,37 @@ def record(progress: sqlite3.Connection, result: Result) -> None:
     """Record the attempt; the readiness verdict counts dictations as listening
     evidence.
     """
-    from datetime import datetime, timezone
+    from . import evidence
 
+    payload = {"key": result.passage.key, "text": result.passage.text,
+               "typed": result.typed, "matched": result.matched,
+               "total": result.total, "correct": bool(result.correct)}
+    ev = evidence.record("dictation", payload)
+    _record(progress, payload, ev.ts)
+
+
+def _record(progress: sqlite3.Connection, p: dict, at: str) -> None:
     ensure(progress)
     progress.execute(
         "INSERT INTO dictation (key, text, typed, matched, total, correct, at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (result.passage.key, result.passage.text, result.typed,
-         result.matched, result.total, int(result.correct),
-         datetime.now(timezone.utc).isoformat(timespec="seconds")),
+        (p["key"], p["text"], p["typed"], p["matched"], p["total"],
+         int(p["correct"]), at),
     )
     progress.commit()
+
+
+def _apply_dictation(stores, ev) -> None:
+    _record(stores["progress"], ev.payload, ev.ts)
+
+
+def _register() -> None:
+    from . import evidence
+
+    evidence.applies("dictation")(_apply_dictation)
+
+
+_register()
 
 
 def stats(progress: sqlite3.Connection) -> dict:

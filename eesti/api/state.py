@@ -14,6 +14,7 @@ import sqlite3
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from .deps import progress_db
@@ -216,3 +217,67 @@ def state_import(blob: StateBlob, request: Request) -> dict:
         repair = repair_fabricated_attempts(
             progress_connect(_state_paths()["progress"]))
     return {"restored": restored, "skipped": skipped, "repair": repair}
+
+
+# --------------------------------------------------------------------------
+# The evidence log
+# --------------------------------------------------------------------------
+#
+# The Worker's Durable Object holds the durable copy of the log. It pulls new
+# events after requests (the `x-events-seq` header says when there are any) and
+# pushes the whole log into a fresh instance, which then rebuilds its
+# projections from it (`evidence.settle`).
+
+@router.get("/api/events")
+def events_export(request: Request, after: int = 0, limit: int = 500) -> dict:
+    """Events after an origin sequence number, oldest first."""
+    _require_state_token(request)
+    from .. import evidence
+
+    limit = max(1, min(limit, 2000))
+    with evidence.connect() as conn:
+        batch = evidence.events(conn, after=after, limit=limit)
+        return {
+            "events": [ev.to_dict() | {"seq": ev.seq} for ev in batch],
+            "last_seq": evidence.last_seq(conn),
+        }
+
+
+class EventsImport(BaseModel):
+    events: list[dict] = Field(default_factory=list)
+    # Sent with the last batch of a restore: rebuild (or first backfill) now.
+    settle: bool = False
+
+
+@router.post("/api/events/import")
+def events_import(body: EventsImport, request: Request) -> dict:
+    """Append events this instance lacks (by id); with `settle`, make the
+    projections agree with the log."""
+    _require_state_token(request)
+    from .. import evidence
+
+    with evidence.connect() as conn:
+        try:
+            added = evidence.ingest(conn, body.events)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=f"bad event: {exc}") from exc
+        settled = evidence.settle(conn) if body.settle else None
+        return {"added": added, "last_seq": evidence.last_seq(conn),
+                "settled": settled}
+
+
+@router.get("/api/me/export")
+def my_export() -> PlainTextResponse:
+    """Everything the app has recorded about the learner, one event per line."""
+    import json
+
+    from .. import evidence
+
+    with evidence.connect() as conn:
+        lines = [json.dumps(ev.to_dict(), ensure_ascii=False)
+                 for ev in evidence.events(conn)]
+    return PlainTextResponse(
+        "\n".join(lines) + ("\n" if lines else ""),
+        media_type="application/x-ndjson",
+        headers={"content-disposition": 'attachment; filename="eesti-keelt-events.jsonl"'},
+    )

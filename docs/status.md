@@ -11,7 +11,7 @@ the same change that makes it untrue.
 | **Drills** | 26 of 36 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built. |
 | **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Placement and test-out run only from the CLI (`cli assess`). |
-| **Review** | FSRS-6 over items answered wrong and words mined from reading. |
+| **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
 | **Reading** | Selges keeles texts and the weekly ERR *Lihtsad uudised* feed; click-to-look-up; recommended by the share of running words within reach (known, or A1–A2 on the word list), at least 80 %, shorter first (`docs/curriculum.md`). |
 | **Vocabulary** | `Sõnavara` lists the word list by CEFR level and part of speech, commonest first; the word card sets a status. |
 | **Meaning** | **294 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). Definitions: EKI PSV → live → VSL → EKSS. |
@@ -23,9 +23,10 @@ the same change that makes it untrue.
 | **Speaking** | Paired-exam question bank with TTS, read-aloud of short sentences made of words within reach, with comparison, and open-answer feedback over the transcript (`docs/speaking.md`). |
 | **Readiness** | Four exam parts reported separately with reasons in Russian. |
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
-| **Deployment** | Cloud Run behind a Cloudflare Worker + Access; learner state snapshotted across cold starts; all EKI reference data and the reading corpus present. |
+| **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
+| **Deployment** | Cloud Run behind a Cloudflare Worker + Access; the evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus present. |
 
-52 route handlers across `eesti/api/` serve 44 API endpoints; every endpoint
+55 route handlers across `eesti/api/` serve 47 API endpoints; every endpoint
 has a caller (`tests/test_route_inventory.py`).
 
 ## What is missing

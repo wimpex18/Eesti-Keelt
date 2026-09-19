@@ -219,21 +219,76 @@ function wireGrading(el, it) {
 
 function renderReview(it, glosses) {
   if (it.kind === "vocab") return renderVocabCard(it);
+  /* A grammar card is answered, not self-rated: code grades what is typed (or
+     which form is picked) and chooses the FSRS rating (`review.auto_rating`). */
   const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
+  const forms = it.distractor
+    ? [it.answer, it.distractor].sort((a, b) => a.localeCompare(b, "et")) : [];
+  const answerBox = forms.length
+    ? forms.map(f => `<button class="ghost" data-pick="${esc(f)}" lang="et">${esc(f)}</button>`).join("")
+    : `<input type="text" size="18" placeholder="?" lang="et" aria-label="Vastus — ответ"
+         autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+       <button class="go" data-check lang="et">Kontrolli <i class="ru" lang="ru">проверить</i></button>`;
   el.innerHTML = `
     <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.context ? `<div class="rev-ctx" lang="et">${esc(it.context)}</div>` : ""}
     <div class="row" style="margin-top:var(--s2)">
-      <button class="ghost" data-r="again" lang="et">Ei mäleta <i class="ru" lang="ru">не помню</i></button>
-      <button class="ghost" data-r="hard" lang="et">Raske <i class="ru" lang="ru">трудно</i></button>
-      <button class="go" data-r="good" lang="et">Teadsin <i class="ru" lang="ru">знал</i></button>
+      ${answerBox}
       ${taskLine({lemma: it.lemma, label: it.kind_et || it.kind || "", level: ""},
                  ru, {quiet: true})}${
         it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
     <div class="verdict" role="status"></div>`;
-  wireGrading(el, it);
+  wireAnswer(el, it);
   return el;
+}
+
+
+function wireAnswer(el, it) {
+  const verdict = el.querySelector(".verdict");
+  const input = el.querySelector("input");
+  const controls = () => el.querySelectorAll("button[data-pick], button[data-check], input");
+  let started = null;
+  const rendered = performance.now();
+  el.addEventListener("focusin", () => { started ??= performance.now(); });
+  const send = async given => {
+    if (!given.trim()) {
+      verdict.className = "verdict";
+      verdict.innerHTML = `<span class="hint">Впиши форму — тогда проверю.</span>`;
+      input?.focus();
+      return;
+    }
+    controls().forEach(x => x.disabled = true);
+    let r;
+    try {
+      r = await (await api("/api/review/grade", {
+        id: it.id, given,
+        latency_ms: Math.round(performance.now() - (started ?? rendered)),
+      })).json();
+    } catch (e) {
+      controls().forEach(x => x.disabled = false);
+      verdict.className = "verdict no";
+      verdict.innerHTML = `Ответ не записан. ${esc(e.message)}
+        <span class="hint">Попробуй ещё раз.</span>`;
+      return;
+    }
+    reviewRated++;
+    el.classList.add("done");
+    if (reviewSize && reviewRated === reviewSize) finishReview();
+    const when = r.interval_days < 1 ? "сегодня" : `через ${Math.round(r.interval_days)} дн.`;
+    verdict.className = r.correct ? "verdict ok" : "verdict no";
+    verdict.innerHTML = (r.correct
+      ? `Верно: <strong lang="et">${esc(r.answer)}</strong>`
+      : `Нужно: <strong lang="et">${esc(r.answer)}</strong>`)
+      + ` — снова ${when}.`
+      + (it.why_ru ? `<br><span class="why">${md(it.why_ru)}</span>` : "");
+    refreshDueBadge();
+    loadRail();
+  };
+  el.querySelectorAll("button[data-pick]").forEach(b =>
+    b.onclick = () => send(b.dataset.pick));
+  el.querySelector("button[data-check]")?.addEventListener("click", () => send(input.value));
+  input?.addEventListener("keydown", e => { if (e.key === "Enter") send(input.value); });
 }

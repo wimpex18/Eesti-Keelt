@@ -942,6 +942,35 @@ class TestTheMeaningCardIsAFlashcard:
         assert not page.errors, page.errors
 
 
+class TestAGrammarCardIsAnswered:
+    """A grammar card in the queue is answered, and code rates it; there are no
+    self-rating buttons on it (`review.auto_rating`)."""
+
+    def test_type_the_form_and_see_the_verdict(self, page, live_server):
+        # A card of its own per engine and viewport: the server's queue is shared,
+        # and an answered card is no longer due for the next run.
+        lemma = f"e2e-{page.engine_name}-{page.viewport_name}"
+        prompt = f"Kui mul oleks aega, ____ ma kinno ({lemma})."
+        page.evaluate("""async ([base, lemma, prompt]) => {
+            await fetch(base + "/api/review", {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({kind: "tingiv", lemma, prompt, answer: "läheksin"}),
+            });
+        }""", [live_server, lemma, prompt])
+
+        page.click('.modes button[data-mode="revise"]')
+        page.click("#loadReview")
+        card = page.locator(".drill", has_text=lemma).first
+        card.wait_for(timeout=15000)
+        assert card.locator("button[data-r]").count() == 0
+        card.locator("input").fill("läheksin")
+        card.locator("button[data-check]").click()
+        page.wait_for_selector(f".drill.done:has-text('{lemma}') .verdict.ok", timeout=15000)
+        verdict = card.locator(".verdict").inner_text()
+        assert "Верно" in verdict and "снова" in verdict, verdict
+        assert not page.errors, page.errors
+
+
 class TestPhoneInLandscape:
     """iPhone 17 on its side: 874×402, touch. Wider than the phone breakpoint, so
     the layout has to recognise it by height and input, not width."""

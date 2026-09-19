@@ -5,37 +5,36 @@ append; at most 30 lines.
 
 ## Task in flight
 
-Architecture strategy approved on 2026-09-19 (the plan is kept outside the
-repo; its decisions are summarised here). P0 "safety" is on branch
-`fix/p0-safety`:
+PR #64 (`fix/p0-safety`) carries P0 safety, the Neurotõlge est→est grammar
+lane, the web redesign files with their test fixes, and P1:
 
-- snapshot guard by boot id and learner rows;
-- 503 for writes before restore; `max-instances 1`;
-- read-aloud no longer primes Whisper;
-- checkpoint result endpoint;
-- `Topic.reference` fallback;
-- rule on attempts and review cards;
-- TartuNLP lane in the GEC eval;
-- docs aligned to ADR-1 (code grades; model scores are advisory evidence).
+- evidence log (`eesti/evidence.py`), with the learner DBs as projections;
+- signed, regenerable item refs (`eesti/itemref.py`);
+- FSRS auto-rating and review logs;
+- the log in the Worker's Durable Object;
+- `Minu andmed` export.
 
 ## Next step
 
-1. After merge: in Cloud Shell, run `bash deploy/check-service.sh`, apply the
-   maximum-instances fix it prints (`setup.sh` also sets it), then run the
-   `deploy.yml` workflow for the Worker.
-2. P1: an append-only event log in a per-learner Durable Object
-   (`idFromName(access email)`), server-signed item refs, FSRS review logs and
-   auto-rating, projections replacing `progress/review/vocab.db`.
+1. After merge, in Cloud Shell: run `bash deploy/check-service.sh` and set
+   maximum instances to 1 if it warns; then run `deploy.yml` for the Worker.
+   The first restore backfills the log from the snapshot.
+2. Remaining P1:
+   - name the Durable Object per Access identity (still `singleton`; the
+     origin is single-tenant);
+   - `DELETE /api/me`;
+   - a nightly log export to R2 or GCS;
+   - the FSRS optimiser once there are about 1 000 reviews.
+3. P2: concept representations and a coverage test, mastery decay and weak
+   rules, the "Täna" planner, replay and similar-task endpoints.
 
 ## Uncommitted / undecided
 
-- 8 files under `eesti/web/` (`app.css`, `chrome/core/listen/reading/review/
-  speak/vocab.js`) hold the user's own uncommitted redesign work. They are not
-  part of this branch.
 - Local agent, skill, hook and settings folders under `.claude` and `.github`
   are untracked.
 
 ## Blockers
 
-- TartuNLP GEC sends nothing within 60 s (2026-09-19); its eval cannot score.
+- TartuNLP GEC backend (UT cluster) answers 500 after 60 s. The lane is kept;
+  recheck `cli eval --provider tartunlp` in a few days.
 - Delete `CLAUDE.md` once Claude for Mac bundles Claude Code 2.1.277 or newer.

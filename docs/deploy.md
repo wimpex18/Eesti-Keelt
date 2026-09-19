@@ -29,21 +29,29 @@
 
 ## Learner state across cold starts
 
-Cloud Run disk is ephemeral. The app stamps every response with a boot id; the
-Worker keeps the learner databases (`progress`, `review`, `vocab`, `notion`) in
-a SQLite-backed Durable Object:
+Cloud Run disk is ephemeral. The app stamps every response with a boot id and
+the evidence log's sequence number (`x-events-seq`). The Worker's SQLite-backed
+Durable Object keeps two things: the **evidence log** (`eesti/evidence.py`), the
+learner's source of truth, and a **snapshot** of the learner databases, which now
+matters for the caches it carries (stored glosses, the provider breaker).
 
 | When | What |
 |---|---|
-| new boot id | Worker pushes the last snapshot in (`POST /api/state/import`) |
+| new boot id | snapshot in (`POST /api/state/import`), then the whole log in batches (`POST /api/events/import`); the last batch settles: the instance rebuilds its learner tables from the log, or, the first time ever, backfills the log from them |
+| any response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
+
+Events are keyed by id, so copying one twice changes nothing. The Durable Object
+remembers which instance it restored and how far it copied, so being evicted from
+memory does not trigger a second restore.
 
 Safeguards:
 
 - restore never overwrites a database that already has learner rows, and a
   failed restore is retried on the next request;
-- until the serving instance is confirmed restored, the Worker answers writes
-  with 503 and `Retry-After` instead of recording them into an empty copy;
+- until the serving instance is confirmed restored, the Worker answers every
+  `/api/` request except `/api/health` with 503 and `Retry-After` (opening a
+  text is a GET that records evidence) instead of recording into an empty copy;
 - a snapshot is taken only from the instance the Worker restored (its boot id);
 - an export with no learner rows (`learner_rows`) never replaces a snapshot
   that has some; a half-written snapshot counts as none;

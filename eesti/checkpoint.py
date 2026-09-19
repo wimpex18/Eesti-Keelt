@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Callable
 
+from . import evidence
 from .config import LEVELS
 # `Ask` is declared in both modules; `Stopped` is imported, never duplicated, so
 # callers catch one exception class.
@@ -175,16 +175,26 @@ def run(
 
 def save(progress: sqlite3.Connection, level: str, asked: int, correct: int) -> bool:
     """Record a finished checkpoint; the pass mark is applied here, not by a caller."""
+    payload = {"level": level, "asked": asked, "correct": correct}
+    ev = evidence.record("checkpoint", payload)
+    return _save(progress, payload, ev.ts)
+
+
+def _save(progress: sqlite3.Connection, p: dict, at: str) -> bool:
     progress.executescript(SCHEMA)
-    passed = asked > 0 and correct / asked >= PASS_MARK
+    passed = p["asked"] > 0 and p["correct"] / p["asked"] >= PASS_MARK
     with progress:
         progress.execute(
             "INSERT INTO checkpoints (level,asked,correct,passed,at)"
             " VALUES (?,?,?,?,?)",
-            (level, asked, correct, int(passed),
-             datetime.now(timezone.utc).isoformat(timespec="seconds")),
+            (p["level"], p["asked"], p["correct"], int(passed), at),
         )
     return passed
+
+
+@evidence.applies("checkpoint")
+def _apply_checkpoint(stores, ev) -> None:
+    _save(stores["progress"], ev.payload, ev.ts)
 
 
 def passed_levels(progress: sqlite3.Connection) -> set[str]:

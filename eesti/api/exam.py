@@ -45,17 +45,25 @@ def exam_readiness(level: str) -> dict:
 @router.get("/api/checkpoint/{level}")
 def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> dict:
     """A mixed set across a whole level — interleaved by construction."""
+    import secrets
+
     from ..checkpoint import PASS_MARK, build, ready, topics_at
+    from ..itemref import checkpoint_ref, sign
 
     if level not in LEVELS:
         raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    seed = seed if seed is not None else secrets.randbelow(2**31)
     items = build(level, count=count, seed=seed)
     return {
         "level": level,
         "ready": ready(progress_db(), level),
         "pass_mark": PASS_MARK,
         "topics": topics_at(level),
-        "items": [item_for_page(i) for i in items],
+        "items": [
+            item_for_page(i) | {"token": sign(i, checkpoint_ref(
+                level, seed=seed, count=count, index=n))}
+            for n, i in enumerate(items)
+        ],
         # Glosses for the checkpoint's words from the local store only, never a live
         # lookup per item.
         "glosses": _glosses_for([i.lemma for i in items]),

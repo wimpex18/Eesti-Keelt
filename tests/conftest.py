@@ -377,7 +377,7 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     scratch = tmp_path / "live"
     scratch.mkdir(exist_ok=True)
 
-    for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
+    for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB", "EVENTS_DB"):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
 

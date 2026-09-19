@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import evidence
+
 # 8 of the last 10, and the window must be full.
 MASTERY_CORRECT = 8
 MASTERY_WINDOW = 10
@@ -68,23 +70,47 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "") -> None:
-    """Log one graded attempt and promote the topic if the gate is now passed."""
+def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "", *,
+           ref: dict | None = None, latency_ms: int | None = None,
+           mode: str = "path") -> None:
+    """Log one graded attempt and promote the topic if the gate is now passed.
+
+    The event carries the whole item as it was shown, and its `ref` (how to
+    regenerate it, `eesti/itemref.py`), so the attempt can be replayed later.
+    """
+    payload = {
+        "topic": item.topic, "item_key": item_key(item), "correct": bool(correct),
+        "answer": answer, "rule": getattr(item, "rule", "") or None,
+        "prompt": item.prompt, "expected": item.answer,
+        "lemma": getattr(item, "lemma", "") or "",
+        "distractor": getattr(item, "distractor", "") or "",
+        "ref": ref, "latency_ms": latency_ms, "mode": mode,
+    }
+    ev = evidence.record("attempt", payload)
+    _attempt(conn, payload, ev.ts)
+
+
+def _attempt(conn: sqlite3.Connection, p: dict, at: str) -> None:
+    """The projection of one attempt: the row, `last_seen`, and the gate."""
     with conn:
         conn.execute(
             "INSERT INTO attempts (topic,item_key,correct,answer,at,rule)"
             " VALUES (?,?,?,?,?,?)",
-            (item.topic, item_key(item), int(correct), answer, _now(),
-             getattr(item, "rule", "") or None),
+            (p["topic"], p["item_key"], int(p["correct"]), p["answer"], at, p["rule"]),
         )
         conn.execute(
             "INSERT INTO topic_state (topic,last_seen) VALUES (?,?)"
             " ON CONFLICT(topic) DO UPDATE SET last_seen = excluded.last_seen",
-            (item.topic, _now()),
+            (p["topic"], at),
         )
-    if correct and not is_mastered(conn, item.topic):
-        if _window_passes(conn, item.topic):
-            mark_mastered(conn, item.topic, via="practice")
+    if p["correct"] and not is_mastered(conn, p["topic"]):
+        if _window_passes(conn, p["topic"]):
+            _mark(conn, p["topic"], "practice", at)
+
+
+@evidence.applies("attempt")
+def _apply_attempt(stores, ev) -> None:
+    _attempt(stores["progress"], ev.payload, ev.ts)
 
 
 def recent(conn: sqlite3.Connection, topic: str, window: int = MASTERY_WINDOW) -> list[int]:
@@ -122,7 +148,16 @@ def _window_passes(conn: sqlite3.Connection, topic: str) -> bool:
 
 
 def mark_mastered(conn: sqlite3.Connection, topic: str, via: str = "practice") -> None:
-    """Record that the gate was passed. Idempotent — the first date is kept."""
+    """Record that the gate was passed. Idempotent — the first date is kept.
+
+    Practice reaches the gate inside `record`; this is for the other ways of
+    passing it (placement, test-out), each an event of its own.
+    """
+    ev = evidence.record("mastered", {"topic": topic, "via": via})
+    _mark(conn, topic, via, ev.ts)
+
+
+def _mark(conn: sqlite3.Connection, topic: str, via: str, at: str) -> None:
     with conn:
         conn.execute(
             "INSERT INTO topic_state (topic,mastered_at,via,last_seen)"
@@ -131,8 +166,13 @@ def mark_mastered(conn: sqlite3.Connection, topic: str, via: str = "practice") -
             "   mastered_at = COALESCE(topic_state.mastered_at, excluded.mastered_at),"
             "   via         = COALESCE(topic_state.via, excluded.via),"
             "   last_seen   = excluded.last_seen",
-            (topic, _now(), via, _now()),
+            (topic, at, via, at),
         )
+
+
+@evidence.applies("mastered")
+def _apply_mastered(stores, ev) -> None:
+    _mark(stores["progress"], ev.payload["topic"], ev.payload["via"], ev.ts)
 
 
 def is_mastered(conn: sqlite3.Connection, topic: str) -> bool:
@@ -313,6 +353,16 @@ def reset(conn: sqlite3.Connection, topic: str | None = None) -> dict:
     Clearing everything must be asked for, and then clears every table in the file,
     derived from the schema rather than listed.
     """
+    evidence.record("progress-reset", {"topic": topic})
+    return _reset(conn, topic)
+
+
+@evidence.applies("progress-reset")
+def _apply_reset(stores, ev) -> None:
+    _reset(stores["progress"], ev.payload.get("topic"))
+
+
+def _reset(conn: sqlite3.Connection, topic: str | None) -> dict:
     with conn:
         if topic:
             attempts = conn.execute(

@@ -62,9 +62,15 @@ def _now() -> str:
 
 def set_status(conn: sqlite3.Connection, lemma: str, status: int) -> None:
     """Set a lemma's status, preserving how often and when it was met."""
+    from . import evidence
+
     if status not in STATUS_NAMES:
         raise ValueError(f"status must be one of {sorted(STATUS_NAMES)}")
-    now = _now()
+    ev = evidence.record("word-status", {"lemma": lemma, "status": status})
+    _set_status(conn, lemma, status, ev.ts)
+
+
+def _set_status(conn: sqlite3.Connection, lemma: str, status: int, now: str) -> None:
     with conn:
         conn.execute(
             """INSERT INTO vocab_status (lemma, status, met_count, first_seen, last_seen)
@@ -79,9 +85,15 @@ def record_encounter(conn: sqlite3.Connection, lemmas: list[str]) -> int:
     """Note that these lemmas were met, without changing any status. Marking a word
     known stays an explicit act.
     """
+    from . import evidence
+
     if not lemmas:
         return 0
-    now = _now()
+    ev = evidence.record("encounter", {"lemmas": list(lemmas)})
+    return _encounter(conn, list(lemmas), ev.ts)
+
+
+def _encounter(conn: sqlite3.Connection, lemmas: list[str], now: str) -> int:
     with conn:
         conn.executemany(
             """INSERT INTO vocab_status (lemma, status, met_count, first_seen, last_seen)
@@ -294,3 +306,18 @@ def _glosses(words: sqlite3.Connection, store: sqlite3.Connection,
     from .meaning import russian_many
 
     return {k: ", ".join(v) for k, v in russian_many(words, store, lemmas).items()}
+
+
+def _register() -> None:
+    from . import evidence
+
+    @evidence.applies("word-status")
+    def _apply_status(stores, ev) -> None:
+        _set_status(stores["vocab"], ev.payload["lemma"], ev.payload["status"], ev.ts)
+
+    @evidence.applies("encounter")
+    def _apply_encounter(stores, ev) -> None:
+        _encounter(stores["vocab"], ev.payload["lemmas"], ev.ts)
+
+
+_register()
