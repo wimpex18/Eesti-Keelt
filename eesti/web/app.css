@@ -473,7 +473,8 @@
     letter-spacing:0;text-transform:none;margin-top:1px}
   /* The gloss inside a filled button inherits the button colour and uses opacity, so
      it stays readable on the accent. */
-  button.primary .ru, button.go .ru{color:currentColor;opacity:.72}
+  /* .9, not less: at .72 the gloss measured 4.19:1 on the forest fill. */
+  button.primary .ru, button.go .ru{color:currentColor;opacity:.9}
   i.ru{display:inline;font-size:var(--fs-gloss);font-style:normal;margin-left:5px}
   h3 .ru{display:inline;font-size:var(--fs-gloss);margin-left:6px;text-transform:none}
   nav button .ru{font-size:var(--fs-gloss);line-height:1.15}
@@ -524,7 +525,6 @@
     gap:10px;align-items:center;padding:4px 0;font-size:var(--fs-ui)}
   .topic .st{font-size:var(--fs-meta);
     color:var(--muted)}
-  .topic.locked{opacity:.45}
   .topic .lv{color:var(--muted);font-size:var(--fs-meta)}
   .topic button{font-size:var(--fs-meta);padding:2px 8px;min-height:32px}
   label{font-size:var(--fs-note);color:var(--muted);display:inline-flex;align-items:center;gap:6px;
@@ -633,8 +633,10 @@
   .topic.in-progress .st{color:var(--accent)}
   .topic.ready .st{color:var(--accent);opacity:.85}
   .topic.reference .st{color:var(--gloss)}
-  .topic.locked{opacity:.5}
-  .topic.locked:hover{opacity:.75;background:transparent}
+  /* Locked rows recede by colour, not opacity: at .5 the prerequisite line fell to
+     2–3.3:1. Muted text on the panel stays above 4.5:1 in both themes. */
+  .topic.locked > span:not(.lv){color:var(--muted)}
+  .topic.locked:hover{background:transparent}
 
   /* CEFR badge, distinct from the text beside it. */
   .lv{font-variant-numeric:tabular-nums}
@@ -647,7 +649,7 @@
 
   /* Numbers that change in place. Proportional digits shift the text either
      side of them on every answer, which is movement that means nothing. */
-  #score, #pathScore, #reviewStats, #dictScore, .ring span, .badge,
+  #pathScore, #freeScore, #checkpointScore, #reviewStats, #dictScore, .ring span, .badge,
   .lib-meta, .rail-big{font-variant-numeric:tabular-nums}
 
   /* The progress ring animates between percentages. `@property` registers `--pct` as
