@@ -9,7 +9,7 @@ the same change that makes it untrue.
 | Area | State |
 |---|---|
 | **Drills** | 26 of 36 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
-| **Grading** | Deterministic everywhere; no model decides correctness. |
+| **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built. |
 | **Path** | Prerequisite-ordered topics, mastery gate, placement and test-out, end-of-level checkpoints, blocked → interleaved handoff. |
 | **Review** | FSRS-6 over items answered wrong and words mined from reading. |
 | **Reading** | Selges keeles texts and the weekly ERR *Lihtsad uudised* feed; click-to-look-up; recommended by the share of running words within reach (known, or A1–A2 on the word list), at least 80 %, shorter first (`docs/curriculum.md`). |
@@ -21,7 +21,7 @@ the same change that makes it untrue.
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation from the corpus (graded), TartuNLP TTS on any text, ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud of short sentences made of words within reach, with comparison, and open-answer feedback over the transcript (`docs/speaking.md`). |
-| **Readiness** | Four exam parts reported separately with reasons in Russian; never one total. |
+| **Readiness** | Four exam parts reported separately with reasons in Russian. |
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
 | **Deployment** | Cloud Run behind a Cloudflare Worker + Access; learner state snapshotted across cold starts; all EKI reference data and the reading corpus present. |
 

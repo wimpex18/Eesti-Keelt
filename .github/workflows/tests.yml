@@ -9,10 +9,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      # One Python: 3.14.7 is what the Dockerfile ships. `test_docs_match_code.py`
+      # One Python minor: the one the Dockerfile ships. `test_docs_match_code.py`
       # holds this matrix and `eval.yml` to the Dockerfile's FROM line.
       matrix:
-        python-version: ["3.14.7"]
+        python-version: ["3.14"]
     name: test (py${{ matrix.python-version }})
     steps:
       - uses: actions/checkout@v7

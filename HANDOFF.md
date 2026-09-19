@@ -5,19 +5,17 @@ append; at most 30 lines.
 
 ## Task in flight
 
-Preparing the UI/UX redesign for the Super App. Done: Impeccable design
-context is in (`PRODUCT.md`, `DESIGN.md`, `.impeccable/design.json`);
-instructions moved to `AGENTS.md`, with `CLAUDE.md` an identical copy.
+Preparing the UI/UX redesign for the Super App. Design context is in
+(`PRODUCT.md`, `DESIGN.md`, `.impeccable/design.json`); instructions are in
+`AGENTS.md`, with `CLAUDE.md` an identical copy. Python (3.14) and the Python
+dependencies float on the latest stable.
 
 ## Next step
 
-1. Redesign the UI to the updated `DESIGN.md`: multi-accent palette, web
-   fonts, gradients and elevation, gamification, an overall progress score.
-2. Bring `docs/ai-boundaries.md`, `docs/sources.md` and `docs/status.md` in
-   line with `AGENTS.md`; they still describe code-only grading and
-   owner-only licences. Tests that pin those claims need the same update.
-3. Code still pins Python and `estnltk` (`.python-version`, `Dockerfile`,
-   CI, `requirements.txt`); `AGENTS.md` says to track the latest stable.
+1. Redesign the UI to `DESIGN.md`: multi-accent palette, web fonts, gradients
+   and elevation, gamification, an overall progress score.
+2. Build model grading for meaning and conversation (`docs/ai-boundaries.md`).
+3. Refresh vendored `eesti/web/vendor/hls.light.min.js` (1.7.1; 1.7.3 is out).
 
 ## Uncommitted / undecided
 

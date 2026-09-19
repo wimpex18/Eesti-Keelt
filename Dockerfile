@@ -4,9 +4,9 @@
 # ---------------------------------------------------------------------------
 # Builder: produce the derived databases, then throw the toolchain away.
 # ---------------------------------------------------------------------------
-# Python 3.14.7, pinned to the patch: the image, CI, the eval and local `.venv`
-# run the same interpreter.
-FROM python:3.14.7-slim AS builder
+# The latest 3.14 patch: the image, CI, the eval and local `.venv` run the same
+# minor version.
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -54,7 +54,7 @@ RUN python -m eesti.cli import-ekss deploy/eki/ekss_EKI_CCBY40.xml.gz || \
 # ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------
-FROM python:3.14.7-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
