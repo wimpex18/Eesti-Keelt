@@ -219,6 +219,22 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
     """The marker carries no rows."""
 
 
+#: Evidence with no table of its own: read from the log itself (skill balance,
+#: the plan's history), so replaying them writes nothing.
+LOG_ONLY = ("writing", "speech", "plan-issued")
+for _type in LOG_ONLY:
+    applies(_type)(lambda stores, ev: None)
+
+
+def since(conn: sqlite3.Connection, types: tuple[str, ...], after_ts: str) -> list[Event]:
+    """Events of these types at or after an ISO time, oldest first."""
+    marks = ",".join("?" * len(types))
+    rows = conn.execute(
+        f"SELECT * FROM events WHERE type IN ({marks}) AND ts >= ? ORDER BY seq",  # noqa: S608
+        (*types, after_ts))
+    return [_row(r) for r in rows]
+
+
 def apply(stores: Stores, ev: Event) -> object:
     _register_all()
     try:

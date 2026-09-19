@@ -37,8 +37,9 @@ A transcript mixes what the learner said with what the recogniser heard. So:
 
 - a correction anchored on a word Vabamorf does not recognise is dropped,
   whatever its tag (unknown words are recomputed from the text);
-- results are marked `advisory` and are **never recorded** — no review queue,
-  no Notion log (speech has no path to `queue_failed`).
+- results are marked `advisory` and never reach the review queue or the
+  Notion log (speech has no path to `queue_failed`). The transcript is kept
+  in the evidence log as practice, never as graded evidence.
 
 ## Rules for anything new
 

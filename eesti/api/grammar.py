@@ -33,6 +33,16 @@ def check(req: CheckRequest) -> dict:
     """
     result = grammar.check(req.text).to_dict()
 
+    from .. import evidence
+
+    # Writing practice is evidence too: what was written, and what was found in it.
+    evidence.record("writing", {
+        "text": req.text, "words": len(req.text.split()),
+        "engine": result["engine"], "degraded": result["degraded"],
+        "corrections": [{"wrong": c["wrong"], "correct": c["correct"], "tag": c["tag"]}
+                        for c in result["corrections"]],
+    })
+
     from ..providers.translate import translate
 
     back = translate(req.text, target="rus")

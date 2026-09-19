@@ -234,3 +234,36 @@ class TestExport:
         client.post("/api/vocab/known", json={"lemmas": ["raamat"]})
         r = client.get("/api/health")
         assert int(r.headers["x-events-seq"]) >= 1
+
+
+class TestPracticeOutsideDrills:
+    """Writing and speaking leave evidence of practice, never graded evidence."""
+
+    def test_a_writing_check_is_recorded(self, client):
+        client.post("/api/check", json={"text": "Ma lähen kooli."})
+        with evidence.connect() as log:
+            ev = [e for e in evidence.events(log) if e.type == "writing"][-1]
+        assert ev.payload["text"] == "Ma lähen kooli." and ev.payload["words"] == 3
+
+    def test_an_open_spoken_answer_is_recorded_with_its_length(self, client):
+        r = client.post("/api/speaking/feedback", json={
+            "transcript": "Ma elan Tallinnas", "question": "Kus sa elad?",
+            "seconds": 3.0}).json()
+        assert r["pace_wpm"] == 60.0
+        with evidence.connect() as log:
+            ev = [e for e in evidence.events(log) if e.type == "speech"][-1]
+        assert ev.payload["kind"] == "open" and ev.payload["seconds"] == 3.0
+
+    def test_a_read_aloud_is_recorded_without_audio(self, client):
+        client.post("/api/transcribe/text?target=Ma%20loen", json={
+            "text": "Ma loen", "engine": "test"})
+        with evidence.connect() as log:
+            ev = [e for e in evidence.events(log) if e.type == "speech"][-1]
+        assert ev.payload["kind"] == "read-aloud"
+        assert ev.payload["matched"] == ev.payload["total"] == 2
+        assert "audio" not in ev.payload
+
+    def test_log_only_events_replay_to_nothing(self, client):
+        client.post("/api/check", json={"text": "Tere."})
+        with evidence.connect() as conn:
+            evidence.rebuild(conn)

@@ -141,6 +141,7 @@ if (!canRecord) {
       recorder = new MediaRecorder(stream);
       recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
       recorder.onstop = async () => {
+        const seconds = (performance.now() - startedAt) / 1000;
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(chunks, {type: recorder.mimeType || "audio/webm"});
         const el = $("#recPlayback");
@@ -186,7 +187,7 @@ if (!canRecord) {
             // same grammar check as writing.
             try {
               const fb = await (await api("/api/speaking/feedback", {
-                transcript: t.text, question: currentQuestion(),
+                transcript: t.text, question: currentQuestion(), seconds,
               })).json();
               html += `<div class="why">${ruCount(fb.words, ["слово", "слова", "слов"])}` +
                 (fb.pace_wpm ? ` · ${fb.pace_wpm} слов/мин` : "") + `</div>`;
@@ -200,6 +201,7 @@ if (!canRecord) {
           heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="why">${esc(e.message)}</div>`;
         }
       };
+      const startedAt = performance.now();
       recorder.start();
       recording = true;
       setLabel($("#recBtn"), "■ Lõpeta");

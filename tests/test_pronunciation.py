@@ -142,4 +142,5 @@ class TestApi:
     def test_feedback_says_it_is_not_about_pronunciation(self, client):
         data = client.post("/api/speaking/feedback",
                            json={"transcript": "Tere."}).json()
-        assert "häälduse" in data["note"]
+        # Russian, as every explanation is, naming the Estonian term once.
+        assert "произношени" in data["note"] and "hääldus" in data["note"]
