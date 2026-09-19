@@ -166,18 +166,25 @@ def run(
 
             queue_failed(reviews, item)
 
-    passed = correct / len(items) >= PASS_MARK
-    with progress:
-        progress.execute(
-            "INSERT INTO checkpoints (level,asked,correct,passed,at)"
-            " VALUES (?,?,?,?,?)",
-            (level, len(items), correct, int(passed),
-             datetime.now(timezone.utc).isoformat(timespec="seconds")),
-        )
+    passed = save(progress, level, len(items), correct)
     return CheckpointResult(
         level, len(items), correct, passed,
         {t: (ok, n) for t, (ok, n) in by_topic.items()},
     )
+
+
+def save(progress: sqlite3.Connection, level: str, asked: int, correct: int) -> bool:
+    """Record a finished checkpoint; the pass mark is applied here, not by a caller."""
+    progress.executescript(SCHEMA)
+    passed = asked > 0 and correct / asked >= PASS_MARK
+    with progress:
+        progress.execute(
+            "INSERT INTO checkpoints (level,asked,correct,passed,at)"
+            " VALUES (?,?,?,?,?)",
+            (level, asked, correct, int(passed),
+             datetime.now(timezone.utc).isoformat(timespec="seconds")),
+        )
+    return passed
 
 
 def passed_levels(progress: sqlite3.Connection) -> set[str]:

@@ -64,7 +64,9 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 ## Invariants
 
 1. Linguistic facts come from Vabamorf or EKI data, never from a model.
-2. Grading is string comparison against a synthesised or attested form.
+2. Drill grading is string comparison against a synthesised or attested form.
+   Model scores of open production are advisory evidence only
+   (`docs/ai-boundaries.md`).
 3. Every network dependency is optional: provider chains with timeouts and a
    persistent circuit breaker (`providers/breaker.py`); responses name the
    engine that answered.

@@ -13,7 +13,7 @@ export async function loadRail() {
     /* `await` inside the array would serialise these — the promises have to
        be built first and awaited together. `soft` keeps the due count from
        being able to empty the whole rail. */
-    const get = u => fetch(u).then(r => r.json());
+    const get = async u => (await (await api(u, null, "GET")).json());
     const soft = u => get(u).catch(() => ({}));
     const [ready, path, due] = await Promise.all([
       get(`/api/readiness/${examLevel()}`),

@@ -45,6 +45,8 @@ class AnswerRequest(BaseModel):
     distractor: str = ""
     lemma: str = ""
     label: str = ""
+    # The item's sub-rule, where its generator has one (`obj-case`, `gen-stem`).
+    rule: str = ""
     why_ru: str = ""
     # Free practice (Rada's "Vaba harjutus") is graded here by the same rule but
     # leaves no trace: no attempt, no mastery, no review card.
@@ -63,6 +65,7 @@ class _Answered:
         self.distractor = req.distractor
         self.lemma = req.lemma
         self.label = req.label
+        self.rule = req.rule
         self.why_ru = req.why_ru
 
     def check(self, given: str) -> bool:

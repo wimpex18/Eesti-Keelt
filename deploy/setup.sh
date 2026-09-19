@@ -131,7 +131,10 @@ PROXY_TOKEN="$(openssl rand -hex 32)"
 STATE_TOKEN="$(openssl rand -hex 32)"
 
 echo "==> Setting them on the Cloud Run service (this starts a new revision)"
+# --max-instances 1: learner state is SQLite on the instance's own disk, so a
+# second instance would record answers into a copy the snapshot never sees.
 gcloud run services update "$SERVICE" --region "$REGION" --quiet \
+  --max-instances 1 \
   --update-env-vars "PROXY_TOKEN=$PROXY_TOKEN,STATE_TOKEN=$STATE_TOKEN" \
   >/dev/null
 

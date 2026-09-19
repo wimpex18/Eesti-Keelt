@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS attempts (
     item_key TEXT NOT NULL,          -- stable hash of the item, for repeat detection
     correct  INTEGER NOT NULL,
     answer   TEXT,                   -- what was actually typed, for the error log
-    at       TEXT NOT NULL
+    at       TEXT NOT NULL,
+    rule     TEXT                    -- the sub-rule asked (obj-case: negation, ...), if any
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_topic ON attempts(topic, id);
 
@@ -49,6 +50,11 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    # `rule` arrived after the first snapshots; a restored database lacks it.
+    columns = {r[1] for r in conn.execute("PRAGMA table_info(attempts)")}
+    if "rule" not in columns:
+        conn.execute("ALTER TABLE attempts ADD COLUMN rule TEXT")
+        conn.commit()
     return conn
 
 
@@ -66,9 +72,10 @@ def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "") -> N
     """Log one graded attempt and promote the topic if the gate is now passed."""
     with conn:
         conn.execute(
-            "INSERT INTO attempts (topic,item_key,correct,answer,at)"
-            " VALUES (?,?,?,?,?)",
-            (item.topic, item_key(item), int(correct), answer, _now()),
+            "INSERT INTO attempts (topic,item_key,correct,answer,at,rule)"
+            " VALUES (?,?,?,?,?,?)",
+            (item.topic, item_key(item), int(correct), answer, _now(),
+             getattr(item, "rule", "") or None),
         )
         conn.execute(
             "INSERT INTO topic_state (topic,last_seen) VALUES (?,?)"

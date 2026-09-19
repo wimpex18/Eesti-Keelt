@@ -120,10 +120,12 @@ async def transcribe(request: Request) -> dict:
     mime = request.headers.get("content-type", "audio/wav").split(";")[0]
     # The question being answered, passed through as Whisper's initial_prompt:
     # a few seconds of accented Estonian is exactly what a recogniser guesses
-    # wrong on, and the topic's vocabulary is a free hint.
+    # wrong on, and the topic's vocabulary is a free hint. Never the read-aloud
+    # target: priming the recogniser with the words it is about to be compared
+    # against makes it hear them whether or not they were said.
     context = request.query_params.get("q", "")[:220]
     target = request.query_params.get("target", "")[:400]
-    result = asr.transcribe(audio, mime, context=context or target).to_dict()
+    result = asr.transcribe(audio, mime, context=context).to_dict()
 
     # Read-aloud: the target is known, so the comparison is deterministic and
     # carries no model judgement. This is the part that *is* measurable — see

@@ -260,6 +260,26 @@ class TestStateSnapshots:
                            headers={"x-state-token": "s3cret"}).json()
         assert set(data["databases"]) == {"progress", "review", "vocab", "notion"}
 
+    def test_export_counts_learner_rows_so_an_empty_one_is_recognisable(self, secured):
+        """The Worker refuses to let an export with no learner rows replace a
+        snapshot with some; bytes cannot tell, since a bare schema is not empty.
+        """
+        headers = {"x-state-token": "s3cret"}
+        empty = secured.get("/api/state/export", headers=headers).json()
+        assert empty["learner_rows"] == 0
+        assert set(empty["rows"]) == {"progress", "review", "vocab", "notion"}
+
+        items = secured.post(
+            "/api/practice", json={"topic": "kusisonad", "count": 1, "seed": 1}
+        ).json()["items"]
+        secured.post("/api/practice/answer", json={
+            "topic": "kusisonad", "prompt": items[0]["prompt"],
+            "answer": items[0]["answer"], "given": items[0]["answer"],
+        })
+        after = secured.get("/api/state/export", headers=headers).json()
+        assert after["rows"]["progress"] == 1
+        assert after["learner_rows"] >= 1
+
     def test_a_snapshot_round_trips(self, secured, tmp_path, monkeypatch):
 
 
@@ -421,3 +441,61 @@ class TestAnEmptyTopicSaysWhy:
         got = client.post("/api/practice",
                           json={"topic": "kusisonad", "count": 5}).json()
         assert "detail" in got
+
+
+class TestRuleEvidence:
+    """The #1 weakness is tracked by sub-rule: the attempt stores it, and the review
+    card is keyed on it rather than on the hint string.
+    """
+
+    def test_a_missed_obj_case_item_records_its_rule(self, client):
+        import sqlite3
+
+        _, item = _first_item(client, topic="obj-case")
+        assert item["rule"], item
+        client.post("/api/practice/answer", json={
+            "topic": "obj-case", "prompt": item["prompt"], "answer": item["answer"],
+            "given": "vale-vastus", "lemma": item["lemma"], "label": item["hint"],
+            "rule": item["rule"], "why_ru": item.get("why_ru", ""),
+        })
+        progress = sqlite3.connect(_config.PROGRESS_DB)
+        assert progress.execute("SELECT rule FROM attempts").fetchone()[0] == item["rule"]
+        review = sqlite3.connect(_config.REVIEW_DB)
+        assert review.execute("SELECT tag FROM review_items").fetchone()[0] == item["rule"]
+
+    def test_an_old_database_gains_the_rule_column(self, tmp_path):
+        import sqlite3
+
+        from eesti import progress
+
+        path = tmp_path / "old.db"
+        with sqlite3.connect(path) as old:
+            old.execute("CREATE TABLE attempts (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        " topic TEXT NOT NULL, item_key TEXT NOT NULL,"
+                        " correct INTEGER NOT NULL, answer TEXT, at TEXT NOT NULL)")
+        conn = progress.connect(path)
+        assert "rule" in {r[1] for r in conn.execute("PRAGMA table_info(attempts)")}
+
+
+class TestCheckpointResult:
+    """A checkpoint finished on the page is recorded, so readiness can count it."""
+
+    def test_a_passed_checkpoint_reaches_readiness(self, client):
+        before = client.get("/api/readiness/A1").json()
+        r = client.post("/api/checkpoint/A1/result", json={"asked": 15, "correct": 12})
+        assert r.status_code == 200 and r.json()["passed"] is True
+        from eesti.checkpoint import passed_levels
+
+        assert "A1" in passed_levels(app_module.progress_db())
+        assert before  # readiness answered before and after
+        assert client.get("/api/readiness/A1").status_code == 200
+
+    def test_the_pass_mark_is_applied_by_the_server(self, client):
+        r = client.post("/api/checkpoint/A1/result", json={"asked": 15, "correct": 5})
+        assert r.json()["passed"] is False
+
+    def test_an_impossible_tally_is_refused(self, client):
+        assert client.post("/api/checkpoint/A1/result",
+                           json={"asked": 5, "correct": 6}).status_code == 400
+        assert client.post("/api/checkpoint/X9/result",
+                           json={"asked": 5, "correct": 5}).status_code == 404

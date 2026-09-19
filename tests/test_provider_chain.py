@@ -491,3 +491,43 @@ class TestTheLearnerReadsRussianAndTheOperatorReadsTheTrail:
 
         got = GrammarResult("x", note="n", diagnostics="d").to_dict()
         assert (got["note"], got["diagnostics"]) == ("n", "d")
+
+
+class TestNeurotolgeCorrection:
+    """Neurotõlge run est→est corrects, but also paraphrases; only edits code can
+    vouch for survive (`NeurotolgeCorrection.verified`).
+    """
+
+    @pytest.fixture
+    def lane(self):
+        pytest.importorskip("estnltk")
+        from eesti.providers.grammar import NeurotolgeCorrection
+
+        return NeurotolgeCorrection()
+
+    def test_a_form_change_of_the_same_word_is_kept(self, lane):
+        got = lane.verified("Mul on kaks koer.", "Mul on kaks koera.")
+        assert [(c.wrong, c.correct) for c in got] == [("koer", "koera")]
+
+    def test_a_negated_object_may_become_partitive(self, lane):
+        got = lane.verified("Ma ei ostnud pileti.", "Ma ei ostnud piletit.")
+        assert [(c.wrong, c.correct, c.tag) for c in got] == [
+            ("pileti", "piletit", "obj-case")]
+
+    def test_an_aspect_rewrite_is_not_trusted(self, lane):
+        """`uut autot` is correct Estonian (ongoing); Neurotõlge prefers `uue auto`."""
+        assert lane.verified("Ma ostsin uut autot.", "Ma ostsin uue auto.") == []
+
+    def test_dropped_and_reordered_words_are_not_corrections(self, lane):
+        assert lane.verified("Lugesin raamatut läbi eile.", "Lugesin eile raamatut.") == []
+
+    def test_a_number_change_is_a_paraphrase(self, lane):
+        assert lane.verified("Eile tegin kodutööd.", "Eile tegin kodutöid.") == []
+
+    def test_it_sits_after_the_explaining_lanes(self):
+        from eesti.providers import grammar
+
+        names = [p.name for p in grammar.build_chain()]
+        assert names.index("tartunlp-mt") > max(
+            names.index(f"llm:{n}") for n in grammar.LLM_PREFERENCE)
+        assert names[-1] == "vabamorf-offline" and names[0] == "tartunlp"

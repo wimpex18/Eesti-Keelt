@@ -1,6 +1,6 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
-import {actsAsButton, emptyState, skeleton, uiIcon} from "./chrome.js";
+import {actsAsButton, emptyState, retryableError, skeleton, uiIcon} from "./chrome.js";
 import {$, api, esc, ruCount} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
@@ -20,20 +20,11 @@ export async function loadLibrary(append = false) {
   $("#reader").hidden = true;
   $("#libList").hidden = false;
 
-  /* Show the server's `detail` on a failed request; an error payload has no
-     `.items`. */
-  const ask = async (url) => {
-    const r = await fetch(url);
-    const body = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(body.detail || `${r.status} ${r.statusText}`);
-    return body;
-  };
-
   try {
     let items, note = "", why = "", fallback = false;
     let total = null, more = false;
     if (choice === "soovitatud") {
-      const d = await ask("/api/reading/next?limit=25");
+      const d = await (await api("/api/reading/next?limit=25", null, "GET")).json();
       items = d.items;
       /* Coverage counts words the learner knows *or* that sit at A1–A2, so it is
          meaningful before any word is marked known. */
@@ -51,7 +42,7 @@ export async function loadLibrary(append = false) {
       const q = new URLSearchParams({
         skill: "lugemine", limit: "80", offset: String(libShown)});
       if (choice) q.set("band", choice);
-      const d = await ask("/api/library?" + q);
+      const d = await (await api("/api/library?" + q, null, "GET")).json();
       items = d.items;
       total = d.total;
       more = libShown + items.length < d.total;
@@ -121,7 +112,7 @@ export async function loadLibrary(append = false) {
     }
   } catch (e) {
     if (mine !== libRequest) return;
-    list.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
+    list.replaceChildren(retryableError(e.message, () => loadLibrary(append)));
   }
 }
 
@@ -133,9 +124,21 @@ $("#backToLib").onclick = () => { $("#reader").hidden = true; $("#libList").hidd
 
 
 async function openItem(id) {
-  const d = await (await api("/api/library/" + id, null, "GET")).json();
-  $("#libList").hidden = true;
-  $("#reader").hidden = false;
+  /* The reader is shown only once it has something to show: a title and a body,
+     or the error with its retry. Showing it first would flash an empty reader. */
+  const show = () => { $("#libList").hidden = true; $("#reader").hidden = false; };
+  let d;
+  try {
+    d = await (await api("/api/library/" + id, null, "GET")).json();
+  } catch (e) {
+    $("#readerTitle").textContent = "Текст не открылся";
+    $("#readerMeta").textContent = e.message;
+    $("#readerAudio").replaceChildren();
+    $("#readerProfile").textContent = "";
+    $("#readerBody").replaceChildren(retryableError(e.message, () => openItem(id)));
+    show();
+    return;
+  }
   $("#readerTitle").textContent = d.title;
   $("#readerMeta").textContent = `${esc(d.source)} · ${esc(d.licence)}`;
   // An item is a text, a recording or a film; the reader shows whichever it
@@ -159,6 +162,7 @@ async function openItem(id) {
     /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+/g,
     m => `<w class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
   $("#wordCard").hidden = true;
+  show();
 }
 
 $("#xlBtn").onclick = async () => {

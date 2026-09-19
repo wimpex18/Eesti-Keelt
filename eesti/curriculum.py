@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .config import LEVELS, TAGS
-from .grammar import REFERENCES
+from .grammar import REFERENCES, TOPIC_REFERENCES
 
 # EVKK annotation share per error tag: a recorded snapshot used only to break ties
 # the graph leaves free (`python -m eesti.cli evkk` recomputes it). Annotation
@@ -52,8 +52,11 @@ class Topic:
 
     @property
     def reference(self):
-        """The EKK handbook entry, when the topic maps onto a tagged rule."""
-        return REFERENCES.get(self.tag) if self.tag else None
+        """The EKK handbook entry: the tagged rule's if there is one (written for
+        a mistake), else the topic's own. Same order as `grammar.reference_for`.
+        """
+        by_tag = REFERENCES.get(self.tag) if self.tag else None
+        return by_tag or TOPIC_REFERENCES.get(self.id)
 
     @property
     def weight(self) -> float:

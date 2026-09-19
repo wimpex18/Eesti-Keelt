@@ -171,11 +171,16 @@ class TestTheEvalWorkflow:
         return next(s for s in steps if s.get("id") == "score")["run"]
 
     def test_the_provider_menu_matches_the_client(self):
-        assert set(self.inputs["provider"]["options"]) == set(llm.PROVIDERS) - self.NOT_IN_CI
+        from eesti.evals.gec import NON_LLM
+
+        assert set(self.inputs["provider"]["options"]) == (
+            set(llm.PROVIDERS) - self.NOT_IN_CI) | set(NON_LLM)
 
     def test_every_provider_option_has_its_key_plumbed(self):
         env = _eval_workflow()["jobs"]["eval"]["env"]
         for name in self.inputs["provider"]["options"]:
+            if name not in llm.PROVIDERS:
+                continue  # a keyless non-LLM lane (`evals.gec.NON_LLM`)
             key = llm.PROVIDERS[name].key_env
             assert not key or key in env, name
 
@@ -193,7 +198,8 @@ class TestTheEvalWorkflow:
         assert self.SENTINEL in self._score_step()
 
     def test_the_key_check_asks_about_the_selected_provider(self):
-        assert "PROVIDERS['$PROVIDER'].available" in self._score_step()
+        step = self._score_step()
+        assert "PROVIDERS.get('$PROVIDER')" in step and "lane.available" in step
 
     def test_it_runs_weekly_and_on_demand_only(self):
         on = _eval_workflow()[True]
@@ -250,3 +256,34 @@ class TestVoxtral:
         fake_binary("echo 'out of memory' >&2\nexit 1\n")
         result = asr._voxtral(b"audio")
         assert result.degraded is True and "out of memory" in result.note
+
+
+class TestTartuNLPIsEvaluated:
+    """TartuNLP answers first in the grammar chain, so the eval must be able to
+    score it, through the same client the app uses.
+    """
+
+    def test_the_eval_scores_tartunlp_through_the_app_client(self, monkeypatch):
+        from eesti.evals import gec
+        from eesti.providers.grammar import Correction, GrammarResult, TartuNLPGrammar
+
+        def fake_check(self, text):
+            flagged = [c for c in gec.CASES if c.wrong and c.sentence == text]
+            return GrammarResult("tartunlp", [
+                Correction(wrong=c.wrong, correct=c.correct or "", why="")
+                for c in flagged])
+
+        monkeypatch.setattr(TartuNLPGrammar, "check", fake_check)
+        score = gec.run("tartunlp", verbose=False)
+        assert score["valid"]
+        assert score["recall"] == 1.0 and score["precision"] == 1.0
+
+    def test_the_cli_offers_it(self):
+        import argparse
+
+        from eesti.cli import build
+
+        parser = argparse.ArgumentParser()
+        build.register(parser.add_subparsers())
+        args = parser.parse_args(["eval", "--provider", "tartunlp"])
+        assert args.provider == "tartunlp"

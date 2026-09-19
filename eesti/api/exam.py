@@ -8,6 +8,7 @@ a caveat.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from ..config import LEVELS
 from .deps import content_db, db, notion_db, progress_db, vocab_db
@@ -59,3 +60,26 @@ def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> di
         # lookup per item.
         "glosses": _glosses_for([i.lemma for i in items]),
     }
+
+
+class CheckpointResult(BaseModel):
+    asked: int = Field(ge=1, le=30)
+    correct: int = Field(ge=0)
+
+
+@router.post("/api/checkpoint/{level}/result")
+def checkpoint_result(level: str, res: CheckpointResult) -> dict:
+    """Record a finished checkpoint taken on the page.
+
+    Each answer was already graded and recorded by `/api/practice/answer`; this
+    closes the set, so readiness can see that a level's checkpoint was passed. The
+    tally comes from the page, as the items do (see the note in `eesti/app.py`).
+    """
+    from ..checkpoint import PASS_MARK, save
+
+    if level not in LEVELS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    if res.correct > res.asked:
+        raise HTTPException(status_code=400, detail="correct exceeds asked")
+    passed = save(progress_db(), level, res.asked, res.correct)
+    return {"level": level, "passed": passed, "pass_mark": PASS_MARK}

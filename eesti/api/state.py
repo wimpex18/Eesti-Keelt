@@ -76,15 +76,26 @@ def progress_reset(req: ResetRequest, request: Request) -> dict:
 
 @router.get("/api/state/export")
 def state_export(request: Request) -> dict:
-    """The learner's databases, base64'd, for the Worker to persist."""
+    """The learner's databases, base64'd, for the Worker to persist.
+
+    `rows` counts the learner rows in each (see `LEARNER_ROWS`), so the Worker can
+    refuse to let an instance that holds nothing replace a snapshot that holds
+    something. Byte size cannot tell them apart: an empty schema is not empty.
+    """
     _require_state_token(request)
-    out = {}
+    out, rows = {}, {}
     for name, path in _state_paths().items():
         out[name] = (
             base64.b64encode(path.read_bytes()).decode("ascii")
             if path.exists() else ""
         )
-    return {"databases": out, "bytes": sum(len(v) for v in out.values())}
+        rows[name] = _learner_rows(path, LEARNER_ROWS[name])
+    return {
+        "databases": out,
+        "bytes": sum(len(v) for v in out.values()),
+        "rows": rows,
+        "learner_rows": sum(rows.values()),
+    }
 
 
 class StateBlob(BaseModel):
@@ -101,13 +112,25 @@ LEARNER_ROWS = {
 }
 
 
+def _learner_rows(path: Path, table: str) -> int:
+    """How many learner rows a database holds; 0 for a missing file or a bare
+    schema. Raises `sqlite3.Error` for a file that is not a readable database.
+    """
+    if not path.exists() or path.stat().st_size == 0:
+        return 0
+    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
+        try:
+            return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        except sqlite3.OperationalError as error:
+            if "no such table" in str(error):
+                return 0
+            raise
+
+
 def _has_learner_data(path: Path, table: str) -> bool:
     """True only if there are learner rows worth protecting, not just a schema."""
-    if not path.exists() or path.stat().st_size == 0:
-        return False
     try:
-        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
-            return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] > 0
+        return _learner_rows(path, table) > 0
     except sqlite3.Error:
         # Unreadable or not a database: not something worth preserving, but not
         # something to overwrite blindly either.

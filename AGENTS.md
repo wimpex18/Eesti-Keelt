@@ -12,10 +12,11 @@ no countdown.
 
 ## Non-negotiable
 
-- **Models may grade.** Advanced LLMs are authorised to check answers, judge
-  meaning, score conversation and synthesise lessons. Vabamorf code stays as
-  the fast, offline fallback: code decides where it can, a model covers the
-  rest, and the learner is told which checked what. See `docs/ai-boundaries.md`.
+- **Code grades; models assess and explain.** Drills, review and FSRS are
+  graded by code against Vabamorf/EKI forms, never by a model. A model may
+  explain, tutor, and score open production (meaning, writing, conversation);
+  such a score is labelled with its engine and is advisory evidence for
+  readiness only, never mastery or FSRS. See `docs/ai-boundaries.md`.
 - **Stay on the latest stable** Python, tools and dependencies; don't pin.
   Run the suite after an upgrade, and the eval before trusting a new `estnltk`.
 - **Never put a credential** in chat, a commit or an environment box. Secrets

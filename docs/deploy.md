@@ -38,9 +38,19 @@ a SQLite-backed Durable Object:
 | new boot id | Worker pushes the last snapshot in (`POST /api/state/import`) |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
-Safeguards: restore never overwrites a database that already has learner rows;
-a half-written snapshot counts as none; an empty export never replaces a real
-snapshot. A crash between snapshots can lose a few minutes of answers.
+Safeguards:
+
+- restore never overwrites a database that already has learner rows, and a
+  failed restore is retried on the next request;
+- until the serving instance is confirmed restored, the Worker answers writes
+  with 503 and `Retry-After` instead of recording them into an empty copy;
+- a snapshot is taken only from the instance the Worker restored (its boot id);
+- an export with no learner rows (`learner_rows`) never replaces a snapshot
+  that has some; a half-written snapshot counts as none;
+- the service runs with `--max-instances 1` (set by `setup.sh`, checked by
+  `check-service.sh`): a second instance would keep its own copy.
+
+A crash between snapshots can lose a few minutes of answers.
 
 ## The reading corpus
 

@@ -13,14 +13,16 @@ Where a model touches the learner, and where code decides.
 | Spelling in free writing | Vabamorf dictionary | no — merged into every answer |
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
 | Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
-| Other free-writing errors, explanations | LLM chain → Vabamorf offline | yes; engine always named |
-| Meaning, conversation scoring, lesson synthesis | LLM chain → Vabamorf offline | authorised, not built |
+| Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Vabamorf offline | yes; engine always named |
+| Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
 | Transcribing speech | Workers AI Whisper (production), provider chain locally | yes |
 | Read-aloud comparison | `difflib` against the known sentence | no |
 | Feedback on a spoken answer | LLM chain over the transcript | yes, and advisory |
 
-Code grades drills. A model may check an answer, judge meaning, score
-conversation or synthesise a lesson where code cannot decide, and names itself.
+Code grades drills, review and FSRS; a model never supplies a drill's answer
+key. A model may explain, tutor, judge meaning and score open production
+(writing, conversation) where code cannot decide. Its score names the engine,
+is advisory evidence for readiness only, and never moves mastery or FSRS.
 
 ## Deterministic checks win over a model
 

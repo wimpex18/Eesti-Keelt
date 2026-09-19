@@ -268,6 +268,7 @@ function finishSet(tally, res) {
   // Fully in view, above the thumb bar: this is the moment the set exists for.
   requestAnimationFrame(() => requestAnimationFrame(() =>
     end.scrollIntoView({block: "nearest", behavior: "smooth"})));
+  tally.done?.(tally);
 }
 
 
@@ -365,7 +366,8 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
         topic, prompt: it.prompt, answer: it.answer,
         given: input ? input.value : picked,
         distractor: it.distractor || "", lemma: it.lemma || "",
-        label: it.hint || "", why_ru: it.why_ru || "", record: tally.record,
+        label: it.hint || "", rule: it.rule || "", why_ru: it.why_ru || "",
+        record: tally.record,
       })).json();
     } catch (e) {
       /* Nothing was recorded, so the item is not spent: unlock it and keep what was

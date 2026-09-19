@@ -168,6 +168,24 @@ class TestApi:
                         headers={"Content-Type": "audio/wav"})
         assert r.status_code == 200 and r.json()["degraded"]
 
+    def test_a_read_aloud_target_never_primes_the_recogniser(self, client, monkeypatch):
+        """The sentence being read is what the transcript is compared against;
+        handing it to Whisper as a prompt makes it hear those words whether or
+        not they were said. Only an open answer's question is a hint.
+        """
+        seen = []
+
+        def fake(audio, mime, context=""):
+            seen.append(context)
+            return asr.Transcript(text="", engine="", degraded=True)
+
+        monkeypatch.setattr(asr, "transcribe", fake)
+        client.post("/api/transcribe?target=Ma%20loen%20raamatut", content=b"xx",
+                    headers={"Content-Type": "audio/wav"})
+        client.post("/api/transcribe?q=Mis%20sa%20teed", content=b"xx",
+                    headers={"Content-Type": "audio/wav"})
+        assert seen == ["", "Mis sa teed"]
+
     def test_the_bank_is_served(self, client):
         data = client.get("/api/speaking").json()
         assert len(data["questions"]) == len(speaking.BANK)

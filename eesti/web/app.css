@@ -856,6 +856,13 @@
   .empty-state p{margin:var(--s2) auto 0;max-width:44ch;font-size:var(--fs-note);
     line-height:1.6;color:var(--muted)}
   .empty-state .row{justify-content:center;margin-top:var(--s4)}
+  /* Payloads include learner text, dictionary entries and third-party errors. They
+     are allowed to grow vertically, never to force a sideways page scroll. */
+  .banner, .why, .hint, .lib-item, .corr, .task, .recoverable-error{
+    min-width:0;overflow-wrap:anywhere}
+  .recoverable-error{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2)}
+  .recoverable-error > .ghost{margin-left:auto;flex:none}
+  @media (max-width:560px){.recoverable-error > .ghost{margin-left:0;width:100%}}
   /* The end of a set: a quiet card in the accent's softest fill, the score in plain
      numbers and the next set under the thumb. */
   .set-end{margin-top:var(--s4);padding:var(--s5) var(--s4);text-align:center;
