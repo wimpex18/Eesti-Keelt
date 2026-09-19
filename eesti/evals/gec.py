@@ -25,16 +25,17 @@ from ..providers.llm import complete, parse_json
 
 #: Lanes of the grammar chain that are not LLMs, scored through their own
 #: client. TartuNLP answers *first* in the app, so it has to be measured too.
-NON_LLM = ("tartunlp",)
+NON_LLM = ("tartunlp", "tartunlp-mt")
 
 
 def _ask(provider: str, sentence: str, model: str | None, evidence: bool) -> dict:
     """One sentence through one lane, as `{"corrections": [{"wrong": ...}]}`."""
-    if provider == "tartunlp":
-        from ..providers.grammar import TartuNLPGrammar
+    if provider in NON_LLM:
+        from ..providers.grammar import NeurotolgeCorrection, TartuNLPGrammar
 
         # A service, not a prompt: no model choice and no evidence to attach.
-        result = TartuNLPGrammar().check(sentence)
+        lane = TartuNLPGrammar() if provider == "tartunlp" else NeurotolgeCorrection()
+        result = lane.check(sentence)
         return {"corrections": [c.to_dict() for c in result.corrections]}
     prompt = with_evidence(sentence) if evidence else sentence
     return parse_json(complete(provider, SYSTEM, prompt, model=model))

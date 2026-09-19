@@ -11,7 +11,7 @@ on:
         type: choice
         # Must equal `llm.PROVIDERS` minus `local` (no runner has a local model
         # server), plus `evals.gec.NON_LLM`; a test checks both directions.
-        options: [openrouter, mistral, nvidia, workers-ai, tartunlp]
+        options: [openrouter, mistral, nvidia, workers-ai, tartunlp, tartunlp-mt]
       model:
         description: Model to score
         default: "dots-studio/dots-3-note-preview:free"
@@ -64,7 +64,7 @@ jobs:
 
       # Informative, never a gate: a catalogue error must not stop the scoring.
       - name: Check the pinned model id still exists
-        if: env.PROVIDER != 'tartunlp'
+        if: ${{ !startsWith(env.PROVIDER, 'tartunlp') }}
         continue-on-error: true
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
 

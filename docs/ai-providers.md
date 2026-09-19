@@ -10,8 +10,19 @@ name the engine that answered.
 ## Grammar chain
 
 `providers/grammar.py` builds: **TartuNLP GEC** → LLM lanes in
-`LLM_PREFERENCE` → **Vabamorf offline** (always answers: object-case
-candidates and spelling, no explanations). Deterministic spelling, agreement
+`LLM_PREFERENCE` → **Neurotõlge est→est** → **Vabamorf offline** (always
+answers: object-case candidates and spelling, no explanations).
+
+- **TartuNLP GEC** (`api.tartunlp.ai/grammar`) fronts a Llammas 7B model on
+  the University of Tartu cluster. While that backend does not answer, the
+  breaker steps over the lane; it stays in the chain for when it returns.
+- **Neurotõlge est→est** (`tartunlp-mt`) runs TartuNLP's translation service
+  from Estonian to Estonian, which normalises the sentence. It paraphrases as
+  well, so only one-for-one substitutions of the same lemma with the same
+  number survive, and a genitive ↔ partitive swap only after a negation. It
+  gives no explanation. Eval: precision 1.0, recall 0.1 on the 18 cases,
+  whose errors are mostly the aspect swaps it refuses to judge.
+- TartuNLP's terms say both services store what they are sent. Deterministic spelling, agreement
 and rection checks are merged into every answer.
 
 LLM lanes (`providers/llm.py`, all OpenAI-compatible, all free):

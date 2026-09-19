@@ -71,11 +71,12 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   20–60 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
   a day and counts failures. When all fail the check degrades to Vabamorf
   offline evidence. See `docs/ai-providers.md`.
-- **TartuNLP GEC, first in the grammar chain, does not answer.** Both
-  `/grammar/v2` and `/grammar/` send nothing within 60 s, so
-  `cli eval --provider tartunlp` scores none of the 18 cases. The breaker
-  skips it after two failures, so a check costs about 5 s per cooldown.
-  Whether it stays first depends on the eval once it answers.
+- **TartuNLP GEC, first in the grammar chain, does not answer.** Its front
+  end is up, but the model behind it (on the University of Tartu cluster)
+  answers `/grammar/` with a 500 after 60 s, so `cli eval --provider tartunlp`
+  scores none of the 18 cases. The breaker skips it after two failures; the
+  lane stays for when the backend returns. Neurotõlge est→est
+  (`tartunlp-mt`) covers form errors without explanations meanwhile.
 - **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
   by manual dispatch of `eval.yml`.
 - **Browser journeys are not in CI.** They protect a release only when run
