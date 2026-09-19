@@ -44,14 +44,13 @@ once: *"Говорение (rääkimine) оценить нельзя"*. Never tr
   from vocabulary coverage. Word levels: EKI's A1/A2/B1 list, else the Ekilex
   estimate; `words.level_source` says which.
 - Every library section belongs to exactly one mode in `library.MODES`
-  (`oppimine`, `kordamine`, `eksam`); `tests/test_sections.py` catches orphans.
+  (`oppimine`, `kordamine`, `eksam`); `tests/test_sections.py` finds orphans.
 - Keep source attribution: `docs/sources.md`, `eesti/licences.py`,
   `/api/sources`. EKI downloads (`deploy/eki/`) are CC BY 4.0. Ekilex results
   are cached in `vocab.db`; link out with `sonapi.entry_url`.
 - `data/*.db` and `data/exam/` are never committed.
 
 ## Where it runs
-
 App (FastAPI + Vabamorf) on Google Cloud Run, rebuilt by Cloud Build on every
 merge to `main`. Front door: Cloudflare Worker + Access (`deploy/worker.ts`,
 speech via Workers AI), which snapshots learner state into a Durable Object.
@@ -61,7 +60,6 @@ session cannot read the deployed app; verify with the **`smoke`** workflow
 run in Google Cloud Shell via `deploy/*.sh`. See `docs/deploy.md`.
 
 ## Commands
-
 ```bash
 python -m eesti.cli fetch-data && python -m eesti.cli build && python -m eesti.cli export
 python -m eesti.cli serve                          # http://127.0.0.1:8000
@@ -82,7 +80,7 @@ carries it between Claude Code and Codex.
   against it. Read `docs/status.md` before planning.
 - **End, and before every commit:** overwrite `HANDOFF.md` with the current
   task, the exact next step, files changed but uncommitted, and blockers. It
-  states the present, never a log: delete finished items, keep it under 30
+  states the present, never a log: delete finished items, keep it to 30
   lines, and commit it with the work it describes.
 - `AGENTS.md` and `CLAUDE.md` are identical. After editing one, run
   `cp AGENTS.md CLAUDE.md`.

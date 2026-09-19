@@ -1,7 +1,7 @@
 # Handoff
 
 Current state for the next session, Claude Code or Codex. Overwrite, never
-append; under 30 lines.
+append; at most 30 lines.
 
 ## Task in flight
 
@@ -26,6 +26,5 @@ instructions moved to `AGENTS.md`, with `CLAUDE.md` an identical copy.
   `.github/skills/`.
 
 ## Blockers
-
 - Delete `CLAUDE.md` once Claude for Mac bundles Claude Code 2.1.277 or newer
   (it then falls back to `AGENTS.md`).
