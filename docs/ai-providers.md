@@ -1,9 +1,11 @@
 # AI providers
 
-Every model call goes through a chain of interchangeable providers with a
-shared circuit breaker (`providers/breaker.py`: skip a lane after 2 failures
-for 15 min, doubling up to 6 days, persisted in `progress.db`). Missing keys
-are skipped, not failures. Responses name the engine that answered.
+Grammar checks and origin-side speech recognition go through a chain of
+interchangeable providers with a shared circuit breaker (`providers/breaker.py`:
+skip a lane after 2 failures for 15 min, doubling up to 6 days, persisted in
+`progress.db`). Translation, TTS and the Worker's speech recognition are single
+engines without a breaker. Missing keys are skipped, not failures. Responses
+name the engine that answered.
 
 ## Grammar chain
 

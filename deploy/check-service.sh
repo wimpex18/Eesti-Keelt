@@ -62,6 +62,19 @@ for LINE in "${SERVICES[@]}"; do
     fi
   done
 
+  # Learner state is SQLite on the instance's disk: a second instance records
+  # answers into a copy the Worker's snapshot never sees.
+  MAX="$(gcloud run services describe "$SERVICE" --region "$REGION" \
+    --format='value(spec.template.metadata.annotations."autoscaling.knative.dev/maxScale")' \
+    2>/dev/null)"
+  if [ "$MAX" = "1" ]; then
+    echo "   ok   max-instances 1"
+  else
+    echo "   WARNING: max-instances is ${MAX:-unset}; two instances split the learner's state."
+    echo "            Cloud Console -> Cloud Run -> $SERVICE -> Edit & deploy new"
+    echo "            revision -> Maximum number of instances: 1"
+  fi
+
   LATEST="$(gcloud run services describe "$SERVICE" --region "$REGION" \
              --format='value(status.latestReadyRevisionName)')"
   SERVING="$(gcloud run services describe "$SERVICE" --region "$REGION" \

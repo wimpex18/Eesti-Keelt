@@ -10,7 +10,7 @@ the same change that makes it untrue.
 |---|---|
 | **Drills** | 26 of 36 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built. |
-| **Path** | Prerequisite-ordered topics, mastery gate, placement and test-out, end-of-level checkpoints, blocked → interleaved handoff. |
+| **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Placement and test-out run only from the CLI (`cli assess`). |
 | **Review** | FSRS-6 over items answered wrong and words mined from reading. |
 | **Reading** | Selges keeles texts and the weekly ERR *Lihtsad uudised* feed; click-to-look-up; recommended by the share of running words within reach (known, or A1–A2 on the word list), at least 80 %, shorter first (`docs/curriculum.md`). |
 | **Vocabulary** | `Sõnavara` lists the word list by CEFR level and part of speech, commonest first; the word card sets a status. |
@@ -25,7 +25,7 @@ the same change that makes it untrue.
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
 | **Deployment** | Cloud Run behind a Cloudflare Worker + Access; learner state snapshotted across cold starts; all EKI reference data and the reading corpus present. |
 
-51 route handlers across `eesti/api/` serve 43 API endpoints; every endpoint
+52 route handlers across `eesti/api/` serve 44 API endpoints; every endpoint
 has a caller (`tests/test_route_inventory.py`).
 
 ## What is missing
@@ -65,11 +65,17 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   a re-harvest, run it before `deploy/push-content.sh`. `/api/health` reports
   `corpus.topic_links`; the harvest commands print the reminder, and
   `cli push-content` and smoke warn when it is zero.
-- **Grammar providers are free tiers with limits.** Workers AI (10 000
-  neurons/day) answers first; NVIDIA's GLM-5.3-Flash is accurate but takes
+- **Grammar providers are free tiers with limits.** TartuNLP GEC answers
+  first (its explanations are Estonian, not Russian), then the LLM lanes:
+  Workers AI (10 000 neurons/day); NVIDIA's GLM-5.3-Flash is accurate but takes
   20–60 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
   a day and counts failures. When all fail the check degrades to Vabamorf
   offline evidence. See `docs/ai-providers.md`.
+- **TartuNLP GEC, first in the grammar chain, does not answer.** Both
+  `/grammar/v2` and `/grammar/` send nothing within 60 s, so
+  `cli eval --provider tartunlp` scores none of the 18 cases. The breaker
+  skips it after two failures, so a check costs about 5 s per cooldown.
+  Whether it stays first depends on the eval once it answers.
 - **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
   by manual dispatch of `eval.yml`.
 - **Browser journeys are not in CI.** They protect a release only when run

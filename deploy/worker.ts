@@ -108,6 +108,9 @@ interface BlobMeta {
   chunks: number;
   bytes: number;
   at: number;
+  /** Learner rows in a `snap` export (see `/api/state/export`); absent before
+   *  the origin reported them. */
+  rows?: number;
 }
 
 /**
@@ -154,7 +157,7 @@ export class LearnerState extends DurableObject<Env> {
     return out;
   }
 
-  private async save(blob: Blob, body: string): Promise<void> {
+  private async save(blob: Blob, body: string, rows?: number): Promise<void> {
     const chunks: Record<string, string> = {};
     for (let i = 0; i * CHUNK < body.length; i++) {
       chunks[`${blob}/${i}`] = body.slice(i * CHUNK, (i + 1) * CHUNK);
@@ -179,6 +182,7 @@ export class LearnerState extends DurableObject<Env> {
       chunks: count,
       bytes: body.length,
       at: Date.now(),
+      ...(rows === undefined ? {} : { rows }),
     });
   }
 
@@ -249,46 +253,59 @@ export class LearnerState extends DurableObject<Env> {
    *
    * Called before proxying, but only once a minute — the common case is a
    * warm instance we checked recently, and that path costs nothing.
+   *
+   * Returns false when it could not confirm that: the caller must not let a
+   * write reach an instance that may be missing the learner's history, or that
+   * write becomes the only thing the next snapshot holds.
    */
-  async ensureRestored(): Promise<void> {
-    if (this.lastBoot && Date.now() - this.lastSeen < LIVENESS_TTL_MS) return;
+  async ensureRestored(): Promise<boolean> {
+    if (this.lastBoot && Date.now() - this.lastSeen < LIVENESS_TTL_MS) return true;
 
     let boot: string;
     try {
       const res = await fetch(this.origin("/api/health"), {
         headers: this.headers(),
       });
-      if (!res.ok) return;
+      if (!res.ok) return false;
       boot = ((await res.json()) as { boot?: string }).boot ?? "";
     } catch {
-      // Cloud Run cold-starting or briefly unreachable. The proxy attempt that
-      // follows will surface the real error; this is not the place to fail.
-      return;
+      // Cloud Run cold-starting or briefly unreachable. Reads may still go
+      // through and surface the real error; writes wait.
+      return false;
     }
-    if (!boot) return;
+    if (!boot) return false;
 
-    this.lastSeen = Date.now();
-    if (boot === this.lastBoot) return;
-
-    this.lastBoot = boot;
+    if (boot === this.lastBoot) {
+      this.lastSeen = Date.now();
+      return true;
+    }
 
     await this.syncCorpus();
 
     const saved = await this.load("snap");
-    if (!saved) {
-      // Nothing to restore yet — but a new instance is the moment to start the
-      // clock, so the first session's work gets a snapshot too.
-      await this.ctx.storage.setAlarm(Date.now() + SNAPSHOT_EVERY_MS);
-      return;
+    if (saved) {
+      // `/api/state/import` refuses any database that already holds learner
+      // rows, so a restore aimed at the wrong moment declines rather than
+      // overwrites. A failed import leaves `lastBoot` unset, so the next
+      // request tries again instead of trusting an empty instance.
+      try {
+        const res = await fetch(this.origin("/api/state/import"), {
+          method: "POST",
+          headers: this.headers({ "content-type": "application/json" }),
+          body: saved,
+        });
+        if (!res.ok) return false;
+      } catch {
+        return false;
+      }
     }
-    // `/api/state/import` refuses any database that already holds learner rows,
-    // so a restore aimed at the wrong moment declines rather than overwrites.
-    await fetch(this.origin("/api/state/import"), {
-      method: "POST",
-      headers: this.headers({ "content-type": "application/json" }),
-      body: saved,
-    });
+
+    this.lastBoot = boot;
+    this.lastSeen = Date.now();
+    // A new instance is the moment to start the clock, so the first session's
+    // work gets a snapshot too.
     await this.ctx.storage.setAlarm(Date.now() + SNAPSHOT_EVERY_MS);
+    return true;
   }
 
   /**
@@ -304,17 +321,25 @@ export class LearnerState extends DurableObject<Env> {
     if (!force && Date.now() - this.lastSnapshot < SNAPSHOT_MIN_GAP_MS) {
       return false;
     }
+    // Only the instance this object restored holds the learner's history. Any
+    // other one — a second instance, or a fresh one not yet restored — would
+    // hand back a partial copy.
+    if (!this.lastBoot) return false;
     try {
       const res = await fetch(this.origin("/api/state/export"), {
         headers: this.headers(),
       });
       if (!res.ok) return false;
+      if (res.headers.get("x-boot-id") !== this.lastBoot) return false;
       const body = await res.text();
-      // An export from an instance that restored nothing and recorded nothing
-      // is empty work; overwriting a real snapshot with it would be the bug the
-      // whole mechanism exists to prevent.
-      if (!body || body.length < 32) return false;
-      await this.save("snap", body);
+      const rows = (JSON.parse(body) as { learner_rows?: number }).learner_rows;
+      if (typeof rows !== "number") return false;
+      // An export that holds no learner rows is empty work; letting it replace
+      // a snapshot that holds some would be the bug the whole mechanism exists
+      // to prevent. Byte size cannot tell: an empty schema is not empty.
+      const stored = await this.ctx.storage.get<BlobMeta>("snap-meta");
+      if (rows === 0 && stored && (stored.rows ?? 1) > 0) return false;
+      await this.save("snap", body, rows);
       this.lastSnapshot = Date.now();
       return true;
     } catch {
@@ -365,14 +390,12 @@ async function transcribe(
     return Response.json({ detail: "recording too long" }, { status: 413 });
   }
 
-  // The question being answered, or the sentence being read. A few seconds of
-  // accented Estonian is exactly what a recogniser guesses wrong on, and the
-  // topic's own vocabulary is a free hint.
-  const context = (
-    url.searchParams.get("q") ||
-    url.searchParams.get("target") ||
-    ""
-  ).slice(0, 220);
+  // The question being answered. A few seconds of accented Estonian is exactly
+  // what a recogniser guesses wrong on, and the topic's own vocabulary is a free
+  // hint. Never the read-aloud target: priming the recogniser with the words it
+  // is about to be compared against makes it hear them whether or not they were
+  // said, and inflates the comparison.
+  const context = (url.searchParams.get("q") ?? "").slice(0, 220);
 
   let text = "";
   let note = "";
@@ -464,7 +487,22 @@ export default {
     }
 
     const learner = stub(env);
-    await learner.ensureRestored();
+    const restored = await learner.ensureRestored();
+    const writes = request.method !== "GET" && request.method !== "HEAD";
+    if (!restored && writes) {
+      // A write to an instance that may not hold the learner's history would
+      // be recorded against an empty copy. Better to ask for a retry.
+      return new Response(
+        "Приложение запускается и восстанавливает прогресс. Повторите через несколько секунд.",
+        {
+          status: 503,
+          headers: {
+            "content-type": "text/plain; charset=utf-8",
+            "retry-after": "5",
+          },
+        },
+      );
+    }
 
     const target = new URL(url.pathname + url.search, env.CLOUD_RUN_URL);
     const headers = new Headers(request.headers);
@@ -492,7 +530,7 @@ export default {
     // Anything that changed state is worth a snapshot, but not synchronously —
     // the learner should never wait on a backup. Debounced by the alarm the
     // Durable Object already holds.
-    if (request.method !== "GET" && request.method !== "HEAD") {
+    if (writes) {
       ctx.waitUntil(learner.snapshot());
     }
 

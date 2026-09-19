@@ -126,3 +126,18 @@ def test_coverage_reports_the_gap_rather_than_hiding_it():
     assert cov["topics"] == len(c.TOPICS)
     # Coverage reports how many topics have a generator.
     assert cov["with_generator"] < cov["topics"]
+
+
+def test_a_topic_reference_falls_back_to_the_topic_map():
+    """`Topic.reference` reads the tag map first, then the topic-id map, so
+    coverage counts every topic the syllabus links to the handbook — the same
+    lookup `grammar.reference_for` uses.
+    """
+    from eesti.grammar import reference_for
+
+    for t in c.TOPICS:
+        expected = (reference_for(t.tag) if t.tag else None) or reference_for(t.id)
+        assert t.reference == expected, t.id
+    drillable_without = [t.id for t in c.TOPICS if t.generator and t.reference is None]
+    # `kusisonad` has none, deliberately: no EKK section covers question words.
+    assert drillable_without == ["kusisonad"]

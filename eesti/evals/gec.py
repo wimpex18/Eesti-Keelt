@@ -23,11 +23,29 @@ from ..providers.llm import complete, parse_json
 # score describes what learners get. `_flagged` reads only `wrong`; the extra
 # Russian `why` field costs nothing.
 
+#: Lanes of the grammar chain that are not LLMs, scored through their own
+#: client. TartuNLP answers *first* in the app, so it has to be measured too.
+NON_LLM = ("tartunlp",)
+
+
+def _ask(provider: str, sentence: str, model: str | None, evidence: bool) -> dict:
+    """One sentence through one lane, as `{"corrections": [{"wrong": ...}]}`."""
+    if provider == "tartunlp":
+        from ..providers.grammar import TartuNLPGrammar
+
+        # A service, not a prompt: no model choice and no evidence to attach.
+        result = TartuNLPGrammar().check(sentence)
+        return {"corrections": [c.to_dict() for c in result.corrections]}
+    prompt = with_evidence(sentence) if evidence else sentence
+    return parse_json(complete(provider, SYSTEM, prompt, model=model))
+
 
 def with_evidence(sentence: str) -> str:
-    """Attach Vabamorf's reading of each object-position word, as the app does, so the
-    model only judges whether the case fits the aspect. Falls back to the bare
-    sentence when Vabamorf is unavailable.
+    """Attach Vabamorf's reading of each object-position word, so the model only
+    judges whether the case fits the aspect. The app does not send this yet
+    (`LLMGrammar.check` sends the bare text), so the default run, without it, is
+    the one that describes what learners get. Falls back to the bare sentence
+    when Vabamorf is unavailable.
     """
     try:
         from ..morph import object_case_candidates
@@ -134,8 +152,7 @@ def run(
         result = None
         for attempt in range(2):
             try:
-                prompt = with_evidence(case.sentence) if evidence else case.sentence
-                result = parse_json(complete(provider, SYSTEM, prompt, model=model))
+                result = _ask(provider, case.sentence, model, evidence)
                 break
             except json.JSONDecodeError:
                 if attempt:

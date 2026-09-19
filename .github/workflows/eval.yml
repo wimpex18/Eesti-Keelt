@@ -10,8 +10,8 @@ on:
         default: openrouter
         type: choice
         # Must equal `llm.PROVIDERS` minus `local` (no runner has a local model
-        # server); a test checks both directions.
-        options: [openrouter, mistral, nvidia, workers-ai]
+        # server), plus `evals.gec.NON_LLM`; a test checks both directions.
+        options: [openrouter, mistral, nvidia, workers-ai, tartunlp]
       model:
         description: Model to score
         default: "dots-studio/dots-3-note-preview:free"
@@ -27,7 +27,7 @@ on:
           - mistral-large-latest
       evidence:
         description: >-
-          Attach Vabamorf's case analysis (as the real app does). Tests whether
+          Attach Vabamorf's case analysis (the app does not send it yet). Tests whether
           the model's weakness is judgement or morphology.
         default: false
         type: boolean
@@ -64,6 +64,7 @@ jobs:
 
       # Informative, never a gate: a catalogue error must not stop the scoring.
       - name: Check the pinned model id still exists
+        if: env.PROVIDER != 'tartunlp'
         continue-on-error: true
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
 
@@ -77,7 +78,8 @@ jobs:
           from eesti import env
           from eesti.providers.llm import PROVIDERS
           env.load()
-          sys.exit(0 if PROVIDERS['$PROVIDER'].available else 1)
+          lane = PROVIDERS.get('$PROVIDER')
+          sys.exit(0 if lane is None or lane.available else 1)
           "; then
             echo "SKIPPED=1" >> "$GITHUB_OUTPUT"
             echo "no key configured for $PROVIDER — nothing was measured" > eval.txt

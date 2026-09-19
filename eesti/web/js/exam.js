@@ -162,6 +162,17 @@ async function runCheckpoint() {
     // Its own score line and end card: Rada's live in a panel that is not on screen.
     const tally = newTally("#checkpointScore", "#checkpointOut", runCheckpoint);
     tally.size = d.items.length;
+    // Closing the set is what readiness counts as a checkpoint taken.
+    const level = d.level;
+    tally.done = async t => {
+      try {
+        await api(`/api/checkpoint/${level}/result`,
+                  {asked: t.size, correct: t.correct});
+        loadRail();
+      } catch (e) {
+        note.textContent = "Результат не сохранён: " + e.message;
+      }
+    };
     d.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, it.topic, i, {}, true, tally)));
   } catch (e) {

@@ -29,10 +29,12 @@ SEED_ITEMS = 6
 
 def _identity(item) -> tuple[str, str]:
     """(lemma, tag) for an item, stable across regenerations. Question-word items use
-    the answer, since they have no lemma.
+    the answer, since they have no lemma. The sub-rule wins over the label where an
+    item has one (`obj-case`: negation, completed, ongoing): that is what the
+    learner is getting wrong, and the page blanks the label on choice topics.
     """
     lemma = getattr(item, "lemma", "") or item.answer
-    tag = getattr(item, "label", None) or getattr(item, "rule", "") or ""
+    tag = getattr(item, "rule", "") or getattr(item, "label", None) or ""
     return lemma, tag
 
 
