@@ -3,7 +3,7 @@
 ## Run locally
 
 ```bash
-python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m eesti.cli fetch-data      # word list, ~2.8 MB, once
 .venv/bin/python -m eesti.cli build           # import and index
 .venv/bin/python -m eesti.cli export          # form index for the word card

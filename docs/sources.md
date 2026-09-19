@@ -9,7 +9,7 @@ can answer "may this be shown to anyone but the owner?".
 
 | Source | Licence | Used for |
 |---|---|---|
-| Vabamorf via EstNLTK 1.7.5 | permissive | all forms, analysis, spelling — the answer key |
+| Vabamorf via EstNLTK | permissive | all forms, analysis, spelling — the answer key |
 | Enriched Ekilex word list (KristjanPikhof) | CC-BY-SA-4.0 | 160 000+ lemmas, estimated CEFR, frequency rank |
 | EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | CC-BY-4.0 | official A1/A2/B1 levels, outranks the estimate |
 | EKI *põhisõnavara sõnastik* (PSV) | CC-BY-4.0 | learner-level definitions, examples, rection |
@@ -23,9 +23,8 @@ can answer "may this be shown to anyone but the owner?".
 
 Keep EKI attribution wherever EKI text is shown (`eesti/licences.py`).
 
-**Sõnaveeb and Ekilex are never batch-requested**: single lookups, one live
-request per second under a lock, each word stored once in `vocab.db`
-(`gloss.py`), capped per day. For more than the stored fields, link to
+Sõnaveeb and Ekilex answers are stored once per word in `vocab.db`
+(`gloss.py`) under a daily cap. For more than the stored fields, link to
 Sõnaveeb (`sonapi.entry_url`).
 
 ## EKI files (`deploy/eki/`)

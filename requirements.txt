@@ -1,10 +1,10 @@
-# Vabamorf: morphology and synthesis. Pinned exactly — it is the answer key;
-# measure synthesised forms before changing the version.
-estnltk==1.7.5
-fastapi>=0.115
-uvicorn[standard]>=0.30
-fsrs>=6.0                # FSRS-6 spaced repetition (MIT)
+# Latest stable of everything; Vabamorf (via estnltk) is the answer key, so run
+# the suite and the eval after an upgrade.
+estnltk
+fastapi
+uvicorn[standard]
+fsrs                     # FSRS-6 spaced repetition (MIT)
 
 # Test-only: Starlette's TestClient transport, and reading workflow YAML.
 httpx2
-PyYAML>=6.0
+PyYAML

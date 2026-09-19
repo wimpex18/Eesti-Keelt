@@ -1,6 +1,6 @@
 # AI boundaries
 
-Where a model touches the learner, and where it is not allowed to.
+Where a model touches the learner, and where code decides.
 
 ## The map
 
@@ -14,11 +14,13 @@ Where a model touches the learner, and where it is not allowed to.
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
 | Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
 | Other free-writing errors, explanations | LLM chain → Vabamorf offline | yes; engine always named |
+| Meaning, conversation scoring, lesson synthesis | LLM chain → Vabamorf offline | authorised, not built |
 | Transcribing speech | Workers AI Whisper (production), provider chain locally | yes |
 | Read-aloud comparison | `difflib` against the known sentence | no |
 | Feedback on a spoken answer | LLM chain over the transcript | yes, and advisory |
 
-**No model decides whether an answer is right, and no model sets exercises.**
+Code grades drills. A model may check an answer, judge meaning, score
+conversation or synthesise a lesson where code cannot decide, and names itself.
 
 ## Deterministic checks win over a model
 
@@ -38,8 +40,8 @@ A transcript mixes what the learner said with what the recogniser heard. So:
 
 ## Rules for anything new
 
-1. Grading stays deterministic. An exercise that cannot be graded without a
-   model needs a known target (as read-aloud has), or it is feedback.
+1. Code decides where it can. Where it cannot, a model may grade, and the
+   verdict names the engine.
 2. Anything derived from a transcript is advisory and never enters the error
    log.
 3. The response names the engine that answered.

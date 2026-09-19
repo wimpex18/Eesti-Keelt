@@ -4,7 +4,7 @@
 
 | Suite | Where | Runs in CI |
 |---|---|---|
-| In-process tests (~2 000) | `tests/test_*.py` | yes — `tests.yml`, Python 3.14.7, on push to `main` and PRs |
+| In-process tests (~2 000) | `tests/test_*.py` | yes — `tests.yml`, Python 3.14, on push to `main` and PRs |
 | Browser journeys (Chromium + WebKit × desktop + phone) | `tests/test_e2e_journeys.py`, `test_web_layout.py` and other Playwright tests | no — local only |
 | Model eval | `cli eval`, `eval.yml` | weekly (OpenRouter), manual per lane |
 | Production smoke | `smoke.yml` | after `deploy`, daily, manual |

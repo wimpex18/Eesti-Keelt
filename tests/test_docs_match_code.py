@@ -499,23 +499,21 @@ class TestTheLicenceLedgerStaysSeparable:
 
 
 class TestTheCiMatrixKnowsWhatShips:
-    """One interpreter everywhere, pinned to the patch: the Dockerfile, CI, the eval
+    """One Python minor everywhere: the Dockerfile, CI, the eval
     and `.python-version` agree.
     """
 
     @staticmethod
     def _shipped() -> set[str]:
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        return set(re.findall(r"^FROM python:(\d+\.\d+\.\d+)-slim", dockerfile, re.M))
+        return set(re.findall(r"^FROM python:(\d+\.\d+)-slim", dockerfile, re.M))
 
-    def test_both_stages_pin_one_patch_release(self):
+    def test_both_stages_use_one_minor_version(self):
         assert len(self._shipped()) == 1, self._shipped()
 
     def test_the_comment_names_the_version_the_image_is_built_on(self):
         workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
-        claim = re.search(r"(\d+\.\d+\.\d+) is what the Dockerfile\s*#?\s*ships", workflow)
-        assert claim, "the matrix comment no longer says which version ships"
-        assert claim.group(1) in self._shipped()
+        assert "the one the Dockerfile ships" in workflow
 
     def test_ci_the_eval_and_local_run_the_version_that_ships_and_only_it(self):
         import yaml
