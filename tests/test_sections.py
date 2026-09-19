@@ -167,7 +167,7 @@ class TestModes:
 
 class TestLanguage:
     def test_labels_are_estonian_and_notes_are_russian(self):
-        """The rule from CLAUDE.md: the interface is exposure, the explanation
+        """The rule from AGENTS.md: the interface is exposure, the explanation
         is where comprehension has to win."""
         for section in SECTIONS:
             assert section.note, section.id

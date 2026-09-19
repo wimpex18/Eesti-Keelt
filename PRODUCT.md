@@ -16,24 +16,26 @@ Cloudflare Access.
 The learner splits work by device: the installed PWA on a phone for short
 drill and review sessions, a desktop for reading, writing and longer work.
 
+The product is growing into an all-in-one Estonian learning Super App for
+Russian speakers preparing for A2/B1.
+
 ## Product Purpose
 
 A **learn → practise → check** loop for the exam. Drills are generated from a
-word list and the Vabamorf morphological analyser and graded by code, so
-practice is unlimited, works offline and is never confidently wrong. Success
-is passing all four exam parts (a zero in any one fails the exam), not a high
-average.
+word list and the Vabamorf morphological analyser. Code grades what it can
+decide; AI-powered interactive grading covers what it cannot (meaning,
+writing, conversation). Success is passing all four exam parts (a zero in any
+one fails the exam), not a high average.
 
 The #1 documented weakness is `obj-case` (genitive vs partitive for a
 completed object).
 
 ## Positioning
 
-Every answer is checked deterministically against Vabamorf
-(`estnltk==1.7.5`), not by a model. Models only explain a correction in
-Russian and transcribe speech; they never decide whether an answer is right.
-Study order and the mastery gate are code. The app says plainly what it
-cannot check (e.g. speaking is transcribed, never scored).
+Answers are checked against Vabamorf where it can decide, and by advanced
+LLMs for answer checking, semantic evaluation, conversation scoring and
+dynamic lesson synthesis. Vabamorf is the fast fallback and utility. The app
+says plainly what was checked and by what.
 
 ## Operating Context
 
@@ -55,14 +57,15 @@ cannot check (e.g. speaking is transcribed, never scored).
   justifying in Russian; drill content in Estonian. A Russian caveat names the
   Estonian term and glosses it once; never transliterate a term. Enforced by
   `tests/test_ui_language.py`.
-- Readiness is reported per exam part, never as one total percentage.
+- Readiness may be shown per exam part and as one overall progress score.
 - `level` means CEFR and only official HARNO/EIS material has one; `band`
   (`kergem`/`keskmine`/`raskem`) is relative difficulty.
 - No linguistic fact without a source (Vabamorf forms, EKK rules).
-- Offline-capable PWA; the API is never cached. No third-party requests for
-  page assets (system fonts, vendored hls.js in `eesti/web/vendor/`).
-- Licences constrain display: HARNO material is pointers only; ERR and Selges
-  keeles are owner-only; EKI data needs attribution (`/api/sources`).
+- Offline-capable PWA. Web fonts, CDN resources and media APIs are allowed;
+  keep system fallbacks.
+- Data access is open to caching, batching and API integration. Keep source
+  attribution (`/api/sources`).
+- The repository targets the latest stable Python and dependencies.
 - No countdown until an exam date is chosen (`readiness.TARGET` is `None`).
 
 ## Brand Commitments
@@ -81,12 +84,12 @@ cannot check (e.g. speaking is transcribed, never scored).
 
 ## Product Principles
 
-1. **Correct beats clever.** Code grades; a model only explains. Never show a
+1. **Correct beats clever.** Code and models grade together; never show a
    verdict the app cannot stand behind.
 2. **Say what is not checked.** Limits are stated in Russian, where the
    learner meets them.
 3. **Every part of the exam counts.** Progress is shown per part and per
-   skill, never collapsed into one score.
+   skill, and may also be shown as one overall score.
 4. **The interface teaches.** Estonian is the default surface; Russian
    explains.
 5. **Fit the session.** Phone work is quick and repeatable; desktop work is

@@ -1,4 +1,4 @@
-"""Which language each part of the interface is written in (rule in `CLAUDE.md`).
+"""Which language each part of the interface is written in (rule in `AGENTS.md`).
 
   * **UI labels stay Estonian** — `Kirjutamine`, `Kuulamine`, `Rada`: the exam's
     own words.

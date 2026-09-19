@@ -504,7 +504,7 @@ def spelling(text: str) -> list[Correction]:
 
 
 #: Russian, like every explanation the learner acts on, keeping the Estonian
-#: grammatical term so it can be looked up — the language rule in CLAUDE.md.
+#: grammatical term so it can be looked up — the language rule in AGENTS.md.
 AGREEMENT_WHY = (
     "**Pöördelõpp** не совпадает с подлежащим: «{pronoun}» требует формы "
     "«{correct}». В эстонском лицо и число всегда видны на глаголе, а в "

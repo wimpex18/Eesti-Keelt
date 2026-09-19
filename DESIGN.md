@@ -1,6 +1,6 @@
 ---
 name: Eesti keel
-description: A calm, modern daily study tool on the path to the Estonian A2/B1 exam.
+description: A modern, motivating Estonian learning Super App on the path to the A2/B1 exam.
 colors:
   estonian-forest: "#1c6b52"
   forest-deep: "#12503c"
@@ -162,25 +162,25 @@ components:
 
 **Creative North Star: "The Language Path"**
 
-A simple, modern study tool for learning Estonian day to day. Three clear modes (Õppimine, Kordamine, Eksam) make it obvious where you are and easy to switch between practice, review and, later, A2/B1 exam preparation. Progress shows lightly: a ring, a count, a mastered badge. It should feel good to move along the path, but it is never a game and never a sterile exam booth.
+A modern, all-in-one study app for learning Estonian day to day. Three clear modes (Õppimine, Kordamine, Eksam) make it obvious where you are and easy to switch between practice, review and A2/B1 exam preparation. Progress is rich and rewarding: streaks, badges, progress rings, celebratory moments. It should feel good to move along the path, and it is free to be a redesign of what exists today.
 
-The world is warm paper and one forest-green ink. The interface speaks in the system sans. The language itself (reading texts, drill prompts) is set in a book serif, so Estonian material always looks like material, not chrome. Density is moderate: one reading column of about 720px. On a phone it becomes a thumb-first stack with the three modes at the bottom. On a wide screen it becomes a three-column desk. Estonian labels carry a small Russian gloss beneath them. The gloss is part of the typography, not an afterthought.
+The world starts from warm paper and forest-green ink, and may grow a wider palette. The interface speaks in a modern sans, web fonts allowed. The language itself (reading texts, drill prompts) is set in a book serif, so Estonian material always looks like material, not chrome. Density is moderate: one reading column of about 720px. On a phone it becomes a thumb-first stack with the three modes at the bottom. On a wide screen it becomes a three-column desk. Estonian labels carry a small Russian gloss beneath them. The gloss is part of the typography, not an afterthought.
 
-Surfaces sit low and quiet. They answer the hand with small physical cues: a card lifts 1px, a primary button presses into its darker bottom edge. Depth exists only where it responds to touch; everything else is flat.
+Surfaces may be elevated: cards with layered shadows, subtle modern gradients, and small physical cues (a card lifts, a primary button presses into its darker bottom edge). Depth should still answer the hand, and never fight legibility.
 
 **Key Characteristics:**
-- One accent hue (Estonian Forest), used for action, the correct form and success.
+- Estonian Forest is the brand accent (action, the correct form, success); further accents are allowed for gamification, categories and themes.
 - Colour by role: slate means a word's meaning, amber is a caution or the object-case weakness, red is the struck-out wrong form.
-- A serif for Estonian material, the system sans for the interface, and no webfonts.
+- A serif for Estonian material and a sans for the interface. Third-party web fonts and font providers are allowed.
 - Estonian label first, Russian gloss beneath in small muted type.
-- Clear, modern, lightly motivating: progress is visible but quiet.
+- Clear, modern, motivating: streaks, badges, progress rings and celebratory animation are welcome.
 
 ## Colors
 
-A warm off-white paper with near-black ink and a single deep forest green. Every other hue is a semantic role, never decoration. The dark theme mirrors each role one-for-one (values in `eesti/web/app.css` and `.impeccable/design.json`).
+A warm off-white paper with near-black ink and a deep forest green as the brand accent. Multi-accent palettes are allowed; keep information roles (meaning, caution, wrong) consistent. The dark theme mirrors each role one-for-one (values in `eesti/web/app.css` and `.impeccable/design.json`).
 
 ### Primary
-- **Estonian Forest** (`--accent`): the only accent. It marks primary actions, the selected tab, the correct inserted form, the drill blank, mastered and in-progress path states, focus rings, caret, selection and the select chevron.
+- **Estonian Forest** (`--accent`): the brand accent. It marks primary actions, the selected tab, the correct inserted form, the drill blank, mastered and in-progress path states, focus rings, caret, selection and the select chevron.
 - **Forest Deep** (`--accent-deep`): the pressed bottom edge of primary buttons, and text in success banners.
 - **Forest Mist** (`--accent-soft`): the selected-chip fill, hover fill, tag fill, picked choice and empty-state mark.
 - **On Forest** (`--on-accent`): text on a filled forest button. It is white in light mode and dark in dark mode, because white on mint fails contrast.
@@ -199,18 +199,16 @@ A warm off-white paper with near-black ink and a single deep forest green. Every
 - **Rule Line** (`--line`): every 1px border. **Rule Faint** (`--line-soft`): dividers inside a card. **Tint** (`--tint`): skeletons, the info banner, segmented fills.
 
 ### Named Rules
-**The One Forest Rule.** There is one accent hue. Depth is built within that hue, never with a second colour. Success is also forest (`--good` equals `--accent`), so green always means "right" or "go".
-
 **The Colour-by-Role Rule.** A colour belongs to an information role, not to a language. Slate is meaning, amber is caution, red is wrong. Russian text is not coloured because it is Russian.
 
 **The Never-Hue-Alone Rule.** Every state that has a colour also has an icon or a shape: path states, exam-part marks and external (dashed) rows.
 
 ## Typography
 
-**Interface Font:** the system sans (`ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`)
-**Reading Font:** Iowan Old Style (with Palatino and Georgia as fallbacks)
+**Interface Font:** a modern sans; the system sans (`ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`) is the fallback stack
+**Reading Font:** a book serif; Iowan Old Style (with Palatino and Georgia) is the fallback stack
 
-**Character:** A neutral native sans for everything the app says, and a warm book serif for everything the language says. No webfont is requested.
+**Character:** A clean sans for everything the app says, and a warm book serif for everything the language says. Web fonts from Google Fonts, Bunny Fonts, Fontsource or self-hosted files are authorised; keep a system fallback and `font-display: swap`.
 
 ### Hierarchy
 Every size is a token in `eesti/web/app.css` (`--fs-*`). Ten roles, nothing under 11px, no half-pixel steps.
@@ -247,7 +245,7 @@ The spacing scale is 4px-based (`--s1`…`--s6`). Gaps between stacked items in 
 
 ## Elevation & Depth
 
-Depth is low and responsive. At rest, a panel carries a soft two-part shadow and a 1px rule line. Everything inside it is flat Paper insets. Depth changes in response to the hand: cards lift, buttons press. The only gradients are a faint accent wash in a panel's corner, in the first rail card and the top light of a primary button.
+At rest, a panel carries a soft layered shadow and a 1px rule line. Cards may be elevated, and subtle modern gradients (accent washes, hero and reward surfaces) are allowed. Depth also responds to the hand: cards lift, buttons press.
 
 ### Shadow Vocabulary
 - **Rest** (`--shadow`): panels and the selected segmented tab.
@@ -256,8 +254,6 @@ Depth is low and responsive. At rest, a panel carries a soft two-part shadow and
 
 ### Named Rules
 **The Depth-Answers-Touch Rule.** A surface gains elevation only in response to hover or press. On touch devices the hover lift is disabled so it never latches.
-
-**The Flat Rule.** No other gradients, washes or shadow levels. Where depth is needed, use a border or a Paper/Sheet step.
 
 ## Shapes
 
@@ -298,7 +294,7 @@ Pressable, calm, clear.
 - **Set end card:** Forest Mist, 14px: "Komplekt tehtud", the score in Lead type, the missed sentences with the right form, "Korda vigu" and "Uued laused".
 
 ### Progress ring (signature)
-A 44px conic ring that fills in forest and brightens along the arc, with a tabular percentage inside. It animates over 700ms. It is the one decorative flourish allowed to represent accumulated work.
+A 44px conic ring that fills in forest and brightens along the arc, with a tabular percentage inside. It animates over 700ms. It represents accumulated work; rings, badges and streak counters follow the same style.
 
 ### Flashcard
 One word gets the whole card: Display type, a speak button, and a meaning in slate that appears with a 180ms, 4px drop (removed under reduced motion).
@@ -308,16 +304,16 @@ One word gets the whole card: Display type, a speak button, and a meaning in sla
 ### Do:
 - **Do** use tokens for every colour and spacing (`var(--…)`, `--s1`…`--s6`). Never write a hex value in a rule.
 - **Do** give each information role its own treatment, and pair every state colour with an icon or shape.
-- **Do** keep Estonian material in the serif and the interface in the system sans.
+- **Do** keep Estonian material in the serif and the interface in the sans.
 - **Do** put the Russian gloss under an Estonian label as small Pencil text (11px).
 - **Do** keep at least 44px targets on touch, and 54px in the phone thumb bar.
 - **Do** honour `prefers-reduced-motion`: lifts, presses, reveal and pulse all switch off.
 - **Do** check every screen at 1440×900, on iPhone (402×874 and 874×402) and on iPad mini (744×1133), in both themes.
 
 ### Don't:
-- **Don't** make it a noisy game: no streaks, XP, confetti, loud badges or celebratory animation.
-- **Don't** make it a sterile exam booth either: keep the light progress cues (ring, counts, mastered marks).
-- **Don't** add a second accent hue, or colour text by its language.
-- **Don't** add new gradients, washes or shadow levels (Flat Rule).
-- **Don't** load a webfont or any third-party asset.
-- **Don't** collapse readiness into one overall percentage or number.
+- **Don't** let gamification bury the lesson: motion and rewards follow the learner's work, and honour `prefers-reduced-motion`.
+- **Don't** colour text by its language.
+- **Don't** drop the fallback font stacks or the contrast and touch-target minimums.
+
+### Gamification
+Streaks, XP, badges, progress rings, level-ups and celebratory animation (confetti, bursts) are authorised. Readiness may be shown per exam part and as one unified overall progress score.

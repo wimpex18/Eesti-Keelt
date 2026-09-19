@@ -17,5 +17,5 @@ paths:
 - `.panel > :first-child` owns the top-margin reset; do not copy inline resets.
 - A media query does not raise specificity: a rule inside `@media` loses to a later rule of equal depth. Measure in a browser; deliberate overrides sit at the end of `app.css`.
 - After a fix, re-run the whole browser pass — fixes create the next bug.
-- Estonian labels, Russian explanations (see CLAUDE.md); `tests/test_ui_language.py` enforces it.
+- Estonian labels, Russian explanations (see AGENTS.md); `tests/test_ui_language.py` enforces it.
 - The service worker cache version is stamped by the server (`api/assets.py`); never hand-edit `VERSION` in `sw.js`, and never cache the API.

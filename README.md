@@ -1,12 +1,13 @@
 # Eesti-Keelt
 
-A personal web app for learning Estonian and preparing for the **A2/B1
-tasemeeksam**, built for one Russian-speaking learner.
+An all-in-one Estonian learning Super App for Russian speakers preparing for
+the **A2/B1 tasemeeksam**.
 
 Drills are **generated** from an Estonian word list with the Vabamorf
-morphological analyser and **graded by code**, so practice is unlimited, works
-offline and is never confidently wrong. Models are used only to explain a
-correction in Russian and to transcribe speech.
+morphological analyser. Answers are graded by code where it can decide, and by
+AI-powered interactive grading (answer checking, conversation scoring, dynamic
+lessons) where it cannot. Models also explain corrections in Russian and
+transcribe speech.
 
 ## Features
 
@@ -26,7 +27,7 @@ correction in Russian and to transcribe speech.
 ## Quick start
 
 ```bash
-python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m eesti.cli fetch-data && .venv/bin/python -m eesti.cli build
 .venv/bin/python -m eesti.cli export
 .venv/bin/python -m eesti.cli serve          # http://127.0.0.1:8000
@@ -56,6 +57,10 @@ state snapshots, speech), all on free tiers. See [`docs/deploy.md`](docs/deploy.
 ## Licences
 
 The word list is CC-BY-SA-4.0; EKI dictionaries are CC-BY-4.0 with attribution.
-ERR, Selges keeles and HARNO material is owner-only: indexed or harvested for
-personal study, served only behind Cloudflare Access, never redistributed.
-Details in [`docs/sources.md`](docs/sources.md).
+Keep source attribution for every dataset. Details in
+[`docs/sources.md`](docs/sources.md).
+
+## Contributing
+
+Agent instructions live in [`AGENTS.md`](AGENTS.md), read by Claude Code and
+OpenAI Codex alike (`CLAUDE.md` imports it).

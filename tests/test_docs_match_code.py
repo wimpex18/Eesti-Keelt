@@ -17,7 +17,7 @@ from pagesrc import markup_and_script
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: Every document states the current state; history lives in git. `CLAUDE.md`
+#: Every document states the current state; history lives in git. `AGENTS.md`
 #: and `.claude/rules/` hold instructions, not counts, and are not scanned.
 LIVE = tuple(["README.md"] + sorted(f"docs/{p.name}" for p in (ROOT / "docs").glob("*.md")))
 DOCS = [ROOT / name for name in LIVE if (ROOT / name).exists()]
@@ -533,7 +533,7 @@ class TestTheCiMatrixKnowsWhatShips:
         major_minor = tuple(int(x) for x in shipped.split(".")[:2])
         older = re.compile(r"(?:[Pp]ython[ :-]?|py)(3\.(\d+))\b|python:(3\.(\d+))")
         found = []
-        for path in [ROOT / "Dockerfile", ROOT / "README.md", ROOT / "CLAUDE.md", ROOT / "requirements.txt",
+        for path in [ROOT / "Dockerfile", ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "requirements.txt",
                      *(ROOT / ".github" / "workflows").glob("*.yml"),
                      *(ROOT / "docs").glob("*.md"), *(ROOT / "tests").glob("*.py")]:
             if path.name == "test_docs_match_code.py":
