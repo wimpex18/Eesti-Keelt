@@ -11,4 +11,4 @@ paths:
 - Update or delete a "missing" or "known issue" entry in the same change that resolves it (`docs/status.md`).
 - Claims about privacy, cost and provenance are pinned by tests.
 - Cite files in backticks with a real path; the doc test checks they exist.
-- Keep `AGENTS.md` under 200 lines: only what every session needs.
+- Keep `AGENTS.md` under 100 lines: only what every session needs.
