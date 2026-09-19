@@ -182,7 +182,19 @@ class TestFreePractice:
         }).json()["items"]
         assert items
         # Completed actions take the genitive; no partitive answer can appear.
-        assert {it["label"] for it in items} == {"omastav"}
+        assert {it["form_after"] for it in items} == {"omastav"}
+
+    def test_the_choice_is_not_made_for_the_learner(self, client):
+        """Object case is choosing omastav or osastav; the page must not print the
+        answer's case under the blank. It arrives with the verdict instead."""
+        items = client.post("/api/practice", json={
+            "topic": "obj-case", "count": 6, "seed": 1}).json()["items"]
+        assert items and all(it["label"] == "" for it in items)
+        assert all(it["form_after"] in ("omastav", "osastav") for it in items)
+        # Other topics still name the form to produce: there it is the instruction.
+        other = client.post("/api/practice", json={
+            "topic": "tingiv", "count": 2, "seed": 1}).json()["items"]
+        assert all(it["label"] for it in other)
 
 
 class TestOtherSurfaces:

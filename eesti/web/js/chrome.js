@@ -77,12 +77,6 @@ const MODE_ICON = {
   exam:   '<circle cx="12" cy="9" r="5.4"/><path d="m8.6 13.6-1 7.2 4.4-2.4 4.4 2.4-1-7.2"/>',
 };
 
-const GROUP_ICON = {
-  skills: '<circle cx="12" cy="12" r="8.6"/><path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z"/>',
-  modes:  '<path d="M3.6 7.2h9.2M17.6 7.2h2.8M3.6 16.8h3.4M11.8 16.8h8.6"/><circle cx="15.2" cy="7.2" r="2.2"/><circle cx="9.2" cy="16.8" r="2.2"/>',
-};
-
-
 export function navIcon(d) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
@@ -218,6 +212,9 @@ export function paintIcons() {
     }
   });
   document.querySelectorAll(".modes button[data-mode]").forEach(b => {
+    // Named like the skill tabs: label, dash, gloss.
+    const et = b.firstChild && b.firstChild.nodeType === 3 ? b.firstChild.textContent.trim() : "";
+    if (et && RU[et]) b.setAttribute("aria-label", `${et} — ${RU[et]}`);
     if (b.querySelector(".ico")) return;
     const d = MODE_ICON[b.dataset.mode];
     if (!d) return;
@@ -227,18 +224,14 @@ export function paintIcons() {
     span.innerHTML = navIcon(d);
     b.prepend(span);
   });
-  document.querySelectorAll("[data-group]").forEach(el => {
-    const d = GROUP_ICON[el.dataset.group];
-    if (d) el.innerHTML = navIcon(d);
-  });
 }
 
 const THEMES = [
-  ["system", "Как в системе",
+  ["system", "Süsteemi järgi — как в системе",
    '<path d="M8.5 2.5h5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h2"/><path d="M6 15.5h6"/>'],
-  ["light", "Светлая тема",
+  ["light", "Hele teema — светлая тема",
    '<circle cx="9" cy="9" r="3.2"/><path d="M9 1.6v1.6M9 14.8v1.6M2.2 9H3.8M14.2 9h1.6M4.2 4.2l1.1 1.1M12.7 12.7l1.1 1.1M13.8 4.2l-1.1 1.1M5.3 12.7l-1.1 1.1"/>'],
-  ["dark", "Тёмная тема",
+  ["dark", "Tume teema — тёмная тема",
    '<path d="M14.2 10.6A5.8 5.8 0 0 1 7 3.5a5.9 5.9 0 1 0 7.2 7.1z"/>'],
 ];
 

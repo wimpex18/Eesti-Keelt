@@ -150,7 +150,7 @@ $("#checkOut").innerHTML = emptyState({
   note: `Напиши пару предложений по-эстонски. Орфографию, согласование и управление
     (rektsioon) проверяет код; остальные ошибки находит и объясняет по-русски
     языковая модель — для этого текст отправляется внешнему провайдеру.`,
-  action: `<button class="ghost" id="tryExample">Proovi näitega<span class="ru">на примере</span></button>`,
+  action: `<button class="ghost" id="tryExample">Proovi näitega <span class="ru">на примере</span></button>`,
 });
 // Material, not interface copy: written without the final stop that
 // `tests/test_ui_language.py` reads as "a sentence the learner is told".

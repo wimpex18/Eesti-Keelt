@@ -190,7 +190,7 @@ class TestTheModeStructure:
     @staticmethod
     def _page_tabs() -> set[str]:
         html = markup_and_script()
-        return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl">([^<]+)',
+        return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)',
                               html, re.S))
 
     def test_the_diagram_lists_every_tab_the_page_has(self):

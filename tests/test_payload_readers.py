@@ -159,6 +159,9 @@ class TestTheFieldsThisWasWrittenFor:
             page.click('button[data-mode="exam"]')
             page.wait_for_selector("#tab-exam:not([hidden])", timeout=15000)
             page.wait_for_timeout(900)
+            # Detail behind a disclosure is still on screen, one tap away: open it
+            # before reading, as the learner would.
+            page.eval_on_selector_all("#tab-exam details", "els=>els.forEach(d=>d.open=true)")
             seen["exam"] = page.locator("#tab-exam").inner_text()
 
             page.click('button[data-mode="revise"]')

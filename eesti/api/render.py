@@ -11,6 +11,21 @@ import sqlite3
 from .deps import content_db, db, gloss_db
 
 
+#: Topics whose drill is the *choice* of form. Printing the form before the answer
+#: would make that choice for the learner: `obj-case` asks omastav or osastav.
+CHOICE_TOPICS = frozenset({"obj-case"})
+
+
+def item_for_page(item) -> dict:
+    """An item as the page receives it. For a choice topic the form moves from
+    `label` (shown under the blank) to `form_after` (shown with the verdict); `hint`,
+    which the page sends back as the item's identity, is untouched."""
+    shown = item.to_dict()
+    if shown.get("topic") in CHOICE_TOPICS:
+        shown["form_after"], shown["label"] = shown["label"], ""
+    return shown
+
+
 def _topic_reference(meta) -> dict | None:
     """The handbook link for a topic, by error tag or by topic id (same fallback as
     `GradedItem.reference`).

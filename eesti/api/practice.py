@@ -16,7 +16,7 @@ from ..config import LEVELS
 
 from .deps import db, gloss_db, progress_db, review_db
 
-from .render import _glosses_for, _topic_reference, reading_for
+from .render import _glosses_for, _topic_reference, item_for_page, reading_for
 
 
 router = APIRouter()
@@ -187,7 +187,7 @@ def practice_items(req: PracticeRequest) -> dict:
         # Report the theme actually applied, so a caller learns when it was dropped.
         "theme": req.theme if (req.theme and theme_slot(topic)) else None,
         "reference": _topic_reference(meta),
-        "items": [i.to_dict() for i in items],
+        "items": [item_for_page(i) for i in items],
         # Meanings of the set's words from the local store only — never a live lookup per
         # item. Unstored words are glossed as each item is answered.
         "glosses": _glosses_for([i.lemma for i in items]),

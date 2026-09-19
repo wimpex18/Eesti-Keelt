@@ -92,7 +92,7 @@ export function setLabel(el, text) {
   const ico = el.querySelector(".btn-ico");
   el.textContent = text;
   if (ico) el.prepend(ico);
-  if (ru) el.append(ru);
+  if (ru) { el.append(" "); el.append(ru); }
 }
 
 
@@ -103,5 +103,5 @@ export function gloss(el, ru) {
   s.className = "ru";
   s.lang = "ru";
   s.textContent = ru;
-  el.append(s);
+  el.append(" ", s);
 }

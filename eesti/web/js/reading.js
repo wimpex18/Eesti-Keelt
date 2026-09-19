@@ -74,13 +74,12 @@ export async function loadLibrary(append = false) {
             icon: "inbox",
             title: "В этой подборке текстов нет",
             note: "Другие подборки могут быть не пусты.",
-            action: `<button class="ghost" id="libAll">Kõik tekstid<span class="ru">все тексты</span></button>`,
+            action: `<button class="ghost" id="libAll">Kõik tekstid <span class="ru">все тексты</span></button>`,
           })
         : emptyState({
             icon: "inbox",
             title: "Текстов нет",
-            note: `Тексты появятся здесь, когда библиотеку загрузят на сервер
-              <span class="hint">(<code>cli harvest-reading</code>, <code>cli harvest-news</code>)</span>.`,
+            note: "Тексты появятся здесь, когда библиотеку добавят в приложение.",
           });
       $("#libAll")?.addEventListener("click", () => {
         $("#readLevel").value = "";

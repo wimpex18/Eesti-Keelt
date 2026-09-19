@@ -8,7 +8,7 @@ diagram below against the page in both directions.
 
 ```
 Õppimine — "what am I learning today?"
-├── Rada          the drills, two ways: Rada (prerequisite order, mastery-gated,
+├── Rada          the drills, two ways: Minu rada (prerequisite order, mastery-gated,
 │                 opens on today's set) and Vaba harjutus (any topic, nothing recorded)
 ├── Lugemine      reading texts ranked by how much of each the learner knows
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
@@ -28,13 +28,15 @@ Eksam — "am I ready?"
 Õppimine is the path plus the exam's four skills, so the phone's skill row holds
 five chips. Tabs are in the URL hash (`#write`); each change pushes history,
 re-selecting the current tab pushes nothing. The retired `#drill` opens Rada in
-Vaba harjutus.
+Vaba harjutus. A drill set shows one unanswered item at a time on every device;
+for `obj-case` the case to use appears only with the verdict, since choosing it
+is the exercise.
 
 ## What grades each screen
 
 | Screen | Kind | Graded by | Writes |
 |---|---|---|---|
-| Rada · Rada | generated exercise | code | mastery, review queue |
+| Rada · Minu rada | generated exercise | code | mastery, review queue |
 | Rada · Vaba harjutus | generated exercise | code (same endpoint, `record: false`) | nothing |
 | Järjekord | scheduled exercise | code | FSRS card state |
 | Kuulamine · dictation | generated exercise | code, word-aligned | dictation history |
@@ -49,8 +51,8 @@ answer is right (`docs/ai-boundaries.md`).
 
 ## Deliberate overlaps
 
-- **Rada vs Vaba harjutus** — one tab, one generator path, one grader
-  (`/api/practice`, `/api/practice/answer`). Rada decides what is next and
+- **Minu rada vs Vaba harjutus** — one tab, one generator path, one grader
+  (`/api/practice`, `/api/practice/answer`). Minu rada decides what is next and
   records mastery; Vaba harjutus lets the learner pick any topic (and, for
   object case, one sub-rule) and records nothing.
 - **Sõnavara vs Järjekord** — a word is chosen in Sõnavara and comes back in

@@ -44,7 +44,7 @@ function showReadAloud() {
   const it = readAloud[readIdx];
   if (!it) return;
   $("#speakPrompt").innerHTML =
-    `${esc(it.text)}<div class="why instr" style="margin-top:var(--s2)">Прочитай вслух.
+    `${esc(it.text)}<div class="why instr" lang="ru" style="margin-top:var(--s2)">Прочитай вслух.
      ${it.level ? esc(it.level) : ""}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;

@@ -78,8 +78,8 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         # exercise and what would produce one.
         "note": ("Прослушай и запиши услышанное."
                  if passages else
-                 "Диктанты (etteütlus) берутся из корпуса текстов, а он ещё не "
-                 "загружен на сервер (cli harvest-reading или cli ingest)."),
+                 "Диктанты (etteütlus) берутся из корпуса текстов, а его ещё "
+                 "не добавили в приложение."),
     }
 
 

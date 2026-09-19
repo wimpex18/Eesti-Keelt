@@ -26,13 +26,13 @@ export async function loadRail() {
        name. The path tab already resolves it this way. */
     const next = (path.topics || []).find(t => t.id === path.resume);
     /* One thing first: what to do next. Progress sits under it, the untouched exam
-       parts after, and the exam date last — while no date is chosen that is one
-       quiet line, not the loudest words on every screen. `data-for` names the tab
+       parts after, and the exam date last — and only once a date is chosen: with
+       none, "no exam chosen" on every screen is a countdown to nothing. `data-for` names the tab
        whose panel already says the same thing; the rail drops that card there. */
     const dated = ready.days_to_decide !== null && ready.days_to_decide !== undefined;
     rail.innerHTML = `
       <div class="rail-card" data-for="path">
-        <h3>Järgmine<span class="ru">следующая тема</span></h3>
+        <h3>Järgmine <span class="ru">следующая тема</span></h3>
         ${next ? `<div class="rail-big rail-topic">${esc(next.et)}</div>
           <a class="rail-go" href="#path">Harjuta <i class="ru">тренировка</i></a>`
           : `<div class="rail-note">Все открытые темы пройдены.</div>`}
@@ -43,19 +43,18 @@ export async function loadRail() {
           <b>${due.due}</b></div>` : ""}
       </div>
       ${untouched.length ? `<div class="rail-card" data-for="exam">
-        <h3>Puudutamata<span class="ru">не начато</span></h3>
+        <h3>Puudutamata <span class="ru">не начато</span></h3>
         ${untouched.map(p => `<div class="rail-row"><span>${esc(p.et)}</span>
           ${p.next_task && p.next_task.url
             ? `<a href="${esc(p.next_task.url)}" target="_blank"
                  rel="noopener">ava</a>` : ""}</div>`).join("")}
         <div class="rail-note">Ни одна часть не должна быть нулём.</div>
       </div>` : ""}
-      <div class="rail-card" data-for="exam">
-        <h3>Eksamini<span class="ru">до экзамена</span></h3>
-        ${dated ? `<div class="rail-big">${esc(ready.countdown)}</div>`
-          : `<div class="rail-note">${esc(ready.countdown || "")}</div>`}
+      ${dated ? `<div class="rail-card" data-for="exam">
+        <h3>Eksamini <span class="ru">до экзамена</span></h3>
+        <div class="rail-big">${esc(ready.countdown)}</div>
         <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
-      </div>`;
+      </div>` : ""}`;
   } catch (e) {
     rail.innerHTML = "";
   }
@@ -80,7 +79,8 @@ export async function refreshDueBadge() {
       ? `${s.due} к повторению · ${s.total} всего`
       : s.total
         ? `Сегодня повторять нечего · ${s.total} в очереди на другие дни`
-        : "Очередь пуста — сюда попадут ошибки и слова, отмеченные при чтении.";
+        : "";
+    $("#reviewEmpty").hidden = !!s.total;
 
     /* Which words keep coming back wrong, named. A count says the queue is
        working; the names say what to look at. `lapses` is how many times the
@@ -136,7 +136,7 @@ async function finishReview() {
   end.setAttribute("role", "status");
   end.innerHTML = `<h4>Kordamine tehtud <i class="ru">повторение пройдено</i></h4>
     <p class="set-score">${ruCount(reviewSize, ["карточка", "карточки", "карточек"])}</p>
-    ${due ? `<div class="row"><button class="go">Veel kaarte<span class="ru">ещё ${due}</span></button></div>`
+    ${due ? `<div class="row"><button class="go">Veel kaarte <span class="ru">ещё ${due}</span></button></div>`
           : `<p class="hint">На сегодня всё. Новые карточки появятся из ошибок и из
                слов, отмеченных при чтении.</p>`}`;
   end.querySelector("button")?.addEventListener("click", () => $("#loadReview").click());
@@ -223,7 +223,7 @@ function renderReview(it, glosses) {
   const el = document.createElement("div");
   el.className = "drill";
   el.innerHTML = `
-    <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.context ? `<div class="rev-ctx">${esc(it.context)}</div>` : ""}
     <div class="row" style="margin-top:var(--s2)">
       <button class="ghost" data-r="again">Ei mäleta <i class="ru">не помню</i></button>

@@ -311,7 +311,9 @@ class TestTheGrammarDrill:
         page.wait_for_timeout(400)
         first = item.locator(".verdict").inner_text()
         assert item.locator("input").is_disabled(), "graded item still accepts input"
-        item.locator("button").click()
+        # The check button is spent with the item, so a second submission has no way in.
+        assert item.locator("button").is_disabled(), "graded item's check button is live"
+        item.locator("input").press("Enter")
         page.wait_for_timeout(400)
         assert item.locator(".verdict").inner_text() == first
 

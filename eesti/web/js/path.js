@@ -9,18 +9,23 @@ let pathTopic = null;
 
 /* A running score for one set. Rada's is recorded by the server and shows the
    mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
-const pathTally = {answered: 0, correct: 0, size: 0, out: "#pathScore", box: "#practiceOut",
+const pathTally = {answered: 0, correct: 0, size: 0, missed: [], out: "#pathScore", box: "#practiceOut",
                    record: true, gate: true, again: () => startPractice()};
-const freeTally = {answered: 0, correct: 0, size: 0, out: "#freeScore", box: "#freeOut",
+const freeTally = {answered: 0, correct: 0, size: 0, missed: [], out: "#freeScore", box: "#freeOut",
                    record: false, again: () => $("#freeBtn").click()};
 
 /* A tally for a set rendered somewhere else (the Kontrolltöö). */
 export function newTally(out, box, again) {
-  return {answered: 0, correct: 0, size: 0, out, box, record: true, again};
+  // A Kontrolltöö is a test: its misses are listed, not re-drilled on the spot.
+  return {answered: 0, correct: 0, size: 0, missed: [], out, box, record: true, again,
+          redo: false};
 }
 
 let pathMeta = {};
 let autoStarted = false, practiceRequest = 0;
+/* What the learner types is the thing being graded: iOS must not capitalise it,
+   correct it or underline it, and a password manager must not offer to fill it. */
+const ANSWER_FIELD = `autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"`;
 const START = ["Harjuta", "тренировка"], NEW_SET = ["Uued laused", "новые задания"];
 
 function themeApplies() {
@@ -99,16 +104,16 @@ export async function loadStatus() {
   try {
     const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";
-    if (s.rada) html += `<div class="corr"><span class="tag">Rada</span>
+    if (s.rada) html += `<div class="corr stat"><span class="tag">Rada</span>
       <div class="fix">${s.rada.mastered}/${s.rada.total} тем пройдено,
       ${s.rada.available} открыто</div>
       <div class="why">Следующая: ${esc(s.rada.next_et || "—")}${
         s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
-    if (s.sonavara) html += `<div class="corr"><span class="tag">Sõnavara</span>
+    if (s.sonavara) html += `<div class="corr stat"><span class="tag">Sõnavara</span>
       <div class="fix">${ruCount(s.sonavara.known_in_top, ["слово", "слова", "слов"])} из первых
-      ${s.sonavara.top}</div><div class="why">` +
+      ${s.sonavara.top}</div><details class="more"><summary>Sageduse järgi <i class="ru">по частотности</i></summary><div class="why">` +
       s.sonavara.bands.map(b =>
-        `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") +
+        `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") + `</div></details><div class="why">` +
       // Two facts, kept apart: "known" is what the learner declared; this is what the
       // app can translate for them. The second grows on its own, so it is not
       // presented as an achievement.
@@ -116,10 +121,10 @@ export async function loadStatus() {
         ? `<div class="gloss-late">${ruCount(s.sonavara.glossed, ["слово", "слова", "слов"])} с переводом
            <span class="hint">(пополняется само · сегодня осталось
            ${s.sonavara.gloss_budget_left})</span></div>` : "") + `</div></div>`;
-    if (s.kordamine) html += `<div class="corr"><span class="tag">Kordamine</span>
+    if (s.kordamine) html += `<div class="corr stat"><span class="tag">Kordamine</span>
       <div class="fix">${s.kordamine.due} к повторению,
       ${s.kordamine.scheduled} всего</div></div>`;
-    if (s.raamatukogu) html += `<div class="corr"><span class="tag">Lugemine · Kuulamine</span>
+    if (s.raamatukogu) html += `<div class="corr stat"><span class="tag">Lugemine · Kuulamine</span>
       <div class="fix">${ruCount(s.raamatukogu.items || 0, ["материал", "материала", "материалов"])} ·
       ${ruCount(Math.round(s.raamatukogu.minutes || 0), ["минута", "минуты", "минут"])}</div></div>`;
     // The caveat comes from the API, in Russian, so it is written once and matches
@@ -156,7 +161,7 @@ async function startPractice({focus = true} = {}) {
      the latest may paint, or a slow first answer replaces the learner's choice. */
   const mine = ++practiceRequest;
   const out = $("#practiceOut"); out.innerHTML = "";
-  pathTally.answered = pathTally.correct = pathTally.size = 0;
+  pathTally.answered = pathTally.correct = pathTally.size = 0; pathTally.missed = [];
   $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
   try {
@@ -179,7 +184,7 @@ async function startPractice({focus = true} = {}) {
       if (res.theme_emptied) {
         const again = document.createElement("button");
         again.className = "ghost";
-        again.innerHTML = 'Proovi ilma teemata<span class="ru">без темы</span>';
+        again.innerHTML = 'Proovi ilma teemata <span class="ru">без темы</span>';
         again.onclick = () => { $("#wordTheme").value = ""; startPractice(); };
         out.appendChild(again);
       }
@@ -215,6 +220,8 @@ async function startPractice({focus = true} = {}) {
     /* With a set on screen, answering is the main action; the button only swaps
        the set, so it steps down to a secondary one. */
     btn.className = loaded ? "ghost" : "go";
+    // With a set on screen the next set is offered at its end, not above it.
+    btn.hidden = loaded;
     btn.querySelector(".btn-ico")?.replaceWith(
       document.createRange().createContextualFragment(uiIcon(loaded ? "next" : "play")));
     const [et, ru] = loaded ? NEW_SET : START;
@@ -235,14 +242,39 @@ function finishSet(tally, res) {
   const gate = tally.gate && res.accuracy !== null && !res.just_mastered
     ? `<p class="hint">Тема засчитывается, когда из последних ${esc(of)} ответов
          верны ${esc(need)}. Сейчас: ${Math.round(res.accuracy * 100)}%.</p>` : "";
+  /* What went wrong, in the sentence it went wrong in, with the right form: the end
+     of a set is where a learner looks back, so the misses are there to look at. */
+  const missed = tally.missed.length ? `<ul class="set-missed" lang="et">${
+    tally.missed.map(({it}) => `<li>${esc(it.prompt).replace("____",
+      `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
+  const redo = tally.missed.length && tally.redo !== false
+    ? `<button class="ghost" data-act="redo">Korda vigu <span class="ru">ещё раз ошибки</span></button>` : "";
   const end = document.createElement("div");
   end.className = "set-end";
   end.setAttribute("role", "status");
   end.innerHTML = `<h4>Komplekt tehtud <i class="ru">набор пройден</i></h4>
-    <p class="set-score">${tally.correct} из ${tally.size} верно</p>${gate}
-    <div class="row"><button class="go">${uiIcon("next")}Uued laused<span class="ru">новые задания</span></button></div>`;
-  end.querySelector("button").onclick = tally.again;
+    <p class="set-score">${tally.correct} из ${tally.size} верно</p>${gate}${missed}
+    <div class="row">${redo}<button class="go" data-act="new">${uiIcon("next")}Uued laused <span class="ru">новые задания</span></button></div>`;
+  end.querySelector('[data-act="new"]').onclick = tally.again;
+  end.querySelector('[data-act="redo"]')?.addEventListener("click", () => redoMissed(tally));
+  // The score line said the same thing one line lower; the card says it now.
+  $(tally.out).textContent = "";
   box.appendChild(end);
+  // Fully in view, above the thumb bar: this is the moment the set exists for.
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    end.scrollIntoView({block: "nearest", behavior: "smooth"})));
+}
+
+
+/* The missed items again, as a short set of their own: graded and recorded the same
+   way as the first time (a Rada miss is already in the review queue either way). */
+function redoMissed(tally) {
+  const again = tally.missed;
+  const box = $(tally.box);
+  box.innerHTML = "";
+  Object.assign(tally, {answered: 0, correct: 0, size: again.length, missed: []});
+  again.forEach(({it, topic}, i) =>
+    box.appendChild(renderPracticeItem(it, topic, i, {}, true, tally)));
 }
 
 
@@ -255,9 +287,10 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const el = document.createElement("div");
   el.className = "drill";
   // Where this item sits in its set; shown on a phone, where one item is on screen.
+  const place = tally.size ? `${i + 1}/${tally.size}` : `${i + 1}`;
   const pos = tally.size ? `<div class="drill-pos">${i + 1} / ${tally.size}</div>` : "";
   el.innerHTML = `${pos}
-    <div class="prompt">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.choices && it.choices.length ? `
     <!-- Word order is the one topic whose unit is the whole sequence, so it
          is answered by choosing a sentence rather than typing a word.
@@ -267,14 +300,15 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
          path as every other item. -->
     <div class="choices">
       ${it.choices.map(c =>
-        `<button class="choice" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
+        `<button class="choice" lang="et" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
     </div>
     <div class="row">
       ${taskLine(it, ru)}
     </div>` : `
     <div class="row">
-      <input type="text" size="18" placeholder="?">
-      <button class="ghost">Kontrolli</button>
+      <input type="text" size="18" placeholder="?" lang="et" ${ANSWER_FIELD}
+             aria-label="Vastus ${place} — ответ">
+      <button class="ghost" aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
       ${taskLine(it, ru)}
     </div>`}
     <div class="verdict" role="status"></div>`;
@@ -283,18 +317,23 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   // One holder for "what was answered", whichever shape the item took, so the
   // submit path below stays single.
   let picked = "";
+  const check = el.querySelector(".row > button.ghost");
   const lock = () => {
     if (input) input.disabled = true;
+    if (check) check.disabled = true;
     choices.forEach(b => b.disabled = true);
   };
   const unlock = () => {
     if (input) input.disabled = false;
+    if (check) check.disabled = false;
     choices.forEach(b => { b.disabled = false; b.classList.remove("picked"); });
   };
   const locked = () => (input ? input.disabled : choices[0]?.disabled);
 
   const grade = async () => {
     if (locked()) return;
+    // Answered from the keyboard: the next item gets the keyboard when this is graded.
+    const typed = !!input && document.activeElement === input;
     /* An empty box is not an answer. Here it would also be recorded: against the
        accuracy that gates mastery, and into the review queue. The first item is
        focused on load, so one stray Enter would do it. Ask again instead. */
@@ -325,10 +364,12 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       return;
     }
     tally.answered++; if (res.correct) tally.correct++;
+    else tally.missed.push({it, topic});
     /* Graded: on a phone the next item appears under this one (see `.drill.done`
        in app.css). Keep this verdict in view above the keyboard and the thumb bar. */
     el.classList.add("done");
     requestAnimationFrame(() => verdict.scrollIntoView({block: "nearest"}));
+    if (typed) el.nextElementSibling?.querySelector?.("input")?.focus({preventScroll: true});
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
     // A choice item's prompt is a question with no blank, so the answered sentence is
     // shown instead. The rule is shown either way: on a right answer it says why,
@@ -337,7 +378,9 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       ? (choices.length
           ? `✓ õige <i class="ru">верно</i> — <strong>${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
-          : `✓ õige <i class="ru">верно</i> — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`)
+          : `✓ õige <i class="ru">верно</i> — <strong>${esc(it.prompt.replace("____", it.answer))}</strong>`
+            // A choice topic hid its form until now; the rule is the lesson either way.
+            + (it.form_after ? `<br><span class="why">${md(it.why_ru || "")}</span>` : ""))
       : wrongVerdict(input ? input.value : picked, it.answer, it.why_ru);
     /* The meaning arrives with the grade: `/api/practice/answer` looks up at most
        this one word. Only shown when the hint above did not already carry it. */
@@ -379,6 +422,9 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
 
 
 $("#practiceBtn").onclick = () => startPractice();
+// A new word theme is a new set: with the button folded into the end card, the
+// select itself starts it.
+$("#wordTheme").addEventListener("change", () => startPractice());
 
 
 // ── Rada or Vaba harjutus ───────────────────────────────────────────
@@ -424,10 +470,23 @@ function paintFreeRule() {
 $("#freeTopic").onchange = paintFreeRule;
 
 
+/* Folded: one line saying what is being practised, and "Muuda" to change it. */
+function foldFreeControls(fold) {
+  const pick = sel => sel.options[sel.selectedIndex]?.text || "";
+  $("#freeWhat").textContent = [pick($("#freeTopic")),
+    $("#freeRule").value ? pick($("#freeRule")) : "", pick($("#freeLevel"))]
+    .filter(Boolean).join(" · ");
+  $("#freeSummary").hidden = !fold;
+  $("#freeControls").hidden = fold;
+  $("#freeNote").hidden = fold;
+}
+$("#freeEdit").onclick = () => { foldFreeControls(false); $("#freeTopic").focus(); };
+
+
 $("#freeBtn").onclick = async () => {
   const out = $("#freeOut"), btn = $("#freeBtn");
   out.innerHTML = "";
-  freeTally.answered = freeTally.correct = freeTally.size = 0;
+  freeTally.answered = freeTally.correct = freeTally.size = 0; freeTally.missed = [];
   $("#freeScore").textContent = "";
   btn.disabled = true;
   try {
@@ -443,7 +502,13 @@ $("#freeBtn").onclick = async () => {
     }
     freeTally.size = res.items.length;
     res.items.forEach((it, i) => out.appendChild(
-      renderPracticeItem(it, res.topic, i, res.glosses || {}, true, freeTally)));
+      renderPracticeItem(it, res.topic, i, res.glosses || {}, false, freeTally)));
+    foldFreeControls(true);
+    /* The set, not the settings, is what the learner came for: bring its first item
+       into view and hand it the keyboard. */
+    const first = out.querySelector(".drill");
+    first?.scrollIntoView({block: "start", behavior: "smooth"});
+    first?.querySelector("input")?.focus({preventScroll: true});
   } catch (e) {
     out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   } finally { btn.disabled = false; }

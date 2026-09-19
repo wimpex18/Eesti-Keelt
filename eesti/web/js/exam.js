@@ -20,9 +20,10 @@ export async function loadExam() {
   document.querySelectorAll("#tab-exam button[data-level]").forEach(x =>
     x.setAttribute("aria-selected", x.dataset.level === examLevel()));
 
-  const [ready, material] = await Promise.all([
-    (await api(`/api/readiness/${examLevel()}`, null, "GET")).json(),
-    (await api(`/api/exam/${examLevel()}`, null, "GET")).json(),
+  const get = u => api(u, null, "GET").then(r => r.json());
+  const [ready, material, path] = await Promise.all([
+    get(`/api/readiness/${examLevel()}`), get(`/api/exam/${examLevel()}`),
+    get("/api/curriculum").catch(() => ({})),
   ]);
 
   /* An empty countdown is a fact about the plan; `deadline.note` says which, in
@@ -30,7 +31,14 @@ export async function loadExam() {
   $("#countdown").textContent =
     ready.countdown || (ready.deadline && ready.deadline.note) || "";
 
-  let html = `<div class="parts">`;
+  /* The one thing to do next leads the screen; the state of the four parts follows.
+     A first-day learner meets an action before a column of zeros. */
+  const next = (path.topics || []).find(t => t.id === path.resume);
+  let html = next ? `<div class="next-step">
+      <span>Järgmine samm <i class="ru">следующий шаг</i></span>
+      <a class="rail-go" href="#path"><b lang="et">${esc(next.et)}</b> → Harjuta</a>
+    </div>` : "";
+  html += `<div class="parts">`;
   for (const part of ready.parts) {
     const [cls, glyph] = MARK[String(part.touched)];
     html += `<div class="part-row">
@@ -46,10 +54,11 @@ export async function loadExam() {
   }
   html += `</div>`;
 
-  if (ready.reasons.length) {
-    html += `<ul class="hint" style="margin-top:var(--s3)">` +
-      ready.reasons.map(r => `<li>${esc(r)}</li>`).join("") + `</ul>`;
-  }
+  /* The reasons and the lists of what is left are the detail behind the marks above:
+     one tap away, not a wall under them. */
+  let detail = "";
+  if (ready.reasons.length)
+    detail += `<ul class="hint">` + ready.reasons.map(r => `<li>${esc(r)}</li>`).join("") + `</ul>`;
 
   /* The two measures behind the verdict: `grammar.outstanding` names the exact
      topics standing between the learner and the level, and `vocabulary` the same
@@ -60,12 +69,14 @@ export async function loadExam() {
       `${g.mastered}/${g.topics} тем` +
       (g.checkpoint_passed ? " · контрольная пройдена" : "") + `</div>`;
     if ((g.outstanding || []).length)
-      html += `<div class="hint">Осталось: ` +
-        g.outstanding.map(esc).join(", ") + `</div>`;
+      detail += `<div class="hint">Осталось по грамматике: <span lang="et">` +
+        g.outstanding.map(esc).join(", ") + `</span></div>`;
   }
   if (v.measured)
     html += `<div class="verdict-detail"><b>Sõnavara</b> · ` +
       `${v.known} из ${v.level_words} слов уровня</div>`;
+  if (detail)
+    html += `<details class="more"><summary>Üksikasjad <i class="ru">что осталось</i></summary>${detail}</details>`;
   html += `<p class="hint">${esc(ready.caveat)}</p>`;
   $("#readiness").innerHTML = html;
 
@@ -103,7 +114,7 @@ export async function loadExam() {
     emptyState({
       icon: "inbox",
       title: "Официальные материалы не загружены",
-      note: `Здесь будут ссылки на официальные задания HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами задания открываются на сайте экзамена.`,
+      note: "Здесь будут ссылки на официальные задания HARNO, когда их список добавят в приложение. Сами задания открываются на сайте экзамена.",
     });
 }
 
@@ -130,7 +141,7 @@ export async function loadVihikud() {
     : emptyState({
       icon: "inbox",
       title: "Тетради не загружены",
-      note: `Здесь будут ссылки на консультационные тетради HARNO, когда их список загрузят на сервер <span class="hint">(<code>cli harvest-exam</code>)</span>. Сами тетради открываются на сайте HARNO.`,
+      note: "Здесь будут ссылки на консультационные тетради HARNO, когда их список добавят в приложение. Сами тетради открываются на сайте HARNO.",
     });
 }
 
