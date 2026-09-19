@@ -15,7 +15,6 @@ dependencies float on the latest stable.
 1. Redesign the UI to `DESIGN.md`: multi-accent palette, web fonts, gradients
    and elevation, gamification, an overall progress score.
 2. Build model grading for meaning and conversation (`docs/ai-boundaries.md`).
-3. Refresh vendored `eesti/web/vendor/hls.light.min.js` (1.7.1; 1.7.3 is out).
 
 ## Uncommitted / undecided
 
