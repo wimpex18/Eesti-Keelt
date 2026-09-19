@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .config import LEVELS, TAGS
-from .grammar import REFERENCES
+from .grammar import REFERENCES, TOPIC_REFERENCES
 
 # EVKK annotation share per error tag: a recorded snapshot used only to break ties
 # the graph leaves free (`python -m eesti.cli evkk` recomputes it). Annotation
@@ -52,8 +52,11 @@ class Topic:
 
     @property
     def reference(self):
-        """The EKK handbook entry, when the topic maps onto a tagged rule."""
-        return REFERENCES.get(self.tag) if self.tag else None
+        """The EKK handbook entry: the tagged rule's if there is one (written for
+        a mistake), else the topic's own. Same order as `grammar.reference_for`.
+        """
+        by_tag = REFERENCES.get(self.tag) if self.tag else None
+        return by_tag or TOPIC_REFERENCES.get(self.id)
 
     @property
     def weight(self) -> float:
@@ -282,3 +285,58 @@ def coverage(topics: tuple[Topic, ...] = TOPICS) -> dict[str, int]:
         "with_generator": sum(1 for t in topics if t.generator),
         "with_reference": sum(1 for t in topics if t.reference is not None),
     }
+
+
+# --------------------------------------------------------------------------
+# How each topic is represented in the app
+# --------------------------------------------------------------------------
+#
+# A topic is learnt through whatever the app has for it, not only a generator:
+#
+# | Kind | Meaning |
+# |---|---|
+# | `generator:<name>` | drills generated and graded by code |
+# | `reference` | an EKK handbook section to read |
+# | `contextual` | reading texts linked to it (`topiclinks.py`) |
+# | `cross:<topic>` | practised inside another topic's drills |
+# | `assessment:checkpoint` | asked in the end-of-level checkpoint |
+#
+# Every topic has at least one, or a stated reason in `REPRESENTATION_GAPS`.
+
+#: Topics practised inside another topic's drills. Only where the other drill
+#: really exercises this one.
+CROSS: dict[str, str] = {
+    # Its contrast is drilled as the genitive stem (`docs/status.md`).
+    "astmevaheldus": "gen-stem",
+    # Word-order items are whole sentences corrected by learners (EVKK, EstGEC-L2).
+    "lauseehitus": "sonajark",
+}
+
+#: Topics with nothing yet, and why. Filling one removes its line; a test holds
+#: this list and the derived one together.
+REPRESENTATION_GAPS: dict[str, str] = {
+    "tahestik": "alphabet and sounds: needs audio exercises; EKI publishes them",
+    "asesonad": "Vabamorf's pronoun paradigms are wrong; needs a cited table",
+    "kaassonad": "no EKK section linked yet; attested corpus clozes not built",
+    "sidesonad": "no EKK section linked yet; attested corpus clozes not built",
+    "maarsonad": "no EKK section linked yet",
+    "tulevik": "no EKK section linked yet; a generator is possible (Vabamorf)",
+    "uhendverbid": "too few marked corpus examples; needs EKI usage examples",
+    "liitsonad": "too few marked corpus examples",
+}
+
+
+def representations(topic: Topic) -> list[str]:
+    """What the app offers for a topic, derived from what exists."""
+    from .topiclinks import LABEL_TOPICS, LINKABLE
+
+    out = []
+    if topic.generator:
+        out += [f"generator:{topic.generator}", "assessment:checkpoint"]
+    if topic.reference is not None:
+        out.append("reference")
+    if topic.id in LINKABLE or topic.id in LABEL_TOPICS:
+        out.append("contextual")
+    if topic.id in CROSS:
+        out.append(f"cross:{CROSS[topic.id]}")
+    return out

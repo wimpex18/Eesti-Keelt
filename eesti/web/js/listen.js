@@ -124,8 +124,8 @@ export async function loadListenLibrary() {
 
     for (const el of box.querySelectorAll(".sec-list")) {
       const id = el.dataset.section;
-      const {items} = await (await fetch(
-        `/api/library?section=${encodeURIComponent(id)}&limit=60`)).json();
+      const {items} = await (await api(
+        `/api/library?section=${encodeURIComponent(id)}&limit=60`, null, "GET")).json();
       // A pointer is a link, not a player: EIS tasks keep their audio and scoring on
       // eis.harno.ee and nothing of theirs is stored here.
       el.innerHTML = (items || []).map(it => it.external

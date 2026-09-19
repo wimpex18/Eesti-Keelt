@@ -10,7 +10,7 @@ paths:
 - Tabs live in the URL hash: `pushState` per change, `replaceState` for the landing tab, re-selecting the current tab does nothing.
 - `main.js` bootstraps last; loaders may touch anything declared.
 - Never set `textContent` on an element with decorated children (the Russian gloss); use `setLabel`.
-- Every `var(--token)` must be defined (`tests/test_design_tokens.py`); spacing uses `--s1`…`--s6`; colours are tokens, never hex in rules.
+- Every `var(--token)` must be defined; spacing uses `--s1`…`--s6`; colours are tokens, never hex in rules.
 - Give each information role its own treatment; colour by role, not by language.
 - `.wrap` is a grid with rows placed by number: place anything added at its top level deliberately.
 - Before making a container flex, check what its children relied on normal flow for.

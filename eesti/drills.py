@@ -270,3 +270,13 @@ def generate_verb_drills(
         )
         for form in pool[:count]
     ]
+
+
+#: Object-case sub-rules as the learner reads them (the Vaba harjutus select
+#: offers the same three).
+RULE_ET = {
+    "negation": "eitus → osastav",
+    "completed": "lõpetatud → omastav",
+    "ongoing": "kestev → osastav",
+    "verb-form": "verbivorm",
+}

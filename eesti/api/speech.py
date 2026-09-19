@@ -120,10 +120,12 @@ async def transcribe(request: Request) -> dict:
     mime = request.headers.get("content-type", "audio/wav").split(";")[0]
     # The question being answered, passed through as Whisper's initial_prompt:
     # a few seconds of accented Estonian is exactly what a recogniser guesses
-    # wrong on, and the topic's vocabulary is a free hint.
+    # wrong on, and the topic's vocabulary is a free hint. Never the read-aloud
+    # target: priming the recogniser with the words it is about to be compared
+    # against makes it hear them whether or not they were said.
     context = request.query_params.get("q", "")[:220]
     target = request.query_params.get("target", "")[:400]
-    result = asr.transcribe(audio, mime, context=context or target).to_dict()
+    result = asr.transcribe(audio, mime, context=context).to_dict()
 
     # Read-aloud: the target is known, so the comparison is deterministic and
     # carries no model judgement. This is the part that *is* measurable — see
@@ -132,7 +134,20 @@ async def transcribe(request: Request) -> dict:
         from ..pronunciation import compare
 
         result["comparison"] = compare(target, result["text"]).to_dict()
+        _record_read_aloud(target, result)
     return result
+
+
+def _record_read_aloud(target: str, result: dict) -> None:
+    """A read-aloud attempt as evidence: the transcript, never the audio."""
+    from .. import evidence
+
+    c = result["comparison"]
+    evidence.record("speech", {
+        "kind": "read-aloud", "target": target, "transcript": result["text"],
+        "engine": result.get("engine", ""), "matched": c["matched"],
+        "total": c["total"],
+    })
 
 
 class TranscriptIn(BaseModel):
@@ -156,6 +171,7 @@ def transcribe_text(blob: TranscriptIn, request: Request) -> dict:
         from ..pronunciation import compare
 
         result["comparison"] = compare(target, blob.text).to_dict()
+        _record_read_aloud(target, result)
     return result
 
 
@@ -206,6 +222,15 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
     if req.seconds > 0:
         pace = round(len(words) / (req.seconds / 60), 1)
 
+    from .. import evidence
+
+    # Advisory, so never in the error log or the review queue; kept as evidence
+    # that speaking was practised, with what was heard.
+    evidence.record("speech", {
+        "kind": "open", "question": req.question, "transcript": req.transcript,
+        "words": len(words), "seconds": req.seconds, "engine": checked.engine,
+    })
+
     return {
         "corrections": [c.to_dict() if hasattr(c, "to_dict") else c
                         for c in checked.corrections],
@@ -218,8 +243,8 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
             "known_levels": profile.get("levels", {}) if isinstance(profile, dict) else {},
         },
         "note": (
-            "Sisu ja grammatika kohta — mitte häälduse. Kõnetuvastus võib olla "
-            "valesti kuulnud, nii et need on vihjed, mitte kinnitatud vead: "
-            "vigade logisse need ei lähe."
+            "О содержании и грамматике, не о произношении (hääldus). "
+            "Распознавание речи могло ослышаться, поэтому это подсказки, а не "
+            "подтверждённые ошибки: в журнал ошибок они не попадают."
         ),
     }

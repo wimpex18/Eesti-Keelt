@@ -38,7 +38,9 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 |---|---|
 | Morphology | `morph.py` (Vabamorf), `wordlist.py` (word list, `declines`), `export.py` + `lookup.py` (form index `edge.db`) |
 | Generators | `drills.py`, `cloze.py`, `conjugation.py`, `patterns.py`, `forms.py`, `verbs.py`, `punctuation.py`, `rection.py`, `wordorder.py`, `dictation.py`, `speaking.py`, `pronunciation.py`; shared shape in `item.py` |
-| Curriculum | `curriculum.py` (topics, prerequisites, generators), `practice.py` (dispatch), `progress.py`, `placement.py`, `checkpoint.py`, `handoff.py`, `themes.py`, `overview.py`, `readiness.py` |
+| Planning | `learner.py` (rule evidence, weak rules, refresh, skill balance, mistakes), `planning.py` (today's plan) |
+| Curriculum | `curriculum.py` (topics, prerequisites, generators, representations), `practice.py` (dispatch), `progress.py`, `placement.py`, `checkpoint.py`, `handoff.py`, `themes.py`, `overview.py`, `readiness.py` |
+| Evidence | `evidence.py` (event log, replay, backfill), `itemref.py` (signed, regenerable item refs) |
 | Review and vocabulary | `review.py` (FSRS), `mining.py`, `vocab.py`, `gloss.py` (stored dictionary answers), `meaning.py` (which Russian a word gets) |
 | EKI data | `ekixml.py` (file reader), `psv.py`, `evs.py`, `har.py`, `ekidefs.py` (VSL, EKSS) |
 | Library | `library.py`, `sources.py`, `topiclinks.py`, `difficulty.py`, `harvest/` (ERR, Selges keeles, Lihtsad uudised, EIS, HARNO, EVKK) |
@@ -57,14 +59,17 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 | `data/eesti.db` | words, object cases, EKI levels and dictionaries, rections | built into the image (`cli build`, imports) |
 | `data/edge.db` | form index (`forms`, `object_cases`) | built into the image (`cli export`) |
 | `data/content.db` | library items, sources, topic links | harvested locally, pushed with `push-content.sh` |
-| `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | learner state: mastery, FSRS cards, word statuses and stored glosses, error queue | created at runtime; snapshotted by the Worker |
+| `data/events.db` | the evidence log: every learner-state change as an append-only event (`eesti/evidence.py`) | created at runtime; copied event by event into the Worker's Durable Object |
+| `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | projections of the log (mastery, FSRS cards, word statuses, error queue), plus stored glosses and the provider breaker | created at runtime; rebuilt from the log on restore; snapshotted by the Worker for the caches |
 
 `data/seed_glossary.tsv` is tracked and copied into the image.
 
 ## Invariants
 
 1. Linguistic facts come from Vabamorf or EKI data, never from a model.
-2. Grading is string comparison against a synthesised or attested form.
+2. Drill grading is string comparison against a synthesised or attested form.
+   Model scores of open production are advisory evidence only
+   (`docs/ai-boundaries.md`).
 3. Every network dependency is optional: provider chains with timeouts and a
    persistent circuit breaker (`providers/breaker.py`); responses name the
    engine that answered.

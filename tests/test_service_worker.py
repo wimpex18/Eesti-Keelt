@@ -125,7 +125,10 @@ class TestTheOfflineTextIsReadable:
         fetch".
         """
         page = markup_and_script()
-        block = page[page.index("async function api("):][:1400]
+        # `api` delegates to `rawApi`, the one function that calls `fetch`.
+        api = page[page.index("async function api("):][:600]
+        assert "rawApi(" in api
+        block = page[page.index("async function rawApi("):][:1400]
         assert "catch" in block
         assert any("Ѐ" <= ch <= "ӿ" for ch in block)
 

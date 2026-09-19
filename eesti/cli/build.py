@@ -413,7 +413,9 @@ def cmd_eval(args: argparse.Namespace) -> int:
     result = run(args.provider, model=args.model, evidence=args.evidence)
     # An unmeasurable run must not pass. Exit 2 distinguishes "could not
     # measure" from "measured and the model is not good enough" (exit 1).
-    if not result["valid"]:
+    # A valid run can still lack one score (every error case, or every clean
+    # case, failed to reach the model): that too is "could not measure".
+    if not result["valid"] or result["recall"] is None or result["precision"] is None:
         return 2
     return 0 if result["recall"] >= 0.8 and result["precision"] >= 0.8 else 1
 
@@ -497,12 +499,15 @@ def register(sub) -> None:
     p.add_argument("--limit", type=int, default=25)
     p.set_defaults(func=cmd_models)
 
+    from ..evals.gec import NON_LLM
+
     p = sub.add_parser("eval", help="score a model on the Estonian grammar eval")
-    p.add_argument("--provider", default="openrouter", choices=list(_providers()))
+    p.add_argument("--provider", default="openrouter",
+                   choices=[*_providers(), *NON_LLM])
     p.add_argument("--model")
     p.add_argument(
         "--evidence", action="store_true",
-        help="attach Vabamorf's case analysis, as the real app does",
+        help="attach Vabamorf's case analysis (the app does not send it yet)",
     )
     p.add_argument(
         "--track", choices=("hand", "external"), default="hand",

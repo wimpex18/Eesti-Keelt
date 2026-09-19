@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import hmac
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from . import api
+from .evidence import NotRestored
 from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read these
     BOOT_ID,
     BUILD,
@@ -57,7 +59,43 @@ async def _proxy_guard(request: Request, call_next):
         return JSONResponse({"detail": "not authorised"}, status_code=403)
     response = await call_next(request)
     response.headers["x-boot-id"] = BOOT_ID
+    # How far the evidence log has got, so the Worker pulls only when there is
+    # something new (`deploy/worker.ts`, `pullEvents`).
+    # Only API calls record evidence; the page and its assets never need it.
+    if request.url.path.startswith("/api/"):
+        seq = _events_seq()
+        if seq is not None:
+            response.headers["x-events-seq"] = str(seq)
     return response
+
+
+def _events_seq() -> int | None:
+    """The log's last sequence number, read-only and without creating the file."""
+    import sqlite3
+
+    from . import config
+
+    path = Path(config.EVENTS_DB)
+    if not path.exists():
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            row = conn.execute(
+                "SELECT seq FROM sqlite_sequence WHERE name = 'events'").fetchone()
+        finally:
+            conn.close()
+        return row[0] if row else 0
+    except sqlite3.Error:  # a header is never worth failing a request
+        return None
+
+
+@app.exception_handler(NotRestored)
+async def _not_restored(request: Request, exc: NotRestored) -> JSONResponse:
+    """Nothing was recorded: the instance is waiting for the Worker's restore."""
+    return JSONResponse(
+        {"detail": "Приложение восстанавливает прогресс. Повтори через несколько секунд."},
+        status_code=503, headers={"retry-after": "5"})
 
 
 api.register(app)

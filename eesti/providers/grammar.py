@@ -15,7 +15,7 @@ import urllib.request
 from dataclasses import asdict, dataclass, field
 from typing import Protocol
 
-from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR
+from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR, TARTUNLP_TRANSLATE
 from . import breaker
 
 # The object-case rules and "most text is already correct" are stated positively
@@ -256,6 +256,114 @@ class TartuNLPGrammar:
             )
 
 
+#: Words that make a missing object partitive whatever the aspect (EKK: eitus).
+NEGATION = frozenset({"ei", "ära", "ärge", "pole", "polnud", "mitte"})
+
+
+class NeurotolgeCorrection:
+    """TartuNLP's translation service run Estonian → Estonian, as a corrector.
+
+    Neurotõlge normalises what it is given, so `est→est` hands back a corrected
+    sentence (`ostin piim` → `ostsin piima`). It also paraphrases: it reorders
+    words and drops some (`läbi`), which is not a correction. So only edits code
+    can vouch for are kept:
+
+    - a one-for-one word substitution (no insertion, deletion or reordering);
+    - both words analyse to a shared Vabamorf lemma, so only the form changed;
+    - singular ↔ plural changes are dropped: as often a paraphrase as a fix;
+    - a genitive ↔ partitive swap is an aspect judgement Neurotõlge cannot be
+      trusted with, and is kept only when a negation makes partitive obligatory.
+
+    It explains nothing; the `why` says so. The service stores what it is sent
+    (TartuNLP's terms), which `docs/ai-providers.md` states.
+    """
+
+    name = "tartunlp-mt"
+
+    def __init__(self, timeout: float = PROVIDER_TIMEOUT):
+        self.timeout = timeout
+
+    def available(self) -> bool:
+        return os.environ.get("EESTI_DISABLE_TARTUNLP") != "1"
+
+    def _normalised(self, text: str) -> str:
+        req = urllib.request.Request(
+            TARTUNLP_TRANSLATE,
+            data=json.dumps({"text": text, "src": "est", "tgt": "est"}).encode(),
+            # TartuNLP asks integrators to name themselves.
+            headers={"Content-Type": "application/json", "application": "eesti-keelt"},
+        )
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            result = json.loads(resp.read()).get("result")
+        if isinstance(result, list):
+            result = " ".join(str(r) for r in result)
+        if not isinstance(result, str) or not result.strip():
+            raise ValueError("empty normalisation")
+        return result.strip()
+
+    @staticmethod
+    def _words(text: str) -> list[str]:
+        return re.findall(r"[\wÕÄÖÜõäöüŠŽšž-]+", text)
+
+    @staticmethod
+    def _object_swap(wrong_forms: set[str], right_forms: set[str]) -> str | None:
+        """'to-partitive' / 'to-genitive' when the edit swaps object case, else None."""
+        part = {"sg p", "pl p"}
+        gen = {"sg g", "pl g"}
+        if wrong_forms & gen and right_forms & part and not wrong_forms & part:
+            return "to-partitive"
+        if wrong_forms & part and right_forms & gen and not right_forms & part:
+            return "to-genitive"
+        return None
+
+    def verified(self, text: str, normalised: str) -> list[Correction]:
+        """The edits between `text` and `normalised` that code can vouch for."""
+        import difflib
+
+        from ..morph import _readings
+
+        a, b = self._words(text), self._words(normalised)
+        negated = any(w.casefold() in NEGATION for w in a)
+        out: list[Correction] = []
+        matcher = difflib.SequenceMatcher(a=[w.casefold() for w in a],
+                                          b=[w.casefold() for w in b], autojunk=False)
+        for op, i1, i2, j1, j2 in matcher.get_opcodes():
+            if op != "replace" or (i2 - i1) != (j2 - j1):
+                continue
+            for wrong, right in zip(a[i1:i2], b[j1:j2]):
+                ra, rb = _readings(wrong), _readings(right)
+                lemmas = {lemma for lemma, _ in ra} & {lemma for lemma, _ in rb}
+                if not rb or not lemmas:
+                    continue
+                fa, fb = {f for _, f in ra}, {f for _, f in rb}
+                # Singular ↔ plural is a paraphrase as often as a fix
+                # (`kodutööd` → `kodutöid`): keep only edits whose readings have
+                # the same numbers, so an ambiguous form cannot slip through.
+                na = {f.split()[0] for f in fa if f[:2] in ("sg", "pl")}
+                nb = {f.split()[0] for f in fb if f[:2] in ("sg", "pl")}
+                if na and nb and na != nb:
+                    continue
+                swap = self._object_swap(fa, fb)
+                if swap == "to-genitive" or (swap == "to-partitive" and not negated):
+                    continue
+                lemma = sorted(lemmas)[0]
+                out.append(Correction(
+                    wrong=wrong, correct=right,
+                    why=(f"Neurotõlge (est→est) предлагает другую форму слова «{lemma}». "
+                         "Объяснения этот сервис не даёт — сверь с правилом."
+                         if swap is None else
+                         "После отрицания (eitus) дополнение стоит в osastav."),
+                    tag="obj-case" if swap else "vocab",
+                ))
+        return _locate(text, out)
+
+    def check(self, text: str) -> GrammarResult:
+        return GrammarResult(
+            self.name, self.verified(text, self._normalised(text)),
+            note="Исправления без объяснений: Neurotõlge правит форму, но не "
+                 "говорит почему. Правило смотри по ссылке.")
+
+
 class LLMGrammar:
     """LLM checker, prompted for this learner's gap and the fixed Notion tags.
 
@@ -402,7 +510,7 @@ LLM_PREFERENCE = ("local", "workers-ai", "nvidia", "mistral", "openrouter")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
-    """Default order: TartuNLP, the LLM lanes, then offline Vabamorf.
+    """Default order: TartuNLP GEC, the LLM lanes, Neurotõlge, then offline Vabamorf.
 
     TartuNLP is often unresponsive; the breaker steps over it after two failures.
     """
@@ -411,6 +519,9 @@ def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarP
     return [
         TartuNLPGrammar(),
         *(LLMGrammar(name) for name in LLM_PREFERENCE),
+        # Code-filtered corrections without explanations: after every lane that
+        # explains, before the offline evidence.
+        NeurotolgeCorrection(),
         VabamorfFallback(),
     ]
 

@@ -10,7 +10,7 @@ so `Rääkimine` does what a phone can do honestly.
 |---|---|---|---|
 | Question bank (`speaking.py`) | exam-shaped questions voiced by TTS | none — practice | TTS only |
 | **Loe ette** (read aloud, `pronunciation.py`) | a known sentence | word-by-word `difflib` against what the recogniser heard | ASR only |
-| **Vasta küsimusele** (open answer) | free speech | transcript through the grammar chain, word count and pace | ASR + LLM, advisory |
+| **Vasta küsimusele** (open answer) | free speech | transcript through the grammar chain, word count and pace (from the recording's length) | ASR + LLM, advisory |
 
 - Read-aloud sentences are corpus sentences of 3–8 words in which every word,
   names and numbers included, is known or at A1–A2 on the word list; when too

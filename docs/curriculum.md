@@ -26,12 +26,34 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
 - **Blocked, then interleaved.** A new topic is drilled on its own until
   mastery, then its items join the FSRS review pool (`handoff.py`), which mixes
   everything due.
-- **Placement and test-out** use the same mastery check: harder items until the
-  learner fails (`placement.py`); any available topic can be tested out.
+- **Placement and test-out** use the same mastery check: topics are probed in
+  path order, five of five each (`placement.py`); any available topic can be
+  tested out.
 - **Checkpoints** are mixed end-of-level quizzes (`checkpoint.py`).
 - **Themes** pair a grammar rule with a themed word set (`themes.py`), so a
   drill teaches the rule and the vocabulary together.
 - **Reference topics** (no generator) show in the path and never block.
+- **Every topic has a representation** (`curriculum.representations`): a
+  generator, an EKK reference, linked reading, practice inside another topic's
+  drills (`CROSS`), or the checkpoint. Topics with none are listed with the
+  reason in `REPRESENTATION_GAPS`, and a test holds the two together.
+- **Weak rules and refresh** (`learner.py`), from the evidence:
+  - accuracy is recency-weighted, with a 14-day half-life;
+  - a rule is weak below 70 % over at least 6 answers, or when its cards are
+    remembered below 80 %;
+  - a mastered topic whose cards fade, or that has been untouched for 60 days,
+    comes back as a refresh. Mastery itself is never revoked.
+- **Today's plan** (`planning.py`, Rada's "Täna") fills a time budget in this
+  order:
+  1. due reviews (at most 40 %);
+  2. the weakest rule, showing the last mistake in it again;
+  3. a refresh;
+  4. the exam part practised least this week;
+  5. the next topic;
+  6. a text within reach.
+
+  It is a pure function of the evidence, so the same day and evidence give the
+  same plan. Every block says why it is there, in Russian.
 
 ## Picking material for a beginner
 

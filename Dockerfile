@@ -80,6 +80,8 @@ RUN printf '{"built":"%s","revision":"%s"}\n' \
 # (docs/deploy.md). Without it the reading library is empty.
 VOLUME ["/app/data/content"]
 ENV EESTI_CONTENT_DB=/app/data/content/content.db
+# Only the Worker's restore may start the evidence log here (`eesti/evidence.py`).
+ENV EESTI_WORKER_RESTORES=1
 
 EXPOSE 8080
 # Cloud Run injects $PORT; `exec` makes uvicorn PID 1 so it receives SIGTERM.

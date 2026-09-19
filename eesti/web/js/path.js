@@ -6,6 +6,9 @@ import {loadRail, refreshDueBadge} from "./review.js";
 
 // ── the path ────────────────────────────────────────────────────────
 let pathTopic = null;
+/* Sub-rules for the next Rada set only: set by a plan block (object case, one
+   rule), dropped after that set is fetched. */
+let pathRules = null;
 
 /* A running score for one set. Rada's is recorded by the server and shows the
    mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
@@ -59,7 +62,67 @@ function paintTheme() {
 }
 
 
+// ── today's plan ────────────────────────────────────────────────────
+function todayMinutes() {
+  try { return Number(localStorage.getItem("todayMinutes")) || 20; } catch { return 20; }
+}
+
+export async function loadToday() {
+  const list = $("#todayList");
+  if (!list) return;
+  const minutes = todayMinutes();
+  $("#todayMinutes").value = String(minutes);
+  try {
+    const p = await (await api(`/api/plan?minutes=${minutes}`, null, "GET")).json();
+    if (!p.blocks.length) {
+      list.innerHTML = `<li class="hint">На сегодня ничего не запланировано.</li>`;
+      $("#todaySum").textContent = "";
+      return;
+    }
+    $("#todaySum").textContent = `${p.minutes} мин · ` +
+      ruCount(p.blocks.length, ["шаг", "шага", "шагов"]);
+    list.innerHTML = p.blocks.map((b, i) => {
+      const d = b.detail;
+      const mistake = d ? `<div class="today-mistake" lang="et">
+          <del>${esc(d.answer || "—")}</del> → <ins>${esc(d.expected)}</ins>
+          · ${esc(d.solution)}</div>` : "";
+      return `<li class="today-block" data-kind="${esc(b.kind)}">
+        <span class="today-min">${b.minutes} мин</span>
+        <div class="today-what">
+          <strong lang="et">${esc(b.et)} <i class="ru" lang="ru">${esc(b.ru)}</i></strong>
+          <p class="hint">${esc(b.why)}</p>${mistake}
+        </div>
+        <button class="ghost" data-i="${i}" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
+      </li>`;
+    }).join("");
+    list.querySelectorAll("button[data-i]").forEach(btn => btn.onclick = () =>
+      startBlock(p.blocks[Number(btn.dataset.i)].action));
+  } catch (e) {
+    list.innerHTML = `<li class="hint">План не загрузился: ${esc(e.message)}</li>`;
+  }
+}
+
+function startBlock(action) {
+  if (action.tab === "path") {
+    pathTopic = action.topic;
+    pathRules = action.rules || null;
+    paintTheme();
+    startPractice();
+    $("#practiceOut").scrollIntoView({block: "start", behavior: "smooth"});
+    return;
+  }
+  // The router follows the hash (`main.js`), and Back returns to the plan.
+  location.hash = "#" + action.tab;
+}
+
+$("#todayMinutes").onchange = e => {
+  try { localStorage.setItem("todayMinutes", e.target.value); } catch {}
+  loadToday();
+};
+
+
 export async function loadPath() {
+  loadToday();
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
     pathTopic = p.resume;
@@ -174,6 +237,7 @@ async function startPractice({focus = true} = {}) {
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;
+    if (pathRules) { body.rules = pathRules; pathRules = null; }
     const theme = themeApplies() ? $("#wordTheme").value : "";
     if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
@@ -268,6 +332,7 @@ function finishSet(tally, res) {
   // Fully in view, above the thumb bar: this is the moment the set exists for.
   requestAnimationFrame(() => requestAnimationFrame(() =>
     end.scrollIntoView({block: "nearest", behavior: "smooth"})));
+  tally.done?.(tally);
 }
 
 
@@ -297,6 +362,11 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     ? it.answer_ru : (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
+  /* The answer time starts when the learner turns to the item (its field gets
+     focus), not when the set was built: items wait their turn on a phone. */
+  let started = null;
+  const rendered = performance.now();
+  el.addEventListener("focusin", () => { started ??= performance.now(); });
   // Where this item sits in its set; shown on a phone, where one item is on screen.
   // The set this item belongs to; a later set on the same tally has another.
   const set = tally.gen || 0;
@@ -361,11 +431,16 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     try {
       // The server grades and records: the client must not be the judge of
       // whether a topic has been mastered.
+      // The token is what the server grades from; the rest is for a page
+      // cached from before tokens existed.
       res = await (await api("/api/practice/answer", {
         topic, prompt: it.prompt, answer: it.answer,
         given: input ? input.value : picked,
         distractor: it.distractor || "", lemma: it.lemma || "",
-        label: it.hint || "", why_ru: it.why_ru || "", record: tally.record,
+        label: it.hint || "", rule: it.rule || "", why_ru: it.why_ru || "",
+        token: it.token || "",
+        latency_ms: Math.round(performance.now() - (started ?? rendered)),
+        record: tally.record,
       })).json();
     } catch (e) {
       /* Nothing was recorded, so the item is not spent: unlock it and keep what was

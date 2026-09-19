@@ -554,6 +554,28 @@
   .ring::after{content:"";position:absolute;inset:4px;border-radius:50%;
     background:var(--panel)}
   .ring span{position:relative;z-index:1;font-size:var(--fs-gloss);font-weight:700}
+  /* Today's plan: one line per block, its minutes first so the day reads as time. */
+  .today{margin-bottom:var(--s4);padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .today > summary{cursor:pointer;font-weight:600;display:flex;flex-wrap:wrap;
+    align-items:baseline;gap:var(--s2)}
+  .today-minutes{display:block;margin-top:var(--s3)}
+  .today-list{list-style:none;margin:var(--s3) 0 0;padding:0;display:grid;gap:var(--s3)}
+  .today-block{display:grid;grid-template-columns:auto 1fr auto;align-items:start;
+    gap:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line-soft)}
+  .today-block:first-child{border-top:0;padding-top:0}
+  .today-min{font-weight:600;color:var(--accent);min-width:3.5em}
+  .today-what{min-width:0}
+  .today-what p{margin:var(--s1) 0 0}
+  .today-mistake{margin-top:var(--s1);overflow-wrap:anywhere}
+  @media (min-width:1080px) and (min-height:600px){
+    #pathRada{display:flex;flex-direction:column}
+    #pathRada > .today{order:-1}
+  }
+  @media (max-width:560px){
+    .today-block{grid-template-columns:auto 1fr}
+    .today-block > button{grid-column:2;justify-self:start}
+  }
   .pathtop{display:flex;align-items:center;gap:var(--s4)}
   .pathtop .now{font-size:var(--fs-body);font-weight:600}
   .pathtop .of{color:var(--muted);font-size:var(--fs-note)}
@@ -856,6 +878,13 @@
   .empty-state p{margin:var(--s2) auto 0;max-width:44ch;font-size:var(--fs-note);
     line-height:1.6;color:var(--muted)}
   .empty-state .row{justify-content:center;margin-top:var(--s4)}
+  /* Payloads include learner text, dictionary entries and third-party errors. They
+     are allowed to grow vertically, never to force a sideways page scroll. */
+  .banner, .why, .hint, .lib-item, .corr, .task, .recoverable-error{
+    min-width:0;overflow-wrap:anywhere}
+  .recoverable-error{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2)}
+  .recoverable-error > .ghost{margin-left:auto;flex:none}
+  @media (max-width:560px){.recoverable-error > .ghost{margin-left:0;width:100%}}
   /* The end of a set: a quiet card in the accent's softest fill, the score in plain
      numbers and the next set under the thumb. */
   .set-end{margin-top:var(--s4);padding:var(--s5) var(--s4);text-align:center;

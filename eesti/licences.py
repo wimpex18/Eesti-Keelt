@@ -274,7 +274,7 @@ REGISTRY: tuple[Source, ...] = (
         "tartunlp-tts", "TartuNLP kõnesüntees", "api",
         "University of Tartu public API", True,
         "https://api.tartunlp.ai/text-to-speech/v2",
-        "Turns any text into listening practice. 14 voices, 0.7x for learners.",
+        "Turns any text into listening practice. 12 Estonian voices, 0.7x for learners.",
     ),
     Source(
         "selges-keeles", "Selges keeles — lihtne eesti keel", "api",

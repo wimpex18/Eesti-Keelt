@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Callable
 
+from . import evidence
 from .config import LEVELS
 # `Ask` is declared in both modules; `Stopped` is imported, never duplicated, so
 # callers catch one exception class.
@@ -166,18 +166,35 @@ def run(
 
             queue_failed(reviews, item)
 
-    passed = correct / len(items) >= PASS_MARK
-    with progress:
-        progress.execute(
-            "INSERT INTO checkpoints (level,asked,correct,passed,at)"
-            " VALUES (?,?,?,?,?)",
-            (level, len(items), correct, int(passed),
-             datetime.now(timezone.utc).isoformat(timespec="seconds")),
-        )
+    passed = save(progress, level, len(items), correct)
     return CheckpointResult(
         level, len(items), correct, passed,
         {t: (ok, n) for t, (ok, n) in by_topic.items()},
     )
+
+
+def save(progress: sqlite3.Connection, level: str, asked: int, correct: int) -> bool:
+    """Record a finished checkpoint; the pass mark is applied here, not by a caller."""
+    payload = {"level": level, "asked": asked, "correct": correct}
+    ev = evidence.record("checkpoint", payload)
+    return _save(progress, payload, ev.ts)
+
+
+def _save(progress: sqlite3.Connection, p: dict, at: str) -> bool:
+    progress.executescript(SCHEMA)
+    passed = p["asked"] > 0 and p["correct"] / p["asked"] >= PASS_MARK
+    with progress:
+        progress.execute(
+            "INSERT INTO checkpoints (level,asked,correct,passed,at)"
+            " VALUES (?,?,?,?,?)",
+            (p["level"], p["asked"], p["correct"], int(passed), at),
+        )
+    return passed
+
+
+@evidence.applies("checkpoint")
+def _apply_checkpoint(stores, ev) -> None:
+    _save(stores["progress"], ev.payload, ev.ts)
 
 
 def passed_levels(progress: sqlite3.Connection) -> set[str]:

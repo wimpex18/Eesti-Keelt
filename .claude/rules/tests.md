@@ -7,7 +7,6 @@ paths:
 
 - Build fixtures with the app's own openers and writers; never hand-roll a schema.
 - Redirect every database, and pass paths explicitly in class- or session-scoped fixtures (they run before the autouse redirect).
-- Safety properties (read-only, no file created) are checked in a **subprocess** with the real argument form, comparing artefacts byte for byte.
 - Test behaviour, not source text. When scanning code, parse with `ast` or strip comments: a comment mentioning a name is not a use.
 - A guard against a hand-maintained list must not itself be a hand-maintained list.
 - Anything scheduled in time is tested by advancing time.
@@ -16,4 +15,5 @@ paths:
 - Parsers of third-party markup are tested with synthetic markup (real ERR/Selges text is owner-only).
 - Suspect the harness when a suite exercising the culprit stays green (in-process vs subprocess, fixtures vs real paths).
 - Verify "works in CI" in a clean `git worktree` — `data/` is git-ignored.
-- Browser tests listen for `pageerror` **and** unhandled rejections; run both Chromium and WebKit.
+- Browser tests listen for `pageerror` **and** unhandled rejections; `--browser` runs Chromium desktop and WebKit phone.
+- Before adding a test, name the learner-visible failure it prevents. No tests of source text, CSS, or doc counts; no "guard on the guard" tests.

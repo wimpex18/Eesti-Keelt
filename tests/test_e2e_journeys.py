@@ -702,8 +702,18 @@ class TestMobileLayout:
         for mode in MODES:
             for tab in advertised_tabs(page, mode):
                 open_tab(page, mode, tab)
-                page.evaluate("()=>window.scrollTo(0,document.body.scrollHeight)")
-                page.wait_for_timeout(300)
+                # Scroll until the page stops growing: content that lands after
+                # the scroll (Kuulamine's library sections, loaded one by one)
+                # moves the last control, and the check is about the settled page.
+                page.evaluate("""async () => {
+                  let last = -1;
+                  for (let i = 0; i < 40; i++) {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    await new Promise(r => setTimeout(r, 250));
+                    if (document.body.scrollHeight === last) return;
+                    last = document.body.scrollHeight;
+                  }
+                }""")
                 # `checkVisibility()` rather than a non-zero box: descendants of a collapsed
                 # <details> have a rect while unrendered.
                 verdict = page.evaluate("""()=>{
@@ -939,6 +949,53 @@ class TestTheMeaningCardIsAFlashcard:
         page.wait_for_selector(".flashcard .verdict.ok", timeout=15000)
         verdict = card.locator(".verdict").inner_text()
         assert meaning in verdict and "снова" in verdict, verdict
+        assert not page.errors, page.errors
+
+
+class TestTodaysPlan:
+    """Rada opens on today's plan; a block's Alusta starts what it names."""
+
+    def test_the_plan_is_there_and_starts_practice(self, page):
+        open_tab(page, "learn", "path")
+        page.wait_for_selector("#todayList .today-block", state="attached", timeout=15000)
+        if not page.locator("#today").evaluate("d => d.open"):
+            page.click("#today > summary")
+        blocks = page.locator("#todayList .today-block")
+        assert blocks.count() >= 1
+        assert "мин" in blocks.first.locator(".today-min").inner_text()
+        start = page.locator('#todayList .today-block[data-kind="new"] button')
+        if start.count():
+            start.first.click()
+            page.wait_for_selector("#practiceOut .drill", timeout=15000)
+        assert not page.errors, page.errors
+
+
+class TestAGrammarCardIsAnswered:
+    """A grammar card in the queue is answered, and code rates it; there are no
+    self-rating buttons on it (`review.auto_rating`)."""
+
+    def test_type_the_form_and_see_the_verdict(self, page, live_server):
+        # A card of its own per engine and viewport: the server's queue is shared,
+        # and an answered card is no longer due for the next run.
+        lemma = f"e2e-{page.engine_name}-{page.viewport_name}"
+        prompt = f"Kui mul oleks aega, ____ ma kinno ({lemma})."
+        page.evaluate("""async ([base, lemma, prompt]) => {
+            await fetch(base + "/api/review", {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({kind: "tingiv", lemma, prompt, answer: "läheksin"}),
+            });
+        }""", [live_server, lemma, prompt])
+
+        page.click('.modes button[data-mode="revise"]')
+        page.click("#loadReview")
+        card = page.locator(".drill", has_text=lemma).first
+        card.wait_for(timeout=15000)
+        assert card.locator("button[data-r]").count() == 0
+        card.locator("input").fill("läheksin")
+        card.locator("button[data-check]").click()
+        page.wait_for_selector(f".drill.done:has-text('{lemma}') .verdict.ok", timeout=15000)
+        verdict = card.locator(".verdict").inner_text()
+        assert "Верно" in verdict and "снова" in verdict, verdict
         assert not page.errors, page.errors
 
 

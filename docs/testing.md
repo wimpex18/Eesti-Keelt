@@ -1,26 +1,32 @@
 # Testing
 
+One learner uses this app. The suite exists to catch what would hurt that
+learner (a wrong answer key, lost progress, a leaked secret, a broken screen),
+not to guard the source's shape. A test that only checks source text, CSS or a
+count in a doc is not added.
+
 ## Suites
 
-| Suite | Where | Runs in CI |
-|---|---|---|
-| In-process tests (~2 000) | `tests/test_*.py` | yes — `tests.yml`, Python 3.14, on push to `main` and PRs |
-| Browser journeys (Chromium + WebKit × desktop + phone) | `tests/test_e2e_journeys.py`, `test_web_layout.py` and other Playwright tests | no — local only |
-| Model eval | `cli eval`, `eval.yml` | weekly (OpenRouter), manual per lane |
-| Production smoke | `smoke.yml` | after `deploy`, daily, manual |
+| Suite | Command | Time | Runs in CI |
+|---|---|---|---|
+| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~15 s | yes — `tests.yml` |
+| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q -n auto --browser` | ~50 s | no — local only |
+| **Browser, full matrix** | same, with `--all-browsers` | ~2 min | no |
+| Model eval | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (OpenRouter), manual |
+| Production smoke | `smoke.yml` | — | after `deploy`, daily, manual |
 
-```bash
-python -m pytest tests/ -q -n auto                    # everything, in parallel (pytest-xdist)
-python -m pytest tests/test_e2e_journeys.py -q -n 5 --dist loadscope   # browser journeys
-```
+- **Fast** is everything in process. Run it after every change. Run the
+  browser file on its own: mixed into the fast run, the journeys' servers
+  and the unit tests compete for the same workers and both slow down.
+- **Browser** (`tests/test_e2e_journeys.py`) drives the page in Playwright at
+  two pairings, the ones the owner uses: Chromium at desktop size, and WebKit
+  at phone size (the installed PWA on an iPhone is WebKit). Run it after any
+  change to `eesti/web/` and look at both sizes.
+- **Full matrix** also runs Chromium at phone size and WebKit at desktop size.
+  Use it before a release that restyles the page.
 
-`-n auto` spreads the in-process tests over every core (about 16 s on a 10-core
-Mac). Browser journeys use `--dist loadscope`, so each class keeps its browser
-and the parametrised Chromium/WebKit pairs stay on one worker (about 2 minutes);
-each worker starts its own server on a free port.
-
-Browser tests **skip** (never fail) without Playwright, a browser or a built
-dataset. They need:
+Browser tests skip (never fail) without Playwright, a browser or a built
+dataset. To set them up:
 
 ```bash
 python -m eesti.cli fetch-data && python -m eesti.cli build
@@ -29,45 +35,40 @@ python -m eesti.cli harvest-reading   # reading journeys
 playwright install chromium webkit
 ```
 
-Run them after any change to `eesti/web/` and before a release, with WebKit
-installed — Safari's engine reports errors Chromium does not. Each test class
-gets a fresh browser (a long-lived WebKit browser stalls when the Mac's display
-is off).
-
 ## What the suite guarantees
 
+- **Answer keys:** generated forms round-trip through Vabamorf. Planted
+  object-case errors are caught, and correct sentences produce no candidates
+  (`test_objcase.py` and the generator tests).
+- **Grading:** the server grades from the signed item it issued
+  (`test_evidence.py`, `test_api_path.py`).
+- **Progress is not lost:**
+  - replaying the evidence log reproduces every learner table;
+  - a fresh instance rebuilds from an imported log;
+  - importing twice changes nothing (`test_evidence.py`);
+  - the snapshot never lets an empty export win (`test_api_path.py`,
+    `test_state_coverage.py`).
 - **Offline:** `test_offline.py` blocks sockets and runs every generator.
-- **Correctness:** planted object-case errors are caught; correct sentences
-  produce no candidates.
-- **Licences:** owner-only material never appears in a public query; HARNO
-  bodies stay empty.
-- **Syllabus:** no topic before its prerequisite; every topic in the path once.
-- **Contracts both ways:** every page call has a route and every route has a
-  caller (`test_route_inventory.py`, `test_ui_contract.py`); every library
-  section is reachable (`test_sections.py`).
-- **Language rule:** user-facing sentences contain Cyrillic; no Estonian term
-  is transliterated; every Estonian label is marked `lang="et"` and every
-  Russian gloss `lang="ru"`, so a screen reader uses the right voice
-  (`test_ui_language.py`).
-- **Docs:** derivable counts, the tab diagram and cited file paths match the
+- **Language rule:**
+  - user-facing sentences are Russian;
+  - no Estonian term is transliterated;
+  - labels carry the right `lang` (`test_ui_language.py`).
+- **Page ↔ API:** every endpoint the page calls exists and accepts that verb
+  (`test_ui_contract.py`).
+- **Secrets and deploy:**
+  - secrets are read where they are set (`test_secret_placement.py`);
+  - the Worker refuses the back channel (`test_origin_guard.py`).
+- **Docs:** curriculum counts, the tab diagram and cited file paths match the
   code (`test_docs_match_code.py`).
-- **Read-only commands write nothing:** checked in subprocesses, byte for byte
-  (`test_read_only_is_read_only.py`); no command creates an empty word list
-  (`test_phantom_wordlist.py`).
-- **Deployment wiring:** secrets are read where they are set
-  (`test_secret_placement.py`); the image imports only committed files
-  (`test_reference_imports.py`).
 
 Fixtures redirect every database (`conftest.py`) and build them with the app's
-own openers. Outbound HTTP fails at once in every test except the
-`TestAgainstTheLive…` classes, which skip when their service is down; an
-unstubbed provider call therefore costs nothing and cannot pass by luck. CI fetches `cli fetch-bench --required-only` first; a Hugging Face
-outage skips those tests rather than failing.
+own openers. Outbound HTTP fails at once, except in the `TestAgainstTheLive…`
+classes, which skip when their service is down.
 
 ## Not covered
 
-- Speaking end to end (microphone, Workers AI) — only the panel is exercised.
-- Anything behind Cloudflare Access — use `smoke`.
+- Speaking end to end (microphone, Workers AI); only the panel is exercised.
+- The Worker's behaviour: it is typechecked, not run. Anything behind
+  Cloudflare Access is checked with `smoke`.
 - Notion push with a real token; the LLM branch of `/api/check` locally.
-- Audio actually heard, FSRS spacing over real time, Firefox, screen readers,
-  two tabs on one learner state.
+- Audio actually heard, FSRS spacing over real time, Firefox, screen readers.

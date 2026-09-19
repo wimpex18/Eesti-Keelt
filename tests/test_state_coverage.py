@@ -22,7 +22,18 @@ EXCLUDED = {
     "DB_PATH",
     # The harvested corpus is pushed and archived separately.
     "CONTENT_DB",
+    # The evidence log travels event by event (`/api/events`, pulled into the
+    # Worker's Durable Object), never as a file: see `test_the_log_travels_by_event`.
+    "EVENTS_DB",
 }
+
+
+def test_the_log_travels_by_event():
+    """The one database left out of the snapshot has its own way out and back in."""
+    from eesti.api import ROUTERS
+
+    paths = {r.path for router in ROUTERS for r in router.routes}
+    assert {"/api/events", "/api/events/import"} <= paths
 
 
 def _declared_databases() -> dict[str, str]:

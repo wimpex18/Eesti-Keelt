@@ -32,10 +32,10 @@ completed object).
 
 ## Positioning
 
-Answers are checked against Vabamorf where it can decide, and by advanced
-LLMs for answer checking, semantic evaluation, conversation scoring and
-dynamic lesson synthesis. Vabamorf is the fast fallback and utility. The app
-says plainly what was checked and by what.
+Drills are graded by code against Vabamorf and EKI forms. Advanced LLMs
+explain, tutor, and assess open production (meaning, writing, conversation)
+as labelled, advisory evidence. The app says plainly what was checked and by
+what.
 
 ## Operating Context
 

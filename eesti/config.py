@@ -44,3 +44,5 @@ REVIEW_DB = "data/review.db"
 PROGRESS_DB = "data/progress.db"
 VOCAB_DB = "data/vocab.db"
 NOTION_DB = "data/notion.db"
+# The evidence log (`eesti/evidence.py`): the source the four above are rebuilt from.
+EVENTS_DB = "data/events.db"

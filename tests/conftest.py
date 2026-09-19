@@ -377,7 +377,7 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     scratch = tmp_path / "live"
     scratch.mkdir(exist_ok=True)
 
-    for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB"):
+    for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB", "EVENTS_DB"):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
 
@@ -408,3 +408,44 @@ def client():
     from eesti.app import app
 
     return TestClient(app)
+
+
+# --------------------------------------------------------------------------
+# Browser journeys: opt-in, and two pairings unless asked for all four
+# --------------------------------------------------------------------------
+
+def pytest_addoption(parser):
+    parser.addoption("--browser", action="store_true",
+                     help="also run the browser journeys (tests/test_e2e_journeys.py): "
+                          "Chromium at desktop size and WebKit at phone size")
+    parser.addoption("--all-browsers", action="store_true",
+                     help="the browser journeys in every engine x viewport pairing")
+
+
+#: The pairings the owner actually uses: a desktop browser, and the installed PWA
+#: on an iPhone, which is WebKit. Chromium stands in for WebKit where it is absent.
+DEFAULT_PAIRS = {("chromium", "desktop"), ("webkit", "phone")}
+
+
+def pytest_collection_modifyitems(config, items):
+    everything = config.getoption("--all-browsers")
+    wanted = everything or config.getoption("--browser")
+    webkit = "webkit" in installed_engines()
+    pairs = DEFAULT_PAIRS if webkit else {("chromium", "desktop"), ("chromium", "phone")}
+    keep, drop = [], []
+    for item in items:
+        if "test_e2e_journeys.py" not in item.nodeid:
+            keep.append(item)
+            continue
+        if not wanted:
+            drop.append(item)
+            continue
+        params = getattr(getattr(item, "callspec", None), "params", {})
+        pair = (params.get("_pw"), params.get("page"))
+        if everything or None in pair or pair in pairs:
+            keep.append(item)
+        else:
+            drop.append(item)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep
