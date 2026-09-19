@@ -126,17 +126,32 @@ def has_backfill(conn: sqlite3.Connection) -> bool:
         "SELECT 1 FROM events WHERE id = ?", (BACKFILL_ID,)).fetchone() is not None
 
 
+class NotRestored(RuntimeError):
+    """A write reached an instance the Worker has not restored yet."""
+
+
+def restored_by_worker() -> bool:
+    """True on the deployment (`EESTI_WORKER_RESTORES`, set in the Dockerfile): only
+    the Worker's restore may start the log there, never a write."""
+    return os.environ.get("EESTI_WORKER_RESTORES") == "1"
+
+
 def record(type_: str, payload: dict, *, ts: str | None = None,
            id_: str | None = None) -> Event:
     """Append one event. The caller applies it to its own connection.
 
     Before the first event of a database that predates the log, the rows already
     there are backfilled, so the log never starts in the middle of a history.
+    On the deployment that is the Worker's restore's job (`settle`): a write that
+    arrives first is refused, since backfilling an empty instance would mark an
+    empty history as the whole of it.
     """
     ev = Event(id=id_ or str(uuid.uuid7()), type=type_, ts=ts or now(),
                payload=payload, learner=learner())
     with connect() as conn:
         if not has_backfill(conn):
+            if restored_by_worker():
+                raise NotRestored("the evidence log has not been restored yet")
             backfill(conn)
         _insert(conn, ev)
     return ev

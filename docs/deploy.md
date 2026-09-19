@@ -41,7 +41,12 @@ matters for the caches it carries (stored glosses, the provider breaker).
 | any response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
-Events are keyed by id, so copying one twice changes nothing. The Durable Object
+Events are keyed by id, so copying one twice changes nothing. On Cloud Run
+(`EESTI_WORKER_RESTORES=1`, set in the Dockerfile) only that restore may start
+the log: a write reaching an instance first, such as a speech transcript or
+`reset-progress.sh`, gets 503 and records nothing. After a restore the Worker
+resumes pulling from where the pushed log ended, so events the settle appended
+(the first backfill) are copied too. The Durable Object
 remembers which instance it restored and how far it copied, so being evicted from
 memory does not trigger a second restore.
 

@@ -95,3 +95,16 @@ class TestFromTheLearnersEvidence:
         with evidence.connect() as log:
             issued = [e for e in evidence.events(log) if e.type == "plan-issued"]
         assert len(issued) == 1
+
+
+def test_cards_never_reviewed_do_not_make_a_topic_look_forgotten():
+    """Mastering a topic seeds cards nobody has reviewed; FSRS says 0 for them."""
+    from eesti import config, handoff, learner, progress, review
+
+    prog = progress.connect(config.PROGRESS_DB)
+    rev = review.connect(config.REVIEW_DB)
+    progress.mark_mastered(prog, "tingiv", via="placement")
+    assert handoff.seed_mastered(rev, "tingiv", seed=1)
+    found = learner.rule_evidence(prog, rev)
+    assert not [e for e in found if e.topic == "tingiv" and e.weak]
+    assert "tingiv" not in learner.needs_refresh(prog, found)

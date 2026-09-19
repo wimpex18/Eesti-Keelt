@@ -268,11 +268,15 @@ def count(
     return total
 
 
-def mark_seen(progress: sqlite3.Connection, item_id: str, minutes: float = 0.0) -> None:
-    """Record that material was opened. Not a pass, and never treated as one."""
+def mark_seen(progress: sqlite3.Connection, item_id: str, minutes: float = 0.0,
+              skill: str | None = None) -> None:
+    """Record that material was opened. Not a pass, and never treated as one.
+
+    `skill` is the item's own (`lugemine`, `kuulamine`, ...), so opening a radio
+    episode counts as listening, not reading."""
     from . import evidence
 
-    payload = {"item_id": item_id, "minutes": float(minutes)}
+    payload = {"item_id": item_id, "minutes": float(minutes), "skill": skill}
     ev = evidence.record("exposure", payload)
     _seen(progress, payload, ev.ts)
 
@@ -303,14 +307,14 @@ def open_item(
     explicit act, so coverage numbers do not inflate by opening texts.
     """
     row = content.execute(
-        "SELECT id, body FROM items WHERE id = ?", (item_id,)
+        "SELECT id, body, skill FROM items WHERE id = ?", (item_id,)
     ).fetchone()
     if row is None:
         raise KeyError(item_id)
 
     out = {"item": item_id, "lemmas": 0}
     if progress is not None:
-        mark_seen(progress, item_id, minutes=minutes)
+        mark_seen(progress, item_id, minutes=minutes, skill=row["skill"])
     if vocabulary is not None and row["body"]:
         from .morph import analyze
         from .vocab import record_encounter

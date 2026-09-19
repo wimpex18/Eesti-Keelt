@@ -261,9 +261,12 @@ def events_import(body: EventsImport, request: Request) -> dict:
             added = evidence.ingest(conn, body.events)
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=f"bad event: {exc}") from exc
+        # Where the imported log ends. Settling may append to it (the first
+        # backfill); the Worker resumes pulling from here, so those reach it too.
+        ingested = evidence.last_seq(conn)
         settled = evidence.settle(conn) if body.settle else None
-        return {"added": added, "last_seq": evidence.last_seq(conn),
-                "settled": settled}
+        return {"added": added, "ingested_seq": ingested,
+                "last_seq": evidence.last_seq(conn), "settled": settled}
 
 
 @router.get("/api/me/export")

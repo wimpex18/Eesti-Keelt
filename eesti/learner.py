@@ -29,13 +29,18 @@ WEAK_RETRIEVABILITY = 0.8
 REFRESH_RETRIEVABILITY = 0.7
 STALE_DAYS = 60
 
-#: Exam parts, and the log events that count as practice in each.
+#: Exam parts, and the log events that count as practice in each. An `exposure`
+#: counts for the skill of the item opened (`EXPOSURE_SKILL`).
 SKILL_EVENTS = {
     "kirjutamine": ("writing",),
     "kuulamine": ("dictation",),
-    "lugemine": ("exposure",),
+    "lugemine": (),
     "raakimine": ("speech",),
 }
+
+#: Library skills that an opened item counts towards; anything else (or an
+#: exposure recorded before items carried their skill) is reading.
+EXPOSURE_SKILL = {"kuulamine": "kuulamine", "lugemine": "lugemine"}
 
 
 def _when(ts: str) -> datetime:
@@ -76,6 +81,10 @@ def _retrievability(review: sqlite3.Connection, now: datetime,
     for r in review.execute("SELECT kind, tag, card FROM review_items WHERE kind != 'vocab'"):
         key = (r["kind"], r["tag"]) if (r["kind"], r["tag"]) in rules else (r["kind"], None)
         card = Card.from_dict(json.loads(r["card"]))
+        # A card never reviewed says nothing about memory (FSRS reports 0 for it):
+        # mastering a topic seeds such cards, which must not make it look weak.
+        if card.last_review is None:
+            continue
         out.setdefault(key, []).append(
             scheduler.get_card_retrievability(card, current_datetime=now))
     return out
@@ -144,7 +153,9 @@ def skill_activity(log: sqlite3.Connection, days: int = 7,
     after = (now - timedelta(days=days)).isoformat()
     counts = {}
     for part, types in SKILL_EVENTS.items():
-        counts[part] = len(evidence.since(log, types, after))
+        counts[part] = len(evidence.since(log, types, after)) if types else 0
+    for ev in evidence.since(log, ("exposure",), after):
+        counts[EXPOSURE_SKILL.get(ev.payload.get("skill") or "", "lugemine")] += 1
     return counts
 
 

@@ -388,7 +388,9 @@ export class LearnerState extends DurableObject<Env> {
           }),
         });
         if (!res.ok) return null;
-        last = ((await res.json()) as { last_seq?: number }).last_seq ?? 0;
+        // Where the pushed log ends, not where the origin's does: settling may
+        // append (the first backfill), and those events must still be pulled.
+        last = ((await res.json()) as { ingested_seq?: number }).ingested_seq ?? 0;
       } catch {
         return null;
       }
@@ -570,6 +572,16 @@ function base64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function notRestored(): Response {
+  return new Response(
+    "Приложение запускается и восстанавливает прогресс. Повторите через несколько секунд.",
+    {
+      status: 503,
+      headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "5" },
+    },
+  );
+}
+
 function stub(env: Env) {
   return env.LEARNER_STATE.get(env.LEARNER_STATE.idFromName("singleton"));
 }
@@ -609,14 +621,21 @@ export default {
       return new Response("not found", { status: 404 });
     }
 
-    // Speech is answered here, not forwarded: see `transcribe`.
-    if (url.pathname === "/api/transcribe" && request.method === "POST") {
-      return transcribe(request, env, url);
-    }
-
     const learner = stub(env);
     const restored = await learner.ensureRestored();
     const writes = request.method !== "GET" && request.method !== "HEAD";
+
+    // Speech is answered here, not forwarded: see `transcribe`. It records
+    // evidence on the origin, so it waits for the restore like any write, and
+    // what it recorded is copied out like any other.
+    if (url.pathname === "/api/transcribe" && request.method === "POST") {
+      if (!restored) return notRestored();
+      const heard = await transcribe(request, env, url);
+      const seen = Number(heard.headers.get("x-events-seq") ?? "");
+      if (Number.isFinite(seen) && seen > 0) ctx.waitUntil(learner.pullEvents(seen));
+      return heard;
+    }
+
     // Any API call may record evidence (opening a text is a GET that does), so
     // until the instance holds the learner's history only the health probe and
     // the static shell go through.
@@ -624,16 +643,7 @@ export default {
     if (!restored && (writes || api)) {
       // A write to an instance that may not hold the learner's history would
       // be recorded against an empty copy. Better to ask for a retry.
-      return new Response(
-        "Приложение запускается и восстанавливает прогресс. Повторите через несколько секунд.",
-        {
-          status: 503,
-          headers: {
-            "content-type": "text/plain; charset=utf-8",
-            "retry-after": "5",
-          },
-        },
-      );
+      return notRestored();
     }
 
     const target = new URL(url.pathname + url.search, env.CLOUD_RUN_URL);

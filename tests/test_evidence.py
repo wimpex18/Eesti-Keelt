@@ -267,3 +267,53 @@ class TestPracticeOutsideDrills:
         client.post("/api/check", json={"text": "Tere."})
         with evidence.connect() as conn:
             evidence.rebuild(conn)
+
+
+class TestTheFirstRestore:
+    """Review findings on PR #64: the first restore must hand its backfill to the
+    Worker, and nothing may start the log on the deployment before it."""
+
+    def test_the_backfill_lies_after_the_point_the_worker_resumes_from(self, client):
+        from eesti import progress
+
+        conn = progress.connect(config.PROGRESS_DB)
+        conn.execute("INSERT INTO attempts (topic,item_key,correct,answer,at)"
+                     " VALUES ('tingiv','k1',1,'x','2026-01-01T00:00:00+00:00')")
+        conn.commit()
+        # First restore ever: the Durable Object has no log, so it pushes nothing.
+        r = client.post("/api/events/import", headers=STATE,
+                        json={"events": [], "settle": True}).json()
+        assert r["settled"]["backfilled"] == 1
+        pulled = client.get(f"/api/events?after={r['ingested_seq']}",
+                            headers=STATE).json()["events"]
+        assert {e["type"] for e in pulled} == {"legacy-row", "backfill"}
+
+    def test_on_the_deployment_a_write_before_the_restore_is_refused(
+            self, client, monkeypatch):
+        monkeypatch.setenv("EESTI_WORKER_RESTORES", "1")
+        r = client.post("/api/vocab/known", json={"lemmas": ["raamat"]})
+        assert r.status_code == 503 and r.headers["retry-after"] == "5"
+        with evidence.connect() as log:
+            assert evidence.events(log) == []   # nothing, not even a backfill
+        client.post("/api/events/import", headers=STATE,
+                    json={"events": [], "settle": True})
+        assert client.post("/api/vocab/known",
+                           json={"lemmas": ["raamat"]}).status_code == 200
+
+    def test_a_read_aloud_before_the_restore_is_refused_too(self, client, monkeypatch):
+        monkeypatch.setenv("EESTI_WORKER_RESTORES", "1")
+        r = client.post("/api/transcribe/text?target=Ma%20loen",
+                        json={"text": "Ma loen", "engine": "test"})
+        assert r.status_code == 503
+
+
+class TestSkillBalance:
+    def test_an_opened_item_counts_for_its_own_skill(self):
+        from eesti import learner, library, progress
+
+        conn = progress.connect(config.PROGRESS_DB)
+        library.mark_seen(conn, "raadio-1", skill="kuulamine")
+        library.mark_seen(conn, "tekst-1", skill="lugemine")
+        with evidence.connect() as log:
+            counts = learner.skill_activity(log)
+        assert counts["kuulamine"] == 1 and counts["lugemine"] == 1

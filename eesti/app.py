@@ -17,6 +17,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from . import api
+from .evidence import NotRestored
 from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read these
     BOOT_ID,
     BUILD,
@@ -87,6 +88,14 @@ def _events_seq() -> int | None:
         return row[0] if row else 0
     except sqlite3.Error:  # a header is never worth failing a request
         return None
+
+
+@app.exception_handler(NotRestored)
+async def _not_restored(request: Request, exc: NotRestored) -> JSONResponse:
+    """Nothing was recorded: the instance is waiting for the Worker's restore."""
+    return JSONResponse(
+        {"detail": "Приложение восстанавливает прогресс. Повтори через несколько секунд."},
+        status_code=503, headers={"retry-after": "5"})
 
 
 api.register(app)
