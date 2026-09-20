@@ -8,6 +8,7 @@ a caveat.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from ..config import LEVELS
@@ -91,3 +92,67 @@ def checkpoint_result(level: str, res: CheckpointResult) -> dict:
         raise HTTPException(status_code=400, detail="correct exceeds asked")
     passed = save(progress_db(), level, res.asked, res.correct)
     return {"level": level, "passed": passed, "pass_mark": PASS_MARK}
+
+
+# --------------------------------------------------------------------------
+# The exam itself: its shape, its sittings, and the one being prepared for
+# --------------------------------------------------------------------------
+
+@router.get("/api/exam-spec/{level}")
+def exam_spec(level: str) -> dict:
+    """What the exam is: parts, minutes, points and the pass rule (`eesti/exam.py`)."""
+    from ..exam import NEXT_YEAR, SPECS, upcoming
+
+    if level not in SPECS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    return SPECS[level].to_dict() | {
+        "sessions": [s.to_dict() for s in upcoming(level)],
+        "next_year": NEXT_YEAR,
+    }
+
+
+class GoalRequest(BaseModel):
+    level: str
+    #: The sitting, `YYYY-MM-DD`; null keeps the level with no date yet.
+    sitting: str | None = None
+
+
+@router.get("/api/goal")
+def read_goal() -> dict:
+    """The sitting being prepared for, or null."""
+    from ..exam import goal
+
+    chosen = goal(progress_db())
+    return {"goal": chosen.to_dict() if chosen else None}
+
+
+@router.post("/api/goal")
+def choose_goal(req: GoalRequest) -> dict:
+    """Choose the sitting to prepare for. The countdown follows it."""
+    from datetime import date
+
+    from ..exam import set_goal
+
+    try:
+        when = date.fromisoformat(req.sitting) if req.sitting else None
+    except ValueError as exc:
+        raise HTTPException(status_code=400,
+                            detail="Дата экзамена — в виде ГГГГ-ММ-ДД.") from exc
+    try:
+        chosen = set_goal(progress_db(), req.level, when)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"goal": chosen.to_dict()}
+
+
+@router.get("/api/goal.ics")
+def goal_calendar() -> PlainTextResponse:
+    """The sitting and its registration deadline, for a calendar app."""
+    from ..exam import calendar, goal
+
+    chosen = goal(progress_db())
+    if chosen is None or not (chosen.sitting or chosen.registration_closes):
+        raise HTTPException(status_code=404, detail="Сессия ещё не выбрана.")
+    return PlainTextResponse(
+        calendar(chosen), media_type="text/calendar",
+        headers={"content-disposition": 'attachment; filename="eesti-keelt-eksam.ics"'})

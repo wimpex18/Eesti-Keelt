@@ -1,8 +1,8 @@
 """Should you sit the exam? An answer built only from evidence that exists.
 
-No sitting is booked, so `TARGET` is `None` and no countdown is shown. Set
-`TARGET` when a session is chosen; HARNO runs quarterly and closes registration
-about five weeks ahead.
+The sitting is the learner's own choice (`exam.set_goal`), so the countdown
+appears once one is picked and says so until then. HARNO runs quarterly and
+closes registration about five weeks ahead.
 
 - **No prediction.** Nothing here can calibrate a pass probability, so the
   verdict reports what the evidence shows and what is missing.
@@ -18,12 +18,6 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import date
 
-#: The sitting being prepared for: `(registration_closes, sitting)`, or None.
-#: `registration_closes` is HARNO's hard deadline, not a personal checkpoint.
-TARGET: tuple[date, date] | None = None
-
-#: The shape of a target: registration closes about five weeks before the sitting.
-EXAMPLE_TARGET = (date(2026, 10, 1), date(2026, 11, 7))
 
 
 def _count(n: int, one: str, few: str, many: str) -> str:
@@ -37,8 +31,17 @@ def _count(n: int, one: str, few: str, many: str) -> str:
     return f"{n} {form}"
 
 
-def _target() -> tuple[date | None, date | None]:
-    return TARGET if TARGET else (None, None)
+def _target(progress: sqlite3.Connection | None) -> tuple[date | None, date | None]:
+    """`(registration_closes, sitting)` of the chosen goal, or `(None, None)`.
+
+    `registration_closes` is HARNO's hard deadline, not a personal checkpoint.
+    """
+    from .exam import goal
+
+    if progress is None:
+        return (None, None)
+    chosen = goal(progress)
+    return (chosen.registration_closes, chosen.sitting) if chosen else (None, None)
 
 #: The four parts (A2: 20 points each, B1: 25), in the order the exam runs them.
 PARTS = (
@@ -81,6 +84,9 @@ class Readiness:
     reasons: list[str] = field(default_factory=list)
     days_to_decide: int | None = None
     days_to_sitting: int | None = None
+    #: The chosen sitting, as `(registration_closes, sitting)`; both None until
+    #: one is picked (`exam.set_goal`).
+    target: tuple[date | None, date | None] = (None, None)
 
     @property
     def countdown(self) -> str:
@@ -100,16 +106,15 @@ class Readiness:
         return "дата прошла"
 
     def _deadline(self) -> dict | None:
-        """The registration date, or None while no session is chosen."""
-        decide, sitting = _target()
+        """The registration date, or a note while no session is chosen."""
+        decide, sitting = self.target
         if decide is None or sitting is None:
             return {
                 "registration": None,
                 "sitting": None,
                 "note": (
-                    "Сессия пока не выбрана. Экзамен планируется в 2027 году — "
-                    "A2, затем B1, либо сразу B1. Когда дата будет выбрана, "
-                    "здесь появится обратный отсчёт."
+                    "Сессия пока не выбрана. Выбери её в «Eksam» — и здесь "
+                    "появится обратный отсчёт и напоминание о регистрации."
                 ),
             }
         return {
@@ -343,7 +348,7 @@ def readiness(
 ) -> Readiness:
     """Evidence for and against sitting `level`, with the reasons named."""
     today = today or date.today()
-    decide, sitting = _target()
+    decide, sitting = _target(progress)
     grammar = _grammar(progress, level) if progress is not None else {}
     parts = (_parts(progress, level, content, notion)
              if progress is not None else [])
@@ -386,6 +391,7 @@ def readiness(
     return Readiness(
         level=level,
         parts=parts,
+        target=(decide, sitting),
         grammar=grammar,
         vocabulary=vocab,
         verdict=verdict,

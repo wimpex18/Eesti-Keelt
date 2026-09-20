@@ -952,6 +952,21 @@ class TestTheMeaningCardIsAFlashcard:
         assert not page.errors, page.errors
 
 
+class TestChoosingTheSitting:
+    """Eksam shows the exam's own shape and lets the learner pick a sitting."""
+
+    def test_the_spec_is_shown_and_a_sitting_can_be_chosen(self, page):
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#examSpec .hint", timeout=15000)
+        assert "48 из 80" in page.locator("#examSpec").inner_text()
+
+        page.select_option("#goalSitting", "2026-11-07")
+        page.click("#goalSet")
+        page.wait_for_selector('#examGoal a[href="/api/goal.ics"]', timeout=15000)
+        assert "до регистрации" in page.locator("#countdown").inner_text()
+        assert not page.errors, page.errors
+
+
 class TestTodaysPlan:
     """Rada opens on today's plan; a block's Alusta starts what it names."""
 

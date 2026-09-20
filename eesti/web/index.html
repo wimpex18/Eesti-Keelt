@@ -249,10 +249,10 @@
       <span id="countdown" class="countdown"></span>
     </div>
 
-    <p class="hint">
-      Четыре части (osad), в каждой 25 баллов. Сдано, если в сумме
-      <strong>≥ 60 баллов</strong> и <strong>ни одна часть не равна 0</strong>.
-    </p>
+    <!-- The exam's own shape and sittings, from /api/exam-spec/{level}
+         (`eesti/exam.py`): the points differ by level, so nothing is hard-coded. -->
+    <div id="examSpec"></div>
+    <div id="examGoal" class="row"></div>
 
     <!-- Filled from /api/readiness/{level}: the hand-written version said
          "349 teksti" and "pole veel" regardless of what had happened. -->

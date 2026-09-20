@@ -13,6 +13,51 @@ const MARK = {
 };
 
 
+/* What the exam is, and which sitting is being prepared for. Both come from
+   HARNO (`eesti/exam.py`), so the points and the dates are never hand-written. */
+function paintSpec(spec, goal) {
+  const box = $("#examSpec"), picker = $("#examGoal");
+  if (!spec) { box.innerHTML = ""; picker.innerHTML = ""; return; }
+  box.innerHTML = `
+    <p class="hint">Четыре части (osad): ${spec.parts.map(p =>
+      `<b lang="et">${esc(p.et)}</b> ${p.points} б. / ${p.minutes} мин`).join(" · ")}.
+      Сдано, если в сумме <strong>≥ ${spec.pass_mark} из ${spec.total}</strong>
+      и <strong>ни одна часть не равна 0</strong>.</p>
+    <details class="exam-parts"><summary lang="et">Mis eksamil on
+      <i class="ru" lang="ru">что на экзамене</i></summary>
+      <ul class="hint">${spec.parts.map(p => `<li><b lang="et">${esc(p.et)}</b>
+        <i lang="ru">${esc(p.ru)}</i> — ${esc(p.about)}
+        ${p.note ? `<span class="hint">${esc(p.note)}</span>` : ""}</li>`).join("")}</ul>
+    </details>`;
+
+  const chosen = goal && goal.level === spec.level ? goal : null;
+  // The options say when, in Russian, under an Estonian label: each carries its
+  // own `lang`, or a screen reader reads the dates in the wrong voice.
+  const options = [`<option value="" lang="ru">без даты</option>`].concat(
+    (spec.sessions || []).map(s =>
+      `<option value="${esc(s.sitting)}" lang="ru"${chosen && chosen.sitting === s.sitting
+        ? " selected" : ""}>${esc(s.sitting)} · регистрация до ${esc(s.registration_closes)}</option>`));
+  picker.innerHTML = `
+    <label lang="et">Sessioon <i class="ru" lang="ru">когда сдаю</i>
+      <select id="goalSitting">${options.join("")}</select>
+    </label>
+    <button class="ghost" id="goalSet" lang="et">Vali <span class="ru" lang="ru">выбрать</span></button>
+    ${chosen && chosen.sitting
+      ? `<a class="hint" href="/api/goal.ics" download>в календарь (.ics)</a>` : ""}
+    <span class="hint">${esc(spec.next_year)}</span>`;
+  $("#goalSet").onclick = async () => {
+    $("#goalSet").disabled = true;
+    try {
+      await api("/api/goal", {level: spec.level, sitting: $("#goalSitting").value || null});
+      loadExam(); loadRail();
+    } catch (e) {
+      picker.insertAdjacentHTML("beforeend",
+        `<span class="hint">Не сохранилось: ${esc(e.message)}</span>`);
+    } finally { $("#goalSet").disabled = false; }
+  };
+}
+
+
 export async function loadExam() {
   // The buttons are authored with A2 selected; if a level was remembered, the
   // strip has to agree with the variable before anything is fetched, or the
@@ -21,10 +66,14 @@ export async function loadExam() {
     x.setAttribute("aria-selected", x.dataset.level === examLevel()));
 
   const get = u => api(u, null, "GET").then(r => r.json());
-  const [ready, material, path] = await Promise.all([
+  const [ready, material, path, spec, goal] = await Promise.all([
     get(`/api/readiness/${examLevel()}`), get(`/api/exam/${examLevel()}`),
     get("/api/curriculum").catch(() => ({})),
+    get(`/api/exam-spec/${examLevel()}`).catch(() => null),
+    get("/api/goal").catch(() => ({goal: null})),
   ]);
+
+  paintSpec(spec, goal.goal);
 
   /* An empty countdown is a fact about the plan; `deadline.note` says which, in
      Russian, and is shown. */

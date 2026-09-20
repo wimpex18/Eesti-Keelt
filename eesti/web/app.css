@@ -557,6 +557,9 @@
   /* Today's plan: one line per block, its minutes first so the day reads as time. */
   .today{margin-bottom:var(--s4);padding:var(--s3) var(--s4);border:1px solid var(--line);
     border-radius:12px;background:var(--panel)}
+  .exam-parts{margin:var(--s2) 0}
+  .exam-parts > summary{cursor:pointer}
+  .exam-parts li{margin-bottom:var(--s2)}
   .today > summary{cursor:pointer;font-weight:600;display:flex;flex-wrap:wrap;
     align-items:baseline;gap:var(--s2)}
   .today-minutes{display:block;margin-top:var(--s3)}

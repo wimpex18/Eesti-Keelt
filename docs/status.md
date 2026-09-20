@@ -22,6 +22,7 @@ the same change that makes it untrue.
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation from the corpus (graded), TartuNLP TTS on any text, ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud of short sentences made of words within reach, with comparison, and open-answer feedback over the transcript (`docs/speaking.md`). |
+| **Exam** | HARNO's own shape as data (`eesti/exam.py`, checked 2026-09-19): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
 | **Readiness** | Four exam parts reported separately with reasons in Russian. |
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
