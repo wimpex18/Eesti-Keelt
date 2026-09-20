@@ -119,8 +119,21 @@ def _meaning(simple, kept, native_offline=None) -> dict:
         # The native-level wording beside PSV's (live dictionary, else EKSS/VSL), only
         # when it differs; shown folded under "täpsem seletus".
         **_fuller(bool(learner), definition, native, live_source, offline_source, offline),
-        # PSV is the only source that has examples.
-        "examples": list(simple.examples) if simple else [],
+        # EKI's learner dictionary first — its examples are written for a
+        # learner — then the live dictionary's own usages, which Ekilex returns
+        # for most words PSV does not cover.
+        **_examples(simple, kept, live_source),
+    }
+
+
+def _examples(simple, kept, live_source: str) -> dict:
+    """The word in a sentence, and whose sentence it is."""
+    psv = tuple(simple.examples) if simple else ()
+    live = tuple(getattr(kept, "examples", ()) or ()) if kept else ()
+    shown = psv or live
+    return {
+        "examples": list(shown[:4]),
+        "examples_source": ("eki-psv" if psv else live_source if live else None),
     }
 
 

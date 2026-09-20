@@ -8,3 +8,4 @@ pypdf                    # reading the exam board's own task PDFs (BSD)
 # Test-only: Starlette's TestClient transport, and reading workflow YAML.
 httpx2
 PyYAML
+certifi

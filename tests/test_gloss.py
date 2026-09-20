@@ -17,10 +17,10 @@ from eesti.providers import sonapi
 from pagesrc import markup_and_script
 
 
-def info(word="kleit", ru=("платье",), rection=None, itype="2"):
+def info(word="kleit", ru=("платье",), rection=None, itype="2", examples=()):
     return sonapi.WordInfo(
         word=word, rection=rection,
-        inflection_type=itype, definition="…", examples=(),
+        inflection_type=itype, definition="…", examples=tuple(examples),
         translations={"ru": ru, "en": ("dress",)},
     )
 
@@ -44,6 +44,27 @@ def _redirect(monkeypatch, app_module, tmp_path):
                        ("REVIEW_DB", "r"), ("NOTION_DB", "n")):
         target = str(tmp_path / f"{stem}.db")
         monkeypatch.setattr(config_module, name, target)
+
+
+class TestTheWordInASentence:
+    """The live dictionary returns usage examples; the card used to drop them, so
+    a word EKI's learner dictionary does not cover was shown with no sentence at
+    all."""
+
+    def test_the_examples_are_kept_with_the_word(self, conn):
+        gloss.save(conn, "panustama", info(
+            word="panustama",
+            examples=("Riik panustab haridusse.", "Ta panustas tulevikku.")))
+        assert gloss.stored(conn, "panustama").examples == (
+            "Riik panustab haridusse.", "Ta panustas tulevikku.")
+
+    def test_a_word_stored_before_the_column_still_reads(self, conn):
+        """`vocab.db` is restored from a snapshot, so rows predate the column."""
+        conn.execute("DROP TABLE word_gloss")
+        conn.executescript(gloss.SCHEMA)
+        conn.execute("INSERT INTO word_gloss (lemma, russian, fetched)"
+                     " VALUES ('kleit', 'платье', '2026-01-01')")
+        assert gloss.stored(conn, "kleit").examples == ()
 
 
 class TestAWordIsAskedAboutOnce:

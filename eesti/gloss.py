@@ -52,8 +52,10 @@ CREATE TABLE IF NOT EXISTS gloss_budget (
 
 
 #: Columns added for Ekilex (learner-level definition `wwLite`, sense CEFR level,
-#: which live dictionary answered). `migrate` adds them to a restored `vocab.db`.
-LATER_COLUMNS = ("learner_definition", "level", "source")
+#: which live dictionary answered, and the sense's usage examples — the live
+#: dictionary returns them and the card had been dropping them). `migrate` adds
+#: them to a restored `vocab.db`.
+LATER_COLUMNS = ("learner_definition", "level", "source", "examples")
 
 
 def migrate(conn: sqlite3.Connection) -> None:
@@ -77,6 +79,9 @@ class Gloss:
     #: from before the column, and the seed's rows, which are marked `seed`
     #: in `fetched`).
     source: str = "sonapi"
+    #: The sense's own usage examples (Ekilex `usages`, Sõnaveeb `examples`):
+    #: the word in a sentence, which is what a learner reads it for.
+    examples: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         return {
@@ -86,6 +91,7 @@ class Gloss:
             "rection": self.rection,
             "inflection_type": self.inflection_type,
             "found": self.found,
+            "examples": list(self.examples),
         }
 
 
@@ -131,6 +137,9 @@ def _row_to_gloss(row: sqlite3.Row) -> Gloss:
         learner_definition=row["learner_definition"] if "learner_definition" in row.keys() else None,
         level=row["level"] if "level" in row.keys() else None,
         source=(row["source"] if "source" in row.keys() else None) or "sonapi",
+        examples=tuple(
+            e for e in ((row["examples"] if "examples" in row.keys() else "") or "").split("\x1f")
+            if e),
     )
 
 
@@ -168,14 +177,15 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
         learner_definition=getattr(info, "learner_definition", None),
         level=getattr(info, "level", None),
         source=getattr(info, "source", "sonapi"),
+        examples=tuple(getattr(info, "examples", ()) or ())[:4],
     )
     migrate(conn)
     with conn:
         conn.execute(
             """INSERT INTO word_gloss
                  (lemma, russian, definition, rection, inflection_type,
-                  found, fetched, learner_definition, level, source)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  found, fetched, learner_definition, level, source, examples)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(lemma) DO UPDATE SET
                  russian = excluded.russian,
                  definition = excluded.definition,
@@ -185,12 +195,14 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
                  fetched = excluded.fetched,
                  learner_definition = excluded.learner_definition,
                  level = excluded.level,
-                 source = excluded.source""",
+                 source = excluded.source,
+                 examples = excluded.examples""",
             # EKI's learner definitions are reference data beside the word list, not in this
             # table; `/api/enrich` reads both (see `eesti/psv.py`).
             (lemma, "\x1f".join(gloss.russian), gloss.definition,
              gloss.rection, gloss.inflection_type, int(gloss.found), _now(),
-             gloss.learner_definition, gloss.level, gloss.source),
+             gloss.learner_definition, gloss.level, gloss.source,
+             "\x1f".join(gloss.examples)),
         )
     # Read back, so the caller gets what the store now holds.
     return stored(conn, lemma) or gloss

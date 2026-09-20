@@ -100,9 +100,18 @@ export async function showWordCard(word, card, contextFor) {
       const meaning = [];
       if (x.definition)
         meaning.push(`<div class="def" lang="et">${esc(x.definition)}</div>`);
-      if (x.examples?.length)
+      if (x.examples?.length) {
         meaning.push(`<ul class="examples" lang="et">` +
           x.examples.map(e => `<li>${esc(e)}</li>`).join("") + `</ul>`);
+        // Sentences are somebody's text, so they are credited where they differ
+        // from the definition above (EKI's learner dictionary is credited there).
+        const from = {
+          "ekilex": "Ekilex (EKI) · CC BY 4.0",
+          "sonapi": "Sõnaveeb (EKI) · CC BY 4.0",
+        }[x.examples_source];
+        if (from && x.examples_source !== x.definition_source)
+          meaning.push(`<div class="attrib" lang="et">näited: ${esc(from)}</div>`);
+      }
       /* Whose words those are.
 
          EKI publish the põhisõnavara sõnastik under CC BY 4.0: the material may be
