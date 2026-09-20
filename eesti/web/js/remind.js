@@ -53,6 +53,13 @@ async function paint() {
   }
   const prefs = await (await api("/api/reminders/settings")).json();
   const sub = await current();
+  /* `Notification` is missing in a few contexts that still expose PushManager;
+     without it nothing can be shown, whatever the subscription says. */
+  if (typeof Notification === "undefined") {
+    say("этот браузер не показывает уведомления");
+    $("#remindBtn").disabled = true;
+    return;
+  }
   const on = Boolean(sub) && prefs.on && Notification.permission === "granted";
   $("#remindBtn").dataset.on = on ? "1" : "0";
   $("#remindBtn").setAttribute("aria-pressed", on ? "true" : "false");
@@ -103,7 +110,15 @@ async function turnOff() {
 
 export async function loadReminders() {
   if (!$("#remind")) return;
-  await paint();
+  try {
+    await paint();
+  } catch (err) {
+    // Called without being awaited, from the progress screen: a rejection here
+    // would be unhandled, and the switch would keep saying whatever it said
+    // before anything was read.
+    say(err.message || "напоминания сейчас недоступны");
+    $("#remindBtn").disabled = true;
+  }
 }
 
 $("#remindBtn")?.addEventListener("click", async () => {

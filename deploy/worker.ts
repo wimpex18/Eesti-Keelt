@@ -215,6 +215,12 @@ export class LearnerState extends DurableObject<Env> {
     const subs = this.subscriptions();
     if (!subs.length) return { sent: 0, skipped: 0 };
 
+    /* The cron wakes a container that scaled to zero, and a fresh one holds no
+       history: its evidence log is empty, so the app would answer that
+       reminders are switched off and that nothing is due. Restore it first —
+       this is the same wait every proxied request does. */
+    if (!(await this.ensureRestored())) return { sent: 0, skipped: 0 };
+
     let due: { reminders: { tag: string; title: string; body: string; url: string }[] };
     try {
       const res = await fetch(this.origin("/api/reminders"), { headers: this.headers() });
@@ -230,24 +236,35 @@ export class LearnerState extends DurableObject<Env> {
       const seen = [...this.ctx.storage.sql.exec(
         "SELECT tag FROM push_sent WHERE tag = ?", reminder.tag)];
       if (seen.length) { skipped += 1; continue; }
+      let delivered = 0;
+      let gone = 0;
       for (const sub of subs) {
         let status = 0;
         try {
           status = await sendPush(this.env, sub, reminder);
         } catch {
-          continue;
+          continue;   // a throw is the push service, not the learner: try later
         }
         // 404/410: the browser threw the subscription away. So do we.
         if (status === 404 || status === 410) {
           this.ctx.storage.sql.exec(
             "DELETE FROM push_subs WHERE endpoint = ?", sub.endpoint);
+          gone += 1;
         } else if (status >= 200 && status < 300) {
-          sent += 1;
+          delivered += 1;
         }
       }
-      this.ctx.storage.sql.exec(
-        "INSERT OR REPLACE INTO push_sent (tag, at) VALUES (?, ?)",
-        reminder.tag, new Date().toISOString());
+      sent += delivered;
+      /* Spend the tag only when the fact actually reached somebody, or when
+         there is nobody left to reach. A 503 from the push service must leave
+         the reminder due: its tag carries the day (or the deadline), so
+         recording it here would drop that day's reminder for good — and the
+         registration warning has no second chance at all. */
+      if (delivered || gone === subs.length) {
+        this.ctx.storage.sql.exec(
+          "INSERT OR REPLACE INTO push_sent (tag, at) VALUES (?, ?)",
+          reminder.tag, new Date().toISOString());
+      }
     }
     // Yesterday's tags can never come round again: the day is in the tag.
     this.ctx.storage.sql.exec(

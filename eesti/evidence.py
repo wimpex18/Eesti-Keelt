@@ -253,7 +253,7 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
 #: text's own span, and it is practice for `lugemine` rather than evidence
 #: about a grammar rule, so it is kept and never projected.
 LOG_ONLY = ("writing", "speech", "plan-issued", "conversation", "comprehension",
-            "reminder-settings", "fsrs-parameters")
+            "reminder-settings", "fsrs-parameters", "questions-made")
 for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 

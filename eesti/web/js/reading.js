@@ -184,11 +184,18 @@ async function openItem(id) {
 /* Questions about the text (ADR-0004): a model wrote them, the text keys them,
    and this page never sees an answer until it has sent the learner's own. */
 let quizItem = null;
+/* Which request the panel is showing. Opening a second text before the first
+   answered used to paint the first one's questions under the second one's id,
+   and the answer was then graded against whatever question shared that index. */
+let quizRequest = 0;
 
-function paintQuiz(d) {
+function paintQuiz(d, token) {
+  if (token !== quizRequest) return;        // a text the learner has left
   const list = $("#quizList"), hint = $("#quizHint"), btn = $("#quizBtn");
   list.replaceChildren();
-  btn.hidden = !d.can_make || !!d.questions.length;
+  // Offered until it has been tried: a text whose proposals never verify would
+  // otherwise cost a model call for every tap.
+  btn.hidden = !d.can_make || !!d.questions.length || !!d.tried;
   hint.textContent = d.questions.length
     ? `${d.questions.length} · ответ словами текста`
     : (d.note || (d.can_make ? "" : "текст слишком короткий"));
@@ -209,22 +216,29 @@ function paintQuiz(d) {
 }
 
 async function loadQuiz(id) {
+  const token = ++quizRequest;
   quizItem = id;
+  $("#quizList").replaceChildren();
+  $("#quizHint").textContent = "";
   try {
-    paintQuiz(await (await api(`/api/read/questions/${encodeURIComponent(id)}`)).json());
-  } catch { $("#quizList").replaceChildren(); $("#quizHint").textContent = ""; }
+    paintQuiz(await (await api(
+      `/api/read/questions/${encodeURIComponent(id)}`)).json(), token);
+  } catch {
+    if (token === quizRequest) $("#quizHint").textContent = "";
+  }
 }
 
 $("#quizBtn").onclick = async () => {
   if (!quizItem) return;
+  const token = quizRequest, asked = quizItem;
   const btn = $("#quizBtn");
   btn.disabled = true;
   $("#quizHint").textContent = "составляю вопросы…";
   try {
     paintQuiz(await (await api(
-      `/api/read/questions/${encodeURIComponent(quizItem)}`, {})).json());
+      `/api/read/questions/${encodeURIComponent(asked)}`, {})).json(), token);
   } catch (err) {
-    $("#quizHint").textContent = err.message;
+    if (token === quizRequest) $("#quizHint").textContent = err.message;
   } finally {
     btn.disabled = false;
   }
@@ -233,13 +247,15 @@ $("#quizBtn").onclick = async () => {
 $("#quizList").addEventListener("click", async e => {
   const btn = e.target.closest("button[data-check]");
   if (!btn || !quizItem) return;
+  // The id the question was drawn for, not whatever is open now.
+  const asked = quizItem;
   const box = btn.closest(".quiz-item");
   const field = box.querySelector("input");
   const out = box.querySelector(".quiz-verdict");
   btn.disabled = true;
   try {
     const r = await (await api("/api/read/answer", {
-      item_id: quizItem, idx: Number(btn.dataset.check), answer: field.value,
+      item_id: asked, idx: Number(btn.dataset.check), answer: field.value,
     })).json();
     out.hidden = false;
     out.className = `quiz-verdict ${r.correct ? "right" : "wrong"}`;

@@ -14,13 +14,20 @@ A model proposes questions; **code decides what is a question at all**:
 - every Estonian word in the question must be one Vabamorf knows
   (`tutor._grounded`), so an invented form drops the question.
 
-What survives is stored beside the text with the engine that wrote it and
-`VERSION`, and that stored span is what an answer is compared against. Nothing
-asks a model at answer time.
+What survives is recorded in the **evidence log** with the engine that wrote it
+and `VERSION`, and that stored span is what an answer is compared against.
+Nothing asks a model at answer time.
+
+The log rather than `content.db`: the library is reference data, archived once
+and restored to each new container, so questions written into it disappear at
+the next cold start and the same text would be paid for again and again. In the
+log they are learner state — snapshotted, replayable, and the `idx` an attempt
+recorded still names the same question next month.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -38,19 +45,6 @@ WANTED = 5
 
 #: Texts shorter than this have nothing to ask about.
 MIN_TEXT_WORDS = 40
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS comprehension (
-    item_id  TEXT    NOT NULL,
-    idx      INTEGER NOT NULL,
-    question TEXT    NOT NULL,   -- Estonian, as the learner reads it
-    answer   TEXT    NOT NULL,   -- the text's own words, verified verbatim
-    engine   TEXT    NOT NULL,   -- which model wrote the question
-    made     TEXT    NOT NULL,
-    v        INTEGER NOT NULL,
-    PRIMARY KEY (item_id, idx)
-);
-"""
 
 _WORDS = re.compile(r"[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+")
 
@@ -71,22 +65,28 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def ensure(conn: sqlite3.Connection) -> None:
-    with conn:
-        conn.executescript(SCHEMA)
-
-
 def normalise(text: str) -> str:
     """Compare on words alone: case, punctuation and spacing are not the answer."""
     return " ".join(_WORDS.findall(text.casefold()))
 
 
 def occurrences(text: str, span: str) -> int:
-    """How many times a span appears in a text, compared on words alone."""
-    hay, needle = normalise(text), normalise(span)
+    """How many times a span appears in a text, as whole words.
+
+    Whole words, because a substring match would accept `raamat` as a span of a
+    text that only says `raamatukogu` — and then show the learner a fragment of
+    a word as "what the text said".
+    """
+    needle = normalise(span)
     if not needle:
         return 0
-    return hay.count(needle)
+    hay = f" {normalise(text)} "
+    found, at = 0, hay.find(f" {needle} ")
+    while at != -1:
+        found += 1
+        # Overlapping spans are still separate occurrences: step by one word.
+        at = hay.find(f" {needle} ", at + 1)
+    return found
 
 
 def verify(text: str, question: str, answer: str) -> str | None:
@@ -120,38 +120,50 @@ def _as_written(text: str, answer: str) -> str:
     return found.group(0) if found else answer
 
 
-def stored(conn: sqlite3.Connection, item_id: str) -> list[Question]:
-    ensure(conn)
-    return [Question(r["idx"], r["question"], r["answer"], r["engine"])
-            for r in conn.execute(
-                "SELECT * FROM comprehension WHERE item_id = ? AND v = ?"
-                " ORDER BY idx", (item_id, VERSION))]
+def stored(log: sqlite3.Connection, item_id: str) -> list[Question]:
+    """The questions written for this text, newest set wins."""
+    for row in log.execute(
+            "SELECT payload FROM events WHERE type = 'questions-made'"
+            " ORDER BY seq DESC"):
+        made = json.loads(row["payload"])
+        if made.get("item") != item_id or made.get("v") != VERSION:
+            continue
+        return [Question(q["idx"], q["question"], q["answer"], q["engine"])
+                for q in made.get("questions", [])]
+    return []
 
 
-def save(conn: sqlite3.Connection, item_id: str,
+def save(log: sqlite3.Connection, item_id: str,
          questions: list[Question]) -> list[Question]:
-    ensure(conn)
-    with conn:
-        conn.execute("DELETE FROM comprehension WHERE item_id = ?", (item_id,))
-        conn.executemany(
-            "INSERT INTO comprehension (item_id, idx, question, answer, engine,"
-            " made, v) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [(item_id, q.idx, q.question, q.answer, q.engine, _now(), VERSION)
-             for q in questions])
-    return stored(conn, item_id)
+    """Record one set of questions as learner state."""
+    from . import evidence
+
+    evidence.record("questions-made", {
+        "item": item_id,
+        "v": VERSION,
+        "made": _now(),
+        "questions": [{"idx": q.idx, "question": q.question, "answer": q.answer,
+                       "engine": q.engine} for q in questions],
+    })
+    return list(questions)
 
 
-def make(conn: sqlite3.Connection, item_id: str, text: str,
+def long_enough(text: str) -> bool:
+    """Whether a text has enough words to ask about (`MIN_TEXT_WORDS`)."""
+    return len(_WORDS.findall(text or "")) >= MIN_TEXT_WORDS
+
+
+def make(log: sqlite3.Connection, item_id: str, text: str,
          want: int = WANTED) -> list[Question]:
     """The questions for one text: the stored ones, else a round of proposals.
 
     Returns an empty list when the text is too short, no lane is available, or
     nothing the model proposed survived verification.
     """
-    have = stored(conn, item_id)
+    have = stored(log, item_id)
     if have:
         return have
-    if len(_WORDS.findall(text or "")) < MIN_TEXT_WORDS:
+    if not long_enough(text):
         return []
     from .tutor import propose_questions
 
@@ -166,7 +178,7 @@ def make(conn: sqlite3.Connection, item_id: str, text: str,
         kept.append(Question(len(kept), pair["q"].strip(), answer, engine))
         if len(kept) >= want:
             break
-    return save(conn, item_id, kept) if kept else []
+    return save(log, item_id, kept) if kept else []
 
 
 def grade(question: Question, given: str) -> dict:
@@ -177,7 +189,8 @@ def grade(question: Question, given: str) -> dict:
     """
     want, said = normalise(question.answer), normalise(given)
     extra = len(said.split()) - len(want.split())
-    correct = bool(want) and want in said and extra <= 3
+    # Whole words again: `kolm` must not be found inside `kolmkümmend`.
+    correct = bool(want) and f" {want} " in f" {said} " and extra <= 3
     return {
         "correct": correct,
         "expected": question.answer,

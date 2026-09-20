@@ -221,13 +221,26 @@ def catalogue(html: str | None = None) -> list[Material]:
 FOLDER = "data/exam"
 
 
+#: Anything in a filename that is not this is dropped. The name comes out of
+#: somebody else's markup, and `..%2f..%2f` decodes to a path that would leave
+#: the folder — the download writes files, so the containment has to be here
+#: and not only in `/api/exam/file`, which reads them.
+_SAFE_NAME = re.compile(r"[^A-Za-z0-9À-ÿŠŽšžÕÄÖÜõäöü._-]+")
+
+
+def safe_name(url: str) -> str:
+    """The filename to keep one download under, with no path left in it."""
+    raw = urllib.parse.unquote(url.split("?")[0]).rsplit("/", 1)[-1]
+    name = _SAFE_NAME.sub("-", raw).lstrip(".-") or "fail"
+    return name[:120]
+
+
 def local_path(material: "Material", root: Path | str | None = None) -> Path:
     """Where one file is kept: level, then the file's own name."""
     from .. import config
 
-    name = urllib.parse.unquote(material.url.rsplit("/", 1)[-1]).split("?")[0]
     base = Path(root) if root else Path(getattr(config, "EXAM_DIR", FOLDER))
-    return base / (material.level or "yldine") / name
+    return base / (material.level or "yldine") / safe_name(material.url)
 
 
 def text_of(path: Path | str) -> str:

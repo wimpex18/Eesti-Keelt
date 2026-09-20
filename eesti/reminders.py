@@ -86,10 +86,19 @@ def settings(log: sqlite3.Connection) -> dict:
 
 
 def quiet(prefs: dict, now: datetime | None = None) -> bool:
-    """Whether the hour is one the learner asked to be left alone in."""
+    """Whether the hour is one the learner asked to be left alone in.
+
+    The same hour twice is read as silence all day, not as no quiet hours at
+    all: somebody who set both to 22 asked to be left alone, and the failure
+    that costs them least is a reminder that does not arrive.
+    """
     hour = _local(now).hour
     start, end = prefs["quiet_from"], prefs["quiet_to"]
-    return hour >= start or hour < end if start > end else start <= hour < end
+    if start == end:
+        return True
+    if start > end:                      # the window crosses midnight
+        return hour >= start or hour < end
+    return start <= hour < end
 
 
 def _count(n: int, one: str, few: str, many: str) -> str:

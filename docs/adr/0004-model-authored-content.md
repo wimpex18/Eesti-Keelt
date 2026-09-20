@@ -42,10 +42,13 @@ Concretely, for any generated item:
    - an Estonian form must round-trip through Vabamorf;
    - a question must not contain its own answer;
    - a word the morphology does not know drops the item (`tutor._grounded`).
-3. The **verified item is stored** with the engine that wrote it and a
-   generator version. Reproducibility comes from persistence, not from the
-   model: the same question is asked the same way next month, and an attempt
-   in the evidence log can be replayed against it.
+3. The **verified item is stored in the evidence log** with the engine that
+   wrote it and a generator version. Reproducibility comes from persistence,
+   not from the model: the same question is asked the same way next month, and
+   an attempt can be replayed against it. The log, not the library: reference
+   data is archived once and restored to each new container, so a question
+   written there would vanish at the next cold start and the text would be paid
+   for again.
 4. Grading is a string comparison against the stored span. No model is asked at
    answer time, ever.
 
@@ -74,6 +77,7 @@ questions, never a wrong one.
 
 ## Implementation
 
-`eesti/comprehension.py` (verification, storage, grading), the model call in
+`eesti/comprehension.py` (verification, storage, grading — spans are matched as
+whole words, so a key is never a fragment of a longer one), the model call in
 `eesti/tutor.py::propose_questions`, `/api/read/questions/{id}` and
 `/api/read/answer`, and the reader's question list in `eesti/web/js/reading.js`.

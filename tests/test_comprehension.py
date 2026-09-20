@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("httpx2", reason="TestClient needs the httpx2 transport")
 
-from eesti import comprehension, config  # noqa: E402
+from eesti import comprehension, config, evidence  # noqa: E402
 from eesti.sources import Item, add_items, connect, register  # noqa: E402
 
 TEXT = (
@@ -80,11 +80,10 @@ class TestGradingIsCodeAlone:
 
 class TestTheAnswerNeverTravelsToThePage:
     def test_the_page_is_sent_questions_without_answers(self, client, text_item):
-        conn = connect(config.CONTENT_DB)
-        comprehension.save(conn, text_item, [
-            comprehension.Question(0, "Kui kaua maja ehitati?", "kaks aastat",
-                                   "llm:test")])
-        conn.close()
+        with evidence.connect() as log:
+            comprehension.save(log, text_item, [
+                comprehension.Question(0, "Kui kaua maja ehitati?", "kaks aastat",
+                                       "llm:test")])
         body = client.get(f"/api/read/questions/{text_item}").json()
         assert body["questions"] == [
             {"idx": 0, "question": "Kui kaua maja ehitati?", "engine": "llm:test"}]
@@ -94,13 +93,12 @@ class TestTheAnswerNeverTravelsToThePage:
             self, client, text_item):
         from datetime import datetime, timezone
 
-        from eesti import evidence, learner
+        from eesti import learner
 
-        conn = connect(config.CONTENT_DB)
-        comprehension.save(conn, text_item, [
-            comprehension.Question(0, "Kui kaua maja ehitati?", "kaks aastat",
-                                   "llm:test")])
-        conn.close()
+        with evidence.connect() as log:
+            comprehension.save(log, text_item, [
+                comprehension.Question(0, "Kui kaua maja ehitati?", "kaks aastat",
+                                       "llm:test")])
         r = client.post("/api/read/answer", json={
             "item_id": text_item, "idx": 0, "answer": "kaks aastat"})
         assert r.status_code == 200 and r.json()["correct"]
@@ -118,17 +116,20 @@ class TestMakingThemDoesNotTrustTheModel:
             {"q": "Kus asub maja?", "a": "Tallinnas"},          # invented
             {"q": "Kui kaua ehitati maja?", "a": "kaks aastat"},  # duplicate key
         ], "llm:test"))
-        conn = connect(config.CONTENT_DB)
-        made = comprehension.make(conn, text_item, TEXT)
-        assert [(q.question, q.answer) for q in made] == [
-            ("Kui kaua maja ehitati?", "kaks aastat")]
-        # Stored, so the same text asks the same question tomorrow.
-        assert [q.answer for q in comprehension.stored(conn, text_item)] == ["kaks aastat"]
+        with evidence.connect() as log:
+            made = comprehension.make(log, text_item, TEXT)
+            assert [(q.question, q.answer) for q in made] == [
+                ("Kui kaua maja ehitati?", "kaks aastat")]
+        # Recorded as learner state, so the same text asks the same question
+        # tomorrow — and on a container that has just been restored.
+        with evidence.connect() as fresh:
+            assert [q.answer for q in comprehension.stored(fresh, text_item)] == [
+                "kaks aastat"]
 
     def test_a_text_too_short_to_ask_about_asks_nothing(self, text_item, monkeypatch):
         from eesti import tutor
 
         monkeypatch.setattr(tutor, "propose_questions",
                             lambda *a, **k: pytest.fail("asked a model about a fragment"))
-        conn = connect(config.CONTENT_DB)
-        assert comprehension.make(conn, text_item, "Maja on suur.") == []
+        with evidence.connect() as log:
+            assert comprehension.make(log, text_item, "Maja on suur.") == []

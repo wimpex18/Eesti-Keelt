@@ -237,19 +237,29 @@ def _text_of(item_id: str) -> str:
     return row["body"] or ""
 
 
+def _long_enough(text: str) -> bool:
+    """Counted the way `comprehension.make` counts, so the button is offered
+    exactly when asking would work: `split()` also counts numerals and dashes,
+    and a timetable would be offered questions it can never get."""
+    from .. import comprehension
+
+    return comprehension.long_enough(text)
+
+
 @router.get("/api/read/questions/{item_id}")
 def read_questions(item_id: str) -> dict:
     """The questions already written for this text. Never generates: a page that
     opens a text must not wait on a model."""
-    from .. import comprehension
+    from .. import comprehension, evidence
 
     text = _text_of(item_id)
-    made = comprehension.stored(content_db(), item_id)
+    with evidence.connect() as log:
+        made = comprehension.stored(log, item_id)
     return {
         "item_id": item_id,
         "questions": [q.asked() for q in made],
         # Whether asking for questions is worth the learner's tap.
-        "can_make": len(text.split()) >= comprehension.MIN_TEXT_WORDS,
+        "can_make": _long_enough(text),
     }
 
 
@@ -260,14 +270,18 @@ def make_questions(item_id: str) -> dict:
     An empty list is an honest answer: nothing the model proposed had its answer
     in the text.
     """
-    from .. import comprehension
+    from .. import comprehension, evidence
 
     text = _text_of(item_id)
-    made = comprehension.make(content_db(), item_id, text)
+    with evidence.connect() as log:
+        made = comprehension.make(log, item_id, text)
     return {
         "item_id": item_id,
         "questions": [q.asked() for q in made],
-        "can_make": len(text.split()) >= comprehension.MIN_TEXT_WORDS,
+        "can_make": _long_enough(text),
+        # The page stops offering the button after a round that produced
+        # nothing, so a text the model cannot key does not cost a call a tap.
+        "tried": True,
         "note": ("" if made else
                  "Вопросы не получились: ни один ответ не нашёлся в тексте "
                  "дословно. Попробуй другой текст."),
@@ -279,14 +293,18 @@ def read_answer(req: ReadAnswer) -> dict:
     """Grade one answer against the text's own words, and record the practice."""
     from .. import comprehension, evidence
 
-    questions = {q.idx: q for q in comprehension.stored(content_db(), req.item_id)}
+    with evidence.connect() as log:
+        questions = {q.idx: q for q in comprehension.stored(log, req.item_id)}
     question = questions.get(req.idx)
     if question is None:
         raise HTTPException(status_code=404, detail="Этот вопрос не найден.")
     verdict = comprehension.grade(question, req.answer)
     # Reading practice, and the only event that counts for the `lugemine` part.
+    # The question travels with it: an attempt must be replayable even after the
+    # text is asked about again with a new set.
     evidence.record("comprehension", {
         "item": req.item_id, "idx": req.idx, "correct": verdict["correct"],
+        "question": question.question, "expected": question.answer,
         "engine": question.engine, "v": comprehension.VERSION,
     })
     return {"idx": req.idx, **verdict}
