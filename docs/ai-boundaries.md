@@ -13,11 +13,16 @@ Where a model touches the learner, and where code decides.
 | Spelling in free writing | Vabamorf dictionary | no — merged into every answer |
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
 | Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
-| Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Vabamorf offline | yes; engine always named |
+| Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Neurotõlge → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
+| Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
 | Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
 | Transcribing speech | Workers AI Whisper (production), provider chain locally | yes |
 | Read-aloud comparison | `difflib` against the known sentence | no |
 | Feedback on a spoken answer | LLM chain over the transcript | yes, and advisory |
+
+Only what code can vouch for is recorded: `deterministic` and `model+verified`
+corrections may enter the error log, `model-only` ones are shown and go no
+further (`providers/grammar.verify`, `api/notion.LOGGABLE`).
 
 Code grades drills, review and FSRS; a model never supplies a drill's answer
 key. A model may explain, tutor, judge meaning and score open production

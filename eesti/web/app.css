@@ -568,6 +568,9 @@
   .mock-clock.low{color:var(--bad)}
   .mock-task{padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
   .mock-task:first-child{border-top:0}
+  /* Provenance on a correction: quiet when code decided it, marked when only a
+     model says so. */
+  .corr .src-weak{color:var(--warn)}
   .exam-parts{margin:var(--s2) 0}
   .exam-parts > summary{cursor:pointer}
   .exam-parts li{margin-bottom:var(--s2)}

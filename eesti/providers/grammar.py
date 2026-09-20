@@ -61,6 +61,15 @@ class Correction:
     tag: str = "vocab"
     start: int | None = None
     end: int | None = None
+    #: Who stands behind this correction (`verify`):
+    #:
+    #: - `deterministic` — code decided it (Vabamorf's dictionary, agreement,
+    #:   EKK's rection list). It can be trusted and logged.
+    #: - `model+verified` — a model proposed it and code checked what it could:
+    #:   the suggested form is a word Vabamorf knows, and an object-case swap
+    #:   agrees with the rules.
+    #: - `model-only` — nothing code can check. Shown, never recorded.
+    source: str = "model-only"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -349,6 +358,7 @@ class NeurotolgeCorrection:
                 lemma = sorted(lemmas)[0]
                 out.append(Correction(
                     wrong=wrong, correct=right,
+                    source="model+verified",
                     why=(f"Neurotõlge (est→est) предлагает другую форму слова «{lemma}». "
                          "Объяснения этот сервис не даёт — сверь с правилом."
                          if swap is None else
@@ -430,6 +440,9 @@ class VabamorfFallback:
                     "Процесс, отрицание или часть? Тогда osastav."
                 ),
                 tag="obj-case",
+                # Evidence, not a verdict: the case written, for the learner to
+                # judge. Code produced it, so it is not a model's claim.
+                source="deterministic",
                 start=t.start,
                 end=t.end,
             )
@@ -609,6 +622,7 @@ def spelling(text: str) -> list[Correction]:
             correct=(item["suggestions"] or [""])[0],
             why=SPELLING_WHY,
             tag="vocab",
+            source="deterministic",
         )
         for item in misspellings(text)
     ])
@@ -639,6 +653,7 @@ def agreement(text: str) -> list[Correction]:
             correct=item.correct,
             why=AGREEMENT_WHY.format(pronoun=item.pronoun, correct=item.correct),
             tag="verb-form",
+            source="deterministic",
             start=item.start if item.start >= 0 else None,
             end=item.end if item.end >= 0 else None,
         )
@@ -685,11 +700,76 @@ def rection(text: str) -> list[Correction]:
                 correct_frame=item.correct_frame, wrong=item.wrong,
                 wrong_frame=item.wrong_frame),
             tag="rektsioon",
+            source="deterministic",
             start=item.start if item.start >= 0 else None,
             end=item.end if item.end >= 0 else None,
         )
         for item in ekk.errors(text, stored)
     ]
+
+
+def verify(text: str, corrections: list[Correction]) -> list[Correction]:
+    """Say what code can vouch for in each correction (`Correction.source`).
+
+    Code cannot decide whether a model's rewrite is *right* — that is the whole
+    reason a model was asked. It can decide whether the suggestion is Estonian
+    at all, and whether an object-case swap agrees with the rules the app
+    already owns. Everything else stays `model-only`: shown to the learner,
+    never written to the error log or the review queue.
+    """
+    from ..morph import _readings
+
+    out = []
+    for c in corrections:
+        if c.source == "deterministic":
+            out.append(c)
+            continue
+        source = "model-only"
+        wrong, right = c.wrong.strip(), (c.correct or "").strip()
+        if right and " " not in right and " " not in wrong:
+            known_right = bool(_readings(right))
+            lemmas_right = {lemma for lemma, _ in _readings(right)}
+            lemmas_wrong = {lemma for lemma, _ in _readings(wrong)}
+            if known_right and (lemmas_wrong & lemmas_right or not lemmas_wrong):
+                # A form of the same word, or a real word replacing one Vabamorf
+                # does not know (a misspelling): both are checkable claims.
+                source = "model+verified"
+            if source == "model+verified" and c.tag == "obj-case":
+                source = _verified_object_case(text, wrong, right)
+        out.append(Correction(c.wrong, c.correct, c.why, c.tag, c.start, c.end,
+                              source if c.source != "model+verified" else c.source))
+    return out
+
+
+#: Where one clause ends and the next begins, for the negation test below.
+_CLAUSE = re.compile(r"[,.;:!?]|\s(?:ja|ning|aga|kuid|vaid|et|sest)\s")
+
+
+def _clause_around(text: str, word: str) -> str:
+    """The clause the word sits in. A negation two clauses away governs nothing."""
+    at = text.find(word)
+    if at < 0:
+        return text
+    start = max((m.end() for m in _CLAUSE.finditer(text, 0, at)), default=0)
+    end = next((m.start() for m in _CLAUSE.finditer(text, at + len(word))), len(text))
+    return text[start:end]
+
+
+def _verified_object_case(text: str, wrong: str, right: str) -> str:
+    """An object-case swap is the app's documented weakness, so it is only
+    `model+verified` where a rule decides it: after a negation **in the same
+    clause** the object is partitive (EKK). Aspect is judgement, and stays
+    `model-only` — which is exactly the call a model gets wrong.
+    """
+    from ..morph import _readings
+
+    part = {"sg p", "pl p"}
+    forms_right = {f for _, f in _readings(right)}
+    clause = _clause_around(text, wrong)
+    negated = any(w.strip(".,!?").casefold() in NEGATION for w in clause.split())
+    if negated and forms_right & part:
+        return "model+verified"
+    return "model-only"
 
 
 def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
@@ -738,6 +818,7 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             continue
         try:
             result = provider.check(text)
+            result.corrections = verify(text, result.corrections)
             _record_success(provider.name)
             if tried:
                 result.diagnostics = "skipped -> " + "; ".join(tried)

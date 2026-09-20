@@ -19,6 +19,7 @@ the same change that makes it untrue.
 | **Live dictionary** | EKI's Ekilex API when `EKILEX_API_KEY` is set, otherwise the Sõnaveeb mirror; answers stored once per word. |
 | **Rules** | 25 of 26 drillable topics link to the handbook. `kusisonad` has none, deliberately: no EKK section covers question words. |
 | **Question-word cues** | A `kusisonad` item shows the Russian for the question word its blank wants, from EKI EVS (`docs/curriculum.md`): 8 of 12 answer words. |
+| **Tutor** | `Selgita` on a missed item: one model call grounded in the attempt, Vabamorf's reading and the EKK section; the answer is dropped if it quotes a form Vabamorf does not know, and never decides anything (`eesti/tutor.py`). |
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation from the corpus (graded), TartuNLP TTS on any text, ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud of short sentences made of words within reach, with comparison, and open-answer feedback over the transcript (`docs/speaking.md`). |

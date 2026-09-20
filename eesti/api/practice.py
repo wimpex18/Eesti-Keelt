@@ -262,9 +262,9 @@ def practice_answer(req: AnswerRequest) -> dict:
     progress = progress_db()
     topic = item.topic
     was_mastered = is_mastered(progress, topic)
-    record(progress, item, correct, answer=req.given, ref=ref,
-           latency_ms=req.latency_ms,
-           mode=ref["kind"] if ref else "path")
+    event_id = record(progress, item, correct, answer=req.given, ref=ref,
+                      latency_ms=req.latency_ms,
+                      mode=ref["kind"] if ref else "path")
 
     try:
         if correct:
@@ -299,6 +299,9 @@ def practice_answer(req: AnswerRequest) -> dict:
 
     return {
         "correct": correct,
+        # The attempt as the log knows it, so the page can ask the tutor about
+        # this one rather than about the topic in general.
+        "event_id": event_id,
         "answer": item.answer,
         "why_ru": item.why_ru,
         "russian": meaning,

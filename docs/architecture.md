@@ -46,7 +46,8 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 | EKI data | `ekixml.py` (file reader), `psv.py`, `evs.py`, `har.py`, `ekidefs.py` (VSL, EKSS) |
 | Library | `library.py`, `sources.py`, `topiclinks.py`, `difficulty.py`, `harvest/` (ERR, Selges keeles, Lihtsad uudised, EIS, HARNO, EVKK) |
 | Grammar reference | `grammar.py` (EKK links), `estgec.py` (EstGEC-L2 word-order corrections) |
-| Providers | `providers/grammar.py` (check chain), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
+| Tutor | `tutor.py` (explain an attempt or a rule, grounded in EKK and Vabamorf) |
+| Providers | `providers/grammar.py` (check chain, per-correction provenance), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
 | Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `fetch.py` |
 | Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` |
 | CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |

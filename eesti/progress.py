@@ -72,7 +72,7 @@ def _now() -> str:
 
 def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "", *,
            ref: dict | None = None, latency_ms: int | None = None,
-           mode: str = "path") -> None:
+           mode: str = "path") -> str:
     """Log one graded attempt and promote the topic if the gate is now passed.
 
     The event carries the whole item as it was shown, and its `ref` (how to
@@ -88,6 +88,8 @@ def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "", *,
     }
     ev = evidence.record("attempt", payload)
     _attempt(conn, payload, ev.ts)
+    # The id, so a caller can point the tutor at exactly this attempt.
+    return ev.id
 
 
 def _attempt(conn: sqlite3.Connection, p: dict, at: str) -> None:

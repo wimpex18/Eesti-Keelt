@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..lookup import lookup
@@ -190,3 +190,31 @@ def enrich_word(word: str) -> dict:
         # rather than a scraper the maintainers asked us not to write.
         "sonaveeb": sonapi.entry_url(live.lemma if live else word),
     }
+
+
+# --------------------------------------------------------------------------
+# The tutor: the one place a model speaks to the learner
+# --------------------------------------------------------------------------
+
+class TutorRequest(BaseModel):
+    #: `explain_attempt` (an attempt from the evidence log) or
+    #: `explain_concept` (a topic's rule).
+    intent: str
+    event_id: str = ""
+    topic: str = ""
+
+
+@router.post("/api/tutor")
+def tutor(req: TutorRequest) -> dict:
+    """Explain — never grade. The answer names its engine, and anything it says
+    is checked against Vabamorf before the learner sees it (`eesti/tutor.py`)."""
+    from .. import tutor as service
+
+    try:
+        if req.intent == "explain_attempt":
+            return service.explain_attempt(req.event_id).to_dict()
+        if req.intent == "explain_concept":
+            return service.explain_concept(req.topic).to_dict()
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"not found: {exc}") from exc
+    raise HTTPException(status_code=400, detail=f"unknown intent: {req.intent!r}")

@@ -223,6 +223,32 @@ $("#pathList").addEventListener("click", e => {
 });
 
 
+/* A missed item can be explained — by a model, saying so, grounded in Vabamorf
+   and EKK, and never deciding anything (`eesti/tutor.py`). */
+function offerExplanation(verdict, eventId) {
+  verdict.insertAdjacentHTML("beforeend",
+    `<div class="row"><button class="ghost tutorbtn" type="button" lang="et">Selgita
+      <span class="ru" lang="ru">объяснить</span></button></div>`);
+  const btn = verdict.querySelector(".tutorbtn");
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      const a = await (await api("/api/tutor", {intent: "explain_attempt",
+                                                event_id: eventId})).json();
+      const ref = a.reference && a.reference.known
+        ? ` <a href="${esc(a.reference.url)}" target="_blank" rel="noopener">EKK ${esc(a.reference.ekk_section)}</a>` : "";
+      btn.closest(".row").outerHTML = a.explanation_ru
+        ? `<div class="why">${md(a.explanation_ru)}
+             <span class="hint">объяснил ${esc(a.engine)} · это не проверка ответа</span>${ref}</div>`
+        : `<div class="why"><span class="hint">${esc(a.note || "объяснение недоступно")}</span>${ref}</div>`;
+    } catch (e) {
+      btn.disabled = false;
+      btn.insertAdjacentHTML("afterend", `<span class="hint">${esc(e.message)}</span>`);
+    }
+  };
+}
+
+
 /* Test-out: five items, all five right marks the topic known (`placement.py`).
    Answered as one set, graded by the server, so the page never decides. */
 async function startTestOut(topic) {
@@ -510,6 +536,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // is gone from the screen and must not count in the set that replaced it.
     if ((tally.gen || 0) !== set) return;
     tally.answered++; if (res.correct) tally.correct++;
+    if (!res.correct && res.event_id) offerExplanation(verdict, res.event_id);
     else tally.missed.push({it, topic});
     /* Graded: on a phone the next item appears under this one (see `.drill.done`
        in app.css). Keep this verdict in view above the keyboard and the thumb bar. */
