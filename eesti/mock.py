@@ -9,7 +9,7 @@ says plainly what it is:
 |---|---|---|
 | `lugemine` | gap-fill in real corpus sentences | code |
 | `kuulamine` | dictation of corpus sentences | code, word by word |
-| `kirjutamine` | HARNO's own task shape and word minimum | word count by code; the writing check explains the rest |
+| `kirjutamine` | HARNO's own task shape and word minimum | by code: length, and the deterministic checks (spelling, agreement, rection) |
 | `raakimine` | the paired-exam question bank, recorded | not scored — the exam is paired |
 
 Each finished section records an `exam-section` event, which readiness counts.
@@ -33,7 +33,9 @@ NOTE = {
     "kuulamine": ("На экзамене это записи с вопросами. Здесь — диктант "
                   "(etteütlus) по корпусу: слышишь и записываешь."),
     "kirjutamine": ("Задание в форме экзамена: тип текста и минимум слов. "
-                    "Считаются слова; грамматику разбирает проверка письма."),
+                    "Код считает слова и находит то, что решается без модели: "
+                    "орфографию, согласование (ühildumine) и рекцию "
+                    "(rektsioon). Объяснения — во вкладке Kirjutamine."),
     "raakimine": ("Экзамен сдаётся в паре, поэтому оценки здесь нет. Запиши "
                   "ответ и послушай себя: засчитывается сам факт практики."),
 }
@@ -46,7 +48,8 @@ CREATE TABLE IF NOT EXISTS exam_sections (
     seconds REAL NOT NULL,
     asked   INTEGER NOT NULL,
     correct INTEGER,               -- NULL where code does not grade the part
-    at      TEXT NOT NULL
+    at      TEXT NOT NULL,
+    detail  TEXT                   -- JSON: what that part's own grading found
 );
 CREATE INDEX IF NOT EXISTS idx_exam_sections ON exam_sections(level, part, id);
 """
@@ -135,24 +138,32 @@ def _speaking(level: str, minutes: int, seed: int) -> Section:
 
 
 def record(progress: sqlite3.Connection, level: str, part: str, seconds: float,
-           asked: int, correct: int | None) -> dict:
-    """Record a finished section. `correct` is None where code does not grade it."""
+           asked: int, correct: int | None, detail: dict | None = None) -> dict:
+    """Record a finished section. `correct` is None where code does not grade it;
+    `detail` is what that part's own grading found (words written, errors)."""
     from . import evidence
 
     payload = {"level": level, "part": part, "seconds": round(float(seconds), 1),
-               "asked": asked, "correct": correct}
+               "asked": asked, "correct": correct, "detail": detail or {}}
     ev = evidence.record("exam-section", payload)
     _record(progress, payload, ev.ts)
     return payload | {"at": ev.ts}
 
 
 def _record(progress: sqlite3.Connection, p: dict, at: str) -> None:
+    import json
+
     progress.executescript(SCHEMA)
+    # `detail` arrived after the first sections were recorded.
+    columns = {r[1] for r in progress.execute("PRAGMA table_info(exam_sections)")}
+    if "detail" not in columns:
+        progress.execute("ALTER TABLE exam_sections ADD COLUMN detail TEXT")
     with progress:
         progress.execute(
-            "INSERT INTO exam_sections (level, part, seconds, asked, correct, at)"
-            " VALUES (?,?,?,?,?,?)",
-            (p["level"], p["part"], p["seconds"], p["asked"], p["correct"], at))
+            "INSERT INTO exam_sections (level, part, seconds, asked, correct, at, detail)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (p["level"], p["part"], p["seconds"], p["asked"], p["correct"], at,
+             json.dumps(p.get("detail") or {}, ensure_ascii=False)))
 
 
 def _register() -> None:
@@ -184,3 +195,26 @@ def counts(progress: sqlite3.Connection, level: str) -> dict[str, int]:
     return {r[0]: r[1] for r in progress.execute(
         "SELECT part, COUNT(*) FROM exam_sections WHERE level = ? GROUP BY part",
         (level,))}
+
+
+def check_writing(text: str, level: str) -> dict:
+    """Grade a mock's writing by what code can decide, and nothing else.
+
+    Length against HARNO's minimum, and the three deterministic checks the
+    writing tab already merges into every answer: spelling, subject-verb
+    agreement and EKK's rection list. No model here — a model's judgement of a
+    text is advisory evidence, and Kirjutamine is where it explains itself.
+    """
+    from .providers.grammar import agreement, rection, spelling
+
+    words = len(text.split())
+    found = spelling(text) + agreement(text) + rection(text)
+    return {
+        "words": words,
+        "min_words": MIN_WORDS[level],
+        "long_enough": words >= MIN_WORDS[level],
+        "errors": len(found),
+        "errors_per_100": round(len(found) / words * 100, 1) if words else 0.0,
+        "findings": [c.to_dict() for c in found[:20]],
+        "checked_by": "vabamorf+ekk",
+    }

@@ -91,6 +91,25 @@ class TestGrading:
             "seconds": 300, "written": " ".join(["sõna"] * 40)}).json()
         assert long["correct"] == 1 and long["detail"]["words"] == 40
 
+    def test_writing_also_runs_the_deterministic_checks(self, client):
+        """Long enough is not the same as right: `ma elab` is decided by
+        morphology alone, so a mock says so without asking a model."""
+        text = "Ma elab Tallinnas. " + " ".join(["sõna"] * 30)
+        got = client.post("/api/mock/A2/kirjutamine",
+                          json={"seconds": 300, "written": text}).json()
+        assert got["detail"]["long_enough"] and got["detail"]["errors"] >= 1
+        assert got["correct"] == 0                    # long enough, but not clean
+        assert got["detail"]["checked_by"] == "vabamorf+ekk"
+        assert any(f["wrong"] == "elab" for f in got["detail"]["findings"])
+
+    def test_the_writing_detail_is_kept_with_the_section(self, client):
+        client.post("/api/mock/A2/kirjutamine",
+                    json={"seconds": 60, "written": "Ma elab siin."})
+        row = client.get("/api/mock/A2").json()["sections"][0]
+        import json as _json
+
+        assert _json.loads(row["detail"])["errors"] >= 1
+
     def test_speaking_is_recorded_and_never_scored(self, client):
         got = client.post("/api/mock/A2/raakimine",
                           json={"seconds": 600, "answers": [{"given": ""}]}).json()
@@ -122,3 +141,40 @@ class TestEvidence:
         body = client.get("/api/mock/A2").json()
         assert body["counts"] == {"raakimine": 1}
         assert body["sections"][0]["seconds"] == 60
+
+
+class TestTheWholeSitting:
+    """Four parts in the exam's order, each still sat and recorded on its own."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        from eesti.app import app
+
+        return TestClient(app)
+
+    def test_the_run_lists_the_parts_and_the_time_it_takes(self, client):
+        from eesti.exam import SPECS
+
+        body = client.get("/api/mock-run/A2").json()
+        assert body["parts"] == [p.id for p in SPECS["A2"].parts]
+        assert body["minutes"] == sum(p.minutes for p in SPECS["A2"].parts) == 125
+        assert body["pass_mark"] == 48 and "не оценивается" in body["note"]
+
+    def test_an_unknown_level_is_a_404(self, client):
+        assert client.get("/api/mock-run/C1").status_code == 404
+
+    def test_each_part_of_a_run_is_recorded_separately(self, client):
+        for part in client.get("/api/mock-run/A2").json()["parts"]:
+            section = client.get(f"/api/mock/A2/{part}?seed=1").json()
+            body = {"seconds": 60, "answers": [], "written": " ".join(["sõna"] * 40)}
+            if section["kind"] == "cloze":
+                body["answers"] = [{"token": t["token"], "given": t["answer"]}
+                                   for t in section["tasks"]]
+            elif section["kind"] == "dictation":
+                body["answers"] = [{"text": t["text"], "given": t["text"]}
+                                   for t in section["tasks"]]
+            client.post(f"/api/mock/A2/{part}", json=body)
+        assert client.get("/api/mock/A2").json()["counts"] == {
+            "kirjutamine": 1, "kuulamine": 1, "lugemine": 1, "raakimine": 1}

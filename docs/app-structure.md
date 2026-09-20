@@ -47,7 +47,7 @@ is the exercise.
 | Lugemine | material + lookup | — | word encounters |
 | Kirjutamine | free text | **a model** (explains), plus deterministic checks | Notion queue |
 | Rääkimine | speech | **ASR** (transcribes), never scored | nothing |
-| Ülevaade · Proovieksam | timed section | code (reading, listening, word count); speaking not scored | exam sections |
+| Ülevaade · Proovieksam | timed section, or all four in order | code (reading, listening, writing: length + deterministic checks); speaking not scored | exam sections |
 | Kuulamine · TTS, Ülevaade, Edenemine, Töövihikud | material / report | — | nothing |
 
 Only Kirjutamine and Rääkimine involve a model, and neither decides whether an

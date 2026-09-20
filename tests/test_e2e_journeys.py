@@ -967,6 +967,26 @@ class TestChoosingTheSitting:
         assert not page.errors, page.errors
 
 
+class TestTheWholeSitting:
+    """Terve eksam: the parts come one after another, each with its own clock."""
+
+    def test_the_run_moves_from_one_part_to_the_next(self, page):
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#mockWhole", state="attached", timeout=15000)
+        page.click("#mock > summary")
+        page.click("#mockWhole")
+        # Writing comes first in the exam's order.
+        page.wait_for_selector("#mockWritten", timeout=20000)
+        page.fill("#mockWritten", " ".join(["sõna"] * 35))
+        page.click("#mockDone")
+        page.wait_for_selector("#mockNext button", timeout=20000)
+        assert "слов" in page.locator("#mockVerdict").inner_text()
+
+        page.click("#mockNext button")           # kuulamine
+        page.wait_for_selector("#mockTasks .mock-task", timeout=20000)
+        assert not page.errors, page.errors
+
+
 class TestTestingOutOfATopic:
     """Kogu rada offers a test-out; five right marks the topic known."""
 

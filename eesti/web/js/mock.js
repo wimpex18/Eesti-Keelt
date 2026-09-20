@@ -18,6 +18,8 @@ const PARTS = [
 
 let clock = null;      // the interval, cleared whenever a section ends
 let current = null;    // the section being sat
+let queue = [];        // the parts still to sit in a whole-sitting run
+let run = [];          // what each finished part scored, for the summary
 
 export function paintMock(counts) {
   const box = $("#mockParts");
@@ -29,7 +31,28 @@ export function paintMock(counts) {
         sat ? `<span class="hint"> · ${sat}</span>` : ""}</button>`;
   }).join("");
   box.querySelectorAll("button[data-part]").forEach(
-    b => b.onclick = () => start(b.dataset.part));
+    b => b.onclick = () => { queue = []; run = []; start(b.dataset.part); });
+
+  const whole = $("#mockWhole");
+  if (whole) whole.onclick = () => startRun();
+}
+
+
+/* The whole sitting: four parts in the exam's order, each on its own clock.
+   Stopping between parts is fine — every part is recorded as it finishes. */
+async function startRun() {
+  let plan;
+  try {
+    plan = await (await api(`/api/mock-run/${examLevel()}`, null, "GET")).json();
+  } catch (e) {
+    $("#mockOut").innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
+    return;
+  }
+  queue = plan.parts.slice();
+  run = [];
+  $("#mockOut").innerHTML = `<p class="hint">${esc(plan.note)}
+    Всего ${plan.minutes} минут.</p>`;
+  start(queue.shift());
 }
 
 function stopClock() {
@@ -76,7 +99,8 @@ async function start(part) {
     </div>
     <p class="hint">${esc(section.note)}</p>
     <div id="mockTasks"></div>
-    <div id="mockVerdict" class="verdict" role="status"></div>`;
+    <div id="mockVerdict" class="verdict" role="status"></div>
+    <div class="row" id="mockNext"></div>`;
   renderTasks(section);
   const elapsed = runClock(section.minutes * 60, () => finish(true));
   $("#mockDone").onclick = () => finish(false, elapsed());
@@ -166,22 +190,51 @@ async function finish(ranOut, seconds) {
     const r = await (await api(
       `/api/mock/${examLevel()}/${section.part}`, body)).json();
     const spent = Math.round(r.seconds / 60);
+    const d = r.detail || {};
     const score = r.correct === null
       ? "без оценки — на экзамене эта часть в паре"
       : section.kind === "writing"
-        ? `${r.detail.words} слов (нужно от ${r.detail.min_words})`
+        ? `${d.words} слов (нужно от ${d.min_words})` +
+          (d.errors ? `, найдено ошибок: ${d.errors}` : ", ошибок код не нашёл")
         : `${r.correct} из ${r.asked}`;
     verdict.className = "verdict ok";
     verdict.innerHTML = `${ranOut ? "Время вышло. " : ""}${esc(score)} ·
       ${spent} мин из ${r.minutes}.
       <span class="hint">Это не оценка экзамена: здесь задания приложения,
       а не HARNO.</span>`;
+    if (section.kind === "writing" && (r.detail.findings || []).length) {
+      verdict.insertAdjacentHTML("beforeend",
+        `<div class="hint">` + r.detail.findings.map(f =>
+          `<div>✗ <del lang="et">${esc(f.wrong)}</del>${f.correct
+            ? ` → <ins lang="et">${esc(f.correct)}</ins>` : ""} — ${esc(f.why || "")}</div>`
+        ).join("") + `</div>`);
+    }
     document.querySelectorAll("#mockTasks input, #mockTasks textarea")
       .forEach(x => x.disabled = true);
+    run.push({part: section.et, score});
+    paintNext();
     const counts = await (await api(`/api/mock/${examLevel()}`, null, "GET")).json();
     paintMock(counts.counts);
   } catch (e) {
     verdict.className = "verdict no";
     verdict.innerHTML = `Результат не записан: ${esc(e.message)}`;
   }
+}
+
+
+/* Between the parts of a whole sitting: what is next, or how it went. */
+function paintNext() {
+  const box = $("#mockNext");
+  if (!box) return;
+  if (queue.length) {
+    box.innerHTML = `<button class="go" id="mockGoNext" lang="et">Järgmine osa
+      <span class="ru" lang="ru">следующая часть</span></button>`;
+    $("#mockGoNext").onclick = () => start(queue.shift());
+    return;
+  }
+  box.innerHTML = run.length > 1
+    ? `<div class="hint" id="mockSummary">Весь экзамен пройден: ` +
+      run.map(r => `<b lang="et">${esc(r.part)}</b> — ${esc(r.score)}`).join("; ") +
+      `. Это не оценка HARNO.</div>`
+    : "";
 }

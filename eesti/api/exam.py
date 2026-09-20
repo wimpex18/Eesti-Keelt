@@ -215,7 +215,7 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
     """Grade a finished section and record it as exam evidence."""
     from ..exam import SPECS
     from ..itemref import verify
-    from ..mock import MIN_WORDS, record
+    from ..mock import record
 
     if level not in SPECS or part not in {p.id for p in SPECS[level].parts}:
         raise HTTPException(status_code=404, detail="unknown level or part")
@@ -242,14 +242,39 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
                                 len(answer.text.split())), answer.given)
             correct += int(got.correct)
     elif part == "kirjutamine":
-        words = len(res.written.split())
-        asked, correct = 1, int(words >= MIN_WORDS[level])
-        detail = {"words": words, "min_words": MIN_WORDS[level]}
+        from ..mock import check_writing
+
+        detail = check_writing(res.written, level)
+        # Long enough and clean by the deterministic checks. What a model would
+        # say about it belongs in Kirjutamine, labelled, never in a mock's score.
+        asked, correct = 1, int(detail["long_enough"] and detail["errors"] == 0)
     else:                                   # raakimine: practised, never scored
         asked, correct = len(res.answers) or 1, None
 
-    saved = record(progress_db(), level, part, res.seconds, asked, correct)
-    return saved | {"detail": detail, "minutes": SPECS[level].part(part).minutes}
+    saved = record(progress_db(), level, part, res.seconds, asked, correct,
+                   detail=detail)
+    return saved | {"minutes": SPECS[level].part(part).minutes}
+
+
+@router.get("/api/mock-run/{level}")
+def mock_run(level: str) -> dict:
+    """A whole sitting: the four parts in the order the exam runs them, with the
+    total time it takes. Each part is still sat and recorded on its own."""
+    from ..exam import SPECS
+
+    if level not in SPECS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    spec = SPECS[level]
+    return {
+        "level": level,
+        "parts": [p.id for p in spec.parts],
+        "minutes": sum(p.minutes for p in spec.parts),
+        "total": spec.total,
+        "pass_mark": spec.pass_mark,
+        "note": ("Четыре части подряд, каждая на своём времени — как на "
+                 "экзамене. Между частями можно остановиться: каждая "
+                 "записывается отдельно. Говорение (rääkimine) не оценивается."),
+    }
 
 
 @router.get("/api/mock/{level}")
