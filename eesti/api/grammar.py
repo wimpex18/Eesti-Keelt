@@ -13,7 +13,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..lookup import lookup
-from ..providers import grammar
 from .deps import db, gloss_db
 
 router = APIRouter()

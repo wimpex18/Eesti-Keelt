@@ -27,7 +27,7 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
 
-from . import breaker
+from . import breaker, budget
 from pathlib import Path
 
 # Longer than text providers (audio takes time), bounded so several engines in
@@ -291,6 +291,9 @@ def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Tran
     for name, engine in attempts:
         if breaker.is_open(name):
             continue                      # tripped; do not pay its timeout again
+        if budget.exhausted(f"asr:{name}"):
+            continue                      # today's allowance for this lane is spent
+        budget.spend(f"asr:{name}")
         result = engine()
         if result is None:
             continue                      # not configured; not a failure

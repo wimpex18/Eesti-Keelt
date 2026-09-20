@@ -49,11 +49,16 @@ A transcript mixes what the learner said with what the recogniser heard. So:
 
 ## One boundary
 
-Every model-facing job goes through `eesti/tutor.py` (ADR-0002,
-`docs/adr/0002-tutor-boundary-and-conversation.md`): the writing check, the
-transcript check, translation, the explanations and the conversation. The
-boundary owns the day's budget, the grounding check and these labels, so a rule
-added here is a rule everywhere.
+Every model call that speaks to the learner in words goes through
+`eesti/tutor.py` (ADR-0002, `docs/adr/0002-tutor-boundary-and-conversation.md`):
+the writing check, the transcript check, translation, the explanations and the
+conversation. The boundary owns the day's budget, the grounding check and these
+labels, so a rule added here is a rule everywhere.
+
+**Recognition is the exception, deliberately.** It turns audio into text and
+decides nothing, so it keeps its own chain (`providers/asr.py`) — which checks
+the same daily allowance — and on the deployment it runs inside the Worker,
+where this boundary cannot reach it (`deploy/worker.ts`).
 
 ## Rules for anything new
 

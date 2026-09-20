@@ -28,8 +28,15 @@ may produce conversation, but must not decide whether an answer was right.
 
 ## Decision
 
-**`eesti/tutor.py` becomes the single boundary for every model-facing intent**,
-and gains a bounded `converse` intent.
+**`eesti/tutor.py` becomes the single boundary for every model call that speaks
+to the learner in words** — corrections, explanations, translation, conversation
+— and gains a bounded `converse` intent.
+
+Speech **recognition** is not one of them: it turns audio into text and decides
+nothing, so it keeps its own chain (`providers/asr.py`), and on the deployment
+it runs in the Worker against Cloudflare's binding, where a Python boundary
+cannot reach it. It obeys the same daily-allowance rule in the code path it does
+own.
 
 - Every intent returns one envelope: `explanation_ru` / `reply_et`, the engine
   that answered, the grounding it was given, and `source: "model"`.
@@ -102,7 +109,8 @@ happened, this long".
 ## Consequences
 
 **Easier:** adding a rule (a new label, a cap, a refusal) — one module, one test
-file. Counting what the tutor costs: the budget is checked and spent in `_ask`.
+file. Counting what the tutor costs: the budget is checked and spent in `_ask`,
+and the recognition chain checks the same budget for its own lanes.
 
 **Harder:** `tutor.py` is now on the request path for writing checks, so its
 failure modes are the writing tab's failure modes; it must keep returning the
