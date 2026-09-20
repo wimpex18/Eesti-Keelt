@@ -78,6 +78,23 @@ def test_a_meta_row_pointing_out_of_the_folder_is_refused(client, material, tmp_
     assert client.get(f"/api/exam/file/{material['here']}").status_code == 404
 
 
+def test_a_deployment_without_the_files_links_out(client, material, monkeypatch,
+                                                  tmp_path):
+    """The task text travels with the library; the files only where the bucket
+    is mounted (`deploy/push-exam.sh`). Where they are absent the catalogue must
+    say so instead of offering a file that 404s."""
+    from eesti import library
+
+    monkeypatch.setattr(config, "EXAM_DIR", str(tmp_path / "no-mount"))
+    rows = library.exam_material(connect(config.CONTENT_DB), "B1")
+    tasks = [t for part in rows["ulesanded"].values() for t in part]
+    here = next(t for t in tasks if t["title"] == "B1 Lu1 kuulutus")
+    assert here["file"] is False
+    # The text is in the library, so the task still opens — just not the file.
+    assert here["local"] is True
+    assert client.get(f"/api/exam/file/{material['here']}").status_code == 404
+
+
 def test_an_unknown_item_is_not_found(client, material):
     assert client.get("/api/exam/file/nope").status_code == 404
     assert client.get("/api/exam/text/nope").status_code == 404

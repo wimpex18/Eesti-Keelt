@@ -344,6 +344,24 @@ def seen_items(progress: sqlite3.Connection) -> set[str]:
     return {r[0] for r in progress.execute("SELECT DISTINCT item_id FROM exposure")}
 
 
+def _file_here(stored: str | None) -> bool:
+    """Whether a downloaded exam file is readable on *this* machine.
+
+    `meta.file` is a path relative to `config.EXAM_DIR`, recorded when the file
+    was downloaded. A deployment without the bucket mounted holds the catalogue
+    but not the files.
+    """
+    if not stored:
+        return False
+    from pathlib import Path as _Path
+
+    from . import config
+
+    root = _Path(config.EXAM_DIR).resolve()
+    path = (root / stored).resolve()
+    return root in path.parents and path.is_file()
+
+
 def exam_material(content: sqlite3.Connection, level: str,
                   public_only: bool = False) -> dict:
     """Everything official for one level, grouped by `kind`, in one request: a sample
@@ -383,9 +401,12 @@ def exam_material(content: sqlite3.Connection, level: str,
             "audio_url": row["audio_url"], "source": row["source_name"],
             # In the app already — a downloaded file, or a task whose text was
             # read in (`cli harvest-exam --download`) — so it opens here rather
-            # than sending the learner to the exam board's site.
-            "local": bool(meta.get("file")) or bool(row["body_length"]),
-            "file": bool(meta.get("file")),
+            # than sending the learner to the exam board's site. The file is
+            # checked rather than assumed: the text travels with the library,
+            # the files only where `data/exam/` is mounted (`push-exam.sh`), so
+            # the same catalogue must link out where they are absent.
+            "local": _file_here(meta.get("file")) or bool(row["body_length"]),
+            "file": _file_here(meta.get("file")),
         })
 
     tasks = by_kind.pop("ulesanne", [])
