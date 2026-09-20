@@ -31,6 +31,11 @@ count in a doc is not added.
   `write()` while `curl /api/health` still answered — so every later page load
   timed out and the suite read as a page defect.
 
+Every screen is also run through **axe** (WCAG 2.1 A and AA) at both
+viewports, because the interface leans on markup to say which language a
+string is in, and a screen reader is the one reader that cannot guess. It
+skips when `axe-core` is not installed.
+
 Browser tests skip (never fail) without Playwright, a browser or a built
 dataset. To set them up:
 
@@ -39,6 +44,7 @@ python -m eesti.cli fetch-data && python -m eesti.cli build
 python -m eesti.cli export            # word card forms
 python -m eesti.cli harvest-reading   # reading journeys
 playwright install chromium webkit
+npm install                           # axe-core, for the accessibility check
 ```
 
 ## What the suite guarantees

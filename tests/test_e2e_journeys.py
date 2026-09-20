@@ -1144,6 +1144,45 @@ class TestAGrammarCardIsAnswered:
         assert not page.errors, page.errors
 
 
+#: axe-core, the accessibility rule engine, as a dev dependency (`package.json`).
+#: Skipped rather than failed when it is not installed: the journeys already
+#: need Playwright and a built dataset, and one more optional tool should not
+#: make the suite unrunnable.
+AXE = ROOT / "node_modules" / "axe-core" / "axe.min.js"
+
+
+class TestEveryScreenIsReadableByAScreenReader:
+    """The interface is Estonian and its explanations are Russian, which only
+    works if the markup says which is which — and a learner using VoiceOver on
+    the installed PWA meets every screen, not a chosen one. WCAG 2.1 A and AA,
+    checked by axe on each tab."""
+
+    def test_no_screen_has_an_accessibility_violation(self, page, live_server):
+        if not AXE.is_file():
+            pytest.skip("axe-core is not installed: npm install")
+        found = []
+        for mode in MODES:
+            for tab in advertised_tabs(page, mode):
+                open_tab(page, mode, tab)
+                page.add_script_tag(content=AXE.read_text(encoding="utf-8"))
+                violations = page.evaluate("""async () => {
+                  const run = await axe.run(document, {
+                    resultTypes: ["violations"],
+                    runOnly: {type: "tag",
+                              values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]},
+                  });
+                  return run.violations.map(v => ({
+                    id: v.id, impact: v.impact, help: v.help,
+                    where: v.nodes[0].target.join(" "), count: v.nodes.length,
+                  }));
+                }""")
+                found += [f"{mode}/{tab}: {v['impact']} {v['id']} — {v['help']}"
+                          f" ({v['count']}x, first at {v['where']})"
+                          for v in violations]
+        assert not found, (f"{page.viewport_name}: "
+                           + "\n  ".join(["accessibility violations:"] + found))
+
+
 class TestPhoneInLandscape:
     """iPhone 17 on its side: 874×402, touch. Wider than the phone breakpoint, so
     the layout has to recognise it by height and input, not width."""
