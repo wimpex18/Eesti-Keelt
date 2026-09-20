@@ -129,6 +129,43 @@ def cmd_push_content(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_push_keys(args: argparse.Namespace) -> int:
+    """Make the VAPID key pair reminders are signed with, once.
+
+    The private key never appears on screen: it is written into the git-ignored
+    `.env`, and `deploy/set-push-keys.sh` reads it from there into the Worker's
+    secrets. Only the public key is printed, because the browser is given it
+    anyway.
+    """
+    from ..env import ENV_FILE, load
+    from ..vapid import generate
+
+    load()
+    existing = ENV_FILE.read_text(encoding="utf-8") if ENV_FILE.exists() else ""
+    if "VAPID_PRIVATE_KEY=" in existing and not args.force:
+        print(f"{ENV_FILE} already holds a VAPID key pair. Replacing it would "
+              "silence every browser already subscribed; pass --force if that "
+              "is what you want.")
+        return 2
+
+    public, private = generate()
+    subject = args.subject or "mailto:none@example.org"
+
+    kept = [line for line in existing.splitlines()
+            if not line.startswith(("VAPID_PUBLIC_KEY=", "VAPID_PRIVATE_KEY=",
+                                    "VAPID_SUBJECT="))]
+    kept += [f"VAPID_PUBLIC_KEY={public}", f"VAPID_PRIVATE_KEY={private}",
+             f"VAPID_SUBJECT={subject}"]
+    ENV_FILE.write_text("\n".join(kept).strip() + "\n", encoding="utf-8")
+    ENV_FILE.chmod(0o600)
+
+    print(f"written to {ENV_FILE} (private key not shown)")
+    print(f"  VAPID_PUBLIC_KEY={public}")
+    print(f"  VAPID_SUBJECT={subject}")
+    print("\nNext: bash deploy/set-push-keys.sh   (in Cloud Shell, with .env)")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -162,6 +199,13 @@ def register(sub) -> None:
                    help="the Cloud Run URL, not the Worker's — see the docstring")
     p.add_argument("--database", help="defaults to the configured content database")
     p.set_defaults(func=cmd_push_content)
+
+    p = sub.add_parser("push-keys",
+                       help="make the VAPID key pair reminders are signed with")
+    p.add_argument("--subject", help="mailto: the push service can complain to")
+    p.add_argument("--force", action="store_true",
+                   help="replace an existing pair (silences current subscribers)")
+    p.set_defaults(func=cmd_push_keys)
 
     p = sub.add_parser("serve", help="run the local web app")
     p.add_argument("--host", default="127.0.0.1")

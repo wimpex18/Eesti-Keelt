@@ -74,6 +74,26 @@ def cmd_test_out(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_optimise_review(args: argparse.Namespace) -> int:
+    """Fit FSRS to this learner's own reviews, and record the result."""
+    from .. import evidence, optimise, review
+
+    with evidence.connect() as log:
+        current = review.parameters()
+        print("parameters in force:",
+              "personal" if current else "FSRS defaults")
+        try:
+            done = optimise.fit(log, force=args.force)
+        except RuntimeError as exc:
+            print(f"\n{exc}")
+            return 2
+    print(done["why_ru"])
+    if done["fitted"]:
+        print("\nRecorded as a `fsrs-parameters` event, so it travels with the "
+              "log and the deployment picks it up on its next restore.")
+    return 0
+
+
 def cmd_review(args: argparse.Namespace) -> int:
     """Interleaved review of whatever is due: items missed in practice or seeded at
     mastery; FSRS decides when each returns.
@@ -177,6 +197,13 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
+    p = sub.add_parser("optimise-review",
+                       help="fit FSRS to your own review history (needs "
+                            'pip install "fsrs[optimizer]")')
+    p.add_argument("--force", action="store_true",
+                   help="fit even with too little history (for trying it out)")
+    p.set_defaults(func=cmd_optimise_review)
+
     p = sub.add_parser("review", help="interleaved review of whatever is due")
     p.add_argument("-n", "--count", type=int, default=20)
     p.add_argument("--review-db", default=None)

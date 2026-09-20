@@ -29,6 +29,17 @@ work; the writing check uses Vabamorf offline evidence.
 For tests: `.venv/bin/pip install pytest pytest-xdist` and, for the browser
 journeys, `.venv/bin/playwright install chromium webkit`.
 
+Two things are deliberately not installed by default:
+
+```bash
+python -m eesti.cli push-keys                  # reminders: one VAPID pair, into .env
+.venv/bin/pip install "fsrs[optimizer]"        # only to run `cli optimise-review`
+```
+
+`fsrs[optimizer]` pulls in torch and pandas — hundreds of megabytes for a job
+run once there are about 1 000 reviews, so it stays out of the image and out of
+the default install.
+
 ## Where a key goes
 
 A secret belongs where the code that reads it runs.

@@ -269,6 +269,18 @@
          report, which loads late and would otherwise push it around. -->
     <p class="hint"><a href="/api/me/export" download lang="et">Minu andmed
       <span class="ru" lang="ru">скачать всё, что приложение записало обо мне (JSONL)</span></a></p>
+    <!-- Reminders. Counts only ever leave the device, and the switch says so. -->
+    <div id="remind" class="pair">
+      <div class="row">
+        <button class="ghost" id="remindBtn" lang="et">Meeldetuletused
+          <span class="ru" lang="ru">напоминания</span></button>
+        <span class="hint" id="remindHint"></span>
+      </div>
+      <div class="row" id="remindWhen" hidden>
+        <label class="hint" for="remindHour" lang="ru">напомнить, если днём ничего не сделано, после</label>
+        <select id="remindHour" aria-label="Час напоминания"></select>
+      </div>
+    </div>
     <div id="statusOut" class="empty">Загружаю…</div>
   </section>
 

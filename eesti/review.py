@@ -114,9 +114,45 @@ def connect(path: Path | str) -> sqlite3.Connection:
     return conn
 
 
+#: Reviews before a personal fit is worth anything. Below this the optimiser
+#: fits the noise in a handful of answers and schedules worse than the
+#: published defaults, which were fitted on millions of reviews.
+MIN_REVIEWS_TO_FIT = 1000
+
+
+def parameters() -> tuple[float, ...] | None:
+    """The learner's own FSRS parameters, if they have ever been fitted.
+
+    Kept in the evidence log (`fsrs-parameters`), not in a file: they are
+    derived from the learner's review history, they travel with it, and a
+    rebuild replays them. `None` means the published defaults.
+    """
+    from . import evidence
+
+    try:
+        with evidence.connect() as log:
+            row = log.execute(
+                "SELECT payload FROM events WHERE type = 'fsrs-parameters'"
+                " ORDER BY seq DESC LIMIT 1").fetchone()
+    except sqlite3.Error:      # no log yet: the defaults are the right answer
+        return None
+    if row is None:
+        return None
+    import json as _json
+
+    found = _json.loads(row["payload"]).get("parameters")
+    return tuple(found) if found else None
+
+
 def _scheduler() -> Scheduler:
-    # Default FSRS parameters; personal optimisation needs more review history.
-    return Scheduler()
+    """The scheduler, with the learner's own parameters when they exist."""
+    fitted = parameters()
+    if not fitted:
+        return Scheduler()
+    try:
+        return Scheduler(parameters=fitted)
+    except Exception:  # noqa: BLE001 - a bad fit must never stop review
+        return Scheduler()
 
 
 def item_id(kind: str, lemma: str, tag: str | None) -> str:

@@ -82,6 +82,28 @@ whatever is actually played, so a word is fetched from the bucket once. Without
 it `/api/pronounce` answers 404 and everything falls back to synthesis;
 `/api/health` reports `recordings`.
 
+## Reminders
+
+The Worker sends them, because it holds the subscription and runs the cron; the
+app decides what is worth saying, because it holds the evidence
+(`eesti/reminders.py`). One VAPID key pair signs them.
+
+```bash
+python -m eesti.cli push-keys        # once, on your machine: writes .env, prints only the public key
+bash deploy/set-push-keys.sh         # in Cloud Shell, with that .env
+```
+
+The cron runs hourly (`wrangler.jsonc` → `triggers.crons`) and asks
+`/api/reminders`, a back-channel route guarded by `STATE_TOKEN`. What comes back
+is a count and a fixed phrase — never a sentence the learner wrote — encrypted
+to the subscription (RFC 8291) and signed with VAPID (RFC 8292). A tag keeps
+one fact from arriving twice; a 404 or 410 from the push service drops the
+subscription.
+
+Without the keys the app says reminders are not configured and never asks the
+browser for permission it cannot use. On iPhone, notifications work only from
+the app added to the Home Screen (iOS 16.4+).
+
 ## The exam board's task files
 
 `data/exam/` (about 130 MB of HARNO's task PDFs and listening recordings,

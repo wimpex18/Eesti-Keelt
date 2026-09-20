@@ -284,3 +284,79 @@ def my_export() -> PlainTextResponse:
         media_type="application/x-ndjson",
         headers={"content-disposition": 'attachment; filename="eesti-keelt-events.jsonl"'},
     )
+
+
+# --------------------------------------------------------------------------
+# Reminders: what the Worker's cron may tell the learner
+# --------------------------------------------------------------------------
+#
+# The decision is here, where the evidence is; the sending is in the Worker,
+# which holds the subscription and the VAPID keys. A reminder carries counts
+# only (`eesti/reminders.py`).
+
+class ReminderChoice(BaseModel):
+    on: bool | None = None
+    hour: int | None = Field(default=None, ge=0, le=23)
+    quiet_from: int | None = Field(default=None, ge=0, le=23)
+    quiet_to: int | None = Field(default=None, ge=0, le=23)
+
+
+@router.get("/api/reminders")
+def reminders_due(request: Request) -> dict:
+    """What is worth a notification right now. Back-channel: the cron asks it."""
+    from .. import config, evidence, reminders, review
+
+    _require_state_token(request)
+    with evidence.connect() as log:
+        prefs = reminders.settings(log)
+        with review.connect(config.REVIEW_DB) as cards:
+            found = reminders.due(log, cards, progress_db())
+    return {"on": prefs["on"], "quiet": reminders.quiet(prefs),
+            "reminders": [r.to_dict() for r in found]}
+
+
+@router.get("/api/reminders/settings")
+def reminder_settings() -> dict:
+    """The learner's own choices — the page reads these to draw the switch."""
+    from .. import evidence, reminders
+
+    with evidence.connect() as log:
+        return reminders.settings(log)
+
+
+@router.post("/api/reminders/settings")
+def choose_reminders(choice: ReminderChoice) -> dict:
+    """Turn reminders on or off, and say when. Recorded as learner state."""
+    from .. import reminders
+
+    return reminders.choose(**{k: v for k, v in choice.model_dump().items()
+                               if v is not None})
+
+
+# --------------------------------------------------------------------------
+# Web Push: what the origin can honestly say about it
+# --------------------------------------------------------------------------
+#
+# The subscription and the VAPID keys live in the Worker, which is what sends a
+# notification (`deploy/worker.ts`), and the Worker answers `/api/push/*` before
+# it proxies. These exist so the same page is honest when it is served by
+# `cli serve` with no Worker in front: reminders are simply not configured, the
+# switch says so, and no browser is asked for permission it cannot use.
+
+
+@router.get("/api/push/key")
+def push_key() -> dict:
+    """No Worker, no push. A key here would be a key nothing can sign with."""
+    return {"key": None, "configured": False, "subscribers": 0,
+            "note": "Напоминания отправляет Worker; локально их нет."}
+
+
+@router.post("/api/push/subscribe")
+def push_subscribe() -> dict:
+    raise HTTPException(status_code=503, detail=(
+        "Напоминания отправляет Worker; локально подписка не нужна."))
+
+
+@router.post("/api/push/unsubscribe")
+def push_unsubscribe() -> dict:
+    return {"subscribers": 0}

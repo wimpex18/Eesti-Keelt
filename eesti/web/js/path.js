@@ -3,6 +3,7 @@
 import {RU, stateIcon, uiIcon} from "./chrome.js";
 import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
+import {loadReminders} from "./remind.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 
 // ── the path ────────────────────────────────────────────────────────
@@ -173,6 +174,7 @@ export async function loadPath() {
 // ── progress ────────────────────────────────────────────────────────
 export async function loadStatus() {
   const out = $("#statusOut");
+  loadReminders();
   try {
     const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";

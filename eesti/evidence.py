@@ -252,7 +252,8 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
 #: `comprehension` is a graded reading answer: code graded it against the
 #: text's own span, and it is practice for `lugemine` rather than evidence
 #: about a grammar rule, so it is kept and never projected.
-LOG_ONLY = ("writing", "speech", "plan-issued", "conversation", "comprehension")
+LOG_ONLY = ("writing", "speech", "plan-issued", "conversation", "comprehension",
+            "reminder-settings", "fsrs-parameters")
 for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 

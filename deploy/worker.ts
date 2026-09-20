@@ -36,6 +36,7 @@
  * work.
  */
 import { DurableObject } from "cloudflare:workers";
+import { type PushSubscription, sendPush } from "./push";
 
 interface Env {
   LEARNER_STATE: DurableObjectNamespace<LearnerState>;
@@ -52,6 +53,16 @@ interface Env {
    * default -- see `requireAccess`.
    */
   ALLOW_UNAUTHENTICATED?: string;
+  /**
+   * Web Push (`sendPush`). The public key is handed to the page so the browser
+   * can subscribe; the private key signs the VAPID token that proves to Apple's
+   * and Google's push services that the subscription is ours. Both are raw
+   * P-256 keys, base64url, from `cli push-keys`.
+   */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  /** `mailto:` the push service can complain to. Required by RFC 8292. */
+  VAPID_SUBJECT?: string;
 }
 
 /* Refuse anything that did not come through Cloudflare Access.
@@ -149,6 +160,100 @@ export class LearnerState extends DurableObject<Env> {
          body TEXT NOT NULL
        )`,
     );
+    /* Reminders. The subscription is what a push service needs to reach this
+       learner's browser; `sent` is what keeps one fact from arriving twice,
+       since the cron looks many times a day and the app answers with the same
+       reminder until it is acted on. */
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS push_subs (
+         endpoint TEXT PRIMARY KEY,
+         body     TEXT NOT NULL,
+         added    TEXT NOT NULL
+       )`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS push_sent (
+         tag  TEXT PRIMARY KEY,
+         at   TEXT NOT NULL
+       )`,
+    );
+  }
+
+  /** Remember a browser's subscription. Re-subscribing replaces it. */
+  async subscribe(sub: PushSubscription): Promise<number> {
+    this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO push_subs (endpoint, body, added) VALUES (?, ?, ?)",
+      sub.endpoint, JSON.stringify(sub), new Date().toISOString());
+    return this.subscriptions().length;
+  }
+
+  async unsubscribe(endpoint: string): Promise<number> {
+    this.ctx.storage.sql.exec("DELETE FROM push_subs WHERE endpoint = ?", endpoint);
+    return this.subscriptions().length;
+  }
+
+  private subscriptions(): PushSubscription[] {
+    return [...this.ctx.storage.sql.exec("SELECT body FROM push_subs")]
+      .map((row) => JSON.parse(String(row.body)) as PushSubscription);
+  }
+
+  /** How many browsers are subscribed — the page draws its switch from this. */
+  async subscriberCount(): Promise<number> {
+    return this.subscriptions().length;
+  }
+
+  /**
+   * One pass of the reminder cron: ask the app what is worth saying, send what
+   * has not been sent, and forget a subscription the push service has retired.
+   *
+   * The app decides *what* (`eesti/reminders.py`); this decides *again?*.
+   */
+  async remind(): Promise<{ sent: number; skipped: number }> {
+    if (!this.env.VAPID_PUBLIC_KEY || !this.env.VAPID_PRIVATE_KEY) {
+      return { sent: 0, skipped: 0 };
+    }
+    const subs = this.subscriptions();
+    if (!subs.length) return { sent: 0, skipped: 0 };
+
+    let due: { reminders: { tag: string; title: string; body: string; url: string }[] };
+    try {
+      const res = await fetch(this.origin("/api/reminders"), { headers: this.headers() });
+      if (!res.ok) return { sent: 0, skipped: 0 };
+      due = await res.json();
+    } catch {
+      return { sent: 0, skipped: 0 };   // the app being asleep is not an error
+    }
+
+    let sent = 0;
+    let skipped = 0;
+    for (const reminder of due.reminders ?? []) {
+      const seen = [...this.ctx.storage.sql.exec(
+        "SELECT tag FROM push_sent WHERE tag = ?", reminder.tag)];
+      if (seen.length) { skipped += 1; continue; }
+      for (const sub of subs) {
+        let status = 0;
+        try {
+          status = await sendPush(this.env, sub, reminder);
+        } catch {
+          continue;
+        }
+        // 404/410: the browser threw the subscription away. So do we.
+        if (status === 404 || status === 410) {
+          this.ctx.storage.sql.exec(
+            "DELETE FROM push_subs WHERE endpoint = ?", sub.endpoint);
+        } else if (status >= 200 && status < 300) {
+          sent += 1;
+        }
+      }
+      this.ctx.storage.sql.exec(
+        "INSERT OR REPLACE INTO push_sent (tag, at) VALUES (?, ?)",
+        reminder.tag, new Date().toISOString());
+    }
+    // Yesterday's tags can never come round again: the day is in the tag.
+    this.ctx.storage.sql.exec(
+      "DELETE FROM push_sent WHERE at < ?",
+      new Date(Date.now() - 30 * 86400_000).toISOString());
+    return { sent, skipped };
   }
 
   private origin(path: string): string {
@@ -587,6 +692,19 @@ function stub(env: Env) {
 }
 
 export default {
+  /**
+   * The reminder cron (`wrangler.jsonc` → triggers.crons).
+   *
+   * It asks the app what is worth saying rather than deciding anything: quiet
+   * hours, the learner's chosen hour and the four reasons all live in
+   * `eesti/reminders.py`, where the evidence is. Waking the origin a few times
+   * a day is what a scale-to-zero service costs to be reminded by.
+   */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (!env.CLOUD_RUN_URL) return;
+    ctx.waitUntil(stub(env).remind());
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     if (!env.CLOUD_RUN_URL) {
       return new Response(
@@ -615,6 +733,7 @@ export default {
       "/api/content/export",
       "/api/content/import",
       "/api/progress/reset",
+      "/api/reminders",
     ];
     const url = new URL(request.url);
     if (BACK_CHANNEL.includes(url.pathname)) {
@@ -622,6 +741,36 @@ export default {
     }
 
     const learner = stub(env);
+
+    /* Reminders. The subscription and the VAPID keys live here, so these three
+       are answered rather than forwarded — and they work while the origin is
+       still waking up, which is exactly when a learner turns them on. */
+    if (url.pathname.startsWith("/api/push/")) {
+      if (url.pathname === "/api/push/key") {
+        return Response.json({
+          key: env.VAPID_PUBLIC_KEY ?? null,
+          subscribers: await learner.subscriberCount(),
+          // Without keys the page must say so rather than ask for permission
+          // it cannot use.
+          configured: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+        });
+      }
+      if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+        const sub = (await request.json()) as PushSubscription;
+        if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) {
+          return new Response("not a subscription", { status: 400 });
+        }
+        return Response.json({ subscribers: await learner.subscribe(sub) });
+      }
+      if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+        const { endpoint } = (await request.json()) as { endpoint?: string };
+        return Response.json({
+          subscribers: await learner.unsubscribe(endpoint ?? ""),
+        });
+      }
+      return new Response("not found", { status: 404 });
+    }
+
     const restored = await learner.ensureRestored();
     const writes = request.method !== "GET" && request.method !== "HEAD";
 

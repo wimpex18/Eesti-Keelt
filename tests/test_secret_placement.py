@@ -20,8 +20,10 @@ WORKER = ROOT / "deploy" / "worker.ts"
 #: Worker must never be given these.
 CONTAINER_ONLY = ("OPENROUTER_API_KEY", "NVIDIA_API_KEY", "HF_TOKEN")
 
-#: Read by the Worker, therefore Worker secrets.
-WORKER_SECRETS = ("CLOUD_RUN_URL", "PROXY_TOKEN", "STATE_TOKEN")
+#: Read by the Worker, therefore Worker secrets. The VAPID pair signs and
+#: encrypts reminders in `sendPush`; the Python app never reads it.
+WORKER_SECRETS = ("CLOUD_RUN_URL", "PROXY_TOKEN", "STATE_TOKEN",
+                  "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY")
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +49,18 @@ def test_container_keys_are_not_pushed_to_the_worker(name, workflow):
 def test_the_workers_own_secrets_are_still_pushed(name, workflow):
     """The opposite mistake would break the deployment outright, but loudly."""
     assert f'put {name}' in workflow
+
+
+def test_the_private_push_key_never_reaches_the_python_app():
+    """It is a Worker secret. Read on Cloud Run it would do nothing, and a
+    reminder would silently never be sent."""
+    import subprocess
+
+    found = subprocess.run(
+        ["git", "grep", "-l", "VAPID_PRIVATE_KEY", "--", "eesti/"],
+        cwd=ROOT, capture_output=True, text=True).stdout.split()
+    # `cli push-keys` writes it into `.env`; nothing else in the app may read it.
+    assert found in ([], ["eesti/cli/ops.py"]), found
 
 
 @pytest.mark.parametrize("name", CONTAINER_ONLY)

@@ -24,6 +24,11 @@
   // learner reading sentences aloud does not approach.
   "ai": { "binding": "AI" },
 
+  // Reminders (`LearnerState.remind`). Hourly is enough: the app answers with
+  // what is worth saying at this hour in Europe/Tallinn, and a tag keeps one
+  // fact from arriving twice. Cron is free-plan.
+  "triggers": { "crons": ["7 * * * *"] },
+
   "observability": { "enabled": true }
 
   // Secrets, set with `wrangler secret put` or by the deploy workflow, and
@@ -32,6 +37,9 @@
   //   PROXY_TOKEN     shared with the Cloud Run service; without it the
   //                   run.app URL would be a way around Cloudflare Access
   //   STATE_TOKEN     guards the snapshot endpoints
+  //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+  //                   Web Push (`cli push-keys` writes them into .env, and
+  //                   deploy/set-push-keys.sh pushes them)
   //
   // LLM keys are not Worker secrets: the app reads them on Cloud Run
   // (deploy/set-llm-key.sh).
