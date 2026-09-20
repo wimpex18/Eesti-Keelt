@@ -2,6 +2,7 @@
 
 import {RU, stateIcon, uiIcon} from "./chrome.js";
 import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import * as offline from "./offline.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 
 // ── the path ────────────────────────────────────────────────────────
@@ -688,3 +689,102 @@ $("#freeBtn").onclick = async () => {
 };
 
 loadThemes();
+
+
+// ── offline ─────────────────────────────────────────────────────────
+/* A pack is fetched while there is a connection and answered without one. The
+   page grades by the same rule the server does, queues what was answered, and
+   sends it when the connection returns — the server re-grades each answer from
+   its token, so nothing here decides what counts (`js/offline.js`). */
+
+async function paintOffline() {
+  const pack = await offline.savedPack();
+  const queued = await offline.pending();
+  $("#offlineState").textContent = offline.describe(pack, queued.length);
+  $("#offlinePractice").hidden = !pack;
+  $("#offlineSend").hidden = !queued.length;
+}
+
+$("#offlineGet").onclick = async () => {
+  const btn = $("#offlineGet");
+  btn.disabled = true;
+  try {
+    await offline.fetchPack(24);
+    await paintOffline();
+  } catch (e) {
+    $("#offlineState").textContent = "Не скачалось: " + e.message;
+  } finally { btn.disabled = false; }
+};
+
+$("#offlinePractice").onclick = async () => {
+  const pack = await offline.savedPack();
+  if (!pack) return;
+  /* A set fetched on load can still be in flight; claiming the request id
+     stops it painting over the offline one when it lands. */
+  practiceRequest++;
+  const out = $("#practiceOut");
+  out.innerHTML = `<div class="banner info">Офлайн-набор: ответы записываются
+    на сервере, когда связь вернётся.</div>`;
+  newSet(pathTally);
+  pathTally.size = pack.items.length;
+  pack.items.forEach((it, i) => out.appendChild(
+    renderOfflineItem(it, i, pack.glosses || {})));
+  out.querySelector("input")?.focus();
+};
+
+$("#offlineSend").onclick = async () => {
+  const btn = $("#offlineSend");
+  btn.disabled = true;
+  const sent = await offline.flush();
+  $("#offlineState").textContent = sent
+    ? `Отправлено ответов: ${sent}.`
+    : "Пока не отправляется — нет связи.";
+  await paintOffline();
+  if (sent) { loadPath(); loadRail(); }
+  btn.disabled = false;
+};
+
+/* One offline item: graded here because there is nobody to ask, and queued
+   with its own id so sending it twice changes nothing. */
+function renderOfflineItem(it, i, glosses) {
+  const el = document.createElement("div");
+  el.className = "drill";
+  const ru = (glosses || {})[it.lemma] || [];
+  el.innerHTML = `
+    <div class="prompt" lang="et">${esc(it.prompt).replace("____",
+      '<span class="blank">____</span>')}</div>
+    <div class="row">
+      <input type="text" size="18" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>
+      <button class="go" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+      ${taskLine({lemma: it.lemma, label: it.hint || "", level: it.level || ""},
+                 ru, {quiet: true})}
+    </div>
+    <div class="verdict" role="status"></div>`;
+  const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const started = performance.now();
+  const check = async () => {
+    if (!input.value.trim()) return;
+    input.disabled = el.querySelector("button").disabled = true;
+    const ok = offline.graded(it, input.value);
+    /* The verdict first: it is what the learner is waiting for, and it must not
+       depend on the queue write succeeding. */
+    verdict.className = ok ? "verdict ok" : "verdict no";
+    verdict.innerHTML = ok ? "Верно." : wrongVerdict(input.value, it.answer, it.why_ru);
+    try {
+      await offline.queueAnswer(it, input.value,
+                                Math.round(performance.now() - started));
+      verdict.insertAdjacentHTML("beforeend",
+        `<span class="hint">записано локально</span>`);
+    } catch (e) {
+      verdict.insertAdjacentHTML("beforeend",
+        `<span class="hint">не записано: ${esc(e.message)}</span>`);
+    }
+    paintOffline();
+  };
+  el.querySelector("button").onclick = check;
+  input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+  return el;
+}
+
+addEventListener("online", () => offline.flush().then(paintOffline));
+paintOffline();

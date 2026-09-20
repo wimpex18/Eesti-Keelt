@@ -1049,6 +1049,47 @@ class TestTheTimedMock:
         assert not page.errors, page.errors
 
 
+class TestPractisingOffline:
+    """A set fetched in advance is answerable with the network cut, and what was
+    answered reaches the server when it comes back."""
+
+    def test_download_go_offline_answer_come_back(self, page, live_server):
+        open_tab(page, "learn", "path")
+        page.wait_for_selector("#offlineGet", state="attached", timeout=15000)
+        page.click("#offline > summary")
+        page.click("#offlineGet")
+        page.wait_for_selector("#offlinePractice:not([hidden])", timeout=20000)
+
+        page.context.set_offline(True)
+        try:
+            page.click("#offlinePractice")
+            page.wait_for_selector("#practiceOut .banner.info", timeout=15000)
+            page.wait_for_selector("#practiceOut .drill input", timeout=15000)
+            first = page.locator("#practiceOut .drill").first
+            first.locator("input").fill("ilmselgelt vale")
+            first.locator("button").click()
+            page.wait_for_selector("#practiceOut .verdict.no", timeout=15000)
+            # The verdict appears first; the queue write follows it.
+            page.wait_for_function(
+                "() => document.querySelector('#practiceOut .verdict')"
+                ".textContent.includes('локально')", timeout=15000)
+            page.wait_for_selector("#offlineSend:not([hidden])", timeout=15000)
+        finally:
+            page.context.set_offline(False)
+
+        # Coming back online flushes the queue by itself, so the send button
+        # goes away; clicking it is only for a flush that failed.
+        page.wait_for_function(
+            "() => document.querySelector('#offlineSend').hidden", timeout=20000)
+        answered = page.evaluate("""async () => {
+            const r = await fetch('/api/curriculum');
+            const d = await r.json();
+            return d.topics.reduce((n, t) => n + t.attempts, 0);
+        }""")
+        assert answered >= 1, "the offline answer never reached the server"
+        assert not page.errors, page.errors
+
+
 class TestTodaysPlan:
     """Rada opens on today's plan; a block's Alusta starts what it names."""
 

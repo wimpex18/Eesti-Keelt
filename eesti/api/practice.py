@@ -53,6 +53,10 @@ class AnswerRequest(BaseModel):
     token: str = ""
     # How long the learner took, from showing the item to answering.
     latency_ms: int | None = Field(default=None, ge=0)
+    # Answered offline: when it happened, and the id the page gave it. The id
+    # makes sending the queue twice harmless (`eesti/evidence.py`).
+    at: str = ""
+    event_id: str = ""
     # Free practice (Rada's "Vaba harjutus") is graded here by the same rule but
     # leaves no trace: no attempt, no mastery, no review card.
     record: bool = True
@@ -259,12 +263,25 @@ def practice_answer(req: AnswerRequest) -> dict:
             "russian": [], "accuracy": None, "mastered": False,
             "just_mastered": False, "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}",
         }
+    if req.event_id:
+        from .. import evidence
+
+        with evidence.connect() as log:
+            if evidence.has(log, req.event_id):
+                # Already recorded — the page is sending its offline queue again.
+                return {"correct": correct, "event_id": req.event_id,
+                        "answer": item.answer, "why_ru": item.why_ru,
+                        "russian": [], "accuracy": None, "mastered": False,
+                        "just_mastered": False, "recorded": False,
+                        "gate": f"{MASTERY_CORRECT}/{MASTERY_WINDOW}"}
+
     progress = progress_db()
     topic = item.topic
     was_mastered = is_mastered(progress, topic)
     event_id = record(progress, item, correct, answer=req.given, ref=ref,
                       latency_ms=req.latency_ms,
-                      mode=ref["kind"] if ref else "path")
+                      mode=ref["kind"] if ref else "path",
+                      at=req.at or None, event_id=req.event_id or None)
 
     try:
         if correct:
@@ -373,3 +390,61 @@ def testout_result(topic: str, req: TestOut) -> dict:
     result = probe(progress_db(), topic, lambda item: next(answers), seed=req.seed)
     return {"topic": result.topic, "asked": result.asked, "correct": result.correct,
             "passed": result.passed, "skipped": result.skipped}
+
+
+@router.get("/api/pack")
+def offline_pack(count: int = 24) -> dict:
+    """A set to practise with no connection: items, their answers, their glosses.
+
+    The page keeps it and grades against the answer it already holds, because
+    offline there is nobody to ask. What was answered is sent back when the
+    connection returns and **re-graded from the token** — the server still
+    decides, only later (`docs/app-structure.md`).
+    """
+    import secrets
+
+    from ..itemref import practice_ref, sign
+    from ..learner import rule_evidence, weak_rules
+    from ..practice import items_for
+    from ..progress import resume
+    from ..review import connect as review_connect
+
+    from .. import config
+
+    count = max(4, min(count, 60))
+    progress = progress_db()
+    topics: list[str] = []
+    here = resume(progress)
+    if here:
+        topics.append(here)
+    weak = weak_rules(rule_evidence(progress, review_connect(config.REVIEW_DB)))
+    topics += [e.topic for e in weak if e.topic not in topics][:2]
+    if not topics:
+        topics = ["kusisonad"]
+
+    per = max(2, count // len(topics))
+    items, glosses = [], {}
+    for topic in topics:
+        seed = secrets.randbelow(2**31)
+        try:
+            made = items_for(topic, count=per, seed=seed)
+        except (ValueError, RuntimeError, KeyError):
+            continue
+        for n, item in enumerate(made):
+            items.append(item_for_page(item) | {
+                "topic": topic,
+                "token": sign(item, practice_ref(
+                    topic, seed=seed, count=per, levels=list(LEVELS),
+                    theme=None, rules=None, index=n)),
+            })
+        glosses |= _glosses_for([i.lemma for i in made])
+
+    return {
+        "issued": __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc).isoformat(timespec="seconds"),
+        "topics": topics,
+        "items": items[:count],
+        "glosses": glosses,
+        "note": ("Набор для работы без интернета. Ответы записываются на "
+                 "сервере, когда связь вернётся."),
+    }

@@ -72,7 +72,8 @@ def _now() -> str:
 
 def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "", *,
            ref: dict | None = None, latency_ms: int | None = None,
-           mode: str = "path") -> str:
+           mode: str = "path", at: str | None = None,
+           event_id: str | None = None) -> str:
     """Log one graded attempt and promote the topic if the gate is now passed.
 
     The event carries the whole item as it was shown, and its `ref` (how to
@@ -86,7 +87,9 @@ def record(conn: sqlite3.Connection, item, correct: bool, answer: str = "", *,
         "distractor": getattr(item, "distractor", "") or "",
         "ref": ref, "latency_ms": latency_ms, "mode": mode,
     }
-    ev = evidence.record("attempt", payload)
+    # `at` and `event_id` come from an answer given offline: the time is when it
+    # was actually answered, and the id makes replaying the queue idempotent.
+    ev = evidence.record("attempt", payload, ts=at, id_=event_id)
     _attempt(conn, payload, ev.ts)
     # The id, so a caller can point the tutor at exactly this attempt.
     return ev.id

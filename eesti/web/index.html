@@ -107,6 +107,21 @@
     <!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
          drilled over. The label hides for topics it cannot change. -->
     <div id="practiceOut"></div>
+    <!-- A set to carry: drills are made on the server, so without one there is
+         nothing to answer unless it was fetched in advance (`js/offline.js`). -->
+    <details class="offline" id="offline">
+      <summary lang="et">Offline <i class="ru" lang="ru">набор без интернета</i></summary>
+      <p class="hint" id="offlineState">…</p>
+      <div class="row">
+        <button class="ghost" id="offlineGet" lang="et">Lae alla
+          <span class="ru" lang="ru">скачать набор</span></button>
+        <button class="go" id="offlinePractice" lang="et" hidden>Harjuta
+          <span class="ru" lang="ru">решать офлайн</span></button>
+        <button class="ghost" id="offlineSend" lang="et" hidden>Saada vastused
+          <span class="ru" lang="ru">отправить ответы</span></button>
+      </div>
+    </details>
+
     <!-- Today's plan (`eesti/planning.py`). After the drill in the markup, so a phone
          shows the drill first; wide screens move it to the top (`app.css`). -->
     <details class="today" id="today" open>

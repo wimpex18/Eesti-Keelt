@@ -15,5 +15,6 @@ paths:
 - Parsers of third-party markup are tested with synthetic markup (real ERR/Selges text is owner-only).
 - Suspect the harness when a suite exercising the culprit stays green (in-process vs subprocess, fixtures vs real paths).
 - Verify "works in CI" in a clean `git worktree` — `data/` is git-ignored.
+- A throwaway verification script must redirect `config.*_DB` the way `conftest` does: `TestClient` otherwise writes into the real `data/`, which is the learner's own history.
 - Browser tests listen for `pageerror` **and** unhandled rejections; `--browser` runs Chromium desktop and WebKit phone.
 - Before adding a test, name the learner-visible failure it prevents. No tests of source text, CSS, or doc counts; no "guard on the guard" tests.

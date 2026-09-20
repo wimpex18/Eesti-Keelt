@@ -42,6 +42,7 @@ is the exercise.
 |---|---|---|---|
 | Rada · Minu rada | generated exercise | code | mastery, review queue |
 | Rada · Vaba harjutus | generated exercise | code (same endpoint, `record: false`) | nothing |
+| Rada · Offline | a pack fetched in advance | the page shows a verdict; the server re-grades from the token when the answers arrive | attempts, with the time they happened |
 | Järjekord | scheduled exercise | code | FSRS card state |
 | Kuulamine · dictation | generated exercise | code, word-aligned | dictation history |
 | Sõnavara | list | — | word status |

@@ -123,6 +123,13 @@ def _insert(conn: sqlite3.Connection, ev: Event) -> bool:
     return cur.rowcount > 0
 
 
+def has(conn: sqlite3.Connection, event_id: str) -> bool:
+    """Whether this event is already in the log — the check an answer given
+    offline needs, so replaying the queue records it once."""
+    return conn.execute(
+        "SELECT 1 FROM events WHERE id = ?", (event_id,)).fetchone() is not None
+
+
 def has_backfill(conn: sqlite3.Connection) -> bool:
     return conn.execute(
         "SELECT 1 FROM events WHERE id = ?", (BACKFILL_ID,)).fetchone() is not None

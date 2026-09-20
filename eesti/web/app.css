@@ -572,6 +572,9 @@
      model says so. */
   .corr .src-weak{color:var(--warn)}
   /* Vestlus: two voices, the learner's on the right, and nothing scored. */
+  .offline{margin:0 0 var(--s4);padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .offline > summary{cursor:pointer;font-weight:600}
   .evalset{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px dashed var(--line);
     border-radius:12px}
   .evalset > summary{cursor:pointer;font-weight:600}
