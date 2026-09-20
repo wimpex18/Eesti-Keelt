@@ -118,18 +118,24 @@ def live_server(tmp_path_factory) -> str:
         # grammar chain degrades to Vabamorf.
         **{name: "" for name in KNOWN_KEYS},
     }
+    # The app writes one JSON line per API call to stdout (`eesti/logs.py`). A
+    # pipe nobody reads fills after a few hundred of them and the server blocks
+    # in `write()` for the rest of the run, so every later page load times out
+    # and the suite reports a defect the app does not have. A file always drains.
+    log = workdir / "server.log"
+    handle = log.open("w")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "eesti.app:app",
          "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
         cwd=workdir, env=env,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        stdout=handle, stderr=subprocess.STDOUT, text=True,
     )
     base = f"http://127.0.0.1:{port}"
     try:
         import urllib.request
         for _ in range(120):
             if proc.poll() is not None:
-                pytest.skip(f"server exited: {(proc.stdout.read() or '')[-400:]}")
+                pytest.skip(f"server exited: {log.read_text()[-400:]}")
             try:
                 urllib.request.urlopen(base + "/api/health", timeout=1).read()
                 break
@@ -144,6 +150,7 @@ def live_server(tmp_path_factory) -> str:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+        handle.close()
 
 
 def _engines() -> list[str]:
