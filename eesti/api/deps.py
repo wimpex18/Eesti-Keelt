@@ -10,6 +10,7 @@ import secrets
 from pathlib import Path
 
 from .. import review
+from ..providers import budget
 from ..sources import connect as content_connect
 from ..wordlist import connect
 
@@ -102,6 +103,7 @@ def _bind_breaker() -> None:
     from ..providers import breaker
 
     breaker.bind_later(progress_db)
+    budget.bind_later(progress_db)
 
 
 # Must run at import, before any provider is asked whether it is dead;

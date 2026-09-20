@@ -134,9 +134,15 @@ class TestTheLedgerHasAReader:
         assert len(client.get("/api/sources").json()["sources"]) > 0
 
     def test_it_serves_no_material_and_nothing_about_the_learner(self, client):
-        """A public-ish surface: keep it to facts that are already public."""
+        """A public-ish surface: keep it to facts that are already public.
+
+        The engine fields (what a lane is, what it costs, what leaves the
+        device) are facts about this project's own configuration, not about
+        the learner, so they belong here too.
+        """
         allowed = {"id", "name", "kind", "licence", "url", "redistributable",
-                   "changes"}
+                   "changes", "version", "quota", "data_leaves", "retention",
+                   "verified"}
         for s in client.get("/api/sources").json()["sources"]:
             assert set(s) <= allowed, set(s) - allowed
 

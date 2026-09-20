@@ -28,6 +28,7 @@ the same change that makes it untrue.
 | **Readiness** | Four exam parts reported separately with reasons in Russian; a section sat on the clock counts as contact for its part. |
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
+| **Operations** | One JSON line per API call on stdout (`eesti/logs.py`), carrying route, status and duration and never what was written or said. Each provider lane has a daily allowance (`providers/budget.py`), reported by `/api/engines`. |
 | **Deployment** | Cloud Run behind a Cloudflare Worker + Access; the evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus present. |
 
 ## What is missing

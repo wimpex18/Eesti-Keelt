@@ -110,8 +110,13 @@ def grammar_engines() -> dict:
     """
     from ..providers.grammar import build_chain
 
+    from ..providers import budget
+
     engines = [
         {"name": p.name, "available": p.available(),
+         # What today's allowance has left for this lane (`providers/budget.py`);
+         # null where this project sets no cap.
+         "budget_left": budget.left(p.name),
          # Only an LLM writes the explanation; Vabamorf reports evidence and
          # TartuNLP answers in Estonian with no language parameter.
          "explains": p.name.startswith("llm:")}
@@ -122,5 +127,6 @@ def grammar_engines() -> dict:
         # `can_explain`, not `explains`: every engine carries an `explains` field, and a
         # summary field sharing that name misleads line-oriented readers.
         "can_explain": any(e["available"] and e["explains"] for e in engines),
+        "budget": budget.report(),
         "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
     }

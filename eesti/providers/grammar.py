@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Protocol
 
 from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR, TARTUNLP_TRANSLATE
-from . import breaker
+from . import breaker, budget
 
 # The object-case rules and "most text is already correct" are stated positively
 # here, as in the eval prompt (`evals/gec.py`): a model otherwise flags correct
@@ -816,7 +816,12 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
         if _breaker_open(provider.name):
             tried.append(f"{provider.name}: skipped (recent failures)")
             continue
+        if budget.exhausted(provider.name):
+            # The day's allowance for this lane is spent; the next lane answers.
+            tried.append(f"{provider.name}: skipped (day's budget spent)")
+            continue
         try:
+            budget.spend(provider.name)
             result = provider.check(text)
             result.corrections = verify(text, result.corrections)
             _record_success(provider.name)

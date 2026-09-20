@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import hmac
 import os
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import api
+from . import api, logs
 from .evidence import NotRestored
 from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read these
     BOOT_ID,
@@ -43,6 +44,9 @@ from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read th
 app = FastAPI(title="Eesti-Keelt", docs_url="/api/docs")
 
 
+logs.setup()
+
+
 @app.middleware("http")
 async def _proxy_guard(request: Request, call_next):
     """Keep the origin from becoming a way around the front door.
@@ -57,8 +61,16 @@ async def _proxy_guard(request: Request, call_next):
         request.headers.get(PROXY_HEADER, ""), expected
     ):
         return JSONResponse({"detail": "not authorised"}, status_code=403)
+    started = time.monotonic()
     response = await call_next(request)
     response.headers["x-boot-id"] = BOOT_ID
+    # One line per API call: what was asked, how it went, how long it took.
+    # Never what was written or said (`eesti/logs.py`).
+    if request.url.path.startswith("/api/"):
+        logs.event("request", path=request.url.path, method=request.method,
+                   status=response.status_code,
+                   ms=round((time.monotonic() - started) * 1000),
+                   request_id=request.headers.get("cf-ray", ""), boot=BOOT_ID)
     # How far the evidence log has got, so the Worker pulls only when there is
     # something new (`deploy/worker.ts`, `pullEvents`).
     # Only API calls record evidence; the page and its assets never need it.

@@ -31,6 +31,20 @@ class Source:
     #: What this project did to the material, as CC BY 4.0 asks ("indicate changes"),
     #: served by `/api/sources`. Empty for sources only linked to, counted, or our own.
     changes: str = ""
+    # ------------------------------------------------------------------
+    # Engines (`kind="engine"`): what a lane is, and what it costs to use.
+    # ------------------------------------------------------------------
+    #: The model or dataset version this project pins, where there is one.
+    version: str = ""
+    #: The lane's own quota or rate limit, in the provider's words.
+    quota: str = ""
+    #: **What leaves the device**: `none` (runs here), `text`, or `audio`. The
+    #: privacy fact a learner is owed before they type or speak into it.
+    data_leaves: str = "none"
+    #: What the provider says it does with what it receives.
+    retention: str = ""
+    #: When the terms, the quota and the pinned id were last checked.
+    verified: str = ""
 
 
 # The registry: every source this app may touch, with its licence. Two kinds:
@@ -44,7 +58,103 @@ class Source:
 #
 # `tests/test_sections.py` checks the ledger covers every source id the code
 # writes.
-REGISTRY: tuple[Source, ...] = (
+#: Engines: every model or service the app may call, with what it costs the
+#: learner in privacy. A lane missing here is a lane nobody vetted, so
+#: `tests/test_engine_registry.py` holds this list against the code.
+ENGINES: tuple[Source, ...] = (
+    Source(
+        "vabamorf", "Vabamorf (via EstNLTK)", "engine",
+        "LGPL-2.1 (Vabamorf), GPL-2.0 (EstNLTK)", True,
+        "https://github.com/estnltk/estnltk",
+        "Morphological analysis and synthesis. Every answer key and every "
+        "deterministic check is this: it decides, models do not.",
+        data_leaves="none", verified="2026-09-20",
+    ),
+    Source(
+        "tartunlp-gec", "TartuNLP grammar correction", "engine",
+        "MIT (the API), Llama 2 (the model behind it)", True,
+        "https://api.tartunlp.ai/grammar",
+        "First lane of the grammar chain. Its backend on the University of "
+        "Tartu cluster is not answering (docs/status.md).",
+        version="Llammas-base-p1-GPT-4o-human-error-mix-paragraph-GEC",
+        quota="public, unmetered", data_leaves="text",
+        retention="TartuNLP store what is sent, to improve the service",
+        verified="2026-09-19",
+    ),
+    Source(
+        "tartunlp-mt", "Neurotõlge (TartuNLP translation)", "engine",
+        "MIT (the API)", True, "https://api.tartunlp.ai/translation/v2",
+        "Sentence translation, and est→est as a corrector whose edits code "
+        "filters (`NeurotolgeCorrection`).",
+        quota="1000 requests per window (x-rate-limit-limit)",
+        data_leaves="text",
+        retention="TartuNLP store what is sent, to improve the service",
+        verified="2026-09-19",
+    ),
+    Source(
+        "workers-ai", "Cloudflare Workers AI", "engine",
+        "Cloudflare terms", True,
+        "https://developers.cloudflare.com/workers-ai/",
+        "Speech recognition on the deployment, and an LLM lane for grammar.",
+        version="@cf/openai/whisper-large-v3-turbo, @cf/openai/gpt-oss-120b",
+        quota="10 000 neurons/day free, then $0.011/1000",
+        data_leaves="audio", retention="not used for training (Cloudflare terms)",
+        verified="2026-09-19",
+    ),
+    Source(
+        "nvidia", "NVIDIA NIM", "engine", "NVIDIA developer terms", True,
+        "https://build.nvidia.com/", "Grammar lane: accurate, slow (20–60 s).",
+        version="z-ai/glm-5.3-flash", quota="40 requests/min",
+        data_leaves="text", verified="2026-09-19",
+    ),
+    Source(
+        "mistral", "Mistral AI", "engine", "Mistral terms (Experiment plan)", True,
+        "https://mistral.ai/", "Grammar lane: fast, mostly answers 'no errors'.",
+        version="mistral-large-latest", quota="~1B tokens/month",
+        data_leaves="text", verified="2026-09-19",
+    ),
+    Source(
+        "openrouter", "OpenRouter", "engine", "OpenRouter terms", True,
+        "https://openrouter.ai/", "Grammar lane on free model ids; the weekly eval "
+        "scores this one.",
+        version="dots-studio/dots-3-note-preview:free",
+        quota="50 requests/day, failures counted", data_leaves="text",
+        verified="2026-09-19",
+    ),
+    Source(
+        "local-llm", "Local LLM (Ollama, EstLLM 8B)", "engine",
+        "Llama 3.1 community licence", True, None,
+        "The private lane: off unless LOCAL_LLM_URL is set, and then nothing "
+        "leaves the machine.",
+        version="EstLLM 8B GGUF", quota="your machine", data_leaves="none",
+        verified="2026-09-19",
+    ),
+    Source(
+        "hf-whisper", "Hugging Face Inference (Whisper)", "engine",
+        "Hugging Face terms", True, "https://huggingface.co/openai/whisper-large-v3",
+        "Speech recognition fallback under `cli serve`.",
+        version="openai/whisper-large-v3", quota="free tier, rate limited",
+        data_leaves="audio", verified="2026-09-19",
+    ),
+    Source(
+        "whisper-cpp", "whisper.cpp with TalTech's Estonian model", "engine",
+        "MIT (whisper.cpp and the model)", True,
+        "https://huggingface.co/TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604",
+        "Local speech recognition: the best Estonian model, and nothing leaves "
+        "the machine. Not on the deployment (no GPU).",
+        version="whisper-large-v3-turbo-et-verbatim-2604", data_leaves="none",
+        verified="2026-09-19",
+    ),
+    Source(
+        "inflection-et", "TalTech inflection_et", "engine", "MIT", True,
+        "https://github.com/TalTechNLP/inflection_et",
+        "Checked against Vabamorf in the morphology eval; not in the request path.",
+        data_leaves="none", verified="2026-09-19",
+    ),
+)
+
+
+REGISTRY: tuple[Source, ...] = ENGINES + (
     Source(
         "err-r4", "ERR Raadio 4 keeleõppesaated", "harvest",
         "© ERR — personal study only", False,

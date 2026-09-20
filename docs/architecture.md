@@ -49,7 +49,7 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 | Tutor | `tutor.py` (explain an attempt or a rule, grounded in EKK and Vabamorf) |
 | Providers | `providers/grammar.py` (check chain, per-correction provenance), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
 | Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `fetch.py` |
-| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` |
+| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` (licences **and** engines: version, quota, what leaves the device), `logs.py` (JSON lines, never learner text), `providers/budget.py` (a day's allowance per lane) |
 | CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |
 
 ## Databases

@@ -1,5 +1,10 @@
 # AI providers
 
+Each lane has a day's allowance (`providers/budget.py`), set under the
+provider's published limit and counted in `progress.db`, so a cold start cannot
+spend a 50-a-day quota four times over. A lane whose allowance is spent is
+skipped like a failing one, and `/api/engines` reports what is left.
+
 Grammar checks and origin-side speech recognition go through a chain of
 interchangeable providers with a shared circuit breaker (`providers/breaker.py`:
 skip a lane after 2 failures for 15 min, doubling up to 6 days, persisted in
