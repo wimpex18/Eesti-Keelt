@@ -5,11 +5,12 @@ append; at most 30 lines.
 
 ## Task in flight
 
-PR #65 (`exam/p3-exam-domain`) carries P3–P6, HARNO's own tasks read in the
-app, and now ADR-0004: a model writes the reading questions, the text keys
-them, code grades them (`eesti/comprehension.py`, `Lugemine → Küsimused`).
-`comprehension` events are the first practice the `lugemine` skill floor ever
-counted.
+PR #65 (`exam/p3-exam-domain`) carries P3–P6, the official material read in
+the app (HARNO's PDFs and audio, and EIS's interactive tasks with their own
+recordings — scoring stays at EIS, where the answers are), and ADR-0004: a
+model writes the reading questions, the text keys them, code grades them
+(`eesti/comprehension.py`, `Lugemine → Küsimused`). `comprehension` events are
+the first practice the `lugemine` skill floor ever counted.
 
 ## Recently fixed, worth knowing
 

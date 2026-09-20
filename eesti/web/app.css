@@ -598,6 +598,11 @@
     line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
   .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
     text-align:left;font:inherit;text-decoration:underline}
+  /* One numbered recording per question, as the exam task numbers them. */
+  .clip{display:flex;gap:var(--s3);align-items:center;margin-bottom:var(--s2)}
+  .clip audio{width:100%}
+  .clip > div{flex:1}
+
   /* Questions under a text: each one is a line, its verdict under it. */
   .quiz{margin-top:var(--s4)}
   .quiz-item{padding:var(--s3) 0;border-top:1px solid var(--line)}

@@ -145,6 +145,20 @@ async function openItem(id) {
   // has rather than assuming audio.
   if (d.meta?.kind === "video" || YT.test(d.url || "")) {
     mountVideo($("#readerAudio"), d.url || d.audio_url);
+  } else if ((d.meta?.audio || []).length > 1) {
+    // An exam listening task is several short recordings, one per question,
+    // numbered the way the task numbers them.
+    const host = $("#readerAudio");
+    host.replaceChildren();
+    d.meta.audio.forEach((url, i) => {
+      const row = document.createElement("div");
+      row.className = "clip";
+      row.innerHTML = `<span class="lib-meta">${i + 1}</span>`;
+      const slot = document.createElement("div");
+      row.append(slot);
+      host.append(row);
+      mountAudio(slot, url);
+    });
   } else {
     mountAudio($("#readerAudio"), d.audio_url);
   }

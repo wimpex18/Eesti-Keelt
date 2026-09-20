@@ -175,8 +175,9 @@ export async function loadExam() {
 const linkRow = it => it.local
   ? `<div class="lib-item">
        <button class="linky" data-task="${esc(it.id)}" data-fmt="${esc(it.format || "")}"
+               data-file="${it.file ? 1 : 0}"
                lang="${langOf(it.title)}">${esc(it.title)}</button>
-       <span class="lib-meta">${esc(it.format || "")} · в приложении</span></div>`
+       <span class="lib-meta">${esc(it.format || "интерактивное")} · в приложении</span></div>`
   : `<div class="lib-item">
        <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="${langOf(it.title)}">${esc(it.title)}</a>
        <span class="lib-meta">${esc(it.format || "")}${
@@ -185,7 +186,7 @@ const linkRow = it => it.local
 
 /* The task itself, opened where it was clicked: its text where the PDF gave
    any, the recording where the exam plays one, and the file itself always. */
-async function openTask(row, id, format) {
+async function openTask(row, id, format, hasFile) {
   const box = document.createElement("div");
   box.className = "exam-task";
   box.innerHTML = `<p class="hint">Загружаю…</p>`;
@@ -195,17 +196,24 @@ async function openTask(row, id, format) {
   try {
     text = await (await api(`/api/exam/text/${encodeURIComponent(id)}`)).json();
   } catch { /* audio, a scanned PDF, or a .docx: the file itself still opens */ }
-  const audio = ["mp3", "wav"].includes(format);
+  const own = ["mp3", "wav"].includes(format);       // the task *is* a recording
+  // An EIS listening task carries its own recordings, one per question.
+  const clips = own ? [file] : (text?.audio || []);
   box.innerHTML = `
     <div class="exam-task-head">
-      <a class="ghost" href="${file}" target="_blank" rel="noopener">открыть файл</a>
+      ${hasFile ? `<a class="ghost" href="${file}" target="_blank"
+                      rel="noopener">открыть файл</a>` : ""}
+      ${text?.url ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
+                       rel="noopener">решить на сайте</a>` : ""}
       <button class="ghost" data-close lang="et">Sulge
         <span class="ru" lang="ru">закрыть</span></button>
     </div>
-    ${audio ? `<audio controls preload="none" src="${file}"></audio>` : ""}
+    ${clips.map((url, i) => `<div class="clip">${
+        clips.length > 1 ? `<span class="lib-meta">${i + 1}</span>` : ""
+      }<audio controls preload="none" src="${esc(url)}"></audio></div>`).join("")}
     ${text ? `<p class="hint">${esc(text.note)}</p>
               <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
-           : `<p class="hint">${audio
+           : `<p class="hint">${own
                 ? "Официальная запись — © Haridus- ja Noorteamet."
                 : "Текст не разобрался — открой файл."}</p>`}`;
   box.querySelector("[data-close]").onclick = () => box.remove();
@@ -219,7 +227,7 @@ document.addEventListener("click", e => {
   // A second click closes what the first opened.
   const open = row.nextElementSibling;
   if (open && open.classList.contains("exam-task")) open.remove();
-  else openTask(row, b.dataset.task, b.dataset.fmt);
+  else openTask(row, b.dataset.task, b.dataset.fmt, b.dataset.file === "1");
 });
 
 

@@ -359,6 +359,7 @@ def exam_material(content: sqlite3.Connection, level: str,
     blocked = ",".join("?" * len(harno.NOT_INDEXED))
 
     sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
+                    LENGTH(TRIM(COALESCE(i.body, ''))) AS body_length,
                     s.name AS source_name, s.licence
              FROM items i JOIN sources s ON s.id = i.source_id
              WHERE (i.level = ? OR COALESCE(i.level, '') = '')
@@ -380,9 +381,11 @@ def exam_material(content: sqlite3.Connection, level: str,
             "id": row["id"], "title": row["title"], "skill": row["skill"],
             "url": meta.get("url"), "format": meta.get("format"),
             "audio_url": row["audio_url"], "source": row["source_name"],
-            # Downloaded, so the app can open it rather than send the learner
-            # to the exam board's site (`cli harvest-exam --download`).
-            "local": bool(meta.get("file")),
+            # In the app already — a downloaded file, or a task whose text was
+            # read in (`cli harvest-exam --download`) — so it opens here rather
+            # than sending the learner to the exam board's site.
+            "local": bool(meta.get("file")) or bool(row["body_length"]),
+            "file": bool(meta.get("file")),
         })
 
     tasks = by_kind.pop("ulesanne", [])

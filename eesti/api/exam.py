@@ -328,14 +328,24 @@ def exam_file(item_id: str):
 @router.get("/api/exam/text/{item_id}")
 def exam_text(item_id: str) -> dict:
     """The task's own text, extracted from the PDF, for reading it in the app."""
+    import json as _json
+
     row = content_db().execute(
-        "SELECT title, skill, level, body FROM items WHERE id = ?",
+        "SELECT title, skill, level, body, audio_url, meta FROM items WHERE id = ?",
         (item_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Материал не найден.")
     if not (row["body"] or "").strip():
         raise HTTPException(status_code=404, detail=(
             "Текст этого задания не разобрался — открой файл."))
+    try:
+        meta = _json.loads(row["meta"] or "{}")
+    except ValueError:
+        meta = {}
     return {"id": item_id, "title": row["title"], "skill": row["skill"],
             "level": row["level"], "text": row["body"],
+            # An EIS listening task is several short recordings, one per
+            # question; a HARNO task has its own file instead.
+            "audio": meta.get("audio") or ([row["audio_url"]] if row["audio_url"] else []),
+            "url": meta.get("url"),
             "note": "Официальное задание — © Haridus- ja Noorteamet."}

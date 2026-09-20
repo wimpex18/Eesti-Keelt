@@ -67,7 +67,7 @@ matching import with `--check`, commit.
 | ERR *Lihtsad uudised* | © ERR — owner-only | weekly reading feed |
 | ERR Raadio 4 language archives | © ERR — owner-only | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
 | HARNO exam material | © HARNO — owner-only | past tasks and listening audio, downloaded by `cli harvest-exam --download` into `data/exam/` for private study, read in `Eksam`; never committed, never redistributed, always shown with the board's name |
-| EIS public tasks | © HARNO — owner-only | pointers only |
+| EIS public tasks | © HARNO — owner-only | the task's own text and its recordings, read in `Eksam` (`cli harvest-exam --download`); scoring stays at EIS, which is the only place the answers exist |
 | Own material (`cli ingest`) | treated as ungranted | owner-only |
 
 All owner-only items are served only behind Cloudflare Access.
