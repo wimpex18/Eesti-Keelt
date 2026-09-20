@@ -3,9 +3,12 @@
 Complements `eis.py` (interactive EIS tasks): these are the per-task PDFs and
 MP3s on the exam page, including the B1 writing task types and listening audio.
 
-**Indexed, never downloaded.** © Haridus- ja Noorteamet: this stores level,
-exam part, title and URL, and links to HARNO's copy; `body` stays empty (a test
-holds it there).
+**Indexed, and downloaded for private study** with `cli harvest-exam
+--download`: the files land in `config.EXAM_DIR` (git-ignored, never
+redistributed), a PDF's text becomes the item's `body`, and `/api/exam/file`
+serves the file to this learner alone. © Haridus- ja Noorteamet, attributed
+wherever a task is shown. Without the download the item still carries only its
+URL and links out.
 
 **Level comes from the page's tab panel** (`id="a2-tase"` …); filenames inside
 a panel are generic. The filename gives only the exam part.
@@ -19,6 +22,7 @@ from __future__ import annotations
 import re
 import urllib.parse
 from dataclasses import dataclass
+from pathlib import Path
 
 PAGE = "https://harno.ee/eesti-keele-tasemeeksamid"
 BASE = "https://harno.ee"
@@ -212,8 +216,67 @@ def catalogue(html: str | None = None) -> list[Material]:
                   key=lambda m: (m.level, m.kind, m.skill, m.title))
 
 
-def to_items(materials: list[Material]) -> list:
-    """Pointers. `body` is empty and stays empty — see the module docstring."""
+#: Where the downloaded files live. Owner-only study material, so it sits in
+#: `data/` (git-ignored) and is served only to the learner behind Access.
+FOLDER = "data/exam"
+
+
+def local_path(material: "Material", root: Path | str | None = None) -> Path:
+    """Where one file is kept: level, then the file's own name."""
+    from .. import config
+
+    name = urllib.parse.unquote(material.url.rsplit("/", 1)[-1]).split("?")[0]
+    base = Path(root) if root else Path(getattr(config, "EXAM_DIR", FOLDER))
+    return base / (material.level or "yldine") / name
+
+
+def text_of(path: Path | str) -> str:
+    """The text of one exam PDF, page by page. Empty when it cannot be read."""
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return ""
+    try:
+        reader = PdfReader(str(path))
+        return "\n\n".join((page.extract_text() or "").strip()
+                             for page in reader.pages).strip()
+    except Exception:  # noqa: BLE001 - a scanned or broken PDF is not a crash
+        return ""
+
+
+def download(materials: list["Material"], root: Path | str | None = None,
+             timeout: float = 60.0) -> dict:
+    """Fetch the task files themselves, so the app can open them offline.
+
+    The exam board publishes PDFs and listening audio; a link is only useful
+    with a connection and a browser, while a file can be read in the app, played
+    in a mock, and kept.
+    """
+    from .. import net
+
+    got, failed, skipped = 0, 0, 0
+    for material in materials:
+        if material.fmt not in ("pdf", "mp3", "wav", "docx"):
+            skipped += 1
+            continue
+        target = local_path(material, root)
+        if target.exists() and target.stat().st_size:
+            skipped += 1
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            body = net.get(material.url, "HARNO file", timeout=timeout,
+                           retries=1, ua=UA, binary=True)
+        except Exception:  # noqa: BLE001 - one missing file is not fatal
+            failed += 1
+            continue
+        target.write_bytes(body if isinstance(body, bytes) else body.encode())
+        got += 1
+    return {"downloaded": got, "already_there": skipped, "failed": failed}
+
+
+def to_items(materials: list[Material], root: Path | str | None = None) -> list:
+    """Pointers, plus the file itself where it was downloaded."""
     from ..sources import Item
 
     return [
@@ -225,13 +288,22 @@ def to_items(materials: list[Material]) -> list:
             skill=m.skill or "eksam",
             level=m.level,
             title=m.title,
-            body="",
+            # The PDF's own text when it is here, so the task can be read in the
+            # app rather than only linked to.
+            body=(text_of(local_path(m, root))
+                  if m.fmt == "pdf" and local_path(m, root).exists() else ""),
             audio_url=m.url if m.fmt in ("mp3", "wav") else None,
             meta={
                 "url": m.url,
                 "kind": m.kind,
                 "format": m.fmt,
-                "external": True,
+                # A local copy means the app can open it; a link means it
+                # cannot. The path is relative to `config.EXAM_DIR`, so the
+                # folder can move without rewriting the catalogue.
+                "file": (f"{m.level or 'yldine'}/"
+                         f"{local_path(m, root).name}"
+                         if local_path(m, root).exists() else None),
+                "external": not local_path(m, root).exists(),
                 "official": True,
                 "note": "Официальный экзаменационный материал — © Haridus- ja Noorteamet.",
             },

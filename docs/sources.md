@@ -64,7 +64,7 @@ matching import with `--check`, commit.
 | Selges keeles (WordPress.com API) | no reuse grant — owner-only | reading texts, cloze sentences |
 | ERR *Lihtsad uudised* | © ERR — owner-only | weekly reading feed |
 | ERR Raadio 4 language archives | © ERR — owner-only | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
-| HARNO exam material | © HARNO — owner-only | pointers only; `data/exam/` never committed |
+| HARNO exam material | © HARNO — owner-only | past tasks and listening audio, downloaded by `cli harvest-exam --download` into `data/exam/` for private study, read in `Eksam`; never committed, never redistributed, always shown with the board's name |
 | EIS public tasks | © HARNO — owner-only | pointers only |
 | Own material (`cli ingest`) | treated as ungranted | owner-only |
 

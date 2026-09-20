@@ -24,8 +24,9 @@ Kordamine — "what am I forgetting?"
 
 Eksam — "am I ready?"
 ├── Ülevaade      readiness verdict, four exam parts reported separately, the
-│                 exam's own shape, the sitting being prepared for, and
-│                 Proovieksam (one part on the exam's clock)
+│                 exam's own shape, the sitting being prepared for,
+│                 Proovieksam (one part on the exam's clock), and HARNO's own
+│                 past tasks, read and played in the app where downloaded
 └── Edenemine     progress report
 ```
 

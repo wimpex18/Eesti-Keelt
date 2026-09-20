@@ -170,10 +170,57 @@ export async function loadExam() {
     });
 }
 
-const linkRow = it => `<div class="lib-item">
-  <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="et">${esc(it.title)}</a>
-  <span class="lib-meta">${esc(it.format || "")}${
-    it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
+/* A downloaded task opens here; anything not downloaded still links out
+   (`cli harvest-exam --download`). */
+const linkRow = it => it.local
+  ? `<div class="lib-item">
+       <button class="linky" data-task="${esc(it.id)}" data-fmt="${esc(it.format || "")}"
+               lang="et">${esc(it.title)}</button>
+       <span class="lib-meta">${esc(it.format || "")} · в приложении</span></div>`
+  : `<div class="lib-item">
+       <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="et">${esc(it.title)}</a>
+       <span class="lib-meta">${esc(it.format || "")}${
+         it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
+
+
+/* The task itself, opened where it was clicked: its text where the PDF gave
+   any, the recording where the exam plays one, and the file itself always. */
+async function openTask(row, id, format) {
+  const box = document.createElement("div");
+  box.className = "exam-task";
+  box.innerHTML = `<p class="hint">Загружаю…</p>`;
+  row.after(box);
+  const file = `/api/exam/file/${encodeURIComponent(id)}`;
+  let text = null;
+  try {
+    text = await (await api(`/api/exam/text/${encodeURIComponent(id)}`)).json();
+  } catch { /* audio, a scanned PDF, or a .docx: the file itself still opens */ }
+  const audio = ["mp3", "wav"].includes(format);
+  box.innerHTML = `
+    <div class="exam-task-head">
+      <a class="ghost" href="${file}" target="_blank" rel="noopener">открыть файл</a>
+      <button class="ghost" data-close lang="et">Sulge
+        <span class="ru" lang="ru">закрыть</span></button>
+    </div>
+    ${audio ? `<audio controls preload="none" src="${file}"></audio>` : ""}
+    ${text ? `<p class="hint">${esc(text.note)}</p>
+              <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
+           : `<p class="hint">${audio
+                ? "Официальная запись — © Haridus- ja Noorteamet."
+                : "Текст не разобрался — открой файл."}</p>`}`;
+  box.querySelector("[data-close]").onclick = () => box.remove();
+}
+
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("#tab-exam button[data-task]");
+  if (!b) return;
+  const row = b.closest(".lib-item");
+  // A second click closes what the first opened.
+  const open = row.nextElementSibling;
+  if (open && open.classList.contains("exam-task")) open.remove();
+  else openTask(row, b.dataset.task, b.dataset.fmt);
+});
 
 
 document.querySelectorAll("#tab-exam .levels button").forEach(b => b.onclick = () => {

@@ -154,6 +154,10 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     except Exception as exc:  # noqa: BLE001 - one source failing is not fatal
         materials = []
         print(f"\nharno.ee unavailable: {str(exc)[:100]}")
+    if materials and getattr(args, "download", False):
+        got = harno.download(materials)
+        print(f"\nharno.ee files: {got['downloaded']} downloaded, "
+              f"{got['already_there']} already here, {got['failed']} failed")
     if materials:
         stored += add_items(conn, harno.to_items(materials))
         counts: dict[tuple[str, str], int] = {}
@@ -163,7 +167,8 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
         for (level, skill), n in sorted(counts.items()):
             print(f"  {level} {skill:<12} {n}")
 
-    print(f"\nindexed {stored} official items (pointers only, (c) HARNO)")
+    print(f"\nindexed {stored} official items ((c) Haridus- ja Noorteamet; "
+          "downloaded files are for private study and are never redistributed)")
     return 0 if stored else 1
 
 
@@ -300,9 +305,13 @@ def register(sub) -> None:
 
     p = sub.add_parser(
         "harvest-exam",
-        help="index the official EIS practice tasks (links, not copies)",
+        help="index the official exam material; --download fetches the files",
     )
     p.add_argument("--levels", help="comma-separated, default A2,B1,B2,C1")
+    p.add_argument(
+        "--download", action="store_true",
+        help="fetch the task PDFs and listening audio into data/exam, so they "
+             "open in the app instead of only linking out")
     p.set_defaults(func=cmd_harvest_exam)
 
     p = sub.add_parser(

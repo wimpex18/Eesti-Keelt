@@ -284,3 +284,58 @@ def mock_history(level: str) -> dict:
 
     return {"level": level, "sections": history(progress_db(), level),
             "counts": counts(progress_db(), level)}
+
+
+@router.get("/api/exam/file/{item_id}")
+def exam_file(item_id: str):
+    """One downloaded exam file: the task PDF, or its listening recording.
+
+    Only files under `config.EXAM_DIR` are served, and only to the learner —
+    Access guards the app, and this is the exam board's material.
+    """
+    import json as _json
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    from .. import config
+
+    row = content_db().execute(
+        "SELECT title, meta FROM items WHERE id = ?", (item_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Материал не найден.")
+    try:
+        meta = _json.loads(row["meta"] or "{}")
+    except ValueError:
+        meta = {}
+    stored = meta.get("file")
+    if not stored:
+        raise HTTPException(status_code=404, detail=(
+            "Этот материал не скачан — открой его по ссылке."))
+    root = Path(config.EXAM_DIR).resolve()
+    path = (root / stored).resolve()
+    if root not in path.parents or not path.exists():
+        # A meta row pointing outside the folder is a bug, not a request to obey.
+        raise HTTPException(status_code=404, detail="Файл недоступен.")
+    kinds = {".pdf": "application/pdf", ".mp3": "audio/mpeg",
+             ".wav": "audio/wav", ".docx":
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+    return FileResponse(path, media_type=kinds.get(path.suffix.lower(),
+                                                   "application/octet-stream"),
+                        filename=path.name)
+
+
+@router.get("/api/exam/text/{item_id}")
+def exam_text(item_id: str) -> dict:
+    """The task's own text, extracted from the PDF, for reading it in the app."""
+    row = content_db().execute(
+        "SELECT title, skill, level, body FROM items WHERE id = ?",
+        (item_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Материал не найден.")
+    if not (row["body"] or "").strip():
+        raise HTTPException(status_code=404, detail=(
+            "Текст этого задания не разобрался — открой файл."))
+    return {"id": item_id, "title": row["title"], "skill": row["skill"],
+            "level": row["level"], "text": row["body"],
+            "note": "Официальное задание — © Haridus- ja Noorteamet."}

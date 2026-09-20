@@ -1,7 +1,10 @@
 """The exam board's published task material — PDFs and listening audio.
 
-Complements `eis.py`: per-task files on the exam page. **© Haridus- ja
-Noorteamet, indexed and never downloaded:** `body` stays empty, enforced here.
+Complements `eis.py`: per-task files on the exam page. HARNO publishes them for
+candidates to practise with; this learner's copy is downloaded for private
+study (`cli harvest-exam --download`), attributed to © Haridus- ja Noorteamet,
+and read in the app. A task not downloaded still links out, and that fallback
+is what these tests pin.
 
 Pinned:
 
@@ -19,24 +22,68 @@ import pytest
 from eesti.harvest.harno import _kind_of, _panels, _skill_of, catalogue, to_items
 
 
-class TestNothingIsCopied:
-    def test_the_body_is_empty(self):
+def _one_page_pdf(text: str) -> bytes:
+    """The smallest PDF `pypdf` will extract `text` from."""
+    stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode("latin-1", "replace")
+    objs = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]"
+        b" /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for n, body in enumerate(objs, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % n + body + b"\nendobj\n"
+    start = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    for off in offsets:
+        out += b"%010d 00000 n \n" % off
+    out += (b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n"
+            % (len(objs) + 1, start))
+    return bytes(out)
+
+
+class TestWhatIsHeldLocally:
+    """A downloaded task is read in the app; an absent one must still open at
+    HARNO rather than showing a blank page."""
+
+    def test_a_task_not_downloaded_links_out(self, tmp_path):
         from eesti.harvest.harno import Material
 
         item = to_items([Material(
             url="https://harno.ee/x/B1_Lu1_kuulutus.pdf", level="B1",
             skill="lugemine", title="B1 Lu1 kuulutus",
-            kind="ulesanne", fmt="pdf")])[0]
+            kind="ulesanne", fmt="pdf")], root=tmp_path)[0]
         assert item.body == ""
         assert item.meta["external"] is True
+        assert item.meta["file"] is None
 
-    def test_audio_is_linked_not_fetched(self):
+    def test_a_downloaded_task_carries_its_text(self, tmp_path):
+        """The PDF's own text, so the task can be read and answered in the app."""
+        from eesti.harvest.harno import Material
+
+        pdf = tmp_path / "B1" / "B1_Lu1_kuulutus.pdf"
+        pdf.parent.mkdir()
+        pdf.write_bytes(_one_page_pdf("Esimene ülesanne"))
+        item = to_items([Material(
+            url="https://harno.ee/x/B1_Lu1_kuulutus.pdf", level="B1",
+            skill="lugemine", title="B1 Lu1 kuulutus",
+            kind="ulesanne", fmt="pdf")], root=tmp_path)[0]
+        assert "Esimene" in item.body
+        assert item.meta["file"] == "B1/B1_Lu1_kuulutus.pdf"
+        assert item.meta["external"] is False
+
+    def test_audio_keeps_its_url(self, tmp_path):
         from eesti.harvest.harno import Material
 
         item = to_items([Material(
             url="https://projektid.edu.ee/x/B1.mp3", level="B1",
             skill="kuulamine", title="B1 kuulamisülesanne nr 1",
-            kind="ulesanne", fmt="mp3")])[0]
+            kind="ulesanne", fmt="mp3")], root=tmp_path)[0]
         assert item.audio_url == "https://projektid.edu.ee/x/B1.mp3"
         assert item.body == ""
 

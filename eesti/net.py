@@ -34,16 +34,19 @@ class Unreachable(OSError, RuntimeError):
 
 
 def get(url: str, what: str, *, timeout: float = TIMEOUT,
-        retries: int = RETRIES, ua: str = UA) -> str:
-    """Fetch `url` as text, retrying, or raise `Unreachable` naming `what` (e.g. "EKK
-    SÜ 64").
+        retries: int = RETRIES, ua: str = UA, binary: bool = False):
+    """Fetch `url`, retrying, or raise `Unreachable` naming `what` (e.g. "EKK SÜ 64").
+
+    Text by default; `binary` returns the bytes, which is what a PDF or a
+    listening recording needs.
     """
     req = urllib.request.Request(url, headers={"User-Agent": ua})
     last: Exception | None = None
     for attempt in range(retries):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.read().decode("utf-8", errors="replace")
+                raw = resp.read()
+                return raw if binary else raw.decode("utf-8", errors="replace")
         except Exception as exc:  # noqa: BLE001 - retry anything, then give up
             last = exc
             # No sleep after the final attempt: it delays the exception and

@@ -380,6 +380,9 @@ def exam_material(content: sqlite3.Connection, level: str,
             "id": row["id"], "title": row["title"], "skill": row["skill"],
             "url": meta.get("url"), "format": meta.get("format"),
             "audio_url": row["audio_url"], "source": row["source_name"],
+            # Downloaded, so the app can open it rather than send the learner
+            # to the exam board's site (`cli harvest-exam --download`).
+            "local": bool(meta.get("file")),
         })
 
     tasks = by_kind.pop("ulesanne", [])

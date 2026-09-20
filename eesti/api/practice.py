@@ -402,14 +402,14 @@ def offline_pack(count: int = 24) -> dict:
     decides, only later (`docs/app-structure.md`).
     """
     import secrets
+    from datetime import datetime, timezone
 
+    from .. import config
     from ..itemref import practice_ref, sign
     from ..learner import rule_evidence, weak_rules
     from ..practice import items_for
     from ..progress import resume
     from ..review import connect as review_connect
-
-    from .. import config
 
     count = max(4, min(count, 60))
     progress = progress_db()
@@ -440,8 +440,7 @@ def offline_pack(count: int = 24) -> dict:
         glosses |= _glosses_for([i.lemma for i in made])
 
     return {
-        "issued": __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc).isoformat(timespec="seconds"),
+        "issued": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "topics": topics,
         "items": items[:count],
         "glosses": glosses,

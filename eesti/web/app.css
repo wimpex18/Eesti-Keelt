@@ -587,6 +587,17 @@
     max-width:min(38rem,90%);overflow-wrap:anywhere}
   .vestlus-them{background:var(--tint)}
   .vestlus-me{background:var(--accent-soft);justify-self:end}
+  /* An official task read in the app, opened under the line that names it.
+     The exam board's layout is a PDF, so the extracted text keeps its breaks. */
+  .exam-task{margin:calc(-1 * var(--s2)) 0 var(--s3);padding:var(--s3) var(--s4);
+    border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;
+    background:var(--panel)}
+  .exam-task-head{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
+  .exam-task audio{width:100%;margin-top:var(--s3)}
+  .exam-text{white-space:pre-wrap;font-family:inherit;font-size:var(--fs-note);
+    line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
+  .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
+    text-align:left;font:inherit;text-decoration:underline}
   .exam-parts{margin:var(--s2) 0}
   .exam-parts > summary{cursor:pointer}
   .exam-parts li{margin-bottom:var(--s2)}
