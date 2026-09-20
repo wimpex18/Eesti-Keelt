@@ -40,11 +40,51 @@ ENOUGH = 20
 
 
 def _norm(text: str) -> list[str]:
-    """Words, lowercased, without punctuation: what both sides are compared as."""
+    """Words, lowercased, without punctuation — and with õ ä ö ü intact.
+
+    Written here rather than taken from Whisper's own normaliser: that one was
+    built alongside the model (so it flatters it) and strips Unicode marks,
+    which in Estonian deletes the vowels that carry meaning.
+    """
     cleaned = "".join(
         " " if unicodedata.category(ch).startswith("P") else ch
         for ch in text.casefold())
     return cleaned.split()
+
+
+def errors(said: str, heard: str) -> dict:
+    """Substitutions, deletions and insertions between the two word sequences.
+
+    The split matters: Whisper's failure on hesitant speech is *insertion*
+    (it invents words to fill a pause), and a single WER number hides that.
+    """
+    a, b = _norm(said), _norm(heard)
+    # Levenshtein with a back-pointer per cell, so the edits can be counted.
+    grid = [[(j if i == 0 else i if j == 0 else 0, "") for j in range(len(b) + 1)]
+            for i in range(len(a) + 1)]
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
+            if a[i - 1] == b[j - 1]:
+                grid[i][j] = (grid[i - 1][j - 1][0], "ok")
+                continue
+            options = ((grid[i - 1][j - 1][0] + 1, "sub"),
+                       (grid[i - 1][j][0] + 1, "del"),
+                       (grid[i][j - 1][0] + 1, "ins"))
+            grid[i][j] = min(options)
+    counts = {"sub": 0, "del": 0, "ins": 0}
+    i, j = len(a), len(b)
+    while i or j:
+        op = grid[i][j][1]
+        if i and j and op in ("ok", "sub"):
+            counts["sub"] += op == "sub"
+            i, j = i - 1, j - 1
+        elif i and (not j or op == "del"):
+            counts["del"] += 1
+            i -= 1
+        else:
+            counts["ins"] += 1
+            j -= 1
+    return counts | {"words": len(a)}
 
 
 def distance(a: list, b: list) -> int:
@@ -107,7 +147,8 @@ def run(engine: str = "chain", folder: Path | str | None = None,
         score = {"engine": engine, "clips": 0, "measured": 0, "broken": 0,
                  "wer": None, "cer": None, "planted_errors": 0,
                  "false_accept": None, "latency_p50": None, "latency_max": None,
-                 "valid": False,
+                 "errors": {"sub": 0, "del": 0, "ins": 0, "words": 0},
+                 "per_clip": [], "valid": False,
                  "invalid_reason": (
                      f"no recordings in {Path(folder or SET)} — record a few "
                      "(see eesti/evals/asr.py) before trusting any number")}
@@ -115,7 +156,8 @@ def run(engine: str = "chain", folder: Path | str | None = None,
             print(json.dumps(score, indent=2, ensure_ascii=False))
         return score
 
-    wers, cers, latencies = [], [], []
+    wers, cers, latencies, per_clip = [], [], [], []
+    split = {"sub": 0, "del": 0, "ins": 0, "words": 0}
     planted = accepted = broken = 0
     rows = []
     for clip in recordings:
@@ -133,6 +175,9 @@ def run(engine: str = "chain", folder: Path | str | None = None,
             continue
         wers.append(wer(clip.said, got.text))
         cers.append(cer(clip.said, got.text))
+        per_clip.append((clip.name, wers[-1]))
+        for key, value in errors(clip.said, got.text).items():
+            split[key] += value
         if clip.planted:
             planted += 1
             # The failure that matters: the learner said it wrong and the
@@ -154,6 +199,10 @@ def run(engine: str = "chain", folder: Path | str | None = None,
         "false_accept": round(accepted / planted, 3) if planted else None,
         "latency_p50": round(sorted(latencies)[len(latencies) // 2], 2) if latencies else None,
         "latency_max": round(max(latencies), 2) if latencies else None,
+        # Substitution / deletion / insertion, because they mean different
+        # things: insertions are the recogniser inventing words in a pause.
+        "errors": split,
+        "per_clip": per_clip,
         "valid": measured >= min(ENOUGH, len(recordings)) and measured > 0,
         "note": ("Own voice, own recordings: a number here describes this "
                  "learner and this microphone, not Estonian speech in general."),
@@ -166,3 +215,46 @@ def run(engine: str = "chain", folder: Path | str | None = None,
         for name, rate, heard in rows[:10]:
             print(f"  {name}: WER {rate}  «{heard}»")
     return score
+
+
+# --------------------------------------------------------------------------
+# Comparing two engines
+# --------------------------------------------------------------------------
+
+def compare(a: dict, b: dict, rounds: int = 2000, seed: int = 0) -> dict:
+    """Is engine `b` really better than `a` on this set, or is it the clips?
+
+    Paired on the same recordings, and resampled by clip (bootstrap): word
+    errors inside one utterance are not independent, so a plain word-count test
+    would report an interval far tighter than the evidence supports.
+    """
+    import random
+
+    left = dict(a.get("per_clip") or [])
+    right = dict(b.get("per_clip") or [])
+    shared = sorted(set(left) & set(right))
+    if not shared:
+        return {"clips": 0, "difference": None,
+                "note": "the two runs share no clips — nothing to compare"}
+
+    deltas = [left[name] - right[name] for name in shared]
+    observed = sum(deltas) / len(deltas)
+    rng = random.Random(seed)
+    means = []
+    for _ in range(rounds):
+        sample = [deltas[rng.randrange(len(deltas))] for _ in deltas]
+        means.append(sum(sample) / len(sample))
+    means.sort()
+    low = means[int(0.025 * rounds)]
+    high = means[int(0.975 * rounds) - 1]
+    return {
+        "clips": len(shared),
+        "a": a.get("engine"), "b": b.get("engine"),
+        # Positive: `b` makes fewer errors than `a`.
+        "difference": round(observed, 3),
+        "ci95": [round(low, 3), round(high, 3)],
+        "decisive": low > 0 or high < 0,
+        "note": ("Paired on the same clips and resampled by clip. One voice and "
+                 "one microphone: this says which engine hears *this* learner "
+                 "better, not which is better at Estonian."),
+    }

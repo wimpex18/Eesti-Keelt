@@ -278,3 +278,102 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
             "подтверждённые ошибки: в журнал ошибок они не попадают."
         ),
     }
+
+
+# --------------------------------------------------------------------------
+# Recording the speech eval set (local only)
+# --------------------------------------------------------------------------
+#
+# The set that decides which recogniser to use is the learner's own voice
+# (ADR-0003), and the only way to get it is to record it. That is a local
+# errand: this route writes audio to `data/eval/asr/` and refuses to exist on
+# the deployment, where `PROXY_TOKEN` is set. The audio stays on the machine.
+
+@router.post("/api/eval/clip")
+async def eval_clip(request: Request) -> dict:
+    """Save one recording with what was said, for `cli eval --suite asr`."""
+    import os
+    import re as _re
+
+    from ..evals.asr import SET
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail=(
+            "Запись набора для оценки — локальная задача (`cli serve`)."))
+
+    said = request.query_params.get("text", "").strip()
+    planted = request.query_params.get("planted", "").strip()
+    if not said:
+        raise HTTPException(status_code=400, detail="Нужен текст, который читали.")
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(status_code=400, detail="Запись пустая.")
+
+    SET.mkdir(parents=True, exist_ok=True)
+    suffix = ".webm" if "webm" in request.headers.get("content-type", "") else ".wav"
+    # A name that cannot collide with an existing clip, however many there are.
+    taken = {p.stem for p in SET.glob("*")}
+    n = len(taken)
+    while f"{n:04d}" in taken:
+        n += 1
+    stem = f"{n:04d}"
+    (SET / f"{stem}{suffix}").write_bytes(audio)
+    (SET / f"{stem}.txt").write_text(said, encoding="utf-8")
+    if planted:
+        (SET / f"{stem}.said").write_text(planted, encoding="utf-8")
+    clips = len(list(SET.glob("*.txt")))
+    return {"saved": stem, "clips": clips, "planted": bool(planted),
+            "folder": str(SET),
+            "note": _re.sub(r"\s+", " ", """
+                Запись сохранена только на этой машине. Для сравнения движков
+                нужно 80–150 фраз, примерно четверть — с намеренной ошибкой.
+            """).strip()}
+
+
+@router.get("/api/eval/prompt")
+def eval_prompt(planted: bool = False, seed: int | None = None) -> dict:
+    """A sentence to read for the eval set.
+
+    With `planted`, the sentence carries a deliberately wrong form — the
+    distractor an object-case drill would have offered — because the measure
+    that decides the engine is how often a mistake comes back *corrected*
+    (ADR-0003).
+    """
+    import os
+    import secrets
+
+    from ..item import BLANK
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail=(
+            "Запись набора для оценки — локальная задача (`cli serve`)."))
+    seed = seed if seed is not None else secrets.randbelow(2**31)
+
+    if planted:
+        from ..practice import items_for
+
+        items = [i for i in items_for("obj-case", count=6, seed=seed)
+                 if getattr(i, "distractor", "")]
+        if not items:
+            raise HTTPException(status_code=503, detail="Заданий сейчас нет.")
+        item = items[0]
+        return {"text": item.prompt.replace(BLANK, item.distractor),
+                "planted": item.distractor, "correct": item.answer,
+                "note": ("Прочитай вслух **как написано** — форма здесь "
+                         "намеренно неверная. Так проверяется, не «исправит» "
+                         "ли движок ошибку за тебя.")}
+
+    from ..difficulty import known_lemmas
+    from ..pronunciation import sentences_to_say
+
+    try:
+        content = content_db()
+    except Exception:  # noqa: BLE001 - no corpus is a state, not an error
+        raise HTTPException(status_code=503, detail=(
+            "Для этого нужен корпус текстов, а он не загружен.")) from None
+    said = sentences_to_say(content, count=1, seed=seed, words=db(),
+                            known=known_lemmas(vocab_db()))
+    if not said:
+        raise HTTPException(status_code=503, detail="Предложений сейчас нет.")
+    return {"text": said[0].text, "planted": "", "correct": "",
+            "note": "Прочитай вслух как есть."}

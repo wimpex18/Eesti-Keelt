@@ -192,6 +192,25 @@
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
 
+    <!-- Recording the speech eval set. Local only (`cli serve`): the route is
+         absent on the deployment, so this block stays hidden there (ADR-0003). -->
+    <details class="evalset" id="evalSet" hidden>
+      <summary lang="et">Hindamiskomplekt <i class="ru" lang="ru">запись набора для оценки</i></summary>
+      <p class="hint">Читай вслух то, что появится. Записи остаются на этой
+        машине и нужны, чтобы сравнить движки распознавания на
+        <strong>твоём</strong> голосе. Нужно 80–150 фраз, четверть из них — с
+        намеренной ошибкой.</p>
+      <div class="row">
+        <button class="go" id="evalNext" lang="et">Järgmine lause
+          <span class="ru" lang="ru">следующая фраза</span></button>
+        <button class="ghost" id="evalRec" lang="et" disabled>● Salvesta
+          <span class="ru" lang="ru">записать</span></button>
+        <span class="hint" id="evalCount"></span>
+      </div>
+      <div class="prompt" id="evalPrompt" lang="et"></div>
+      <p class="hint" id="evalNote"></p>
+    </details>
+
     <!-- The exam is paired, so practice has two sides: a model plays the partner
          (ADR-0002). It never corrects and never scores. -->
     <details class="vestlus" id="vestlus">

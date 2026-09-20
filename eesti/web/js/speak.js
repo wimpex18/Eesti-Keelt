@@ -4,7 +4,7 @@
    and the caveat beside it is Russian on purpose: a miss may be the recogniser
    rather than the learner's mouth, and a caveat nobody can read is not one. */
 
-import {$, api, esc, rawApi, ruCount, setLabel} from "./core.js";
+import {$, api, esc, md, rawApi, ruCount, setLabel} from "./core.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
@@ -290,3 +290,73 @@ $("#vestlusSend").onclick = () => {
 $("#vestlusSay").addEventListener("keydown", e => {
   if (e.key === "Enter") $("#vestlusSend").click();
 });
+
+
+/* Recording the speech eval set (ADR-0003).
+
+   Local only: `/api/eval/prompt` is 404 on the deployment, so the block stays
+   hidden there. Every clip is written next to what was actually read — and for
+   a planted prompt, next to the word that was deliberately said wrong, which is
+   what makes "did the engine correct my mistake away?" measurable. */
+let evalNow = null, evalRecorder = null, evalChunks = [];
+
+(async () => {
+  try {
+    const r = await api("/api/eval/prompt", null, "GET");
+    await r.json();
+    $("#evalSet").hidden = false;
+  } catch { /* deployed, or no corpus: the block stays hidden */ }
+})();
+
+async function evalPrompt() {
+  // Every fourth prompt carries a deliberate mistake, which is the ratio the
+  // eval needs (a quarter planted).
+  const planted = Math.random() < 0.25;
+  try {
+    const got = await (await api(
+      `/api/eval/prompt?planted=${planted}`, null, "GET")).json();
+    evalNow = got;
+    $("#evalPrompt").textContent = got.text;
+    $("#evalNote").innerHTML = md(got.note || "");
+    $("#evalRec").disabled = false;
+  } catch (e) {
+    $("#evalNote").textContent = e.message;
+  }
+}
+
+$("#evalNext").onclick = evalPrompt;
+
+$("#evalRec").onclick = async () => {
+  const btn = $("#evalRec");
+  if (evalRecorder && evalRecorder.state === "recording") {
+    evalRecorder.stop();
+    return;
+  }
+  if (!evalNow) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    evalChunks = [];
+    evalRecorder = new MediaRecorder(stream);
+    evalRecorder.ondataavailable = e => e.data.size && evalChunks.push(e.data);
+    evalRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      setLabel(btn, "● Salvesta");
+      const blob = new Blob(evalChunks, {type: evalRecorder.mimeType || "audio/webm"});
+      const q = new URLSearchParams({text: evalNow.text});
+      if (evalNow.planted) q.set("planted", evalNow.planted);
+      try {
+        const saved = await (await rawApi("/api/eval/clip?" + q, {
+          method: "POST", headers: {"Content-Type": blob.type}, body: blob,
+        })).json();
+        $("#evalCount").textContent = `записано: ${saved.clips}`;
+        evalPrompt();
+      } catch (e) {
+        $("#evalNote").textContent = "Не сохранилось: " + e.message;
+      }
+    };
+    evalRecorder.start();
+    setLabel(btn, "■ Lõpeta");
+  } catch (e) {
+    $("#evalNote").textContent = "Микрофон не открылся: " + e.message;
+  }
+};

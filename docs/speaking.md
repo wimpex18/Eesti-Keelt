@@ -45,15 +45,27 @@ process can use.
 
 ## Before swapping a recogniser
 
-`cli eval --suite asr` scores the engines on **the owner's own voice**:
-`data/eval/asr/<name>.wav` with `<name>.txt` (what was actually said, verbatim)
-and optionally `<name>.said` naming a word deliberately said wrong. Recordings
-are personal data and stay out of git.
+`cli eval --suite asr` scores the engines on **the owner's own voice**
+(ADR-0003, `docs/adr/0003-speech-eval-data.md`). The set is recorded in the app:
+`Rääkimine → Hindamiskomplekt` shows a sentence, records it, and writes
+`data/eval/asr/<n>.webm` beside `<n>.txt` (what was read) and, for a planted
+prompt, `<n>.said` (the word deliberately said wrong). That block exists only
+under `cli serve`: the routes are absent where `PROXY_TOKEN` is set, so nothing
+is recorded on the deployment. Recordings are personal data and stay out of git.
 
-It reports WER and CER, latency, and the measure that decides this choice: the
-**false-accept rate** — how often a planted mistake comes back corrected. A
-generic Whisper tends to tidy learner Estonian into fluent Estonian, which hides
-the mistake and flatters a read-aloud score. TalTech's verbatim model exists for
-exactly this, and is the candidate to beat (`docs/status.md`).
+Aim for 80–150 sentences, a quarter of them planted — the size at which a
+10 % versus 20 % difference is distinguishable (Liu et al., Interspeech 2023),
+given that words inside one utterance are not independent.
+
+It reports WER with its substitution/deletion/insertion split (insertions are
+the recogniser inventing words in a pause), CER, latency, and the measure that
+decides this choice: the **false-accept rate** — how often a planted mistake
+comes back corrected. A generic Whisper tends to tidy learner Estonian into
+fluent Estonian, which hides the mistake and flatters a read-aloud score.
+TalTech's verbatim model exists for exactly this, and is the candidate to beat.
+
+`evals.asr.compare(a, b)` puts two runs side by side on the same clips and
+resamples by clip, because word errors inside one utterance are correlated; it
+reports the difference with a 95 % interval and whether it is decisive.
 
 No number here is a gate: one voice and one microphone describe this learner.
