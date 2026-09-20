@@ -1,7 +1,7 @@
 /* Am I ready: the level, the official material, and the checkpoint. */
 
 import {emptyState, markIcon, uiIcon} from "./chrome.js";
-import {$, api, esc} from "./core.js";
+import {$, api, esc, langOf} from "./core.js";
 import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
@@ -100,8 +100,8 @@ export async function loadExam() {
         <span class="part-ev"> · ${esc(part.evidence)}</span>
         ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.url
             ? `<a href="${esc(part.next_task.url)}" target="_blank"
-                 rel="noopener" lang="et">${esc(part.next_task.title)}</a>`
-            : `<span lang="et">${esc(part.next_task.title)}</span>`}</div>` : ""}
+                 rel="noopener" lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</a>`
+            : `<span lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</span>`}</div>` : ""}
       </span></div>`;
   }
   html += `</div>`;
@@ -175,10 +175,10 @@ export async function loadExam() {
 const linkRow = it => it.local
   ? `<div class="lib-item">
        <button class="linky" data-task="${esc(it.id)}" data-fmt="${esc(it.format || "")}"
-               lang="et">${esc(it.title)}</button>
+               lang="${langOf(it.title)}">${esc(it.title)}</button>
        <span class="lib-meta">${esc(it.format || "")} · в приложении</span></div>`
   : `<div class="lib-item">
-       <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="et">${esc(it.title)}</a>
+       <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="${langOf(it.title)}">${esc(it.title)}</a>
        <span class="lib-meta">${esc(it.format || "")}${
          it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
 

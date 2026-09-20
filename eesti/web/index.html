@@ -446,6 +446,16 @@
       </div>
       <div id="xlOut" class="gloss-late" hidden></div>
       <div id="wordCard" hidden></div>
+      <!-- Did the text land? The questions are written by a model and keyed by
+           the text itself; the answers are graded here, never by a model. -->
+      <div id="readQuiz" class="quiz">
+        <div class="row">
+          <button class="ghost" id="quizBtn" lang="et">Küsimused
+            <span class="ru" lang="ru">вопросы по тексту</span></button>
+          <span class="hint" id="quizHint"></span>
+        </div>
+        <div id="quizList"></div>
+      </div>
     </div>
   </section>
 

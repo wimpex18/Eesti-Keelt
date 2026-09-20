@@ -1,7 +1,7 @@
 /* Lugemine: the shelf, opening a text, and looking a word up inside it. */
 
 import {actsAsButton, emptyState, retryableError, skeleton, uiIcon} from "./chrome.js";
-import {$, api, esc, ruCount} from "./core.js";
+import {$, api, esc, langOf, ruCount} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
 import {showWordCard} from "./vocab.js";
 
@@ -97,13 +97,13 @@ export async function loadLibrary(append = false) {
       /* HARNO's tasks are indexed, never copied: `body` is empty by licence. They
          open the official page (`external`, `url`) instead of an empty reader. */
       if (it.external) {
-        el.innerHTML = `<h4 lang="et">${esc(it.title)}</h4>
+        el.innerHTML = `<h4 lang="${langOf(it.title)}">${esc(it.title)}</h4>
           <span class="lib-meta">HARNO · задание на сайте экзамена ↗</span>`;
         el.href = it.url;
         el.target = "_blank";
         el.rel = "noopener";
       } else {
-        el.innerHTML = `<h4 lang="et">${esc(it.title)}</h4>
+        el.innerHTML = `<h4 lang="${langOf(it.title)}">${esc(it.title)}</h4>
           <span class="lib-meta">${it.band ? `<span lang="et">${esc(it.band)}</span> · ` : ""}${size}${
             it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${cover}</span>`;
         actsAsButton(el, () => openItem(it.id));
@@ -163,7 +163,82 @@ async function openItem(id) {
     m => `<w class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
   $("#wordCard").hidden = true;
   show();
+  // The questions are a separate request: a text opens whether or not it has any.
+  loadQuiz(id);
 }
+
+/* Questions about the text (ADR-0004): a model wrote them, the text keys them,
+   and this page never sees an answer until it has sent the learner's own. */
+let quizItem = null;
+
+function paintQuiz(d) {
+  const list = $("#quizList"), hint = $("#quizHint"), btn = $("#quizBtn");
+  list.replaceChildren();
+  btn.hidden = !d.can_make || !!d.questions.length;
+  hint.textContent = d.questions.length
+    ? `${d.questions.length} · ответ словами текста`
+    : (d.note || (d.can_make ? "" : "текст слишком короткий"));
+  for (const q of d.questions) {
+    const box = document.createElement("div");
+    box.className = "quiz-item";
+    box.innerHTML = `<p lang="et">${esc(q.question)}</p>
+      <div class="row">
+        <input type="text" lang="et" data-idx="${q.idx}"
+               autocapitalize="off" autocomplete="off"
+               placeholder="vastus tekstist">
+        <button class="ghost" data-check="${q.idx}" lang="et">Kontrolli
+          <span class="ru" lang="ru">проверить</span></button>
+      </div>
+      <div class="quiz-verdict" hidden></div>`;
+    list.append(box);
+  }
+}
+
+async function loadQuiz(id) {
+  quizItem = id;
+  try {
+    paintQuiz(await (await api(`/api/read/questions/${encodeURIComponent(id)}`)).json());
+  } catch { $("#quizList").replaceChildren(); $("#quizHint").textContent = ""; }
+}
+
+$("#quizBtn").onclick = async () => {
+  if (!quizItem) return;
+  const btn = $("#quizBtn");
+  btn.disabled = true;
+  $("#quizHint").textContent = "составляю вопросы…";
+  try {
+    paintQuiz(await (await api(
+      `/api/read/questions/${encodeURIComponent(quizItem)}`, {})).json());
+  } catch (err) {
+    $("#quizHint").textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+$("#quizList").addEventListener("click", async e => {
+  const btn = e.target.closest("button[data-check]");
+  if (!btn || !quizItem) return;
+  const box = btn.closest(".quiz-item");
+  const field = box.querySelector("input");
+  const out = box.querySelector(".quiz-verdict");
+  btn.disabled = true;
+  try {
+    const r = await (await api("/api/read/answer", {
+      item_id: quizItem, idx: Number(btn.dataset.check), answer: field.value,
+    })).json();
+    out.hidden = false;
+    out.className = `quiz-verdict ${r.correct ? "right" : "wrong"}`;
+    out.textContent = r.why_ru;
+    field.disabled = true;
+  } catch (err) {
+    out.hidden = false;
+    out.className = "quiz-verdict wrong";
+    out.textContent = err.message;
+    btn.disabled = false;
+  }
+});
+
 
 $("#xlBtn").onclick = async () => {
   const picked = (window.getSelection?.().toString() || "").trim();

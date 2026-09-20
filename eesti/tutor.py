@@ -321,6 +321,47 @@ def check_writing(text: str) -> dict:
     return result
 
 
+#: Questions about a text. The model writes the question; the *text* keys it,
+#: and `comprehension.verify` throws away anything whose answer is not the
+#: text's own words (ADR-0004).
+QUESTIONS = """\
+You write reading-comprehension questions for a Russian-speaking learner of
+Estonian (A2/B1), about the Estonian text given to you.
+
+Rules:
+- Ask in Estonian, in simple language. Each question ends with "?".
+- The answer to every question must be a span COPIED WORD FOR WORD from the
+  text, at most 8 words long, appearing in the text exactly once.
+- Never ask something the text does not answer. Never write the answer into
+  the question.
+- Ask about different parts of the text: who, where, when, how many, why.
+Return JSON: {"questions": [{"q": "...", "a": "..."}]}"""
+
+
+def propose_questions(text: str, want: int = 5) -> tuple[list[dict], str]:
+    """Ask a lane for question/answer pairs. Returns the pairs and the engine.
+
+    Nothing here is trusted: `comprehension.verify` decides which pairs are
+    questions at all, and an empty list is a normal answer.
+    """
+    from .providers import budget
+    from .providers.llm import complete, parse_json
+
+    body = text.strip()[:6000]
+    prompt = (f"Write {want} questions about this text.\n\nTEXT:\n{body}")
+    for name in _lanes():
+        try:
+            budget.spend(f"llm:{name}")
+            said = parse_json(complete(name, QUESTIONS, prompt))
+        except Exception:  # noqa: BLE001 - try the next lane, then give up
+            continue
+        pairs = [p for p in (said.get("questions") or [])
+                 if isinstance(p, dict) and p.get("q") and p.get("a")]
+        if pairs:
+            return pairs, f"llm:{name}"
+    return [], "none"
+
+
 def speaking_feedback(transcript: str) -> dict:
     """The same check over a transcript, read as advisory: a recogniser's mistake
     is not the learner's, so nothing here is ever recorded (`from_transcript`).

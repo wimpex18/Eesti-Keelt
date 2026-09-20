@@ -26,8 +26,10 @@ can answer "may this be shown to anyone but the owner?".
 Keep EKI attribution wherever EKI text is shown (`eesti/licences.py`).
 
 Sõnaveeb and Ekilex answers are stored once per word in `vocab.db`
-(`gloss.py`) under a daily cap. For more than the stored fields, link to
-Sõnaveeb (`sonapi.entry_url`).
+(`gloss.py`) under a daily cap: the Russian, the definitions, the rection, the
+muuttüüp and the sense's **usage examples**, which the card credits to whoever
+wrote them. For more than the stored fields, link to Sõnaveeb
+(`sonapi.entry_url`).
 
 ## EKI files (`deploy/eki/`)
 

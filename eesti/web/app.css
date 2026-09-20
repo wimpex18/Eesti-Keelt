@@ -598,6 +598,15 @@
     line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
   .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
     text-align:left;font:inherit;text-decoration:underline}
+  /* Questions under a text: each one is a line, its verdict under it. */
+  .quiz{margin-top:var(--s4)}
+  .quiz-item{padding:var(--s3) 0;border-top:1px solid var(--line)}
+  .quiz-item p{margin:0 0 var(--s2)}
+  .quiz-item .row{gap:var(--s2)}
+  .quiz-item input{flex:1 1 12rem;min-width:0}
+  .quiz-verdict{margin-top:var(--s2);font-size:var(--fs-note)}
+  .quiz-verdict.right{color:var(--good)}
+  .quiz-verdict.wrong{color:var(--bad)}
   .exam-parts{margin:var(--s2) 0}
   .exam-parts > summary{cursor:pointer}
   .exam-parts li{margin-bottom:var(--s2)}

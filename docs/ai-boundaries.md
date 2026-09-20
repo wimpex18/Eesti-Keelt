@@ -47,6 +47,20 @@ A transcript mixes what the learner said with what the recogniser heard. So:
   Notion log (speech has no path to `queue_failed`). The transcript is kept
   in the evidence log as practice, never as graded evidence.
 
+## A model may write the material; only code may key it
+
+ADR-0004 (`docs/adr/0004-model-authored-content.md`). The reading questions
+under a text are written by a model and **keyed by the text**: before a
+question is stored, code checks that its answer appears in the text verbatim
+and exactly once, that the question does not contain its own answer, and that
+every word in it is one Vabamorf knows. What survives is stored with the engine
+that wrote it and a generator version, so the same text asks the same questions
+next month and an answer can be replayed. Answering asks no model at all: the
+learner's words are compared with the stored span (`eesti/comprehension.py`).
+
+The same rule bounds anything generated later: the model may propose, code
+decides what is gradable, and the verified item is what is kept.
+
 ## One boundary
 
 Every model call that speaks to the learner in words goes through

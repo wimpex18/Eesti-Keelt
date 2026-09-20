@@ -7,9 +7,21 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m eesti.cli fetch-data      # word list, ~2.8 MB, once
 .venv/bin/python -m eesti.cli build           # import and index
 .venv/bin/python -m eesti.cli export          # form index for the word card
-.venv/bin/python -m eesti.cli harvest-reading # optional: reading texts
+.venv/bin/python -m eesti.cli rections        # EKK's rection table, once
+.venv/bin/python -m eesti.cli harvest-reading # reading texts (Selges keeles)
+.venv/bin/python -m eesti.cli harvest-news    # ERR's weekly Lihtsad uudised
+.venv/bin/python -m eesti.cli harvest         # ERR Raadio 4 archives
+.venv/bin/python -m eesti.cli harvest-exam --levels A2,B1 --download
+.venv/bin/python -m eesti.cli link-topics     # texts -> the topics they show
 .venv/bin/python -m eesti.cli serve           # http://127.0.0.1:8000
 ```
+
+`rektsioon` drills need `cli rections`, and the library is empty until the
+harvests run: each one says what it stored.
+
+HTTPS is verified against certifi's bundle rather than the platform's store
+(`eesti/tls.py`), because a python.org build on macOS could not verify EKI's
+archive and a source that will not verify looks exactly like one that is down.
 
 Without any key: drills, grading, the path, reading, review and vocabulary all
 work; the writing check uses Vabamorf offline evidence.

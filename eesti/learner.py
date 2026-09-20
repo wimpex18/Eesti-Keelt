@@ -34,7 +34,7 @@ STALE_DAYS = 60
 SKILL_EVENTS = {
     "kirjutamine": ("writing",),
     "kuulamine": ("dictation",),
-    "lugemine": (),
+    "lugemine": ("comprehension",),
     "raakimine": ("speech",),
 }
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from ..lookup import annotate
 from ..sources import count as content_count
@@ -212,3 +213,80 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
         "url": json.loads(row["meta"] or "{}").get("url"),
         "profile": annotate(row["body"] or ""),
     }
+
+
+# --------------------------------------------------------------------------
+# Reading comprehension: a model writes the questions, the text keys them
+# --------------------------------------------------------------------------
+#
+# ADR-0004. The answer travels no further than the server: the page is sent the
+# questions only, and `/api/read/answer` compares what the learner wrote with
+# the span stored beside the text.
+
+class ReadAnswer(BaseModel):
+    item_id: str
+    idx: int
+    answer: str = Field(default="", max_length=400)
+
+
+def _text_of(item_id: str) -> str:
+    row = content_db().execute(
+        "SELECT body FROM items WHERE id = ?", (item_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Этот материал не найден.")
+    return row["body"] or ""
+
+
+@router.get("/api/read/questions/{item_id}")
+def read_questions(item_id: str) -> dict:
+    """The questions already written for this text. Never generates: a page that
+    opens a text must not wait on a model."""
+    from .. import comprehension
+
+    text = _text_of(item_id)
+    made = comprehension.stored(content_db(), item_id)
+    return {
+        "item_id": item_id,
+        "questions": [q.asked() for q in made],
+        # Whether asking for questions is worth the learner's tap.
+        "can_make": len(text.split()) >= comprehension.MIN_TEXT_WORDS,
+    }
+
+
+@router.post("/api/read/questions/{item_id}")
+def make_questions(item_id: str) -> dict:
+    """Write the questions for this text, once, and keep them.
+
+    An empty list is an honest answer: nothing the model proposed had its answer
+    in the text.
+    """
+    from .. import comprehension
+
+    text = _text_of(item_id)
+    made = comprehension.make(content_db(), item_id, text)
+    return {
+        "item_id": item_id,
+        "questions": [q.asked() for q in made],
+        "can_make": len(text.split()) >= comprehension.MIN_TEXT_WORDS,
+        "note": ("" if made else
+                 "Вопросы не получились: ни один ответ не нашёлся в тексте "
+                 "дословно. Попробуй другой текст."),
+    }
+
+
+@router.post("/api/read/answer")
+def read_answer(req: ReadAnswer) -> dict:
+    """Grade one answer against the text's own words, and record the practice."""
+    from .. import comprehension, evidence
+
+    questions = {q.idx: q for q in comprehension.stored(content_db(), req.item_id)}
+    question = questions.get(req.idx)
+    if question is None:
+        raise HTTPException(status_code=404, detail="Этот вопрос не найден.")
+    verdict = comprehension.grade(question, req.answer)
+    # Reading practice, and the only event that counts for the `lugemine` part.
+    evidence.record("comprehension", {
+        "item": req.item_id, "idx": req.idx, "correct": verdict["correct"],
+        "engine": question.engine, "v": comprehension.VERSION,
+    })
+    return {"idx": req.idx, **verdict}

@@ -1,7 +1,7 @@
 /* Kuulamine: dictation, the listening shelf, and turning any text into audio. */
 
 import {actsAsButton, emptyState, uiIcon} from "./chrome.js";
-import {$, api, esc, md, setLabel} from "./core.js";
+import {$, api, esc, langOf, md, setLabel} from "./core.js";
 import {mountAudio} from "./media.js";
 import {loadRail} from "./review.js";
 
@@ -133,11 +133,11 @@ export async function loadListenLibrary() {
       el.innerHTML = (items || []).map(it => it.external
         ? `<a class="lib-item" href="${esc(it.url || "#")}" target="_blank"
               rel="noopener">
-             <h4 lang="et">${esc(it.title)}</h4>
+             <h4 lang="${langOf(it.title)}">${esc(it.title)}</h4>
              <span class="lib-meta">${it.level ? esc(it.level) + " · " : ""}EIS ↗</span>
            </a>`
         : `<div class="lib-item" data-id="${esc(it.id)}">
-             <h4 aria-expanded="false" lang="et">${esc(it.title)}</h4>
+             <h4 aria-expanded="false" lang="${langOf(it.title)}">${esc(it.title)}</h4>
              <span class="lib-meta">${it.words ? it.words + " слов" : "аудио"}${
                it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}${
                it.level ? " · " + esc(it.level) : ""}</span>
