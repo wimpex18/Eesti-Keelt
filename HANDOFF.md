@@ -5,22 +5,23 @@ append; at most 30 lines.
 
 ## Task in flight
 
-PR #64 (`fix/p0-safety`) carries:
+Branch `exam/p3-exam-domain` (PR not opened yet) carries P3:
 
-- P0 safety; the Neurotõlge grammar lane; the web redesign files;
-- P1: evidence log, signed item refs, FSRS auto-rating, log in the Durable
-  Object, writing and speech evidence;
-- a slimmer test suite (fast by default, `--browser` opt-in);
-- P2: topic representations, weak rules and refresh (`learner.py`), and
-  today's plan (`planning.py`, Rada's Täna).
+- `eesti/exam.py`: HARNO's spec and sittings as data; the sitting is the
+  learner's choice (`goal-set` event), drives the countdown and `.ics`;
+- `eesti/mock.py`: `Proovieksam`, one part on the exam's clock, recorded as
+  `exam-section` evidence that readiness counts;
+- test-out from `Kogu rada` (`/api/testout/{topic}`), graded server-side.
 
 ## Next step
 
-1. After merge, in Cloud Shell: run `bash deploy/check-service.sh` and set
-   maximum instances to 1 if it warns; then run `deploy.yml` for the Worker.
-2. P3 (before registration opens on 2027-01-01): ExamSpec and ExamSession data,
-   a `goal_set` event replacing `readiness.TARGET`, timed mocks with section
-   evidence, readiness v2, `.ics` reminders, a placement API.
+1. Open the PR; the user merges. Then, in Cloud Shell, nothing new is
+   required: the image carries the change.
+2. What P3 still lacks: the writing mock is graded only by word count (the
+   writing check explains the rest), and no mock covers a whole sitting in
+   one run.
+3. P4 (plan): the bounded AI tutor, the 200-case GEC eval, per-correction
+   provenance, the source registry as data, structured logging and budgets.
 
 ## Deferred on purpose (one learner)
 

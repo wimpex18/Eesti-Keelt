@@ -153,7 +153,8 @@ export async function loadPath() {
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
       pathMeta[t.id] = t;
       const testOut = t.state === "ready" || t.state === "in progress"
-        ? `<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>` : "";
+        ? `<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
+           <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button>` : "";
       return `<div class="topic ${t.state.replace(" ", "-")}">
         <span class="st">${stateIcon(t.state)}${esc(RU[t.state] || t.state)}</span>
         <span class="lv" data-level="${esc(t.level)}">${esc(t.level)}</span>
@@ -206,6 +207,12 @@ export async function loadStatus() {
 
 
 $("#pathList").addEventListener("click", e => {
+  const out = e.target.closest("button[data-testout]");
+  if (out) {
+    $("#pathAll").open = false;
+    startTestOut(out.dataset.testout);
+    return;
+  }
   const b = e.target.closest("button[data-topic]");
   if (b) {
     pathTopic = b.dataset.topic;
@@ -214,6 +221,54 @@ $("#pathList").addEventListener("click", e => {
     startPractice();
   }
 });
+
+
+/* Test-out: five items, all five right marks the topic known (`placement.py`).
+   Answered as one set, graded by the server, so the page never decides. */
+async function startTestOut(topic) {
+  const out = $("#practiceOut");
+  out.innerHTML = `<p class="hint">Загружаю…</p>`;
+  let set;
+  try {
+    set = await (await api(`/api/testout/${encodeURIComponent(topic)}`, null, "GET")).json();
+  } catch (e) {
+    out.innerHTML = `<div class="banner">${esc(e.message)}</div>`;
+    return;
+  }
+  out.innerHTML = `
+    <div class="banner info"><b lang="et">${esc(set.et)}</b> · ${esc(set.note)}</div>
+    <div id="testoutTasks">${set.items.map((it, i) => `
+      <div class="mock-task" data-i="${i}">
+        <div class="prompt" lang="et">${esc(it.prompt).replace("____",
+          '<span class="blank">____</span>')}</div>
+        <div class="row"><span class="hint" lang="et">${esc(it.hint || "")}</span>
+          <input type="text" size="16" lang="et" aria-label="Vastus — ответ"
+            ${ANSWER_FIELD}></div>
+      </div>`).join("")}</div>
+    <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
+      <span class="ru" lang="ru">проверить</span></button></div>
+    <div class="verdict" id="testoutVerdict" role="status"></div>`;
+  out.querySelector("input")?.focus();
+  $("#testoutDone").onclick = async () => {
+    $("#testoutDone").disabled = true;
+    const given = [...out.querySelectorAll("#testoutTasks input")].map(x => x.value);
+    const verdict = $("#testoutVerdict");
+    try {
+      const r = await (await api(`/api/testout/${encodeURIComponent(topic)}`,
+                                 {seed: set.seed, given})).json();
+      verdict.className = r.passed ? "verdict ok" : "verdict no";
+      verdict.innerHTML = r.passed
+        ? `${r.correct} из ${r.asked} — тема засчитана.`
+        : `${r.correct} из ${r.asked}. Нужно ${set.required} из ${set.required};
+           ничего не потеряно — тема просто остаётся в пути.`;
+      loadPath(); loadRail();
+    } catch (e) {
+      $("#testoutDone").disabled = false;
+      verdict.className = "verdict no";
+      verdict.innerHTML = `Не проверено: ${esc(e.message)}`;
+    }
+  };
+}
 
 
 async function loadThemes() {

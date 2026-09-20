@@ -175,3 +175,47 @@ def test_the_probe_bar_is_stricter_than_the_practice_gate():
     from eesti.progress import MASTERY_CORRECT, MASTERY_WINDOW
 
     assert PROBE_REQUIRED / PROBE_ITEMS > MASTERY_CORRECT / MASTERY_WINDOW
+
+
+class TestTheWebTestOut:
+    """Test-out from the app: the server rebuilds the items from the seed and runs
+    the same probe the CLI does."""
+
+    @pytest.fixture
+    def client(self):
+        pytest.importorskip("httpx2")
+        from fastapi.testclient import TestClient
+
+        from eesti.app import app
+
+        return TestClient(app)
+
+    def test_five_of_five_marks_the_topic_known(self, client):
+        from eesti.placement import PROBE_ITEMS
+
+        got = client.get("/api/testout/tingiv?seed=4").json()
+        assert len(got["items"]) == PROBE_ITEMS and got["required"] == PROBE_ITEMS
+        r = client.post("/api/testout/tingiv", json={
+            "seed": got["seed"], "given": [i["answer"] for i in got["items"]]}).json()
+        assert r["passed"] and r["correct"] == PROBE_ITEMS
+        rows = {t["id"]: t for t in client.get("/api/curriculum").json()["topics"]}
+        assert rows["tingiv"]["state"] == "mastered"
+
+    def test_one_miss_leaves_the_topic_where_it_was(self, client):
+        got = client.get("/api/testout/tingiv?seed=4").json()
+        given = [i["answer"] for i in got["items"]]
+        given[0] = "vale"
+        r = client.post("/api/testout/tingiv",
+                        json={"seed": got["seed"], "given": given}).json()
+        assert not r["passed"] and r["correct"] == len(given) - 1
+        rows = {t["id"]: t for t in client.get("/api/curriculum").json()["topics"]}
+        assert rows["tingiv"]["state"] != "mastered"
+
+    def test_a_topic_without_a_generator_says_so(self, client):
+        assert client.get("/api/testout/lauseehitus").status_code == 400
+        assert client.get("/api/testout/nonesuch").status_code == 404
+
+    def test_the_wrong_number_of_answers_is_refused(self, client):
+        got = client.get("/api/testout/tingiv?seed=4").json()
+        assert client.post("/api/testout/tingiv", json={
+            "seed": got["seed"], "given": ["x"]}).status_code == 400

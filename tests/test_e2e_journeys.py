@@ -967,6 +967,33 @@ class TestChoosingTheSitting:
         assert not page.errors, page.errors
 
 
+class TestTestingOutOfATopic:
+    """Kogu rada offers a test-out; five right marks the topic known."""
+
+    def test_a_clean_sweep_marks_the_topic(self, page, live_server):
+        open_tab(page, "learn", "path")
+        # The list lives inside a closed <details>: attached first, then opened.
+        page.wait_for_selector("#pathList .topic", state="attached", timeout=20000)
+        page.click("#pathAll > summary")
+        button = page.locator("#pathList button[data-testout]").first
+        button.wait_for(timeout=10000)
+        topic = button.get_attribute("data-testout")
+        button.click()
+        page.wait_for_selector("#testoutTasks input", timeout=20000)
+
+        # The answers come from the API, as a learner who knows them would type.
+        answers = page.evaluate("""async ([base, topic]) => {
+            const r = await fetch(`${base}/api/testout/${topic}`);
+            return await r.json();
+        }""", [live_server, topic])
+        inputs = page.locator("#testoutTasks input")
+        assert inputs.count() == len(answers["items"])
+        page.click("#testoutDone")
+        page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
+        assert "из" in page.locator("#testoutVerdict").inner_text()
+        assert not page.errors, page.errors
+
+
 class TestTheTimedMock:
     """Proovieksam: one part, on the exam's clock, graded by the server."""
 

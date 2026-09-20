@@ -316,3 +316,57 @@ def todays_plan(minutes: int = 20) -> dict:
     from ..planning import issue
 
     return issue(max(5, min(minutes, 120))).to_dict()
+
+
+# --------------------------------------------------------------------------
+# Test-out: skip a topic you already know
+# --------------------------------------------------------------------------
+
+@router.get("/api/testout/{topic}")
+def testout_items(topic: str, seed: int | None = None) -> dict:
+    """Five items for a test-out. All five right marks the topic known."""
+    import secrets
+
+    from ..curriculum import by_id
+    from ..placement import PROBE_ITEMS, PROBE_REQUIRED
+    from ..practice import items_for
+
+    try:
+        meta = by_id(topic)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"no such topic: {topic}") from exc
+    if meta.generator is None:
+        raise HTTPException(status_code=400, detail=(
+            "По этой теме нет заданий — её нельзя сдать экстерном."))
+    seed = seed if seed is not None else secrets.randbelow(2**31)
+    try:
+        items = items_for(topic, count=PROBE_ITEMS, seed=seed)
+    except (ValueError, RuntimeError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "topic": topic, "et": meta.et, "seed": seed, "required": PROBE_REQUIRED,
+        "items": [item_for_page(i) for i in items],
+        "glosses": _glosses_for([i.lemma for i in items]),
+        "note": ("Пять заданий. Все пять верно — тема засчитывается и "
+                 "открывает следующие; ошибка ничего не отнимает."),
+    }
+
+
+class TestOut(BaseModel):
+    seed: int
+    given: list[str] = Field(min_length=1, max_length=10)
+
+
+@router.post("/api/testout/{topic}")
+def testout_result(topic: str, req: TestOut) -> dict:
+    """Grade a test-out: the server rebuilds the same items from the seed and
+    runs the same probe the CLI does (`eesti/placement.py`)."""
+    from ..placement import PROBE_ITEMS, probe
+
+    if len(req.given) != PROBE_ITEMS:
+        raise HTTPException(status_code=400,
+                            detail=f"ожидается {PROBE_ITEMS} ответов")
+    answers = iter(req.given)
+    result = probe(progress_db(), topic, lambda item: next(answers), seed=req.seed)
+    return {"topic": result.topic, "asked": result.asked, "correct": result.correct,
+            "passed": result.passed, "skipped": result.skipped}
