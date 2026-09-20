@@ -118,18 +118,24 @@ def live_server(tmp_path_factory) -> str:
         # grammar chain degrades to Vabamorf.
         **{name: "" for name in KNOWN_KEYS},
     }
+    # The app writes one JSON line per API call to stdout (`eesti/logs.py`). A
+    # pipe nobody reads fills after a few hundred of them and the server blocks
+    # in `write()` for the rest of the run, so every later page load times out
+    # and the suite reports a defect the app does not have. A file always drains.
+    log = workdir / "server.log"
+    handle = log.open("w")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "eesti.app:app",
          "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
         cwd=workdir, env=env,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        stdout=handle, stderr=subprocess.STDOUT, text=True,
     )
     base = f"http://127.0.0.1:{port}"
     try:
         import urllib.request
         for _ in range(120):
             if proc.poll() is not None:
-                pytest.skip(f"server exited: {(proc.stdout.read() or '')[-400:]}")
+                pytest.skip(f"server exited: {log.read_text()[-400:]}")
             try:
                 urllib.request.urlopen(base + "/api/health", timeout=1).read()
                 break
@@ -144,6 +150,7 @@ def live_server(tmp_path_factory) -> str:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+        handle.close()
 
 
 def _engines() -> list[str]:
@@ -952,6 +959,144 @@ class TestTheMeaningCardIsAFlashcard:
         assert not page.errors, page.errors
 
 
+class TestChoosingTheSitting:
+    """Eksam shows the exam's own shape and lets the learner pick a sitting."""
+
+    def test_the_spec_is_shown_and_a_sitting_can_be_chosen(self, page):
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#examSpec .hint", timeout=15000)
+        assert "48 из 80" in page.locator("#examSpec").inner_text()
+
+        page.select_option("#goalSitting", "2026-11-07")
+        page.click("#goalSet")
+        page.wait_for_selector('#examGoal a[href="/api/goal.ics"]', timeout=15000)
+        assert "до регистрации" in page.locator("#countdown").inner_text()
+        assert not page.errors, page.errors
+
+
+class TestTheConversationPartner:
+    """Vestlus renders and says what it is, even with no engine configured —
+    which is the state the journeys run in."""
+
+    def test_it_starts_and_reports_honestly(self, page):
+        open_tab(page, "learn", "speak")
+        page.wait_for_selector("#vestlusStart", state="attached", timeout=15000)
+        page.click("#vestlus > summary")
+        assert "не проверяет и не оценивает" in page.locator("#vestlus").inner_text()
+        page.click("#vestlusStart")
+        page.wait_for_selector("#vestlusLog .hint", timeout=20000)
+        assert "собеседник" in page.locator("#vestlusLog").inner_text().lower()
+        assert not page.errors, page.errors
+
+
+class TestTheWholeSitting:
+    """Terve eksam: the parts come one after another, each with its own clock."""
+
+    def test_the_run_moves_from_one_part_to_the_next(self, page):
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#mockWhole", state="attached", timeout=15000)
+        page.click("#mock > summary")
+        page.click("#mockWhole")
+        # Writing comes first in the exam's order.
+        page.wait_for_selector("#mockWritten", timeout=20000)
+        page.fill("#mockWritten", " ".join(["sõna"] * 35))
+        page.click("#mockDone")
+        page.wait_for_selector("#mockNext button", timeout=20000)
+        assert "слов" in page.locator("#mockVerdict").inner_text()
+
+        page.click("#mockNext button")           # kuulamine
+        page.wait_for_selector("#mockTasks .mock-task", timeout=20000)
+        assert not page.errors, page.errors
+
+
+class TestTestingOutOfATopic:
+    """Kogu rada offers a test-out; five right marks the topic known."""
+
+    def test_a_clean_sweep_marks_the_topic(self, page, live_server):
+        open_tab(page, "learn", "path")
+        # The list lives inside a closed <details>: attached first, then opened.
+        page.wait_for_selector("#pathList .topic", state="attached", timeout=20000)
+        page.click("#pathAll > summary")
+        button = page.locator("#pathList button[data-testout]").first
+        button.wait_for(timeout=10000)
+        topic = button.get_attribute("data-testout")
+        button.click()
+        page.wait_for_selector("#testoutTasks input", timeout=20000)
+
+        # The answers come from the API, as a learner who knows them would type.
+        answers = page.evaluate("""async ([base, topic]) => {
+            const r = await fetch(`${base}/api/testout/${topic}`);
+            return await r.json();
+        }""", [live_server, topic])
+        inputs = page.locator("#testoutTasks input")
+        assert inputs.count() == len(answers["items"])
+        page.click("#testoutDone")
+        page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
+        assert "из" in page.locator("#testoutVerdict").inner_text()
+        assert not page.errors, page.errors
+
+
+class TestTheTimedMock:
+    """Proovieksam: one part, on the exam's clock, graded by the server."""
+
+    def test_a_reading_section_runs_and_is_recorded(self, page):
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#mockParts button[data-part]", state="attached",
+                               timeout=15000)
+        page.click("#mock > summary")
+        page.click('#mockParts button[data-part="lugemine"]')
+        page.wait_for_selector("#mockTasks .mock-task input", timeout=20000)
+        assert re.match(r"\d\d:\d\d", page.locator("#mockClock").inner_text())
+
+        page.locator("#mockTasks .mock-task input").first.fill("vale")
+        page.click("#mockDone")
+        page.wait_for_selector("#mockVerdict.ok", timeout=20000)
+        verdict = page.locator("#mockVerdict").inner_text()
+        assert "из" in verdict and "не оценка экзамена" in verdict
+        assert not page.errors, page.errors
+
+
+class TestPractisingOffline:
+    """A set fetched in advance is answerable with the network cut, and what was
+    answered reaches the server when it comes back."""
+
+    def test_download_go_offline_answer_come_back(self, page, live_server):
+        open_tab(page, "learn", "path")
+        page.wait_for_selector("#offlineGet", state="attached", timeout=15000)
+        page.click("#offline > summary")
+        page.click("#offlineGet")
+        page.wait_for_selector("#offlinePractice:not([hidden])", timeout=20000)
+
+        page.context.set_offline(True)
+        try:
+            page.click("#offlinePractice")
+            page.wait_for_selector("#practiceOut .banner.info", timeout=15000)
+            page.wait_for_selector("#practiceOut .drill input", timeout=15000)
+            first = page.locator("#practiceOut .drill").first
+            first.locator("input").fill("ilmselgelt vale")
+            first.locator("button").click()
+            page.wait_for_selector("#practiceOut .verdict.no", timeout=15000)
+            # The verdict appears first; the queue write follows it.
+            page.wait_for_function(
+                "() => document.querySelector('#practiceOut .verdict')"
+                ".textContent.includes('локально')", timeout=15000)
+            page.wait_for_selector("#offlineSend:not([hidden])", timeout=15000)
+        finally:
+            page.context.set_offline(False)
+
+        # Coming back online flushes the queue by itself, so the send button
+        # goes away; clicking it is only for a flush that failed.
+        page.wait_for_function(
+            "() => document.querySelector('#offlineSend').hidden", timeout=20000)
+        answered = page.evaluate("""async () => {
+            const r = await fetch('/api/curriculum');
+            const d = await r.json();
+            return d.topics.reduce((n, t) => n + t.attempts, 0);
+        }""")
+        assert answered >= 1, "the offline answer never reached the server"
+        assert not page.errors, page.errors
+
+
 class TestTodaysPlan:
     """Rada opens on today's plan; a block's Alusta starts what it names."""
 
@@ -997,6 +1142,45 @@ class TestAGrammarCardIsAnswered:
         verdict = card.locator(".verdict").inner_text()
         assert "Верно" in verdict and "снова" in verdict, verdict
         assert not page.errors, page.errors
+
+
+#: axe-core, the accessibility rule engine, as a dev dependency (`package.json`).
+#: Skipped rather than failed when it is not installed: the journeys already
+#: need Playwright and a built dataset, and one more optional tool should not
+#: make the suite unrunnable.
+AXE = ROOT / "node_modules" / "axe-core" / "axe.min.js"
+
+
+class TestEveryScreenIsReadableByAScreenReader:
+    """The interface is Estonian and its explanations are Russian, which only
+    works if the markup says which is which — and a learner using VoiceOver on
+    the installed PWA meets every screen, not a chosen one. WCAG 2.1 A and AA,
+    checked by axe on each tab."""
+
+    def test_no_screen_has_an_accessibility_violation(self, page, live_server):
+        if not AXE.is_file():
+            pytest.skip("axe-core is not installed: npm install")
+        found = []
+        for mode in MODES:
+            for tab in advertised_tabs(page, mode):
+                open_tab(page, mode, tab)
+                page.add_script_tag(content=AXE.read_text(encoding="utf-8"))
+                violations = page.evaluate("""async () => {
+                  const run = await axe.run(document, {
+                    resultTypes: ["violations"],
+                    runOnly: {type: "tag",
+                              values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]},
+                  });
+                  return run.violations.map(v => ({
+                    id: v.id, impact: v.impact, help: v.help,
+                    where: v.nodes[0].target.join(" "), count: v.nodes.length,
+                  }));
+                }""")
+                found += [f"{mode}/{tab}: {v['impact']} {v['id']} — {v['help']}"
+                          f" ({v['count']}x, first at {v['where']})"
+                          for v in violations]
+        assert not found, (f"{page.viewport_name}: "
+                           + "\n  ".join(["accessibility violations:"] + found))
 
 
 class TestPhoneInLandscape:

@@ -18,6 +18,12 @@ export const $ = s => document.querySelector(s);
 
 export const esc = s => (s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+/* Which language a title is in, read off its script rather than assumed.
+   Most library titles are Estonian, but ERR's Russian-language programmes
+   ("Как это по-эстонски?") are not, and a screen reader told they are Estonian
+   reads Russian words with Estonian phonology. */
+export const langOf = s => /[Ѐ-ӿ]/.test(s || "") ? "ru" : "et";
+
 // Explanations use **bold** for the grammar term and *italic* for the Estonian
 // form being cited. Bold must be replaced first, or its inner asterisks get
 // consumed by the italic rule and the markup comes out mangled.

@@ -46,10 +46,20 @@ ICON_SVG = (
 STATIC_TYPES = {".css": "text/css", ".js": "text/javascript"}
 
 
+def _asset_headers() -> dict:
+    """Under `cli serve` the files on disk are the source being edited, and the
+    service worker's cache name is the literal `dev`, so nothing retires a stale
+    module: the page keeps running the version from an hour ago. A build stamps
+    a real version and its own cache, so there this stays out of the way.
+    """
+    return {"Cache-Control": "no-cache"} if build_version() == "dev" else {}
+
+
 @router.get("/app.css")
 def stylesheet() -> FileResponse:
     """The stylesheet."""
-    return FileResponse(WEB / "app.css", media_type="text/css")
+    return FileResponse(WEB / "app.css", media_type="text/css",
+                        headers=_asset_headers())
 
 
 @router.get("/js/{name}")
@@ -59,7 +69,8 @@ def script(name: str) -> FileResponse:
     if (path.parent != (WEB / "js").resolve() or not path.is_file()
             or path.suffix not in STATIC_TYPES):
         raise HTTPException(status_code=404, detail="not found")
-    return FileResponse(path, media_type=STATIC_TYPES[path.suffix])
+    return FileResponse(path, media_type=STATIC_TYPES[path.suffix],
+                        headers=_asset_headers())
 
 
 @router.get("/vendor/{name}")

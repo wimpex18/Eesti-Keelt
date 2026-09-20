@@ -4,7 +4,7 @@
    and the caveat beside it is Russian on purpose: a miss may be the recogniser
    rather than the learner's mouth, and a caveat nobody can read is not one. */
 
-import {$, api, esc, rawApi, ruCount, setLabel} from "./core.js";
+import {$, api, esc, md, rawApi, ruCount, setLabel} from "./core.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
@@ -222,3 +222,141 @@ if (!canRecord) {
     "между собой. В одиночку имеет смысл тренировать построение ответа и " +
     "беглость, а не баллы.</details>";
 }
+
+
+/* Vestlus: the partner the paired exam has and a solo learner does not.
+
+   A model plays it (ADR-0002): Estonian in, Estonian out, one question back,
+   and nothing it says is a verdict. The exchange lives here in the page — the
+   server keeps no conversation — and the words Vabamorf does not know are
+   named rather than passed off as Estonian. */
+let vestlus = {task: "", turns: []};
+
+function paintVestlus(reply) {
+  const log = $("#vestlusLog");
+  log.innerHTML = vestlus.turns.map(t => t.who === "learner"
+    ? `<div class="vestlus-me" lang="et">${esc(t.text)}</div>`
+    : `<div class="vestlus-them" lang="et">${esc(t.text)}</div>`).join("");
+  const bits = [];
+  if (reply && reply.hint_ru) bits.push(esc(reply.hint_ru));
+  if (reply && reply.unknown && reply.unknown.length)
+    bits.push(`Vabamorf не знает: <b lang="et">${reply.unknown.map(esc).join(", ")}</b>
+      — не бери эти формы за образец.`);
+  if (reply && reply.note) bits.push(esc(reply.note));
+  if (reply && reply.engine && reply.engine !== "none")
+    bits.push(`собеседник: ${esc(reply.engine)} · не проверка`);
+  log.insertAdjacentHTML("beforeend",
+    bits.length ? `<div class="hint">${bits.join(" · ")}</div>` : "");
+  $("#vestlusTurns").textContent = reply
+    ? `${reply.turns} из ${8}` : "";
+  log.scrollTop = log.scrollHeight;
+}
+
+async function vestlusTurn(said) {
+  const send = $("#vestlusSend"), start = $("#vestlusStart");
+  send.disabled = start.disabled = true;
+  try {
+    const reply = await (await api("/api/tutor", {
+      intent: "converse", task: vestlus.task, said,
+      history: vestlus.turns.map(t => ({who: t.who, text: t.text})),
+    })).json();
+    if (said) vestlus.turns.push({who: "learner", text: said});
+    if (reply.reply_et) vestlus.turns.push({who: "partner", text: reply.reply_et});
+    paintVestlus(reply);
+    $("#vestlusRow").hidden = !reply.reply_et;
+    if (reply.reply_et) $("#vestlusSay").focus();
+  } catch (e) {
+    $("#vestlusLog").insertAdjacentHTML("beforeend",
+      `<div class="hint">Не отправилось: ${esc(e.message)}</div>`);
+  } finally { send.disabled = start.disabled = false; }
+}
+
+$("#vestlusStart").onclick = () => {
+  const questions = window.__speak || [];
+  const picked = questions[$("#speakTopic").selectedIndex] || questions[0];
+  if (!picked) return;
+  vestlus = {task: picked.question, turns: []};
+  $("#vestlusLog").innerHTML = "";
+  vestlusTurn("");
+};
+
+$("#vestlusSend").onclick = () => {
+  const said = $("#vestlusSay").value.trim();
+  if (!said) return;
+  $("#vestlusSay").value = "";
+  vestlusTurn(said);
+};
+
+$("#vestlusSay").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("#vestlusSend").click();
+});
+
+
+/* Recording the speech eval set (ADR-0003).
+
+   Local only: `/api/eval/prompt` is 404 on the deployment, so the block stays
+   hidden there. Every clip is written next to what was actually read — and for
+   a planted prompt, next to the word that was deliberately said wrong, which is
+   what makes "did the engine correct my mistake away?" measurable. */
+let evalNow = null, evalRecorder = null, evalChunks = [];
+
+(async () => {
+  try {
+    const r = await api("/api/eval/prompt", null, "GET");
+    await r.json();
+    $("#evalSet").hidden = false;
+  } catch { /* deployed, or no corpus: the block stays hidden */ }
+})();
+
+async function evalPrompt() {
+  // Every fourth prompt carries a deliberate mistake, which is the ratio the
+  // eval needs (a quarter planted).
+  const planted = Math.random() < 0.25;
+  try {
+    const got = await (await api(
+      `/api/eval/prompt?planted=${planted}`, null, "GET")).json();
+    evalNow = got;
+    $("#evalPrompt").textContent = got.text;
+    $("#evalNote").innerHTML = md(got.note || "");
+    $("#evalRec").disabled = false;
+  } catch (e) {
+    $("#evalNote").textContent = e.message;
+  }
+}
+
+$("#evalNext").onclick = evalPrompt;
+
+$("#evalRec").onclick = async () => {
+  const btn = $("#evalRec");
+  if (evalRecorder && evalRecorder.state === "recording") {
+    evalRecorder.stop();
+    return;
+  }
+  if (!evalNow) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    evalChunks = [];
+    evalRecorder = new MediaRecorder(stream);
+    evalRecorder.ondataavailable = e => e.data.size && evalChunks.push(e.data);
+    evalRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      setLabel(btn, "● Salvesta");
+      const blob = new Blob(evalChunks, {type: evalRecorder.mimeType || "audio/webm"});
+      const q = new URLSearchParams({text: evalNow.text});
+      if (evalNow.planted) q.set("planted", evalNow.planted);
+      try {
+        const saved = await (await rawApi("/api/eval/clip?" + q, {
+          method: "POST", headers: {"Content-Type": blob.type}, body: blob,
+        })).json();
+        $("#evalCount").textContent = `записано: ${saved.clips}`;
+        evalPrompt();
+      } catch (e) {
+        $("#evalNote").textContent = "Не сохранилось: " + e.message;
+      }
+    };
+    evalRecorder.start();
+    setLabel(btn, "■ Lõpeta");
+  } catch (e) {
+    $("#evalNote").textContent = "Микрофон не открылся: " + e.message;
+  }
+};

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from ..lookup import annotate
 from ..sources import count as content_count
@@ -212,3 +213,98 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
         "url": json.loads(row["meta"] or "{}").get("url"),
         "profile": annotate(row["body"] or ""),
     }
+
+
+# --------------------------------------------------------------------------
+# Reading comprehension: a model writes the questions, the text keys them
+# --------------------------------------------------------------------------
+#
+# ADR-0004. The answer travels no further than the server: the page is sent the
+# questions only, and `/api/read/answer` compares what the learner wrote with
+# the span stored beside the text.
+
+class ReadAnswer(BaseModel):
+    item_id: str
+    idx: int
+    answer: str = Field(default="", max_length=400)
+
+
+def _text_of(item_id: str) -> str:
+    row = content_db().execute(
+        "SELECT body FROM items WHERE id = ?", (item_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Этот материал не найден.")
+    return row["body"] or ""
+
+
+def _long_enough(text: str) -> bool:
+    """Counted the way `comprehension.make` counts, so the button is offered
+    exactly when asking would work: `split()` also counts numerals and dashes,
+    and a timetable would be offered questions it can never get."""
+    from .. import comprehension
+
+    return comprehension.long_enough(text)
+
+
+@router.get("/api/read/questions/{item_id}")
+def read_questions(item_id: str) -> dict:
+    """The questions already written for this text. Never generates: a page that
+    opens a text must not wait on a model."""
+    from .. import comprehension, evidence
+
+    text = _text_of(item_id)
+    with evidence.connect() as log:
+        made = comprehension.stored(log, item_id)
+    return {
+        "item_id": item_id,
+        "questions": [q.asked() for q in made],
+        # Whether asking for questions is worth the learner's tap.
+        "can_make": _long_enough(text),
+    }
+
+
+@router.post("/api/read/questions/{item_id}")
+def make_questions(item_id: str) -> dict:
+    """Write the questions for this text, once, and keep them.
+
+    An empty list is an honest answer: nothing the model proposed had its answer
+    in the text.
+    """
+    from .. import comprehension, evidence
+
+    text = _text_of(item_id)
+    with evidence.connect() as log:
+        made = comprehension.make(log, item_id, text)
+    return {
+        "item_id": item_id,
+        "questions": [q.asked() for q in made],
+        "can_make": _long_enough(text),
+        # The page stops offering the button after a round that produced
+        # nothing, so a text the model cannot key does not cost a call a tap.
+        "tried": True,
+        "note": ("" if made else
+                 "Вопросы не получились: ни один ответ не нашёлся в тексте "
+                 "дословно. Попробуй другой текст."),
+    }
+
+
+@router.post("/api/read/answer")
+def read_answer(req: ReadAnswer) -> dict:
+    """Grade one answer against the text's own words, and record the practice."""
+    from .. import comprehension, evidence
+
+    with evidence.connect() as log:
+        questions = {q.idx: q for q in comprehension.stored(log, req.item_id)}
+    question = questions.get(req.idx)
+    if question is None:
+        raise HTTPException(status_code=404, detail="Этот вопрос не найден.")
+    verdict = comprehension.grade(question, req.answer)
+    # Reading practice, and the only event that counts for the `lugemine` part.
+    # The question travels with it: an attempt must be replayable even after the
+    # text is asked about again with a new set.
+    evidence.record("comprehension", {
+        "item": req.item_id, "idx": req.idx, "correct": verdict["correct"],
+        "question": question.question, "expected": question.answer,
+        "engine": question.engine, "v": comprehension.VERSION,
+    })
+    return {"idx": req.idx, **verdict}

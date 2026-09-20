@@ -208,9 +208,7 @@ class TestTheEvalWorkflow:
 
 class TestVoxtral:
     def test_the_engine_is_in_the_chain_and_reported(self):
-        import inspect
-
-        assert '"voxtral"' in inspect.getsource(asr.transcribe)
+        assert "voxtral" in [name for name, _ in asr.engines(b"x")]
         assert "voxtral" in asr.available()
 
     def test_all_three_paths_must_exist(self, monkeypatch, tmp_path):

@@ -123,8 +123,9 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     and their scoring only works on their site.
     """
     from .. import config
-    from ..harvest.eis import LEVELS, catalogue, to_items
-    from ..sources import add_items, connect as content_connect, register
+    from ..harvest.eis import LEVELS, catalogue, fetch_task, to_items
+    from ..sources import (add_items, clear_source, connect as content_connect,
+                           register)
 
     from ..harvest import harno
 
@@ -137,8 +138,20 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     # interactive tasks that score themselves; harno.ee publishes the task PDFs
     # and the listening audio. A learner wants both, for different sittings.
     tasks = catalogue(levels)
+    bodies: dict[str, tuple[str, list[str]]] = {}
+    if tasks and getattr(args, "download", False):
+        # Their server: one task at a time, spaced, and a task that will not
+        # load keeps its link.
+        for task in tasks:
+            body, audio = fetch_task(task)
+            if body:
+                bodies[task.id] = (body, audio)
+        print(f"EIS tasks read into the app: {len(bodies)} of {len(tasks)}")
     if tasks:
-        stored += add_items(conn, to_items(tasks))
+        # Ids are content hashes, so a task that gained its text would otherwise
+        # be added beside the pointer row it replaces.
+        clear_source(conn, "eis")
+        stored += add_items(conn, to_items(tasks, bodies))
         by_level: dict[str, int] = {}
         for task in tasks:
             by_level[task.level] = by_level.get(task.level, 0) + 1
@@ -154,7 +167,12 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     except Exception as exc:  # noqa: BLE001 - one source failing is not fatal
         materials = []
         print(f"\nharno.ee unavailable: {str(exc)[:100]}")
+    if materials and getattr(args, "download", False):
+        got = harno.download(materials)
+        print(f"\nharno.ee files: {got['downloaded']} downloaded, "
+              f"{got['already_there']} already here, {got['failed']} failed")
     if materials:
+        clear_source(conn, "harno")
         stored += add_items(conn, harno.to_items(materials))
         counts: dict[tuple[str, str], int] = {}
         for m in materials:
@@ -163,7 +181,8 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
         for (level, skill), n in sorted(counts.items()):
             print(f"  {level} {skill:<12} {n}")
 
-    print(f"\nindexed {stored} official items (pointers only, (c) HARNO)")
+    print(f"\nindexed {stored} official items ((c) Haridus- ja Noorteamet; "
+          "downloaded files are for private study and are never redistributed)")
     return 0 if stored else 1
 
 
@@ -300,9 +319,13 @@ def register(sub) -> None:
 
     p = sub.add_parser(
         "harvest-exam",
-        help="index the official EIS practice tasks (links, not copies)",
+        help="index the official exam material; --download fetches the files",
     )
     p.add_argument("--levels", help="comma-separated, default A2,B1,B2,C1")
+    p.add_argument(
+        "--download", action="store_true",
+        help="fetch the task PDFs and listening audio into data/exam, and read "
+             "each EIS task into the app, instead of only linking out")
     p.set_defaults(func=cmd_harvest_exam)
 
     p = sub.add_parser(

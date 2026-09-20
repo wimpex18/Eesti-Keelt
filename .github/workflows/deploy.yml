@@ -79,6 +79,9 @@ jobs:
           CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
           PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
           STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
         run: |
           put() {
             # Via stdin: a secret on a command line is a secret in the process
@@ -90,6 +93,15 @@ jobs:
           fi
           put PROXY_TOKEN "$PROXY_TOKEN"
           put STATE_TOKEN "$STATE_TOKEN"
+          # Reminders are signed and sent by the Worker (`sendPush`), so the
+          # VAPID pair belongs here. Optional: without it the app says
+          # reminders are not configured instead of asking for permission it
+          # cannot use.
+          if [ -n "$VAPID_PUBLIC_KEY" ] && [ -n "$VAPID_PRIVATE_KEY" ]; then
+            put VAPID_PUBLIC_KEY "$VAPID_PUBLIC_KEY"
+            put VAPID_PRIVATE_KEY "$VAPID_PRIVATE_KEY"
+            put VAPID_SUBJECT "${VAPID_SUBJECT:-mailto:none@example.org}"
+          fi
           # OPENROUTER_API_KEY and the other LLM keys are deliberately NOT pushed here:
           # they are read by eesti/providers/llm.py on Cloud Run, and the Worker never
           # looks at them. They belong on the Cloud Run service: deploy/set-llm-key.sh.

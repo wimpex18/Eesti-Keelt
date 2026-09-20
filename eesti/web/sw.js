@@ -24,7 +24,8 @@ const ASSETS = [
   "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js",
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
-  "/js/exam.js", "/js/write.js", "/js/sources.js",
+  "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",
+  "/js/remind.js",
 ];
 
 self.addEventListener("install", event => {
@@ -136,3 +137,43 @@ p{margin:0;color:#6b6b66}</style>
 <div><h1>Нет соединения</h1>
 <p>Упражнения создаются на сервере, поэтому без интернета их не открыть.
 Попробуй ещё раз, когда связь появится.</p></div>`;
+
+
+/* Reminders (`eesti/reminders.py`, sent by the Worker's cron).
+
+   The payload carries a count and a fixed phrase — never a sentence the
+   learner wrote — so nothing private is handed to Apple's or Google's push
+   service even before encryption. A tag means the same fact replaces itself
+   on screen rather than stacking. */
+self.addEventListener("push", event => {
+  let said = {};
+  try {
+    said = event.data ? event.data.json() : {};
+  } catch { said = {}; }
+  const title = said.title || "Eesti keel";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: said.body || "",
+    tag: said.tag || "eesti",
+    lang: "ru",
+    icon: "/icon.png",
+    badge: "/icon.png",
+    data: {url: said.url || "/"},
+  }));
+});
+
+/* One tap opens the app where the reminder was about, reusing the window that
+   is already open rather than adding another. */
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil((async () => {
+    const open = await self.clients.matchAll({type: "window", includeUncontrolled: true});
+    for (const client of open) {
+      if (new URL(client.url).origin === self.location.origin) {
+        await client.focus();
+        return client.navigate(target).catch(() => {});
+      }
+    }
+    return self.clients.openWindow(target);
+  })());
+});

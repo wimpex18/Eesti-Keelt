@@ -10,9 +10,10 @@ count in a doc is not added.
 | Suite | Command | Time | Runs in CI |
 |---|---|---|---|
 | **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~15 s | yes — `tests.yml` |
-| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q -n auto --browser` | ~50 s | no — local only |
+| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | no — local only |
 | **Browser, full matrix** | same, with `--all-browsers` | ~2 min | no |
-| Model eval | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (OpenRouter), manual |
+| Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (OpenRouter), manual |
+| Speech eval | `cli eval --suite asr [--engine A --engine B]` | your own recordings | no — the set is personal and not in git |
 | Production smoke | `smoke.yml` | — | after `deploy`, daily, manual |
 
 - **Fast** is everything in process. Run it after every change. Run the
@@ -24,6 +25,16 @@ count in a doc is not added.
   change to `eesti/web/` and look at both sizes.
 - **Full matrix** also runs Chromium at phone size and WebKit at desktop size.
   Use it before a release that restyles the page.
+- The journeys' server writes its log to a file in its own working directory.
+  It once wrote to a pipe nobody read: the app logs one JSON line per API call,
+  the 64 KB buffer filled part-way through a run, and the server blocked in
+  `write()` while `curl /api/health` still answered — so every later page load
+  timed out and the suite read as a page defect.
+
+Every screen is also run through **axe** (WCAG 2.1 A and AA) at both
+viewports, because the interface leans on markup to say which language a
+string is in, and a screen reader is the one reader that cannot guess. It
+skips when `axe-core` is not installed.
 
 Browser tests skip (never fail) without Playwright, a browser or a built
 dataset. To set them up:
@@ -33,6 +44,7 @@ python -m eesti.cli fetch-data && python -m eesti.cli build
 python -m eesti.cli export            # word card forms
 python -m eesti.cli harvest-reading   # reading journeys
 playwright install chromium webkit
+npm install                           # axe-core, for the accessibility check
 ```
 
 ## What the suite guarantees

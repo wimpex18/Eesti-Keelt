@@ -13,7 +13,8 @@ diagram below against the page in both directions.
 │                 (any topic, nothing recorded)
 ├── Lugemine      reading texts ranked by the share of words within the learner's reach
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
-├── Rääkimine     paired-exam question bank, read-aloud, open answers
+├── Rääkimine     paired-exam question bank, read-aloud, open answers, and
+│                 Vestlus — a model plays the exam partner, never scoring
 └── Kirjutamine   grammar check through the provider chain, back-translation
 
 Kordamine — "what am I forgetting?"
@@ -22,7 +23,10 @@ Kordamine — "what am I forgetting?"
 └── Töövihikud    official HARNO consultation workbooks (pointers only)
 
 Eksam — "am I ready?"
-├── Ülevaade      readiness verdict, four exam parts reported separately
+├── Ülevaade      readiness verdict, four exam parts reported separately, the
+│                 exam's own shape, the sitting being prepared for,
+│                 Proovieksam (one part on the exam's clock), and HARNO's own
+│                 past tasks, read and played in the app where downloaded
 └── Edenemine     progress report
 ```
 
@@ -39,12 +43,15 @@ is the exercise.
 |---|---|---|---|
 | Rada · Minu rada | generated exercise | code | mastery, review queue |
 | Rada · Vaba harjutus | generated exercise | code (same endpoint, `record: false`) | nothing |
+| Rada · Offline | a pack fetched in advance | the page shows a verdict; the server re-grades from the token when the answers arrive | attempts, with the time they happened |
 | Järjekord | scheduled exercise | code | FSRS card state |
 | Kuulamine · dictation | generated exercise | code, word-aligned | dictation history |
 | Sõnavara | list | — | word status |
 | Lugemine | material + lookup | — | word encounters |
 | Kirjutamine | free text | **a model** (explains), plus deterministic checks | Notion queue |
-| Rääkimine | speech | **ASR** (transcribes), never scored | nothing |
+| Rääkimine | speech | **ASR** (transcribes), never scored | speech evidence |
+| Rääkimine · Vestlus | conversation | **a model** plays the partner; nothing is scored | that a conversation happened, and how long |
+| Ülevaade · Proovieksam | timed section, or all four in order | code (reading, listening, writing: length + deterministic checks); speaking not scored | exam sections |
 | Kuulamine · TTS, Ülevaade, Edenemine, Töövihikud | material / report | — | nothing |
 
 Only Kirjutamine and Rääkimine involve a model, and neither decides whether an

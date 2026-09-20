@@ -13,11 +13,17 @@ Where a model touches the learner, and where code decides.
 | Spelling in free writing | Vabamorf dictionary | no — merged into every answer |
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
 | Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
-| Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Vabamorf offline | yes; engine always named |
+| Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Neurotõlge → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
+| Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
+| Playing the exam partner (`Vestlus`) | `tutor.converse`: a task card from the bank and the turns so far | yes; Estonian only, capped at 8 turns, never a correction or a verdict, and the forms Vabamorf rejects are named |
 | Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
 | Transcribing speech | Workers AI Whisper (production), provider chain locally | yes |
 | Read-aloud comparison | `difflib` against the known sentence | no |
 | Feedback on a spoken answer | LLM chain over the transcript | yes, and advisory |
+
+Only what code can vouch for is recorded: `deterministic` and `model+verified`
+corrections may enter the error log, `model-only` ones are shown and go no
+further (`providers/grammar.verify`, `api/notion.LOGGABLE`).
 
 Code grades drills, review and FSRS; a model never supplies a drill's answer
 key. A model may explain, tutor, judge meaning and score open production
@@ -40,6 +46,33 @@ A transcript mixes what the learner said with what the recogniser heard. So:
 - results are marked `advisory` and never reach the review queue or the
   Notion log (speech has no path to `queue_failed`). The transcript is kept
   in the evidence log as practice, never as graded evidence.
+
+## A model may write the material; only code may key it
+
+ADR-0004 (`docs/adr/0004-model-authored-content.md`). The reading questions
+under a text are written by a model and **keyed by the text**: before a
+question is stored, code checks that its answer appears in the text verbatim
+and exactly once, that the question does not contain its own answer, and that
+every word in it is one Vabamorf knows. What survives is stored with the engine
+that wrote it and a generator version, so the same text asks the same questions
+next month and an answer can be replayed. Answering asks no model at all: the
+learner's words are compared with the stored span (`eesti/comprehension.py`).
+
+The same rule bounds anything generated later: the model may propose, code
+decides what is gradable, and the verified item is what is kept.
+
+## One boundary
+
+Every model call that speaks to the learner in words goes through
+`eesti/tutor.py` (ADR-0002, `docs/adr/0002-tutor-boundary-and-conversation.md`):
+the writing check, the transcript check, translation, the explanations and the
+conversation. The boundary owns the day's budget, the grounding check and these
+labels, so a rule added here is a rule everywhere.
+
+**Recognition is the exception, deliberately.** It turns audio into text and
+decides nothing, so it keeps its own chain (`providers/asr.py`) — which checks
+the same daily allowance — and on the deployment it runs inside the Worker,
+where this boundary cannot reach it (`deploy/worker.ts`).
 
 ## Rules for anything new
 

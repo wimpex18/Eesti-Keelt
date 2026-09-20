@@ -1,7 +1,8 @@
 /* Am I ready: the level, the official material, and the checkpoint. */
 
 import {emptyState, markIcon, uiIcon} from "./chrome.js";
-import {$, api, esc} from "./core.js";
+import {$, api, esc, langOf} from "./core.js";
+import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
 import {examLevel, setExamLevel} from "./state.js";
@@ -13,6 +14,51 @@ const MARK = {
 };
 
 
+/* What the exam is, and which sitting is being prepared for. Both come from
+   HARNO (`eesti/exam.py`), so the points and the dates are never hand-written. */
+function paintSpec(spec, goal) {
+  const box = $("#examSpec"), picker = $("#examGoal");
+  if (!spec) { box.innerHTML = ""; picker.innerHTML = ""; return; }
+  box.innerHTML = `
+    <p class="hint">Четыре части (osad): ${spec.parts.map(p =>
+      `<b lang="et">${esc(p.et)}</b> ${p.points} б. / ${p.minutes} мин`).join(" · ")}.
+      Сдано, если в сумме <strong>≥ ${spec.pass_mark} из ${spec.total}</strong>
+      и <strong>ни одна часть не равна 0</strong>.</p>
+    <details class="exam-parts"><summary lang="et">Mis eksamil on
+      <i class="ru" lang="ru">что на экзамене</i></summary>
+      <ul class="hint">${spec.parts.map(p => `<li><b lang="et">${esc(p.et)}</b>
+        <i lang="ru">${esc(p.ru)}</i> — ${esc(p.about)}
+        ${p.note ? `<span class="hint">${esc(p.note)}</span>` : ""}</li>`).join("")}</ul>
+    </details>`;
+
+  const chosen = goal && goal.level === spec.level ? goal : null;
+  // The options say when, in Russian, under an Estonian label: each carries its
+  // own `lang`, or a screen reader reads the dates in the wrong voice.
+  const options = [`<option value="" lang="ru">без даты</option>`].concat(
+    (spec.sessions || []).map(s =>
+      `<option value="${esc(s.sitting)}" lang="ru"${chosen && chosen.sitting === s.sitting
+        ? " selected" : ""}>${esc(s.sitting)} · регистрация до ${esc(s.registration_closes)}</option>`));
+  picker.innerHTML = `
+    <label lang="et">Sessioon <i class="ru" lang="ru">когда сдаю</i>
+      <select id="goalSitting">${options.join("")}</select>
+    </label>
+    <button class="ghost" id="goalSet" lang="et">Vali <span class="ru" lang="ru">выбрать</span></button>
+    ${chosen && chosen.sitting
+      ? `<a class="hint" href="/api/goal.ics" download>в календарь (.ics)</a>` : ""}
+    <span class="hint">${esc(spec.next_year)}</span>`;
+  $("#goalSet").onclick = async () => {
+    $("#goalSet").disabled = true;
+    try {
+      await api("/api/goal", {level: spec.level, sitting: $("#goalSitting").value || null});
+      loadExam(); loadRail();
+    } catch (e) {
+      picker.insertAdjacentHTML("beforeend",
+        `<span class="hint">Не сохранилось: ${esc(e.message)}</span>`);
+    } finally { $("#goalSet").disabled = false; }
+  };
+}
+
+
 export async function loadExam() {
   // The buttons are authored with A2 selected; if a level was remembered, the
   // strip has to agree with the variable before anything is fetched, or the
@@ -21,10 +67,16 @@ export async function loadExam() {
     x.setAttribute("aria-selected", x.dataset.level === examLevel()));
 
   const get = u => api(u, null, "GET").then(r => r.json());
-  const [ready, material, path] = await Promise.all([
+  const [ready, material, path, spec, goal] = await Promise.all([
     get(`/api/readiness/${examLevel()}`), get(`/api/exam/${examLevel()}`),
     get("/api/curriculum").catch(() => ({})),
+    get(`/api/exam-spec/${examLevel()}`).catch(() => null),
+    get("/api/goal").catch(() => ({goal: null})),
   ]);
+  const mock = await get(`/api/mock/${examLevel()}`).catch(() => null);
+
+  paintSpec(spec, goal.goal);
+  paintMock(mock && mock.counts);
 
   /* An empty countdown is a fact about the plan; `deadline.note` says which, in
      Russian, and is shown. */
@@ -48,8 +100,8 @@ export async function loadExam() {
         <span class="part-ev"> · ${esc(part.evidence)}</span>
         ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.url
             ? `<a href="${esc(part.next_task.url)}" target="_blank"
-                 rel="noopener" lang="et">${esc(part.next_task.title)}</a>`
-            : `<span lang="et">${esc(part.next_task.title)}</span>`}</div>` : ""}
+                 rel="noopener" lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</a>`
+            : `<span lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</span>`}</div>` : ""}
       </span></div>`;
   }
   html += `</div>`;
@@ -118,10 +170,65 @@ export async function loadExam() {
     });
 }
 
-const linkRow = it => `<div class="lib-item">
-  <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="et">${esc(it.title)}</a>
-  <span class="lib-meta">${esc(it.format || "")}${
-    it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
+/* A downloaded task opens here; anything not downloaded still links out
+   (`cli harvest-exam --download`). */
+const linkRow = it => it.local
+  ? `<div class="lib-item">
+       <button class="linky" data-task="${esc(it.id)}" data-fmt="${esc(it.format || "")}"
+               data-file="${it.file ? 1 : 0}"
+               lang="${langOf(it.title)}">${esc(it.title)}</button>
+       <span class="lib-meta">${esc(it.format || "интерактивное")} · в приложении</span></div>`
+  : `<div class="lib-item">
+       <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="${langOf(it.title)}">${esc(it.title)}</a>
+       <span class="lib-meta">${esc(it.format || "")}${
+         it.audio_url ? " · " + uiIcon("note", "inline-ico") : ""}</span></div>`;
+
+
+/* The task itself, opened where it was clicked: its text where the PDF gave
+   any, the recording where the exam plays one, and the file itself always. */
+async function openTask(row, id, format, hasFile) {
+  const box = document.createElement("div");
+  box.className = "exam-task";
+  box.innerHTML = `<p class="hint">Загружаю…</p>`;
+  row.after(box);
+  const file = `/api/exam/file/${encodeURIComponent(id)}`;
+  let text = null;
+  try {
+    text = await (await api(`/api/exam/text/${encodeURIComponent(id)}`)).json();
+  } catch { /* audio, a scanned PDF, or a .docx: the file itself still opens */ }
+  const own = ["mp3", "wav"].includes(format);       // the task *is* a recording
+  // An EIS listening task carries its own recordings, one per question.
+  const clips = own ? [file] : (text?.audio || []);
+  box.innerHTML = `
+    <div class="exam-task-head">
+      ${hasFile ? `<a class="ghost" href="${file}" target="_blank"
+                      rel="noopener">открыть файл</a>` : ""}
+      ${text?.url ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
+                       rel="noopener">решить на сайте</a>` : ""}
+      <button class="ghost" data-close lang="et">Sulge
+        <span class="ru" lang="ru">закрыть</span></button>
+    </div>
+    ${clips.map((url, i) => `<div class="clip">${
+        clips.length > 1 ? `<span class="lib-meta">${i + 1}</span>` : ""
+      }<audio controls preload="none" src="${esc(url)}"></audio></div>`).join("")}
+    ${text ? `<p class="hint">${esc(text.note)}</p>
+              <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
+           : `<p class="hint">${own
+                ? "Официальная запись — © Haridus- ja Noorteamet."
+                : "Текст не разобрался — открой файл."}</p>`}`;
+  box.querySelector("[data-close]").onclick = () => box.remove();
+}
+
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("#tab-exam button[data-task]");
+  if (!b) return;
+  const row = b.closest(".lib-item");
+  // A second click closes what the first opened.
+  const open = row.nextElementSibling;
+  if (open && open.classList.contains("exam-task")) open.remove();
+  else openTask(row, b.dataset.task, b.dataset.fmt, b.dataset.file === "1");
+});
 
 
 document.querySelectorAll("#tab-exam .levels button").forEach(b => b.onclick = () => {

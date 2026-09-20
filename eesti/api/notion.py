@@ -14,11 +14,19 @@ from .deps import notion_db
 
 router = APIRouter()
 
+#: What may enter the hand-curated log: code decided it, or code could check the
+#: model's claim (`providers/grammar.verify`). A `model-only` correction is
+#: shown to the learner and goes no further.
+LOGGABLE = ("deterministic", "model+verified")
+
+
 class QueueError(BaseModel):
     wrong: str = Field(min_length=1, max_length=2000)
     correct: str = Field(min_length=1, max_length=2000)
     why: str = Field(default="", max_length=2000)
     tag: str
+    #: Provenance, as the check returned it.
+    source: str = "deterministic"
 
 
 @router.post("/api/notion/queue")
@@ -30,6 +38,10 @@ def notion_queue(row: QueueError) -> dict:
     """
     from ..notion import Row, queue
 
+    if row.source not in LOGGABLE:
+        raise HTTPException(status_code=400, detail=(
+            "Это предложение модели, которое код проверить не может "
+            "(model-only). В журнал ошибок попадает только то, что подтверждено."))
     try:
         entry = Row(wrong=row.wrong, correct=row.correct, why=row.why, tag=row.tag)
     except ValueError as exc:

@@ -65,6 +65,63 @@ Safeguards:
 
 A crash between snapshots can lose a few minutes of answers.
 
+## EKI's recordings
+
+`data/audio.db` (about 270 MB: word forms and read sentences, `eesti/haaldus.py`)
+is too big for the image, which every build would carry, and far too big for the
+Durable Object snapshot, which exists for a learner's progress. It lives in a
+Cloud Storage bucket instead, mounted read-only into the container:
+
+```bash
+bash deploy/push-audio.sh            # upload and mount, in Cloud Shell
+bash deploy/push-audio.sh --check    # what is there now
+```
+
+The service then reads it at `EESTI_AUDIO_DB`, and the Worker's edge cache keeps
+whatever is actually played, so a word is fetched from the bucket once. Without
+it `/api/pronounce` answers 404 and everything falls back to synthesis;
+`/api/health` reports `recordings`.
+
+## Reminders
+
+The Worker sends them, because it holds the subscription and runs the cron; the
+app decides what is worth saying, because it holds the evidence
+(`eesti/reminders.py`). One VAPID key pair signs them.
+
+```bash
+python -m eesti.cli push-keys        # once, on your machine: writes .env, prints only the public key
+bash deploy/set-push-keys.sh         # in Cloud Shell, with that .env
+```
+
+The cron runs hourly (`wrangler.jsonc` → `triggers.crons`) and asks
+`/api/reminders`, a back-channel route guarded by `STATE_TOKEN`. What comes back
+is a count and a fixed phrase — never a sentence the learner wrote — encrypted
+to the subscription (RFC 8291) and signed with VAPID (RFC 8292). A tag keeps
+one fact from arriving twice; a 404 or 410 from the push service drops the
+subscription.
+
+Without the keys the app says reminders are not configured and never asks the
+browser for permission it cannot use. On iPhone, notifications work only from
+the app added to the Home Screen (iOS 16.4+).
+
+## The exam board's task files
+
+`data/exam/` (about 130 MB of HARNO's task PDFs and listening recordings,
+`cli harvest-exam --download`) travels the same way, for the same reason.
+
+```bash
+bash deploy/push-exam.sh            # sync and mount, in Cloud Shell
+bash deploy/push-exam.sh --check    # what is there now
+```
+
+The service reads them at `EESTI_EXAM_DIR`. Two halves travel separately and
+that is deliberate: the **text** extracted from each PDF is part of the library
+(`push-content.sh`), so a task can be read on the deployment with no bucket at
+all, while the **files** — above all the listening recordings, the half a text
+cannot carry — need this mount. Where they are missing the catalogue says a
+task is not downloaded and links out to harno.ee; `library._file_here` checks
+rather than assumes, so the same database is honest on both machines.
+
 ## The reading corpus
 
 Owner-only, so not in the image. Harvest locally, link topics, push once; the
@@ -72,6 +129,7 @@ Worker archives it and restores it to every new container.
 
 ```bash
 python -m eesti.cli harvest && python -m eesti.cli harvest-reading && python -m eesti.cli harvest-news
+python -m eesti.cli harvest-exam --levels A2,B1 --download   # official tasks and their text
 python -m eesti.cli link-topics                 # required — fills the topic join
 bash deploy/push-content.sh data/content.db     # in Cloud Shell, with the file uploaded
 ```

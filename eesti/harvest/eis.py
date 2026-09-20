@@ -7,8 +7,16 @@ tasks, per CEFR level, with immediate scoring and no login.
   keel).
 - The catalogue is small: A2 and B1 have a handful each; A1 and C2 are empty.
 
-**Pointers only.** Task bodies are © Haridus- ja Noorteamet and live in an
-iframe whose scoring works only on their site. Stored: level, skill, title, URL.
+The task itself lives in an iframe (`/publicitems/<id>/edittask`) that carries
+the whole exercise: the instruction, the questions, the options and — for
+listening — the recordings. `fetch_task` reads that frame, so the task can be
+**read and heard inside the app** (© Haridus- ja Noorteamet, private study).
+
+**The key stays on their server.** EIS scores by posting back to EIS, and the
+correct answers appear nowhere in the page, so nothing here grades an EIS task:
+the app shows the task and links out to the scored version. That is also why a
+model is not asked to supply answers (ADR-0004: only the text may key a
+question).
 """
 
 from __future__ import annotations
@@ -29,6 +37,16 @@ POLITE_DELAY = 1.0
 TIMEOUT = 45.0
 
 _RID_RE = re.compile(r'name="rid"[^>]*value="([^"]+)"')
+
+#: The iframe holding the exercise, and the recordings inside it.
+_FRAME_RE = re.compile(r'<iframe[^>]+src="([^"]+)"')
+_AUDIO_RE = re.compile(r'src="(https?://[^"]+\.(?:mp3|wav|m4a|ogg)[^"]*)"', re.I)
+_NOISE_RE = re.compile(r"<(script|style)\b.*?</\1>", re.S | re.I)
+
+#: What the frame says about its own machinery rather than about Estonian: the
+#: play counter ("Kuulamiste arv: 0 /2") and the buttons around the exercise.
+_CHROME = re.compile(
+    r"Kuulamiste arv:\s*\d+\s*/\s*\d+|Laadin\.\.\.|Kinnita|Proovi uuesti|Tagasi")
 _ITEM_RE = re.compile(r'/publicitems/(\d+)"[^>]*>\s*([^<]{3,160})')
 
 #: The exam's four parts. Only two are published as public tasks -- there is no
@@ -98,26 +116,63 @@ def catalogue(levels: tuple[str, ...] = LEVELS) -> list[Task]:
     return sorted(found.values(), key=lambda t: (t.level, t.skill, t.title))
 
 
-def to_items(tasks: list[Task]) -> list:
-    """Pointers, not copies: `body` stays empty, so the app links out."""
+def fetch_task(task: "Task", opener=None) -> tuple[str, list[str]]:
+    """One task as text, and its recordings. `("", [])` when EIS changed shape.
+
+    Their server, so: one page and one frame per task, a second apart, and a
+    failure is never fatal — the item keeps its link.
+    """
+    from .clean import text as readable
+
+    opener = opener or _opener()
+    try:
+        page = opener.open(task.url, timeout=TIMEOUT).read().decode("utf-8", "replace")
+        found = _FRAME_RE.search(page)
+        if not found:
+            return "", []
+        frame = urllib.parse.urljoin(BASE, found.group(1).replace("&amp;", "&"))
+        time.sleep(POLITE_DELAY)
+        markup = opener.open(frame, timeout=TIMEOUT).read().decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001 - a task that will not load still links out
+        return "", []
+    audio = list(dict.fromkeys(_AUDIO_RE.findall(markup)))
+    body = _CHROME.sub(" ", readable(_NOISE_RE.sub(" ", markup)))
+    return " ".join(body.split()), audio
+
+
+def to_items(tasks: list[Task], bodies: dict[str, tuple[str, list[str]]] | None = None) -> list:
+    """Items for the library: the task's own text where it was fetched, its link
+    otherwise. Scoring always stays at EIS.
+    """
     from ..sources import Item
 
-    return [
-        Item(
+    bodies = bodies or {}
+    out = []
+    for task in tasks:
+        body, audio = bodies.get(task.id, ("", []))
+        out.append(Item(
             source_id="eis",
             skill=task.skill,
             level=task.level,
             title=task.title,
-            body="",
+            body=body,
+            audio_url=audio[0] if audio else None,
             meta={
                 "url": task.url,
-                "external": True,
+                # An exam task, like HARNO's own: it belongs in `Eksam ->
+                # Eksamiülesanded`, not among the texts read for pleasure
+                # (`library.SECTIONS`).
+                "kind": "ulesanne",
+                # Several recordings per listening task, in the order they are
+                # asked about; the reader plays them all.
+                "audio": audio,
+                "external": not body,
                 "official": True,
-                "note": "Официальное тренировочное задание — решается на сайте EIS.",
+                "note": ("Официальное тренировочное задание — © Haridus- ja "
+                         "Noorteamet. Ответы проверяются на сайте EIS."),
             },
-        )
-        for task in tasks
-    ]
+        ))
+    return out
 
 
 def harvest(levels: tuple[str, ...] = LEVELS) -> dict[str, list[Task]]:

@@ -19,13 +19,17 @@ can answer "may this be shown to anyone but the owner?".
 | Ekilex API (EKI) | CC-BY-4.0 | live word card with `EKILEX_API_KEY` |
 | Sõnaveeb via `api.sonapi.ee` | Ekilex data CC-BY-4.0, third-party endpoint | live word card without a key |
 | *Eesti keele käsiraamat* (EKK) | © EKI — linked, not reproduced | rule links per topic; SÜ 64 rection list |
+| EKI *põhisõnavara hääldused* | CC-BY-4.0, owner-only | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
+| EKI *kõnekorpused* | CC-BY-4.0; the works read stay in copyright | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
 | `data/seed_glossary.tsv` | own work | 294 hand-written glosses for drill words |
 
 Keep EKI attribution wherever EKI text is shown (`eesti/licences.py`).
 
 Sõnaveeb and Ekilex answers are stored once per word in `vocab.db`
-(`gloss.py`) under a daily cap. For more than the stored fields, link to
-Sõnaveeb (`sonapi.entry_url`).
+(`gloss.py`) under a daily cap: the Russian, the definitions, the rection, the
+muuttüüp and the sense's **usage examples**, which the card credits to whoever
+wrote them. For more than the stored fields, link to Sõnaveeb
+(`sonapi.entry_url`).
 
 ## EKI files (`deploy/eki/`)
 
@@ -62,8 +66,8 @@ matching import with `--check`, commit.
 | Selges keeles (WordPress.com API) | no reuse grant — owner-only | reading texts, cloze sentences |
 | ERR *Lihtsad uudised* | © ERR — owner-only | weekly reading feed |
 | ERR Raadio 4 language archives | © ERR — owner-only | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
-| HARNO exam material | © HARNO — owner-only | pointers only; `data/exam/` never committed |
-| EIS public tasks | © HARNO — owner-only | pointers only |
+| HARNO exam material | © HARNO — owner-only | past tasks and listening audio, downloaded by `cli harvest-exam --download` into `data/exam/` for private study, read in `Eksam`; never committed, never redistributed, always shown with the board's name |
+| EIS public tasks | © HARNO — owner-only | the task's own text and its recordings, read in `Eksam` (`cli harvest-exam --download`); scoring stays at EIS, which is the only place the answers exist |
 | Own material (`cli ingest`) | treated as ungranted | owner-only |
 
 All owner-only items are served only behind Cloudflare Access.

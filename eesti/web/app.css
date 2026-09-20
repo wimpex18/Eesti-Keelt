@@ -557,6 +557,64 @@
   /* Today's plan: one line per block, its minutes first so the day reads as time. */
   .today{margin-bottom:var(--s4);padding:var(--s3) var(--s4);border:1px solid var(--line);
     border-radius:12px;background:var(--panel)}
+  /* The mock: the clock leads, because the clock is the point. */
+  .mock{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .mock > summary{cursor:pointer;font-weight:600}
+  .mock-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s3);
+    margin:var(--s3) 0}
+  .mock-clock{font-variant-numeric:tabular-nums;font-size:var(--fs-body);
+    font-weight:600;color:var(--accent)}
+  .mock-clock.low{color:var(--bad)}
+  .mock-task{padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+  .mock-task:first-child{border-top:0}
+  /* Provenance on a correction: quiet when code decided it, marked when only a
+     model says so. */
+  .corr .src-weak{color:var(--warn)}
+  /* Vestlus: two voices, the learner's on the right, and nothing scored. */
+  .offline{margin:0 0 var(--s4);padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .offline > summary{cursor:pointer;font-weight:600}
+  .evalset{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px dashed var(--line);
+    border-radius:12px}
+  .evalset > summary{cursor:pointer;font-weight:600}
+  .vestlus{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .vestlus > summary{cursor:pointer;font-weight:600}
+  .vestlus-log{display:grid;gap:var(--s2);margin:var(--s3) 0;max-height:22rem;
+    overflow-y:auto}
+  .vestlus-me,.vestlus-them{padding:var(--s2) var(--s3);border-radius:10px;
+    max-width:min(38rem,90%);overflow-wrap:anywhere}
+  .vestlus-them{background:var(--tint)}
+  .vestlus-me{background:var(--accent-soft);justify-self:end}
+  /* An official task read in the app, opened under the line that names it.
+     The exam board's layout is a PDF, so the extracted text keeps its breaks. */
+  .exam-task{margin:calc(-1 * var(--s2)) 0 var(--s3);padding:var(--s3) var(--s4);
+    border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;
+    background:var(--panel)}
+  .exam-task-head{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
+  .exam-task audio{width:100%;margin-top:var(--s3)}
+  .exam-text{white-space:pre-wrap;font-family:inherit;font-size:var(--fs-note);
+    line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
+  .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
+    text-align:left;font:inherit;text-decoration:underline}
+  /* One numbered recording per question, as the exam task numbers them. */
+  .clip{display:flex;gap:var(--s3);align-items:center;margin-bottom:var(--s2)}
+  .clip audio{width:100%}
+  .clip > div{flex:1}
+
+  /* Questions under a text: each one is a line, its verdict under it. */
+  .quiz{margin-top:var(--s4)}
+  .quiz-item{padding:var(--s3) 0;border-top:1px solid var(--line)}
+  .quiz-item p{margin:0 0 var(--s2)}
+  .quiz-item .row{gap:var(--s2)}
+  .quiz-item input{flex:1 1 12rem;min-width:0}
+  .quiz-verdict{margin-top:var(--s2);font-size:var(--fs-note)}
+  .quiz-verdict.right{color:var(--good)}
+  .quiz-verdict.wrong{color:var(--bad)}
+  .exam-parts{margin:var(--s2) 0}
+  .exam-parts > summary{cursor:pointer}
+  .exam-parts li{margin-bottom:var(--s2)}
   .today > summary{cursor:pointer;font-weight:600;display:flex;flex-wrap:wrap;
     align-items:baseline;gap:var(--s2)}
   .today-minutes{display:block;margin-top:var(--s3)}

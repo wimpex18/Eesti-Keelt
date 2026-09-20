@@ -39,15 +39,17 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 | Morphology | `morph.py` (Vabamorf), `wordlist.py` (word list, `declines`), `export.py` + `lookup.py` (form index `edge.db`) |
 | Generators | `drills.py`, `cloze.py`, `conjugation.py`, `patterns.py`, `forms.py`, `verbs.py`, `punctuation.py`, `rection.py`, `wordorder.py`, `dictation.py`, `speaking.py`, `pronunciation.py`; shared shape in `item.py` |
 | Planning | `learner.py` (rule evidence, weak rules, refresh, skill balance, mistakes), `planning.py` (today's plan) |
+| Exam | `exam.py` (HARNO's spec and sittings, the chosen goal, `.ics`), `mock.py` (a timed section per part), `readiness.py`, `checkpoint.py` |
 | Curriculum | `curriculum.py` (topics, prerequisites, generators, representations), `practice.py` (dispatch), `progress.py`, `placement.py`, `checkpoint.py`, `handoff.py`, `themes.py`, `overview.py`, `readiness.py` |
 | Evidence | `evidence.py` (event log, replay, backfill), `itemref.py` (signed, regenerable item refs) |
 | Review and vocabulary | `review.py` (FSRS), `mining.py`, `vocab.py`, `gloss.py` (stored dictionary answers), `meaning.py` (which Russian a word gets) |
-| EKI data | `ekixml.py` (file reader), `psv.py`, `evs.py`, `har.py`, `ekidefs.py` (VSL, EKSS) |
+| EKI data | `ekixml.py` (file reader), `psv.py`, `evs.py`, `har.py`, `ekidefs.py` (VSL, EKSS), `haaldus.py` (recorded word forms and sentences) |
 | Library | `library.py`, `sources.py`, `topiclinks.py`, `difficulty.py`, `harvest/` (ERR, Selges keeles, Lihtsad uudised, EIS, HARNO, EVKK) |
 | Grammar reference | `grammar.py` (EKK links), `estgec.py` (EstGEC-L2 word-order corrections) |
-| Providers | `providers/grammar.py` (check chain), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
+| Tutor | `tutor.py` — the one boundary a model is called across (ADR-0002): explanations, the writing and transcript checks, translation, and the exam partner |
+| Providers | `providers/grammar.py` (check chain, per-correction provenance), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
 | Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `fetch.py` |
-| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` |
+| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` (licences **and** engines: version, quota, what leaves the device), `logs.py` (JSON lines, never learner text), `providers/budget.py` (a day's allowance per lane) |
 | CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |
 
 ## Databases
@@ -59,6 +61,7 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 | `data/eesti.db` | words, object cases, EKI levels and dictionaries, rections | built into the image (`cli build`, imports) |
 | `data/edge.db` | form index (`forms`, `object_cases`) | built into the image (`cli export`) |
 | `data/content.db` | library items, sources, topic links | harvested locally, pushed with `push-content.sh` |
+| `data/audio.db` | EKI's recordings: word forms and read sentences (`cli import-haaldused`, `cli import-konekorpus`) | imported from the EKI archive; local, never snapshotted |
 | `data/events.db` | the evidence log: every learner-state change as an append-only event (`eesti/evidence.py`) | created at runtime; copied event by event into the Worker's Durable Object |
 | `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | projections of the log (mastery, FSRS cards, word statuses, error queue), plus stored glosses and the provider breaker | created at runtime; rebuilt from the log on restore; snapshotted by the Worker for the caches |
 

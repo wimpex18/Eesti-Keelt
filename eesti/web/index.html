@@ -107,6 +107,21 @@
     <!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
          drilled over. The label hides for topics it cannot change. -->
     <div id="practiceOut"></div>
+    <!-- A set to carry: drills are made on the server, so without one there is
+         nothing to answer unless it was fetched in advance (`js/offline.js`). -->
+    <details class="offline" id="offline">
+      <summary lang="et">Offline <i class="ru" lang="ru">набор без интернета</i></summary>
+      <p class="hint" id="offlineState">…</p>
+      <div class="row">
+        <button class="ghost" id="offlineGet" lang="et">Lae alla
+          <span class="ru" lang="ru">скачать набор</span></button>
+        <button class="go" id="offlinePractice" lang="et" hidden>Harjuta
+          <span class="ru" lang="ru">решать офлайн</span></button>
+        <button class="ghost" id="offlineSend" lang="et" hidden>Saada vastused
+          <span class="ru" lang="ru">отправить ответы</span></button>
+      </div>
+    </details>
+
     <!-- Today's plan (`eesti/planning.py`). After the drill in the markup, so a phone
          shows the drill first; wide screens move it to the top (`app.css`). -->
     <details class="today" id="today" open>
@@ -192,6 +207,47 @@
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
 
+    <!-- Recording the speech eval set. Local only (`cli serve`): the route is
+         absent on the deployment, so this block stays hidden there (ADR-0003). -->
+    <details class="evalset" id="evalSet" hidden>
+      <summary lang="et">Hindamiskomplekt <i class="ru" lang="ru">запись набора для оценки</i></summary>
+      <p class="hint">Читай вслух то, что появится. Записи остаются на этой
+        машине и нужны, чтобы сравнить движки распознавания на
+        <strong>твоём</strong> голосе. Нужно 80–150 фраз, четверть из них — с
+        намеренной ошибкой.</p>
+      <div class="row">
+        <button class="go" id="evalNext" lang="et">Järgmine lause
+          <span class="ru" lang="ru">следующая фраза</span></button>
+        <button class="ghost" id="evalRec" lang="et" disabled>● Salvesta
+          <span class="ru" lang="ru">записать</span></button>
+        <span class="hint" id="evalCount"></span>
+      </div>
+      <div class="prompt" id="evalPrompt" lang="et"></div>
+      <p class="hint" id="evalNote"></p>
+    </details>
+
+    <!-- The exam is paired, so practice has two sides: a model plays the partner
+         (ADR-0002). It never corrects and never scores. -->
+    <details class="vestlus" id="vestlus">
+      <summary lang="et">Vestlus <i class="ru" lang="ru">разговор с собеседником</i></summary>
+      <p class="hint">Собеседника играет модель: она отвечает по-эстонски и
+        задаёт вопросы, но <strong>не проверяет и не оценивает</strong>. На
+        экзамене (B1) эта часть сдаётся в паре.</p>
+      <div class="row">
+        <button class="go" id="vestlusStart" lang="et">Alusta vestlust
+          <span class="ru" lang="ru">начать разговор</span></button>
+        <span class="hint" id="vestlusTurns"></span>
+      </div>
+      <div id="vestlusLog" class="vestlus-log"></div>
+      <div class="row" id="vestlusRow" hidden>
+        <input type="text" id="vestlusSay" size="32" lang="et"
+          aria-label="Sinu vastus — твой ответ" autocapitalize="sentences"
+          autocorrect="off" spellcheck="false" autocomplete="off">
+        <button class="ghost" id="vestlusSend" lang="et">Vasta
+          <span class="ru" lang="ru">ответить</span></button>
+      </div>
+    </details>
+
     <!-- Links out instead of building: EKI's pronunciation exercises and the Sõnaveeb
          phrase collections. -->
     <div style="margin-top:var(--s4)">
@@ -213,6 +269,18 @@
          report, which loads late and would otherwise push it around. -->
     <p class="hint"><a href="/api/me/export" download lang="et">Minu andmed
       <span class="ru" lang="ru">скачать всё, что приложение записало обо мне (JSONL)</span></a></p>
+    <!-- Reminders. Counts only ever leave the device, and the switch says so. -->
+    <div id="remind" class="pair">
+      <div class="row">
+        <button class="ghost" id="remindBtn" lang="et">Meeldetuletused
+          <span class="ru" lang="ru">напоминания</span></button>
+        <span class="hint" id="remindHint"></span>
+      </div>
+      <div class="row" id="remindWhen" hidden>
+        <label class="hint" for="remindHour" lang="ru">напомнить, если днём ничего не сделано, после</label>
+        <select id="remindHour" aria-label="Час напоминания"></select>
+      </div>
+    </div>
     <div id="statusOut" class="empty">Загружаю…</div>
   </section>
 
@@ -249,14 +317,23 @@
       <span id="countdown" class="countdown"></span>
     </div>
 
-    <p class="hint">
-      Четыре части (osad), в каждой 25 баллов. Сдано, если в сумме
-      <strong>≥ 60 баллов</strong> и <strong>ни одна часть не равна 0</strong>.
-    </p>
+    <!-- The exam's own shape and sittings, from /api/exam-spec/{level}
+         (`eesti/exam.py`): the points differ by level, so nothing is hard-coded. -->
+    <div id="examSpec"></div>
+    <div id="examGoal" class="row"></div>
 
     <!-- Filled from /api/readiness/{level}: the hand-written version said
          "349 teksti" and "pole veel" regardless of what had happened. -->
     <div id="readiness"></div>
+    <!-- The timed mock: one exam part on the exam's clock (`eesti/mock.py`). -->
+    <details class="mock" id="mock">
+      <summary lang="et">Proovieksam <i class="ru" lang="ru">пробный экзамен на время</i></summary>
+      <div class="row" id="mockParts"></div>
+      <div class="row"><button class="ghost" id="mockWhole" lang="et">Terve eksam
+        <span class="ru" lang="ru">все четыре части подряд</span></button></div>
+      <div id="mockOut"></div>
+    </details>
+
     <!-- The checkpoint: a mixed set across the whole level. -->
     <div class="row" style="margin-top:var(--s5)">
       <button class="go" id="checkpointBtn" lang="et">Kontrolltöö <span class="ru" lang="ru">контрольная</span></button>
@@ -381,6 +458,16 @@
       </div>
       <div id="xlOut" class="gloss-late" hidden></div>
       <div id="wordCard" hidden></div>
+      <!-- Did the text land? The questions are written by a model and keyed by
+           the text itself; the answers are graded here, never by a model. -->
+      <div id="readQuiz" class="quiz">
+        <div class="row">
+          <button class="ghost" id="quizBtn" lang="et">Küsimused
+            <span class="ru" lang="ru">вопросы по тексту</span></button>
+          <span class="hint" id="quizHint"></span>
+        </div>
+        <div id="quizList"></div>
+      </div>
     </div>
   </section>
 

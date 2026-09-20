@@ -61,13 +61,22 @@ async function runCheck() {
         // every suspicion would turn a picked record into a dump of model
         // output and start the rule firing on noise. One click per error, made
         // by a person, is the whole design.
+        // Who stands behind it: code, code-checked, or a model's claim alone.
+        const SOURCE = {
+          "deterministic": ["проверено кодом", "src-ok"],
+          "model+verified": ["модель, форма проверена", "src-ok"],
+          "model-only": ["модель, не подтверждено", "src-weak"],
+        };
+        const [label, cls] = SOURCE[c.source] || SOURCE["model-only"];
         html += `<div class="corr ${c.tag === "obj-case" ? "objcase" : ""}">
           <span class="tag">${esc(c.tag)}</span>
+          <span class="hint ${cls}">${esc(label)}</span>
           <div class="fix" lang="et">${fix}</div>
           <div class="why">${md(c.why)}</div>
-          ${c.correct ? `<button class="logbtn" type="button"
+          ${c.correct && c.source !== "model-only" ? `<button class="logbtn" type="button"
             data-wrong="${esc(c.wrong)}" data-correct="${esc(c.correct)}"
             data-why="${esc(c.why || "")}" data-tag="${esc(c.tag)}"
+            data-source="${esc(c.source || "deterministic")}"
             lang="et">+ Vigade logisse <i class="ru" lang="ru">в журнал ошибок</i></button>` : ""}</div>`;
       }
     }
@@ -83,6 +92,7 @@ async function queueError(btn) {
   btn.disabled = true;
   try {
     const r = await (await api("/api/notion/queue", {
+      source: btn.dataset.source || "deterministic",
       wrong: btn.dataset.wrong, correct: btn.dataset.correct,
       why: btn.dataset.why, tag: btn.dataset.tag,
     })).json();

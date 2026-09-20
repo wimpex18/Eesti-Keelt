@@ -25,6 +25,10 @@ EXCLUDED = {
     # The evidence log travels event by event (`/api/events`, pulled into the
     # Worker's Durable Object), never as a file: see `test_the_log_travels_by_event`.
     "EVENTS_DB",
+    # EKI's recordings: imported reference data, not learner state. Hundreds of
+    # megabytes of audio, rebuilt by `cli import-haaldused` from the archive,
+    # so losing it on a cold start costs a re-import and never a learner's work.
+    "AUDIO_DB",
 }
 
 

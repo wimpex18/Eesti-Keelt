@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS events (
 #: Projection tables per learner database. Everything else in those files (the
 #: breaker, repairs, the dictionary cache) is operational and survives a rebuild.
 PROJECTIONS: dict[str, tuple[str, ...]] = {
-    "progress": ("attempts", "topic_state", "checkpoints", "dictation", "exposure"),
+    "progress": ("attempts", "topic_state", "checkpoints", "dictation", "exposure",
+                 "goal", "exam_sections"),
     "review": ("review_items",),
     "vocab": ("vocab_status",),
     "notion": ("notion_queue",),
@@ -120,6 +121,13 @@ def _insert(conn: sqlite3.Connection, ev: Event) -> bool:
          json.dumps(ev.payload, ensure_ascii=False, sort_keys=True)),
     )
     return cur.rowcount > 0
+
+
+def has(conn: sqlite3.Connection, event_id: str) -> bool:
+    """Whether this event is already in the log — the check an answer given
+    offline needs, so replaying the queue records it once."""
+    return conn.execute(
+        "SELECT 1 FROM events WHERE id = ?", (event_id,)).fetchone() is not None
 
 
 def has_backfill(conn: sqlite3.Connection) -> bool:
@@ -192,11 +200,14 @@ class Stores:
 
 
 def _open(name: str) -> sqlite3.Connection:
-    from . import checkpoint, config, dictation, library, notion, progress, review, vocab
+    from . import (checkpoint, config, dictation, exam, library, mock, notion,
+                   progress, review, vocab)
 
     if name == "progress":
         conn = progress.connect(config.PROGRESS_DB)
         conn.executescript(checkpoint.SCHEMA)
+        conn.executescript(exam.SCHEMA)
+        conn.executescript(mock.SCHEMA)
         conn.executescript(library.SCHEMA)
         dictation.ensure(conn)
         return conn
@@ -211,7 +222,8 @@ def _open(name: str) -> sqlite3.Connection:
 
 def _register_all() -> None:
     """Import every module that registers an apply function."""
-    from . import checkpoint, dictation, library, notion, progress, review, vocab  # noqa: F401
+    from . import (checkpoint, dictation, exam, library, mock,  # noqa: F401
+                   notion, progress, review, vocab)
 
 
 @applies("legacy-row")
@@ -237,7 +249,11 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
 
 #: Evidence with no table of its own: read from the log itself (skill balance,
 #: the plan's history), so replaying them writes nothing.
-LOG_ONLY = ("writing", "speech", "plan-issued")
+#: `comprehension` is a graded reading answer: code graded it against the
+#: text's own span, and it is practice for `lugemine` rather than evidence
+#: about a grammar rule, so it is kept and never projected.
+LOG_ONLY = ("writing", "speech", "plan-issued", "conversation", "comprehension",
+            "reminder-settings", "fsrs-parameters", "questions-made")
 for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 

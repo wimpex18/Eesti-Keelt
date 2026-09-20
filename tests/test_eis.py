@@ -1,8 +1,10 @@
-"""Indexing the exam board's own EIS practice tasks — pointers, not copies.
+"""The exam board's own EIS practice tasks, read inside the app.
 
-The tasks are © Haridus- ja Noorteamet and score only on HARNO's site, so nothing
-of theirs is stored; these tests enforce that. Network tests skip when EIS is
-unreachable.
+The task text and its recordings are fetched for private study (© Haridus- ja
+Noorteamet) so a learner does not leave the app to read a task. **The key
+stays at EIS**: the correct answers are nowhere in the page and nothing here
+scores an EIS task — a task that was not fetched keeps its link, which is what
+these tests pin. Network tests skip when EIS is unreachable.
 """
 
 from __future__ import annotations
@@ -19,15 +21,33 @@ def a_task(**kw) -> Task:
                    "title": "Lugemine 3 (A2-tase, harjutusülesanne)", **kw})
 
 
-class TestNothingOfTheirsIsStored:
-    def test_the_body_is_empty(self):
-        """The single most important assertion in this file."""
-        assert to_items([a_task()])[0].body == ""
+class TestWhatTheAppHolds:
+    def test_a_task_that_was_not_fetched_links_out(self):
+        """Rather than opening an empty reader."""
+        item = to_items([a_task()])[0]
+        assert item.body == ""
+        assert item.meta["url"] == "https://eis.harno.ee/publicitems/54955"
+        assert item.meta["external"] is True
 
-    def test_the_item_carries_a_link_instead(self):
-        meta = to_items([a_task()])[0].meta
-        assert meta["url"] == "https://eis.harno.ee/publicitems/54955"
-        assert meta["external"] is True
+    def test_a_fetched_task_carries_its_text_and_every_recording(self):
+        clips = ["https://cdn.example/1.mp3", "https://cdn.example/2.mp3"]
+        item = to_items([a_task()], {"54955": ("Loe lauseid ja vali vastus.", clips)})[0]
+        assert item.body.startswith("Loe lauseid")
+        assert item.meta["audio"] == clips
+        # The reader plays them in order; the first is the item's own audio.
+        assert item.audio_url == clips[0]
+        assert item.meta["external"] is False
+
+    def test_the_task_still_says_where_it_is_scored(self):
+        item = to_items([a_task()], {"54955": ("Loe lauseid.", [])})[0]
+        assert "EIS" in item.meta["note"]
+
+    def test_the_frame_s_own_chrome_is_not_read_as_estonian(self):
+        """"Kuulamiste arv: 0 /2" is the player's counter, not the task."""
+        from eesti.harvest.eis import _CHROME
+
+        assert _CHROME.sub(" ", "Kuulamiste arv: 0 /2 1. Mis täna ei sõida?").split() == [
+            "1.", "Mis", "täna", "ei", "sõida?"]
 
     def test_the_licence_is_owner_only(self):
         """`eis` must never be servable to an anonymous visitor."""

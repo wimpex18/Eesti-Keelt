@@ -13,7 +13,7 @@ from datetime import date
 import pytest
 
 from eesti.progress import connect as progress_connect
-from eesti.readiness import CONTACT, EXAMPLE_TARGET, PARTS, readiness
+from eesti.readiness import CONTACT, PARTS, readiness
 
 
 class _Item:
@@ -88,19 +88,22 @@ class TestTheVerdict:
 
 
 @pytest.fixture
-def target(monkeypatch):
+def target(progress):
     """A chosen sitting, for the tests that are about the countdown itself."""
-    from eesti import readiness as module
+    from datetime import date as _date
 
-    monkeypatch.setattr(module, "TARGET", EXAMPLE_TARGET)
+    from eesti.exam import set_goal
+
+    set_goal(progress, "A2", _date(2026, 11, 7))
+    return progress
 
 
 class TestTheDeadline:
-    def test_no_session_is_chosen_by_default(self):
+    def test_no_session_is_chosen_by_default(self, progress):
         """With no sitting chosen, no countdown is shown."""
-        from eesti import readiness as module
+        from eesti.exam import goal
 
-        assert module.TARGET is None
+        assert goal(progress) is None
 
     def test_the_countdown_says_so_rather_than_going_blank(self, progress):
         result = readiness("A2", progress=progress, today=date(2026, 9, 1))
@@ -112,27 +115,26 @@ class TestTheDeadline:
         date nobody is working toward."""
         got = readiness("A2", progress=progress).to_dict()["deadline"]
         assert got["registration"] is None and got["sitting"] is None
-        assert "2027" in got["note"]
+        assert "Eksam" in got["note"]
 
-    def test_setting_a_target_brings_the_countdown_back(self, progress, target):
-        result = readiness("A2", progress=progress, today=date(2026, 9, 1))
-        assert result.days_to_decide == 30
-        assert result.days_to_sitting == 67
+    def test_choosing_a_sitting_brings_the_countdown_back(self, target):
+        """The dates come from HARNO's published session (`exam.SESSIONS`)."""
+        result = readiness("A2", progress=target, today=date(2026, 9, 1))
+        assert result.days_to_decide == 30      # registration closes 2026-10-01
+        assert result.days_to_sitting == 67     # sitting 2026-11-07
         assert result.countdown == "до регистрации 30 дн."
 
-    def test_a_passed_deadline_goes_negative_rather_than_pretending(
-        self, progress, target
-    ):
+    def test_a_passed_deadline_goes_negative_rather_than_pretending(self, target):
         """Clamping at zero would quietly turn 'too late' into 'today'."""
-        result = readiness("A2", progress=progress, today=date(2026, 12, 1))
+        result = readiness("A2", progress=target, today=date(2026, 12, 1))
         assert result.days_to_decide < 0
 
-    def test_the_example_keeps_the_calendar_shape(self):
-        """`EXAMPLE_TARGET` keeps the calendar shape: registration closes about five weeks
-        before the sitting.
-        """
-        decide, sitting = EXAMPLE_TARGET
-        assert 28 <= (sitting - decide).days <= 45
+    def test_a_published_session_closes_registration_weeks_ahead(self):
+        from eesti.exam import SESSIONS
+
+        for session in SESSIONS:
+            gap = (session.sitting - session.registration_closes).days
+            assert 28 <= gap <= 45, session
 
 
 class TestContactThreshold:

@@ -2,6 +2,8 @@
 
 import {RU, stateIcon, uiIcon} from "./chrome.js";
 import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import * as offline from "./offline.js";
+import {loadReminders} from "./remind.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 
 // ── the path ────────────────────────────────────────────────────────
@@ -153,7 +155,8 @@ export async function loadPath() {
       const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
       pathMeta[t.id] = t;
       const testOut = t.state === "ready" || t.state === "in progress"
-        ? `<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>` : "";
+        ? `<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
+           <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button>` : "";
       return `<div class="topic ${t.state.replace(" ", "-")}">
         <span class="st">${stateIcon(t.state)}${esc(RU[t.state] || t.state)}</span>
         <span class="lv" data-level="${esc(t.level)}">${esc(t.level)}</span>
@@ -171,6 +174,7 @@ export async function loadPath() {
 // ── progress ────────────────────────────────────────────────────────
 export async function loadStatus() {
   const out = $("#statusOut");
+  loadReminders();
   try {
     const d = await (await api("/api/status", null, "GET")).json();
     const s = d.sections; let html = "";
@@ -206,6 +210,12 @@ export async function loadStatus() {
 
 
 $("#pathList").addEventListener("click", e => {
+  const out = e.target.closest("button[data-testout]");
+  if (out) {
+    $("#pathAll").open = false;
+    startTestOut(out.dataset.testout);
+    return;
+  }
   const b = e.target.closest("button[data-topic]");
   if (b) {
     pathTopic = b.dataset.topic;
@@ -214,6 +224,80 @@ $("#pathList").addEventListener("click", e => {
     startPractice();
   }
 });
+
+
+/* A missed item can be explained — by a model, saying so, grounded in Vabamorf
+   and EKK, and never deciding anything (`eesti/tutor.py`). */
+function offerExplanation(verdict, eventId) {
+  verdict.insertAdjacentHTML("beforeend",
+    `<div class="row"><button class="ghost tutorbtn" type="button" lang="et">Selgita
+      <span class="ru" lang="ru">объяснить</span></button></div>`);
+  const btn = verdict.querySelector(".tutorbtn");
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      const a = await (await api("/api/tutor", {intent: "explain_attempt",
+                                                event_id: eventId})).json();
+      const ref = a.reference && a.reference.known
+        ? ` <a href="${esc(a.reference.url)}" target="_blank" rel="noopener">EKK ${esc(a.reference.ekk_section)}</a>` : "";
+      btn.closest(".row").outerHTML = a.explanation_ru
+        ? `<div class="why">${md(a.explanation_ru)}
+             <span class="hint">объяснил ${esc(a.engine)} · это не проверка ответа</span>${ref}</div>`
+        : `<div class="why"><span class="hint">${esc(a.note || "объяснение недоступно")}</span>${ref}</div>`;
+    } catch (e) {
+      btn.disabled = false;
+      btn.insertAdjacentHTML("afterend", `<span class="hint">${esc(e.message)}</span>`);
+    }
+  };
+}
+
+
+/* Test-out: five items, all five right marks the topic known (`placement.py`).
+   Answered as one set, graded by the server, so the page never decides. */
+async function startTestOut(topic) {
+  const out = $("#practiceOut");
+  out.innerHTML = `<p class="hint">Загружаю…</p>`;
+  let set;
+  try {
+    set = await (await api(`/api/testout/${encodeURIComponent(topic)}`, null, "GET")).json();
+  } catch (e) {
+    out.innerHTML = `<div class="banner">${esc(e.message)}</div>`;
+    return;
+  }
+  out.innerHTML = `
+    <div class="banner info"><b lang="et">${esc(set.et)}</b> · ${esc(set.note)}</div>
+    <div id="testoutTasks">${set.items.map((it, i) => `
+      <div class="mock-task" data-i="${i}">
+        <div class="prompt" lang="et">${esc(it.prompt).replace("____",
+          '<span class="blank">____</span>')}</div>
+        <div class="row"><span class="hint" lang="et">${esc(it.hint || "")}</span>
+          <input type="text" size="16" lang="et" aria-label="Vastus — ответ"
+            ${ANSWER_FIELD}></div>
+      </div>`).join("")}</div>
+    <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
+      <span class="ru" lang="ru">проверить</span></button></div>
+    <div class="verdict" id="testoutVerdict" role="status"></div>`;
+  out.querySelector("input")?.focus();
+  $("#testoutDone").onclick = async () => {
+    $("#testoutDone").disabled = true;
+    const given = [...out.querySelectorAll("#testoutTasks input")].map(x => x.value);
+    const verdict = $("#testoutVerdict");
+    try {
+      const r = await (await api(`/api/testout/${encodeURIComponent(topic)}`,
+                                 {seed: set.seed, given})).json();
+      verdict.className = r.passed ? "verdict ok" : "verdict no";
+      verdict.innerHTML = r.passed
+        ? `${r.correct} из ${r.asked} — тема засчитана.`
+        : `${r.correct} из ${r.asked}. Нужно ${set.required} из ${set.required};
+           ничего не потеряно — тема просто остаётся в пути.`;
+      loadPath(); loadRail();
+    } catch (e) {
+      $("#testoutDone").disabled = false;
+      verdict.className = "verdict no";
+      verdict.innerHTML = `Не проверено: ${esc(e.message)}`;
+    }
+  };
+}
 
 
 async function loadThemes() {
@@ -455,6 +539,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // is gone from the screen and must not count in the set that replaced it.
     if ((tally.gen || 0) !== set) return;
     tally.answered++; if (res.correct) tally.correct++;
+    if (!res.correct && res.event_id) offerExplanation(verdict, res.event_id);
     else tally.missed.push({it, topic});
     /* Graded: on a phone the next item appears under this one (see `.drill.done`
        in app.css). Keep this verdict in view above the keyboard and the thumb bar. */
@@ -606,3 +691,102 @@ $("#freeBtn").onclick = async () => {
 };
 
 loadThemes();
+
+
+// ── offline ─────────────────────────────────────────────────────────
+/* A pack is fetched while there is a connection and answered without one. The
+   page grades by the same rule the server does, queues what was answered, and
+   sends it when the connection returns — the server re-grades each answer from
+   its token, so nothing here decides what counts (`js/offline.js`). */
+
+async function paintOffline() {
+  const pack = await offline.savedPack();
+  const queued = await offline.pending();
+  $("#offlineState").textContent = offline.describe(pack, queued.length);
+  $("#offlinePractice").hidden = !pack;
+  $("#offlineSend").hidden = !queued.length;
+}
+
+$("#offlineGet").onclick = async () => {
+  const btn = $("#offlineGet");
+  btn.disabled = true;
+  try {
+    await offline.fetchPack(24);
+    await paintOffline();
+  } catch (e) {
+    $("#offlineState").textContent = "Не скачалось: " + e.message;
+  } finally { btn.disabled = false; }
+};
+
+$("#offlinePractice").onclick = async () => {
+  const pack = await offline.savedPack();
+  if (!pack) return;
+  /* A set fetched on load can still be in flight; claiming the request id
+     stops it painting over the offline one when it lands. */
+  practiceRequest++;
+  const out = $("#practiceOut");
+  out.innerHTML = `<div class="banner info">Офлайн-набор: ответы записываются
+    на сервере, когда связь вернётся.</div>`;
+  newSet(pathTally);
+  pathTally.size = pack.items.length;
+  pack.items.forEach((it, i) => out.appendChild(
+    renderOfflineItem(it, i, pack.glosses || {})));
+  out.querySelector("input")?.focus();
+};
+
+$("#offlineSend").onclick = async () => {
+  const btn = $("#offlineSend");
+  btn.disabled = true;
+  const sent = await offline.flush();
+  $("#offlineState").textContent = sent
+    ? `Отправлено ответов: ${sent}.`
+    : "Пока не отправляется — нет связи.";
+  await paintOffline();
+  if (sent) { loadPath(); loadRail(); }
+  btn.disabled = false;
+};
+
+/* One offline item: graded here because there is nobody to ask, and queued
+   with its own id so sending it twice changes nothing. */
+function renderOfflineItem(it, i, glosses) {
+  const el = document.createElement("div");
+  el.className = "drill";
+  const ru = (glosses || {})[it.lemma] || [];
+  el.innerHTML = `
+    <div class="prompt" lang="et">${esc(it.prompt).replace("____",
+      '<span class="blank">____</span>')}</div>
+    <div class="row">
+      <input type="text" size="18" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>
+      <button class="go" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+      ${taskLine({lemma: it.lemma, label: it.hint || "", level: it.level || ""},
+                 ru, {quiet: true})}
+    </div>
+    <div class="verdict" role="status"></div>`;
+  const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const started = performance.now();
+  const check = async () => {
+    if (!input.value.trim()) return;
+    input.disabled = el.querySelector("button").disabled = true;
+    const ok = offline.graded(it, input.value);
+    /* The verdict first: it is what the learner is waiting for, and it must not
+       depend on the queue write succeeding. */
+    verdict.className = ok ? "verdict ok" : "verdict no";
+    verdict.innerHTML = ok ? "Верно." : wrongVerdict(input.value, it.answer, it.why_ru);
+    try {
+      await offline.queueAnswer(it, input.value,
+                                Math.round(performance.now() - started));
+      verdict.insertAdjacentHTML("beforeend",
+        `<span class="hint">записано локально</span>`);
+    } catch (e) {
+      verdict.insertAdjacentHTML("beforeend",
+        `<span class="hint">не записано: ${esc(e.message)}</span>`);
+    }
+    paintOffline();
+  };
+  el.querySelector("button").onclick = check;
+  input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+  return el;
+}
+
+addEventListener("online", () => offline.flush().then(paintOffline));
+paintOffline();

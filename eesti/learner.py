@@ -34,7 +34,7 @@ STALE_DAYS = 60
 SKILL_EVENTS = {
     "kirjutamine": ("writing",),
     "kuulamine": ("dictation",),
-    "lugemine": (),
+    "lugemine": ("comprehension",),
     "raakimine": ("speech",),
 }
 
@@ -195,3 +195,79 @@ def recent_mistakes(log: sqlite3.Connection, topic: str | None = None,
         if len(out) >= limit:
             break
     return out
+
+
+# --------------------------------------------------------------------------
+# Speaking: what code can honestly say about a spoken answer
+# --------------------------------------------------------------------------
+#
+# The exam is paired and examiner-marked, so nothing here is a score. What a
+# transcript *can* support is three deterministic facts:
+#
+# - **completion** — was there an answer at all, and how long;
+# - **fluency** — words per minute, from the recording's own length;
+# - **uncertainty** — the share of words Vabamorf does not know. A garbled
+#   transcript is mostly non-words, and a proxy that says "this transcript is
+#   doubtful" is worth more than a confidence score the engine does not give us.
+#
+# A transcript that looks doubtful makes the other two unreliable, so they are
+# reported together and the caller is told which.
+
+#: Above this share of unrecognised words, treat the transcript as doubtful.
+DOUBTFUL = 0.34
+
+#: A spoken answer shorter than this is a false start, not an answer.
+MIN_WORDS_SPOKEN = 5
+
+
+def speech_signals(transcript: str, seconds: float = 0.0) -> dict:
+    """Completion, fluency and how sure the transcript looks. Never a score."""
+    words = transcript.split()
+    unknown = 0
+    try:
+        from .morph import _readings
+
+        for word in words:
+            stripped = word.strip(".,!?;:»«\"'")
+            if stripped and not _readings(stripped) and not stripped[0].isupper():
+                unknown += 1
+    except Exception:  # noqa: BLE001 - no morphology is not a verdict
+        unknown = 0
+    share = round(unknown / len(words), 2) if words else 0.0
+    return {
+        "answered": len(words) >= MIN_WORDS_SPOKEN,
+        "words": len(words),
+        "wpm": round(len(words) / (seconds / 60), 1) if seconds > 0 else None,
+        "unknown_share": share,
+        # Said plainly: when the recogniser clearly struggled, the numbers above
+        # describe the recogniser, not the learner.
+        "doubtful": share > DOUBTFUL,
+    }
+
+
+def speaking_practice(log: sqlite3.Connection, days: int = 90,
+                      now: datetime | None = None) -> dict:
+    """How much speaking has actually happened, from the log."""
+    from . import evidence
+
+    now = now or datetime.now(timezone.utc)
+    after = (now - timedelta(days=days)).isoformat()
+    answers = reads = 0
+    paces: list[float] = []
+    doubtful = 0
+    for ev in evidence.since(log, ("speech",), after):
+        p = ev.payload
+        if p.get("kind") == "read-aloud":
+            reads += 1
+            continue
+        answers += 1
+        if p.get("wpm"):
+            paces.append(p["wpm"])
+        doubtful += int(bool(p.get("doubtful")))
+    paces.sort()
+    return {
+        "answers": answers,
+        "read_alouds": reads,
+        "median_wpm": paces[len(paces) // 2] if paces else None,
+        "doubtful": doubtful,
+    }

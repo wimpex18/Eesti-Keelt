@@ -381,6 +381,12 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
 
+    # The downloaded exam material: empty unless a test puts a file there, so a
+    # test never serves the learner's own copy of HARNO's PDFs.
+    exam_dir = tmp_path / "exam"
+    exam_dir.mkdir(exist_ok=True)
+    monkeypatch.setattr(config, "EXAM_DIR", str(exam_dir))
+
     # Unbind the breaker, which importing the app binds to the real `progress.db`;
     # tests that exercise it bind their own store.
     from eesti.providers import breaker

@@ -46,3 +46,14 @@ VOCAB_DB = "data/vocab.db"
 NOTION_DB = "data/notion.db"
 # The evidence log (`eesti/evidence.py`): the source the four above are rebuilt from.
 EVENTS_DB = "data/events.db"
+
+# The exam board's own task files (`eesti/harvest/harno.py`): PDFs and listening
+# audio, downloaded for study and never committed.
+EXAM_DIR = os.environ.get("EESTI_EXAM_DIR", "data/exam")
+
+# EKI's spoken word forms and read sentences (`eesti/haaldus.py`): imported, not
+# built, and 270 MB, so it neither ships in the image nor travels in a snapshot.
+# On the deployment it is a Cloud Storage bucket mounted read-only into the
+# container (`deploy/push-audio.sh`), which is why the path is an environment
+# variable rather than a constant.
+AUDIO_DB = os.environ.get("EESTI_AUDIO_DB", "data/audio.db")

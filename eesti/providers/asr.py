@@ -27,7 +27,7 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
 
-from . import breaker
+from . import breaker, budget
 from pathlib import Path
 
 # Longer than text providers (audio takes time), bounded so several engines in
@@ -271,6 +271,35 @@ def _hosted(audio: bytes, mime: str = "audio/wav") -> Transcript | None:
     return Transcript(text.strip(), f"{HF_MODEL} (üldmudel)")
 
 
+def engines(audio: bytes, mime: str = "audio/wav", context: str = "") -> tuple:
+    """`(name, call)` for every engine, in the order the chain tries them.
+
+    Named rather than inlined so one engine can be run on its own — which is
+    how two of them are compared before a swap (`eesti/evals/asr.py`).
+    """
+    suffix = ".wav" if "wav" in mime else ".webm" if "webm" in mime else ".ogg"
+    return (
+        ("workers-ai", lambda: _cloudflare(audio, context)),
+        ("openrouter-audio", lambda: _openrouter(audio, mime, context)),
+        ("hf-whisper", lambda: _hosted(audio, mime)),
+        ("whisper.cpp", lambda: _local(audio, suffix)),
+        ("voxtral", lambda: _voxtral(audio, suffix)),
+    )
+
+
+#: The engines by name, for `--engine` on the eval.
+NAMES = ("workers-ai", "openrouter-audio", "hf-whisper", "whisper.cpp", "voxtral")
+
+
+def transcribe_with(name: str, audio: bytes, mime: str = "audio/wav",
+                    context: str = "") -> Transcript | None:
+    """One named engine, no chain and no breaker: the eval asks each in turn."""
+    for engine, call in engines(audio, mime, context):
+        if engine == name:
+            return call()
+    raise KeyError(name)
+
+
 def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Transcript:
     """Workers AI, OpenRouter, Hugging Face, then the two local engines.
 
@@ -279,18 +308,14 @@ def transcribe(audio: bytes, mime: str = "audio/wav", context: str = "") -> Tran
     engine to fall back to. With nothing configured, the refusal says recording and
     playback still work.
     """
-    suffix = ".wav" if "wav" in mime else ".webm" if "webm" in mime else ".ogg"
-    attempts = (
-        ("workers-ai", lambda: _cloudflare(audio, context)),
-        ("openrouter-audio", lambda: _openrouter(audio, mime, context)),
-        ("hf-whisper", lambda: _hosted(audio, mime)),
-        ("whisper.cpp", lambda: _local(audio, suffix)),
-        ("voxtral", lambda: _voxtral(audio, suffix)),
-    )
+    attempts = engines(audio, mime, context)
     first_failure: Transcript | None = None
     for name, engine in attempts:
         if breaker.is_open(name):
             continue                      # tripped; do not pay its timeout again
+        if budget.exhausted(f"asr:{name}"):
+            continue                      # today's allowance for this lane is spent
+        budget.spend(f"asr:{name}")
         result = engine()
         if result is None:
             continue                      # not configured; not a failure

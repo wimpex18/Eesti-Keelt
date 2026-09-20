@@ -393,20 +393,45 @@ def cmd_models(args: argparse.Namespace) -> int:
     return 0
 
 def cmd_eval(args: argparse.Namespace) -> int:
-    """Score a model on Estonian grammar.
+    """Score an engine.
 
-    Two tracks: the default 18 hand-written sentences (half already correct, so
-    precision is real), or `--track external`, TalTech's grammar_et pairs.
+    Grammar has two tracks: the default 18 hand-written sentences (half already
+    correct, so precision is real), or `--track external`, TalTech's grammar_et
+    pairs. `--suite asr` scores speech recognition on the owner's own
+    recordings instead (`eesti/evals/asr.py`).
     """
+    if args.suite == "asr":
+        import json as _json
+
+        from ..evals.asr import compare, run as run_asr
+
+        engines = args.engine or ["chain"]
+        scores = [run_asr(engine=name, folder=args.folder) for name in engines]
+        if any(not s["valid"] for s in scores):
+            return 2
+        if len(scores) == 2:
+            # Paired on the same clips: the only honest way to say one engine
+            # hears this learner better than the other.
+            print(_json.dumps(compare(scores[0], scores[1]), indent=2,
+                              ensure_ascii=False))
+        # No threshold to pass or fail: this set exists to compare engines
+        # before a swap, and a number from one voice is not a gate.
+        return 0
+
     if args.track == "external":
         from ..evals.external import run as run_external
 
         result = run_external(
             args.provider, model=args.model, sample=args.sample, seed=args.seed
         )
-        if not result["valid"]:
+        if not result["valid"] or result["accuracy"] is None:
             return 2
-        return 0 if (result["accuracy"] or 0) >= 0.5 else 1
+        # Recall on attested errors, and precision on the dataset's own correct
+        # sentences: a lane that flags correct Estonian teaches the wrong rule.
+        precision = result["precision"]
+        if precision is not None and precision < 0.8:
+            return 1
+        return 0 if result["accuracy"] >= 0.5 else 1
 
     from ..evals.gec import run
 
@@ -418,6 +443,53 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if not result["valid"] or result["recall"] is None or result["precision"] is None:
         return 2
     return 0 if result["recall"] >= 0.8 and result["precision"] >= 0.8 else 1
+
+
+def cmd_import_haaldused(args: argparse.Namespace) -> int:
+    """Import EKI's spoken word forms into `data/audio.db` (`eesti/haaldus.py`)."""
+    from pathlib import Path
+
+    from .. import config
+    from ..haaldus import build, connect, counts, taught
+    from ..wordlist import available
+    from ..wordlist import connect as words_connect
+
+    folder = Path(args.folder)
+    index = Path(args.index) if args.index else next(folder.glob("*.txt"), None)
+    if index is None or not index.exists():
+        print(f"no index found in {folder} — pass --index")
+        return 1
+    keep = None
+    if args.levels != "all":
+        if not available():
+            print("the word list is not built: run `cli fetch-data && cli build`")
+            return 1
+        keep = taught(words_connect(), tuple(args.levels.split(",")))
+        print(f"keeping the {len(keep)} forms those levels teach")
+
+    conn = connect(config.AUDIO_DB)
+    got = build(folder, index, conn, keep=keep)
+    size = counts(conn)
+    print(f"{got['added']} clips imported, {got['skipped']} skipped, "
+          f"{got['missing']} missing")
+    print(f"{size['forms']} forms, {size['bytes'] / 1e6:.0f} MB in {config.AUDIO_DB}")
+    return 0
+
+
+def cmd_import_konekorpus(args: argparse.Namespace) -> int:
+    """Import an EKI speech corpus: sentences with a real reader."""
+    from .. import config
+    from ..haaldus import build_sentences, connect
+
+    conn = connect(config.AUDIO_DB)
+    got = build_sentences(args.folder, conn, max_words=args.max_words,
+                          limit=args.limit)
+    size = conn.execute(
+        "SELECT COUNT(*), COALESCE(SUM(LENGTH(audio)), 0) FROM sentence_audio"
+    ).fetchone()
+    print(f"{got['added']} sentences imported, {got['skipped']} too long")
+    print(f"{size[0]} sentences, {size[1] / 1e6:.0f} MB in {config.AUDIO_DB}")
+    return 0
 
 
 def register(sub) -> None:
@@ -501,7 +573,35 @@ def register(sub) -> None:
 
     from ..evals.gec import NON_LLM
 
-    p = sub.add_parser("eval", help="score a model on the Estonian grammar eval")
+    p = sub.add_parser(
+        "import-haaldused",
+        help="import EKI's spoken word forms (psv hääldused) into data/audio.db")
+    p.add_argument("folder", help="the unpacked soundpack folder")
+    p.add_argument("--index", help="the index file, if it is not in the folder")
+    p.add_argument(
+        "--levels", default="A1,A2,B1",
+        help="keep only the forms these levels teach, or `all` for everything")
+    p.set_defaults(func=cmd_import_haaldused)
+
+    p = sub.add_parser(
+        "import-konekorpus",
+        help="import an EKI speech corpus (sentences read aloud) into data/audio.db")
+    p.add_argument("folder", help="the unpacked corpus folder")
+    p.add_argument("--max-words", type=int, default=12,
+                   help="skip sentences longer than this (dictation's own bound)")
+    p.add_argument("--limit", type=int, help="stop after this many sentences")
+    p.set_defaults(func=cmd_import_konekorpus)
+
+    p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")
+    p.add_argument(
+        "--suite", choices=("gec", "asr"), default="gec",
+        help="gec = grammar (default); asr = speech recognition on your own "
+             "recordings in data/eval/asr")
+    p.add_argument("--folder", help="asr only: where the recordings are")
+    p.add_argument(
+        "--engine", action="append",
+        help="asr only: which engine to score (repeat twice to compare them "
+             "paired on the same clips); default is the chain")
     p.add_argument("--provider", default="openrouter",
                    choices=[*_providers(), *NON_LLM])
     p.add_argument("--model")
@@ -511,7 +611,8 @@ def register(sub) -> None:
     )
     p.add_argument(
         "--track", choices=("hand", "external"), default="hand",
-        help="hand = 18 targeted sentences; external = TalTech grammar_et",
+        help="hand = 18 targeted sentences; external = TalTech grammar_et "
+             "(attested pairs, recall per error class plus precision)",
     )
     p.add_argument("--sample", type=int, default=30, help="external track only")
     p.add_argument("--seed", type=int, default=0)

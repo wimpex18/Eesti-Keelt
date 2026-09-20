@@ -56,3 +56,26 @@ def test_the_corpus_yields_a_usable_number_of_scorable_pairs():
 
     scorable = [r for r in rows if changed_tokens(r["original"], r["correct"])]
     assert len(scorable) >= 150, f"only {len(scorable)} scorable pairs"
+
+
+class TestTheErrorClasses:
+    """An attested correction's class is decided by morphology, so the eval's
+    per-class recall is the data's own, not a label someone wrote."""
+
+    @pytest.mark.parametrize("wrong,right,expected", [
+        ("raamatu", "raamatut", "obj-case"),
+        ("kooli", "koolis", "loc-case"),
+        ("käigul", "käigus", "loc-case"),
+        ("teesin", "tegin", "spelling"),        # not a word Vabamorf knows
+    ])
+    def test_it_names_the_rule(self, wrong, right, expected):
+        pytest.importorskip("estnltk")
+        from eesti.evals.external import category
+
+        assert category(wrong, right) == expected
+
+    def test_an_unclassifiable_change_is_not_forced_into_a_class(self):
+        pytest.importorskip("estnltk")
+        from eesti.evals.external import category
+
+        assert category("ilus", "ilusti") == "other"

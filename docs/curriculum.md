@@ -27,8 +27,8 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
   mastery, then its items join the FSRS review pool (`handoff.py`), which mixes
   everything due.
 - **Placement and test-out** use the same mastery check: topics are probed in
-  path order, five of five each (`placement.py`); any available topic can be
-  tested out.
+  path order, five of five each (`placement.py`). Any available topic can be
+  tested out from `Kogu rada`; the sweep over the whole syllabus is CLI-only.
 - **Checkpoints** are mixed end-of-level quizzes (`checkpoint.py`).
 - **Themes** pair a grammar rule with a themed word set (`themes.py`), so a
   drill teaches the rule and the vocabulary together.

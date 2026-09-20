@@ -41,6 +41,9 @@ def health() -> dict:
         "drillable_nouns": drillable,
         "rules": sorted({t.rule for t in TEMPLATES}),
         "voices": list(tts.VOICES),
+        # EKI's recordings, where they are mounted (`deploy/push-audio.sh`).
+        # Zero is a supported state: everything falls back to synthesis.
+        "recordings": _recordings(),
         "boot": BOOT_ID,
         # Distinguishes an empty reading library (a supported state) from a broken one.
         "library": content_available(),
@@ -89,6 +92,25 @@ def _reference(conn) -> dict:
     }
 
 
+def _recordings() -> dict:
+    """How many word forms and sentences a person actually read, or zeros."""
+    from pathlib import Path as _Path
+
+    from .. import config
+
+    if not _Path(config.AUDIO_DB).exists():
+        return {"forms": 0, "sentences": 0}
+    try:
+        from .. import haaldus
+
+        conn = haaldus.connect(config.AUDIO_DB)
+        return {"forms": haaldus.counts(conn)["forms"],
+                "sentences": conn.execute(
+                    "SELECT COUNT(*) FROM sentence_audio").fetchone()[0]}
+    except Exception:  # noqa: BLE001 - a missing store is a state, not an error
+        return {"forms": 0, "sentences": 0}
+
+
 @router.get("/api/status")
 def status() -> dict:
     """Every section with its own measure, and no overall percentage."""
@@ -110,8 +132,13 @@ def grammar_engines() -> dict:
     """
     from ..providers.grammar import build_chain
 
+    from ..providers import budget
+
     engines = [
         {"name": p.name, "available": p.available(),
+         # What today's allowance has left for this lane (`providers/budget.py`);
+         # null where this project sets no cap.
+         "budget_left": budget.left(p.name),
          # Only an LLM writes the explanation; Vabamorf reports evidence and
          # TartuNLP answers in Estonian with no language parameter.
          "explains": p.name.startswith("llm:")}
@@ -122,5 +149,6 @@ def grammar_engines() -> dict:
         # `can_explain`, not `explains`: every engine carries an `explains` field, and a
         # summary field sharing that name misleads line-oriented readers.
         "can_explain": any(e["available"] and e["explains"] for e in engines),
+        "budget": budget.report(),
         "fix": "deploy/set-llm-key.sh sets the key on the Cloud Run service",
     }
