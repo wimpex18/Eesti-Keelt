@@ -242,7 +242,7 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
 
 #: Evidence with no table of its own: read from the log itself (skill balance,
 #: the plan's history), so replaying them writes nothing.
-LOG_ONLY = ("writing", "speech", "plan-issued")
+LOG_ONLY = ("writing", "speech", "plan-issued", "conversation")
 for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 

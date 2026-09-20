@@ -192,6 +192,28 @@
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
 
+    <!-- The exam is paired, so practice has two sides: a model plays the partner
+         (ADR-0002). It never corrects and never scores. -->
+    <details class="vestlus" id="vestlus">
+      <summary lang="et">Vestlus <i class="ru" lang="ru">разговор с собеседником</i></summary>
+      <p class="hint">Собеседника играет модель: она отвечает по-эстонски и
+        задаёт вопросы, но <strong>не проверяет и не оценивает</strong>. На
+        экзамене (B1) эта часть сдаётся в паре.</p>
+      <div class="row">
+        <button class="go" id="vestlusStart" lang="et">Alusta vestlust
+          <span class="ru" lang="ru">начать разговор</span></button>
+        <span class="hint" id="vestlusTurns"></span>
+      </div>
+      <div id="vestlusLog" class="vestlus-log"></div>
+      <div class="row" id="vestlusRow" hidden>
+        <input type="text" id="vestlusSay" size="32" lang="et"
+          aria-label="Sinu vastus — твой ответ" autocapitalize="sentences"
+          autocorrect="off" spellcheck="false" autocomplete="off">
+        <button class="ghost" id="vestlusSend" lang="et">Vasta
+          <span class="ru" lang="ru">ответить</span></button>
+      </div>
+    </details>
+
     <!-- Links out instead of building: EKI's pronunciation exercises and the Sõnaveeb
          phrase collections. -->
     <div style="margin-top:var(--s4)">

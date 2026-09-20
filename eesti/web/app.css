@@ -571,6 +571,16 @@
   /* Provenance on a correction: quiet when code decided it, marked when only a
      model says so. */
   .corr .src-weak{color:var(--warn)}
+  /* Vestlus: two voices, the learner's on the right, and nothing scored. */
+  .vestlus{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .vestlus > summary{cursor:pointer;font-weight:600}
+  .vestlus-log{display:grid;gap:var(--s2);margin:var(--s3) 0;max-height:22rem;
+    overflow-y:auto}
+  .vestlus-me,.vestlus-them{padding:var(--s2) var(--s3);border-radius:10px;
+    max-width:min(38rem,90%);overflow-wrap:anywhere}
+  .vestlus-them{background:var(--tint)}
+  .vestlus-me{background:var(--accent-soft);justify-self:end}
   .exam-parts{margin:var(--s2) 0}
   .exam-parts > summary{cursor:pointer}
   .exam-parts li{margin-bottom:var(--s2)}

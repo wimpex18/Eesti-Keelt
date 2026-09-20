@@ -24,29 +24,25 @@ class CheckRequest(BaseModel):
 
 @router.post("/api/check")
 def check(req: CheckRequest) -> dict:
-    """Grammar check through the provider chain, plus a back-translation.
+    """Grammar check, through the one boundary a model is called across (ADR-0002).
 
     A checker says whether the Estonian is well formed, not whether it says what
-    was meant: `Ma käisin arstiga` is correct and means "with a doctor". Reading it
-    back in Russian (TartuNLP translation) shows that. Never blocking: without
-    translation the check returns as usual.
+    was meant: `Ma käisin arstiga` is correct and means "with a doctor". The
+    back-translation shows that. Never blocking: without translation the check
+    returns as usual.
     """
-    result = grammar.check(req.text).to_dict()
+    from .. import evidence, tutor
 
-    from .. import evidence
+    result = tutor.check_writing(req.text)
 
     # Writing practice is evidence too: what was written, and what was found in it.
     evidence.record("writing", {
         "text": req.text, "words": len(req.text.split()),
         "engine": result["engine"], "degraded": result["degraded"],
-        "corrections": [{"wrong": c["wrong"], "correct": c["correct"], "tag": c["tag"]}
+        "corrections": [{"wrong": c["wrong"], "correct": c["correct"],
+                         "tag": c["tag"], "source": c.get("source")}
                         for c in result["corrections"]],
     })
-
-    from ..providers.translate import translate
-
-    back = translate(req.text, target="rus")
-    result["back_translation"] = back.text if back else None
     return result
 
 
@@ -66,9 +62,9 @@ def translate_sentence(req: TranslateRequest) -> dict:
     """Translate one Estonian sentence, on request only (a POST the learner triggers),
     so reading stays at the edge of what is understood.
     """
-    from ..providers.translate import translate
+    from .. import tutor
 
-    got = translate(req.text, target=req.target)
+    got = tutor.translate(req.text, target=req.target)
     if got is None:
         # A crutch that is briefly absent, not an error page.
         return {"ok": False, "text": None,
@@ -196,12 +192,21 @@ def enrich_word(word: str) -> dict:
 # The tutor: the one place a model speaks to the learner
 # --------------------------------------------------------------------------
 
+class Said(BaseModel):
+    who: str
+    text: str = Field(max_length=2000)
+
+
 class TutorRequest(BaseModel):
-    #: `explain_attempt` (an attempt from the evidence log) or
-    #: `explain_concept` (a topic's rule).
+    #: `explain_attempt` (an attempt from the evidence log), `explain_concept`
+    #: (a topic's rule), or `converse` (the exam partner's next turn).
     intent: str
     event_id: str = ""
     topic: str = ""
+    #: `converse`: the task card, the exchange so far, and what was just said.
+    task: str = ""
+    history: list[Said] = Field(default_factory=list, max_length=40)
+    said: str = Field(default="", max_length=2000)
 
 
 @router.post("/api/tutor")
@@ -215,6 +220,18 @@ def tutor(req: TutorRequest) -> dict:
             return service.explain_attempt(req.event_id).to_dict()
         if req.intent == "explain_concept":
             return service.explain_concept(req.topic).to_dict()
+        if req.intent == "converse":
+            from .. import evidence
+
+            reply = service.converse(
+                req.task, [service.Turn(t.who, t.text) for t in req.history],
+                req.said)
+            if req.said:
+                # Practice happened; what it was worth is not for a model to say.
+                evidence.record("conversation", {
+                    "task": reply.task, "turns": reply.turns,
+                    "words": len(req.said.split()), "engine": reply.engine})
+            return reply.to_dict()
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"not found: {exc}") from exc
     raise HTTPException(status_code=400, detail=f"unknown intent: {req.intent!r}")

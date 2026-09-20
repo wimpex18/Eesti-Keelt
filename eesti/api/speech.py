@@ -207,14 +207,13 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
     tables. Pace is reported as a plain words-per-minute number only when the client
     sends a duration.
     """
+    from .. import tutor
     from ..lookup import annotate
-    from ..providers import grammar as grammar_provider
 
     # A transcript mixes what was said with what was heard, so the result is re-read
-    # as advisory and recogniser-shaped corrections are dropped.
-    checked = grammar_provider.from_transcript(
-        grammar_provider.check(req.transcript), req.transcript
-    )
+    # as advisory and recogniser-shaped corrections are dropped (ADR-0002: the
+    # tutor is the one boundary a model is called across).
+    checked = tutor.speaking_feedback(req.transcript)
     words = req.transcript.split()
     profile = annotate(req.transcript)
 
@@ -228,15 +227,14 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
     # that speaking was practised, with what was heard.
     evidence.record("speech", {
         "kind": "open", "question": req.question, "transcript": req.transcript,
-        "words": len(words), "seconds": req.seconds, "engine": checked.engine,
+        "words": len(words), "seconds": req.seconds, "engine": checked["engine"],
     })
 
     return {
-        "corrections": [c.to_dict() if hasattr(c, "to_dict") else c
-                        for c in checked.corrections],
-        "engine": checked.engine,
-        "degraded": checked.degraded,
-        "advisory": checked.advisory,
+        "corrections": checked["corrections"],
+        "engine": checked["engine"],
+        "degraded": checked["degraded"],
+        "advisory": checked["advisory"],
         "words": len(words),
         "pace_wpm": pace,
         "vocabulary": {

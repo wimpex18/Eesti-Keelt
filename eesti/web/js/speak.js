@@ -222,3 +222,71 @@ if (!canRecord) {
     "между собой. В одиночку имеет смысл тренировать построение ответа и " +
     "беглость, а не баллы.</details>";
 }
+
+
+/* Vestlus: the partner the paired exam has and a solo learner does not.
+
+   A model plays it (ADR-0002): Estonian in, Estonian out, one question back,
+   and nothing it says is a verdict. The exchange lives here in the page — the
+   server keeps no conversation — and the words Vabamorf does not know are
+   named rather than passed off as Estonian. */
+let vestlus = {task: "", turns: []};
+
+function paintVestlus(reply) {
+  const log = $("#vestlusLog");
+  log.innerHTML = vestlus.turns.map(t => t.who === "learner"
+    ? `<div class="vestlus-me" lang="et">${esc(t.text)}</div>`
+    : `<div class="vestlus-them" lang="et">${esc(t.text)}</div>`).join("");
+  const bits = [];
+  if (reply && reply.hint_ru) bits.push(esc(reply.hint_ru));
+  if (reply && reply.unknown && reply.unknown.length)
+    bits.push(`Vabamorf не знает: <b lang="et">${reply.unknown.map(esc).join(", ")}</b>
+      — не бери эти формы за образец.`);
+  if (reply && reply.note) bits.push(esc(reply.note));
+  if (reply && reply.engine && reply.engine !== "none")
+    bits.push(`собеседник: ${esc(reply.engine)} · не проверка`);
+  log.insertAdjacentHTML("beforeend",
+    bits.length ? `<div class="hint">${bits.join(" · ")}</div>` : "");
+  $("#vestlusTurns").textContent = reply
+    ? `${reply.turns} из ${8}` : "";
+  log.scrollTop = log.scrollHeight;
+}
+
+async function vestlusTurn(said) {
+  const send = $("#vestlusSend"), start = $("#vestlusStart");
+  send.disabled = start.disabled = true;
+  try {
+    const reply = await (await api("/api/tutor", {
+      intent: "converse", task: vestlus.task, said,
+      history: vestlus.turns.map(t => ({who: t.who, text: t.text})),
+    })).json();
+    if (said) vestlus.turns.push({who: "learner", text: said});
+    if (reply.reply_et) vestlus.turns.push({who: "partner", text: reply.reply_et});
+    paintVestlus(reply);
+    $("#vestlusRow").hidden = !reply.reply_et;
+    if (reply.reply_et) $("#vestlusSay").focus();
+  } catch (e) {
+    $("#vestlusLog").insertAdjacentHTML("beforeend",
+      `<div class="hint">Не отправилось: ${esc(e.message)}</div>`);
+  } finally { send.disabled = start.disabled = false; }
+}
+
+$("#vestlusStart").onclick = () => {
+  const questions = window.__speak || [];
+  const picked = questions[$("#speakTopic").selectedIndex] || questions[0];
+  if (!picked) return;
+  vestlus = {task: picked.question, turns: []};
+  $("#vestlusLog").innerHTML = "";
+  vestlusTurn("");
+};
+
+$("#vestlusSend").onclick = () => {
+  const said = $("#vestlusSay").value.trim();
+  if (!said) return;
+  $("#vestlusSay").value = "";
+  vestlusTurn(said);
+};
+
+$("#vestlusSay").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("#vestlusSend").click();
+});

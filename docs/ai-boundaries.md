@@ -15,6 +15,7 @@ Where a model touches the learner, and where code decides.
 | Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
 | Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Neurotõlge → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
 | Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
+| Playing the exam partner (`Vestlus`) | `tutor.converse`: a task card from the bank and the turns so far | yes; Estonian only, capped at 8 turns, never a correction or a verdict, and the forms Vabamorf rejects are named |
 | Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
 | Transcribing speech | Workers AI Whisper (production), provider chain locally | yes |
 | Read-aloud comparison | `difflib` against the known sentence | no |
@@ -45,6 +46,14 @@ A transcript mixes what the learner said with what the recogniser heard. So:
 - results are marked `advisory` and never reach the review queue or the
   Notion log (speech has no path to `queue_failed`). The transcript is kept
   in the evidence log as practice, never as graded evidence.
+
+## One boundary
+
+Every model-facing job goes through `eesti/tutor.py` (ADR-0002,
+`docs/adr/0002-tutor-boundary-and-conversation.md`): the writing check, the
+transcript check, translation, the explanations and the conversation. The
+boundary owns the day's budget, the grounding check and these labels, so a rule
+added here is a rule everywhere.
 
 ## Rules for anything new
 

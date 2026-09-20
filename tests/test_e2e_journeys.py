@@ -967,6 +967,21 @@ class TestChoosingTheSitting:
         assert not page.errors, page.errors
 
 
+class TestTheConversationPartner:
+    """Vestlus renders and says what it is, even with no engine configured —
+    which is the state the journeys run in."""
+
+    def test_it_starts_and_reports_honestly(self, page):
+        open_tab(page, "learn", "speak")
+        page.wait_for_selector("#vestlusStart", state="attached", timeout=15000)
+        page.click("#vestlus > summary")
+        assert "не проверяет и не оценивает" in page.locator("#vestlus").inner_text()
+        page.click("#vestlusStart")
+        page.wait_for_selector("#vestlusLog .hint", timeout=20000)
+        assert "собеседник" in page.locator("#vestlusLog").inner_text().lower()
+        assert not page.errors, page.errors
+
+
 class TestTheWholeSitting:
     """Terve eksam: the parts come one after another, each with its own clock."""
 
