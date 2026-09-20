@@ -625,10 +625,12 @@ export default {
     const restored = await learner.ensureRestored();
     const writes = request.method !== "GET" && request.method !== "HEAD";
 
-    /* Audio for a sentence never changes, so the edge keeps it. Served before
-       the restore check on purpose: a cached sentence costs the origin nothing
-       and works while a cold instance is still coming up. */
-    if (url.pathname === "/api/speak" && request.method === "GET") {
+    /* Audio never changes — a synthesised sentence, or EKI's reader saying a
+       word form — so the edge keeps it. Served before the restore check on
+       purpose: cached audio costs the origin nothing and works while a cold
+       instance is still coming up. */
+    if ((url.pathname === "/api/speak" || url.pathname === "/api/pronounce")
+        && request.method === "GET") {
       const cache = caches.default;
       const hit = await cache.match(request);
       if (hit) return hit;

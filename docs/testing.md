@@ -13,7 +13,7 @@ count in a doc is not added.
 | **Browser** | `python -m pytest tests/test_e2e_journeys.py -q -n auto --browser` | ~50 s | no — local only |
 | **Browser, full matrix** | same, with `--all-browsers` | ~2 min | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (OpenRouter), manual |
-| Speech eval | `cli eval --suite asr` | your own recordings | no — the set is personal and not in git |
+| Speech eval | `cli eval --suite asr [--engine A --engine B]` | your own recordings | no — the set is personal and not in git |
 | Production smoke | `smoke.yml` | — | after `deploy`, daily, manual |
 
 - **Fast** is everything in process. Run it after every change. Run the

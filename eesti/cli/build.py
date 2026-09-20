@@ -401,11 +401,19 @@ def cmd_eval(args: argparse.Namespace) -> int:
     recordings instead (`eesti/evals/asr.py`).
     """
     if args.suite == "asr":
-        from ..evals.asr import run as run_asr
+        import json as _json
 
-        result = run_asr(folder=args.folder)
-        if not result["valid"]:
+        from ..evals.asr import compare, run as run_asr
+
+        engines = args.engine or ["chain"]
+        scores = [run_asr(engine=name, folder=args.folder) for name in engines]
+        if any(not s["valid"] for s in scores):
             return 2
+        if len(scores) == 2:
+            # Paired on the same clips: the only honest way to say one engine
+            # hears this learner better than the other.
+            print(_json.dumps(compare(scores[0], scores[1]), indent=2,
+                              ensure_ascii=False))
         # No threshold to pass or fail: this set exists to compare engines
         # before a swap, and a number from one voice is not a gate.
         return 0
@@ -590,6 +598,10 @@ def register(sub) -> None:
         help="gec = grammar (default); asr = speech recognition on your own "
              "recordings in data/eval/asr")
     p.add_argument("--folder", help="asr only: where the recordings are")
+    p.add_argument(
+        "--engine", action="append",
+        help="asr only: which engine to score (repeat twice to compare them "
+             "paired on the same clips); default is the chain")
     p.add_argument("--provider", default="openrouter",
                    choices=[*_providers(), *NON_LLM])
     p.add_argument("--model")

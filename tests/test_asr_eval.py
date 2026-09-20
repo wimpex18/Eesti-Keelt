@@ -82,3 +82,49 @@ class TestScoring:
         heard("")
         got = evaluation.run(folder=tmp_path, verbose=False)
         assert got["broken"] == 1 and got["measured"] == 0 and not got["valid"]
+
+
+class TestComparingTwoEngines:
+    """The question P5 exists to answer: does the other engine hear *this*
+    learner better, or is it the clips?"""
+
+    def _run(self, engine: str, rates: dict) -> dict:
+        return {"engine": engine, "per_clip": sorted(rates.items())}
+
+    def test_a_consistent_win_is_decisive(self):
+        a = self._run("workers-ai", {"c1": 0.4, "c2": 0.5, "c3": 0.45, "c4": 0.5})
+        b = self._run("taltech", {"c1": 0.1, "c2": 0.2, "c3": 0.15, "c4": 0.2})
+        got = evaluation.compare(a, b)
+        assert got["difference"] > 0 and got["decisive"]
+        assert got["ci95"][0] > 0 and got["clips"] == 4
+
+    def test_noise_is_not_a_result(self):
+        """Half the clips better, half worse: the interval must straddle zero."""
+        a = self._run("one", {f"c{i}": 0.3 for i in range(8)})
+        b = self._run("two", {f"c{i}": 0.3 + (0.2 if i % 2 else -0.2)
+                              for i in range(8)})
+        assert not evaluation.compare(a, b)["decisive"]
+
+    def test_runs_that_share_no_clips_say_so(self):
+        got = evaluation.compare(self._run("a", {"x": 0.1}), self._run("b", {"y": 0.1}))
+        assert got["difference"] is None and "nothing to compare" in got["note"]
+
+    def test_it_says_the_numbers_describe_one_voice(self):
+        got = evaluation.compare(self._run("a", {"c": 0.2}), self._run("b", {"c": 0.1}))
+        assert "One voice" in got["note"]
+
+    def test_the_cli_offers_two_engines(self):
+        import argparse
+
+        from eesti.cli import build
+
+        parser = argparse.ArgumentParser()
+        build.register(parser.add_subparsers())
+        args = parser.parse_args(["eval", "--suite", "asr",
+                                  "--engine", "workers-ai", "--engine", "whisper.cpp"])
+        assert args.engine == ["workers-ai", "whisper.cpp"]
+
+    def test_every_named_engine_exists_in_the_chain(self):
+        from eesti.providers import asr
+
+        assert set(asr.NAMES) == {name for name, _ in asr.engines(b"x")}

@@ -41,6 +41,9 @@ def health() -> dict:
         "drillable_nouns": drillable,
         "rules": sorted({t.rule for t in TEMPLATES}),
         "voices": list(tts.VOICES),
+        # EKI's recordings, where they are mounted (`deploy/push-audio.sh`).
+        # Zero is a supported state: everything falls back to synthesis.
+        "recordings": _recordings(),
         "boot": BOOT_ID,
         # Distinguishes an empty reading library (a supported state) from a broken one.
         "library": content_available(),
@@ -87,6 +90,25 @@ def _reference(conn) -> dict:
         "eki_loanwords": ekidefs.imported(conn, "eki-vsl"),
         "eki_explanatory": ekidefs.imported(conn, "eki-ekss"),
     }
+
+
+def _recordings() -> dict:
+    """How many word forms and sentences a person actually read, or zeros."""
+    from pathlib import Path as _Path
+
+    from .. import config
+
+    if not _Path(config.AUDIO_DB).exists():
+        return {"forms": 0, "sentences": 0}
+    try:
+        from .. import haaldus
+
+        conn = haaldus.connect(config.AUDIO_DB)
+        return {"forms": haaldus.counts(conn)["forms"],
+                "sentences": conn.execute(
+                    "SELECT COUNT(*) FROM sentence_audio").fetchone()[0]}
+    except Exception:  # noqa: BLE001 - a missing store is a state, not an error
+        return {"forms": 0, "sentences": 0}
 
 
 @router.get("/api/status")

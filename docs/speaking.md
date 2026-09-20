@@ -85,6 +85,10 @@ limited to what the app teaches.
 - `/api/speak` plays the reader when the sentence is one of theirs.
 - Dictation prefers sentences a person read.
 
-The archive is `arhiiv.eki.ee/litsents` (CC BY 4.0). The audio is kept locally
-and not served to anyone else: the novels behind the speech corpora are still in
-copyright, and the app is for one learner.
+On the deployment the same file is mounted from Cloud Storage
+(`deploy/push-audio.sh`, `docs/deploy.md`), so the phone gets the human voice
+too; the Worker caches each clip at the edge after the first play.
+
+The archive is `arhiiv.eki.ee/litsents` (CC BY 4.0). The audio is not served to
+anyone else — Access guards the app, and the novels behind the speech corpora
+are still in copyright.

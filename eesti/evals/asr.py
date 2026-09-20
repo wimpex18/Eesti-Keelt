@@ -142,6 +142,12 @@ def run(engine: str = "chain", folder: Path | str | None = None,
     """Score one engine over the set. `chain` is whatever `asr.transcribe` picks."""
     from ..providers import asr
 
+    def hear(audio: bytes, mime: str):
+        """The chain by default, or one engine when the eval names it."""
+        if engine == "chain":
+            return asr.transcribe(audio, mime)
+        return asr.transcribe_with(engine, audio, mime)
+
     recordings = clips(folder)
     if not recordings:
         score = {"engine": engine, "clips": 0, "measured": 0, "broken": 0,
@@ -165,12 +171,12 @@ def run(engine: str = "chain", folder: Path | str | None = None,
         mime = "audio/wav" if clip.audio.suffix == ".wav" else "audio/webm"
         started = time.monotonic()
         try:
-            got = asr.transcribe(audio, mime)
+            got = hear(audio, mime)
         except Exception:  # noqa: BLE001 - a dead engine is a reported state
             broken += 1
             continue
         latencies.append(time.monotonic() - started)
-        if not got.text:
+        if got is None or not got.text:
             broken += 1
             continue
         wers.append(wer(clip.said, got.text))

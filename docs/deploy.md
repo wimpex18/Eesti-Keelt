@@ -65,6 +65,23 @@ Safeguards:
 
 A crash between snapshots can lose a few minutes of answers.
 
+## EKI's recordings
+
+`data/audio.db` (about 270 MB: word forms and read sentences, `eesti/haaldus.py`)
+is too big for the image, which every build would carry, and far too big for the
+Durable Object snapshot, which exists for a learner's progress. It lives in a
+Cloud Storage bucket instead, mounted read-only into the container:
+
+```bash
+bash deploy/push-audio.sh            # upload and mount, in Cloud Shell
+bash deploy/push-audio.sh --check    # what is there now
+```
+
+The service then reads it at `EESTI_AUDIO_DB`, and the Worker's edge cache keeps
+whatever is actually played, so a word is fetched from the bucket once. Without
+it `/api/pronounce` answers 404 and everything falls back to synthesis;
+`/api/health` reports `recordings`.
+
 ## The reading corpus
 
 Owner-only, so not in the image. Harvest locally, link topics, push once; the
