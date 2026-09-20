@@ -122,7 +122,9 @@ class TestTheLedgerHasAReader:
         got = client.get("/api/sources").json()
         assert set(got["attribution_required"]) == {
             "eki-tasemesonavara", "eki-psv", "eki-evs", "eki-har", "eki-vsl",
-            "eki-ekss", "ekilex", "ekilex-wordlist"}
+            "eki-ekss", "ekilex", "ekilex-wordlist",
+            # EKI's recordings: CC-BY-4.0, and this app downsamples them.
+            "psv-haaldused", "eki-konekorpus"}
 
     def test_it_answers_without_a_corpus(self, client, monkeypatch, tmp_path):
         """Read from REGISTRY in code, not from the `sources` table. An

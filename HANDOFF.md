@@ -15,6 +15,16 @@ PR #65 (`exam/p3-exam-domain`) carries P3, P4, ADR-0002 and P5:
   share of words Vabamorf rejects) and readiness reports that practice
   without judging the part.
 
+## EKI audio (imported locally, never committed)
+
+`data/audio.db` holds 8 520 word forms and 456 read sentences imported from
+`arhiiv.eki.ee/litsents` (270 MB). Re-import with
+`cli import-haaldused data/raw/eki-audio/wav --index .../soundpack.txt` and
+`cli import-konekorpus data/raw/eki-audio/kylli`. It is **local only**: the
+deployment has no copy, so `/api/pronounce` 404s there and the page falls back
+to synthesis. Shipping it needs a transport decision (219 MB is too much for
+the Durable Object snapshot).
+
 ## Next step
 
 1. The user merges #65.

@@ -7,8 +7,11 @@ Russian, because a miss may be the recogniser rather than the learner's mouth.
 
 from __future__ import annotations
 
+from pathlib import Path
+from urllib.parse import quote
+
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from ..providers import tts
@@ -20,6 +23,25 @@ class SpeakRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
     voice: str = tts.DEFAULT_VOICE
     speed: float = Field(default=tts.LEARNER_SPEED, ge=0.5, le=2.0)
+
+
+def _human(text: str) -> Response | None:
+    """EKI's own reader saying exactly this sentence, if we have it.
+
+    A real reader is what the exam plays, and Estonian quantity is audible in a
+    way synthesis does not reliably produce (`eesti/haaldus.py`).
+    """
+    from .. import config, haaldus
+
+    if not Path(config.AUDIO_DB).exists():
+        return None
+    row = haaldus.said(haaldus.connect(config.AUDIO_DB), text)
+    if row is None:
+        return None
+    return Response(
+        content=row["audio"], media_type=row["mime"],
+        headers={"cache-control": "public, max-age=31536000, immutable",
+                 "x-audio-source": row["source"]})
 
 
 def _spoken(text: str, voice: str, speed: float) -> FileResponse:
@@ -44,14 +66,15 @@ def _spoken(text: str, voice: str, speed: float) -> FileResponse:
 
 
 @router.post("/api/speak")
-def speak(req: SpeakRequest) -> FileResponse:
-    """Synthesize Estonian audio for arbitrary text — turns anything into listening practice."""
-    return _spoken(req.text, req.voice, req.speed)
+def speak(req: SpeakRequest):
+    """Estonian audio for any text: a human reading where EKI recorded one,
+    synthesis otherwise."""
+    return _human(req.text) or _spoken(req.text, req.voice, req.speed)
 
 
 @router.get("/api/speak")
 def speak_get(text: str, voice: str = tts.DEFAULT_VOICE,
-              speed: float = tts.LEARNER_SPEED) -> FileResponse:
+              speed: float = tts.LEARNER_SPEED):
     """The same audio, addressable by URL so it can be cached.
 
     A POST body cannot be a cache key; a URL can. The page uses this for
@@ -59,7 +82,7 @@ def speak_get(text: str, voice: str = tts.DEFAULT_VOICE,
     """
     if len(text) > 400:
         raise HTTPException(status_code=400, detail="Слишком длинный текст для ссылки.")
-    return _spoken(text, voice, speed)
+    return _human(text) or _spoken(text, voice, speed)
 
 
 @router.get("/api/speaking")
@@ -82,6 +105,31 @@ class DictationAnswer(BaseModel):
     typed: str = Field(default="", max_length=800)
 
 
+def _human_passages(count: int, seed: int | None) -> list:
+    """Dictation from sentences a person actually read, when we have them.
+
+    A synthesised dictation teaches the synthesiser's endings; the exam plays a
+    person. Falls back to the corpus when no recordings are imported.
+    """
+    import random
+
+    from .. import config, haaldus
+    from ..dictation import MAX_WORDS, MIN_WORDS, Passage, key_of
+
+    if not Path(config.AUDIO_DB).exists():
+        return []
+    try:
+        conn = haaldus.connect(config.AUDIO_DB)
+        texts = [t for t in haaldus.spoken_sentences(conn, max_words=MAX_WORDS)
+                 if MIN_WORDS <= len(t.split()) <= MAX_WORDS]
+    except Exception:  # noqa: BLE001 - no recordings is a state, not an error
+        return []
+    if not texts:
+        return []
+    random.Random(seed).shuffle(texts)
+    return [Passage(text, key_of(text), len(text.split())) for text in texts[:count]]
+
+
 @router.get("/api/dictation/next")
 def dictation_next(count: int = 1, seed: int | None = None) -> dict:
     """Sentences to write down, easiest first. An empty corpus is a supported state:
@@ -93,9 +141,11 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         content = content_db()
     except Exception:  # noqa: BLE001 - no corpus is a state, not an error
         content = None
-    passages = choose(
-        content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
-    ) if content is not None else []
+    passages = _human_passages(max(1, min(count, 10)), seed)
+    if not passages:
+        passages = choose(
+            content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
+        ) if content is not None else []
     return {
         "passages": [p.to_dict() for p in passages],
         "words": [MIN_WORDS, MAX_WORDS],
@@ -377,3 +427,33 @@ def eval_prompt(planted: bool = False, seed: int | None = None) -> dict:
         raise HTTPException(status_code=503, detail="Предложений сейчас нет.")
     return {"text": said[0].text, "planted": "", "correct": "",
             "note": "Прочитай вслух как есть."}
+
+
+# --------------------------------------------------------------------------
+# A human voice for a word form (EKI's recordings)
+# --------------------------------------------------------------------------
+
+@router.get("/api/pronounce")
+def pronounce(form: str, tag: str = "") -> Response:
+    """EKI's own recording of a word form, or 404 so the caller falls back to TTS.
+
+    Synthesis gets Estonian quantity wrong (`koera` vs `k`oera`); these are read
+    by native speakers, and the form EKI wrote — marks and all — comes back in
+    the `x-spoken-form` header so the page can show what was actually said
+    (`eesti/haaldus.py`).
+    """
+    from .. import config, haaldus
+
+    if not form.strip():
+        raise HTTPException(status_code=400, detail="Нужна форма слова.")
+    if not Path(config.AUDIO_DB).exists():
+        raise HTTPException(status_code=404, detail=(
+            "Записи произношения не загружены на этот сервер."))
+    row = haaldus.spoken(haaldus.connect(config.AUDIO_DB), form.strip(), tag or None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Для этой формы записи нет.")
+    return Response(
+        content=row["audio"], media_type=row["mime"],
+        headers={"cache-control": "public, max-age=31536000, immutable",
+                 "x-spoken-form": quote(row["spoken"]),
+                 "x-audio-source": row["source"]})

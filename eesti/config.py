@@ -46,3 +46,7 @@ VOCAB_DB = "data/vocab.db"
 NOTION_DB = "data/notion.db"
 # The evidence log (`eesti/evidence.py`): the source the four above are rebuilt from.
 EVENTS_DB = "data/events.db"
+
+# EKI's spoken word forms (`eesti/haaldus.py`): imported, not built, and large,
+# so it travels like the corpus rather than in the image.
+AUDIO_DB = "data/audio.db"

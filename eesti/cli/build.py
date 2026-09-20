@@ -437,6 +437,53 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return 0 if result["recall"] >= 0.8 and result["precision"] >= 0.8 else 1
 
 
+def cmd_import_haaldused(args: argparse.Namespace) -> int:
+    """Import EKI's spoken word forms into `data/audio.db` (`eesti/haaldus.py`)."""
+    from pathlib import Path
+
+    from .. import config
+    from ..haaldus import build, connect, counts, taught
+    from ..wordlist import available
+    from ..wordlist import connect as words_connect
+
+    folder = Path(args.folder)
+    index = Path(args.index) if args.index else next(folder.glob("*.txt"), None)
+    if index is None or not index.exists():
+        print(f"no index found in {folder} — pass --index")
+        return 1
+    keep = None
+    if args.levels != "all":
+        if not available():
+            print("the word list is not built: run `cli fetch-data && cli build`")
+            return 1
+        keep = taught(words_connect(), tuple(args.levels.split(",")))
+        print(f"keeping the {len(keep)} forms those levels teach")
+
+    conn = connect(config.AUDIO_DB)
+    got = build(folder, index, conn, keep=keep)
+    size = counts(conn)
+    print(f"{got['added']} clips imported, {got['skipped']} skipped, "
+          f"{got['missing']} missing")
+    print(f"{size['forms']} forms, {size['bytes'] / 1e6:.0f} MB in {config.AUDIO_DB}")
+    return 0
+
+
+def cmd_import_konekorpus(args: argparse.Namespace) -> int:
+    """Import an EKI speech corpus: sentences with a real reader."""
+    from .. import config
+    from ..haaldus import build_sentences, connect
+
+    conn = connect(config.AUDIO_DB)
+    got = build_sentences(args.folder, conn, max_words=args.max_words,
+                          limit=args.limit)
+    size = conn.execute(
+        "SELECT COUNT(*), COALESCE(SUM(LENGTH(audio)), 0) FROM sentence_audio"
+    ).fetchone()
+    print(f"{got['added']} sentences imported, {got['skipped']} too long")
+    print(f"{size[0]} sentences, {size[1] / 1e6:.0f} MB in {config.AUDIO_DB}")
+    return 0
+
+
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
     p = sub.add_parser("fetch-data", help="download the word list")
@@ -517,6 +564,25 @@ def register(sub) -> None:
     p.set_defaults(func=cmd_models)
 
     from ..evals.gec import NON_LLM
+
+    p = sub.add_parser(
+        "import-haaldused",
+        help="import EKI's spoken word forms (psv hääldused) into data/audio.db")
+    p.add_argument("folder", help="the unpacked soundpack folder")
+    p.add_argument("--index", help="the index file, if it is not in the folder")
+    p.add_argument(
+        "--levels", default="A1,A2,B1",
+        help="keep only the forms these levels teach, or `all` for everything")
+    p.set_defaults(func=cmd_import_haaldused)
+
+    p = sub.add_parser(
+        "import-konekorpus",
+        help="import an EKI speech corpus (sentences read aloud) into data/audio.db")
+    p.add_argument("folder", help="the unpacked corpus folder")
+    p.add_argument("--max-words", type=int, default=12,
+                   help="skip sentences longer than this (dictation's own bound)")
+    p.add_argument("--limit", type=int, help="stop after this many sentences")
+    p.set_defaults(func=cmd_import_konekorpus)
 
     p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")
     p.add_argument(

@@ -67,13 +67,27 @@ export async function mountAudio(host, url) {
 }
 
 
-export async function speakWord(word, onError) {
-  /* Errors are shown, so a failed synthesiser is distinguishable from a silent word.
-     The URL is revoked once the clip ends: a review session plays dozens, and each
-     would otherwise pin its blob until the page closes. */
+export async function speakWord(word, onError, tag = "") {
+  /* A native speaker where EKI recorded one, synthesis otherwise.
+
+     Estonian quantity (`koera` vs `k`oera`) is not in the spelling, so a
+     synthesiser guesses it; EKI's recordings are read by people who know which
+     word it is. A missing recording is a 404, not an error — most words have
+     none (`eesti/haaldus.py`).
+
+     Errors are shown, so a failed synthesiser is distinguishable from a silent
+     word. The URL is revoked once the clip ends: a review session plays dozens,
+     and each would otherwise pin its blob until the page closes. */
   let url = null;
   try {
-    const r = await api("/api/speak", {text: word, speed: 0.9});
+    const q = new URLSearchParams({form: word});
+    if (tag) q.set("tag", tag);
+    let r = null;
+    try {
+      r = await api("/api/pronounce?" + q, null, "GET");
+    } catch {
+      r = await api("/api/speak", {text: word, speed: 0.9});
+    }
     url = URL.createObjectURL(await r.blob());
     const audio = new Audio(url);
     audio.onended = audio.onerror = () => { URL.revokeObjectURL(url); url = null; };

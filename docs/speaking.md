@@ -69,3 +69,22 @@ resamples by clip, because word errors inside one utterance are correlated; it
 reports the difference with a 95 % interval and whether it is decisive.
 
 No number here is a gate: one voice and one microphone describe this learner.
+
+
+## A human voice where EKI recorded one
+
+Estonian quantity (`koera` against `k`oera`) is not written, so a synthesiser
+guesses it. EKI's archive has both: about 6 000 word forms read by two speakers
+(`cli import-haaldused`) and sentences read aloud (`cli import-konekorpus`),
+imported into `data/audio.db` — downsampled to 16 kHz, and for word forms
+limited to what the app teaches.
+
+- `/api/pronounce?form=koera&tag=sg%20p` serves the recording and returns EKI's
+  own marked form in `x-spoken-form`; a form nobody read is a 404 and the page
+  falls back to synthesis.
+- `/api/speak` plays the reader when the sentence is one of theirs.
+- Dictation prefers sentences a person read.
+
+The archive is `arhiiv.eki.ee/litsents` (CC BY 4.0). The audio is kept locally
+and not served to anyone else: the novels behind the speech corpora are still in
+copyright, and the app is for one learner.

@@ -154,7 +154,35 @@ ENGINES: tuple[Source, ...] = (
 )
 
 
-REGISTRY: tuple[Source, ...] = ENGINES + (
+#: EKI's recordings. CC BY 4.0, downloaded once from the archive and imported
+#: into `data/audio.db`; the audio is not served to anyone but the owner, and
+#: the novels behind the speech corpora are still in copyright.
+AUDIO: tuple[Source, ...] = (
+    Source(
+        "psv-haaldused", "Eesti keele põhisõnavara sõnastik 2014 — hääldused",
+        "audio", "CC-BY-4.0 (EKI)", False,
+        "https://arhiiv.eki.ee/litsents/idkaart/dl.cgi?D=psv%2Fhaaldused",
+        "About 6 000 base word forms read by Eva Klemets and Marju Avamere, "
+        "indexed by form. The index keeps EKI's quantity and palatalisation "
+        "marks, which the spelling does not carry and synthesis guesses.",
+        changes="Записи пережаты в 16 кГц моно и обрезаны по краям; оставлены "
+                "только те формы слов, которые приложение учит.",
+        verified="2026-09-20",
+    ),
+    Source(
+        "eki-konekorpus", "EKI kõnekorpused (Kersti, Külli, Lee, Liivika, Meelis)",
+        "audio", "CC-BY-4.0 (EKI); the works read are under their own copyright",
+        False,
+        "https://arhiiv.eki.ee/litsents/idkaart/dl.cgi?D=konekorpused",
+        "Sentences read aloud, each with its text. Dictation plays a person "
+        "instead of a synthesiser.",
+        changes="Взяты предложения не длиннее 12 слов, пережаты в 16 кГц моно.",
+        verified="2026-09-20",
+    ),
+)
+
+
+REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
     Source(
         "err-r4", "ERR Raadio 4 keeleõppesaated", "harvest",
         "© ERR — personal study only", False,
