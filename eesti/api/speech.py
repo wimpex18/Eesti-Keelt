@@ -22,18 +22,44 @@ class SpeakRequest(BaseModel):
     speed: float = Field(default=tts.LEARNER_SPEED, ge=0.5, le=2.0)
 
 
-@router.post("/api/speak")
-def speak(req: SpeakRequest) -> FileResponse:
-    """Synthesize Estonian audio for arbitrary text — turns anything into listening practice."""
+def _spoken(text: str, voice: str, speed: float) -> FileResponse:
+    """The audio for one sentence, synthesised or served from the disk cache.
+
+    The same sentence in the same voice at the same speed is the same audio
+    forever, so the response says so: the Worker's edge cache keeps it, and a
+    cold start stops costing TartuNLP a request per sentence again
+    (`deploy/worker.ts`, `docs/speaking.md`).
+    """
     try:
-        path = tts.synthesize(req.text, speaker=req.voice, speed=req.speed)
+        path = tts.synthesize(text, speaker=voice, speed=speed)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=503, detail=f"Синтез речи сейчас недоступен ({type(exc).__name__}). Попробуй позже."
         ) from exc
-    return FileResponse(path, media_type="audio/wav", filename="eesti.wav")
+    return FileResponse(
+        path, media_type="audio/wav", filename="eesti.wav",
+        headers={"cache-control": "public, max-age=31536000, immutable"})
+
+
+@router.post("/api/speak")
+def speak(req: SpeakRequest) -> FileResponse:
+    """Synthesize Estonian audio for arbitrary text — turns anything into listening practice."""
+    return _spoken(req.text, req.voice, req.speed)
+
+
+@router.get("/api/speak")
+def speak_get(text: str, voice: str = tts.DEFAULT_VOICE,
+              speed: float = tts.LEARNER_SPEED) -> FileResponse:
+    """The same audio, addressable by URL so it can be cached.
+
+    A POST body cannot be a cache key; a URL can. The page uses this for
+    anything it plays more than once (a dictation sentence, an exam prompt).
+    """
+    if len(text) > 400:
+        raise HTTPException(status_code=400, detail="Слишком длинный текст для ссылки.")
+    return _spoken(text, voice, speed)
 
 
 @router.get("/api/speaking")
@@ -222,12 +248,15 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
         pace = round(len(words) / (req.seconds / 60), 1)
 
     from .. import evidence
+    from ..learner import speech_signals
 
     # Advisory, so never in the error log or the review queue; kept as evidence
-    # that speaking was practised, with what was heard.
+    # that speaking was practised, with what code can measure about it.
+    signals = speech_signals(req.transcript, req.seconds)
     evidence.record("speech", {
         "kind": "open", "question": req.question, "transcript": req.transcript,
         "words": len(words), "seconds": req.seconds, "engine": checked["engine"],
+        **signals,
     })
 
     return {
@@ -237,6 +266,9 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
         "advisory": checked["advisory"],
         "words": len(words),
         "pace_wpm": pace,
+        # What code can say about a spoken answer, and nothing more: how much
+        # was said, how fast, and how sure the transcript looks. Never a score.
+        "signals": signals,
         "vocabulary": {
             "known_levels": profile.get("levels", {}) if isinstance(profile, dict) else {},
         },

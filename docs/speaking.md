@@ -10,7 +10,7 @@ so `Rääkimine` does what a phone can do honestly.
 |---|---|---|---|
 | Question bank (`speaking.py`) | exam-shaped questions voiced by TTS | none — practice | TTS only |
 | **Loe ette** (read aloud, `pronunciation.py`) | a known sentence | word-by-word `difflib` against what the recogniser heard | ASR only |
-| **Vasta küsimusele** (open answer) | free speech | transcript through the grammar chain, word count and pace (from the recording's length) | ASR + LLM, advisory |
+| **Vasta küsimusele** (open answer) | free speech | transcript through the grammar chain, word count, pace, and how sure the transcript looks (`learner.speech_signals`) | ASR + LLM, advisory |
 
 - Read-aloud sentences are corpus sentences of 3–8 words in which every word,
   names and numbers included, is known or at A1–A2 on the word list; when too
@@ -41,3 +41,19 @@ correctness, and EKI already publishes free exercises.
 `providers/asr.py` looks for whisper.cpp with TalTech's Estonian verbatim model,
 then Voxtral, after the hosted engines. `/api/asr` reports which engines this
 process can use.
+
+
+## Before swapping a recogniser
+
+`cli eval --suite asr` scores the engines on **the owner's own voice**:
+`data/eval/asr/<name>.wav` with `<name>.txt` (what was actually said, verbatim)
+and optionally `<name>.said` naming a word deliberately said wrong. Recordings
+are personal data and stay out of git.
+
+It reports WER and CER, latency, and the measure that decides this choice: the
+**false-accept rate** — how often a planted mistake comes back corrected. A
+generic Whisper tends to tidy learner Estonian into fluent Estonian, which hides
+the mistake and flatters a read-aloud score. TalTech's verbatim model exists for
+exactly this, and is the candidate to beat (`docs/status.md`).
+
+No number here is a gate: one voice and one microphone describe this learner.

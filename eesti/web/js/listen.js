@@ -42,9 +42,11 @@ async function dictAudio() {
   // The voice comes with the sentence and is fixed for it, so replaying sounds
   // the same while different sentences bring different speakers -- which is what
   // the exam does and what one voice never trains.
-  const r = await api("/api/speak",
-                      {text: dictNow.text, speed: 0.7,
-                       ...(dictNow.voice ? {voice: dictNow.voice} : {})});
+  // The GET form, so the Worker's edge cache can keep it: the same sentence in
+  // the same voice is the same audio, and a dictation is replayed a lot.
+  const q = new URLSearchParams({text: dictNow.text, speed: "0.7"});
+  if (dictNow.voice) q.set("voice", dictNow.voice);
+  const r = await api("/api/speak?" + q, null, "GET");
   dictUrl = URL.createObjectURL(await r.blob());
   return dictUrl;
 }

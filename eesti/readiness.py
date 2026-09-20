@@ -249,6 +249,32 @@ def _next_task(content, level: str, skill: str) -> dict | None:
     return {"title": row["title"], "url": meta.get("url")}
 
 
+def _speaking_evidence() -> str:
+    """What the log says about speaking practice, in Russian. Counts and pace —
+    never a judgement: the exam is paired and examiner-marked."""
+    from . import evidence
+    from .learner import speaking_practice
+
+    try:
+        with evidence.connect() as log:
+            got = speaking_practice(log)
+    except Exception:  # noqa: BLE001 - no log is "nothing recorded", not an error
+        return "не измеряется"
+    if not (got["answers"] or got["read_alouds"]):
+        return "не измеряется"
+    bits = []
+    if got["answers"]:
+        bits.append(_count(got["answers"], "ответ", "ответа", "ответов"))
+    if got["read_alouds"]:
+        bits.append(_count(got["read_alouds"], "чтение вслух", "чтения вслух",
+                           "чтений вслух"))
+    if got["median_wpm"]:
+        bits.append(f"темп ≈ {round(got['median_wpm'])} слов/мин")
+    if got["doubtful"]:
+        bits.append(f"{got['doubtful']} раз распознано плохо")
+    return "за 90 дней: " + ", ".join(bits)
+
+
 def _parts(progress: sqlite3.Connection, level: str,
            content=None, notion=None) -> list[Part]:
     from .library import exposure
@@ -338,7 +364,7 @@ def _parts(progress: sqlite3.Connection, level: str,
     ))
     out.append(Part(
         "raakimine", "Rääkimine", "говорение",
-        evidence="не измеряется" + material("raakimine") + mock("raakimine"),
+        evidence=_speaking_evidence() + material("raakimine") + mock("raakimine"),
         # Not False. "We cannot tell" and "you have done none" are different
         # claims, and showing the first as the second would be a lie the learner
         # would reasonably act on.

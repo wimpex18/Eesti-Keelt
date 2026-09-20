@@ -132,8 +132,9 @@ function renderTasks(section) {
       const i = Number(b.dataset.play), task = section.tasks[i];
       b.disabled = true;
       try {
-        const r = await api("/api/speak", {text: task.text, speed: 0.7,
-                                           ...(task.voice ? {voice: task.voice} : {})});
+        const q = new URLSearchParams({text: task.text, speed: "0.7"});
+        if (task.voice) q.set("voice", task.voice);
+        const r = await api("/api/speak?" + q, null, "GET");
         const host = box.querySelector(`.mock-task[data-i="${i}"] .mock-audio`);
         await mountAudio(host, URL.createObjectURL(await r.blob()));
         host.querySelector("audio")?.play().catch(() => {});

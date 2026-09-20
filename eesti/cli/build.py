@@ -393,11 +393,23 @@ def cmd_models(args: argparse.Namespace) -> int:
     return 0
 
 def cmd_eval(args: argparse.Namespace) -> int:
-    """Score a model on Estonian grammar.
+    """Score an engine.
 
-    Two tracks: the default 18 hand-written sentences (half already correct, so
-    precision is real), or `--track external`, TalTech's grammar_et pairs.
+    Grammar has two tracks: the default 18 hand-written sentences (half already
+    correct, so precision is real), or `--track external`, TalTech's grammar_et
+    pairs. `--suite asr` scores speech recognition on the owner's own
+    recordings instead (`eesti/evals/asr.py`).
     """
+    if args.suite == "asr":
+        from ..evals.asr import run as run_asr
+
+        result = run_asr(folder=args.folder)
+        if not result["valid"]:
+            return 2
+        # No threshold to pass or fail: this set exists to compare engines
+        # before a swap, and a number from one voice is not a gate.
+        return 0
+
     if args.track == "external":
         from ..evals.external import run as run_external
 
@@ -506,7 +518,12 @@ def register(sub) -> None:
 
     from ..evals.gec import NON_LLM
 
-    p = sub.add_parser("eval", help="score a model on the Estonian grammar eval")
+    p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")
+    p.add_argument(
+        "--suite", choices=("gec", "asr"), default="gec",
+        help="gec = grammar (default); asr = speech recognition on your own "
+             "recordings in data/eval/asr")
+    p.add_argument("--folder", help="asr only: where the recordings are")
     p.add_argument("--provider", default="openrouter",
                    choices=[*_providers(), *NON_LLM])
     p.add_argument("--model")

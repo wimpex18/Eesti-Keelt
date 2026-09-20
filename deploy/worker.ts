@@ -625,6 +625,22 @@ export default {
     const restored = await learner.ensureRestored();
     const writes = request.method !== "GET" && request.method !== "HEAD";
 
+    /* Audio for a sentence never changes, so the edge keeps it. Served before
+       the restore check on purpose: a cached sentence costs the origin nothing
+       and works while a cold instance is still coming up. */
+    if (url.pathname === "/api/speak" && request.method === "GET") {
+      const cache = caches.default;
+      const hit = await cache.match(request);
+      if (hit) return hit;
+      const fresh = await fetch(
+        new Request(new URL(url.pathname + url.search, env.CLOUD_RUN_URL), {
+          headers: { "x-proxy-token": env.PROXY_TOKEN },
+        }),
+      );
+      if (fresh.ok) ctx.waitUntil(cache.put(request, fresh.clone()));
+      return fresh;
+    }
+
     // Speech is answered here, not forwarded: see `transcribe`. It records
     // evidence on the origin, so it waits for the restore like any write, and
     // what it recorded is copied out like any other.
