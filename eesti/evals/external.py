@@ -1,7 +1,19 @@
 """Second eval track: TalTech's grammar_et, 1 000 real error/correct pairs.
 
-`gec.py` is 18 targeted sentences; `grammar_et` (Estonian Native LLM Benchmark,
-LREC 2026) is broad, mostly A1–B1 vocabulary, with the same error classes:
+`gec.py` is 18 targeted sentences written for this app's weakness; `grammar_et`
+(Estonian Native LLM Benchmark, LREC 2026) is broad, attested and large enough
+to say something per error class. Nothing here is invented: the sentences and
+their corrections are the dataset's.
+
+Two halves, as in `gec.py`:
+
+- **recall** — of sentences with a real error, how many were caught, reported
+  per category (object case, locative, plural, verb form, word order, other);
+- **precision** — the same dataset's *corrected* sentences are correct
+  Estonian, so flagging one is a false positive. A checker that flags every
+  partitive scores perfect recall and teaches the wrong rule.
+
+Error classes in the data:
 
     ülikoolid → ülikoole      object case
     käigul → käigus           locative case
@@ -21,8 +33,7 @@ from pathlib import Path
 
 from ..config import DATA
 from ..providers.grammar import why_failed
-from ..providers.llm import complete, parse_json
-from .gec import SYSTEM
+from .gec import _ask
 
 DATASET = DATA / "raw" / "bench" / "grammar_et.json"
 URL = "https://huggingface.co/datasets/TalTechNLP/grammar_et"
@@ -73,6 +84,36 @@ def load(path: Path | None = None) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+#: Which rule an attested correction is about, decided by morphology so the
+#: category is the data's, not a label someone wrote.
+def category(wrong: str, right: str) -> str:
+    """The error class of one attested change (`obj-case`, `loc-case`, ...)."""
+    from ..morph import _readings
+
+    forms_wrong = {f for _, f in _readings(wrong)}
+    forms_right = {f for _, f in _readings(right)}
+    lemmas = ({lemma for lemma, _ in _readings(wrong)}
+              & {lemma for lemma, _ in _readings(right)})
+    part, gen = {"sg p", "pl p"}, {"sg g", "pl g", "sg n", "pl n"}
+    locative = {"sg in", "pl in", "sg el", "pl el", "sg ill", "pl ill",
+                "sg ad", "pl ad", "sg all", "pl all", "sg abl", "pl abl"}
+    if not forms_wrong:
+        # Vabamorf does not know the written form at all: a misspelling, which
+        # the deterministic checker owns.
+        return "spelling"
+    if lemmas and ((forms_wrong & gen and forms_right & part)
+                   or (forms_wrong & part and forms_right & gen)):
+        return "obj-case"
+    if lemmas and (forms_wrong & locative or forms_right & locative):
+        return "loc-case"
+    if lemmas and ({f.split()[0] for f in forms_wrong if f[:2] in ("sg", "pl")}
+                   != {f.split()[0] for f in forms_right if f[:2] in ("sg", "pl")}):
+        return "number"
+    if lemmas and any(f.startswith(("sin", "b", "d ", "vad", "n ")) for f in forms_right):
+        return "verb-form"
+    return "other"
+
+
 def run(
     provider: str,
     model: str | None = None,
@@ -80,8 +121,11 @@ def run(
     seed: int = 0,
     verbose: bool = True,
 ) -> dict:
-    """Score a model on a sample of grammar_et; the default sample is small so a
-    free-tier daily quota can finish it.
+    """Score a lane on a sample of grammar_et: recall per error class, and
+    precision on the dataset's own corrected sentences.
+
+    The default sample is small so a free-tier daily quota can finish it; the
+    weekly run uses more.
     """
     rows = load()
     scorable = [
@@ -95,11 +139,12 @@ def run(
     caught = missed = broken = 0
     spurious = 0
     failures: list[tuple[str, str]] = []
+    by_class: dict[str, list[int]] = {}
 
     for row, changed in chosen:
         try:
-            result = parse_json(complete(provider, SYSTEM, row["original"], model=model))
-        except Exception as exc:
+            result = _ask(provider, row["original"], model, False)
+        except Exception as exc:  # noqa: BLE001 - a dead lane is a reported state
             broken += 1
             failures.append((row["original"], f"ERROR {why_failed(exc)}"))
             continue
@@ -112,6 +157,11 @@ def run(
             wrong in proposed and proposed[wrong] == right
             for wrong, right in changed.items()
         )
+        # Which rule this pair is about, so a lane's weakness has a name.
+        for wrong, right in changed.items():
+            tally = by_class.setdefault(category(wrong, right), [0, 0])
+            tally[1] += 1
+            tally[0] += int(proposed.get(wrong, "") == right)
         if hit:
             caught += 1
         else:
@@ -124,6 +174,21 @@ def run(
         # Changes to words that were already correct.
         spurious += sum(1 for w in proposed if w not in changed)
 
+    # Precision: the dataset's corrected sentences are correct Estonian, so any
+    # correction proposed on one is a false flag.
+    clean = [r["correct"] for r, _ in scorable[sample:sample + max(5, sample // 2)]]
+    false_flags = clean_answered = 0
+    for sentence in clean:
+        try:
+            result = _ask(provider, sentence, model, False)
+        except Exception:  # noqa: BLE001 - counted as unanswered, never as clean
+            continue
+        clean_answered += 1
+        if result.get("corrections"):
+            false_flags += 1
+            if len(failures) < 12:
+                failures.append((sentence[:70], "false flag on a correct sentence"))
+
     answered = caught + missed
     usable = broken < len(chosen) * 0.25
     score = {
@@ -135,6 +200,13 @@ def run(
         "caught": f"{caught}/{answered}" if answered else "0/0",
         "accuracy": round(caught / answered, 3) if (usable and answered) else None,
         "spurious_edits": spurious,
+        "by_class": {name: {"caught": hit, "of": n,
+                            "recall": round(hit / n, 3) if n else None}
+                     for name, (hit, n) in sorted(by_class.items())},
+        "clean_sentences": clean_answered,
+        "false_flags": false_flags,
+        "precision": (round(1 - false_flags / clean_answered, 3)
+                      if (usable and clean_answered) else None),
         "broken": broken,
         "valid": usable,
     }

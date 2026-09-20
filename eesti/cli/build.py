@@ -404,9 +404,14 @@ def cmd_eval(args: argparse.Namespace) -> int:
         result = run_external(
             args.provider, model=args.model, sample=args.sample, seed=args.seed
         )
-        if not result["valid"]:
+        if not result["valid"] or result["accuracy"] is None:
             return 2
-        return 0 if (result["accuracy"] or 0) >= 0.5 else 1
+        # Recall on attested errors, and precision on the dataset's own correct
+        # sentences: a lane that flags correct Estonian teaches the wrong rule.
+        precision = result["precision"]
+        if precision is not None and precision < 0.8:
+            return 1
+        return 0 if result["accuracy"] >= 0.5 else 1
 
     from ..evals.gec import run
 
@@ -511,7 +516,8 @@ def register(sub) -> None:
     )
     p.add_argument(
         "--track", choices=("hand", "external"), default="hand",
-        help="hand = 18 targeted sentences; external = TalTech grammar_et",
+        help="hand = 18 targeted sentences; external = TalTech grammar_et "
+             "(attested pairs, recall per error class plus precision)",
     )
     p.add_argument("--sample", type=int, default=30, help="external track only")
     p.add_argument("--seed", type=int, default=0)

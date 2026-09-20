@@ -58,10 +58,22 @@ machine.
 
 ## Choosing a model: the eval
 
-`eesti/evals/gec.py` — 18 Estonian sentences: 10 with a planted error
-(**recall**) and 8 already correct (**precision**). Precision matters more: a
-checker that flags every partitive teaches the wrong rule. Exits non-zero below
-0.8 on either score; exit 2 means nothing was measured.
+Two tracks, both with a precision half, because a checker that flags every
+partitive teaches the wrong rule:
+
+- **`hand`** (default) — `eesti/evals/gec.py`, 18 Estonian sentences written
+  for this app's weakness: 10 with a planted error (**recall**) and 8 already
+  correct (**precision**). Exits non-zero below 0.8 on either score; exit 2
+  means nothing was measured.
+- **`--track external`** — `eesti/evals/external.py`, TalTech's `grammar_et`:
+  attested error/correction pairs, sampled. Recall is reported **per error
+  class** (object case, locative, number, verb form, spelling, other), decided
+  by morphology rather than by a hand-written label, and precision is measured
+  on the dataset's own corrected sentences. Exits 1 below 0.5 recall or 0.8
+  precision.
+
+Both tracks score any lane, including the non-LLM ones
+(`--provider tartunlp`, `--provider tartunlp-mt`).
 
 ```bash
 python -m eesti.cli models --provider nvidia --limit 10   # is the pinned id still live?

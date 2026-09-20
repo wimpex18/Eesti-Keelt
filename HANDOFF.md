@@ -5,23 +5,25 @@ append; at most 30 lines.
 
 ## Task in flight
 
-Branch `exam/p3-exam-domain` (PR not opened yet) carries P3:
+PR #65 (`exam/p3-exam-domain`) now carries P3 **and** P4:
 
-- `eesti/exam.py`: HARNO's spec and sittings as data; the sitting is the
-  learner's choice (`goal-set` event), drives the countdown and `.ics`;
-- `eesti/mock.py`: `Proovieksam`, one part on the exam's clock, recorded as
-  `exam-section` evidence that readiness counts;
-- test-out from `Kogu rada` (`/api/testout/{topic}`), graded server-side.
+- P3: HARNO's spec and sittings as data, the sitting as a `goal-set` event
+  with `.ics`, `Proovieksam` (one part or all four on the exam's clock,
+  writing graded on length plus the deterministic checks), test-out;
+- P4: per-correction provenance (`deterministic` / `model+verified` /
+  `model-only`, only the first two reach the error log), the bounded tutor
+  (`Selgita`, grounded in EKK and Vabamorf, dropped if it invents a form),
+  the engine registry (version, quota, what leaves the device), a daily
+  budget per lane, JSON request logs, and an attested eval track with
+  per-class recall and precision.
 
 ## Next step
 
-1. Open the PR; the user merges. Then, in Cloud Shell, nothing new is
-   required: the image carries the change.
-2. What P3 still lacks: the writing mock is graded only by word count (the
-   writing check explains the rest), and no mock covers a whole sitting in
-   one run.
-3. P4 (plan): the bounded AI tutor, the 200-case GEC eval, per-correction
-   provenance, the source registry as data, structured logging and budgets.
+1. The user merges #65. Nothing new is needed in Cloud Shell.
+2. What P4 still lacks: the tutor has no conversation intent (roleplay), and
+   `/api/check` still answers separately rather than through `tutor.py`.
+3. P5 (plan): the ASR eval set and a possible TalTech Whisper swap, TTS
+   caching off the ephemeral disk, the speaking evidence model.
 
 ## Deferred on purpose (one learner)
 
