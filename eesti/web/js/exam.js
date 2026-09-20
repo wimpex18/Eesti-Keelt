@@ -2,6 +2,7 @@
 
 import {emptyState, markIcon, uiIcon} from "./chrome.js";
 import {$, api, esc} from "./core.js";
+import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
 import {examLevel, setExamLevel} from "./state.js";
@@ -72,8 +73,10 @@ export async function loadExam() {
     get(`/api/exam-spec/${examLevel()}`).catch(() => null),
     get("/api/goal").catch(() => ({goal: null})),
   ]);
+  const mock = await get(`/api/mock/${examLevel()}`).catch(() => null);
 
   paintSpec(spec, goal.goal);
+  paintMock(mock && mock.counts);
 
   /* An empty countdown is a fact about the plan; `deadline.note` says which, in
      Russian, and is shown. */

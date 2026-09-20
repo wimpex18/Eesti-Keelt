@@ -257,6 +257,16 @@ def _parts(progress: sqlite3.Connection, level: str,
     read = exposure(progress)
     official = _official(content, level)
 
+    # Sections sat on the exam's own clock (`eesti/mock.py`): the strongest
+    # evidence a part has, so it is named in every part's line.
+    from .mock import counts as mock_counts
+
+    sat = mock_counts(progress, level)
+
+    def mock(part: str) -> str:
+        n = sat.get(part, 0)
+        return f" · {_count(n, 'проба', 'пробы', 'проб')} на время" if n else ""
+
     # Opened items per exam part: the no-part-may-be-zero rule is per part.
     from .library import parts_touched
 
@@ -287,8 +297,9 @@ def _parts(progress: sqlite3.Connection, level: str,
                     else ", ни одного ещё не отправлено в Vead")
     out.append(Part(
         "kirjutamine", "Kirjutamine", "письмо",
-        evidence=writing + material("kirjutamine"),
-        touched=queued >= CONTACT if queued else False,
+        evidence=writing + material("kirjutamine") + mock("kirjutamine"),
+        touched=(queued >= CONTACT or sat.get("kirjutamine", 0) > 0) if
+                (queued or sat.get("kirjutamine")) else False,
         note="На экзамене четыре задания по письму.",
         next_task=_next_task(content, level, "kirjutamine"),
     ))
@@ -309,8 +320,9 @@ def _parts(progress: sqlite3.Connection, level: str,
             evidence += f", слов расслышано {heard['accuracy']:.0%}"
     out.append(Part(
         "kuulamine", "Kuulamine", "аудирование",
-        evidence=evidence + material("kuulamine"),
-        touched=opened >= CONTACT or heard["attempts"] >= CONTACT,
+        evidence=evidence + material("kuulamine") + mock("kuulamine"),
+        touched=(opened >= CONTACT or heard["attempts"] >= CONTACT
+                 or sat.get("kuulamine", 0) > 0),
         next_task=_next_task(content, level, "kuulamine"),
     ))
     out.append(Part(
@@ -319,13 +331,14 @@ def _parts(progress: sqlite3.Connection, level: str,
         # per-part figure exists.
         evidence=(_count(touched.get("lugemine", 0), "текст", "текста", "текстов")
                   + ", " + _count(round(read["minutes"]), "минута", "минуты", "минут")
-                  + material("lugemine")),
-        touched=touched.get("lugemine", 0) >= CONTACT,
+                  + material("lugemine") + mock("lugemine")),
+        touched=(touched.get("lugemine", 0) >= CONTACT
+                 or sat.get("lugemine", 0) > 0),
         next_task=_next_task(content, level, "lugemine"),
     ))
     out.append(Part(
         "raakimine", "Rääkimine", "говорение",
-        evidence="не измеряется" + material("raakimine"),
+        evidence="не измеряется" + material("raakimine") + mock("raakimine"),
         # Not False. "We cannot tell" and "you have done none" are different
         # claims, and showing the first as the second would be a lie the learner
         # would reasonably act on.

@@ -12,7 +12,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from ..config import LEVELS
-from .deps import content_db, db, notion_db, progress_db, vocab_db
+from .deps import content_db, content_available, db, notion_db, progress_db, vocab_db
 from .render import _glosses_for, item_for_page
 
 router = APIRouter()
@@ -156,3 +156,106 @@ def goal_calendar() -> PlainTextResponse:
     return PlainTextResponse(
         calendar(chosen), media_type="text/calendar",
         headers={"content-disposition": 'attachment; filename="eesti-keelt-eksam.ics"'})
+
+
+# --------------------------------------------------------------------------
+# The timed mock: one exam part, on the exam's clock
+# --------------------------------------------------------------------------
+
+@router.get("/api/mock/{level}/{part}")
+def mock_section(level: str, part: str, seed: int | None = None) -> dict:
+    """A section to sit: its minutes, its tasks, and what it is (`eesti/mock.py`)."""
+    import secrets
+
+    from ..exam import SPECS
+    from ..itemref import mock_ref, sign
+    from ..mock import build
+
+    if level not in SPECS:
+        raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    seed = seed if seed is not None else secrets.randbelow(2**31)
+    try:
+        section = build(level, part, seed=seed,
+                        content=content_db() if content_available() else None,
+                        words=db(), vocabulary=vocab_db())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    body = section.to_dict() | {"seed": seed}
+    if section.kind == "cloze":
+        # Graded from the token, as any drill is; the page sends it back.
+        body["tasks"] = [
+            item_for_page(task) | {"token": sign(task, mock_ref(level, part, seed=seed,
+                                                                index=n))}
+            for n, task in enumerate(section.tasks)
+        ]
+        body["glosses"] = _glosses_for([t.lemma for t in section.tasks])
+    if not body["tasks"]:
+        body["detail"] = ("Для этой части нужен корпус текстов, а он ещё не "
+                          "загружен на сервер.")
+    return body
+
+
+class MockAnswer(BaseModel):
+    token: str = ""
+    given: str = ""
+    #: Dictation: what was heard, against the sentence the page was given.
+    text: str = ""
+
+
+class MockResult(BaseModel):
+    seconds: float = Field(ge=0)
+    answers: list[MockAnswer] = Field(default_factory=list)
+    #: Writing: the text produced. Speaking: nothing — the exam is paired.
+    written: str = ""
+
+
+@router.post("/api/mock/{level}/{part}")
+def mock_result(level: str, part: str, res: MockResult) -> dict:
+    """Grade a finished section and record it as exam evidence."""
+    from ..exam import SPECS
+    from ..itemref import verify
+    from ..mock import MIN_WORDS, record
+
+    if level not in SPECS or part not in {p.id for p in SPECS[level].parts}:
+        raise HTTPException(status_code=404, detail="unknown level or part")
+
+    asked, correct, detail = len(res.answers), None, {}
+    if part == "lugemine":
+        correct = 0
+        for answer in res.answers:
+            try:
+                issued = verify(answer.token)["item"]
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=(
+                    "Задание не удалось проверить: оно выдано не этим сервером.")) from exc
+            correct += int(answer.given.strip().casefold()
+                           == issued["answer"].strip().casefold())
+    elif part == "kuulamine":
+        from ..dictation import Passage, grade, key_of
+
+        correct = 0
+        for answer in res.answers:
+            if not answer.text:
+                continue
+            got = grade(Passage(answer.text, key_of(answer.text),
+                                len(answer.text.split())), answer.given)
+            correct += int(got.correct)
+    elif part == "kirjutamine":
+        words = len(res.written.split())
+        asked, correct = 1, int(words >= MIN_WORDS[level])
+        detail = {"words": words, "min_words": MIN_WORDS[level]}
+    else:                                   # raakimine: practised, never scored
+        asked, correct = len(res.answers) or 1, None
+
+    saved = record(progress_db(), level, part, res.seconds, asked, correct)
+    return saved | {"detail": detail, "minutes": SPECS[level].part(part).minutes}
+
+
+@router.get("/api/mock/{level}")
+def mock_history(level: str) -> dict:
+    """Sections sat at this level, newest first, and how many of each part."""
+    from ..mock import counts, history
+
+    return {"level": level, "sections": history(progress_db(), level),
+            "counts": counts(progress_db(), level)}

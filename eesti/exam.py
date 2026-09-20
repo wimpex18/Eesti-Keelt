@@ -54,7 +54,12 @@ class Spec:
         return -(-self.total * 6 // 10)
 
     def part(self, part_id: str) -> Part:
-        return next(p for p in self.parts if p.id == part_id)
+        """One part by id. Raises `ValueError`, never `StopIteration`, which a
+        caller inside a generator would swallow and a handler would answer 500."""
+        for p in self.parts:
+            if p.id == part_id:
+                return p
+        raise ValueError(f"no such exam part: {part_id!r}")
 
     def to_dict(self) -> dict:
         return {"level": self.level, "parts": [asdict(p) for p in self.parts],

@@ -967,6 +967,26 @@ class TestChoosingTheSitting:
         assert not page.errors, page.errors
 
 
+class TestTheTimedMock:
+    """Proovieksam: one part, on the exam's clock, graded by the server."""
+
+    def test_a_reading_section_runs_and_is_recorded(self, page):
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#mockParts button[data-part]", state="attached",
+                               timeout=15000)
+        page.click("#mock > summary")
+        page.click('#mockParts button[data-part="lugemine"]')
+        page.wait_for_selector("#mockTasks .mock-task input", timeout=20000)
+        assert re.match(r"\d\d:\d\d", page.locator("#mockClock").inner_text())
+
+        page.locator("#mockTasks .mock-task input").first.fill("vale")
+        page.click("#mockDone")
+        page.wait_for_selector("#mockVerdict.ok", timeout=20000)
+        verdict = page.locator("#mockVerdict").inner_text()
+        assert "из" in verdict and "не оценка экзамена" in verdict
+        assert not page.errors, page.errors
+
+
 class TestTodaysPlan:
     """Rada opens on today's plan; a block's Alusta starts what it names."""
 

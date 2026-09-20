@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS events (
 #: breaker, repairs, the dictionary cache) is operational and survives a rebuild.
 PROJECTIONS: dict[str, tuple[str, ...]] = {
     "progress": ("attempts", "topic_state", "checkpoints", "dictation", "exposure",
-                 "goal"),
+                 "goal", "exam_sections"),
     "review": ("review_items",),
     "vocab": ("vocab_status",),
     "notion": ("notion_queue",),
@@ -193,13 +193,14 @@ class Stores:
 
 
 def _open(name: str) -> sqlite3.Connection:
-    from . import (checkpoint, config, dictation, exam, library, notion, progress,
-                   review, vocab)
+    from . import (checkpoint, config, dictation, exam, library, mock, notion,
+                   progress, review, vocab)
 
     if name == "progress":
         conn = progress.connect(config.PROGRESS_DB)
         conn.executescript(checkpoint.SCHEMA)
         conn.executescript(exam.SCHEMA)
+        conn.executescript(mock.SCHEMA)
         conn.executescript(library.SCHEMA)
         dictation.ensure(conn)
         return conn
@@ -214,8 +215,8 @@ def _open(name: str) -> sqlite3.Connection:
 
 def _register_all() -> None:
     """Import every module that registers an apply function."""
-    from . import (checkpoint, dictation, exam, library, notion,  # noqa: F401
-                   progress, review, vocab)
+    from . import (checkpoint, dictation, exam, library, mock,  # noqa: F401
+                   notion, progress, review, vocab)
 
 
 @applies("legacy-row")

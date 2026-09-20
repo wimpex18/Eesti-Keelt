@@ -79,6 +79,11 @@ def checkpoint_ref(level: str, *, seed: int, count: int, index: int) -> dict:
             "seed": seed, "count": count, "index": index}
 
 
+def mock_ref(level: str, part: str, *, seed: int, index: int) -> dict:
+    return {"kind": "mock", "v": GENERATOR_VERSION, "level": level, "part": part,
+            "seed": seed, "index": index}
+
+
 def regenerate(ref: dict):
     """The item a ref names, generated again from the same inputs."""
     if ref.get("v") != GENERATOR_VERSION:
@@ -93,6 +98,15 @@ def regenerate(ref: dict):
         from .checkpoint import build
 
         items = build(ref["level"], count=ref["count"], seed=ref["seed"])
+    elif ref["kind"] == "mock":
+        from . import config
+        from .mock import build as build_section
+        from .sources import connect as content_connect
+        from .wordlist import connect as words_connect
+
+        items = build_section(ref["level"], ref["part"], seed=ref["seed"],
+                              content=content_connect(config.CONTENT_DB),
+                              words=words_connect()).tasks
     else:
         raise ValueError(f"unknown ref kind {ref['kind']!r}")
     return items[ref["index"]]

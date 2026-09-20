@@ -23,7 +23,8 @@ the same change that makes it untrue.
 | **Listening** | Dictation from the corpus (graded), TartuNLP TTS on any text, ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud of short sentences made of words within reach, with comparison, and open-answer feedback over the transcript (`docs/speaking.md`). |
 | **Exam** | HARNO's own shape as data (`eesti/exam.py`, checked 2026-09-19): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
-| **Readiness** | Four exam parts reported separately with reasons in Russian. |
+| **Mock** | `Proovieksam`: one exam part on the exam's own clock (`eesti/mock.py`). Reading is gap-fill in corpus sentences, listening is dictation, writing is HARNO's task shape with its word minimum, speaking is the question bank and is never scored. Each section says what it really is, and counts as evidence for its part. |
+| **Readiness** | Four exam parts reported separately with reasons in Russian; a section sat on the clock counts as contact for its part. |
 | **Offline** | Installable PWA; opens without a connection and says what it cannot do. The API is never cached. |
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
 | **Deployment** | Cloud Run behind a Cloudflare Worker + Access; the evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus present. |

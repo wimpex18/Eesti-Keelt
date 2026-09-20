@@ -22,7 +22,9 @@ Kordamine — "what am I forgetting?"
 └── Töövihikud    official HARNO consultation workbooks (pointers only)
 
 Eksam — "am I ready?"
-├── Ülevaade      readiness verdict, four exam parts reported separately
+├── Ülevaade      readiness verdict, four exam parts reported separately, the
+│                 exam's own shape, the sitting being prepared for, and
+│                 Proovieksam (one part on the exam's clock)
 └── Edenemine     progress report
 ```
 
@@ -45,6 +47,7 @@ is the exercise.
 | Lugemine | material + lookup | — | word encounters |
 | Kirjutamine | free text | **a model** (explains), plus deterministic checks | Notion queue |
 | Rääkimine | speech | **ASR** (transcribes), never scored | nothing |
+| Ülevaade · Proovieksam | timed section | code (reading, listening, word count); speaking not scored | exam sections |
 | Kuulamine · TTS, Ülevaade, Edenemine, Töövihikud | material / report | — | nothing |
 
 Only Kirjutamine and Rääkimine involve a model, and neither decides whether an

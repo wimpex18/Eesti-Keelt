@@ -257,6 +257,13 @@
     <!-- Filled from /api/readiness/{level}: the hand-written version said
          "349 teksti" and "pole veel" regardless of what had happened. -->
     <div id="readiness"></div>
+    <!-- The timed mock: one exam part on the exam's clock (`eesti/mock.py`). -->
+    <details class="mock" id="mock">
+      <summary lang="et">Proovieksam <i class="ru" lang="ru">пробный экзамен на время</i></summary>
+      <div class="row" id="mockParts"></div>
+      <div id="mockOut"></div>
+    </details>
+
     <!-- The checkpoint: a mixed set across the whole level. -->
     <div class="row" style="margin-top:var(--s5)">
       <button class="go" id="checkpointBtn" lang="et">Kontrolltöö <span class="ru" lang="ru">контрольная</span></button>

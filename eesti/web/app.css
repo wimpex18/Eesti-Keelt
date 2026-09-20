@@ -557,6 +557,17 @@
   /* Today's plan: one line per block, its minutes first so the day reads as time. */
   .today{margin-bottom:var(--s4);padding:var(--s3) var(--s4);border:1px solid var(--line);
     border-radius:12px;background:var(--panel)}
+  /* The mock: the clock leads, because the clock is the point. */
+  .mock{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .mock > summary{cursor:pointer;font-weight:600}
+  .mock-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s3);
+    margin:var(--s3) 0}
+  .mock-clock{font-variant-numeric:tabular-nums;font-size:var(--fs-body);
+    font-weight:600;color:var(--accent)}
+  .mock-clock.low{color:var(--bad)}
+  .mock-task{padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+  .mock-task:first-child{border-top:0}
   .exam-parts{margin:var(--s2) 0}
   .exam-parts > summary{cursor:pointer}
   .exam-parts li{margin-bottom:var(--s2)}
