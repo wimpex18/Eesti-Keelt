@@ -11,7 +11,7 @@ count in a doc is not added.
 |---|---|---|---|
 | **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~15 s | yes — `tests.yml` |
 | **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | no — local only |
-| **Browser, full matrix** | same, with `--all-browsers` | ~2 min | no |
+| **Browser, full matrix** | same, with `--all-browsers` | longer than the default pairings | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (OpenRouter), manual |
 | Speech eval | `cli eval --suite asr [--engine A --engine B]` | your own recordings | no — the set is personal and not in git |
 | Production smoke | `smoke.yml` | — | after `deploy`, daily, manual |
@@ -76,6 +76,24 @@ npm install                           # axe-core, for the accessibility check
 Fixtures redirect every database (`conftest.py`) and build them with the app's
 own openers. Outbound HTTP fails at once, except in the `TestAgainstTheLive…`
 classes, which skip when their service is down.
+
+## Live service, speech and recovery checks
+
+`python -m eesti.cli provider-health --timeout 5` probes both GEC POST
+contracts with canned text. Health is separate from correction quality, and an
+outage exits 2 without failing the offline suite. A green eval workflow can
+still mean below threshold or unmeasured; read its report.
+
+Speech compares named recognisers on the same manually verified recordings.
+Follow `docs/asr-evaluation.md`: a recorder prompt is not ground truth; a changed
+audio/text hash invalidates its review. Unit tests cover WER/CER, aligned false
+acceptance, morphology tokens, incomplete coverage and reference isolation.
+They do not establish real learner recognition quality or local model speed.
+
+`python -m eesti.cli verify-backup /private/export.jsonl` validates replay in
+temporary databases, twice. Tests cover unsupported events/versions, duplicates,
+missing backfill marker and keeping live stores unchanged. This proves the
+supplied export is replayable, not that every remote event reached the export.
 
 ## Not covered
 

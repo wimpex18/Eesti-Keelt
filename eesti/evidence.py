@@ -331,7 +331,7 @@ def ingest(conn: sqlite3.Connection, incoming: Iterable[dict]) -> int:
     return added
 
 
-def rebuild(conn: sqlite3.Connection | None = None) -> int:
+def rebuild(conn: sqlite3.Connection | None = None, *, strict: bool = False) -> int:
     """Throw the projection tables away and replay the whole log into them."""
     own = conn is None
     conn = conn or connect()
@@ -356,8 +356,10 @@ def rebuild(conn: sqlite3.Connection | None = None) -> int:
             try:
                 apply(stores, ev)
             except Exception as exc:  # noqa: BLE001
+                if strict:
+                    raise ValueError(f"cannot replay event type {ev.type!r}") from None
                 logging.getLogger(__name__).warning(
-                    "replay skipped event %s (%s): %s", ev.id, ev.type, exc)
+                    "replay skipped event %s (%s): %s", ev.id, ev.type, type(exc).__name__)
                 continue
             n += 1
         return n

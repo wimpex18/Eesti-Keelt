@@ -341,7 +341,7 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
 
 @router.post("/api/eval/clip")
 async def eval_clip(request: Request) -> dict:
-    """Save one recording with what was said, for `cli eval --suite asr`."""
+    """Save raw audio and the displayed prompt; neither is verified ground truth."""
     import os
     import re as _re
 
@@ -375,7 +375,8 @@ async def eval_clip(request: Request) -> dict:
     return {"saved": stem, "clips": clips, "planted": bool(planted),
             "folder": str(SET),
             "note": _re.sub(r"\s+", " ", """
-                Запись сохранена только на этой машине. Для сравнения движков
+                Запись сохранена только на этой машине. Текст — подсказка, не расшифровка.
+                Прослушай запись, исправь .txt и подтверди через `cli asr-verify --listened`. Для сравнения движков
                 нужно 80–150 фраз, примерно четверть — с намеренной ошибкой.
             """).strip()}
 

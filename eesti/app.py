@@ -37,9 +37,8 @@ from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read th
 # Learner database paths are not re-exported here: everything reads
 # `eesti.config` at call time, so each file has one name.
 
-# Generated items are not stored: the client returns the item with the answer
-# and the server re-grades it. Fine for one learner behind Access; a multi-user
-# app would need signed items or server-side sessions.
+# Issued items carry signed fields (`itemref`); the server grades those fields,
+# never a replacement answer key supplied by the page.
 
 app = FastAPI(title="Eesti-Keelt", docs_url="/api/docs")
 

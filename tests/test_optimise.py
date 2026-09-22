@@ -94,3 +94,22 @@ class TestParametersAreEvidence:
         evidence.record("fsrs-parameters", {"parameters": fitted, "reviews": 1200})
         evidence.rebuild()
         assert review.parameters() == tuple(fitted)
+
+
+def test_forced_small_data_fit_never_changes_the_live_schedule(cards, monkeypatch):
+    import fsrs
+    from fsrs.scheduler import DEFAULT_PARAMETERS
+
+    class Trial:
+        def __init__(self, history):
+            pass
+
+        def compute_optimal_parameters(self):
+            return DEFAULT_PARAMETERS
+
+    monkeypatch.setattr(fsrs, 'Optimizer', Trial, raising=False)
+    a_review(cards, 3)
+    with evidence.connect() as log:
+        result = optimise.fit(log, force=True)
+    assert result['fitted'] and not result['applied']
+    assert review.parameters() is None

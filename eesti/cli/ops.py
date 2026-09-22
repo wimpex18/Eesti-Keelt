@@ -13,6 +13,15 @@ from pathlib import Path
 
 from ._helpers import _row_of
 
+def cmd_verify_backup(args: argparse.Namespace) -> int:
+    import json
+
+    from ..recovery import verify_export
+
+    print(json.dumps(verify_export(Path(args.file)), indent=2))
+    return 0
+
+
 def cmd_notion(args: argparse.Namespace) -> int:
     """Review queued errors and, only with `--push`, send them to the `Vead` log.
 
@@ -183,6 +192,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
+    p = sub.add_parser("verify-backup", help="replay a private event export in temporary stores")
+    p.add_argument("file")
+    p.set_defaults(func=cmd_verify_backup)
+
     p = sub.add_parser(
         "notion",
         help="review queued errors; --push writes them to the Vead log",

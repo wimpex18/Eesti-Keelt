@@ -94,7 +94,7 @@ PROVIDERS: dict[str, Provider] = {
         "https://integrate.api.nvidia.com/v1",
         "NVIDIA_API_KEY",
         "z-ai/glm-5.3-flash",
-        "Free NVIDIA Developer Program key, 40 req/min; 100+ hosted models.",
+        "NVIDIA developer endpoint; account limits apply. Evaluation only.",
         json_mode=False,
     ),
     # Mistral Experiment plan. `-latest` is Mistral's stable alias.
@@ -103,7 +103,7 @@ PROVIDERS: dict[str, Provider] = {
         "https://api.mistral.ai/v1",
         "MISTRAL_API_KEY",
         "mistral-large-latest",
-        "Free Experiment plan, ~1B tokens/month, rate-limited.",
+        "Mistral Free mode; model and organization limits apply.",
     ),
     # Free models rotate; a `:free` id can vanish while the paid id remains.
     "openrouter": Provider(
@@ -121,8 +121,8 @@ PROVIDERS: dict[str, Provider] = {
         os.environ.get("LOCAL_LLM_URL", "http://localhost:11434/v1"),
         "",  # no key: the server is yours
         "hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M",
-        "Free and private. Only reachable where the server is: localhost for "
-        "`cli serve`, or a tunnel for the deployment.",
+        "Local compute, with hardware costs. Reachable where the server is: localhost for "
+        "`cli serve`; no production tunnel is configured.",
     ),
 }
 
@@ -217,6 +217,7 @@ def complete(
     timeout: float = DEFAULT_TIMEOUT,
     max_tokens: int = 2000,
     json_mode: bool = True,
+    attempts: int = RETRIES,
 ) -> str:
     """One chat completion. Returns the assistant's text."""
     provider = PROVIDERS[provider_name]
@@ -254,7 +255,7 @@ def complete(
         headers=headers,
     )
 
-    for attempt in range(RETRIES):
+    for attempt in range(attempts):
         _throttle()
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -266,7 +267,7 @@ def complete(
                 raise EmptyReply(choice.get("finish_reason") or "unknown")
             return content
         except urllib.error.HTTPError as exc:
-            if attempt == RETRIES - 1:
+            if attempt == attempts - 1:
                 raise
             if exc.code == 429:
                 # Two 429s share one status code. A per-minute limit is worth a short wait; a
@@ -282,7 +283,7 @@ def complete(
                 raise          # 4xx that is not 429 is us, not them
             time.sleep(5 * (attempt + 1))
         except (TimeoutError, OSError):
-            if attempt == RETRIES - 1:
+            if attempt == attempts - 1:
                 raise
             time.sleep(2 ** attempt)
 

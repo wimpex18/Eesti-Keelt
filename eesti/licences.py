@@ -103,7 +103,7 @@ ENGINES: tuple[Source, ...] = (
     ),
     Source(
         "nvidia", "NVIDIA NIM", "engine", "NVIDIA developer terms", True,
-        "https://build.nvidia.com/", "Grammar lane: accurate, slow (20–60 s).",
+        "https://build.nvidia.com/", "Evaluation lane; unavailable in current probes, excluded from automatic routing.",
         version="z-ai/glm-5.3-flash", quota="40 requests/min",
         data_leaves="text", verified="2026-09-19",
     ),
@@ -140,8 +140,8 @@ ENGINES: tuple[Source, ...] = (
         "whisper-cpp", "whisper.cpp with TalTech's Estonian model", "engine",
         "MIT (whisper.cpp and the model)", True,
         "https://huggingface.co/TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604",
-        "Local speech recognition: the best Estonian model, and nothing leaves "
-        "the machine. Not on the deployment (no GPU).",
+        "Local speech recognition: an Estonian benchmark candidate; nothing leaves "
+        "the machine. Kept off production pending learner evaluation.",
         version="whisper-large-v3-turbo-et-verbatim-2604", data_leaves="none",
         verified="2026-09-19",
     ),

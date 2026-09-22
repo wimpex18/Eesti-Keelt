@@ -27,18 +27,21 @@ class TestTheSet:
         (tmp_path / "a.wav").write_bytes(b"RIFF")
         assert evaluation.clips(tmp_path) == []
         (tmp_path / "a.txt").write_text("Ma elan siin", encoding="utf-8")
-        assert [c.name for c in evaluation.clips(tmp_path)] == ["a"]
+        assert evaluation.clips(tmp_path) == []  # a prompt is not ground truth
+        evaluation.verify_clip(tmp_path / "a.wav")
+        assert [c.name for c in evaluation.clips(tmp_path)] == ["a.wav"]
 
     def test_a_planted_error_is_read_from_its_own_file(self, tmp_path):
         (tmp_path / "b.wav").write_bytes(b"RIFF")
         (tmp_path / "b.txt").write_text("Ma ostsin uus auto", encoding="utf-8")
         (tmp_path / "b.said").write_text("uus", encoding="utf-8")
-        assert evaluation.clips(tmp_path)[0].planted == "uus"
+        evaluation.verify_clip(tmp_path / "b.wav", planted_index=2, accepted="uue", focus=(2,))
+        assert evaluation.clips(tmp_path)[0].annotation["planted_index"] == 2
 
     def test_no_recordings_is_reported_not_scored(self, tmp_path):
         got = evaluation.run(folder=tmp_path, verbose=False)
         assert got["valid"] is False and got["wer"] is None
-        assert "record a few" in got["invalid_reason"]
+        assert "Record a few" in got["invalid_reason"]
 
 
 class TestScoring:
@@ -47,7 +50,7 @@ class TestScoring:
         def answer(text: str):
             from eesti.providers import asr
 
-            monkeypatch.setattr(asr, "transcribe",
+            monkeypatch.setattr(asr, "transcribe_with",
                                 lambda *a, **k: asr.Transcript(text=text, engine="test"))
         return answer
 
@@ -56,12 +59,16 @@ class TestScoring:
         (tmp_path / "c.txt").write_text(said, encoding="utf-8")
         if planted:
             (tmp_path / "c.said").write_text(planted, encoding="utf-8")
+        evaluation.verify_clip(tmp_path / "c.wav",
+                               planted_index=2 if planted else None,
+                               accepted="uue" if planted else "",
+                               focus=(2,) if planted else ())
 
     def test_a_perfect_transcript_scores_zero(self, tmp_path, heard):
         self._clip(tmp_path, "Ma elan Tallinnas")
         heard("Ma elan Tallinnas.")
         got = evaluation.run(folder=tmp_path, verbose=False)
-        assert got["wer"] == 0.0 and got["valid"] and got["measured"] == 1
+        assert got["wer"] == 0.0 and not got["valid"] and got["measured"] == 1
 
     def test_the_failure_that_flatters_the_learner_is_counted(self, tmp_path, heard):
         """The learner said `uus auto`; a recogniser that hands back `uue auto`
@@ -89,7 +96,8 @@ class TestComparingTwoEngines:
     learner better, or is it the clips?"""
 
     def _run(self, engine: str, rates: dict) -> dict:
-        return {"engine": engine, "per_clip": sorted(rates.items())}
+        return {"engine": engine, "per_clip": sorted(rates.items()),
+                "decision_ready": True, "clips": len(rates)}
 
     def test_a_consistent_win_is_decisive(self):
         a = self._run("workers-ai", {"c1": 0.4, "c2": 0.5, "c3": 0.45, "c4": 0.5})
@@ -128,3 +136,71 @@ class TestComparingTwoEngines:
         from eesti.providers import asr
 
         assert set(asr.NAMES) == {name for name, _ in asr.engines(b"x")}
+
+class TestGroundTruthAndDecisionSafety:
+    def clip(self, root, name, text, **kwargs):
+        audio = root / f"{name}.wav"
+        audio.write_bytes(b"RIFF" + name.encode())
+        audio.with_suffix('.txt').write_text(text, encoding='utf-8')
+        evaluation.verify_clip(audio, **kwargs)
+        return audio
+
+    @pytest.mark.parametrize('changed', ['txt', 'wav'])
+    def test_edited_audio_or_transcript_needs_verification_again(self, tmp_path, changed):
+        audio = self.clip(tmp_path, 'one', 'Ma elan siin')
+        audio.with_suffix('.' + changed).write_bytes(b'changed')
+        assert evaluation.clips(tmp_path) == []
+        assert len(evaluation.inventory(tmp_path)[1]) == 1
+
+    @pytest.mark.parametrize('heard', ['Ma ostsin auto', 'Ma ostsin teise auto'])
+    def test_deletion_or_unrelated_substitution_is_not_false_acceptance(self, tmp_path, monkeypatch, heard):
+        from eesti.providers import asr
+        self.clip(tmp_path, 'one', 'Ma ostsin uus auto', planted_index=2,
+                  accepted='uue', focus=(2,))
+        monkeypatch.setattr(asr, 'transcribe_with', lambda *a: asr.Transcript(heard, 'test'))
+        got = evaluation.run(folder=tmp_path, verbose=False)
+        assert got['false_accept'] == 0
+        assert got['morphology_error_rate'] == 1
+
+    def test_repeated_word_elsewhere_does_not_hide_normalisation(self, tmp_path, monkeypatch):
+        from eesti.providers import asr
+        self.clip(tmp_path, 'one', 'uus auto ja uus auto', planted_index=3,
+                  accepted='uue', focus=(3,))
+        monkeypatch.setattr(asr, 'transcribe_with', lambda *a: asr.Transcript('uus auto ja uue auto', 'test'))
+        assert evaluation.run(folder=tmp_path, verbose=False)['false_accept'] == 1
+
+    def test_corpus_wer_weights_words_not_short_clips(self, tmp_path, monkeypatch):
+        from eesti.providers import asr
+        self.clip(tmp_path, 'one', 'tere')
+        self.clip(tmp_path, 'two', 'ma elan siin')
+        monkeypatch.setattr(asr, 'transcribe_with', lambda name, audio, mime:
+                            asr.Transcript('vale' if audio.endswith(b'one') else 'ma elan siin', 'test'))
+        got = evaluation.run(folder=tmp_path, verbose=False)
+        assert got['wer'] == .25
+        assert not got['decision_ready']
+
+    def test_partial_engine_coverage_is_never_a_valid_comparison(self, tmp_path, monkeypatch):
+        from eesti.providers import asr
+        for n in range(21):
+            self.clip(tmp_path, str(n), 'tere')
+        monkeypatch.setattr(asr, 'transcribe_with', lambda name, audio, mime:
+                            None if audio == b'RIFF20' else asr.Transcript('tere', 'test'))
+        got = evaluation.run(folder=tmp_path, verbose=False)
+        assert got['measured'] == 20 and got['broken'] == 1
+        assert not got['valid']
+        assert not evaluation.compare(got, got)['decisive']
+
+    def test_names_alone_cannot_pair_different_ground_truth(self, tmp_path):
+        audio = self.clip(tmp_path, 'one', 'tere')
+        first = evaluation.clips(tmp_path)[0].identity
+        audio.with_suffix('.txt').write_text('tere taas')
+        evaluation.verify_clip(audio)
+        assert first != evaluation.clips(tmp_path)[0].identity
+
+    def test_morphology_annotations_must_name_real_tokens(self, tmp_path):
+        self.clip(tmp_path, 'one', 'tere')
+        with pytest.raises(ValueError):
+            evaluation.verify_clip(tmp_path / 'one.wav', focus=(3,))
+
+    def test_unicode_combining_marks_are_normalised(self):
+        assert evaluation.wer('õun', 'o\u0303un') == 0

@@ -59,16 +59,16 @@ class TestTheDictionaryIsAlwaysConsulted:
         answer = grammar.check(TEXT, providers=[_Dead(), _Answering()])
         assert any(c.wrong == "tanav" for c in answer.corrections)
 
-    def test_the_provider_keeps_the_word_it_already_explained(self):
-        """A provider's explanation has a reason attached; this one only has
-        "not in the dictionary". The better explanation wins, and the word is
-        not reported twice."""
+    def test_dictionary_authority_is_not_replaced_by_a_model_explanation(self):
+        """One deterministic finding survives; model prose cannot upgrade itself
+        to dictionary evidence just because both suggested the same form."""
         answer = grammar.check(TEXT, providers=[_Answering([
             grammar.Correction("tanav", "tänav", "Пропущена täpitäht ä.", "vocab"),
         ])])
         hits = [c for c in answer.corrections if c.wrong == "tanav"]
         assert len(hits) == 1
-        assert hits[0].why == "Пропущена täpitäht ä."
+        assert hits[0].source == "deterministic"
+        assert "Vabamorf" in hits[0].why
 
     def test_the_offline_fallback_does_not_double_report(self):
         """It already runs the same spellcheck itself."""

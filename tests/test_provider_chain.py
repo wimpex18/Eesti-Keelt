@@ -530,4 +530,23 @@ class TestNeurotolgeCorrection:
         names = [p.name for p in grammar.build_chain()]
         assert names.index("tartunlp-mt") > max(
             names.index(f"llm:{n}") for n in grammar.LLM_PREFERENCE)
-        assert names[-1] == "vabamorf-offline" and names[0] == "tartunlp"
+        assert names[-1] == "vabamorf-offline" and names.index("tartunlp") > names.index("llm:workers-ai")
+
+
+def test_breaker_failures_survive_requests_on_different_threads(tmp_path):
+    """A dead provider must not cost its timeout again after a cold start."""
+    import concurrent.futures
+    from eesti.progress import connect
+    path = tmp_path / 'threaded.db'
+    breaker.bind_later(lambda: connect(path))
+    breaker._failures.clear()
+    try:
+        breaker.record_failure('threaded')  # opens in this thread
+        with concurrent.futures.ThreadPoolExecutor(1) as pool:
+            pool.submit(breaker.record_failure, 'threaded').result()
+        breaker._failures.clear()          # a new process must see both
+        breaker.bind_later(lambda: connect(path))
+        assert breaker.is_open('threaded')
+    finally:
+        breaker.bind(None)
+        breaker.reset()

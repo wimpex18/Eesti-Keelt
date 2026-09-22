@@ -1,8 +1,7 @@
 """Grammar checking, as a chain of interchangeable providers.
 
-TartuNLP first, then LLM lanes, then offline Vabamorf evidence; the result
-always names the engine that answered, because an offline answer carries far
-less authority than an explained one.
+Explaining LLM lanes, public GEC, Neurotõlge, then offline Vabamorf evidence.
+Every result names its engine; fluent explanations do not confer authority.
 """
 
 from __future__ import annotations
@@ -12,7 +11,7 @@ import os
 import re
 import urllib.error
 import urllib.request
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Protocol
 
 from ..config import PROVIDER_TIMEOUT, TAGS, TARTUNLP_GRAMMAR, TARTUNLP_TRANSLATE
@@ -124,10 +123,7 @@ def _locate(text: str, corrections: list[Correction]) -> list[Correction]:
         end = start + len(c.wrong) if start >= 0 else None
         if start >= 0:
             cursor = end
-        located.append(
-            Correction(c.wrong, c.correct, c.why, c.tag,
-                       start if start >= 0 else None, end)
-        )
+        located.append(replace(c, start=start if start >= 0 else None, end=end))
     return located
 
 
@@ -166,6 +162,10 @@ def _tag_of(wrong: str, right: str) -> str:
     return "word-order" if is_reordering(wrong, right) else "vocab"
 
 
+class GECUnavailable(OSError):
+    """Both endpoints failed; carries safe status identifiers, never bodies."""
+
+
 class TartuNLPGrammar:
     """TartuNLP's public GEC service at `api.tartunlp.ai/grammar`.
 
@@ -200,7 +200,24 @@ class TartuNLPGrammar:
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
-            return json.loads(resp.read())
+            payload = json.loads(resp.read())
+        self.validate(payload, v2=url.endswith('/v2'))
+        return payload
+
+    @staticmethod
+    def validate(payload: dict, *, v2: bool) -> None:
+        """An error object or incompatible schema must not mean 'no errors'."""
+        if not isinstance(payload, dict) or not isinstance(payload.get("corrections"), list):
+            raise ValueError("invalid GEC corrections")  # noqa: TRY004 - incompatible remote schema
+        for entry in payload["corrections"]:
+            if not isinstance(entry, dict):
+                raise ValueError("invalid GEC correction")  # noqa: TRY004 - incompatible remote schema
+            if v2:
+                if not all(isinstance(entry.get(k), str) for k in ("original", "corrected")):
+                    raise ValueError("invalid GEC sentence pair")
+            elif (not isinstance(entry.get("span"), dict)
+                  or not isinstance(entry.get("replacements"), list)):
+                raise ValueError("invalid GEC span")
 
     @staticmethod
     def _from_v2(payload: dict) -> list[Correction]:
@@ -245,7 +262,7 @@ class TartuNLPGrammar:
         return out
 
     def check(self, text: str) -> GrammarResult:
-        """Two endpoints, one budget: `self.timeout` covers both attempts together."""
+        """Split the socket timeout across endpoints; connection overhead is extra."""
         v2, root = self.ENDPOINTS
         half = self.timeout / 2
         try:
@@ -253,11 +270,16 @@ class TartuNLPGrammar:
                 self.name, _locate(text, self._from_v2(self._post(v2, text, half)))
             )
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError,
-                OSError, ValueError):
+                OSError, ValueError) as first:
             # The span endpoint is a different code path on their side, and it
             # does not run the explanation step. Worth one attempt before the
             # chain gives up on Estonian-specific correction entirely.
-            located = self._from_v1(self._post(root, text, half))
+            first_reason = why_failed(first)
+            try:
+                located = self._from_v1(self._post(root, text, half))
+            except (OSError, ValueError) as second:
+                raise GECUnavailable(
+                    f"v2={first_reason}; spans={why_failed(second)}") from None
             # `_locate` only fills offsets it does not already have.
             return GrammarResult(
                 self.name,
@@ -397,8 +419,13 @@ class LLMGrammar:
         from .llm import complete, parse_json
 
         payload = parse_json(
-            complete(self.provider_name, SYSTEM_PROMPT, text, model=self.model)
+            complete(self.provider_name, SYSTEM_PROMPT, text, model=self.model, attempts=1)
         )
+        if (not isinstance(payload, dict) or not isinstance(payload.get("corrections"), list)
+                or any(not isinstance(c, dict)
+                       or not all(isinstance(c.get(key), str) for key in ("wrong", "correct", "why"))
+                       for c in payload["corrections"])):
+            raise ValueError("invalid grammar response schema")
         corrections = [
             Correction(
                 wrong=c.get("wrong", ""),
@@ -458,7 +485,7 @@ class VabamorfFallback:
 
 
 #: The keys that turn on a lane able to explain a correction.
-EXPLAINING_KEYS = ("CLOUDFLARE_API_TOKEN", "NVIDIA_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY")
+EXPLAINING_KEYS = ("CLOUDFLARE_API_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY")
 
 
 def _offline_note() -> str:
@@ -506,6 +533,7 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
     return GrammarResult(
         result.engine,
         kept,
+        diagnostics=result.diagnostics,
         degraded=result.degraded,
         advisory=True,
         note=(
@@ -517,21 +545,22 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 
 #: LLM lanes in the order the chain tries them; unconfigured lanes are skipped.
 #: `local` runs an Estonian-adapted model and is off unless LOCAL_LLM_URL is set.
-#: The rest are ordered by eval recall at precision 1.0 against how long the
-#: learner waits (docs/ai-providers.md). Every lane in `llm.PROVIDERS` must be here.
-LLM_PREFERENCE = ("local", "workers-ai", "nvidia", "mistral", "openrouter")
+#: Only evaluated, operational lanes belong in automatic grammar/tutor routing.
+#: NVIDIA remains available to the CLI eval, pending recovery and re-evaluation.
+LLM_PREFERENCE = ("local", "workers-ai", "mistral", "openrouter")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
-    """Default order: TartuNLP GEC, the LLM lanes, Neurotõlge, then offline Vabamorf.
+    """Explaining LLMs, bounded public GEC, Neurotõlge, then offline evidence.
 
-    TartuNLP is often unresponsive; the breaker steps over it after two failures.
+    Public GEC has no demonstrated latency/quality advantage over the working
+    LLM lane. Keep it as an optional fallback, not a delay on every first check.
     """
     if providers is not None:
         return providers
     return [
-        TartuNLPGrammar(),
         *(LLMGrammar(name) for name in LLM_PREFERENCE),
+        TartuNLPGrammar(),
         # Code-filtered corrections without explanations: after every lane that
         # explains, before the offline evidence.
         NeurotolgeCorrection(),
@@ -589,6 +618,8 @@ def why_failed(exc: BaseException) -> str:
     Never a response body — the note reaches CI logs and the checked text is the
     learner's writing. Also used by `eesti/evals/`.
     """
+    if isinstance(exc, GECUnavailable):
+        return f"GECUnavailable ({exc})"
     if isinstance(exc, urllib.error.HTTPError):
         code = _error_code(exc)
         return f"HTTPError {exc.code} ({code})" if code else f"HTTPError {exc.code}"
@@ -734,10 +765,15 @@ def verify(text: str, corrections: list[Correction]) -> list[Correction]:
                 # A form of the same word, or a real word replacing one Vabamorf
                 # does not know (a misspelling): both are checkable claims.
                 source = "model+verified"
-            if source == "model+verified" and c.tag == "obj-case":
+            # A provider's tag is not evidence: GEC calls these edits `vocab`.
+            # Detect the morphology too, or a mistagged aspect judgement can
+            # become a supposedly verified correction.
+            object_swap = NeurotolgeCorrection._object_swap(
+                {f for _, f in _readings(wrong)}, {f for _, f in _readings(right)})
+            if source == "model+verified" and (c.tag == "obj-case" or object_swap):
                 source = _verified_object_case(text, wrong, right)
         out.append(Correction(c.wrong, c.correct, c.why, c.tag, c.start, c.end,
-                              source if c.source != "model+verified" else c.source))
+                              source))
     return out
 
 
@@ -778,24 +814,21 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
     Spelling (Vabamorf's dictionary) and subject–verb agreement are code, and code
     does not lose to a model: `check()` returns the first provider that answers, so
     without this merge an LLM answer would discard them — and the LLM prompt does
-    not cover a missing täpitäht. Merged, not prepended: where the provider already
-    covered a word, its explanation is kept.
+    not cover a missing täpitäht. A deterministic finding replaces a model suggestion on the same word;
+    the model cannot suppress or override the check.
     """
     if not result.corrections and result.engine == "none":
         # Nothing answered at all. `check()` reports that honestly rather than
         # dressing a spellcheck up as a working grammar service.
         return result
 
-    already = {c.wrong.casefold() for c in result.corrections if c.wrong}
-    extra = [
-        c for c in spelling(text) + agreement(text) + rection(text)
-        if c.wrong.casefold() not in already
-    ]
+    extra = spelling(text) + agreement(text) + rection(text)
     if not extra:
         return result
     return GrammarResult(
         result.engine,
-        result.corrections + extra,
+        [c for c in result.corrections
+         if c.wrong.casefold() not in {e.wrong.casefold() for e in extra}] + extra,
         degraded=result.degraded,
         note=result.note,
         diagnostics=result.diagnostics,

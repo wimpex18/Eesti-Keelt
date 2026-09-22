@@ -38,8 +38,10 @@ def _capture_requests(monkeypatch, content="{}"):
 
 
 class TestTheChain:
-    def test_every_lane_is_tried_and_every_tried_lane_exists(self):
-        assert set(llm.PROVIDERS) == set(grammar.LLM_PREFERENCE)
+    def test_automatic_lanes_exist_and_unavailable_nvidia_is_eval_only(self):
+        assert set(grammar.LLM_PREFERENCE) < set(llm.PROVIDERS)
+        assert "nvidia" in llm.PROVIDERS
+        assert "llm:nvidia" not in [p.name for p in grammar.build_chain()]
 
     def test_the_chain_ends_somewhere_that_always_answers(self):
         assert [p.name for p in grammar.build_chain()][-1] == "vabamorf-offline"
@@ -285,3 +287,17 @@ class TestTartuNLPIsEvaluated:
         build.register(parser.add_subparsers())
         args = parser.parse_args(["eval", "--provider", "tartunlp"])
         assert args.provider == "tartunlp"
+
+
+def test_interactive_timeout_does_not_retry_or_sleep(monkeypatch):
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-only")
+    calls = []
+    def timeout(*args, **kwargs):
+        calls.append(1)
+        raise TimeoutError()
+    monkeypatch.setattr("urllib.request.urlopen", timeout)
+    monkeypatch.setattr(llm, "_throttle", lambda: None)
+    monkeypatch.setattr(llm.time, "sleep", lambda seconds: pytest.fail("interactive retry"))
+    with pytest.raises(TimeoutError):
+        llm.complete("mistral", "system", "text", attempts=1)
+    assert len(calls) == 1

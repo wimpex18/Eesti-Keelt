@@ -392,6 +392,28 @@ def cmd_models(args: argparse.Namespace) -> int:
     print(f"\npinned default {default!r}: {'PRESENT' if present else 'ABSENT — fix it'}")
     return 0
 
+def cmd_provider_health(args: argparse.Namespace) -> int:
+    import json
+
+    from ..evals.health import probe
+
+    result = probe(args.timeout)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["operational"] else 2
+
+
+def cmd_asr_verify(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from ..evals.asr import verify_clip
+
+    verify_clip(Path(args.audio), planted_index=args.planted_index,
+                accepted=args.accepted, focus=tuple(args.focus or ()),
+                tags=tuple(args.tag or ()))
+    print("Verified transcript sealed to this recording; edits require verification again.")
+    return 0
+
+
 def cmd_eval(args: argparse.Namespace) -> int:
     """Score an engine.
 
@@ -405,14 +427,21 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
         from ..evals.asr import compare, run as run_asr
 
-        engines = args.engine or ["chain"]
+        engines = args.engine or ["workers-ai"]
         scores = [run_asr(engine=name, folder=args.folder) for name in engines]
+        comparison = compare(scores[0], scores[1]) if len(scores) == 2 else None
+        if args.output:
+            from pathlib import Path
+
+            Path(args.output).write_text(_json.dumps(
+                {"runs": scores, "comparison": comparison}, ensure_ascii=False, indent=2)
+                + "\n", encoding="utf-8")
         if any(not s["valid"] for s in scores):
             return 2
         if len(scores) == 2:
             # Paired on the same clips: the only honest way to say one engine
             # hears this learner better than the other.
-            print(_json.dumps(compare(scores[0], scores[1]), indent=2,
+            print(_json.dumps(comparison, indent=2,
                               ensure_ascii=False))
         # No threshold to pass or fail: this set exists to compare engines
         # before a swap, and a number from one voice is not a gate.
@@ -592,16 +621,34 @@ def register(sub) -> None:
     p.add_argument("--limit", type=int, help="stop after this many sentences")
     p.set_defaults(func=cmd_import_konekorpus)
 
+    p = sub.add_parser("provider-health", help="probe both public GEC POST contracts")
+    p.add_argument("--timeout", type=float, default=5.0,
+                   help="seconds per POST, at most 75; six calls, no retries")
+    p.set_defaults(func=cmd_provider_health)
+
+    p = sub.add_parser("asr-verify", help="seal a manually reviewed ASR transcript")
+    p.add_argument("audio", help="recording; edit its .txt to what was actually spoken")
+    p.add_argument("--listened", action="store_true", required=True,
+                   help="confirm you listened and checked the adjacent transcript")
+    p.add_argument("--planted-index", type=int, help="zero-based token index of the actual error")
+    p.add_argument("--accepted", default="", help="target word that would hide that error")
+    p.add_argument("--focus", type=int, action="append", help="morphology-sensitive token index")
+    p.add_argument("--tag", action="append", help="slice: names, numbers, hesitation, etc.")
+    p.set_defaults(func=cmd_asr_verify)
+
     p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")
     p.add_argument(
         "--suite", choices=("gec", "asr"), default="gec",
         help="gec = grammar (default); asr = speech recognition on your own "
              "recordings in data/eval/asr")
     p.add_argument("--folder", help="asr only: where the recordings are")
+    p.add_argument("--output", help="asr only: save private JSON results (under data/eval)")
     p.add_argument(
         "--engine", action="append",
+        choices=("workers-ai", "whisper.cpp", "faster-whisper", "voxtral",
+                 "openrouter-audio", "hf-whisper", "chain"),
         help="asr only: which engine to score (repeat twice to compare them "
-             "paired on the same clips); default is the chain")
+             "paired on the same clips); default is workers-ai")
     p.add_argument("--provider", default="openrouter",
                    choices=[*_providers(), *NON_LLM])
     p.add_argument("--model")

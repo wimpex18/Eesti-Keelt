@@ -68,6 +68,11 @@ jobs:
         continue-on-error: true
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
 
+      - name: Probe public GEC POST contracts
+        if: env.PROVIDER == 'tartunlp'
+        continue-on-error: true
+        run: python -m eesti.cli provider-health --timeout 5
+
       # "No key" must never look like "model passed".
       - name: Score the model on Estonian
         id: score

@@ -7,7 +7,7 @@ Ordered by where the app runs (Cloud Run, behind the Worker):
 | Cloudflare Workers AI `@cf/openai/whisper-large-v3-turbo` | primary; `language="et"`, `initial_prompt` carries the question |
 | OpenRouter audio-input models | fallback |
 | Hugging Face `openai/whisper-large-v3` (`HF_TOKEN`) | fallback |
-| TalTech Whisper `…-et-verbatim-2604` via whisper.cpp | best Estonian; local only |
+| TalTech Whisper `…-et-verbatim-2604` via whisper.cpp | benchmark candidate; local only |
 | TalTech Voxtral via llama.cpp | local only |
 
 In production the Worker answers `/api/transcribe` through its `AI` binding;
@@ -124,8 +124,8 @@ def available() -> dict:
         "estonian_model": ESTONIAN_MODEL,
         "note": (
             "Cloudflare Workers AI runs on the platform this app deploys to and "
-            "pins the language to Estonian. The best Estonian model is TalTech's, "
-            "and nobody hosts it — see docs/speaking.md."
+            "pins the language to Estonian. TalTech is a local benchmark reference; "
+            "see docs/speaking.md for the measured limits."
         ),
     }
 
@@ -289,11 +289,16 @@ def engines(audio: bytes, mime: str = "audio/wav", context: str = "") -> tuple:
 
 #: The engines by name, for `--engine` on the eval.
 NAMES = ("workers-ai", "openrouter-audio", "hf-whisper", "whisper.cpp", "voxtral")
+EVAL_NAMES = (*NAMES, "faster-whisper")
 
 
 def transcribe_with(name: str, audio: bytes, mime: str = "audio/wav",
                     context: str = "") -> Transcript | None:
     """One named engine, no chain and no breaker: the eval asks each in turn."""
+    if name == "faster-whisper":
+        from ..evals.asr_reference import transcribe as reference
+
+        return reference(audio)
     for engine, call in engines(audio, mime, context):
         if engine == name:
             return call()

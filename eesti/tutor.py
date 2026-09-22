@@ -94,16 +94,33 @@ def _lanes():
         yield name
 
 
+def _completion(name: str, system: str, prompt: str) -> dict:
+    """One interactive request, with the same budget and breaker as grammar."""
+    from .providers import breaker, budget
+    from .providers.llm import complete, parse_json
+
+    budget.spend(f"llm:{name}")
+    try:
+        reply = parse_json(complete(name, system, prompt, attempts=1))
+        if (not isinstance(reply, dict)
+                or any(reply.get(key) is not None and not isinstance(reply[key], str)
+                       for key in ("explanation_ru", "reply_et", "hint_ru"))
+                or ("questions" in reply and not isinstance(reply["questions"], list))):
+            raise ValueError("invalid tutor response schema")
+    except Exception:
+        breaker.record_failure(f"llm:{name}")
+        raise
+    breaker.record_success(f"llm:{name}")
+    return reply
+
+
 def _ask(prompt: str, allowed: set[str], intent: str, reference: dict | None,
          system: str = "", field: str = "explanation_ru") -> Answer:
     """One call through the chain's LLM lanes, then the grounding check."""
-    from .providers import budget
-    from .providers.llm import complete, parse_json
 
     for name in _lanes():
         try:
-            budget.spend(f"llm:{name}")
-            said = parse_json(complete(name, system or SYSTEM, prompt))
+            said = _completion(name, system or SYSTEM, prompt)
         except Exception:  # noqa: BLE001 - the next lane, then the reference alone
             continue
         text = (said.get(field) or "").strip()
@@ -253,10 +270,6 @@ def converse(task: str, history: list[Turn], said: str = "") -> Reply:
     Stateless: the page keeps the exchange and sends it back, capped at
     `MAX_TURNS` so a conversation stays the length of an exam part.
     """
-    import json as _json
-
-    from .providers import budget
-    from .providers.llm import complete, parse_json
     from .speaking import bank
 
     question = next((q for q in bank() if q.question == task or q.topic == task), None)
@@ -281,8 +294,7 @@ def converse(task: str, history: list[Turn], said: str = "") -> Reply:
 
     for name in _lanes():
         try:
-            budget.spend(f"llm:{name}")
-            answer = parse_json(complete(name, CONVERSE, prompt))
+            answer = _completion(name, CONVERSE, prompt)
         except Exception:  # noqa: BLE001 - try the next lane
             continue
         reply = (answer.get("reply_et") or "").strip()
@@ -344,15 +356,12 @@ def propose_questions(text: str, want: int = 5) -> tuple[list[dict], str]:
     Nothing here is trusted: `comprehension.verify` decides which pairs are
     questions at all, and an empty list is a normal answer.
     """
-    from .providers import budget
-    from .providers.llm import complete, parse_json
 
     body = text.strip()[:6000]
     prompt = (f"Write {want} questions about this text.\n\nTEXT:\n{body}")
     for name in _lanes():
         try:
-            budget.spend(f"llm:{name}")
-            said = parse_json(complete(name, QUESTIONS, prompt))
+            said = _completion(name, QUESTIONS, prompt)
         except Exception:  # noqa: BLE001 - try the next lane, then give up
             continue
         pairs = [p for p in (said.get("questions") or [])

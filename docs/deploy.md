@@ -63,7 +63,8 @@ Safeguards:
 - the service runs with `--max-instances 1` (set by `setup.sh`, checked by
   `check-service.sh`): a second instance would keep its own copy.
 
-A crash between snapshots can lose a few minutes of answers.
+A crash before asynchronous event copying can lose acknowledged answers;
+snapshots are an additional recovery copy, not a durability acknowledgement.
 
 ## EKI's recordings
 
@@ -206,6 +207,56 @@ speech, reference counts, live dictionary, library and topic links.
 
 ## Cost
 
-Nothing for one learner: Cloud Run and the Worker stay within free tiers;
-Workers AI Whisper is $0.00051/audio minute inside a free daily allocation; the
-grammar lanes are free tiers.
+The intended single-learner workload uses free allocations, not a guaranteed
+zero-cost SLA. Workers AI Whisper is listed at about $0.0005/audio minute
+inside a shared daily allocation; see `docs/asr-evaluation.md`. Monitor actual
+Cloud Run/storage/build and account-wide AI usage; no paid inference host is
+part of the chosen architecture.
+
+## Backup, recovery and erasure
+
+The Durable Object's copied log and snapshots are live replication in the same
+hosting account. They are not an independent backup and the write response is
+not a durable acknowledgement: copying uses `waitUntil`. An origin crash before
+the copy can lose acknowledged answers. Snapshot intervals concern operational
+caches as well as legacy learner state; they do not bound every event-loss case.
+Keep one writable revision/instance; do not scale this design horizontally.
+
+Before a state migration or redesign, download `Minu andmed`
+(`/api/me/export`) while signed in and save the JSONL privately outside the
+hosting account. Repeat periodically during study; there is no nightly export.
+It contains learner writing and transcripts, never raw production audio. Verify:
+
+```bash
+python -m eesti.cli verify-backup /private/path/eesti-keelt-events.jsonl
+```
+
+This replays twice into temporary databases, checks stable projections, refuses
+unknown/unreplayable events or a missing backfill marker, and leaves live state
+untouched. It proves replayability, not authenticity or that the server export
+was complete at a particular time. It does not restore dictionary caches, push
+subscriptions, the private library, exam/audio mounts or recordings. Those need
+their original sources or separate private backups. Keep exports out of public
+Actions artifacts and git. Losing the hosting account means losing work since
+the most recent independent export.
+
+For a real recovery, first stop learner traffic/cron and preserve the current
+state. Validate the chosen export with the matching code version, restore into
+an isolated local checkout and inspect the reconstructed state. Production
+replacement must replace the DO authority and origin together; uploading only
+the origin log is insufficient because the DO can restore the other copy.
+There is no coordinated production overwrite command. Cloudflare's
+SQLite-backed DO recovery facilities are an additional account-local option,
+not a substitute for a tested off-account export.
+
+`reset-progress.sh --everything` resets practice; it does **not erase personal
+data**. For owner-requested erasure, take the app offline, stop cron and revoke
+push subscriptions, purge the singleton DO's log/snapshot/push state, replace
+the origin's learner databases, clear browser IndexedDB and service-worker
+storage on every used device, and delete private exports/eval audio separately.
+Remove any chosen Notion exports in Notion and address provider-retained data
+under each provider's terms. Do not reopen until both restore authority and
+origin are empty; otherwise restore can resurrect the history. This is an
+operator procedure, not an implemented `DELETE /api/me` promise. That endpoint
+remains deferred until coordinated erasure and recovery-retention semantics
+are implemented and tested end to end (ADR-0005).

@@ -48,7 +48,7 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 | Grammar reference | `grammar.py` (EKK links), `estgec.py` (EstGEC-L2 word-order corrections) |
 | Tutor | `tutor.py` — the one boundary a model is called across (ADR-0002): explanations, the writing and transcript checks, translation, and the exam partner |
 | Providers | `providers/grammar.py` (check chain, per-correction provenance), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
-| Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `fetch.py` |
+| Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `asr.py` (verified learner audio), `health.py` (GEC POST contract), `fetch.py` |
 | Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` (licences **and** engines: version, quota, what leaves the device), `logs.py` (JSON lines, never learner text), `providers/budget.py` (a day's allowance per lane) |
 | CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |
 
@@ -78,3 +78,19 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
    engine that answered.
 4. Tests run offline: `tests/test_offline.py` blocks sockets, and `conftest.py`
    fails any outbound HTTP outside the `TestAgainstTheLive…` classes.
+
+## Redesign boundary and recovery
+
+The final scope and deferred decisions are in
+`docs/adr/0005-pre-redesign-architecture.md`. Presentation consumes domain APIs;
+keep signed item fields, event IDs, topic IDs and advisory/provenance labels
+stable when replacing screens. `planning.Block.action` contains tab names and
+needs an explicit UI mapping if navigation changes.
+
+One origin process and one writable revision are architectural constraints.
+Worker event copying is asynchronous (`waitUntil`), so the response is not a
+durable acknowledgement. Snapshots also carry operational state that is absent
+from the event log. Unknown events stay in the log but normal replay skips them;
+`eesti/recovery.py` uses strict replay into temporary databases to validate an
+export without changing live state. This is verification, not a production
+restore or erasure endpoint. Recovery and deletion scope: `docs/deploy.md`.

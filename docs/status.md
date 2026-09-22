@@ -9,7 +9,7 @@ the same change that makes it untrue.
 | Area | State |
 |---|---|
 | **Drills** | 26 of 36 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
-| **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built. |
+| **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Rada's Täna: today's blocks in a time budget (reviews, the weakest rule with its last mistake, refresh, the least-practised exam part, the next topic, a text), each with its reason in Russian (`eesti/planning.py`). |
 | **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Test-out runs from `Kogu rada` or the CLI (five of five, graded server-side); the placement sweep is CLI-only (`cli assess`). |
 | **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
@@ -73,18 +73,19 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   a re-harvest, run it before `deploy/push-content.sh`. `/api/health` reports
   `corpus.topic_links`; the harvest commands print the reminder, and
   `cli push-content` and smoke warn when it is zero.
-- **Grammar providers are free tiers with limits.** TartuNLP GEC answers
-  first (its explanations are Estonian, not Russian), then the LLM lanes:
-  Workers AI (10 000 neurons/day); NVIDIA's GLM-5.3-Flash is accurate but takes
-  20–60 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
-  a day and counts failures. When all fail the check degrades to Vabamorf
-  offline evidence. See `docs/ai-providers.md`.
-- **TartuNLP GEC, first in the grammar chain, does not answer.** Its front
-  end is up, but the model behind it (on the University of Tartu cluster)
-  answers `/grammar/` with a 500 after 60 s, so `cli eval --provider tartunlp`
-  scores none of the 18 cases. The breaker skips it after two failures; the
-  lane stays for when the backend returns. Neurotõlge est→est
-  (`tartunlp-mt`) covers form errors without explanations meanwhile.
+- **Grammar providers have limited allowances.** Explaining LLM lanes precede
+  bounded TartuNLP GEC, filtered Neurotõlge and offline deterministic evidence.
+  A call allowance is not a hard token/Neuron or account-wide billing cap.
+  The Worker ASR path uses Cloudflare's shared allocation directly.
+- **Public GEC is not operational in the current probes.** Both `/grammar/v2`
+  and `/grammar/` time out at the application's short deadline. Direct project
+  runtime probes with a 70-second allowance returned HTTP 500 at 60.14/60.16 s,
+  including an `application` header. The live OpenAPI still accepts our schema
+  without authentication; see `docs/ai-providers.md` for the dated observation
+  and reproducible `cli provider-health` check. This is not an ASR/TTS outage.
+- **NVIDIA is evaluation-only.** All 18 current grammar cases timed out; it is
+  excluded from automatic grammar/tutor routing. Workers AI caught 9/10 planted
+  errors and left 8/8 clean sentences alone; see `docs/ai-providers.md`.
 - **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
   by manual dispatch of `eval.yml`.
 - **Browser journeys are not in CI.** They protect a release only when run
@@ -94,5 +95,12 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   headword for them. EKI's Russian–Estonian dictionary (VES, same licence
   page) might attest them from the Russian side (`с кем` → `kellega`); it is
   not downloaded or checked.
-- **Nothing measures ASR quality** — there is no Estonian speech benchmark wired
-  up.
+- **ASR learner quality is unmeasured.** The existing harness compares named
+  engines on manually verified audio, including false acceptance and morphology;
+  this checkout has no learner eval clips. Recording prompts are not ground truth.
+  Production remains Cloudflare with a local TalTech reference; see
+  `docs/asr-evaluation.md`.
+- **State replication is asynchronous.** Event copying follows the response;
+  an origin crash before copying can lose acknowledged work. There is no
+  independent nightly backup or self-service erasure. Private exports can be
+  replay-checked with `cli verify-backup`; see `docs/deploy.md` and ADR-0005.

@@ -60,18 +60,18 @@ class TestTheClips:
     def test_a_clip_is_written_with_what_was_read(self, client):
         body = self._save(client).json()
         assert body["clips"] == 1
-        clips = evaluation.clips(evaluation.SET)
-        assert [c.said for c in clips] == ["Ma loen raamatut"]
-        assert clips[0].planted == ""
+        assert evaluation.clips(evaluation.SET) == []
+        assert (evaluation.SET / "0000.txt").read_text() == "Ma loen raamatut"
+        assert len(evaluation.inventory(evaluation.SET)[1]) == 1
 
     def test_a_planted_clip_records_the_word_said_wrong(self, client):
         self._save(client, "Ma ei ostnud pileti", planted="pileti")
-        assert evaluation.clips(evaluation.SET)[0].planted == "pileti"
+        assert (evaluation.SET / "0000.said").read_text() == "pileti"
 
     def test_clips_do_not_overwrite_each_other(self, client):
         for _ in range(3):
             self._save(client)
-        assert len(evaluation.clips(evaluation.SET)) == 3
+        assert len(evaluation.inventory(evaluation.SET)[1]) == 3
 
     def test_an_empty_recording_or_no_text_is_refused(self, client):
         assert client.post("/api/eval/clip?text=Tere", content=b"").status_code == 400

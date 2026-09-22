@@ -7,8 +7,8 @@ and answers are graded by code where code can decide and by an LLM where it
 cannot (meaning, writing, conversation). The #1 documented weakness is
 `obj-case` (genitive vs partitive for a completed object).
 
-The sitting is planned for 2027 with no date: `readiness.TARGET` stays `None`,
-no countdown.
+The exam goal is learner state (`exam.set_goal`, `goal-set` event). No sitting
+is assumed; countdown and reminders use the chosen sitting only.
 
 ## Non-negotiable
 
@@ -49,14 +49,13 @@ once: *"Говорение (rääkimine) оценить нельзя"*. Never tr
 - Keep source attribution: `docs/sources.md`, `eesti/licences.py`,
   `/api/sources`. EKI downloads (`deploy/eki/`) are CC BY 4.0. Ekilex results
   are cached in `vocab.db`; link out with `sonapi.entry_url`.
-- `data/*.db` and `data/exam/` are never committed.
+- Learner databases, `data/exam/` and `data/eval/` recordings/transcripts are never committed.
 
 ## Where it runs
 App (FastAPI + Vabamorf) on Google Cloud Run, rebuilt by Cloud Build on every
 merge to `main`. Front door: Cloudflare Worker + Access (`deploy/worker.ts`,
 speech via Workers AI), which snapshots learner state into a Durable Object.
-Two locks: Access guards the Worker, `PROXY_TOKEN` the Cloud Run origin. A
-session cannot read the deployed app; verify with the **`smoke`** workflow
+Two locks: Access guards the Worker, `PROXY_TOKEN` the Cloud Run origin. Verify the deployed app with the **`smoke`** workflow
 (`deep: true` sends one sentence through the grammar chain). Operator actions
 run in Google Cloud Shell via `deploy/*.sh`. See `docs/deploy.md`.
 
@@ -69,7 +68,7 @@ python -m pytest tests/ -q -n auto                 # fast suite (~15 s); --brows
 ```
 
 Browser journeys run only with `--browser` on `tests/test_e2e_journeys.py`
-(~50 s; see `docs/testing.md`). After any change to `eesti/web/`, run them and
+(see `docs/testing.md`). After any change to `eesti/web/`, run them and
 look at both viewports. Tests guard what a learner feels, not source shape.
 
 ## Session lifecycle and hand-off
@@ -90,9 +89,10 @@ carries it between Claude Code and Codex.
 
 - Stage named paths; never `git commit -a`. Open small PRs; the user merges.
 - Docs state the current state only. Path-scoped rules: `.claude/rules/`.
+- Architecture decisions: `docs/adr/0005-pre-redesign-architecture.md`.
+  ASR changes require human-verified learner audio, never recording prompts as truth.
 
 ## Docs
-
 Read `docs/status.md` (what works, what is missing) before planning. The rest
 of `docs/`: `architecture`, `app-structure`, `ai-boundaries`, `ai-providers`,
 `curriculum`, `sources`, `speaking`, `deploy`, `setup`, `testing`. Design

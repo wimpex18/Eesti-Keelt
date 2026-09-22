@@ -71,8 +71,8 @@ questions, never a wrong one.
   floor the planner balances.
 - The same shape extends later to listening (over a transcript) and to writing
   task situations, without another decision.
-- Generation costs a model call per text, once, and the result is cached in
-  `content.db` beside the text.
+- Generation costs a model call per text, once, and the result is stored as a
+  `questions-made` event in the learner log, not in the harvested corpus.
 - A text with no verifiable questions produces none, and says so.
 
 ## Implementation

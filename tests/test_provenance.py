@@ -85,3 +85,24 @@ class TestTheErrorLog:
             "wrong": "pileti", "correct": "piletit", "tag": "obj-case",
             "source": source})
         assert r.status_code == 200 and r.json()["queued"]
+
+
+def test_locating_a_spelling_correction_preserves_its_authority():
+    from eesti.providers.grammar import _locate
+    correction = Correction('kel', 'keel', 'dictionary', source='deterministic')
+    located = _locate('eesti kel', [correction])[0]
+    assert located.source == 'deterministic' and located.start == 6
+
+
+@pytest.mark.parametrize('tag', ['vocab', 'obj-case'])
+def test_provider_tag_or_verified_claim_cannot_launder_an_aspect_judgement(tag):
+    correction = Correction('raamatut', 'raamatu', 'model', tag=tag, source='model+verified')
+    assert verify('Ma lugesin raamatut läbi.', [correction])[0].source == 'model-only'
+
+
+def test_deterministic_agreement_wins_over_a_conflicting_model_suggestion():
+    from eesti.providers.grammar import GrammarResult, _merge_spelling
+    result = GrammarResult('test', [Correction('elab', 'elas', 'model')])
+    got = _merge_spelling('Ma elab siin.', result)
+    correction = next(c for c in got.corrections if c.wrong == 'elab')
+    assert correction.correct == 'elan' and correction.source == 'deterministic'
