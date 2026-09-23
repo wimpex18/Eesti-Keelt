@@ -18,13 +18,13 @@ passed `cli verify-backup` (9 events); it excludes push subscriptions and audio.
 
 PR #67 extends local-only `Hindamiskomplekt` for question answers and tentative
 ASR drafts, discloses audio destinations, and checks production exam/audio
-reads. Practice audio stays unsaved; prompts and ASR are never truth. Local
+reads. Two established styles have page-scoped detector exceptions. Practice
+audio stays unsaved; prompts and ASR are never truth. Local
 suite: 2211 passed; browser journeys: 133 passed, 5 skipped.
 
 ## Exact next step
-Owner merges PR #67. After Cloud Build, run deep smoke on `main` to verify
-the HARNO file opens through the mount and EKI recordings remain readable.
-Confirm actual Chrome reminder delivery at the next eligible hour outside 22:00–08:00.
+Owner merges PR #67; after Cloud Build, run deep smoke on `main` for HARNO files and EKI recordings.
+Confirm Chrome reminder delivery at the next eligible hour outside 22:00–08:00.
 
 ## Blockers and working tree
 Exam runtime access, push delivery and learner audio are pending; state copying is asynchronous.
