@@ -216,6 +216,10 @@ def clear_source(conn: sqlite3.Connection, source_id: str) -> int:
     so changed cleaning would otherwise insert duplicates.
     """
     with conn:
+        conn.execute(
+            "DELETE FROM topic_items WHERE item_id IN "
+            "(SELECT id FROM items WHERE source_id = ?)", (source_id,),
+        )
         cur = conn.execute("DELETE FROM items WHERE source_id = ?", (source_id,))
     return cur.rowcount
 

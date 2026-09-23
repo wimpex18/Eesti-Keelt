@@ -191,9 +191,9 @@ class TestTheEvalWorkflow:
         for option in self.inputs["model"]["options"]:
             assert option == self.SENTINEL or option.endswith(":free") or option in pinned, option
 
-    def test_the_default_model_is_free_and_pinned(self):
-        default = self.inputs["model"]["default"]
-        assert default.endswith(":free") and default == llm.PROVIDERS["openrouter"].default_model
+    def test_the_default_scores_the_production_lane_without_cross_lane_model_override(self):
+        assert self.inputs["model"]["default"] == self.SENTINEL
+        assert self.inputs["provider"]["default"] == "workers-ai"
 
     def test_the_sentinel_passes_no_model(self):
         assert self.SENTINEL in self.inputs["model"]["options"]
@@ -301,3 +301,11 @@ def test_interactive_timeout_does_not_retry_or_sleep(monkeypatch):
     with pytest.raises(TimeoutError):
         llm.complete("mistral", "system", "text", attempts=1)
     assert len(calls) == 1
+
+
+def test_workers_ai_needs_account_and_token(monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-only")
+    monkeypatch.delenv("CLOUDFLARE_ACCOUNT_ID", raising=False)
+    assert not llm.PROVIDERS["workers-ai"].available
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
+    assert llm.PROVIDERS["workers-ai"].available

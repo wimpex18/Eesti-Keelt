@@ -409,7 +409,7 @@ def cmd_asr_verify(args: argparse.Namespace) -> int:
 
     verify_clip(Path(args.audio), planted_index=args.planted_index,
                 accepted=args.accepted, focus=tuple(args.focus or ()),
-                tags=tuple(args.tag or ()))
+                tags=tuple(args.tag or ()), question=args.question)
     print("Verified transcript sealed to this recording; edits require verification again.")
     return 0
 
@@ -634,6 +634,7 @@ def register(sub) -> None:
     p.add_argument("--accepted", default="", help="target word that would hide that error")
     p.add_argument("--focus", type=int, action="append", help="morphology-sensitive token index")
     p.add_argument("--tag", action="append", help="slice: names, numbers, hesitation, etc.")
+    p.add_argument("--question", default="", help="actual open-answer question context, never target transcript")
     p.set_defaults(func=cmd_asr_verify)
 
     p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")

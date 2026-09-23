@@ -204,3 +204,19 @@ class TestGroundTruthAndDecisionSafety:
 
     def test_unicode_combining_marks_are_normalised(self):
         assert evaluation.wer('õun', 'o\u0303un') == 0
+
+
+def test_verified_open_answer_question_reaches_production_adapter(tmp_path, monkeypatch):
+    from eesti.providers import asr
+    audio = tmp_path / "answer.wav"
+    audio.write_bytes(b"RIFF")
+    audio.with_suffix(".txt").write_text("Ma elan Tallinnas.")
+    evaluation.verify_clip(audio, question="Kus te elate?")
+    calls = []
+    def transcribe(engine, raw, mime, **options):
+        calls.append(options)
+        return asr.Transcript("Ma elan Tallinnas.", "test")
+    monkeypatch.setattr(asr, "transcribe_with", transcribe)
+    result = evaluation.run(folder=tmp_path, verbose=False)
+    assert calls == [{"context": "Kus te elate?"}]
+    assert result["details"][0]["question_context"] is True

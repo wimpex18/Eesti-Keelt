@@ -475,7 +475,8 @@ class TestTheLearnerReadsRussianAndTheOperatorReadsTheTrail:
     def test_with_keys_set_the_note_does_not_ask_for_a_key(self, monkeypatch):
         from eesti.providers import grammar
 
-        monkeypatch.setenv("OPENROUTER_API_KEY", "set-but-failing")
+        monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "set-but-failing")
+        monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
         assert "задай ключ" not in grammar._offline_note()
         assert "не ответили" in grammar._offline_note()
 
@@ -484,7 +485,7 @@ class TestTheLearnerReadsRussianAndTheOperatorReadsTheTrail:
 
         for k in grammar.EXPLAINING_KEYS:
             monkeypatch.delenv(k, raising=False)
-        assert "OPENROUTER_API_KEY" in grammar._offline_note()
+        assert "CLOUDFLARE_API_TOKEN" in grammar._offline_note()
 
     def test_the_api_carries_both(self):
         from eesti.providers.grammar import GrammarResult
@@ -524,13 +525,12 @@ class TestNeurotolgeCorrection:
     def test_a_number_change_is_a_paraphrase(self, lane):
         assert lane.verified("Eile tegin kodutööd.", "Eile tegin kodutöid.") == []
 
-    def test_it_sits_after_the_explaining_lanes(self):
+    def test_normalisation_and_dead_gec_are_not_automatic_grammar_checks(self):
         from eesti.providers import grammar
 
         names = [p.name for p in grammar.build_chain()]
-        assert names.index("tartunlp-mt") > max(
-            names.index(f"llm:{n}") for n in grammar.LLM_PREFERENCE)
-        assert names[-1] == "vabamorf-offline" and names.index("tartunlp") > names.index("llm:workers-ai")
+        assert "tartunlp-mt" not in names and "tartunlp" not in names
+        assert names[-1] == "vabamorf-offline"
 
 
 def test_breaker_failures_survive_requests_on_different_threads(tmp_path):
@@ -550,3 +550,19 @@ def test_breaker_failures_survive_requests_on_different_threads(tmp_path):
     finally:
         breaker.bind(None)
         breaker.reset()
+
+
+def test_automatic_check_never_sends_to_unqualified_lanes(monkeypatch):
+    from eesti.providers import llm
+
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-only")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
+    monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
+    calls = []
+    def fail(name, *args, **kwargs):
+        calls.append(name)
+        raise TimeoutError()
+    monkeypatch.setattr(llm, "complete", fail)
+    result = grammar.check("Ma elan Tallinnas.")
+    assert calls == ["workers-ai"]
+    assert result.engine == "vabamorf-offline" and result.degraded

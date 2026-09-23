@@ -4,7 +4,9 @@ Production stays on Cloudflare Workers AI `@cf/openai/whisper-large-v3-turbo`.
 The comparison reference is TalTech verbatim Whisper on the owner's machine.
 This does not claim Cloudflare is more accurate: no manually verified learner
 corpus is available in this checkout, so quality and comparative latency are
-**unmeasured**. No second production recogniser is justified yet (ADR-0005).
+**unmeasured on learner speech**. Native-speech runtime controls below establish
+that the local options actually execute, not that they improve learner grading.
+No second production recogniser is justified yet (ADR-0005).
 
 ## Current options
 
@@ -20,7 +22,7 @@ means no provider is listed by HF, not proof that no private host exists.
 | [Zipformer large et-en](https://huggingface.co/TalTechNLP/streaming-zipformer-large.et-en) | MIT; encoder 593 MB or 155 MB int8, plus decoder/joiner | sherpa-onnx CPU streaming | Feasible on an ordinary machine, but quality/latency against the smaller model needs measurement. No current need for live captions. |
 | [Voxtral Mini 3B Estonian](https://huggingface.co/TalTechNLP/Voxtral-Mini-3B-2507-estonian) | Apache-2.0; 4.68B total parameters including audio, 9.36 GB BF16 Transformers shards | Transformers CUDA example; existing optional llama.cpp/GGUF path uses third-party conversion, not these official weights; no causal streaming claim | Instruction-dependent transcription, summaries and other tasks; more scope to normalise. Runtime support/quantisation needs separate validation. Not a CTranslate2 Whisper model. |
 | [Voxtral Mini 4B Realtime 2609](https://huggingface.co/TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609) | Apache-2.0; 4.43B parameters, 8.86 GB BF16 per layout | Official vLLM `/v1/realtime` WebSocket; Transformers ≥5.2; card suggests 480 ms delay, not measured end-to-end latency here | Card reports 6.8% internal benchmark WER, not learner fidelity. GPU-oriented deployment and session complexity buy a feature current speaking flows do not need. Do not use the older Voxtral llama.cpp adapter for it. |
-| [Cloudflare Whisper turbo](https://developers.cloudflare.com/workers-ai/models/whisper-large-v3-turbo/) | Hosted OpenAI Whisper; upstream MIT weights, hosted service terms also apply | Existing Worker AI binding; record-and-submit, `language=et`, no answer-key prompt | No model RAM/cold-load operation on our origin. Audio leaves device; graceful refusal/playback on failure. Actual learner quality still needs the same corpus. |
+| [Cloudflare Whisper turbo](https://developers.cloudflare.com/workers-ai/models/whisper-large-v3-turbo/) | Hosted OpenAI Whisper; upstream MIT weights, hosted service terms also apply | Existing Worker AI binding; record-and-submit, `language=et`, optional open-answer question context, never the read-aloud target | No model RAM/cold-load operation on our origin. Audio leaves device; graceful refusal/playback on failure. Actual learner quality still needs the same corpus. |
 
 For planning, allow several GB of RAM for Whisper beyond its 1.62 GB file, and
 measure CPU int8/Metal on the actual laptop. Zipformer weights suggest a smaller
@@ -36,6 +38,23 @@ Zipformer or Voxtral. The April TalTech card ships CT2 and GGML already, so ther
 is no need to invent a converter. Reference revisions: Whisper `310c5509`,
 Zipformer `7edbacc1`, large `2812262b`, Voxtral 3B `bb6489cf`, realtime `e50b2a54`.
 
+TalTech also ships complete applications. [Jutukuva](https://github.com/TalTechNLP/jutukuva)
+uses local sherpa-onnx and offers Apple Silicon, Intel, Windows and Linux builds.
+Its [recogniser configuration](https://github.com/TalTechNLP/jutukuva/blob/master/electron/asr/sherpa-config.js)
+downloads a different checkpoint:
+[Zipformer large **w2n**](https://huggingface.co/TalTechNLP/streaming-zipformer-large.et-en.w2n)
+(Apache-2.0), trained to turn spoken numbers into digits. The card warns about
+numbers longer than four digits. This is useful captioning software, but its
+number normalisation would hide distinctions in this app's speaking exercises;
+do not silently substitute it for the plain verbatim reference. Its optional
+shared sessions also differ from purely local inference.
+[est-asr-backend](https://github.com/TalTechNLP/est-asr-backend) is a self-hosted
+Deno/SQLite upload-and-progress API over the Nextflow transcription pipeline,
+with optional speaker identification and punctuation. Neither application
+establishes a supported hosted short-answer API for this app. Reusing a model
+and the existing evaluation harness has less operational cost than adopting
+either application's separate UI, queues and persistence.
+
 [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
 lists 46.63 neurons per audio minute (about $0.0005), sharing the free 10,000
 neurons/day with text inference. Ten minutes uses about 466 neurons. The free
@@ -46,6 +65,36 @@ requires at least 4 CPU/16 GiB and GPU billing. Notebook/Space demos can sleep,
 have queues and lack a production SLA; no usable free always-on GPU is configured
 for this app. Local reference runs cost the owner's hardware/time but add no
 production service.
+
+## Executed runtime controls
+
+Three existing EKI Külli corpus WAVs (3.83, 4.85 and 8.32 seconds) were run
+through the real reference adapter, a separate sherpa-onnx trial, and the
+production-model Cloudflare REST adapter with no question/answer prompt.
+These are native narration, **not learner recordings**. Their supplied text
+was not manually verified here; none was sealed into the learner benchmark.
+
+| Runtime | Observed seconds for the three clips | Local process peak RSS |
+|---|---|---|
+| Cloudflare Whisper turbo REST | 2.09 / 5.93 / 2.03 | Hosted; not measured |
+| TalTech Whisper CT2, CPU int8, beam 5, temperature 0 | 11.34 cold / 4.48 / 4.62; first clip repeated warm: 4.43 | 2.31 GB |
+| TalTech small Zipformer int8, sherpa-onnx, 2 CPU threads | 0.079 / 0.099 / 0.161, plus 0.726 load | 0.30 GB |
+
+Local hardware was Apple M5 with 32 GiB RAM, Python 3.14, faster-whisper 1.2.1,
+CTranslate2 4.8.2 and sherpa-onnx 1.13.8. CT2 cold time includes artifact hashing
+and model loading. Zipformer used modified beam search, sample-rate conversion
+and 0.66 seconds of tail padding; file decoding speed is not live endpoint
+latency. Each engine returned text for all three controls. The compound
+`enesestmõistetav` was joined by both TalTech models and split by Cloudflare;
+all three diverged substantially on the unusual names in the third clip.
+That is a useful challenge case, not a reliable accuracy ranking.
+
+The CPU paths are feasible locally. These timings do not predict Cloud Run
+performance, L2 morphology fidelity, false acceptance or mobile battery cost.
+Whisper remains the implemented comparison engine; the smaller Zipformer trial
+supports keeping it as a possible future local/streaming reference, with no
+additional production service or automatic fallback. The next quality test is
+the verified learner workflow below, with numbers and common names included.
 
 ## TartuNLP speech is separate from GEC, translation and TTS
 
@@ -106,8 +155,13 @@ Whisper. These are distinct from TartuNLP's text-to-speech voices.
    that converted clip. The CT2 path decodes browser audio through PyAV.
 6. Run the existing harness, with Cloudflare credentials only in the ignored
    `.env`. This explicitly sends the verified audio to Cloudflare; the reference
-   runs locally. The REST request uses the production model/options, without
-   a target prompt; timings include network but not the Worker's origin hop.
+   runs locally. The REST request uses the production model/options. Read-aloud
+   controls have no hint. For open answers, supply the **actual question** with
+   `asr-verify --question "Kus te elate?"`; it travels in the sealed annotation
+   and reaches Cloudflare's `initial_prompt`, matching that production flow.
+   Never put the target answer/transcript there. Compare hinted and unhinted
+   corpora separately: context can bias recognition. The local CT2 reference
+   intentionally ignores question hints. Timings exclude the Worker's origin hop.
 
    ```bash
    python -m eesti.cli eval --suite asr --engine workers-ai \
@@ -123,6 +177,11 @@ from corpus WER), pairs audio/annotation hashes, and refuses a decisive result
 on incomplete or undersized evidence. Read the tagged details for numbers and
 names; a generic WER can hide regressions there. Reference cold model loading
 is included in the first clip; distinguish it from warm latency.
+The CT2 reference fixes temperature to zero: faster-whisper's default sequence
+of fallback temperatures would otherwise introduce sampling on difficult clips.
+Its identity includes runtime versions and hashes of weights, tokenizer and
+configuration, because a tokenizer change can alter results without changing
+the weights. No target answer or question is supplied to this reference.
 
 Exit 2 means insufficient/unavailable evidence, including an empty corpus.
 `chain` remains diagnostic only and cannot support a provider decision. Reports

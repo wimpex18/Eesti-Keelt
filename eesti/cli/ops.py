@@ -94,19 +94,28 @@ def cmd_push_content(args: argparse.Namespace) -> int:
         return 2
 
     from ..sources import connect as content_connect
+    from ..topiclinks import rebuild
+    from ..wordlist import available, connect as wordlist_connect
 
     with content_connect(path) as conn:
         items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
-        links = conn.execute("SELECT COUNT(*) FROM topic_items").fetchone()[0]
     if not items:
         print(f"{path} holds no items. Nothing to push.")
         return 2
-    # Warn when `topic_items` is empty: only `cli link-topics` fills it, and without
-    # it every drill's `reading` list is empty. A warning, not a refusal.
+    if not available():
+        print("The word list is missing. Run `python -m eesti.cli build` before "
+              "pushing: topic links must be rebuilt against the current corpus.")
+        return 2
+    # Rebuild even when the count is non-zero: old links say nothing about newly
+    # harvested texts. Only this local publication step pays for morphology.
+    with content_connect(path) as conn, wordlist_connect() as words:
+        counts = rebuild(conn, words)
+        links = sum(counts.values())
+    print(f"  rebuilt {links} topic links")
     if not links:
-        print(f"  WARNING: {path} has {items} items but no topic links, so no "
-              "drill will offer anything to read.\n"
-              "           Run `python -m eesti.cli link-topics` and push again.")
+        print(f"  WARNING: {path} has {items} items but no topic links. "
+              "No texts met the topic's evidence threshold; review the corpus "
+              "with `python -m eesti.cli link-topics`.")
 
     payload = json.dumps(
         {"database": base64.b64encode(path.read_bytes()).decode("ascii")}

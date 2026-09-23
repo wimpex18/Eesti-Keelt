@@ -74,6 +74,8 @@ class Provider:
         """
         if not self.key_env:
             return bool(os.environ.get("LOCAL_LLM_URL"))
+        if self.name == "workers-ai":
+            return bool(self.api_key and os.environ.get("CLOUDFLARE_ACCOUNT_ID"))
         return bool(self.api_key)
 
 

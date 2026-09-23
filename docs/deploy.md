@@ -101,6 +101,12 @@ to the subscription (RFC 8291) and signed with VAPID (RFC 8292). A tag keeps
 one fact from arriving twice; a 404 or 410 from the push service drops the
 subscription.
 
+The current Worker has all three VAPID bindings and its hourly cron configured
+(verified via Cloudflare settings on 2026-09-23). The same pair is stored in
+repository secrets for the deploy workflow and privately in the ignored `.env`.
+No subscription was created or notification sent during verification. The
+smoke workflow checks key configuration separately from browser delivery.
+
 Without the keys the app says reminders are not configured and never asks the
 browser for permission it cannot use. On iPhone, notifications work only from
 the app added to the Home Screen (iOS 16.4+).
@@ -125,14 +131,17 @@ rather than assumes, so the same database is honest on both machines.
 
 ## The reading corpus
 
-Owner-only, so not in the image. Harvest locally, link topics, push once; the
+Owner-only, so not in the image. Harvest locally and push; publication rebuilds
+topic links against the current corpus. The
 Worker archives it and restores it to every new container.
 
 ```bash
 python -m eesti.cli harvest && python -m eesti.cli harvest-reading && python -m eesti.cli harvest-news
 python -m eesti.cli harvest-exam --levels A2,B1 --download   # official tasks and their text
-python -m eesti.cli link-topics                 # required — fills the topic join
-bash deploy/push-content.sh data/content.db     # in Cloud Shell, with the file uploaded
+python -m eesti.cli link-topics                 # optional local preview
+# In Cloud Shell, with content.db uploaded: build the publishing word list once.
+python -m eesti.cli fetch-data && python -m eesti.cli build
+bash deploy/push-content.sh data/content.db     # rebuilds links, then uploads
 ```
 
 ## Reference data in the image

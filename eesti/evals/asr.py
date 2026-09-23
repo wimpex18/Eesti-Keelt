@@ -118,13 +118,15 @@ def _digest(path: Path) -> str:
 
 def verify_clip(audio: Path, *, planted_index: int | None = None,
                 accepted: str = "", focus: tuple[int, ...] = (),
-                tags: tuple[str, ...] = ()) -> dict:
+                tags: tuple[str, ...] = (), question: str = "") -> dict:
     """Seal a transcript *after a human listened*. Changes invalidate the seal.
 
     `accepted` is the target form that would hide the planted error, not an
     automatically generated correction. `focus` names morphology-sensitive
     reference token indices; tags name slices such as numbers/names/hesitation.
     """
+    if len(question) > 220:
+        raise ValueError("question must fit the production 220-character context limit")
     transcript = audio.with_suffix(".txt")
     words = _norm(transcript.read_text(encoding="utf-8"))
     if not words:
@@ -141,7 +143,7 @@ def verify_clip(audio: Path, *, planted_index: int | None = None,
     seal = {"v": 1, "audio_sha256": _digest(audio),
             "transcript_sha256": _digest(transcript),
             "planted_index": planted_index, "accepted": accepted,
-            "focus": sorted(set(focus)), "tags": sorted(set(tags))}
+            "focus": sorted(set(focus)), "tags": sorted(set(tags)), "question": question}
     audio.with_suffix(".verified.json").write_text(
         json.dumps(seal, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return seal
@@ -179,6 +181,9 @@ def inventory(folder: Path | str | None = None) -> tuple[list[Clip], list[dict]]
             words = _norm(said)
             focus = seal.get("focus", [])
             planted = seal.get("planted_index")
+            question = seal.get("question", "")
+            if (not isinstance(question, str) or len(question) > 220):
+                raise ValueError("invalid question context")
             if (not words or not isinstance(focus, list)
                     or any(type(i) is not int or not 0 <= i < len(words) for i in focus)
                     or (planted is not None and (type(planted) is not int
@@ -212,11 +217,13 @@ def run(engine: str = "workers-ai", folder: Path | str | None = None,
                 ".mp4": "audio/mp4", ".m4a": "audio/mp4"}[clip.audio.suffix.lower()]
         started = time.monotonic()
         row = {"clip": clip.name, "identity": clip.identity, "tags": clip.annotation.get("tags", [])}
+        options = {"context": clip.annotation["question"]} if clip.annotation.get("question") else {}
+        row["question_context"] = bool(options)
         try:
             if engine == "chain":
-                got = asr.transcribe(clip.audio.read_bytes(), mime)
+                got = asr.transcribe(clip.audio.read_bytes(), mime, **options)
             else:
-                got = asr.transcribe_with(engine, clip.audio.read_bytes(), mime)
+                got = asr.transcribe_with(engine, clip.audio.read_bytes(), mime, **options)
             row["seconds"] = round(time.monotonic() - started, 3)
             row["actual_engine"] = got.engine if got else None
             if got is None or not got.text or got.degraded:

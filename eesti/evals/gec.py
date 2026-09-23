@@ -24,7 +24,7 @@ from ..providers.llm import complete, parse_json
 # Russian `why` field costs nothing.
 
 #: Lanes of the grammar chain that are not LLMs, scored through their own
-#: client. TartuNLP answers *first* in the app, so it has to be measured too.
+#: client. Public GEC and translation normalization are evaluation-only.
 NON_LLM = ("tartunlp", "tartunlp-mt")
 
 

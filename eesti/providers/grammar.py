@@ -1,6 +1,6 @@
 """Grammar checking, as a chain of interchangeable providers.
 
-Explaining LLM lanes, public GEC, Neurotõlge, then offline Vabamorf evidence.
+Evaluated explaining LLM lanes, then offline Vabamorf evidence.
 Every result names its engine; fluent explanations do not confer authority.
 """
 
@@ -320,15 +320,15 @@ class NeurotolgeCorrection:
     def _normalised(self, text: str) -> str:
         req = urllib.request.Request(
             TARTUNLP_TRANSLATE,
-            data=json.dumps({"text": text, "src": "est", "tgt": "est"}).encode(),
-            # TartuNLP asks integrators to name themselves.
-            headers={"Content-Type": "application/json", "application": "eesti-keelt"},
+            data=json.dumps({"text": text, "src": "est", "tgt": "est",
+                             "application": "eesti-keelt"}).encode(),
+            headers={"Content-Type": "application/json"},
         )
+        from .translate import result_text
+
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            result = json.loads(resp.read()).get("result")
-        if isinstance(result, list):
-            result = " ".join(str(r) for r in result)
-        if not isinstance(result, str) or not result.strip():
+            result = result_text(json.loads(resp.read()))
+        if not result:
             raise ValueError("empty normalisation")
         return result.strip()
 
@@ -485,17 +485,18 @@ class VabamorfFallback:
 
 
 #: The keys that turn on a lane able to explain a correction.
-EXPLAINING_KEYS = ("CLOUDFLARE_API_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY")
+EXPLAINING_KEYS = ("CLOUDFLARE_API_TOKEN",)
 
 
 def _offline_note() -> str:
     """What the learner reads when only the offline check answered: fix a key
     only when none is set; otherwise the services did not answer."""
     base = "Офлайн-режим: показаны кандидаты на obj-case и опечатки, но без проверки правильности."
-    if any(os.environ.get(k) for k in EXPLAINING_KEYS):
+    from .llm import PROVIDERS
+
+    if any(PROVIDERS[name].available for name in LLM_PREFERENCE):
         return base + " Сервисы разбора сейчас не ответили — попробуй ещё раз позже."
-    return (base + " Для полного разбора задай ключ любого провайдера: "
-            + ", ".join(EXPLAINING_KEYS[:-1]) + " или " + EXPLAINING_KEYS[-1] + ".")
+    return base + " Для полного разбора задай CLOUDFLARE_API_TOKEN и CLOUDFLARE_ACCOUNT_ID."
 
 
 # Tags a transcript cannot support: `vocab` on a transcript is usually the
@@ -546,24 +547,20 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 #: LLM lanes in the order the chain tries them; unconfigured lanes are skipped.
 #: `local` runs an Estonian-adapted model and is off unless LOCAL_LLM_URL is set.
 #: Only evaluated, operational lanes belong in automatic grammar/tutor routing.
-#: NVIDIA remains available to the CLI eval, pending recovery and re-evaluation.
-LLM_PREFERENCE = ("local", "workers-ai", "mistral", "openrouter")
+#: Other hosted lanes remain CLI candidates until quality and health justify them.
+LLM_PREFERENCE = ("local", "workers-ai")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
-    """Explaining LLMs, bounded public GEC, Neurotõlge, then offline evidence.
+    """Evaluated explaining lanes, then deterministic offline evidence.
 
-    Public GEC has no demonstrated latency/quality advantage over the working
-    LLM lane. Keep it as an optional fallback, not a delay on every first check.
+    Public GEC is unavailable; translation normalization has inadequate recall
+    for checking grammar. Both remain explicit diagnostic/evaluation adapters.
     """
     if providers is not None:
         return providers
     return [
         *(LLMGrammar(name) for name in LLM_PREFERENCE),
-        TartuNLPGrammar(),
-        # Code-filtered corrections without explanations: after every lane that
-        # explains, before the offline evidence.
-        NeurotolgeCorrection(),
         VabamorfFallback(),
     ]
 

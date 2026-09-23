@@ -68,26 +68,24 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 
 ## Known issues
 
-- **`cli link-topics` is a manual step.** It fills `topic_items`, the join that
-  puts reading texts beside a drill. Nothing on the deploy path runs it: after
-  a re-harvest, run it before `deploy/push-content.sh`. `/api/health` reports
-  `corpus.topic_links`; the harvest commands print the reminder, and
-  `cli push-content` and smoke warn when it is zero.
-- **Grammar providers have limited allowances.** Explaining LLM lanes precede
-  bounded TartuNLP GEC, filtered Neurotõlge and offline deterministic evidence.
-  A call allowance is not a hard token/Neuron or account-wide billing cap.
-  The Worker ASR path uses Cloudflare's shared allocation directly.
-- **Public GEC is not operational in the current probes.** Both `/grammar/v2`
-  and `/grammar/` time out at the application's short deadline. Direct project
-  runtime probes with a 70-second allowance returned HTTP 500 at 60.14/60.16 s,
-  including an `application` header. The live OpenAPI still accepts our schema
-  without authentication; see `docs/ai-providers.md` for the dated observation
-  and reproducible `cli provider-health` check. This is not an ASR/TTS outage.
-- **NVIDIA is evaluation-only.** All 18 current grammar cases timed out; it is
-  excluded from automatic grammar/tutor routing. Workers AI caught 9/10 planted
-  errors and left 8/8 clean sentences alone; see `docs/ai-providers.md`.
-- **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
-  by manual dispatch of `eval.yml`.
+- **Grammar is qualified, not provider-count driven.** Workers AI GPT-OSS-120B
+  is the only automatic hosted grammar/tutor lane, with deterministic offline
+  degradation. Other LLMs and public GEC/est→est normalization remain explicit
+  evaluation candidates. Fresh Mistral/newer-model comparisons are recorded in
+  `docs/evaluations/providers.json` and explained in `docs/ai-providers.md`.
+- **Public GEC remains unavailable.** Both endpoints timed out on all three
+  12-second probes on 2026-09-23; longer probes on 2026-09-22 returned HTTP 500
+  near 60 seconds. It is removed from automatic traffic. TTS and translation
+  independently pass actual POST checks and remain in use.
+- **Allowances are not billing caps.** Workers AI speech and text share the
+  account allocation; local counters do not measure all account usage. The
+  weekly grammar eval now checks the actual production lane.
+- **Source refreshes preserve usable data.** Empty Selges responses keep the
+  existing corpus; EIS failure does not stop HARNO. Deleting source content
+  clears its links. Content upload rebuilds topic links before publishing and
+  refuses without the publishing machine's built word list.
+- **Reminders need browser opt-in.** VAPID bindings and hourly cron are verified
+  on the deployed Worker. No browser subscription or push delivery was tested.
 - **Browser journeys are not in CI.** They protect a release only when run
   locally (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,
@@ -97,7 +95,9 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   not downloaded or checked.
 - **ASR learner quality is unmeasured.** The existing harness compares named
   engines on manually verified audio, including false acceptance and morphology;
-  this checkout has no learner eval clips. Recording prompts are not ground truth.
+  this checkout has no learner eval clips. Native EKI controls ran on Cloudflare,
+  TalTech CT2 and Zipformer, establishing runtime feasibility, not learner accuracy.
+  Recording prompts are not ground truth.
   Production remains Cloudflare with a local TalTech reference; see
   `docs/asr-evaluation.md`.
 - **State replication is asynchronous.** Event copying follows the response;

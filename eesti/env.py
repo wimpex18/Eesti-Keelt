@@ -19,8 +19,8 @@ ENV_FILE = ROOT / ".env"
 
 # Every key the app can use. All optional: absent keys just disable that lane.
 KNOWN_KEYS = {
-    "OPENROUTER_API_KEY": "OpenRouter — optional free-model fallback; account limits apply.",
-    "MISTRAL_API_KEY": "Mistral — Free mode, organization/model limits; Mistral Large fallback.",
+    "OPENROUTER_API_KEY": "OpenRouter — explicit model evaluation; account limits apply.",
+    "MISTRAL_API_KEY": "Mistral — explicit model evaluation; excluded from automatic grammar/tutor routing.",
     "NVIDIA_API_KEY": "NVIDIA Build — explicit evaluation only; excluded from automatic routing.",
     "CLOUDFLARE_API_TOKEN": "Workers AI — runs inside Cloudflare, 10k neurons/day.",
     "CLOUDFLARE_ACCOUNT_ID": "Required alongside CLOUDFLARE_API_TOKEN.",

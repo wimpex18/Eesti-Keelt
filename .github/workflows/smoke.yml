@@ -180,10 +180,18 @@ jobs:
           predates that merge, so anything else merged with it is not live either."
           fi
 
-          # 6. Speech is reachable.
+          # 6. Speech configuration only; actual audio requires a separate ASR probe.
           curl -s "${auth[@]}" "$URL/api/asr" | grep -q '"ready":true' \
-            && echo "speech .................. OK" \
+            && echo "speech .................. configured (audio inference not tested)" \
             || echo "::warning::/api/asr reports not ready."
+
+          # VAPID lives on the Worker. A configured cron alone cannot send push.
+          push="$(curl -s "${auth[@]}" "$URL/api/push/key")"
+          if [ "$(jq -r '.configured // false' <<<"$push")" = true ]; then
+            echo "reminder keys ........... configured (browser opt-in/delivery not tested)"
+          else
+            echo "::warning::Reminders lack Worker VAPID keys; configure them before browser opt-in."
+          fi
 
           # 7. The grammar checker is configured to explain (`can_explain`, read with jq). A
           #    warning: running without an LLM key is a legitimate choice.

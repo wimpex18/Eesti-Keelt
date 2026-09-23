@@ -6,7 +6,10 @@ unreachable. Network tests skip when TartuNLP is unreachable.
 
 from __future__ import annotations
 
+import struct
 import time
+from io import BytesIO
+from pathlib import Path
 
 import pytest
 
@@ -43,12 +46,73 @@ class TestCacheKey:
     def test_every_input_changes_the_key(self, tmp_path, kwargs):
         """Speed especially: the same sentence at 0.7 and 1.0 are different
         audio, and a key that ignored it would serve the wrong one."""
-        base = dict(text="Tere", speaker="mari", speed=0.7)
+        base = {"text": "Tere", "speaker": "mari", "speed": 0.7}
         assert (tts.cache_path(**base, cache_dir=tmp_path)
                 != tts.cache_path(**{**base, **kwargs}, cache_dir=tmp_path))
 
     def test_it_lands_under_the_given_directory(self, tmp_path):
         assert tmp_path in tts.cache_path("Tere", "mari", 0.7, tmp_path).parents
+
+
+def wav_bytes(encoding=3):
+    """Small RIFF fixture, including the live service's IEEE-float encoding."""
+    bits = 32 if encoding == 3 else 16
+    width = bits // 8
+    fmt = struct.pack("<HHIIHH", encoding, 1, 22050, 22050 * width, width, bits)
+    frames = bytes(width * 16)
+    body = b"WAVEfmt " + struct.pack("<I", len(fmt)) + fmt
+    body += b"data" + struct.pack("<I", len(frames)) + frames
+    return b"RIFF" + struct.pack("<I", len(body)) + body
+
+
+class TestAudioIntegrity:
+    @pytest.mark.parametrize("encoding", [1, 3])
+    def test_valid_audio_is_cached_without_conversion(self, monkeypatch, tmp_path, encoding):
+        audio = wav_bytes(encoding)
+        monkeypatch.setattr(tts.urllib.request, "urlopen", lambda *a, **k: BytesIO(audio))
+        path = tts.synthesize("Tere.", cache_dir=tmp_path)
+        assert path.read_bytes() == audio
+
+        def unavailable(*a, **k):
+            raise AssertionError("valid cached audio should remain available offline")
+
+        monkeypatch.setattr(tts.urllib.request, "urlopen", unavailable)
+        assert tts.synthesize("Tere.", cache_dir=tmp_path) == path
+
+    @pytest.mark.parametrize("audio", [b'{"detail":"unavailable"}', b"", wav_bytes()[:-8]])
+    def test_broken_audio_is_never_published(self, monkeypatch, tmp_path, audio):
+        monkeypatch.setattr(tts.urllib.request, "urlopen", lambda *a, **k: BytesIO(audio))
+        with pytest.raises(OSError, match="invalid WAV"):
+            tts.synthesize("Tere.", cache_dir=tmp_path)
+        assert not list(tmp_path.rglob("*.wav"))
+
+    def test_poisoned_cache_is_repaired(self, monkeypatch, tmp_path):
+        path = tts.cache_path("Tere.", "mari", 0.7, tmp_path)
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b'{"detail":"unavailable"}')
+        audio = wav_bytes()
+        monkeypatch.setattr(tts.urllib.request, "urlopen", lambda *a, **k: BytesIO(audio))
+        assert tts.synthesize("Tere.", cache_dir=tmp_path).read_bytes() == audio
+
+    def test_failed_publish_leaves_no_partial_cache(self, monkeypatch, tmp_path):
+        audio = wav_bytes()
+        monkeypatch.setattr(tts.urllib.request, "urlopen", lambda *a, **k: BytesIO(audio))
+
+        def interrupted(source, destination):
+            assert source.read_bytes() == audio
+            assert not destination.exists()
+            raise OSError("disk unavailable")
+
+        monkeypatch.setattr(Path, "replace", interrupted)
+        with pytest.raises(OSError, match="disk unavailable"):
+            tts.synthesize("Tere.", cache_dir=tmp_path)
+        assert not list(tmp_path.rglob("*.wav"))
+        assert not list(tmp_path.rglob("*.tmp"))
+
+    @pytest.mark.parametrize("speed", [0.1, 3, float("nan"), float("inf")])
+    def test_bad_speed_is_rejected_before_network(self, speed):
+        with pytest.raises(ValueError, match="speed"):
+            tts.synthesize("Tere.", speed=speed)
 
 
 class TestAgainstTheLiveService:

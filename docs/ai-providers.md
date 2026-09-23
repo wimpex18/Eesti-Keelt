@@ -16,20 +16,18 @@ name the engine that answered.
 
 ## Grammar chain
 
-`providers/grammar.py` builds: **LLM lanes** in `LLM_PREFERENCE` →
-**TartuNLP GEC** → **Neurotõlge est→est** → **Vabamorf offline**.
-Deterministic spelling, agreement and rection findings accompany every successful
-answer and take precedence on conflicting spans. Fluency is not authority.
+`providers/grammar.py` builds: explicitly configured **local trial** →
+**Workers AI GPT-OSS-120B** → **Vabamorf offline**. The tutor uses the same
+qualified LLM list. Deterministic spelling, agreement and rection accompany
+successful model answers and take precedence on conflicting spans.
 
-- GEC remains a public, optional correction fallback. Putting its unavailable
-  backend ahead of a working explaining lane costs latency without evidence of
-  better learner feedback. Both endpoint failures appear in diagnostics.
-- Neurotõlge (`tartunlp-mt`) is a **translation** service used as a conservative
-  est→est fallback. Only same-lemma substitutions survive; aspect changes are
-  not established by its normalisation. It explains nothing. Its existing
-  18-case eval is low recall, so it cannot replace an explaining model.
-- Public TartuNLP text services may retain submitted text under their terms;
-  do not infer GEC privacy or availability from translation/TTS availability.
+Public GEC is removed from automatic requests because it is unavailable.
+Neurotõlge remains the healthy translation service, but est→est normalization
+is evaluation-only: low-recall normalization must not stand in for a grammar
+verdict. Mistral, NVIDIA and OpenRouter clients remain explicit evaluation
+candidates, not automatic fallbacks. A Cloudflare outage now produces visible
+deterministic offline evidence instead of trying a known unsuitable checker.
+No additional production host, paid plan or model-specific routing chain is added.
 
 ### Public GEC: observed service and contract
 
@@ -52,11 +50,10 @@ or client credential mismatch was found. An application header did not cure
 the failure; backend logs were not available, so the internal cause is unknown.
 The public deployment's model identity was not verified from its responses.
 
-`PROVIDER_TIMEOUT=5` is an interactive fallback budget: the implementation gives
+`PROVIDER_TIMEOUT=5` bounds the retained diagnostic adapter: the implementation gives
 each endpoint a 2.5-second socket timeout, plus connection overhead. It is not a
 strict total wall-clock deadline or evidence that a healthy service fits it.
-Keep this bound while the service is unusable; do not raise learner waits to
-60 seconds. Re-evaluate successful latency and grammar quality before promotion.
+Automatic learner requests never call this service. Keep diagnostics bounded. Re-evaluate successful latency and grammar quality before promotion.
 An invalid JSON/schema response is a failure, never “no corrections”.
 
 ```bash
@@ -68,7 +65,7 @@ python -m eesti.cli eval --provider tartunlp     # quality, distinct from health
 The diagnostic prints per-endpoint status/failure, latency and timestamp, uses
 canned text and never prints remote error bodies. Exit 2 means not operational.
 It can be run in the local or Cloud Run project runtime; the direct probes above
-were local. Production `smoke -- deep:true` separately demonstrated an answering
+were local. Production smoke with `deep: true` separately demonstrated an answering
 Workers AI grammar lane, not GEC health or ASR accuracy.
 
 ### Self-hosted TartuNLP GEC
@@ -97,33 +94,45 @@ GPU is configured and no measured correction/latency win offsets the additional
 service. A corrected-sentence model is not a drop-in for the existing JSON
 teacher prompt. Test it separately if local privacy becomes the deciding need.
 
-LLM lanes (`providers/llm.py`, OpenAI-compatible):
+LLM clients (`providers/llm.py`, OpenAI-compatible), checked 2026-09-23:
 
-| Automatic order | Lane | Default model | Current evidence |
-|---|---|---|---|
-| 1, only when explicitly configured | `local` | EstLLM 8B GGUF via Ollama | Private local trial; no learner-task quality measurement |
-| 2 | `workers-ai` | `@cf/openai/gpt-oss-120b` | 9/10 planted errors caught, 8/8 clean sentences unflagged, 0 broken calls |
-| 3 | `mistral` | `mistral-large-latest` | 2/10 caught, 8/8 clean, 0 broken; conservative but low recall |
-| 4 | `openrouter` | `dots-studio/dots-3-note-preview:free` | 4/8 measured errors caught, 7/8 clean, 2 broken calls |
-| Explicit eval only | `nvidia` | `z-ai/glm-5.3-flash` | All 18 cases failed with `TimeoutError`; no quality score |
+| Candidate | Planted errors caught | Correct sentences left alone | Failed calls | Median / max seconds |
+|---|---|---|---|---|
+| **Workers AI GPT-OSS-120B — production** | 8/10 | 8/8 | 0 | 4.03 / 9.01 |
+| Mistral Large latest | 2/10 | 8/8 | 0 | 3.43 / 5.38 |
+| Mistral Medium 3.5 (`mistral-medium-3-5`) | 3/10 | 7/8 | 0 | 3.49 / 4.22 |
+| Workers AI Qwen 3.8 27B, default settings | 7/8 measured | 7/7 measured | 3 | 5.83 / 30.23 |
+| Qwen 3.8, low reasoning / 2,000 completion tokens | 7/9 measured | 8/8 | 1 | 6.40 / 25.07 |
+| Workers AI Gemma 4 26B A4B | 6/7 measured | 6/6 measured | 5; quality score invalid | 21.51 / 30.06 |
 
-These are the app's small hand-written grammar eval, not general linguistic
-accuracy: [Workers AI](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35721650207),
-[Mistral](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35721656195) and
-[NVIDIA](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35721653153) on
-2026-09-22; [OpenRouter](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35602506211)
-on 2026-09-21. The three freshly checked default IDs were present in their
-catalogues. NVIDIA's completion endpoint still timed out; catalogue presence
-is not service health. It is excluded from automatic grammar **and tutor**
-routing until it answers and passes a fresh evaluation.
+Exact reports: `docs/evaluations/providers.json`. These use the existing 18-case
+**error-detection** eval; “caught” does not certify every proposed replacement
+or Russian explanation. No raw learner text is in the reports. Calls used one
+attempt, a 30-second socket timeout (25 for Qwen low); timing includes client
+pacing, network and inference. Clean controls and failure coverage matter as
+much as recall. Qwen's second trial used the documented `reasoning_effort=low`
+and `max_completion_tokens=2000`, so its slower/failed calls are not merely an
+untested default-parameter objection.
 
-Workers AI stays first among hosted lanes. Mistral precedes OpenRouter because
-it left the correct sentences alone in this small test; both remain limited
-fallbacks, and their suggestions never become code grading. Configuring a local
-URL explicitly opts into local inference before hosted providers; it is not a
-claim that EstLLM has won the evaluation. A production smoke reached Workers AI
-in roughly 25 seconds for the complete grammar request; per-model latency was
-not measured by these quality reports.
+All tested IDs were present in live authenticated catalogues. Cloudflare's
+GLM 5.3 Flash is also present but marked `require_workers_paid=true`; it was
+not promoted or invoked on an assumed free plan. Current official references:
+[Qwen 3.8](https://developers.cloudflare.com/workers-ai/models/qwen3.8-27b/),
+[Mistral Medium 3.5](https://docs.mistral.ai/models/mistral-medium-3-5-26-04),
+and [Cloudflare model catalogue](https://developers.cloudflare.com/ai/models/).
+
+**Decision:** keep GPT-OSS-120B, remove weak hosted fallbacks from automatic
+routing. Mistral is reachable but inaccurate on this task, not “unstable”. Its
+newer model did not fix that. Qwen and Gemma did not show a reliable latency/
+quality advantage. NVIDIA's [18/18 timeout result](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35721653153)
+and OpenRouter's [partial/low-recall result](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35602506211)
+also do not justify automatic use. Configuring `LOCAL_LLM_URL` remains an explicit
+private trial; no local server is part of production.
+
+The [current production smoke](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35826198771)
+reached Workers AI, verified Access/origin protection and Ekilex, and found
+609 library texts / 660 topic links. It tested the current main deployment,
+not unmerged branch changes or microphone recognition.
 
 Interactive grammar/tutor requests use one completion attempt per lane, with
 the existing 60-second socket timeout; explicit evals retain retries. These are
@@ -176,7 +185,7 @@ python -m eesti.cli eval --provider nvidia --model z-ai/glm-5.3-flash
 ```
 
 In CI: **Actions → Estonian model eval** (`eval.yml`), choose a provider and a
-model. It runs weekly on OpenRouter only. The model menu may contain only
+model. It runs weekly on Workers AI, the production grammar lane. The model menu may contain only
 `:free` ids or a lane's pinned default (`test_every_selectable_model_is_free`).
 A green run with "not measured" in the summary is not a pass.
 
@@ -207,7 +216,26 @@ records and plays back.
 
 ## Other services
 
-- **TTS** — TartuNLP (`providers/tts.py`), cached on disk.
-- **Sentence translation** — TartuNLP (`providers/translate.py`), on request.
+- **TTS** — retain TartuNLP Neurokõne (`providers/tts.py`). Actual synthesis
+  of three short Estonian sentences succeeds: HTTP 200, mono 22,050 Hz
+  IEEE-float WAV. This is a separate service from GEC. The
+  [official contract](https://github.com/TartuNLP/text-to-speech-api) takes
+  text, speaker and speed; the default `mari` voice remains available.
+  Both downloads and cached files must contain complete WAV data; error JSON
+  and truncated audio are rejected, and cache writes are atomic. Valid cached
+  audio remains usable during an outage; an uncached failure returns a visible
+  503 instead of an unplayable file. The public service has no verified SLA.
+- **Sentence translation** — retain TartuNLP Neurotõlge
+  (`providers/translate.py`). Real Estonian→Russian and Estonian→English
+  requests succeed for all three test sentences within the existing five-second
+  budget. The
+  [official request schema](https://github.com/TartuNLP/translation-api)
+  accepts three-letter language codes and an optional `application` field in
+  the JSON body; no client credential is needed for the tested public route.
+  Only nonempty strings or lists of such strings count as translations.
+  Malformed responses remain unavailable, never displayed as dictionary or
+  number representations. Translation supports reading and writing checks,
+  never grades learner evidence. Public translation success does not establish
+  GEC availability or linguistic authority.
 - **Dictionary** — Ekilex API (`providers/ekilex.py`) with `EKILEX_API_KEY`,
   else the Sõnaveeb mirror (`providers/sonapi.py`).

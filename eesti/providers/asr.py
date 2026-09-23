@@ -4,7 +4,7 @@ Ordered by where the app runs (Cloud Run, behind the Worker):
 
 | Route | Notes |
 |---|---|
-| Cloudflare Workers AI `@cf/openai/whisper-large-v3-turbo` | primary; `language="et"`, `initial_prompt` carries the question |
+| Cloudflare Workers AI `@cf/openai/whisper-large-v3-turbo` | primary; `language="et"`, optional open-answer question context; never the read-aloud target |
 | OpenRouter audio-input models | fallback |
 | Hugging Face `openai/whisper-large-v3` (`HF_TOKEN`) | fallback |
 | TalTech Whisper `…-et-verbatim-2604` via whisper.cpp | benchmark candidate; local only |
@@ -56,8 +56,7 @@ ESTONIAN_MODEL = "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
 
 # TalTech's Estonian Voxtral (`TalTechNLP/Voxtral-Mini-3B-2507-estonian`; GGUF
 # builds by the third-party requantiser `mradermacher`) needs an instruction and
-# the `mmproj` audio encoder, via llama.cpp's multimodal CLI. It is behind
-# whisper.cpp because its reported WER rests on ten recordings. The prompt asks
+# the `mmproj` audio encoder, via llama.cpp's multimodal CLI. It remains an explicit local option pending learner evaluation. The prompt asks
 # for a verbatim transcription; unprompted it may summarise instead.
 VOXTRAL_PROMPT = TRANSCRIBE_PROMPT
 

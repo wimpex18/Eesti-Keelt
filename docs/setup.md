@@ -62,8 +62,8 @@ Never in chat, a commit, an issue or the Claude environment-variables box. In
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` | Workers AI grammar lane (token needs **Account → Workers AI → Read** only) | dash.cloudflare.com → My Profile → API Tokens; account ID is in the dashboard URL |
 | `NVIDIA_API_KEY` | NVIDIA explicit evaluation (GLM-5.3-Flash; not automatic routing) | build.nvidia.com → Get API Key |
-| `MISTRAL_API_KEY` | Mistral lane (Experiment plan, phone verification) | console.mistral.ai → API Keys |
-| `OPENROUTER_API_KEY` | OpenRouter free models | openrouter.ai/keys |
+| `MISTRAL_API_KEY` | Explicit Mistral model evaluation | console.mistral.ai → API Keys |
+| `OPENROUTER_API_KEY` | Explicit OpenRouter free-model evaluation | openrouter.ai/keys |
 | `HF_TOKEN` | hosted Whisper fallback for speech | huggingface.co/settings/tokens |
 | `EKILEX_API_KEY` | EKI's Ekilex API for the word card | your profile at ekilex.ee |
 | `NOTION_TOKEN` | sending corrections to the `Vead` database | notion.so/my-integrations |
