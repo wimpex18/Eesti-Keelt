@@ -1,28 +1,30 @@
 # Handoff
 
 ## Current task
-Provider/source follow-up is complete on `codex/pre-ux-architecture`, PR #66.
-Automatic hosted grammar/tutor: Workers AI GPT-OSS-120B only, then deterministic
-fallback. Public GEC, normalization, Mistral/NVIDIA/OpenRouter remain eval-only.
-Modern candidates and exact results: `docs/evaluations/providers.json`.
-TTS/translation and EKI/ERR/Selges/HARNO/EIS passed independent runtime probes.
-Source refresh/publication, TTS cache validation and translation parsing fixed.
-TalTech CT2/Zipformer actually ran native controls; no learner quality claim.
-ASR reference decoding/fingerprints and open-answer question-context eval fixed.
-All changes belong to this PR; AGENTS.md and CLAUDE.md remain byte-identical.
+PR #66 is merged into `main` at `26ae1f7`. The post-merge Cloud Run image
+was built at `2026-09-23T12:03:50Z`, after the merge. Deep production smoke
+[35907600107](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35907600107)
+passed: Access and origin guards, reference data, reading links, Ekilex, and
+the live `llm:workers-ai` grammar chain. Hosted grammar/tutor stays on Workers
+AI GPT-OSS-120B with deterministic fallback; Cloudflare remains production ASR.
+Other grammar and ASR candidates are evaluation-only. Native TalTech controls
+prove runtime feasibility, not learner accuracy.
 
 ## Exact next step
-Review/merge PR #66 (the user merges), then run `smoke` with `deep: true` and
-verify the image stamp. Branch application changes are not deployed yet.
-VAPID pair is in ignored .env + GitHub secrets; main Worker deploy succeeded
-and all three live VAPID bindings/hourly cron were verified. No push was sent.
+Obtain the owner's read-only Cloud Shell results from
+`bash deploy/check-service.sh`, `bash deploy/push-exam.sh --check`, and
+`bash deploy/push-audio.sh --check`; verify one serving instance and both
+exam/audio mounts. In the installed browser/PWA, the owner opts into
+`Edenemine → Meeldetuletused` and confirms an actual delivered notification.
+When the owner supplies manually listened-to learner clips and transcripts
+under ignored `data/eval/asr/`, seal reviews and run paired Cloudflare/TalTech
+ASR evaluation. Never use displayed prompts as ground truth.
+Before redesign, verify an owner's private off-account event export with
+`python -m eesti.cli verify-backup /private/path/eesti-keelt-events.jsonl`.
 
-## Remaining owner actions / limits
-Opt into reminders in the installed browser/PWA and verify actual delivery.
-Record/verify learner ASR clips; native controls do not measure false acceptance.
-Use `asr-verify --question` only for the real open-answer question, never a target.
-Cloud Shell: check max-instances=1 and exam/audio mounts; gcloud access unavailable here.
-Take a private off-account export and run `verify-backup` before redesign.
-Replication is asynchronous; coordinated erasure/nightly backups remain deferred.
-Latest full local suite: 2208 passed, 2 skipped; morphology gold check 98.1%.
-No unrelated uncommitted files or implementation blockers remain.
+## Blockers and working tree
+`gcloud` is unavailable here; Cloud Shell access needs the owner. No learner
+eval clips or private export are present in this checkout. VAPID bindings and
+cron are deployed, but browser subscription/delivery is unverified. State
+replication remains asynchronous. This handoff is the sole repository edit;
+there are no other uncommitted files.
