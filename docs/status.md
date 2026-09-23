@@ -23,7 +23,7 @@ the same change that makes it untrue.
 | **Tutor** | `Selgita` on a missed item: one model call grounded in the attempt, Vabamorf's reading and the EKK section; the answer is dropped if it quotes a form Vabamorf does not know, and never decides anything (`eesti/tutor.py`). |
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation (graded) from sentences read by EKI's own readers where they exist, the corpus otherwise; TartuNLP TTS on any text; ERR episode audio. |
-| **Speaking** | Paired-exam question bank with TTS, read-aloud with comparison, open-answer feedback over the transcript, `Vestlus` (a model plays the partner), and — under `cli serve` only — `Hindamiskomplekt`, which records the speech eval set. Each answer is recorded with what code can measure — answered or not, words, pace, and the share of words Vabamorf does not know, which flags a transcript the recogniser struggled with. Readiness reports that practice and still refuses to judge the part. |
+| **Speaking** | Paired-exam question bank with TTS, read-aloud with comparison, open-answer feedback over the transcript, `Vestlus` (a model plays the partner), and — under `cli serve` only — `Hindamiskomplekt`, which records read-aloud and question-answer clips for the speech eval set and keeps tentative ASR text apart from human-reviewed transcripts. Each answer is recorded with what code can measure — answered or not, words, pace, and the share of words Vabamorf does not know, which flags a transcript the recogniser struggled with. Readiness reports that practice and still refuses to judge the part. |
 | **Exam** | HARNO's own shape as data (`eesti/exam.py`, checked 2026-09-19): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
 | **Official tasks** | HARNO's own past tasks and listening recordings, plus EIS's interactive practice tasks — their instruction, questions and every recording — downloaded with `cli harvest-exam --download` and opened inside `Eksam`: the PDF's text is extracted and read on the page, the recording plays there, and the file itself is one click away (`/api/exam/file`, `/api/exam/text`). A task that was not downloaded still links out. An EIS task is read and heard here and scored there: the answers exist only on their server, so nothing in the app grades one. Private study only; every task carries © Haridus- ja Noorteamet. |
 | **Mock** | `Proovieksam`: one exam part on the exam's own clock, or all four in the exam's order (`eesti/mock.py`). Reading is gap-fill in corpus sentences, listening is dictation, writing is HARNO's task shape graded on length plus the deterministic checks (spelling, agreement, rection), speaking is the question bank and is never scored. Each section says what it really is, and counts as evidence for its part. |
@@ -34,7 +34,7 @@ the same change that makes it untrue.
 | **Review schedule** | FSRS-6 with the published parameters until there are about 1 000 reviews; `cli optimise-review` then fits this learner's own and records them as a `fsrs-parameters` event, so they travel with the log. The optimiser's dependencies (torch, pandas) stay off the deployment: it is run locally, once in a while. |
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
 | **Operations** | One JSON line per API call on stdout (`eesti/logs.py`), carrying route, status and duration and never what was written or said. Each provider lane has a daily allowance (`providers/budget.py`), reported by `/api/engines`. |
-| **Deployment** | Cloud Run behind a Cloudflare Worker + Access; the evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus present. |
+| **Deployment** | Cloud Run capped at one instance behind a Cloudflare Worker + Access; EKI recordings and HARNO exam files are mounted from Cloud Storage. The evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus are present. |
 
 ## What is missing
 
@@ -84,8 +84,9 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   existing corpus; EIS failure does not stop HARNO. Deleting source content
   clears its links. Content upload rebuilds topic links before publishing and
   refuses without the publishing machine's built word list.
-- **Reminders need browser opt-in.** VAPID bindings and hourly cron are verified
-  on the deployed Worker. No browser subscription or push delivery was tested.
+- **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
+  deployed. Chrome on the owner's Mac subscribed with permission granted on
+  2026-09-23; an actual notification has not arrived yet.
 - **Browser journeys are not in CI.** They protect a release only when run
   locally (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,

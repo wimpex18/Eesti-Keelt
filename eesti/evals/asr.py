@@ -125,6 +125,12 @@ def verify_clip(audio: Path, *, planted_index: int | None = None,
     automatically generated correction. `focus` names morphology-sensitive
     reference token indices; tags name slices such as numbers/names/hesitation.
     """
+    saved_question = audio.with_suffix(".question")
+    if saved_question.exists():
+        recorded = saved_question.read_text(encoding="utf-8").strip()
+        if question and question != recorded:
+            raise ValueError("question differs from the recorded task")
+        question = recorded
     if len(question) > 220:
         raise ValueError("question must fit the production 220-character context limit")
     transcript = audio.with_suffix(".txt")

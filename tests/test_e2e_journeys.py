@@ -14,6 +14,7 @@ Tests target roles, labels and visible outcomes rather than CSS classes.
 from __future__ import annotations
 
 import os
+import json
 import re
 import shutil
 import sqlite3
@@ -987,6 +988,53 @@ class TestTheConversationPartner:
         page.wait_for_selector("#vestlusLog .hint", timeout=20000)
         assert "собеседник" in page.locator("#vestlusLog").inner_text().lower()
         assert not page.errors, page.errors
+
+
+class TestSpeakingEvaluation:
+    """The learner can collect question answers without treating ASR as truth."""
+
+    def test_question_mode_offers_a_recordable_task(self, page):
+        open_tab(page, "learn", "speak")
+        page.click("#evalSet > summary")
+        page.select_option("#evalMode", "answer")
+        page.wait_for_function("document.querySelector('#evalRec').disabled === false")
+        question = page.locator("#evalPrompt").inner_text()
+        assert question.endswith(("?", "."))
+        assert "чернов" in page.locator("#evalSet").inner_text()
+        page.select_option("#evalMode", "read")
+        page.wait_for_function("document.querySelector('#evalRec').disabled === false")
+        assert page.locator("#evalPrompt").inner_text()
+        assert not page.errors, page.errors
+
+    @pytest.mark.parametrize("asr_state,expected", [
+        ({"ready": True, "hosted": True, "cloudflare": True}, "Cloudflare"),
+        ({"ready": True, "hosted": False, "local": True}, "на этом компьютере"),
+    ])
+    @pytest.mark.parametrize("viewport_name", list(VIEWPORTS))
+    def test_audio_destination_matches_the_configured_engine(
+            self, _pw, live_server, viewport_name, asr_state, expected):
+        # Route the very first ASR request. A page fixture has already loaded
+        # the app and may have a controlling service worker by the time a
+        # route is installed, so it cannot test this initial disclosure.
+        context = _pw.new_context(service_workers="block", **VIEWPORTS[viewport_name])
+        try:
+            page = context.new_page()
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)[:300]))
+            page.route("**/api/asr", lambda route: route.fulfill(
+                status=200, content_type="application/json",
+                body=json.dumps(asr_state)))
+            page.goto(live_server, wait_until="networkidle")
+            open_tab(page, "learn", "speak")
+            page.wait_for_function("expected => [document.querySelector('#recPrivacy'), "
+                                   "document.querySelector('#evalPrivacy')]"
+                                   ".every(el => el.textContent.includes(expected))",
+                                   arg=expected)
+            assert expected in page.locator("#recPrivacy").inner_text()
+            assert expected in page.locator("#evalPrivacy").text_content()
+            assert not errors, errors
+        finally:
+            context.close()
 
 
 class TestTheWholeSitting:

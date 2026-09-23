@@ -198,11 +198,8 @@
       <button class="go" id="recBtn" lang="et">Salvesta vastus <span class="ru" lang="ru">записать ответ</span></button>
       <span class="hint" id="recState">Микрофону нужен HTTPS или localhost.</span>
     </div>
-    <!-- Shown before recording: the voice leaves the device for recognition. -->
-    <p class="hint" id="recPrivacy">Запись отправляется в Cloudflare для
-      распознавания речи и <strong>нигде не сохраняется</strong> — ни здесь, ни
-      там. Остаётся только текст. Если приложение запущено на твоём
-      компьютере, запись его не покидает.</p>
+    <!-- The actual destination depends on the configured ASR engine. -->
+    <p class="hint" id="recPrivacy">Проверяю, где будет распознана запись…</p>
     <audio id="recPlayback" controls hidden></audio>
     <div id="recHeard" class="corr" hidden></div>
     <div id="recNote" class="engine"></div>
@@ -211,19 +208,28 @@
          absent on the deployment, so this block stays hidden there (ADR-0003). -->
     <details class="evalset" id="evalSet" hidden>
       <summary lang="et">Hindamiskomplekt <i class="ru" lang="ru">запись набора для оценки</i></summary>
-      <p class="hint">Читай вслух то, что появится. Записи остаются на этой
-        машине и нужны, чтобы сравнить движки распознавания на
-        <strong>твоём</strong> голосе. Нужно 80–150 фраз, четверть из них — с
-        намеренной ошибкой.</p>
+      <p class="hint">Прочитай фразу или ответь на вопрос. Копия записи
+        сохраняется на этом компьютере для сравнения движков на твоём голосе.
+        Расшифровка — только черновик: сначала прослушай запись и исправь
+        текст. Начни с 20 проверенных записей, затем расширяй набор до 80–150.</p>
       <div class="row">
-        <button class="go" id="evalNext" lang="et">Järgmine lause
-          <span class="ru" lang="ru">следующая фраза</span></button>
+        <label lang="et">Harjutus <i class="ru" lang="ru">упражнение</i>
+          <select id="evalMode">
+            <option value="read">Loe ette — прочитай вслух</option>
+            <option value="answer">Vasta küsimusele — ответь на вопрос</option>
+          </select>
+        </label>
+        <button class="go" id="evalNext" lang="et">Järgmine ülesanne
+          <span class="ru" lang="ru">следующее задание</span></button>
         <button class="ghost" id="evalRec" lang="et" disabled>● Salvesta
           <span class="ru" lang="ru">записать</span></button>
         <span class="hint" id="evalCount"></span>
       </div>
       <div class="prompt" id="evalPrompt" lang="et"></div>
       <p class="hint" id="evalNote"></p>
+      <p class="hint" id="evalPrivacy">Проверяю, какой движок распознаёт речь…</p>
+      <audio id="evalPlayback" controls hidden></audio>
+      <div id="evalHeard" class="corr" hidden></div>
     </details>
 
     <!-- The exam is paired, so practice has two sides: a model plays the partner

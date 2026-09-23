@@ -72,6 +72,16 @@ jobs:
             && echo "health .................. OK" \
             || { echo "::error::health did not answer: ${body:0:200}"; fail=1; }
 
+          # The Cloud Run volume may be configured yet still point at a missing
+          # or unreadable EKI database. The app reports rows it opened.
+          forms="$(jq -r '.recordings.forms // 0' <<<"$body")"
+          if [ "$forms" -gt 0 ]; then
+            echo "EKI audio mount .......... OK ($forms forms)"
+          else
+            echo "::error::No EKI recordings are readable on the deployment."
+            fail=1
+          fi
+
           # 2b. Which build-time reference imports landed (row counts).
           #
           #     Each import may fail without failing the image build, costing one feature
@@ -168,6 +178,23 @@ jobs:
               && echo "$(printf '%-24s' "$path") OK" \
               || { echo "::error::$path returned $code"; fail=1; }
           done
+
+          # The exam mount is only useful if a task in the published library
+          # resolves to its actual file, not merely to extracted text.
+          exam="$(curl -s "${auth[@]}" "$URL/api/exam/A2")"
+          file_id="$(jq -r '[.[] | arrays | .[] | select(.file == true) | .id][0] // empty' <<<"$exam")"
+          if [ -n "$file_id" ]; then
+            code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$URL/api/exam/file/$file_id")"
+            if [ "$code" = 200 ]; then
+              echo "HARNO exam mount ........ OK (downloaded task opens)"
+            else
+              echo "::error::Downloaded exam task returned $code."
+              fail=1
+            fi
+          else
+            echo "::error::No A2 exam task has a readable downloaded file."
+            fail=1
+          fi
 
           # 5b. Which *code* is answering: a behaviour only newer code has (`total` on
           #     /api/library), since `revision` is not passed by the trigger. When it stops

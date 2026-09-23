@@ -339,9 +339,20 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
 # errand: this route writes audio to `data/eval/asr/` and refuses to exist on
 # the deployment, where `PROXY_TOKEN` is set. The audio stays on the machine.
 
+@router.get("/api/eval/available")
+def eval_available() -> dict:
+    """Expose the recording tool locally without generating a random prompt."""
+    import os
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail=(
+            "Запись набора для оценки — локальная задача (`cli serve`)."))
+    return {"local": True}
+
+
 @router.post("/api/eval/clip")
 async def eval_clip(request: Request) -> dict:
-    """Save raw audio and the displayed prompt; neither is verified ground truth."""
+    """Save raw audio and its task; only a later human review supplies truth."""
     import os
     import re as _re
 
@@ -352,9 +363,13 @@ async def eval_clip(request: Request) -> dict:
             "Запись набора для оценки — локальная задача (`cli serve`)."))
 
     said = request.query_params.get("text", "").strip()
+    question = request.query_params.get("question", "").strip()
     planted = request.query_params.get("planted", "").strip()
-    if not said:
-        raise HTTPException(status_code=400, detail="Нужен текст, который читали.")
+    if bool(said) == bool(question) or (question and len(question) > 220):
+        raise HTTPException(status_code=400, detail=(
+            "Укажи либо текст для чтения, либо вопрос длиной до 220 знаков."))
+    if planted and not said:
+        raise HTTPException(status_code=400, detail="Ошибка относится только к чтению вслух.")
     audio = await request.body()
     if not audio:
         raise HTTPException(status_code=400, detail="Запись пустая.")
@@ -362,23 +377,55 @@ async def eval_clip(request: Request) -> dict:
     SET.mkdir(parents=True, exist_ok=True)
     suffix = ".webm" if "webm" in request.headers.get("content-type", "") else ".wav"
     # A name that cannot collide with an existing clip, however many there are.
-    taken = {p.stem for p in SET.glob("*")}
+    taken = {p.stem for p in SET.iterdir() if p.suffix in
+             (".wav", ".webm", ".ogg", ".mp4", ".m4a", ".txt")}
     n = len(taken)
     while f"{n:04d}" in taken:
         n += 1
     stem = f"{n:04d}"
     (SET / f"{stem}{suffix}").write_bytes(audio)
+    # A read-aloud target is a prompt, not a transcript. For an open answer
+    # there is no target at all: leave .txt empty until the owner listens.
     (SET / f"{stem}.txt").write_text(said, encoding="utf-8")
+    if question:
+        (SET / f"{stem}.question").write_text(question, encoding="utf-8")
     if planted:
         (SET / f"{stem}.said").write_text(planted, encoding="utf-8")
     clips = len(list(SET.glob("*.txt")))
     return {"saved": stem, "clips": clips, "planted": bool(planted),
+            "question": bool(question),
             "folder": str(SET),
             "note": _re.sub(r"\s+", " ", """
-                Запись сохранена только на этой машине. Текст — подсказка, не расшифровка.
+                Копия записи сохранена на этой машине. .txt ещё не проверен на слух.
                 Прослушай запись, исправь .txt и подтверди через `cli asr-verify --listened`. Для сравнения движков
                 нужно 80–150 фраз, примерно четверть — с намеренной ошибкой.
             """).strip()}
+
+
+class EvalDraft(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    engine: str = Field(max_length=200)
+
+
+@router.post("/api/eval/draft/{stem}")
+def eval_draft(stem: str, draft: EvalDraft) -> dict:
+    """Keep the machine's guess beside the clip, never in the reviewed .txt."""
+    import json
+    import os
+
+    from ..evals.asr import SET
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail=(
+            "Запись набора для оценки — локальная задача (`cli serve`)."))
+    if not stem.isascii() or not stem.isdigit() or len(stem) < 4 or not any(
+        (SET / f"{stem}{suffix}").is_file() for suffix in (".wav", ".webm")
+    ):
+        raise HTTPException(status_code=404, detail="Запись не найдена.")
+    (SET / f"{stem}.draft.json").write_text(
+        json.dumps(draft.model_dump(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    return {"saved": stem}
 
 
 @router.get("/api/eval/prompt")

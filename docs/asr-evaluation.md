@@ -117,10 +117,14 @@ Whisper. These are distinct from TartuNLP's text-to-speech voices.
 
 ## Smallest trustworthy corpus workflow
 
-1. Under `cli serve`, record in `Rääkimine → Hindamiskomplekt`. The app saves
-   audio, the **displayed prompt** in `.txt` and optional draft `.said` text.
-   Existing prompt files are unverified. Neither the prompt nor an ASR output
-   may be accepted as ground truth without listening.
+1. Under `cli serve`, record in `Rääkimine → Hindamiskomplekt`. Choose `Loe
+   ette` for a read-aloud sentence (including occasional planted errors) or
+   `Vasta küsimusele` for an open answer. The app saves audio locally, the
+   **displayed read-aloud prompt** in `.txt` or an empty `.txt` for an open
+   answer, and the actual question in `.question`. If ASR is configured, it
+   also shows and saves its tentative guess in a separate JSON draft; this request
+   sends audio to the configured recognition service. Neither prompt nor ASR
+   output is ground truth without listening.
 2. Listen to each clip and edit its `.txt` to exactly what was audibly spoken,
    including mistakes and hesitations. Exclude ambiguous clips; an uncertain
    acoustic distinction is not a gold label. Use the same written-number policy
@@ -138,7 +142,9 @@ Whisper. These are distinct from TartuNLP's text-to-speech voices.
    `--accepted` is the expected form that would hide the error. `--focus` may be
    repeated for morphology-sensitive words; tag clips `numbers`, `names`,
    `short-answer`, `hesitation`, `noise` as appropriate. Normal clips need only
-   `--listened` and optional focus/tags. Hashes bind review to audio and text;
+   `--listened` and optional focus/tags. An adjacent `.question` is loaded
+   automatically and sealed as context; an explicit `--question` must match it.
+   Hashes bind review to audio and text;
    changing either requires listening and verification again.
 4. Start with 20 verified clips, at least five planted-error probes and five
    morphology tokens, covering correct controls, learner forms, numbers, common

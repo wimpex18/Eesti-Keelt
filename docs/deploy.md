@@ -104,8 +104,9 @@ subscription.
 The current Worker has all three VAPID bindings and its hourly cron configured
 (verified via Cloudflare settings on 2026-09-23). The same pair is stored in
 repository secrets for the deploy workflow and privately in the ignored `.env`.
-No subscription was created or notification sent during verification. The
-smoke workflow checks key configuration separately from browser delivery.
+Chrome on the owner's Mac subscribed on 2026-09-23 with permission granted;
+delivery of an actual notification remains unverified. The smoke workflow
+checks key configuration separately from browser delivery.
 
 Without the keys the app says reminders are not configured and never asks the
 browser for permission it cannot use. On iPhone, notifications work only from
@@ -197,8 +198,9 @@ If `gcloud` has no project: `gcloud config set project <id>`.
 
 A session cannot read the deployed app. Use the **`smoke`** workflow
 (Actions → smoke → Run workflow). It runs after `deploy`, daily, and on demand,
-and checks: Access closed, health, image build stamp vs `main`, origin guard,
-speech, reference counts, live dictionary, library and topic links.
+and checks: Access closed, health, readable EKI audio and HARNO exam files,
+image build stamp vs `main`, origin guard, speech, reference counts, live
+dictionary, library and topic links.
 
 - Wait until the image is newer than the merge (10–15 min), or smoke reports on
   the previous image — it prints which.

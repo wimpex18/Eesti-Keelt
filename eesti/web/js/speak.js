@@ -19,8 +19,35 @@ let recorder = null, chunks = [], recording = false, asrReady = false;
 
 // Ask once what this deployment can do, and say so rather than offering a
 // feature that silently does nothing.
-api("/api/asr", null, "GET").then(r => r.json()).then(a => { asrReady = a.ready; })
-  .catch(() => {});
+api("/api/asr", null, "GET").then(r => r.json()).then(a => {
+  asrReady = Boolean(a.ready);
+  const destination = a.cloudflare ? "в Cloudflare"
+    : a.openrouter ? "в OpenRouter"
+      : a.huggingface ? "в Hugging Face" : "во внешний сервис";
+  // The Worker uses only Cloudflare in production. `cli serve` can walk its
+  // configured hosted fallbacks, so disclose those without implying that the
+  // deployed app sends recordings to them.
+  const otherHosts = [a.cloudflare && a.openrouter && "OpenRouter",
+    a.huggingface && a.cloudflare && "Hugging Face",
+    a.openrouter && a.huggingface && !a.cloudflare && "Hugging Face"]
+    .filter(Boolean);
+  const fallback = otherHosts.length
+    ? ` При локальном запуске запасной движок может отправить аудио в ${otherHosts.join(" или ")}.`
+    : "";
+  $("#recPrivacy").textContent = a.hosted
+    ? `Для распознавания запись отправляется ${destination}.${fallback} Аудиофайл обычного упражнения приложение не сохраняет; остаётся текст.`
+    : a.local || a.voxtral
+      ? "Распознавание выполняется на этом компьютере. Аудиофайл обычного упражнения приложение не сохраняет; остаётся текст."
+      : "Распознавание сейчас недоступно. Запись можно прослушать здесь; приложение не сохраняет аудиофайл обычного упражнения.";
+  $("#evalPrivacy").textContent = a.hosted
+    ? `Копия записи сохраняется на этом компьютере. Для черновой расшифровки аудио отправляется ${destination}.${fallback}`
+    : a.local || a.voxtral
+      ? "Запись и черновая расшифровка остаются на этом компьютере."
+      : "Запись сохраняется на этом компьютере; черновая расшифровка сейчас недоступна.";
+}).catch(() => {
+  $("#recPrivacy").textContent = "Не удалось узнать, куда отправится запись. Попробуй обновить страницу перед записью.";
+  $("#evalPrivacy").textContent = "Распознавание недоступно; запись сохранится только на этом компьютере.";
+});
 
 
 let readAloud = [], readIdx = 0;
@@ -294,30 +321,48 @@ $("#vestlusSay").addEventListener("keydown", e => {
 
 /* Recording the speech eval set (ADR-0003).
 
-   Local only: `/api/eval/prompt` is 404 on the deployment, so the block stays
+   Local only: `/api/eval/available` is 404 on the deployment, so the block stays
    hidden there. Every clip is written next to what was actually read — and for
    a planted prompt, next to the word that was deliberately said wrong, which is
    what makes "did the engine correct my mistake away?" measurable. */
 let evalNow = null, evalRecorder = null, evalChunks = [];
+let evalQuestions = [], evalQuestionIdx = -1;
 
 (async () => {
   try {
-    const r = await api("/api/eval/prompt", null, "GET");
-    await r.json();
+    await api("/api/eval/available", null, "GET");
     $("#evalSet").hidden = false;
-  } catch { /* deployed, or no corpus: the block stays hidden */ }
+  } catch { /* Deployed, or the local server is unreachable. */ }
 })();
 
 async function evalPrompt() {
-  // Every fourth prompt carries a deliberate mistake, which is the ratio the
-  // eval needs (a quarter planted).
-  const planted = Math.random() < 0.25;
+  evalNow = null;
+  $("#evalRec").disabled = true;
+  $("#evalPlayback").hidden = true;
+  $("#evalHeard").hidden = true;
+  $("#evalPrompt").textContent = "";
+  const answer = $("#evalMode").value === "answer";
   try {
-    const got = await (await api(
-      `/api/eval/prompt?planted=${planted}`, null, "GET")).json();
-    evalNow = got;
-    $("#evalPrompt").textContent = got.text;
-    $("#evalNote").innerHTML = md(got.note || "");
+    if (answer) {
+      if (!evalQuestions.length) {
+        const {questions} = await (await api("/api/speaking", null, "GET")).json();
+        evalQuestions = questions.filter(q => q.question.length <= 220);
+      }
+      if (!evalQuestions.length) throw new Error("Вопросы сейчас недоступны.");
+      evalQuestionIdx = (evalQuestionIdx + 1) % evalQuestions.length;
+      const q = evalQuestions[evalQuestionIdx];
+      evalNow = {question: q.question, text: "", planted: ""};
+      $("#evalPrompt").textContent = q.question;
+      $("#evalNote").textContent = q.hint_ru || "Ответь на вопрос своими словами.";
+    } else {
+      // About one in four reading prompts probes false acceptance of an error.
+      const planted = Math.random() < 0.25;
+      const got = await (await api(
+        `/api/eval/prompt?planted=${planted}`, null, "GET")).json();
+      evalNow = {...got, question: ""};
+      $("#evalPrompt").textContent = got.text;
+      $("#evalNote").innerHTML = md(got.note || "Прочитай вслух как написано.");
+    }
     $("#evalRec").disabled = false;
   } catch (e) {
     $("#evalNote").textContent = e.message;
@@ -325,6 +370,7 @@ async function evalPrompt() {
 }
 
 $("#evalNext").onclick = evalPrompt;
+$("#evalMode").addEventListener("change", evalPrompt);
 
 $("#evalRec").onclick = async () => {
   const btn = $("#evalRec");
@@ -335,27 +381,64 @@ $("#evalRec").onclick = async () => {
   if (!evalNow) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    const task = evalNow;
     evalChunks = [];
     evalRecorder = new MediaRecorder(stream);
     evalRecorder.ondataavailable = e => e.data.size && evalChunks.push(e.data);
     evalRecorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
       setLabel(btn, "● Salvesta");
+      btn.disabled = true;
       const blob = new Blob(evalChunks, {type: evalRecorder.mimeType || "audio/webm"});
-      const q = new URLSearchParams({text: evalNow.text});
-      if (evalNow.planted) q.set("planted", evalNow.planted);
+      const playback = $("#evalPlayback");
+      playback.src = URL.createObjectURL(blob);
+      playback.hidden = false;
+      const q = new URLSearchParams(task.question
+        ? {question: task.question} : {text: task.text});
+      if (task.planted) q.set("planted", task.planted);
       try {
         const saved = await (await rawApi("/api/eval/clip?" + q, {
           method: "POST", headers: {"Content-Type": blob.type}, body: blob,
         })).json();
         $("#evalCount").textContent = `записано: ${saved.clips}`;
-        evalPrompt();
+        $("#evalNote").textContent = `Запись ${saved.saved} сохранена. Прослушай её и исправь файл ${saved.saved}.txt перед проверкой.`;
+        if (asrReady) {
+          const heard = $("#evalHeard");
+          heard.hidden = false;
+          heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">черновик распознавания</i></span><div class="fix">…</div>`;
+          try {
+            const context = task.question
+              ? "?" + new URLSearchParams({q: task.question}) : "";
+            const t = await (await rawApi("/api/transcribe" + context, {
+              method: "POST", headers: {"Content-Type": blob.type}, body: blob,
+            })).json();
+            if (t.text) {
+              heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">черновик распознавания</i></span><div class="fix" lang="et">${esc(t.text)}</div><div class="why">${esc(t.engine)} · Не эталон: проверь на слух.</div>`;
+              try {
+                await api(`/api/eval/draft/${saved.saved}`,
+                  {text: t.text, engine: t.engine || ""});
+              } catch (e) {
+                $("#evalNote").textContent += ` Черновик не сохранился: ${e.message}`;
+              }
+            } else {
+              heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">черновик распознавания</i></span><div class="why">${esc(t.note || "Речь не разобрана.")} Запись сохранена; расшифруй её на слух.</div>`;
+            }
+          } catch (e) {
+            heard.textContent = `Не удалось распознать: ${e.message}. Запись сохранена; расшифруй её на слух.`;
+          }
+        }
       } catch (e) {
         $("#evalNote").textContent = "Не сохранилось: " + e.message;
+      } finally {
+        btn.disabled = false;
+        $("#evalNext").disabled = false;
+        $("#evalMode").disabled = false;
       }
     };
     evalRecorder.start();
     setLabel(btn, "■ Lõpeta");
+    $("#evalNext").disabled = true;
+    $("#evalMode").disabled = true;
   } catch (e) {
     $("#evalNote").textContent = "Микрофон не открылся: " + e.message;
   }
