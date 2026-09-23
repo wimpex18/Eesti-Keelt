@@ -181,19 +181,29 @@ jobs:
 
           # The exam mount is only useful if a task in the published library
           # resolves to its actual file, not merely to extracted text.
-          exam="$(curl -s "${auth[@]}" "$URL/api/exam/A2")"
-          file_id="$(jq -r '[.[] | arrays | .[] | select(.file == true) | .id][0] // empty' <<<"$exam")"
-          if [ -n "$file_id" ]; then
-            code="$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "$URL/api/exam/file/$file_id")"
-            if [ "$code" = 200 ]; then
-              echo "HARNO exam mount ........ OK (downloaded task opens)"
+          exam_code="$(curl -s -o "$RUNNER_TEMP/exam-a2.json" -w '%{http_code}' \
+            "${auth[@]}" "$URL/api/exam/A2")"
+          if [ "$exam_code" != 200 ]; then
+            echo "::error::A2 exam catalogue returned $exam_code."
+            fail=1
+          else
+            file_id="$(jq -r '[.[] | arrays | .[] | select(.file == true) | .id][0] // empty' \
+              "$RUNNER_TEMP/exam-a2.json")"
+            if [ -n "$file_id" ]; then
+              code="$(curl -s -o /dev/null -w '%{http_code}' \
+                "${auth[@]}" "$URL/api/exam/file/$file_id")"
+              if [ "$code" = 200 ]; then
+                echo "HARNO exam mount ........ OK (downloaded task opens)"
+              else
+                echo "::error::Downloaded exam task returned $code."
+                fail=1
+              fi
             else
-              echo "::error::Downloaded exam task returned $code."
+              tasks="$(jq '[.[] | arrays | .[] | select(.id)] | length' \
+                "$RUNNER_TEMP/exam-a2.json")"
+              echo "::error::A2 has $tasks catalogue entries but no readable file."
               fail=1
             fi
-          else
-            echo "::error::No A2 exam task has a readable downloaded file."
-            fail=1
           fi
 
           # 5b. Which *code* is answering: a behaviour only newer code has (`total` on

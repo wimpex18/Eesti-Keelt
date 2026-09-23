@@ -2,12 +2,13 @@
 
 ## Current task
 PR #66 merged into `main` at `26ae1f7`. Cloud Run revision
-`eesti-keelt-00077-n7t` has `max-instances=1` and EKI audio/HARNO exam mounts.
+`eesti-keelt-00077-n7t` has `max-instances=1` and configured EKI/HARNO mounts.
 Deep smoke [35910679079](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35910679079)
-passed after mounting: Access/origin guards, current image, reference data,
-`llm:workers-ai` grammar, Ekilex and reading links. Workers AI GPT-OSS-120B
-remains automatic hosted grammar/tutor with deterministic fallback; Cloudflare
-remains production ASR. Other candidates are eval-only.
+passed Access/origin guards, current image, reference data, `llm:workers-ai`
+grammar, Ekilex and reading links. Workers AI GPT-OSS-120B remains automatic
+hosted grammar/tutor with deterministic fallback; Cloudflare is production ASR;
+others are eval-only. Branch smoke
+[35912416398](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35912416398) read 8,520 EKI forms but found no readable A2 exam file; diagnosis is pending.
 
 Chrome on the owner's Mac subscribed to reminders on 2026-09-23; browser
 permission is granted and the page says `включены`. Delivery is pending.
@@ -20,11 +21,10 @@ reads. Practice audio stays unsaved; prompts and ASR are never truth. Local
 suite: 2210 passed; browser journeys: 133 passed, 5 skipped.
 
 ## Exact next step
-Push PR #67 and run branch smoke against production for mounted-file reads.
-After owner merge and Cloud Build, run deep smoke on `main`. At the next eligible
-hourly reminder outside 22:00–08:00, confirm Chrome delivery with the owner.
-Collect manually listened-to clips under ignored `data/eval/asr/` for paired ASR.
+Run diagnostic branch smoke; compare the owner's Cloud Shell object, env path
+and volume mount output. Correct exam-file access and re-run until it opens.
+After owner merge and Cloud Build, run deep smoke on `main`. Confirm actual
+Chrome reminder delivery at the next eligible hour outside 22:00–08:00.
 
 ## Blockers and working tree
-Push delivery and learner audio are pending; state replication is asynchronous.
-PR #67 files are being committed together; no other changes are intended.
+Exam access, push delivery and learner audio are pending; state copying is asynchronous.
