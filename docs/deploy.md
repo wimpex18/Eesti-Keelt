@@ -129,6 +129,10 @@ all, while the **files** — above all the listening recordings, the half a text
 cannot carry — need this mount. Where they are missing the catalogue says a
 task is not downloaded and links out to harno.ee; `library._file_here` checks
 rather than assumes, so the same database is honest on both machines.
+An older catalogue published before the download has no `meta.file`; the app
+also checks the mounted path derived from HARNO's URL using the downloader's
+filename rule. This lets a later mount work without replacing the reading
+corpus in production.
 
 ## The reading corpus
 

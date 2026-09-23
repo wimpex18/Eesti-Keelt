@@ -301,14 +301,17 @@ def exam_file(item_id: str):
     from .. import config
 
     row = content_db().execute(
-        "SELECT title, meta FROM items WHERE id = ?", (item_id,)).fetchone()
+        "SELECT title, level, source_id, meta FROM items WHERE id = ?",
+        (item_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Материал не найден.")
     try:
         meta = _json.loads(row["meta"] or "{}")
     except ValueError:
         meta = {}
-    stored = meta.get("file")
+    from ..library import exam_stored_path
+
+    stored = exam_stored_path(meta, row["level"], row["source_id"])
     if not stored:
         raise HTTPException(status_code=404, detail=(
             "Этот материал не скачан — открой его по ссылке."))
@@ -316,6 +319,9 @@ def exam_file(item_id: str):
     path = (root / stored).resolve()
     if root not in path.parents or not path.exists():
         # A meta row pointing outside the folder is a bug, not a request to obey.
+        if not meta.get("file") and root in path.parents:
+            raise HTTPException(status_code=404, detail=(
+                "Этот материал не скачан — открой его по ссылке."))
         raise HTTPException(status_code=404, detail="Файл недоступен.")
     kinds = {".pdf": "application/pdf", ".mp3": "audio/mpeg",
              ".wav": "audio/wav", ".docx":

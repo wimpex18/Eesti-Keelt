@@ -50,6 +50,24 @@ def test_a_downloaded_task_opens_in_the_app(client, material):
     assert r.headers["content-type"].startswith("application/pdf")
 
 
+def test_an_older_catalogue_finds_a_later_mounted_harno_file(
+        client, material):
+    """Publishing the catalogue before the bucket must not hide mounted files."""
+    conn = connect(config.CONTENT_DB)
+    with conn:
+        conn.execute("UPDATE items SET meta = json_remove(meta, '$.file') "
+                     "WHERE id = ?", (material["here"],))
+    conn.close()
+
+    from eesti import library
+
+    rows = library.exam_material(connect(config.CONTENT_DB), "B1")
+    tasks = [t for part in rows["ulesanded"].values() for t in part]
+    here = next(t for t in tasks if t["id"] == material["here"])
+    assert here["file"] is True
+    assert client.get(f"/api/exam/file/{material['here']}").status_code == 200
+
+
 def test_its_text_is_readable_with_the_exam_board_named(client, material):
     r = client.get(f"/api/exam/text/{material['here']}")
     assert r.status_code == 200

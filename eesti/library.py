@@ -362,6 +362,29 @@ def _file_here(stored: str | None) -> bool:
     return root in path.parents and path.is_file()
 
 
+def exam_stored_path(meta: dict, level: str | None,
+                     source_id: str) -> str | None:
+    """Locate a HARNO download even in a catalogue published before the files.
+
+    The downloader names files from the official URL. Older content databases
+    kept that URL but had no `meta.file` because the download had not happened
+    yet. A present `meta.file` remains authoritative, including invalid paths
+    that must fail containment checks rather than silently use another file.
+    """
+    stored = meta.get("file")
+    if stored:
+        return stored
+    if source_id != "harno" or meta.get("format") not in {
+            "pdf", "mp3", "wav", "docx"}:
+        return None
+    url = meta.get("url")
+    if not isinstance(url, str) or not url.startswith("https://"):
+        return None
+    from .harvest.harno import safe_name
+
+    return f"{level or 'yldine'}/{safe_name(url)}"
+
+
 def exam_material(content: sqlite3.Connection, level: str,
                   public_only: bool = False) -> dict:
     """Everything official for one level, grouped by `kind`, in one request: a sample
@@ -376,7 +399,8 @@ def exam_material(content: sqlite3.Connection, level: str,
     # statistics PDFs stay hidden.
     blocked = ",".join("?" * len(harno.NOT_INDEXED))
 
-    sql = """SELECT i.id, i.title, i.skill, i.level, i.audio_url, i.meta,
+    sql = """SELECT i.id, i.title, i.skill, i.level, i.source_id,
+                    i.audio_url, i.meta,
                     LENGTH(TRIM(COALESCE(i.body, ''))) AS body_length,
                     s.name AS source_name, s.licence
              FROM items i JOIN sources s ON s.id = i.source_id
@@ -395,6 +419,8 @@ def exam_material(content: sqlite3.Connection, level: str,
             meta = _json.loads(row["meta"] or "{}")
         except ValueError:
             meta = {}
+        file_here = _file_here(exam_stored_path(
+            meta, row["level"], row["source_id"]))
         by_kind.setdefault(meta.get("kind") or "ulesanne", []).append({
             "id": row["id"], "title": row["title"], "skill": row["skill"],
             "url": meta.get("url"), "format": meta.get("format"),
@@ -405,8 +431,8 @@ def exam_material(content: sqlite3.Connection, level: str,
             # checked rather than assumed: the text travels with the library,
             # the files only where `data/exam/` is mounted (`push-exam.sh`), so
             # the same catalogue must link out where they are absent.
-            "local": _file_here(meta.get("file")) or bool(row["body_length"]),
-            "file": _file_here(meta.get("file")),
+            "local": file_here or bool(row["body_length"]),
+            "file": file_here,
         })
 
     tasks = by_kind.pop("ulesanne", [])

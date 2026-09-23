@@ -87,6 +87,10 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
   deployed. Chrome on the owner's Mac subscribed with permission granted on
   2026-09-23; an actual notification has not arrived yet.
+- **Exam files are mounted but production still links out.** The deployed
+  catalogue was published before the files were downloaded and lacks file
+  pointers. The pending app change derives HARNO paths from official URLs;
+  runtime access must be checked after deployment.
 - **Browser journeys are not in CI.** They protect a release only when run
   locally (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,
