@@ -34,8 +34,8 @@ wrote them. For more than the stored fields, link to Sõnaveeb
 ## EKI files (`deploy/eki/`)
 
 Downloaded from <https://arhiiv.eki.ee/litsents/>, committed (XML gzipped) and
-imported by the `Dockerfile` into `data/eesti.db`. Nothing in the repo fetches
-from EKI.
+imported by the `Dockerfile` into `data/eesti.db`. These bulk dictionary files are imported locally; live Ekilex lookups and
+the EKK rection page use separate request paths.
 
 | File | Import | Rows |
 |---|---|---|
@@ -71,6 +71,26 @@ matching import with `--check`, commit.
 | Own material (`cli ingest`) | treated as ungranted | owner-only |
 
 All owner-only items are served only behind Cloudflare Access.
+
+`cli harvest-reading` keeps existing material if the source returns no readable
+posts. EIS and HARNO harvesting are independent: an EIS outage keeps its previous
+tasks and still allows HARNO to refresh. Deleting a source also removes its
+old topic links. `cli push-content` rebuilds both morphology-derived links and
+explicit lesson-label links before uploading the corpus; it requires a built
+word list on the publishing machine. `cli link-topics` remains useful for a
+local preview. This analysis runs at publication, never in a learner request.
+
+Public source checks exercise parsing as well as HTTP reachability: the
+[Selges archive API](https://public-api.wordpress.com/rest/v1.1/sites/selgeskeeles.wordpress.com/posts/?number=1),
+[ERR news](https://news.err.ee/k/lihtsad-uudised),
+[ERR radio](https://r4.err.ee/755936/kak-jeto-po-jestonski-28),
+[HARNO catalogue](https://harno.ee/eesti-keele-tasemeeksamid), and
+[EIS public tasks](https://eis.harno.ee/publicitems) currently yield their
+expected content shapes. EIS task text and recording links parse; this does
+not establish playback of every recording or availability of deployed mounts.
+The Sõnaveeb mirror returns a word result and authenticated Ekilex returns a
+word ID. These checks are independent of the grammar model chain and do not
+promise third-party uptime.
 
 ## Grammar evidence and evaluation
 

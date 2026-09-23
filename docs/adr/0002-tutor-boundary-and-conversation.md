@@ -128,4 +128,5 @@ they belong in the log as their own event type with turns kept.
 3. [x] `Vestlus` in Rääkimine: a task from the bank, turn by turn, with the
    model's unknown forms named and the "not graded" caveat.
 4. [x] `conversation` events: task, turns, words — never a score.
-5. [ ] Revisit if speaking evidence needs the turns themselves (P5).
+5. Conversation turns remain ephemeral; evidence records occurrence/length
+   only. Retention is deferred by ADR-0005 because no current planner needs it.

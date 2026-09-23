@@ -18,6 +18,7 @@ Two deliberate boundaries:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -42,7 +43,7 @@ def review_logs(log: sqlite3.Connection) -> list:
             continue
         at = datetime.fromisoformat(row["ts"])
         out.append(ReviewLog(
-            card_id=abs(hash(payload["id"])) % (2 ** 62),
+            card_id=int.from_bytes(hashlib.sha256(payload["id"].encode()).digest()[:8]) % (2 ** 62),
             rating=rating,
             review_datetime=at if at.tzinfo else at.replace(tzinfo=timezone.utc),
             review_duration=payload.get("latency_ms"),
@@ -75,6 +76,10 @@ def fit(log: sqlite3.Connection, *, force: bool = False) -> dict:
             'the optimiser needs its extra: pip install "fsrs[optimizer]"') from exc
 
     fitted = tuple(float(x) for x in Optimizer(history).compute_optimal_parameters())
+    if len(history) < review.MIN_REVIEWS_TO_FIT:
+        return {"fitted": True, "applied": False, "reviews": len(history),
+                "parameters": list(fitted),
+                "why_ru": "Пробный расчёт: истории мало, расписание не изменено."}
     evidence.record("fsrs-parameters", {
         "parameters": list(fitted),
         "reviews": len(history),
@@ -82,6 +87,6 @@ def fit(log: sqlite3.Connection, *, force: bool = False) -> dict:
         # Which build fitted them, so a suspicious schedule can be traced.
         "engine": "py-fsrs",
     })
-    return {"fitted": True, "reviews": len(history), "parameters": list(fitted),
+    return {"fitted": True, "applied": True, "reviews": len(history), "parameters": list(fitted),
             "why_ru": (f"Параметры пересчитаны по {len(history)} повторениям. "
                        "Расписание следующих карточек уже по ним.")}

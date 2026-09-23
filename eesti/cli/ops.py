@@ -13,6 +13,15 @@ from pathlib import Path
 
 from ._helpers import _row_of
 
+def cmd_verify_backup(args: argparse.Namespace) -> int:
+    import json
+
+    from ..recovery import verify_export
+
+    print(json.dumps(verify_export(Path(args.file)), indent=2))
+    return 0
+
+
 def cmd_notion(args: argparse.Namespace) -> int:
     """Review queued errors and, only with `--push`, send them to the `Vead` log.
 
@@ -85,19 +94,28 @@ def cmd_push_content(args: argparse.Namespace) -> int:
         return 2
 
     from ..sources import connect as content_connect
+    from ..topiclinks import rebuild
+    from ..wordlist import available, connect as wordlist_connect
 
     with content_connect(path) as conn:
         items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
-        links = conn.execute("SELECT COUNT(*) FROM topic_items").fetchone()[0]
     if not items:
         print(f"{path} holds no items. Nothing to push.")
         return 2
-    # Warn when `topic_items` is empty: only `cli link-topics` fills it, and without
-    # it every drill's `reading` list is empty. A warning, not a refusal.
+    if not available():
+        print("The word list is missing. Run `python -m eesti.cli build` before "
+              "pushing: topic links must be rebuilt against the current corpus.")
+        return 2
+    # Rebuild even when the count is non-zero: old links say nothing about newly
+    # harvested texts. Only this local publication step pays for morphology.
+    with content_connect(path) as conn, wordlist_connect() as words:
+        counts = rebuild(conn, words)
+        links = sum(counts.values())
+    print(f"  rebuilt {links} topic links")
     if not links:
-        print(f"  WARNING: {path} has {items} items but no topic links, so no "
-              "drill will offer anything to read.\n"
-              "           Run `python -m eesti.cli link-topics` and push again.")
+        print(f"  WARNING: {path} has {items} items but no topic links. "
+              "No texts met the topic's evidence threshold; review the corpus "
+              "with `python -m eesti.cli link-topics`.")
 
     payload = json.dumps(
         {"database": base64.b64encode(path.read_bytes()).decode("ascii")}
@@ -183,6 +201,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
+    p = sub.add_parser("verify-backup", help="replay a private event export in temporary stores")
+    p.add_argument("file")
+    p.set_defaults(func=cmd_verify_backup)
+
     p = sub.add_parser(
         "notion",
         help="review queued errors; --push writes them to the Vead log",

@@ -194,53 +194,65 @@ class TestThePushScriptFailsBeforeSpendingAMegabyte:
             os.environ.pop("PROXY_TOKEN", None)
 
 
-class TestThePushWarnsAboutAnUnlinkedCorpus:
-    """`topic_items` is filled only by `cli link-topics`; the push warns when a corpus
-    has texts but no links.
-    """
+class TestPushRebuildsTopicLinks:
+    """A new harvest is linked before its bytes reach the deployment."""
 
-    def _corpus(self, tmp_path, *, links: int):
-        """Built by the app's own opener, like `conftest._build_content`."""
+    def test_uploaded_database_contains_new_links_and_discards_stale_ones(
+        self, tmp_path, monkeypatch,
+    ):
+        import io
+        import json
+        import sqlite3
+        import urllib.request
+
+        from eesti.cli.ops import cmd_push_content
         from eesti.sources import Item, add_items, connect, register
 
-        path = tmp_path / "content.db"
-        conn = connect(path)
-        register(conn)
-        add_items(conn, [Item(source_id="selges-keeles", skill="lugemine",
-                              title="Tekst", body="sõna sõna", level=None,
-                              band="keskmine", meta={})])
-        item_id = conn.execute("SELECT id FROM items").fetchone()[0]
-        for n in range(links):
-            conn.execute("INSERT INTO topic_items (topic, item_id, hits) "
-                         "VALUES (?, ?, 1)", (f"topic{n}", item_id))
-        conn.commit()
-        conn.close()
-        return path
+        path = tmp_path / "publish.db"
+        with connect(path) as conn:
+            register(conn)
+            item = Item(source_id="err-r4", skill="grammatika",
+                        title="Omastav", body="")
+            add_items(conn, [item])
+            conn.execute("INSERT INTO topic_items VALUES (?, ?, ?)",
+                         ("stale", item.id, 1))
+        uploaded = tmp_path / "received.db"
 
-    def _push(self, tmp_path, monkeypatch, *, links: int, capsys):
-        from eesti import cli
+        def receive(request, **kwargs):
+            payload = json.loads(request.data)
+            uploaded.write_bytes(base64.b64decode(payload["database"]))
+            return io.BytesIO(b'{"stored":true}')
 
         monkeypatch.setenv("STATE_TOKEN", "t")
         monkeypatch.setenv("PROXY_TOKEN", "p")
-        path = self._corpus(tmp_path, links=links)
-        args = argparse.Namespace(database=str(path), url=None)
-        # Stop before the upload: what is under test is the check, not the POST.
-        monkeypatch.setattr(
-            cli, "_post_content", lambda *a, **k: 0, raising=False)
-        try:
-            cli.cmd_push_content(args)
-        except Exception:
-            pass
-        return capsys.readouterr().out
+        monkeypatch.setattr(urllib.request, "urlopen", receive)
+        assert cmd_push_content(argparse.Namespace(
+            database=str(path), url="https://origin.example",
+        )) == 0
+        with sqlite3.connect(uploaded) as conn:
+            assert conn.execute("SELECT topic, item_id, hits FROM topic_items").fetchall() == [
+                ("gen-stem", item.id, 999),
+            ]
 
-    def test_it_says_so_when_nothing_is_linked(self, tmp_path, monkeypatch, capsys):
-        out = self._push(tmp_path, monkeypatch, links=0, capsys=capsys)
-        assert "no topic links" in out, out
-        assert "link-topics" in out, "the warning must name the fix"
+    def test_missing_wordlist_refuses_upload_without_destroying_links(
+        self, tmp_path, monkeypatch,
+    ):
+        from eesti.cli.ops import cmd_push_content
+        from eesti.sources import Item, add_items, connect, register
 
-    def test_it_stays_quiet_when_the_corpus_is_linked(self, tmp_path, monkeypatch, capsys):
-        out = self._push(tmp_path, monkeypatch, links=3, capsys=capsys)
-        assert "no topic links" not in out, out
+        path = tmp_path / "publish.db"
+        with connect(path) as conn:
+            register(conn)
+            item = Item(source_id="selges-keeles", skill="lugemine", title="Tekst")
+            add_items(conn, [item])
+            conn.execute("INSERT INTO topic_items VALUES (?, ?, ?)",
+                         ("gen-stem", item.id, 3))
+        monkeypatch.setenv("STATE_TOKEN", "t")
+        monkeypatch.setenv("PROXY_TOKEN", "p")
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "absent.db")
+        assert cmd_push_content(argparse.Namespace(database=str(path), url=None)) == 2
+        with connect(path) as conn:
+            assert conn.execute("SELECT COUNT(*) FROM topic_items").fetchone()[0] == 1
 
 
 class TestTheRunningServiceCanBeAskedTheSameQuestion:

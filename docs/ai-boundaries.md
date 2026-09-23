@@ -13,7 +13,7 @@ Where a model touches the learner, and where code decides.
 | Spelling in free writing | Vabamorf dictionary | no — merged into every answer |
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
 | Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
-| Other free-writing errors, explanations | TartuNLP GEC → LLM chain → Neurotõlge → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
+| Other free-writing errors, explanations | Qualified LLM chain → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
 | Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
 | Playing the exam partner (`Vestlus`) | `tutor.converse`: a task card from the bank and the turns so far | yes; Estonian only, capped at 8 turns, never a correction or a verdict, and the forms Vabamorf rejects are named |
 | Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
@@ -83,3 +83,11 @@ where this boundary cannot reach it (`deploy/worker.ts`).
 3. The response names the engine that answered.
 4. Every network engine is optional. With no keys: drills generate and grade,
    the path, reading and review work, speaking records and plays back.
+
+`model+verified` means a model suggestion passed specific form/rule checks; it
+is not an authoritative linguistic fact or a correctness probability. Object
+case is checked from morphology independently of the provider's tag. A model
+cannot override a deterministic finding on the same word. `advisory` applies
+to the entire speech-transcript result even when an individual check is code.
+ASR can normalise learner errors: comparison with a target is not a pronunciation
+verdict, and only listened-to transcripts belong in the eval ground truth.

@@ -8,10 +8,9 @@ import json
 import urllib.error
 
 import pytest
+from pagesrc import markup_and_script
 
 from eesti.providers import translate as t
-
-from pagesrc import markup_and_script
 
 
 class FakeResponse:
@@ -49,6 +48,14 @@ class TestItAnswersInTheShapeTheApiUses:
 
 
 class TestItIsACrutchAndFailsLikeOne:
+    @pytest.mark.parametrize("payload", [
+        None, [], "error", {"result": 42}, {"result": {"detail": "error"}},
+        {"result": ["translation", None]}, {"result": [""]}, {"result": []},
+    ])
+    def test_malformed_payload_never_becomes_a_translation(self, monkeypatch, payload):
+        monkeypatch.setattr(t.urllib.request, "urlopen", lambda *a, **k: FakeResponse(payload))
+        assert t.translate("Tere.") is None
+
     @pytest.mark.parametrize("boom", [
         urllib.error.URLError("down"),
         TimeoutError("slow"),
@@ -97,6 +104,14 @@ class TestItIsACrutchAndFailsLikeOne:
         monkeypatch.setattr(t.urllib.request, "urlopen", capture)
         t.translate("Ma " * 2000)
         assert sent["len"] == t.MAX_CHARS
+
+    def test_application_identifier_is_in_the_documented_body_field(self, monkeypatch):
+        def capture(request, *a, **k):
+            assert json.loads(request.data)["application"] == "eesti-keelt"
+            return FakeResponse({"result": "Привет."})
+
+        monkeypatch.setattr(t.urllib.request, "urlopen", capture)
+        assert t.translate("Tere.").text == "Привет."
 
 
 class TestTheEndpointAndItsPosture:

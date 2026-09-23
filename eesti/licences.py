@@ -72,11 +72,11 @@ ENGINES: tuple[Source, ...] = (
     ),
     Source(
         "tartunlp-gec", "TartuNLP grammar correction", "engine",
-        "MIT (the API), Llama 2 (the model behind it)", True,
+        "MIT (API); public backend model licence unverified", True,
         "https://api.tartunlp.ai/grammar",
-        "First lane of the grammar chain. Its backend on the University of "
-        "Tartu cluster is not answering (docs/status.md).",
-        version="Llammas-base-p1-GPT-4o-human-error-mix-paragraph-GEC",
+        "Explicit diagnostic/evaluation only; unavailable public service is excluded "
+        "from automatic grammar checks.",
+        version="public backend model identity unverified",
         quota="public, unmetered", data_leaves="text",
         retention="TartuNLP store what is sent, to improve the service",
         verified="2026-09-19",
@@ -84,8 +84,7 @@ ENGINES: tuple[Source, ...] = (
     Source(
         "tartunlp-mt", "Neurotõlge (TartuNLP translation)", "engine",
         "MIT (the API)", True, "https://api.tartunlp.ai/translation/v2",
-        "Sentence translation, and est→est as a corrector whose edits code "
-        "filters (`NeurotolgeCorrection`).",
+        "Sentence translation; est→est normalization is explicit evaluation only.",
         quota="1000 requests per window (x-rate-limit-limit)",
         data_leaves="text",
         retention="TartuNLP store what is sent, to improve the service",
@@ -103,20 +102,19 @@ ENGINES: tuple[Source, ...] = (
     ),
     Source(
         "nvidia", "NVIDIA NIM", "engine", "NVIDIA developer terms", True,
-        "https://build.nvidia.com/", "Grammar lane: accurate, slow (20–60 s).",
+        "https://build.nvidia.com/", "Evaluation lane; unavailable in current probes, excluded from automatic routing.",
         version="z-ai/glm-5.3-flash", quota="40 requests/min",
         data_leaves="text", verified="2026-09-19",
     ),
     Source(
         "mistral", "Mistral AI", "engine", "Mistral terms (Experiment plan)", True,
-        "https://mistral.ai/", "Grammar lane: fast, mostly answers 'no errors'.",
-        version="mistral-large-latest", quota="~1B tokens/month",
+        "https://mistral.ai/", "Explicit evaluation only; poor grammar detection despite healthy transport.",
+        version="mistral-large-latest", quota="organization/model-specific Free mode limits",
         data_leaves="text", verified="2026-09-19",
     ),
     Source(
         "openrouter", "OpenRouter", "engine", "OpenRouter terms", True,
-        "https://openrouter.ai/", "Grammar lane on free model ids; the weekly eval "
-        "scores this one.",
+        "https://openrouter.ai/", "Optional free-model evaluation lane; account limits apply.",
         version="dots-studio/dots-3-note-preview:free",
         quota="50 requests/day, failures counted", data_leaves="text",
         verified="2026-09-19",
@@ -140,8 +138,8 @@ ENGINES: tuple[Source, ...] = (
         "whisper-cpp", "whisper.cpp with TalTech's Estonian model", "engine",
         "MIT (whisper.cpp and the model)", True,
         "https://huggingface.co/TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604",
-        "Local speech recognition: the best Estonian model, and nothing leaves "
-        "the machine. Not on the deployment (no GPU).",
+        "Local speech recognition: an Estonian benchmark candidate; nothing leaves "
+        "the machine. Kept off production pending learner evaluation.",
         version="whisper-large-v3-turbo-et-verbatim-2604", data_leaves="none",
         verified="2026-09-19",
     ),

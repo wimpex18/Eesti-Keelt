@@ -1,35 +1,28 @@
 # Handoff
 
-Current state for the next session, Claude Code or Codex. Overwrite, never
-append; at most 30 lines.
+## Current task
+Provider/source follow-up is complete on `codex/pre-ux-architecture`, PR #66.
+Automatic hosted grammar/tutor: Workers AI GPT-OSS-120B only, then deterministic
+fallback. Public GEC, normalization, Mistral/NVIDIA/OpenRouter remain eval-only.
+Modern candidates and exact results: `docs/evaluations/providers.json`.
+TTS/translation and EKI/ERR/Selges/HARNO/EIS passed independent runtime probes.
+Source refresh/publication, TTS cache validation and translation parsing fixed.
+TalTech CT2/Zipformer actually ran native controls; no learner quality claim.
+ASR reference decoding/fingerprints and open-answer question-context eval fixed.
+All changes belong to this PR; AGENTS.md and CLAUDE.md remain byte-identical.
 
-## Task in flight
+## Exact next step
+Review/merge PR #66 (the user merges), then run `smoke` with `deep: true` and
+verify the image stamp. Branch application changes are not deployed yet.
+VAPID pair is in ignored .env + GitHub secrets; main Worker deploy succeeded
+and all three live VAPID bindings/hourly cron were verified. No push was sent.
 
-PR #65 (`exam/p3-exam-domain`) now carries all of P3–P6:
-
-- the official material read in the app (HARNO's PDFs and audio, EIS's
-  interactive tasks with their own recordings);
-- ADR-0004 — a model writes the reading questions, the text keys them, code
-  grades them (`Lugemine → Küsimused`);
-- reminders (`eesti/reminders.py` decides, the Worker's cron sends, VAPID +
-  RFC 8291; `Edenemine → Meeldetuletused`);
-- `cli optimise-review` — FSRS fitted to this learner once there are ~1 000
-  reviews, recorded as a `fsrs-parameters` event (`review.db` has 0 so far).
-
-## After the merge, in Cloud Shell
-
-```bash
-bash deploy/check-service.sh        # max-instances 1
-bash deploy/push-audio.sh           # EKI recordings (270 MB)
-bash deploy/push-exam.sh            # HARNO task files (124 MB)
-bash deploy/push-content.sh data/content.db   # library incl. task text
-python -m eesti.cli push-keys       # first, on this machine
-bash deploy/set-push-keys.sh        # then reminders can be switched on
-```
-
-## Next
-
-1. P5 finish: record ~100 utterances into `data/eval/asr/`, `cli eval --suite
-   asr`, then trial TalTech verbatim Whisper against Workers AI.
-2. Recheck `cli eval --provider tartunlp` — its backend answered 500 for days.
-3. Delete `CLAUDE.md` once Claude for Mac bundles Claude Code 2.1.277 or newer.
+## Remaining owner actions / limits
+Opt into reminders in the installed browser/PWA and verify actual delivery.
+Record/verify learner ASR clips; native controls do not measure false acceptance.
+Use `asr-verify --question` only for the real open-answer question, never a target.
+Cloud Shell: check max-instances=1 and exam/audio mounts; gcloud access unavailable here.
+Take a private off-account export and run `verify-backup` before redesign.
+Replication is asynchronous; coordinated erasure/nightly backups remain deferred.
+Latest full local suite: 2208 passed, 2 skipped; morphology gold check 98.1%.
+No unrelated uncommitted files or implementation blockers remain.

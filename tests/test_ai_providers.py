@@ -38,8 +38,10 @@ def _capture_requests(monkeypatch, content="{}"):
 
 
 class TestTheChain:
-    def test_every_lane_is_tried_and_every_tried_lane_exists(self):
-        assert set(llm.PROVIDERS) == set(grammar.LLM_PREFERENCE)
+    def test_automatic_lanes_exist_and_unavailable_nvidia_is_eval_only(self):
+        assert set(grammar.LLM_PREFERENCE) < set(llm.PROVIDERS)
+        assert "nvidia" in llm.PROVIDERS
+        assert "llm:nvidia" not in [p.name for p in grammar.build_chain()]
 
     def test_the_chain_ends_somewhere_that_always_answers(self):
         assert [p.name for p in grammar.build_chain()][-1] == "vabamorf-offline"
@@ -189,9 +191,9 @@ class TestTheEvalWorkflow:
         for option in self.inputs["model"]["options"]:
             assert option == self.SENTINEL or option.endswith(":free") or option in pinned, option
 
-    def test_the_default_model_is_free_and_pinned(self):
-        default = self.inputs["model"]["default"]
-        assert default.endswith(":free") and default == llm.PROVIDERS["openrouter"].default_model
+    def test_the_default_scores_the_production_lane_without_cross_lane_model_override(self):
+        assert self.inputs["model"]["default"] == self.SENTINEL
+        assert self.inputs["provider"]["default"] == "workers-ai"
 
     def test_the_sentinel_passes_no_model(self):
         assert self.SENTINEL in self.inputs["model"]["options"]
@@ -285,3 +287,25 @@ class TestTartuNLPIsEvaluated:
         build.register(parser.add_subparsers())
         args = parser.parse_args(["eval", "--provider", "tartunlp"])
         assert args.provider == "tartunlp"
+
+
+def test_interactive_timeout_does_not_retry_or_sleep(monkeypatch):
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-only")
+    calls = []
+    def timeout(*args, **kwargs):
+        calls.append(1)
+        raise TimeoutError()
+    monkeypatch.setattr("urllib.request.urlopen", timeout)
+    monkeypatch.setattr(llm, "_throttle", lambda: None)
+    monkeypatch.setattr(llm.time, "sleep", lambda seconds: pytest.fail("interactive retry"))
+    with pytest.raises(TimeoutError):
+        llm.complete("mistral", "system", "text", attempts=1)
+    assert len(calls) == 1
+
+
+def test_workers_ai_needs_account_and_token(monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-only")
+    monkeypatch.delenv("CLOUDFLARE_ACCOUNT_ID", raising=False)
+    assert not llm.PROVIDERS["workers-ai"].available
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
+    assert llm.PROVIDERS["workers-ai"].available

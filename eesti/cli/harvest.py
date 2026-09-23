@@ -12,9 +12,8 @@ import argparse
 
 from ._helpers import content_path
 
-#: Printed after anything that changes the corpus: only `link-topics` refills
-#: `topic_items`, and nothing on the deploy path runs it.
-NEXT_LINK_TOPICS = "next: python -m eesti.cli link-topics (drills show no reading until it runs)"
+#: Local previews can refresh immediately; `push-content` refreshes before upload.
+NEXT_LINK_TOPICS = "local preview: python -m eesti.cli link-topics; push-content rebuilds links automatically"
 
 
 def cmd_harvest(args: argparse.Namespace) -> int:
@@ -47,10 +46,13 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
     from ..sources import add_items, clear_source, connect, register
 
     posts = fetch(limit=args.limit)
+    if not posts:
+        print("Selges keeles returned no readable posts. Existing texts were kept.")
+        return 1
+    items = to_items(posts)
     conn = connect(content_path(args))
     register(conn)
     clear_source(conn, "selges-keeles")
-    items = to_items(posts)
     add_items(conn, items)
 
     words = sum(p.word_count for p in posts)
@@ -137,7 +139,11 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     # Two official sources, and they are not the same thing. EIS publishes
     # interactive tasks that score themselves; harno.ee publishes the task PDFs
     # and the listening audio. A learner wants both, for different sittings.
-    tasks = catalogue(levels)
+    try:
+        tasks = catalogue(levels)
+    except Exception as exc:  # noqa: BLE001 - HARNO is an independent source
+        tasks = []
+        print(f"EIS unavailable ({type(exc).__name__}); existing tasks were kept.")
     bodies: dict[str, tuple[str, list[str]]] = {}
     if tasks and getattr(args, "download", False):
         # Their server: one task at a time, spaced, and a task that will not
@@ -220,16 +226,13 @@ def cmd_link_topics(args: argparse.Namespace) -> int:
     Vabamorf analysis runs once, not per request.
     """
     from .. import config
-    from ..topiclinks import link_labelled, link_topics
+    from ..topiclinks import rebuild
     from ..sources import connect as content_connect
     from ..wordlist import connect as wordlist_connect
 
     content = content_connect(config.CONTENT_DB)
-    counts = link_topics(content, wordlist_connect())
-    # After the derived links: `link_topics` clears the table, and a lesson label
-    # outranks an inferred link.
-    for topic, n in link_labelled(content).items():
-        counts[topic] = counts.get(topic, 0) + n
+    with wordlist_connect() as words:
+        counts = rebuild(content, words)
     if not counts:
         print("No text demonstrated any topic often enough to be worth "
               "offering. Has the corpus been harvested?")

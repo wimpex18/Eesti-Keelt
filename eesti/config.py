@@ -28,8 +28,8 @@ TAGS = (
     "rektsioon",
 )
 
-# Provider timeout: research APIs often hang (TartuNLP's failure mode is a ~60 s
-# gateway timeout), so fail fast and fall through.
+# Interactive fallback budget, not a claim about service completion latency.
+# Public GEC splits this socket timeout equally between its two endpoints.
 PROVIDER_TIMEOUT = 5.0
 
 TARTUNLP_GRAMMAR = "https://api.tartunlp.ai/grammar/v2"

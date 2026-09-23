@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from contextlib import contextmanager
 
 THRESHOLD = 2
 COOLDOWN = 900.0  # seconds
@@ -31,8 +32,7 @@ CREATE TABLE IF NOT EXISTS breaker (
 _failures: dict[str, tuple[int, float]] = {}
 _store: sqlite3.Connection | None = None
 
-#: Set by `bind_later`; called once, when the breaker first needs storage, which
-#: keeps the database path out of import time.
+#: Set by `bind_later`; each operation opens on its own request thread.
 _opener = None
 _loaded = False
 
@@ -50,8 +50,8 @@ def bind(conn: sqlite3.Connection | None) -> None:
 
 
 def bind_later(opener) -> None:
-    """Bind to whatever `opener()` returns, the first time storage is needed, so the
-    path is resolved only after callers have had a chance to redirect it.
+    """Open per operation, so paths resolve at call time and each thread owns
+    its SQLite connection.
     """
     global _store, _loaded, _opener
     _store = None
@@ -59,33 +59,38 @@ def bind_later(opener) -> None:
     _opener = opener
 
 
-def _conn() -> sqlite3.Connection | None:
-    """The store, opening it on first need. Never raises: an unbound breaker
-    still works, it just forgets across restarts."""
-    global _store, _opener
-    if _store is None and _opener is not None:
-        opener, _opener = _opener, None
+@contextmanager
+def _connection():
+    """Open on the calling request thread; never cache a thread-bound handle."""
+    conn = _store
+    if conn is None and _opener is not None:
         try:
-            conn = opener()
+            conn = _opener()
             conn.executescript(SCHEMA)
-            _store = conn
-        except Exception:  # noqa: BLE001 - storage is an optimisation, not a need
-            _store = None
-    return _store
+        except Exception:  # noqa: BLE001 - in-memory protection survives store failure
+            if conn is not None:
+                conn.close()
+            conn = None
+    try:
+        yield conn
+    except sqlite3.Error:
+        # In-memory protection still works when persistence is unavailable.
+        pass
+    finally:
+        if conn is not None and conn is not _store:
+            conn.close()
 
 
 def _load() -> None:
     global _loaded
-    store = _conn()
-    if _loaded or store is None:
+    if _loaded:
         return
-    _loaded = True
-    try:
+    with _connection() as store:
+        if store is None:
+            return
         for row in store.execute("SELECT name, failures, last FROM breaker"):
-            # Memory wins: it is this process's own, more recent evidence.
             _failures.setdefault(row[0], (row[1], row[2]))
-    except sqlite3.Error:
-        pass
+        _loaded = True
 
 
 def cooldown(count: int) -> float:
@@ -107,8 +112,9 @@ def record_failure(name: str) -> None:
     count, _ = _failures.get(name, (0, 0.0))
     now = time.time()
     _failures[name] = (count + 1, now)
-    store = _conn()
-    if store is not None:
+    with _connection() as store:
+        if store is None:
+            return
         try:
             store.execute(
                 "INSERT INTO breaker (name, failures, last) VALUES (?,?,?) "
@@ -123,8 +129,9 @@ def record_failure(name: str) -> None:
 def record_success(name: str) -> None:
     _load()
     _failures.pop(name, None)
-    store = _conn()
-    if store is not None:
+    with _connection() as store:
+        if store is None:
+            return
         try:
             store.execute("DELETE FROM breaker WHERE name = ?", (name,))
             store.commit()
@@ -137,8 +144,9 @@ def reset() -> None:
     global _loaded
     _failures.clear()
     _loaded = True          # nothing to load; the caller means "try again now"
-    store = _conn()
-    if store is not None:
+    with _connection() as store:
+        if store is None:
+            return
         try:
             store.execute("DELETE FROM breaker")
             store.commit()

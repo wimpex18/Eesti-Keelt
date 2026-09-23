@@ -110,7 +110,8 @@ class TestTheChainStillFallsThrough:
         breaker.reset()
         monkeypatch.setattr(llm.urllib.request, "urlopen",
                             lambda *a, **k: (_ for _ in ()).throw(http_error()))
-        monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+        monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "k")
+        monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
         result = grammar.check("Ma lugesin raamatut läbi")
         assert result.engine
         assert "429" in result.diagnostics

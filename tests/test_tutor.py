@@ -237,3 +237,27 @@ class TestOneBoundary:
             assert after == before + 1
         finally:
             budget.bind(None)
+
+
+def test_tutor_outage_trips_shared_breaker_without_retries(monkeypatch):
+    from eesti.providers import breaker, grammar, llm
+
+    calls = []
+    monkeypatch.setattr(type(llm.PROVIDERS["workers-ai"]), "available", property(lambda self: True))
+    def unavailable(name, *args, **kwargs):
+        assert kwargs["attempts"] == 1
+        calls.append(name)
+        raise TimeoutError()
+    monkeypatch.setattr(llm, "complete", unavailable)
+    for _ in range(3):
+        assert tutor._ask("test", set(), "test", None).degraded
+    assert len(calls) == 2 * len(grammar.LLM_PREFERENCE)
+    assert all(breaker.is_open(f"llm:{name}") for name in grammar.LLM_PREFERENCE)
+
+
+def test_tutor_malformed_field_degrades_instead_of_crashing(monkeypatch):
+    from eesti.providers import llm
+
+    monkeypatch.setattr(type(llm.PROVIDERS["workers-ai"]), "available", property(lambda self: True))
+    monkeypatch.setattr(llm, "complete", lambda *args, **kwargs: '{"explanation_ru": ["invalid"]}')
+    assert tutor._ask("test", set(), "test", None).degraded

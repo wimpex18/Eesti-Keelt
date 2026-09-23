@@ -1,20 +1,20 @@
 name: Estonian model eval
 
 # Scores a grammar model on the 18-case Estonian eval (docs/ai-providers.md).
-# Manual, plus weekly on OpenRouter to catch a `:free` alias changing model.
+# Manual candidates, plus weekly on the actual production grammar lane.
 on:
   workflow_dispatch:
     inputs:
       provider:
         description: Provider to score
-        default: openrouter
+        default: workers-ai
         type: choice
         # Must equal `llm.PROVIDERS` minus `local` (no runner has a local model
         # server), plus `evals.gec.NON_LLM`; a test checks both directions.
         options: [openrouter, mistral, nvidia, workers-ai, tartunlp, tartunlp-mt]
       model:
         description: Model to score
-        default: "dots-studio/dots-3-note-preview:free"
+        default: "(provider default)"
         type: choice
         # Free OpenRouter ids, or a lane's pinned default (a test checks).
         # `(provider default)` passes no --model, so the lane's own pin is used.
@@ -31,7 +31,7 @@ on:
           the model's weakness is judgement or morphology.
         default: false
         type: boolean
-  # Weekly only: OpenRouter's free tier is 50 requests a day.
+  # Weekly: bounded 18-case production grammar check.
   schedule:
     - cron: "17 6 * * 1"
 
@@ -39,7 +39,7 @@ jobs:
   eval:
     runs-on: ubuntu-latest
     env:
-      PROVIDER: ${{ inputs.provider || 'openrouter' }}
+      PROVIDER: ${{ inputs.provider || 'workers-ai' }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
@@ -67,6 +67,11 @@ jobs:
         if: ${{ !startsWith(env.PROVIDER, 'tartunlp') }}
         continue-on-error: true
         run: python -m eesti.cli models --provider "$PROVIDER" --limit 10
+
+      - name: Probe public GEC POST contracts
+        if: env.PROVIDER == 'tartunlp'
+        continue-on-error: true
+        run: python -m eesti.cli provider-health --timeout 5
 
       # "No key" must never look like "model passed".
       - name: Score the model on Estonian

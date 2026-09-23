@@ -119,7 +119,8 @@ class TestTheDeploymentCanSayWhetherTheKeyLanded:
 
     def test_it_can_explain_once_the_key_is_on_this_process(self, client,
                                                             monkeypatch):
-        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+        monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-key")
+        monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
         got = client.get("/api/engines").json()
         assert got["can_explain"] is True
 

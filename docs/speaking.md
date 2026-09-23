@@ -26,10 +26,13 @@ so `Rääkimine` does what a phone can do honestly.
 
 ## Where the voice goes
 
-In production the recording is sent to Cloudflare Workers AI (Whisper, language
-`et`) through the Worker, used for one request and not stored anywhere. The
-learner is told this in the panel before recording. Running `cli serve` with
-local whisper.cpp keeps the voice on the machine.
+In production the recording goes to Cloudflare Workers AI (Whisper, language
+`et`) through the Worker. The app does not archive that audio; the evidence log
+**does retain transcripts and practice signals**, and exports contain them.
+Provider handling follows [Cloudflare's data policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/).
+Local-only recognition keeps audio on the machine only when hosted lanes are
+not configured. Eval recording intentionally saves audio locally. These are
+three different privacy boundaries.
 
 ## Not built
 
@@ -45,31 +48,18 @@ process can use.
 
 ## Before swapping a recogniser
 
-`cli eval --suite asr` scores the engines on **the owner's own voice**
-(ADR-0003, `docs/adr/0003-speech-eval-data.md`). The set is recorded in the app:
-`Rääkimine → Hindamiskomplekt` shows a sentence, records it, and writes
-`data/eval/asr/<n>.webm` beside `<n>.txt` (what was read) and, for a planted
-prompt, `<n>.said` (the word deliberately said wrong). That block exists only
-under `cli serve`: the routes are absent where `PROXY_TOKEN` is set, so nothing
-is recorded on the deployment. Recordings are personal data and stay out of git.
+The production choice is Cloudflare plus a **local TalTech benchmark reference**,
+not an additional production service. `docs/asr-evaluation.md` contains the
+current model comparison and the complete recording/verification workflow.
 
-Aim for 80–150 sentences, a quarter of them planted — the size at which a
-10 % versus 20 % difference is distinguishable (Liu et al., Interspeech 2023),
-given that words inside one utterance are not independent.
-
-It reports WER with its substitution/deletion/insertion split (insertions are
-the recogniser inventing words in a pause), CER, latency, and the measure that
-decides this choice: the **false-accept rate** — how often a planted mistake
-comes back corrected. A generic Whisper tends to tidy learner Estonian into
-fluent Estonian, which hides the mistake and flatters a read-aloud score.
-TalTech's verbatim model exists for exactly this, and is the candidate to beat.
-
-`evals.asr.compare(a, b)` puts two runs side by side on the same clips and
-resamples by clip, because word errors inside one utterance are correlated; it
-reports the difference with a 95 % interval and whether it is decisive.
-
-No number here is a gate: one voice and one microphone describe this learner.
-
+`cli eval --suite asr` defaults to the production recogniser. Recording prompts
+in `.txt` are drafts; listen, correct the transcript and seal it with
+`cli asr-verify --listened`. Only unchanged verified pairs are scored. The
+harness reports WER, CER, latency, aligned false acceptance, morphology-sensitive
+errors and per-clip coverage, with a paired comparison of named engines.
+`faster-whisper` is an eval-only optional CPU backend for TalTech's official CT2
+weights. The existing whisper.cpp reference needs WAV input. No learner clips
+are present here, so comparative quality remains unmeasured.
 
 ## A human voice where EKI recorded one
 

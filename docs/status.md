@@ -9,7 +9,7 @@ the same change that makes it untrue.
 | Area | State |
 |---|---|
 | **Drills** | 26 of 36 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, question words, word order, punctuation, rection. |
-| **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built. |
+| **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Rada's Täna: today's blocks in a time budget (reviews, the weakest rule with its last mistake, refresh, the least-practised exam part, the next topic, a text), each with its reason in Russian (`eesti/planning.py`). |
 | **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Test-out runs from `Kogu rada` or the CLI (five of five, graded server-side); the placement sweep is CLI-only (`cli assess`). |
 | **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
@@ -68,25 +68,24 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 
 ## Known issues
 
-- **`cli link-topics` is a manual step.** It fills `topic_items`, the join that
-  puts reading texts beside a drill. Nothing on the deploy path runs it: after
-  a re-harvest, run it before `deploy/push-content.sh`. `/api/health` reports
-  `corpus.topic_links`; the harvest commands print the reminder, and
-  `cli push-content` and smoke warn when it is zero.
-- **Grammar providers are free tiers with limits.** TartuNLP GEC answers
-  first (its explanations are Estonian, not Russian), then the LLM lanes:
-  Workers AI (10 000 neurons/day); NVIDIA's GLM-5.3-Flash is accurate but takes
-  20–60 s; Mistral mostly returns "no errors"; OpenRouter allows 50 requests
-  a day and counts failures. When all fail the check degrades to Vabamorf
-  offline evidence. See `docs/ai-providers.md`.
-- **TartuNLP GEC, first in the grammar chain, does not answer.** Its front
-  end is up, but the model behind it (on the University of Tartu cluster)
-  answers `/grammar/` with a 500 after 60 s, so `cli eval --provider tartunlp`
-  scores none of the 18 cases. The breaker skips it after two failures; the
-  lane stays for when the backend returns. Neurotõlge est→est
-  (`tartunlp-mt`) covers form errors without explanations meanwhile.
-- **The weekly eval schedule scores only OpenRouter.** Other lanes are checked
-  by manual dispatch of `eval.yml`.
+- **Grammar is qualified, not provider-count driven.** Workers AI GPT-OSS-120B
+  is the only automatic hosted grammar/tutor lane, with deterministic offline
+  degradation. Other LLMs and public GEC/est→est normalization remain explicit
+  evaluation candidates. Fresh Mistral/newer-model comparisons are recorded in
+  `docs/evaluations/providers.json` and explained in `docs/ai-providers.md`.
+- **Public GEC remains unavailable.** Both endpoints timed out on all three
+  12-second probes on 2026-09-23; longer probes on 2026-09-22 returned HTTP 500
+  near 60 seconds. It is removed from automatic traffic. TTS and translation
+  independently pass actual POST checks and remain in use.
+- **Allowances are not billing caps.** Workers AI speech and text share the
+  account allocation; local counters do not measure all account usage. The
+  weekly grammar eval now checks the actual production lane.
+- **Source refreshes preserve usable data.** Empty Selges responses keep the
+  existing corpus; EIS failure does not stop HARNO. Deleting source content
+  clears its links. Content upload rebuilds topic links before publishing and
+  refuses without the publishing machine's built word list.
+- **Reminders need browser opt-in.** VAPID bindings and hourly cron are verified
+  on the deployed Worker. No browser subscription or push delivery was tested.
 - **Browser journeys are not in CI.** They protect a release only when run
   locally (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,
@@ -94,5 +93,14 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   headword for them. EKI's Russian–Estonian dictionary (VES, same licence
   page) might attest them from the Russian side (`с кем` → `kellega`); it is
   not downloaded or checked.
-- **Nothing measures ASR quality** — there is no Estonian speech benchmark wired
-  up.
+- **ASR learner quality is unmeasured.** The existing harness compares named
+  engines on manually verified audio, including false acceptance and morphology;
+  this checkout has no learner eval clips. Native EKI controls ran on Cloudflare,
+  TalTech CT2 and Zipformer, establishing runtime feasibility, not learner accuracy.
+  Recording prompts are not ground truth.
+  Production remains Cloudflare with a local TalTech reference; see
+  `docs/asr-evaluation.md`.
+- **State replication is asynchronous.** Event copying follows the response;
+  an origin crash before copying can lose acknowledged work. There is no
+  independent nightly backup or self-service erasure. Private exports can be
+  replay-checked with `cli verify-backup`; see `docs/deploy.md` and ADR-0005.

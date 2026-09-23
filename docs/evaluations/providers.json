@@ -1,0 +1,361 @@
+{
+  "scope": "Public 18-case app grammar detection eval; not learner data or full linguistic quality. Timings include request pacing. All models listed by authenticated catalogues.",
+  "runs": [
+    {
+      "provider": "workers-ai",
+      "model": "@cf/openai/gpt-oss-120b",
+      "evidence": false,
+      "recall": 0.8,
+      "precision": 1.0,
+      "caught": "8/10",
+      "left_alone": "8/8",
+      "broken": 0,
+      "valid": true,
+      "failures": [
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen' (irregular stem: minema -> lähen)"
+        ],
+        [
+          "Eile ma teesin kodutööd.",
+          "missed 'teesin' (irregular past: tegema -> tegin)"
+        ]
+      ],
+      "checked_at": "2026-09-23T06:19:43.431207+00:00",
+      "attempts": 1,
+      "timeout": 30,
+      "latencies": [
+        6.777,
+        3.711,
+        2.559,
+        9.01,
+        5.684,
+        3.252,
+        7.028,
+        6.217,
+        2.486,
+        8.921,
+        2.157,
+        2.795,
+        4.273,
+        4.111,
+        2.907,
+        6.338,
+        2.513,
+        3.958
+      ],
+      "latency_p50": 4.0344999999999995,
+      "latency_max": 9.01
+    },
+    {
+      "provider": "mistral",
+      "model": "mistral-large-latest",
+      "evidence": false,
+      "recall": 0.2,
+      "precision": 1.0,
+      "caught": "2/10",
+      "left_alone": "8/8",
+      "broken": 0,
+      "valid": true,
+      "failures": [
+        [
+          "Ma lugesin eile selle raamatut läbi.",
+          "missed 'raamatut' (completed action + 'läbi' -> total object, genitive)"
+        ],
+        [
+          "Homme ma teen seda tööd valmis.",
+          "missed 'tööd' ('valmis' = result achieved -> genitive)"
+        ],
+        [
+          "Ta leidis oma võtit üles.",
+          "missed 'võtit' (found completely -> genitive)"
+        ],
+        [
+          "Ma ei ostnud pileti.",
+          "missed 'pileti' (negation always takes partitive)"
+        ],
+        [
+          "Ta luges raamatu terve õhtu.",
+          "missed 'raamatu' (duration -> ongoing -> partitive)"
+        ],
+        [
+          "Ma otsin oma rahakoti juba kaua.",
+          "missed 'rahakoti' (still ongoing -> partitive)"
+        ],
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen' (irregular stem: minema -> lähen)"
+        ],
+        [
+          "Eile ma teesin kodutööd.",
+          "missed 'teesin' (irregular past: tegema -> tegin)"
+        ]
+      ],
+      "checked_at": "2026-09-23T06:19:16.894816+00:00",
+      "attempts": 1,
+      "timeout": 30,
+      "latencies": [
+        2.403,
+        2.66,
+        3.411,
+        2.844,
+        3.609,
+        5.384,
+        1.357,
+        3.748,
+        3.173,
+        3.689,
+        3.433,
+        3.418,
+        3.53,
+        3.547,
+        3.537,
+        3.434,
+        3.706,
+        3.386
+      ],
+      "latency_p50": 3.4335,
+      "latency_max": 5.384
+    },
+    {
+      "provider": "mistral",
+      "model": "mistral-medium-3-5",
+      "evidence": false,
+      "recall": 0.3,
+      "precision": 0.875,
+      "caught": "3/10",
+      "left_alone": "7/8",
+      "broken": 0,
+      "valid": true,
+      "failures": [
+        [
+          "Homme ma teen seda tööd valmis.",
+          "missed 'tööd' ('valmis' = result achieved -> genitive)"
+        ],
+        [
+          "Ta leidis oma võtit üles.",
+          "missed 'võtit' (found completely -> genitive)"
+        ],
+        [
+          "Ma ei ostnud pileti.",
+          "missed 'pileti' (negation always takes partitive)"
+        ],
+        [
+          "Ta luges raamatu terve õhtu.",
+          "missed 'raamatu' (duration -> ongoing -> partitive)"
+        ],
+        [
+          "Ma otsin oma rahakoti juba kaua.",
+          "missed 'rahakoti' (still ongoing -> partitive)"
+        ],
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen' (irregular stem: minema -> lähen)"
+        ],
+        [
+          "Eile ma teesin kodutööd.",
+          "missed 'teesin' (irregular past: tegema -> tegin)"
+        ],
+        [
+          "Ma lugesin selle raamatu läbi.",
+          "false flag ['selle raamatu'] (correct: completed -> genitive)"
+        ]
+      ],
+      "checked_at": "2026-09-23T06:20:19.840370+00:00",
+      "attempts": 1,
+      "timeout": 30,
+      "latencies": [
+        4.222,
+        2.993,
+        3.664,
+        2.903,
+        4.068,
+        2.966,
+        3.842,
+        3.636,
+        3.027,
+        3.522,
+        4.163,
+        3.353,
+        3.011,
+        3.679,
+        3.404,
+        3.638,
+        3.448,
+        3.406
+      ],
+      "latency_p50": 3.485,
+      "latency_max": 4.222
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/qwen/qwen3.8-27b",
+      "evidence": false,
+      "recall": 0.875,
+      "precision": 1.0,
+      "caught": "7/8",
+      "left_alone": "7/7",
+      "broken": 3,
+      "valid": true,
+      "failures": [
+        [
+          "Homme ma teen seda tööd valmis.",
+          "ERROR TimeoutError"
+        ],
+        [
+          "Ma otsin oma rahakoti juba kaua.",
+          "ERROR TimeoutError"
+        ],
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen' (irregular stem: minema -> lähen)"
+        ],
+        [
+          "Ma lugesin selle raamatu läbi.",
+          "ERROR TimeoutError"
+        ]
+      ],
+      "checked_at": "2026-09-23T06:22:50.182758+00:00",
+      "attempts": 1,
+      "timeout": 30,
+      "latencies": [
+        6.832,
+        12.725,
+        6.81,
+        30.229,
+        6.23,
+        4.159,
+        4.65,
+        30.228,
+        4.345,
+        22.143,
+        30.059,
+        2.215,
+        5.436,
+        5.124,
+        2.405,
+        6.49,
+        3.005,
+        3.667
+      ],
+      "latency_p50": 5.833,
+      "latency_max": 30.229
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/google/gemma-4-26b-a4b-it",
+      "evidence": false,
+      "recall": null,
+      "precision": null,
+      "caught": "6/7",
+      "left_alone": "6/6",
+      "broken": 5,
+      "valid": false,
+      "failures": [
+        [
+          "Homme ma teen seda tööd valmis.",
+          "ERROR TimeoutError"
+        ],
+        [
+          "Ma otsin oma rahakoti juba kaua.",
+          "ERROR TimeoutError"
+        ],
+        [
+          "Homme ma minen kooli.",
+          "ERROR TimeoutError"
+        ],
+        [
+          "Eile ma teesin kodutööd.",
+          "missed 'teesin' (irregular past: tegema -> tegin)"
+        ],
+        [
+          "Ma ostsin uue auto.",
+          "ERROR TimeoutError"
+        ],
+        [
+          "Mulle meeldib eesti keel, aga grammatika on raske.",
+          "ERROR TimeoutError"
+        ]
+      ],
+      "invalid_reason": "5/18 cases never reached the model (rate limit, timeout or unparseable reply) — no score reported",
+      "checked_at": "2026-09-23T06:38:15.415546+00:00",
+      "attempts": 1,
+      "timeout": 30,
+      "latencies": [
+        28.57,
+        3.207,
+        29.742,
+        30.047,
+        25.477,
+        27.652,
+        16.888,
+        30.05,
+        30.055,
+        17.542,
+        7.704,
+        6.071,
+        7.609,
+        30.062,
+        7.685,
+        8.456,
+        30.051,
+        10.353
+      ],
+      "latency_p50": 21.509500000000003,
+      "latency_max": 30.062
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/qwen/qwen3.8-27b",
+      "evidence": false,
+      "recall": 0.778,
+      "precision": 1.0,
+      "caught": "7/9",
+      "left_alone": "8/8",
+      "broken": 1,
+      "valid": true,
+      "failures": [
+        [
+          "Homme ma teen seda tööd valmis.",
+          "missed 'tööd' ('valmis' = result achieved -> genitive)"
+        ],
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen' (irregular stem: minema -> lähen)"
+        ],
+        [
+          "Eile ma teesin kodutööd.",
+          "ERROR TimeoutError"
+        ]
+      ],
+      "checked_at": "2026-09-23T11:33:08.203576+00:00",
+      "reasoning_effort": "low",
+      "max_completion_tokens": 2000,
+      "timeout": 25,
+      "attempts": 1,
+      "actual_calls": 18,
+      "latencies": [
+        21.13,
+        6.506,
+        4.961,
+        6.347,
+        17.004,
+        9.01,
+        17.305,
+        6.462,
+        3.969,
+        25.065,
+        4.029,
+        10.97,
+        19.45,
+        4.48,
+        2.771,
+        3.799,
+        3.891,
+        3.429
+      ],
+      "latency_p50": 6.4045000000000005,
+      "latency_max": 25.065
+    }
+  ]
+}

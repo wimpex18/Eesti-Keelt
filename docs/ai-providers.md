@@ -1,9 +1,11 @@
 # AI providers
 
-Each lane has a day's allowance (`providers/budget.py`), set under the
-provider's published limit and counted in `progress.db`, so a cold start cannot
-spend a 50-a-day quota four times over. A lane whose allowance is spent is
-skipped like a failing one, and `/api/engines` reports what is left.
+Origin-side lanes have best-effort daily call allowances (`providers/budget.py`)
+in snapshotted `progress.db`. `/api/engines` reports those counts. They are not
+hard billing caps: token/audio cost varies, provider accounts share usage,
+concurrent checks can overlap, and a crash can lose recent snapshot counts.
+Worker ASR does not pass through this Python budget. Cloudflare's account quota
+is the production speech limit.
 
 Grammar checks and origin-side speech recognition go through a chain of
 interchangeable providers with a shared circuit breaker (`providers/breaker.py`:
@@ -14,36 +16,138 @@ name the engine that answered.
 
 ## Grammar chain
 
-`providers/grammar.py` builds: **TartuNLP GEC** → LLM lanes in
-`LLM_PREFERENCE` → **Neurotõlge est→est** → **Vabamorf offline** (always
-answers: object-case candidates and spelling, no explanations).
+`providers/grammar.py` builds: explicitly configured **local trial** →
+**Workers AI GPT-OSS-120B** → **Vabamorf offline**. The tutor uses the same
+qualified LLM list. Deterministic spelling, agreement and rection accompany
+successful model answers and take precedence on conflicting spans.
 
-- **TartuNLP GEC** (`api.tartunlp.ai/grammar`) fronts a Llammas 7B model on
-  the University of Tartu cluster. While that backend does not answer, the
-  breaker steps over the lane; it stays in the chain for when it returns.
-- **Neurotõlge est→est** (`tartunlp-mt`) runs TartuNLP's translation service
-  from Estonian to Estonian, which normalises the sentence. It paraphrases as
-  well, so only one-for-one substitutions of the same lemma with the same
-  number survive, and a genitive ↔ partitive swap only after a negation. It
-  gives no explanation. Eval: precision 1.0, recall 0.1 on the 18 cases,
-  whose errors are mostly the aspect swaps it refuses to judge.
-- TartuNLP's terms say both services store what they are sent. Deterministic spelling, agreement
-and rection checks are merged into every answer.
+Public GEC is removed from automatic requests because it is unavailable.
+Neurotõlge remains the healthy translation service, but est→est normalization
+is evaluation-only: low-recall normalization must not stand in for a grammar
+verdict. Mistral, NVIDIA and OpenRouter clients remain explicit evaluation
+candidates, not automatic fallbacks. A Cloudflare outage now produces visible
+deterministic offline evidence instead of trying a known unsuitable checker.
+No additional production host, paid plan or model-specific routing chain is added.
 
-LLM lanes (`providers/llm.py`, all OpenAI-compatible, all free):
+### Public GEC: observed service and contract
 
-| Order | Lane | Default model | Key(s) | Free limit | Measured |
-|---|---|---|---|---|---|
-| 1 | `local` | EstLLM 8B GGUF via Ollama | `LOCAL_LLM_URL` | unmetered, your machine | — |
-| 2 | `workers-ai` | `@cf/openai/gpt-oss-120b` | `CLOUDFLARE_API_TOKEN` (Workers AI Read) + `CLOUDFLARE_ACCOUNT_ID` | 10 000 neurons/day | P 1.0 · R 0.8 · 3–8 s |
-| 3 | `nvidia` | `z-ai/glm-5.3-flash` | `NVIDIA_API_KEY` | 40 req/min | P 1.0 · R 1.0 · 20–60 s, 1 of 18 timed out |
-| 4 | `mistral` | `mistral-large-latest` | `MISTRAL_API_KEY` | Experiment plan, ~1B tokens/month | P 1.0 · R 0.3 · 1–4 s |
-| 5 | `openrouter` | `dots-studio/dots-3-note-preview:free` | `OPENROUTER_API_KEY` | 50 req/day, failures count | P 1.0 · R 0.71 |
+Direct probes from this checkout's Python 3.14 runtime on **2026-09-22** used
+`POST {"language":"et","text":...}` with `Content-Type: application/json`.
+The sentences were “Ma elan Tallinnas.”, “Mul on kaks koer ja üks kass.” and
+“Ma lugesin raamatut läbi.” Both endpoints timed out on all three at a 12-second
+read deadline. A longer probe of the first sentence with a 70-second deadline
+and `application: eesti-keelt` returned **HTTP 500 after 60.143 s on `/grammar/v2`
+and 60.164 s on `/grammar/`**. These are observed failures, not an assumed
+latency requirement.
 
-**Order = recall at precision 1.0, weighed against how long the learner
-waits.** NVIDIA gives the best answer but is too slow to go first. Mistral
-leads Tartu's human-vote Estonian leaderboard for fluency yet mostly answers
-"no errors" on this task, so fluency does not decide the order.
+The [live OpenAPI](https://api.tartunlp.ai/grammar/openapi.json) returns 200,
+still defines the same `language`/`text` body (text ≤10,000 characters), and
+specifies no client authentication or application header. Missing `text`
+returns 422 immediately. The official
+[grammar API](https://github.com/TartuNLP/grammar-api) documents credentials
+for its **upstream model endpoints**, not for our public client. Thus no schema
+or client credential mismatch was found. An application header did not cure
+the failure; backend logs were not available, so the internal cause is unknown.
+The public deployment's model identity was not verified from its responses.
+
+`PROVIDER_TIMEOUT=5` bounds the retained diagnostic adapter: the implementation gives
+each endpoint a 2.5-second socket timeout, plus connection overhead. It is not a
+strict total wall-clock deadline or evidence that a healthy service fits it.
+Automatic learner requests never call this service. Keep diagnostics bounded. Re-evaluate successful latency and grammar quality before promotion.
+An invalid JSON/schema response is a failure, never “no corrections”.
+
+```bash
+python -m eesti.cli provider-health --timeout 5
+python -m eesti.cli provider-health --timeout 70  # six bounded POSTs; operator diagnostic
+python -m eesti.cli eval --provider tartunlp     # quality, distinct from health
+```
+
+The diagnostic prints per-endpoint status/failure, latency and timestamp, uses
+canned text and never prints remote error bodies. Exit 2 means not operational.
+It can be run in the local or Cloud Run project runtime; the direct probes above
+were local. Production smoke with `deep: true` separately demonstrated an answering
+Workers AI grammar lane, not GEC health or ASR accuracy.
+
+### Self-hosted TartuNLP GEC
+
+The official [gec-ollama-api](https://github.com/TartuNLP/gec-ollama-api) provides
+CPU/GPU Docker instructions and GGUF conversion/quantisation for
+[tartuNLP/Llama-3.1-8B-est-gec-july-2025](https://huggingface.co/tartuNLP/Llama-3.1-8B-est-gec-july-2025).
+The released weights are 8.03B BF16 parameters, about **16.06 GB**, before runtime
+and KV-cache memory. FP16/BF16 needs more memory than that footprint; budget
+24–32 GB RAM/VRAM for a trial. Q4 weights have a roughly 4 GB theoretical payload
+plus quantisation metadata; plan roughly 6–10 GB resident memory and measure.
+These are sizing estimates, not measured requirements or latency results.
+
+CPU execution is useful for private experiments on an existing machine, but
+interactive cold-load/token latency is unmeasured. GPU hosting adds paid compute,
+authentication, model storage, health checks and operations. The wrapper's MIT
+licence does not relicense the Llama-derived weights: the model card's licence
+metadata is incomplete; upstream Llama terms also need review before hosting.
+The checked Compose file defines GPU profiles, despite the README's CPU command;
+use its `Dockerfile.cpu` instructions for a local trial, not an assumed working
+CPU Compose deployment. Reproducing the public v2 explanation stack may need
+GED/GEE models and the grammar middleware, not just the GEC model server.
+
+**Decision:** no self-hosted production GEC or laptop tunnel. No free always-on
+GPU is configured and no measured correction/latency win offsets the additional
+service. A corrected-sentence model is not a drop-in for the existing JSON
+teacher prompt. Test it separately if local privacy becomes the deciding need.
+
+LLM clients (`providers/llm.py`, OpenAI-compatible), checked 2026-09-23:
+
+| Candidate | Planted errors caught | Correct sentences left alone | Failed calls | Median / max seconds |
+|---|---|---|---|---|
+| **Workers AI GPT-OSS-120B — production** | 8/10 | 8/8 | 0 | 4.03 / 9.01 |
+| Mistral Large latest | 2/10 | 8/8 | 0 | 3.43 / 5.38 |
+| Mistral Medium 3.5 (`mistral-medium-3-5`) | 3/10 | 7/8 | 0 | 3.49 / 4.22 |
+| Workers AI Qwen 3.8 27B, default settings | 7/8 measured | 7/7 measured | 3 | 5.83 / 30.23 |
+| Qwen 3.8, low reasoning / 2,000 completion tokens | 7/9 measured | 8/8 | 1 | 6.40 / 25.07 |
+| Workers AI Gemma 4 26B A4B | 6/7 measured | 6/6 measured | 5; quality score invalid | 21.51 / 30.06 |
+
+Exact reports: `docs/evaluations/providers.json`. These use the existing 18-case
+**error-detection** eval; “caught” does not certify every proposed replacement
+or Russian explanation. No raw learner text is in the reports. Calls used one
+attempt, a 30-second socket timeout (25 for Qwen low); timing includes client
+pacing, network and inference. Clean controls and failure coverage matter as
+much as recall. Qwen's second trial used the documented `reasoning_effort=low`
+and `max_completion_tokens=2000`, so its slower/failed calls are not merely an
+untested default-parameter objection.
+
+All tested IDs were present in live authenticated catalogues. Cloudflare's
+GLM 5.3 Flash is also present but marked `require_workers_paid=true`; it was
+not promoted or invoked on an assumed free plan. Current official references:
+[Qwen 3.8](https://developers.cloudflare.com/workers-ai/models/qwen3.8-27b/),
+[Mistral Medium 3.5](https://docs.mistral.ai/models/mistral-medium-3-5-26-04),
+and [Cloudflare model catalogue](https://developers.cloudflare.com/ai/models/).
+
+**Decision:** keep GPT-OSS-120B, remove weak hosted fallbacks from automatic
+routing. Mistral is reachable but inaccurate on this task, not “unstable”. Its
+newer model did not fix that. Qwen and Gemma did not show a reliable latency/
+quality advantage. NVIDIA's [18/18 timeout result](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35721653153)
+and OpenRouter's [partial/low-recall result](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35602506211)
+also do not justify automatic use. Configuring `LOCAL_LLM_URL` remains an explicit
+private trial; no local server is part of production.
+
+The [current production smoke](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35826198771)
+reached Workers AI, verified Access/origin protection and Ekilex, and found
+609 library texts / 660 topic links. It tested the current main deployment,
+not unmerged branch changes or microphone recognition.
+
+Interactive grammar/tutor requests use one completion attempt per lane, with
+the existing 60-second socket timeout; explicit evals retain retries. These are
+not a total request deadline. Tutor transport/JSON failures now update the same
+persistent breaker as grammar. Task-specific grounding still decides whether
+an answering model's content is usable.
+
+Cloudflare has a shared 10,000-Neuron daily free allowance; Mistral's current
+[Free mode limits](https://docs.mistral.ai/admin/billing-usage/usage-limits)
+are organization/model-specific, not a guaranteed billion tokens. OpenRouter's
+[free routes](https://openrouter.zendesk.com/hc/en-us/articles/39501163636379-OpenRouter-Rate-Limits-What-You-Need-to-Know)
+allow 50 requests/day, or 1,000 after qualifying credit purchase, at 20/minute.
+Actual account balances were not inspected. Local inference consumes the owner's
+hardware; the NVIDIA evaluation endpoint has account limits and no verified
+availability guarantee. Keys remain documented in `docs/setup.md`.
 
 Override a pinned model without a deploy: set `<LANE>_MODEL` (e.g.
 `WORKERS_AI_MODEL`, `LOCAL_LLM_MODEL`) on Cloud Run with
@@ -52,9 +156,9 @@ Override a pinned model without a deploy: set `<LANE>_MODEL` (e.g.
 ### Local EstLLM
 
 Run an OpenAI-compatible server (e.g. Ollama with the GGUF above) and set
-`LOCAL_LLM_URL`. To reach it from the deployment, expose it through a tunnel and
-set the URL on Cloud Run. It is private and free, and only as available as the
-machine.
+`LOCAL_LLM_URL`. Local trials use the existing machine; no public tunnel is part of the chosen
+architecture. Local inference has hardware costs and availability limits.
+A self-hosted corrected-sentence GEC needs its own adapter/eval, not this prompt.
 
 ## Choosing a model: the eval
 
@@ -81,7 +185,7 @@ python -m eesti.cli eval --provider nvidia --model z-ai/glm-5.3-flash
 ```
 
 In CI: **Actions → Estonian model eval** (`eval.yml`), choose a provider and a
-model. It runs weekly on OpenRouter only. The model menu may contain only
+model. It runs weekly on Workers AI, the production grammar lane. The model menu may contain only
 `:free` ids or a lane's pinned default (`test_every_selectable_model_is_free`).
 A green run with "not measured" in the summary is not a pass.
 
@@ -98,6 +202,11 @@ the app's asks for a Russian `why`.
 
 ## Speech recognition
 
+Production is **Cloudflare only**, with a local TalTech evaluation reference
+(`docs/asr-evaluation.md`). Hosted fallbacks below are local-development
+compatibility paths, not a second production recogniser.
+
+
 `providers/asr.py` tries: **Workers AI** Whisper (`whisper-large-v3-turbo`,
 language pinned to `et`) → OpenRouter audio → HF Whisper → local whisper.cpp
 (TalTech verbatim) → local Voxtral. In production the Worker answers
@@ -107,7 +216,26 @@ records and plays back.
 
 ## Other services
 
-- **TTS** — TartuNLP (`providers/tts.py`), cached on disk.
-- **Sentence translation** — TartuNLP (`providers/translate.py`), on request.
+- **TTS** — retain TartuNLP Neurokõne (`providers/tts.py`). Actual synthesis
+  of three short Estonian sentences succeeds: HTTP 200, mono 22,050 Hz
+  IEEE-float WAV. This is a separate service from GEC. The
+  [official contract](https://github.com/TartuNLP/text-to-speech-api) takes
+  text, speaker and speed; the default `mari` voice remains available.
+  Both downloads and cached files must contain complete WAV data; error JSON
+  and truncated audio are rejected, and cache writes are atomic. Valid cached
+  audio remains usable during an outage; an uncached failure returns a visible
+  503 instead of an unplayable file. The public service has no verified SLA.
+- **Sentence translation** — retain TartuNLP Neurotõlge
+  (`providers/translate.py`). Real Estonian→Russian and Estonian→English
+  requests succeed for all three test sentences within the existing five-second
+  budget. The
+  [official request schema](https://github.com/TartuNLP/translation-api)
+  accepts three-letter language codes and an optional `application` field in
+  the JSON body; no client credential is needed for the tested public route.
+  Only nonempty strings or lists of such strings count as translations.
+  Malformed responses remain unavailable, never displayed as dictionary or
+  number representations. Translation supports reading and writing checks,
+  never grades learner evidence. Public translation success does not establish
+  GEC availability or linguistic authority.
 - **Dictionary** — Ekilex API (`providers/ekilex.py`) with `EKILEX_API_KEY`,
   else the Sõnaveeb mirror (`providers/sonapi.py`).

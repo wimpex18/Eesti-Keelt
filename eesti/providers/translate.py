@@ -1,7 +1,7 @@
 """Sentence translation via TartuNLP (Estonian-trained NMT, free, no key).
 
 Word glosses cannot unpick a clause (`Neist 52 on kasvatatud Eestis`); this can.
-TartuNLP rather than an LLM: it is built for Estonian, reliable, and spends no
+TartuNLP rather than an LLM: it is built for Estonian and spends no
 grammar-lane quota.
 
 **Offered on request only**, never beside a text by default: a reader handed
@@ -36,6 +36,18 @@ class Translation:
     engine: str = "tartunlp"
 
 
+def result_text(payload: object) -> str | None:
+    """Only translated strings count as answers, never an error object's repr."""
+    if not isinstance(payload, dict):
+        return None
+    result = payload.get("result")
+    if isinstance(result, list):
+        if not all(isinstance(part, str) and part.strip() for part in result):
+            return None
+        result = " ".join(result)
+    return result.strip() if isinstance(result, str) and result.strip() else None
+
+
 def translate(text: str, target: str = "rus",
               timeout: float | None = None) -> Translation | None:
     """One sentence in, one translation out; None (not an exception) when the service
@@ -49,7 +61,8 @@ def translate(text: str, target: str = "rus",
 
     request = urllib.request.Request(
         TARTUNLP_TRANSLATE,
-        data=json.dumps({"text": text, "src": "est", "tgt": target}).encode(),
+        data=json.dumps({"text": text, "src": "est", "tgt": target,
+                         "application": "eesti-keelt"}).encode(),
         headers={"Content-Type": "application/json"},
     )
     try:
@@ -57,13 +70,11 @@ def translate(text: str, target: str = "rus",
             request, timeout=timeout or PROVIDER_TIMEOUT
         ) as response:
             payload = json.loads(response.read())
-    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         return None
 
     # The API returns a bare string for a single input and a list for a batch.
-    result = payload.get("result")
-    if isinstance(result, list):
-        result = " ".join(str(r) for r in result)
-    if not result or not str(result).strip():
+    result = result_text(payload)
+    if result is None:
         return None
-    return Translation(source=text, text=str(result).strip(), target=target)
+    return Translation(source=text, text=result, target=target)

@@ -145,6 +145,15 @@ def link_topics(content: sqlite3.Connection, words, topics=LINKABLE) -> dict:
 
 
 
+def rebuild(content: sqlite3.Connection, words) -> dict[str, int]:
+    """Refresh inferred links, then explicit lesson labels, before publication."""
+    link_topics(content, words)
+    link_labelled(content)
+    return dict(content.execute(
+        "SELECT topic, COUNT(*) FROM topic_items GROUP BY topic"
+    ).fetchall())
+
+
 def related(
     content: sqlite3.Connection,
     topic: str,
