@@ -201,7 +201,13 @@ jobs:
             else
               tasks="$(jq '[.[] | arrays | .[] | select(.id)] | length' \
                 "$RUNNER_TEMP/exam-a2.json")"
-              echo "::error::A2 has $tasks catalogue entries but no readable file."
+              # The sample's 404 detail distinguishes missing catalogue file
+              # metadata from a path that exists in metadata but not the mount.
+              probe_code="$(curl -s -o "$RUNNER_TEMP/exam-probe" -w '%{http_code}' \
+                "${auth[@]}" "$URL/api/exam/file/94c8058dd6de52cf4a028f0e")"
+              reason="$(jq -r '.detail // "unknown reason"' \
+                "$RUNNER_TEMP/exam-probe" 2>/dev/null || echo "HTTP $probe_code")"
+              echo "::error::A2 has $tasks catalogue entries but no readable file: $reason"
               fail=1
             fi
           fi

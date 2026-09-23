@@ -21,8 +21,8 @@ reads. Practice audio stays unsaved; prompts and ASR are never truth. Local
 suite: 2210 passed; browser journeys: 133 passed, 5 skipped.
 
 ## Exact next step
-Run diagnostic branch smoke; compare the owner's Cloud Shell object, env path
-and volume mount output. Correct exam-file access and re-run until it opens.
+Run branch smoke's sample-file probe; compare the owner's Cloud Shell object,
+env path and mount output. Fix exam-file access and re-run until it opens.
 After owner merge and Cloud Build, run deep smoke on `main`. Confirm actual
 Chrome reminder delivery at the next eligible hour outside 22:00–08:00.
 
