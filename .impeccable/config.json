@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-09-23T20:10:28.276Z",
         "reason": "Agent: speak.js inserts the dot only after recorder.start succeeds and labels it Записываю while audio capture is live"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "eesti/web/app.css"
+        ],
+        "createdAt": "2026-09-24T05:50:37.323Z",
+        "reason": "Agent: DESIGN.md explicitly reserves the 3px stripe for correction cards to mark a proposed fix; status cards remove it"
       }
     ]
   }

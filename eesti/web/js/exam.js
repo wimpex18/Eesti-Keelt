@@ -212,7 +212,7 @@ async function openTask(row, id, format, hasFile) {
     <div class="exam-task-head">
       ${hasFile && !pdf ? `<a class="ghost" href="${file}" target="_blank"
                       rel="noopener">открыть файл</a>` : ""}
-      ${text?.url ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
+      ${text?.url && !pdf ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
                        rel="noopener">решить на сайте</a>` : ""}
       <button class="ghost" data-close lang="et">Sulge
         <span class="ru" lang="ru">закрыть</span></button>

@@ -13,9 +13,9 @@ trial caught 9/10 planted errors but left 0/8 clean controls alone; see
 `docs/evaluations/hand-set.md` for the labels and EKI checks.
 
 `Vestlus` supports mic → editable ASR text → tutor reply → TTS. Local-only
-`Hindamiskomplekt` saves selected clips and requires a listened-to, verified
-transcript; ordinary practice audio is unsaved. Official PDF pages, extracted
-text and audio display in-app. Backend and browser suites pass on this branch.
+`Hindamiskomplekt` saves selected clips with a listened-to, verified transcript;
+ordinary practice audio is unsaved. Official PDF pages, raw text and audio
+display in-app; structured tasks and figures are not imported. Controls align.
 Chrome reminders are subscribed; delivery is unverified. A private off-account
 event export passed `cli verify-backup` (9 events); it excludes push
 subscriptions and audio.
