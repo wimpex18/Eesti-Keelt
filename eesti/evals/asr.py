@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 import unicodedata
 from dataclasses import dataclass, field
@@ -34,7 +35,7 @@ from pathlib import Path
 from ..config import DATA
 
 #: Where the recordings live. Owner-only: personal voice, never in git.
-SET = DATA / "eval" / "asr"
+SET = Path(os.environ.get("EESTI_ASR_EVAL_DIR", DATA / "eval" / "asr"))
 
 #: Minimum pilot size, not a statistical power guarantee or a promotion gate.
 ENOUGH = 20

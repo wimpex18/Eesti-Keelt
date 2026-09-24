@@ -13,6 +13,15 @@ from eesti.providers import asr, grammar, llm
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_grammar_lane_rejects_an_unchanged_or_missing_correction(monkeypatch):
+    """A model echo must not appear as a correction in the learner's UI."""
+    for wrong, correct in [("võtmeid", "võtmeid"), ("puudub", "võtit")]:
+        monkeypatch.setattr(llm, "complete", lambda *_a, **_k: json.dumps({
+            "corrections": [{"wrong": wrong, "correct": correct, "why": "test"}]}))
+        with pytest.raises(ValueError, match="invalid grammar correction"):
+            grammar.LLMGrammar("local").check("Ta ei leidnud oma võtmeid.")
+
+
 def _eval_workflow() -> dict:
     # PyYAML reads `on:` as the boolean True (YAML 1.1).
     return yaml.safe_load((ROOT / ".github" / "workflows" / "eval.yml").read_text(encoding="utf-8"))

@@ -40,7 +40,13 @@ def material(tmp_path, monkeypatch):
 
     pdf = tmp_path / "exam" / "B1" / "B1_Lu1.pdf"
     pdf.parent.mkdir(parents=True)
-    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    writer.add_blank_page(width=612, height=792)
+    with pdf.open("wb") as output:
+        writer.write(output)
     return {"here": here.id, "away": away.id}
 
 
@@ -48,6 +54,17 @@ def test_a_downloaded_task_opens_in_the_app(client, material):
     r = client.get(f"/api/exam/file/{material['here']}")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/pdf")
+    assert r.headers["content-disposition"].startswith("inline;")
+
+
+def test_its_pdf_pages_render_inside_the_app(client, material):
+    item = material["here"]
+    assert client.get(f"/api/exam/pages/{item}").json() == {"pages": 2}
+    image = client.get(f"/api/exam/page/{item}/1")
+    assert image.status_code == 200
+    assert image.headers["content-type"] == "image/png"
+    assert image.content.startswith(b"\x89PNG\r\n\x1a\n")
+    assert client.get(f"/api/exam/page/{item}/3").status_code == 404
 
 
 def test_an_older_catalogue_finds_a_later_mounted_harno_file(
@@ -94,6 +111,8 @@ def test_a_meta_row_pointing_out_of_the_folder_is_refused(client, material, tmp_
                      (json.dumps({"file": "../secret.pdf"}), material["here"]))
     conn.close()
     assert client.get(f"/api/exam/file/{material['here']}").status_code == 404
+    assert client.get(f"/api/exam/pages/{material['here']}").status_code == 404
+    assert client.get(f"/api/exam/page/{material['here']}/1").status_code == 404
 
 
 def test_a_deployment_without_the_files_links_out(client, material, monkeypatch,

@@ -578,6 +578,11 @@
   .evalset{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px dashed var(--line);
     border-radius:12px}
   .evalset > summary{cursor:pointer;font-weight:600}
+  .eval-review{margin-top:var(--s4);display:grid;gap:var(--s2)}
+  .eval-review > label:first-child{display:grid;gap:var(--s1);font-weight:600}
+  .eval-review .eval-confirm{display:flex;align-items:flex-start;gap:var(--s2)}
+  .eval-review .eval-confirm input{margin-top:.3em;flex:none}
+  .eval-review > button{justify-self:start}
   .vestlus{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px solid var(--line);
     border-radius:12px;background:var(--panel)}
   .vestlus > summary{cursor:pointer;font-weight:600}
@@ -594,6 +599,12 @@
     background:var(--panel)}
   .exam-task-head{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
   .exam-task audio{width:100%;margin-top:var(--s3)}
+  .exam-preview{margin-top:var(--s3)}
+  .exam-preview > summary{cursor:pointer;font-weight:600}
+  .exam-pages{margin-top:var(--s3)}
+  .exam-pages .row{justify-content:space-between;align-items:center}
+  .exam-pages img{display:block;width:100%;height:auto;margin:var(--s3) auto;
+    border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff}
   .exam-text{white-space:pre-wrap;font-family:inherit;font-size:var(--fs-note);
     line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
   .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;

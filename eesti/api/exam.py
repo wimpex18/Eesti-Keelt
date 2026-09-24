@@ -7,8 +7,10 @@ a caveat.
 
 from __future__ import annotations
 
+import threading
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from ..config import LEVELS
@@ -16,6 +18,7 @@ from .deps import content_db, content_available, db, notion_db, progress_db, voc
 from .render import _glosses_for, item_for_page
 
 router = APIRouter()
+_PDF_LOCK = threading.Lock()  # PDFium calls are not thread-safe.
 
 @router.get("/api/exam/{level}")
 def exam(level: str) -> dict:
@@ -286,17 +289,10 @@ def mock_history(level: str) -> dict:
             "counts": counts(progress_db(), level)}
 
 
-@router.get("/api/exam/file/{item_id}")
-def exam_file(item_id: str):
-    """One downloaded exam file: the task PDF, or its listening recording.
-
-    Only files under `config.EXAM_DIR` are served, and only to the learner —
-    Access guards the app, and this is the exam board's material.
-    """
+def _exam_path(item_id: str):
+    """Find a downloaded task inside the private exam mount, never outside it."""
     import json as _json
     from pathlib import Path
-
-    from fastapi.responses import FileResponse
 
     from .. import config
 
@@ -323,12 +319,76 @@ def exam_file(item_id: str):
             raise HTTPException(status_code=404, detail=(
                 "Этот материал не скачан — открой его по ссылке."))
         raise HTTPException(status_code=404, detail="Файл недоступен.")
+    return path
+
+
+@router.get("/api/exam/file/{item_id}")
+def exam_file(item_id: str):
+    """One downloaded exam file, protected by the same mount containment check."""
+    from fastapi.responses import FileResponse
+
+    path = _exam_path(item_id)
     kinds = {".pdf": "application/pdf", ".mp3": "audio/mpeg",
              ".wav": "audio/wav", ".docx":
              "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
     return FileResponse(path, media_type=kinds.get(path.suffix.lower(),
                                                    "application/octet-stream"),
-                        filename=path.name)
+                        filename=path.name,
+                        content_disposition_type=("inline" if path.suffix.lower() == ".pdf"
+                                                  else "attachment"))
+
+
+@router.get("/api/exam/pages/{item_id}")
+def exam_pages(item_id: str) -> dict:
+    """Page count for the app's built-in PDF reader."""
+    import pypdfium2 as pdfium
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    try:
+        with _PDF_LOCK:
+            doc = pdfium.PdfDocument(path)
+            try:
+                return {"pages": len(doc)}
+            finally:
+                doc.close()
+    except pdfium.PdfiumError as exc:
+        raise HTTPException(status_code=422, detail="PDF не открылся.") from exc
+
+
+@router.get("/api/exam/page/{item_id}/{page}")
+def exam_page(item_id: str, page: int) -> Response:
+    """Render one page on demand; works even without a browser PDF viewer."""
+    import io
+
+    import pypdfium2 as pdfium
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    try:
+        with _PDF_LOCK:
+            doc = pdfium.PdfDocument(path)
+            try:
+                if page < 1 or page > len(doc):
+                    raise HTTPException(status_code=404, detail="Страница не найдена.")
+                pdf_page = doc[page - 1]
+                try:
+                    bitmap = pdf_page.render(scale=1.7)
+                    try:
+                        out = io.BytesIO()
+                        bitmap.to_pil().save(out, format="PNG")
+                    finally:
+                        bitmap.close()
+                finally:
+                    pdf_page.close()
+            finally:
+                doc.close()
+    except pdfium.PdfiumError as exc:
+        raise HTTPException(status_code=422, detail="PDF не открылся.") from exc
+    return Response(out.getvalue(), media_type="image/png",
+                    headers={"cache-control": "private, max-age=86400"})
 
 
 @router.get("/api/exam/text/{item_id}")

@@ -117,22 +117,25 @@ Whisper. These are distinct from TartuNLP's text-to-speech voices.
 
 ## Smallest trustworthy corpus workflow
 
-1. Under `cli serve`, record in `Rääkimine → Hindamiskomplekt`. Choose `Loe
-   ette` for a read-aloud sentence (including occasional planted errors) or
-   `Vasta küsimusele` for an open answer. The app saves audio locally, the
-   **displayed read-aloud prompt** in `.txt` or an empty `.txt` for an open
-   answer, and the actual question in `.question`. If ASR is configured, it
-   also shows and saves its tentative guess in a separate JSON draft; this request
-   sends audio to the configured recognition service. Neither prompt nor ASR
-   output is ground truth without listening.
-2. Listen to each clip and edit its `.txt` to exactly what was audibly spoken,
-   including mistakes and hesitations. Exclude ambiguous clips; an uncertain
-   acoustic distinction is not a gold label. Use the same written-number policy
-   for both engines; the normaliser deliberately does not turn numbers or names
-   into a model-specific canonical spelling.
-3. Seal the review with `asr-verify --listened`. Token indices are zero-based,
-   after Unicode NFC, case folding and punctuation removal. For a recording
-   actually saying “Ma ostsin uus auto”, use:
+1. Under `cli serve`, practise normally in `Rääkimine` and choose **Lisa
+   hindamiskomplekti** after a useful answer, or record directly in
+   `Hindamiskomplekt` for occasional planted-error read-aloud controls. There
+   is no separate file upload. Only a clip the learner chooses is saved under
+   ignored `data/eval/asr/` on that computer; normal practice remains unsaved.
+   A displayed read-aloud target is saved in `.prompt`, an open question in
+   `.question`, and the reviewed `.txt` starts empty. ASR's guess is a separate
+   draft. Hosted ASR receives the audio when transcription is requested.
+2. Play the saved recording in the app, correct the draft to exactly what was
+   audibly spoken (including mistakes), tick the listened confirmation, and
+   select whether the intentionally wrong form was actually spoken. The app
+   seals audio/transcript hashes for the existing paired eval. Skip ambiguous
+   clips. Prompts, questions and ASR drafts are never ground truth. Use the
+   same written-number policy for both engines; the normaliser does not turn
+   numbers or names into a model-specific canonical spelling.
+3. The CLI is an optional detailed annotation path for focus words/tags.
+   `asr-verify --listened` uses zero-based token indices after Unicode NFC,
+   case folding and punctuation removal. For a recording actually saying
+   “Ma ostsin uus auto”, use:
 
    ```bash
    python -m eesti.cli asr-verify data/eval/asr/0000.webm --listened \
@@ -146,11 +149,12 @@ Whisper. These are distinct from TartuNLP's text-to-speech voices.
    automatically and sealed as context; an explicit `--question` must match it.
    Hashes bind review to audio and text;
    changing either requires listening and verification again.
-4. Start with 20 verified clips, at least five planted-error probes and five
-   morphology tokens, covering correct controls, learner forms, numbers, common
-   names/vocabulary and hesitations. Expand toward 80–150 clips over different
-   sessions before a provider decision. These are pilot floors, not confidence
-   guarantees or proof of accent/pronunciation competence.
+4. Collect clips during ordinary practice across days, without a recording
+   batch or manual upload. Start with 20 verified clips, at least five
+   planted-error probes and five morphology tokens, covering correct controls,
+   learner forms, numbers, common names/vocabulary and hesitations. Expand
+   toward 80–150 clips only before a provider decision. These are pilot floors,
+   not confidence guarantees or proof of accent/pronunciation competence.
 5. Install optional `faster-whisper` in a local evaluation environment and
    download the official model's **ct2 subdirectory** at the revision above
    using Hugging Face's download tooling. Set `ASR_REFERENCE_MODEL` to that

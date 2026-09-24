@@ -15,6 +15,7 @@ const canRecord = window.isSecureContext &&
   navigator.mediaDevices && typeof MediaRecorder !== "undefined";
 
 let recorder = null, chunks = [], recording = false, asrReady = false;
+let evalAvailable = false, practiceClip = null;
 
 
 // Ask once what this deployment can do, and say so rather than offering a
@@ -44,9 +45,21 @@ api("/api/asr", null, "GET").then(r => r.json()).then(a => {
     : a.local || a.voxtral
       ? "Запись и черновая расшифровка остаются на этом компьютере."
       : "Запись сохраняется на этом компьютере; черновая расшифровка сейчас недоступна.";
+  $("#vestlusMic").disabled = !canRecord || !asrReady;
+  $("#vestlusMicState").textContent = !canRecord
+    ? "Для разговора нужен микрофон и HTTPS (или localhost)."
+    : asrReady ? "Скажи ответ, проверь распознанный текст и нажми Vasta."
+      : "Распознавание сейчас недоступно; можно отвечать текстом.";
+  $("#vestlusPrivacy").textContent = a.hosted
+    ? `Запись для распознавания отправляется ${destination}.${fallback} Аудиофайл разговора приложение не сохраняет.`
+    : a.local || a.voxtral
+      ? "Распознавание выполняется на этом компьютере. Аудиофайл разговора приложение не сохраняет."
+      : "Аудиофайл разговора приложение не сохраняет.";
 }).catch(() => {
   $("#recPrivacy").textContent = "Не удалось узнать, куда отправится запись. Попробуй обновить страницу перед записью.";
   $("#evalPrivacy").textContent = "Распознавание недоступно; запись сохранится только на этом компьютере.";
+  $("#vestlusMic").disabled = true;
+  $("#vestlusMicState").textContent = "Не удалось проверить распознавание; можно отвечать текстом.";
 });
 
 
@@ -164,6 +177,10 @@ if (!canRecord) {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      const task = {text: currentTarget() || "", question: currentQuestion(),
+        planted: "", correct: ""};
+      practiceClip = null;
+      $("#recSaveEval").hidden = true;
       chunks = [];
       recorder = new MediaRecorder(stream);
       recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
@@ -171,6 +188,8 @@ if (!canRecord) {
         const seconds = (performance.now() - startedAt) / 1000;
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(chunks, {type: recorder.mimeType || "audio/webm"});
+        practiceClip = {blob, task, transcript: "", engine: ""};
+        $("#recSaveEval").hidden = !evalAvailable;
         const el = $("#recPlayback");
         el.src = URL.createObjectURL(blob);
         el.hidden = false;
@@ -185,14 +204,27 @@ if (!canRecord) {
         heard.hidden = false;
         heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="fix">…</div>`;
         try {
-          const target = currentTarget();
+          const target = task.text;
           const params = new URLSearchParams();
           if (target) params.set("target", target);
-          else params.set("q", currentQuestion());
+          else params.set("q", task.question);
           const r = await rawApi("/api/transcribe?" + params, {
             method: "POST", headers: {"Content-Type": blob.type}, body: blob,
           });
           const t = await r.json();
+          if (practiceClip?.blob === blob) {
+            practiceClip.transcript = t.text || "";
+            practiceClip.engine = t.engine || "";
+            if (t.text && practiceClip.saved) {
+              api(`/api/eval/draft/${practiceClip.saved}`,
+                {text: t.text, engine: t.engine || ""}).catch(() => {});
+              if (reviewStem === practiceClip.saved &&
+                  !$("#evalTranscript").value.trim()) {
+                $("#evalTranscript").value = t.text;
+                reviewReady();
+              }
+            }
+          }
           if (!t.text) {
             heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="why">${esc(t.note || "не разобрал")}</div>`;
             return;
@@ -214,7 +246,7 @@ if (!canRecord) {
             // same grammar check as writing.
             try {
               const fb = await (await api("/api/speaking/feedback", {
-                transcript: t.text, question: currentQuestion(), seconds,
+                transcript: t.text, question: task.question, seconds,
               })).json();
               html += `<div class="why">${ruCount(fb.words, ["слово", "слова", "слов"])}` +
                 (fb.pace_wpm ? ` · ${fb.pace_wpm} слов/мин` : "") + `</div>`;
@@ -258,6 +290,8 @@ if (!canRecord) {
    server keeps no conversation — and the words Vabamorf does not know are
    named rather than passed off as Estonian. */
 let vestlus = {task: "", turns: []};
+let vestlusRecorder = null, vestlusStream = null, vestlusChunks = [];
+let vestlusEpoch = 0, vestlusVoiceUrl = null;
 
 function paintVestlus(reply) {
   const log = $("#vestlusLog");
@@ -280,8 +314,10 @@ function paintVestlus(reply) {
 }
 
 async function vestlusTurn(said) {
-  const send = $("#vestlusSend"), start = $("#vestlusStart");
-  send.disabled = start.disabled = true;
+  const send = $("#vestlusSend"), start = $("#vestlusStart"), mic = $("#vestlusMic");
+  const epoch = vestlusEpoch;
+  send.disabled = start.disabled = mic.disabled = true;
+  $("#vestlusVoice").pause();
   try {
     const reply = await (await api("/api/tutor", {
       intent: "converse", task: vestlus.task, said,
@@ -292,19 +328,90 @@ async function vestlusTurn(said) {
     paintVestlus(reply);
     $("#vestlusRow").hidden = !reply.reply_et;
     if (reply.reply_et) $("#vestlusSay").focus();
+    const voice = $("#vestlusVoice");
+    voice.hidden = !reply.reply_et;
+    if (reply.reply_et) {
+      try {
+        const spoken = await api("/api/speak", {text: reply.reply_et, speed: 0.9});
+        if (epoch !== vestlusEpoch) return;
+        if (vestlusVoiceUrl) URL.revokeObjectURL(vestlusVoiceUrl);
+        vestlusVoiceUrl = URL.createObjectURL(await spoken.blob());
+        voice.src = vestlusVoiceUrl;
+        voice.play().catch(() => {});
+      } catch (_) {
+        voice.hidden = true;
+        $("#vestlusMicState").textContent = "Озвучивание недоступно; ответ показан текстом.";
+      }
+    }
   } catch (e) {
     $("#vestlusLog").insertAdjacentHTML("beforeend",
       `<div class="hint">Не отправилось: ${esc(e.message)}</div>`);
-  } finally { send.disabled = start.disabled = false; }
+  } finally {
+    send.disabled = start.disabled = false;
+    mic.disabled = !asrReady;
+  }
 }
 
 $("#vestlusStart").onclick = () => {
   const questions = window.__speak || [];
   const picked = questions[$("#speakTopic").selectedIndex] || questions[0];
   if (!picked) return;
+  vestlusEpoch += 1;
   vestlus = {task: picked.question, turns: []};
   $("#vestlusLog").innerHTML = "";
+  $("#vestlusVoice").pause();
+  $("#vestlusVoice").hidden = true;
   vestlusTurn("");
+};
+
+$("#vestlusMic").onclick = async () => {
+  const button = $("#vestlusMic"), status = $("#vestlusMicState");
+  if (vestlusRecorder?.state === "recording") {
+    vestlusRecorder.stop();
+    return;
+  }
+  if (!canRecord || !asrReady || !vestlus.task) return;
+  button.disabled = $("#vestlusSend").disabled = $("#vestlusStart").disabled = true;
+  try {
+    vestlusStream = await navigator.mediaDevices.getUserMedia({audio: true});
+    const epoch = vestlusEpoch;
+    vestlusChunks = [];
+    vestlusRecorder = new MediaRecorder(vestlusStream);
+    vestlusRecorder.ondataavailable = event => event.data.size && vestlusChunks.push(event.data);
+    vestlusRecorder.onstop = async () => {
+      vestlusStream.getTracks().forEach(track => track.stop());
+      button.disabled = true;
+      setLabel(button, "Räägi");
+      status.textContent = "Распознаю ответ…";
+      const blob = new Blob(vestlusChunks, {type: vestlusRecorder.mimeType || "audio/webm"});
+      try {
+        const query = new URLSearchParams({q: vestlus.task});
+        const result = await (await rawApi("/api/transcribe?" + query, {
+          method: "POST", headers: {"Content-Type": blob.type}, body: blob,
+        })).json();
+        if (epoch !== vestlusEpoch) return;
+        $("#vestlusSay").value = result.text || "";
+        status.textContent = result.text
+          ? "Проверь распознанный текст и нажми Vasta."
+          : "Речь не распознана. Повтори или напиши ответ.";
+        $("#vestlusSay").focus();
+      } catch (error) {
+        status.textContent = `Распознавание не ответило: ${error.message}`;
+      } finally {
+        button.disabled = !asrReady;
+        $("#vestlusSend").disabled = $("#vestlusStart").disabled = false;
+      }
+    };
+    vestlusRecorder.start();
+    button.disabled = false;
+    setLabel(button, "Lõpeta");
+    status.textContent = "Говори; нажми Lõpeta, когда закончишь.";
+  } catch (error) {
+    vestlusStream?.getTracks().forEach(track => track.stop());
+    button.disabled = !asrReady;
+    $("#vestlusSend").disabled = $("#vestlusStart").disabled = false;
+    status.textContent = `Микрофон недоступен: ${error.message}`;
+  }
 };
 
 $("#vestlusSend").onclick = () => {
@@ -327,13 +434,91 @@ $("#vestlusSay").addEventListener("keydown", e => {
    what makes "did the engine correct my mistake away?" measurable. */
 let evalNow = null, evalRecorder = null, evalChunks = [];
 let evalQuestions = [], evalQuestionIdx = -1;
+let reviewStem = "";
 
 (async () => {
   try {
     await api("/api/eval/available", null, "GET");
+    evalAvailable = true;
     $("#evalSet").hidden = false;
+    if (practiceClip) $("#recSaveEval").hidden = false;
   } catch { /* Deployed, or the local server is unreachable. */ }
 })();
+
+function reviewReady() {
+  $("#evalVerify").disabled = !reviewStem || !$("#evalListened").checked ||
+    !$("#evalTranscript").value.trim();
+}
+
+$("#evalTranscript").addEventListener("input", reviewReady);
+$("#evalListened").addEventListener("change", reviewReady);
+
+async function saveEvalClip(task, blob, draft = {}) {
+  const q = new URLSearchParams(task.question
+    ? {question: task.question} : {text: task.text});
+  if (task.planted) {
+    q.set("planted", task.planted);
+    q.set("accepted", task.correct);
+  }
+  const saved = await (await rawApi("/api/eval/clip?" + q, {
+    method: "POST", headers: {"Content-Type": blob.type}, body: blob,
+  })).json();
+  reviewStem = saved.saved;
+  $("#evalSet").open = true;
+  $("#evalPlayback").src = URL.createObjectURL(blob);
+  $("#evalPlayback").hidden = false;
+  $("#evalReview").hidden = false;
+  $("#evalTranscript").value = draft.transcript || "";
+  $("#evalListened").checked = false;
+  $("#evalPlanted").checked = false;
+  $("#evalPlantedRow").hidden = !task.planted;
+  $("#evalPlantedWord").textContent = task.planted || "";
+  $("#evalReviewNote").textContent =
+    `Запись ${saved.saved} сохранена. Прослушай её целиком и исправь текст.`;
+  $("#evalCount").textContent = `записано: ${saved.clips}`;
+  reviewReady();
+  if (draft.transcript) {
+    try {
+      await api(`/api/eval/draft/${saved.saved}`,
+        {text: draft.transcript, engine: draft.engine || ""});
+    } catch (e) {
+      $("#evalReviewNote").textContent += ` Черновик не сохранился: ${e.message}`;
+    }
+  }
+  return saved;
+}
+
+$("#recSaveEval").onclick = async () => {
+  if (!practiceClip) return;
+  const btn = $("#recSaveEval");
+  btn.disabled = true;
+  try {
+    const candidate = practiceClip;
+    const saved = await saveEvalClip(candidate.task, candidate.blob, candidate);
+    candidate.saved = saved.saved;
+    btn.hidden = true;
+    $("#evalReview").scrollIntoView({block: "nearest"});
+  } catch (e) {
+    $("#recState").textContent = `Не удалось сохранить запись: ${e.message}`;
+  } finally { btn.disabled = false; }
+};
+
+$("#evalVerify").onclick = async () => {
+  const btn = $("#evalVerify");
+  if (!reviewStem || !$("#evalListened").checked) return;
+  btn.disabled = true;
+  try {
+    const result = await (await api(`/api/eval/review/${reviewStem}`, {
+      transcript: $("#evalTranscript").value.trim(), listened: true,
+      planted_said: $("#evalPlanted").checked,
+    })).json();
+    $("#evalReviewNote").textContent =
+      `Запись ${result.verified} проверена и готова к сравнению движков.`;
+    reviewStem = "";
+  } catch (e) {
+    $("#evalReviewNote").textContent = `Не удалось подтвердить: ${e.message}`;
+  } finally { reviewReady(); }
+};
 
 async function evalPrompt() {
   evalNow = null;
@@ -393,15 +578,9 @@ $("#evalRec").onclick = async () => {
       const playback = $("#evalPlayback");
       playback.src = URL.createObjectURL(blob);
       playback.hidden = false;
-      const q = new URLSearchParams(task.question
-        ? {question: task.question} : {text: task.text});
-      if (task.planted) q.set("planted", task.planted);
       try {
-        const saved = await (await rawApi("/api/eval/clip?" + q, {
-          method: "POST", headers: {"Content-Type": blob.type}, body: blob,
-        })).json();
-        $("#evalCount").textContent = `записано: ${saved.clips}`;
-        $("#evalNote").textContent = `Запись ${saved.saved} сохранена. Прослушай её и исправь файл ${saved.saved}.txt перед проверкой.`;
+        const saved = await saveEvalClip(task, blob);
+        $("#evalNote").textContent = `Запись ${saved.saved} сохранена. Проверь её ниже.`;
         if (asrReady) {
           const heard = $("#evalHeard");
           heard.hidden = false;
@@ -414,11 +593,15 @@ $("#evalRec").onclick = async () => {
             })).json();
             if (t.text) {
               heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">черновик распознавания</i></span><div class="fix" lang="et">${esc(t.text)}</div><div class="why">${esc(t.engine)} · Не эталон: проверь на слух.</div>`;
+              if (reviewStem === saved.saved && !$("#evalTranscript").value.trim()) {
+                $("#evalTranscript").value = t.text;
+                reviewReady();
+              }
               try {
                 await api(`/api/eval/draft/${saved.saved}`,
                   {text: t.text, engine: t.engine || ""});
               } catch (e) {
-                $("#evalNote").textContent += ` Черновик не сохранился: ${e.message}`;
+                $("#evalReviewNote").textContent += ` Черновик не сохранился: ${e.message}`;
               }
             } else {
               heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">черновик распознавания</i></span><div class="why">${esc(t.note || "Речь не разобрана.")} Запись сохранена; расшифруй её на слух.</div>`;

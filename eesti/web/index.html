@@ -202,16 +202,18 @@
     <p class="hint" id="recPrivacy">Проверяю, где будет распознана запись…</p>
     <audio id="recPlayback" controls hidden></audio>
     <div id="recHeard" class="corr" hidden></div>
+    <button class="ghost" id="recSaveEval" lang="et" hidden>Lisa hindamiskomplekti
+      <span class="ru" lang="ru">сохранить эту запись для сравнения</span></button>
     <div id="recNote" class="engine"></div>
 
     <!-- Recording the speech eval set. Local only (`cli serve`): the route is
          absent on the deployment, so this block stays hidden there (ADR-0003). -->
     <details class="evalset" id="evalSet" hidden>
       <summary lang="et">Hindamiskomplekt <i class="ru" lang="ru">запись набора для оценки</i></summary>
-      <p class="hint">Прочитай фразу или ответь на вопрос. Копия записи
-        сохраняется на этом компьютере для сравнения движков на твоём голосе.
-        Расшифровка — только черновик: сначала прослушай запись и исправь
-        текст. Начни с 20 проверенных записей, затем расширяй набор до 80–150.</p>
+      <p class="hint">Отвечай на вопросы или читай вслух здесь либо в обычном
+        упражнении выше. Выбранная запись остаётся на этом компьютере.
+        Прослушай её, исправь черновую расшифровку прямо здесь и подтверди.
+        Начни с 20 проверенных ответов из разных занятий.</p>
       <div class="row">
         <label lang="et">Harjutus <i class="ru" lang="ru">упражнение</i>
           <select id="evalMode">
@@ -230,6 +232,19 @@
       <p class="hint" id="evalPrivacy">Проверяю, какой движок распознаёт речь…</p>
       <audio id="evalPlayback" controls hidden></audio>
       <div id="evalHeard" class="corr" hidden></div>
+      <div id="evalReview" class="eval-review" hidden>
+        <label for="evalTranscript" lang="et">Ärakiri
+          <span class="ru" lang="ru">Что ты действительно сказал? Исправь текст после прослушивания.</span></label>
+        <textarea id="evalTranscript" lang="et" rows="3" autocomplete="off"></textarea>
+        <label class="eval-confirm" lang="ru"><input id="evalListened" type="checkbox">
+          Я прослушал запись и проверил каждое слово.</label>
+        <label class="eval-confirm" id="evalPlantedRow" lang="ru" hidden>
+          <input id="evalPlanted" type="checkbox">
+          Я действительно произнёс ошибочную форму <b id="evalPlantedWord" lang="et"></b>.</label>
+        <button class="go" id="evalVerify" lang="et">Kinnita ärakiri
+          <span class="ru" lang="ru">подтвердить расшифровку</span></button>
+        <p class="hint" id="evalReviewNote" role="status"></p>
+      </div>
     </details>
 
     <!-- The exam is paired, so practice has two sides: a model plays the partner
@@ -249,13 +264,17 @@
         <input type="text" id="vestlusSay" size="32" lang="et"
           aria-label="Sinu vastus — твой ответ" autocapitalize="sentences"
           autocorrect="off" spellcheck="false" autocomplete="off">
+        <button class="ghost" id="vestlusMic" type="button" lang="et" disabled>Räägi
+          <span class="ru" lang="ru">сказать вслух</span></button>
         <button class="ghost" id="vestlusSend" lang="et">Vasta
           <span class="ru" lang="ru">ответить</span></button>
       </div>
+      <p class="hint" id="vestlusMicState" role="status">Запись недоступна.</p>
+      <p class="hint" id="vestlusPrivacy"></p>
+      <audio id="vestlusVoice" controls hidden aria-label="Слушать ответ собеседника"></audio>
     </details>
 
-    <!-- Links out instead of building: EKI's pronunciation exercises and the Sõnaveeb
-         phrase collections. -->
+    <!-- Optional official resources beyond the native read-aloud and conversation tools. -->
     <div style="margin-top:var(--s4)">
       <div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
       <div class="row" style="margin-top:var(--s2)">

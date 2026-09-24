@@ -4,7 +4,8 @@ Whether an object should be genitive (completed) or partitive (ongoing,
 partial, negated) depends on aspect, which thins out in multilingual models.
 
   recall     — of sentences with a planted error, how many were caught
-  precision  — of sentences already correct, how many were left alone
+  clean pass rate (legacy key `precision`) — of sentences already correct,
+  how many were left alone
 
 Precision separates models: flagging everything scores perfect recall and
 teaches that every partitive is wrong. Half the set is correct Estonian.
@@ -107,6 +108,8 @@ CASES: tuple[Case, ...] = (
          "verb-form", "irregular past: tegema -> tegin"),
 
     # ---- CORRECT Estonian: must NOT be flagged ------------------------------
+    # Label provenance: docs/evaluations/hand-set.md (EKI rule and Sõnaveeb
+    # form/usage links). These are our sentences, not a gold learner corpus.
     Case("Ma lugesin selle raamatu läbi.", None, None, None,
          "correct: completed -> genitive"),
     Case("Ma ei ostnud piletit.", None, None, None,
@@ -127,9 +130,10 @@ CASES: tuple[Case, ...] = (
 
 
 def _flagged(result: dict, target: str) -> bool:
-    """Did the model flag the target token?"""
+    """Did the model propose an actual change to the target token?"""
     return any(
         target.lower() in (c.get("wrong") or "").lower()
+        and (c.get("wrong") or "").strip() != (c.get("correct") or "").strip()
         for c in result.get("corrections", [])
     )
 
@@ -144,7 +148,7 @@ def run(
     """Score one model. Returns recall, precision and the per-case detail."""
     errors = [c for c in cases if c.wrong]
     clean = [c for c in cases if not c.wrong]
-    caught, false_flags, failures, broken = 0, 0, [], 0
+    caught, false_flags, no_op_flags, changed_flags, failures, broken = 0, 0, 0, 0, [], 0
 
     for case in cases:
         # One retry on a malformed reply: returning prose instead of JSON is a
@@ -174,8 +178,18 @@ def run(
         else:
             if result.get("corrections"):
                 false_flags += 1
-                got = [c.get("wrong") for c in result["corrections"]]
-                failures.append((case.sentence, f"false flag {got} ({case.note})"))
+                edits = result["corrections"]
+                changed = [c for c in edits if
+                           (c.get("wrong") or "").strip() !=
+                           (c.get("correct") or "").strip()]
+                if changed:
+                    changed_flags += 1
+                    kind = "proposed edit"
+                else:
+                    no_op_flags += 1
+                    kind = "no-op correction"
+                got = [(c.get("wrong"), c.get("correct")) for c in edits]
+                failures.append((case.sentence, f"{kind} {got} ({case.note})"))
 
     # Cases that never reached the model are excluded from scoring; with too few
     # answers no score is reported (all-429 runs must not read as precision 1.0).
@@ -198,8 +212,11 @@ def run(
         "evidence": evidence,
         "recall": round(recall, 3) if recall is not None else None,
         "precision": round(precision, 3) if precision is not None else None,
+        "clean_pass_rate": round(precision, 3) if precision is not None else None,
         "caught": f"{caught}/{answered_errors}",
         "left_alone": f"{answered_clean - false_flags}/{answered_clean}",
+        "no_op_flags": no_op_flags,
+        "changed_flags": changed_flags,
         "broken": broken,
         "valid": usable,
         "failures": failures,

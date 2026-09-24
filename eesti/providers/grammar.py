@@ -435,6 +435,9 @@ class LLMGrammar:
             )
             for c in payload.get("corrections", [])
         ]
+        if any(not c.wrong.strip() or c.wrong not in text or
+               c.wrong.strip() == c.correct.strip() for c in corrections):
+            raise ValueError("invalid grammar correction: missing span or unchanged text")
         return GrammarResult(self.name, _locate(text, corrections))
 
 

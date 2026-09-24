@@ -17,9 +17,8 @@ on:
     inputs:
       deep:
         description: >-
-          Also send one sentence through the grammar chain. Costs one LLM
-          request of a 50/day free tier, so it is opt-in rather than run on
-          every deploy.
+          Also send one sentence through the grammar chain. Consumes Workers
+          AI quota, so it is opt-in rather than run on every deploy.
         type: boolean
         default: false
   workflow_run:
@@ -187,13 +186,32 @@ jobs:
             echo "::error::A2 exam catalogue returned $exam_code."
             fail=1
           else
-            file_id="$(jq -r '[.[] | arrays | .[] | select(.file == true) | .id][0] // empty' \
+            file_id="$(jq -r '[.[] | arrays | .[] | select(.file == true and .format == "pdf") | .id][0] // empty' \
               "$RUNNER_TEMP/exam-a2.json")"
             if [ -n "$file_id" ]; then
               code="$(curl -s -o /dev/null -w '%{http_code}' \
                 "${auth[@]}" "$URL/api/exam/file/$file_id")"
               if [ "$code" = 200 ]; then
                 echo "HARNO exam mount ........ OK (downloaded task opens)"
+                pages="$(curl -sf "${auth[@]}" "$URL/api/exam/pages/$file_id" \
+                  | jq -r '.pages // 0' 2>/dev/null || echo 0)"
+                if [ "${pages:-0}" -gt 0 ]; then
+                  echo "HARNO PDF pages ........ OK ($pages pages)"
+                  if [ "$DEEP" = true ]; then
+                    page_code="$(curl -s -o "$RUNNER_TEMP/exam-page.png" -w '%{http_code}' \
+                      "${auth[@]}" "$URL/api/exam/page/$file_id/1")"
+                    if [ "$page_code" = 200 ] && \
+                       [ "$(file -b --mime-type "$RUNNER_TEMP/exam-page.png")" = image/png ]; then
+                      echo "HARNO PDF rendering .... OK (page 1 is PNG)"
+                    else
+                      echo "::error::Downloaded PDF page did not render (HTTP $page_code)."
+                      fail=1
+                    fi
+                  fi
+                else
+                  echo "::error::Downloaded PDF has no readable pages."
+                  fail=1
+                fi
               else
                 echo "::error::Downloaded exam task returned $code."
                 fail=1

@@ -197,11 +197,20 @@ async function openTask(row, id, format, hasFile) {
     text = await (await api(`/api/exam/text/${encodeURIComponent(id)}`)).json();
   } catch { /* audio, a scanned PDF, or a .docx: the file itself still opens */ }
   const own = ["mp3", "wav"].includes(format);       // the task *is* a recording
+  const pdf = hasFile && format.toLowerCase() === "pdf";
+  let pages = 0;
+  if (pdf) {
+    try {
+      pages = (await (await api(`/api/exam/pages/${encodeURIComponent(id)}`,
+        null, "GET")).json()).pages || 0;
+    } catch { /* A corrupt PDF still leaves extracted text or a file fallback. */ }
+  }
   // An EIS listening task carries its own recordings, one per question.
   const clips = own ? [file] : (text?.audio || []);
+  let page = 1;
   box.innerHTML = `
     <div class="exam-task-head">
-      ${hasFile ? `<a class="ghost" href="${file}" target="_blank"
+      ${hasFile && !pdf ? `<a class="ghost" href="${file}" target="_blank"
                       rel="noopener">открыть файл</a>` : ""}
       ${text?.url ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
                        rel="noopener">решить на сайте</a>` : ""}
@@ -211,12 +220,39 @@ async function openTask(row, id, format, hasFile) {
     ${clips.map((url, i) => `<div class="clip">${
         clips.length > 1 ? `<span class="lib-meta">${i + 1}</span>` : ""
       }<audio controls preload="none" src="${esc(url)}"></audio></div>`).join("")}
+    ${pdf ? `<details class="exam-preview" ${text ? "" : "open"}>
+      <summary lang="et">Algne PDF <span class="ru" lang="ru">оригинал задания в приложении</span></summary>
+      ${pages ? `<div class="exam-pages">
+        <div class="row">
+          <button class="ghost" data-prev disabled lang="et">Eelmine <span class="ru" lang="ru">назад</span></button>
+          <span class="hint" data-page-label>1 / ${pages}</span>
+          <button class="ghost" data-next ${pages === 1 ? "disabled" : ""} lang="et">Järgmine <span class="ru" lang="ru">дальше</span></button>
+        </div>
+        <img src="/api/exam/page/${encodeURIComponent(id)}/${page}"
+          alt="Официальное задание, страница 1 из ${pages}" loading="lazy">
+      </div>` : `<p class="hint">Страницы PDF не удалось показать.</p>
+        <a href="${file}" target="_blank" rel="noopener">Открыть оригинал</a>`}
+    </details>` : ""}
     ${text ? `<p class="hint">${esc(text.note)}</p>
               <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
            : `<p class="hint">${own
                 ? "Официальная запись — © Haridus- ja Noorteamet."
+                : pdf ? "Текст не извлёкся; оригинал показан выше."
                 : "Текст не разобрался — открой файл."}</p>`}`;
   box.querySelector("[data-close]").onclick = () => box.remove();
+  if (pages) {
+    const image = box.querySelector(".exam-pages img");
+    const show = n => {
+      page = n;
+      image.src = `/api/exam/page/${encodeURIComponent(id)}/${n}`;
+      image.alt = `Официальное задание, страница ${n} из ${pages}`;
+      box.querySelector("[data-page-label]").textContent = `${n} / ${pages}`;
+      box.querySelector("[data-prev]").disabled = n === 1;
+      box.querySelector("[data-next]").disabled = n === pages;
+    };
+    box.querySelector("[data-prev]").onclick = () => show(page - 1);
+    box.querySelector("[data-next]").onclick = () => show(page + 1);
+  }
 }
 
 

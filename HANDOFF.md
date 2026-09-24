@@ -1,30 +1,30 @@
 # Handoff
 
-## Current task
-PR #66 merged into `main` at `26ae1f7`. Cloud Run revision
-`eesti-keelt-00077-n7t` has `max-instances=1` and configured EKI/HARNO mounts.
-Deep smoke [35910679079](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35910679079)
-passed Access/origin guards, current image, reference data, `llm:workers-ai`
-grammar, Ekilex and reading links. Workers AI GPT-OSS-120B remains automatic
-hosted grammar/tutor with deterministic fallback; Cloudflare is production ASR;
-others are eval-only. Branch smoke
-[35913162942](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35913162942) read 8,520 EKI forms but the deployed A2 catalogue has no downloaded-file metadata. The owner verified a sample PDF object in GCS, `EESTI_EXAM_DIR=/mnt/exam` and the `harno-exam` mount at `/mnt/exam`.
-[35913626242](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35913626242) confirmed its sample URL is the exact A2 PDF present in GCS; the legacy catalogue has no file pointer.
+## Current state
+PR [#67](https://github.com/wimpex18/Eesti-Keelt/pull/67) is open on
+`codex/post-merge-ops-handoff`; the owner merges. Production is
+`https://eesti-keelt.wimpex18.workers.dev`. Cloud Run revision
+`eesti-keelt-00077-n7t` has one maximum instance and EKI audio/HARNO exam mounts; deep smoke must run on `main` after the merge and Cloud Build deploy.
 
-Chrome on the owner's Mac subscribed to reminders on 2026-09-23; browser
-permission is granted and the page says `включены`. Delivery is pending.
-Private export `~/Documents/Eesti-Keelt-Private-Backup/eesti-keelt-events-2026-09-23T2246.jsonl`
-passed `cli verify-backup` (9 events); it excludes push subscriptions and audio.
+Workers AI GPT-OSS-120B is automatic hosted grammar/tutor with deterministic
+fallback; Cloudflare Workers AI is production ASR. Ollama EstLLM lives outside
+Git at `~/.ollama/models` and remains evaluation-only. The audited grammar
+trial caught 9/10 planted errors but left 0/8 clean controls alone; see
+`docs/evaluations/hand-set.md` for the labels and EKI checks.
 
-PR #67 extends local-only `Hindamiskomplekt` for question answers and tentative
-ASR drafts, discloses audio destinations, and checks production exam/audio
-reads. Two established styles have page-scoped detector exceptions. Practice
-audio stays unsaved; prompts and ASR are never truth. Local
-suite: 2211 passed; browser journeys: 133 passed, 5 skipped.
+`Vestlus` supports mic → editable ASR text → tutor reply → TTS. Local-only
+`Hindamiskomplekt` saves selected clips and requires a listened-to, verified
+transcript; ordinary practice audio is unsaved. Official PDF pages, extracted
+text and audio display in-app. Backend and browser suites pass on this branch.
+Chrome reminders are subscribed; delivery is unverified. A private off-account
+event export passed `cli verify-backup` (9 events); it excludes push
+subscriptions and audio.
 
 ## Exact next step
-Owner merges PR #67; after Cloud Build, run deep smoke on `main` for HARNO files and EKI recordings.
-Confirm Chrome reminder delivery at the next eligible hour outside 22:00–08:00.
+After the owner merges #67 and Cloud Build deploys, run GitHub `smoke` on
+`main` with `deep: true`; verify a HARNO PDF page and EKI audio through the
+mounts. Check Chrome reminder delivery at an eligible hour. Collect learner
+speech in-app, listen and correct transcripts, then run paired ASR evaluation.
 
-## Blockers and working tree
-Exam runtime access, push delivery and learner audio are pending; state copying is asynchronous.
+## Blockers
+Owner merge, notification arrival and human-verified speech are pending.

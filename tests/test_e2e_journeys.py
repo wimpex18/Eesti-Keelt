@@ -113,6 +113,7 @@ def live_server(tmp_path_factory) -> str:
         **os.environ,
         "EESTI_DB": str(words),
         "EESTI_CONTENT_DB": str(workdir / "data" / "content.db"),
+        "EESTI_ASR_EVAL_DIR": str(workdir / "data" / "eval" / "asr"),
         "PYTHONPATH": str(ROOT),
         # Keep the run offline and deterministic: every key the app knows
         # (`env.KNOWN_KEYS`) is blanked, since the server loads `.env` itself, so the
@@ -989,6 +990,59 @@ class TestTheConversationPartner:
         assert "собеседник" in page.locator("#vestlusLog").inner_text().lower()
         assert not page.errors, page.errors
 
+    def test_a_spoken_turn_is_reviewed_before_sending(self, _pw, live_server):
+        context = _pw.new_context(service_workers="block", viewport={"width": 390, "height": 844})
+        context.add_init_script("""(() => {
+          Object.defineProperty(navigator, 'mediaDevices', {configurable: true,
+            value: {getUserMedia: async () => ({getTracks: () => [{stop() {}}]})}});
+          window.MediaRecorder = class {
+            constructor() { this.mimeType = 'audio/wav'; this.state = 'inactive'; }
+            start() { this.state = 'recording'; }
+            stop() {
+              this.state = 'inactive';
+              this.ondataavailable({data: new Blob(['RIFFxxxx'], {type: 'audio/wav'})});
+              this.onstop();
+            }
+          };
+        })()""")
+        try:
+            page = context.new_page()
+            errors = []
+            sent = []
+            page.on("pageerror", lambda e: errors.append(str(e)[:300]))
+            page.route("**/api/asr", lambda route: route.fulfill(
+                status=200, content_type="application/json",
+                body=json.dumps({"ready": True, "hosted": True, "cloudflare": True})))
+
+            def tutor(route):
+                sent.append(route.request.post_data_json["said"])
+                route.fulfill(status=200, content_type="application/json", body=json.dumps({
+                    "reply_et": "Kus sa õpid?", "turns": len(sent), "engine": "test",
+                    "hint_ru": "", "unknown": [], "note": ""}))
+
+            page.route("**/api/tutor", tutor)
+            page.route("**/api/speak", lambda route: route.fulfill(
+                status=200, content_type="audio/wav", body=b"RIFFxxxx"))
+            page.route("**/api/transcribe?*", lambda route: route.fulfill(
+                status=200, content_type="application/json",
+                body=json.dumps({"text": "Ma elan Tallinnas.", "engine": "test"})))
+            page.goto(live_server, wait_until="networkidle")
+            open_tab(page, "learn", "speak")
+            page.click("#vestlus > summary")
+            page.click("#vestlusStart")
+            page.wait_for_selector("#vestlusRow:visible")
+            page.click("#vestlusMic")
+            page.click("#vestlusMic")
+            page.wait_for_function("document.querySelector('#vestlusSay').value === 'Ma elan Tallinnas.'")
+            assert sent == [""]  # the transcript has not gone to the tutor
+            page.click("#vestlusSend")
+            page.wait_for_selector("#vestlusLog .vestlus-me")
+            assert sent == ["", "Ma elan Tallinnas."]
+            assert page.locator("#vestlusVoice").is_visible()
+            assert not errors, errors
+        finally:
+            context.close()
+
 
 class TestSpeakingEvaluation:
     """The learner can collect question answers without treating ASR as truth."""
@@ -1005,6 +1059,44 @@ class TestSpeakingEvaluation:
         page.wait_for_function("document.querySelector('#evalRec').disabled === false")
         assert page.locator("#evalPrompt").inner_text()
         assert not page.errors, page.errors
+
+    def test_normal_answer_can_be_saved_and_reviewed_in_the_page(
+            self, _pw, live_server):
+        context = _pw.new_context(viewport={"width": 390, "height": 844})
+        context.add_init_script("""(() => {
+          Object.defineProperty(navigator, 'mediaDevices', {configurable: true,
+            value: {getUserMedia: async () => ({getTracks: () => [{stop() {}}]})}});
+          window.MediaRecorder = class {
+            constructor() { this.mimeType = 'audio/wav'; this.state = 'inactive'; }
+            start() { this.state = 'recording'; }
+            stop() {
+              this.state = 'inactive';
+              this.ondataavailable({data: new Blob(['RIFFxxxx'], {type: 'audio/wav'})});
+              this.onstop();
+            }
+          };
+        })()""")
+        try:
+            page = context.new_page()
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)[:300]))
+            page.goto(live_server, wait_until="networkidle")
+            open_tab(page, "learn", "speak")
+            page.select_option("#speakMode", "vastus")
+            page.wait_for_selector("#speakPrompt")
+            page.click("#recBtn")
+            page.click("#recBtn")
+            page.wait_for_selector("#recSaveEval:visible")
+            page.click("#recSaveEval")
+            page.wait_for_selector("#evalReview:visible")
+            assert page.locator("#evalTranscript").input_value() == ""
+            page.fill("#evalTranscript", "Ma elan Tallinnas.")
+            page.check("#evalListened")
+            page.click("#evalVerify")
+            page.wait_for_function("document.querySelector('#evalReviewNote').textContent.includes('готова')")
+            assert not errors, errors
+        finally:
+            context.close()
 
     @pytest.mark.parametrize("asr_state,expected", [
         ({"ready": True, "hosted": True, "cloudflare": True}, "Cloudflare"),

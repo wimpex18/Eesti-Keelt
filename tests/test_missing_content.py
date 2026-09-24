@@ -131,7 +131,7 @@ def corpusless(request, tmp_path, monkeypatch):
 #: A value for every path parameter a GET route takes, so the sweep can call
 #: them all. A route with a parameter not named here fails the sweep loudly.
 PATH_VALUES = {"word": "maja", "topic": "osastav", "item_id": "x", "lemma": "maja",
-               "part": "lugemine",
+               "part": "lugemine", "page": "1",
                "source_id": "selges-keeles", "name": "x", "theme": "kodu", "code": "x",
                "level": "A2"}
 

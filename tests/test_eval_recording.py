@@ -38,6 +38,8 @@ class TestItStaysLocal:
                            headers=through).status_code == 404
         assert client.post("/api/eval/draft/0000", json={"text": "Tere", "engine": "x"},
                            headers=through).status_code == 404
+        assert client.post("/api/eval/review/0000", json={
+            "transcript": "Tere", "listened": True}, headers=through).status_code == 404
         # And without the Worker's token, nothing reaches the app at all.
         assert client.get("/api/eval/prompt").status_code == 403
 
@@ -67,7 +69,8 @@ class TestTheClips:
         body = self._save(client).json()
         assert body["clips"] == 1
         assert evaluation.clips(evaluation.SET) == []
-        assert (evaluation.SET / "0000.txt").read_text() == "Ma loen raamatut"
+        assert (evaluation.SET / "0000.prompt").read_text() == "Ma loen raamatut"
+        assert (evaluation.SET / "0000.txt").read_text() == ""
         assert len(evaluation.inventory(evaluation.SET)[1]) == 1
 
     def test_a_planted_clip_records_the_word_said_wrong(self, client):
@@ -96,6 +99,34 @@ class TestTheClips:
         seal = evaluation.verify_clip(evaluation.SET / "0000.wav")
         assert seal["question"] == "Kus te elate?"
         assert len(evaluation.clips(evaluation.SET)) == 1
+
+    def test_in_app_review_seals_only_a_listened_transcript(self, client):
+        self._save(client)
+        url = "/api/eval/review/0000"
+        assert client.post(url, json={"transcript": "Ma loen raamatut"}).status_code == 400
+        assert evaluation.clips(evaluation.SET) == []
+        got = client.post(url, json={
+            "transcript": "Ma loen raamatut", "listened": True})
+        assert got.status_code == 200
+        assert len(evaluation.clips(evaluation.SET)) == 1
+        assert evaluation.clips(evaluation.SET)[0].said == "Ma loen raamatut"
+
+    def test_in_app_review_checks_a_planted_form_against_actual_speech(self, client):
+        saved = client.post("/api/eval/clip?text=Ma%20ei%20ostnud%20pileti"
+                            "&planted=pileti&accepted=piletit", content=b"RIFFxxxx",
+                            headers={"Content-Type": "audio/wav"})
+        assert saved.status_code == 200
+        url = "/api/eval/review/0000"
+        missing = client.post(url, json={
+            "transcript": "Ma ei ostnud piletit", "listened": True,
+            "planted_said": True})
+        assert missing.status_code == 400
+        assert evaluation.clips(evaluation.SET) == []
+        got = client.post(url, json={
+            "transcript": "Ma ei ostnud pileti", "listened": True,
+            "planted_said": True})
+        assert got.status_code == 200 and got.json()["planted"] is True
+        assert evaluation.clips(evaluation.SET)[0].annotation["accepted"] == "piletit"
 
     def test_clips_do_not_overwrite_each_other(self, client):
         for _ in range(3):
