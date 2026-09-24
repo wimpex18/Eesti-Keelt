@@ -287,9 +287,7 @@ class TestBreaker:
 
 
 class TestThePageDoesNotPromiseWhatTheEngineCannotKeep:
-    """The speaking panel states, before recording, that recognition runs in the cloud
-    (Russian).
-    """
+    """The speaking panel makes no unconditional promise about audio location."""
 
 
     @pytest.fixture(scope="class")
@@ -308,10 +306,6 @@ class TestThePageDoesNotPromiseWhatTheEngineCannotKeep:
         unconditionally. The local caveat is allowed, and is stated as a
         condition ("локально … запись не покидает компьютер"), not a blanket."""
         assert claim not in page, f"stale privacy claim on the page: {claim!r}"
-
-    def test_the_notice_names_where_the_audio_goes(self, page):
-        notice = page.split('id="recPrivacy"')[1][:500]
-        assert "Cloudflare" in notice
 
     def test_the_notice_is_before_the_record_button_in_the_document(self, page):
         """After it, it is a disclosure nobody read before deciding."""

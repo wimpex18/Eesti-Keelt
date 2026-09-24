@@ -17,9 +17,8 @@ on:
     inputs:
       deep:
         description: >-
-          Also send one sentence through the grammar chain. Costs one LLM
-          request of a 50/day free tier, so it is opt-in rather than run on
-          every deploy.
+          Also send one sentence through the grammar chain. Consumes Workers
+          AI quota, so it is opt-in rather than run on every deploy.
         type: boolean
         default: false
   workflow_run:
@@ -71,6 +70,16 @@ jobs:
           echo "$body" | grep -q '"words"' \
             && echo "health .................. OK" \
             || { echo "::error::health did not answer: ${body:0:200}"; fail=1; }
+
+          # The Cloud Run volume may be configured yet still point at a missing
+          # or unreadable EKI database. The app reports rows it opened.
+          forms="$(jq -r '.recordings.forms // 0' <<<"$body")"
+          if [ "$forms" -gt 0 ]; then
+            echo "EKI audio mount .......... OK ($forms forms)"
+          else
+            echo "::error::No EKI recordings are readable on the deployment."
+            fail=1
+          fi
 
           # 2b. Which build-time reference imports landed (row counts).
           #
@@ -168,6 +177,62 @@ jobs:
               && echo "$(printf '%-24s' "$path") OK" \
               || { echo "::error::$path returned $code"; fail=1; }
           done
+
+          # The exam mount is only useful if a task in the published library
+          # resolves to its actual file, not merely to extracted text.
+          exam_code="$(curl -s -o "$RUNNER_TEMP/exam-a2.json" -w '%{http_code}' \
+            "${auth[@]}" "$URL/api/exam/A2")"
+          if [ "$exam_code" != 200 ]; then
+            echo "::error::A2 exam catalogue returned $exam_code."
+            fail=1
+          else
+            file_id="$(jq -r '[.[] | arrays | .[] | select(.file == true and .format == "pdf") | .id][0] // empty' \
+              "$RUNNER_TEMP/exam-a2.json")"
+            if [ -n "$file_id" ]; then
+              code="$(curl -s -o /dev/null -w '%{http_code}' \
+                "${auth[@]}" "$URL/api/exam/file/$file_id")"
+              if [ "$code" = 200 ]; then
+                echo "HARNO exam mount ........ OK (downloaded task opens)"
+                pages="$(curl -sf "${auth[@]}" "$URL/api/exam/pages/$file_id" \
+                  | jq -r '.pages // 0' 2>/dev/null || echo 0)"
+                if [ "${pages:-0}" -gt 0 ]; then
+                  echo "HARNO PDF pages ........ OK ($pages pages)"
+                  if [ "$DEEP" = true ]; then
+                    page_code="$(curl -s -o "$RUNNER_TEMP/exam-page.png" -w '%{http_code}' \
+                      "${auth[@]}" "$URL/api/exam/page/$file_id/1")"
+                    if [ "$page_code" = 200 ] && \
+                       [ "$(file -b --mime-type "$RUNNER_TEMP/exam-page.png")" = image/png ]; then
+                      echo "HARNO PDF rendering .... OK (page 1 is PNG)"
+                    else
+                      echo "::error::Downloaded PDF page did not render (HTTP $page_code)."
+                      fail=1
+                    fi
+                  fi
+                else
+                  echo "::error::Downloaded PDF has no readable pages."
+                  fail=1
+                fi
+              else
+                echo "::error::Downloaded exam task returned $code."
+                fail=1
+              fi
+            else
+              tasks="$(jq '[.[] | arrays | .[] | select(.id)] | length' \
+                "$RUNNER_TEMP/exam-a2.json")"
+              # A task from this deployed catalogue distinguishes missing file
+              # metadata from a path present in metadata but absent on the mount.
+              probe_id="$(jq -r '[.[] | arrays | .[] | select(.id) | .id][0] // empty' \
+                "$RUNNER_TEMP/exam-a2.json")"
+              probe_code="$(curl -s -o "$RUNNER_TEMP/exam-probe" -w '%{http_code}' \
+                "${auth[@]}" "$URL/api/exam/file/$probe_id")"
+              reason="$(jq -r '.detail // "unknown reason"' \
+                "$RUNNER_TEMP/exam-probe" 2>/dev/null || echo "HTTP $probe_code")"
+              echo "::error::A2 has $tasks catalogue entries but no readable file: $reason"
+              jq -c '[.[] | arrays | .[] | select(.id)][0]
+                | {source, format, url}' "$RUNNER_TEMP/exam-a2.json"
+              fail=1
+            fi
+          fi
 
           # 5b. Which *code* is answering: a behaviour only newer code has (`total` on
           #     /api/library), since `revision` is not passed by the trigger. When it stops

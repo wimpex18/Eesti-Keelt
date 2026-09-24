@@ -11,6 +11,7 @@ so `Rääkimine` does what a phone can do honestly.
 | Question bank (`speaking.py`) | exam-shaped questions voiced by TTS | none — practice | TTS only |
 | **Loe ette** (read aloud, `pronunciation.py`) | a known sentence | word-by-word `difflib` against what the recogniser heard | ASR only |
 | **Vasta küsimusele** (open answer) | free speech | transcript through the grammar chain, word count, pace, and how sure the transcript looks (`learner.speech_signals`) | ASR + LLM, advisory |
+| **Vestlus** (conversation) | short push-to-talk turns or typed answers | tentative ASR text is editable before sending; model reply appears as text and TartuNLP TTS audio | ASR + tutor LLM + TTS, no score |
 
 - Read-aloud sentences are corpus sentences of 3–8 words in which every word,
   names and numbers included, is known or at A1–A2 on the word list; when too
@@ -23,6 +24,11 @@ so `Rääkimine` does what a phone can do honestly.
 - The panel links to EKI's pronunciation exercises and the Sõnaveeb A1–B1
   phrase collections instead of scoring acoustics.
 - With no ASR configured the tab still records and plays back.
+- `Vestlus` keeps the learner in the page: speak a turn, inspect or edit the
+  recognised text, send it, and hear or read the model partner's reply. It is
+  turn-based, so it can reuse the production Cloudflare ASR and the current
+  TTS service without a separate live audio connection. A TTS failure leaves
+  the text reply usable.
 
 ## Where the voice goes
 
@@ -52,9 +58,13 @@ The production choice is Cloudflare plus a **local TalTech benchmark reference**
 not an additional production service. `docs/asr-evaluation.md` contains the
 current model comparison and the complete recording/verification workflow.
 
-`cli eval --suite asr` defaults to the production recogniser. Recording prompts
-in `.txt` are drafts; listen, correct the transcript and seal it with
-`cli asr-verify --listened`. Only unchanged verified pairs are scored. The
+`Hindamiskomplekt` under local `cli serve` records an answer in the app, either
+from a dedicated read/question prompt or from an ordinary speaking exercise.
+The proposed ASR transcript is editable in the same panel. Listen, correct it,
+and confirm what was actually said; the prompt is never the transcript. The
+private clip, draft and verified transcript stay under `data/eval/asr/` (or
+`EESTI_ASR_EVAL_DIR`). `cli eval --suite asr` defaults to the production
+recogniser. Only verified pairs are scored. The
 harness reports WER, CER, latency, aligned false acceptance, morphology-sensitive
 errors and per-clip coverage, with a paired comparison of named engines.
 `faster-whisper` is an eval-only optional CPU backend for TalTech's official CT2

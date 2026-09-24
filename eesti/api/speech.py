@@ -339,9 +339,20 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
 # errand: this route writes audio to `data/eval/asr/` and refuses to exist on
 # the deployment, where `PROXY_TOKEN` is set. The audio stays on the machine.
 
+@router.get("/api/eval/available")
+def eval_available() -> dict:
+    """Expose the recording tool locally without generating a random prompt."""
+    import os
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail=(
+            "Запись набора для оценки — локальная задача (`cli serve`)."))
+    return {"local": True}
+
+
 @router.post("/api/eval/clip")
 async def eval_clip(request: Request) -> dict:
-    """Save raw audio and the displayed prompt; neither is verified ground truth."""
+    """Save raw audio and its task; only a later human review supplies truth."""
     import os
     import re as _re
 
@@ -352,9 +363,18 @@ async def eval_clip(request: Request) -> dict:
             "Запись набора для оценки — локальная задача (`cli serve`)."))
 
     said = request.query_params.get("text", "").strip()
+    question = request.query_params.get("question", "").strip()
     planted = request.query_params.get("planted", "").strip()
-    if not said:
-        raise HTTPException(status_code=400, detail="Нужен текст, который читали.")
+    accepted = request.query_params.get("accepted", "").strip()
+    if bool(said) == bool(question) or (question and len(question) > 220):
+        raise HTTPException(status_code=400, detail=(
+            "Укажи либо текст для чтения, либо вопрос длиной до 220 знаков."))
+    if planted and not said:
+        raise HTTPException(status_code=400, detail="Ошибка относится только к чтению вслух.")
+    if accepted and not planted:
+        raise HTTPException(status_code=400, detail="Верная форма требует ошибочной формы.")
+    if planted and accepted and (len(accepted.split()) != 1 or accepted == planted):
+        raise HTTPException(status_code=400, detail="Укажи одну отличающуюся верную форму.")
     audio = await request.body()
     if not audio:
         raise HTTPException(status_code=400, detail="Запись пустая.")
@@ -362,23 +382,111 @@ async def eval_clip(request: Request) -> dict:
     SET.mkdir(parents=True, exist_ok=True)
     suffix = ".webm" if "webm" in request.headers.get("content-type", "") else ".wav"
     # A name that cannot collide with an existing clip, however many there are.
-    taken = {p.stem for p in SET.glob("*")}
+    taken = {p.stem for p in SET.iterdir() if p.suffix in
+             (".wav", ".webm", ".ogg", ".mp4", ".m4a", ".txt")}
     n = len(taken)
     while f"{n:04d}" in taken:
         n += 1
     stem = f"{n:04d}"
     (SET / f"{stem}{suffix}").write_bytes(audio)
-    (SET / f"{stem}.txt").write_text(said, encoding="utf-8")
+    # A read-aloud target is a prompt, never ground truth. The reviewed .txt
+    # starts empty for both task types and cannot enter an eval accidentally.
+    (SET / f"{stem}.txt").write_text("", encoding="utf-8")
+    if said:
+        (SET / f"{stem}.prompt").write_text(said, encoding="utf-8")
+    if question:
+        (SET / f"{stem}.question").write_text(question, encoding="utf-8")
     if planted:
         (SET / f"{stem}.said").write_text(planted, encoding="utf-8")
+    if accepted:
+        (SET / f"{stem}.accepted").write_text(accepted, encoding="utf-8")
     clips = len(list(SET.glob("*.txt")))
     return {"saved": stem, "clips": clips, "planted": bool(planted),
+            "question": bool(question),
             "folder": str(SET),
             "note": _re.sub(r"\s+", " ", """
-                Запись сохранена только на этой машине. Текст — подсказка, не расшифровка.
-                Прослушай запись, исправь .txt и подтверди через `cli asr-verify --listened`. Для сравнения движков
-                нужно 80–150 фраз, примерно четверть — с намеренной ошибкой.
+                Копия записи сохранена на этой машине. Черновик распознавания
+                нужно прослушать и исправить; только подтверждённый текст
+                войдёт в сравнение движков.
             """).strip()}
+
+
+class EvalDraft(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    engine: str = Field(max_length=200)
+
+
+@router.post("/api/eval/draft/{stem}")
+def eval_draft(stem: str, draft: EvalDraft) -> dict:
+    """Keep the machine's guess beside the clip, never in the reviewed .txt."""
+    import json
+    import os
+
+    from ..evals.asr import SET
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail=(
+            "Запись набора для оценки — локальная задача (`cli serve`)."))
+    if not stem.isascii() or not stem.isdigit() or len(stem) < 4 or not any(
+        (SET / f"{stem}{suffix}").is_file() for suffix in (".wav", ".webm")
+    ):
+        raise HTTPException(status_code=404, detail="Запись не найдена.")
+    (SET / f"{stem}.draft.json").write_text(
+        json.dumps(draft.model_dump(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    return {"saved": stem}
+
+
+class EvalReview(BaseModel):
+    transcript: str = Field(min_length=1, max_length=2000)
+    listened: bool = False
+    planted_said: bool = False
+
+
+@router.post("/api/eval/review/{stem}")
+def eval_review(stem: str, review: EvalReview) -> dict:
+    """Seal a clip reviewed in the local app; ASR and prompt are never truth."""
+    import os
+
+    from ..evals.asr import SET, _norm, verify_clip
+
+    if os.environ.get("PROXY_TOKEN"):
+        raise HTTPException(status_code=404, detail="Проверка записи доступна только локально.")
+    if not review.listened:
+        raise HTTPException(status_code=400, detail="Сначала прослушай запись целиком.")
+    if not stem.isascii() or not stem.isdigit() or len(stem) < 4:
+        raise HTTPException(status_code=404, detail="Запись не найдена.")
+    audio = next((SET / f"{stem}{suffix}" for suffix in (".wav", ".webm")
+                 if (SET / f"{stem}{suffix}").is_file()), None)
+    if audio is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена.")
+    words = _norm(review.transcript.strip())
+    if not words:
+        raise HTTPException(status_code=400, detail="В расшифровке нет слов.")
+    index = None
+    accepted = ""
+    if review.planted_said:
+        planted_path = SET / f"{stem}.said"
+        accepted_path = SET / f"{stem}.accepted"
+        if not planted_path.is_file() or not accepted_path.is_file():
+            raise HTTPException(status_code=400, detail="Для записи нет проверяемой ошибочной формы.")
+        planted = _norm(planted_path.read_text(encoding="utf-8"))
+        accepted = accepted_path.read_text(encoding="utf-8").strip()
+        matches = [i for i, word in enumerate(words) if word in planted]
+        if len(planted) != 1 or len(matches) != 1 or len(_norm(accepted)) != 1:
+            raise HTTPException(status_code=400, detail=(
+                "Укажи в расшифровке ошибочную форму один раз, как она прозвучала."))
+        index = matches[0]
+    transcript = audio.with_suffix(".txt")
+    transcript.write_text(review.transcript.strip() + "\n", encoding="utf-8")
+    try:
+        verify_clip(audio, planted_index=index, accepted=accepted,
+                    focus=(index,) if index is not None else (),
+                    tags=("question-answer",) if audio.with_suffix(".question").is_file()
+                    else ("read-aloud",))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"verified": stem, "planted": index is not None}
 
 
 @router.get("/api/eval/prompt")

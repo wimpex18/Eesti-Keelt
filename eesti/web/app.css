@@ -296,6 +296,9 @@
     border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
   .row{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;
     margin-top:var(--s3)}
+  /* Rows with labelled fields align actions to the field, not to the label's
+     combined title, gloss and control height. */
+  .row:has(> label){align-items:flex-end}
   /* On a phone a filter bar is a column: each label full width with its select
      filling the rest, so filters share a right edge. */
   @media (max-width: 560px){
@@ -306,8 +309,8 @@
      Metrics are shared by every variant; colour is the only thing variants change.
      Every button class used in the markup has a base rule here. */
   button.go, button.primary, button.ghost, a.ghost{
-    padding:10px 18px;border-radius:var(--radius-sm);font:inherit;
-    font-size:var(--fs-body);font-weight:600;
+    padding:4px 18px;border-radius:var(--radius-sm);font:inherit;
+    font-size:var(--fs-body);font-weight:600;line-height:1.3;
     cursor:pointer;min-height:44px;text-align:center;
     transition:transform .06s ease, opacity .15s ease}
   /* Not a flex container: that would blockify inline children and put the inline
@@ -317,6 +320,7 @@
     border:0;font-weight:600}
   button.ghost, a.ghost{background:none;border:1px solid var(--line);
     color:var(--ink)}
+  button.go .ru, button.primary .ru, button.ghost .ru, a.ghost .ru{margin-top:0}
   button.go:active, button.primary:active{transform:scale(.98)}
   button.go:disabled, button.primary:disabled{opacity:.55;cursor:default;
     transform:none}
@@ -325,7 +329,7 @@
   /* A link shaped like a button: outbound study material sits beside the
      app's own controls and should not look like a lesser thing. */
   a.ghost{display:inline-flex;align-items:center;text-decoration:none}
-  select,input[type=text],input[type=number]{padding:10px 12px;border:1px solid var(--line);
+  select,input[type=text],input[type=number]{padding:8px 12px;border:1px solid var(--line);
     border-radius:var(--radius-sm);background:var(--bg);color:var(--ink);font:inherit;
     /* 16px stops iOS Safari zooming the page when a field is focused. */
     font-size:var(--fs-input);min-height:44px}
@@ -338,6 +342,19 @@
   .row > label > select, .row > label > input{align-self:stretch;width:100%}
   /* The gloss is its own line here, so no inline indent. */
   .row > label > i.ru{margin-left:0}
+  /* A sitting has one decision: the selected date and its action share a
+     baseline; the explanatory date note takes the full line beneath them. */
+  .exam-goal{display:grid;grid-template-columns:minmax(0,1fr) auto;
+    align-items:end;gap:var(--s3);margin-top:var(--s3)}
+  .exam-goal > label{display:flex;flex-direction:column;align-items:stretch;
+    gap:var(--s1);min-width:0;font-weight:600}
+  .exam-goal > label > i.ru{margin-left:0}
+  .exam-goal select{width:100%;min-width:0}
+  .exam-goal > .hint{grid-column:1 / -1}
+  @media (max-width:560px){
+    .exam-goal{grid-template-columns:minmax(0,1fr)}
+    .exam-goal > button{width:100%}
+  }
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .engine{font-size:var(--fs-meta);color:var(--muted);margin-top:var(--s4)}
   .engine b{color:var(--ink)}
@@ -578,6 +595,11 @@
   .evalset{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px dashed var(--line);
     border-radius:12px}
   .evalset > summary{cursor:pointer;font-weight:600}
+  .eval-review{margin-top:var(--s4);display:grid;gap:var(--s2)}
+  .eval-review > label:first-child{display:grid;gap:var(--s1);font-weight:600}
+  .eval-review .eval-confirm{display:flex;align-items:flex-start;gap:var(--s2)}
+  .eval-review .eval-confirm input{margin-top:.3em;flex:none}
+  .eval-review > button{justify-self:start}
   .vestlus{margin:var(--s4) 0;padding:var(--s3) var(--s4);border:1px solid var(--line);
     border-radius:12px;background:var(--panel)}
   .vestlus > summary{cursor:pointer;font-weight:600}
@@ -594,8 +616,28 @@
     background:var(--panel)}
   .exam-task-head{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
   .exam-task audio{width:100%;margin-top:var(--s3)}
+  .exam-preview{margin-top:var(--s3)}
+  .exam-preview > summary{cursor:pointer;font-weight:600}
+  .exam-pages{margin-top:var(--s3)}
+  .exam-pages .row{justify-content:space-between;align-items:center}
+  .exam-pages img{display:block;width:100%;height:auto;margin:var(--s3) auto;
+    border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff}
   .exam-text{white-space:pre-wrap;font-family:inherit;font-size:var(--fs-note);
     line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
+  .exam-native{display:grid;gap:var(--s3);margin:var(--s4) 0}
+  .exam-native > button{justify-self:start}
+  .exam-question{display:grid;gap:var(--s2);min-width:0;padding:var(--s3);
+    border:1px solid var(--line);border-radius:var(--radius-sm)}
+  .exam-question legend{font-weight:600;padding:0 var(--s2)}
+  .exam-question label{display:flex;align-items:center;gap:var(--s2);cursor:pointer}
+  .exam-question input{flex:none}
+  .exam-page-text{margin-top:var(--s3)}
+  .exam-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));
+    gap:var(--s3)}
+  .exam-figures figure{margin:0;padding:var(--s2);border:1px solid var(--line);
+    border-radius:var(--radius-sm);background:#fff}
+  .exam-figures img{display:block;max-width:100%;height:auto;margin:auto}
+  .exam-figures figcaption{color:#333;font-size:var(--fs-note);margin-top:var(--s2)}
   .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
     text-align:left;font:inherit;text-decoration:underline}
   /* One numbered recording per question, as the exam task numbers them. */

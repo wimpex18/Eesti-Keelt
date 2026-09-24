@@ -67,11 +67,12 @@ export async function loadExam() {
     x.setAttribute("aria-selected", x.dataset.level === examLevel()));
 
   const get = u => api(u, null, "GET").then(r => r.json());
-  const [ready, material, path, spec, goal] = await Promise.all([
+  const [ready, material, path, spec, goal, milestones] = await Promise.all([
     get(`/api/readiness/${examLevel()}`), get(`/api/exam/${examLevel()}`),
     get("/api/curriculum").catch(() => ({})),
     get(`/api/exam-spec/${examLevel()}`).catch(() => null),
     get("/api/goal").catch(() => ({goal: null})),
+    get(`/api/milestones/${examLevel()}`).catch(() => ({milestones: []})),
   ]);
   const mock = await get(`/api/mock/${examLevel()}`).catch(() => null);
 
@@ -98,13 +99,21 @@ export async function loadExam() {
       <span class="part-body">
         <span class="part-name" lang="et">${esc(part.et)}</span>
         <span class="part-ev"> · ${esc(part.evidence)}</span>
-        ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.url
-            ? `<a href="${esc(part.next_task.url)}" target="_blank"
+        ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.local
+            ? `<button class="linky" data-open-task="${esc(part.next_task.id)}"
+                 lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</button>`
+            : part.next_task.url ? `<a href="${esc(part.next_task.url)}" target="_blank"
                  rel="noopener" lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</a>`
             : `<span lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</span>`}</div>` : ""}
       </span></div>`;
   }
   html += `</div>`;
+  if (milestones.milestones?.length) html += `<details class="more">
+    <summary lang="et">Saavutused <i class="ru" lang="ru">этапы подготовки</i></summary>
+    <ul class="hint">${milestones.milestones.map(m => `<li>
+      ${m.complete ? "✓" : `${m.current}/${m.target}`} <b lang="et">${esc(m.et)}</b>
+      <span lang="ru">${esc(m.ru)}</span></li>`).join("")}</ul>
+  </details>`;
 
   /* The reasons and the lists of what is left are the detail behind the marks above:
      one tap away, not a wall under them. */
@@ -197,13 +206,29 @@ async function openTask(row, id, format, hasFile) {
     text = await (await api(`/api/exam/text/${encodeURIComponent(id)}`)).json();
   } catch { /* audio, a scanned PDF, or a .docx: the file itself still opens */ }
   const own = ["mp3", "wav"].includes(format);       // the task *is* a recording
+  const pdf = hasFile && format.toLowerCase() === "pdf";
+  let native = null;
+  if (pdf) {
+    try {
+      native = await (await api(`/api/exam/native/${encodeURIComponent(id)}`,
+        null, "GET")).json();
+    } catch { /* An older exam mount still has the original page reader. */ }
+  }
+  let pages = 0;
+  if (pdf) {
+    try {
+      pages = (await (await api(`/api/exam/pages/${encodeURIComponent(id)}`,
+        null, "GET")).json()).pages || 0;
+    } catch { /* A corrupt PDF still leaves extracted text or a file fallback. */ }
+  }
   // An EIS listening task carries its own recordings, one per question.
   const clips = own ? [file] : (text?.audio || []);
+  let page = 1;
   box.innerHTML = `
     <div class="exam-task-head">
-      ${hasFile ? `<a class="ghost" href="${file}" target="_blank"
+      ${hasFile && !pdf ? `<a class="ghost" href="${file}" target="_blank"
                       rel="noopener">открыть файл</a>` : ""}
-      ${text?.url ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
+      ${text?.url && !pdf ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
                        rel="noopener">решить на сайте</a>` : ""}
       <button class="ghost" data-close lang="et">Sulge
         <span class="ru" lang="ru">закрыть</span></button>
@@ -211,16 +236,110 @@ async function openTask(row, id, format, hasFile) {
     ${clips.map((url, i) => `<div class="clip">${
         clips.length > 1 ? `<span class="lib-meta">${i + 1}</span>` : ""
       }<audio controls preload="none" src="${esc(url)}"></audio></div>`).join("")}
-    ${text ? `<p class="hint">${esc(text.note)}</p>
+    ${native?.questions?.length ? `<form class="exam-native">
+      <p class="hint">Официальные вопросы и проверенный ключ — © Haridus- ja Noorteamet.
+        Результат этой тренировки не меняет освоение темы.</p>
+      ${native.kind === "matching" ? `<p class="hint">Сопоставь каждую ситуацию с объявлением A–F.
+        Букву можно выбрать для нескольких ситуаций.</p>` : ""}
+      ${native.kind === "matching" ? `<div class="exam-figures">${native.figures.map(f =>
+        `<figure><img src="/api/exam/image/${encodeURIComponent(id)}/${f.page}/${f.index}"
+            alt="Официальное объявление ${f.letter}" loading="lazy">
+            <figcaption lang="et">${f.letter}</figcaption></figure>`).join("")}</div>` : ""}
+      ${native.questions.map(q => `<fieldset class="exam-question">
+        <legend lang="et">${q.number}. ${esc(q.prompt)}</legend>
+        ${native.kind === "matching" ? `<select name="q${q.number}"
+          aria-label="${q.number}. kuulutus"><option value="" lang="et">Vali</option>
+          ${native.figures.map(f => `<option value="${f.letter}">${f.letter}</option>`).join("")}
+          </select>` : Object.entries(q.options).map(([key, value]) =>
+          `<label lang="et"><input type="radio" name="q${q.number}" value="${key}">
+          <b>${key}</b> ${esc(value)}</label>`).join("")}
+      </fieldset>`).join("")}
+      <button class="go" type="submit" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+      <p class="hint" data-native-result role="status"></p>
+    </form>` : ""}
+    ${pdf ? `<details class="exam-preview" ${text ? "" : "open"}>
+      <summary lang="et">Algne PDF <span class="ru" lang="ru">оригинал задания в приложении</span></summary>
+      ${pages ? `<div class="exam-pages">
+        <div class="row">
+          <button class="ghost" data-prev disabled lang="et">Eelmine <span class="ru" lang="ru">назад</span></button>
+          <span class="hint" data-page-label>1 / ${pages}</span>
+          <button class="ghost" data-next ${pages === 1 ? "disabled" : ""} lang="et">Järgmine <span class="ru" lang="ru">дальше</span></button>
+        </div>
+        <img src="/api/exam/page/${encodeURIComponent(id)}/${page}"
+          alt="Официальное задание, страница 1 из ${pages}" loading="lazy">
+      </div>` : `<p class="hint">Страницы PDF не удалось показать.</p>
+        <a href="${file}" target="_blank" rel="noopener">Открыть оригинал</a>`}
+    </details>` : ""}
+    ${native?.questions?.length ? "" : native?.pages?.some(p => p.text || p.images?.length)
+      ? native.pages.map(p => `<section class="exam-page-text">
+          <h4 lang="et">Lehekülg ${p.number}</h4>
+          ${p.images?.length ? `<div class="exam-figures">${p.images.map((figure, i) =>
+            `<figure><img src="/api/exam/image/${encodeURIComponent(id)}/${p.number}/${figure.index}"
+               alt="Официальное изображение ${i + 1}, страница ${p.number}" loading="lazy">
+               <figcaption lang="et">Pilt ${i + 1}</figcaption></figure>`).join("")}</div>` : ""}
+          ${p.needs_review ? `<p class="hint">${p.method === "pdf-text"
+            ? "На этой странице мало извлечённого текста. Проверь оригинал выше."
+            : "Автоматическое распознавание — черновик; колонки и цифры могут быть неверными. Проверь оригинал выше."}</p>` : ""}
+          ${p.method === "pdf-text" && p.text
+            ? `<pre class="exam-text" lang="et">${esc(p.text)}</pre>`
+            : p.method !== "pdf-text" ? `<details><summary lang="et">OCR tekst <span class="ru" lang="ru">черновик текста</span></summary>
+                 <pre class="exam-text" lang="et">${esc(p.text)}</pre></details>` : ""}
+        </section>`).join("")
+      : text ? `<p class="hint">${esc(text.note)}</p>
               <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
            : `<p class="hint">${own
                 ? "Официальная запись — © Haridus- ja Noorteamet."
+                : pdf ? "Текст не извлёкся; оригинал показан выше."
                 : "Текст не разобрался — открой файл."}</p>`}`;
   box.querySelector("[data-close]").onclick = () => box.remove();
+  const form = box.querySelector(".exam-native");
+  if (form) form.onsubmit = async e => {
+    e.preventDefault();
+    const answers = {};
+    for (const q of native.questions) {
+      const choice = form.querySelector(`select[name="q${q.number}"]`) ||
+        form.querySelector(`input[name="q${q.number}"]:checked`);
+      if (choice?.value) answers[q.number] = choice.value;
+    }
+    const result = form.querySelector("[data-native-result]");
+    if (Object.keys(answers).length !== native.questions.length) {
+      result.textContent = "Ответь на все вопросы.";
+      return;
+    }
+    try {
+      const graded = await (await api(`/api/exam/native/${encodeURIComponent(id)}/check`,
+        {answers})).json();
+      result.textContent = `${graded.correct} из ${graded.total} верно. ` +
+        graded.results.filter(x => !x.correct).map(x => `${x.number}: ${x.answer}`).join(" · ");
+    } catch (error) { result.textContent = error.message; }
+  };
+  if (pages) {
+    const image = box.querySelector(".exam-pages img");
+    const show = n => {
+      page = n;
+      image.src = `/api/exam/page/${encodeURIComponent(id)}/${n}`;
+      image.alt = `Официальное задание, страница ${n} из ${pages}`;
+      box.querySelector("[data-page-label]").textContent = `${n} / ${pages}`;
+      box.querySelector("[data-prev]").disabled = n === 1;
+      box.querySelector("[data-next]").disabled = n === pages;
+    };
+    box.querySelector("[data-prev]").onclick = () => show(page - 1);
+    box.querySelector("[data-next]").onclick = () => show(page + 1);
+  }
 }
 
 
 document.addEventListener("click", e => {
+  const next = e.target.closest("#tab-exam button[data-open-task]");
+  if (next) {
+    const target = [...document.querySelectorAll("#examMaterial button[data-task]")]
+      .find(b => b.dataset.task === next.dataset.openTask);
+    if (target) {
+      target.click();
+      target.scrollIntoView({behavior: "smooth", block: "start"});
+    }
+    return;
+  }
   const b = e.target.closest("#tab-exam button[data-task]");
   if (!b) return;
   const row = b.closest(".lib-item");

@@ -122,7 +122,7 @@ def cmd_evkk(args: argparse.Namespace) -> int:
 
 def cmd_harvest_exam(args: argparse.Namespace) -> int:
     """Index the exam board's practice tasks as pointers: they are HARNO's copyright
-    and their scoring only works on their site.
+    and only a separately reviewed printed key may be graded in this app.
     """
     from .. import config
     from ..harvest.eis import LEVELS, catalogue, fetch_task, to_items
@@ -300,6 +300,54 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_prepare_exam(args: argparse.Namespace) -> int:
+    """Build page-aware, private sidecars for local HARNO task PDFs."""
+    from pathlib import Path
+    import shutil
+
+    from .. import config
+    from ..exam_native import prepare
+    from ..harvest.harno import _kind_of, _skill_of
+
+    if args.ocr:
+        import subprocess
+
+        if not shutil.which("tesseract"):
+            print("OCR requested, but tesseract is not installed.")
+            return 2
+        installed = subprocess.run(["tesseract", "--list-langs"],
+                                   capture_output=True, text=True, check=False)
+        if not {"est", "eng"} <= set(installed.stdout.splitlines()):
+            print("OCR needs Tesseract's est and eng language data.")
+            return 2
+    root = Path(args.root or config.EXAM_DIR)
+    if args.file:
+        paths = [Path(args.file)]
+    else:
+        paths = [p for p in root.rglob("*.pdf")
+                 # macOS tar uploads include AppleDouble `._name.pdf` stubs;
+                 # they are not PDFs and must not abort the Cloud Shell import.
+                 if not p.name.startswith(".")
+                 and "__MACOSX" not in p.parts
+                 and _kind_of(p.stem.replace("_", " "),
+                             _skill_of(p.stem)) == "ulesanne"]
+    if not paths:
+        print(f"No task PDFs found under {root}")
+        return 1
+    verified = sparse = candidates = 0
+    for path in sorted(paths):
+        result = prepare(path, ocr=args.ocr)
+        verified += int(result["verified"])
+        candidates += int(bool(result["questions"]))
+        sparse += sum(page["needs_review"] for page in result["pages"])
+        print(f"{path}: {len(result['pages'])} pages, "
+              f"{len(result['questions'])} questions, "
+              f"{'verified' if result['verified'] else 'ungraded'}")
+    print(f"{len(paths)} PDFs; {candidates} candidate exercises; "
+          f"{verified} verified; {sparse} sparse pages for visual review")
+    return 0
+
+
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
     p = sub.add_parser("harvest", help="crawl ERR language archives (one time)")
@@ -330,6 +378,13 @@ def register(sub) -> None:
         help="fetch the task PDFs and listening audio into data/exam, and read "
              "each EIS task into the app, instead of only linking out")
     p.set_defaults(func=cmd_harvest_exam)
+
+    p = sub.add_parser("prepare-exam", help="extract private, page-aware exam tasks")
+    p.add_argument("--root", default=None, help="exam folder (default EESTI_EXAM_DIR)")
+    p.add_argument("--file", default=None, help="one PDF to inspect")
+    p.add_argument("--ocr", action="store_true",
+                   help="use local Tesseract est+eng on sparse pages")
+    p.set_defaults(func=cmd_prepare_exam)
 
     p = sub.add_parser(
         "link-topics",

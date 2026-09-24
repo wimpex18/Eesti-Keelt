@@ -104,8 +104,9 @@ subscription.
 The current Worker has all three VAPID bindings and its hourly cron configured
 (verified via Cloudflare settings on 2026-09-23). The same pair is stored in
 repository secrets for the deploy workflow and privately in the ignored `.env`.
-No subscription was created or notification sent during verification. The
-smoke workflow checks key configuration separately from browser delivery.
+Chrome on the owner's Mac subscribed on 2026-09-23 with permission granted;
+delivery of an actual notification remains unverified. The smoke workflow
+checks key configuration separately from browser delivery.
 
 Without the keys the app says reminders are not configured and never asks the
 browser for permission it cannot use. On iPhone, notifications work only from
@@ -121,6 +122,12 @@ bash deploy/push-exam.sh            # sync and mount, in Cloud Shell
 bash deploy/push-exam.sh --check    # what is there now
 ```
 
+For native, page-aware task text and reviewed answer controls, run
+`python -m eesti.cli prepare-exam --root data/exam` before the upload. It writes
+private JSON sidecars beside task PDFs. `--ocr` uses locally installed
+Tesseract with Estonian and English language data on sparse pages. The generated
+files are git-ignored and travel with `push-exam.sh`; see `docs/exam-native.md`.
+
 The service reads them at `EESTI_EXAM_DIR`. Two halves travel separately and
 that is deliberate: the **text** extracted from each PDF is part of the library
 (`push-content.sh`), so a task can be read on the deployment with no bucket at
@@ -128,6 +135,10 @@ all, while the **files** — above all the listening recordings, the half a text
 cannot carry — need this mount. Where they are missing the catalogue says a
 task is not downloaded and links out to harno.ee; `library._file_here` checks
 rather than assumes, so the same database is honest on both machines.
+An older catalogue published before the download has no `meta.file`; the app
+also checks the mounted path derived from HARNO's URL using the downloader's
+filename rule. This lets a later mount work without replacing the reading
+corpus in production.
 
 ## The reading corpus
 
@@ -197,8 +208,9 @@ If `gcloud` has no project: `gcloud config set project <id>`.
 
 A session cannot read the deployed app. Use the **`smoke`** workflow
 (Actions → smoke → Run workflow). It runs after `deploy`, daily, and on demand,
-and checks: Access closed, health, image build stamp vs `main`, origin guard,
-speech, reference counts, live dictionary, library and topic links.
+and checks: Access closed, health, readable EKI audio and HARNO exam files,
+image build stamp vs `main`, origin guard, speech, reference counts, live
+dictionary, library and topic links.
 
 - Wait until the image is newer than the merge (10–15 min), or smoke reports on
   the previous image — it prints which.

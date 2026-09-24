@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 import unicodedata
 from dataclasses import dataclass, field
@@ -34,7 +35,7 @@ from pathlib import Path
 from ..config import DATA
 
 #: Where the recordings live. Owner-only: personal voice, never in git.
-SET = DATA / "eval" / "asr"
+SET = Path(os.environ.get("EESTI_ASR_EVAL_DIR", DATA / "eval" / "asr"))
 
 #: Minimum pilot size, not a statistical power guarantee or a promotion gate.
 ENOUGH = 20
@@ -125,6 +126,12 @@ def verify_clip(audio: Path, *, planted_index: int | None = None,
     automatically generated correction. `focus` names morphology-sensitive
     reference token indices; tags name slices such as numbers/names/hesitation.
     """
+    saved_question = audio.with_suffix(".question")
+    if saved_question.exists():
+        recorded = saved_question.read_text(encoding="utf-8").strip()
+        if question and question != recorded:
+            raise ValueError("question differs from the recorded task")
+        question = recorded
     if len(question) > 220:
         raise ValueError("question must fit the production 220-character context limit")
     transcript = audio.with_suffix(".txt")

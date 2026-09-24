@@ -1,28 +1,30 @@
 # Handoff
 
-## Current task
-Provider/source follow-up is complete on `codex/pre-ux-architecture`, PR #66.
-Automatic hosted grammar/tutor: Workers AI GPT-OSS-120B only, then deterministic
-fallback. Public GEC, normalization, Mistral/NVIDIA/OpenRouter remain eval-only.
-Modern candidates and exact results: `docs/evaluations/providers.json`.
-TTS/translation and EKI/ERR/Selges/HARNO/EIS passed independent runtime probes.
-Source refresh/publication, TTS cache validation and translation parsing fixed.
-TalTech CT2/Zipformer actually ran native controls; no learner quality claim.
-ASR reference decoding/fingerprints and open-answer question-context eval fixed.
-All changes belong to this PR; AGENTS.md and CLAUDE.md remain byte-identical.
+## Current state
+PR [#67](https://github.com/wimpex18/Eesti-Keelt/pull/67) is open; the owner merges. Production is
+`https://eesti-keelt.wimpex18.workers.dev`. Cloud Run has one instance
+and EKI audio/HARNO exam mounts. A private off-account event export passed
+`cli verify-backup` (9 events); it excludes push subscriptions and audio.
+
+Workers AI GPT-OSS-120B is the automatic hosted grammar/tutor lane with
+deterministic fallback; Cloudflare Workers AI is production ASR. Ollama EstLLM
+stays outside Git and is evaluation-only. Learner ASR quality still needs
+listened-to, corrected in-app recordings. Chrome reminders are subscribed;
+actual delivery is unverified.
+
+The PR adds local speech review, native PDF pages, and offline PDF extraction.
+Private sidecars under `data/exam/` hold page text and OCR drafts.
+Visually verified A2 and B1 reading PDFs have 6 choice and 9 figure-matching
+questions; 27 other task PDFs remain ungraded. OCR text is provisional. Four milestones
+derive from recorded course evidence and do not alter mastery or FSRS.
 
 ## Exact next step
-Review/merge PR #66 (the user merges), then run `smoke` with `deep: true` and
-verify the image stamp. Branch application changes are not deployed yet.
-VAPID pair is in ignored .env + GitHub secrets; main Worker deploy succeeded
-and all three live VAPID bindings/hourly cron were verified. No push was sent.
+After the owner merges #67, pull `main` in Cloud Shell, run `cli prepare-exam`
+against the existing `data/exam/`, and sync it with `deploy/push-exam.sh`; see
+`docs/exam-native.md`. Wait for Cloud Build, then run `smoke` on `main` with
+`deep: true`. Verify both native tasks, HARNO pages and EKI audio on production. Check Chrome
+reminder delivery and collect reviewed learner speech before paired ASR evaluation.
 
-## Remaining owner actions / limits
-Opt into reminders in the installed browser/PWA and verify actual delivery.
-Record/verify learner ASR clips; native controls do not measure false acceptance.
-Use `asr-verify --question` only for the real open-answer question, never a target.
-Cloud Shell: check max-instances=1 and exam/audio mounts; gcloud access unavailable here.
-Take a private off-account export and run `verify-backup` before redesign.
-Replication is asynchronous; coordinated erasure/nightly backups remain deferred.
-Latest full local suite: 2208 passed, 2 skipped; morphology gold check 98.1%.
-No unrelated uncommitted files or implementation blockers remain.
+## Blockers
+Owner merge, sidecar sync, notification arrival and verified speech are pending.
+Uncommitted paths after commit: none.

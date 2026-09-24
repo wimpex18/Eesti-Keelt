@@ -229,7 +229,9 @@ def _next_task(content, level: str, skill: str) -> dict | None:
         return None
     try:
         row = content.execute(
-            """SELECT i.title, i.meta FROM items i
+            """SELECT i.id, i.title, i.meta, i.level, i.source_id,
+                      LENGTH(TRIM(COALESCE(i.body, ''))) AS body_length
+               FROM items i
                JOIN sources s ON s.id = i.source_id
                WHERE i.level = ? AND i.skill = ? AND s.id IN ('harno','eis')
                  AND (i.meta LIKE '%"kind": "ulesanne"%' OR i.meta NOT LIKE '%"kind"%')
@@ -246,7 +248,12 @@ def _next_task(content, level: str, skill: str) -> dict | None:
         meta = _json.loads(row["meta"] or "{}")
     except ValueError:
         meta = {}
-    return {"title": row["title"], "url": meta.get("url")}
+    from .library import _file_here, exam_stored_path
+
+    local = bool(row["body_length"]) or _file_here(exam_stored_path(
+        meta, row["level"], row["source_id"]))
+    return {"id": row["id"], "title": row["title"],
+            "url": meta.get("url"), "local": local}
 
 
 def _speaking_evidence() -> str:

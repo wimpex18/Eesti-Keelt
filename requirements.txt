@@ -4,6 +4,9 @@ fastapi
 uvicorn[standard]
 fsrs                     # FSRS-6 spaced repetition (MIT)
 pypdf                    # reading the exam board's own task PDFs (BSD)
+pypdfium2                # render official PDF pages inside the app (Apache-2.0/BSD)
+pdfplumber               # position embedded figures in exam PDFs (MIT)
+Pillow                   # encode PDFium-rendered pages as PNG (HPND)
 
 # Test-only: Starlette's TestClient transport, and reading workflow YAML.
 httpx2

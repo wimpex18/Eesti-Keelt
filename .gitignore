@@ -13,6 +13,8 @@ audio-cache/
 # HARNO exam material is copyright Haridus- ja Noorteamet.
 # Personal study use only — never redistribute or commit.
 data/exam/
+# Private learner speech, reviewed transcripts and ASR reports.
+data/eval/
 
 .env
 deploy/ca-bundle.crt

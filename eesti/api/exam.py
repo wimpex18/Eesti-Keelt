@@ -7,8 +7,10 @@ a caveat.
 
 from __future__ import annotations
 
+import threading
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from ..config import LEVELS
@@ -16,6 +18,7 @@ from .deps import content_db, content_available, db, notion_db, progress_db, voc
 from .render import _glosses_for, item_for_page
 
 router = APIRouter()
+_PDF_LOCK = threading.Lock()  # PDFium calls are not thread-safe.
 
 @router.get("/api/exam/{level}")
 def exam(level: str) -> dict:
@@ -41,6 +44,16 @@ def exam_readiness(level: str) -> dict:
         level, progress=progress_db(), vocabulary=vocab_db(), words=db(),
         content=content_db(), notion=notion_db(),
     ).to_dict()
+
+
+@router.get("/api/milestones/{level}")
+def exam_milestones(level: str) -> dict:
+    """Recognise actual practice without awarding points for attendance."""
+    from ..milestones import for_level
+
+    if level not in LEVELS:
+        raise HTTPException(status_code=404, detail="unknown level")
+    return {"level": level, "milestones": for_level(progress_db(), level)}
 
 
 @router.get("/api/checkpoint/{level}")
@@ -286,29 +299,25 @@ def mock_history(level: str) -> dict:
             "counts": counts(progress_db(), level)}
 
 
-@router.get("/api/exam/file/{item_id}")
-def exam_file(item_id: str):
-    """One downloaded exam file: the task PDF, or its listening recording.
-
-    Only files under `config.EXAM_DIR` are served, and only to the learner —
-    Access guards the app, and this is the exam board's material.
-    """
+def _exam_path(item_id: str):
+    """Find a downloaded task inside the private exam mount, never outside it."""
     import json as _json
     from pathlib import Path
-
-    from fastapi.responses import FileResponse
 
     from .. import config
 
     row = content_db().execute(
-        "SELECT title, meta FROM items WHERE id = ?", (item_id,)).fetchone()
+        "SELECT title, level, source_id, meta FROM items WHERE id = ?",
+        (item_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Материал не найден.")
     try:
         meta = _json.loads(row["meta"] or "{}")
     except ValueError:
         meta = {}
-    stored = meta.get("file")
+    from ..library import exam_stored_path
+
+    stored = exam_stored_path(meta, row["level"], row["source_id"])
     if not stored:
         raise HTTPException(status_code=404, detail=(
             "Этот материал не скачан — открой его по ссылке."))
@@ -316,13 +325,106 @@ def exam_file(item_id: str):
     path = (root / stored).resolve()
     if root not in path.parents or not path.exists():
         # A meta row pointing outside the folder is a bug, not a request to obey.
+        if not meta.get("file") and root in path.parents:
+            raise HTTPException(status_code=404, detail=(
+                "Этот материал не скачан — открой его по ссылке."))
         raise HTTPException(status_code=404, detail="Файл недоступен.")
+    return path
+
+
+@router.get("/api/exam/file/{item_id}")
+def exam_file(item_id: str):
+    """One downloaded exam file, protected by the same mount containment check."""
+    from fastapi.responses import FileResponse
+
+    path = _exam_path(item_id)
     kinds = {".pdf": "application/pdf", ".mp3": "audio/mpeg",
              ".wav": "audio/wav", ".docx":
              "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
     return FileResponse(path, media_type=kinds.get(path.suffix.lower(),
                                                    "application/octet-stream"),
-                        filename=path.name)
+                        filename=path.name,
+                        content_disposition_type=("inline" if path.suffix.lower() == ".pdf"
+                                                  else "attachment"))
+
+
+@router.get("/api/exam/pages/{item_id}")
+def exam_pages(item_id: str) -> dict:
+    """Page count for the app's built-in PDF reader."""
+    import pypdfium2 as pdfium
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    try:
+        with _PDF_LOCK:
+            doc = pdfium.PdfDocument(path)
+            try:
+                return {"pages": len(doc)}
+            finally:
+                doc.close()
+    except pdfium.PdfiumError as exc:
+        raise HTTPException(status_code=422, detail="PDF не открылся.") from exc
+
+
+@router.get("/api/exam/page/{item_id}/{page}")
+def exam_page(item_id: str, page: int) -> Response:
+    """Render one page on demand; works even without a browser PDF viewer."""
+    import io
+
+    import pypdfium2 as pdfium
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    try:
+        with _PDF_LOCK:
+            doc = pdfium.PdfDocument(path)
+            try:
+                if page < 1 or page > len(doc):
+                    raise HTTPException(status_code=404, detail="Страница не найдена.")
+                pdf_page = doc[page - 1]
+                try:
+                    bitmap = pdf_page.render(scale=1.7)
+                    try:
+                        out = io.BytesIO()
+                        bitmap.to_pil().save(out, format="PNG")
+                    finally:
+                        bitmap.close()
+                finally:
+                    pdf_page.close()
+            finally:
+                doc.close()
+    except pdfium.PdfiumError as exc:
+        raise HTTPException(status_code=422, detail="PDF не открылся.") from exc
+    return Response(out.getvalue(), media_type="image/png",
+                    headers={"cache-control": "private, max-age=86400"})
+
+
+@router.get("/api/exam/image/{item_id}/{page}/{index}")
+def exam_image(item_id: str, page: int, index: int) -> Response:
+    """One embedded PDF figure, for native cards without a PDF viewer."""
+    from pathlib import Path
+
+    from pypdf import PdfReader
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    reader = PdfReader(str(path))
+    if page < 1 or page > len(reader.pages):
+        raise HTTPException(status_code=404, detail="Страница не найдена.")
+    images = reader.pages[page - 1].images
+    if index < 1 or index > len(images):
+        raise HTTPException(status_code=404, detail="Изображение не найдено.")
+    image = images[index - 1]
+    kind = {".png": "image/png", ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg", ".gif": "image/gif"}.get(
+                Path(image.name).suffix.lower())
+    if not kind:
+        raise HTTPException(status_code=415, detail="Формат изображения не поддерживается.")
+    return Response(image.data, media_type=kind,
+                    headers={"cache-control": "private, max-age=86400"})
 
 
 @router.get("/api/exam/text/{item_id}")
@@ -349,3 +451,51 @@ def exam_text(item_id: str) -> dict:
             "audio": meta.get("audio") or ([row["audio_url"]] if row["audio_url"] else []),
             "url": meta.get("url"),
             "note": "Официальное задание — © Haridus- ja Noorteamet."}
+
+
+@router.get("/api/exam/native/{item_id}")
+def exam_native(item_id: str) -> dict:
+    """Page-aware task text and reviewed controls from the private exam mount."""
+    from ..exam_native import load
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    draft = load(path)
+    if draft is None:
+        raise HTTPException(status_code=404, detail=(
+            "Структурированное задание ещё не подготовлено."))
+    questions = draft["questions"] if draft["verified"] else []
+    return {"pages": draft["pages"], "verified": draft["verified"],
+            "kind": draft["kind"] if draft["verified"] else "none",
+            "figures": draft["figures"] if draft["verified"] else [],
+            "questions": [{k: v for k, v in q.items() if k != "answer"}
+                          for q in questions], "note": draft["note"]}
+
+
+class NativeAnswers(BaseModel):
+    answers: dict[int, str]
+
+
+@router.post("/api/exam/native/{item_id}/check")
+def check_exam_native(item_id: str, submission: NativeAnswers) -> dict:
+    """Score only a reviewed printed key. This is practice, never mastery."""
+    from ..exam_native import load
+
+    path = _exam_path(item_id)
+    draft = load(path) if path.suffix.lower() == ".pdf" else None
+    if not draft or not draft["verified"]:
+        raise HTTPException(status_code=404, detail="Проверенный ключ недоступен.")
+    questions = draft["questions"]
+    wanted = {q["number"] for q in questions}
+    allowed = ({"A", "B", "C"} if draft["kind"] == "multiple-choice"
+               else {f["letter"] for f in draft["figures"]})
+    if set(submission.answers) != wanted or any(
+            answer not in allowed for answer in submission.answers.values()):
+        raise HTTPException(status_code=422, detail="Ответь на все вопросы.")
+    results = [{"number": q["number"], "correct":
+                submission.answers[q["number"]] == q["answer"],
+                "answer": q["answer"]} for q in questions]
+    return {"correct": sum(r["correct"] for r in results),
+            "total": len(results), "results": results,
+            "note": "Официальный ключ ответа; тренировка не влияет на освоение темы."}

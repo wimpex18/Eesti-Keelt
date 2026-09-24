@@ -20,7 +20,7 @@ diagram below against the page in both directions.
 Kordamine — "what am I forgetting?"
 ├── Järjekord     the FSRS queue: wrong answers and words mined from reading
 ├── Sõnavara      the word list by CEFR level and part of speech, commonest first
-└── Töövihikud    official HARNO consultation workbooks (pointers only)
+└── Töövihikud    official HARNO workbooks (PDF pages in-app when downloaded)
 
 Eksam — "am I ready?"
 ├── Ülevaade      readiness verdict, four exam parts reported separately, the

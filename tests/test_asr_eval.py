@@ -220,3 +220,12 @@ def test_verified_open_answer_question_reaches_production_adapter(tmp_path, monk
     result = evaluation.run(folder=tmp_path, verbose=False)
     assert calls == [{"context": "Kus te elate?"}]
     assert result["details"][0]["question_context"] is True
+
+
+def test_recorded_question_cannot_be_replaced_by_a_target_hint(tmp_path):
+    audio = tmp_path / "answer.wav"
+    audio.write_bytes(b"RIFF")
+    audio.with_suffix(".txt").write_text("Ma elan Tallinnas.", encoding="utf-8")
+    audio.with_suffix(".question").write_text("Kus te elate?", encoding="utf-8")
+    with pytest.raises(ValueError, match="differs"):
+        evaluation.verify_clip(audio, question="Ma elan Tallinnas.")

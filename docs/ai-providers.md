@@ -129,10 +129,10 @@ and OpenRouter's [partial/low-recall result](https://github.com/wimpex18/Eesti-K
 also do not justify automatic use. Configuring `LOCAL_LLM_URL` remains an explicit
 private trial; no local server is part of production.
 
-The [current production smoke](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35826198771)
-reached Workers AI, verified Access/origin protection and Ekilex, and found
-609 library texts / 660 topic links. It tested the current main deployment,
-not unmerged branch changes or microphone recognition.
+The [latest deep production smoke before PR #67](https://github.com/wimpex18/Eesti-Keelt/actions/runs/35910679079)
+reached Workers AI and verified Access/origin protection, Ekilex and reference
+data. It tested the deployed `main`, not pending exam-file resolution or
+microphone recognition.
 
 Interactive grammar/tutor requests use one completion attempt per lane, with
 the existing 60-second socket timeout; explicit evals retain retries. These are
@@ -155,10 +155,56 @@ Override a pinned model without a deploy: set `<LANE>_MODEL` (e.g.
 
 ### Local EstLLM
 
-Run an OpenAI-compatible server (e.g. Ollama with the GGUF above) and set
-`LOCAL_LLM_URL`. Local trials use the existing machine; no public tunnel is part of the chosen
-architecture. Local inference has hardware costs and availability limits.
-A self-hosted corrected-sentence GEC needs its own adapter/eval, not this prompt.
+Current Estonian-language research (2026-09-23), including the
+[EstLLM paper](https://huggingface.co/papers/2603.02041):
+
+| Resource | Fit for this app |
+|---|---|
+| [TartuNLP/TalTechNLP EstLLM 8B Instruct 1125](https://huggingface.co/tartuNLP/Llama-3.1-EstLLM-8B-Instruct-1125) | Best small *general* local grammar/tutor trial. Its published Grammar-et score is 0.831, but that is multiple-choice competence, not learner correction or Russian explanations. Llama 3.1 terms; 4,096-token recommended context and imperfect multi-turn support. |
+| [Apertus EstLLM 8B Instruct 0326](https://huggingface.co/tartuNLP/Apertus-EstLLM-8B-Instruct-0326) | Apache-2.0 alternative; published Grammar-et 0.713. Trial only if licence simplicity matters or our own eval warrants it. |
+| [EstLLM 70B Instruct 0826](https://huggingface.co/tartuNLP/Llama-3.1-EstLLM-70B-Instruct-0826) | Newer large research model; impractical as a laptop-local lane on the owner's 32 GB Mac. No production hosting budget or task eval. |
+| [TartuNLP Estonian GEC 8B](https://huggingface.co/tartuNLP/Llama-3.1-8B-est-gec-july-2025) and [its Ollama wrapper](https://github.com/TartuNLP/gec-ollama-api) | Dedicated corrected-sentence model. Requires a separate adapter and licence check; the model card has incomplete licence metadata. A corrected sentence alone cannot supply the app's sourced Russian explanation. |
+| [TalTech grammar_et](https://huggingface.co/datasets/TalTechNLP/grammar_et) and [inflection_et](https://huggingface.co/datasets/TalTechNLP/inflection_et) | Local evaluation controls, not an answer key or licensed app content. |
+| [EstNLTK/Vabamorf](https://github.com/estnltk/estnltk), [EKI Sõnaveeb/ÕS 2025](https://teatmik.eki.ee/teatmik/sonaveebi-kasutajale/) and [EKI Teatmik](https://eki.ee/teatmik/) | Deterministic forms, live lexicography and current rule references. The app already uses Vabamorf, Ekilex/Sõnaveeb and linked EKK; these resources complement a model, rather than making model output authoritative. |
+
+The [TalTechNLP model catalogue](https://huggingface.co/TalTechNLP/models)
+also has newer Estonian ASR and translation models. They are different tasks:
+compare ASR only on manually verified learner recordings, and compare
+translation with the working Neurotõlge route before changing either.
+
+For a private trial, run an OpenAI-compatible server such as Ollama and set
+`LOCAL_LLM_URL` and `LOCAL_LLM_MODEL` in that process only. A local URL does not
+make the owner's laptop an always-on production service. Apply the app's
+error-detection and clean-sentence eval before trusting a local model. No
+public tunnel or automatic routing change is justified by model-card scores.
+The downloaded GGUF is in Ollama's local model store (`~/.ollama/models` on
+this Mac, with no `OLLAMA_MODELS` override), outside this Git checkout;
+`git pull` cannot remove it. `ollama list` confirms it remains installed.
+To repeat the explicit trial, run:
+
+```bash
+LOCAL_LLM_URL=http://127.0.0.1:11434/v1 \
+LOCAL_LLM_MODEL=hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M \
+python -m eesti.cli eval --provider local
+```
+
+The owner's Mac ran the 4.9 GB third-party `Q4_K_M` GGUF of EstLLM 8B 1125
+through Ollama 0.34.3 and the app's unmodified 18-case prompt on 2026-09-23.
+All 18 calls returned parseable JSON. The first detection-only run flagged
+**10/10** planted errors, but its scorer also counted unchanged replacements.
+After excluding no-op edits, the repeat caught **9/10** and left **0/8** clean
+controls alone. On that repeat,
+six outputs were no-op replacements and two proposed edits; one wrongly changed
+`võtmeid` to `võtme` after negation. It also proposed edits for two of three
+short, clean examples taken from [EKI's object-case rule](https://eki.ee/teatmik/osasihitis-ja-taissihitis/).
+These are distinct failures: a no-op is invalid correction output, while an
+incorrect edit is a linguistic error. The hand-set labels and sources are
+[auditable](evaluations/hand-set.md); it is a diagnostic set, not a native-speaker
+gold corpus. An English-explanation/few-shot variant found 8/10 planted errors
+and left 6/8 clean controls alone when identical replacements were discarded;
+it remains below the release gate. Keep this quantization out of learner traffic.
+English is acceptable for an explicit local trial; Russian remains preferable
+for the target learner and required in the production UI.
 
 ## Choosing a model: the eval
 
@@ -167,7 +213,9 @@ partitive teaches the wrong rule:
 
 - **`hand`** (default) — `eesti/evals/gec.py`, 18 Estonian sentences written
   for this app's weakness: 10 with a planted error (**recall**) and 8 already
-  correct (**precision**). Exits non-zero below 0.8 on either score; exit 2
+  correct (**clean pass rate**, named `precision` in the CLI). The report now
+  distinguishes no-op responses from actual edits. [Labels and EKI/Sõnaveeb
+  sources](evaluations/hand-set.md). Exits non-zero below 0.8 on either score; exit 2
   means nothing was measured.
 - **`--track external`** — `eesti/evals/external.py`, TalTech's `grammar_et`:
   attested error/correction pairs, sampled. Recall is reported **per error
