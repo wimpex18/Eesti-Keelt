@@ -238,7 +238,9 @@ async function openTask(row, id, format, hasFile) {
   let text = null;
   try {
     text = await (await api(`/api/exam/text/${encodeURIComponent(id)}`)).json();
-  } catch { /* audio, a scanned PDF, or a .docx: the file itself still opens */ }
+    // Audio, a scanned PDF or a .docx has no text; the file itself still opens.
+    if (text.available === false) text = null;
+  } catch { /* the file itself still opens */ }
   const own = ["mp3", "wav"].includes(format);       // the task *is* a recording
   const pdf = hasFile && format.toLowerCase() === "pdf";
   let native = null;
@@ -246,6 +248,7 @@ async function openTask(row, id, format, hasFile) {
     try {
       native = await (await api(`/api/exam/native/${encodeURIComponent(id)}`,
         null, "GET")).json();
+      if (native.available === false) native = null;
     } catch { /* An older exam mount still has the original page reader. */ }
   }
   let pages = 0;

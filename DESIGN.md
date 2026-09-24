@@ -177,6 +177,20 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   count and turns solid blue when complete. They award nothing.
 - **Word card.** Floats over the text or list it came from, and always has a
   close button.
+- **Player (Mängija).** Every `<audio>` in the app is drawn as one capsule: a
+  round blue play button (a spinner while a stream loads), the time, a seek track
+  filled to the playhead, the length, *−5* seconds (hidden under 420px) and a
+  speed chip cycling 1× → 0.75× → 1.25×, remembered per device. It stays on one
+  line; a recording that cannot play says so in Russian. The native element stays
+  in the page, hidden, so the media code is unchanged.
+- **Sõnatrenn.** In Sõnavara: ten words the learner marked *õpin* (topped up with
+  the commonest new A1 words) shown by their Russian meaning; the learner types
+  the Estonian, compared with the word list's spelling. *Vihje* reveals a letter
+  at a time. A miss shows the right word, its omastav/osastav when the list has
+  them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
+  records nothing — Kordamine owns memory.
+- **Reader source.** One line above the title: *Allikas* and the source's name,
+  linked to the original. Licence terms stay in the sources footer.
 - **Plan strip.** The day as time, a segment per block as long as its minutes,
   coloured and glyphed by kind.
 - **Celebration.** Mastery only: a flower blooms on an evening card, announced

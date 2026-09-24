@@ -479,6 +479,24 @@
       <h2 class="page-title" lang="et">Sõnavara <i class="ru" lang="ru">словарь</i></h2>
       <p class="lede">Список слов, сначала самые частотные. Нажми на слово, чтобы открыть карточку.</p>
     </div></div>
+    <!-- Sõnatrenn: the Russian meaning, the Estonian word typed back (`js/words.js`). -->
+    <section class="workout" aria-labelledby="workoutHead">
+      <div class="workout-intro">
+        <div>
+          <h3 class="sec-title" id="workoutHead" lang="et">Sõnatrenn <i class="ru" lang="ru">тренировка слов</i></h3>
+          <p class="note">Десять слов из тех, что ты учишь: по переводу вспомни эстонское
+            слово. Ответы никуда не записываются — ошибки можно отправить в повторение.</p>
+        </div>
+        <button class="go" id="workoutStart" type="button" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
+      </div>
+      <div class="stage" id="workoutStage" hidden>
+        <div class="stage-top">
+          <div class="beads" id="workoutBeads" aria-hidden="true"></div>
+          <span class="hint" id="workoutScore"></span>
+        </div>
+        <div id="workoutOut"></div>
+      </div>
+    </section>
     <div class="row">
       <label lang="et">Tase <i class="ru" lang="ru">уровень</i>
         <select id="vocLevel">

@@ -5,6 +5,7 @@
    Chrome and Firefox do not. */
 
 import {api, esc} from "./core.js";
+import {icon} from "./icons.js";
 
 const isHls = url => /\.m3u8(\?|$)/i.test(url || "");
 
@@ -97,3 +98,126 @@ export async function speakWord(word, onError, tag = "") {
     if (onError) onError("Звук не загрузился: " + e.message);
   }
 }
+
+
+/* ── Mängija: one player for every sound ─────────────────────────────
+   Every `<audio>` the app shows — dictation, reading, radio lessons, exam
+   recordings, the read-aloud model, the conversation partner — gets the same
+   controls: play, a seek track, the time, five seconds back and the speed. The
+   native element stays the engine (it plays HLS on Safari, takes hls.js
+   elsewhere, and keeps `src`, `hidden` and `play()` working for the code that
+   made it); only its browser chrome is replaced. The speed is one preference
+   for the whole app, because a learner slows everything down or nothing. */
+
+const SPEEDS = [1, 0.75, 1.25];
+
+function speed() {
+  try { return Number(localStorage.getItem("playbackRate")) || 1; } catch { return 1; }
+}
+
+const clock = s => {
+  if (!Number.isFinite(s) || s < 0) return "–:––";
+  const m = Math.floor(s / 60), r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, "0")}`;
+};
+
+export function enhanceAudio(audio) {
+  if (audio._player || audio.closest(".player")) return audio._player;
+  audio.controls = false;
+  audio.classList.add("enhanced");
+  const p = document.createElement("div");
+  p.className = "player";
+  p.hidden = audio.hidden;
+  p.innerHTML = `
+    <button class="pl-play" type="button" aria-label="Mängi — играть">${icon("play-fill", {weight: "bold"})}</button>
+    <span class="pl-time pl-now">0:00</span>
+    <input class="pl-seek" type="range" min="0" max="1000" step="1" value="0"
+      aria-label="Asukoht — позиция в записи">
+    <span class="pl-time pl-end">–:––</span>
+    <button class="pl-back" type="button" aria-label="5 sekundit tagasi — назад на 5 секунд">−5</button>
+    <button class="pl-rate" type="button" aria-label="Kiirus — скорость">1×</button>
+    <span class="pl-err" role="status" hidden></span>`;
+  audio.after(p);
+  audio._player = p;
+  const $p = s => p.querySelector(s);
+  const play = $p(".pl-play"), seek = $p(".pl-seek"), rate = $p(".pl-rate");
+  let dragging = false;
+
+  const paintRate = () => {
+    const r = speed();
+    rate.textContent = `${r}×`;
+    rate.classList.toggle("on", r !== 1);
+    audio.playbackRate = r;
+  };
+  const paintTime = () => {
+    const d = audio.duration, t = audio.currentTime;
+    $p(".pl-now").textContent = clock(t);
+    $p(".pl-end").textContent = Number.isFinite(d) ? clock(d) : "";
+    // A live stream has no end: the track has nothing to point at.
+    seek.disabled = !Number.isFinite(d) || d <= 0;
+    if (!dragging && Number.isFinite(d) && d > 0) seek.value = String(Math.round(t / d * 1000));
+    p.style.setProperty("--p", `${Number(seek.value) / 10}%`);
+  };
+  const paintState = () => {
+    const on = !audio.paused && !audio.ended;
+    p.classList.toggle("playing", on);
+    play.innerHTML = icon(on ? "pause-fill" : "play-fill", {weight: "bold"});
+    play.setAttribute("aria-label", on ? "Paus — пауза" : "Mängi — играть");
+  };
+
+  play.onclick = () => {
+    if (audio.paused || audio.ended) {
+      audio.playbackRate = speed();
+      audio.play().catch(e => {
+        $p(".pl-err").hidden = false;
+        $p(".pl-err").textContent = "Не воспроизводится: " + e.message;
+      });
+    } else audio.pause();
+  };
+  $p(".pl-back").onclick = () => { audio.currentTime = Math.max(0, audio.currentTime - 5); };
+  rate.onclick = () => {
+    const next = SPEEDS[(SPEEDS.indexOf(speed()) + 1) % SPEEDS.length];
+    try { localStorage.setItem("playbackRate", String(next)); } catch {}
+    document.querySelectorAll("audio.enhanced").forEach(a => a._player?._paintRate?.());
+  };
+  p._paintRate = paintRate;
+  seek.addEventListener("input", () => {
+    dragging = true;
+    p.style.setProperty("--p", `${Number(seek.value) / 10}%`);
+    $p(".pl-now").textContent = clock(Number(seek.value) / 1000 * audio.duration);
+  });
+  seek.addEventListener("change", () => {
+    if (Number.isFinite(audio.duration)) audio.currentTime = Number(seek.value) / 1000 * audio.duration;
+    dragging = false;
+  });
+
+  for (const ev of ["timeupdate", "durationchange", "loadedmetadata", "seeked"])
+    audio.addEventListener(ev, paintTime);
+  for (const ev of ["play", "pause", "ended", "playing"])
+    audio.addEventListener(ev, paintState);
+  audio.addEventListener("waiting", () => p.classList.add("loading"));
+  audio.addEventListener("playing", () => p.classList.remove("loading"));
+  audio.addEventListener("canplay", () => p.classList.remove("loading"));
+  audio.addEventListener("ratechange", () => { if (audio.playbackRate !== speed()) audio.playbackRate = speed(); });
+  audio.addEventListener("error", () => {
+    p.classList.remove("loading");
+    const err = $p(".pl-err");
+    err.hidden = false;
+    err.textContent = "Запись не воспроизводится в этом браузере.";
+  });
+  // The code that made the element still shows and hides it; the player follows.
+  new MutationObserver(() => { p.hidden = audio.hidden; })
+    .observe(audio, {attributes: true, attributeFilter: ["hidden"]});
+  paintRate(); paintTime(); paintState();
+  return p;
+}
+
+// Every audio element, whenever it arrives.
+document.querySelectorAll("audio").forEach(enhanceAudio);
+new MutationObserver(records => {
+  for (const r of records) for (const n of r.addedNodes) {
+    if (n.nodeType !== 1) continue;
+    if (n.tagName === "AUDIO") enhanceAudio(n);
+    else n.querySelectorAll?.("audio").forEach(enhanceAudio);
+  }
+}).observe(document.body, {childList: true, subtree: true});

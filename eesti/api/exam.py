@@ -438,8 +438,10 @@ def exam_text(item_id: str) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail="Материал не найден.")
     if not (row["body"] or "").strip():
-        raise HTTPException(status_code=404, detail=(
-            "Текст этого задания не разобрался — открой файл."))
+        # The task exists; it simply has no extracted text (a scan, audio, a
+        # .docx). An answer, not an error: a 404 here reads as a broken link.
+        return {"id": item_id, "available": False,
+                "note": "Текст этого задания не разобрался — открой файл."}
     try:
         meta = _json.loads(row["meta"] or "{}")
     except ValueError:
@@ -450,6 +452,7 @@ def exam_text(item_id: str) -> dict:
             # question; a HARNO task has its own file instead.
             "audio": meta.get("audio") or ([row["audio_url"]] if row["audio_url"] else []),
             "url": meta.get("url"),
+            "available": True,
             "note": "Официальное задание — © Haridus- ja Noorteamet."}
 
 
@@ -459,14 +462,16 @@ def exam_native(item_id: str) -> dict:
     from ..exam_native import load
 
     path = _exam_path(item_id)
+    # A task without a prepared sidecar is the usual case, not a failure: say so
+    # in the answer, so the page does not log a missing resource for every task.
     if path.suffix.lower() != ".pdf":
-        raise HTTPException(status_code=404, detail="Это не PDF.")
+        return {"available": False, "note": "Это не PDF."}
     draft = load(path)
     if draft is None:
-        raise HTTPException(status_code=404, detail=(
-            "Структурированное задание ещё не подготовлено."))
+        return {"available": False,
+                "note": "Структурированное задание ещё не подготовлено."}
     questions = draft["questions"] if draft["verified"] else []
-    return {"pages": draft["pages"], "verified": draft["verified"],
+    return {"available": True, "pages": draft["pages"], "verified": draft["verified"],
             "kind": draft["kind"] if draft["verified"] else "none",
             "figures": draft["figures"] if draft["verified"] else [],
             "questions": [{k: v for k, v in q.items() if k != "answer"}

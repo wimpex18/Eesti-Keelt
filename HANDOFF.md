@@ -8,10 +8,12 @@ Workers AI is production ASR. Native A2/B1 reading controls need private
 sidecars under `data/exam/`.
 
 ## Current task
-Review and merge the Laudtee polish PR: the fixed desktop sidebar, the pulse
-tiles on phone and iPad Rada, the dock that folds while scrolling, a closable
-word card, mock and exam-shape sizing, Russian plural and wording fixes, and
-`.claude/launch.json` kept out of the repository. No backend contract changes.
+Review and merge the Laudtee polish PR (#70): fixed desktop sidebar, pulse tiles,
+folding dock, closable word card, plural fixes; plus the Mängija audio player
+over every `<audio>`, Sõnatrenn (word workout from the learner's `õpin` words),
+a one-line reader source, exam text/native routes answering `available: false`
+instead of 404, a fast learner-status filter in `vocab.browse`, and wrangler /
+workers-types upgrades.
 
 ## Next step
 After merge, run `smoke` with `deep: true` and look at the phone PWA in both

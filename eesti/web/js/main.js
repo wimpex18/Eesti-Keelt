@@ -15,6 +15,7 @@ import {goToPlace, selectTab} from "./router.js";
    the entry point cannot reach. */
 import "./reading.js";
 import "./sources.js";
+import "./words.js";
 import "./write.js";
 
 if ("serviceWorker" in navigator) {
