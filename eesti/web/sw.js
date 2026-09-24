@@ -25,7 +25,9 @@ const ASSETS = [
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
   "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",
-  "/js/remind.js",
+  "/js/remind.js", "/js/icons.js",
+  "/fonts/geologica-latin.woff2", "/fonts/geologica-latin-ext.woff2",
+  "/fonts/geologica-cyrillic.woff2",
 ];
 
 self.addEventListener("install", event => {
@@ -131,49 +133,10 @@ const OFFLINE_PAGE = `<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Нет соединения</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;margin:0;min-height:100vh;
-display:grid;place-items:center;background:#faf9f6;color:#1b1b19;padding:24px}
+display:grid;place-items:center;background:#f8fafc;color:#0f172a;padding:24px}
 div{max-width:32ch;text-align:center}h1{font-size:19px;margin:0 0 8px}
-p{margin:0;color:#6b6b66}</style>
+p{margin:0;color:#64748b}
+@media (prefers-color-scheme:dark){body{background:#0b1120;color:#eef2f8}p{color:#96a1b3}}</style>
 <div><h1>Нет соединения</h1>
 <p>Упражнения создаются на сервере, поэтому без интернета их не открыть.
 Попробуй ещё раз, когда связь появится.</p></div>`;
-
-
-/* Reminders (`eesti/reminders.py`, sent by the Worker's cron).
-
-   The payload carries a count and a fixed phrase — never a sentence the
-   learner wrote — so nothing private is handed to Apple's or Google's push
-   service even before encryption. A tag means the same fact replaces itself
-   on screen rather than stacking. */
-self.addEventListener("push", event => {
-  let said = {};
-  try {
-    said = event.data ? event.data.json() : {};
-  } catch { said = {}; }
-  const title = said.title || "Eesti keel";
-  event.waitUntil(self.registration.showNotification(title, {
-    body: said.body || "",
-    tag: said.tag || "eesti",
-    lang: "ru",
-    icon: "/icon.png",
-    badge: "/icon.png",
-    data: {url: said.url || "/"},
-  }));
-});
-
-/* One tap opens the app where the reminder was about, reusing the window that
-   is already open rather than adding another. */
-self.addEventListener("notificationclick", event => {
-  event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || "/";
-  event.waitUntil((async () => {
-    const open = await self.clients.matchAll({type: "window", includeUncontrolled: true});
-    for (const client of open) {
-      if (new URL(client.url).origin === self.location.origin) {
-        await client.focus();
-        return client.navigate(target).catch(() => {});
-      }
-    }
-    return self.clients.openWindow(target);
-  })());
-});

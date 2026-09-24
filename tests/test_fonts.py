@@ -48,11 +48,11 @@ def test_the_page_asks_no_font_host():
 
 def test_a_path_outside_the_folder_is_refused(client):
     assert client.get("/fonts/..%2Fapp.css").status_code == 404
-    assert client.get("/fonts/OFL-Onest.txt").status_code == 404
+    assert client.get("/fonts/OFL-Geologica.txt").status_code == 404
 
 
 def test_each_face_carries_its_licence():
     """SIL OFL 1.1 requires the licence to travel with the font."""
-    for face in ("Onest", "Literata"):
+    for face in ("Geologica",):
         text = (WEB / "fonts" / f"OFL-{face}.txt").read_text(encoding="utf-8")
         assert "SIL Open Font License" in text

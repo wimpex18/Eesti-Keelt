@@ -9,7 +9,7 @@ diagram below against the page in both directions.
 ```
 Õppimine — "what am I learning today?"
 ├── Rada          the drills, two ways: Minu rada (prerequisite order, mastery-gated,
-│                 opens on today's set, with Täna — today's plan) and Vaba harjutus
+│                 opens on today's set, with Plaan — today's plan) and Vaba harjutus
 │                 (any topic, nothing recorded)
 ├── Lugemine      reading texts ranked by the share of words within the learner's reach
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
@@ -30,8 +30,8 @@ Eksam — "am I ready?"
 └── Edenemine     progress report
 ```
 
-Õppimine is the path plus the exam's four skills, so the phone's skill row holds
-five chips. Tabs are in the URL hash (`#write`); each change pushes history,
+Õppimine is the path plus the exam's four skills, so the phone's tab row holds
+five tabs. Tabs are in the URL hash (`#write`); each change pushes history,
 re-selecting the current tab pushes nothing. The `#drill` compatibility route
 opens Rada in Vaba harjutus. A drill set shows one unanswered item at a time on every device;
 for `obj-case` the case to use appears only with the verdict, since choosing it
@@ -83,8 +83,8 @@ answer is right (`docs/ai-boundaries.md`).
 |---|---|
 | Rada | topics mastered / total, current position |
 | Sõnavara | words known within each frequency band |
-| Kordamine | due today, retention |
-| Lugemine · Kuulamine | texts read, dictations taken, words heard correctly |
+| Kordamine | due today, cards scheduled |
+| Lugemine · Kuulamine | texts and recordings opened, minutes spent |
 | Eksam | readiness per exam part |
 
 No single overall percentage: the exam fails a zero in any one part.

@@ -25,19 +25,20 @@ def index() -> str:
 # Installable on a phone: manifest and icons
 # --------------------------------------------------------------------------
 
-#: The app mark as SVG strokes (no font dependency), with a two-step accent
-#: gradient.
+#: The app mark: a cornflower (rukkilill), four petals round a dark heart, in
+#: white on Estonian blue. Drawn as paths, so it depends on no font.
 ICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
-    '<stop offset="0" stop-color="#2a8064"/>'
-    '<stop offset="1" stop-color="#155440"/></linearGradient></defs>'
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+    '<stop offset="0" stop-color="#0062f5"/>'
+    '<stop offset="1" stop-color="#000087"/></linearGradient></defs>'
     '<rect width="64" height="64" rx="15" fill="url(#g)"/>'
-    '<g fill="none" stroke="#ffffff" stroke-width="5.4" stroke-linecap="round">'
-    '<circle cx="28" cy="40.5" r="9.6"/>'
-    '<path d="M39.5 30.5v20.4"/>'
-    '<path d="M23.4 20.6h.01"/><path d="M34.2 20.6h.01"/>'
-    "</g></svg>"
+    '<g transform="translate(32 32)" fill="#ffffff">'
+    '<path transform="rotate(-45)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
+    '<path transform="rotate(45)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
+    '<path transform="rotate(135)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
+    '<path transform="rotate(225)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
+    '<circle r="5.6" fill="#0f172a"/></g></svg>'
 )
 
 
@@ -87,9 +88,9 @@ def vendor(name: str) -> FileResponse:
 
 @router.get("/fonts/{name}")
 def font(name: str) -> FileResponse:
-    """The two typefaces (Onest, Literata; SIL OFL 1.1, licences beside them), served
-    from this origin so the installed app keeps its type offline and the page makes
-    no request to a font host. File names change with the file, so they cache long.
+    """The typeface (Geologica, SIL OFL 1.1, its licence beside it), served from this
+    origin so the installed app keeps its type offline and the page makes no
+    request to a font host. A week's cache; the service worker keeps its own copy.
     """
     path = (WEB / "fonts" / name).resolve()
     # Path traversal: `name` comes from the URL.
@@ -97,7 +98,7 @@ def font(name: str) -> FileResponse:
             or path.suffix != ".woff2"):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path, media_type="font/woff2",
-                        headers={"Cache-Control": "public, max-age=2592000"})
+                        headers={"Cache-Control": "public, max-age=604800"})
 
 
 @router.get("/icon.svg")
@@ -166,8 +167,8 @@ def manifest() -> Response:
             "short_name": "Eesti keel",
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#faf9f6",
-            "theme_color": "#1c6b52",
+            "background_color": "#f8fafc",
+            "theme_color": "#0030de",
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.
             "lang": "ru",

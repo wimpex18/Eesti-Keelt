@@ -159,6 +159,35 @@ def skill_activity(log: sqlite3.Connection, days: int = 7,
     return counts
 
 
+#: Everything that is the learner doing something, as opposed to a setting or a
+#: record the app keeps about itself.
+PRACTICE_EVENTS = ("attempt", "review", "dictation", "comprehension", "writing",
+                   "speech", "conversation", "exam-section", "checkpoint", "exposure")
+
+
+def daily_activity(log: sqlite3.Connection, days: int = 84,
+                   now: datetime | None = None) -> list[dict]:
+    """Practice events per local day (Europe/Tallinn), oldest first, `days` long.
+
+    A rhythm, not a streak: an empty day is shown as empty and costs nothing.
+    """
+    from zoneinfo import ZoneInfo
+
+    from . import evidence
+    from .reminders import ZONE
+
+    zone = ZoneInfo(ZONE)
+    now = (now or datetime.now(timezone.utc)).astimezone(zone)
+    first = (now - timedelta(days=days - 1)).date()
+    start = datetime.combine(first, datetime.min.time(), tzinfo=zone)
+    counts: dict = {}
+    for ev in evidence.since(log, PRACTICE_EVENTS, start.astimezone(timezone.utc).isoformat()):
+        day = _when(ev.ts).astimezone(zone).date()
+        counts[day] = counts.get(day, 0) + 1
+    return [{"date": (first + timedelta(days=i)).isoformat(),
+             "n": counts.get(first + timedelta(days=i), 0)} for i in range(days)]
+
+
 @dataclass(frozen=True)
 class Mistake:
     event_id: str

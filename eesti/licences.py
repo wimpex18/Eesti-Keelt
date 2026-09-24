@@ -459,6 +459,19 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "ERR — owner-only, never republished, never baked into the image.",
     ),
     Source(
+        "geologica", "Geologica (Monokrom)", "asset", "SIL OFL 1.1", True,
+        "https://github.com/googlefonts/geologica",
+        "The one typeface of the interface and of Estonian material, served from "
+        "this origin (`eesti/web/fonts/`, licence beside the files). Latin, Latin "
+        "Extended and Cyrillic subsets, unmodified otherwise.",
+    ),
+    Source(
+        "phosphor", "Phosphor Icons", "asset", "MIT", True,
+        "https://github.com/phosphor-icons/core",
+        "The interface icons, inlined as paths in `eesti/web/js/icons.js`; the MIT "
+        "licence travels in `eesti/web/vendor/phosphor-icons.LICENSE`.",
+    ),
+    Source(
         "generated", "Genereeritud harjutused", "generated",
         "own work", True, None,
         "Drills built from Vabamorf forms. Unlimited, deterministic.",

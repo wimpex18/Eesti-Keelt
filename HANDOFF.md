@@ -8,18 +8,17 @@ Workers AI is production ASR. Native A2/B1 reading controls need private
 sidecars under `data/exam/`.
 
 ## Current task
-Review and merge the "Laudtee" interface redesign PR (`DESIGN.md`): a new
-visual system (cornflower/black/birch, self-hosted Onest + Literata), a spine
-and rail layout, a phone thumb dock, the Rada hero with its boardwalk, answer
-beads, the readiness cornflower, milestone seals and a rebuilt progress report.
-Backend additions only: `contact`/`contact_target` on readiness parts, `ru` on
-curriculum topics, `/fonts/{name}`, and raw rule ids no longer shown in the
-plan. Two practice-set bugs are fixed: the end card listed right answers as
-misses, and `Selgita` was wiped by the verdict it belonged to.
+Review and merge PR #69, the "Laudtee" interface (`DESIGN.md`): Estonian blue
+on near-white, Geologica and Phosphor self-hosted, glass navigation, the gate,
+boardwalk, readiness flower, practice rhythm and review forecast. Backend
+additions are read-only projections: `contact`/`contact_target` on readiness,
+`ru`/`gate`/`resume_recent` on `/api/curriculum`, `rhythm` on `/api/status`,
+`forecast` on `/api/review/stats`, and `/fonts/{name}`.
 
 ## Next step
-After merge, run `smoke` with `deep: true` and look at the deployed app on the
-phone (installed PWA) and desktop. Uncommitted paths after commit: none.
+After merge, run `smoke` with `deep: true`, install the PWA again on the phone
+(the icon changed) and look at it in both themes. Uncommitted paths after
+commit: none.
 
 ## Remaining checks
 Verify the two native reading controls in production, actual Chrome reminder

@@ -1,7 +1,8 @@
 /* Rada: the syllabus, where you stand on it, and one topic's practice. */
 
-import {RU, celebrate, kindIcon, sealsHtml, stateIcon, uiIcon} from "./chrome.js";
-import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import {RU, celebrate, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml, stateIcon,
+  uiIcon} from "./chrome.js";
+import {$, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
 import {loadRail, refreshDueBadge} from "./review.js";
@@ -60,7 +61,7 @@ let autoStarted = false, practiceRequest = 0;
 /* What the learner types is the thing being graded: iOS must not capitalise it,
    correct it or underline it, and a password manager must not offer to fill it. */
 const ANSWER_FIELD = `autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"`;
-const START = ["Harjuta", "тренировка"], NEW_SET = ["Uued laused", "новые задания"];
+const START = ["Harjuta", "упражняться"], NEW_SET = ["Uued laused", "новые задания"];
 
 function themeApplies() {
   const meta = pathMeta[pathTopic];
@@ -91,7 +92,7 @@ function todayMinutes() {
   try { return Number(localStorage.getItem("todayMinutes")) || 20; } catch { return 20; }
 }
 
-export async function loadToday() {
+async function loadToday() {
   const list = $("#todayList");
   if (!list) return;
   const minutes = todayMinutes();
@@ -99,7 +100,7 @@ export async function loadToday() {
   const strip = $("#todayStrip");
   try {
     const p = await (await api(`/api/plan?minutes=${minutes}`, null, "GET")).json();
-    if (!p.blocks.length) {
+    if (!(p.blocks || []).length) {
       list.innerHTML = `<li class="hint">На сегодня ничего не запланировано.</li>`;
       $("#todaySum").textContent = "";
       strip.innerHTML = "";
@@ -142,7 +143,7 @@ function startBlock(action) {
     pathRules = action.rules || null;
     paintTheme();
     startPractice();
-    $("#practiceOut").scrollIntoView({block: "start", behavior: "smooth"});
+    $("#practiceOut").scrollIntoView({block: "start", behavior: glide()});
     return;
   }
   // The router follows the hash (`main.js`), and Back returns to the plan.
@@ -183,6 +184,7 @@ function drawTrail() {
   let start = Math.max(0, here - Math.floor(count * 0.4));
   start = Math.min(start, Math.max(0, topics.length - count));
   const shown = topics.slice(start, start + count);
+  if (!shown.length) { box.innerHTML = ""; return; }
   const step = 72, W = step * (shown.length - 1) + 40, H = 70;
   const pts = shown.map((_, i) => [20 + i * step,
     35 + Math.sin((start + i) * 0.95) * 15]);
@@ -215,7 +217,7 @@ function drawTrail() {
   box.querySelector("[data-open-path]").onclick = e => {
     e.preventDefault();
     $("#pathAll").open = true;
-    $("#pathAll").scrollIntoView({block: "start", behavior: "smooth"});
+    $("#pathAll").scrollIntoView({block: "start", behavior: glide()});
   };
 }
 
@@ -228,11 +230,19 @@ if ("ResizeObserver" in window) {
 }
 
 
+/* `loadPath` runs from several places (the tab, a mastery, a test-out, an offline
+   send); only the latest request may paint. */
+let pathLoad = 0;
+
 export async function loadPath() {
   loadToday();
   paintDate();
+  const mine = ++pathLoad;
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
+    if (mine !== pathLoad) return;
+    // A load that worked clears an earlier load's error (never a mastery note).
+    if ($("#pathHead").className === "banner") $("#pathHead").hidden = true;
     pathTopic = p.resume;
     const next = p.topics.find(t => t.id === p.resume);
     const place = p.topics.findIndex(t => t.id === p.resume);
@@ -240,11 +250,12 @@ export async function loadPath() {
     $("#pathPos").textContent = next ? `тема ${place + 1} из ${p.total}` : "";
     const tried = next && next.attempts
       ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
-        (next.accuracy !== null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
+        (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
       : "";
     $("#pathOf").innerHTML = next
       ? `${next.ru ? `<span lang="ru">${esc(next.ru)}</span> · ` : ""}${esc(next.level)}${tried}`
       : `${p.mastered}/${p.total} тем`;
+    $("#pathGate").innerHTML = next && p.gate ? gateHtml(p.resume_recent || [], p.gate) : "";
     p.topics.forEach(t => { pathMeta[t.id] = t; });
     trailData = {topics: p.topics, resume: p.resume, mastered: p.mastered, total: p.total};
     drawTrail();
@@ -285,6 +296,7 @@ export async function loadPath() {
         <span class="hint">${done} из ${here.length} пройдено</span></h4>${rows}</div>`;
     }).join("");
   } catch (e) {
+    if (mine !== pathLoad) return;
     $("#pathHead").className = "banner";   // an error is the amber one
     $("#pathHead").hidden = false;
     $("#pathHead").textContent = e.message;
@@ -297,13 +309,17 @@ export async function loadStatus() {
   const out = $("#statusOut");
   loadReminders();
   try {
-    const [d, marks] = await Promise.all([
+    const [d, marks, queue] = await Promise.all([
       (await api("/api/status", null, "GET")).json(),
       api(`/api/milestones/${examLevel()}`, null, "GET").then(r => r.json())
         .catch(() => ({milestones: []})),
+      api("/api/review/stats", null, "GET").then(r => r.json()).catch(() => ({})),
     ]);
     const s = d.sections; let html = "";
     const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
+    if (d.rhythm?.length) html += `<section class="stat-card wide">
+      <h3 lang="et">Rütm <i class="ru" lang="ru">занятия по дням, 12 недель</i></h3>
+      ${rhythmHtml(d.rhythm)}</section>`;
     if (s.rada) html += `<section class="stat-card">
       <h3 lang="et">Rada <i class="ru" lang="ru">путь</i></h3>
       <div class="stat-big">${s.rada.mastered}<small> / ${s.rada.total} тем</small></div>
@@ -315,6 +331,7 @@ export async function loadStatus() {
       <h3 lang="et">Kordamine <i class="ru" lang="ru">повторение</i></h3>
       <div class="stat-big">${s.kordamine.due}<small> к повторению</small></div>
       <p class="why">${ruCount(s.kordamine.scheduled, ["карточка", "карточки", "карточек"])} в очереди всего.</p>
+      ${queue.forecast && s.kordamine.scheduled ? forecastHtml(queue.forecast) : ""}
       ${s.kordamine.due ? `<a class="rail-go" href="#review" lang="et">Alusta kordamist →</a>` : ""}</section>`;
     if (s.sonavara) {
       /* Words known in each frequency band, commonest first: where the everyday
@@ -535,7 +552,7 @@ function finishSet(tally, res) {
   if (!box || box.querySelector(".set-end")) return;
   const [need, of] = (res.gate || "").split("/");
   // Only Rada's set is one topic, so only there does the topic's gate apply.
-  const gate = tally.gate && res.accuracy !== null && !res.just_mastered
+  const gate = tally.gate && res.accuracy != null && res.gate && !res.just_mastered
     ? `<p class="hint">Тема засчитывается, когда из последних ${esc(of)} ответов
          верны ${esc(need)}. Сейчас: ${Math.round(res.accuracy * 100)}%.</p>` : "";
   /* What went wrong, in the sentence it went wrong in, with the right form: the end
@@ -562,7 +579,7 @@ function finishSet(tally, res) {
   box.appendChild(end);
   // Fully in view, above the dock: this is the moment the set exists for.
   requestAnimationFrame(() => requestAnimationFrame(() =>
-    end.scrollIntoView({block: "nearest", behavior: "smooth"})));
+    end.scrollIntoView({block: "nearest", behavior: glide()})));
   tally.done?.(tally);
 }
 
@@ -604,15 +621,12 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const set = tally.gen || 0;
   const place = tally.size ? `${i + 1}/${tally.size}` : `${i + 1}`;
   const pos = tally.size ? `<div class="drill-pos">${i + 1} / ${tally.size}</div>` : "";
+  /* Word order is the one topic whose unit is the whole sequence, so it is answered
+     by choosing a sentence rather than typing a word. The chosen sentence is
+     submitted as the answer and graded by the same comparison as everything else. */
   el.innerHTML = `${pos}
     <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.choices && it.choices.length ? `
-    <!-- Word order is the one topic whose unit is the whole sequence, so it
-         is answered by choosing a sentence rather than typing a word.
-         Everything after this point is unchanged: the chosen sentence is
-         submitted as the answer, the server grades it by the same string
-         comparison, and it reaches mastery and the review queue by the same
-         path as every other item. -->
     <div class="choices">
       ${it.choices.map(c =>
         `<button class="choice" lang="et" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
@@ -725,7 +739,8 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
        `innerHTML` would otherwise wipe the button and its handler. */
     if (!res.correct && res.event_id) offerExplanation(verdict, res.event_id);
     let line = `${tally.correct}/${tally.answered} верных`;
-    if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
+    if (res.accuracy != null && res.gate)
+      line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $(tally.out).textContent = line;
     if (tally.size && tally.answered === tally.size) finishSet(tally, res);
     if (res.just_mastered) {
@@ -848,7 +863,7 @@ $("#freeBtn").onclick = async () => {
     /* The set, not the settings, is what the learner came for: bring its first item
        into view and hand it the keyboard. */
     const first = out.querySelector(".drill");
-    first?.scrollIntoView({block: "start", behavior: "smooth"});
+    first?.scrollIntoView({block: "start", behavior: glide()});
     first?.querySelector("input")?.focus({preventScroll: true});
   } catch (e) {
     out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
@@ -894,6 +909,7 @@ $("#offlinePractice").onclick = async () => {
     на сервере, когда связь вернётся.</div>`;
   newSet(pathTally);
   pathTally.size = pack.items.length;
+  paintBeads(pathTally);
   pack.items.forEach((it, i) => out.appendChild(
     renderOfflineItem(it, i, pack.glosses || {})));
   out.querySelector("input")?.focus();
@@ -934,9 +950,19 @@ function renderOfflineItem(it, i, glosses) {
     input.disabled = el.querySelector("button").disabled = true;
     const ok = offline.graded(it, input.value);
     /* The verdict first: it is what the learner is waiting for, and it must not
-       depend on the queue write succeeding. */
+       depend on the queue write succeeding. Then the item is spent, so the next
+       one appears (one item at a time), and its bead is filled. */
     verdict.className = ok ? "verdict ok" : "verdict no";
-    verdict.innerHTML = ok ? "Верно." : wrongVerdict(input.value, it.answer, it.why_ru);
+    verdict.innerHTML = ok
+      ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span>`
+      : wrongVerdict(input.value, it.answer, it.why_ru);
+    const blank = el.querySelector(".prompt .blank");
+    if (blank) { blank.textContent = it.answer; blank.classList.add("filled", ok ? "ok" : "no"); }
+    el.classList.add("done");
+    pathTally.marks[i] = ok;
+    pathTally.answered++; if (ok) pathTally.correct++;
+    paintBeads(pathTally);
+    el.nextElementSibling?.querySelector?.("input")?.focus({preventScroll: true});
     try {
       await offline.queueAnswer(it, input.value,
                                 Math.round(performance.now() - started));

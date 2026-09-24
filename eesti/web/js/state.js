@@ -5,7 +5,7 @@
    another module, and reading one during another module's evaluation hits the
    temporal dead zone. A function call works whatever order the modules load in. */
 
-export const LEVELS_UI = ["A2", "B1"];
+const LEVELS_UI = ["A2", "B1"];
 
 let level = "A2";
 

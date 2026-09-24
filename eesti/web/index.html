@@ -13,14 +13,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Eesti keel">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f0ea">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101216">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b1120">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.png">
 <!-- The two faces the page reads first, fetched before the stylesheet asks. -->
-<link rel="preload" href="/fonts/onest-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geologica-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geologica-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -31,6 +31,7 @@
   try {
     var t = localStorage.getItem("theme");
     if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+    if (localStorage.getItem("glass") === "off") document.documentElement.dataset.glass = "off";
   } catch (e) {}
 })();
 </script>
@@ -46,15 +47,15 @@
     </a>
     <!-- Mode, then skill. -->
     <div class="modes" role="tablist" aria-label="Režiim — режим">
-      <button role="tab" aria-selected="true"  data-mode="learn" lang="et">Õppimine</button>
-      <button role="tab" aria-selected="false" data-mode="revise" lang="et">Kordamine</button>
-      <button role="tab" aria-selected="false" data-mode="exam" lang="et">Eksam</button>
+      <button role="tab" aria-selected="true"  data-mode="learn" aria-controls="nav-learn" lang="et">Õppimine</button>
+      <button role="tab" aria-selected="false" data-mode="revise" aria-controls="nav-revise" lang="et">Kordamine</button>
+      <button role="tab" aria-selected="false" data-mode="exam" aria-controls="nav-exam" lang="et">Eksam</button>
     </div>
   <!-- The destinations; on a phone this bar is fixed to the bottom.
        Each mode answers one question. Õppimine: the path, then the exam's four
        skills. Kordamine: what the app brings back, the words it brings back from,
        and the official homework. Eksam: where you stand. -->
-  <nav role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
+  <nav id="nav-learn" role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
     <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl" lang="et">Rada</span></button>
     <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl" lang="et">Lugemine</span></button>
     <button role="tab" aria-selected="false" data-tab="listen"><span class="ico" aria-hidden="true">♪</span><span class="lbl" lang="et">Kuulamine</span></button>
@@ -64,13 +65,13 @@
 
   <!-- "What am I forgetting?" — the queue the app schedules, the word list the
        learner feeds it from, and the consultation workbooks (homework, not exam). -->
-  <nav role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine — повторение">
+  <nav id="nav-revise" role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine — повторение">
     <button role="tab" aria-selected="true"  data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl" lang="et">Järjekord</span><span id="dueBadge" class="badge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="sonad"><span class="ico" aria-hidden="true">▦</span><span class="lbl" lang="et">Sõnavara</span></button>
     <button role="tab" aria-selected="false" data-tab="vihikud"><span class="ico" aria-hidden="true">▤</span><span class="lbl" lang="et">Töövihikud</span></button>
   </nav>
 
-  <nav role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
+  <nav id="nav-exam" role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
     <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl" lang="et">Ülevaade</span></button>
     <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl" lang="et">Edenemine</span></button>
   </nav>
@@ -79,8 +80,9 @@
          follow the device. No `aria-pressed`: it cycles three states; the
          accessible name says which is active and is rewritten with the icon. -->
     <div class="hdr-actions">
-      <button id="homeBtn" class="iconbtn" type="button"
-              title="Avaleht — на главную" aria-label="Avaleht — на главную"></button>
+      <button id="glassBtn" class="iconbtn" type="button" aria-pressed="false"
+              title="Vähem läbipaistvust — меньше прозрачности"
+              aria-label="Vähem läbipaistvust — меньше прозрачности"></button>
       <button id="themeBtn" class="iconbtn" type="button"></button>
     </div>
   </header>
@@ -105,14 +107,16 @@
     <!-- What to do now: the resume topic, where it sits on the path, and the one
          button. The trail is drawn from /api/curriculum (`js/path.js`). -->
     <div class="hero" id="pathHero">
+      <svg class="swallow" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 12c3 0 5 4 4 9 10-2 30-1 50 9-20-2-38-1-50 1l2 7 5 18-11-12-11 12 5-18 2-7c-12-2-30-3-50-1 20-10 40-11 50-9-1-5 1-9 4-9z"/></svg>
       <div class="hero-text">
         <div class="hero-eyebrow" lang="et">Praegu <i class="ru" lang="ru">сейчас</i> <span class="hero-pos" id="pathPos" lang="ru"></span></div>
         <div class="now" id="pathNow" lang="et">…</div>
         <div class="of" id="pathOf"></div>
+        <div id="pathGate"></div>
       </div>
       <div class="hero-act">
-        <button class="go" id="practiceBtn" lang="et">Harjuta <span class="ru" lang="ru">тренировка</span></button>
-        <label lang="et">Sõnavara teema <i class="ru" lang="ru">на каких словах</i>
+        <button class="go" id="practiceBtn" lang="et">Harjuta <span class="ru" lang="ru">упражняться</span></button>
+        <label lang="et">Sõnade teema <i class="ru" lang="ru">тема слов</i>
           <select id="wordTheme"><option value="">kõik sõnad</option></select>
         </label>
       </div>
@@ -138,7 +142,7 @@
         <span class="hint" id="todaySum"></span></summary>
       <div class="today-strip" id="todayStrip" aria-hidden="true"></div>
       <ol class="today-list" id="todayList"><li class="hint">Загружаю…</li></ol>
-      <label class="today-minutes" lang="et">Aega <i class="ru" lang="ru">минут на сегодня</i>
+      <label class="today-minutes" lang="et">Aega täna <i class="ru" lang="ru">минут сегодня</i>
         <select id="todayMinutes">
           <option value="10">10</option><option value="20" selected>20</option>
           <option value="40">40</option>
@@ -148,7 +152,7 @@
     <!-- A set to carry: drills are made on the server, so without one there is
          nothing to answer unless it was fetched in advance (`js/offline.js`). -->
     <details class="offline fold" id="offline">
-      <summary lang="et">Offline <i class="ru" lang="ru">набор без интернета</i></summary>
+      <summary lang="et">Võrguta <i class="ru" lang="ru">набор без интернета</i></summary>
       <p class="hint" id="offlineState">…</p>
       <div class="row">
         <button class="ghost" id="offlineGet" lang="et">Lae alla
@@ -161,8 +165,8 @@
     </details>
     <details id="pathAll" class="fold">
       <summary lang="et">Kogu rada <i class="ru" lang="ru">все темы по порядку</i></summary>
-      <p class="note">Тема открывается, когда пройдены те, на которых она стоит.
-        Теория (reference) ничего не блокирует.</p>
+      <p class="note">Тема открывается, когда пройдены темы, на которых она строится.
+        Теория ничего не закрывает.</p>
       <div id="pathList"></div>
     </details>
     </div>
@@ -194,8 +198,8 @@
         </label>
         <button class="go" id="freeBtn" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
       </div>
-      <p class="hint" id="freeNote">Ответы не записываются — ни в прогресс по Rada, ни в очередь
-        повторения. Любая тема, даже ещё закрытая.</p>
+      <p class="hint" id="freeNote">Любая тема, даже ещё закрытая. Ответы никуда не
+        записываются: ни в прогресс Rada, ни в повторение.</p>
       <div class="stage" id="freeStage">
         <div class="stage-top">
           <div class="beads" id="freeBeads" aria-hidden="true"></div>
@@ -233,7 +237,7 @@
 
       <div class="rec">
         <button class="go rec-btn" id="recBtn" lang="et">Salvesta vastus <span class="ru" lang="ru">записать ответ</span></button>
-        <span class="hint" id="recState">Микрофону нужен HTTPS или localhost.</span>
+        <span class="hint" id="recState">Для записи нужен микрофон и защищённое соединение.</span>
       </div>
     </div>
     <!-- The actual destination depends on the configured ASR engine. -->
@@ -325,7 +329,7 @@
   </section>
 
   <!-- ── Progress ──────────────────────────────────────────────────
-       Five measures, no aggregate: the exam fails a zero in any part. -->
+       A measure per section and no aggregate: the exam fails a zero in any part. -->
   <section class="panel" id="tab-status" hidden>
     <div class="page-head"><div>
       <h2 class="page-title" lang="et">Edenemine <i class="ru" lang="ru">прогресс</i></h2>
@@ -363,14 +367,14 @@
       <div class="row write-foot">
         <button class="go" id="checkBtn" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
         <span class="hint kbd-hint">Ctrl+Enter</span>
-        <span class="hint word-count" id="textCount" aria-live="polite"></span>
+        <span class="hint word-count" id="textCount"></span>
       </div>
     </div>
     <div id="checkOut"></div>
 
     <!-- The error-log queue: send named, checked rows to the Vead log. -->
     <details id="queueBox" class="fold">
-      <summary>Журнал ошибок — ожидает отправки <span id="queueCount"></span></summary>
+      <summary lang="et">Vigade logi <i class="ru" lang="ru">ждёт отправки в Notion</i> <span id="queueCount"></span></summary>
       <div id="queueList"></div>
       <div class="row">
         <button class="go" id="queueSend" lang="et">Saada valitud Notionisse <span class="ru" lang="ru">отправить в Notion</span></button>
@@ -442,6 +446,7 @@
       <p class="lede">Сюда попадают ошибки и слова, отмеченные при чтении. Каждая карточка
         возвращается тем раньше, чем труднее она тебе далась.</p>
     </div></div>
+    <div id="reviewForecast"></div>
     <div class="row" id="reviewStart">
       <button class="go" id="loadReview" aria-describedby="reviewStats" lang="et">Alusta kordamist <span class="ru" lang="ru">начать повторение</span></button>
       <span class="hint" id="reviewStats"></span>
@@ -598,7 +603,7 @@
     <!-- The harvested listening archive, by section. -->
     <div id="listenLib"></div>
 
-    <h3 class="sec-head" lang="et">Mis tahes tekst → heli <i class="ru" lang="ru">озвучить любой текст</i></h3>
+    <h3 class="sec-head" lang="et">Teksti ettelugemine <i class="ru" lang="ru">озвучить любой текст</i></h3>
     <p class="hint">Вставь текст — он прозвучит медленно (0.7×) или в обычном темпе.</p>
     <textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
     <div class="row">
@@ -634,6 +639,9 @@
     <div id="sourceList"></div>
   </details>
 </footer>
+
+<!-- The one polite announcer: moments worth saying aloud (a topic mastered). -->
+<div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 
 <script type="module" src="/js/main.js"></script>
 </body>

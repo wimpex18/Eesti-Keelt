@@ -39,6 +39,32 @@ document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
   panel.setAttribute("aria-labelledby", b.id);
 });
 
+/* The other tab lists (the modes, Minu rada / Vaba harjutus, A2 / B1) follow the
+   same keyboard pattern: arrows and Home/End move and select, and only the
+   selected tab is in the Tab order. */
+function rove(list) {
+  list.querySelectorAll('[role="tab"]').forEach(t =>
+    t.tabIndex = t.getAttribute("aria-selected") === "true" ? 0 : -1);
+}
+
+document.querySelectorAll('[role="tablist"]:not(nav)').forEach(list => {
+  rove(list);
+  list.addEventListener("click", () => setTimeout(() => rove(list)));
+  list.addEventListener("keydown", e => {
+    const keys = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const here = tabs.indexOf(document.activeElement);
+    if (here < 0) return;
+    e.preventDefault();
+    const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+    const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1
+      : back ? (here - 1 + tabs.length) % tabs.length : (here + 1) % tabs.length;
+    tabs[next].focus();
+    tabs[next].click();
+  });
+});
+
 document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
   nav.addEventListener("keydown", e => {
     const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
@@ -92,7 +118,7 @@ document.querySelectorAll("nav button").forEach(
   b => b.onclick = () => { selectTab(b); rememberPlace(); });
 
 
-function selectMode(m) {
+function selectMode(m, tab) {
   // Re-tapping the current mode stays put: jumping to the mode's first tab would
   // also push a history entry the learner never chose.
   if (m.getAttribute("aria-selected") === "true") return;
@@ -101,9 +127,11 @@ function selectMode(m) {
   document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
     nav.hidden = nav.dataset.modeNav !== m.dataset.mode;
   });
-  // Land on the mode's first tab, so switching never shows a blank panel.
-  selectTab(document.querySelector(
+  // Land on the tab asked for, else the mode's first, so switching never shows a
+  // blank panel and a deep link does not load a panel it is about to leave.
+  selectTab(tab || document.querySelector(
     `nav[data-mode-nav="${m.dataset.mode}"] button`));
+  document.querySelectorAll(".modes").forEach(rove);
 }
 
 
@@ -131,7 +159,8 @@ export function goToPlace(tab) {
   const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${tab}"]`);
   if (!button) return false;
   const mode = button.closest("nav").dataset.modeNav;
-  selectMode(document.querySelector(`.modes button[data-mode="${mode}"]`));
-  selectTab(button);
+  const modeButton = document.querySelector(`.modes button[data-mode="${mode}"]`);
+  if (modeButton.getAttribute("aria-selected") === "true") selectTab(button);
+  else selectMode(modeButton, button);
   return true;
 }

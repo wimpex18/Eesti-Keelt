@@ -106,3 +106,12 @@ promise third-party uptime.
 
 TartuNLP TTS, translation and GEC (public University of Tartu APIs); model
 providers in `docs/ai-providers.md`.
+
+## Typeface and icons
+
+| Asset | Licence | Where |
+|---|---|---|
+| Geologica (Monokrom) | SIL OFL 1.1 | `eesti/web/fonts/`, licence beside the files |
+| Phosphor Icons | MIT | inlined in `eesti/web/js/icons.js`; `eesti/web/vendor/phosphor-icons.LICENSE` |
+
+Both are served from this origin; the page asks no font or icon host for anything.

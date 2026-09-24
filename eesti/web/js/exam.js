@@ -1,7 +1,7 @@
 /* Am I ready: the level, the official material, and the checkpoint. */
 
-import {emptyState, flowerSvg, markIcon, uiIcon} from "./chrome.js";
-import {$, api, esc, langOf} from "./core.js";
+import {emptyState, flowerSvg, markIcon, retryableError, uiIcon} from "./chrome.js";
+import {$, api, esc, glide, langOf} from "./core.js";
 import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
@@ -67,6 +67,8 @@ function paintSpec(spec, goal) {
 }
 
 
+let examLoad = 0;
+
 export async function loadExam() {
   // The buttons are authored with A2 selected; if a level was remembered, the
   // strip has to agree with the variable before anything is fetched, or the
@@ -75,14 +77,28 @@ export async function loadExam() {
     x.setAttribute("aria-selected", x.dataset.level === examLevel()));
 
   const get = u => api(u, null, "GET").then(r => r.json());
-  const [ready, material, path, spec, goal, milestones] = await Promise.all([
+  /* Switching A2/B1 quickly starts a second load; only the latest may paint. */
+  const mine = ++examLoad;
+  let ready, material, path, spec, goal, milestones;
+  try {
+    [ready, material, path, spec, goal, milestones] = await Promise.all([
     get(`/api/readiness/${examLevel()}`), get(`/api/exam/${examLevel()}`),
     get("/api/curriculum").catch(() => ({})),
     get(`/api/exam-spec/${examLevel()}`).catch(() => null),
     get("/api/goal").catch(() => ({goal: null})),
     get(`/api/milestones/${examLevel()}`).catch(() => ({milestones: []})),
-  ]);
+    ]);
+  } catch (e) {
+    if (mine !== examLoad) return;
+    const box = $("#readiness");
+    box.innerHTML = "";
+    box.append(retryableError(e.message, () => loadExam()));
+    return;
+  }
   const mock = await get(`/api/mock/${examLevel()}`).catch(() => null);
+  if (mine !== examLoad) return;
+  ready.parts = ready.parts || [];
+  ready.reasons = ready.reasons || [];
 
   paintSpec(spec, goal.goal);
   paintMock(mock && mock.counts);
@@ -100,7 +116,8 @@ export async function loadExam() {
   let html = `<div class="bloom">
     ${flowerSvg(ready.parts, target)}
     <div>
-      <div class="bloom-verdict">${esc(ready.verdict.charAt(0).toUpperCase() + ready.verdict.slice(1))}</div>
+      <div class="bloom-verdict">${esc(String(ready.verdict || "").charAt(0).toUpperCase()
+        + String(ready.verdict || "").slice(1))}</div>
       ${firstReason ? `<p class="why">${esc(firstReason)}</p>` : ""}
       ${next ? `<div class="next-step">
         <span lang="et">Järgmine samm <i class="ru" lang="ru">следующий шаг</i></span>
@@ -109,7 +126,7 @@ export async function loadExam() {
     </div></div>`;
   html += `<div class="parts">`;
   for (const part of ready.parts) {
-    const [cls, glyph] = MARK[String(part.touched)];
+    const [cls, glyph] = MARK[String(part.touched ?? null)];
     const dots = part.touched === null ? "" : `<span class="contact" aria-hidden="true">${
       Array.from({length: target}, (_, i) =>
         `<i class="${i < Math.min(target, part.contact ?? (part.touched ? target : 0)) ? "on" : ""}"></i>`).join("")}</span>`;
@@ -353,7 +370,7 @@ document.addEventListener("click", e => {
       .find(b => b.dataset.task === next.dataset.openTask);
     if (target) {
       target.click();
-      target.scrollIntoView({behavior: "smooth", block: "start"});
+      target.scrollIntoView({behavior: glide(), block: "start"});
     }
     return;
   }

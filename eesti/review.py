@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fsrs import Card, Rating, Scheduler
@@ -368,4 +368,25 @@ def stats(conn: sqlite3.Connection) -> dict:
         )
     ]
     return {"total": total, "due": ready, "by_kind": by_kind,
-            "struggling": struggling}
+            "struggling": struggling, "forecast": forecast(conn, days=14)}
+
+
+def forecast(conn: sqlite3.Connection, days: int = 7,
+             now: datetime | None = None) -> list[int]:
+    """Cards coming due on each of the next `days` days; today includes overdue.
+
+    Days are counted in 24-hour steps from now, so the forecast needs no zone.
+    """
+    now = now or datetime.now(timezone.utc)
+    out = []
+    for i in range(days):
+        end = (now + timedelta(days=i + 1)).isoformat()
+        if i == 0:
+            n = conn.execute("SELECT COUNT(*) FROM review_items WHERE due < ?",
+                             (end,)).fetchone()[0]
+        else:
+            begin = (now + timedelta(days=i)).isoformat()
+            n = conn.execute("SELECT COUNT(*) FROM review_items WHERE due >= ? AND due < ?",
+                             (begin, end)).fetchone()[0]
+        out.append(n)
+    return out

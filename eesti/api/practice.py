@@ -107,8 +107,16 @@ def curriculum_path() -> dict:
 
     # How a Russian-speaking learner looks for the topic: shown as its gloss.
     russian = {t.id: t.ru for t in TOPICS}
+    from ..progress import MASTERY_CORRECT, MASTERY_WINDOW, recent
+
+    now_topic = resume(progress)
     return {
-        "resume": resume(progress),
+        "resume": now_topic,
+        # The gate the resume topic is working towards, and its last answers in
+        # order, oldest first: drawn as the gate's ten slots in the hero.
+        "gate": {"correct": MASTERY_CORRECT, "window": MASTERY_WINDOW},
+        "resume_recent": ([bool(x) for x in recent(progress, now_topic, MASTERY_WINDOW)]
+                          if now_topic else []),
         "mastered": sum(1 for r in rows if r.state == "mastered"),
         "total": len(rows),
         "topics": [

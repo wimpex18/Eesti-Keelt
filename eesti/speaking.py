@@ -26,47 +26,47 @@ class Question:
 
 BANK: tuple[Question, ...] = (
     Question("Enda tutvustus", "Rääkige natuke endast ja oma perest.",
-             "Расскажите о себе и семье: имя, возраст, откуда, кем работаете.",
+             "Расскажи о себе и семье: имя, возраст, откуда ты, кем работаешь.",
              "vestlus"),
     Question("Töö ja amet", "Mis tööd te teete ja mis teile selle juures meeldib?",
-             "Кем работаете, что нравится и что нет. Полные предложения.",
+             "Кем работаешь, что нравится и что нет. Полными предложениями.",
              "vestlus"),
     Question("Õppimine", "Miks te eesti keelt õpite ja kuidas te seda teete?",
-             "Зачем учите эстонский и как именно — курсы, книги, приложения.",
+             "Зачем учишь эстонский и как — курсы, книги, приложения.",
              "vestlus"),
     Question("Vaba aeg", "Kuidas te tavaliselt nädalavahetust veedate?",
-             "Как проводите выходные. Прошедшее и настоящее время.",
+             "Как проходят твои выходные. Настоящее и прошедшее время.",
              "vestlus"),
     Question("Elukoht", "Kirjeldage oma kodu ja seda kohta, kus te elate.",
-             "Опишите дом и район: где, какой, что рядом. Местные падежи.",
+             "Опиши дом и район: где, какой, что рядом. Местные падежи.",
              "vestlus"),
     Question("Tervis", "Mida te teete selleks, et terve olla?",
-             "Что делаете для здоровья: спорт, еда, сон.",
+             "Что ты делаешь для здоровья: спорт, еда, сон.",
              "vestlus"),
     Question("Reisimine", "Rääkige ühest reisist, mis teile meelde on jäänud.",
-             "Расскажите о поездке — это прошедшее время, **lihtminevik**.",
+             "Расскажи о поездке — прошедшее время, **lihtminevik**.",
              "vestlus"),
     Question("Poes", "Te tahate sõbraga koos kingitust osta. Leppige kokku, "
                      "mida te ostate ja kui palju te kulutate.",
-             "Задание на договорённость: предложите вариант, выслушайте, "
-             "согласитесь или предложите другое.",
+             "Нужно договориться: предложи вариант, выслушай партнёра, "
+             "согласись или предложи другой.",
              "kokkulepe"),
     Question("Ühine üritus", "Te korraldate koos kolleegiga väikese peo. "
                              "Leppige kokku, millal ja kus see toimub.",
-             "Договоритесь о времени и месте. Нужны условное наклонение и "
+             "Договорись о времени и месте. Пригодятся условное наклонение и "
              "вежливые формы.",
              "kokkulepe"),
     Question("Helistamine", "Helistage kooli ja küsige eesti keele kursuste kohta: "
                             "millal need algavad ja kui palju need maksavad.",
-             "Ролевая игра: вы звоните. Спросите время, цену, как записаться.",
+             "Ролевая игра: ты звонишь. Спроси время, цену и как записаться.",
              "infovahetus"),
     Question("Aja kokkuleppimine", "Helistage perearsti registratuuri ja leppige "
                                    "kokku vastuvõtuaeg.",
-             "Ролевая игра: назовите причину, предложите время, уточните адрес.",
+             "Ролевая игра: назови причину, предложи время, уточни адрес.",
              "infovahetus"),
     Question("Probleem", "Te ostsite midagi, mis ei tööta. Helistage poodi ja "
                          "selgitage, mis juhtus.",
-             "Ролевая игра: объясните проблему и спросите, что делать дальше.",
+             "Ролевая игра: объясни проблему и спроси, что делать дальше.",
              "infovahetus"),
 )
 

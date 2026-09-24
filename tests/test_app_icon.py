@@ -53,11 +53,11 @@ class TestTheArtworkCarriesNoFontDependency:
             "draw it as paths instead")
         assert "font-family" not in ICON_SVG
 
-    def test_the_svg_is_still_the_estonian_letter(self):
-        """Strokes, not a wordmark: a bowl, a stem and two dots."""
+    def test_the_svg_is_the_cornflower(self):
+        """The page's own mark: four petals round a heart, drawn as paths."""
         from eesti.api.assets import ICON_SVG
 
-        assert ICON_SVG.count("<path") >= 3 and "<circle" in ICON_SVG
+        assert ICON_SVG.count("<path") == 4 and "<circle" in ICON_SVG
 
 
 class TestTheManifestOffersBoth:

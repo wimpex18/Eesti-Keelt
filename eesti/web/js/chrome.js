@@ -4,6 +4,7 @@
    `progress.TopicProgress.state` can emit. */
 
 import {$, esc, gloss} from "./core.js";
+import {BOLD, DUOTONE, icon} from "./icons.js";
 
 
 // ── health ──────────────────────────────────────────────────────────
@@ -28,8 +29,6 @@ export const RU = {
   "Rääkimine": "говорение", "Kirjutamine": "письмо",
   "Järjekord": "очередь", "Töövihikud": "тетради",
   "Ülevaade": "обзор", "Edenemine": "прогресс",
-  // rail
-  "Läbitud": "пройдено", "Järgmine": "следующая", "Kordamist ootab": "к повторению",
   /* Path states: exactly the five `progress.TopicProgress.state` emits.
      `tests/test_path_states.py` checks the two lists against each other. */
   /* Each answers "can I do this now, and if not, why not?": what to press, or that
@@ -39,11 +38,11 @@ export const RU = {
 };
 
 const STATE_ICON = {
-  "reference":   '<path d="M4 3h7a2 2 0 0 1 2 2v8H6a2 2 0 0 0-2 2z"/><path d="M4 15a2 2 0 0 1 2-2h7"/>',
-  "ready":       '<circle cx="8" cy="8" r="6"/><path d="M6.5 5.5 11 8l-4.5 2.5z"/>',
-  "in progress": '<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/>',
-  "mastered":    '<circle cx="8" cy="8" r="6"/><path d="m5.2 8.2 2 2 3.6-4"/>',
-  "locked":      '<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.75 7V5.25a2.25 2.25 0 0 1 4.5 0V7"/>',
+  "reference":   "book-open",
+  "ready":       "play-circle",
+  "in progress": "circle-half",
+  "mastered":    "check-circle",
+  "locked":      "lock-simple",
 };
 
 function svgIcon(d) {
@@ -56,37 +55,21 @@ export const markIcon = svgIcon;
 
 
 export function stateIcon(state) {
-  const d = STATE_ICON[state];
-  return d ? svgIcon(d) : "";
+  return STATE_ICON[state] ? icon(STATE_ICON[state]) : "";
 }
 
+/* Tabs and modes, by what they are: the route, the four skills, the queue, the
+   words, the workbooks, the flower of the exam parts and the progress line. */
 const NAV_ICON = {
-  // the route
-  path:    '<circle cx="6" cy="19" r="2.6"/><circle cx="18" cy="5" r="2.6"/><path d="M8.6 19h8.9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7h8.9"/>',
-  // skills -- what the exam grades
-  read:    '<path d="M12 7.5v12.5"/><path d="M3 5h5a4 4 0 0 1 4 4v11a3 3 0 0 0-3-2.5H3z"/><path d="M21 5h-5a4 4 0 0 0-4 4v11a3 3 0 0 1 3-2.5h6z"/>',
-  listen:  '<path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><path d="M4 14.5h1.5a1.5 1.5 0 0 1 1.5 1.5v2.5a1.5 1.5 0 0 1-1.5 1.5H4z"/><path d="M20 14.5h-1.5a1.5 1.5 0 0 0-1.5 1.5v2.5a1.5 1.5 0 0 0 1.5 1.5H20z"/>',
-  speak:   '<rect x="9.2" y="2.8" width="5.6" height="10.4" rx="2.8"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.6V21"/>',
-  write:   '<path d="m14.8 4.6 4.6 4.6"/><path d="M17.2 2.4a2.2 2.2 0 0 1 3.1 3.1L7 19.2l-4.2 1.1L4 16.1z"/>',
-  // revise
-  sonad:   '<path d="m11 3 1.9 4.7L17.6 9.6l-4.7 1.9L11 16.2 9.1 11.5 4.4 9.6 9.1 7.7z"/><path d="m18.4 14.6.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>',
-  review:  '<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/>',
-  vihikud: '<path d="M6.5 3H17a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6.5z"/><path d="M6.5 3v18"/><path d="M3.4 7.2h3.1M3.4 12h3.1M3.4 16.8h3.1"/><path d="M10.2 8.4h5M10.2 12.6h5"/>',
-  // exam
-  exam:    '<circle cx="12" cy="9" r="5.4"/><path d="m8.6 13.6-1 7.2 4.4-2.4 4.4 2.4-1-7.2"/>',
-  status:  '<path d="M3.4 17.6 9.7 11.2l3.9 3.9L20.6 8"/><path d="M15.4 8h5.2v5.2"/>',
+  path: "path", read: "book-open-text", listen: "headphones", speak: "microphone",
+  write: "pencil-simple-line", review: "cards", sonad: "translate", vihikud: "notebook",
+  exam: "flower", status: "chart-line-up",
 };
 
-const MODE_ICON = {
-  learn:  '<path d="M2.4 8.6 12 4.2l9.6 4.4-9.6 4.4z"/><path d="M6.2 10.8v4.1c0 1.4 2.6 2.5 5.8 2.5s5.8-1.1 5.8-2.5v-4.1"/><path d="M21.2 9.2v5.2"/>',
-  revise: '<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/>',
-  exam:   '<circle cx="12" cy="9" r="5.4"/><path d="m8.6 13.6-1 7.2 4.4-2.4 4.4 2.4-1-7.2"/>',
-};
+const MODE_ICON = {learn: "graduation-cap", revise: "arrows-clockwise", exam: "exam"};
 
-export function navIcon(d) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
-    aria-hidden="true">${d}</svg>`;
+export function navIcon(name) {
+  return icon(name);
 }
 
 /* ── The interface's own marks ───────────────────────────────────────
@@ -99,21 +82,10 @@ export function navIcon(d) {
    joins. Drawn here rather than pulled from a library because the app makes no
    third-party requests and caches its own shell. */
 const UI_ICON = {
-  plus:    '<path d="M12 5.4v13.2M5.4 12h13.2"/>',
-  check:   '<path d="m5 12.6 4.6 4.6L19 6.8"/>',
-  ban:     '<circle cx="12" cy="12" r="8.6"/><path d="m6 6 12 12"/>',
-  play:    '<path d="M8.4 5.6v12.8L18.4 12z"/>',
-  record:  '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none"/>',
-  back:    '<path d="M19 12H5.4"/><path d="m11.4 5.6-6 6.4 6 6.4"/>',
-  next:    '<path d="M5 12h13.6"/><path d="m12.6 5.6 6 6.4-6 6.4"/>',
-  volume:  '<path d="M4.8 9.2h3.4L13 5.2v13.6L8.2 14.8H4.8z"/><path d="M16.4 9.4a3.8 3.8 0 0 1 0 5.2"/>',
-  skip:    '<path d="M6.4 5.6v12.8L15 12z"/><path d="M17.6 5.6v12.8"/>',
-  note:    '<path d="M9.4 17.4V6.2l9-1.7v11.2"/><circle cx="7" cy="17.6" r="2.6"/><circle cx="16" cy="15.7" r="2.6"/>',
-  send:    '<path d="M20.6 3.8 3.4 11.2l7 2.5 2.5 7z"/><path d="m10.4 13.7 10.2-9.9"/>',
-  inbox:   '<path d="M5.4 5.4h13.2l2 8.2v5a1.6 1.6 0 0 1-1.6 1.6H5A1.6 1.6 0 0 1 3.4 18.6v-5z"/><path d="M3.4 13.6h4.2l1.2 2.4h6.4l1.2-2.4h4.2"/>',
-  done:    '<circle cx="12" cy="12" r="8.6"/><path d="m8.4 12.3 2.6 2.6 4.7-5.4"/>',
-  eye:     '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="3.1"/>',
-  paper:   '<path d="M6.4 3.4h7.8l4 4v13.2H6.4z"/><path d="M14 3.4v4.2h4.2"/><path d="m9.2 14.4 1.9 1.9 4-4.4"/>',
+  plus: "plus", check: "check", ban: "prohibit", play: "play", record: "record",
+  back: "arrow-left", next: "arrow-right", volume: "speaker-high", skip: "skip-forward",
+  note: "music-notes", send: "paper-plane-tilt", inbox: "tray", done: "check-circle",
+  eye: "eye", paper: "file-text", out: "arrow-square-out",
 };
 
 
@@ -122,11 +94,12 @@ const UI_ICON = {
    `class="btn-ico"` is what `setLabel` looks for when it rewrites a button's
    text, so a control whose label changes ("Kuula" -> "Laen…") keeps its mark. */
 export function uiIcon(name, cls = "btn-ico") {
-  const d = UI_ICON[name];
-  if (!d) return "";
-  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-    stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const n = UI_ICON[name];
+  if (!n) return "";
+  // Small glyphs inside buttons take the bold weight; marks and empty views the duotone.
+  const small = cls === "btn-ico" || cls === "inline-ico";
+  const weight = (small && BOLD[n]) || !DUOTONE[n] ? "bold" : "duotone";
+  return icon(n, {cls, weight});
 }
 
 
@@ -252,12 +225,9 @@ export function paintIcons() {
 }
 
 const THEMES = [
-  ["system", "Süsteemi järgi — как в системе",
-   '<path d="M8.5 2.5h5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h2"/><path d="M6 15.5h6"/>'],
-  ["light", "Hele teema — светлая тема",
-   '<circle cx="9" cy="9" r="3.2"/><path d="M9 1.6v1.6M9 14.8v1.6M2.2 9H3.8M14.2 9h1.6M4.2 4.2l1.1 1.1M12.7 12.7l1.1 1.1M13.8 4.2l-1.1 1.1M5.3 12.7l-1.1 1.1"/>'],
-  ["dark", "Tume teema — тёмная тема",
-   '<path d="M14.2 10.6A5.8 5.8 0 0 1 7 3.5a5.9 5.9 0 1 0 7.2 7.1z"/>'],
+  ["system", "Süsteemi järgi — как в системе", "desktop"],
+  ["light", "Hele teema — светлая тема", "sun"],
+  ["dark", "Tume teema — тёмная тема", "moon"],
 ];
 
 
@@ -269,10 +239,17 @@ function currentTheme() {
 function paintTheme() {
   const btn = $("#themeBtn");
   if (!btn) return;
-  const [, label, path] = THEMES.find(t => t[0] === currentTheme()) || THEMES[0];
-  btn.innerHTML = `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor"
-    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-    aria-hidden="true">${path}</svg>`;
+  const [, label, name] = THEMES.find(t => t[0] === currentTheme()) || THEMES[0];
+  btn.innerHTML = icon(name);
+  // The browser's own chrome follows the theme the learner chose, not only the
+  // system's: one theme-color, set to the page's background.
+  requestAnimationFrame(() => {
+    const bg = getComputedStyle(document.body).backgroundColor;
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+      m.dataset.system ??= m.content;
+      m.content = currentTheme() === "system" ? m.dataset.system : bg;
+    });
+  });
   btn.title = label;
   btn.setAttribute("aria-label", label);
 }
@@ -292,18 +269,32 @@ $("#themeBtn").onclick = () => {
 
 paintTheme();
 
-$("#homeBtn").innerHTML = navIcon(
-  '<path d="M3.6 10.4 12 3.8l8.4 6.6V19a1.6 1.6 0 0 1-1.6 1.6H5.2A1.6 1.6 0 0 1 3.6 19z"'
-  + '/><path d="M9.4 20.6v-6.2h5.2v6.2"/>');
+/* Less glass: the navigation layer turns solid. Safari does not report the
+   system's "reduce transparency", so the switch is the app's own. */
+function paintGlass() {
+  const off = document.documentElement.dataset.glass === "off";
+  const btn = $("#glassBtn");
+  btn.innerHTML = icon("drop-half");
+  btn.setAttribute("aria-pressed", String(off));
+}
 
-$("#homeBtn").onclick = () => {
-  location.hash = "#path";
+$("#glassBtn").onclick = () => {
+  const off = document.documentElement.dataset.glass !== "off";
+  if (off) document.documentElement.dataset.glass = "off";
+  else delete document.documentElement.dataset.glass;
+  try {
+    if (off) localStorage.setItem("glass", "off");
+    else localStorage.removeItem("glass");
+  } catch (e) {}
+  paintGlass();
 };
+
+paintGlass();
 
 export function glossChrome() {
   document.querySelectorAll("nav[data-mode-nav] button[data-tab] .lbl")
     .forEach(el => gloss(el, RU[el.textContent.trim()]));
-  document.querySelectorAll("#modes button[data-mode], .modes button[data-mode]")
+  document.querySelectorAll(".modes button[data-mode]")
     .forEach(el => gloss(el, RU[el.textContent.trim()]));
 }
 
@@ -395,16 +386,12 @@ export function sealsHtml(milestones) {
 
 /* ── The kinds of block in today's plan, each with its own mark ────── */
 const KIND_ICON = {
-  review:  '<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/>',
-  repair:  '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.6 17.4a1.9 1.9 0 0 0 2.7 2.7l5.7-5.7a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.3-.3-2.4z"/>',
-  refresh: '<path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="3.2"/>',
-  skill:   '<circle cx="12" cy="9" r="5.4"/><path d="m8.6 13.6-1 7.2 4.4-2.4 4.4 2.4-1-7.2"/>',
-  new:     '<circle cx="6" cy="19" r="2.6"/><circle cx="18" cy="5" r="2.6"/><path d="M8.6 19h8.9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7h8.9"/>',
-  read:    '<path d="M12 7.5v12.5"/><path d="M3 5h5a4 4 0 0 1 4 4v11a3 3 0 0 0-3-2.5H3z"/><path d="M21 5h-5a4 4 0 0 0-4 4v11a3 3 0 0 1 3-2.5h6z"/>',
+  review: "arrows-clockwise", repair: "wrench", refresh: "sparkle",
+  skill: "target", new: "path", read: "book-open-text",
 };
 
 export function kindIcon(kind) {
-  return navIcon(KIND_ICON[kind] || KIND_ICON.new);
+  return icon(KIND_ICON[kind] || KIND_ICON.new);
 }
 
 
@@ -413,12 +400,17 @@ export function kindIcon(kind) {
    the topic is named, and the overlay leaves by itself. Announced politely, and
    instant under reduced motion (the stylesheet shortens every animation). */
 export function celebrate({title, name, note}) {
+  // Said through the page's one polite live region, which exists before the words
+  // arrive, so a screen reader hears it; the card itself is decoration.
+  const say = $("#announce");
+  if (say) say.textContent = [title, name, note].filter(Boolean).join(". ");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   document.querySelector(".celebrate")?.remove();
   const box = document.createElement("div");
   box.className = "celebrate";
-  box.setAttribute("role", "status");
+  box.setAttribute("aria-hidden", "true");
   box.innerHTML = `<div class="celebrate-card">
-    <svg viewBox="-100 -100 200 200" aria-hidden="true">
+    <svg viewBox="-100 -100 200 200">
       ${ANGLES.map((a, i) => `<g transform="rotate(${a})"><path d="${PETAL}" class="petal"
         style="animation-delay:${i * 90}ms"/></g>`).join("")}
       <circle r="16" class="heart"/></svg>
@@ -427,10 +419,81 @@ export function celebrate({title, name, note}) {
     ${note ? `<p>${esc(note)}</p>` : ""}
   </div>`;
   document.body.append(box);
+  let gone = false;
   const leave = () => {
+    if (gone) return;
+    gone = true;
+    removeEventListener("keydown", leave, true);
+    removeEventListener("pointerdown", leave, true);
     box.classList.add("out");
     setTimeout(() => box.remove(), 260);
   };
-  box.querySelector(".celebrate-card").addEventListener("click", leave);
-  setTimeout(leave, 3600);
+  // Any key or touch dismisses it without being swallowed: typing goes on.
+  addEventListener("keydown", leave, true);
+  addEventListener("pointerdown", leave, true);
+  setTimeout(leave, 3200);
+}
+
+
+/* ── Charts drawn from time ──────────────────────────────────────────
+   Three small graphics, each answering one question at a glance. */
+
+/* The gate: the resume topic's last answers against the rule that masters it
+   (`progress.MASTERY_CORRECT` of `MASTERY_WINDOW`). Ten slots, filled oldest
+   first; the count to go is said in words beside it. */
+export function gateHtml(recent = [], gate = {correct: 8, window: 10}) {
+  const slots = Array.from({length: gate.window}, (_, i) => {
+    const r = recent[i];
+    return `<span class="slot${r === true ? " ok" : r === false ? " no" : ""}"></span>`;
+  }).join("");
+  const right = recent.filter(Boolean).length;
+  const say = !recent.length
+    ? `тема засчитывается при ${gate.correct} верных из ${gate.window}`
+    : `${right} из ${recent.length} верно · нужно ${gate.correct} из ${gate.window}`;
+  return `<div class="gate" role="img" aria-label="${esc(say)}">
+    <div class="slots" aria-hidden="true">${slots}</div>
+    <span class="gate-say" aria-hidden="true">${esc(say)}</span></div>`;
+}
+
+
+/* The rhythm: practice per day over five weeks, Monday first. A day with nothing
+   is simply light; nothing resets and nothing is lost. */
+export function rhythmHtml(days = []) {
+  if (!days.length) return "";
+  const lead = (new Date(days[0].date + "T12:00:00").getDay() + 6) % 7;
+  const cells = Array.from({length: lead}, () => `<span class="day pad"></span>`)
+    .concat(days.map(d => {
+      const lvl = d.n === 0 ? 0 : d.n < 5 ? 1 : d.n < 15 ? 2 : d.n < 40 ? 3 : 4;
+      const label = new Date(d.date + "T12:00:00").toLocaleDateString("ru", {day: "numeric", month: "short"});
+      return `<span class="day l${lvl}" title="${esc(label)}: ${d.n}"></span>`;
+    })).join("");
+  // The headline counts the last four weeks: long enough to be a rhythm, short
+  // enough to move when the learner comes back.
+  const recent = days.slice(-28).filter(d => d.n > 0).length;
+  const heads = ["E", "T", "K", "N", "R", "L", "P"]
+    .map(x => `<span lang="et">${x}</span>`).join("");
+  return `<div class="rhythm">
+    <div class="rhythm-heads" aria-hidden="true">${heads}</div>
+    <div class="rhythm-grid" role="img"
+      aria-label="${esc(`За последние 4 недели занятия были в ${recent} днях из 28`)}">${cells}</div>
+    <div class="rhythm-say"><b>${recent}</b> из 28 дней с занятиями за 4 недели</div></div>`;
+}
+
+
+/* The forecast: cards coming due over the next seven days, today first. */
+export function forecastHtml(counts = []) {
+  if (!counts.length) return "";
+  const top = Math.max(1, ...counts);
+  const bars = counts.map((n, i) => {
+    const day = new Date(Date.now() + i * 864e5);
+    const when = i === 0 ? "сег." : String(day.getDate());
+    const full = day.toLocaleDateString("ru", {weekday: "short", day: "numeric", month: "short"});
+    return `<div class="fc-bar${i === 0 ? " now" : ""}" title="${esc(full)}: ${n}">
+      <span class="fc-n">${n || ""}</span>
+      <span class="fc-col" style="--h:${n ? Math.max(6, n / top * 100) : 0}%"></span>
+      <span class="fc-day">${esc(when)}</span></div>`;
+  }).join("");
+  const total = counts.reduce((a, b) => a + b, 0);
+  return `<div class="forecast" style="grid-template-columns:repeat(${counts.length},minmax(0,1fr))"
+    role="img" aria-label="${esc(`К повторению за ${counts.length} дней: ${total}; сегодня ${counts[0]}`)}">${bars}</div>`;
 }
