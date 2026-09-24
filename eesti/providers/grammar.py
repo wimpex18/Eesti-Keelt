@@ -494,12 +494,14 @@ EXPLAINING_KEYS = ("CLOUDFLARE_API_TOKEN",)
 def _offline_note() -> str:
     """What the learner reads when only the offline check answered: fix a key
     only when none is set; otherwise the services did not answer."""
-    base = "Офлайн-режим: показаны кандидаты на obj-case и опечатки, но без проверки правильности."
+    base = ("Проверка без модели: найдены возможные ошибки падежа объекта (obj-case) "
+            "и опечатки, но это кандидаты, а не вердикт.")
     from .llm import PROVIDERS
 
     if any(PROVIDERS[name].available for name in LLM_PREFERENCE):
         return base + " Сервисы разбора сейчас не ответили — попробуй ещё раз позже."
-    return base + " Для полного разбора задай CLOUDFLARE_API_TOKEN и CLOUDFLARE_ACCOUNT_ID."
+    return base + (" Полный разбор на этом сервере не настроен: нужны ключи "
+                   "CLOUDFLARE_API_TOKEN и CLOUDFLARE_ACCOUNT_ID.")
 
 
 # Tags a transcript cannot support: `vocab` on a transcript is usually the

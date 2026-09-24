@@ -260,6 +260,15 @@ nav .lbl .ru{display:none}
 .modes button:hover:not([aria-selected="true"]){background:color-mix(in srgb, var(--ink) 5%, transparent)}
 .modes button:active{transform:scale(.96)}
 
+/* Folded while scrolling down: the marks stay, the words step aside. */
+@media (max-width:719px), (hover:none) and (max-height:500px){
+  .modes{transition:padding var(--t) var(--ease), left var(--t) var(--ease), right var(--t) var(--ease)}
+  .modes button{transition:min-height var(--t) var(--ease), font-size var(--t) var(--ease),
+    background-color var(--t) var(--ease), color var(--t) var(--ease)}
+  .dock-min .modes{left:22%;right:22%;padding:4px}
+  .dock-min .modes button{min-height:44px;font-size:0;gap:0}
+}
+
 /* ── Spine: tablet and desktop ──────────────────────────────────────
    A floating glass column inset from the window's edge: brand, the three modes,
    the open mode's tabs, and the actions at its foot. The rail joins at 1080px. */
@@ -267,8 +276,11 @@ nav .lbl .ru{display:none}
   :root{--spine-w:232px}
   .wrap{max-width:none;margin:0;padding:0;display:grid;
     grid-template-columns:var(--spine-w) minmax(0,1fr);align-items:start}
-  .spine{grid-column:1;grid-row:1 / span 2;position:sticky;top:12px;
-    height:calc(100vh - 24px);height:calc(100dvh - 24px);margin:12px 0 12px 12px;
+  /* Fixed, not sticky: a sticky column is pushed up by the end of its grid area,
+     so the page's footer would scroll the brand away. */
+  .spine{grid-column:1;grid-row:1 / span 2;position:fixed;top:12px;left:12px;
+    width:calc(var(--spine-w) - 12px);
+    height:calc(100vh - 24px);height:calc(100dvh - 24px);margin:0;
     overflow-y:auto;scrollbar-width:none;border-radius:var(--r-xl);
     display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:var(--s5);
     padding:22px 12px 14px;
@@ -567,6 +579,25 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   .hero-act label{flex:1 1 100%}
 }
 
+/* ── The pulse: the rail's three facts, where there is no rail ──────── */
+.pulse{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
+.pulse:empty{display:none}
+.pulse-tile{display:flex;flex-direction:column;gap:2px;min-width:0;padding:12px 14px;
+  border-radius:var(--r-lg);background:var(--panel);box-shadow:var(--shadow);color:var(--ink);
+  text-decoration:none;transition:transform var(--quick) var(--ease),box-shadow var(--quick) var(--ease)}
+.pulse-tile:hover{color:var(--ink);box-shadow:var(--lift)}
+.pulse-tile:active{transform:scale(.97)}
+.pulse-label{font-size:var(--fs-meta);font-weight:750;color:var(--ink-2)}
+.pulse-big{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.pulse-big small{font-size:var(--fs-note);font-weight:600;color:var(--muted);letter-spacing:0}
+.pulse-sub{font-size:var(--fs-gloss);color:var(--muted);line-height:1.3}
+.pulse-flower .flower{width:44px;height:44px;margin:1px 0}
+.pulse-week{display:flex;gap:3px;margin-top:4px}
+.pulse-week i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--accent) 10%, var(--tint))}
+.pulse-week i.on{background:var(--accent)}
+@media (min-width:1080px){.pulse{display:none}}
+
 /* ── The stage: where a set is answered ───────────────────────────── */
 .stage{padding:24px 24px 26px;border-radius:var(--r-lg);background:var(--panel);box-shadow:var(--shadow)}
 .stage:has(> [id$="Out"]:empty):not(.speak-stage):not(.write-stage){display:none}
@@ -861,6 +892,9 @@ a.lib-item{text-decoration:none;color:inherit}
 @media (max-width:719px){
   #wordCard, #vocCard{bottom:calc(var(--dock-h) + 12px)}
 }
+.card-close{position:absolute;top:10px;right:10px;width:36px;height:36px}
+.card-close svg{width:16px;height:16px}
+#wordCard, #vocCard{padding-right:56px}
 #wordCard .lemma{font-family:var(--f-read);font-size:24px;font-weight:600}
 #wordCard .tags{font-size:var(--fs-note);color:var(--muted);margin-top:3px}
 #wordCard .pair{margin-top:7px;font-size:var(--fs-ui)}
@@ -1006,7 +1040,7 @@ audio{width:100%;margin-top:var(--s3);border-radius:999px}
 .exam-shape{display:flex;flex-direction:column;gap:var(--s3)}
 .exam-shape .hint{font-size:var(--fs-note)}
 .shape-bars{display:flex;gap:4px;margin-top:var(--s2)}
-.shape-bar{flex:1 1 0;padding:10px 12px;border-radius:var(--r-sm);background:var(--tint);min-width:0}
+.shape-bar{flex:1 1 0;padding:10px 12px;border-radius:var(--r-sm);background:var(--tint);min-width:112px}
 .shape-bar b{display:block;font-size:var(--fs-meta);font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shape-bar span{font-size:var(--fs-gloss);color:var(--muted);font-variant-numeric:tabular-nums}
 @media (max-width:480px){.shape-bars{flex-wrap:wrap}.shape-bar{flex:1 1 40%}}
@@ -1030,6 +1064,8 @@ audio{width:100%;margin-top:var(--s3);border-radius:999px}
 .mock-clock{font-variant-numeric:tabular-nums;font-size:var(--fs-lead);font-weight:800;color:var(--accent)}
 .mock-clock.low{color:var(--bad)}
 .mock-task{padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+.mock-task .prompt{font-size:var(--fs-lead);margin-bottom:var(--s2)}
+.mock-task .row{margin-top:0}
 .mock-task:first-child{border-top:0}
 .exam-task{margin:0 0 var(--s3);padding:var(--s3) var(--s4);border-radius:0 0 var(--r) var(--r);background:var(--panel)}
 .exam-task-head{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
@@ -1249,6 +1285,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
      With no set — still loading, failed, or empty — it stays as one compact line,
      because it holds the button that starts or retries the set. */
   .hero:not(:has(.hero-act > :not([hidden]))){display:none}
+  .pulse{display:none}
   .hero{padding:12px 18px;border-radius:var(--r-lg);align-items:center}
   .hero .now{font-size:28px;margin-top:2px}
   .hero :is(.of, #pathGate, .trail, .swallow, .hero-eyebrow .ru){display:none}

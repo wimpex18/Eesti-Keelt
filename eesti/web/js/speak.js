@@ -47,7 +47,7 @@ api("/api/asr", null, "GET").then(r => r.json()).then(a => {
       : "Запись сохраняется на этом компьютере; черновая расшифровка сейчас недоступна.";
   $("#vestlusMic").disabled = !canRecord || !asrReady;
   $("#vestlusMicState").textContent = !canRecord
-    ? "Для разговора нужен микрофон и HTTPS (или localhost)."
+    ? "Для разговора голосом нужен микрофон и защищённое соединение (HTTPS)."
     : asrReady ? "Скажи ответ, проверь распознанный текст и нажми Vasta."
       : "Распознавание сейчас недоступно; можно отвечать текстом.";
   $("#vestlusPrivacy").textContent = a.hosted
@@ -168,7 +168,7 @@ if (!canRecord) {
   $("#recBtn").disabled = true;
   $("#recState").textContent = window.isSecureContext
     ? "Этот браузер не умеет записывать звук."
-    : "Микрофону нужен HTTPS (или localhost).";
+    : "Для записи нужен микрофон и защищённое соединение (HTTPS).";
 } else {
   $("#recState").textContent = "Ответь вслух и прослушай себя.";
   $("#recBtn").onclick = async () => {

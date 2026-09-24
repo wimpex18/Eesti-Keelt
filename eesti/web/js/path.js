@@ -1,7 +1,7 @@
 /* Rada: the syllabus, where you stand on it, and one topic's practice. */
 
-import {RU, celebrate, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml, stateIcon,
-  uiIcon} from "./chrome.js";
+import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml,
+  stateIcon, uiIcon} from "./chrome.js";
 import {$, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
@@ -234,9 +234,44 @@ if ("ResizeObserver" in window) {
    send); only the latest request may paint. */
 let pathLoad = 0;
 
+/* The pulse: three small tiles where the desk has its rail — what is due, how the
+   exam flower stands, and the rhythm of the last four weeks. Each opens its screen. */
+async function paintPulse() {
+  const box = $("#pathPulse");
+  if (!box || matchMedia("(min-width:1080px)").matches) { if (box) box.innerHTML = ""; return; }
+  const get = u => api(u, null, "GET").then(r => r.json()).catch(() => null);
+  const [due, ready, status] = await Promise.all([
+    get("/api/review/stats"), get(`/api/readiness/${examLevel()}`), get("/api/status")]);
+  const tiles = [];
+  if (due) tiles.push(`<a class="pulse-tile" href="#review">
+      <span class="pulse-label" lang="et">Kordamine</span>
+      <span class="pulse-big">${due.due || 0}</span>
+      <span class="pulse-sub">${due.due ? "к повторению сегодня"
+        : due.total ? "сегодня ничего" : "очередь пуста"}</span></a>`);
+  if (ready && ready.parts) {
+    const open = ready.parts.filter(p => p.touched === false).length;
+    tiles.push(`<a class="pulse-tile pulse-flower" href="#exam">
+      <span class="pulse-label" lang="et">Eksam ${esc(ready.level)}</span>
+      ${flowerSvg(ready.parts, ready.contact_target || 3, {labels: false})}
+      <span class="pulse-sub">${open ? `не начато: ${open} из 4` : "все части начаты"}</span></a>`);
+  }
+  if (status && status.rhythm && status.rhythm.length) {
+    const active = status.rhythm.slice(-28).filter(d => d.n > 0).length;
+    const week = status.rhythm.slice(-7).map(d =>
+      `<i class="${d.n ? "on" : ""}"></i>`).join("");
+    tiles.push(`<a class="pulse-tile" href="#status">
+      <span class="pulse-label" lang="et">Rütm</span>
+      <span class="pulse-big">${active}<small>/28</small></span>
+      <span class="pulse-week" aria-hidden="true">${week}</span>
+      <span class="sr-only">дней с занятиями за 4 недели</span></a>`);
+  }
+  box.innerHTML = tiles.join("");
+}
+
 export async function loadPath() {
   loadToday();
   paintDate();
+  paintPulse();
   const mine = ++pathLoad;
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
