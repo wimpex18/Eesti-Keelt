@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 from types import SimpleNamespace
 
 from eesti import exam_native
@@ -70,3 +71,10 @@ def test_matching_requires_nine_prompts_six_figures_and_printed_key():
     assert [f["letter"] for f in figures] == list("ABCDEF")
     pages[2]["text"] = "Lugemistesti vastused\n1. A"
     assert exam_native._matching(pages) == ([], [])
+
+
+def test_cloud_shell_import_ignores_macos_appledouble_stubs(tmp_path):
+    from eesti.cli.harvest import cmd_prepare_exam
+
+    (tmp_path / "._A2_Lugemine_Esimene_ülesanne2.pdf").write_bytes(b"AppleDouble")
+    assert cmd_prepare_exam(Namespace(root=str(tmp_path), file=None, ocr=False)) == 1

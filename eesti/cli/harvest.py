@@ -325,7 +325,11 @@ def cmd_prepare_exam(args: argparse.Namespace) -> int:
         paths = [Path(args.file)]
     else:
         paths = [p for p in root.rglob("*.pdf")
-                 if _kind_of(p.stem.replace("_", " "),
+                 # macOS tar uploads include AppleDouble `._name.pdf` stubs;
+                 # they are not PDFs and must not abort the Cloud Shell import.
+                 if not p.name.startswith(".")
+                 and "__MACOSX" not in p.parts
+                 and _kind_of(p.stem.replace("_", " "),
                              _skill_of(p.stem)) == "ulesanne"]
     if not paths:
         print(f"No task PDFs found under {root}")
