@@ -19,10 +19,10 @@ questions; 27 other task PDFs remain ungraded. OCR text is provisional. Four mil
 derive from recorded course evidence and do not alter mastery or FSRS.
 
 ## Exact next step
-After the owner merges #67, wait for Cloud Build, then run `smoke` on `main`
-with `deep: true`. In Cloud Shell, pull `main`, run `cli prepare-exam` against
-the existing `data/exam/`, and `deploy/push-exam.sh`; see `docs/exam-native.md`.
-Verify both native tasks, HARNO pages and EKI audio on production. Check Chrome
+After the owner merges #67, pull `main` in Cloud Shell, run `cli prepare-exam`
+against the existing `data/exam/`, and sync it with `deploy/push-exam.sh`; see
+`docs/exam-native.md`. Wait for Cloud Build, then run `smoke` on `main` with
+`deep: true`. Verify both native tasks, HARNO pages and EKI audio on production. Check Chrome
 reminder delivery and collect reviewed learner speech before paired ASR evaluation.
 
 ## Blockers
