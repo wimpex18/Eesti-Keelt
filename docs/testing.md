@@ -25,11 +25,8 @@ count in a doc is not added.
   change to `eesti/web/` and look at both sizes.
 - **Full matrix** also runs Chromium at phone size and WebKit at desktop size.
   Use it before a release that restyles the page.
-- The journeys' server writes its log to a file in its own working directory.
-  It once wrote to a pipe nobody read: the app logs one JSON line per API call,
-  the 64 KB buffer filled part-way through a run, and the server blocked in
-  `write()` while `curl /api/health` still answered — so every later page load
-  timed out and the suite read as a page defect.
+- The journeys' server writes its log to a file in its own working directory
+  so verbose API logging cannot block the browser run.
 
 Every screen is also run through **axe** (WCAG 2.1 A and AA) at both
 viewports, because the interface leans on markup to say which language a

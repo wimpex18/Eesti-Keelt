@@ -23,9 +23,9 @@ Russian speakers preparing for A2/B1.
 
 A **learn → practise → check** loop for the exam. Drills are generated from a
 word list and the Vabamorf morphological analyser. Code grades what it can
-decide; AI-powered interactive grading covers what it cannot (meaning,
-writing, conversation). Success is passing all four exam parts (a zero in any
-one fails the exam), not a high average.
+decide; models provide labelled feedback for open writing and conversation
+practice without determining mastery. Success is passing all four exam parts
+(a zero in any one fails the exam), not a high average.
 
 The #1 documented weakness is `obj-case` (genitive vs partitive for a
 completed object).
@@ -33,9 +33,8 @@ completed object).
 ## Positioning
 
 Drills are graded by code against Vabamorf and EKI forms. Advanced LLMs
-explain, tutor, and assess open production (meaning, writing, conversation)
-as labelled, advisory evidence. The app says plainly what was checked and by
-what.
+explain, tutor, and support open writing and conversation as labelled,
+advisory feedback. The app says plainly what was checked and by what.
 
 ## Operating Context
 
@@ -45,7 +44,7 @@ what.
 - Phone: Rada (incl. Vaba harjutus), Järjekord (FSRS queue) — short bursts.
 - Desktop: Lugemine, Kirjutamine, Kuulamine, Rääkimine — longer sessions.
 - Material comes from EKI dictionaries and handbook (EKK), Selges keeles, ERR
-  *Lihtsad uudised*, and pointers to official HARNO workbooks.
+  *Lihtsad uudised*, and licensed HARNO tasks presented in the app.
 
 ## Capabilities and Constraints
 
@@ -66,7 +65,7 @@ what.
 - Data access is open to caching, batching and API integration. Keep source
   attribution (`/api/sources`).
 - The repository targets the latest stable Python and dependencies.
-- No countdown until an exam date is chosen (`readiness.TARGET` is `None`).
+- No countdown until the learner chooses an exam sitting.
 
 ## Brand Commitments
 

@@ -1,13 +1,12 @@
 # Eesti-Keelt
 
-An all-in-one Estonian learning Super App for Russian speakers preparing for
-the **A2/B1 tasemeeksam**.
+An Estonian learning app for Russian speakers preparing for the
+**A2/B1 tasemeeksam**.
 
-Drills are **generated** from an Estonian word list with the Vabamorf
-morphological analyser. Answers are graded by code where it can decide, and by
-AI-powered interactive grading (answer checking, conversation scoring, dynamic
-lessons) where it cannot. Models also explain corrections in Russian and
-transcribe speech.
+Drills are generated from an Estonian word list with the Vabamorf morphological
+analyser and graded by code. Models explain corrections, support open writing
+and conversation, and transcribe speech. Model feedback is labelled and does
+not set mastery or FSRS ratings.
 
 ## Features
 
@@ -17,12 +16,14 @@ transcribe speech.
 - **Lugemine** — simplified Estonian texts ranked by how many of their words
   you know; click any word for its forms, meaning and level.
 - **Kuulamine** — graded dictation, TTS on any text, radio episodes.
-- **Rääkimine** — paired-exam questions, read-aloud comparison, spoken answers.
+- **Rääkimine** — paired-exam questions, read-aloud comparison, spoken answers,
+  conversation practice, and a private in-app speech review set during local use.
 - **Kirjutamine** — grammar check with explanations in Russian, back-translation,
   and a queue to the Notion error log.
-- **Kordamine** — FSRS review of mistakes and mined words; **Sõnavara**, the word
-  list by CEFR level and frequency; official workbooks.
-- **Eksam** — readiness per exam part and a progress report.
+- **Kordamine** — FSRS review of mistakes and mined words; **Sõnavara** lists
+  words by CEFR level and frequency.
+- **Eksam** — readiness per exam part, timed practice, HARNO material in-app,
+  and two reviewed native reading exercises.
 
 ## Quick start
 
@@ -44,7 +45,8 @@ Terminal practice is available too: `cli placement`, `cli practice`,
 ## Deployment
 
 Google Cloud Run (the app) behind a Cloudflare Worker with Access (login,
-state snapshots, speech), all on free tiers. See [`docs/deploy.md`](docs/deploy.md).
+state snapshots, speech). See [`docs/deploy.md`](docs/deploy.md) for setup
+and cost limits.
 
 ## Documentation
 
