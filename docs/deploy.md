@@ -122,6 +122,12 @@ bash deploy/push-exam.sh            # sync and mount, in Cloud Shell
 bash deploy/push-exam.sh --check    # what is there now
 ```
 
+For native, page-aware task text and reviewed answer controls, run
+`python -m eesti.cli prepare-exam --root data/exam` before the upload. It writes
+private JSON sidecars beside task PDFs. `--ocr` uses locally installed
+Tesseract with Estonian and English language data on sparse pages. The generated
+files are git-ignored and travel with `push-exam.sh`; see `docs/exam-native.md`.
+
 The service reads them at `EESTI_EXAM_DIR`. Two halves travel separately and
 that is deliberate: the **text** extracted from each PDF is part of the library
 (`push-content.sh`), so a task can be read on the deployment with no bucket at

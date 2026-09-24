@@ -624,6 +624,20 @@
     border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff}
   .exam-text{white-space:pre-wrap;font-family:inherit;font-size:var(--fs-note);
     line-height:1.6;max-height:28rem;overflow-y:auto;margin-top:var(--s2)}
+  .exam-native{display:grid;gap:var(--s3);margin:var(--s4) 0}
+  .exam-native > button{justify-self:start}
+  .exam-question{display:grid;gap:var(--s2);min-width:0;padding:var(--s3);
+    border:1px solid var(--line);border-radius:var(--radius-sm)}
+  .exam-question legend{font-weight:600;padding:0 var(--s2)}
+  .exam-question label{display:flex;align-items:center;gap:var(--s2);cursor:pointer}
+  .exam-question input{flex:none}
+  .exam-page-text{margin-top:var(--s3)}
+  .exam-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));
+    gap:var(--s3)}
+  .exam-figures figure{margin:0;padding:var(--s2);border:1px solid var(--line);
+    border-radius:var(--radius-sm);background:#fff}
+  .exam-figures img{display:block;max-width:100%;height:auto;margin:auto}
+  .exam-figures figcaption{color:#333;font-size:var(--fs-note);margin-top:var(--s2)}
   .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
     text-align:left;font:inherit;text-decoration:underline}
   /* One numbered recording per question, as the exam task numbers them. */

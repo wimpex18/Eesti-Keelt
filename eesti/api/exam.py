@@ -46,6 +46,16 @@ def exam_readiness(level: str) -> dict:
     ).to_dict()
 
 
+@router.get("/api/milestones/{level}")
+def exam_milestones(level: str) -> dict:
+    """Recognise actual practice without awarding points for attendance."""
+    from ..milestones import for_level
+
+    if level not in LEVELS:
+        raise HTTPException(status_code=404, detail="unknown level")
+    return {"level": level, "milestones": for_level(progress_db(), level)}
+
+
 @router.get("/api/checkpoint/{level}")
 def checkpoint_items(level: str, count: int = 15, seed: int | None = None) -> dict:
     """A mixed set across a whole level — interleaved by construction."""
@@ -391,6 +401,32 @@ def exam_page(item_id: str, page: int) -> Response:
                     headers={"cache-control": "private, max-age=86400"})
 
 
+@router.get("/api/exam/image/{item_id}/{page}/{index}")
+def exam_image(item_id: str, page: int, index: int) -> Response:
+    """One embedded PDF figure, for native cards without a PDF viewer."""
+    from pathlib import Path
+
+    from pypdf import PdfReader
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    reader = PdfReader(str(path))
+    if page < 1 or page > len(reader.pages):
+        raise HTTPException(status_code=404, detail="Страница не найдена.")
+    images = reader.pages[page - 1].images
+    if index < 1 or index > len(images):
+        raise HTTPException(status_code=404, detail="Изображение не найдено.")
+    image = images[index - 1]
+    kind = {".png": "image/png", ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg", ".gif": "image/gif"}.get(
+                Path(image.name).suffix.lower())
+    if not kind:
+        raise HTTPException(status_code=415, detail="Формат изображения не поддерживается.")
+    return Response(image.data, media_type=kind,
+                    headers={"cache-control": "private, max-age=86400"})
+
+
 @router.get("/api/exam/text/{item_id}")
 def exam_text(item_id: str) -> dict:
     """The task's own text, extracted from the PDF, for reading it in the app."""
@@ -415,3 +451,51 @@ def exam_text(item_id: str) -> dict:
             "audio": meta.get("audio") or ([row["audio_url"]] if row["audio_url"] else []),
             "url": meta.get("url"),
             "note": "Официальное задание — © Haridus- ja Noorteamet."}
+
+
+@router.get("/api/exam/native/{item_id}")
+def exam_native(item_id: str) -> dict:
+    """Page-aware task text and reviewed controls from the private exam mount."""
+    from ..exam_native import load
+
+    path = _exam_path(item_id)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Это не PDF.")
+    draft = load(path)
+    if draft is None:
+        raise HTTPException(status_code=404, detail=(
+            "Структурированное задание ещё не подготовлено."))
+    questions = draft["questions"] if draft["verified"] else []
+    return {"pages": draft["pages"], "verified": draft["verified"],
+            "kind": draft["kind"] if draft["verified"] else "none",
+            "figures": draft["figures"] if draft["verified"] else [],
+            "questions": [{k: v for k, v in q.items() if k != "answer"}
+                          for q in questions], "note": draft["note"]}
+
+
+class NativeAnswers(BaseModel):
+    answers: dict[int, str]
+
+
+@router.post("/api/exam/native/{item_id}/check")
+def check_exam_native(item_id: str, submission: NativeAnswers) -> dict:
+    """Score only a reviewed printed key. This is practice, never mastery."""
+    from ..exam_native import load
+
+    path = _exam_path(item_id)
+    draft = load(path) if path.suffix.lower() == ".pdf" else None
+    if not draft or not draft["verified"]:
+        raise HTTPException(status_code=404, detail="Проверенный ключ недоступен.")
+    questions = draft["questions"]
+    wanted = {q["number"] for q in questions}
+    allowed = ({"A", "B", "C"} if draft["kind"] == "multiple-choice"
+               else {f["letter"] for f in draft["figures"]})
+    if set(submission.answers) != wanted or any(
+            answer not in allowed for answer in submission.answers.values()):
+        raise HTTPException(status_code=422, detail="Ответь на все вопросы.")
+    results = [{"number": q["number"], "correct":
+                submission.answers[q["number"]] == q["answer"],
+                "answer": q["answer"]} for q in questions]
+    return {"correct": sum(r["correct"] for r in results),
+            "total": len(results), "results": results,
+            "note": "Официальный ключ ответа; тренировка не влияет на освоение темы."}

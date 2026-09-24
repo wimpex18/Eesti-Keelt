@@ -1,30 +1,30 @@
 # Handoff
 
 ## Current state
-PR [#67](https://github.com/wimpex18/Eesti-Keelt/pull/67) is open on
-`codex/post-merge-ops-handoff`; the owner merges. Production is
-`https://eesti-keelt.wimpex18.workers.dev`. Cloud Run revision
-`eesti-keelt-00077-n7t` has one maximum instance and EKI audio/HARNO exam mounts; deep smoke must run on `main` after the merge and Cloud Build deploy.
+PR [#67](https://github.com/wimpex18/Eesti-Keelt/pull/67) is open; the owner merges. Production is
+`https://eesti-keelt.wimpex18.workers.dev`. Cloud Run has one instance
+and EKI audio/HARNO exam mounts. A private off-account event export passed
+`cli verify-backup` (9 events); it excludes push subscriptions and audio.
 
-Workers AI GPT-OSS-120B is automatic hosted grammar/tutor with deterministic
-fallback; Cloudflare Workers AI is production ASR. Ollama EstLLM lives outside
-Git at `~/.ollama/models` and remains evaluation-only. The audited grammar
-trial caught 9/10 planted errors but left 0/8 clean controls alone; see
-`docs/evaluations/hand-set.md` for the labels and EKI checks.
+Workers AI GPT-OSS-120B is the automatic hosted grammar/tutor lane with
+deterministic fallback; Cloudflare Workers AI is production ASR. Ollama EstLLM
+stays outside Git and is evaluation-only. Learner ASR quality still needs
+listened-to, corrected in-app recordings. Chrome reminders are subscribed;
+actual delivery is unverified.
 
-`Vestlus` supports mic → editable ASR text → tutor reply → TTS. Local-only
-`Hindamiskomplekt` saves selected clips with a listened-to, verified transcript;
-ordinary practice audio is unsaved. Official PDF pages, raw text and audio
-display in-app; structured tasks and figures are not imported. Controls align.
-Chrome reminders are subscribed; delivery is unverified. A private off-account
-event export passed `cli verify-backup` (9 events); it excludes push
-subscriptions and audio.
+The PR adds local speech review, native PDF pages, and offline PDF extraction.
+Private sidecars under `data/exam/` hold page text and OCR drafts.
+Visually verified A2 and B1 reading PDFs have 6 choice and 9 figure-matching
+questions; 27 other task PDFs remain ungraded. OCR text is provisional. Four milestones
+derive from recorded course evidence and do not alter mastery or FSRS.
 
 ## Exact next step
-After the owner merges #67 and Cloud Build deploys, run GitHub `smoke` on
-`main` with `deep: true`; verify a HARNO PDF page and EKI audio through the
-mounts. Check Chrome reminder delivery at an eligible hour. Collect learner
-speech in-app, listen and correct transcripts, then run paired ASR evaluation.
+After the owner merges #67, wait for Cloud Build, then run `smoke` on `main`
+with `deep: true`. In Cloud Shell, pull `main`, run `cli prepare-exam` against
+the existing `data/exam/`, and `deploy/push-exam.sh`; see `docs/exam-native.md`.
+Verify both native tasks, HARNO pages and EKI audio on production. Check Chrome
+reminder delivery and collect reviewed learner speech before paired ASR evaluation.
 
 ## Blockers
-Owner merge, notification arrival and human-verified speech are pending.
+Owner merge, sidecar sync, notification arrival and verified speech are pending.
+Uncommitted paths after commit: none.
