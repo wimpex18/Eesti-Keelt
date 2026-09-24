@@ -255,6 +255,20 @@ def browse(
             raise ValueError(
                 "status must be new, learning, known, well_known or ignored")
 
+    # Every status but "new" is stored, so its words can be named up front and
+    # the word list read only for them: filtering window by window scans the whole
+    # 160 000-word list when the learner has marked a few dozen.
+    if wanted is not None and UNKNOWN not in wanted:
+        marked = [r[0] for r in store.execute(
+            f"SELECT lemma FROM vocab_status WHERE status IN ({','.join('?' * len(wanted))})",
+            sorted(wanted))]
+        if not marked:
+            return {"items": [], "count": 0, "offset": offset, "more": False,
+                    "level": level, "pos": pos, "status": status}
+        sql = sql.replace(" ORDER BY", (" AND " if where else " WHERE ")
+                          + f"w.word IN ({','.join('?' * len(marked))}) ORDER BY", 1)
+        args = [*args, *marked]
+
     out: list[dict] = []
     seen = 0
     chunk = max(limit * 4, 200)

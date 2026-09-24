@@ -96,10 +96,20 @@ def test_its_text_is_readable_with_the_exam_board_named(client, material):
 
 def test_a_task_that_was_not_downloaded_says_so(client, material):
     """Rather than a blank reader: the learner is told to open the link."""
-    for route in ("file", "text"):
-        r = client.get(f"/api/exam/{route}/{material['away']}")
-        assert r.status_code == 404
-        assert "ссылк" in r.json()["detail"] or "файл" in r.json()["detail"]
+    r = client.get(f"/api/exam/file/{material['away']}")
+    assert r.status_code == 404
+    assert "ссылк" in r.json()["detail"] or "файл" in r.json()["detail"]
+    # No text is an answer, not a missing resource: the page reads `available`
+    # instead of logging a 404 for every task that has no extracted text.
+    r = client.get(f"/api/exam/text/{material['away']}")
+    assert r.status_code == 200
+    assert r.json()["available"] is False and "файл" in r.json()["note"]
+
+
+def test_a_task_without_a_prepared_sidecar_answers_rather_than_404s(client, material):
+    r = client.get(f"/api/exam/native/{material['here']}")
+    assert r.status_code == 200
+    assert r.json()["available"] is False
 
 
 def test_a_meta_row_pointing_out_of_the_folder_is_refused(client, material, tmp_path):

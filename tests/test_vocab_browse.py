@@ -105,6 +105,19 @@ class TestWhatTheLearnerHasMarked:
                vocab.browse(words, store, level="B1", status="known")["items"]]
         assert got == ["kurat"]
 
+    def test_a_status_across_every_level_finds_marked_words_anywhere(self, words, store):
+        """Without a level the list is long; the marked words are looked up
+        first, so one far down the ranking is still found — and quickly."""
+        vocab.set_status(store, "aabits", vocab.LEARNING)
+        vocab.set_status(store, "maja", vocab.LEARNING)
+        got = vocab.browse(words, store, status="learning")
+        assert sorted(i["word"] for i in got["items"]) == ["aabits", "maja"]
+        assert got["more"] is False
+
+    def test_a_status_nobody_has_is_an_empty_list(self, words, store):
+        got = vocab.browse(words, store, status="learning")
+        assert got["items"] == [] and got["more"] is False
+
 
 class TestTheGloss:
     def test_several_senses_are_joined_readably(self, words, store):

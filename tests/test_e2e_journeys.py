@@ -432,6 +432,43 @@ class TestTheGrammarDrill:
         assert "/1" in page.locator("#freeScore").inner_text()
 
 
+class TestTheWordWorkout:
+    """Sõnatrenn: Russian meaning in, Estonian word out, graded against the word
+    list. The scratch server has no learning words, so the set is topped up with
+    the commonest new ones -- a slow status lookup once left the learner on
+    "Подбираю слова…" for good."""
+
+    def _start(self, page):
+        open_tab(page, mode_of(page, "sonad"), "sonad")
+        page.click("#workoutStart")
+        page.wait_for_selector("#workoutOut .word-q", timeout=5000)
+
+    def test_a_workout_starts_promptly_with_ten_words(self, page):
+        self._start(page)
+        assert page.locator("#workoutOut .word-q").count() == 10
+        assert page.locator("#workoutOut .word-meaning").first.inner_text().strip()
+
+    def test_a_wrong_word_shows_the_list_spelling_and_offers_review(self, page):
+        self._start(page)
+        item = page.locator("#workoutOut .word-q").first
+        item.locator("input").fill("kindlasti-vale")
+        item.locator("input").press("Enter")
+        verdict = item.locator(".verdict")
+        verdict.wait_for(state="visible", timeout=5000)
+        assert "no" in (verdict.get_attribute("class") or "")
+        assert verdict.locator("ins").inner_text().strip(), "the right word is not shown"
+        assert verdict.locator("button[data-queue]").is_visible()
+        assert page.locator("#workoutScore").inner_text().startswith("0/1")
+
+    def test_an_empty_answer_does_not_consume_the_word(self, page):
+        self._start(page)
+        item = page.locator("#workoutOut .word-q").first
+        item.locator("input").press("Enter")
+        page.wait_for_timeout(300)
+        assert not item.locator("input").is_disabled()
+        assert page.locator("#workoutScore").inner_text().strip() == ""
+
+
 class TestReading:
     """List, open, read, come back. The journey that had 82 unopenable items."""
 
@@ -1038,7 +1075,9 @@ class TestTheConversationPartner:
             page.click("#vestlusSend")
             page.wait_for_selector("#vestlusLog .vestlus-me")
             assert sent == ["", "Ma elan Tallinnas."]
-            assert page.locator("#vestlusVoice").is_visible()
+            # The partner's voice plays through the app's own player, which stands in
+            # for the native element's controls (`js/media.js`).
+            assert page.locator("#vestlusVoice + .player").is_visible()
             assert not errors, errors
         finally:
             context.close()

@@ -5,9 +5,11 @@
    does give is the clock, the shape and a verdict from code where code can
    decide. Nothing is graded here in the page: answers go back to the server. */
 
-import {$, api, esc} from "./core.js";
+import {$, api, esc, ruCount} from "./core.js";
 import {mountAudio} from "./media.js";
 import {examLevel} from "./state.js";
+
+const WORDS = ["слово", "слова", "слов"];
 
 const PARTS = [
   ["lugemine", "Lugemine", "чтение"],
@@ -157,7 +159,7 @@ function renderTasks(section) {
       <p class="hint" id="mockWords">0 слов</p>`;
     $("#mockWritten").addEventListener("input", e => {
       $("#mockWords").textContent =
-        `${e.target.value.split(/\s+/).filter(Boolean).length} слов`;
+        ruCount(e.target.value.split(/\s+/).filter(Boolean).length, WORDS);
     });
     return;
   }
@@ -199,7 +201,7 @@ async function finish(ranOut, seconds) {
     const score = r.correct === null
       ? "без оценки — на экзамене эта часть в паре"
       : section.kind === "writing"
-        ? `${d.words} слов (нужно от ${d.min_words})` +
+        ? `${ruCount(d.words, WORDS)} (нужно от ${d.min_words})` +
           (d.errors ? `, найдено ошибок: ${d.errors}` : ", ошибок код не нашёл")
         : `${r.correct} из ${r.asked}`;
     verdict.className = "verdict ok";

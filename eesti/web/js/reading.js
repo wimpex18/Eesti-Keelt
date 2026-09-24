@@ -140,7 +140,12 @@ async function openItem(id) {
     return;
   }
   $("#readerTitle").textContent = d.title;
-  $("#readerMeta").textContent = `${esc(d.source)} · ${esc(d.licence)}`;
+  /* Where the text comes from, as a name and a way back to the original. The
+     licence terms live in the sources footer and `/api/sources`; a line of
+     licence prose over every text is noise for the one learner reading it. */
+  $("#readerMeta").innerHTML = `<span lang="et">Allikas</span> ${d.url
+    ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" lang="${langOf(d.source)}">${esc(d.source)}</a>`
+    : `<span lang="${langOf(d.source)}">${esc(d.source)}</span>`}`;
   // An item is a text, a recording or a film; the reader shows whichever it
   // has rather than assuming audio.
   if (d.meta?.kind === "video" || YT.test(d.url || "")) {

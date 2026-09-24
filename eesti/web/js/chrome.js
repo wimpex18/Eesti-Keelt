@@ -475,7 +475,7 @@ export function rhythmHtml(days = []) {
   return `<div class="rhythm">
     <div class="rhythm-heads" aria-hidden="true">${heads}</div>
     <div class="rhythm-grid" role="img"
-      aria-label="${esc(`За последние 4 недели занятия были в ${recent} днях из 28`)}">${cells}</div>
+      aria-label="${esc(`Дней с занятиями за последние 4 недели: ${recent} из 28`)}">${cells}</div>
     <div class="rhythm-say"><b>${recent}</b> из 28 дней с занятиями за 4 недели</div></div>`;
 }
 
@@ -496,4 +496,25 @@ export function forecastHtml(counts = []) {
   const total = counts.reduce((a, b) => a + b, 0);
   return `<div class="forecast" style="grid-template-columns:repeat(${counts.length},minmax(0,1fr))"
     role="img" aria-label="${esc(`К повторению за ${counts.length} дней: ${total}; сегодня ${counts[0]}`)}">${bars}</div>`;
+}
+
+
+
+/* The dock steps back while reading. On a phone, scrolling down through a text or a
+   list folds the three modes to their marks; scrolling up, or reaching the top,
+   brings the words back — the way the system's own tab bars behave. */
+{
+  const phone = matchMedia("(max-width:719px), (hover:none) and (max-height:500px)");
+  let last = scrollY, ticking = false;
+  addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = scrollY, down = y > last + 4, up = y < last - 4;
+      if (!phone.matches || y < 80 || up) document.body.classList.remove("dock-min");
+      else if (down) document.body.classList.add("dock-min");
+      last = y;
+      ticking = false;
+    });
+  }, {passive: true});
 }

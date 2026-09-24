@@ -122,6 +122,9 @@
       </div>
       <div class="trail" id="pathTrail"></div>
     </div>
+    <!-- Where things stand, for the screens that have no rail: the review queue,
+         the exam flower and the week's rhythm, each a way into its own screen. -->
+    <nav class="pulse" id="pathPulse" aria-label="Kokkuvõte — сводка"></nav>
     <div id="pathHead" class="banner" hidden></div>
     <!-- The set being answered. Beads fill as items are graded; the score line
          says the same in words. -->
@@ -458,8 +461,10 @@
         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/></svg></div>
       <h4>Очередь пока пуста</h4>
-      <p>Карточки появляются из ошибок в упражнениях и из слов, отмеченных при чтении.</p>
-      <div class="row"><a class="ghost" href="#path" lang="et">Mine Radale <span class="ru" lang="ru">к упражнениям</span></a></div>
+      <p>Карточки появляются из ошибок в упражнениях, из слов, отмеченных при чтении,
+        и из слов, которые ты добавишь в Sõnavara кнопкой «Kordamisse».</p>
+      <div class="row"><a class="ghost" href="#path" lang="et">Mine Radale <span class="ru" lang="ru">к упражнениям</span></a>
+        <a class="ghost" href="#sonad" lang="et">Vali sõnu <span class="ru" lang="ru">выбрать слова</span></a></div>
     </div>
     <!-- The words the learner keeps getting wrong (`/api/review/stats` `struggling`). -->
     <div id="reviewHard" hidden></div>
@@ -474,6 +479,24 @@
       <h2 class="page-title" lang="et">Sõnavara <i class="ru" lang="ru">словарь</i></h2>
       <p class="lede">Список слов, сначала самые частотные. Нажми на слово, чтобы открыть карточку.</p>
     </div></div>
+    <!-- Sõnatrenn: the Russian meaning, the Estonian word typed back (`js/words.js`). -->
+    <section class="workout" aria-labelledby="workoutHead">
+      <div class="workout-intro">
+        <div>
+          <h3 class="sec-title" id="workoutHead" lang="et">Sõnatrenn <i class="ru" lang="ru">тренировка слов</i></h3>
+          <p class="note">Десять слов из тех, что ты учишь: по переводу вспомни эстонское
+            слово. Ответы никуда не записываются — ошибки можно отправить в повторение.</p>
+        </div>
+        <button class="go" id="workoutStart" type="button" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
+      </div>
+      <div class="stage" id="workoutStage" hidden>
+        <div class="stage-top">
+          <div class="beads" id="workoutBeads" aria-hidden="true"></div>
+          <span class="hint" id="workoutScore"></span>
+        </div>
+        <div id="workoutOut"></div>
+      </div>
+    </section>
     <div class="row">
       <label lang="et">Tase <i class="ru" lang="ru">уровень</i>
         <select id="vocLevel">

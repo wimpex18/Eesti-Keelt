@@ -8,17 +8,16 @@ Workers AI is production ASR. Native A2/B1 reading controls need private
 sidecars under `data/exam/`.
 
 ## Current task
-Review and merge PR #69, the "Laudtee" interface (`DESIGN.md`): Estonian blue
-on near-white, Geologica and Phosphor self-hosted, glass navigation, the gate,
-boardwalk, readiness flower, practice rhythm and review forecast. Backend
-additions are read-only projections: `contact`/`contact_target` on readiness,
-`ru`/`gate`/`resume_recent` on `/api/curriculum`, `rhythm` on `/api/status`,
-`forecast` on `/api/review/stats`, and `/fonts/{name}`.
+Review and merge the Laudtee polish PR (#70): fixed desktop sidebar, pulse tiles,
+folding dock, closable word card, plural fixes; plus the Mängija audio player
+over every `<audio>`, Sõnatrenn (word workout from the learner's `õpin` words),
+a one-line reader source, exam text/native routes answering `available: false`
+instead of 404, a fast learner-status filter in `vocab.browse`, and wrangler /
+workers-types upgrades.
 
 ## Next step
-After merge, run `smoke` with `deep: true`, install the PWA again on the phone
-(the icon changed) and look at it in both themes. Uncommitted paths after
-commit: none.
+After merge, run `smoke` with `deep: true` and look at the phone PWA in both
+themes. Uncommitted paths after commit: none.
 
 ## Remaining checks
 Verify the two native reading controls in production, actual Chrome reminder

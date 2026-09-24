@@ -260,6 +260,15 @@ nav .lbl .ru{display:none}
 .modes button:hover:not([aria-selected="true"]){background:color-mix(in srgb, var(--ink) 5%, transparent)}
 .modes button:active{transform:scale(.96)}
 
+/* Folded while scrolling down: the marks stay, the words step aside. */
+@media (max-width:719px), (hover:none) and (max-height:500px){
+  .modes{transition:padding var(--t) var(--ease), left var(--t) var(--ease), right var(--t) var(--ease)}
+  .modes button{transition:min-height var(--t) var(--ease), font-size var(--t) var(--ease),
+    background-color var(--t) var(--ease), color var(--t) var(--ease)}
+  .dock-min .modes{left:22%;right:22%;padding:4px}
+  .dock-min .modes button{min-height:44px;font-size:0;gap:0}
+}
+
 /* ── Spine: tablet and desktop ──────────────────────────────────────
    A floating glass column inset from the window's edge: brand, the three modes,
    the open mode's tabs, and the actions at its foot. The rail joins at 1080px. */
@@ -267,8 +276,11 @@ nav .lbl .ru{display:none}
   :root{--spine-w:232px}
   .wrap{max-width:none;margin:0;padding:0;display:grid;
     grid-template-columns:var(--spine-w) minmax(0,1fr);align-items:start}
-  .spine{grid-column:1;grid-row:1 / span 2;position:sticky;top:12px;
-    height:calc(100vh - 24px);height:calc(100dvh - 24px);margin:12px 0 12px 12px;
+  /* Fixed, not sticky: a sticky column is pushed up by the end of its grid area,
+     so the page's footer would scroll the brand away. */
+  .spine{grid-column:1;grid-row:1 / span 2;position:fixed;top:12px;left:12px;
+    width:calc(var(--spine-w) - 12px);
+    height:calc(100vh - 24px);height:calc(100dvh - 24px);margin:0;
     overflow-y:auto;scrollbar-width:none;border-radius:var(--r-xl);
     display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:var(--s5);
     padding:22px 12px 14px;
@@ -567,6 +579,25 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   .hero-act label{flex:1 1 100%}
 }
 
+/* ── The pulse: the rail's three facts, where there is no rail ──────── */
+.pulse{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
+.pulse:empty{display:none}
+.pulse-tile{display:flex;flex-direction:column;gap:2px;min-width:0;padding:12px 14px;
+  border-radius:var(--r-lg);background:var(--panel);box-shadow:var(--shadow);color:var(--ink);
+  text-decoration:none;transition:transform var(--quick) var(--ease),box-shadow var(--quick) var(--ease)}
+.pulse-tile:hover{color:var(--ink);box-shadow:var(--lift)}
+.pulse-tile:active{transform:scale(.97)}
+.pulse-label{font-size:var(--fs-meta);font-weight:750;color:var(--ink-2)}
+.pulse-big{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.pulse-big small{font-size:var(--fs-note);font-weight:600;color:var(--muted);letter-spacing:0}
+.pulse-sub{font-size:var(--fs-gloss);color:var(--muted);line-height:1.3}
+.pulse-flower .flower{width:44px;height:44px;margin:1px 0}
+.pulse-week{display:flex;gap:3px;margin-top:4px}
+.pulse-week i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--accent) 10%, var(--tint))}
+.pulse-week i.on{background:var(--accent)}
+@media (min-width:1080px){.pulse{display:none}}
+
 /* ── The stage: where a set is answered ───────────────────────────── */
 .stage{padding:24px 24px 26px;border-radius:var(--r-lg);background:var(--panel);box-shadow:var(--shadow)}
 .stage:has(> [id$="Out"]:empty):not(.speak-stage):not(.write-stage){display:none}
@@ -588,7 +619,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 
 /* One item at a time, on every device: answered items stay (they carry the verdict
    and the rule), the first unanswered one is shown, the rest wait. */
-:is(#practiceOut, #freeOut, #checkpointOut, #reviewOut) > .drill:not(.done) ~ .drill{display:none}
+:is(#practiceOut, #freeOut, #checkpointOut, #reviewOut, #workoutOut) > .drill:not(.done) ~ .drill{display:none}
 .drill{padding:var(--s4) 0 var(--s4);border-top:1px solid var(--line-soft);scroll-margin-top:var(--s4)}
 .drill:first-child, .banner + .drill, .drill:first-of-type{border-top:0;padding-top:0}
 .drill.done{padding-bottom:var(--s3)}
@@ -623,12 +654,12 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   border-radius:var(--r)}
 .drill input[type=text]::placeholder{font-family:var(--f-ui);font-size:var(--fs-ui)}
 /* Kontrolli is the one prominent action while an item waits. */
-.drill > .row:has(> input) > button.ghost, .drill > .row:has(> input) > button.go{min-height:56px;
+.drill > .row:has(> input) > button.ghost:not([data-hint]), .drill > .row:has(> input) > button.go{min-height:56px;
   padding:10px 24px;color:var(--on-btn);
   background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 55%),
              color-mix(in srgb, var(--btn) 92%, var(--btn-2));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 8px 18px -10px color-mix(in srgb, var(--btn) 70%, transparent)}
-.drill > .row:has(> input) > button.ghost:hover:not(:disabled){
+.drill > .row:has(> input) > button.ghost:not([data-hint]):hover:not(:disabled){
   background:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 55%),
              color-mix(in srgb, var(--btn) 72%, var(--btn-2));color:var(--on-btn)}
 .drill.done > .row > button{opacity:.5;cursor:default}
@@ -861,6 +892,9 @@ a.lib-item{text-decoration:none;color:inherit}
 @media (max-width:719px){
   #wordCard, #vocCard{bottom:calc(var(--dock-h) + 12px)}
 }
+.card-close{position:absolute;top:10px;right:10px;width:36px;height:36px}
+.card-close svg{width:16px;height:16px}
+#wordCard, #vocCard{padding-right:56px}
 #wordCard .lemma{font-family:var(--f-read);font-size:24px;font-weight:600}
 #wordCard .tags{font-size:var(--fs-note);color:var(--muted);margin-top:3px}
 #wordCard .pair{margin-top:7px;font-size:var(--fs-ui)}
@@ -897,6 +931,22 @@ a.lib-item{text-decoration:none;color:inherit}
 .vocword.settled{opacity:.6}
 .lv[data-level="B1"], .lv[data-level="B2"], .lv[data-level="C1"]{color:var(--accent)}
 
+/* ── Sõnatrenn ── */
+.workout{display:flex;flex-direction:column;gap:var(--s4);padding:20px 22px;border-radius:var(--r-lg);
+  background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--panel)), var(--panel) 60%);
+  box-shadow:var(--shadow)}
+.workout-intro{display:flex;align-items:center;justify-content:space-between;gap:var(--s3) var(--s5);flex-wrap:wrap}
+.workout-intro .note{margin:6px 0 0}
+.workout .stage{box-shadow:none;padding:0;background:none}
+.word-meaning{font-size:clamp(24px, 5vw, 32px);font-weight:700;letter-spacing:-.02em;line-height:1.2;
+  margin-bottom:4px;overflow-wrap:anywhere}
+.word-q .row{margin-top:var(--s3)}
+.word-q.done .row:has(input){display:none}
+.word-forms{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s2)}
+.word-forms > span{padding:8px 12px;border-radius:var(--r-sm);background:var(--tint);font-size:var(--fs-body);
+  color:var(--ink);font-variation-settings:var(--cut)}
+.word-forms b{display:block;font-size:var(--fs-gloss);font-weight:700;color:var(--muted);font-variation-settings:var(--soft)}
+
 /* ── Listening ────────────────────────────────────────────────────── */
 .w-ok{color:var(--ink)}
 .w-no{color:var(--warn);font-weight:650;text-decoration:underline;text-decoration-style:wavy;
@@ -908,6 +958,59 @@ a.lib-item{text-decoration:none;color:inherit}
 #dictBox > .row:first-child{margin-top:0}
 #dictPlay{min-width:120px}
 audio{width:100%;margin-top:var(--s3);border-radius:999px}
+/* ── Mängija: the one audio player ────────────────────────────────── */
+audio.enhanced{display:none !important}
+.player{--p:0%;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:var(--s3);
+  padding:6px 12px 6px 6px;border-radius:30px;background:var(--panel);
+  box-shadow:0 0 0 1px var(--line-soft), var(--shadow);min-width:0;max-width:640px}
+.stage .player, #dictBox .player, .speak-stage .player{background:var(--bg);box-shadow:0 0 0 1px var(--line-soft)}
+.pl-play{flex:none;width:44px;height:44px;border:0;border-radius:999px;display:grid;place-items:center;
+  cursor:pointer;color:var(--on-btn);
+  background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 55%),
+             color-mix(in srgb, var(--btn) 92%, var(--btn-2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+  transition:transform var(--quick) var(--ease), box-shadow var(--t) var(--ease)}
+.pl-play:hover{filter:brightness(1.08)}
+.pl-play:active{transform:scale(.94)}
+.pl-play svg{width:18px;height:18px}
+.player.playing .pl-play{box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent)}
+.player.loading .pl-play svg{opacity:0}
+.player.loading .pl-play{background-image:none;background-color:var(--accent-soft)}
+.player.loading .pl-play::after{content:"";position:absolute;width:18px;height:18px;border-radius:999px;
+  border:2.5px solid color-mix(in srgb, var(--accent) 25%, transparent);border-top-color:var(--accent);
+  animation:spin 800ms linear infinite}
+.pl-play{position:relative}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pl-time{flex:none;min-width:34px;font-size:var(--fs-meta);font-weight:650;color:var(--muted);
+  font-variant-numeric:tabular-nums;text-align:center}
+.pl-now{color:var(--ink)}
+.pl-time:empty{display:none}
+.pl-seek{flex:1 1 0;min-width:48px;height:24px;margin:0;background:transparent;cursor:pointer;
+  -webkit-appearance:none;appearance:none}
+.pl-seek:disabled{cursor:default;opacity:.5}
+.pl-seek::-webkit-slider-runnable-track{height:6px;border-radius:3px;
+  background:linear-gradient(to right, var(--accent) var(--p), var(--line) var(--p))}
+.pl-seek::-moz-range-track{height:6px;border-radius:3px;background:var(--line)}
+.pl-seek::-moz-range-progress{height:6px;border-radius:3px;background:var(--accent)}
+.pl-seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-5px;border-radius:999px;
+  background:var(--raised);box-shadow:0 0 0 2px var(--accent), 0 2px 6px rgba(12,42,92,.25);
+  transform:scale(.85);transition:transform var(--quick) var(--ease)}
+.pl-seek::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:999px;background:var(--raised);
+  box-shadow:0 0 0 2px var(--accent)}
+.pl-seek:hover::-webkit-slider-thumb, .pl-seek:focus-visible::-webkit-slider-thumb{transform:scale(1.1)}
+.pl-seek:focus-visible{outline:none}
+.pl-seek:focus-visible::-webkit-slider-runnable-track{box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)}
+.pl-back, .pl-rate{flex:none;height:36px;min-width:36px;padding:0 10px;border:0;border-radius:999px;cursor:pointer;
+  font:inherit;font-size:var(--fs-meta);font-weight:800;font-variant-numeric:tabular-nums;
+  transition:background-color var(--quick) var(--ease), color var(--quick) var(--ease)}
+.pl-back{background:var(--tint);color:var(--ink-2)}
+.pl-back:hover{background:color-mix(in srgb, var(--accent) 12%, transparent);color:var(--accent)}
+.pl-rate{background:color-mix(in srgb, var(--accent) 10%, transparent);color:var(--accent-deep)}
+.pl-rate:hover{background:color-mix(in srgb, var(--accent) 17%, transparent)}
+.pl-rate.on{background:var(--accent);color:var(--on-accent)}
+.pl-err{flex:1 1 100%;padding:4px 8px 2px;font-size:var(--fs-note);color:var(--warn)}
+@media (hover:none){.pl-back, .pl-rate{height:44px;min-width:44px}}
+@media (max-width:420px){.pl-back{display:none}}
 .video{margin-top:var(--s3);aspect-ratio:16/9;width:100%}
 .video iframe{width:100%;height:100%;border:0;border-radius:var(--r)}
 .clip{display:flex;gap:var(--s3);align-items:center;margin-bottom:var(--s2)}
@@ -1006,7 +1109,7 @@ audio{width:100%;margin-top:var(--s3);border-radius:999px}
 .exam-shape{display:flex;flex-direction:column;gap:var(--s3)}
 .exam-shape .hint{font-size:var(--fs-note)}
 .shape-bars{display:flex;gap:4px;margin-top:var(--s2)}
-.shape-bar{flex:1 1 0;padding:10px 12px;border-radius:var(--r-sm);background:var(--tint);min-width:0}
+.shape-bar{flex:1 1 0;padding:10px 12px;border-radius:var(--r-sm);background:var(--tint);min-width:112px}
 .shape-bar b{display:block;font-size:var(--fs-meta);font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shape-bar span{font-size:var(--fs-gloss);color:var(--muted);font-variant-numeric:tabular-nums}
 @media (max-width:480px){.shape-bars{flex-wrap:wrap}.shape-bar{flex:1 1 40%}}
@@ -1030,6 +1133,8 @@ audio{width:100%;margin-top:var(--s3);border-radius:999px}
 .mock-clock{font-variant-numeric:tabular-nums;font-size:var(--fs-lead);font-weight:800;color:var(--accent)}
 .mock-clock.low{color:var(--bad)}
 .mock-task{padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+.mock-task .prompt{font-size:var(--fs-lead);margin-bottom:var(--s2)}
+.mock-task .row{margin-top:0}
 .mock-task:first-child{border-top:0}
 .exam-task{margin:0 0 var(--s3);padding:var(--s3) var(--s4);border-radius:0 0 var(--r) var(--r);background:var(--panel)}
 .exam-task-head{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
@@ -1249,6 +1354,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
      With no set — still loading, failed, or empty — it stays as one compact line,
      because it holds the button that starts or retries the set. */
   .hero:not(:has(.hero-act > :not([hidden]))){display:none}
+  .pulse{display:none}
   .hero{padding:12px 18px;border-radius:var(--r-lg);align-items:center}
   .hero .now{font-size:28px;margin-top:2px}
   .hero :is(.of, #pathGate, .trail, .swallow, .hero-eyebrow .ru){display:none}

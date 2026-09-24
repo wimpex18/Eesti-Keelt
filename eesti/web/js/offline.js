@@ -10,7 +10,7 @@
    token, so the page never decides what counts; the id makes sending the queue
    twice harmless (`eesti/evidence.py`). */
 
-import {$, api, esc} from "./core.js";
+import {$, api, esc, ruCount} from "./core.js";
 
 const DB = "eesti-offline";
 const PACK = "pack", QUEUE = "queue";
@@ -118,7 +118,7 @@ export function graded(item, given) {
 export function describe(pack, queuedCount) {
   if (!pack) return "Набор не скачан.";
   const when = new Date(pack.issued).toLocaleDateString("ru-RU");
-  const bits = [`${pack.items.length} заданий от ${esc(when)}`];
-  if (queuedCount) bits.push(`${queuedCount} ответов ждут отправки`);
+  const bits = [`${ruCount(pack.items.length, ["задание", "задания", "заданий"])} от ${esc(when)}`];
+  if (queuedCount) bits.push(`${ruCount(queuedCount, ["ответ ждёт", "ответа ждут", "ответов ждут"])} отправки`);
   return bits.join(" · ");
 }

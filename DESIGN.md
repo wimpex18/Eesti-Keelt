@@ -118,15 +118,20 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   the name and two icon buttons; the open mode's tabs as a scrolling row where the
   selected tab sits on a small glass capsule; the page; and a **floating glass
   dock** of the three modes, clear of the home indicator (56px targets; the open
-  mode is tinted blue). The dock hides while typing. Gutter 16px plus safe areas.
+  mode is tinted blue). Scrolling down folds the dock to its marks; scrolling up
+  or reaching the top unfolds it. The dock hides while typing. Gutter 16px plus
+  safe areas.
 - **Spine (≥720px and ≥560px tall; iPad mini).** A **floating glass sidebar**
-  inset 12px from the window, 32px radius: brand, the three modes with glosses,
-  the open mode's tabs, and the two actions at its foot.
+  inset 12px from the window, 32px radius, fixed so the brand never scrolls away:
+  brand, the three modes with glosses, the open mode's tabs, and the two actions
+  at its foot. Below 1080px there is no rail, so Rada carries the **pulse**:
+  three tiles (Kordamine due today, the exam flower, the four-week rhythm), each
+  opening its own screen.
 - **Desk (≥1080px).** Spine 264px, a working column up to 880px, and a 320px
   context rail: the readiness flower, the next topic, the review forecast and
   the milestone seals. A rail card hides while its own panel is open.
-- **iPhone landscape (touch, ≤500px tall).** One line of chrome; the hero steps
-  aside; a 44px dock.
+- **iPhone landscape (touch, ≤500px tall).** One line of chrome; the hero and the
+  pulse step aside while a set is on screen; a 44px dock.
 
 ## Controls
 
@@ -170,6 +175,22 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   lighter. In Järjekord, Edenemine and the rail.
 - **Seals (Märgid).** The level's milestones as seals whose ring fills with the
   count and turns solid blue when complete. They award nothing.
+- **Word card.** Floats over the text or list it came from, and always has a
+  close button.
+- **Player (Mängija).** Every `<audio>` in the app is drawn as one capsule: a
+  round blue play button (a spinner while a stream loads), the time, a seek track
+  filled to the playhead, the length, *−5* seconds (hidden under 420px) and a
+  speed chip cycling 1× → 0.75× → 1.25×, remembered per device. It stays on one
+  line; a recording that cannot play says so in Russian. The native element stays
+  in the page, hidden, so the media code is unchanged.
+- **Sõnatrenn.** In Sõnavara: ten words the learner marked *õpin* (topped up with
+  the commonest new A1 words) shown by their Russian meaning; the learner types
+  the Estonian, compared with the word list's spelling. *Vihje* reveals a letter
+  at a time. A miss shows the right word, its omastav/osastav when the list has
+  them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
+  records nothing — Kordamine owns memory.
+- **Reader source.** One line above the title: *Allikas* and the source's name,
+  linked to the original. Licence terms stay in the sources footer.
 - **Plan strip.** The day as time, a segment per block as long as its minutes,
   coloured and glyphed by kind.
 - **Celebration.** Mastery only: a flower blooms on an evening card, announced

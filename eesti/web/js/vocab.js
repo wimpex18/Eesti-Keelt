@@ -1,6 +1,7 @@
 /* Sõnavara: the ladder, and the word card that both this and the reader open. */
 
 import {$, api, esc} from "./core.js";
+import {icon} from "./icons.js";
 import {retryableError, skeleton, uiIcon} from "./chrome.js";
 import {refreshDueBadge} from "./review.js";
 
@@ -9,7 +10,7 @@ const tagLabel = t => t.ru
   ? `<span lang="et">${esc(t.name)} <i class="ru" lang="ru">${esc(t.ru)}</i></span>` : esc(t.name);
 
 
-export async function showWordCard(word, card, contextFor) {
+async function fillWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
   let d;
@@ -279,3 +280,14 @@ $("#vocOut").addEventListener("click", e => {
   }
   showWordCard(b.dataset.word, card, null);
 });
+
+
+/* A word card, with a way to put it away: it floats over the text or the list
+   it was opened from, so it must never be the only way back to them. */
+export async function showWordCard(word, card, contextFor) {
+  await fillWordCard(word, card, contextFor);
+  if (card.hidden || card.querySelector(".card-close")) return;
+  card.insertAdjacentHTML("afterbegin", `<button class="iconbtn card-close" type="button"
+    title="Sulge — закрыть" aria-label="Sulge — закрыть">${icon("x", {weight: "bold"})}</button>`);
+  card.querySelector(".card-close").onclick = () => { card.hidden = true; };
+}
