@@ -134,7 +134,9 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
             facts.append(f"карточки помнятся на {_pct(w.retrievability)}")
         from .drills import RULE_ET
 
-        rule = f" · {RULE_ET.get(w.rule, w.rule)}" if w.rule else ""
+        # Only a rule with an Estonian name is named: a bare id (`question`) is a
+        # database key, and the topic already says what is being drilled.
+        rule = f" · {RULE_ET[w.rule]}" if w.rule in RULE_ET else ""
         add(Block("repair", min(REPAIR_MINUTES, left), f"{w.topic_et}{rule}",
                   "слабое правило",
                   "Слабое место: " + ", ".join(facts) + ".",

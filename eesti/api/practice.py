@@ -103,13 +103,18 @@ def curriculum_path() -> dict:
     # Resolve `blocked_by` topic ids to Estonian names (`omastava tüvi`, not
     # `gen-stem`) here, so no page prints a database key.
     names = {r.topic: r.et for r in rows}
+    from ..curriculum import TOPICS
+
+    # How a Russian-speaking learner looks for the topic: shown as its gloss.
+    russian = {t.id: t.ru for t in TOPICS}
     return {
         "resume": resume(progress),
         "mastered": sum(1 for r in rows if r.state == "mastered"),
         "total": len(rows),
         "topics": [
             {
-                "id": r.topic, "level": r.level, "et": r.et, "state": r.state,
+                "id": r.topic, "level": r.level, "et": r.et,
+                "ru": russian.get(r.topic, ""), "state": r.state,
                 "attempts": r.attempts, "accuracy": r.accuracy,
                 # Ids kept as well: the page needs them to link, and a caller
                 # that wants to match on identity must not have to reverse a

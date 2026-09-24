@@ -85,6 +85,21 @@ def vendor(name: str) -> FileResponse:
     return FileResponse(path, media_type="application/javascript")
 
 
+@router.get("/fonts/{name}")
+def font(name: str) -> FileResponse:
+    """The two typefaces (Onest, Literata; SIL OFL 1.1, licences beside them), served
+    from this origin so the installed app keeps its type offline and the page makes
+    no request to a font host. File names change with the file, so they cache long.
+    """
+    path = (WEB / "fonts" / name).resolve()
+    # Path traversal: `name` comes from the URL.
+    if (path.parent != (WEB / "fonts").resolve() or not path.is_file()
+            or path.suffix != ".woff2"):
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type="font/woff2",
+                        headers={"Cache-Control": "public, max-age=2592000"})
+
+
 @router.get("/icon.svg")
 def icon_svg() -> Response:
     return Response(ICON_SVG, media_type="image/svg+xml",

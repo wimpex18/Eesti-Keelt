@@ -72,6 +72,10 @@ class Part:
     #: the shelf is stocked; naming one tells them what to do this evening, and
     #: only the second changes what happens.
     next_task: dict | None = None
+    #: The count `touched` is decided from, towards `CONTACT`; a section sat on the
+    #: clock counts as the whole threshold. None where nothing is counted
+    #: (Rääkimine), for the same reason `touched` is None there.
+    contact: int | None = None
 
 
 @dataclass
@@ -138,6 +142,8 @@ class Readiness:
             "reasons": self.reasons,
             "days_to_decide": self.days_to_decide,
             "days_to_sitting": self.days_to_sitting,
+            # What `contact` on each part counts towards.
+            "contact_target": CONTACT,
             # Russian, because this is the sentence that stops a number
             # being over-read six weeks before a registration deadline. A
             # caveat the reader cannot read is not a caveat.
@@ -335,6 +341,7 @@ def _parts(progress: sqlite3.Connection, level: str,
                 (queued or sat.get("kirjutamine")) else False,
         note="На экзамене четыре задания по письму.",
         next_task=_next_task(content, level, "kirjutamine"),
+        contact=CONTACT if sat.get("kirjutamine", 0) else queued,
     ))
     # Listening counts opened tasks and dictations separately: a dictation is scored
     # evidence, an opened task is only contact.
@@ -357,6 +364,8 @@ def _parts(progress: sqlite3.Connection, level: str,
         touched=(opened >= CONTACT or heard["attempts"] >= CONTACT
                  or sat.get("kuulamine", 0) > 0),
         next_task=_next_task(content, level, "kuulamine"),
+        contact=(CONTACT if sat.get("kuulamine", 0)
+                 else max(opened, heard["attempts"])),
     ))
     out.append(Part(
         "lugemine", "Lugemine", "чтение",
@@ -368,6 +377,8 @@ def _parts(progress: sqlite3.Connection, level: str,
         touched=(touched.get("lugemine", 0) >= CONTACT
                  or sat.get("lugemine", 0) > 0),
         next_task=_next_task(content, level, "lugemine"),
+        contact=(CONTACT if sat.get("lugemine", 0)
+                 else touched.get("lugemine", 0)),
     ))
     out.append(Part(
         "raakimine", "Rääkimine", "говорение",

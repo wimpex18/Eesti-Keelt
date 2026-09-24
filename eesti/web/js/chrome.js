@@ -29,7 +29,6 @@ export const RU = {
   "Järjekord": "очередь", "Töövihikud": "тетради",
   "Ülevaade": "обзор", "Edenemine": "прогресс",
   // rail
-  "Eksamini": "до экзамена", "Puudutamata": "не начато",
   "Läbitud": "пройдено", "Järgmine": "следующая", "Kordamist ootab": "к повторению",
   /* Path states: exactly the five `progress.TopicProgress.state` emits.
      `tests/test_path_states.py` checks the two lists against each other. */
@@ -306,4 +305,132 @@ export function glossChrome() {
     .forEach(el => gloss(el, RU[el.textContent.trim()]));
   document.querySelectorAll("#modes button[data-mode], .modes button[data-mode]")
     .forEach(el => gloss(el, RU[el.textContent.trim()]));
+}
+
+
+/* ── Rukkilill: the four exam parts as one flower ───────────────────
+   Each petal is a part, in the exam's own order; its three segments light up one
+   contact at a time towards `contact_target` (`eesti/readiness.py`). A part the
+   app cannot measure (Rääkimine) is hatched, never empty: "cannot tell" is not
+   "none". A flower missing a petal is visibly incomplete, which is the exam's own
+   rule — no part may be zero — drawn rather than stated. */
+const PETAL = "M0 -12C-18 -26 -26 -48 -20 -70L-14 -84-7 -74 0 -90 7 -74 14 -84 20 -70C26 -48 18 -26 0 -12Z";
+const ANGLES = [-45, 45, 135, 225];
+let flowerSeq = 0;
+
+export function flowerSvg(parts, target = 3, {labels = true} = {}) {
+  const n = ++flowerSeq, hatch = `hatch${n}`, clip = `petal${n}`;
+  // Segments from the heart outwards; the petal's own outline clips them.
+  const bands = [[-12, -36], [-36, -60], [-60, -92]];
+  const petals = parts.slice(0, 4).map((p, i) => {
+    const unmeasured = p.touched === null;
+    const got = unmeasured ? 0 : Math.min(target, p.contact ?? (p.touched ? target : 0));
+    const lit = Math.round(got / target * bands.length);
+    const fill = bands.slice(0, lit).map(([y0, y1]) =>
+      `<rect x="-30" y="${y1}" width="60" height="${y0 - y1}" class="petal-fill"/>`).join("");
+    const seams = lit ? [-36, -60].map(y =>
+      `<line x1="-30" x2="30" y1="${y}" y2="${y}" class="petal-seam"/>`).join("") : "";
+    // The rotation sits on its own group: the petal's grow-in animation sets a CSS
+    // transform, which would otherwise replace the SVG one.
+    return `<g transform="rotate(${ANGLES[i]})"><g class="petal-group${unmeasured
+        ? " unmeasured" : ""}" style="animation-delay:${i * 80}ms">
+      <path d="${PETAL}" class="petal-shape"${unmeasured ? ` fill="url(#${hatch})"` : ""}/>
+      <g clip-path="url(#${clip})">${fill}${seams}</g></g></g>`;
+  }).join("");
+  // Labels at the four corners, outside the petals, in the exam's order.
+  const corner = [[-156, -100, "start"], [156, -100, "end"], [156, 100, "end"], [-156, 100, "start"]];
+  const say = p => p.touched === null ? "не измеряется"
+    : p.touched ? "есть контакт"
+    : `${Math.min(target, p.contact || 0)} из ${target} · не начато`;
+  const text = labels ? parts.slice(0, 4).map((p, i) => {
+    const [x, y, anchor] = corner[i];
+    return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="petal-label" lang="et">${esc(p.et)}</text>
+      <text x="${x}" y="${y + 17}" text-anchor="${anchor}" lang="ru"
+        class="petal-sub${p.touched === false ? " warn" : ""}">${say(p)}</text>`;
+  }).join("") : "";
+  const name = parts.map(p => `${p.et}: ${say(p)}`).join("; ");
+  return `<svg class="flower" viewBox="${labels ? "-160 -128 320 256" : "-96 -96 192 192"}"
+      role="img" aria-label="${esc(name)}">
+    <defs>
+      <pattern id="${hatch}" width="6" height="6" patternUnits="userSpaceOnUse"
+        patternTransform="rotate(45)"><path d="M0 0v6" class="hatch-line"/></pattern>
+      <clipPath id="${clip}"><path d="${PETAL}"/></clipPath>
+    </defs>
+    <g>${petals}</g>
+    <circle r="15" class="heart"/><circle r="6" class="heart-eye"/>
+    ${text}
+  </svg>`;
+}
+
+
+/* ── Milestones as seals ─────────────────────────────────────────────
+   Four level-specific markers (`eesti/milestones.py`). A seal fills its ring as
+   the count grows and is struck in cornflower when complete. They award nothing;
+   they mark what already happened. */
+const SEAL_GLYPH = {
+  "first-practice": '<path d="M23 38c-3-3-4-8-3-13s4-8 7-8 5 4 4 9-3 8-8 12z"/><circle cx="33" cy="17" r="1.6"/><circle cx="36.5" cy="21" r="1.4"/><circle cx="38" cy="25.5" r="1.2"/>',
+  "first-topic":    '<path d="M16 32h24M16 26h24M16 20h24"/>',
+  "checkpoint":     '<path d="M20 18h16v22H20z"/><path d="m23.5 29 3 3 6-6"/>',
+  "four-parts":     '<path d="M28 28c-3-4-4-8-2-12 3 1 4 5 2 12zm0 0c4-3 8-4 12-2-1 3-5 4-12 2zm0 0c3 4 4 8 2 12-3-1-4-5-2-12zm0 0c-4 3-8 4-12 2 1-3 5-4 12-2z"/>',
+};
+
+export function sealsHtml(milestones) {
+  const C = 2 * Math.PI * 25;
+  return `<div class="seals">${milestones.map(m => {
+    const share = Math.max(0, Math.min(1, m.target ? m.current / m.target : 0));
+    return `<div class="seal${m.complete ? " done" : ""}" title="${esc(m.ru)}">
+      <svg viewBox="0 0 56 56" aria-hidden="true">
+        <circle cx="28" cy="28" r="25" class="disc"/>
+        <circle cx="28" cy="28" r="25" class="ring-bg"/>
+        ${m.complete ? "" : `<circle cx="28" cy="28" r="25" class="ring-fg"
+          stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - share)).toFixed(1)}"/>`}
+        <g class="glyph">${SEAL_GLYPH[m.id] || '<circle cx="28" cy="28" r="4"/>'}</g>
+      </svg>
+      <b lang="et">${esc(m.et)}</b>
+      <span lang="ru">${m.complete ? "есть" : `${m.current}/${m.target}`}</span>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+
+/* ── The kinds of block in today's plan, each with its own mark ────── */
+const KIND_ICON = {
+  review:  '<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/>',
+  repair:  '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.6 17.4a1.9 1.9 0 0 0 2.7 2.7l5.7-5.7a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.3-.3-2.4z"/>',
+  refresh: '<path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="3.2"/>',
+  skill:   '<circle cx="12" cy="9" r="5.4"/><path d="m8.6 13.6-1 7.2 4.4-2.4 4.4 2.4-1-7.2"/>',
+  new:     '<circle cx="6" cy="19" r="2.6"/><circle cx="18" cy="5" r="2.6"/><path d="M8.6 19h8.9a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7h8.9"/>',
+  read:    '<path d="M12 7.5v12.5"/><path d="M3 5h5a4 4 0 0 1 4 4v11a3 3 0 0 0-3-2.5H3z"/><path d="M21 5h-5a4 4 0 0 0-4 4v11a3 3 0 0 1 3-2.5h6z"/>',
+};
+
+export function kindIcon(kind) {
+  return navIcon(KIND_ICON[kind] || KIND_ICON.new);
+}
+
+
+/* ── A topic laid into the path ──────────────────────────────────────
+   The one moment worth a ceremony: mastery, decided by code. A flower blooms,
+   the topic is named, and the overlay leaves by itself. Announced politely, and
+   instant under reduced motion (the stylesheet shortens every animation). */
+export function celebrate({title, name, note}) {
+  document.querySelector(".celebrate")?.remove();
+  const box = document.createElement("div");
+  box.className = "celebrate";
+  box.setAttribute("role", "status");
+  box.innerHTML = `<div class="celebrate-card">
+    <svg viewBox="-100 -100 200 200" aria-hidden="true">
+      ${ANGLES.map((a, i) => `<g transform="rotate(${a})"><path d="${PETAL}" class="petal"
+        style="animation-delay:${i * 90}ms"/></g>`).join("")}
+      <circle r="16" class="heart"/></svg>
+    <h4 lang="et">${esc(title)}</h4>
+    ${name ? `<div class="topic-name" lang="et">${esc(name)}</div>` : ""}
+    ${note ? `<p>${esc(note)}</p>` : ""}
+  </div>`;
+  document.body.append(box);
+  const leave = () => {
+    box.classList.add("out");
+    setTimeout(() => box.remove(), 260);
+  };
+  box.querySelector(".celebrate-card").addEventListener("click", leave);
+  setTimeout(leave, 3600);
 }

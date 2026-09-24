@@ -1,385 +1,530 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-19T11:24:12+00:00",
+  "generatedAt": "2026-09-24T13:13:51+00:00",
   "title": "Design System: Eesti keel",
   "extensions": {
     "colorMeta": {
-      "estonian-forest": {
+      "rukkilill": {
         "role": "primary",
-        "displayName": "Estonian Forest",
-        "canonical": "#1c6b52",
-        "oklch": "oklch(47.4% 0.086 167.4)",
+        "displayName": "Rukkilill",
+        "canonical": "#2b50c8",
+        "oklch": "oklch(48.2% 0.191 266.1)",
         "cssVar": "--accent",
-        "darkValue": "#5fbf9b",
+        "darkValue": "#8ea6ff",
         "tonalRamp": [
-          "#001207",
-          "#002d1e",
-          "#084c38",
-          "#266c54",
-          "#4a9076",
-          "#77b49b",
-          "#a3d8c2",
-          "#ccfbe7"
+          "#010133",
+          "#081956",
+          "#1d3580",
+          "#3453ac",
+          "#4f74d5",
+          "#779bf3",
+          "#a1c2ff",
+          "#cdeaff"
         ]
       },
-      "forest-deep": {
+      "rukkilill-deep": {
         "role": "primary",
-        "displayName": "Forest Deep",
-        "canonical": "#12503c",
-        "oklch": "oklch(38.7% 0.071 166.9)",
+        "displayName": "Rukkilill Deep",
+        "canonical": "#1c3894",
+        "oklch": "oklch(38.3% 0.155 266.0)",
         "cssVar": "--accent-deep",
-        "darkValue": "#3f8f72",
+        "darkValue": "#6883e6",
         "tonalRamp": [
-          "#001107",
-          "#012c1f",
-          "#1b4a39",
-          "#346a56",
-          "#578d78",
-          "#80b19d",
-          "#abd6c3",
-          "#d3f9e8"
+          "#010231",
+          "#091a54",
+          "#1e367e",
+          "#3554aa",
+          "#5074d2",
+          "#789bf0",
+          "#a2c2ff",
+          "#ceebff"
         ]
       },
-      "forest-mist": {
+      "rukkilill-mist": {
         "role": "primary",
-        "displayName": "Forest Mist",
-        "canonical": "#e6f2ec",
-        "oklch": "oklch(95.0% 0.015 164.7)",
+        "displayName": "Rukkilill Mist",
+        "canonical": "#e1e7fa",
+        "oklch": "oklch(92.9% 0.027 271.9)",
         "cssVar": "--accent-soft",
-        "darkValue": "#1b302a",
+        "darkValue": "#1f2745",
         "tonalRamp": [
-          "#080c0a",
-          "#1f2623",
-          "#3a423e",
-          "#57605c",
-          "#79837e",
-          "#9ea7a2",
-          "#c4cdc9",
-          "#e9f1ed"
+          "#090b12",
+          "#1e212b",
+          "#393d49",
+          "#565a69",
+          "#757a8a",
+          "#999ead",
+          "#bfc4d1",
+          "#e7ebf6"
         ]
       },
-      "on-forest": {
+      "on-rukkilill": {
         "role": "primary",
-        "displayName": "On Forest",
+        "displayName": "On Rukkilill",
         "canonical": "#ffffff",
         "oklch": "oklch(100.0% 0.000 89.9)",
         "cssVar": "--on-accent",
-        "darkValue": "#0d1a15",
+        "darkValue": "#0c1330",
         "tonalRamp": [
           "#0b0b0b",
-          "#242424",
-          "#404040",
-          "#5d5d5d",
-          "#808080",
-          "#a4a4a4",
-          "#cacaca",
-          "#eeeeee"
+          "#222222",
+          "#3d3d3d",
+          "#5b5b5b",
+          "#7a7a7a",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#ebebeb"
         ]
       },
-      "gloss-slate": {
-        "role": "secondary",
-        "displayName": "Gloss Slate",
-        "canonical": "#4c6382",
-        "oklch": "oklch(49.4% 0.057 256.0)",
-        "cssVar": "--gloss",
-        "darkValue": "#9db8d8",
-        "tonalRamp": [
-          "#030b1a",
-          "#162538",
-          "#2f4159",
-          "#4a5f7c",
-          "#6b82a1",
-          "#91a6c3",
-          "#b9cce6",
-          "#dff0ff"
-        ]
-      },
-      "amber-note": {
+      "sammal": {
         "role": "tertiary",
-        "displayName": "Amber Note",
-        "canonical": "#9a5b00",
-        "oklch": "oklch(53.1% 0.119 65.1)",
-        "cssVar": "--warn",
-        "darkValue": "#e0a758",
+        "displayName": "Sammal",
+        "canonical": "#2e7a4f",
+        "oklch": "oklch(52.0% 0.102 155.4)",
+        "cssVar": "--good",
+        "darkValue": "#6cc48e",
         "tonalRamp": [
-          "#1f0100",
-          "#3f1700",
-          "#623100",
-          "#874e00",
-          "#ae702b",
-          "#d0975e",
-          "#f3bf8d",
-          "#ffe5b9"
+          "#001202",
+          "#002b12",
+          "#0a492a",
+          "#256a43",
+          "#448c61",
+          "#71af87",
+          "#9ed3b0",
+          "#cbf8da"
         ]
       },
-      "amber-wash": {
+      "sammal-mist": {
         "role": "tertiary",
-        "displayName": "Amber Wash",
-        "canonical": "#fdf3e3",
-        "oklch": "oklch(96.8% 0.024 79.7)",
-        "cssVar": "--warn-soft",
-        "darkValue": "#2e2618",
+        "displayName": "Sammal Mist",
+        "canonical": "#e0efe5",
+        "oklch": "oklch(93.8% 0.021 156.8)",
+        "cssVar": "--good-soft",
+        "darkValue": "#15291d",
         "tonalRamp": [
-          "#0f0a05",
-          "#29231a",
-          "#453f34",
-          "#645c50",
-          "#877f71",
-          "#aba397",
-          "#d1c9be",
-          "#f4eee3"
+          "#070d09",
+          "#1c241f",
+          "#36403a",
+          "#525e56",
+          "#717e76",
+          "#96a29a",
+          "#bdc7c0",
+          "#e5eee8"
         ]
       },
-      "correction-red": {
+      "johvikas": {
         "role": "tertiary",
-        "displayName": "Correction Red",
-        "canonical": "#a32c2c",
-        "oklch": "oklch(47.9% 0.156 25.3)",
+        "displayName": "Jõhvikas",
+        "canonical": "#b3283c",
+        "oklch": "oklch(50.7% 0.174 18.7)",
         "cssVar": "--bad",
-        "darkValue": "#e88b8b",
+        "darkValue": "#ff8594",
         "tonalRamp": [
-          "#260000",
-          "#4a0106",
-          "#711d1d",
-          "#9a3935",
-          "#c35c56",
-          "#e5867e",
-          "#ffb0a8",
-          "#ffd8d0"
+          "#270000",
+          "#4a000a",
+          "#721121",
+          "#9c2c39",
+          "#c54c55",
+          "#e6797d",
+          "#ffa5a7",
+          "#ffd1d2"
         ]
       },
-      "paper": {
-        "role": "neutral",
-        "displayName": "Paper",
-        "canonical": "#faf9f6",
-        "oklch": "oklch(98.2% 0.004 91.4)",
-        "cssVar": "--bg",
-        "darkValue": "#16171a",
+      "johvikas-mist": {
+        "role": "tertiary",
+        "displayName": "Jõhvikas Mist",
+        "canonical": "#f8e3e6",
+        "oklch": "oklch(93.4% 0.023 7.7)",
+        "cssVar": "--bad-soft",
+        "darkValue": "#35181d",
         "tonalRamp": [
-          "#0b0b0a",
-          "#242422",
-          "#40403e",
-          "#5e5d5b",
-          "#81807e",
-          "#a5a4a2",
-          "#cbcac8",
-          "#efeeec"
+          "#10090a",
+          "#291e20",
+          "#46393b",
+          "#665658",
+          "#877578",
+          "#aa9a9c",
+          "#cfc0c2",
+          "#f4e7e9"
         ]
       },
-      "sheet": {
-        "role": "neutral",
-        "displayName": "Sheet",
-        "canonical": "#ffffff",
-        "oklch": "oklch(100.0% 0.000 89.9)",
-        "cssVar": "--panel",
-        "darkValue": "#1e2024",
+      "murakas": {
+        "role": "tertiary",
+        "displayName": "Murakas",
+        "canonical": "#955400",
+        "oklch": "oklch(51.1% 0.118 62.0)",
+        "cssVar": "--warn",
+        "darkValue": "#f0ae4a",
         "tonalRamp": [
-          "#0b0b0b",
-          "#242424",
-          "#404040",
-          "#5d5d5d",
-          "#808080",
-          "#a4a4a4",
-          "#cacaca",
-          "#eeeeee"
+          "#1e0200",
+          "#3c1500",
+          "#5f2f00",
+          "#854a00",
+          "#aa6927",
+          "#cb905b",
+          "#edb88a",
+          "#ffe1ba"
         ]
       },
-      "ink": {
+      "murakas-mark": {
+        "role": "tertiary",
+        "displayName": "Murakas Mark",
+        "canonical": "#d98a1e",
+        "oklch": "oklch(69.9% 0.146 67.5)",
+        "cssVar": "--warn-fill",
+        "darkValue": "#e09a30",
+        "tonalRamp": [
+          "#200000",
+          "#3f1100",
+          "#642c00",
+          "#8a4700",
+          "#b06600",
+          "#d18e3f",
+          "#f2b777",
+          "#ffe1ab"
+        ]
+      },
+      "murakas-mist": {
+        "role": "tertiary",
+        "displayName": "Murakas Mist",
+        "canonical": "#f7ecd8",
+        "oklch": "oklch(94.6% 0.029 82.6)",
+        "cssVar": "--warn-soft",
+        "darkValue": "#2e2416",
+        "tonalRamp": [
+          "#0f0a04",
+          "#262116",
+          "#433c2f",
+          "#625a4a",
+          "#837968",
+          "#a69d8e",
+          "#cbc3b5",
+          "#f1eade"
+        ]
+      },
+      "jarv": {
+        "role": "secondary",
+        "displayName": "Järv",
+        "canonical": "#0f6873",
+        "oklch": "oklch(47.5% 0.078 208.1)",
+        "cssVar": "--gloss",
+        "darkValue": "#5cc6cf",
+        "tonalRamp": [
+          "#001015",
+          "#00282f",
+          "#00464e",
+          "#1b6670",
+          "#3c8792",
+          "#6baab4",
+          "#99cfd7",
+          "#c7f5fc"
+        ]
+      },
+      "must": {
         "role": "neutral",
-        "displayName": "Ink",
-        "canonical": "#1b1b19",
-        "oklch": "oklch(22.1% 0.004 106.7)",
+        "displayName": "Must",
+        "canonical": "#15171b",
+        "oklch": "oklch(20.4% 0.009 264.4)",
         "cssVar": "--ink",
-        "darkValue": "#e9e9e6",
+        "darkValue": "#ececea",
         "tonalRamp": [
-          "#0b0b0a",
-          "#242423",
-          "#40403e",
-          "#5e5e5b",
-          "#80807e",
-          "#a5a5a2",
-          "#cbcbc8",
-          "#eeeeed"
+          "#0a0b0d",
+          "#202225",
+          "#3b3d41",
+          "#595b5f",
+          "#787a7f",
+          "#9c9ea3",
+          "#c2c4c8",
+          "#e9ebef"
         ]
       },
-      "ink-soft": {
+      "must-soft": {
         "role": "neutral",
-        "displayName": "Ink Soft",
-        "canonical": "#4a4a45",
-        "oklch": "oklch(40.7% 0.008 106.8)",
+        "displayName": "Must Soft",
+        "canonical": "#3d414a",
+        "oklch": "oklch(37.5% 0.016 266.5)",
         "cssVar": "--ink-2",
-        "darkValue": "#c2c2bb",
+        "darkValue": "#c3c6cc",
         "tonalRamp": [
-          "#0b0b09",
-          "#242421",
-          "#40403c",
-          "#5e5e59",
-          "#81817b",
-          "#a5a5a0",
-          "#cbcbc6",
-          "#efefeb"
+          "#090b0f",
+          "#1f2227",
+          "#3a3d44",
+          "#575b64",
+          "#767a84",
+          "#9a9ea7",
+          "#c0c4cc",
+          "#e8ebf2"
         ]
       },
       "pencil": {
         "role": "neutral",
         "displayName": "Pencil",
-        "canonical": "#6b6b66",
-        "oklch": "oklch(52.6% 0.008 106.7)",
+        "canonical": "#5b606a",
+        "oklch": "oklch(48.8% 0.017 264.4)",
         "cssVar": "--muted",
-        "darkValue": "#9a9a94",
+        "darkValue": "#9ca1ab",
         "tonalRamp": [
-          "#0b0b09",
-          "#242421",
-          "#40403c",
-          "#5e5e59",
-          "#80807c",
-          "#a5a5a0",
-          "#cbcbc7",
-          "#efefeb"
+          "#090b10",
+          "#1f2228",
+          "#393d45",
+          "#565b64",
+          "#757a85",
+          "#9a9ea8",
+          "#c0c4cc",
+          "#e8ebf2"
+        ]
+      },
+      "kask": {
+        "role": "neutral",
+        "displayName": "Kask",
+        "canonical": "#f2f0ea",
+        "oklch": "oklch(95.5% 0.008 91.5)",
+        "cssVar": "--bg",
+        "darkValue": "#101216",
+        "tonalRamp": [
+          "#0c0b09",
+          "#23221f",
+          "#3e3d39",
+          "#5c5b56",
+          "#7c7a75",
+          "#a09e9a",
+          "#c5c4c0",
+          "#ecebe7"
+        ]
+      },
+      "kask-deep": {
+        "role": "neutral",
+        "displayName": "Kask Deep",
+        "canonical": "#e8e5dc",
+        "oklch": "oklch(92.2% 0.012 91.5)",
+        "cssVar": "--bg-2",
+        "darkValue": "#0b0d10",
+        "tonalRamp": [
+          "#0c0b08",
+          "#23221d",
+          "#3f3d37",
+          "#5d5b54",
+          "#7d7a72",
+          "#a19e97",
+          "#c6c4be",
+          "#edebe6"
+        ]
+      },
+      "leht": {
+        "role": "neutral",
+        "displayName": "Leht",
+        "canonical": "#fbfaf6",
+        "oklch": "oklch(98.5% 0.005 95.1)",
+        "cssVar": "--panel",
+        "darkValue": "#181b21",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#222220",
+          "#3e3d3b",
+          "#5c5b58",
+          "#7b7a77",
+          "#9f9e9b",
+          "#c5c4c1",
+          "#ecebe9"
+        ]
+      },
+      "valge": {
+        "role": "neutral",
+        "displayName": "Valge",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "cssVar": "--raised",
+        "darkValue": "#1e2129",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#222222",
+          "#3d3d3d",
+          "#5b5b5b",
+          "#7a7a7a",
+          "#9e9e9e",
+          "#c4c4c4",
+          "#ebebeb"
         ]
       },
       "rule-line": {
         "role": "neutral",
         "displayName": "Rule Line",
-        "canonical": "#e3e3de",
-        "oklch": "oklch(91.4% 0.007 106.5)",
+        "canonical": "#d8d4c9",
+        "oklch": "oklch(87.0% 0.016 90.2)",
         "cssVar": "--line",
-        "darkValue": "#2e3138",
+        "darkValue": "#2c3039",
         "tonalRamp": [
-          "#0b0b09",
-          "#242421",
-          "#40403d",
-          "#5e5e5a",
-          "#80807c",
-          "#a5a5a1",
-          "#cbcbc7",
-          "#efefeb"
+          "#0d0b07",
+          "#24211c",
+          "#403d36",
+          "#5e5b52",
+          "#7e7a70",
+          "#a19e95",
+          "#c7c4bc",
+          "#edebe4"
         ]
       },
       "rule-faint": {
         "role": "neutral",
         "displayName": "Rule Faint",
-        "canonical": "#efeee9",
-        "oklch": "oklch(94.8% 0.007 97.4)",
+        "canonical": "#e5e1d7",
+        "oklch": "oklch(91.0% 0.014 88.7)",
         "cssVar": "--line-soft",
-        "darkValue": "#26282e",
+        "darkValue": "#22262e",
         "tonalRamp": [
-          "#0c0b09",
-          "#252421",
-          "#40403c",
-          "#5e5e5a",
-          "#81807c",
-          "#a5a5a1",
-          "#cbcac7",
-          "#efeeeb"
+          "#0d0b07",
+          "#23211c",
+          "#3f3d36",
+          "#5e5b53",
+          "#7e7a71",
+          "#a19e96",
+          "#c7c4bd",
+          "#edebe5"
         ]
       },
       "tint": {
         "role": "neutral",
         "displayName": "Tint",
-        "canonical": "#f4f3ee",
-        "oklch": "oklch(96.4% 0.007 97.4)",
+        "canonical": "#ebe8df",
+        "oklch": "oklch(93.1% 0.012 91.5)",
         "cssVar": "--tint",
-        "darkValue": "#242730",
+        "darkValue": "#1e2229",
         "tonalRamp": [
-          "#0c0b09",
-          "#252421",
-          "#40403c",
-          "#5e5e5a",
-          "#81807c",
-          "#a5a5a1",
-          "#cbcac7",
-          "#efeeeb"
+          "#0c0b08",
+          "#23221d",
+          "#3f3d37",
+          "#5d5b54",
+          "#7d7a72",
+          "#a19e97",
+          "#c6c4be",
+          "#edebe6"
+        ]
+      },
+      "oo": {
+        "role": "neutral",
+        "displayName": "Öö",
+        "canonical": "#15171b",
+        "oklch": "oklch(20.4% 0.009 264.4)",
+        "cssVar": "--night",
+        "darkValue": "#1c2130",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#202225",
+          "#3b3d41",
+          "#595b5f",
+          "#787a7f",
+          "#9c9ea3",
+          "#c2c4c8",
+          "#e9ebef"
+        ]
+      },
+      "oo-accent": {
+        "role": "primary",
+        "displayName": "Öö Accent",
+        "canonical": "#93a9ff",
+        "oklch": "oklch(75.3% 0.127 272.1)",
+        "cssVar": "--night-accent",
+        "darkValue": "#9fb3ff",
+        "tonalRamp": [
+          "#04042a",
+          "#141b4b",
+          "#2b3772",
+          "#45549c",
+          "#6174c3",
+          "#879ae2",
+          "#afc1ff",
+          "#d9e9ff"
         ]
       }
     },
     "typographyMeta": {
-      "display": {
-        "displayName": "Display",
-        "purpose": "The flashcard word only."
-      },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "The app title; 19px phone, 23px desktop."
+      "hero": {
+        "displayName": "Hero",
+        "purpose": "The resume topic's name on the night hero."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Section heads, empty-state headings."
-      },
-      "reading": {
-        "displayName": "Reading",
-        "purpose": "Lugemine prose; tappable words."
+        "purpose": "Page titles (hidden on a phone)."
       },
       "prompt": {
         "displayName": "Prompt",
-        "purpose": "Drill sentences with a forest blank."
+        "purpose": "Drill sentences; the blank is a cornflower rule."
+      },
+      "reading": {
+        "displayName": "Reading",
+        "purpose": "Lugemine prose and the reader's title."
+      },
+      "answer": {
+        "displayName": "Answer",
+        "purpose": "The answer field: what is typed is Estonian material."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Section headings, the plan heading."
       },
       "body": {
         "displayName": "Body",
         "purpose": "Default interface text."
       },
+      "ui": {
+        "displayName": "UI",
+        "purpose": "Buttons, tabs, labels."
+      },
       "note": {
         "displayName": "Note",
-        "purpose": "Explanatory paragraphs, max 62ch."
+        "purpose": "Explanations and ledes, in Russian."
       },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Uppercase rail-card headings."
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Hints, counts, meta lines."
       },
       "gloss": {
         "displayName": "Gloss",
-        "purpose": "Russian line under an Estonian label."
-      },
-      "lead": {
-        "displayName": "Lead",
-        "purpose": "Phone title, flashcard meaning, next topic, set score."
-      },
-      "input": {
-        "displayName": "Input",
-        "purpose": "Text fields and selects; 16px so iOS never zooms."
-      },
-      "ui": {
-        "displayName": "UI",
-        "purpose": "Controls, tabs, verdicts, explanations."
+        "purpose": "The Russian gloss beside an Estonian label."
       }
     },
     "shadows": [
       {
-        "name": "rest",
-        "value": "0 1px 2px rgba(16,18,20,.05), 0 8px 24px -12px rgba(16,18,20,.16)",
-        "purpose": "Panels and the selected segmented tab."
+        "name": "sheet",
+        "value": "0 1px 0 var(--line-soft), 0 18px 40px -30px rgba(21,23,27,.45)",
+        "purpose": "Stages, stat cards, the bloom."
       },
       {
         "name": "lift",
-        "value": "0 2px 5px rgba(16,18,20,.07), 0 16px 34px -16px rgba(16,18,20,.28)",
-        "purpose": "Card hover, with a 1px rise."
+        "value": "0 1px 0 var(--line), 0 22px 44px -24px rgba(21,23,27,.5)",
+        "purpose": "Hover on word tiles, with a 1px rise."
       },
       {
         "name": "floating",
-        "value": "0 4px 18px rgba(0,0,0,.13)",
+        "value": "0 0 0 1px var(--line), 0 24px 50px -20px rgba(21,23,27,.45)",
         "purpose": "Sticky word cards."
       }
     ],
     "motion": [
       {
         "name": "ease",
-        "value": "cubic-bezier(.2,.7,.3,1)",
-        "purpose": "All state transitions."
+        "value": "cubic-bezier(.22,1,.36,1)",
+        "purpose": "Every transition and arrival; no overshoot."
       },
       {
         "name": "quick",
-        "value": "130ms",
-        "purpose": "Hover, press, colour changes."
+        "value": "140ms",
+        "purpose": "Hover and press response."
       },
       {
-        "name": "reveal",
-        "value": "180ms",
-        "purpose": "Flashcard answer drop-in."
+        "name": "state",
+        "value": "240ms",
+        "purpose": "Verdicts, tab rule, chevrons."
       },
       {
-        "name": "ring",
+        "name": "arrival",
+        "value": "420ms",
+        "purpose": "Beads, set end, celebration card."
+      },
+      {
+        "name": "bloom",
         "value": "700ms",
-        "purpose": "Progress ring fill."
+        "purpose": "Petals growing in sequence."
       }
     ],
     "breakpoints": [
@@ -392,12 +537,16 @@
         "value": "max-width: 719px"
       },
       {
-        "name": "tablet",
-        "value": "720px–1079px, min-height 560px"
+        "name": "spine",
+        "value": "min-width: 720px and min-height: 560px"
       },
       {
-        "name": "desktop",
+        "name": "desk",
         "value": "min-width: 1080px"
+      },
+      {
+        "name": "phone-landscape",
+        "value": "hover: none and max-height: 500px"
       }
     ]
   },
@@ -406,143 +555,94 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The main action; presses into its darker bottom edge.",
-      "html": "<button class=\"ds-btn-primary\">Kontrolli<span class=\"ds-ru\">проверить</span></button>",
-      "css": ".ds-btn-primary{font:600 15px/1.3 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:44px;padding:10px 18px;border:0;border-bottom:3px solid var(--accent-deep,#12503c);border-radius:var(--radius-sm,12px);background:var(--accent,#1c6b52);color:var(--on-accent,#fff);cursor:pointer;text-align:center;transition:transform 130ms cubic-bezier(.2,.7,.3,1),filter 130ms cubic-bezier(.2,.7,.3,1)}.ds-btn-primary:hover{filter:brightness(1.07)}.ds-btn-primary:active{transform:translateY(2px);border-bottom-width:1px;margin-bottom:2px}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#1c6b52);outline-offset:2px}.ds-btn-primary .ds-ru{display:block;font-size:11px;font-weight:400;opacity:.72}"
+      "description": "Cornflower, pressing into its darker lower edge.",
+      "html": "<button class=\"ds-btn-primary\">Alusta<span class=\"ds-ru\">начать</span></button>",
+      "css": ".ds-btn-primary{font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:15px;min-height:46px;padding:9px 20px;border:0;border-radius:14px;background:#2b50c8;color:#fff;box-shadow:inset 0 -3px 0 #1c3894;cursor:pointer}.ds-btn-primary:active{transform:translateY(1px);box-shadow:inset 0 -1px 0 #1c3894}.ds-ru{margin-left:4px;font-weight:400;font-size:13px;opacity:.86}"
     },
     {
-      "name": "Ghost Button",
+      "name": "Secondary Button",
       "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "Secondary action or outbound study link.",
-      "html": "<button class=\"ds-btn-ghost\">Järgmine</button>",
-      "css": ".ds-btn-ghost{font:600 15px/1.3 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:44px;padding:10px 18px;border:1px solid var(--line,#e3e3de);border-radius:var(--radius-sm,12px);background:none;color:var(--ink,#1b1b19);cursor:pointer;transition:background-color 130ms,border-color 130ms,transform 130ms}.ds-btn-ghost:hover{background:var(--accent-soft,#e6f2ec);border-color:var(--accent,#1c6b52);color:var(--accent,#1c6b52)}.ds-btn-ghost:active{transform:translateY(1px)}.ds-btn-ghost:focus-visible{outline:2px solid var(--accent,#1c6b52);outline-offset:2px}"
+      "refersTo": "button-secondary",
+      "description": "A tinted surface, no outline.",
+      "html": "<button class=\"ds-btn-secondary\">Järgmine<span class=\"ds-ru\">дальше</span></button>",
+      "css": ".ds-btn-secondary{font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:15px;min-height:46px;padding:9px 20px;border:0;border-radius:14px;background:#ebe8df;color:#15171b;cursor:pointer}.ds-btn-secondary:hover{background:#e1e7fa;color:#2b50c8}.ds-ru{margin-left:4px;font-weight:400;font-size:13px;color:#5b606a}"
     },
     {
-      "name": "Text Input",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Answer field; 16px so iOS never zooms.",
-      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Kirjuta vorm…\">",
-      "css": ".ds-input{font:400 16px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:44px;padding:10px 12px;border:1px solid var(--line,#e3e3de);border-radius:var(--radius-sm,12px);background:var(--bg,#faf9f6);color:var(--ink,#1b1b19);caret-color:var(--accent,#1c6b52)}.ds-input:focus-visible{outline:2px solid var(--accent,#1c6b52);outline-offset:2px}"
-    },
-    {
-      "name": "Skill Chips",
-      "kind": "nav",
-      "refersTo": "skill-chip",
-      "description": "Phone skill row: pills, the selected one in Forest Mist.",
-      "html": "<nav class=\"ds-chips\"><button class=\"ds-chip\" aria-selected=\"true\">Rada</button><button class=\"ds-chip\">Kuulamine</button><button class=\"ds-chip\">Lugemine</button></nav>",
-      "css": ".ds-chips{display:flex;gap:8px}.ds-chip{font:400 13.5px/1 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:44px;padding:0 14px;border:1px solid var(--line,#e3e3de);border-radius:999px;background:var(--panel,#fff);color:var(--muted,#6b6b66);cursor:pointer;transition:background-color 130ms,color 130ms}.ds-chip:hover:not([aria-selected=true]){background:var(--accent-soft,#e6f2ec);color:var(--ink,#1b1b19)}.ds-chip[aria-selected=true]{background:var(--accent-soft,#e6f2ec);border-color:transparent;color:var(--accent,#1c6b52);font-weight:600}.ds-chip:focus-visible{outline:2px solid var(--accent,#1c6b52);outline-offset:2px}"
-    },
-    {
-      "name": "Mode Switch",
-      "kind": "nav",
-      "refersTo": "mode-switch",
-      "description": "Desktop segmented control for Õppimine / Kordamine / Eksam.",
-      "html": "<div class=\"ds-modes\"><button aria-selected=\"true\">Õppimine</button><button>Kordamine</button><button>Eksam</button></div>",
-      "css": ".ds-modes{display:inline-flex;gap:4px;padding:3px;background:var(--bg,#faf9f6);border:1px solid var(--line,#e3e3de);border-radius:999px}.ds-modes button{font:400 13px/1 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:34px;padding:6px 14px;border:0;border-radius:999px;background:none;color:var(--muted,#6b6b66);cursor:pointer}.ds-modes button:hover:not([aria-selected=true]){background:var(--accent-soft,#e6f2ec);color:var(--ink,#1b1b19)}.ds-modes button[aria-selected=true]{background:var(--panel,#fff);color:var(--ink,#1b1b19);font-weight:600;box-shadow:0 1px 2px rgba(16,18,20,.05),0 8px 24px -12px rgba(16,18,20,.16)}"
-    },
-    {
-      "name": "Drill Card",
+      "name": "Drill",
       "kind": "card",
-      "refersTo": "drill",
-      "description": "A Paper inset with a serif prompt and the task line.",
-      "html": "<div class=\"ds-drill\"><p class=\"ds-prompt\">Ma ostsin eile <b>____</b> (raamat).</p><div class=\"ds-task\"><b>raamat</b><span class=\"ds-form\">omastav</span><span class=\"ds-gloss\">книга</span><span class=\"ds-lv\">A1</span></div></div>",
-      "css": ".ds-drill{border:1px solid var(--line,#e3e3de);border-radius:14px;padding:24px 16px;background:var(--bg,#faf9f6);font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.ds-prompt{font:400 18.5px/1.6 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;margin:0 0 12px;color:var(--ink,#1b1b19)}.ds-prompt b{color:var(--accent,#1c6b52)}.ds-task{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap;font-size:12.5px}.ds-task b{font-size:13.5px}.ds-form{color:var(--accent,#1c6b52);font-size:10.5px;font-weight:650;letter-spacing:.07em;text-transform:uppercase}.ds-gloss{color:var(--gloss,#4c6382);font-size:13px}.ds-lv{color:var(--muted,#6b6b66);font-size:10px;border:1px solid var(--line,#e3e3de);border-radius:999px;padding:0 6px}"
+      "refersTo": "stage",
+      "description": "A sheet with beads, a Literata prompt with a cornflower blank, a serif answer field and a black check.",
+      "html": "<div class=\"ds-stage\"><div class=\"ds-beads\"><i class=\"ok\"></i><i class=\"no\"></i><i class=\"now\"></i><i></i><i></i></div><p class=\"ds-prompt\"><span class=\"ds-blank\"></span> sa ei tule? — Sest ma olen väsinud.</p><div class=\"ds-row\"><input class=\"ds-answer\" placeholder=\"?\"><button class=\"ds-check\">Kontrolli</button></div></div>",
+      "css": ".ds-stage{background:#fbfaf6;border-radius:20px;padding:22px;box-shadow:0 1px 0 #e5e1d7,0 18px 40px -30px rgba(21,23,27,.45)}.ds-beads{display:flex;gap:5px;max-width:260px}.ds-beads i{flex:1;height:7px;border-radius:4px;background:#d8d4c9}.ds-beads .ok{background:#2e7a4f}.ds-beads .no{background:#b3283c}.ds-beads .now{background:#2b50c8}.ds-prompt{font:400 26px/1.4 Literata,Georgia,serif;margin:16px 0 12px}.ds-blank{display:inline-block;min-width:3.2em;border-bottom:3px solid #2b50c8}.ds-row{display:flex;gap:12px}.ds-answer{flex:1;min-height:54px;border:2px solid #15171b;border-radius:14px;padding:0 14px;font:500 17px Literata,Georgia,serif}.ds-check{min-height:54px;padding:0 20px;border:0;border-radius:14px;background:#15171b;color:#f2f0ea;font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:700}"
     },
     {
-      "name": "Choice Tile",
+      "name": "Hero",
       "kind": "card",
-      "refersTo": "choice",
-      "description": "Stacked whole-sentence choice; lifts on hover.",
-      "html": "<div style=\"display:flex;flex-direction:column;gap:8px\"><button class=\"ds-choice\">Ma lugesin raamatu läbi.</button><button class=\"ds-choice ds-picked\">Ma lugesin raamatut läbi.</button></div>",
-      "css": ".ds-choice{font:400 14.5px/1.45 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:left;padding:10px 13px;border:1px solid var(--line,#e3e3de);border-radius:10px;background:var(--bg,#faf9f6);color:var(--ink,#1b1b19);cursor:pointer;transition:box-shadow 130ms,transform 130ms,border-color 130ms}.ds-choice:hover{border-color:var(--accent,#1c6b52);box-shadow:0 2px 5px rgba(16,18,20,.07),0 16px 34px -16px rgba(16,18,20,.28);transform:translateY(-1px)}.ds-choice:active{transform:none}.ds-picked{border-color:var(--accent,#1c6b52);background:var(--accent-soft,#e6f2ec)}"
+      "refersTo": "hero",
+      "description": "The night surface that answers 'what now'.",
+      "html": "<div class=\"ds-hero\"><div class=\"ds-eyebrow\">Praegu <span>сейчас · тема 4 из 36</span></div><div class=\"ds-now\">küsisõnad</div><div class=\"ds-of\">вопросительные слова · A1</div></div>",
+      "css": ".ds-hero{background:#15171b;color:#f2f0ea;border-radius:28px;padding:26px 22px}.ds-eyebrow{font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:700;color:#93a9ff}.ds-eyebrow span{color:#a4a9b3;font-weight:400}.ds-now{font:500 56px/1 Literata,Georgia,serif;letter-spacing:-.03em;margin-top:6px}.ds-of{font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#a4a9b3;margin-top:10px}"
     },
     {
-      "name": "Correction Card",
-      "kind": "custom",
-      "refersTo": "correction",
-      "description": "Wrong form struck in red, right form in forest; amber stripe for obj-case.",
-      "html": "<div class=\"ds-corr\"><span class=\"ds-tag\">obj-case</span><p class=\"ds-fix\"><del>raamatut</del> <ins>raamatu</ins></p><p class=\"ds-why\">Действие завершено — объект в <b>omastav</b>.</p></div>",
-      "css": ".ds-corr{font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;border:1px solid var(--line,#e3e3de);border-left:3px solid var(--warn,#9a5b00);border-radius:12px;padding:14px 16px;background:var(--bg,#faf9f6)}.ds-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:var(--warn-soft,#fdf3e3);color:var(--warn,#9a5b00)}.ds-fix{margin:8px 0 6px;font-size:15px}.ds-fix del{color:var(--bad,#a32c2c)}.ds-fix ins{color:var(--good,#1c6b52);text-decoration:none;font-weight:600}.ds-why{margin:0;color:var(--muted,#6b6b66);font-size:13.5px}.ds-why b{color:var(--ink,#1b1b19)}"
+      "name": "Switch",
+      "kind": "control",
+      "refersTo": "switch",
+      "description": "Segmented control on a tint.",
+      "html": "<div class=\"ds-switch\"><button aria-selected=\"true\">A2</button><button>B1</button></div>",
+      "css": ".ds-switch{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:#ebe8df}.ds-switch button{min-height:38px;padding:6px 16px;border:0;border-radius:999px;background:none;font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:14px;color:#5b606a}.ds-switch [aria-selected=true]{background:#fbfaf6;color:#15171b;box-shadow:0 1px 2px rgba(21,23,27,.12)}"
     },
     {
-      "name": "Progress Ring",
-      "kind": "custom",
-      "refersTo": "ring",
-      "description": "The one flourish for accumulated work.",
-      "html": "<div class=\"ds-ring\" style=\"--pct:38\"><span>38%</span></div>",
-      "css": ".ds-ring{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--accent,#1c6b52) calc(var(--pct)*3.6deg),var(--line,#e3e3de) 0)}.ds-ring::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--panel,#fff)}.ds-ring span{position:relative;z-index:1;font:700 11px ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums}"
+      "name": "Caution Banner",
+      "kind": "feedback",
+      "refersTo": "banner-caution",
+      "description": "Cloudberry: a caution the learner must read, in Russian.",
+      "html": "<div class=\"ds-banner\">Ни одна часть не должна быть нулём.</div>",
+      "css": ".ds-banner{background:#f7ecd8;color:#955400;border-radius:14px;padding:12px 16px;font-family:Onest,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6}"
     }
   ],
   "narrative": {
-    "northStar": "The Language Path",
-    "overview": "A simple, modern study tool for learning Estonian day to day. Three clear modes (Õppimine, Kordamine, Eksam) make it obvious where you are and easy to switch between practice, review and, later, A2/B1 exam preparation. Progress shows lightly: a ring, a count, a mastered badge. It should feel good to move along the path, but it is never a game and never a sterile exam booth.\n\nThe world is warm paper and one forest-green ink. The interface speaks in the system sans. The language itself (reading texts, drill prompts) is set in a book serif, so Estonian material always looks like material, not chrome. Density is moderate: one reading column of about 720px. On a phone it becomes a thumb-first stack with the three modes at the bottom. On a wide screen it becomes a three-column desk. Estonian labels carry a small Russian gloss beneath them. The gloss is part of the typography, not an afterthought.\n\nSurfaces sit low and quiet. They answer the hand with small physical cues: a card lifts 1px, a primary button presses into its darker bottom edge. Depth exists only where it responds to touch; everything else is flat.",
+    "northStar": "Laudtee — the boardwalk across the bog",
+    "overview": "A plank is laid only when code has checked it. Birch paper, black and cornflower; colour by role; tone, not outline; Onest for the interface and Literata for the language. Progress is drawn as the boardwalk, the cornflower and the beads.",
     "keyCharacteristics": [
-      "One accent hue (Estonian Forest), used for action, the correct form and success.",
-      "Colour by role: slate means a word's meaning, amber is a caution or the object-case weakness, red is the struck-out wrong form.",
-      "A serif for Estonian material, the system sans for the interface, and no webfonts.",
-      "Estonian label first, Russian gloss beneath in small muted type.",
-      "Clear, modern, lightly motivating: progress is visible but quiet."
+      "One night hero per screen answers 'what now'",
+      "Cornflower is action, now and readiness",
+      "Estonian material in Literata, interface in Onest",
+      "Rewards follow mastery, never attendance",
+      "Motion explains and collapses under reduced motion"
     ],
     "rules": [
       {
-        "name": "The One Forest Rule",
-        "body": "There is one accent hue. Depth is built within that hue, never with a second colour. Success is also forest (`--good` equals `--accent`), so green always means \"right\" or \"go\".",
-        "section": "colors"
-      },
-      {
         "name": "The Colour-by-Role Rule",
-        "body": "A colour belongs to an information role, not to a language. Slate is meaning, amber is caution, red is wrong. Russian text is not coloured because it is Russian.",
+        "body": "Cornflower acts, moss is right, cranberry is wrong, cloudberry cautions, lake means. Never colour text by its language.",
         "section": "colors"
       },
       {
         "name": "The Never-Hue-Alone Rule",
-        "body": "Every state that has a colour also has an icon or a shape: path states, exam-part marks and external (dashed) rows.",
+        "body": "Every coloured state also has a shape: node icons, filled/empty/hatched petals, plan glyphs, beads that stay.",
         "section": "colors"
       },
       {
         "name": "The Serif-Is-Estonian Rule",
-        "body": "The serif is reserved for Estonian material the learner reads or completes. Interface text never uses it.",
+        "body": "Literata is reserved for Estonian material the learner reads, completes or types.",
         "section": "typography"
       },
       {
-        "name": "The Steady Digits Rule",
-        "body": "Every number that changes in place (scores, counts, the ring, badges, rail figures) uses `tabular-nums`.",
-        "section": "typography"
-      },
-      {
-        "name": "The 16px Field Rule",
-        "body": "Text inputs and selects are 16px, so iOS never zooms on focus.",
-        "section": "typography"
-      },
-      {
-        "name": "The Depth-Answers-Touch Rule",
-        "body": "A surface gains elevation only in response to hover or press. On touch devices the hover lift is disabled so it never latches.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Flat Rule",
-        "body": "No other gradients, washes or shadow levels. Where depth is needed, use a border or a Paper/Sheet step.",
-        "section": "elevation"
+        "name": "The No-Single-Score Rule",
+        "body": "No overall readiness percentage and no streak: the exam fails a zero in any part, and the flower shows it.",
+        "section": "components"
       }
     ],
     "dos": [
-      "**Do** use tokens for every colour and spacing (`var(--…)`, `--s1`…`--s6`). Never write a hex value in a rule.",
-      "**Do** give each information role its own treatment, and pair every state colour with an icon or shape.",
-      "**Do** keep Estonian material in the serif and the interface in the system sans.",
-      "**Do** put the Russian gloss under an Estonian label as small Pencil text (11px).",
-      "**Do** keep at least 44px targets on touch, and 54px in the phone thumb bar.",
-      "**Do** honour `prefers-reduced-motion`: lifts, presses, reveal and pulse all switch off.",
-      "**Do** check every screen at 1440×900, on iPhone (402×874 and 874×402) and on iPad mini (744×1133), in both themes."
+      "Use tokens for colour and the --s1…--s7 scale",
+      "Draw progress with the signature graphics",
+      "Keep 44px touch targets",
+      "Check 1440×900, 402×874, 874×402, 744×1133 in both themes"
     ],
     "donts": [
-      "**Don't** make it a noisy game: no streaks, XP, confetti, loud badges or celebratory animation.",
-      "**Don't** make it a sterile exam booth either: keep the light progress cues (ring, counts, mastered marks).",
-      "**Don't** add a second accent hue, or colour text by its language.",
-      "**Don't** add new gradients, washes or shadow levels (Flat Rule).",
-      "**Don't** load a webfont or any third-party asset.",
-      "**Don't** collapse readiness into one overall percentage or number."
+      "Outline surfaces to separate them",
+      "Use cornflower for decoration",
+      "Celebrate anything but code-decided mastery",
+      "Add streaks, XP or an overall percentage"
     ]
   }
 }

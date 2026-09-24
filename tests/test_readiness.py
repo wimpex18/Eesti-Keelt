@@ -166,6 +166,22 @@ class TestTheVerdictReadsOnlyWhatItIsGiven:
         assert part["kirjutamine"].touched is True
         assert "3 " in part["kirjutamine"].evidence
 
+    def test_the_contact_count_is_the_one_touched_is_decided_from(self, progress,
+                                                                 tmp_path):
+        """The readiness flower fills a petal segment per contact; a count that
+        disagreed with `touched` would draw a full petal on an untouched part."""
+        from eesti.notion import Row, connect, queue
+
+        notion = connect(tmp_path / "n.db")
+        queue(notion, Row(wrong="autot", correct="auto", why="x", tag="obj-case"))
+        body = readiness("A2", progress=progress, notion=notion).to_dict()
+        parts = {p["id"]: p for p in body["parts"]}
+        assert body["contact_target"] == CONTACT
+        assert parts["kirjutamine"]["contact"] == 1
+        assert parts["kirjutamine"]["touched"] is False
+        # Speaking is not counted, so it has no count rather than a zero.
+        assert parts["raakimine"]["contact"] is None
+
     def test_queued_and_sent_are_different_facts(self, progress, tmp_path):
         """While nothing could push, the distinction did not exist and the
         evidence said "in the log" about rows that had never reached it. Only

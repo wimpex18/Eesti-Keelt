@@ -1,6 +1,6 @@
 /* Kordamine: the queue, the due badge, grading a card, and the desktop rail. */
 
-import {emptyState, navIcon} from "./chrome.js";
+import {emptyState, flowerSvg, navIcon, sealsHtml} from "./chrome.js";
 import {$, api, esc, md, ruCount, taskLine} from "./core.js";
 import {speakWord} from "./media.js";
 import {examLevel} from "./state.js";
@@ -15,46 +15,53 @@ export async function loadRail() {
        being able to empty the whole rail. */
     const get = async u => (await (await api(u, null, "GET")).json());
     const soft = u => get(u).catch(() => ({}));
-    const [ready, path, due] = await Promise.all([
+    const [ready, path, due, marks] = await Promise.all([
       get(`/api/readiness/${examLevel()}`),
       get("/api/curriculum"),
       soft("/api/review/stats"),
+      soft(`/api/milestones/${examLevel()}`),
     ]);
 
-    const untouched = ready.parts.filter(p => p.touched === false);
     /* `resume` is an id (`kusisonad`); the learner knows the topic by its
        name. The path tab already resolves it this way. */
     const next = (path.topics || []).find(t => t.id === path.resume);
-    /* One thing first: what to do next. Progress sits under it, the untouched exam
-       parts after, and the exam date last — and only once a date is chosen: with
-       none, "no exam chosen" on every screen is a countdown to nothing. `data-for` names the tab
-       whose panel already says the same thing; the rail drops that card there. */
+    const untouched = ready.parts.filter(p => p.touched === false);
+    /* The exam first, as the flower: four parts, none of which may be zero. Then
+       what to do next, the queue, and the marks already made. The date only once
+       one is chosen: with none, a countdown counts down to nothing. `data-for`
+       names the tab whose panel already says the same thing; the rail drops that
+       card there. */
     const dated = ready.days_to_decide !== null && ready.days_to_decide !== undefined;
     rail.innerHTML = `
+      <div class="rail-card" data-for="exam">
+        <h3 lang="et"><span>Eksam ${esc(ready.level)} <i class="ru" lang="ru">готовность</i></span>
+          <a href="#exam" lang="et">Ülevaade</a></h3>
+        ${flowerSvg(ready.parts, ready.contact_target || 3)}
+        <div class="rail-note">${untouched.length
+          ? `Не тронуто: <span lang="et">${untouched.map(p => esc(p.et)).join(", ")}</span>.
+             Ни одна часть не должна быть нулём.`
+          : "Контакт есть со всеми измеряемыми частями. Это не прогноз результата."}
+          ${dated ? `<br><b>${esc(ready.countdown)}</b>` : ""}</div>
+      </div>
       <div class="rail-card" data-for="path">
-        <h3 lang="et">Järgmine <span class="ru" lang="ru">следующая тема</span></h3>
-        ${next ? `<div class="rail-big rail-topic" lang="et">${esc(next.et)}</div>
+        <h3 lang="et">Järgmine <i class="ru" lang="ru">следующая тема</i></h3>
+        ${next ? `<div class="rail-topic" lang="et">${esc(next.et)}</div>
           <a class="rail-go" href="#path" lang="et">Harjuta <i class="ru" lang="ru">тренировка</i></a>`
           : `<div class="rail-note">Все открытые темы пройдены.</div>`}
         <div class="rail-row"><span lang="et">Läbitud <i class="ru" lang="ru">пройдено</i></span>
           <b>${path.mastered}/${path.total}</b></div>
-        ${due && due.due ? `<div class="rail-row">
-          <a href="#review" lang="et">Kordamist ootab <i class="ru" lang="ru">к повторению</i></a>
-          <b>${due.due}</b></div>` : ""}
       </div>
-      ${untouched.length ? `<div class="rail-card" data-for="exam">
-        <h3 lang="et">Puudutamata <span class="ru" lang="ru">не начато</span></h3>
-        ${untouched.map(p => `<div class="rail-row"><span lang="et">${esc(p.et)}</span>
-          ${p.next_task && p.next_task.url
-            ? `<a href="${esc(p.next_task.url)}" target="_blank"
-                 rel="noopener" lang="et">ava</a>` : ""}</div>`).join("")}
-        <div class="rail-note">Ни одна часть не должна быть нулём.</div>
-      </div>` : ""}
-      ${dated ? `<div class="rail-card" data-for="exam">
-        <h3 lang="et">Eksamini <span class="ru" lang="ru">до экзамена</span></h3>
-        <div class="rail-big">${esc(ready.countdown)}</div>
-        <div class="rail-note">${esc(ready.level)} · ${esc(ready.verdict)}</div>
-      </div>` : ""}`;
+      <div class="rail-card" data-for="review" data-also="status">
+        <h3 lang="et"><span>Kordamist ootab <i class="ru" lang="ru">к повторению</i></span></h3>
+        <div class="rail-row"><span class="rail-big">${due && due.due ? due.due : 0}</span>
+          ${due && due.due ? `<a class="rail-go" href="#review" lang="et">Alusta →</a>` : ""}</div>
+        <div class="rail-note">${due && due.total
+          ? `${ruCount(due.total, ["карточка", "карточки", "карточек"])} в очереди.`
+          : "Очередь пуста — ошибки и отмеченные слова вернутся сюда."}</div>
+      </div>
+      ${marks.milestones?.length ? `<div class="rail-card" data-for="status">
+        <h3 lang="et">Märgid <i class="ru" lang="ru">вехи ${esc(ready.level)}</i></h3>
+        ${sealsHtml(marks.milestones)}</div>` : ""}`;
   } catch (e) {
     rail.innerHTML = "";
   }
@@ -81,6 +88,8 @@ export async function refreshDueBadge() {
         ? `Сегодня повторять нечего · ${s.total} в очереди на другие дни`
         : "";
     $("#reviewEmpty").hidden = !!s.total;
+    // With nothing queued at all, the empty view is the whole screen.
+    $("#reviewStart").hidden = !s.total;
 
     /* Which words keep coming back wrong, named. A count says the queue is
        working; the names say what to look at. `lapses` is how many times the
