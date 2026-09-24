@@ -152,7 +152,7 @@ $("#speakTopic").addEventListener("change", showSpeakQuestion);
 $("#speakPlay").onclick = async () => {
   const text = currentTarget() || currentQuestion();
   if (!text) return;
-  const btn = $("#speakPlay"); btn.disabled = true; setLabel(btn, "Синтезирую…");
+  const btn = $("#speakPlay"); btn.disabled = true; setLabel(btn, "Готовлю звук…");
   try {
     const r = await api("/api/speak", {text, speed: 0.85});
     const el = $("#speakModel");

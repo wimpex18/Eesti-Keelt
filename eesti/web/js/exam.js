@@ -1,16 +1,19 @@
 /* Am I ready: the level, the official material, and the checkpoint. */
 
-import {emptyState, markIcon, uiIcon} from "./chrome.js";
-import {$, api, esc, langOf} from "./core.js";
+import {emptyState, flowerSvg, markIcon, retryableError, uiIcon} from "./chrome.js";
+import {$, api, esc, glide, langOf} from "./core.js";
 import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
 import {examLevel, setExamLevel} from "./state.js";
 
+/* One petal per part, in the flower's own shape: a tick when there is contact, a
+   bar when there is none, dashed and questioned when the app cannot tell. */
+const PETAL_MARK = `<path d="M8 14.6C4.6 12 3.4 8.4 4.4 4.6L5.6 2.2 8 3.6 10.4 2.2 11.6 4.6C12.6 8.4 11.4 12 8 14.6Z"/>`;
 const MARK = {
-  true:  ["yes", `<circle cx="8" cy="8" r="6"/><path d="m5.2 8.2 2 2 3.6-4"/>`],
-  false: ["no", `<circle cx="8" cy="8" r="6"/><path d="M5.2 8h5.6"/>`],
-  null:  ["unknown", `<circle cx="8" cy="8" r="6" stroke-dasharray="2.2 2.4"/><path d="M8 10.8v.01"/><path d="M6.4 6.4a1.6 1.6 0 1 1 1.6 2v.9"/>`],
+  true:  ["yes", PETAL_MARK + `<path d="m6 8.4 1.4 1.4 2.6-2.8"/>`],
+  false: ["no", PETAL_MARK + `<path d="M6.2 8.4h3.6"/>`],
+  null:  ["unknown", `<path stroke-dasharray="2 2" d="M8 14.6C4.6 12 3.4 8.4 4.4 4.6L5.6 2.2 8 3.6 10.4 2.2 11.6 4.6C12.6 8.4 11.4 12 8 14.6Z"/>`],
 };
 
 
@@ -19,12 +22,17 @@ const MARK = {
 function paintSpec(spec, goal) {
   const box = $("#examSpec"), picker = $("#examGoal");
   if (!spec) { box.innerHTML = ""; picker.innerHTML = ""; return; }
+  /* The exam's shape as the exam is: four parts of equal points, their widths
+     the minutes each takes. */
   box.innerHTML = `
+    <div class="shape-bars" aria-hidden="true">${spec.parts.map(p =>
+      `<div class="shape-bar" style="flex-grow:${p.minutes}"><b lang="et">${esc(p.et)}</b>
+        <span>${p.points} б. · ${p.minutes} мин</span></div>`).join("")}</div>
     <p class="hint">Четыре части (osad): ${spec.parts.map(p =>
       `<b lang="et">${esc(p.et)}</b> ${p.points} б. / ${p.minutes} мин`).join(" · ")}.
       Сдано, если в сумме <strong>≥ ${spec.pass_mark} из ${spec.total}</strong>
       и <strong>ни одна часть не равна 0</strong>.</p>
-    <details class="exam-parts"><summary lang="et">Mis eksamil on
+    <details class="exam-parts more"><summary lang="et">Mis eksamil on
       <i class="ru" lang="ru">что на экзамене</i></summary>
       <ul class="hint">${spec.parts.map(p => `<li><b lang="et">${esc(p.et)}</b>
         <i lang="ru">${esc(p.ru)}</i> — ${esc(p.about)}
@@ -59,6 +67,8 @@ function paintSpec(spec, goal) {
 }
 
 
+let examLoad = 0;
+
 export async function loadExam() {
   // The buttons are authored with A2 selected; if a level was remembered, the
   // strip has to agree with the variable before anything is fetched, or the
@@ -67,14 +77,28 @@ export async function loadExam() {
     x.setAttribute("aria-selected", x.dataset.level === examLevel()));
 
   const get = u => api(u, null, "GET").then(r => r.json());
-  const [ready, material, path, spec, goal, milestones] = await Promise.all([
+  /* Switching A2/B1 quickly starts a second load; only the latest may paint. */
+  const mine = ++examLoad;
+  let ready, material, path, spec, goal, milestones;
+  try {
+    [ready, material, path, spec, goal, milestones] = await Promise.all([
     get(`/api/readiness/${examLevel()}`), get(`/api/exam/${examLevel()}`),
     get("/api/curriculum").catch(() => ({})),
     get(`/api/exam-spec/${examLevel()}`).catch(() => null),
     get("/api/goal").catch(() => ({goal: null})),
     get(`/api/milestones/${examLevel()}`).catch(() => ({milestones: []})),
-  ]);
+    ]);
+  } catch (e) {
+    if (mine !== examLoad) return;
+    const box = $("#readiness");
+    box.innerHTML = "";
+    box.append(retryableError(e.message, () => loadExam()));
+    return;
+  }
   const mock = await get(`/api/mock/${examLevel()}`).catch(() => null);
+  if (mine !== examLoad) return;
+  ready.parts = ready.parts || [];
+  ready.reasons = ready.reasons || [];
 
   paintSpec(spec, goal.goal);
   paintMock(mock && mock.counts);
@@ -84,21 +108,33 @@ export async function loadExam() {
   $("#countdown").textContent =
     ready.countdown || (ready.deadline && ready.deadline.note) || "";
 
-  /* The one thing to do next leads the screen; the state of the four parts follows.
-     A first-day learner meets an action before a column of zeros. */
+  /* The flower leads: four parts, their contact, and the verdict in words beside
+     it. The one thing to do next follows, then each part with what to open. */
   const next = (path.topics || []).find(t => t.id === path.resume);
-  let html = next ? `<div class="next-step">
-      <span lang="et">Järgmine samm <i class="ru" lang="ru">следующий шаг</i></span>
-      <a class="rail-go" href="#path" lang="et"><b>${esc(next.et)}</b> → Harjuta</a>
-    </div>` : "";
+  const target = ready.contact_target || 3;
+  const firstReason = ready.reasons[0] || "";
+  let html = `<div class="bloom">
+    ${flowerSvg(ready.parts, target)}
+    <div>
+      <div class="bloom-verdict">${esc(String(ready.verdict || "").charAt(0).toUpperCase()
+        + String(ready.verdict || "").slice(1))}</div>
+      ${firstReason ? `<p class="why">${esc(firstReason)}</p>` : ""}
+      ${next ? `<div class="next-step">
+        <span lang="et">Järgmine samm <i class="ru" lang="ru">следующий шаг</i></span>
+        <a class="rail-go" href="#path" lang="et"><b>${esc(next.et)}</b> → Harjuta</a>
+      </div>` : ""}
+    </div></div>`;
   html += `<div class="parts">`;
   for (const part of ready.parts) {
-    const [cls, glyph] = MARK[String(part.touched)];
+    const [cls, glyph] = MARK[String(part.touched ?? null)];
+    const dots = part.touched === null ? "" : `<span class="contact" aria-hidden="true">${
+      Array.from({length: target}, (_, i) =>
+        `<i class="${i < Math.min(target, part.contact ?? (part.touched ? target : 0)) ? "on" : ""}"></i>`).join("")}</span>`;
     html += `<div class="part-row">
       <span class="part-mark ${cls}">${markIcon(glyph)}</span>
       <span class="part-body">
-        <span class="part-name" lang="et">${esc(part.et)}</span>
-        <span class="part-ev"> · ${esc(part.evidence)}</span>
+        <span class="part-name" lang="et">${esc(part.et)} <i class="ru" lang="ru">${esc(part.ru || "")}</i></span>${dots}
+        <span class="part-ev">${esc(part.evidence)}</span>
         ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.local
             ? `<button class="linky" data-open-task="${esc(part.next_task.id)}"
                  lang="${langOf(part.next_task.title)}">${esc(part.next_task.title)}</button>`
@@ -108,34 +144,32 @@ export async function loadExam() {
       </span></div>`;
   }
   html += `</div>`;
-  if (milestones.milestones?.length) html += `<details class="more">
-    <summary lang="et">Saavutused <i class="ru" lang="ru">этапы подготовки</i></summary>
-    <ul class="hint">${milestones.milestones.map(m => `<li>
-      ${m.complete ? "✓" : `${m.current}/${m.target}`} <b lang="et">${esc(m.et)}</b>
-      <span lang="ru">${esc(m.ru)}</span></li>`).join("")}</ul>
-  </details>`;
 
-  /* The reasons and the lists of what is left are the detail behind the marks above:
-     one tap away, not a wall under them. */
+  /* The two measures behind the verdict, as meters: grammar topics of this level and
+     words of this level. Named lists of what is left fold beneath. */
+  const g = ready.grammar || {}, v = ready.vocabulary || {};
+  const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
+  let measures = "";
+  if (g.topics) measures += `<div class="measure"><b lang="et">Grammatika</b>
+      <div class="stat-big">${g.mastered}<small> / ${g.topics} тем${g.checkpoint_passed ? " · контрольная пройдена" : ""}</small></div>
+      <div class="meter good" aria-hidden="true"><span style="width:${pct(g.mastered, g.topics)}%"></span></div></div>`;
+  if (v.measured) measures += `<div class="measure"><b lang="et">Sõnavara</b>
+      <div class="stat-big">${v.known}<small> из ${v.level_words} слов уровня</small></div>
+      <div class="meter" aria-hidden="true"><span style="width:${pct(v.known, v.level_words)}%"></span></div></div>`;
+  if (milestones.milestones?.length) measures += `<div class="measure"><b lang="et">Saavutused</b>
+      <div class="stat-big">${milestones.milestones.filter(m => m.complete).length}<small> / ${milestones.milestones.length} вех</small></div>
+      <div class="meter" aria-hidden="true"><span style="width:${pct(milestones.milestones.filter(m => m.complete).length, milestones.milestones.length)}%"></span></div></div>`;
+  if (measures) html += `<div class="measures">${measures}</div>`;
+
   let detail = "";
   if (ready.reasons.length)
     detail += `<ul class="hint">` + ready.reasons.map(r => `<li>${esc(r)}</li>`).join("") + `</ul>`;
-
-  /* The two measures behind the verdict: `grammar.outstanding` names the exact
-     topics standing between the learner and the level, and `vocabulary` the same
-     for words. Named, not summarised: the names are a plan. */
-  const g = ready.grammar || {}, v = ready.vocabulary || {};
-  if (g.topics) {
-    html += `<div class="verdict-detail"><b lang="et">Grammatika</b> · ` +
-      `${g.mastered}/${g.topics} тем` +
-      (g.checkpoint_passed ? " · контрольная пройдена" : "") + `</div>`;
-    if ((g.outstanding || []).length)
-      detail += `<div class="hint">Осталось по грамматике: <span lang="et">` +
-        g.outstanding.map(esc).join(", ") + `</span></div>`;
-  }
-  if (v.measured)
-    html += `<div class="verdict-detail"><b lang="et">Sõnavara</b> · ` +
-      `${v.known} из ${v.level_words} слов уровня</div>`;
+  if ((g.outstanding || []).length)
+    detail += `<div class="hint">Осталось по грамматике: <span lang="et">` +
+      g.outstanding.map(esc).join(", ") + `</span></div>`;
+  if (milestones.milestones?.length) detail += `<ul class="hint">${milestones.milestones.map(m => `<li>
+      ${m.complete ? "✓" : `${m.current}/${m.target}`} <b lang="et">${esc(m.et)}</b>
+      <span lang="ru">${esc(m.ru)}</span></li>`).join("")}</ul>`;
   if (detail)
     html += `<details class="more"><summary lang="et">Üksikasjad <i class="ru" lang="ru">что осталось</i></summary>${detail}</details>`;
   html += `<p class="hint">${esc(ready.caveat)}</p>`;
@@ -336,7 +370,7 @@ document.addEventListener("click", e => {
       .find(b => b.dataset.task === next.dataset.openTask);
     if (target) {
       target.click();
-      target.scrollIntoView({behavior: "smooth", block: "start"});
+      target.scrollIntoView({behavior: glide(), block: "start"});
     }
     return;
   }

@@ -71,7 +71,7 @@ class TestEveryStateIsReadable:
         nothing emits -- harmless on their own, and the reason the two real
         ones looked covered."""
         glossed = _object_keys(page, "const RU = {")
-        # `RU` also carries tab and rail labels; only judge the ones that look
+        # `RU` also carries tab and mode labels; only judge the ones that look
         # like path states, which are the lower-case multi-word keys.
         statelike = {k for k in glossed if k.islower() and not k[0].isupper()}
         invented = sorted(statelike - states)

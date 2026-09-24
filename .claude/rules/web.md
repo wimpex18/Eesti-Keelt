@@ -10,9 +10,10 @@ paths:
 - Tabs live in the URL hash: `pushState` per change, `replaceState` for the landing tab, re-selecting the current tab does nothing.
 - `main.js` bootstraps last; loaders may touch anything declared.
 - Never set `textContent` on an element with decorated children (the Russian gloss); use `setLabel`.
-- Every `var(--token)` must be defined; spacing uses `--s1`…`--s6`; colours are tokens, never hex in rules.
+- Every `var(--token)` must be defined; spacing uses `--s1`…`--s7`; colours are tokens, never hex in rules.
 - Give each information role its own treatment; colour by role, not by language.
-- `.wrap` is a grid with rows placed by number: place anything added at its top level deliberately.
+- Glass (`--glass`) is for the navigation layer only; content stays on solid sheets.
+- From 720px `.wrap` is a grid (spine, column, rail) with rows placed by number: place anything added at its top level deliberately.
 - Before making a container flex, check what its children relied on normal flow for.
 - `.panel > :first-child` owns the top-margin reset; do not copy inline resets.
 - A media query does not raise specificity: a rule inside `@media` loses to a later rule of equal depth. Measure in a browser; deliberate overrides sit at the end of `app.css`.

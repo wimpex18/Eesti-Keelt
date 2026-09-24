@@ -1,10 +1,12 @@
 /* Rada: the syllabus, where you stand on it, and one topic's practice. */
 
-import {RU, stateIcon, uiIcon} from "./chrome.js";
-import {$, api, esc, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import {RU, celebrate, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml, stateIcon,
+  uiIcon} from "./chrome.js";
+import {$, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
 import {loadRail, refreshDueBadge} from "./review.js";
+import {examLevel} from "./state.js";
 
 // ── the path ────────────────────────────────────────────────────────
 let pathTopic = null;
@@ -14,23 +16,44 @@ let pathRules = null;
 
 /* A running score for one set. Rada's is recorded by the server and shows the
    mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
-const pathTally = {answered: 0, correct: 0, size: 0, missed: [], out: "#pathScore", box: "#practiceOut",
+const pathTally = {answered: 0, correct: 0, size: 0, missed: [], marks: [], out: "#pathScore",
+                   box: "#practiceOut", beads: "#pathBeads",
                    record: true, gate: true, again: () => startPractice()};
-const freeTally = {answered: 0, correct: 0, size: 0, missed: [], out: "#freeScore", box: "#freeOut",
+const freeTally = {answered: 0, correct: 0, size: 0, missed: [], marks: [], out: "#freeScore",
+                   box: "#freeOut", beads: "#freeBeads",
                    record: false, again: () => $("#freeBtn").click()};
 
 /* A new set on a tally. `gen` names the set, so an answer still in flight from the
    set it replaced is not counted in this one (see `grade`). */
 function newSet(tally) {
-  Object.assign(tally, {answered: 0, correct: 0, size: 0, missed: [],
+  Object.assign(tally, {answered: 0, correct: 0, size: 0, missed: [], marks: [],
                         gen: (tally.gen || 0) + 1});
+  paintBeads(tally);
+}
+
+
+/* One bead per item in the set: moss for right, cranberry for wrong, cornflower for
+   the one being answered. A wrong answer stays visible; the row is the set's shape
+   at a glance, and it is what the end card repeats. */
+function beadsHtml(tally) {
+  return Array.from({length: tally.size}, (_, i) => {
+    const m = tally.marks[i];
+    const cls = m === true ? "ok" : m === false ? "no"
+      : i === tally.marks.filter(x => x !== undefined).length ? "now" : "";
+    return `<span class="bead ${cls}"></span>`;
+  }).join("");
+}
+
+function paintBeads(tally) {
+  const box = tally.beads && $(tally.beads);
+  if (box) box.innerHTML = tally.size ? beadsHtml(tally) : "";
 }
 
 /* A tally for a set rendered somewhere else (the Kontrolltöö). */
 export function newTally(out, box, again) {
   // A Kontrolltöö is a test: its misses are listed, not re-drilled on the spot.
-  return {answered: 0, correct: 0, size: 0, missed: [], out, box, record: true, again,
-          redo: false};
+  return {answered: 0, correct: 0, size: 0, missed: [], marks: [], out, box, record: true,
+          again, redo: false};
 }
 
 let pathMeta = {};
@@ -38,7 +61,7 @@ let autoStarted = false, practiceRequest = 0;
 /* What the learner types is the thing being graded: iOS must not capitalise it,
    correct it or underline it, and a password manager must not offer to fill it. */
 const ANSWER_FIELD = `autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"`;
-const START = ["Harjuta", "тренировка"], NEW_SET = ["Uued laused", "новые задания"];
+const START = ["Harjuta", "упражняться"], NEW_SET = ["Uued laused", "новые задания"];
 
 function themeApplies() {
   const meta = pathMeta[pathTopic];
@@ -69,28 +92,37 @@ function todayMinutes() {
   try { return Number(localStorage.getItem("todayMinutes")) || 20; } catch { return 20; }
 }
 
-export async function loadToday() {
+async function loadToday() {
   const list = $("#todayList");
   if (!list) return;
   const minutes = todayMinutes();
   $("#todayMinutes").value = String(minutes);
+  const strip = $("#todayStrip");
   try {
     const p = await (await api(`/api/plan?minutes=${minutes}`, null, "GET")).json();
-    if (!p.blocks.length) {
+    if (!(p.blocks || []).length) {
       list.innerHTML = `<li class="hint">На сегодня ничего не запланировано.</li>`;
       $("#todaySum").textContent = "";
+      strip.innerHTML = "";
       return;
     }
     $("#todaySum").textContent = `${p.minutes} мин · ` +
       ruCount(p.blocks.length, ["шаг", "шага", "шагов"]);
+    /* The day as time: one segment per block, as long as its minutes. */
+    strip.innerHTML = p.blocks.map((b, i) =>
+      `<span class="strip-seg" data-kind="${esc(b.kind)}"
+         style="flex-grow:${b.minutes};animation-delay:${i * 90}ms"></span>`).join("");
+    // Up to three blocks read left to right under the strip; more stack as a list.
+    list.classList.toggle("as-row", p.blocks.length <= 3);
     list.innerHTML = p.blocks.map((b, i) => {
       const d = b.detail;
       const mistake = d ? `<div class="today-mistake" lang="et">
           <del>${esc(d.answer || "—")}</del> → <ins>${esc(d.expected)}</ins>
           · ${esc(d.solution)}</div>` : "";
       return `<li class="today-block" data-kind="${esc(b.kind)}">
-        <span class="today-min">${b.minutes} мин</span>
+        <span class="today-kind" aria-hidden="true">${kindIcon(b.kind)}</span>
         <div class="today-what">
+          <span class="today-min">${b.minutes} мин</span>
           <strong lang="et">${esc(b.et)} <i class="ru" lang="ru">${esc(b.ru)}</i></strong>
           <p class="hint">${esc(b.why)}</p>${mistake}
         </div>
@@ -100,6 +132,7 @@ export async function loadToday() {
     list.querySelectorAll("button[data-i]").forEach(btn => btn.onclick = () =>
       startBlock(p.blocks[Number(btn.dataset.i)].action));
   } catch (e) {
+    strip.innerHTML = "";
     list.innerHTML = `<li class="hint">План не загрузился: ${esc(e.message)}</li>`;
   }
 }
@@ -110,7 +143,7 @@ function startBlock(action) {
     pathRules = action.rules || null;
     paintTheme();
     startPractice();
-    $("#practiceOut").scrollIntoView({block: "start", behavior: "smooth"});
+    $("#practiceOut").scrollIntoView({block: "start", behavior: glide()});
     return;
   }
   // The router follows the hash (`main.js`), and Back returns to the plan.
@@ -123,20 +156,109 @@ $("#todayMinutes").onchange = e => {
 };
 
 
+/* Today's date in Estonian: the interface is exposure, and a date is a word the
+   learner reads every day. */
+function paintDate() {
+  const el = $("#pathDate");
+  if (!el) return;
+  try {
+    el.textContent = new Intl.DateTimeFormat("et", {weekday: "long", day: "numeric",
+                                                    month: "long"}).format(new Date());
+  } catch { el.textContent = ""; }
+}
+
+
+/* The boardwalk: a window of the path around the resume topic, drawn as planks
+   with one node per topic. Mastered nodes are moss with a tick, the resume topic
+   is cornflower with a halo, open ones are outlined, later ones grey, theory
+   dashed. As many nodes as the width holds; the whole path is one tap away. */
+let trailData = null;
+
+function drawTrail() {
+  const box = $("#pathTrail");
+  if (!box || !trailData) return;
+  const {topics, resume, mastered, total} = trailData;
+  const width = box.clientWidth || 600;
+  const count = Math.max(5, Math.min(13, Math.floor(width / 72)));
+  const here = Math.max(0, topics.findIndex(t => t.id === resume));
+  let start = Math.max(0, here - Math.floor(count * 0.4));
+  start = Math.min(start, Math.max(0, topics.length - count));
+  const shown = topics.slice(start, start + count);
+  if (!shown.length) { box.innerHTML = ""; return; }
+  const step = 72, W = step * (shown.length - 1) + 40, H = 70;
+  const pts = shown.map((_, i) => [20 + i * step,
+    35 + Math.sin((start + i) * 0.95) * 15]);
+  // A smooth line through the nodes (Catmull-Rom as cubic Béziers).
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ` C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6},` +
+         `${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6},${p2[0]} ${p2[1]}`;
+  }
+  const nodes = shown.map((t, i) => {
+    const [x, y] = pts[i], now = t.id === resume;
+    const r = now ? 12 : t.state === "mastered" ? 10 : t.state === "locked"
+      || t.state === "reference" ? 6.5 : 8.5;
+    const cls = `node ${t.state.replace(" ", "-")}${now ? " now" : ""}`;
+    const tick = t.state === "mastered"
+      ? `<path class="tick" d="M${x - 4.5} ${y}l3 3 6-6.5"/>` : "";
+    const halo = now ? `<circle class="halo" cx="${x}" cy="${y}" r="17"/>` : "";
+    return `<g><title>${esc(t.et)} — ${esc(RU[t.state] || t.state)}</title>
+      ${halo}<circle class="${cls}" cx="${x}" cy="${y}" r="${r}"/>${tick}</g>`;
+  }).join("");
+  const label = `Rada: ${mastered} из ${total} пройдено` +
+    (topics[here] ? `, сейчас ${topics[here].et}` : "");
+  box.innerHTML = `<svg viewBox="-4 0 ${W + 8} ${H}" role="img" aria-label="${esc(label)}">
+      <path class="plank" d="${d}"/><path class="seam" d="${d}"/>${nodes}</svg>
+    <div class="trail-legend"><span lang="ru">${mastered} из ${total} пройдено ·
+      ${ruCount(topics.filter(t => t.state === "ready" || t.state === "in progress").length,
+                ["тема открыта", "темы открыты", "тем открыто"])}</span>
+      <a href="#pathAll" data-open-path lang="et">Kogu rada →</a></div>`;
+  box.querySelector("[data-open-path]").onclick = e => {
+    e.preventDefault();
+    $("#pathAll").open = true;
+    $("#pathAll").scrollIntoView({block: "start", behavior: glide()});
+  };
+}
+
+if ("ResizeObserver" in window) {
+  let lastWidth = 0;
+  new ResizeObserver(([entry]) => {
+    const w = Math.round(entry.contentRect.width);
+    if (Math.abs(w - lastWidth) > 30) { lastWidth = w; drawTrail(); }
+  }).observe($("#pathTrail"));
+}
+
+
+/* `loadPath` runs from several places (the tab, a mastery, a test-out, an offline
+   send); only the latest request may paint. */
+let pathLoad = 0;
+
 export async function loadPath() {
   loadToday();
+  paintDate();
+  const mine = ++pathLoad;
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
+    if (mine !== pathLoad) return;
+    // A load that worked clears an earlier load's error (never a mastery note).
+    if ($("#pathHead").className === "banner") $("#pathHead").hidden = true;
     pathTopic = p.resume;
-    const pct = p.total ? Math.round(p.mastered / p.total * 100) : 0;
-    const ring = $("#pathRing");
-    ring.style.setProperty("--pct", pct);
-    ring.querySelector("span").textContent = pct + "%";
     const next = p.topics.find(t => t.id === p.resume);
+    const place = p.topics.findIndex(t => t.id === p.resume);
     $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
-    $("#pathOf").textContent =
-      `${p.mastered}/${p.total} тем${next ? " · " + next.level : ""}`;
+    $("#pathPos").textContent = next ? `тема ${place + 1} из ${p.total}` : "";
+    const tried = next && next.attempts
+      ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
+        (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
+      : "";
+    $("#pathOf").innerHTML = next
+      ? `${next.ru ? `<span lang="ru">${esc(next.ru)}</span> · ` : ""}${esc(next.level)}${tried}`
+      : `${p.mastered}/${p.total} тем`;
+    $("#pathGate").innerHTML = next && p.gate ? gateHtml(p.resume_recent || [], p.gate) : "";
     p.topics.forEach(t => { pathMeta[t.id] = t; });
+    trailData = {topics: p.topics, resume: p.resume, mastered: p.mastered, total: p.total};
+    drawTrail();
     paintTheme();
     /* Rada answers "what am I learning today?", so it opens on today's drill, not on
        a button that fetches it. Once per page: coming back to the tab keeps the set
@@ -147,23 +269,34 @@ export async function loadPath() {
       startPractice({focus: false});
     }
 
-    $("#pathList").innerHTML = p.topics.map(t => {
-      /* Names, not ids — the API resolves them. Tolerant of an older payload so a
-         stale cached page never prints "undefined". */
-      const needs = t.blocked_by || [];
-      const blocked = needs.length ? ` ← ${needs.join(", ")}` : "";
-      const acc = t.accuracy === null ? "" : ` · ${Math.round(t.accuracy * 100)}%`;
-      pathMeta[t.id] = t;
-      const testOut = t.state === "ready" || t.state === "in progress"
-        ? `<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
-           <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button>` : "";
-      return `<div class="topic ${t.state.replace(" ", "-")}">
-        <span class="st">${stateIcon(t.state)}${esc(RU[t.state] || t.state)}</span>
-        <span class="lv" data-level="${esc(t.level)}">${esc(t.level)}</span>
-        <span lang="et">${esc(t.et)}${esc(blocked)}${acc}</span>
-        ${testOut}</div>`;
+    /* The whole path, level by level, as one boardwalk per level. */
+    const levels = [...new Set(p.topics.map(t => t.level))];
+    $("#pathList").innerHTML = levels.map(lv => {
+      const here = p.topics.filter(t => t.level === lv);
+      const done = here.filter(t => t.state === "mastered").length;
+      const rows = here.map(t => {
+        /* Names, not ids — the API resolves them. Tolerant of an older payload so a
+           stale cached page never prints "undefined". */
+        const needs = t.blocked_by || [];
+        const meta = [
+          t.ru ? `<span lang="ru">${esc(t.ru)}</span>` : "",
+          needs.length ? `<span lang="ru">после:</span> <span lang="et">${esc(needs.join(", "))}</span>` : "",
+          t.accuracy === null || t.accuracy === undefined ? "" : `${Math.round(t.accuracy * 100)}%`,
+        ].filter(Boolean).join(" · ");
+        const acts = t.state === "ready" || t.state === "in progress"
+          ? `<span class="acts"><button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
+             <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button></span>` : "";
+        return `<div class="topic ${t.state.replace(" ", "-")}${t.id === p.resume ? " now" : ""}">
+          <span class="st" title="${esc(RU[t.state] || t.state)}">${stateIcon(t.state)}<span class="st-word" lang="ru">${esc(RU[t.state] || t.state)}</span></span>
+          <span class="name" lang="et">${esc(t.et)}</span>
+          ${meta ? `<span class="meta">${meta}</span>` : ""}
+          ${acts}</div>`;
+      }).join("");
+      return `<div class="path-level"><h4><span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>
+        <span class="hint">${done} из ${here.length} пройдено</span></h4>${rows}</div>`;
     }).join("");
   } catch (e) {
+    if (mine !== pathLoad) return;
     $("#pathHead").className = "banner";   // an error is the amber one
     $("#pathHead").hidden = false;
     $("#pathHead").textContent = e.message;
@@ -176,31 +309,57 @@ export async function loadStatus() {
   const out = $("#statusOut");
   loadReminders();
   try {
-    const d = await (await api("/api/status", null, "GET")).json();
+    const [d, marks, queue] = await Promise.all([
+      (await api("/api/status", null, "GET")).json(),
+      api(`/api/milestones/${examLevel()}`, null, "GET").then(r => r.json())
+        .catch(() => ({milestones: []})),
+      api("/api/review/stats", null, "GET").then(r => r.json()).catch(() => ({})),
+    ]);
     const s = d.sections; let html = "";
-    if (s.rada) html += `<div class="corr stat"><span class="tag" lang="et">Rada</span>
-      <div class="fix">${s.rada.mastered}/${s.rada.total} тем пройдено,
-      ${s.rada.available} открыто</div>
-      <div class="why">Следующая: <span lang="et">${esc(s.rada.next_et || "—")}</span>${
-        s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</div></div>`;
-    if (s.sonavara) html += `<div class="corr stat"><span class="tag" lang="et">Sõnavara</span>
-      <div class="fix">${ruCount(s.sonavara.known_in_top, ["слово", "слова", "слов"])} из первых
-      ${s.sonavara.top}</div><details class="more"><summary lang="et">Sageduse järgi <i class="ru" lang="ru">по частотности</i></summary><div class="why">` +
-      s.sonavara.bands.map(b =>
-        `${b.from}–${b.to}: ${b.known}/${b.size}`).join(" · ") + `</div></details><div class="why">` +
-      // Two facts, kept apart: "known" is what the learner declared; this is what the
-      // app can translate for them. The second grows on its own, so it is not
+    const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
+    if (d.rhythm?.length) html += `<section class="stat-card wide">
+      <h3 lang="et">Rütm <i class="ru" lang="ru">занятия по дням, 12 недель</i></h3>
+      ${rhythmHtml(d.rhythm)}</section>`;
+    if (s.rada) html += `<section class="stat-card">
+      <h3 lang="et">Rada <i class="ru" lang="ru">путь</i></h3>
+      <div class="stat-big">${s.rada.mastered}<small> / ${s.rada.total} тем</small></div>
+      <div class="meter good" aria-hidden="true"><span style="width:${pct(s.rada.mastered, s.rada.total)}%"></span></div>
+      <p class="why">${ruCount(s.rada.available, ["тема открыта", "темы открыты", "тем открыто"])}.
+        Следующая: <span lang="et">${esc(s.rada.next_et || "—")}</span>${
+        s.rada.next_ru ? ` — ${esc(s.rada.next_ru)}` : ""}</p></section>`;
+    if (s.kordamine) html += `<section class="stat-card">
+      <h3 lang="et">Kordamine <i class="ru" lang="ru">повторение</i></h3>
+      <div class="stat-big">${s.kordamine.due}<small> к повторению</small></div>
+      <p class="why">${ruCount(s.kordamine.scheduled, ["карточка", "карточки", "карточек"])} в очереди всего.</p>
+      ${queue.forecast && s.kordamine.scheduled ? forecastHtml(queue.forecast) : ""}
+      ${s.kordamine.due ? `<a class="rail-go" href="#review" lang="et">Alusta kordamist →</a>` : ""}</section>`;
+    if (s.sonavara) {
+      /* Words known in each frequency band, commonest first: where the everyday
+         vocabulary is and is not yet. Heights are each band's own share. */
+      const bands = s.sonavara.bands || [];
+      html += `<section class="stat-card wide">
+        <h3 lang="et">Sõnavara <i class="ru" lang="ru">словарь по частотности</i></h3>
+        <div class="stat-big">${s.sonavara.known_in_top}<small> из первых ${s.sonavara.top} слов</small></div>
+        <div class="bands" role="img" aria-label="${esc(bands.map(b =>
+          `${b.from}–${b.to}: ${b.known} из ${b.size}`).join("; "))}">${bands.map((b, i) =>
+          `<div class="band"><span style="height:${pct(b.known, b.size)}%;animation-delay:${i * 60}ms"></span></div>`).join("")}</div>
+        <div class="band-labels" aria-hidden="true">${bands.map(b => `<span>${b.to}</span>`).join("")}</div>
+        ${s.sonavara.glossed != null ? `<p class="gloss-late">${ruCount(s.sonavara.glossed,
+          ["слово", "слова", "слов"])} с переводом <span class="hint">(пополняется само ·
+          сегодня осталось ${s.sonavara.gloss_budget_left})</span></p>` : ""}</section>`;
+      // Two facts, kept apart: "known" is what the learner declared; the glossed count
+      // is what the app can translate. The second grows on its own, so it is not
       // presented as an achievement.
-      (s.sonavara.glossed != null
-        ? `<div class="gloss-late">${ruCount(s.sonavara.glossed, ["слово", "слова", "слов"])} с переводом
-           <span class="hint">(пополняется само · сегодня осталось
-           ${s.sonavara.gloss_budget_left})</span></div>` : "") + `</div></div>`;
-    if (s.kordamine) html += `<div class="corr stat"><span class="tag" lang="et">Kordamine</span>
-      <div class="fix">${s.kordamine.due} к повторению,
-      ${s.kordamine.scheduled} всего</div></div>`;
-    if (s.raamatukogu) html += `<div class="corr stat"><span class="tag" lang="et">Lugemine · Kuulamine</span>
-      <div class="fix">${ruCount(s.raamatukogu.items || 0, ["материал", "материала", "материалов"])} ·
-      ${ruCount(Math.round(s.raamatukogu.minutes || 0), ["минута", "минуты", "минут"])}</div></div>`;
+    }
+    if (s.raamatukogu) html += `<section class="stat-card">
+      <h3 lang="et">Lugemine · Kuulamine <i class="ru" lang="ru">чтение и аудирование</i></h3>
+      <div class="stat-big">${s.raamatukogu.items || 0}<small> ${ruCount(s.raamatukogu.items || 0,
+        ["материал", "материала", "материалов"]).replace(/^\S+ /, "")}</small></div>
+      <p class="why">${ruCount(Math.round(s.raamatukogu.minutes || 0), ["минута", "минуты", "минут"])} с текстами и записями.</p></section>`;
+    if (marks.milestones?.length) html += `<section class="stat-card">
+      <h3 lang="et">Märgid <i class="ru" lang="ru">вехи ${esc(examLevel())}</i></h3>
+      ${sealsHtml(marks.milestones)}
+      <p class="hint">Отмечают сделанное; очков и серий нет.</p></section>`;
     // The caveat comes from the API, in Russian, so it is written once and matches
     // what the numbers mean.
     html += `<div class="engine">${esc(d.caveat || "")}</div>`;
@@ -361,6 +520,7 @@ async function startPractice({focus = true} = {}) {
       ? `<div class="banner info">${bits.join(" · ")}</div>` : "";
     loaded = true;
     pathTally.size = res.items.length;
+    paintBeads(pathTally);
     res.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {}, focus)));
   } catch (e) {
@@ -392,7 +552,7 @@ function finishSet(tally, res) {
   if (!box || box.querySelector(".set-end")) return;
   const [need, of] = (res.gate || "").split("/");
   // Only Rada's set is one topic, so only there does the topic's gate apply.
-  const gate = tally.gate && res.accuracy !== null && !res.just_mastered
+  const gate = tally.gate && res.accuracy != null && res.gate && !res.just_mastered
     ? `<p class="hint">Тема засчитывается, когда из последних ${esc(of)} ответов
          верны ${esc(need)}. Сейчас: ${Math.round(res.accuracy * 100)}%.</p>` : "";
   /* What went wrong, in the sentence it went wrong in, with the right form: the end
@@ -403,19 +563,23 @@ function finishSet(tally, res) {
   const redo = tally.missed.length && tally.redo !== false
     ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">ещё раз ошибки</span></button>` : "";
   const end = document.createElement("div");
+  /* The score, the beads again, and the next set under the thumb. A set nearly all
+     right wears moss; the count is the reward, not a streak. */
   end.className = "set-end";
+  if (tally.size && tally.correct >= 0.8 * tally.size) end.classList.add("great");
   end.setAttribute("role", "status");
   end.innerHTML = `<h4 lang="et">Komplekt tehtud <i class="ru" lang="ru">набор пройден</i></h4>
-    <p class="set-score">${tally.correct} из ${tally.size} верно</p>${gate}${missed}
+    <p class="set-score">${tally.correct}<small> из ${tally.size} верно</small></p>
+    <div class="beads" aria-hidden="true">${beadsHtml(tally)}</div>${gate}${missed}
     <div class="row">${redo}<button class="go" data-act="new" lang="et">${uiIcon("next")}Uued laused <span class="ru" lang="ru">новые задания</span></button></div>`;
   end.querySelector('[data-act="new"]').onclick = tally.again;
   end.querySelector('[data-act="redo"]')?.addEventListener("click", () => redoMissed(tally));
   // The score line said the same thing one line lower; the card says it now.
   $(tally.out).textContent = "";
   box.appendChild(end);
-  // Fully in view, above the thumb bar: this is the moment the set exists for.
+  // Fully in view, above the dock: this is the moment the set exists for.
   requestAnimationFrame(() => requestAnimationFrame(() =>
-    end.scrollIntoView({block: "nearest", behavior: "smooth"})));
+    end.scrollIntoView({block: "nearest", behavior: glide()})));
   tally.done?.(tally);
 }
 
@@ -428,6 +592,7 @@ function redoMissed(tally) {
   box.innerHTML = "";
   newSet(tally);
   tally.size = again.length;
+  paintBeads(tally);
   again.forEach(({it, topic}, i) =>
     box.appendChild(renderPracticeItem(it, topic, i, {}, true, tally)));
 }
@@ -456,15 +621,12 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const set = tally.gen || 0;
   const place = tally.size ? `${i + 1}/${tally.size}` : `${i + 1}`;
   const pos = tally.size ? `<div class="drill-pos">${i + 1} / ${tally.size}</div>` : "";
+  /* Word order is the one topic whose unit is the whole sequence, so it is answered
+     by choosing a sentence rather than typing a word. The chosen sentence is
+     submitted as the answer and graded by the same comparison as everything else. */
   el.innerHTML = `${pos}
     <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
     ${it.choices && it.choices.length ? `
-    <!-- Word order is the one topic whose unit is the whole sequence, so it
-         is answered by choosing a sentence rather than typing a word.
-         Everything after this point is unchanged: the chosen sentence is
-         submitted as the answer, the server grades it by the same string
-         comparison, and it reaches mastery and the review queue by the same
-         path as every other item. -->
     <div class="choices">
       ${it.choices.map(c =>
         `<button class="choice" lang="et" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
@@ -539,8 +701,17 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // is gone from the screen and must not count in the set that replaced it.
     if ((tally.gen || 0) !== set) return;
     tally.answered++; if (res.correct) tally.correct++;
-    if (!res.correct && res.event_id) offerExplanation(verdict, res.event_id);
-    else tally.missed.push({it, topic});
+    tally.marks[i] = !!res.correct;
+    paintBeads(tally);
+    /* The sentence completes itself: the blank takes the right form, moss when it
+       was the learner's, underlined in cranberry when it was not. */
+    const blank = el.querySelector(".prompt .blank");
+    if (blank && !choices.length) {
+      blank.textContent = it.answer;
+      blank.classList.add("filled", res.correct ? "ok" : "no");
+    }
+    // A miss goes on the set's list, to be looked at and redone at its end.
+    if (!res.correct) tally.missed.push({it, topic});
     /* Graded: on a phone the next item appears under this one (see `.drill.done`
        in app.css). Keep this verdict in view above the keyboard and the thumb bar. */
     el.classList.add("done");
@@ -564,17 +735,25 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       verdict.innerHTML += `<span class="gloss-late"><b lang="et">${esc(it.lemma)}</b> — `
         + `${esc(res.russian.slice(0, 3).join(", "))}</span>`;
     }
+    /* A recorded miss can be explained. After the verdict is written: writing
+       `innerHTML` would otherwise wipe the button and its handler. */
+    if (!res.correct && res.event_id) offerExplanation(verdict, res.event_id);
     let line = `${tally.correct}/${tally.answered} верных`;
-    if (res.accuracy !== null) line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
+    if (res.accuracy != null && res.gate)
+      line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $(tally.out).textContent = line;
     if (tally.size && tally.answered === tally.size) finishSet(tally, res);
     if (res.just_mastered) {
       // Good news wears the accent. `#pathHead` is shared with the error path, so the
       // class is set at each use.
+      const name = pathMeta[topic]?.et || topic;
       $("#pathHead").className = "banner ok";
+      $("#pathHead").hidden = false;
       $("#pathHead").innerHTML =
-        `✓ <strong>${esc(topic)}</strong> пройдено — открывает следующие темы. ` +
+        `✓ <strong lang="et">${esc(name)}</strong> пройдено — открывает следующие темы. ` +
         `Упражнения ушли в очередь повторения.`;
+      celebrate({title: "Teema läbitud", name,
+                 note: "Доска легла в путь: следующие темы открыты."});
       loadPath();
       refreshDueBadge();
       loadRail();
@@ -677,13 +856,14 @@ $("#freeBtn").onclick = async () => {
       return;
     }
     freeTally.size = res.items.length;
+    paintBeads(freeTally);
     res.items.forEach((it, i) => out.appendChild(
       renderPracticeItem(it, res.topic, i, res.glosses || {}, false, freeTally)));
     foldFreeControls(true);
     /* The set, not the settings, is what the learner came for: bring its first item
        into view and hand it the keyboard. */
     const first = out.querySelector(".drill");
-    first?.scrollIntoView({block: "start", behavior: "smooth"});
+    first?.scrollIntoView({block: "start", behavior: glide()});
     first?.querySelector("input")?.focus({preventScroll: true});
   } catch (e) {
     out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
@@ -729,6 +909,7 @@ $("#offlinePractice").onclick = async () => {
     на сервере, когда связь вернётся.</div>`;
   newSet(pathTally);
   pathTally.size = pack.items.length;
+  paintBeads(pathTally);
   pack.items.forEach((it, i) => out.appendChild(
     renderOfflineItem(it, i, pack.glosses || {})));
   out.querySelector("input")?.focus();
@@ -769,9 +950,19 @@ function renderOfflineItem(it, i, glosses) {
     input.disabled = el.querySelector("button").disabled = true;
     const ok = offline.graded(it, input.value);
     /* The verdict first: it is what the learner is waiting for, and it must not
-       depend on the queue write succeeding. */
+       depend on the queue write succeeding. Then the item is spent, so the next
+       one appears (one item at a time), and its bead is filled. */
     verdict.className = ok ? "verdict ok" : "verdict no";
-    verdict.innerHTML = ok ? "Верно." : wrongVerdict(input.value, it.answer, it.why_ru);
+    verdict.innerHTML = ok
+      ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span>`
+      : wrongVerdict(input.value, it.answer, it.why_ru);
+    const blank = el.querySelector(".prompt .blank");
+    if (blank) { blank.textContent = it.answer; blank.classList.add("filled", ok ? "ok" : "no"); }
+    el.classList.add("done");
+    pathTally.marks[i] = ok;
+    pathTally.answered++; if (ok) pathTally.correct++;
+    paintBeads(pathTally);
+    el.nextElementSibling?.querySelector?.("input")?.focus({preventScroll: true});
     try {
       await offline.queueAnswer(it, input.value,
                                 Math.round(performance.now() - started));

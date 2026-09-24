@@ -25,7 +25,7 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 |---|---|
 | `api/deps.py` | database handles and process facts, resolved at call time |
 | `api/render.py` | ids, lemmas and topics rendered for the learner |
-| `api/assets.py` | page, icons, manifest, service worker |
+| `api/assets.py` | page, icons, fonts, manifest, service worker |
 | `api/health.py` | word list, reference row counts, corpus counts, build stamp, origin guard |
 | `api/practice.py`, `api/review.py`, `api/vocab.py` | drills and grading, FSRS queue, word statuses |
 | `api/grammar.py` | sentence check, word lookup and word card |

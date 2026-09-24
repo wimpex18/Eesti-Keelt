@@ -1,7 +1,7 @@
 /* Kirjutamine: the grammar check and the error queue. */
 
 import {emptyState} from "./chrome.js";
-import {$, api, esc, md, setLabel} from "./core.js";
+import {$, api, esc, md, ruCount, setLabel} from "./core.js";
 import {loadRail} from "./review.js";
 
 
@@ -169,9 +169,20 @@ $("#checkOut").innerHTML = emptyState({
 // `tests/test_ui_language.py` reads as "a sentence the learner is told".
 $("#tryExample").onclick = () => {
   $("#text").value = "Ma lugesin eile raamatut läbi";
+  paintCount();
   $("#text").focus();
 };
 
 $("#text").addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCheck();
 });
+
+
+/* The word count, live. The exam's writing tasks ask for 25+ and 30+ words, so the
+   count is the one number worth watching while writing. */
+function paintCount() {
+  const n = ($("#text").value.match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu) || []).length;
+  $("#textCount").textContent = n ? ruCount(n, ["слово", "слова", "слов"]) : "";
+}
+$("#text").addEventListener("input", paintCount);
+paintCount();

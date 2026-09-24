@@ -38,7 +38,3 @@ deploy/eki/*
 .pytest_cache/
 .ruff_cache/
 .claude/worktrees/
-# Impeccable: per-machine settings and the detector's cache stay local.
-.impeccable/config.local.json
-.impeccable/hook.cache.json
-.impeccable/live/

@@ -118,7 +118,7 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
         add(Block("review", min(want, math.floor(minutes * REVIEW_SHARE)) or MIN_BLOCK,
                   "Kordamine", "повторение",
                   f"К повторению {_count(inputs.due, 'карточка', 'карточки', 'карточек')}: "
-                  "повторить вовремя дешевле, чем выучить заново.",
+                  "повторить вовремя проще, чем учить заново.",
                   {"tab": "review"}))
 
     if inputs.weak and left >= MIN_BLOCK:
@@ -134,7 +134,9 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
             facts.append(f"карточки помнятся на {_pct(w.retrievability)}")
         from .drills import RULE_ET
 
-        rule = f" · {RULE_ET.get(w.rule, w.rule)}" if w.rule else ""
+        # Only a rule with an Estonian name is named: a bare id (`question`) is a
+        # database key, and the topic already says what is being drilled.
+        rule = f" · {RULE_ET[w.rule]}" if w.rule in RULE_ET else ""
         add(Block("repair", min(REPAIR_MINUTES, left), f"{w.topic_et}{rule}",
                   "слабое правило",
                   "Слабое место: " + ", ".join(facts) + ".",
@@ -144,7 +146,7 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
     if inputs.refresh and left >= MIN_BLOCK:
         topic, name = inputs.refresh[0]
         add(Block("refresh", min(REFRESH_MINUTES, left), name, "освежить",
-                  "Тема пройдена, но карточки по ней забываются или она давно не "
+                  "Тема пройдена, но начала забываться или давно не "
                   "встречалась.", {"tab": "path", "topic": topic}))
 
     if inputs.activity and left >= MIN_BLOCK:
@@ -153,20 +155,20 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
         tab, et, ru = SKILLS[part]
         n = inputs.activity.get(part, 0)
         add(Block("skill", min(SKILL_MINUTES, left), et, ru,
-                  f"За неделю по этой части экзамена {_count(n, 'занятие', 'занятия', 'занятий')}"
-                  " — меньше всего. Ноль в любой части проваливает экзамен.",
+                  f"Самая забытая часть экзамена: {_count(n, 'занятие', 'занятия', 'занятий')}"
+                  " за неделю. Ноль в любой части — провал всего экзамена.",
                   {"tab": tab}))
 
     if inputs.frontier and left >= MIN_BLOCK:
         topic, name = inputs.frontier
         new = left if not inputs.reading or left < 2 * MIN_BLOCK + 2 else left - MIN_BLOCK - 2
         add(Block("new", new, name, "новая тема",
-                  "Следующая тема по порядку (Rada).", {"tab": "path", "topic": topic}))
+                  "Следующая тема на твоём пути (Rada).", {"tab": "path", "topic": topic}))
 
     if inputs.reading and left >= MIN_BLOCK:
         item, title = inputs.reading
         add(Block("read", left, title, "чтение",
-                  "Текст, в котором больше всего знакомых слов.",
+                  "Текст, где больше всего знакомых тебе слов.",
                   {"tab": "read", "item": item}))
 
     # Minutes too few for a block of their own go to the last one.

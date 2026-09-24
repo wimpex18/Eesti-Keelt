@@ -1,319 +1,197 @@
 ---
 name: Eesti keel
-description: A modern, motivating Estonian learning Super App on the path to the A2/B1 exam.
+description: Laudtee — a boardwalk across the bog to the A2/B1 exam, in Estonian blue, black and white.
 colors:
-  estonian-forest: "#1c6b52"
-  forest-deep: "#12503c"
-  forest-mist: "#e6f2ec"
-  on-forest: "#ffffff"
-  gloss-slate: "#4c6382"
-  amber-note: "#9a5b00"
-  amber-wash: "#fdf3e3"
-  correction-red: "#a32c2c"
-  paper: "#faf9f6"
+  estonian-blue: "#0030de"
+  paldski: "#0062f5"
+  liivi: "#000087"
+  narva: "#00c3ff"
+  parnu: "#cee2fd"
+  haapsalu: "#fceec8"
+  mustkivi: "#0f172a"
+  majakivi: "#3d4b5e"
+  kabelikivi: "#566376"
+  pahkla: "#f1f5f9"
+  page: "#f8fafc"
   sheet: "#ffffff"
-  ink: "#1b1b19"
-  ink-soft: "#4a4a45"
-  pencil: "#6b6b66"
-  rule-line: "#e3e3de"
-  rule-faint: "#efeee9"
-  tint: "#f4f3ee"
+  line: "#e2e8f0"
+  sammal: "#17804f"
+  johvikas: "#cc2f45"
+  murakas: "#955400"
+  murakas-mark: "#f0a020"
+  jarv: "#0b7285"
 typography:
-  display:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "clamp(28px, 8vw, 44px)"
-    fontWeight: 650
-    lineHeight: 1.15
-    letterSpacing: "-0.02em"
-  headline:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "21px"
-    fontWeight: 650
-    lineHeight: 1.2
-    letterSpacing: "-0.022em"
-  title:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "15px"
-    fontWeight: 650
-    lineHeight: 1.4
-  reading:
-    fontFamily: "Iowan Old Style, Palatino Linotype, Palatino, Georgia, serif"
-    fontSize: "17.5px"
-    fontWeight: 400
-    lineHeight: 1.8
-  prompt:
-    fontFamily: "Iowan Old Style, Palatino Linotype, Palatino, Georgia, serif"
-    fontSize: "18.5px"
-    fontWeight: 400
-    lineHeight: 1.6
-  lead:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "19px"
-    fontWeight: 650
-    lineHeight: 1.2
-  input:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "16px"
-    fontWeight: 400
-    lineHeight: 1.4
-  ui:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: 1.45
-  body:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "15px"
-    fontWeight: 400
-    lineHeight: 1.55
-  note:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "13px"
-    fontWeight: 400
-    lineHeight: 1.6
-  label:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "12px"
-    fontWeight: 600
-    lineHeight: 1.4
-    letterSpacing: "0.06em"
-  gloss:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
-    fontSize: "11px"
-    fontWeight: 400
-    lineHeight: 1.3
+  family: "Geologica (variable: weight 300–800, sharpness SHRP 0–100), system fallbacks"
+  interface: "Geologica, SHRP 0 (soft)"
+  material: "Geologica, SHRP 55 (cut) — every Estonian sentence, answer, word and title"
+  hero: "clamp(38px, 9vw, 60px) / 600"
+  title: "30px / 800"
+  prompt: "24px, 28px from 720px"
+  reading: "19px / 1.8"
+  answer: "18px / 500"
+  body: "16px"
+  ui: "15px"
+  note: "14px"
+  meta: "13px"
+  gloss: "12px"
 rounded:
-  tag: "5px"
-  tile: "10px"
-  control: "12px"
-  card: "14px"
-  panel: "18px"
-  pill: "999px"
-spacing:
-  s1: "4px"
-  s2: "8px"
-  s3: "12px"
-  s4: "16px"
-  s5: "24px"
-  s6: "32px"
-components:
-  button-primary:
-    backgroundColor: "{colors.estonian-forest}"
-    textColor: "{colors.on-forest}"
-    typography: "{typography.body}"
-    rounded: "{rounded.control}"
-    padding: "10px 18px"
-    height: "44px"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "10px 18px"
-    height: "44px"
-  button-ghost-hover:
-    backgroundColor: "{colors.forest-mist}"
-    textColor: "{colors.estonian-forest}"
-  input:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "10px 12px"
-    height: "44px"
-  skill-chip:
-    backgroundColor: "{colors.sheet}"
-    textColor: "{colors.pencil}"
-    rounded: "{rounded.pill}"
-    padding: "0 14px"
-    height: "44px"
-  skill-chip-selected:
-    backgroundColor: "{colors.forest-mist}"
-    textColor: "{colors.estonian-forest}"
-  panel:
-    backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.panel}"
-    padding: "22px 24px"
-  drill:
-    backgroundColor: "{colors.paper}"
-    rounded: "{rounded.card}"
-    padding: "24px 16px"
-  choice:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.tile}"
-    padding: "10px 13px"
-  choice-picked:
-    backgroundColor: "{colors.forest-mist}"
-  tag:
-    backgroundColor: "{colors.forest-mist}"
-    textColor: "{colors.estonian-forest}"
-    rounded: "{rounded.tag}"
-    padding: "2px 7px"
-  banner-warn:
-    backgroundColor: "{colors.amber-wash}"
-    textColor: "{colors.amber-note}"
-    rounded: "{rounded.control}"
-    padding: "12px 14px"
+  control: "999px (buttons, switches, tabs)"
+  field: "16px"
+  sheet: "24px"
+  hero: "32px"
+  glass-dock: "30px"
+spacing: "4px scale: --s1 4 · --s2 8 · --s3 12 · --s4 16 · --s5 24 · --s6 32 · --s7 48"
 ---
 
 # Design System: Eesti keel
 
 ## Overview
 
-**Creative North Star: "The Language Path"**
+**North star: "Laudtee" — the boardwalk across the bog.** Estonian bogs are
+crossed on boardwalks, plank after plank, each laid before the next can be
+walked. The path to the exam is built the same way: a topic is a plank, laid
+only when code has checked the learner's answers. The metaphor draws the path,
+the progress and the rewards, and keeps the product honest.
 
-A modern, all-in-one study app for learning Estonian day to day. Three clear modes (Õppimine, Kordamine, Eksam) make it obvious where you are and easy to switch between practice, review and A2/B1 exam preparation. Progress is rich and rewarding: streaks, badges, progress rings, celebratory moments. It should feel good to move along the path, and it is free to be a redesign of what exists today.
+The ground is **near-white, cool and quiet** (`#f8fafc` page, white sheets),
+never cream. The colour is **Estonian blue** from Brand Estonia (`#0030DE`),
+with its partners Paldski, Liivi, Narva and Pärnu, black text (Mustkivi) and
+white. One warm note, Haapsalu sand, is reserved for rest and reward. Colour
+otherwise belongs to an information role, never to a language.
 
-The world starts from warm paper and forest-green ink, and may grow a wider palette. The interface speaks in a modern sans, web fonts allowed. The language itself (reading texts, drill prompts) is set in a book serif, so Estonian material always looks like material, not chrome. Density is moderate: one reading column of about 720px. On a phone it becomes a thumb-first stack with the three modes at the bottom. On a wide screen it becomes a three-column desk. Estonian labels carry a small Russian gloss beneath them. The gloss is part of the typography, not an afterthought.
+The interface follows **Apple's Liquid Glass rule of two layers**: navigation
+and controls float on glass (the spine, the phone dock, switches, the word
+card, the celebration); content sits on solid white sheets. Behind everything
+is a faint sky of blue glows, so the glass has light to bend. Glass turns solid
+with `prefers-reduced-transparency`, `prefers-contrast: more`, or the app's own
+**Vähem läbipaistvust** switch (Safari does not report the system setting).
 
-Surfaces may be elevated: cards with layered shadows, subtle modern gradients, and small physical cues (a card lifts, a primary button presses into its darker bottom edge). Depth should still answer the hand, and never fight legibility.
-
-**Key Characteristics:**
-- Estonian Forest is the brand accent (action, the correct form, success); further accents are allowed for gamification, categories and themes.
-- Colour by role: slate means a word's meaning, amber is a caution or the object-case weakness, red is the struck-out wrong form.
-- A serif for Estonian material and a sans for the interface. Third-party web fonts and font providers are allowed.
-- Estonian label first, Russian gloss beneath in small muted type.
-- Clear, modern, motivating: streaks, badges, progress rings and celebratory animation are welcome.
+One typeface, **Geologica** (Monokrom, OFL), self-hosted under
+`eesti/web/fonts/`. The interface is set soft; Estonian material is set in the
+same face at a sharper cut (`--cut`, SHRP 55), so it reads as material without a
+second family. Icons are **Phosphor** (MIT), inlined in `eesti/web/js/icons.js`:
+duotone for navigation and marks, bold for the glyphs inside buttons.
 
 ## Colors
 
-A warm off-white paper with near-black ink and a deep forest green as the brand accent. Multi-accent palettes are allowed; keep information roles (meaning, caution, wrong) consistent. The dark theme mirrors each role one-for-one (values in `eesti/web/app.css` and `.impeccable/design.json`).
+Tokens live in `eesti/web/app.css` (`:root`), mirrored for dark under
+`prefers-color-scheme: dark` and `[data-theme="dark"]`.
 
-### Primary
-- **Estonian Forest** (`--accent`): the brand accent. It marks primary actions, the selected tab, the correct inserted form, the drill blank, mastered and in-progress path states, focus rings, caret, selection and the select chevron.
-- **Forest Deep** (`--accent-deep`): the pressed bottom edge of primary buttons, and text in success banners.
-- **Forest Mist** (`--accent-soft`): the selected-chip fill, hover fill, tag fill, picked choice and empty-state mark.
-- **On Forest** (`--on-accent`): text on a filled forest button. It is white in light mode and dark in dark mode, because white on mint fails contrast.
+| Role | Token | Light | Dark | Meaning |
+|---|---|---|---|---|
+| Estonian blue | `--accent` | #0030de | #00c3ff (Narva) | Action text, selection, focus, "now", readiness petals |
+| Button fill | `--btn` / `--btn-2` | #0030de → #0062f5 | #0062f5 → #2f7bff | Prominent buttons, with white text |
+| Liivi | `--accent-deep` | #000087 | — | Tinted-button text, hover |
+| Accent mist | `--accent-soft` | #e6eefd | #0c2544 | Selected fills, next-step strip |
+| Narva | `--sky` | #00c3ff | #00c3ff | Light in the hero, chart glow |
+| Haapsalu | `--sand` | #fceec8 | #e8d9ae | Rest and reward, sparingly |
+| Sammal | `--good` | #17804f | #4fcb8c | Right answer, mastered |
+| Jõhvikas | `--bad` | #cc2f45 | #ff7d8c | The wrong form; kept rare |
+| Murakas | `--warn` / `--warn-fill` | #955400 / #f0a020 | #f5b451 | Caution, untouched exam part, `obj-case` |
+| Järv | `--gloss` | #0b7285 | #52d0da | What a word means, and only that |
+| Mustkivi | `--ink` | #0f172a | #eef2f8 | Text |
+| Page / sheet | `--bg` / `--panel` | #f8fafc / #ffffff | #0b1120 / #131c2e | Page and content sheets |
+| Evening | `--night-a/b/c` | #000a3d → #000087 → #0030de | darker | The hero: a Baltic evening gradient with Narva light |
+| Glass | `--glass` + rim/edge/shadow | white 64% | slate 62% | The navigation layer |
 
-### Secondary
-- **Gloss Slate** (`--gloss`): what a word *means*, and only that: glosses, definitions, examples, the flashcard meaning, and reference topics on the path.
-
-### Tertiary
-- **Amber Note** (`--warn`) with **Amber Wash** (`--warn-soft`): warning banners, missed dictation words, "hard" words in reading, the `obj-case` correction stripe, and exam parts not yet ready.
-- **Correction Red** (`--bad`): the struck-through wrong form, a wrong verdict, and the recording dot. It is kept rare on purpose.
-
-### Neutral
-- **Paper** (`--bg`): the page, and the recessed insets inside a panel (drills, choices, inputs, list rows).
-- **Sheet** (`--panel`): panels, rail cards and chips: the raised surfaces.
-- **Ink** (`--ink`): primary text. **Ink Soft** (`--ink-2`): subtitles that must be read. **Pencil** (`--muted`): hints, meta, glosses under labels, inactive tabs.
-- **Rule Line** (`--line`): every 1px border. **Rule Faint** (`--line-soft`): dividers inside a card. **Tint** (`--tint`): skeletons, the info banner, segmented fills.
-
-### Named Rules
-**The Colour-by-Role Rule.** A colour belongs to an information role, not to a language. Slate is meaning, amber is caution, red is wrong. Russian text is not coloured because it is Russian.
-
-**The Never-Hue-Alone Rule.** Every state that has a colour also has an icon or a shape: path states, exam-part marks and external (dashed) rows.
+**Colour by role.** Blue acts, moss is right, cranberry is wrong, cloudberry
+cautions, lake means. Russian text is never coloured for being Russian.
+**Never hue alone.** Every coloured state also has a shape: node icons,
+filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
 ## Typography
 
-**Interface Font:** a modern sans; the system sans (`ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`) is the fallback stack
-**Reading Font:** a book serif; Iowan Old Style (with Palatino and Georgia) is the fallback stack
-
-**Character:** A clean sans for everything the app says, and a warm book serif for everything the language says. Web fonts from Google Fonts, Bunny Fonts, Fontsource or self-hosted files are authorised; keep a system fallback and `font-display: swap`.
-
-### Hierarchy
-Every size is a token in `eesti/web/app.css` (`--fs-*`). Ten roles, nothing under 11px, no half-pixel steps.
-- **Display** (650, clamp 28→44px, 1.15): the flashcard word only.
-- **Title** (`--fs-title` 21px, `--fs-title-wide` 23px at ≥1080px, 650, −0.022em): the app title and the rail's big figure.
-- **Lead** (`--fs-lead` 19px, 600–650): the app title on a phone, the flashcard meaning, the rail's next topic, a set's score.
-- **Prompt** (`--fs-prompt` 18.5px, serif 400/1.6): drill sentences, with the blank in bold forest.
-- **Reading** (`--fs-read` 17.5px, serif 400/1.8): Lugemine prose and the reader's title.
-- **Input** (`--fs-input` 16px): text fields and selects, so iOS never zooms on focus.
-- **Body** (`--fs-body` 15px/1.55): the default, section titles and filled buttons.
-- **UI** (`--fs-ui` 14px): controls, tabs, verdicts, explanations under a verdict.
-- **Note** (`--fs-note` 13px/1.6, max 62ch, Pencil): explanatory paragraphs, meanings in lists, the task line.
-- **Meta** (`--fs-meta` 12px, Pencil): hints, counts, rail-card labels (600, +0.06em, UPPERCASE).
-- **Gloss** (`--fs-gloss` 11px, Pencil): the Russian line under an Estonian label, tags, level and count badges.
-
-### Named Rules
-**The Serif-Is-Estonian Rule.** The serif is reserved for Estonian material the learner reads or completes. Interface text never uses it.
-
-**The Steady Digits Rule.** Every number that changes in place (scores, counts, the ring, badges, rail figures) uses `tabular-nums`.
-
-**The 16px Field Rule.** Text inputs and selects are 16px, so iOS never zooms on focus.
+- **Hero** (600, clamp 38→60px, cut): the current topic's name.
+- **Title** (800, 30px): the page title, hidden on a phone where the tab row
+  already names the place.
+- **Prompt** (24px, 28px from 720px, cut): drill sentences. The blank is a blue
+  rule that fills with the right form once graded.
+- **Reading** (19px/1.8, cut, max 66ch): Lugemine prose; the reader's title up to 36px.
+- **Answer** (18px/500, cut): answer fields. What the learner types is Estonian.
+- **Lead / body / ui / note / meta / gloss**: 20 / 16 / 15 / 14 / 13 / 12px.
+- Numbers that change in place use `tabular-nums`. Fields are at least 16px, so
+  iOS never zooms on focus.
 
 ## Layout
 
-The spacing scale is 4px-based (`--s1`…`--s6`). Gaps between stacked items in a panel come from a single flow rule: `--s4` between siblings, with no top margin on the first child.
+- **Phone (<720px, and touch screens under 560px tall).** A top row with the mark,
+  the name and two icon buttons; the open mode's tabs as a scrolling row where the
+  selected tab sits on a small glass capsule; the page; and a **floating glass
+  dock** of the three modes, clear of the home indicator (56px targets; the open
+  mode is tinted blue). The dock hides while typing. Gutter 16px plus safe areas.
+- **Spine (≥720px and ≥560px tall; iPad mini).** A **floating glass sidebar**
+  inset 12px from the window, 32px radius: brand, the three modes with glosses,
+  the open mode's tabs, and the two actions at its foot.
+- **Desk (≥1080px).** Spine 264px, a working column up to 880px, and a 320px
+  context rail: the readiness flower, the next topic, the review forecast and
+  the milestone seals. A rail card hides while its own panel is open.
+- **iPhone landscape (touch, ≤500px tall).** One line of chrome; the hero steps
+  aside; a 44px dock.
 
-- **Phone (<720px):** a single column with 20px gutters. Panels bleed edge to edge with no radius and no shadow. The three **modes** are a fixed, translucent thumb bar at the bottom, with 54px targets showing an icon and label. The **skills** are a horizontally scrolling chip row at the top, with a fade at the trailing edge. Sticky word cards sit above the thumb bar.
-- **Tablet (720–1079px, height ≥560px; iPad mini portrait):** a 168px rail of skills with their Estonian labels beside the column. The modes become a segmented control in the header.
-- **Phone in landscape (touch, height ≤500px; iPhone 17 at 874×402):** the phone's chip row with the glosses dropped, side gutters that clear the Dynamic Island (`env(safe-area-inset-*)`), and Rada's topic line and button on one line.
-- **Drill sets, every device:** one unanswered item at a time, with its position; Enter moves to the next. The next set is offered in the end card, not above the set.
-- **Desktop (≥1080px):** a 1320px grid with a 248px sticky skills column (Estonian label plus Russian gloss), the reading column, and a 300px sticky context rail of cards.
-- **Filter rows:** labels sit above their controls. Below 560px each filter takes the full width.
-- **Touch:** on `hover:none` devices, every control inside a panel is at least 44px tall.
+## Controls
 
-## Elevation & Depth
+- **Buttons are capsules.** *Prominent* (`.go`, `.primary`): the blue fill with
+  light running over it (a white top gradient and rim), never a flat block; it
+  brightens under the pointer and settles to 97% when pressed. One per view.
+  *Tinted* (`.ghost`): blue at 10%, deep-blue text, 17% on hover. *Plain*
+  (`.linky`): an underlined link. Small (`.logbtn`, tutor offer, topic actions):
+  tinted, 34–40px. Icon buttons: 42px circles (44px on touch), tinted on hover.
+  Disabled: 45% opacity.
+- **Fields are filled.** A soft Pahkla well, no border at rest; on focus it turns
+  white with a blue edge and a 4px blue halo. Labels sit above with the Russian
+  gloss on the same line. The drill's answer field is 56px, in the cut.
+- **Switches** (`.levels`): a glass track, the chosen state a white capsule.
+- **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
+  Home and End, with only the selected tab in the Tab order.
 
-At rest, a panel carries a soft layered shadow and a 1px rule line. Cards may be elevated, and subtle modern gradients (accent washes, hero and reward surfaces) are allowed. Depth also responds to the hand: cards lift, buttons press.
+## Signature components
 
-### Shadow Vocabulary
-- **Rest** (`--shadow`): panels and the selected segmented tab.
-- **Lift** (`--lift`): card hover, together with a 1px rise and a forest border.
-- **Floating card** (`0 4px 18px rgba(0,0,0,.13)`): sticky word cards only.
+- **Hero (Praegu).** The evening gradient with Narva light, bog-map contour
+  lines and a barn swallow (suitsupääsuke) gliding in the corner. It holds the
+  resume topic, its Russian name and level, the **gate** (ten slots for the
+  topic's last answers against 8 of 10), and the **boardwalk**.
+- **Laudtee.** An SVG plank path through a window of the curriculum around the
+  resume topic (5–13 nodes by width). Mastered nodes are moss with a tick; the
+  resume node is white with a slow halo; open nodes are outlined in Narva; theory
+  is dashed. *Kogu rada* opens one vertical boardwalk per level.
+- **Beads.** One per item in a set: waiting, now (pulsing), right, wrong. The end
+  card repeats them.
+- **Stage and drill.** A white sheet; one item at a time; the blank fills with
+  the right form; the verdict shows the attempt struck through, the right form
+  and the rule in Russian; a recorded miss offers *Selgita*. On a phone, earlier
+  answers fold to their sentence and verdict.
+- **Rukkilill, the readiness flower.** Four petals for the four exam parts, three
+  segments each lighting one contact toward `contact_target`; Rääkimine hatched as
+  unmeasured. Contact, never a prediction. On Ülevaade beside the verdict, and in the rail.
+- **Rütm.** Twelve weeks of days, Monday at the top, in four tints of blue; the
+  headline counts active days in the last four. Rest is simply light — nothing
+  resets.
+- **Forecast.** Cards coming due over fourteen days; today solid, later days
+  lighter. In Järjekord, Edenemine and the rail.
+- **Seals (Märgid).** The level's milestones as seals whose ring fills with the
+  count and turns solid blue when complete. They award nothing.
+- **Plan strip.** The day as time, a segment per block as long as its minutes,
+  coloured and glyphed by kind.
+- **Celebration.** Mastery only: a flower blooms on an evening card, announced
+  through the page's polite live region. Any key or tap dismisses it; under
+  reduced motion only the announcement remains.
 
-### Named Rules
-**The Depth-Answers-Touch Rule.** A surface gains elevation only in response to hover or press. On touch devices the hover lift is disabled so it never latches.
+## Motion
 
-## Shapes
-
-Softly rounded, and more rounded as a surface gets bigger, on one scale: panels 18px, cards 14px, controls 12px, tiles 10px, tags and level badges 5px. Pills (999px) are reserved for things you switch between: mode buttons, skill chips, icon buttons and count badges. Borders are always 1px Rule Line. The exceptions are the 3px Forest Deep bottom edge of primary buttons, the 3px left stripe on correction cards, and dashed borders on rows that leave the app.
-
-## Components
-
-### Buttons
-Pressable, calm, clear.
-- **Shape:** gently rounded (12px), at least 44px tall, Body size (15px) at 600.
-- **Primary (`.go`, `.primary`):** filled forest with On-Forest text and a 3px Forest Deep bottom edge. On press it drops 2px into that edge without reflowing. Hover brightens it slightly.
-- **Ghost:** transparent with a 1px rule line. Hover fills Forest Mist with a forest border and text.
-- **Icon button:** a round button with a Pencil icon, 36px with a mouse and 44px on touch. Hover turns it forest.
-- **Ratings:** the three review ratings sit in one row of equal thirds, at least 48px tall.
-
-### Chips and tabs
-- **Mode switch:** a segmented pill on desktop, where the selected tab is Sheet with a rest shadow. On a phone it is the bottom thumb bar, where the selected tab is Forest Mist with forest text.
-- **Skill chips (phone):** 44px pills on Sheet with a 1px line. The selected chip is Forest Mist with forest text at 600. On desktop they become outlined tags, and at ≥1080px a sidebar list with the gloss.
-- **Tag / level badge:** 5px radius, small uppercase or tabular text. B1 and higher are tinted forest.
-
-### Cards and containers
-- **Panel:** Sheet, 18px, 1px line, rest shadow, 22–24px padding.
-- **Drill:** a Paper inset, 14px, 24/16px padding, holding its position ("3 / 10"), the serif prompt and the task line (word · FORM · gloss · level). A set shows one unanswered drill at a time; for a choice topic (object case) the form is not printed before the answer.
-- **Choice:** a full-width Paper tile, 10px. Picked is a forest border on Forest Mist. Choices are stacked, never side by side.
-- **Library row / word tile:** a Paper or Sheet tile, 10–12px radius: a title with one meta line under it. It lifts on hover. A dashed border means the row is external.
-- **Rail card:** Sheet, 14px, with an uppercase Label heading. The first card is the next topic with a Harjuta link; a card that repeats the open panel is hidden there.
-- **Next step:** a Forest Mist strip that leads a report screen with the one action to take next.
-
-### Inputs / Fields
-- **Style:** a Paper fill, 1px line, 12px radius, 44px tall, 16px text. Selects use a custom forest chevron.
-- **Focus:** a 2px forest outline with a 2px offset, applied everywhere through `:focus-visible`.
-- **Disabled:** 50% opacity.
-
-### Feedback
-- **Banner:** amber for a warning, Tint for info, Forest Mist for success. Each has a 12px radius and 13px/1.6 text.
-- **Correction card:** a Paper card with a 3px forest left stripe (amber for `obj-case`). The wrong form is red and struck through, and the right form is forest and bold.
-- **Verdict:** a forest or red line, 14px. A wrong answer shows the learner's attempt struck in red, then the right form in forest, then the rule in Russian.
-- **Set end card:** Forest Mist, 14px: "Komplekt tehtud", the score in Lead type, the missed sentences with the right form, "Korda vigu" and "Uued laused".
-
-### Progress ring (signature)
-A 44px conic ring that fills in forest and brightens along the arc, with a tabular percentage inside. It animates over 700ms. It represents accumulated work; rings, badges and streak counters follow the same style.
-
-### Flashcard
-One word gets the whole card: Display type, a speak button, and a meaning in slate that appears with a 180ms, 4px drop (removed under reduced motion).
+140ms response, 240ms state change, 420ms arrival, `cubic-bezier(.22,1,.36,1)`.
+Beads pop, petals grow in turn, the plan strip and the forecast rise, verdicts
+drop into place, the resume node breathes, the swallow glides. Under
+`prefers-reduced-motion` every animation, delay and transition collapses and
+script scrolling stops being smooth.
 
 ## Do's and Don'ts
 
-### Do:
-- **Do** use tokens for every colour and spacing (`var(--…)`, `--s1`…`--s6`). Never write a hex value in a rule.
-- **Do** give each information role its own treatment, and pair every state colour with an icon or shape.
-- **Do** keep Estonian material in the serif and the interface in the sans.
-- **Do** put the Russian gloss under an Estonian label as small Pencil text (11px).
-- **Do** keep at least 44px targets on touch, and 54px in the phone thumb bar.
-- **Do** honour `prefers-reduced-motion`: lifts, presses, reveal and pulse all switch off.
-- **Do** check every screen at 1440×900, on iPhone (402×874 and 874×402) and on iPad mini (744×1133), in both themes.
+**Do:** use tokens for every colour and the `--s1`…`--s7` scale; keep glass on
+the navigation layer and content on solid sheets; keep Estonian material in the
+cut; keep 44px touch targets; check 1440×900, 402×874, 874×402 and 744×1133 in
+both themes.
 
-### Don't:
-- **Don't** let gamification bury the lesson: motion and rewards follow the learner's work, and honour `prefers-reduced-motion`.
-- **Don't** colour text by its language.
-- **Don't** drop the fallback font stacks or the contrast and touch-target minimums.
-
-### Gamification
-Streaks, XP, badges, progress rings, level-ups and celebratory animation (confetti, bursts) are authorised. Readiness may be shown per exam part and as one unified overall progress score.
+**Don't:** use cream or grey-beige grounds; put paragraph text or drill inputs on
+glass; fill more than one or two buttons per view; add streaks, points or a single
+readiness percentage; celebrate anything but code-decided mastery; colour text by
+its language.

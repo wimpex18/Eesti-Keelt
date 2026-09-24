@@ -62,7 +62,7 @@ $("#dictPlay").onclick = async () => {
     const el = out.querySelector("audio");
     el.currentTime = 0; el.play().catch(() => {});
   } catch (e) {
-    $("#dictState").textContent = "Звук не пришёл: " + e.message;
+    $("#dictState").textContent = "Звук не загрузился: " + e.message;
   } finally { btn.disabled = false; }
 };
 
@@ -187,7 +187,7 @@ async function openListenItem(row) {
 $("#speakBtn").onclick = async () => {
   const text = $("#ttsText").value.trim();
   if (!text) return;
-  const btn = $("#speakBtn"); btn.disabled = true; setLabel(btn, "Синтезирую…");
+  const btn = $("#speakBtn"); btn.disabled = true; setLabel(btn, "Готовлю звук…");
   const out = $("#ttsOut"); out.innerHTML = "";
   try {
     const r = await api("/api/speak", {

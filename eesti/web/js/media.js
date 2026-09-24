@@ -94,6 +94,6 @@ export async function speakWord(word, onError, tag = "") {
     await audio.play();
   } catch (e) {
     if (url) URL.revokeObjectURL(url);
-    if (onError) onError("Звук не пришёл: " + e.message);
+    if (onError) onError("Звук не загрузился: " + e.message);
   }
 }

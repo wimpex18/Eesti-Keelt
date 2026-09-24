@@ -1,25 +1,25 @@
 # Handoff
 
 ## Current state
-The production deep smoke passes for the current image,
-Cloudflare Access and origin guard, Workers AI grammar, Ekilex, EKI audio, HARNO
-PDF rendering, and reading content. The smoke does not test native exam sidecars,
-microphone recognition, or browser notification delivery.
-
-Cloud Run has one instance and mounted EKI audio and HARNO exam storage. Workers
-AI GPT-OSS-120B remains the automatic hosted grammar/tutor lane, with
-deterministic fallback; Cloudflare Workers AI is production ASR. Local EstLLM is
-an evaluation-only Ollama model stored outside Git. Native A2 and B1 reading
-controls require private sidecars under `data/exam/`; other PDFs remain
-ungraded. The owner has a verified private off-account event export.
+The production deep smoke passes for the current `main` image. Cloud Run has one
+instance with mounted EKI audio and HARNO exam storage; Workers AI GPT-OSS-120B
+is the automatic grammar/tutor lane with deterministic fallback, and Cloudflare
+Workers AI is production ASR. Native A2/B1 reading controls need private
+sidecars under `data/exam/`.
 
 ## Current task
+Review and merge PR #69, the "Laudtee" interface (`DESIGN.md`): Estonian blue
+on near-white, Geologica and Phosphor self-hosted, glass navigation, the gate,
+boardwalk, readiness flower, practice rhythm and review forecast. Backend
+additions are read-only projections: `contact`/`contact_target` on readiness,
+`ru`/`gate`/`resume_recent` on `/api/curriculum`, `rhythm` on `/api/status`,
+`forecast` on `/api/review/stats`, and `/fonts/{name}`.
 
-Review and merge the documentation cleanup PR. It removes stale release notes
-and keeps active documentation aligned with the shipped code. No active runtime
-code changes are included. Uncommitted paths after commit: none.
+## Next step
+After merge, run `smoke` with `deep: true`, install the PWA again on the phone
+(the icon changed) and look at it in both themes. Uncommitted paths after
+commit: none.
 
 ## Remaining checks
-
 Verify the two native reading controls in production, actual Chrome reminder
 delivery, and ASR on learner recordings reviewed inside `Hindamiskomplekt`.

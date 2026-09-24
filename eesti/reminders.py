@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timezone
 
 #: Fewer than this is not worth a notification: the queue will still be there.
 DUE_ENOUGH = 10
@@ -200,10 +200,3 @@ def choose(**changes) -> dict:
     evidence.record("reminder-settings", now)
     return now
 
-
-def next_check(prefs: dict, now: datetime | None = None) -> datetime:
-    """When the cron's next look could matter — for documenting the schedule."""
-    here = _local(now)
-    wake = here.replace(hour=prefs["hour"], minute=0, second=0, microsecond=0)
-    return wake if wake > here else datetime.combine(
-        here.date() + timedelta(days=1), time(prefs["hour"]), tzinfo=here.tzinfo)

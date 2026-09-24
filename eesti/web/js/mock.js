@@ -80,8 +80,12 @@ async function start(part) {
   const out = $("#mockOut");
   out.innerHTML = `<p class="hint">Загружаю…</p>`;
   let section;
+  // The level the section was sat at, fixed now: switching A2/B1 mid-section must
+  // not file the result under the other level.
+  const level = examLevel();
   try {
-    section = await (await api(`/api/mock/${examLevel()}/${part}`, null, "GET")).json();
+    section = await (await api(`/api/mock/${level}/${part}`, null, "GET")).json();
+    section.level ??= level;
   } catch (e) {
     out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
     return;
@@ -188,8 +192,8 @@ async function finish(ranOut, seconds) {
 
   const verdict = $("#mockVerdict");
   try {
-    const r = await (await api(
-      `/api/mock/${examLevel()}/${section.part}`, body)).json();
+    const level = section.level || examLevel();
+    const r = await (await api(`/api/mock/${level}/${section.part}`, body)).json();
     const spent = Math.round(r.seconds / 60);
     const d = r.detail || {};
     const score = r.correct === null

@@ -12,6 +12,14 @@ from pathlib import Path
 
 from ..config import LEVELS
 
+
+
+def _asr_names() -> tuple[str, ...]:
+    """The speech engines `eval --suite asr` can score, from the provider module."""
+    from ..providers.asr import EVAL_NAMES
+
+    return EVAL_NAMES
+
 def _providers() -> tuple[str, ...]:
     """Every provider the client knows, read from `llm.PROVIDERS` at parser-build time."""
     from ..providers.llm import PROVIDERS
@@ -646,8 +654,7 @@ def register(sub) -> None:
     p.add_argument("--output", help="asr only: save private JSON results (under data/eval)")
     p.add_argument(
         "--engine", action="append",
-        choices=("workers-ai", "whisper.cpp", "faster-whisper", "voxtral",
-                 "openrouter-audio", "hf-whisper", "chain"),
+        choices=(*_asr_names(), "chain"),
         help="asr only: which engine to score (repeat twice to compare them "
              "paired on the same clips); default is workers-ai")
     p.add_argument("--provider", default="openrouter",

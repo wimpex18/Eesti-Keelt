@@ -43,7 +43,7 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
     remembered below 80 %;
   - a mastered topic whose cards fade, or that has been untouched for 60 days,
     comes back as a refresh. Mastery itself is never revoked.
-- **Today's plan** (`planning.py`, Rada's "Täna") fills a time budget in this
+- **Today's plan** (`planning.py`, Rada's "Plaan") fills a time budget in this
   order:
   1. due reviews (at most 40 %);
   2. the weakest rule, showing the last mistake in it again;

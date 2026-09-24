@@ -32,6 +32,12 @@ export const md = s => esc(s)
   .replace(/\*(.+?)\*/g, "<em>$1</em>");
 
 
+/* How to scroll: smoothly, unless the learner asked the system for less motion
+   (a smooth `behavior` passed in script overrides the stylesheet's reduced motion). */
+export const glide = () =>
+  matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+
+
 export function once(fn) {
   let done = false;
   return () => { if (!done) { done = true; fn(); } };

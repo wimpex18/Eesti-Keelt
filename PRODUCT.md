@@ -1,7 +1,5 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
 web
@@ -60,8 +58,8 @@ advisory feedback. The app says plainly what was checked and by what.
 - `level` means CEFR and only official HARNO/EIS material has one; `band`
   (`kergem`/`keskmine`/`raskem`) is relative difficulty.
 - No linguistic fact without a source (Vabamorf forms, EKK rules).
-- Offline-capable PWA. Web fonts, CDN resources and media APIs are allowed;
-  keep system fallbacks.
+- Offline-capable PWA. Fonts and icons are self-hosted (the page asks no font
+  or icon host for anything); media APIs are allowed; keep system fallbacks.
 - Data access is open to caching, batching and API integration. Keep source
   attribution (`/api/sources`).
 - The repository targets the latest stable Python and dependencies.

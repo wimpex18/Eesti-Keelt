@@ -499,3 +499,21 @@ class TestCheckpointResult:
                            json={"asked": 5, "correct": 6}).status_code == 400
         assert client.post("/api/checkpoint/X9/result",
                            json={"asked": 5, "correct": 5}).status_code == 404
+
+
+class TestTheGateInTheHero:
+    """The hero draws the resume topic's last answers against the mastery gate; the
+    slots must be that topic's answers, oldest first, or a right answer would light
+    the wrong slot."""
+
+    def test_the_resume_topics_answers_come_back_in_order(self, client):
+        resume = client.get("/api/curriculum").json()["resume"]
+        data, item = _first_item(client, resume)
+        for given in ("kindlasti-vale", item["answer"]):
+            client.post("/api/practice/answer", json={
+                "topic": resume, "prompt": item["prompt"], "answer": item["answer"],
+                "given": given, "token": item.get("token", ""),
+            })
+        body = client.get("/api/curriculum").json()
+        assert body["gate"] == {"correct": 8, "window": 10}
+        assert body["resume_recent"] == [False, True]

@@ -116,10 +116,21 @@ def status() -> dict:
     """Every section with its own measure, and no overall percentage."""
     from ..overview import overview
 
-    return overview(
+    body = overview(
         progress=progress_db(), reviews=review_db(), vocabulary=vocab_db(),
         words=db(), content=content_db(),
     )
+    # The practice rhythm: events per day over twelve weeks, drawn as a calendar.
+    # No log yet is an empty rhythm, not an error.
+    from .. import evidence
+    from ..learner import daily_activity
+
+    try:
+        with evidence.connect() as log:
+            body["rhythm"] = daily_activity(log)
+    except Exception:  # noqa: BLE001 - an unreadable log is shown as no rhythm
+        body["rhythm"] = []
+    return body
 
 
 @router.get("/api/engines")
