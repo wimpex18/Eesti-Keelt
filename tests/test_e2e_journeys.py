@@ -1272,16 +1272,46 @@ class TestAGrammarCardIsAnswered:
         }""", [live_server, lemma, prompt])
 
         page.click('.modes button[data-mode="revise"]')
-        page.click("#loadReview")
-        card = page.locator(".drill", has_text=lemma).first
-        card.wait_for(timeout=15000)
+        card = self._reach(page, live_server, lemma)
         assert card.locator("button[data-r]").count() == 0
         card.locator("input").fill("läheksin")
-        card.locator("button[data-check]").click()
+        if page.viewport_name == "phone":
+            # The phone keyboard's Enter: emulation has no keyboard, so a tap on
+            # Kontrolli blurs the field and the mode bar, hidden while typing,
+            # comes back under the pointer before the click lands.
+            card.locator("input").press("Enter")
+        else:
+            card.locator("button[data-check]").click()
         page.wait_for_selector(f".drill.done:has-text('{lemma}') .verdict.ok", timeout=15000)
         verdict = card.locator(".verdict").inner_text()
         assert "Верно" in verdict and "снова" in verdict, verdict
         assert not page.errors, page.errors
+
+    @staticmethod
+    def _reach(page, base, lemma):
+        """Open the queue with this test's card at its head.
+
+        The queue shows one unanswered card at a time, and the server is shared:
+        other journeys leave cards due (a wrong answer queues one), which would
+        stand in front of this card. They are rated "easy" first, out of today.
+        A card whose learning step falls due in between is cleared on another
+        pass.
+        """
+        for _ in range(3):
+            page.evaluate("""async ([base, lemma]) => {
+                const due = (await (await fetch(base + "/api/review?limit=1000")).json()).items;
+                for (const it of due.filter(it => it.lemma !== lemma))
+                  await fetch(base + "/api/review/grade", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({id: it.id, rating: "easy"}),
+                  });
+            }""", [base, lemma])
+            page.click("#loadReview")
+            head = page.locator("#reviewOut > .drill").first
+            head.wait_for(timeout=15000)
+            if lemma in head.inner_text():
+                return head
+        raise AssertionError(f"another card stayed ahead of {lemma}: {head.inner_text()}")
 
 
 #: axe-core, the accessibility rule engine, as a dev dependency (`package.json`).
