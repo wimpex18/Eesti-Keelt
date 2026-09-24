@@ -101,10 +101,10 @@ to the subscription (RFC 8291) and signed with VAPID (RFC 8292). A tag keeps
 one fact from arriving twice; a 404 or 410 from the push service drops the
 subscription.
 
-The current Worker has all three VAPID bindings and its hourly cron configured
-(verified via Cloudflare settings on 2026-09-23). The same pair is stored in
-repository secrets for the deploy workflow and privately in the ignored `.env`.
-Chrome on the owner's Mac subscribed on 2026-09-23 with permission granted;
+The Worker has all three VAPID bindings and its hourly cron configured. The
+same pair is stored in repository secrets for the deploy workflow and privately
+in the ignored `.env`.
+Chrome on the owner's Mac is subscribed with permission granted;
 delivery of an actual notification remains unverified. The smoke workflow
 checks key configuration separately from browser delivery.
 
@@ -135,10 +135,8 @@ all, while the **files** — above all the listening recordings, the half a text
 cannot carry — need this mount. Where they are missing the catalogue says a
 task is not downloaded and links out to harno.ee; `library._file_here` checks
 rather than assumes, so the same database is honest on both machines.
-An older catalogue published before the download has no `meta.file`; the app
-also checks the mounted path derived from HARNO's URL using the downloader's
-filename rule. This lets a later mount work without replacing the reading
-corpus in production.
+If a catalogue row lacks `meta.file`, the app also checks the mounted path
+derived from HARNO's URL using the downloader's filename rule.
 
 ## The reading corpus
 

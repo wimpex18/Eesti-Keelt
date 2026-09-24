@@ -24,7 +24,7 @@ the same change that makes it untrue.
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation (graded) from sentences read by EKI's own readers where they exist, the corpus otherwise; TartuNLP TTS on any text; ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud with comparison, open-answer feedback over the transcript, `Vestlus` (a model plays the partner), and — under `cli serve` only — optional saving from ordinary mic practice into `Hindamiskomplekt`. The learner can play a saved answer, correct tentative ASR text in the page and confirm what was actually said for the private speech eval set. Ordinary practice audio stays unsaved. Each answer is recorded with what code can measure — answered or not, words, pace, and the share of words Vabamorf does not know, which flags a transcript the recogniser struggled with. Readiness reports that practice and still refuses to judge the part. |
-| **Exam** | HARNO's own shape as data (`eesti/exam.py`, checked 2026-09-19): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
+| **Exam** | HARNO's own shape as data (`eesti/exam.py`): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
 | **Official tasks** | HARNO PDFs, recordings and EIS tasks open inside `Eksam`. `cli prepare-exam` writes private page-aware PDF sidecars with individual figures and optional Estonian OCR. A visually checked A2 reading PDF supplies six native choices; a B1 reading PDF supplies nine situation-to-ad matches. Both use their printed keys and are practice only. The other 27 task PDFs remain ungraded page text and figures, plus original pages. EIS scoring still opens on its own site. Absent downloads link out. Private study only; every task carries © Haridus- ja Noorteamet (`docs/exam-native.md`). |
 | **Mock** | `Proovieksam`: one exam part on the exam's own clock, or all four in the exam's order (`eesti/mock.py`). Reading is gap-fill in corpus sentences, listening is dictation, writing is HARNO's task shape graded on length plus the deterministic checks (spelling, agreement, rection), speaking is the question bank and is never scored. Each section says what it really is, and counts as evidence for its part. |
 | **Readiness** | Four exam parts reported separately with reasons in Russian; a section sat on the clock counts as contact for its part. |
@@ -65,33 +65,30 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   speaking panel says the recording leaves the device. Local whisper.cpp works
   only under `cli serve`.
 - **The `tuttav` word status has no control** — it sits on the same side of
-  "settled" as `õpin`; kept in the model to avoid a migration.
+  "settled" as `õpin`; the stored status remains supported.
 
 ## Known issues
 
 - **Grammar is qualified, not provider-count driven.** Workers AI GPT-OSS-120B
   is the only automatic hosted grammar/tutor lane, with deterministic offline
-  degradation. Other LLMs and public GEC/est→est normalization remain explicit
-  evaluation candidates. Fresh Mistral/newer-model comparisons are recorded in
-  `docs/evaluations/providers.json` and explained in `docs/ai-providers.md`.
-- **Public GEC remains unavailable.** Both endpoints timed out on all three
-  12-second probes on 2026-09-23; longer probes on 2026-09-22 returned HTTP 500
-  near 60 seconds. It is removed from automatic traffic. TTS and translation
-  independently pass actual POST checks and remain in use.
+  degradation. Other LLMs, public GEC and est→est normalization remain explicit
+  evaluation candidates; see `docs/ai-providers.md`.
+- **Public GEC is not a production dependency.** It is excluded from automatic
+  traffic; run its diagnostic and quality eval before considering it again.
+  TTS and translation remain separate services.
 - **Allowances are not billing caps.** Workers AI speech and text share the
   account allocation; local counters do not measure all account usage. The
-  weekly grammar eval now checks the actual production lane.
+  weekly grammar eval checks the production lane.
 - **Source refreshes preserve usable data.** Empty Selges responses keep the
   existing corpus; EIS failure does not stop HARNO. Deleting source content
   clears its links. Content upload rebuilds topic links before publishing and
   refuses without the publishing machine's built word list.
 - **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
-  deployed. Chrome on the owner's Mac subscribed with permission granted on
-  2026-09-23; an actual notification has not arrived yet.
-- **Exam files are mounted but production still links out.** The deployed
-  catalogue was published before the files were downloaded and lacks file
-  pointers. The pending app change derives HARNO paths from official URLs;
-  runtime access must be checked after deployment.
+  deployed, and Chrome on the owner's Mac is subscribed; actual delivery has
+  not been confirmed.
+- **Native exam sidecars need a production check.** The current-image deep
+  smoke verifies HARNO PDF access and rendering, but does not exercise the two
+  interactive reading controls backed by private sidecars.
 - **Browser journeys are not in CI.** They protect a release only when run
   locally (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,

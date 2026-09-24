@@ -32,8 +32,8 @@ Eksam — "am I ready?"
 
 Õppimine is the path plus the exam's four skills, so the phone's skill row holds
 five chips. Tabs are in the URL hash (`#write`); each change pushes history,
-re-selecting the current tab pushes nothing. The retired `#drill` opens Rada in
-Vaba harjutus. A drill set shows one unanswered item at a time on every device;
+re-selecting the current tab pushes nothing. The `#drill` compatibility route
+opens Rada in Vaba harjutus. A drill set shows one unanswered item at a time on every device;
 for `obj-case` the case to use appears only with the verdict, since choosing it
 is the exercise.
 

@@ -4,7 +4,7 @@
 hand-written clean controls. They are **our examples**, not a native-speaker
 gold corpus. A correct word form alone cannot establish a correct object case:
 the construction decides it. This small set diagnoses a lane; promotion also
-needs the separate [TalTech corrected-sentence track](../ai-providers.md#choosing-a-model-the-eval)
+needs the separate [TalTech corrected-sentence track](../ai-providers.md#candidate-evaluation)
 and review of its proposed edits.
 
 The eight clean controls are grounded as follows:
@@ -20,13 +20,11 @@ The eight clean controls are grounded as follows:
 | `Mulle meeldib eesti keel, aga grammatika on raske.` | `mulle meeldib` takes the liked thing as subject; no object-case decision. | [Sõnaveeb: meeldima](https://sonaveeb.ee/search/unif/est%2Ceng%2Crus/eki/meeldima/1/est?uilang=en) |
 | `Ta ei leidnud oma võtmeid.` | Plain negation takes osastav; `võtmeid` is a listed form of `võti`. The special `mitte … vaid` exception is absent. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/), [Sõnaveeb: võti](https://sonaveeb.ee/search/unif/dlall/dsall/v%C3%B5ti/1/est?uilang=en) |
 
-As a separate source-anchored check, the 2026-09-23 local EstLLM trial also
-used three short correct examples shown directly in the same EKI rule:
-`Poiss sõi putru.`, `Poiss sõi pudru ära.`, and
-`Poiss ei söönud putru ära.` It returned one no-op and two proposed edits,
-including `pudru → putru` in the completed `ära` sentence. This corroborates
-the concern independently of our hand-written labels; it is still too small
-to estimate general error rates.
+For a separate source-anchored clean-control check, EKI's object-case rule
+itself gives `Poiss sõi putru.`, `Poiss sõi pudru ära.`, and
+`Poiss ei söönud putru ära.` These examples can expose a checker that changes
+a correct completed object into partitive. They are too few to estimate
+general error rates.
 
 `left_alone` counts a clean response only when the model returns an empty
 correction list. `no_op_flags` counts suggested replacements that do not change

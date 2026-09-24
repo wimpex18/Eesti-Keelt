@@ -1,30 +1,25 @@
 # Handoff
 
 ## Current state
-PR [#67](https://github.com/wimpex18/Eesti-Keelt/pull/67) is open; the owner merges. Production is
-`https://eesti-keelt.wimpex18.workers.dev`. Cloud Run has one instance
-and EKI audio/HARNO exam mounts. A private off-account event export passed
-`cli verify-backup` (9 events); it excludes push subscriptions and audio.
+The production deep smoke passes for the current image,
+Cloudflare Access and origin guard, Workers AI grammar, Ekilex, EKI audio, HARNO
+PDF rendering, and reading content. The smoke does not test native exam sidecars,
+microphone recognition, or browser notification delivery.
 
-Workers AI GPT-OSS-120B is the automatic hosted grammar/tutor lane with
-deterministic fallback; Cloudflare Workers AI is production ASR. Ollama EstLLM
-stays outside Git and is evaluation-only. Learner ASR quality still needs
-listened-to, corrected in-app recordings. Chrome reminders are subscribed;
-actual delivery is unverified.
+Cloud Run has one instance and mounted EKI audio and HARNO exam storage. Workers
+AI GPT-OSS-120B remains the automatic hosted grammar/tutor lane, with
+deterministic fallback; Cloudflare Workers AI is production ASR. Local EstLLM is
+an evaluation-only Ollama model stored outside Git. Native A2 and B1 reading
+controls require private sidecars under `data/exam/`; other PDFs remain
+ungraded. The owner has a verified private off-account event export.
 
-The PR adds local speech review, native PDF pages, and offline PDF extraction.
-Private sidecars under `data/exam/` hold page text and OCR drafts.
-Visually verified A2 and B1 reading PDFs have 6 choice and 9 figure-matching
-questions; 27 other task PDFs remain ungraded. OCR text is provisional. Four milestones
-derive from recorded course evidence and do not alter mastery or FSRS.
+## Current task
 
-## Exact next step
-After the owner merges #67, pull `main` in Cloud Shell, run `cli prepare-exam`
-against the existing `data/exam/`, and sync it with `deploy/push-exam.sh`; see
-`docs/exam-native.md`. Wait for Cloud Build, then run `smoke` on `main` with
-`deep: true`. Verify both native tasks, HARNO pages and EKI audio on production. Check Chrome
-reminder delivery and collect reviewed learner speech before paired ASR evaluation.
+Review and merge the documentation cleanup PR. It removes stale release notes
+and keeps active documentation aligned with the shipped code. No active runtime
+code changes are included. Uncommitted paths after commit: none.
 
-## Blockers
-Owner merge, sidecar sync, notification arrival and verified speech are pending.
-Uncommitted paths after commit: none.
+## Remaining checks
+
+Verify the two native reading controls in production, actual Chrome reminder
+delivery, and ASR on learner recordings reviewed inside `Hindamiskomplekt`.

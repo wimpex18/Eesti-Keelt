@@ -4,7 +4,7 @@ The original HARNO PDF and page image remain available in the app. Private
 JSON sidecars add text and figures by page, the extraction method, sparse-page
 flags and candidate questions. Figure positions come from the PDF layout so
 image-heavy pages stay in reading order. In Cloud Shell, after pulling the
-merged `main` branch:
+current `main` branch:
 
 ```bash
 python3 -m venv .venv
