@@ -1244,9 +1244,14 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
   nav[data-mode-nav]{order:0;flex:1 1 auto;min-width:0;margin:0;padding:0 var(--s2)}
   .page-head > .seg button{min-height:40px}
   .page-head > .seg button i.ru{display:none}
-  /* 402px of height belongs to the sentence being answered: the hero steps aside
-     (the tab and the drill's own task line say what is being practised). */
-  .hero{display:none !important}
+  /* 402px of height belongs to the sentence being answered: while a set is on
+     screen the hero steps aside (the drill's task line says what is practised).
+     With no set — still loading, failed, or empty — it stays as one compact line,
+     because it holds the button that starts or retries the set. */
+  .hero:not(:has(.hero-act > :not([hidden]))){display:none}
+  .hero{padding:12px 18px;border-radius:var(--r-lg);align-items:center}
+  .hero .now{font-size:28px;margin-top:2px}
+  .hero :is(.of, #pathGate, .trail, .swallow, .hero-eyebrow .ru){display:none}
   .modes{grid-template-columns:repeat(3,minmax(0,160px));justify-content:center}
   .modes button{min-height:44px;flex-direction:row;gap:8px;font-size:var(--fs-meta)}
   .modes button .ico svg{width:20px;height:20px}

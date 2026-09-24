@@ -49,7 +49,10 @@ function rove(list) {
 
 document.querySelectorAll('[role="tablist"]:not(nav)').forEach(list => {
   rove(list);
-  list.addEventListener("click", () => setTimeout(() => rove(list)));
+  /* Selection also changes without a click (a remembered exam level, the `#drill`
+     route), so the Tab order follows `aria-selected` itself. */
+  new MutationObserver(() => rove(list)).observe(list, {
+    subtree: true, attributes: true, attributeFilter: ["aria-selected"]});
   list.addEventListener("keydown", e => {
     const keys = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"];
     if (!keys.includes(e.key)) return;
