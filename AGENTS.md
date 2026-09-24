@@ -74,8 +74,8 @@ run the suite after upgrades and the morphology eval before trusting a new
 - Before each commit and at handoff, make `HANDOFF.md` a short present-state
   note: current task, exact next step, uncommitted paths and blockers. Remove
   completed history. Keep it within 30 lines.
-- Keep `AGENTS.md` and `CLAUDE.md` identical: `cp AGENTS.md CLAUDE.md` after
-  editing. Keep both concise and model-agnostic.
+- Keep `AGENTS.md` concise and model-agnostic as the single repository-wide
+  agent instruction file.
 - Stage named paths, never `git commit -a`. Open small PRs; the user merges.
   Docs describe current behavior. Path rules are in `.claude/rules/`; design
   context is in `PRODUCT.md` and `DESIGN.md`. Architecture constraints are in

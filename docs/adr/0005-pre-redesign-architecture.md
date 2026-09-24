@@ -95,4 +95,4 @@ Code and tests define behaviour; deployment smoke proves what is running.
 `docs/status.md` describes features/known gaps, this ADR defines decisions,
 `docs/asr-evaluation.md` defines measurement, and `HANDOFF.md` holds the current
 operational step.
-`AGENTS.md` and `CLAUDE.md` remain byte-identical.
+`AGENTS.md` carries repository-wide agent instructions.
