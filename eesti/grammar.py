@@ -264,6 +264,23 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "числительного больше единицы стоит в **osastav**: *kaks raamatut*."
         ),
     ),
+    "kellaaeg": Reference(
+        tag="kellaaeg", et_term="aja väljendamine", ru_term="выражение времени",
+        ekk_section="M 59", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Час: **kell** + числительное; доля — к следующему часу: *pool "
+            "kümme* = 9.30. Когда — **alalütlev** (*neljapäeval*), к сроку — "
+            "**saav** (*reedeks*), с — **seestütlev**, до — **rajav**."
+        ),
+    ),
+    "kuupaevad": Reference(
+        tag="kuupaevad", et_term="kuupäevad", ru_term="даты",
+        ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,
+        summary_ru=(
+            "Дата — порядковое числительное и месяц в **alalütlev**: *2. märtsil* — "
+            "*teisel märtsil*. Цифрой порядковое пишется с точкой."
+        ),
+    ),
     "jargarvud": Reference(
         tag="jargarvud", et_term="järgarvsõnad", ru_term="порядковые числительные",
         ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,

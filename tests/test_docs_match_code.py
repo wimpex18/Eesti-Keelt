@@ -48,12 +48,12 @@ class TestCurriculumCounts:
     def test_topics_with_practice(self):
         from eesti.curriculum import TOPICS
 
-        actual = sum(1 for t in TOPICS if t.generator)
-        found = _claims(r"(\d+) of 36 (?:curriculum |grammar )?topics")
+        actual = f"{sum(1 for t in TOPICS if t.generator)} of {len(TOPICS)}"
+        found = _claims(r"(\d+ of \d+) (?:curriculum |grammar )?topics")
         assert found, "no document states how many topics have practice"
         for doc, line, value, text in found:
-            assert int(value) == actual, (
-                f"{doc.relative_to(ROOT)}:{line} says {value} of 36; "
+            assert value == actual, (
+                f"{doc.relative_to(ROOT)}:{line} says {value}; "
                 f"the code has {actual}.\n  {text}")
 
     def test_topics_without_a_generator(self):

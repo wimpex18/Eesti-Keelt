@@ -115,6 +115,11 @@ def items_for(
             return question_drills(count=count, seed=seed, words=words)
         if topic == "vordlusastmed":
             return comparison_drills(words, levels, count, seed)
+        if topic in ("kellaaeg", "kuupaevad"):
+            from .timedate import date_drills, time_drills
+
+            make = time_drills if topic == "kellaaeg" else date_drills
+            return make(count, seed)
         return numeral_drills(words, levels, count, seed, topics=(topic,),
                               only=only)
 
