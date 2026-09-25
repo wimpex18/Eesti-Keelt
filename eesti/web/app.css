@@ -1378,3 +1378,10 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
 .row.filter > :is(button.primary, button.go){background:var(--ctl);color:var(--ink)}
 .row.filter > :is(button.primary, button.go):hover:not(:disabled){background:var(--ctl-hover)}
 .row.filter > :is(button.primary, button.go) .ru{color:var(--muted);opacity:1}
+
+/* Say a drill answer (voice.js): the mic sits beside the answer box; while
+   recording it takes the alarm colour so the state is unmistakable. */
+.iconbtn.mic { flex: none; }
+.iconbtn.mic.on { color: var(--bad); box-shadow: inset 0 0 0 1px currentColor; }
+.iconbtn.mic[aria-busy="true"] { opacity: .6; }
+.asr-check { margin-top: var(--s2); }
