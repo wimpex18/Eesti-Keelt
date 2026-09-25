@@ -241,7 +241,8 @@ jobs:
             for level in A2 B1; do
               curl -sf "${auth[@]}" "$URL/api/exam/$level" -o "$RUNNER_TEMP/exam-$level.json" || true
               verified=0
-              for id in $(jq -r '[.[] | arrays | .[] | select(.file == true and .format == "pdf") | .id] | .[]' \
+              # Tasks sit at any depth (`ulesanded` groups them by exam part).
+              for id in $(jq -r '[.. | objects | select(.file == true and .format == "pdf") | .id] | .[]' \
                   "$RUNNER_TEMP/exam-$level.json" 2>/dev/null); do
                 if curl -sf "${auth[@]}" "$URL/api/exam/native/$id" \
                     | jq -e '.verified == true and (.questions | length) > 0' >/dev/null 2>&1; then
