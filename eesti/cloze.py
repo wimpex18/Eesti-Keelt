@@ -213,6 +213,21 @@ def _unambiguous_lemma(surface: str, lemma: str, tag: str) -> bool:
     return len({lm for lm, _ in readings}) == 1
 
 
+def _parallel_forms(lemma: str, form: str, text: str) -> list[str]:
+    """The attested form first, then the case's other forms (`tube ~ tubasid`): the
+    text used one, the learner may know the other.
+
+    Only for a lemma with one paradigm. Vabamorf gives `palk` two (palga, palgi:
+    salary, log) and `kool` a second one EKI does not have (`koolasse`); their
+    forms would be accepted and shown as right, so such a lemma accepts only what
+    the text says. The stem hint keeps the forms to the text's own paradigm.
+    """
+    if len(set(synthesize(lemma, "sg g") or [])) > 1:
+        return [text]
+    return [text] + [f for f in dict.fromkeys(synthesize(lemma, form, hint=text) or [])
+                     if f != text]
+
+
 def _synthesises_back(lemma: str, tag: str, surface: str) -> bool:
     """Vabamorf must produce the attested form from the lemma and case; otherwise the
     item is dropped.
@@ -352,10 +367,7 @@ def case_clozes(
             if wrong is None or (require_contrast and wrong == token.text):
                 continue
 
-            # A case with parallel forms (`tube ~ tubasid`) accepts either: the
-            # text used one, the learner may know the other. The attested one first.
-            variants = [token.text] + [f for f in dict.fromkeys(
-                synthesize(token.lemma, token.form) or []) if f != token.text]
+            variants = _parallel_forms(token.lemma, token.form, token.text)
             if wrong in variants:
                 continue
 

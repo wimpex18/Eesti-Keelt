@@ -68,6 +68,18 @@ class TestGrading:
         assert got["asked"] == len(answers)
         assert got["correct"] == sum(1 for n in range(len(answers)) if n % 2)
 
+    def test_either_parallel_form_counts_in_reading(self, client):
+        """A case cloze's answer can be `tube ~ tubasid`; the form alone is right."""
+        from types import SimpleNamespace
+
+        from eesti.itemref import sign
+        token = sign(SimpleNamespace(prompt="Mul on kaks ____.", answer="tube ~ tubasid"),
+                     {"kind": "test"})
+        for given, right in (("tube", 1), ("Tubasid", 1), ("tuba", 0)):
+            got = client.post("/api/mock/A2/lugemine", json={
+                "seconds": 60, "answers": [{"token": token, "given": given}]}).json()
+            assert got["correct"] == right, given
+
     def test_a_forged_reading_token_is_refused(self, client):
         section = client.get("/api/mock/A2/lugemine?seed=5").json()
         body, mac = section["tasks"][0]["token"].rsplit(".", 1)

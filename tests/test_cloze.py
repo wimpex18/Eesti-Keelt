@@ -149,6 +149,15 @@ class TestSafetyGates:
         assert cloze._synthesises_back("meri", "sg all", "merele")
         assert not cloze._synthesises_back("meri", "sg all", "merile")
 
+    def test_parallel_forms_are_accepted_from_the_texts_own_paradigm(self):
+        assert cloze._parallel_forms("tuba", "pl p", "tube") == ["tube", "tubasid"]
+        assert cloze._parallel_forms("kaks", "sg p", "kahte") == ["kahte", "kaht"]
+
+    def test_a_homonym_accepts_only_the_form_the_text_used(self):
+        """`palgi` is the log, not the salary; EKI has no `koolasse`."""
+        assert cloze._parallel_forms("palk", "sg g", "palga") == ["palga"]
+        assert cloze._parallel_forms("kool", "sg ill", "koolisse") == ["koolisse"]
+
     def test_hyphenated_tokens_are_left_alone(self):
         s = "Selges keeles -žürii valib teksti."
         start = s.index("keeles")
