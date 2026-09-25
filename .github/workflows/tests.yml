@@ -78,10 +78,15 @@ jobs:
         run: |
           python -m eesti.cli fetch-data
           python -m eesti.cli build
+          python -m eesti.cli export
 
       - name: Warn that the journeys have no data
         if: steps.data.outcome != 'success'
         run: echo "::warning title=Journeys skipped::The word list did not build, so the browser journeys skip."
 
+      # No reading corpus here (its sources are owner-only), so the journeys
+      # that read a text skip and the rest run.
       - name: Journeys
-        run: python -m pytest tests/test_e2e_journeys.py --browser -q -n auto
+        env:
+          EESTI_E2E_NO_CORPUS: "1"
+        run: python -m pytest tests/test_e2e_journeys.py --browser -q -n auto -rs
