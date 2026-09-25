@@ -273,6 +273,16 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "**saav** (*reedeks*), с — **seestütlev**, до — **rajav**."
         ),
     ),
+    "ma-vormid": Reference(
+        tag="ma-vormid", et_term="ma-tegevusnime vormid", ru_term="формы ma-инфинитива",
+        ekk_section="M 76", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "У ma-инфинитива пять форм: куда — **ma** (*Läksime sööma*), где — "
+            "**mas** (*Olime marju korjamas*), откуда — **mast** (*Tulime "
+            "söömast*), без — **mata** (*Jätsin toa koristamata*), для — **maks**. "
+            "Одновременное действие — **des-vorm** (M 80): *lauldes*."
+        ),
+    ),
     "kuupaevad": Reference(
         tag="kuupaevad", et_term="kuupäevad", ru_term="даты",
         ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,

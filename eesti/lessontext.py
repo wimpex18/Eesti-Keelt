@@ -205,6 +205,27 @@ LESSONS: dict[str, LessonText] = {
                  Source("EKI teatmik: arvukirjutus",
                         "https://teatmik.eki.ee/teatmik/arvukirjutus/")),
     ),
+    "ma-vormid": LessonText(
+        points_ru=(
+            "**ma** — действие, которое последует: куда идут делать. *Läksime "
+            "sööma*, *Mari hakkas laulma*.",
+            "**mas** — действие в процессе, «где заняты»: *Olime marju korjamas*. "
+            "С *olema* — длящееся изменение: *Kuritegevus on vähenemas*.",
+            "**mast** — действие, которое было раньше, «откуда»: *Tulime söömast*. "
+            "После *keelduma* и *lakkama*: *Mari keeldus söömast*, *Mari lakkas "
+            "söömast*.",
+            "**mata** — несделанное: *Jätsin toa koristamata*, *Tuba on "
+            "koristamata*; отрицательная пара к des-vorm: *nõustus pikemalt "
+            "mõtlemata*.",
+            "**maks** — цель, как *selleks et*: *läks varakult kohale leidmaks "
+            "endale paremat istekohta*. Звучит книжно.",
+            "**des-vorm** — одновременное действие, которое описывает главное, "
+            "как русское деепричастие: *Lauldes ja hõisates tormasid poisid majast "
+            "välja*. Окончание как у da-инфинитива: *elada → elades*, *hüpata → "
+            "hüpates*, *käia → käies*.",
+        ),
+        sources=(ekk("M 76"), ekk("M 80")),
+    ),
     "kuupaevad": LessonText(
         points_ru=(
             "Дата — **порядковое** числительное и месяц, оба в **alalütlev**: "
