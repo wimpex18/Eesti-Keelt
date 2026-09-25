@@ -60,6 +60,14 @@ hardware; no additional production inference host is configured.
    provider decision. These floors do not guarantee statistical confidence or
    pronunciation competence.
 
+## Everyday check of the production engine
+
+`Rääkimine → Kuidas mind kuuldakse` measures only the production recogniser,
+from read-aloud sentences the learner confirms and planted object-case probes,
+without saving audio (`docs/speaking.md`). It gives a first reading of word
+errors and repaired mistakes; comparing engines still needs the verified
+corpus above.
+
 ## Compare paired engines
 
 Install optional `faster-whisper` locally and download the official TalTech
