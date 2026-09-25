@@ -12,7 +12,8 @@ Branch `claude/calmer-surfaces`: the external eval classes each fix by its
 original (capitalised) words, so a proper-noun case fix is no longer counted
 as spelling. An iPhone-sized pass found and fixed a first-open race in
 `gloss.migrate` (500 on `/api/status`) and a stale question under Rääkimine's
-sentence mode when no sentences load.
+sentence mode when no sentences load. The Praegu hero moved from the deep
+evening navy to a daylight sky with a glass rim (`--hero-*` tokens).
 
 ## Next step
 User reviews and merges; after deploy run the `smoke` workflow with
