@@ -54,7 +54,8 @@ and cost limits.
 - [`docs/architecture.md`](docs/architecture.md) · [`docs/app-structure.md`](docs/app-structure.md)
 - [`docs/curriculum.md`](docs/curriculum.md) · [`docs/sources.md`](docs/sources.md)
 - [`docs/ai-boundaries.md`](docs/ai-boundaries.md) · [`docs/ai-providers.md`](docs/ai-providers.md) · [`docs/speaking.md`](docs/speaking.md)
-- [`docs/testing.md`](docs/testing.md)
+- [`docs/testing.md`](docs/testing.md) · [`docs/setup.md`](docs/setup.md) · [`docs/deploy.md`](docs/deploy.md)
+- [`docs/exam-native.md`](docs/exam-native.md) · [`docs/asr-evaluation.md`](docs/asr-evaluation.md)
 
 ## Licences
 

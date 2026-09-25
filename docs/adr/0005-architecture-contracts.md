@@ -1,4 +1,4 @@
-# ADR-0005: Architecture before the UX redesign
+# ADR-0005: Architecture contracts
 
 **Status:** Accepted. **Scope:** one learner, one origin, no paid inference host.
 

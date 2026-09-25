@@ -82,7 +82,7 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 ## Redesign boundary and recovery
 
 The final scope and deferred decisions are in
-`docs/adr/0005-pre-redesign-architecture.md`. Presentation consumes domain APIs;
+`docs/adr/0005-architecture-contracts.md`. Presentation consumes domain APIs;
 keep signed item fields, event IDs, topic IDs and advisory/provenance labels
 stable when replacing screens. `planning.Block.action` contains tab names and
 needs an explicit UI mapping if navigation changes.

@@ -5,16 +5,16 @@ The production deep smoke passes for the current `main` image. Cloud Run has one
 instance with mounted EKI audio and HARNO exam storage; Workers AI GPT-OSS-120B
 is the automatic grammar/tutor lane with deterministic fallback, and Cloudflare
 Workers AI is production ASR. Native A2/B1 reading controls need private
-sidecars under `data/exam/`.
+sidecars under `data/exam/`. The calmer-surfaces visual refinement is merged.
 
 ## Current task
-Visual refinement PR (branch `claude/calmer-surfaces`): flat primary buttons,
-neutral secondary/icon controls, hairline depth instead of shadows, no page
-glows, fewer type sizes/weights, Sõnatrenn as an on-page practice space.
+Docs refresh (branch `claude/docs-refresh`): ADR-0005 renamed to
+architecture contracts, README lists every doc.
 
 ## Next step
-User reviews screenshots and merges. Uncommitted paths after commit: none.
+User merges. Then: live spoken checks inside exercises, a source and endpoint
+audit, and A1–B1 grammar coverage against Tere!/Keeleklikk.
 
 ## Remaining checks
 Verify the two native reading controls in production, actual Chrome reminder
-delivery, and ASR on learner recordings reviewed inside `Hindamiskomplekt`.
+delivery, and ASR on learner speech.
