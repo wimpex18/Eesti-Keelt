@@ -5,6 +5,7 @@ import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, 
 import {$, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
+import {addMic} from "./voice.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 import {examLevel} from "./state.js";
 
@@ -677,6 +678,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     </div>`}
     <div class="verdict" role="status"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  addMic(input?.parentElement, input, it.prompt);
   const choices = [...el.querySelectorAll(".choice")];
   // One holder for "what was answered", whichever shape the item took, so the
   // submit path below stays single.
