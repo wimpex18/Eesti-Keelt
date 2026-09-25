@@ -8,16 +8,12 @@ Workers AI is production ASR. Native A2/B1 reading controls need private
 sidecars under `data/exam/`.
 
 ## Current task
-Review and merge the Laudtee polish PR (#70): fixed desktop sidebar, pulse tiles,
-folding dock, closable word card, plural fixes; plus the Mängija audio player
-over every `<audio>`, Sõnatrenn (word workout from the learner's `õpin` words),
-a one-line reader source, exam text/native routes answering `available: false`
-instead of 404, a fast learner-status filter in `vocab.browse`, and wrangler /
-workers-types upgrades.
+Visual refinement PR (branch `claude/calmer-surfaces`): flat primary buttons,
+neutral secondary/icon controls, hairline depth instead of shadows, no page
+glows, fewer type sizes/weights, Sõnatrenn as an on-page practice space.
 
 ## Next step
-After merge, run `smoke` with `deep: true` and look at the phone PWA in both
-themes. Uncommitted paths after commit: none.
+User reviews screenshots and merges. Uncommitted paths after commit: none.
 
 ## Remaining checks
 Verify the two native reading controls in production, actual Chrome reminder

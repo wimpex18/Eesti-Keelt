@@ -25,14 +25,14 @@ typography:
   interface: "Geologica, SHRP 0 (soft)"
   material: "Geologica, SHRP 55 (cut) — every Estonian sentence, answer, word and title"
   hero: "clamp(38px, 9vw, 60px) / 600"
-  title: "30px / 800"
+  title: "28px / 700"
   prompt: "24px, 28px from 720px"
   reading: "19px / 1.8"
   answer: "18px / 500"
   body: "16px"
   ui: "15px"
   note: "14px"
-  meta: "13px"
+  meta: "12px"
   gloss: "12px"
 rounded:
   control: "999px (buttons, switches, tabs)"
@@ -61,8 +61,7 @@ otherwise belongs to an information role, never to a language.
 
 The interface follows **Apple's Liquid Glass rule of two layers**: navigation
 and controls float on glass (the spine, the phone dock, switches, the word
-card, the celebration); content sits on solid white sheets. Behind everything
-is a faint sky of blue glows, so the glass has light to bend. Glass turns solid
+card, the celebration); content sits on the plain page, separated by lines rather than cards. Glass turns solid
 with `prefers-reduced-transparency`, `prefers-contrast: more`, or the app's own
 **Vähem läbipaistvust** switch (Safari does not report the system setting).
 
@@ -135,16 +134,16 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
 ## Controls
 
-- **Buttons are capsules.** *Prominent* (`.go`, `.primary`): the blue fill with
-  light running over it (a white top gradient and rim), never a flat block; it
-  brightens under the pointer and settles to 97% when pressed. One per view.
-  *Tinted* (`.ghost`): blue at 10%, deep-blue text, 17% on hover. *Plain*
-  (`.linky`): an underlined link. Small (`.logbtn`, tutor offer, topic actions):
-  tinted, 34–40px. Icon buttons: 42px circles (44px on touch), tinted on hover.
-  Disabled: 45% opacity.
-- **Fields are filled.** A soft Pahkla well, no border at rest; on focus it turns
-  white with a blue edge and a 4px blue halo. Labels sit above with the Russian
-  gloss on the same line. The drill's answer field is 56px, in the cut.
+- **Buttons are flat capsules, in four ranks.** *Primary* (`.go`, `.primary`):
+  solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per
+  view — a started Sõnatrenn demotes Alusta. *Secondary* (`.ghost`, `.logbtn`,
+  tutor offer): a neutral grey fill (`--ctl`, ink at 6%) with ink text. *Ghost*
+  (`.linky`, Vihje): text only. *Icon*: 44px neutral circles. Heights 44px, 52px
+  for a drill's answer action. Disabled: 45% opacity. Blue is kept for the primary
+  action, focus, selection, progress and "now" — never as a tint on a control.
+- **Fields are outlined.** White with a 1px line at rest; on focus a blue edge and a
+  3px blue halo. Labels sit above with the Russian
+  gloss on the same line. The drill's answer field is 52px, spans the column, in the cut.
 - **Switches** (`.levels`): a glass track, the chosen state a white capsule.
 - **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
   Home and End, with only the selected tab in the Tab order.
@@ -185,8 +184,9 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   in the page, hidden, so the media code is unchanged.
 - **Sõnatrenn.** In Sõnavara: ten words the learner marked *õpin* (topped up with
   the commonest new A1 words) shown by their Russian meaning; the learner types
-  the Estonian, compared with the word list's spelling. *Vihje* reveals a letter
-  at a time. A miss shows the right word, its omastav/osastav when the list has
+  the Estonian, compared with the word list's spelling. *Vihje*, a quiet text action under the answer, reveals a letter
+  at a time. It is a practice space on the page, not a card: heading, a thin
+  progress line, the Russian meaning as the largest text, then the answer row. A miss shows the right word, its omastav/osastav when the list has
   them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
   records nothing — Kordamine owns memory.
 - **Reader source.** One line above the title: *Allikas* and the source's name,
@@ -196,6 +196,12 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 - **Celebration.** Mastery only: a flower blooms on an evening card, announced
   through the page's polite live region. Any key or tap dismisses it; under
   reduced motion only the announcement remains.
+
+## Depth
+
+Content sheets are separated by a 1px line (`--shadow` is a hairline ring), not a
+drop shadow. Only the floating glass layer (spine, dock, word card) casts a soft
+shadow. The page has no background glows.
 
 ## Motion
 
