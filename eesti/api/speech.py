@@ -331,6 +331,62 @@ def speaking_feedback(req: SpokenAnswer) -> dict:
 
 
 # --------------------------------------------------------------------------
+# How the recogniser hears the learner (eesti/asrcheck.py)
+# --------------------------------------------------------------------------
+
+@router.get("/api/speaking/probe")
+def speaking_probe(seed: int | None = None) -> dict:
+    """A read-aloud sentence carrying one planted object-case error."""
+    import secrets
+
+    from ..asrcheck import probe
+
+    found = probe(seed if seed is not None else secrets.randbelow(2**31))
+    if not found:
+        raise HTTPException(status_code=503, detail="Проверочных предложений сейчас нет.")
+    return found
+
+
+class AsrCheck(BaseModel):
+    target: str = Field(min_length=1, max_length=400)
+    transcript: str = Field(default="", max_length=4000)
+    engine: str = Field(default="", max_length=120)
+    said: str
+    index: int | None = None
+    planted: str = Field(default="", max_length=60)
+    correct: str = Field(default="", max_length=60)
+
+
+@router.post("/api/speaking/check")
+def speaking_check(req: AsrCheck) -> dict:
+    """The learner's word on a read-aloud: read as written, or not. No audio."""
+    from .. import evidence
+    from ..asrcheck import SAID, report, score
+
+    if req.said not in SAID:
+        raise HTTPException(status_code=400, detail="said must be as-written or differently")
+    payload = {"target": req.target, "transcript": req.transcript,
+               "engine": req.engine, "said": req.said}
+    if req.said == "as-written":
+        payload |= score(req.target, req.transcript, index=req.index,
+                         planted=req.planted, correct=req.correct)
+        if req.index is not None:
+            payload |= {"planted": req.planted, "correct": req.correct}
+    evidence.record("asr-check", payload)
+    with evidence.connect() as log:
+        return report(log)
+
+
+@router.get("/api/speaking/check")
+def speaking_check_report() -> dict:
+    from .. import evidence
+    from ..asrcheck import report
+
+    with evidence.connect() as log:
+        return report(log)
+
+
+# --------------------------------------------------------------------------
 # Recording the speech eval set (local only)
 # --------------------------------------------------------------------------
 #
