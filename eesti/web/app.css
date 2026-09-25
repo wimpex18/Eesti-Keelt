@@ -925,9 +925,9 @@ a.lib-item{text-decoration:none;color:inherit}
 .word-meaning + .hint{margin:var(--s2) 0 0;font-size:var(--fs-note)}
 .word-q .row{margin-top:var(--s4)}
 .word-q .row:has(> input){flex-wrap:wrap}
-.word-q .row:has(> input) > [data-hint]{flex-basis:100%;order:3;justify-content:flex-start;min-height:44px;
+.word-q .row:has(> input) > [data-hint]{flex:0 0 100%;order:3;justify-content:flex-start;min-height:44px;
   margin:-4px 0 0;padding:0;background:none;color:var(--muted);font-weight:600;text-align:left;
-  width:max-content;max-width:100%;flex:0 0 auto}
+  max-width:100%}
 .word-q .row:has(> input) > [data-hint]:hover:not(:disabled){background:none;color:var(--ink);
   text-decoration:underline;text-underline-offset:3px}
 .word-q.done .row:has(input){display:none}
@@ -1068,7 +1068,7 @@ audio.enhanced{display:none !important}
   gap:var(--s2) var(--s3);width:100%;max-width:340px;align-items:start}
 .flower-wrap .flower{grid-area:fl;justify-self:center;max-width:220px}
 .petal-note{display:flex;flex-direction:column;gap:2px;min-width:0}
-.petal-note.tl{grid-area:tl}.petal-note.bl{grid-area:bl}
+.petal-note.tl{grid-area:tl;text-align:left}.petal-note.bl{grid-area:bl;text-align:left}
 .petal-note.tr{grid-area:tr;text-align:right}.petal-note.br{grid-area:br;text-align:right}
 .petal-note .petal-label{font-weight:600;font-size:var(--fs-body);color:var(--ink);line-height:1.25}
 .petal-note .petal-sub{font-size:var(--fs-note);color:var(--muted);line-height:1.3}
@@ -1373,8 +1373,8 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
   .trail .halo{display:none}
 }
 
-/* A filter row's apply button is secondary: the page's one primary belongs to the
-   exercise, not to the list below it. */
-.row:has(> label > select) > :is(button.primary, button.go){background:var(--ctl);color:var(--ink)}
-.row:has(> label > select) > :is(button.primary, button.go):hover:not(:disabled){background:var(--ctl-hover)}
-.row:has(> label > select) > :is(button.primary, button.go) .ru{color:var(--muted);opacity:1}
+/* A list filter's apply button (`.row.filter`) is secondary: the page's one primary
+   belongs to the exercise, not to the list below it. */
+.row.filter > :is(button.primary, button.go){background:var(--ctl);color:var(--ink)}
+.row.filter > :is(button.primary, button.go):hover:not(:disabled){background:var(--ctl-hover)}
+.row.filter > :is(button.primary, button.go) .ru{color:var(--muted);opacity:1}
