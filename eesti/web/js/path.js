@@ -5,6 +5,7 @@ import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, 
 import {$, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
+import {onLessonPractice} from "./lesson.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 import {examLevel} from "./state.js";
 
@@ -318,9 +319,11 @@ export async function loadPath() {
           needs.length ? `<span lang="ru">после:</span> <span lang="et">${esc(needs.join(", "))}</span>` : "",
           t.accuracy === null || t.accuracy === undefined ? "" : `${Math.round(t.accuracy * 100)}%`,
         ].filter(Boolean).join(" · ");
+        const rule = `<button class="ghost" data-lesson="${esc(t.id)}" lang="et">reegel <i class="ru" lang="ru">правило</i></button>`;
         const acts = t.state === "ready" || t.state === "in progress"
-          ? `<span class="acts"><button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
-             <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button></span>` : "";
+          ? `<span class="acts">${rule}<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
+             <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button></span>`
+          : `<span class="acts">${rule}</span>`;
         return `<div class="topic ${t.state.replace(" ", "-")}${t.id === p.resume ? " now" : ""}">
           <span class="st" title="${esc(RU[t.state] || t.state)}">${stateIcon(t.state)}<span class="st-word" lang="ru">${esc(RU[t.state] || t.state)}</span></span>
           <span class="name" lang="et">${esc(t.et)}</span>
@@ -549,8 +552,8 @@ async function startPractice({focus = true} = {}) {
        three". */
     if (res.theme && res.items.length < 10)
       bits.push(`<span class="hint">по этой теме нашлось ${res.items.length}</span>`);
-    if (res.reference && res.reference.known)
-      bits.push(`<a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`);
+    bits.push(`<button class="linky" type="button" data-lesson="${esc(res.topic)}" lang="et">Reegel
+      <span class="ru" lang="ru">правило</span></button>`);
     out.innerHTML = bits.length
       ? `<div class="banner info">${bits.join(" · ")}</div>` : "";
     loaded = true;
@@ -894,6 +897,7 @@ $("#freeBtn").onclick = async () => {
     paintBeads(freeTally);
     res.items.forEach((it, i) => out.appendChild(
       renderPracticeItem(it, res.topic, i, res.glosses || {}, false, freeTally)));
+    $("#freeLesson").dataset.lesson = res.topic || $("#freeTopic").value;
     foldFreeControls(true);
     /* The set, not the settings, is what the learner came for: bring its first item
        into view and hand it the keyboard. */
@@ -1016,3 +1020,12 @@ function renderOfflineItem(it, i, glosses) {
 
 addEventListener("online", () => offline.flush().then(paintOffline));
 paintOffline();
+
+
+/* "Harjuta" on a Reegel page starts a Minu rada set on that topic. */
+onLessonPractice(topic => {
+  pathTopic = topic;
+  $("#pathAll").open = false;
+  paintTheme();
+  startPractice();
+});

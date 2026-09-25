@@ -1378,3 +1378,29 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
 .row.filter > :is(button.primary, button.go){background:var(--ctl);color:var(--ink)}
 .row.filter > :is(button.primary, button.go):hover:not(:disabled){background:var(--ctl-hover)}
 .row.filter > :is(button.primary, button.go) .ru{color:var(--muted);opacity:1}
+
+/* The Reegel page (js/lesson.js): content, so a solid sheet, never glass. */
+dialog.lesson{width:min(720px, calc(100vw - 2 * var(--s4)));max-height:calc(100dvh - 2 * var(--s5));
+  margin:auto;padding:var(--s5);border:0;border-radius:var(--r-lg);background:var(--panel);
+  color:var(--ink);box-shadow:0 0 0 1px var(--line);overflow:auto}
+dialog.lesson::backdrop{background:color-mix(in srgb, var(--ink) 40%, transparent)}
+.lesson-head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s3)}
+.lesson-head h2{margin:var(--s2) 0 0;font-size:28px;font-weight:700}
+.lesson-head .ru{font-size:15px;font-weight:400;color:var(--muted)}
+.lesson h3{margin:var(--s5) 0 var(--s2);font-size:16px}
+.lesson-rule{margin-top:var(--s4)}
+.lesson-points{margin:var(--s3) 0 0;padding-left:var(--s5)}
+.lesson-points li,.lesson-examples li,.lesson-mistakes li{margin:var(--s2) 0}
+.lesson-examples,.lesson-mistakes,.lesson-reading{margin:0;padding-left:var(--s5)}
+.lesson-table{margin-top:var(--s4);overflow-x:auto}
+.lesson-table table{border-collapse:collapse;font-size:15px;min-width:100%}
+.lesson-table th,.lesson-table td{padding:var(--s2) var(--s3);text-align:left;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+.lesson-table thead th{color:var(--muted);font-weight:600}
+.lesson-table tbody th{color:var(--muted);font-weight:500}
+.lesson-sources{margin-top:var(--s5)}
+.lesson .row{margin-top:var(--s4)}
+@media (max-width:719px){
+  dialog.lesson{width:100vw;max-width:100vw;max-height:100dvh;height:100dvh;border-radius:0;
+    padding:var(--s4)}
+}

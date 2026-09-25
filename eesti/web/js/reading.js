@@ -114,6 +114,20 @@ export async function loadLibrary(append = false) {
     if (mine !== libRequest) return;
     list.replaceChildren(retryableError(e.message, () => loadLibrary(append)));
   }
+  if (pendingItem && mine === libRequest) {
+    const id = pendingItem;
+    pendingItem = null;
+    openItem(id);
+  }
+}
+
+
+/* Open one text from elsewhere (the Reegel page). The tab's first load resets
+   the reader to the list, so before that load the text waits for it. */
+let pendingItem = null;
+export function showItem(id) {
+  if (libRequest) openItem(id);
+  else pendingItem = id;
 }
 
 $("#loadLib").onclick = () => loadLibrary(false);
