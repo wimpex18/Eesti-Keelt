@@ -15,7 +15,7 @@ function tableHtml(t) {
     <tbody>${t.rows.map(r => `<tr>${r.map((c, i) =>
       i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
   </table></div>
-  <p class="hint">Формы построены Vabamorf.</p>`;
+  ${t.source ? `<p class="hint">${esc(t.source)}</p>` : ""}`;
 }
 
 
