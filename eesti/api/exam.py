@@ -227,6 +227,7 @@ class MockResult(BaseModel):
 def mock_result(level: str, part: str, res: MockResult) -> dict:
     """Grade a finished section and record it as exam evidence."""
     from ..exam import SPECS
+    from ..item import accepts
     from ..itemref import verify
     from ..mock import record
 
@@ -242,8 +243,7 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=(
                     "Задание не удалось проверить: оно выдано не этим сервером.")) from exc
-            correct += int(answer.given.strip().casefold()
-                           == issued["answer"].strip().casefold())
+            correct += int(accepts(issued["answer"], answer.given))
     elif part == "kuulamine":
         from ..dictation import Passage, grade, key_of
 

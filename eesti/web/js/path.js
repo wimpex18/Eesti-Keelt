@@ -746,8 +746,10 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     /* The sentence completes itself: the blank takes the right form, moss when it
        was the learner's, underlined in cranberry when it was not. */
     const blank = el.querySelector(".prompt .blank");
+    // With parallel forms ("tube ~ tubasid") the sentence takes the one typed, if right.
+    const said = res.correct && input ? input.value.trim() : it.answer.split(" ~ ")[0];
     if (blank && !choices.length) {
-      blank.textContent = it.answer;
+      blank.textContent = said;
       blank.classList.add("filled", res.correct ? "ok" : "no");
     }
     // A miss goes on the set's list, to be looked at and redone at its end.
@@ -765,7 +767,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       ? (choices.length
           ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
-          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", it.answer))}</strong>`
+          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", said))}</strong>`
             // A choice topic hid its form until now; the rule is the lesson either way.
             + (it.form_after ? `<br><span class="why">${md(it.why_ru || "")}</span>` : ""))
       : wrongVerdict(input ? input.value : picked, it.answer, it.why_ru);
@@ -998,7 +1000,10 @@ function renderOfflineItem(it, i, glosses) {
       ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span>`
       : wrongVerdict(input.value, it.answer, it.why_ru);
     const blank = el.querySelector(".prompt .blank");
-    if (blank) { blank.textContent = it.answer; blank.classList.add("filled", ok ? "ok" : "no"); }
+    if (blank) {
+      blank.textContent = ok ? input.value.trim() : it.answer.split(" ~ ")[0];
+      blank.classList.add("filled", ok ? "ok" : "no");
+    }
     el.classList.add("done");
     pathTally.marks[i] = ok;
     pathTally.answered++; if (ok) pathTally.correct++;

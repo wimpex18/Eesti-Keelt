@@ -111,13 +111,15 @@ _A1: tuple[Topic, ...] = (
           requires=("arvsonad", "kohakaanded"), generator="patterns"),
     Topic("kaassonad", "A1", "kaassõnad", "пред- и послелоги",
           requires=("gen-stem",), generator="patterns"),
-    Topic("sidesonad", "A1", "sidesõnad", "союзы", requires=("lauseehitus",)),
+    Topic("sidesonad", "A1", "sidesõnad", "союзы", requires=("lauseehitus",),
+          generator="patterns"),
     Topic("mul-on", "A1", "mul on, mulle meeldib, mul on vaja",
           "у меня есть, мне нравится, мне нужно",
           requires=("kohakaanded", "eitus", "ma-da-inf"), generator="patterns"),
     Topic("kaima-minema", "A1", "käima ja minema", "käima или minema",
           requires=("olevik", "lihtminevik", "kohakaanded"), generator="patterns"),
-    Topic("maarsonad", "A1", "määrsõnad", "наречия"),
+    Topic("maarsonad", "A1", "määrsõnad", "наречия", requires=("kohakaanded",),
+          generator="patterns"),
 )
 
 # --------------------------------------------------------------------------
@@ -334,8 +336,6 @@ CROSS: dict[str, str] = {
 #: this list and the derived one together.
 REPRESENTATION_GAPS: dict[str, str] = {
     "tahestik": "alphabet and sounds: needs audio exercises; EKI publishes them",
-    "sidesonad": "no EKK section linked yet; attested corpus clozes not built",
-    "maarsonad": "no EKK section linked yet",
     "tulevik": "no EKK section linked yet; a generator is possible (Vabamorf)",
     "uhendverbid": "too few marked corpus examples; needs EKI usage examples",
     "liitsonad": "too few marked corpus examples",
