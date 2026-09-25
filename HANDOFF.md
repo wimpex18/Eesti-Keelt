@@ -1,23 +1,27 @@
 # Handoff
 
 ## Current state
-The production deep smoke passes for the current `main` image. Cloud Run has one
-instance with mounted EKI audio and HARNO exam storage; Workers AI GPT-OSS-120B
-is the automatic grammar/tutor lane with deterministic fallback, and Cloudflare
-Workers AI is production ASR. Native A2/B1 reading controls need private
-sidecars under `data/exam/`. The calmer-surfaces visual refinement is merged.
+PRs #72–#80 are merged. The production deep smoke passes for the current `main`
+image. Cloud Run has one instance with mounted EKI audio and HARNO exam storage;
+Workers AI GPT-OSS-120B is the automatic grammar/tutor lane with deterministic
+fallback, and Cloudflare Workers AI is production ASR. Native A2/B1 reading
+controls need private sidecars under `data/exam/`.
 
 ## Current task
-Open PRs, merge in this order: #72 docs refresh; #73 voice check and spoken
-drill answers; #74 Reegel pages; #75 kellaaeg and kuupäevad (on #74); #76
-ma-vormid (on #75); #77 pronouns, kaassõnad, käima/minema, -mine/-ja (on #76);
-#78 B1 tables, kaudne kõneviis, Russian points and tips, EKK numbers (on #77);
-#79 mul on / mulle meeldib (on #78); #80 sidesõnad, määrsõnad, parallel case
-forms, native reading smoke, journeys in CI (on #79).
-Each passes the full suite and the browser journeys.
+Branch `claude/estllm-review` (one PR for this thread): EstLLM and GPT-OSS
+measured (`docs/ai-providers.md`, `docs/evaluations/providers.json`); the
+external eval scorer compares bare words; spelling advice names täpitähed only
+when that is the fix; Reegel sheet, form tables, Kogu rada rows, the set head,
+the drill mic and Kuidas mind kuuldakse refined to the calmer system.
 
 ## Next step
-User reviews and merges. After merge, watch the new `journeys` CI job.
+User reviews and merges, then Cloud Build redeploys the origin; run the `smoke`
+workflow with `deep: true`.
+
+## Open questions
+Whether to let EstLLM write comprehension questions in local `cli serve`
+(Estonian-only work that code verifies), and whether to raise the grammar
+lane's token budget: a long sentence returned `empty reply (length)`.
 
 ## Remaining checks
 Actual Chrome reminder delivery, and ASR on learner speech (Kuidas mind

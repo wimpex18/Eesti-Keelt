@@ -320,7 +320,7 @@ export async function loadPath() {
           needs.length ? `<span lang="ru">после:</span> <span lang="et">${esc(needs.join(", "))}</span>` : "",
           t.accuracy === null || t.accuracy === undefined ? "" : `${Math.round(t.accuracy * 100)}%`,
         ].filter(Boolean).join(" · ");
-        const rule = `<button class="ghost" data-lesson="${esc(t.id)}" lang="et">reegel <i class="ru" lang="ru">правило</i></button>`;
+        const rule = `<button class="quiet" data-lesson="${esc(t.id)}" lang="et">reegel <i class="ru" lang="ru">правило</i></button>`;
         const acts = t.state === "ready" || t.state === "in progress"
           ? `<span class="acts">${rule}<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
              <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button></span>`
@@ -543,7 +543,6 @@ async function startPractice({focus = true} = {}) {
     }
     pathTopic = res.topic;
     paintTheme();
-    // A reference, not a warning: `info` rather than the default amber.
     /* The topic line above already names the resume topic; the head names it only
        when a different one was picked from the list. */
     const bits = [];
@@ -553,10 +552,11 @@ async function startPractice({focus = true} = {}) {
        three". */
     if (res.theme && res.items.length < 10)
       bits.push(`<span class="hint">по этой теме нашлось ${res.items.length}</span>`);
-    bits.push(`<button class="linky" type="button" data-lesson="${esc(res.topic)}" lang="et">Reegel
-      <span class="ru" lang="ru">правило</span></button>`);
-    out.innerHTML = bits.length
-      ? `<div class="banner info">${bits.join(" · ")}</div>` : "";
+    /* A plain line, not a banner: the set starts right under it. The rule is a
+       quiet action at its end, one tap away without competing with the drill. */
+    out.innerHTML = `<div class="set-head"><span>${bits.join(" · ")}</span>
+      <button class="quiet" type="button" data-lesson="${esc(res.topic)}" lang="et">reegel
+        <i class="ru" lang="ru">правило</i></button></div>`;
     loaded = true;
     pathTally.size = res.items.length;
     paintBeads(pathTally);

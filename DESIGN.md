@@ -138,12 +138,18 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per
   view — a started Sõnatrenn demotes Alusta. *Secondary* (`.ghost`, `.logbtn`,
   tutor offer): a neutral grey fill (`--ctl`, ink at 6%) with ink text. *Ghost*
-  (`.linky`, Vihje): text only. *Icon*: 44px neutral circles. Heights 44px, 52px
-  for a drill's answer action. Disabled: 45% opacity. Blue is kept for the primary
+  (`.linky`, Vihje): text only; `.quiet` is its neutral form for a secondary
+  link inside a list row (Reegel on Kogu rada and over a running set). *Icon*:
+  44px neutral circles, Phosphor glyphs, never a text character. Heights 44px,
+  52px for a drill's answer action and the mic beside it. Disabled: 45% opacity. Blue is kept for the primary
   action, focus, selection, progress and "now" — never as a tint on a control.
 - **Fields are outlined.** White with a 1px line at rest; on focus a blue edge and a
   3px blue halo. Labels sit above with the Russian
   gloss on the same line. The drill's answer field is 52px, spans the column, in the cut.
+- **Form tables** (Reegel): lines, not boxes. Column heads in meta grey over an
+  ink rule; row labels (cases, persons) stay pinned while the forms scroll
+  sideways on a phone, with a soft edge showing there is more. A table whose
+  first column is data (numerals) has no pinned labels.
 - **Switches** (`.levels`): a glass track, the chosen state a white capsule.
 - **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
   Home and End, with only the selected tab in the Tab order.

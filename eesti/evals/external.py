@@ -46,6 +46,11 @@ MAX_CHANGES = 2
 _PUNCT = ".,;:!?\"'()«»"
 
 
+def _bare(word: str) -> str:
+    """A token as the scorer compares it: no edge punctuation, case folded."""
+    return word.strip().strip(_PUNCT).casefold()
+
+
 def changed_tokens(original: str, correct: str) -> dict[str, str]:
     """Words that differ between the erroneous and corrected sentence.
 
@@ -149,10 +154,14 @@ def run(
             failures.append((row["original"], f"ERROR {why_failed(exc)}"))
             continue
 
+        # Compared as bare words: `kõigele` -> `kõigile` fixes the pair the
+        # corpus writes as `kõigele.` -> `kõigile.`, and a capital at the start
+        # of a sentence is not a different correction.
         proposed = {
-            (c.get("wrong") or "").strip(): (c.get("correct") or "").strip()
+            _bare(c.get("wrong") or ""): _bare(c.get("correct") or "")
             for c in result.get("corrections", [])
         }
+        changed = {_bare(wrong): _bare(right) for wrong, right in changed.items()}
         hit = any(
             wrong in proposed and proposed[wrong] == right
             for wrong, right in changed.items()
