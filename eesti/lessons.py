@@ -72,9 +72,11 @@ COMPOUND_TABLES: dict[str, tuple[str, tuple[str, ...], str]] = {
 }
 
 
-def _forms(lemma: str, tag: str) -> str:
+def _forms(lemma: str, tag: str, pos: str = "") -> str:
+    """Vabamorf's forms, parallel ones joined by ` ~ `. `pos` keeps a homonym out:
+    without `N`, `viis` (five) also gets `viisi` from the noun `viis` (tune)."""
     try:
-        found = list(dict.fromkeys(synthesize(lemma, tag) or []))
+        found = list(dict.fromkeys(synthesize(lemma, tag, pos) or []))
     except Exception:  # noqa: BLE001 - an unknown form is a blank cell, not an error
         found = []
     return " ~ ".join(found)
@@ -92,8 +94,22 @@ def _case(lemma: str, number: str, case: str) -> str:
     return full
 
 
+#: Where a table's cells come from, when it is not Vabamorf alone.
+TABLE_SOURCES = {
+    "vordlusastmed": "Keskvõrre (сравнительная степень) — omastav от Vabamorf плюс -m, "
+                     "только если такое слово есть в словнике Ekilex.",
+    "jargarvud": "Пары põhiarv — järgarv — закрытый список; omastav построен Vabamorf.",
+}
+VABAMORF = "Формы построены Vabamorf."
+
+
 def table(topic: str, words: sqlite3.Connection | None = None) -> dict | None:
-    """A form table for the topic, every cell from Vabamorf, or None."""
+    """A form table for the topic, or None; `source` says where its cells come from."""
+    t = _table(topic, words)
+    return t and t | {"source": TABLE_SOURCES.get(topic, VABAMORF)}
+
+
+def _table(topic: str, words: sqlite3.Connection | None) -> dict | None:
     if topic == "asesonad":
         from .pronouns import table as pronoun_table
 
@@ -133,10 +149,10 @@ def table(topic: str, words: sqlite3.Connection | None = None) -> dict | None:
 
         if topic == "arvsonad":
             return {"columns": ["nimetav", "omastav", "osastav"],
-                    "rows": [[n, _forms(n, "sg g"), _forms(n, "sg p")]
+                    "rows": [[n, _forms(n, "sg g", "N"), _forms(n, "sg p", "N")]
                              for n, _ in ORDINALS]}
         return {"columns": ["põhiarv", "järgarv", "omastav"],
-                "rows": [[n, o, _forms(o, "sg g")] for n, o in ORDINALS]}
+                "rows": [[n, o, _forms(o, "sg g", "O")] for n, o in ORDINALS]}
     return None
 
 

@@ -46,6 +46,16 @@ class TestTables:
     def test_negation(self):
         assert table("eitus")["rows"][0][3] == "ei lähe"
 
+    def test_a_numeral_gets_no_forms_of_a_homonymous_noun(self):
+        """`viisi` is the noun `viis` (tune), not the numeral five."""
+        rows = {r[0]: r[1:] for r in table("arvsonad")["rows"]}
+        assert rows["viis"] == ["viie", "viit"]
+        assert rows["kaks"] == ["kahe", "kaht ~ kahte"]
+
+    def test_every_table_names_its_source(self):
+        assert table("kohakaanded")["source"] == "Формы построены Vabamorf."
+        assert "закрытый список" in table("jargarvud")["source"]
+
 
 class TestTheRoute:
     @pytest.fixture
