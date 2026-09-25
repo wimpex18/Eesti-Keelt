@@ -69,7 +69,7 @@ One typeface, **Geologica** (Monokrom, OFL), self-hosted under
 `eesti/web/fonts/`. The interface is set soft; Estonian material is set in the
 same face at a sharper cut (`--cut`, SHRP 55), so it reads as material without a
 second family. Icons are **Phosphor** (MIT), inlined in `eesti/web/js/icons.js`:
-duotone for navigation and marks, bold for the glyphs inside buttons.
+one line style: Phosphor regular outlines (the duotone fill is hidden) for navigation and marks at 20–24px, and bold for the small glyphs inside buttons.
 
 ## Colors
 
@@ -196,6 +196,16 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 - **Celebration.** Mastery only: a flower blooms on an evening card, announced
   through the page's polite live region. Any key or tap dismisses it; under
   reduced motion only the announcement remains.
+
+## Layout rhythm
+
+One left edge per column. Exercises (drills, Sõnatrenn, Kordamine cards, the
+checkpoint, dictation, the readiness bloom, progress stats) share one treatment:
+on the page, ruled by a 1px line above, no card fill. The meta line (position,
+form, level) sits above the answer; the answer spans the column. Section heads
+open with a rule and 24px. Lists (words, library) are hairline rows, not tiles. A
+filter row's apply button is secondary. Text: 12 gloss/meta · 14 note/hint ·
+16 body · 20 section · 28 title and big numbers · 40 score.
 
 ## Depth
 

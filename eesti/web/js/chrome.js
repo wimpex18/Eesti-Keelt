@@ -336,7 +336,7 @@ export function flowerSvg(parts, target = 3, {labels = true} = {}) {
   const text = labels ? parts.slice(0, 4).map((p, i) => {
     const [x, y, anchor] = corner[i];
     return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="petal-label" lang="et">${esc(p.et)}</text>
-      <text x="${x}" y="${y + 17}" text-anchor="${anchor}" lang="ru"
+      <text x="${x}" y="${y + 20}" text-anchor="${anchor}" lang="ru"
         class="petal-sub${p.touched === false ? " warn" : ""}">${say(p)}</text>`;
   }).join("") : "";
   const name = parts.map(p => `${p.et}: ${say(p)}`).join("; ");
