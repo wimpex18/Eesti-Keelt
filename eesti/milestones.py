@@ -34,7 +34,7 @@ def for_level(progress: sqlite3.Connection, level: str) -> list[dict]:
          min(mastered_count, 1), 1),
         ("checkpoint", "Kontrolltöö", "Контрольная уровня пройдена.",
          int(level in passed_levels(progress)), 1),
-        ("four-parts", "Neli osa", "Потренированы все четыре части экзамена.",
+        ("four-parts", "Neli osa", "Есть практика по всем четырём частям экзамена.",
          touched, 4),
     )
     return [{"id": id_, "et": et, "ru": ru, "current": current,

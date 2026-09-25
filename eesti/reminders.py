@@ -160,7 +160,7 @@ def due(log: sqlite3.Connection, review: sqlite3.Connection,
         out.append(Reminder(
             f"tagasi-{studied}", "Eesti keel",
             f"Перерыв {_count((today - studied).days, 'день', 'дня', 'дней')}. "
-            "Даже десять минут удержат карточки.",
+            "Даже десять минут помогут не забыть карточки.",
             "/#path"))
 
     out.extend(_registration(progress, today))

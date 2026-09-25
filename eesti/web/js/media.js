@@ -51,7 +51,7 @@ export async function mountAudio(host, url) {
 
   try {
     const Hls = await loadHls();
-    if (!Hls || !Hls.isSupported()) throw new Error("Этот браузер не умеет играть такой поток.");
+    if (!Hls || !Hls.isSupported()) throw new Error("Этот браузер не может воспроизвести такой поток.");
     const hls = new Hls({ enableWorker: false });
     hls.loadSource(url);
     hls.attachMedia(el);
@@ -63,7 +63,7 @@ export async function mountAudio(host, url) {
     // Say so rather than showing a dead player. Russian: this is an
     // explanation, and the reader is still learning Estonian.
     host.innerHTML = `<div class="banner">Аудио не воспроизводится в этом
-      браузере (поток HLS). Откройте в Safari или обновите страницу.</div>`;
+      браузере (поток HLS). Открой в Safari или обнови страницу.</div>`;
   }
 }
 
@@ -129,7 +129,7 @@ export function enhanceAudio(audio) {
   p.className = "player";
   p.hidden = audio.hidden;
   p.innerHTML = `
-    <button class="pl-play" type="button" aria-label="Mängi — играть">${icon("play-fill", {weight: "bold"})}</button>
+    <button class="pl-play" type="button" aria-label="Mängi — воспроизвести">${icon("play-fill", {weight: "bold"})}</button>
     <span class="pl-time pl-now">0:00</span>
     <input class="pl-seek" type="range" min="0" max="1000" step="1" value="0"
       aria-label="Asukoht — позиция в записи">
@@ -162,7 +162,7 @@ export function enhanceAudio(audio) {
     const on = !audio.paused && !audio.ended;
     p.classList.toggle("playing", on);
     play.innerHTML = icon(on ? "pause-fill" : "play-fill", {weight: "bold"});
-    play.setAttribute("aria-label", on ? "Paus — пауза" : "Mängi — играть");
+    play.setAttribute("aria-label", on ? "Paus — пауза" : "Mängi — воспроизвести");
   };
 
   play.onclick = () => {

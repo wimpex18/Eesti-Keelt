@@ -546,7 +546,7 @@ async function evalPrompt() {
         `/api/eval/prompt?planted=${planted}`, null, "GET")).json();
       evalNow = {...got, question: ""};
       $("#evalPrompt").textContent = got.text;
-      $("#evalNote").innerHTML = md(got.note || "Прочитай вслух как написано.");
+      $("#evalNote").innerHTML = md(got.note || "Прочитай вслух, как написано.");
     }
     $("#evalRec").disabled = false;
   } catch (e) {

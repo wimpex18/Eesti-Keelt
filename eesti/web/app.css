@@ -41,7 +41,7 @@
   --accent-deep:#000087;  /* Liivi */
   --accent-soft:#e6eefd;  /* a breath of Pärnu */
   --on-accent:#ffffff;
-  --btn:#0030de;         /* the fill of a prominent button */
+  --btn:#1f3fbf;         /* the fill of a prominent button: Estonian blue, deepened */
   --btn-2:#0062f5;
   --on-btn:#ffffff;
   --good:#17804f;        /* sammal: right, mastered */
@@ -54,11 +54,11 @@
   --gloss:#0b7285;       /* järv: what a word means, and only that */
 
   /* ── Night: the Baltic evening behind the hero, in both themes ── */
-  --night-a:#000a3d; --night-b:#000087; --night-c:#0030de;
+  --night-a:#0b1433; --night-b:#142257; --night-c:#1b2f73;
   --on-night:#ffffff;
   --night-muted:#bccbe0;
   --night-line:rgba(255,255,255,.16);
-  --night-accent:#00c3ff; /* Narva */
+  --night-accent:#7fc8ea; /* Narva, softened */
   --night-glass:rgba(255,255,255,.1);
   --night-good:#4ade80; --night-bad:#fb7185;
   --sky:#00c3ff;         /* Narva: the one bright accent, for charts and light */
@@ -109,12 +109,12 @@
     --line-soft:#1a2332; --tint:#182231;
     --accent:#00c3ff; --accent-2:#5b8cff; --accent-deep:#7fd6ff; --accent-soft:#0c2544;
     --on-accent:#021327;
-    --btn:#0062f5; --btn-2:#2f7bff; --on-btn:#ffffff;
+    --btn:#3a5fc8; --btn-2:#4a6fd6; --on-btn:#ffffff;
     --good:#4fcb8c; --good-soft:#0f2a1d; --bad:#ff7d8c; --bad-soft:#35151c;
     --warn:#f5b451; --warn-soft:#2d2212; --warn-fill:#f0a020; --gloss:#52d0da;
-    --night-a:#000a3d; --night-b:#000a6e; --night-c:#0024a8;
+    --night-a:#101a33; --night-b:#16224a; --night-c:#1b2b5c;
     --on-night:#f4f7fc; --night-muted:#b3c2d8; --night-line:rgba(255,255,255,.16);
-    --night-accent:#00c3ff; --night-glass:rgba(255,255,255,.08);
+    --night-accent:#7fc8ea; --night-glass:rgba(255,255,255,.08);
     --night-good:#4ade80; --night-bad:#fb7185;
     --sky:#00c3ff; --sand:#e8d9ae; --pale:#1b3563;
     --glass:rgba(22,30,44,.62); --glass-strong:rgba(26,35,50,.82);
@@ -130,12 +130,12 @@
   --line-soft:#1a2332; --tint:#182231;
   --accent:#00c3ff; --accent-2:#5b8cff; --accent-deep:#7fd6ff; --accent-soft:#0c2544;
   --on-accent:#021327;
-  --btn:#0062f5; --btn-2:#2f7bff; --on-btn:#ffffff;
+  --btn:#3a5fc8; --btn-2:#4a6fd6; --on-btn:#ffffff;
   --good:#4fcb8c; --good-soft:#0f2a1d; --bad:#ff7d8c; --bad-soft:#35151c;
   --warn:#f5b451; --warn-soft:#2d2212; --warn-fill:#f0a020; --gloss:#52d0da;
-  --night-a:#000a3d; --night-b:#000a6e; --night-c:#0024a8;
+  --night-a:#101a33; --night-b:#16224a; --night-c:#1b2b5c;
   --on-night:#f4f7fc; --night-muted:#b3c2d8; --night-line:rgba(255,255,255,.16);
-  --night-accent:#00c3ff; --night-glass:rgba(255,255,255,.08);
+  --night-accent:#7fc8ea; --night-glass:rgba(255,255,255,.08);
     --night-good:#4ade80; --night-bad:#fb7185;
     --sky:#00c3ff; --sand:#e8d9ae; --pale:#1b3563;
   --glass:rgba(22,30,44,.62); --glass-strong:rgba(26,35,50,.82);
@@ -507,20 +507,11 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 .hero{position:relative;overflow:hidden;isolation:isolate;
   display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s4) var(--s5);align-items:end;
   padding:26px 24px 18px;border-radius:var(--r-xl);color:var(--on-night);
-  background:
-    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--sky) 38%, transparent), transparent 55%),
-    radial-gradient(80% 80% at 0% 100%, color-mix(in srgb, var(--accent-2) 45%, transparent), transparent 60%),
-    linear-gradient(140deg, var(--night-a) 0%, var(--night-b) 52%, var(--night-c) 100%);
+  background:linear-gradient(160deg, var(--night-a), var(--night-b));
   box-shadow:none}
-/* Contour lines of a bog map, drawn by the gradient itself. */
-.hero::before{content:"";position:absolute;inset:-20% -10% -20% 30%;z-index:-1;
-  background:repeating-radial-gradient(ellipse 60% 48% at 70% 42%,
-    transparent 0 30px, rgba(255,255,255,.14) 30px 31.5px);
-  -webkit-mask-image:radial-gradient(closest-side, #000 30%, transparent);
-  mask-image:radial-gradient(closest-side, #000 30%, transparent);opacity:.8}
 /* A barn swallow (suitsupääsuke) in the brand's broken line, crossing the evening. */
 .hero .swallow{position:absolute;top:18px;right:26px;width:120px;height:60px;z-index:-1;
-  fill:rgba(255,255,255,.16);stroke:rgba(255,255,255,.34);stroke-width:1;
+  fill:rgba(255,255,255,.07);stroke:rgba(255,255,255,.18);stroke-width:1;
   stroke-linejoin:round;animation:glide 9s var(--ease) infinite alternate}
 @keyframes glide{from{transform:translate(0,0) rotate(-2deg)}to{transform:translate(-14px,6px) rotate(2deg)}}
 .hero-text{min-width:0}
@@ -542,7 +533,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
                    linear-gradient(135deg,var(--night-muted) 50%,transparent 50%)}
 .trail{grid-column:1 / -1;min-height:70px;margin:0 -6px}
 .trail svg{display:block;width:100%;height:auto;overflow:visible}
-.trail .plank{fill:none;stroke:rgba(255,255,255,.12);stroke-width:18;stroke-linecap:round}
+.trail .plank{fill:none;stroke:rgba(255,255,255,.07);stroke-width:18;stroke-linecap:round}
 .trail .seam{fill:none;stroke:var(--night-line);stroke-width:1.5;stroke-dasharray:1.5 11}
 .trail .node{fill:var(--night-b);stroke:rgba(255,255,255,.35);stroke-width:2}
 .trail .node.ready, .trail .node.in-progress{stroke:var(--night-accent)}
@@ -744,7 +735,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   gap:var(--s1) var(--s3);padding:var(--s3) 0 0;border-top:1px solid var(--line-soft)}
 .today-block:first-child{border-top:0;padding-top:0}
 .today-kind{width:34px;height:34px;border-radius:11px;display:grid;
-  place-items:center;background:color-mix(in srgb, var(--kind, var(--accent)) 16%, transparent);
+  place-items:center;background:none;box-shadow:inset 0 0 0 1px var(--line);
   color:var(--kind-text, var(--kind, var(--accent)))}
 .today-kind svg{width:18px;height:18px}
 .today-min{display:block;font-size:var(--fs-meta);font-weight:800;
@@ -764,9 +755,11 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 @media (min-width:900px){
   /* Wide: the plan reads left to right like the strip above it. */
   .today-list.as-row{grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:var(--s5)}
-  .today-list.as-row .today-block{grid-template-columns:auto minmax(0,1fr);border-top:0;padding-top:0;
-    align-content:start}
-  .today-list.as-row .today-block > button{grid-column:2;justify-self:start;margin-top:var(--s2)}
+  .today-list.as-row .today-block{grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto 1fr;
+    border-top:0;padding-top:0}
+  .today-list.as-row .today-block > .today-kind{grid-column:1;grid-row:1}
+  .today-list.as-row .today-block > .today-what{grid-column:2;grid-row:1 / span 2;align-self:start}
+  .today-list.as-row .today-block > button{grid-column:2;grid-row:3;justify-self:start;margin-top:var(--s3)}
 }
 @media (max-width:560px){
   .today-block{grid-template-columns:auto minmax(0,1fr)}
@@ -1160,7 +1153,7 @@ audio.enhanced{display:none !important}
 /* The gate: ten slots in the hero, the topic's last answers against 8 of 10. */
 .gate{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-top:14px}
 .slots{display:flex;gap:4px}
-.slot{width:16px;height:8px;border-radius:4px;background:rgba(255,255,255,.2)}
+.slot{width:16px;height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
 .slot.ok{background:var(--night-good)}
 .slot.no{background:var(--night-bad)}
 .gate-say{font-size:var(--fs-meta);color:var(--night-muted)}

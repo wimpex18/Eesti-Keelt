@@ -441,7 +441,7 @@ def exam_text(item_id: str) -> dict:
         # The task exists; it simply has no extracted text (a scan, audio, a
         # .docx). An answer, not an error: a 404 here reads as a broken link.
         return {"id": item_id, "available": False,
-                "note": "Текст этого задания не разобрался — открой файл."}
+                "note": "Текст этого задания не удалось разобрать — открой файл."}
     try:
         meta = _json.loads(row["meta"] or "{}")
     except ValueError:

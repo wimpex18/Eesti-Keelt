@@ -90,7 +90,7 @@ Tokens live in `eesti/web/app.css` (`:root`), mirrored for dark under
 | Järv | `--gloss` | #0b7285 | #52d0da | What a word means, and only that |
 | Mustkivi | `--ink` | #0f172a | #eef2f8 | Text |
 | Page / sheet | `--bg` / `--panel` | #f8fafc / #ffffff | #0b1120 / #131c2e | Page and content sheets |
-| Evening | `--night-a/b/c` | #000a3d → #000087 → #0030de | darker | The hero: a Baltic evening gradient with Narva light |
+| Evening | `--night-a/b` | #0b1433 → #142257 | #101a33 → #16224a | The hero: a Baltic evening gradient with Narva light |
 | Glass | `--glass` + rim/edge/shadow | white 64% | slate 62% | The navigation layer |
 
 **Colour by role.** Blue acts, moss is right, cranberry is wrong, cloudberry
@@ -150,8 +150,8 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
 ## Signature components
 
-- **Hero (Praegu).** The evening gradient with Narva light, bog-map contour
-  lines and a barn swallow (suitsupääsuke) gliding in the corner. It holds the
+- **Hero (Praegu).** A quiet, deep evening surface (no glows or contour rings)
+  with a faint barn swallow (suitsupääsuke) gliding in the corner. It holds the
   resume topic, its Russian name and level, the **gate** (ten slots for the
   topic's last answers against 8 of 10), and the **boardwalk**.
 - **Laudtee.** An SVG plank path through a window of the curriculum around the

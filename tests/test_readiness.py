@@ -49,7 +49,7 @@ class TestAllFourParts:
         """60% overall is not enough if one part is zero, so this must be the
         loudest thing the verdict says."""
         result = readiness("A2", progress=progress)
-        assert any("Не тронутые" in r for r in result.reasons)
+        assert any("Нетронутые" in r for r in result.reasons)
 
     def test_speaking_is_unknown_rather_than_zero(self, progress):
         """Nothing simulates a paired dialogue. Reporting that as 'no practice'
@@ -80,7 +80,7 @@ class TestTheVerdict:
 
         result = readiness("A2", progress=progress)
         assert result.verdict != "данные говорят «да»"
-        assert any("Не тронутые" in r for r in result.reasons)
+        assert any("Нетронутые" in r for r in result.reasons)
 
     def test_no_progress_database_means_unknown(self):
         """Absence of evidence is reported as such, not as a negative verdict."""

@@ -1,7 +1,7 @@
 /* Am I ready: the level, the official material, and the checkpoint. */
 
 import {emptyState, flowerSvg, markIcon, retryableError, uiIcon} from "./chrome.js";
-import {$, api, esc, glide, langOf} from "./core.js";
+import {$, api, esc, glide, langOf, ruCount} from "./core.js";
 import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
@@ -275,7 +275,7 @@ async function openTask(row, id, format, hasFile) {
       }<audio controls preload="none" src="${esc(url)}"></audio></div>`).join("")}
     ${native?.questions?.length ? `<form class="exam-native">
       <p class="hint">Официальные вопросы и проверенный ключ — © Haridus- ja Noorteamet.
-        Результат этой тренировки не меняет освоение темы.</p>
+        Результат этой тренировки не влияет на освоение темы.</p>
       ${native.kind === "matching" ? `<p class="hint">Сопоставь каждую ситуацию с объявлением A–F.
         Букву можно выбрать для нескольких ситуаций.</p>` : ""}
       ${native.kind === "matching" ? `<div class="exam-figures">${native.figures.map(f =>
@@ -326,8 +326,8 @@ async function openTask(row, id, format, hasFile) {
               <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
            : `<p class="hint">${own
                 ? "Официальная запись — © Haridus- ja Noorteamet."
-                : pdf ? "Текст не извлёкся; оригинал показан выше."
-                : "Текст не разобрался — открой файл."}</p>`}`;
+                : pdf ? "Текст не удалось извлечь; оригинал показан выше."
+                : "Текст не удалось разобрать — открой файл."}</p>`}`;
   box.querySelector("[data-close]").onclick = () => box.remove();
   const form = box.querySelector(".exam-native");
   if (form) form.onsubmit = async e => {
@@ -419,7 +419,7 @@ async function runCheckpoint() {
       note.textContent = "Для этого уровня упражнений пока нет.";
       return;
     }
-    note.innerHTML = `${d.items.length} вопросов · для прохода ` +
+    note.innerHTML = `${ruCount(d.items.length, ["вопрос", "вопроса", "вопросов"])} · проходной балл ` +
       `<b>${Math.round(d.pass_mark * 100)}%</b>` +
       (d.ready === false ? " · <span class=\"hint\">уровень ещё не пройден</span>" : "");
     // Its own score line and end card: Rada's live in a panel that is not on screen.

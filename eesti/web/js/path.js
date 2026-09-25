@@ -596,7 +596,7 @@ function finishSet(tally, res) {
     tally.missed.map(({it}) => `<li>${esc(it.prompt).replace("____",
       `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
-    ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">ещё раз ошибки</span></button>` : "";
+    ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">повторить ошибки</span></button>` : "";
   const end = document.createElement("div");
   /* The score, the beads again, and the next set under the thumb. A set nearly all
      right wears moss; the count is the reward, not a streak. */
@@ -785,10 +785,10 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       $("#pathHead").className = "banner ok";
       $("#pathHead").hidden = false;
       $("#pathHead").innerHTML =
-        `✓ <strong lang="et">${esc(name)}</strong> пройдено — открывает следующие темы. ` +
+        `✓ Тема <strong lang="et">${esc(name)}</strong> пройдена и открывает следующие темы. ` +
         `Упражнения ушли в очередь повторения.`;
       celebrate({title: "Teema läbitud", name,
-                 note: "Доска легла в путь: следующие темы открыты."});
+                 note: "Тема пройдена: следующие темы открыты."});
       loadPath();
       refreshDueBadge();
       loadRail();
@@ -956,7 +956,7 @@ $("#offlineSend").onclick = async () => {
   const sent = await offline.flush();
   $("#offlineState").textContent = sent
     ? `Отправлено ответов: ${sent}.`
-    : "Пока не отправляется — нет связи.";
+    : "Ответы пока не отправлены — нет связи.";
   await paintOffline();
   if (sent) { loadPath(); loadRail(); }
   btn.disabled = false;
