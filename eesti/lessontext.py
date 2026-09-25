@@ -187,6 +187,39 @@ LESSONS: dict[str, LessonText] = {
         sources=(ekk("M 10"), ekk("M 10a"), Source("EKK, sõnamoodustus: liitverbid",
                                                   f"{EKK}?p=4&p1=2")),
     ),
+    "kellaaeg": LessonText(
+        points_ru=(
+            "Полный час: **kell** + числительное: *Ma ärkan kell seitse*. "
+            "Цифрами — *kell 19*, минуты при полном часе не пишут.",
+            "Доли часа считаются к **следующему** часу, как «половина десятого»: "
+            "*veerand kümme* = 9.15, *pool kümme* = 9.30, *kolmveerand kümme* = 9.45.",
+            "Когда? — день недели в **alalütlev**: *Nad sõidavad neljapäeval maale*.",
+            "К какому сроку? — **saav**: *Koosolek määrati reedeks*, *kell kuueks*.",
+            "С какого времени — **seestütlev**, до какого — **rajav**: *hommikust "
+            "õhtuni*, *pood on lahti kella 22-ni*.",
+            "На письме: *10.30* или *10:30*; промежуток — через тире: *kauplus on "
+            "lahti 9–18*.",
+        ),
+        sources=(Source("Opiq: Kellaaeg", "https://www.opiq.ee/kit/287/chapter/17412"),
+                 ekk("M 57"), ekk("M 59"), ekk("M 61"),
+                 Source("EKI teatmik: arvukirjutus",
+                        "https://teatmik.eki.ee/teatmik/arvukirjutus/")),
+    ),
+    "kuupaevad": LessonText(
+        points_ru=(
+            "Дата — **порядковое** числительное и месяц, оба в **alalütlev**: "
+            "*2. märtsil*, *5. ja 6. mail*.",
+            "Порядковое числительное цифрами пишется **с точкой**: *30. kuupäev*.",
+            "В составном числительном склоняется только последнее слово: "
+            "*kahekümne esimene → kahekümne esimesel*.",
+            "Срок — **saav**, и числительное согласуется: *30. kuupäevaks*.",
+            "Промежуток дат: *5.–26. mail*, *5. kuni 26. maini*.",
+            "Год: *2018. aastal*.",
+        ),
+        sources=(Source("EKI teatmik: arvukirjutus",
+                        "https://teatmik.eki.ee/teatmik/arvukirjutus/"),
+                 ekk("M 59"), ekk("M 61")),
+    ),
     "liitsonad": LessonText(
         points_ru=(
             "Сложное слово (**liitsõna**) пишется слитно и имеет одно главное "
