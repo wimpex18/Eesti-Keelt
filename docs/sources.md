@@ -18,10 +18,11 @@ can answer "may this be shown to anyone but the owner?".
 | EKI *Haridussõnastik* (HAR) | CC-BY-4.0 | fallback Russian for education terms |
 | Ekilex API (EKI) | CC-BY-4.0 | live word card with `EKILEX_API_KEY` |
 | Sõnaveeb via `api.sonapi.ee` | Ekilex data CC-BY-4.0, third-party endpoint | live word card without a key |
+| EKI teatmik, *Asesõnade käänamine* | © EKI — forms transcribed with the source named | pronoun paradigms (`eesti/pronouns.py`) |
 | *Eesti keele käsiraamat* (EKK) | © EKI — linked, not reproduced | rule links per topic; SÜ 64 rection list |
 | EKI *põhisõnavara hääldused* | CC-BY-4.0, owner-only | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
 | EKI *kõnekorpused* | CC-BY-4.0; the works read stay in copyright | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
-| `data/seed_glossary.tsv` | own work | 294 hand-written glosses for drill words |
+| `data/seed_glossary.tsv` | own work | 315 hand-written glosses for drill words |
 
 Keep EKI attribution wherever EKI text is shown (`eesti/licences.py`).
 

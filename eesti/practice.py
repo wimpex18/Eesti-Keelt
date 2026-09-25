@@ -115,6 +115,22 @@ def items_for(
             return question_drills(count=count, seed=seed, words=words)
         if topic == "vordlusastmed":
             return comparison_drills(words, levels, count, seed)
+        if topic == "asesonad":
+            from .pronouns import drills as pronoun_drills
+
+            return pronoun_drills(count, seed)
+        if topic == "kaassonad":
+            from .postpositions import drills as postposition_drills
+
+            return postposition_drills(count, seed)
+        if topic == "kaima-minema":
+            from .motion import drills as motion_drills
+
+            return motion_drills(count, seed)
+        if topic == "tuletus":
+            from .wordbuilding import drills as derivation_drills
+
+            return derivation_drills(words, count, seed)
         if topic == "ma-vormid":
             from .verbforms import drills
 

@@ -89,7 +89,9 @@ class _Answered:
         self.why_ru = req.why_ru
 
     def check(self, given: str) -> bool:
-        return given.strip().casefold() == self.answer.casefold()
+        from ..item import accepts
+
+        return accepts(self.answer, given)
 
 
 @router.get("/api/curriculum")

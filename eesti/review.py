@@ -18,6 +18,7 @@ from pathlib import Path
 from fsrs import Card, Rating, Scheduler
 
 from . import evidence
+from .item import accepts
 
 # FSRS ratings. Grammar cards are rated by code from a typed answer
 # (`auto_rating`: wrong -> Again, slow -> Hard, else Good); vocabulary cards,
@@ -314,7 +315,7 @@ def answer(conn: sqlite3.Connection, item_id_: str, given: str,
         "SELECT answer FROM review_items WHERE id = ?", (item_id_,)).fetchone()
     if row is None:
         raise KeyError(item_id_)
-    correct = given.strip().casefold() == row["answer"].strip().casefold()
+    correct = accepts(row["answer"], given)
     rating = auto_rating(correct, latency_ms)
     out = grade(conn, item_id_, rating, auto=True, given=given, latency_ms=latency_ms)
     return out | {"correct": correct, "rating": rating, "answer": row["answer"]}

@@ -19,7 +19,7 @@ EKK_BASE = "https://arhiiv.eki.ee/books/ekk09/index.php"
 # link lands on the page containing the section and `ekk_section` is the label to
 # find. Section numbers were read off the handbook (morphology uses **M**, and
 # sub-pages are not in section order).
-ORTOGRAAFIA, MORFOLOOGIA, SUNTAKS = 2, 3, 5
+ORTOGRAAFIA, MORFOLOOGIA, SONAMOODUSTUS, SUNTAKS = 2, 3, 4, 5
 
 
 @dataclass(frozen=True)
@@ -271,6 +271,38 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "Час: **kell** + числительное; доля — к следующему часу: *pool "
             "kümme* = 9.30. Когда — **alalütlev** (*neljapäeval*), к сроку — "
             "**saav** (*reedeks*), с — **seestütlev**, до — **rajav**."
+        ),
+    ),
+    "asesonad": Reference(
+        tag="asesonad", et_term="asesõnad", ru_term="местоимения",
+        ekk_section="M 8", chapter=MORFOLOOGIA, subsection=1,
+        summary_ru=(
+            "У личных местоимений есть длинная и короткая форма: *minule ~ mulle*, "
+            "*temal ~ tal*. Короткая — без логического ударения, длинная — с ним."
+        ),
+    ),
+    "kaassonad": Reference(
+        tag="kaassonad", et_term="kaassõnad", ru_term="пред- и послелоги",
+        ekk_section="M 11", chapter=MORFOLOOGIA, subsection=1,
+        summary_ru=(
+            "Большинство — **послелоги** после omastav: *laua all*. Предлогов мало, "
+            "обычно с osastav: *enne tööd*, *keset teed*."
+        ),
+    ),
+    "kaima-minema": Reference(
+        tag="kaima-minema", et_term="käima ja minema", ru_term="käima или minema",
+        ekk_section="SÜ 64", chapter=SUNTAKS, subsection=2,
+        summary_ru=(
+            "**käima** — где? (*käisin kinos* — был и вернулся; *käivad koolis* — "
+            "регулярно). **minema** — куда? (*lähen kinno*, *läks poodi*)."
+        ),
+    ),
+    "tuletus": Reference(
+        tag="tuletus", et_term="tuletus", ru_term="словообразование",
+        ekk_section="SM 21", chapter=SONAMOODUSTUS, subsection=3,
+        summary_ru=(
+            "От любого глагола: действие — **-mine** (*rääkima → rääkimine*), "
+            "тот, кто делает, — **-ja** (*laulma → laulja*)."
         ),
     ),
     "ma-vormid": Reference(

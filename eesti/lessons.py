@@ -1,8 +1,9 @@
 """The Reegel page: one topic's rule, its forms, examples and the learner's own
 mistakes, in one place.
 
-Nothing here is a hand-typed form. Tables come from Vabamorf's synthesiser for a
-few sample words; examples are the topic's own drill items with the answer
+Nothing here is a hand-typed form except the pronoun table, which is the EKI
+teatmik's own (`pronouns.py`: Vabamorf declines pronouns wrongly). Other tables
+come from Vabamorf's synthesiser for a few sample words; examples are the topic's own drill items with the answer
 filled in, which code has already checked; mistakes are the learner's missed
 attempts from the evidence log. The prose is the EKK summary
 (`grammar.REFERENCES`) and, where a topic needs more, `eesti/lessontext.py`.
@@ -99,6 +100,8 @@ TABLE_SOURCES = {
     "vordlusastmed": "Keskvõrre (сравнительная степень) — omastav от Vabamorf плюс -m, "
                      "только если такое слово есть в словнике Ekilex.",
     "jargarvud": "Пары põhiarv — järgarv — закрытый список; omastav построен Vabamorf.",
+    "asesonad": "Таблицы EKI teatmik «Asesõnade käänamine»; Vabamorf склоняет "
+                "местоимения неверно, поэтому здесь не он.",
 }
 VABAMORF = "Формы построены Vabamorf."
 
@@ -110,6 +113,10 @@ def table(topic: str, words: sqlite3.Connection | None = None) -> dict | None:
 
 
 def _table(topic: str, words: sqlite3.Connection | None) -> dict | None:
+    if topic == "asesonad":
+        from .pronouns import table as pronoun_table
+
+        return pronoun_table()
     if topic == "vordlusastmed" and words is not None:
         from .patterns import comparatives
 

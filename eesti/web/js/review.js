@@ -242,8 +242,10 @@ function renderReview(it, glosses) {
   const ru = (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
   el.className = "drill";
+  // A button shows one form: parallel forms ("minule ~ mulle") would give the
+  // right one away by their tilde. The server accepts any variant.
   const forms = it.distractor
-    ? [it.answer, it.distractor].sort((a, b) => a.localeCompare(b, "et")) : [];
+    ? [it.answer.split(" ~ ")[0], it.distractor].sort((a, b) => a.localeCompare(b, "et")) : [];
   const answerBox = forms.length
     ? forms.map(f => `<button class="ghost" data-pick="${esc(f)}" lang="et">${esc(f)}</button>`).join("")
     : `<input type="text" size="18" placeholder="?" lang="et" aria-label="Vastus — ответ"

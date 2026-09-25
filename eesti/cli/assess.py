@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 
 from ..config import LEVELS
+from ..item import accepts
 from ._helpers import _ask_terminal, learner_db
 
 def cmd_placement(args: argparse.Namespace) -> int:
@@ -131,7 +132,7 @@ def cmd_review(args: argparse.Namespace) -> int:
         except (EOFError, KeyboardInterrupt):
             print("\nstopped.")
             break
-        ok = given.strip().casefold() == item.answer.casefold()
+        ok = accepts(item.answer, given)
         right += ok
         result = review.grade(reviews, item.id, "good" if ok else "again")
         if ok:

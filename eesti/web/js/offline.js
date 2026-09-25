@@ -111,8 +111,9 @@ export async function flush() {
 
 export function graded(item, given) {
   // The server's rule, applied here because offline there is nobody to ask.
-  return (given || "").trim().toLocaleLowerCase("et") ===
-    (item.answer || "").trim().toLocaleLowerCase("et");
+  // Parallel forms ("minule ~ mulle") accept either, as on the server.
+  const said = (given || "").trim().toLocaleLowerCase("et");
+  return (item.answer || "").split(" ~ ").some(v => said === v.trim().toLocaleLowerCase("et"));
 }
 
 export function describe(pack, queuedCount) {

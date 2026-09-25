@@ -4,7 +4,7 @@ The A1→B1 grammar syllabus as data, and the learning model around it.
 
 ## Where it lives
 
-`eesti/curriculum.py` — `TOPICS`, 39 topics taken from Estonian course
+`eesti/curriculum.py` — `TOPICS`, 41 topics taken from Estonian course
 curricula that track the state standard (Keeltekeskus Kaja A1/B1, Dialoog,
 B-Lingua). Each `Topic` has `id`, `level`, Estonian and Russian names,
 `requires` (prerequisites), an optional error-log `tag` and an optional
@@ -33,7 +33,7 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
 - **Themes** pair a grammar rule with a themed word set (`themes.py`), so a
   drill teaches the rule and the vocabulary together.
 - **Reference topics** (no generator) show in the path and never block.
-- **Every topic has a Reegel page** (`eesti/lessons.py`, `/api/lesson/{topic}`). Its prose restates EKK or the EKI teatmik and names the section; its tables are synthesised by Vabamorf for a few sample words, never typed; pronouns have no table until a cited one exists.
+- **Every topic has a Reegel page** (`eesti/lessons.py`, `/api/lesson/{topic}`). Its prose restates EKK or the EKI teatmik and names the section; its tables are synthesised by Vabamorf for a few sample words, except the pronoun table, which is the EKI teatmik's *Asesõnade käänamine* (`eesti/pronouns.py`), because Vabamorf declines pronouns wrongly. Each table carries a `source` note that the page shows.
 - **Every topic has a representation** (`curriculum.representations`): a
   generator, an EKK reference, linked reading, practice inside another topic's
   drills (`CROSS`), or the checkpoint. Topics with none are listed with the
