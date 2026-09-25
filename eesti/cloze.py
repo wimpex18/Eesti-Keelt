@@ -352,10 +352,17 @@ def case_clozes(
             if wrong is None or (require_contrast and wrong == token.text):
                 continue
 
+            # A case with parallel forms (`tube ~ tubasid`) accepts either: the
+            # text used one, the learner may know the other. The attested one first.
+            variants = [token.text] + [f for f in dict.fromkeys(
+                synthesize(token.lemma, token.form) or []) if f != token.text]
+            if wrong in variants:
+                continue
+
             case_et = CASES[token.form][0]
             out.append((ease, Cloze(
                     prompt=_blank(sentence, token.start, token.end),
-                    answer=token.text,
+                    answer=" ~ ".join(variants),
                     distractor=wrong,
                     lemma=token.lemma,
                     case=token.form,

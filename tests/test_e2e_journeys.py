@@ -3,8 +3,8 @@
 Contract tests check names; these check that a person can open a panel, answer
 an item and see a verdict, at desktop and phone sizes, in Chromium and WebKit.
 
-Skipped (never failed) without Playwright, a browser or a built dataset; not
-run in CI. The server runs in a temp working directory, so the learner databases
+Skipped (never failed) without Playwright, a browser or a built dataset. CI's
+`journeys` job builds the word list and runs them. The server runs in a temp working directory, so the learner databases
 (relative `data/*.db` paths) are isolated, and the content databases point at
 the real read-only ones via `EESTI_DB` / `EESTI_CONTENT_DB`.
 
