@@ -84,12 +84,13 @@ export async function loadReadAloud(kind) {
 
 
 async function plantProbes() {
-  for (let at = 3; at < readAloud.length; at += 4) {
-    try {
-      const p = await (await api("/api/speaking/probe", null, "GET")).json();
-      readAloud.splice(at, 0, {text: p.text, probe: p});
-    } catch { return; }
-  }
+  // One probe after every three sentences, never last; fetched together, so the
+  // list waits for one round trip rather than one per probe. A failed one is skipped.
+  const wanted = Math.max(0, Math.ceil((readAloud.length - 3) / 3));
+  const probes = (await Promise.all(Array.from({length: wanted}, () =>
+    api("/api/speaking/probe", null, "GET").then(r => r.json()).catch(() => null))))
+    .filter(p => p?.text);
+  probes.forEach((p, k) => readAloud.splice(3 + 4 * k, 0, {text: p.text, probe: p}));
 }
 
 
@@ -203,7 +204,8 @@ if (!canRecord) {
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
       const item = speakMode() === "vastus" ? null : readAloud[readIdx];
       const task = {text: currentTarget() || "", question: currentQuestion(),
-        planted: "", correct: "", probe: item?.probe || null};
+        planted: item?.probe?.planted || "", correct: item?.probe?.correct || "",
+        probe: item?.probe || null};
       practiceClip = null;
       $("#recSaveEval").hidden = true;
       chunks = [];
