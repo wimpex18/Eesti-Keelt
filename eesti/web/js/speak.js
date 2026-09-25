@@ -73,6 +73,9 @@ export async function loadReadAloud(kind) {
   try {
     const {items} = await (await api(`/api/speaking/readaloud?kind=${kind}&n=12`, null, "GET")).json();
     readAloud = items; readIdx = 0;
+    // Every fourth sentence carries a planted object-case error: the check
+    // that the recogniser hands back what was said, not what should have been.
+    if (kind === "lause") await plantProbes();
     $("#speakTopic").hidden = true;
     $("#speakNext").hidden = false;
     showReadAloud();
@@ -80,11 +83,33 @@ export async function loadReadAloud(kind) {
 }
 
 
+async function plantProbes() {
+  // One probe after every three sentences, never last; fetched together, so the
+  // list waits for one round trip rather than one per probe. A failed one is skipped.
+  const wanted = Math.max(0, Math.ceil((readAloud.length - 3) / 3));
+  const probes = (await Promise.all(Array.from({length: wanted}, () =>
+    api("/api/speaking/probe", null, "GET").then(r => r.json()).catch(() => null))))
+    .filter(p => p?.text);
+  probes.forEach((p, k) => readAloud.splice(3 + 4 * k, 0, {text: p.text, probe: p}));
+}
+
+
+function markPlanted(text, planted) {
+  const words = text.split(" ");
+  const i = words.findIndex(w => w.replace(/[.,!?;:«»"]/g, "") === planted);
+  if (i < 0) return esc(text);
+  return words.map((w, j) => j === i ? `<mark>${esc(w)}</mark>` : esc(w)).join(" ");
+}
+
+
 function showReadAloud() {
   const it = readAloud[readIdx];
   if (!it) return;
-  $("#speakPrompt").innerHTML =
-    `${esc(it.text)}<div class="why instr" lang="ru" style="margin-top:var(--s2)">Прочитай вслух.
+  $("#speakPrompt").innerHTML = it.probe
+    ? `${markPlanted(it.text, it.probe.planted)}<div class="why instr" lang="ru" style="margin-top:var(--s2)">
+       Прочитай <b>ровно как написано</b>, вместе с выделенным словом. Его форма
+       здесь намеренно неверная: так видно, не «исправит» ли распознавание ошибку за тебя.</div>`
+    : `${esc(it.text)}<div class="why instr" lang="ru" style="margin-top:var(--s2)">Прочитай вслух.
      ${it.level ? esc(it.level) : ""}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
@@ -177,8 +202,10 @@ if (!canRecord) {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      const item = speakMode() === "vastus" ? null : readAloud[readIdx];
       const task = {text: currentTarget() || "", question: currentQuestion(),
-        planted: "", correct: ""};
+        planted: item?.probe?.planted || "", correct: item?.probe?.correct || "",
+        probe: item?.probe || null};
       practiceClip = null;
       $("#recSaveEval").hidden = true;
       chunks = [];
@@ -240,6 +267,7 @@ if (!canRecord) {
             html += `<div class="why">${c.matched}/${c.total} слов распознано.
               ${c.missed.length ? "Повтори: <b lang=\"et\">" + c.missed.map(esc).join(", ") + "</b>. " : ""}
               ${esc(c.caveat)}</div>`;
+            html += checkRow();
           } else {
             html += `<div class="why">Движок: ${esc(t.engine)}.</div>`;
             // An open answer is text once transcribed, so it goes through the
@@ -256,6 +284,7 @@ if (!canRecord) {
             } catch {}
           }
           heard.innerHTML = html;
+          if (t.comparison) bindCheck(heard, task, t);
         } catch (e) {
           heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="why">${esc(e.message)}</div>`;
         }
@@ -281,6 +310,66 @@ if (!canRecord) {
     "между собой. В одиночку имеет смысл тренировать построение ответа и " +
     "беглость, а не баллы.</details>";
 }
+
+
+/* Did the learner read it as written? Only they know, and only right now.
+   Their answer turns an ordinary read-aloud into a measurement of the
+   recogniser (eesti/asrcheck.py); no audio is kept for it. */
+function checkRow() {
+  return `<div class="row asr-check" lang="et">
+    <button class="ghost" data-said="as-written">Lugesin nii, nagu kirjas
+      <span class="ru" lang="ru">прочитал как написано</span></button>
+    <button class="ghost" data-said="differently">Ütlesin teisiti
+      <span class="ru" lang="ru">сказал иначе</span></button></div>`;
+}
+
+
+function bindCheck(heard, task, t) {
+  heard.querySelectorAll(".asr-check button").forEach(b => b.onclick = async () => {
+    const row = b.closest(".asr-check");
+    row.querySelectorAll("button").forEach(x => x.disabled = true);
+    const body = {target: task.text, transcript: t.text, engine: t.engine || "",
+      said: b.dataset.said};
+    if (task.probe) Object.assign(body, task.probe);
+    delete body.text;
+    try {
+      const rep = await (await api("/api/speaking/check", body)).json();
+      row.outerHTML = `<div class="why" lang="ru">Учтено.</div>`;
+      paintAsrReport(rep);
+    } catch (e) {
+      row.insertAdjacentHTML("afterend", `<div class="why">${esc(e.message)}</div>`);
+    }
+  });
+}
+
+
+function paintAsrReport(r) {
+  const el = $("#asrReport");
+  if (!el) return;
+  const pr = r.probes, probes = pr.kept + pr.repaired + pr.other;
+  if (!r.sentences) {
+    el.innerHTML = `<p>Пока ни одного подтверждённого предложения.</p>`;
+    return;
+  }
+  let html = `<p>${ruCount(r.sentences, ["предложение", "предложения", "предложений"])}
+    прочитано как написано; ${ruCount(r.errors, ["слово", "слова", "слов"])} из ${r.words}
+    распознано не так. Проверок с ошибкой: ${probes}; распознавание «исправило»
+    ошибку ${pr.repaired} раз, оставило как сказано ${pr.kept}.</p>`;
+  if (r.word_error_rate === null || r.false_acceptance === null) {
+    html += `<p>Долю ошибок покажу после ${r.floors.sentences} предложений и
+      ${r.floors.probes} проверок с ошибкой: на меньшем числе она ничего не значит.</p>`;
+  }
+  if (r.word_error_rate !== null)
+    html += `<p>Доля ошибок распознавания: <b>${Math.round(r.word_error_rate * 100)} %</b> слов.</p>`;
+  if (r.false_acceptance !== null)
+    html += `<p>Ошибка «исправлена» распознаванием: <b>${Math.round(r.false_acceptance * 100)} %</b>
+      проверок. Чем выше, тем чаще твоя ошибка в речи остаётся незамеченной.</p>`;
+  if (r.engines.length) html += `<p>Движок: ${r.engines.map(esc).join(", ")}.</p>`;
+  el.innerHTML = html;
+}
+
+
+api("/api/speaking/check", null, "GET").then(r => r.json()).then(paintAsrReport).catch(() => {});
 
 
 /* Vestlus: the partner the paired exam has and a solo learner does not.

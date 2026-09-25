@@ -252,6 +252,16 @@
       <span class="ru" lang="ru">сохранить эту запись для сравнения</span></button>
     <div id="recNote" class="engine"></div>
 
+    <!-- Read-aloud sentences confirmed as read, scored against what was heard
+         (eesti/asrcheck.py). Counts only; no audio is kept. -->
+    <details class="asr-report">
+      <summary lang="et">Kuidas mind kuuldakse <i class="ru" lang="ru">как распознаётся моя речь</i></summary>
+      <p class="hint">Читай предложения вслух в режиме <b lang="et">Loe ette: laused</b>
+        и после каждого отметь, прочитал ли ты его как написано. Каждое четвёртое
+        содержит намеренную ошибку.</p>
+      <div id="asrReport" class="hint" role="status"></div>
+    </details>
+
     <!-- Recording the speech eval set. Local only (`cli serve`): the route is
          absent on the deployment, so this block stays hidden there (ADR-0003). -->
     <details class="evalset" id="evalSet" hidden>
