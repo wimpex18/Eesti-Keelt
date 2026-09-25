@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from ..config import LEVELS
 
-from .deps import db, gloss_db, progress_db, review_db
+from .deps import content_db, db, gloss_db, progress_db, review_db
 
 from .render import _glosses_for, _topic_reference, item_for_page, reading_for
 
@@ -136,6 +136,23 @@ def curriculum_path() -> dict:
             for r in rows
         ],
     }
+
+
+@router.get("/api/lesson/{topic}")
+def topic_lesson(topic: str) -> dict:
+    """The Reegel page for one topic (`eesti/lessons.py`)."""
+    from .. import evidence
+    from ..lessons import lesson
+
+    try:
+        content = content_db()
+    except Exception:  # noqa: BLE001 - no corpus means no reading links, not no lesson
+        content = None
+    with evidence.connect() as log:
+        found = lesson(topic, log=log, content=content, words=db())
+    if found is None:
+        raise HTTPException(status_code=404, detail="Такой темы нет.")
+    return found
 
 
 @router.get("/api/themes")

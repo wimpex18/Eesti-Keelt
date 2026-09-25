@@ -177,6 +177,7 @@
       <!-- While a set runs, the three controls fold into this one line. -->
       <div class="free-summary" id="freeSummary" hidden>
         <span id="freeWhat"></span>
+        <button class="ghost" id="freeLesson" data-lesson="" lang="et">Reegel <span class="ru" lang="ru">правило</span></button>
         <button class="ghost" id="freeEdit" lang="et">Muuda <span class="ru" lang="ru">изменить</span></button>
       </div>
       <div class="row free-controls" id="freeControls">
@@ -676,6 +677,8 @@
 <!-- The one polite announcer: moments worth saying aloud (a topic mastered). -->
 <div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 
+<!-- The Reegel page (js/lesson.js): a solid sheet over the page. -->
+<dialog id="lessonSheet" class="lesson" aria-label="Reegel — правило"></dialog>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

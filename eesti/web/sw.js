@@ -25,7 +25,7 @@ const ASSETS = [
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/voice.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
   "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",
-  "/js/remind.js", "/js/icons.js", "/js/words.js",
+  "/js/remind.js", "/js/icons.js", "/js/words.js", "/js/lesson.js",
   "/fonts/geologica-latin.woff2", "/fonts/geologica-latin-ext.woff2",
   "/fonts/geologica-cyrillic.woff2",
 ];
