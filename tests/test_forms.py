@@ -238,7 +238,7 @@ class TestAgreement:
         from eesti.grammar import describe
 
         ref = describe("uhildumine")
-        assert ref["known"] and ref["ekk_section"] == "SÜ 98"
+        assert ref["known"] and ref["ekk_section"] == "SÜ 99"
         assert "omastav" in ref["summary_ru"]
 
     def test_the_explanation_names_the_russian_contrast(self, words):

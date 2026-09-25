@@ -37,15 +37,17 @@ class TestGrammarReferences:
         "tag, section",
         [
             ("obj-case", "SÜ 37"),    # Sihitis: täis- ja osasihitis
-            ("rektsioon", "SÜ 64"),   # Rektsioon
-            ("word-order", "SÜ 90"),  # Lause sõnajärg
-            ("gen-stem", "M 51"),     # Omastav kääne
+            ("rektsioon", "SÜ 65"),   # Rektsioon
+            ("word-order", "SÜ 91"),  # Lause sõnajärg: olulisim info lause lõpus
+            ("gen-stem", "M 52"),     # Omastav kääne
             ("gradation", "M 22"),    # Astmevaheldus
             ("ma-da-inf", "M 73"),    # Infiniitsed vormid: da-tegevusnimi
         ],
     )
     def test_sections_are_the_ones_read_off_the_handbook(self, tag, section):
-        """Pinned against the handbook's own contents, so a plausible-looking
+        """Numbers as the handbook's `index.php?link=` opens them: in its table of
+        contents a section's number follows its title, so reading the number
+        before a title is off by one. Pinned against the handbook's own contents, so a plausible-looking
         edit cannot quietly reintroduce a wrong number."""
         assert reference_for(tag).ekk_section == section
 

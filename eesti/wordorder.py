@@ -102,7 +102,7 @@ class Item:
 #: moved and why, and the general one is deliberately modest: it claims a
 #: native's preference, not a grammatical verdict.
 WHY = {
-    # "обычно", not "всегда": EKK (SÜ 90) says the finite verb is *usually* second
+    # "обычно", not "всегда": EKK (SÜ 92) says the finite verb is *usually* second
     # and inversion is a means of emphasis.
     "v2": (
         "**Спрягаемый глагол — вторым.** Если предложение начинается не с "
@@ -110,7 +110,7 @@ WHY = {
         "*после* глагола: «Eile **läksin ma** kooli», а не «Eile ma läksin». "
         "В русском порядок свободный — отсюда и ошибка. Это сильная тенденция, "
         "а не железное правило: инверсия в эстонском ещё и способ выделить "
-        "нужное слово (EKK, SÜ 90)."
+        "нужное слово (EKK, SÜ 92)."
     ),
     "negation": (
         "**Отрицание.** Частица `ei` стоит непосредственно перед глаголом, "

@@ -1,4 +1,4 @@
-"""Verb government (rektsioon), from EKK SÜ 64: "Rektsioone, milles sageli eksitakse".
+"""Verb government (rektsioon), from EKK SÜ 65: "Rektsioone, milles sageli eksitakse".
 
 Rection is a large learner error class, and a natural one for a Russian speaker
 (*mõtlema millele* vs *думать о чём*). EKK's table lists the headword, the
@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from .grammar import EKK_BASE
 
-# SÜ 64 lives on the syntax chapter's "LAUSE EHITUS" page.
+# SÜ 65 lives on the syntax chapter's "LAUSE EHITUS" page.
 SOURCE_URL = f"{EKK_BASE}?p=5&p1=2"
 SECTION = "Rektsioone, milles sageli eksitakse"
 TIMEOUT = 60.0
@@ -139,7 +139,7 @@ def fetch(cache=None) -> list[Rection]:
     if cache is not None and Path(cache).exists():
         return parse(Path(cache).read_text(encoding="utf-8"))
 
-    page = net.get(SOURCE_URL, "EKK SÜ 64", timeout=TIMEOUT,
+    page = net.get(SOURCE_URL, "EKK SÜ 65", timeout=TIMEOUT,
                    retries=RETRIES, ua=UA)
 
     if cache is not None:
@@ -210,7 +210,7 @@ def at_levels(conn, rections: list[Rection], levels: tuple[str, ...]) -> list[Re
 # Checking free writing: EVKK's `&err-gov`
 # ---------------------------------------------------------------------------
 #
-# General rection checking needs valency (syntax). SÜ 64 lists specific attested
+# General rection checking needs valency (syntax). SÜ 65 lists specific attested
 # confusions, so this is a lookup. All three must hold:
 #
 #   1. the headword is one of EKK's attested contrasts;

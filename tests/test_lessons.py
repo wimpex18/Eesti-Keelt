@@ -32,19 +32,23 @@ class TestEveryTopic:
 
 class TestTables:
     def test_a_case_table_comes_from_the_synthesiser(self):
-        rows = {r[0]: r[1:] for r in table("kohakaanded")["rows"]}
+        rows = {r[0]: r[3:] for r in table("kohakaanded")["rows"]}
         assert rows["seesütlev"][0] == "raamatus"
         assert rows["sisseütlev"][2] == "tuppa ~ toasse"
 
+    def test_a_case_row_names_its_question_and_ending(self):
+        rows = {r[0]: r[1:3] for r in table("kohakaanded")["rows"]}
+        assert rows["seesütlev"] == ["kelles? milles? kus?", "s"]
+
     def test_a_short_illative_spelled_like_the_partitive_is_left_out(self):
-        rows = {r[0]: r[1:] for r in table("kohakaanded")["rows"]}
+        rows = {r[0]: r[3:] for r in table("kohakaanded")["rows"]}
         assert rows["sisseütlev"][3] == "sõbrasse"
 
     def test_a_compound_tense_is_built_from_its_parts(self):
-        assert table("taisminevik")["rows"][2][2] == "on teinud"
+        assert table("taisminevik")["rows"][2][2] == "on laulnud"
 
     def test_negation(self):
-        assert table("eitus")["rows"][0][3] == "ei lähe"
+        assert table("eitus")["rows"][0][3] == "ei tule"
 
 
 class TestTheRoute:
@@ -62,3 +66,15 @@ class TestTheRoute:
 
     def test_unknown_topic(self, client):
         assert client.get("/api/lesson/nope").status_code == 404
+
+
+class TestRussianForEveryTopic:
+    def test_every_topic_has_points_and_a_tip(self):
+        from eesti.lessontext import TIPS
+
+        for t in TOPICS:
+            assert t.id in LESSONS and LESSONS[t.id].points_ru, t.id
+            assert t.id in TIPS and TIPS[t.id].wrong != TIPS[t.id].right, t.id
+
+    def test_the_tip_reaches_the_page(self):
+        assert lesson("obj-case")["tip"]["right"] == "Ma ostsin raamatu."

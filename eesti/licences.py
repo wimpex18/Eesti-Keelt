@@ -434,7 +434,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "https://arhiiv.eki.ee/books/ekk09/index.php",
         "The handbook this project points at instead of restating grammar. Two "
         "uses, both deliberate: every rule explanation links to its section "
-        "rather than paraphrasing it, and SÜ 64 — the handbook's own list of "
+        "rather than paraphrasing it, and SÜ 65 — the handbook's own list of "
         "rections people get wrong — is fetched once for 62 lexical facts "
         "(headword, correct frame, marked wrong frame). EKK's example "
         "sentences are **not** stored; rection drills are built over the "
@@ -443,7 +443,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "EKK 2009 is the handbook linked to, but **ÕS 2025 is the basis of the "
         "written-language norm from 2026-01-01**, and EKI route current rection "
         "and usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
-        "selgitab`). SÜ 64's 23 contrasts are asserted *normatively* — the "
+        "selgitab`). SÜ 65's 23 contrasts are asserted *normatively* — the "
         "`rektsioon` drill marks an answer wrong and `rection.errors` corrects "
         "free writing — so a contrast ÕS has revised would be taught stale. "
         "Checked as prose, not as code: see docs/sources.md.",

@@ -57,7 +57,7 @@ REFERENCES: dict[str, Reference] = {
         tag="verb-form",
         et_term="verbi põhivormid",
         ru_term="основные формы глагола",
-        ekk_section="M 19",
+        ekk_section="M 20",
         chapter=MORFOLOOGIA,
         subsection=2,
         summary_ru=(
@@ -68,7 +68,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "gen-stem": Reference(
         tag="gen-stem", et_term="omastava tüvi", ru_term="основа генитива",
-        ekk_section="M 51", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 52", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Все падежи кроме nimetav и osastav строятся от **основы генитива**. "
             "Зная omastav, ты знаешь почти всё слово."
@@ -84,7 +84,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "loc-case": Reference(
         tag="loc-case", et_term="kohakäänded", ru_term="местные падежи",
-        ekk_section="M 53", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 54", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Шесть местных падежей парами: внутренние (sisse/sees/seest) и "
             "внешние (peale/peal/pealt). Выбор зависит от того, мыслится ли "
@@ -93,7 +93,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "rektsioon": Reference(
         tag="rektsioon", et_term="rektsioon", ru_term="управление глагола",
-        ekk_section="SÜ 64", chapter=SUNTAKS, subsection=2,
+        ekk_section="SÜ 65", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "Глагол требует определённого падежа, и он часто не совпадает с "
             "русским: *mõtlema **millele*** (alaleütlev), не «о чём»."
@@ -101,7 +101,7 @@ REFERENCES: dict[str, Reference] = {
     ),
     "word-order": Reference(
         tag="word-order", et_term="lause sõnajärg", ru_term="порядок слов",
-        ekk_section="SÜ 90", chapter=SUNTAKS, subsection=2,
+        ekk_section="SÜ 91", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "Эстонский порядок слов свободнее русского, но не произволен: "
             "**самое важное — в конце**, а спрягаемый глагол обычно вторым "
@@ -135,16 +135,16 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     "pohivormid": Reference(
         tag="pohivormid", et_term="nimisõna põhivormid",
         ru_term="основные формы имени",
-        ekk_section="M 50", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 20", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
-            "Три формы, которые даёт словарь: **nimetav** (M 50), **omastav** "
-            "(M 51) и **osastav** (M 52). Все остальные падежи строятся от "
+            "Три формы, которые даёт словарь: **nimetav** (M 51), **omastav** "
+            "(M 52) и **osastav** (M 53). Все остальные падежи строятся от "
             "основы генитива, поэтому эти три надо знать вместе."
         ),
     ),
     "osastav": Reference(
         tag="osastav", et_term="osastav kääne", ru_term="частичный падеж",
-        ekk_section="M 52", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 53", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Osastav отвечает за неполный охват: часть количества, незавершённое "
             "действие и **любое отрицание**. Это тот падеж, который в русском "
@@ -153,26 +153,26 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "mitmus": Reference(
         tag="mitmus", et_term="mitmus", ru_term="множественное число",
-        ekk_section="M 67", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 68", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Множественное число строится от основы генитива (omastav): *raamat → "
             "raamatu → raamatud*. Отсюда же короткая форма множественного "
-            "(vokaalmitmus, M 69)."
+            "(vokaalmitmus, M 70)."
         ),
     ),
     "harvad-kaanded": Reference(
         tag="harvad-kaanded", et_term="saav, rajav, olev, ilmaütlev, kaasaütlev",
         ru_term="редкие падежи",
-        ekk_section="M 60", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 61", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
-            "Пять падежей, идущих подряд в справочнике: **saav** (M 60), "
-            "**rajav** (M 61), **olev** (M 62), **ilmaütlev** (M 63) и "
-            "**kaasaütlev** (M 64). Все — от основы генитива (omastav)."
+            "Пять падежей, идущих подряд в справочнике: **saav** (M 61), "
+            "**rajav** (M 62), **olev** (M 63), **ilmaütlev** (M 64) и "
+            "**kaasaütlev** (M 65). Все — от основы генитива (omastav)."
         ),
     ),
     "olevik": Reference(
         tag="olevik", et_term="olevik", ru_term="настоящее время",
-        ekk_section="M 85", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 86", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Настоящее время. Личные окончания добавляются к основе настоящего "
             "времени, а она не всегда выводится из ma-инфинитива: *minema → "
@@ -181,7 +181,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "lihtminevik": Reference(
         tag="lihtminevik", et_term="lihtminevik", ru_term="простое прошедшее",
-        ekk_section="M 86", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 87", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Простое прошедшее (имперфект) — основное повествовательное время. "
             "Показатель -si-/-s-, но у многих глаголов меняется основа."
@@ -189,7 +189,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "taisminevik": Reference(
         tag="taisminevik", et_term="täisminevik", ru_term="перфект",
-        ekk_section="M 87", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 88", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Перфект: **olema** в настоящем + причастие на -nud. Говорит о "
             "результате, который важен сейчас."
@@ -197,7 +197,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "enneminevik": Reference(
         tag="enneminevik", et_term="enneminevik", ru_term="плюсквамперфект",
-        ekk_section="M 88", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 89", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Предпрошедшее: **olema** в прошедшем + причастие на -nud. "
             "Действие, завершившееся раньше другого прошедшего."
@@ -205,7 +205,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "tingiv": Reference(
         tag="tingiv", et_term="tingiv kõneviis", ru_term="условное наклонение",
-        ekk_section="M 92", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 93", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Условное наклонение с показателем **-ksi-/-ks**: *ma teeksin* — "
             "«я бы сделал». Одна форма покрывает и вежливую просьбу."
@@ -213,7 +213,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "kaskiv": Reference(
         tag="kaskiv", et_term="käskiv kõneviis", ru_term="повелительное наклонение",
-        ekk_section="M 93", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 94", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Повелительное наклонение. Форма 2 л. ед. ч. — это основа без "
             "окончания (*tee!*), остальные лица берут -ge-/-gu-."
@@ -221,7 +221,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "kesksonad": Reference(
         tag="kesksonad", et_term="kesksõnad", ru_term="причастия",
-        ekk_section="M 76", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 77", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Четыре причастия: настоящего и прошедшего времени, личное и "
             "безличное — *tegev, teinud, tehtav, tehtud*. Причастие на -nud "
@@ -231,7 +231,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     "umbisikuline": Reference(
         tag="umbisikuline", et_term="umbisikuline tegumood",
         ru_term="безличный залог",
-        ekk_section="M 83", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 84", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
             "Безличная форма: действие есть, деятель не назван — *tehakse*, "
             "*tehti*. Ближе к русскому «делают», чем к пассиву."
@@ -241,14 +241,14 @@ TOPIC_REFERENCES: dict[str, Reference] = {
         tag="vordlusastmed", et_term="võrdlusastmed", ru_term="степени сравнения",
         ekk_section="M 100", chapter=MORFOLOOGIA, subsection=4,
         summary_ru=(
-            "Три степени: **algvõrre** (M 100), **keskvõrre** (M 101) и "
-            "**ülivõrre** (M 102). Сравнительная строится от основы генитива (omastav) "
+            "Три степени: **algvõrre** (M 101), **keskvõrre** (M 102) и "
+            "**ülivõrre** (M 103). Сравнительная строится от основы генитива (omastav) "
             "плюс -m: *suur → suure → suurem*."
         ),
     ),
     "eitus": Reference(
         tag="eitus", et_term="eitus", ru_term="отрицание",
-        ekk_section="SÜ 30", chapter=SUNTAKS, subsection=2,
+        ekk_section="SÜ 31", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "Отрицание — это **kõneliik** сказуемого. После **ei** глагол "
             "теряет личное окончание (*ostan → ei osta*), а в прошедшем "
@@ -258,7 +258,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "arvsonad": Reference(
         tag="arvsonad", et_term="põhiarvsõnad", ru_term="количественные числительные",
-        ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,
+        ekk_section="O 52", chapter=ORTOGRAAFIA, subsection=10,
         summary_ru=(
             "Как числительные записываются и склоняются. Считаемое слово после "
             "числительного больше единицы стоит в **osastav**: *kaks raamatut*."
@@ -271,6 +271,15 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "Час: **kell** + числительное; доля — к следующему часу: *pool "
             "kümme* = 9.30. Когда — **alalütlev** (*neljapäeval*), к сроку — "
             "**saav** (*reedeks*), с — **seestütlev**, до — **rajav**."
+        ),
+    ),
+    "kaudne": Reference(
+        tag="kaudne", et_term="kaudne kõneviis", ru_term="косвенное наклонение",
+        ekk_section="M 95", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Пересказ с чужих слов: говорящий только передаёт информацию. "
+            "Настоящее — **vat** (*tulevat*), прошедшее — **olevat + nud** "
+            "(*olevat tulnud*)."
         ),
     ),
     "asesonad": Reference(
@@ -291,7 +300,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "kaima-minema": Reference(
         tag="kaima-minema", et_term="käima ja minema", ru_term="käima или minema",
-        ekk_section="SÜ 64", chapter=SUNTAKS, subsection=2,
+        ekk_section="SÜ 65", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "**käima** — где? (*käisin kinos* — был и вернулся; *käivad koolis* — "
             "регулярно). **minema** — куда? (*lähen kinno*, *läks poodi*)."
@@ -317,7 +326,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "kuupaevad": Reference(
         tag="kuupaevad", et_term="kuupäevad", ru_term="даты",
-        ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,
+        ekk_section="O 52", chapter=ORTOGRAAFIA, subsection=10,
         summary_ru=(
             "Дата — порядковое числительное и месяц в **alalütlev**: *2. märtsil* — "
             "*teisel märtsil*. Цифрой порядковое пишется с точкой."
@@ -325,7 +334,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "jargarvud": Reference(
         tag="jargarvud", et_term="järgarvsõnad", ru_term="порядковые числительные",
-        ekk_section="O 51", chapter=ORTOGRAAFIA, subsection=10,
+        ekk_section="O 52", chapter=ORTOGRAAFIA, subsection=10,
         summary_ru=(
             "Порядковое числительное цифрами пишется **с точкой**: *3. koht*, "
             "*21. sajand*. Точка и есть показатель порядка — без неё это "
@@ -334,7 +343,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "kirjavahemargid": Reference(
         tag="kirjavahemargid", et_term="koma", ru_term="запятая",
-        ekk_section="O 56", chapter=ORTOGRAAFIA, subsection=11,
+        ekk_section="O 57", chapter=ORTOGRAAFIA, subsection=11,
         summary_ru=(
             "Запятая в эстонском ставится по грамматике, а не по интонации: "
             "**каждое** придаточное отделяется запятой, в том числе после "
@@ -345,7 +354,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     "uhildumine": Reference(
         tag="uhildumine", et_term="omadussõnaline täiend",
         ru_term="согласование определения",
-        ekk_section="SÜ 98", chapter=SUNTAKS, subsection=3,
+        ekk_section="SÜ 99", chapter=SUNTAKS, subsection=3,
         summary_ru=(
             "Прилагательное принимает тот же падеж и число, что и "
             "существительное: *suures majas*, *ilusaid päevi*. "

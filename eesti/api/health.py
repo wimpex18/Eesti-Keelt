@@ -75,7 +75,7 @@ def _reference(conn) -> dict:
             return 0
 
     return {
-        # EKK SÜ 64, via `cli rections` -- powers the rektsioon drill and the
+        # EKK SÜ 65, via `cli rections` -- powers the rektsioon drill and the
         # &err-gov check in free writing.
         "rections": len(rection.load(conn)),
         # EKI's A1/A2/B1 vocabulary -- where a word's CEFR level is EKI's own

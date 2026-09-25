@@ -160,7 +160,7 @@ replaces whole files):
 
 | Step | Fills | `/api/health` `reference` field |
 |---|---|---|
-| `cli rections` | EKK SÜ 64 rections | `rections` |
+| `cli rections` | EKK SÜ 65 rections | `rections` |
 | `cli import-levels deploy/eki/A1A2B1.txt` | official levels | `eki_levels` |
 | `cli import-psv` / `import-evs` / `import-vsl` / `import-har` / `import-ekss` | EKI dictionaries | `eki_definitions`, `eki_russian`, `eki_loanwords`, `eki_terms`, `eki_explanatory` |
 

@@ -702,16 +702,16 @@ def agreement(text: str) -> list[Correction]:
 RECTION_WHY = (
     "**Rektsioon.** «{headword}» — EKI рекомендует **{correct}** "
     "({correct_frame}), а не **{wrong}** ({wrong_frame}). Это одна из ошибок, "
-    "которые EKK перечисляет отдельно (SÜ 64): русский предлог и эстонский "
+    "которые EKK перечисляет отдельно (SÜ 65): русский предлог и эстонский "
     "падеж здесь не совпадают, и форму на **-le** носители тоже иногда "
     "пишут — но на экзамене оценивают по рекомендации."
 )
 
 
 def rection(text: str) -> list[Correction]:
-    """Attested rection confusions from EKK SÜ 64's list of common mistakes.
+    """Attested rection confusions from EKK SÜ 65's list of common mistakes.
 
-    A lookup, not a parse: SÜ 64 lists specific confusions ("`millele` where
+    A lookup, not a parse: SÜ 65 lists specific confusions ("`millele` where
     `millega` belongs"). Returns nothing when the word list is absent.
     """
     from .. import rection as ekk

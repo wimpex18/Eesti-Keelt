@@ -122,7 +122,7 @@ class TestRectionDrills:
     def test_items_are_filed_under_the_rection_topic(self, words):
         for item in cloze.rection_clozes(self.ROWS, words=words, seed=1):
             assert item.topic == "rektsioon"
-            assert item.reference["ekk_section"] == "SÜ 64"
+            assert item.reference["ekk_section"] == "SÜ 65"
 
     def test_impersonal_verbs_do_not_get_a_personal_subject(self, words):
         rows = [rection.Rection("põhinema", "millel", "millele", "sg ad", "sg all")]
@@ -163,4 +163,4 @@ class TestTheExplanationClaimsWhatEkiClaims:
     def test_it_still_cites_the_handbook(self):
         from eesti.providers.grammar import RECTION_WHY
 
-        assert "SÜ 64" in RECTION_WHY
+        assert "SÜ 65" in RECTION_WHY

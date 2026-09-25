@@ -115,6 +115,10 @@ def items_for(
             return question_drills(count=count, seed=seed, words=words)
         if topic == "vordlusastmed":
             return comparison_drills(words, levels, count, seed)
+        if topic == "kaudne":
+            from .moods import drills as mood_drills
+
+            return mood_drills(count, seed)
         if topic == "asesonad":
             from .pronouns import drills as pronoun_drills
 

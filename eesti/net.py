@@ -1,6 +1,6 @@
 """One retrying GET, for published documents fetched once and cached.
 
-Used by `rection.py` (EKK SÜ 64) and `harvest/evkk.py` (the EVKK taxonomy). Not
+Used by `rection.py` (EKK SÜ 65) and `harvest/evkk.py` (the EVKK taxonomy). Not
 for crawls (`harvest/err.py` has its own per-request timeout) or provider calls
 (`providers/` need the circuit breaker and must tell a rate limit from an
 outage). Three attempts with exponential back-off, then an error naming what was
@@ -35,7 +35,7 @@ class Unreachable(OSError, RuntimeError):
 
 def get(url: str, what: str, *, timeout: float = TIMEOUT,
         retries: int = RETRIES, ua: str = UA, binary: bool = False):
-    """Fetch `url`, retrying, or raise `Unreachable` naming `what` (e.g. "EKK SÜ 64").
+    """Fetch `url`, retrying, or raise `Unreachable` naming `what` (e.g. "EKK SÜ 65").
 
     Text by default; `binary` returns the bytes, which is what a PDF or a
     listening recording needs.
