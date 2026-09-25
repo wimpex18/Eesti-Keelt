@@ -25,10 +25,32 @@ CASES = (
 )
 _CASE = dict(CASES)
 
+#: What each case answers and its ending, singular and plural, as EKI's
+#: learner grammar tables give them (*Eesti keele grammatika tabelid*, PSV).
+CASE_INFO = {
+    "nimetav": ("kes? mis?", "Ø", "d"),
+    "omastav": ("kelle? mille?", "Ø", "te, de, e"),
+    "osastav": ("keda? mida?", "t, Ø, d, tt", "id, sid, e/i/u"),
+    "sisseütlev": ("kellesse? millesse? kuhu?", "sse; lühike: Ø, de, tte",
+                   "tesse, desse, esse"),
+    "seesütlev": ("kelles? milles? kus?", "s", "tes, des, es"),
+    "seestütlev": ("kellest? millest? kust?", "st", "test, dest, est"),
+    "alaleütlev": ("kellele? millele? kuhu?", "le", "tele, dele, ele"),
+    "alalütlev": ("kellel? millel? kus?", "l", "tel, del, el"),
+    "alaltütlev": ("kellelt? millelt? kust?", "lt", "telt, delt, elt"),
+    "saav": ("kelleks? milleks?", "ks", "teks, deks, eks"),
+    "rajav": ("kelleni? milleni?", "ni", "teni, deni, eni"),
+    "olev": ("kellena? millena?", "na", "tena, dena, ena"),
+    "ilmaütlev": ("kelleta? milleta?", "ta", "teta, deta, eta"),
+    "kaasaütlev": ("kellega? millega?", "ga", "tega, dega, ega"),
+}
+CASE_SOURCE = "https://arhiiv.eki.ee/dict/psv/grammatikatabelid.pdf"
+
 #: Sample words for tables. Choosing them states no fact; their forms come
-#: from Vabamorf. `sõber` and `tuba` show gradation, `maja` a vowel stem.
+#: from Vabamorf. `sõber` and `tuba` show gradation, `maja` a vowel stem; the
+#: verbs are the ones EKI's learner grammar tables conjugate.
 NOUNS = ("raamat", "maja", "tuba", "sõber")
-VERBS = ("elama", "tegema", "minema")
+VERBS = ("lubama", "laulma", "tulema")
 
 PERSONS = ("ma", "sa", "ta", "me", "te", "nad")
 
@@ -38,7 +60,7 @@ NOUN_TABLES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "gen-stem": (("nimetav", "omastav", "seesütlev", "kaasaütlev"), ("sg",)),
     "astmevaheldus": (("nimetav", "omastav", "osastav", "seesütlev"), ("sg",)),
     "osastav": (("nimetav", "osastav"), ("sg", "pl")),
-    "mitmus": (("nimetav", "omastav", "osastav", "seesütlev"), ("pl",)),
+    "mitmus": (tuple(c for c, _ in CASES), ("pl",)),
     "kohakaanded": (("sisseütlev", "seesütlev", "seestütlev",
                      "alaleütlev", "alalütlev", "alaltütlev"), ("sg",)),
     "harvad-kaanded": (("saav", "rajav", "olev", "ilmaütlev", "kaasaütlev"), ("sg",)),
@@ -63,6 +85,37 @@ VERB_TABLES: dict[str, tuple[tuple[str, str], ...]] = {
                   ("tav-kesksõna", "tav"), ("tud-kesksõna", "tud")),
     "umbisikuline": (("olevik", "takse"), ("lihtminevik", "ti"),
                      ("tud-kesksõna", "tud")),
+    "kaudne": (),
+}
+
+def _with(word: str, tag: str):
+    """A row that puts a fixed word before one synthesised form: `ei tee`, `ära tee`."""
+    def make(verb: str) -> str:
+        form = _forms(verb, tag).split(" ~ ")[0]
+        return f"{word} {form}".strip() if form else ""
+    return make
+
+
+def _neg_present(verb: str) -> str:
+    from .forms import connegative
+
+    found = connegative(verb)
+    return f"ei {found}" if found else ""
+
+
+#: Rows built from parts, as EKI's tables build them: negation with `ei`, the
+#: negative imperative with `ära/ärgu/ärgem/ärge`, the past conditional and the
+#: past of the indirect mood with `oleks(in)`/`olevat` + nud.
+EXTRA_ROWS = {
+    "olevik": (("eitav", _neg_present),),
+    "kaskiv": (("eitav: sina", _with("ära", "o")), ("eitav: tema", _with("ärgu", "gu")),
+               ("eitav: meie", _with("ärgem", "gem")), ("eitav: teie", _with("ärge", "ge"))),
+    "tingiv": (("minevik: ma", _with("oleksin", "nud")), ("minevik: ta", _with("oleks", "nud")),
+               ("eitav", _with("ei", "ks"))),
+    "umbisikuline": (("eitav olevik", _with("ei", "ta")),
+                     ("tingiv", _with("", "taks"))),
+    "kaudne": (("olevik", _with("", "vat")), ("minevik", _with("olevat", "nud")),
+               ("eitav", _with("ei", "vat")), ("umbisikuline", _with("", "tavat"))),
 }
 
 #: Tenses built with an auxiliary: the auxiliary's tag per person, then the
@@ -129,11 +182,15 @@ def _table(topic: str, words: sqlite3.Connection | None) -> dict | None:
         for number in numbers:
             for case in cases:
                 label = case if len(numbers) == 1 else f"{case} · {'ainsus' if number == 'sg' else 'mitmus'}"
-                rows.append([label, *(_case(w, number, case) for w in NOUNS)])
-        return {"columns": ["", *NOUNS], "rows": rows}
+                question, sg, pl = CASE_INFO[case]
+                rows.append([label, question, sg if number == "sg" else pl,
+                             *(_case(w, number, case) for w in NOUNS)])
+        return {"columns": ["", "küsimus", "tunnus", *NOUNS], "rows": rows}
     if topic in VERB_TABLES:
         rows = [[label, *(_forms(v, tag) for v in VERBS)]
                 for label, tag in VERB_TABLES[topic]]
+        for label, make in EXTRA_ROWS.get(topic, ()):
+            rows.append([label, *(make(v) for v in VERBS)])
         return {"columns": ["", *VERBS], "rows": rows}
     if topic in COMPOUND_TABLES:
         aux, tags, participle = COMPOUND_TABLES[topic]
@@ -214,7 +271,7 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
            words: sqlite3.Connection | None = None) -> dict | None:
     """Everything the Reegel page shows for one topic, or None for an unknown id."""
     from .curriculum import TOPICS
-    from .lessontext import LESSONS
+    from .lessontext import LESSONS, TIPS
 
     t = next((x for x in TOPICS if x.id == topic), None)
     if t is None:
@@ -232,6 +289,8 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
         "id": t.id, "level": t.level, "et": t.et, "ru": t.ru,
         "drillable": bool(t.generator),
         "rule": _rule(t.reference),
+        "tip": ({"gist_ru": TIPS[topic].gist_ru, "wrong": TIPS[topic].wrong,
+                 "right": TIPS[topic].right} if topic in TIPS else None),
         "points_ru": list(text.points_ru) if text else [],
         "sources": [{"label": s.label, "url": s.url} for s in text.sources] if text else [],
         "table": table(topic, words),

@@ -12,7 +12,7 @@ Where a model touches the learner, and where code decides.
 | Mastery, placement, checkpoints | arithmetic over recorded attempts | no |
 | Spelling in free writing | Vabamorf dictionary | no — merged into every answer |
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
-| Rection (`rektsioon`) | EKK SÜ 64 list + Vabamorf | no — only confusions the handbook records |
+| Rection (`rektsioon`) | EKK SÜ 65 list + Vabamorf | no — only confusions the handbook records |
 | Other free-writing errors, explanations | Qualified LLM chain → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
 | Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
 | Playing the exam partner (`Vestlus`) | `tutor.converse`: a task card from the bank and the turns so far | yes; Estonian only, capped at 8 turns, never a correction or a verdict, and the forms Vabamorf rejects are named |

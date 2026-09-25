@@ -167,9 +167,12 @@ LESSONS: dict[str, LessonText] = {
             "järgmisel aastal* (см. *määrsõnad*).",
             "Завершённость в будущем передаёт täissihitis: *Ma loen raamatu "
             "läbi* — «прочитаю»; *Ma loen raamatut* — «читаю».",
+            "*saama* + ma-инфинитив (*Elu saab seal olema raske*) — калька с "
+            "немецкого; EKK советует его избегать, особенно для действий: не "
+            "*saab hoolitsema*, а *hakkab hoolitsema* или *hoolitseb*.",
         ),
         sources=(Source("EKK, morfoloogilised kategooriad: aeg", f"{EKK}?p=3&p1=4"),
-                 ekk("SÜ 37")),
+                 ekk("SÜ 37"), ekk("SÜ 28")),
     ),
     "uhendverbid": LessonText(
         points_ru=(
@@ -220,7 +223,7 @@ LESSONS: dict[str, LessonText] = {
         ),
         sources=(Source("EKI põhisõnavara sõnastik (PSV): käima, minema",
                         "https://sonaveeb.ee/search/unif/dlall/dsall/k%C3%A4ima/1/est"),
-                 ekk("SÜ 64")),
+                 ekk("SÜ 65")),
     ),
     "tuletus": LessonText(
         points_ru=(
@@ -288,4 +291,425 @@ LESSONS: dict[str, LessonText] = {
                  Source("EKI teatmik: liitsõnad",
                         "https://teatmik.eki.ee/teatmik/sona/sonamoodustus/liitsonad/")),
     ),
+}
+
+
+#: EKI's learner grammar tables, published with its basic dictionary (PSV).
+PSV = Source("EKI: eesti keele grammatika tabelid (PSV)",
+             "https://arhiiv.eki.ee/dict/psv/grammatikatabelid.pdf")
+
+LESSONS.update({
+    "pohivormid": LessonText(
+        points_ru=(
+            "Словарь даёт **основные формы** (põhivormid). У существительного — "
+            "nimetav, omastav и osastav ед. ч., короткий sisseütlev и omastav, "
+            "osastav мн. ч.: *naaber, naabri, naabrit*.",
+            "От **omastav ед. ч.** строятся все падежи от sisseütlev до kaasaütlev "
+            "и nimetav мн. ч.: *naabri → naabrisse, naabris … naabriga, naabrid*.",
+            "От **omastav мн. ч.** — все падежи мн. ч.: *naabrite → naabrites, "
+            "naabritele*.",
+            "Osastav не выводится по правилу — его запоминают: *naabrit*, *tuba*, "
+            "*õnnelikku*.",
+        ),
+        sources=(ekk("M 20"), PSV),
+    ),
+    "gen-stem": LessonText(
+        points_ru=(
+            "**Omastav** (родительный) отвечает на *kelle? mille?*: *maja aknad*, "
+            "*metsa taga*.",
+            "Его основа часто не совпадает с начальной формой: *tuba → toa*, "
+            "*sõber → sõbra*, *pood → poe*.",
+            "От этой основы строятся почти все падежи: *toa → toas, toast, toale, "
+            "toaga*. Поэтому слово учат сразу с omastav.",
+            "Omastav нужен и для полного дополнения: *Viskasime prahi lõkkesse*.",
+        ),
+        sources=(ekk("M 52"), PSV),
+    ),
+    "osastav": LessonText(
+        points_ru=(
+            "**Osastav** (частичный) отвечает на *keda? mida?*. Окончание ед. ч. — "
+            "*t, d, tt* или никакого: *naabrit, tuba, õnnelikku*.",
+            "Нужен при **отрицании**: *Ma ei ostnud piletit*.",
+            "Для **части** или неопределённого количества: *Klaasis on vett*.",
+            "При **незавершённом** действии: *Ta luges raamatut terve õhtu*.",
+            "После числительного больше одного: *kaks raamatut*.",
+        ),
+        sources=(ekk("M 53"), ekk("SÜ 37"), PSV),
+    ),
+    "astmevaheldus": LessonText(
+        points_ru=(
+            "В разных формах основа бывает в **сильной** или **слабой** ступени: "
+            "*tõbi → tõve*, *haarama → haarata*, *tuba → toa*.",
+            "Иногда разница только в долготе (välde) и на письме не видна: "
+            "*palli* (omastav, II välde) — *palli* (osastav, III välde).",
+            "Сильная ступень обычно в III välde, слабая — во II.",
+            "Правило не выводится из буквы: слова чередуются по типам, поэтому "
+            "основные формы берут из словаря.",
+        ),
+        sources=(ekk("M 22"), PSV),
+    ),
+    "mitmus": LessonText(
+        points_ru=(
+            "**Nimetav мн. ч.** = omastav ед. ч. + **d**: *naabri → naabrid*, "
+            "*toa → toad*.",
+            "**Omastav мн. ч.** оканчивается на **te, de** или **e**: *naabrite, "
+            "tubade, õnnelike*. От него — все остальные падежи мн. ч.: *tubade → "
+            "tubades, tubadele*.",
+            "**Osastav мн. ч.** — *id* или *sid* (*naabreid*, *tubasid*) или короткая "
+            "форма (*tube*).",
+            "Короткая форма: последний звук osastav ед. ч. меняется: *u → e* "
+            "(*toitu → toite*), *i → e* (*kivi → kive*), *e → i* (*lehte → "
+            "lehti*), *a → u*, *i* или *e* по гласной первого слога (*sõna → sõnu*, "
+            "*koera → koeri*, *tuba → tube*).",
+        ),
+        sources=(ekk("M 68"), PSV),
+    ),
+    "eitus": LessonText(
+        points_ru=(
+            "Отрицание настоящего: **ei** + форма без личного окончания, одна для "
+            "всех лиц: *ma ei tule, nad ei tule*.",
+            "Прошедшее: **ei** + форма на *-nud*: *ei tulnud*.",
+            "Запрет: *ära tule!*, *ärge tulge!* (см. *käskiv kõneviis*).",
+            "Дополнение при отрицании — **osastav**: *Ma ei ostnud piletit*.",
+        ),
+        sources=(ekk("SÜ 31"), PSV),
+    ),
+    "olevik": LessonText(
+        points_ru=(
+            "Окончания: *ma -n, sa -d, ta -b, me -me, te -te, nad -vad* — *luban, "
+            "lubad, lubab, lubame, lubate, lubavad*.",
+            "Все формы строятся от 3-го лица ед. ч.: *loeb → loen, loed, loeme*.",
+            "Отрицание — *ei* + основа: *ei loe*.",
+            "Настоящее время говорит и о будущем: *Jaan ehitab endale suvila*.",
+        ),
+        sources=(ekk("M 86"), PSV),
+    ),
+    "verb-form": LessonText(
+        points_ru=(
+            "Словарь даёт **четыре** основные формы глагола: *elama, elada, elab, "
+            "elatud*.",
+            "От **ma**-инфинитива — простое прошедшее, косвенное наклонение, "
+            "причастие на -v и формы *mas, mast, maks, mata*.",
+            "От **da**-инфинитива — причастие на -nud, повелительное (кроме *sina*) "
+            "и des-форма.",
+            "От **3-го лица** (*elab*) — остальные формы настоящего, условное "
+            "наклонение и повелительное для *sina*.",
+            "От формы на **-tud** — все безличные формы.",
+        ),
+        sources=(ekk("M 20"), PSV),
+    ),
+    "lihtminevik": LessonText(
+        points_ru=(
+            "Простое прошедшее строится от ma-инфинитива: *ma → sin* или *in*: "
+            "*lugema → lugesin*, *tulema → tulin*.",
+            "Формы: *lugesin, lugesid, luges, lugesime, lugesite, lugesid*.",
+            "Иногда основа меняется: *tulema → tulin*, *sööma → sõin*.",
+            "Отрицание: *ei* + форма на -nud: *ei lugenud*.",
+        ),
+        sources=(ekk("M 87"), PSV),
+    ),
+    "ma-da-inf": LessonText(
+        points_ru=(
+            "**ma**-инфинитив — действие, которое последует: после *hakkama, "
+            "minema, õppima*: *Ma hakkan õppima*, *Läksime sööma*.",
+            "**da**-инфинитив — действие вообще: после *tahtma, oskama, võima, "
+            "meeldima, vaja*: *tahab magada*, *Mulle meeldib ujuda*.",
+            "Окончание da-инфинитива: *da, ta* или *a*: *elada, hakata, käia*.",
+            "Какой инфинитив нужен, решает глагол, а не смысл, — это управление "
+            "(см. *rektsioon*).",
+        ),
+        sources=(ekk("M 74"), ekk("M 76"), PSV),
+    ),
+    "kohakaanded": LessonText(
+        points_ru=(
+            "Шесть местных падежей — две тройки *куда? где? откуда?*.",
+            "**Внутренние**: *sisse* (-sse), *sees* (-s), *seest* (-st): *majasse, "
+            "majas, majast*.",
+            "**Внешние**: *peale* (-le), *peal* (-l), *pealt* (-lt): *lauale, laual, "
+            "laualt*.",
+            "Короткий sisseütlev есть у многих слов: *tuppa*, *kinno*, *kooli*.",
+            "Внешние падежи ещё и про людей и время: *sõbrale*, *neljapäeval*, а "
+            "*Mul on* — «у меня есть».",
+        ),
+        sources=(ekk("M 54"), PSV),
+    ),
+    "obj-case": LessonText(
+        points_ru=(
+            "Полное дополнение (**täissihitis**) — omastav или nimetav: действие "
+            "завершено и охватывает объект целиком: *Aednik kasvatas suure "
+            "kõrvitsa*.",
+            "Частичное (**osasihitis**) — osastav: процесс, часть или неопределённое "
+            "количество: *Ma kohtasin sõpra*, *Ta luges raamatut*.",
+            "При отрицании — всегда osastav.",
+            "Частицы завершённости (*läbi, ära, valmis*) требуют täissihitis: *Loe "
+            "see raamat läbi*.",
+            "Некоторые глаголы берут только osastav: *armastama, ootama, "
+            "kohtama*.",
+        ),
+        sources=(ekk("SÜ 37"),),
+    ),
+    "arvsonad": LessonText(
+        points_ru=(
+            "После числительного больше одного существительное — **osastav ед. "
+            "ч.**: *kaks raamatut*, *viis last*.",
+            "После *üks* — nimetav: *üks raamat*.",
+            "Числительное склоняется: *kahe, kolme, nelja*; в падежах 11–19: "
+            "*ühe-teist-kümne*.",
+        ),
+        sources=(ekk("O 52"),),
+    ),
+    "kaskiv": LessonText(
+        points_ru=(
+            "*sina*: основа без окончания — *luba! tule! laula!*",
+            "*tema, nemad*: **-gu / -ku** — *tulgu*, *hakaku*.",
+            "*meie*: **-gem / -kem** — *tulgem*. *teie*: **-ge / -ke** — *tulge!*",
+            "Запрет: *ära tule!*, *ärge tulge!*, *ärgu tulgu*, *ärgem tulgem*.",
+            "g или k выбирается по da-инфинитиву: *lugeda → lugege*, *hakata → "
+            "hakake*.",
+        ),
+        sources=(ekk("M 94"), PSV),
+    ),
+    "tingiv": LessonText(
+        points_ru=(
+            "Показатель **-ks-**: *ma teeksin, sa teeksid, ta teeks*. Строится от "
+            "3-го лица: *loeb → loeksin*.",
+            "Личное окончание можно опустить, если ясно, кто: *mina teeks*.",
+            "Прошедшее: **oleks(in) + -nud** — *oleksin teinud* «я бы сделал».",
+            "Отрицание: *ei teeks*, *ei oleks teinud*.",
+            "Вежливая просьба и желание: *Kas te ulataksite mulle selle raamatu?*, "
+            "*Tahaksin jäädagi nooreks!*",
+        ),
+        sources=(ekk("M 93"), PSV),
+    ),
+    "kesksonad": LessonText(
+        points_ru=(
+            "Четыре причастия: *lubav, lubatav, lubanud, lubatud*.",
+            "На -v и -tav склоняются как прилагательные: *töötav masin*, *söödav "
+            "taim*.",
+            "На -nud — в сложных временах (*olen puhanud*) и как прилагательное "
+            "(*puhanud lapsed*).",
+            "На -tud — в безличных формах (*on müüdud*) и как прилагательное "
+            "(*müüdud auto*).",
+        ),
+        sources=(ekk("M 77"), PSV),
+    ),
+    "taisminevik": LessonText(
+        points_ru=(
+            "**olema** в настоящем + **-nud**: *olen lubanud, oled lubanud, on "
+            "lubanud…*",
+            "Результат важен сейчас: *Näostki on näha, et oled kõvasti tööd "
+            "teinud*.",
+            "Отрицание: *ei ole lubanud*.",
+            "Безлично: *on lubatud*.",
+        ),
+        sources=(ekk("M 88"), PSV),
+    ),
+    "enneminevik": LessonText(
+        points_ru=(
+            "**olema** в прошедшем + **-nud**: *olin lubanud, oli lubanud…*",
+            "Действие закончилось к какому-то моменту в прошлом.",
+            "Отрицание: *ei olnud lubanud*. Безлично: *oli lubatud*.",
+        ),
+        sources=(ekk("M 89"), PSV),
+    ),
+    "vordlusastmed": LessonText(
+        points_ru=(
+            "Сравнительная (**keskvõrre**): основа omastav + **m**: *ilusa → ilusam*, "
+            "*suure → suurem*; иногда *a, u → e*: *vana → vanem*.",
+            "Превосходная длинная: **kõige** + сравнительная: *kõige ilusam*.",
+            "Короткая превосходная — **-im / -em**: *ilusaim, vanim, õnnelikem*; "
+            "есть не у всех слов.",
+            "Неправильные: *hea → parem, parim*; *pisike → pisem, pisim*.",
+        ),
+        sources=(ekk("M 100"), PSV),
+    ),
+    "jargarvud": LessonText(
+        points_ru=(
+            "Порядковые числительные: *esimene, teine, kolmas, neljas … kümnes*.",
+            "Цифрами — **с точкой**: *3. koht*, *21. sajand*.",
+            "Склоняются через основу omastav: *kolmas → kolmanda → kolmandal*.",
+            "Дата — порядковое в alalütlev: *teisel märtsil* (см. *kuupäevad*).",
+        ),
+        sources=(ekk("O 52"),),
+    ),
+    "harvad-kaanded": LessonText(
+        points_ru=(
+            "**saav** (-ks) — во что превращается, срок: *muutus kurvaks*, *homseks*.",
+            "**rajav** (-ni) — до какой границы: *metsani*, *õhtuni*.",
+            "**olev** (-na) — в какой роли: *töötab õpetajana*.",
+            "**ilmaütlev** (-ta) — без чего: *rahata*, *ilma emata*.",
+            "**kaasaütlev** (-ga) — с кем, чем: *sõbraga*, *bussiga*.",
+            "В последних четырёх определение остаётся в omastav: *suure majani*, "
+            "*tubli õpilasega*.",
+        ),
+        sources=(ekk("M 61"), ekk("M 62"), ekk("M 63"), ekk("M 64"), ekk("M 65"),
+                 PSV),
+    ),
+    "uhildumine": LessonText(
+        points_ru=(
+            "Прилагательное стоит в том же падеже и числе, что и существительное: "
+            "*tublis õpilases*, *puhaste kätega*.",
+            "**Кроме** rajav, olev, ilmaütlev и kaasaütlev: там прилагательное — в "
+            "omastav: *tubli õpilasega*, *puhaste kätega*.",
+            "Сказуемое согласуется с подлежащим в лице и числе: *mina loen, nemad "
+            "loevad*.",
+        ),
+        sources=(ekk("SÜ 99"), PSV),
+    ),
+    "kaudne": LessonText(
+        points_ru=(
+            "**Kaudne kõneviis** — пересказ: говорящий передаёт чужие слова, не "
+            "ручаясь за них: *Jüri olevat endale uue maja ostnud*.",
+            "Настоящее — **-vat** от ma-инфинитива, одно для всех лиц: *lugema → "
+            "lugevat*, *tulema → tulevat*.",
+            "Прошедшее — **olevat + -nud**: *olevat tulnud*.",
+            "Отрицание — *ei tulevat*, *ei olevat tulnud*.",
+            "В разговоре пересказ передают и da-инфинитивом: *Mari olla väga "
+            "jutukas*.",
+        ),
+        sources=(ekk("M 95"), ekk("M 74"), PSV),
+    ),
+    "umbisikuline": LessonText(
+        points_ru=(
+            "Безличная форма: действие есть, деятель не назван: *Siin räägitakse "
+            "eesti keelt*.",
+            "Строится от формы на -tud: *loetud → loetakse, loeti, ei loeta*.",
+            "Окончание настоящего — *takse, dakse* или *akse*: *loetakse, lauldakse, "
+            "tullakse*.",
+            "Прошедшее: *loeti*; сложные: *on loetud, oli loetud*.",
+        ),
+        sources=(ekk("M 84"), PSV),
+    ),
+    "rektsioon": LessonText(
+        points_ru=(
+            "Глагол требует своего падежа или инфинитива — это **управление** "
+            "(rektsioon).",
+            "Эстонское управление часто не совпадает с русским: *mõtlema millele?* "
+            "(alaleütlev), а не «о чём».",
+            "EKK перечисляет управления, в которых чаще всего ошибаются; на них "
+            "построены задания.",
+            "Управление указано в словаре: в карточке слова (*kuhu? mida tegema?*).",
+        ),
+        sources=(ekk("SÜ 65"),),
+    ),
+    "sonajark": LessonText(
+        points_ru=(
+            "Спрягаемый глагол в утвердительном предложении обычно стоит **вторым**: "
+            "*Ma sõidan täna maale*.",
+            "Если первым стоит не подлежащее, подлежащее идёт после глагола: *Täna "
+            "sõidan ma maale*.",
+            "В начале — тема, в конце — самое важное и новое.",
+        ),
+        sources=(ekk("SÜ 91"), ekk("SÜ 92")),
+    ),
+    "kirjavahemargid": LessonText(
+        points_ru=(
+            "Запятая ставится по грамматике: каждое придаточное отделяется, в том "
+            "числе перед *et, kui, sest, mis, kes*.",
+            "Перед *ja, ning, ega, või* при однородных членах запятой нет: *linn "
+            "ja maa*.",
+            "Перед *aga, kuid, vaid* — запятая: *See on hea raamat, aga too teine "
+            "on huvitavam*.",
+            "Обращение выделяется запятыми.",
+        ),
+        sources=(ekk("O 57"),),
+    ),
+})
+
+
+@dataclass(frozen=True)
+class Tip:
+    """The Reegel page's first card: the rule in one line, then the mistake a
+    Russian speaker typically makes with it, wrong form first."""
+
+    gist_ru: str
+    wrong: str
+    right: str
+
+
+TIPS: dict[str, Tip] = {
+    "tahestik": Tip("27 букв; *õ, ä, ö, ü* — отдельные звуки, долгота меняет смысл.",
+                    "palli = palli", "selle palli (II) ≠ seda palli (III)"),
+    "lauseehitus": Tip("Глагол — вторым, и он согласуется с подлежащим.",
+                       "Ma täna sõidan maale.", "Ma sõidan täna maale."),
+    "asesonad": Tip("У местоимений две формы: длинная — с ударением, короткая — без.",
+                    "Anna see mina.", "Anna see mulle."),
+    "kusisonad": Tip("*kus?* — где, *kuhu?* — куда, *kust?* — откуда.",
+                     "Kus sa lähed?", "Kuhu sa lähed?"),
+    "pohivormid": Tip("Учи слово тремя формами: *raamat, raamatu, raamatut*.",
+                      "tuba → tubat (osastav)", "tuba → tuba (osastav)"),
+    "gen-stem": Tip("Почти все падежи — от основы omastav.",
+                    "tubas", "toas"),
+    "osastav": Tip("Отрицание, часть, процесс — osastav.",
+                   "Ma ei ostnud pilet.", "Ma ei ostnud piletit."),
+    "astmevaheldus": Tip("Основа меняется: сильная ↔ слабая ступень.",
+                         "pood → poodi (omastav)", "pood → poe (omastav)"),
+    "mitmus": Tip("Мн. ч. = omastav ед. ч. + d.",
+                  "tubad", "toad"),
+    "eitus": Tip("*ei* + основа, одна для всех лиц.",
+                 "Ma ei tulen.", "Ma ei tule."),
+    "olevik": Tip("*-n, -d, -b, -me, -te, -vad* — и это же будущее.",
+                  "Ma lähe homme.", "Ma lähen homme."),
+    "verb-form": Tip("Учи глагол четырьмя формами: *elama, elada, elab, elatud*.",
+                     "minema → minen", "minema → lähen"),
+    "lihtminevik": Tip("Прошедшее: *-sin* или *-in*.",
+                       "Ma tulesin.", "Ma tulin."),
+    "ma-da-inf": Tip("Куда/что начать — *ma*; хотеть, уметь, нравиться — *da*.",
+                     "Ma tahan magama.", "Ma tahan magada."),
+    "kohakaanded": Tip("Куда — *-sse / -le*, где — *-s / -l*, откуда — *-st / -lt*.",
+                       "Ma elan Tallinnasse.", "Ma elan Tallinnas."),
+    "obj-case": Tip("Сделал целиком — omastav; процесс или «не» — osastav.",
+                    "Ma ostsin raamatut. (купил)", "Ma ostsin raamatu."),
+    "arvsonad": Tip("После числа больше одного — osastav ед. ч.",
+                    "kaks raamatud", "kaks raamatut"),
+    "kellaaeg": Tip("Половина, четверть — к **следующему** часу, как «половина десятого».",
+                    "9.30 = pool üheksa", "9.30 = pool kümme"),
+    "kaassonad": Tip("Почти всё — послелоги после omastav.",
+                     "all laud", "laua all"),
+    "sidesonad": Tip("Союз не меняет формы слов; придаточное — через запятую.",
+                     "Ma tean et ta tuleb.", "Ma tean, et ta tuleb."),
+    "maarsonad": Tip("Наречия не склоняются, но места идут тройками: *alla, all, alt*.",
+                     "Kass on alla.", "Kass on all."),
+    "kaima-minema": Tip("*käima* — где был (и вернулся), *minema* — куда идёшь.",
+                        "Eile ma läksin kinos.", "Eile ma käisin kinos."),
+    "kaskiv": Tip("*sina* — основа (*tule!*), *teie* — *-ge* (*tulge!*), запрет — *ära*.",
+                  "Ära tulge!", "Ärge tulge!"),
+    "tingiv": Tip("«бы» — *-ks-*: *teeksin*; прошедшее — *oleksin teinud*.",
+                  "Kui mul oleks aega, ma tulen.", "Kui mul oleks aega, ma tuleksin."),
+    "kesksonad": Tip("*-v* — делающий, *-nud* — сделавший, *-tud* — сделанный.",
+                     "müünud auto (проданная)", "müüdud auto"),
+    "taisminevik": Tip("*olen* + *-nud*: результат виден сейчас.",
+                       "Ma olen tegin.", "Ma olen teinud."),
+    "vordlusastmed": Tip("omastav + *m*; «самый» — *kõige*.",
+                         "kõige suur", "kõige suurem"),
+    "jargarvud": Tip("Порядковое цифрой — с точкой: *3. koht*.",
+                     "3 koht", "3. koht"),
+    "harvad-kaanded": Tip("*-ks* во что, *-ni* до, *-na* как, *-ta* без, *-ga* с.",
+                          "Ta tuli ilma autot.", "Ta tuli ilma autota."),
+    "tulevik": Tip("Будущего времени нет: настоящее + слово времени.",
+                   "Ma saan homme tulema.", "Ma tulen homme."),
+    "ma-vormid": Tip("*ma* куда, *mas* где, *mast* откуда, *mata* без, *des* — деепричастие.",
+                     "Ma tulin just ujuma.", "Ma tulin just ujumast."),
+    "tuletus": Tip("*-mine* — действие, *-ja* — тот, кто делает.",
+                   "Ta on hea laulmine.", "Ta on hea laulja."),
+    "kuupaevad": Tip("Дата: порядковое + месяц, оба на *-l*.",
+                     "kaks märtsil", "teisel märtsil"),
+    "uhildumine": Tip("Прилагательное в том же падеже — кроме *-ni, -na, -ta, -ga*.",
+                      "suures majaga", "suure majaga"),
+    "kaudne": Tip("Пересказ «говорят, что…» — *-vat*, прошлое — *olevat + -nud*.",
+                  "Ta on haige. (слышал от других)", "Ta olevat haige."),
+    "enneminevik": Tip("*olin* + *-nud*: раньше другого прошлого.",
+                       "Ma olen lõpetanud, kui ta tuli.", "Ma olin lõpetanud, kui ta tuli."),
+    "umbisikuline": Tip("Деятель не назван: *-takse*, прошедшее *-ti*.",
+                        "Siin räägivad eesti keelt.", "Siin räägitakse eesti keelt."),
+    "rektsioon": Tip("Падеж задаёт глагол, а не русский перевод.",
+                     "mõtlen sellest", "mõtlen sellele"),
+    "sonajark": Tip("Глагол — вторым, даже если первым стоит не подлежащее.",
+                    "Täna ma sõidan maale.", "Täna sõidan ma maale."),
+    "kirjavahemargid": Tip("Запятая — перед каждым придаточным и перед *aga, kuid, vaid*.",
+                           "Ma arvan et see on hea.", "Ma arvan, et see on hea."),
+    "uhendverbid": Tip("Частица меняет смысл глагола и часто стоит в конце.",
+                       "Ma läbi loen raamatu.", "Ma loen raamatu läbi."),
+    "liitsonad": Tip("Пишется слитно, изменяется только последняя часть.",
+                     "kallistkivist", "kalliskivist"),
 }

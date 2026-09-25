@@ -1,6 +1,6 @@
 """Rection in free writing: EVKK's `&err-gov`.
 
-A lookup against EKK SÜ 64's attested confusions, flagged only when: the headword
+A lookup against EKK SÜ 65's attested confusions, flagged only when: the headword
 is an EKK contrast, a word in its own clause stands in the starred wrong case,
 and nothing in that clause stands in the correct case.
 """
@@ -110,7 +110,7 @@ class TestItReachesTheLearner:
             headword="kohanema", correct="olukorraga", correct_frame="millega",
             wrong="olukorrale", wrong_frame="millele")
         assert "millega" in why and "millele" in why
-        assert "SÜ 64" in why, "the learner can check the handbook"
+        assert "SÜ 65" in why, "the learner can check the handbook"
         assert any("Ѐ" <= ch <= "ӿ" for ch in why), "must be Russian"
 
     def test_it_degrades_to_nothing_without_a_word_list(self, monkeypatch):

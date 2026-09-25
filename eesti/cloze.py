@@ -491,7 +491,7 @@ def rection_clozes(
     seed: int | None = None,
 ) -> list[Cloze]:
     """Which case does this word govern? Both the right case and the distractor come
-    from EKK SÜ 64's list of attested confusions.
+    from EKK SÜ 65's list of attested confusions.
     """
     rng = random.Random(seed)
     out: list[Cloze] = []

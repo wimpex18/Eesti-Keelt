@@ -1404,6 +1404,12 @@ dialog.lesson::backdrop{background:color-mix(in srgb, var(--ink) 40%, transparen
   dialog.lesson{width:100vw;max-width:100vw;max-height:100dvh;height:100dvh;border-radius:0;
     padding:var(--s4)}
 }
+.lesson-tip{margin-top:var(--s4);padding:var(--s3) var(--s4);border-radius:var(--r);
+  background:var(--accent-soft);color:var(--ink)}
+.lesson-tip p{margin:0}
+.lesson-tip .lesson-mistake{margin-top:var(--s2)}
+.lesson-tip del{color:var(--bad)}
+.lesson-tip ins{color:var(--good);text-decoration:none;font-weight:600}
 
 /* Say a drill answer (voice.js): the mic sits beside the answer box; while
    recording it takes the alarm colour so the state is unmistakable. */

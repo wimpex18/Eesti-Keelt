@@ -18,8 +18,9 @@ can answer "may this be shown to anyone but the owner?".
 | EKI *Haridussõnastik* (HAR) | CC-BY-4.0 | fallback Russian for education terms |
 | Ekilex API (EKI) | CC-BY-4.0 | live word card with `EKILEX_API_KEY` |
 | Sõnaveeb via `api.sonapi.ee` | Ekilex data CC-BY-4.0, third-party endpoint | live word card without a key |
+| EKI *Eesti keele grammatika tabelid* (PSV) | CC-BY-4.0, with the PSV dictionary | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
 | EKI teatmik, *Asesõnade käänamine* | © EKI — forms transcribed with the source named | pronoun paradigms (`eesti/pronouns.py`) |
-| *Eesti keele käsiraamat* (EKK) | © EKI — linked, not reproduced | rule links per topic; SÜ 64 rection list |
+| *Eesti keele käsiraamat* (EKK) | © EKI — linked, not reproduced | rule links per topic; SÜ 65 rection list |
 | EKI *põhisõnavara hääldused* | CC-BY-4.0, owner-only | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
 | EKI *kõnekorpused* | CC-BY-4.0; the works read stay in copyright | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
 | `data/seed_glossary.tsv` | own work | 315 hand-written glosses for drill words |

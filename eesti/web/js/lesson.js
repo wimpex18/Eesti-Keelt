@@ -26,6 +26,12 @@ function render(L) {
         <h2 lang="et">${esc(L.et)} <i class="ru" lang="ru">${esc(L.ru)}</i></h2></div>
       <button class="iconbtn" id="lessonClose" type="button" aria-label="Sulge — закрыть">✕</button>
     </header>`;
+  /* The gist first, then the mistake it prevents: the shape of a flashcard. */
+  if (L.tip) html += `<div class="lesson-tip">
+      <p lang="ru">${md(L.tip.gist_ru)}</p>
+      <p class="lesson-mistake"><span class="hint" lang="ru">Частая ошибка:</span>
+        <del lang="et">${esc(L.tip.wrong)}</del> → <ins lang="et">${esc(L.tip.right)}</ins></p>
+    </div>`;
   if (rule) html += `<p class="lesson-rule">${md(rule.summary_ru)}</p>`;
   if (L.points_ru.length)
     html += `<ul class="lesson-points">${L.points_ru.map(p => `<li>${md(p)}</li>`).join("")}</ul>`;

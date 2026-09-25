@@ -83,7 +83,7 @@ class TestTheRuleIsOnlyClaimedWhereItCanBeRead:
         assert rule == "other"
 
     def test_the_v2_explanation_does_not_overstate_it(self):
-        """The explanation says "обычно", as EKK (SÜ 90) does: the finite verb is usually
+        """The explanation says "обычно", as EKK (SÜ 92) does: the finite verb is usually
         second.
         """
         why = wordorder.WHY["v2"]
@@ -150,7 +150,7 @@ class TestThePracticeShape:
 
     def test_the_rule_ships_with_the_exercise(self, content):
         item = wordorder.generate(count=1, seed=1, content=content)[0]
-        assert item.reference["ekk_section"] == "SÜ 90"
+        assert item.reference["ekk_section"] == "SÜ 91"
 
     def test_no_corpus_is_an_empty_list_not_a_crash(self):
         assert wordorder.generate(count=3, content=None, path=None) == []

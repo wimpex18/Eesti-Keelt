@@ -4,7 +4,7 @@ The A1→B1 grammar syllabus as data, and the learning model around it.
 
 ## Where it lives
 
-`eesti/curriculum.py` — `TOPICS`, 41 topics taken from Estonian course
+`eesti/curriculum.py` — `TOPICS`, 42 topics taken from Estonian course
 curricula that track the state standard (Keeltekeskus Kaja A1/B1, Dialoog,
 B-Lingua). Each `Topic` has `id`, `level`, Estonian and Russian names,
 `requires` (prerequisites), an optional error-log `tag` and an optional
@@ -98,7 +98,7 @@ Two sources weight what to practise:
 | cloze | real harvested sentences, only where the case is named or forced (negation) |
 | comparison, numerals, question words | closed-class tables; a question word's Russian cue is EKI EVS's (below) |
 | word order | attested learner corrections (EstGEC-L2), not generated swaps |
-| rection | EKK SÜ 64's list of attested confusions |
+| rection | EKK SÜ 65's list of attested confusions |
 | punctuation | comma before a subordinate clause |
 
 An item ships only when its answer is unambiguous; a distractor that is
