@@ -33,7 +33,7 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
 - **Themes** pair a grammar rule with a themed word set (`themes.py`), so a
   drill teaches the rule and the vocabulary together.
 - **Reference topics** (no generator) show in the path and never block.
-- **Every topic has a Reegel page** (`eesti/lessons.py`, `/api/lesson/{topic}`). Its prose restates EKK or the EKI teatmik and names the section; its tables are synthesised by Vabamorf for a few sample words, never typed; pronouns have no table until a cited one exists.
+- **Every topic has a Reegel page** (`eesti/lessons.py`, `/api/lesson/{topic}`). Its prose restates EKK or the EKI teatmik and names the section; its tables are synthesised by Vabamorf for a few sample words, except the pronoun table, which is the EKI teatmik's *Asesõnade käänamine* (`eesti/pronouns.py`), because Vabamorf declines pronouns wrongly. Each table carries a `source` note that the page shows.
 - **Every topic has a representation** (`curriculum.representations`): a
   generator, an EKK reference, linked reading, practice inside another topic's
   drills (`CROSS`), or the checkpoint. Topics with none are listed with the

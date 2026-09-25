@@ -22,6 +22,11 @@ broadcast WER. Public native speech is a separate regression corpus; it cannot
 replace learner recordings for false acceptance. Train/test overlap must be
 checked before using any public corpus to compare fine-tuned models.
 
+A second, lighter tier runs in ordinary practice: the learner says right after
+reading a displayed sentence whether it was read as written. That is a human
+judgement without a replay, so it is reported apart from verified clips and
+never feeds a provider switch alone (`eesti/asrcheck.py`).
+
 `docs/asr-evaluation.md` is the operational workflow and model comparison.
 The current checkpoint has no learner evaluation recordings. Production stays
 on Cloudflare while the TalTech reference path is available for measurement.

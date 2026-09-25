@@ -135,7 +135,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     "pohivormid": Reference(
         tag="pohivormid", et_term="nimisõna põhivormid",
         ru_term="основные формы имени",
-        ekk_section="M 20", chapter=MORFOLOOGIA, subsection=4,
+        ekk_section="M 20", chapter=MORFOLOOGIA, subsection=2,
         summary_ru=(
             "Три формы, которые даёт словарь: **nimetav** (M 51), **omastav** "
             "(M 52) и **osastav** (M 53). Все остальные падежи строятся от "
@@ -325,7 +325,7 @@ TOPIC_REFERENCES: dict[str, Reference] = {
     ),
     "kaima-minema": Reference(
         tag="kaima-minema", et_term="käima ja minema", ru_term="käima или minema",
-        ekk_section="SÜ 65", chapter=SUNTAKS, subsection=2,
+        ekk_section="SÜ 56", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "**käima** — где? (*käisin kinos* — был и вернулся; *käivad koolis* — "
             "регулярно). **minema** — куда? (*lähen kinno*, *läks poodi*)."

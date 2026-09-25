@@ -30,6 +30,23 @@ so `Rääkimine` does what a phone can do honestly.
   TTS service without a separate live audio connection. A TTS failure leaves
   the text reply usable.
 
+## How the recogniser hears the learner
+
+`Kuidas mind kuuldakse` works on the deployment and keeps no audio
+(`eesti/asrcheck.py`). After each read-aloud sentence the learner taps
+**Lugesin nii, nagu kirjas** or **Ütlesin teisiti**. Only sentences read as
+written are scored, so their misses are the recogniser's. Every fourth sentence
+carries one planted object-case error, the distractor an `obj-case` drill
+offers; the report counts how often the recogniser handed it back and how often
+it repaired it. Rates appear only after 20 sentences and 5 probes. The
+learner's immediate word is a lighter tier than a clip listened to and
+corrected in `Hindamiskomplekt`, and the two are reported separately
+(ADR-0003).
+
+In a drill, the microphone beside the answer box fills it with what was heard.
+The recogniser gets no hint, and code grades what is in the box once the
+learner presses Kontrolli.
+
 ## Where the voice goes
 
 In production the recording goes to Cloudflare Workers AI (Whisper, language
