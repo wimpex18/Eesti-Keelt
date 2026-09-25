@@ -209,6 +209,23 @@ LESSONS: dict[str, LessonText] = {
                  Source("EKI teatmik: arvukirjutus",
                         "https://teatmik.eki.ee/teatmik/arvukirjutus/")),
     ),
+    "mul-on": LessonText(
+        points_ru=(
+            "«У меня есть» — владелец в **alalütlev** (-l) + *on*: *Mul on kõht "
+            "tühi*, *Maril on kaks last*. Глагола «иметь» здесь нет.",
+            "Глагол при этом в ед. ч., даже если вещей много: *Neil oli kolm "
+            "poega*.",
+            "«У меня нет» — вещь в **osastav**: *Laual pole raamatut*, *Mul ei ole "
+            "autot*.",
+            "«Мне нравится» — кому в **alaleütlev** (-le): *See tüdruk meeldib mulle "
+            "väga*; что делать — **da**-инфинитив: *Talle meeldib tantsida*.",
+            "«Мне нужно» — *Mul on vaja* + osastav или da-инфинитив: *Mul on uut "
+            "rahakotti vaja*, *Meil oli vaja maale sõita*.",
+        ),
+        sources=(ekk("M 59"), Source("EKK, süntaks: alus ja öeldis", f"{EKK}?p=5&p1=2"),
+                 Source("EKI põhisõnavara sõnastik (PSV): meeldima, vaja",
+                        "https://sonaveeb.ee/search/unif/dlall/dsall/meeldima/1/est")),
+    ),
     "kaima-minema": LessonText(
         points_ru=(
             "**käima** отвечает на *kus?* и *mida tegemas?*: *Käisin eelmisel "
@@ -670,6 +687,8 @@ TIPS: dict[str, Tip] = {
                      "Ma tean et ta tuleb.", "Ma tean, et ta tuleb."),
     "maarsonad": Tip("Наречия не склоняются, но места идут тройками: *alla, all, alt*.",
                      "Kass on alla.", "Kass on all."),
+    "mul-on": Tip("Есть — *Mul on*, нравится — *Mulle meeldib*, нет — osastav.",
+                  "Ma meeldib see film.", "Mulle meeldib see film."),
     "kaima-minema": Tip("*käima* — где был (и вернулся), *minema* — куда идёшь.",
                         "Eile ma läksin kinos.", "Eile ma käisin kinos."),
     "kaskiv": Tip("*sina* — основа (*tule!*), *teie* — *-ge* (*tulge!*), запрет — *ära*.",
