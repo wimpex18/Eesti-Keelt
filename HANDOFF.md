@@ -8,12 +8,13 @@ Workers AI is production ASR. Native A2/B1 reading controls need private
 sidecars under `data/exam/`. The calmer-surfaces visual refinement is merged.
 
 ## Current task
-Docs refresh (branch `claude/docs-refresh`): ADR-0005 renamed to
-architecture contracts, README lists every doc.
+Open PRs, merge in this order: #72 docs refresh; #73 voice check and spoken
+drill answers; #74 Reegel pages; #75 kellaaeg and kuupäevad (on #74); #76
+ma-vormid (on #75). Each passes the full suite and the browser journeys.
 
 ## Next step
-User merges. Then: live spoken checks inside exercises, a source and endpoint
-audit, and A1–B1 grammar coverage against Tere!/Keeleklikk.
+User reviews and merges. Then more topics from the gap report: -mine/-ja
+nouns, kaassõnad drills, käima vs minema, pronoun table with a cited source.
 
 ## Remaining checks
 Verify the two native reading controls in production, actual Chrome reminder
