@@ -131,7 +131,7 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
             facts.append(f"точность {_pct(w.accuracy)} за последние недели "
                          f"({_count(w.answers, 'ответ', 'ответа', 'ответов')})")
         if w.retrievability is not None and w.retrievability < WEAK_RETRIEVABILITY:
-            facts.append(f"карточки помнятся на {_pct(w.retrievability)}")
+            facts.append(f"карточки помнишь примерно на {_pct(w.retrievability)}")
         from .drills import RULE_ET
 
         # Only a rule with an Estonian name is named: a bare id (`question`) is a
@@ -155,8 +155,9 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
         tab, et, ru = SKILLS[part]
         n = inputs.activity.get(part, 0)
         add(Block("skill", min(SKILL_MINUTES, left), et, ru,
-                  f"Самая забытая часть экзамена: {_count(n, 'занятие', 'занятия', 'занятий')}"
-                  " за неделю. Ноль в любой части — провал всего экзамена.",
+                  f"Меньше всего практики — в этой части экзамена: "
+                  f"{_count(n, 'занятие', 'занятия', 'занятий')} за неделю. "
+                  "Ни одна часть не должна быть нулём: иначе экзамен не сдать.",
                   {"tab": tab}))
 
     if inputs.frontier and left >= MIN_BLOCK:
@@ -168,7 +169,7 @@ def plan(inputs: PlanInputs, minutes: int = 20) -> Plan:
     if inputs.reading and left >= MIN_BLOCK:
         item, title = inputs.reading
         add(Block("read", left, title, "чтение",
-                  "Текст, где больше всего знакомых тебе слов.",
+                  "Текст, в котором больше всего знакомых тебе слов.",
                   {"tab": "read", "item": item}))
 
     # Minutes too few for a block of their own go to the last one.

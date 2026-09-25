@@ -199,7 +199,7 @@ async function finish(ranOut, seconds) {
     const spent = Math.round(r.seconds / 60);
     const d = r.detail || {};
     const score = r.correct === null
-      ? "без оценки — на экзамене эта часть в паре"
+      ? "без оценки — на экзамене эта часть сдаётся в паре"
       : section.kind === "writing"
         ? `${ruCount(d.words, WORDS)} (нужно от ${d.min_words})` +
           (d.errors ? `, найдено ошибок: ${d.errors}` : ", ошибок код не нашёл")

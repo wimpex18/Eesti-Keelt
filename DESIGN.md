@@ -25,14 +25,14 @@ typography:
   interface: "Geologica, SHRP 0 (soft)"
   material: "Geologica, SHRP 55 (cut) — every Estonian sentence, answer, word and title"
   hero: "clamp(38px, 9vw, 60px) / 600"
-  title: "30px / 800"
+  title: "28px / 700"
   prompt: "24px, 28px from 720px"
   reading: "19px / 1.8"
   answer: "18px / 500"
   body: "16px"
   ui: "15px"
   note: "14px"
-  meta: "13px"
+  meta: "12px"
   gloss: "12px"
 rounded:
   control: "999px (buttons, switches, tabs)"
@@ -61,8 +61,7 @@ otherwise belongs to an information role, never to a language.
 
 The interface follows **Apple's Liquid Glass rule of two layers**: navigation
 and controls float on glass (the spine, the phone dock, switches, the word
-card, the celebration); content sits on solid white sheets. Behind everything
-is a faint sky of blue glows, so the glass has light to bend. Glass turns solid
+card, the celebration); content sits on the plain page, separated by lines rather than cards. Glass turns solid
 with `prefers-reduced-transparency`, `prefers-contrast: more`, or the app's own
 **Vähem läbipaistvust** switch (Safari does not report the system setting).
 
@@ -70,7 +69,7 @@ One typeface, **Geologica** (Monokrom, OFL), self-hosted under
 `eesti/web/fonts/`. The interface is set soft; Estonian material is set in the
 same face at a sharper cut (`--cut`, SHRP 55), so it reads as material without a
 second family. Icons are **Phosphor** (MIT), inlined in `eesti/web/js/icons.js`:
-duotone for navigation and marks, bold for the glyphs inside buttons.
+one line style: Phosphor regular outlines (the duotone fill is hidden) for navigation and marks at 20–24px, and bold for the small glyphs inside buttons.
 
 ## Colors
 
@@ -91,7 +90,7 @@ Tokens live in `eesti/web/app.css` (`:root`), mirrored for dark under
 | Järv | `--gloss` | #0b7285 | #52d0da | What a word means, and only that |
 | Mustkivi | `--ink` | #0f172a | #eef2f8 | Text |
 | Page / sheet | `--bg` / `--panel` | #f8fafc / #ffffff | #0b1120 / #131c2e | Page and content sheets |
-| Evening | `--night-a/b/c` | #000a3d → #000087 → #0030de | darker | The hero: a Baltic evening gradient with Narva light |
+| Evening | `--night-a/b` | #0b1433 → #142257 | #101a33 → #16224a | The hero: a Baltic evening gradient with Narva light |
 | Glass | `--glass` + rim/edge/shadow | white 64% | slate 62% | The navigation layer |
 
 **Colour by role.** Blue acts, moss is right, cranberry is wrong, cloudberry
@@ -135,24 +134,24 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
 ## Controls
 
-- **Buttons are capsules.** *Prominent* (`.go`, `.primary`): the blue fill with
-  light running over it (a white top gradient and rim), never a flat block; it
-  brightens under the pointer and settles to 97% when pressed. One per view.
-  *Tinted* (`.ghost`): blue at 10%, deep-blue text, 17% on hover. *Plain*
-  (`.linky`): an underlined link. Small (`.logbtn`, tutor offer, topic actions):
-  tinted, 34–40px. Icon buttons: 42px circles (44px on touch), tinted on hover.
-  Disabled: 45% opacity.
-- **Fields are filled.** A soft Pahkla well, no border at rest; on focus it turns
-  white with a blue edge and a 4px blue halo. Labels sit above with the Russian
-  gloss on the same line. The drill's answer field is 56px, in the cut.
+- **Buttons are flat capsules, in four ranks.** *Primary* (`.go`, `.primary`):
+  solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per
+  view — a started Sõnatrenn demotes Alusta. *Secondary* (`.ghost`, `.logbtn`,
+  tutor offer): a neutral grey fill (`--ctl`, ink at 6%) with ink text. *Ghost*
+  (`.linky`, Vihje): text only. *Icon*: 44px neutral circles. Heights 44px, 52px
+  for a drill's answer action. Disabled: 45% opacity. Blue is kept for the primary
+  action, focus, selection, progress and "now" — never as a tint on a control.
+- **Fields are outlined.** White with a 1px line at rest; on focus a blue edge and a
+  3px blue halo. Labels sit above with the Russian
+  gloss on the same line. The drill's answer field is 52px, spans the column, in the cut.
 - **Switches** (`.levels`): a glass track, the chosen state a white capsule.
 - **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
   Home and End, with only the selected tab in the Tab order.
 
 ## Signature components
 
-- **Hero (Praegu).** The evening gradient with Narva light, bog-map contour
-  lines and a barn swallow (suitsupääsuke) gliding in the corner. It holds the
+- **Hero (Praegu).** A quiet, deep evening surface (no glows or contour rings)
+  with a faint barn swallow (suitsupääsuke) gliding in the corner. It holds the
   resume topic, its Russian name and level, the **gate** (ten slots for the
   topic's last answers against 8 of 10), and the **boardwalk**.
 - **Laudtee.** An SVG plank path through a window of the curriculum around the
@@ -185,8 +184,9 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   in the page, hidden, so the media code is unchanged.
 - **Sõnatrenn.** In Sõnavara: ten words the learner marked *õpin* (topped up with
   the commonest new A1 words) shown by their Russian meaning; the learner types
-  the Estonian, compared with the word list's spelling. *Vihje* reveals a letter
-  at a time. A miss shows the right word, its omastav/osastav when the list has
+  the Estonian, compared with the word list's spelling. *Vihje*, a quiet text action under the answer, reveals a letter
+  at a time. It is a practice space on the page, not a card: heading, a thin
+  progress line, the Russian meaning as the largest text, then the answer row. A miss shows the right word, its omastav/osastav when the list has
   them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
   records nothing — Kordamine owns memory.
 - **Reader source.** One line above the title: *Allikas* and the source's name,
@@ -196,6 +196,22 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 - **Celebration.** Mastery only: a flower blooms on an evening card, announced
   through the page's polite live region. Any key or tap dismisses it; under
   reduced motion only the announcement remains.
+
+## Layout rhythm
+
+One left edge per column. Exercises (drills, Sõnatrenn, Kordamine cards, the
+checkpoint, dictation, the readiness bloom, progress stats) share one treatment:
+on the page, ruled by a 1px line above, no card fill. The meta line (position,
+form, level) sits above the answer; the answer spans the column. Section heads
+open with a rule and 24px. Lists (words, library) are hairline rows, not tiles. A
+filter row's apply button is secondary. Text: 12 gloss/meta · 14 note/hint ·
+16 body · 20 section · 28 title and big numbers · 40 score.
+
+## Depth
+
+Content sheets are separated by a 1px line (`--shadow` is a hairline ring), not a
+drop shadow. Only the floating glass layer (spine, dock, word card) casts a soft
+shadow. The page has no background glows.
 
 ## Motion
 

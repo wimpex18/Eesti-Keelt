@@ -284,7 +284,7 @@ def _speaking_evidence() -> str:
     if got["median_wpm"]:
         bits.append(f"темп ≈ {round(got['median_wpm'])} слов/мин")
     if got["doubtful"]:
-        bits.append(f"{got['doubtful']} раз распознано плохо")
+        bits.append(f"{_count(got['doubtful'], 'раз', 'раза', 'раз')} распознано плохо")
     return "за 90 дней: " + ", ".join(bits)
 
 
@@ -313,7 +313,7 @@ def _parts(progress: sqlite3.Connection, level: str,
 
     def material(skill: str) -> str:
         n = official.get(skill, 0)
-        return f" · {n} офиц. заданий" if n else ""
+        return " · " + _count(n, 'офиц. задание', 'офиц. задания', 'офиц. заданий') if n else ""
 
     # Writing: corrections queued for the error log are its durable trace. Queued
     # and sent are counted separately — only sent rows are in the Vead database.
@@ -330,7 +330,7 @@ def _parts(progress: sqlite3.Connection, level: str,
         except sqlite3.Error:
             pass  # absence is a valid answer, not an error
 
-    writing = f"{queued} исправлений"
+    writing = _count(queued, "исправление", "исправления", "исправлений")
     if queued:
         writing += (f", из них {pushed} в логе Vead" if pushed
                     else ", ни одного ещё не отправлено в Vead")
@@ -415,9 +415,9 @@ def readiness(
     untouched = [p for p in parts if p.touched is False]
     if untouched:
         reasons.append(
-            "Не тронутые части экзамена: "
+            "Нетронутые части экзамена: "
             + ", ".join(f"{p.et} ({p.ru})" for p in untouched)
-            + ". Ни одна часть не может быть нулевой."
+            + ". Ни одна часть не должна быть нулём."
         )
         # Name the thing to open, not the size of the shelf.
         first = next((p for p in untouched if p.next_task), None)

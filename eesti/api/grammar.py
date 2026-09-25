@@ -67,7 +67,7 @@ def translate_sentence(req: TranslateRequest) -> dict:
     if got is None:
         # A crutch that is briefly absent, not an error page.
         return {"ok": False, "text": None,
-                "detail": "Перевод сейчас недоступен — попробуйте ещё раз."}
+                "detail": "Перевод сейчас недоступен — попробуй ещё раз."}
     return {"ok": True, "text": got.text, "target": got.target,
             "engine": got.engine}
 
