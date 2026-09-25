@@ -328,19 +328,13 @@ export function flowerSvg(parts, target = 3, {labels = true} = {}) {
       <path d="${PETAL}" class="petal-shape"${unmeasured ? ` fill="url(#${hatch})"` : ""}/>
       <g clip-path="url(#${clip})">${fill}${seams}</g></g></g>`;
   }).join("");
-  // Labels at the four corners, outside the petals, in the exam's order.
-  const corner = [[-156, -100, "start"], [156, -100, "end"], [156, 100, "end"], [-156, 100, "start"]];
+  // Labels sit outside the SVG as HTML text so they keep the app's type sizes
+  // however small the flower is drawn; the grid places them at the four corners.
   const say = p => p.touched === null ? "не измеряется"
     : p.touched ? "есть контакт"
     : `${Math.min(target, p.contact || 0)} из ${target} · не начато`;
-  const text = labels ? parts.slice(0, 4).map((p, i) => {
-    const [x, y, anchor] = corner[i];
-    return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="petal-label" lang="et">${esc(p.et)}</text>
-      <text x="${x}" y="${y + 20}" text-anchor="${anchor}" lang="ru"
-        class="petal-sub${p.touched === false ? " warn" : ""}">${say(p)}</text>`;
-  }).join("") : "";
   const name = parts.map(p => `${p.et}: ${say(p)}`).join("; ");
-  return `<svg class="flower" viewBox="${labels ? "-160 -128 320 256" : "-96 -96 192 192"}"
+  const svg = `<svg class="flower" viewBox="-96 -96 192 192"
       role="img" aria-label="${esc(name)}">
     <defs>
       <pattern id="${hatch}" width="6" height="6" patternUnits="userSpaceOnUse"
@@ -349,8 +343,13 @@ export function flowerSvg(parts, target = 3, {labels = true} = {}) {
     </defs>
     <g>${petals}</g>
     <circle r="15" class="heart"/><circle r="6" class="heart-eye"/>
-    ${text}
   </svg>`;
+  if (!labels) return svg;
+  const corner = ["tl", "tr", "br", "bl"];
+  const text = parts.slice(0, 4).map((p, i) => `<div class="petal-note ${corner[i]}" aria-hidden="true">
+      <span class="petal-label" lang="et">${esc(p.et)}</span>
+      <span class="petal-sub${p.touched === false ? " warn" : ""}" lang="ru">${say(p)}</span></div>`).join("");
+  return `<div class="flower-wrap">${svg}${text}</div>`;
 }
 
 
