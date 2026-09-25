@@ -8,17 +8,16 @@ fallback, and Cloudflare Workers AI is production ASR. Native A2/B1 reading
 controls need private sidecars under `data/exam/`.
 
 ## Current task
-Branch `claude/estllm-review` (one PR for this thread): EstLLM and GPT-OSS
-measured (`docs/ai-providers.md`, `docs/evaluations/providers.json`); the
-external eval scorer compares bare words; spelling advice names täpitähed only
-when that is the fix; Reegel sheet, form tables, Kogu rada rows, the set head,
-the drill mic and Kuidas mind kuuldakse refined to the calmer system.
-NVIDIA evaluation lane pinned to DeepSeek V4.1 Flash; Qwen3.8-27B measured
-as the only free Aug–Sep 2026 Workers AI model (GPT-OSS stays).
+Branch `claude/calmer-surfaces`: the external eval classes each fix by its
+original (capitalised) words, so a proper-noun case fix is no longer counted
+as spelling. An iPhone-sized pass found and fixed a first-open race in
+`gloss.migrate` (500 on `/api/status`) and a stale question under Rääkimine's
+sentence mode when no sentences load. The Praegu hero moved from the deep
+evening navy to a daylight sky with a glass rim (`--hero-*` tokens).
 
 ## Next step
-User reviews and merges, then Cloud Build redeploys the origin; run the `smoke`
-workflow with `deep: true`.
+User reviews and merges; after deploy run the `smoke` workflow with
+`deep: true`. Uncommitted paths after commit: none.
 
 ## Open questions
 Whether to let EstLLM write comprehension questions in local `cli serve`

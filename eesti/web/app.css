@@ -61,6 +61,15 @@
   --night-accent:#7fc8ea; /* Narva, softened */
   --night-glass:rgba(255,255,255,.1);
   --night-good:#4ade80; --night-bad:#fb7185;
+  /* ── The hero: daylight, a pale sky settling into sand, with a glass rim ── */
+  --hero-bg:linear-gradient(168deg, #d9e8fc 0%, #e8f1fc 50%, #f6efdc 100%);
+  --hero-rim:inset 0 1px 0 rgba(255,255,255,.9), 0 0 0 1px rgba(15,23,42,.07);
+  --hero-ink:#0f172a; --hero-muted:#475569; --hero-accent:#0030de;
+  --hero-line:rgba(15,23,42,.14); --hero-glass:rgba(255,255,255,.66);
+  --hero-good:#17804f; --hero-bad:#cc2f45; --hero-now:#0030de;
+  --hero-node:#f3f8fe; --hero-tick:#ffffff; --hero-plank:rgba(255,255,255,.72);
+  --hero-node-rim:rgba(15,23,42,.28); --hero-bird:rgba(0,48,222,.03); --hero-bird-line:rgba(0,48,222,.13);
+  --hero-btn:var(--btn); --hero-btn-ink:#ffffff;
   --sky:#00c3ff;         /* Narva: the one bright accent, for charts and light */
   --sand:#fceec8;        /* Haapsalu: the single warm note (rest, reward) */
   --pale:#cee2fd;        /* Pärnu */
@@ -116,6 +125,14 @@
     --on-night:#f4f7fc; --night-muted:#b3c2d8; --night-line:rgba(255,255,255,.16);
     --night-accent:#7fc8ea; --night-glass:rgba(255,255,255,.08);
     --night-good:#4ade80; --night-bad:#fb7185;
+    --hero-bg:linear-gradient(168deg, #1b2842 0%, #1e2b44 55%, #2a2d38 100%);
+    --hero-rim:inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(255,255,255,.06);
+    --hero-ink:#f4f7fc; --hero-muted:#b3c2d8; --hero-accent:#7fc8ea;
+    --hero-line:rgba(255,255,255,.16); --hero-glass:rgba(255,255,255,.08);
+    --hero-good:#4ade80; --hero-bad:#fb7185; --hero-now:#f4f7fc;
+    --hero-node:#1e2b44; --hero-tick:#1b2842; --hero-plank:rgba(255,255,255,.07);
+    --hero-node-rim:rgba(255,255,255,.35); --hero-bird:rgba(255,255,255,.07); --hero-bird-line:rgba(255,255,255,.18);
+    --hero-btn:#f4f7fc; --hero-btn-ink:#16224a;
     --sky:#00c3ff; --sand:#e8d9ae; --pale:#1b3563;
     --glass:rgba(22,30,44,.62); --glass-strong:rgba(26,35,50,.82);
     --glass-rim:rgba(255,255,255,.12); --glass-edge:rgba(0,0,0,.45);
@@ -137,6 +154,14 @@
   --on-night:#f4f7fc; --night-muted:#b3c2d8; --night-line:rgba(255,255,255,.16);
   --night-accent:#7fc8ea; --night-glass:rgba(255,255,255,.08);
     --night-good:#4ade80; --night-bad:#fb7185;
+    --hero-bg:linear-gradient(168deg, #1b2842 0%, #1e2b44 55%, #2a2d38 100%);
+    --hero-rim:inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(255,255,255,.06);
+    --hero-ink:#f4f7fc; --hero-muted:#b3c2d8; --hero-accent:#7fc8ea;
+    --hero-line:rgba(255,255,255,.16); --hero-glass:rgba(255,255,255,.08);
+    --hero-good:#4ade80; --hero-bad:#fb7185; --hero-now:#f4f7fc;
+    --hero-node:#1e2b44; --hero-tick:#1b2842; --hero-plank:rgba(255,255,255,.07);
+    --hero-node-rim:rgba(255,255,255,.35); --hero-bird:rgba(255,255,255,.07); --hero-bird-line:rgba(255,255,255,.18);
+    --hero-btn:#f4f7fc; --hero-btn-ink:#16224a;
     --sky:#00c3ff; --sand:#e8d9ae; --pale:#1b3563;
   --glass:rgba(22,30,44,.62); --glass-strong:rgba(26,35,50,.82);
   --glass-rim:rgba(255,255,255,.12); --glass-edge:rgba(0,0,0,.45);
@@ -506,12 +531,16 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 /* ── The hero: what to do now ─────────────────────────────────────── */
 .hero{position:relative;overflow:hidden;isolation:isolate;
   display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s4) var(--s5);align-items:end;
-  padding:26px 24px 18px;border-radius:var(--r-xl);color:var(--on-night);
-  background:linear-gradient(160deg, var(--night-a), var(--night-b));
-  box-shadow:none}
+  padding:26px 24px 18px;border-radius:var(--r-xl);
+  /* Everything inside reads the night names; here they take the hero's palette. */
+  --on-night:var(--hero-ink); --night-muted:var(--hero-muted); --night-accent:var(--hero-accent);
+  --night-line:var(--hero-line); --night-glass:var(--hero-glass);
+  --night-good:var(--hero-good); --night-bad:var(--hero-bad);
+  --night-a:var(--hero-tick); --night-b:var(--hero-node);
+  color:var(--on-night);background:var(--hero-bg);box-shadow:var(--hero-rim)}
 /* A barn swallow (suitsupääsuke) in the brand's broken line, crossing the evening. */
 .hero .swallow{position:absolute;top:18px;right:26px;width:120px;height:60px;z-index:-1;
-  fill:rgba(255,255,255,.07);stroke:rgba(255,255,255,.18);stroke-width:1;
+  fill:var(--hero-bird);stroke:var(--hero-bird-line);stroke-width:1;
   stroke-linejoin:round;animation:glide 9s var(--ease) infinite alternate}
 @keyframes glide{from{transform:translate(0,0) rotate(-2deg)}to{transform:translate(-14px,6px) rotate(2deg)}}
 .hero-text{min-width:0}
@@ -524,8 +553,8 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 .hero-act{display:flex;flex-direction:column;align-items:flex-end;gap:var(--s3)}
 .hero-act:not(:has(> :not([hidden]))){display:none}
 .hero-act button.go{min-height:52px;padding:12px 24px;font-size:var(--fs-body);
-  background:var(--on-night);color:var(--night-b)}
-.hero-act button.go:hover:not(:disabled){background:color-mix(in srgb, var(--on-night) 88%, var(--night-accent))}
+  background:var(--hero-btn);color:var(--hero-btn-ink)}
+.hero-act button.go:hover:not(:disabled){background:color-mix(in srgb, var(--hero-btn) 88%, var(--night-accent))}
 .hero-act label{color:var(--night-muted);font-weight:600;flex-direction:column;align-items:stretch}
 .hero-act label .ru{color:var(--night-muted)}
 .hero-act select{background-color:var(--night-glass);border-color:var(--night-line);color:var(--on-night);
@@ -533,13 +562,13 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
                    linear-gradient(135deg,var(--night-muted) 50%,transparent 50%)}
 .trail{grid-column:1 / -1;min-height:70px;margin:0 -6px}
 .trail svg{display:block;width:100%;height:auto;overflow:visible}
-.trail .plank{fill:none;stroke:rgba(255,255,255,.07);stroke-width:18;stroke-linecap:round}
+.trail .plank{fill:none;stroke:var(--hero-plank);stroke-width:18;stroke-linecap:round}
 .trail .seam{fill:none;stroke:var(--night-line);stroke-width:1.5;stroke-dasharray:1.5 11}
-.trail .node{fill:var(--night-b);stroke:rgba(255,255,255,.35);stroke-width:2}
+.trail .node{fill:var(--night-b);stroke:var(--hero-node-rim);stroke-width:2}
 .trail .node.ready, .trail .node.in-progress{stroke:var(--night-accent)}
 .trail .node.mastered{fill:var(--night-good);stroke:var(--night-good)}
 .trail .node.reference{stroke:var(--night-muted);stroke-dasharray:2 3}
-.trail .node.now{fill:var(--on-night);stroke:var(--on-night)}
+.trail .node.now{fill:var(--hero-now);stroke:var(--hero-now)}
 .trail .halo{fill:none;stroke:var(--night-accent);stroke-width:2;opacity:.45;
   transform-box:fill-box;transform-origin:center;animation:halo 2.8s var(--ease) infinite}
 .trail .tick{stroke:var(--night-a);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
@@ -1164,7 +1193,7 @@ audio.enhanced{display:none !important}
 /* The gate: ten slots in the hero, the topic's last answers against 8 of 10. */
 .gate{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-top:14px}
 .slots{display:flex;gap:4px}
-.slot{width:16px;height:4px;border-radius:2px;background:rgba(255,255,255,.16)}
+.slot{width:16px;height:4px;border-radius:2px;background:var(--night-line)}
 .slot.ok{background:var(--night-good)}
 .slot.no{background:var(--night-bad)}
 .gate-say{font-size:var(--fs-meta);color:var(--night-muted)}
