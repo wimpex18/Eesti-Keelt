@@ -55,6 +55,7 @@ class TestTables:
     def test_every_table_names_its_source(self):
         assert table("kohakaanded")["source"] == "Формы построены Vabamorf."
         assert "закрытый список" in table("jargarvud")["source"]
+        assert "teatmik" in table("asesonad")["source"]
 
 
 class TestTheRoute:
