@@ -79,4 +79,4 @@ run the suite after upgrades and the morphology eval before trusting a new
 - Stage named paths, never `git commit -a`. Open small PRs; the user merges.
   Docs describe current behavior. Path rules are in `.claude/rules/`; design
   context is in `PRODUCT.md` and `DESIGN.md`. Architecture constraints are in
-  `docs/adr/0005-pre-redesign-architecture.md`.
+  `docs/adr/0005-architecture-contracts.md`.
