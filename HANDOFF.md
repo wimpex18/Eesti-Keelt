@@ -10,7 +10,9 @@ controls need private sidecars under `data/exam/`.
 ## Current task
 Branch `claude/calmer-surfaces`: the external eval classes each fix by its
 original (capitalised) words, so a proper-noun case fix is no longer counted
-as spelling; then a mobile (iPhone-sized) browser pass over the main journeys.
+as spelling. An iPhone-sized pass found and fixed a first-open race in
+`gloss.migrate` (500 on `/api/status`) and a stale question under Rääkimine's
+sentence mode when no sentences load.
 
 ## Next step
 User reviews and merges; after deploy run the `smoke` workflow with

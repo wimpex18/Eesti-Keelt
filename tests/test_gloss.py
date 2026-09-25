@@ -337,3 +337,26 @@ class TestTheReviewQueueIsGlossedToo:
         page = markup_and_script()
         assert "function renderReview(it, glosses)" in page
         assert "renderReview(it, glosses || {})" in page
+
+
+def test_migrate_survives_a_concurrent_first_open(tmp_path):
+    """Two requests opening a fresh vocab.db race: both read the column list,
+    one adds the column, the other must not fail (it was a 500 on /api/status)."""
+    import sqlite3
+
+    from eesti import gloss
+
+    path = tmp_path / "vocab.db"
+    first = sqlite3.connect(path)
+    first.execute("CREATE TABLE word_gloss (lemma TEXT PRIMARY KEY, fetched TEXT)")
+    stale = first.execute("PRAGMA table_info(word_gloss)").fetchall()
+    gloss.migrate(sqlite3.connect(path, isolation_level=None))  # the other request
+
+    class Stale:
+        """`first`, still holding the column list it read before the other request."""
+        def execute(self, sql, *args):
+            return iter(stale) if sql.startswith("PRAGMA") else first.execute(sql, *args)
+
+    gloss.migrate(Stale())
+    have = {row[1] for row in first.execute("PRAGMA table_info(word_gloss)")}
+    assert set(gloss.LATER_COLUMNS) <= have

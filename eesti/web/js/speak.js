@@ -104,7 +104,15 @@ function markPlanted(text, planted) {
 
 function showReadAloud() {
   const it = readAloud[readIdx];
-  if (!it) return;
+  if (!it) {
+    // Sentences come from the reading corpus; without it the list is empty, and
+    // the previous mode's question must not stay under this mode's name.
+    $("#speakPrompt").innerHTML = `<div class="why" lang="ru">Предложений для чтения
+      сейчас нет. Выбери <span lang="et">Loe ette: sõnad</span> или
+      <span lang="et">Vasta küsimusele</span>.</div>`;
+    $("#speakNext").hidden = true;
+    return;
+  }
   $("#speakPrompt").innerHTML = it.probe
     ? `${markPlanted(it.text, it.probe.planted)}<div class="why instr" lang="ru">
        Прочитай <b>ровно как написано</b>, вместе с выделенным словом. Его форма

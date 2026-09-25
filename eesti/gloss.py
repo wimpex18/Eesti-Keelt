@@ -62,7 +62,14 @@ def migrate(conn: sqlite3.Connection) -> None:
     have = {row[1] for row in conn.execute("PRAGMA table_info(word_gloss)")}
     for column in LATER_COLUMNS:
         if column not in have:
-            conn.execute(f"ALTER TABLE word_gloss ADD COLUMN {column} TEXT")
+            try:
+                conn.execute(f"ALTER TABLE word_gloss ADD COLUMN {column} TEXT")
+            except sqlite3.OperationalError as exc:
+                # Two requests opening a fresh `vocab.db` at once both see the
+                # column missing; the second finds it already added, which is
+                # the state this wants.
+                if "duplicate column name" not in str(exc):
+                    raise
 
 
 @dataclass(frozen=True)
