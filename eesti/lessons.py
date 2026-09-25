@@ -53,6 +53,8 @@ VERB_TABLES: dict[str, tuple[tuple[str, str], ...]] = {
                   ("olevik, ma", "n"), ("lihtminevik, ta", "s"),
                   ("nud-kesksõna", "nud"), ("tud-kesksõna", "tud")),
     "ma-da-inf": (("ma-tegevusnimi", "ma"), ("da-tegevusnimi", "da")),
+    "ma-vormid": (("ma", "ma"), ("mas", "mas"), ("mast", "mast"), ("mata", "mata"),
+                  ("maks", "maks"), ("des-vorm", "des")),
     "kaskiv": (("sina", "o"), ("tema", "gu"), ("meie", "gem"), ("teie", "ge"),
                ("nemad", "gu")),
     "tingiv": tuple(zip(PERSONS, ("ksin", "ksid", "ks", "ksime", "ksite", "ksid"))),

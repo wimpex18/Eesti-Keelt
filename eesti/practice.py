@@ -115,6 +115,10 @@ def items_for(
             return question_drills(count=count, seed=seed, words=words)
         if topic == "vordlusastmed":
             return comparison_drills(words, levels, count, seed)
+        if topic == "ma-vormid":
+            from .verbforms import drills
+
+            return drills(count, seed)
         if topic in ("kellaaeg", "kuupaevad"):
             from .timedate import date_drills, time_drills
 
