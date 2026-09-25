@@ -3,6 +3,7 @@
    `data-lesson="<topic id>"`: Kogu rada, a running set, free practice. */
 
 import {$, api, esc, md} from "./core.js";
+import {icon} from "./icons.js";
 import {showItem} from "./reading.js";
 
 const sheet = $("#lessonSheet");
@@ -10,10 +11,13 @@ const sheet = $("#lessonSheet");
 
 function tableHtml(t) {
   if (!t) return "";
-  return `<div class="lesson-table"><table lang="et">
+  /* An empty corner cell means the first column labels the rows (cases,
+     persons); otherwise it is data like the rest (numerals). */
+  const labelled = !t.columns[0];
+  return `<div class="lesson-table${labelled ? " labelled" : ""}"><table lang="et">
     <thead><tr>${t.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
     <tbody>${t.rows.map(r => `<tr>${r.map((c, i) =>
-      i === 0 ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
+      i === 0 && labelled ? `<th scope="row">${esc(c)}</th>` : `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
   </table></div>
   ${t.source ? `<p class="hint">${esc(t.source)}</p>` : ""}`;
 }
@@ -24,7 +28,7 @@ function render(L) {
   let html = `<header class="lesson-head">
       <div><span class="lv" data-level="${esc(L.level)}">${esc(L.level)}</span>
         <h2 lang="et">${esc(L.et)} <i class="ru" lang="ru">${esc(L.ru)}</i></h2></div>
-      <button class="iconbtn" id="lessonClose" type="button" aria-label="Sulge — закрыть">✕</button>
+      <button class="iconbtn" id="lessonClose" type="button" aria-label="Sulge — закрыть">${icon("x", {weight: "bold"})}</button>
     </header>`;
   /* The gist first, then the mistake it prevents: the shape of a flashcard. */
   if (L.tip) html += `<div class="lesson-tip">
@@ -46,10 +50,12 @@ function render(L) {
     <ul class="lesson-reading">${L.reading.map(r => r.skill === "kuulamine"
       ? `<li lang="et">${esc(r.title)}</li>`
       : `<li lang="et"><button class="linky" type="button" data-read="${esc(r.id)}">${esc(r.title)}</button></li>`).join("")}</ul>`;
-  const refs = [];
-  if (rule) refs.push(`<a href="${esc(rule.url)}" target="_blank" rel="noopener">EKK ${esc(rule.ekk_section)}</a>`);
-  L.sources.forEach(s => refs.push(`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`));
-  if (refs.length) html += `<p class="hint lesson-sources">Источник: ${refs.join(" · ")}</p>`;
+  /* One link per label: a topic's own source can name the same EKK section as
+     its rule, and that one points at the section itself, so it wins. */
+  const refs = new Map(L.sources.map(s => [s.label, s.url]));
+  if (rule && !refs.has(`EKK ${rule.ekk_section}`)) refs.set(`EKK ${rule.ekk_section}`, rule.url);
+  if (refs.size) html += `<p class="hint lesson-sources">Источник: ${[...refs].map(([label, url]) =>
+    `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`).join(" · ")}</p>`;
   if (L.drillable) html += `<div class="row"><button class="go" id="lessonPractice" lang="et">Harjuta
     <span class="ru" lang="ru">упражняться</span></button></div>`;
   return html;

@@ -356,6 +356,120 @@
       ],
       "latency_p50": 6.4045000000000005,
       "latency_max": 25.065
+    },
+    {
+      "provider": "local",
+      "model": "hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M",
+      "evidence": false,
+      "recall": 0.9,
+      "precision": 0.0,
+      "caught": "9/10",
+      "left_alone": "0/8",
+      "no_op_flags": 6,
+      "changed_flags": 2,
+      "broken": 0,
+      "valid": true,
+      "checked_at": "2026-09-25T15:30:00+00:00",
+      "failures": [
+        [
+          "Ma ostsin eile uut autot ära.",
+          "missed 'autot'"
+        ],
+        [
+          "Ta ei leidnud oma võtmeid.",
+          "proposed edit võtmeid -> võtme on a correct sentence"
+        ],
+        [
+          "Homme ma lähen kooli ja tulen kell viis tagasi.",
+          "proposed edit on a correct sentence"
+        ]
+      ],
+      "note": "Ollama 0.34.4 on Apple M5 32 GB, temperature 0. Six of eight clean sentences drew no-op corrections."
+    },
+    {
+      "provider": "local",
+      "model": "hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M",
+      "evidence": true,
+      "recall": 0.7,
+      "precision": 0.0,
+      "caught": "7/10",
+      "left_alone": "0/8",
+      "no_op_flags": 6,
+      "changed_flags": 2,
+      "broken": 0,
+      "valid": true,
+      "checked_at": "2026-09-25T15:30:00+00:00"
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/openai/gpt-oss-120b",
+      "evidence": false,
+      "recall": 0.8,
+      "precision": 1.0,
+      "caught": "8/10",
+      "left_alone": "8/8",
+      "broken": 0,
+      "valid": true,
+      "checked_at": "2026-09-25T15:30:00+00:00",
+      "failures": [
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen' (deterministic spelling flags it)"
+        ],
+        [
+          "Eile ma teesin kodutööd.",
+          "missed 'teesin' (deterministic spelling flags it)"
+        ]
+      ]
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/openai/gpt-oss-120b",
+      "track": "grammar_et",
+      "sample": 40,
+      "caught": "2/40",
+      "accuracy": 0.05,
+      "clean_sentences": 20,
+      "false_flags": 4,
+      "precision": 0.8,
+      "spurious_edits": 7,
+      "broken": 0,
+      "valid": true,
+      "checked_at": "2026-09-25T15:30:00+00:00",
+      "note": "Scored after the external scorer stopped counting punctuation and capitals as a different edit."
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/qwen/qwen3.8-27b",
+      "evidence": false,
+      "recall": 0.857,
+      "precision": 1.0,
+      "caught": "6/7",
+      "left_alone": "7/7",
+      "broken": 4,
+      "valid": true,
+      "checked_at": "2026-09-25T13:49:00+00:00",
+      "failures": [
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen'"
+        ],
+        [
+          "four cases",
+          "empty reply (length) at max_tokens 2000"
+        ]
+      ]
+    },
+    {
+      "provider": "nvidia",
+      "model": "deepseek-ai/deepseek-v4.1-flash",
+      "evidence": false,
+      "caught": "0/0",
+      "left_alone": "0/0",
+      "broken": 9,
+      "valid": false,
+      "checked_at": "2026-09-25T14:35:00+00:00",
+      "invalid_reason": "every call timed out at 150 s on the free endpoint; run stopped"
     }
   ]
 }

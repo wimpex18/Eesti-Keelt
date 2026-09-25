@@ -79,3 +79,23 @@ class TestTheErrorClasses:
         from eesti.evals.external import category
 
         assert category("ilus", "ilusti") == "other"
+
+
+def test_a_fix_is_scored_without_the_sentence_punctuation_or_capital(monkeypatch):
+    """The corpus writes the last word with its full stop and the first with its
+    capital; a model names the bare word. The same fix must count as caught."""
+    from eesti.evals import external
+
+    rows = [{"original": "Esinejad meeldisid kõigele.", "correct": "Esinejad meeldisid kõigile."},
+            {"original": "Populaarseid olid laulud.", "correct": "Populaarsed olid laulud."}]
+    answers = {
+        rows[0]["original"]: {"corrections": [{"wrong": "kõigele", "correct": "kõigile"}]},
+        rows[1]["original"]: {"corrections": [{"wrong": "populaarseid", "correct": "populaarsed"}]},
+    }
+    monkeypatch.setattr(external, "load", lambda path=None: rows)
+    monkeypatch.setattr(external, "_ask", lambda provider, text, model, evidence: answers[text])
+    monkeypatch.setattr(external, "category", lambda wrong, right: "other")
+
+    result = external.run("stub", sample=10, verbose=False)
+    assert result["caught"] == "2/2"
+    assert result["spurious_edits"] == 0

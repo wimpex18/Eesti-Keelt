@@ -106,10 +106,10 @@ function showReadAloud() {
   const it = readAloud[readIdx];
   if (!it) return;
   $("#speakPrompt").innerHTML = it.probe
-    ? `${markPlanted(it.text, it.probe.planted)}<div class="why instr" lang="ru" style="margin-top:var(--s2)">
+    ? `${markPlanted(it.text, it.probe.planted)}<div class="why instr" lang="ru">
        Прочитай <b>ровно как написано</b>, вместе с выделенным словом. Его форма
        здесь намеренно неверная: так видно, не «исправит» ли распознавание ошибку за тебя.</div>`
-    : `${esc(it.text)}<div class="why instr" lang="ru" style="margin-top:var(--s2)">Прочитай вслух.
+    : `${esc(it.text)}<div class="why instr" lang="ru">Прочитай вслух.
      ${it.level ? esc(it.level) : ""}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
@@ -166,7 +166,7 @@ function showSpeakQuestion() {
   const q = (window.__speak || [])[$("#speakTopic").value | 0];
   if (!q) return;
   $("#speakPrompt").innerHTML =
-    `${esc(q.question)}<div class="why" lang="ru" style="margin-top:var(--s2)">${esc(q.hint_ru)}</div>`;
+    `${esc(q.question)}<div class="why" lang="ru">${esc(q.hint_ru)}</div>`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
 }

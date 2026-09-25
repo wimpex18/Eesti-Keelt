@@ -129,3 +129,12 @@ class TestWhatTheDictionaryActuallyCatches:
 
         monkeypatch.setattr("urllib.request.urlopen", boom)
         assert grammar.spelling(TEXT)
+
+
+def test_the_tapitaht_advice_is_given_only_where_it_is_the_fix():
+    """`tanav` -> `tänav` is a missing täpitäht; `minen` is a regular ending on an
+    irregular verb, and telling that learner to look for an õ misleads."""
+    assert grammar._spelling_why("tanav", "tänav") == grammar.SPELLING_WHY
+    assert grammar._spelling_why("minen", "mine") == grammar.SPELLING_WHY_FORM
+    assert grammar._spelling_why("teesin", "") == grammar.SPELLING_WHY_FORM
+    assert "Vabamorf" in grammar.SPELLING_WHY_FORM

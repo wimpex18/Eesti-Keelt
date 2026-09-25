@@ -639,6 +639,23 @@ SPELLING_WHY = (
     "Слова нет в словаре Vabamorf. Проверь написание — чаще всего это "
     "пропущенная täpitäht: **õ ä ö ü**."
 )
+#: When the suggestion is not the same word with its täpitähed restored, blaming
+#: a missing õ would be a wrong diagnosis: `minen` is a regular ending on an
+#: irregular verb, not a typo.
+SPELLING_WHY_FORM = (
+    "Слова нет в словаре Vabamorf. Проверь написание и форму — у некоторых "
+    "глаголов основа меняется (**minema → lähen**, **tegema → tegin**)."
+)
+
+#: Letters a learner types without their täpitäht.
+_PLAIN = str.maketrans("õäöüšžÕÄÖÜŠŽ", "oaousz" "OAOUSZ")
+
+
+def _spelling_why(wrong: str, suggestion: str) -> str:
+    """The täpitäht advice only where restoring one is the suggestion."""
+    if suggestion and suggestion != wrong and suggestion.translate(_PLAIN) == wrong.translate(_PLAIN):
+        return SPELLING_WHY
+    return SPELLING_WHY_FORM
 
 
 def spelling(text: str) -> list[Correction]:
@@ -653,7 +670,7 @@ def spelling(text: str) -> list[Correction]:
         Correction(
             wrong=item["text"],
             correct=(item["suggestions"] or [""])[0],
-            why=SPELLING_WHY,
+            why=_spelling_why(item["text"], (item["suggestions"] or [""])[0]),
             tag="vocab",
             source="deterministic",
         )

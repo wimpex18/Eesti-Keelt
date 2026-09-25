@@ -95,7 +95,7 @@ PROVIDERS: dict[str, Provider] = {
         "nvidia",
         "https://integrate.api.nvidia.com/v1",
         "NVIDIA_API_KEY",
-        "z-ai/glm-5.3-flash",
+        "deepseek-ai/deepseek-v4.1-flash",
         "NVIDIA developer endpoint; account limits apply. Evaluation only.",
         json_mode=False,
     ),

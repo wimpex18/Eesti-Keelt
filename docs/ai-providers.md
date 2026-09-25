@@ -47,7 +47,11 @@ not a native-speaker gold corpus. The evaluator distinguishes a no-op
 replacement from a changed proposal, and both detection and clean-pass rates
 matter. Review actual edits and Russian explanations before a lane change.
 The separate `--track external` uses TalTech's corrected-sentence material
-and reports recall by error class plus a clean-control rate. Prior candidate
+and reports recall by error class plus a clean-control rate; words are compared
+without edge punctuation or case. On 2026-09-25 GPT-OSS-120B caught 8/10 on the
+hand set with 8/8 clean, but only 2/40 attested learner errors on the external
+track (clean 16/20). Its two hand-set misses (`minen`, `teesin`) are non-words
+that the deterministic spelling check flags instead. Prior candidate
 measurements remain in `docs/evaluations/providers.json`; they do not authorize
 automatic promotion. The weekly `eval.yml` checks the production grammar lane.
 A green run with no measured cases is not a pass.
@@ -57,6 +61,17 @@ python -m eesti.cli eval --provider workers-ai
 python -m eesti.cli eval --provider workers-ai --track external
 python -m eesti.cli models --provider nvidia --limit 10
 ```
+
+**Newer candidates (checked 2026-09-25).** Of the models released in August or
+September 2026, only Qwen3.8-27B runs on the Workers Free plan; GLM-5.3,
+GLM-5.3 Flash and DeepSeek V4 answer "not available on the Workers Free plan".
+Qwen3.8-27B caught 6/7 and left 7/7 clean on the hand set, but 4 of 18 cases
+came back empty (`length`, 2000 tokens), so GPT-OSS-120B stays the pin. The
+NVIDIA evaluation lane is pinned to DeepSeek V4.1 Flash (10 Sept 2026); its
+free endpoint timed out on every hand-set sentence that day, as did GLM-5.3
+and GLM-5.3 Flash. Evals share the production Workers AI allowance of 10,000
+neurons a day, which also pays for Whisper: one hand-set run is affordable,
+the external track on several models is not.
 
 Model IDs can disappear. Check the live catalogue and the task-specific eval
 before pinning a replacement. `deploy/set-llm-key.sh` can set a lane's
@@ -98,6 +113,20 @@ LOCAL_LLM_URL=http://127.0.0.1:11434/v1 \
 LOCAL_LLM_MODEL=hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M \
 python -m eesti.cli eval --provider local
 ```
+
+Measured on 2026-09-25 (M5, 32 GB, Q4_K_M, temperature 0): the hand set
+caught 9/10 planted errors but left **0/8** correct sentences alone; six of
+those were no-op "corrections" and two were wrong edits (`võtmeid` → `võtme`).
+With Vabamorf evidence attached it caught 7/10 and still passed 0/8. The app's
+schema check rejects a no-op answer, so a configured local lane would fall
+through to Workers AI rather than mislead, but it adds 4–8 s per check. Its
+Russian explanations were ungrammatical and self-contradictory. It did well on
+Estonian-only jobs: four of four comprehension questions answered verbatim
+from the text, and a natural partner turn (without the requested question).
+So its fit here is Estonian generation that code verifies (`QUESTIONS`,
+`CONVERSE`), not correction or Russian explanation. The model card
+recommends temperature 0.4 and a 4096-token context; the 70B Instruct 0826
+release has no GGUF or hosted endpoint and needs more memory than this Mac has.
 
 Keep it out of learner traffic until it passes both the planted-error and
 clean-sentence checks and its proposed edits are reviewed. English explanations
