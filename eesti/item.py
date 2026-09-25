@@ -54,7 +54,7 @@ class GradedItem:
     @property
     def solution(self) -> str:
         """The completed sentence, capitalised if the blank opens it."""
-        answer = self.answer
+        answer = self.answer.split(" ~ ")[0]
         if self.prompt.startswith(BLANK):
             answer = answer[:1].upper() + answer[1:]
         return self.prompt.replace(BLANK, answer)

@@ -53,3 +53,40 @@ jobs:
       # is absent, and everything else is self-contained.
       - name: Tests
         run: python -m pytest tests/ -q -n auto
+
+  # The learner's journeys in a real browser (tests/test_e2e_journeys.py), at
+  # desktop and phone sizes. They need the built word list; if the download
+  # fails, the journeys skip themselves loudly instead of failing the build.
+  journeys:
+    runs-on: ubuntu-latest
+    name: browser journeys
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt pytest pytest-xdist playwright==1.63.0
+          python -m playwright install --with-deps chromium webkit
+
+      - name: Build the word list
+        id: data
+        continue-on-error: true
+        run: |
+          python -m eesti.cli fetch-data
+          python -m eesti.cli build
+          python -m eesti.cli export
+
+      - name: Warn that the journeys have no data
+        if: steps.data.outcome != 'success'
+        run: echo "::warning title=Journeys skipped::The word list did not build, so the browser journeys skip."
+
+      # No reading corpus here (its sources are owner-only), so the journeys
+      # that read a text skip and the rest run.
+      - name: Journeys
+        env:
+          EESTI_E2E_NO_CORPUS: "1"
+        run: python -m pytest tests/test_e2e_journeys.py --browser -q -n auto -rs

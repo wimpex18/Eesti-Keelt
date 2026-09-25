@@ -8,7 +8,7 @@ the same change that makes it untrue.
 
 | Area | State |
 |---|---|
-| **Drills** | 35 of 43 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), question words, word order, punctuation, rection. |
+| **Drills** | 37 of 43 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Rada's Täna: today's blocks in a time budget (reviews, the weakest rule with its last mistake, refresh, the least-practised exam part, the next topic, a text), each with its reason in Russian (`eesti/planning.py`). |
 | **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Test-out runs from `Kogu rada` or the CLI (five of five, graded server-side); the placement sweep is CLI-only (`cli assess`). |
@@ -17,7 +17,7 @@ the same change that makes it untrue.
 | **Vocabulary** | `Sõnavara` lists the word list by CEFR level and part of speech, commonest first; the word card sets a status. *Sõnatrenn* asks ten learning words from their Russian meaning and checks the typed Estonian against the word list; a miss can be queued for Kordamine. It records nothing. |
 | **Meaning** | **315 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). Definitions: EKI PSV → live → VSL → EKSS. |
 | **Live dictionary** | EKI's Ekilex API when `EKILEX_API_KEY` is set, otherwise the Sõnaveeb mirror; answers stored once per word. |
-| **Rules** | 34 of 35 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kogu rada, a running set and free practice: the EKK summary, a one-line gist with the typical mistake, written points in Russian for every topic (`eesti/lessontext.py`, each citing EKK, the EKI teatmik or EKI's learner grammar tables), a form table built by Vabamorf with each case's question and ending, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
+| **Rules** | 36 of 37 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kogu rada, a running set and free practice: the EKK summary, a one-line gist with the typical mistake, written points in Russian for every topic (`eesti/lessontext.py`, each citing EKK, the EKI teatmik or EKI's learner grammar tables), a form table built by Vabamorf with each case's question and ending, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
 | **Question-word cues** | A `kusisonad` item shows the Russian for the question word its blank wants, from EKI EVS (`docs/curriculum.md`): 8 of 12 answer words. |
 | **Conversation** | `Vestlus` in Rääkimine: a model plays the paired-exam partner over a task card, in Estonian, for at most 8 turns. The learner can speak a turn, review the tentative Cloudflare/local ASR text before sending, and hear the partner through TartuNLP TTS. It never corrects or scores; forms Vabamorf does not know are named. Only that a conversation happened is recorded. |
 | **Tutor** | `Selgita` on a missed item: one model call grounded in the attempt, Vabamorf's reading and the EKK section; the answer is dropped if it quotes a form Vabamorf does not know, and never decides anything (`eesti/tutor.py`). |
@@ -25,7 +25,7 @@ the same change that makes it untrue.
 | **Listening** | Dictation (graded) from sentences read by EKI's own readers where they exist, the corpus otherwise; TartuNLP TTS on any text; ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud with comparison, open-answer feedback over the transcript, `Vestlus` (a model plays the partner), and — under `cli serve` only — optional saving from ordinary mic practice into `Hindamiskomplekt`. The learner can play a saved answer, correct tentative ASR text in the page and confirm what was actually said for the private speech eval set. Ordinary practice audio stays unsaved. Each answer is recorded with what code can measure — answered or not, words, pace, and the share of words Vabamorf does not know, which flags a transcript the recogniser struggled with. Readiness reports that practice and still refuses to judge the part. A drill answer can be spoken: the microphone beside the answer box fills it with what was heard, and the learner checks it before grading (`eesti/web/js/voice.js`). |
 | **Exam** | HARNO's own shape as data (`eesti/exam.py`): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
-| **Official tasks** | HARNO PDFs, recordings and EIS tasks open inside `Eksam`. `cli prepare-exam` writes private page-aware PDF sidecars with individual figures and optional Estonian OCR. A visually checked A2 reading PDF supplies six native choices; a B1 reading PDF supplies nine situation-to-ad matches. Both use their printed keys and are practice only. The other 27 task PDFs remain ungraded page text and figures, plus original pages. EIS scoring still opens on its own site. Absent downloads link out. Private study only; every task carries © Haridus- ja Noorteamet (`docs/exam-native.md`). |
+| **Official tasks** | HARNO PDFs, recordings and EIS tasks open inside `Eksam`. `cli prepare-exam` writes private page-aware PDF sidecars with individual figures and optional Estonian OCR. A visually checked A2 reading PDF supplies six native choices; a B1 reading PDF supplies nine situation-to-ad matches. Both use their printed keys and are practice only; the deep smoke checks both answer in production. The other 27 task PDFs remain ungraded page text and figures, plus original pages. EIS scoring still opens on its own site. Absent downloads link out. Private study only; every task carries © Haridus- ja Noorteamet (`docs/exam-native.md`). |
 | **Mock** | `Proovieksam`: one exam part on the exam's own clock, or all four in the exam's order (`eesti/mock.py`). Reading is gap-fill in corpus sentences, listening is dictation, writing is HARNO's task shape graded on length plus the deterministic checks (spelling, agreement, rection), speaking is the question bank and is never scored. Each section says what it really is, and counts as evidence for its part. |
 | **Readiness** | Four exam parts reported separately with reasons in Russian; a section sat on the clock counts as contact for its part. Each part carries its contact count towards the threshold of three (`contact`, `contact_target`), drawn as the petals of one cornflower; Rääkimine is hatched as unmeasured (`DESIGN.md`). |
 | **Interface** | "Laudtee" (`DESIGN.md`): Estonian blue on near-white, a floating glass sidebar on tablet and desktop with a context rail from 1080px, a floating glass dock on the phone. Geologica is self-hosted under `eesti/web/fonts/` (SIL OFL 1.1); icons are Phosphor (MIT) in `eesti/web/js/icons.js`. Progress is drawn as the boardwalk, the mastery gate, the readiness flower, a 12-week practice rhythm (`/api/status` `rhythm`) and a 14-day review forecast (`/api/review/stats` `forecast`). |
@@ -40,11 +40,10 @@ the same change that makes it untrue.
 
 ## What is missing
 
-### 8 curriculum topics have no generator
+### 6 curriculum topics have no generator
 
 ```
-tahestik  lauseehitus  astmevaheldus  sidesonad
-maarsonad  tulevik  uhendverbid  liitsonad
+tahestik  lauseehitus  astmevaheldus  tulevik  uhendverbid  liitsonad
 ```
 
 They appear in the syllabus as reference topics and do not gate the path. The
@@ -86,11 +85,8 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
   deployed, and Chrome on the owner's Mac is subscribed; actual delivery has
   not been confirmed.
-- **Native exam sidecars need a production check.** The current-image deep
-  smoke verifies HARNO PDF access and rendering, but does not exercise the two
-  interactive reading controls backed by private sidecars.
-- **Browser journeys are not in CI.** They protect a release only when run
-  locally (`docs/testing.md`).
+- **Browser journeys in CI run without the reading corpus.** The `journeys`
+  job builds the word list; reading journeys still skip there (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,
   `kellega` are forms of `kes` and `kui palju` is two words, so EVS has no
   headword for them. EKI's Russian–Estonian dictionary (VES, same licence

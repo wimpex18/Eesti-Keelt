@@ -234,6 +234,30 @@ jobs:
             fi
           fi
 
+          # The two reviewed reading controls (`exam_native.REVIEWED`) need their
+          # private sidecars on the mount and an unchanged PDF. Asking every A2 and
+          # B1 PDF task is many calls, so it runs only on a deep check.
+          if [ "$DEEP" = true ]; then
+            for level in A2 B1; do
+              curl -sf "${auth[@]}" "$URL/api/exam/$level" -o "$RUNNER_TEMP/exam-$level.json" || true
+              verified=0
+              # Tasks sit at any depth (`ulesanded` groups them by exam part).
+              for id in $(jq -r '[.. | objects | select(.file == true and .format == "pdf") | .id] | .[]' \
+                  "$RUNNER_TEMP/exam-$level.json" 2>/dev/null); do
+                if curl -sf "${auth[@]}" "$URL/api/exam/native/$id" \
+                    | jq -e '.verified == true and (.questions | length) > 0' >/dev/null 2>&1; then
+                  verified=$((verified + 1))
+                fi
+              done
+              if [ "$verified" -gt 0 ]; then
+                echo "native reading $level ...... OK ($verified reviewed control)"
+              else
+                echo "::error::No reviewed native reading control answers for $level: sidecar missing or PDF changed."
+                fail=1
+              fi
+            done
+          fi
+
           # 5b. Which *code* is answering: a behaviour only newer code has (`total` on
           #     /api/library), since `revision` is not passed by the trigger. When it stops
           #     discriminating, move the marker to something newer.

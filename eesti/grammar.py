@@ -273,6 +273,22 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "**saav** (*reedeks*), с — **seestütlev**, до — **rajav**."
         ),
     ),
+    "sidesonad": Reference(
+        tag="sidesonad", et_term="sidesõnad", ru_term="союзы",
+        ekk_section="M 13", chapter=MORFOLOOGIA, subsection=1,
+        summary_ru=(
+            "Союзы связывают, не меняя форм: *ja, või, aga, et, kui, sest, nagu*. "
+            "Перед подчинительным и перед *aga* — запятая."
+        ),
+    ),
+    "maarsonad": Reference(
+        tag="maarsonad", et_term="määrsõnad", ru_term="наречия",
+        ekk_section="M 7", chapter=MORFOLOOGIA, subsection=1,
+        summary_ru=(
+            "Наречия места идут тройками, как местные падежи: *koju, kodus, "
+            "kodust*; *alla, all, alt*."
+        ),
+    ),
     "mul-on": Reference(
         tag="mul-on", et_term="omaja- ja kogejalause", ru_term="«у меня есть», «мне нравится»",
         ekk_section="M 59", chapter=MORFOLOOGIA, subsection=4,

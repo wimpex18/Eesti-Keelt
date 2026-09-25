@@ -10,7 +10,7 @@ count in a doc is not added.
 | Suite | Command | Time | Runs in CI |
 |---|---|---|---|
 | **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~15 s | yes — `tests.yml` |
-| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | no — local only |
+| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | yes — `journeys` job; reading journeys skip without the corpus |
 | **Browser, full matrix** | same, with `--all-browsers` | longer than the default pairings | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (Workers AI), manual |
 | Speech eval | `cli eval --suite asr [--engine A --engine B]` | your own recordings | no — the set is personal and not in git |

@@ -3,8 +3,8 @@
 Contract tests check names; these check that a person can open a panel, answer
 an item and see a verdict, at desktop and phone sizes, in Chromium and WebKit.
 
-Skipped (never failed) without Playwright, a browser or a built dataset; not
-run in CI. The server runs in a temp working directory, so the learner databases
+Skipped (never failed) without Playwright, a browser or a built dataset. CI's
+`journeys` job builds the word list and runs them. The server runs in a temp working directory, so the learner databases
 (relative `data/*.db` paths) are isolated, and the content databases point at
 the real read-only ones via `EESTI_DB` / `EESTI_CONTENT_DB`.
 
@@ -83,6 +83,13 @@ def _has_forms(path: Path) -> bool:
 
 
 @pytest.fixture(scope="session")
+def corpus() -> None:
+    """Skip a journey that needs reading texts when none are built."""
+    if os.environ.get("EESTI_E2E_NO_CORPUS") or not _has_texts(ROOT / "data" / "content.db"):
+        pytest.skip("no reading corpus — run `python -m eesti.cli harvest-reading`")
+
+
+@pytest.fixture(scope="session")
 def live_server(tmp_path_factory) -> str:
     """A real uvicorn process, isolated from the learner's study record.
 
@@ -97,16 +104,18 @@ def live_server(tmp_path_factory) -> str:
     # against no lexicon.
     from eesti.lookup import EDGE_DB
 
-    if not available(words) or not _has_texts(content) or not _has_forms(EDGE_DB):
-        pytest.skip("no built dataset — run `python -m eesti.cli build`, "
-                    "`python -m eesti.cli export` and "
-                    "`python -m eesti.cli harvest-reading`")
+    if not available(words) or not _has_forms(EDGE_DB):
+        pytest.skip("no built dataset — run `python -m eesti.cli build` and "
+                    "`python -m eesti.cli export`")
 
     workdir = tmp_path_factory.mktemp("e2e-server")
     (workdir / "data").mkdir()
     # The reading journey needs *some* corpus; copy rather than share so a test
-    # that records exposure cannot write into the real content database.
-    shutil.copy(content, workdir / "data" / "content.db")
+    # that records exposure cannot write into the real content database. With no
+    # corpus (CI) the app starts on an empty one and the journeys that read a
+    # text skip through `corpus`.
+    if _has_texts(content) and not os.environ.get("EESTI_E2E_NO_CORPUS"):
+        shutil.copy(content, workdir / "data" / "content.db")
 
     port = _free_port()
     env = {
@@ -469,6 +478,7 @@ class TestTheWordWorkout:
         assert page.locator("#workoutScore").inner_text().strip() == ""
 
 
+@pytest.mark.usefixtures("corpus")
 class TestReading:
     """List, open, read, come back. The journey that had 82 unopenable items."""
 
@@ -900,6 +910,7 @@ class TestDiscoveredDefects:
             '#tab-exam button[data-level="A2"]', "aria-selected") == "false", \
             "both levels highlighted at once"
 
+    @pytest.mark.usefixtures("corpus")
     def test_choosing_all_shows_more_than_one_difficulty(self, page):
         """Unfiltered browsing shows more than one difficulty band."""
         open_tab(page, "learn", "read")
@@ -1086,6 +1097,7 @@ class TestTheConversationPartner:
 class TestSpeakingEvaluation:
     """The learner can collect question answers without treating ASR as truth."""
 
+    @pytest.mark.usefixtures("corpus")
     def test_question_mode_offers_a_recordable_task(self, page):
         open_tab(page, "learn", "speak")
         page.click("#evalSet > summary")
@@ -1171,6 +1183,7 @@ class TestSpeakingEvaluation:
 class TestTheWholeSitting:
     """Terve eksam: the parts come one after another, each with its own clock."""
 
+    @pytest.mark.usefixtures("corpus")
     def test_the_run_moves_from_one_part_to_the_next(self, page):
         open_tab(page, "exam", "exam")
         page.wait_for_selector("#mockWhole", state="attached", timeout=15000)
@@ -1218,6 +1231,7 @@ class TestTestingOutOfATopic:
 class TestTheTimedMock:
     """Proovieksam: one part, on the exam's clock, graded by the server."""
 
+    @pytest.mark.usefixtures("corpus")
     def test_a_reading_section_runs_and_is_recorded(self, page):
         open_tab(page, "exam", "exam")
         page.wait_for_selector("#mockParts button[data-part]", state="attached",
@@ -1239,6 +1253,7 @@ class TestPractisingOffline:
     """A set fetched in advance is answerable with the network cut, and what was
     answered reaches the server when it comes back."""
 
+    @pytest.mark.usefixtures("corpus")
     def test_download_go_offline_answer_come_back(self, page, live_server):
         open_tab(page, "learn", "path")
         page.wait_for_selector("#offlineGet", state="attached", timeout=15000)
