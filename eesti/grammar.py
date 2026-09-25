@@ -273,6 +273,15 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "**saav** (*reedeks*), с — **seestütlev**, до — **rajav**."
         ),
     ),
+    "mul-on": Reference(
+        tag="mul-on", et_term="omaja- ja kogejalause", ru_term="«у меня есть», «мне нравится»",
+        ekk_section="M 59", chapter=MORFOLOOGIA, subsection=4,
+        summary_ru=(
+            "Кто имеет — **alalütlev** (*Mul on auto*), кому нравится — "
+            "**alaleütlev** (*Mulle meeldib*); при отрицании — **osastav** "
+            "(*Mul ei ole autot*)."
+        ),
+    ),
     "kaudne": Reference(
         tag="kaudne", et_term="kaudne kõneviis", ru_term="косвенное наклонение",
         ekk_section="M 95", chapter=MORFOLOOGIA, subsection=4,

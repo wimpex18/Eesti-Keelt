@@ -65,3 +65,17 @@ class TestWordbuilding:
     def test_drills(self, words):
         for item in wordbuilding.drills(words, 10, seed=1):
             assert item.answer in {"laulja", "laulmine", "ujumine", "ujuja"}
+
+
+class TestMulOn:
+    def test_each_frame_asks_for_its_form(self):
+        from eesti.possession import drills
+
+        for item in drills(40, seed=4):
+            if item.prompt.startswith("Mul ei ole"):
+                assert item.answer != item.distractor          # osastav, not nimetav
+            elif "meeldib ____" in item.prompt and item.prompt.startswith("Mulle"):
+                assert item.answer.endswith(("da", "ta", "a"))
+            elif item.prompt.startswith("See film"):
+                assert item.answer in {"minule ~ mulle", "sinule ~ sulle",
+                                       "temale ~ talle", "meile", "nendele ~ neile"}
