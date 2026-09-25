@@ -42,6 +42,8 @@ class TestGrammarReferences:
             ("gen-stem", "M 52"),     # Omastav kääne
             ("gradation", "M 22"),    # Astmevaheldus
             ("ma-da-inf", "M 73"),    # Infiniitsed vormid: da-tegevusnimi
+            ("pohivormid", "M 20"),   # Põhivormid ja analoogiavormid
+            ("kaima-minema", "SÜ 56"),  # Kus- või kuhu-kääne: "käima nõuab kus-käänet"
         ],
     )
     def test_sections_are_the_ones_read_off_the_handbook(self, tag, section):
@@ -50,6 +52,10 @@ class TestGrammarReferences:
         before a title is off by one. Pinned against the handbook's own contents, so a plausible-looking
         edit cannot quietly reintroduce a wrong number."""
         assert reference_for(tag).ekk_section == section
+
+    def test_a_section_links_to_the_page_that_holds_it(self):
+        """M 20 is on the M 1–46 page (p1=2), not the M 47–103 one."""
+        assert reference_for("pohivormid").url.endswith("?p=3&p1=2")
 
     def test_the_largest_learner_error_class_is_explainable(self):
         """Word order is 11.4 % of annotated errors in EVKK and had no entry."""

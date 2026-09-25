@@ -5,7 +5,7 @@ answer brings it back sooner, and lapses are counted.
 
 import pytest
 
-from eesti.review import (add, connect, due, grade, item_id,
+from eesti.review import (add, answer, connect, due, grade, item_id,
                           repair_explanations, stats)
 
 
@@ -55,6 +55,15 @@ def test_wrong_answers_come_back_sooner_than_right_ones(db):
     passed = grade(db, right, "good")
     assert lapsed["interval_days"] < passed["interval_days"]
     assert lapsed["lapses"] == 1 and passed["lapses"] == 0
+
+
+def test_a_card_with_parallel_forms_accepts_either(db):
+    """EKI prints `minule ~ mulle`; a review card must grade it like the drill does."""
+    key = add(db, kind="asesonad", lemma="mina", tag="alaleütlev",
+              prompt="Anna see raamat ____.", answer="minule ~ mulle", distractor="mina")
+    assert answer(db, key, "mulle")["correct"]
+    assert answer(db, key, " Minule ")["correct"]
+    assert not answer(db, key, "mina")["correct"]
 
 
 def test_struggling_items_are_surfaced(db):
