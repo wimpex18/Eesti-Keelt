@@ -13,6 +13,8 @@ measured (`docs/ai-providers.md`, `docs/evaluations/providers.json`); the
 external eval scorer compares bare words; spelling advice names täpitähed only
 when that is the fix; Reegel sheet, form tables, Kogu rada rows, the set head,
 the drill mic and Kuidas mind kuuldakse refined to the calmer system.
+NVIDIA evaluation lane pinned to DeepSeek V4.1 Flash; Qwen3.8-27B measured
+as the only free Aug–Sep 2026 Workers AI model (GPT-OSS stays).
 
 ## Next step
 User reviews and merges, then Cloud Build redeploys the origin; run the `smoke`

@@ -437,6 +437,39 @@
       "valid": true,
       "checked_at": "2026-09-25T15:30:00+00:00",
       "note": "Scored after the external scorer stopped counting punctuation and capitals as a different edit."
+    },
+    {
+      "provider": "workers-ai",
+      "model": "@cf/qwen/qwen3.8-27b",
+      "evidence": false,
+      "recall": 0.857,
+      "precision": 1.0,
+      "caught": "6/7",
+      "left_alone": "7/7",
+      "broken": 4,
+      "valid": true,
+      "checked_at": "2026-09-25T13:49:00+00:00",
+      "failures": [
+        [
+          "Homme ma minen kooli.",
+          "missed 'minen'"
+        ],
+        [
+          "four cases",
+          "empty reply (length) at max_tokens 2000"
+        ]
+      ]
+    },
+    {
+      "provider": "nvidia",
+      "model": "deepseek-ai/deepseek-v4.1-flash",
+      "evidence": false,
+      "caught": "0/0",
+      "left_alone": "0/0",
+      "broken": 9,
+      "valid": false,
+      "checked_at": "2026-09-25T14:35:00+00:00",
+      "invalid_reason": "every call timed out at 150 s on the free endpoint; run stopped"
     }
   ]
 }

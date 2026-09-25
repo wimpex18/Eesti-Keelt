@@ -102,9 +102,9 @@ ENGINES: tuple[Source, ...] = (
     ),
     Source(
         "nvidia", "NVIDIA NIM", "engine", "NVIDIA developer terms", True,
-        "https://build.nvidia.com/", "Evaluation lane; unavailable in current probes, excluded from automatic routing.",
-        version="z-ai/glm-5.3-flash", quota="40 requests/min",
-        data_leaves="text", verified="2026-09-19",
+        "https://build.nvidia.com/", "Evaluation lane; its free endpoint timed out in current probes, excluded from automatic routing.",
+        version="deepseek-ai/deepseek-v4.1-flash", quota="40 requests/min",
+        data_leaves="text", verified="2026-09-25",
     ),
     Source(
         "mistral", "Mistral AI", "engine", "Mistral terms (Experiment plan)", True,

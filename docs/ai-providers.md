@@ -62,6 +62,17 @@ python -m eesti.cli eval --provider workers-ai --track external
 python -m eesti.cli models --provider nvidia --limit 10
 ```
 
+**Newer candidates (checked 2026-09-25).** Of the models released in August or
+September 2026, only Qwen3.8-27B runs on the Workers Free plan; GLM-5.3,
+GLM-5.3 Flash and DeepSeek V4 answer "not available on the Workers Free plan".
+Qwen3.8-27B caught 6/7 and left 7/7 clean on the hand set, but 4 of 18 cases
+came back empty (`length`, 2000 tokens), so GPT-OSS-120B stays the pin. The
+NVIDIA evaluation lane is pinned to DeepSeek V4.1 Flash (10 Sept 2026); its
+free endpoint timed out on every hand-set sentence that day, as did GLM-5.3
+and GLM-5.3 Flash. Evals share the production Workers AI allowance of 10,000
+neurons a day, which also pays for Whisper: one hand-set run is affordable,
+the external track on several models is not.
+
 Model IDs can disappear. Check the live catalogue and the task-specific eval
 before pinning a replacement. `deploy/set-llm-key.sh` can set a lane's
 `<LANE>_MODEL` override on Cloud Run. The app and eval prompts share the rules
