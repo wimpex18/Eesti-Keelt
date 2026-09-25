@@ -4,7 +4,7 @@ The A1→B1 grammar syllabus as data, and the learning model around it.
 
 ## Where it lives
 
-`eesti/curriculum.py` — `TOPICS`, 39 topics taken from Estonian course
+`eesti/curriculum.py` — `TOPICS`, 41 topics taken from Estonian course
 curricula that track the state standard (Keeltekeskus Kaja A1/B1, Dialoog,
 B-Lingua). Each `Topic` has `id`, `level`, Estonian and Russian names,
 `requires` (prerequisites), an optional error-log `tag` and an optional

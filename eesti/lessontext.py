@@ -84,10 +84,11 @@ LESSONS: dict[str, LessonText] = {
             "дальше: *Too seal on minu portfell*.",
             "Неопределённые (**umbmäärased**): *iga, igaüks, keegi, miski, mõni, "
             "kõik, mõlemad, kumbki*.",
-            "Таблицы склонения местоимений здесь нет: Vabamorf склоняет их с "
-            "ошибками, а проверенной таблицы с источником пока нет.",
+            "Таблица ниже — из EKI teatmik; Vabamorf склоняет местоимения с "
+            "ошибками, поэтому формы взяты оттуда.",
         ),
-        sources=(ekk("M 8"),),
+        sources=(ekk("M 8"), Source("EKI teatmik: asesõnade käänamine",
+                                    "https://teatmik.eki.ee/teatmik/asesonade-kaanamine/")),
     ),
     "kusisonad": LessonText(
         points_ru=(
@@ -204,6 +205,37 @@ LESSONS: dict[str, LessonText] = {
                  ekk("M 57"), ekk("M 59"), ekk("M 61"),
                  Source("EKI teatmik: arvukirjutus",
                         "https://teatmik.eki.ee/teatmik/arvukirjutus/")),
+    ),
+    "kaima-minema": LessonText(
+        points_ru=(
+            "**käima** отвечает на *kus?* и *mida tegemas?*: *Käisin eelmisel "
+            "nädalal Riias* — был и вернулся.",
+            "Регулярно ходить куда-то — тоже **käima** + *kus?*: *Suuremad lapsed "
+            "käivad koolis*.",
+            "**minema** отвечает на *kuhu?* и *mida tegema?*: *Naine läks poodi* — "
+            "отправилась туда.",
+            "Отсюда пары: *käisin ujumas* (плавал и вернулся) — *läksin ujuma* "
+            "(пошёл плавать).",
+            "Формы *minema* неправильные: *lähen, läksin, läks, minna*.",
+        ),
+        sources=(Source("EKI põhisõnavara sõnastik (PSV): käima, minema",
+                        "https://sonaveeb.ee/search/unif/dlall/dsall/k%C3%A4ima/1/est"),
+                 ekk("SÜ 64")),
+    ),
+    "tuletus": LessonText(
+        points_ru=(
+            "**-mine** делает из любого глагола название действия: *rääkima → "
+            "rääkimine*, *kasvama → kasvamine*. Так же называют занятия: "
+            "*laulmine, joonistamine, matkamine*.",
+            "Суффикс присоединяется к основе ma-инфинитива: *jooksma → jooksmine*.",
+            "Управление глагола сохраняется: *räägib tööst → tööst rääkimine*; "
+            "подлежащее и дополнение становятся omastav: *sinu rääkimine*.",
+            "**-ja** — тот, кто делает: *sööja, laulja, õpetaja*. У коротких "
+            "e-основ с прошедшим на -i — *i*: *tegema → tegija*.",
+            "С профессией или прибором — сложное слово: *muusikaõpetaja, "
+            "tolmuimeja*.",
+        ),
+        sources=(ekk("SM 21"), ekk("SM 22")),
     ),
     "ma-vormid": LessonText(
         points_ru=(

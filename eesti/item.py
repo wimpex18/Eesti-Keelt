@@ -14,6 +14,15 @@ from dataclasses import asdict
 BLANK = "____"
 
 
+
+def accepts(answer: str, given: str) -> bool:
+    """Trim, casefold, compare. An answer with parallel forms (`minule ~ mulle`,
+    as EKI prints them) accepts any one of them."""
+    said = given.strip().casefold()
+    if said == answer.strip().casefold():
+        return True
+    return any(said == variant.strip().casefold() for variant in answer.split(" ~ "))
+
 class GradedItem:
     """Mixin for exercise dataclasses.
 
@@ -33,7 +42,7 @@ class GradedItem:
 
     def check(self, given: str) -> bool:
         """Deterministic grading: trim, casefold, compare."""
-        return given.strip().casefold() == self.answer.casefold()
+        return accepts(self.answer, given)
 
     @property
     def hint(self) -> str:

@@ -8,16 +8,16 @@ the same change that makes it untrue.
 
 | Area | State |
 |---|---|
-| **Drills** | 29 of 39 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), question words, word order, punctuation, rection. |
+| **Drills** | 33 of 41 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), question words, word order, punctuation, rection. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Rada's Täna: today's blocks in a time budget (reviews, the weakest rule with its last mistake, refresh, the least-practised exam part, the next topic, a text), each with its reason in Russian (`eesti/planning.py`). |
 | **Path** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), blocked → interleaved handoff. Test-out runs from `Kogu rada` or the CLI (five of five, graded server-side); the placement sweep is CLI-only (`cli assess`). |
 | **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
 | **Reading** | Selges keeles texts, the weekly ERR *Lihtsad uudised* feed and the Raadio 4 language archives; click-to-look-up; recommended by the share of running words within reach (known, or A1–A2 on the word list), at least 80 %, shorter first (`docs/curriculum.md`). |
 | **Vocabulary** | `Sõnavara` lists the word list by CEFR level and part of speech, commonest first; the word card sets a status. *Sõnatrenn* asks ten learning words from their Russian meaning and checks the typed Estonian against the word list; a miss can be queued for Kordamine. It records nothing. |
-| **Meaning** | **294 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). Definitions: EKI PSV → live → VSL → EKSS. |
+| **Meaning** | **315 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). Definitions: EKI PSV → live → VSL → EKSS. |
 | **Live dictionary** | EKI's Ekilex API when `EKILEX_API_KEY` is set, otherwise the Sõnaveeb mirror; answers stored once per word. |
-| **Rules** | 28 of 29 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kogu rada, a running set and free practice: the EKK summary, written points for the ten topics that had none (`eesti/lessontext.py`, each citing EKK or the EKI teatmik), a form table built by Vabamorf, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
+| **Rules** | 32 of 33 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kogu rada, a running set and free practice: the EKK summary, written points for the ten topics that had none (`eesti/lessontext.py`, each citing EKK or the EKI teatmik), a form table built by Vabamorf, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
 | **Question-word cues** | A `kusisonad` item shows the Russian for the question word its blank wants, from EKI EVS (`docs/curriculum.md`): 8 of 12 answer words. |
 | **Conversation** | `Vestlus` in Rääkimine: a model plays the paired-exam partner over a task card, in Estonian, for at most 8 turns. The learner can speak a turn, review the tentative Cloudflare/local ASR text before sending, and hear the partner through TartuNLP TTS. It never corrects or scores; forms Vabamorf does not know are named. Only that a conversation happened is recorded. |
 | **Tutor** | `Selgita` on a missed item: one model call grounded in the attempt, Vabamorf's reading and the EKK section; the answer is dropped if it quotes a form Vabamorf does not know, and never decides anything (`eesti/tutor.py`). |
@@ -40,10 +40,10 @@ the same change that makes it untrue.
 
 ## What is missing
 
-### 10 curriculum topics have no generator
+### 8 curriculum topics have no generator
 
 ```
-tahestik  lauseehitus  asesonad  astmevaheldus  kaassonad  sidesonad
+tahestik  lauseehitus  astmevaheldus  sidesonad
 maarsonad  tulevik  uhendverbid  liitsonad
 ```
 
@@ -52,9 +52,8 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 
 - `astmevaheldus` is intentionally reference-only; its contrast is drilled via
   `gen-stem`.
-- `asesonad` (pronouns) cannot be generated: Vabamorf's pronoun paradigms are
-  wrong (`mina` → genitive `mina`). It needs a hand-written table **with a cited
-  source**; none is in the repo, and TalTech's `inflection_et` has no pronouns.
+- `asesonad` is drilled from the EKI teatmik's pronoun tables, not Vabamorf,
+  whose pronoun paradigms are wrong (`mina` → genitive `mina`).
 - `uhendverbid` and `liitsonad` have too few marked examples in the corpus for
   the attested-corrections approach behind `word-order`.
 

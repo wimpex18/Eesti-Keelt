@@ -70,7 +70,9 @@ _A1: tuple[Topic, ...] = (
     Topic("tahestik", "A1", "tähestik ja hääldamine", "алфавит и произношение",
           note="Reference only — EKI publishes free pronunciation exercises."),
     Topic("lauseehitus", "A1", "lauseehitus", "строение предложения"),
-    Topic("asesonad", "A1", "asesõnad", "местоимения"),
+    Topic("asesonad", "A1", "asesõnad", "местоимения", generator="patterns",
+          note="Forms from the EKI teatmik's tables (`eesti/pronouns.py`): "
+               "Vabamorf declines pronouns wrongly."),
     Topic("kusisonad", "A1", "küsisõnad", "вопросительные слова",
           requires=("lauseehitus",), generator="patterns"),
     Topic("pohivormid", "A1", "nimisõna põhivormid", "основные формы имени",
@@ -108,8 +110,10 @@ _A1: tuple[Topic, ...] = (
     Topic("kellaaeg", "A1", "kellaaeg ja nädalapäevad", "время и дни недели",
           requires=("arvsonad", "kohakaanded"), generator="patterns"),
     Topic("kaassonad", "A1", "kaassõnad", "пред- и послелоги",
-          requires=("gen-stem",)),
+          requires=("gen-stem",), generator="patterns"),
     Topic("sidesonad", "A1", "sidesõnad", "союзы", requires=("lauseehitus",)),
+    Topic("kaima-minema", "A1", "käima ja minema", "käima или minema",
+          requires=("olevik", "lihtminevik", "kohakaanded"), generator="patterns"),
     Topic("maarsonad", "A1", "määrsõnad", "наречия"),
 )
 
@@ -132,6 +136,8 @@ _A2: tuple[Topic, ...] = (
     Topic("ma-vormid", "A2", "ma-tegevusnime vormid ja des-vorm",
           "формы ma-инфинитива и деепричастие",
           requires=("ma-da-inf", "kohakaanded"), generator="patterns"),
+    Topic("tuletus", "A2", "tuletus: -mine ja -ja", "существительные на -mine и -ja",
+          requires=("ma-da-inf",), generator="patterns"),
     Topic("kuupaevad", "A2", "kuupäevad", "даты",
           requires=("jargarvud",), generator="patterns"),
     Topic("harvad-kaanded", "A2", "saav, rajav, olev, ilmaütlev, kaasaütlev",
@@ -323,8 +329,6 @@ CROSS: dict[str, str] = {
 #: this list and the derived one together.
 REPRESENTATION_GAPS: dict[str, str] = {
     "tahestik": "alphabet and sounds: needs audio exercises; EKI publishes them",
-    "asesonad": "Vabamorf's pronoun paradigms are wrong; needs a cited table",
-    "kaassonad": "no EKK section linked yet; attested corpus clozes not built",
     "sidesonad": "no EKK section linked yet; attested corpus clozes not built",
     "maarsonad": "no EKK section linked yet",
     "tulevik": "no EKK section linked yet; a generator is possible (Vabamorf)",

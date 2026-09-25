@@ -107,10 +107,10 @@ class TestEveryDrillableTopicLinksToTheHandbook:
     def test_no_reference_invents_a_chapter(self):
         """Every entry points at a chapter the handbook actually has."""
         from eesti.grammar import (MORFOLOOGIA, ORTOGRAAFIA, REFERENCES,
-                                   SUNTAKS, TOPIC_REFERENCES)
+                                   SONAMOODUSTUS, SUNTAKS, TOPIC_REFERENCES)
 
         for ref in list(REFERENCES.values()) + list(TOPIC_REFERENCES.values()):
-            assert ref.chapter in (ORTOGRAAFIA, MORFOLOOGIA, SUNTAKS), ref
+            assert ref.chapter in (ORTOGRAAFIA, MORFOLOOGIA, SONAMOODUSTUS, SUNTAKS), ref
             assert ref.subsection >= 1, ref
 
     def test_every_summary_is_russian(self):

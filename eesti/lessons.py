@@ -94,6 +94,10 @@ def _case(lemma: str, number: str, case: str) -> str:
 
 def table(topic: str, words: sqlite3.Connection | None = None) -> dict | None:
     """A form table for the topic, every cell from Vabamorf, or None."""
+    if topic == "asesonad":
+        from .pronouns import table as pronoun_table
+
+        return pronoun_table()
     if topic == "vordlusastmed" and words is not None:
         from .patterns import comparatives
 
