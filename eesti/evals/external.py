@@ -46,9 +46,14 @@ MAX_CHANGES = 2
 _PUNCT = ".,;:!?\"'()«»"
 
 
+def _trim(word: str) -> str:
+    """A token without edge punctuation, its case kept for Vabamorf."""
+    return word.strip().strip(_PUNCT)
+
+
 def _bare(word: str) -> str:
     """A token as the scorer compares it: no edge punctuation, case folded."""
-    return word.strip().strip(_PUNCT).casefold()
+    return _trim(word).casefold()
 
 
 def changed_tokens(original: str, correct: str) -> dict[str, str]:
@@ -161,6 +166,10 @@ def run(
             _bare(c.get("wrong") or ""): _bare(c.get("correct") or "")
             for c in result.get("corrections", [])
         }
+        # Classified with the capitals kept: Vabamorf runs without guessing, so
+        # a lowercased `tallinnasse` has no analysis and would count as spelling.
+        classes = {_bare(wrong): category(_trim(wrong), _trim(right))
+                   for wrong, right in changed.items()}
         changed = {_bare(wrong): _bare(right) for wrong, right in changed.items()}
         hit = any(
             wrong in proposed and proposed[wrong] == right
@@ -168,7 +177,7 @@ def run(
         )
         # Which rule this pair is about, so a lane's weakness has a name.
         for wrong, right in changed.items():
-            tally = by_class.setdefault(category(wrong, right), [0, 0])
+            tally = by_class.setdefault(classes[wrong], [0, 0])
             tally[1] += 1
             tally[0] += int(proposed.get(wrong, "") == right)
         if hit:

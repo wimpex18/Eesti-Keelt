@@ -99,3 +99,17 @@ def test_a_fix_is_scored_without_the_sentence_punctuation_or_capital(monkeypatch
     result = external.run("stub", sample=10, verbose=False)
     assert result["caught"] == "2/2"
     assert result["spurious_edits"] == 0
+
+
+def test_a_proper_noun_fix_is_classed_by_its_case_not_as_spelling(monkeypatch):
+    """Vabamorf runs without guessing: lowercased, `tallinnasse` has no analysis."""
+    from eesti.evals import external
+
+    rows = [{"original": "Ma elan Tallinnasse.", "correct": "Ma elan Tallinnas."}]
+    monkeypatch.setattr(external, "load", lambda path=None: rows)
+    monkeypatch.setattr(external, "_ask", lambda provider, text, model, evidence: {
+        "corrections": [{"wrong": "Tallinnasse", "correct": "Tallinnas"}]})
+
+    result = external.run("stub", sample=10, verbose=False)
+    assert set(result["by_class"]) == {"loc-case"}
+    assert result["by_class"]["loc-case"]["caught"] == 1
