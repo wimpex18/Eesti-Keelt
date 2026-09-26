@@ -14,7 +14,7 @@ async function runCheck() {
       `<p class="hint">Вставь эстонский текст — тогда проверю.</p>`;
     return;
   }
-  const btn = $("#checkBtn"); btn.disabled = true; setLabel(btn, "Проверяю…");
+  const btn = $("#checkBtn"); btn.disabled = true; setLabel(btn, "Kontrollin…");
   /* The chain can take six or seven seconds when a provider times out before the
      offline fallback answers. Say so where the answer will appear, so a slow check
      is not mistaken for a dead one and pressed again. */
@@ -41,11 +41,16 @@ async function runCheck() {
         <div class="why">Обратный перевод (TartuNLP). Грамматика может быть
         верной, а смысл — не тем, который ты имел в виду.</div></div>`;
     }
-    if (!res.corrections.length) {
+    if (res.engine === "none") {
+      // No checker answered: the banner above says so, and an empty list here
+      // would read as a clean pass.
+    } else if (!res.corrections.length) {
       html += emptyState({
         icon: "done",
         title: "Ошибок не найдено",
-        note: "Разбор форм не нашёл, к чему придраться в этом тексте.",
+        note: res.engine.startsWith("llm:")
+          ? "Модель не предложила исправлений. Это не подтверждение правильности текста."
+          : "Проверка не предложила исправлений. Это не подтверждение правильности текста.",
       });
     } else {
       // Object-case errors first: that is the documented priority gap.

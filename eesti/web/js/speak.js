@@ -25,7 +25,7 @@ function homeRecogniser() {
   api("/api/asr/home", null, "GET").then(r => r.json()).then(h => {
     if (!h.configured) return;
     const line = h.online
-      ? "Сейчас тебя слушает твой Mac mini (Voxtral): запись уходит на него через туннель Cloudflare и там не сохраняется. "
+      ? "Сейчас тебя слушает твой Mac mini: запись уходит на него через туннель Cloudflare и там не сохраняется. "
       : "Mac mini сейчас недоступен — распознаёт Cloudflare. ";
     for (const id of ["#recPrivacy", "#vestlusPrivacy"])
       $(id).textContent = line + $(id).textContent;
@@ -200,7 +200,7 @@ $("#speakTopic").addEventListener("change", showSpeakQuestion);
 $("#speakPlay").onclick = async () => {
   const text = currentTarget() || currentQuestion();
   if (!text) return;
-  const btn = $("#speakPlay"); btn.disabled = true; setLabel(btn, "Готовлю звук…");
+  const btn = $("#speakPlay"); btn.disabled = true; setLabel(btn, "Valmistan heli…");
   try {
     const r = await api("/api/speak", {text, speed: 0.85});
     const el = $("#speakModel");
@@ -328,7 +328,7 @@ if (!canRecord) {
      practice is worth. */
   $("#recNote").innerHTML =
     "Здесь <b>не выставляют баллов</b> — произношение по записи не оценивается." +
-    "<details><summary>Почему</summary><b lang=\"et\">Rääkimiseksam</b> на B1 — " +
+    "<details><summary lang=\"et\">Miks <span class=\"ru\" lang=\"ru\">почему</span></summary><b lang=\"et\">Rääkimiseksam</b> на B1 — " +
     "<b>парный</b>: два кандидата отвечают по очереди, а затем разговаривают " +
     "между собой. В одиночку имеет смысл тренировать построение ответа и " +
     "беглость, а не баллы.</details>";

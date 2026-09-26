@@ -36,13 +36,24 @@ export async function addMic(row, input, prompt) {
   btn.innerHTML = icon("microphone");
   btn.title = "Ütle vastus — сказать ответ вслух";
   btn.setAttribute("aria-label", "Ütle vastus — сказать ответ вслух");
+  btn.disabled = input.disabled;
   input.after(btn);
   let rec = null;
+  // Grading can finish while an answer is being recorded.
+  new MutationObserver(() => {
+    btn.disabled = input.disabled || btn.hasAttribute("aria-busy");
+    if (input.disabled && rec?.state === "recording") rec.stop();
+  }).observe(input, {attributes: true, attributeFilter: ["disabled"]});
   btn.onclick = async () => {
+    if (input.disabled) return;
     if (rec) { rec.stop(); return; }
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({audio: true}); }
     catch { btn.title = "Микрофон не открылся"; return; }
+    if (input.disabled) {
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
     const chunks = [];
     rec = new MediaRecorder(stream);
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
@@ -50,12 +61,18 @@ export async function addMic(row, input, prompt) {
       stream.getTracks().forEach(t => t.stop());
       const blob = new Blob(chunks, {type: rec.mimeType || "audio/webm"});
       rec = null;
+      if (input.disabled) {
+        btn.innerHTML = icon("microphone");
+        btn.classList.remove("on");
+        return;
+      }
       btn.setAttribute("aria-busy", "true");
       btn.disabled = true;
       try {
         const t = await (await rawApi("/api/transcribe", {
           method: "POST", headers: {"Content-Type": blob.type}, body: blob,
         })).json();
+        if (input.disabled) return;
         if (t.text) {
           input.value = answerFrom(t.text, prompt);
           input.focus();
@@ -63,9 +80,9 @@ export async function addMic(row, input, prompt) {
           input.placeholder = "не разобрал";
         }
       } catch {
-        input.placeholder = "не разобрал";
+        if (!input.disabled) input.placeholder = "не разобрал";
       } finally {
-        btn.disabled = false;
+        btn.disabled = input.disabled;
         btn.removeAttribute("aria-busy");
         btn.innerHTML = icon("microphone");
         btn.classList.remove("on");

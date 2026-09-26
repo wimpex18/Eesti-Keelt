@@ -1,26 +1,25 @@
 # Handoff
 
-## Current state
-PRs #72–#86 are merged. The production deep smoke passes for the current `main`
-image. Cloud Run has one instance with mounted EKI audio and HARNO exam storage;
-Workers AI GPT-OSS-120B is the grammar/tutor lane; Workers AI is production ASR.
+Current task: production QA fixes on `codex/production-qa`, ready for review.
+All ten routes checked in Chrome at 1440×900 and 393×852, light and dark,
+including route reload and browser history. Local fixes also checked at
+402×874, 874×402 and 744×1133 with touch emulation.
 
-## Current task
-Branch `claude/home-asr-binding` (PR #87): binds the Mac mini home speech
-service (`vpc_services` in `wrangler.jsonc`) and brings the docs to the current
-state. The Mac mini runs `deploy/home-asr/install.sh` (Intel: TalTech Whisper
-on the CPU); its tunnel is healthy and `HOME_ASR_TOKEN` is set on the Worker.
+Fixes cover touch targets, accessible bounded word cards, language and engine
+attribution, outlined writing input, in-app official material/video, milestone
+wrapping, correct empty-state heading levels, graded microphone locking and
+stable checkpoint regeneration.
+Generator version is 2; signed answers remain authoritative for grading.
+Review follow-ups: official rows share `library.official_availability`; a
+catalogued link-out stays one in Lugemine/Kuulamine and `audio_url` rows stay in
+the app. `principal_forms` draws candidates from `words` only, so a seed
+regenerates whatever the form cache holds. Reader words are one roving tab
+stop. Impeccable ignores: CSS lines annotated in place; index.html page-scan
+rules (no line or value to match) are ignored for that file only.
 
-## Next step
-User merges PR #87; the `deploy` workflow updates the Worker. Then the speaking
-page should say "Сейчас тебя слушает твой Mac mini"; if it says Cloudflare,
-check the deploy token's VPC permission. Run `smoke` with `deep: true`.
-Uncommitted paths: none.
+Validation: `pytest tests/ -n auto` and `npm run typecheck` pass; browser
+journeys pass in Chromium (the video test now serves its own catalogue).
+Production queue was empty; saved-progress journeys used isolated local state.
 
-## Open questions
-Whether to let EstLLM write comprehension questions in local `cli serve`
-(Estonian-only work that code verifies), and whether to raise the grammar
-lane's token budget: a long sentence returned `empty reply (length)`.
-
-## Remaining checks
-Chrome reminder delivery; 12 more owner clips to reach the ASR pilot floor.
+Next step: user reviews draft PR #89 from `codex/production-qa`.
+Uncommitted paths: none. Blockers: none.

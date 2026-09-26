@@ -515,7 +515,7 @@ async function startPractice({focus = true} = {}) {
   const out = $("#practiceOut"); out.innerHTML = "";
   newSet(pathTally);
   $("#pathScore").textContent = "";
-  const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
+  const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Laadin…");
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;

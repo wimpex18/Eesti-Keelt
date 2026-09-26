@@ -55,25 +55,48 @@ def principal_forms(
     """Ask for one of the three principal forms, given the other two.
 
     Only nouns whose genitive and partitive differ (`object_cases.distinct_`);
-    homographs such as `kool` and `reis` are absent from that table by design.
+    homographs such as `kool` and `reis` have no forms (`morph.case_forms`).
+
+    The candidates come from `words` alone, in a fixed order, and are shuffled
+    before any form is looked up, so the items for a seed are the same whether
+    or not other drills have filled the `object_cases` cache: a signed
+    checkpoint must regenerate what it issued. Forms are then fetched a few at a
+    time (`object_case_rows` synthesises and caches what is missing) until
+    `count` items exist, rather than for every noun on each request.
     """
+    from .wordlist import object_case_rows
+
     marks = ",".join("?" * len(levels))
-    rows = conn.execute(
-        "SELECT c.word, c.genitive, c.partitive, w.proficiency"
-        "  FROM object_cases c JOIN words w ON w.word = c.word"
-        f" WHERE c.distinct_ = 1 AND w.proficiency IN ({marks})"
-        "   AND (',' || REPLACE(w.pos, ' ', '') || ',') LIKE '%,s,%'",
+    candidates = conn.execute(
+        "SELECT word, proficiency FROM words"
+        f" WHERE proficiency IN ({marks})"
+        "   AND (',' || REPLACE(pos, ' ', '') || ',') LIKE '%,s,%'"
+        " ORDER BY word",
         levels,
     ).fetchall()
     if only is not None:
-        rows = [r for r in rows if r[0] in only]
-    if not rows:
+        candidates = [c for c in candidates if c[0] in only]
+    if not candidates:
         return []
 
     rnd = random.Random(seed)
-    rnd.shuffle(rows)
+    rnd.shuffle(candidates)
+    chunk = max(count * 2, 16)
+
+    def rows():
+        for start in range(0, len(candidates), chunk):
+            part = candidates[start:start + chunk]
+            # (word, genitive, partitive, distinct_, proficiency)
+            found = {r[0]: r for r in object_case_rows(conn, [w for w, _ in part])}
+            for word, level in part:
+                r = found.get(word)
+                if r is not None and r[3]:
+                    yield word, r[1], r[2], level
+
     out: list[FormDrill] = []
-    for word, gen, par, level in rows[:count]:
+    for word, gen, par, level in rows():
+        if len(out) == count:
+            break
         # Which form to ask for: never one already shown, since the nominative often
         # equals the genitive or partitive (`linnapea, linnapea, linnapead`).
         forms = {"nimetav": word, "omastav": gen, "osastav": par}

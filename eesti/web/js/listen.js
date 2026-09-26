@@ -187,7 +187,7 @@ async function openListenItem(row) {
 $("#speakBtn").onclick = async () => {
   const text = $("#ttsText").value.trim();
   if (!text) return;
-  const btn = $("#speakBtn"); btn.disabled = true; setLabel(btn, "Готовлю звук…");
+  const btn = $("#speakBtn"); btn.disabled = true; setLabel(btn, "Valmistan heli…");
   const out = $("#ttsOut"); out.innerHTML = "";
   try {
     const r = await api("/api/speak", {

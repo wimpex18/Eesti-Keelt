@@ -143,7 +143,7 @@ export function actsAsButton(el, open, handle = el) {
 export function emptyState({icon, title, note, action}) {
   return `<div class="empty-state">
     <div class="empty-mark">${uiIcon(icon, "")}</div>
-    <h4>${title}</h4>
+    <h3>${title}</h3>
     ${note ? `<p>${note}</p>` : ""}
     ${action ? `<div class="row">${action}</div>` : ""}
   </div>`;

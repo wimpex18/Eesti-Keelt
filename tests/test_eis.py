@@ -103,6 +103,71 @@ class TestAgainstTheLiveCatalogue:
 
 
 class TestTheApiTellsTheUiToLinkOut:
+    @pytest.mark.parametrize("indexed_external", [True, False])
+    def test_workbooks_share_the_exam_download_availability(self, indexed_external):
+        from pathlib import Path
+        from fastapi.testclient import TestClient
+        from eesti import config
+        from eesti.app import app
+        from eesti.library import exam_material
+        from eesti.sources import Item, add_items, connect, register
+
+        conn = connect(config.CONTENT_DB)
+        register(conn)
+        add_items(conn, [Item("harno", "eksam", title="Konsultatsioonivihik",
+                             level="A2", meta={"external": indexed_external, "kind": "vihik",
+                                 "format": "pdf", "file": "A2/vihik.pdf",
+                                 "url": "https://harno.ee/vihik.pdf"})])
+        client = TestClient(app)
+        before = client.get("/api/library?skill=eksam").json()["items"][0]
+        assert before["external"] and not before["local"]
+        file = Path(config.EXAM_DIR) / "A2/vihik.pdf"
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(b"%PDF-1.4\n")
+        after = client.get("/api/library?skill=eksam").json()["items"][0]
+        exam = exam_material(conn, "A2")["muu"][0]
+        assert after["local"] and after["file"]
+        assert (after["local"], after["file"], after["format"]) == (
+            exam["local"], exam["file"], exam["format"])
+        assert after["url"] == before["url"]
+
+    def test_a_downloaded_pdf_still_links_out_of_the_reader(self):
+        """Lugemine cannot show a PDF: an indexed task keeps its link once its file
+        arrives, and Töövihikud gets `local`/`file` to open it in the viewer."""
+        from pathlib import Path
+        from fastapi.testclient import TestClient
+        from eesti import config
+        from eesti.app import app
+        from eesti.sources import Item, add_items, connect, register
+
+        conn = connect(config.CONTENT_DB)
+        register(conn)
+        add_items(conn, [Item("harno", "lugemine", title="Lugemisülesanne", level="A2",
+                              meta={"external": True, "format": "pdf", "file": "A2/luge.pdf",
+                                    "url": "https://harno.ee/luge.pdf"})])
+        file = Path(config.EXAM_DIR) / "A2/luge.pdf"
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(b"%PDF-1.4\n")
+        row = TestClient(app).get("/api/library?skill=lugemine").json()["items"][0]
+        assert row["external"] and row["local"] and row["file"]
+
+    def test_a_streamed_task_stays_in_the_app_without_its_file(self):
+        """A task played from `audio_url` opens here even where `data/exam/` is not
+        mounted; it is never turned into a link to the exam board."""
+        from fastapi.testclient import TestClient
+        from eesti import config
+        from eesti.app import app
+        from eesti.sources import Item, add_items, connect, register
+
+        conn = connect(config.CONTENT_DB)
+        register(conn)
+        add_items(conn, [Item("harno", "kuulamine", title="Kuulamisülesanne", level="A2",
+                              audio_url="https://harno.ee/kuula.mp3",
+                              meta={"format": "mp3", "file": "A2/kuula.mp3",
+                                    "url": "https://harno.ee/kuula.mp3"})])
+        row = TestClient(app).get("/api/library?skill=kuulamine").json()["items"][0]
+        assert row["external"] is False and row["file"] is False
+
     def test_a_pointer_is_flagged(self):
         from eesti.api.library import _pointer
 
