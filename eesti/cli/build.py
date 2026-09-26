@@ -429,6 +429,19 @@ def cmd_asr_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_asr_bench(args: argparse.Namespace) -> int:
+    """Build the ready-made speech benchmark (`eesti/evals/asr_bench.py`)."""
+    from ..evals.asr_bench import build
+
+    result = build(args.folder, native=args.native)
+    print(f"  {result['native']} native EKI sentences, {result['planted']} synthetic "
+          f"sentences with a planted error, {result['controls']} synthetic controls")
+    print(f"  -> {result['folder']}")
+    print("  Compare two engines: python -m eesti.cli eval --suite asr "
+          f"--folder {result['folder']} --engine workers-ai --engine voxtral-rt")
+    return 0
+
+
 def cmd_eval(args: argparse.Namespace) -> int:
     """Score an engine.
 
@@ -651,6 +664,12 @@ def register(sub) -> None:
     p.add_argument("--tag", action="append", help="slice: names, numbers, hesitation, etc.")
     p.add_argument("--question", default="", help="actual open-answer question context, never target transcript")
     p.set_defaults(func=cmd_asr_verify)
+
+    p = sub.add_parser("asr-bench", help="build a ready-made speech benchmark: EKI "
+                       "native sentences plus synthetic planted-error sentences")
+    p.add_argument("--folder", help="default data/eval/asr-bench")
+    p.add_argument("--native", type=int, default=20, help="EKI sentences to include")
+    p.set_defaults(func=cmd_asr_bench)
 
     p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")
     p.add_argument(

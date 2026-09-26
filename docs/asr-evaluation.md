@@ -26,6 +26,25 @@ public native-speech WER and runtime feasibility cannot substitute for a
 paired test on this learner's voice. Any local reference runs on the owner's
 hardware; no additional production inference host is configured.
 
+## A ready-made benchmark
+
+`python -m eesti.cli asr-bench` writes `data/eval/asr-bench/`: 20 EKI
+*kõnekorpus* sentences read by native speakers (EKI's text is the truth), and
+16 TartuNLP-synthesised learner sentences, 12 with one planted error each
+(`Ma ostsin uus auto`, the recogniser must not hand back *uue*) and 4 correct
+controls (`eesti/evals/asr_bench.py`). Truth is known by construction, so the
+seal carries `provenance` instead of a listening confirmation. It ranks engines
+on mishearing and on silent correction before any learner clip exists; it is
+not a learner's voice.
+
+`--engine voxtral-rt` runs TalTech's Voxtral Realtime through Transformers on
+the owner's machine (`eesti/evals/asr_voxtral.py`, `VOXTRAL_RT_MODEL`); it is an
+eval engine only, never in the production chain.
+
+| Engine (26 Sep 2026, bench) | WER | CER | Planted errors "fixed" | Median latency |
+|---|---|---|---|---|
+| Workers AI Whisper turbo (production) | 20.0% | 3.6% | 0 of 12 | 2.8 s |
+
 ## Make a trustworthy private corpus in the app
 
 1. Under `cli serve`, practise in `Rääkimine` and choose **Lisa

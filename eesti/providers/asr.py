@@ -288,7 +288,7 @@ def engines(audio: bytes, mime: str = "audio/wav", context: str = "") -> tuple:
 
 #: The engines by name, for `--engine` on the eval.
 NAMES = ("workers-ai", "openrouter-audio", "hf-whisper", "whisper.cpp", "voxtral")
-EVAL_NAMES = (*NAMES, "faster-whisper")
+EVAL_NAMES = (*NAMES, "faster-whisper", "voxtral-rt")
 
 
 def transcribe_with(name: str, audio: bytes, mime: str = "audio/wav",
@@ -298,6 +298,10 @@ def transcribe_with(name: str, audio: bytes, mime: str = "audio/wav",
         from ..evals.asr_reference import transcribe as reference
 
         return reference(audio)
+    if name == "voxtral-rt":
+        from ..evals.asr_voxtral import transcribe as voxtral_rt
+
+        return voxtral_rt(audio)
     for engine, call in engines(audio, mime, context):
         if engine == name:
             return call()
