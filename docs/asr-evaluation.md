@@ -41,9 +41,18 @@ not a learner's voice.
 the owner's machine (`eesti/evals/asr_voxtral.py`, `VOXTRAL_RT_MODEL`); it is an
 eval engine only, never in the production chain.
 
-| Engine (26 Sep 2026, bench) | WER | CER | Planted errors "fixed" | Median latency |
-|---|---|---|---|---|
-| Workers AI Whisper turbo (production) | 20.0% | 3.6% | 0 of 12 | 2.8 s |
+| Engine (26 Sep 2026) | Bench WER | Bench CER | Owner's 8 clips WER | Planted errors "fixed" (bench + owner) | Median latency |
+|---|---|---|---|---|---|
+| Workers AI Whisper turbo (production) | 20.0% | 3.6% | 36.4% | 0 of 15 | 2.8 s (hosted) |
+| TalTech Voxtral Realtime (`voxtral-rt`, Apple M5, MPS, BF16) | 6.5% | 1.0% | 7.3% | 1 of 15 (`vastus` → *vastust*) | 5.4 s bench, 13 s owner (local) |
+
+The owner's set is 8 verified read-aloud clips (3 planted errors), below the
+20-clip pilot floor: a strong signal, not a decision. Voxtral heard the owner's
+accent far better (*õpin*, *piima*, *Tallinnas* where Whisper wrote *ipin*,
+*pima*, *Tallinas*) but once supplied the grammatical form. No free host can
+serve it, so production stays on Workers AI; with `requirements-local-asr.txt`
+installed and `VOXTRAL_RT_MODEL` set, `cli serve` asks Voxtral first
+(`providers/asr.py`).
 
 ## Make a trustworthy private corpus in the app
 
