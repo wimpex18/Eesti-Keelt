@@ -178,6 +178,14 @@ def asr_available() -> dict:
     return asr.available()
 
 
+@router.get("/api/asr/home")
+def asr_home() -> dict:
+    """The Mac mini speech service. The Worker answers this route itself when one
+    is configured (`deploy/home-asr/README.md`); the app has none of its own.
+    """
+    return {"configured": False, "online": False}
+
+
 @router.post("/api/transcribe")
 async def transcribe(request: Request) -> dict:
     """Transcribe a recording. Optional everywhere: no engine is still a 200.

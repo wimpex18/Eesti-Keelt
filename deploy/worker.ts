@@ -63,6 +63,16 @@ interface Env {
   VAPID_PRIVATE_KEY?: string;
   /** `mailto:` the push service can complain to. Required by RFC 8292. */
   VAPID_SUBJECT?: string;
+  /**
+   * The home speech service (`eesti/asrserver.py`): TalTech's Voxtral on the
+   * owner's Mac mini. Reached through a Workers VPC Service bound to its
+   * Cloudflare Tunnel (`HOME_ASR`, no public hostname: the Mac is not on the
+   * Internet), or a tunnel hostname (`HOME_ASR_URL`). Neither set, speech goes
+   * to Workers AI as before. See `homeTranscribe` and deploy/home-asr/README.md.
+   */
+  HOME_ASR?: Fetcher;
+  HOME_ASR_URL?: string;
+  HOME_ASR_TOKEN?: string;
 }
 
 /* Refuse anything that did not come through Cloudflare Access.
@@ -620,12 +630,75 @@ export class LearnerState extends DurableObject<Env> {
  */
 const WHISPER = "@cf/openai/whisper-large-v3-turbo";
 
+/* How long a recording may wait for the Mac mini before Workers AI hears it
+   instead. Voxtral takes 5-13 s on an M-series Mac; past this the Mac is
+   asleep, busy or unreachable, and the learner should not wait longer. */
+const HOME_TIMEOUT_MS = 25_000;
+
+/**
+ * The owner's Mac mini, first, when it is configured and answering: on the
+ * owner's own voice it misheard 7% of words where Whisper misheard 36%
+ * (docs/asr-evaluation.md). Any failure -- not configured, asleep, timed out,
+ * empty -- is `null`, and Whisper answers as before. It gets no question
+ * context: Voxtral takes no prompt.
+ */
+/* Where the service listens on the Mac mini; the tunnel's `cloudflared` runs on
+   the same machine, so the VPC Service's target is loopback. */
+const HOME_ORIGIN = "http://127.0.0.1:8790";
+
+function homeConfigured(env: Env): boolean {
+  return Boolean(env.HOME_ASR || env.HOME_ASR_URL);
+}
+
+function homeFetch(env: Env, path: string, init: RequestInit): Promise<Response> {
+  return env.HOME_ASR
+    ? env.HOME_ASR.fetch(HOME_ORIGIN + path, init)
+    : fetch(new URL(path, env.HOME_ASR_URL), init);
+}
+
+async function homeTranscribe(
+  audio: ArrayBuffer,
+  mime: string,
+  env: Env,
+): Promise<{ text: string; engine: string } | null> {
+  if (!homeConfigured(env) || !env.HOME_ASR_TOKEN) return null;
+  try {
+    const response = await homeFetch(env, "/transcribe", {
+      method: "POST",
+      headers: { "content-type": mime, "x-home-asr-token": env.HOME_ASR_TOKEN },
+      body: audio,
+      signal: AbortSignal.timeout(HOME_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const out = (await response.json()) as { text?: string; engine?: string };
+    const text = (out.text ?? "").trim();
+    return text ? { text, engine: `${out.engine ?? "Voxtral"} · Mac mini` } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the Mac mini is up, for the speaking page's "who hears you" line. */
+async function homeStatus(env: Env): Promise<Response> {
+  if (!homeConfigured(env)) return Response.json({ configured: false, online: false });
+  try {
+    const response = await homeFetch(env, "/health", {
+      signal: AbortSignal.timeout(4_000),
+    });
+    const body = (await response.json()) as { ok?: boolean; engine?: string };
+    return Response.json({ configured: true, online: Boolean(response.ok && body.ok),
+                           engine: body.engine ?? "" });
+  } catch {
+    return Response.json({ configured: true, online: false });
+  }
+}
+
 async function transcribe(
   request: Request,
   env: Env,
   url: URL,
 ): Promise<Response> {
-  if (!env.AI) {
+  if (!env.AI && !homeConfigured(env)) {
     return Response.json(
       { text: "", engine: "", degraded: true, note: "no speech engine" },
       { status: 200 },
@@ -649,7 +722,14 @@ async function transcribe(
 
   let text = "";
   let note = "";
-  try {
+  let engine = "";
+  const home = await homeTranscribe(
+    audio, request.headers.get("content-type") ?? "audio/webm", env);
+  if (home) {
+    text = home.text;
+    engine = home.engine;
+  }
+  if (!text && env.AI) try {
     const out = (await env.AI.run(WHISPER, {
       audio: base64(audio),
       task: "transcribe",
@@ -661,6 +741,7 @@ async function transcribe(
       ...(context ? { initial_prompt: context } : {}),
     })) as { text?: string };
     text = (out.text ?? "").trim();
+    engine = text ? `Workers AI (${WHISPER})` : "";
   } catch (error) {
     note = error instanceof Error ? error.message.slice(0, 200) : String(error);
   }
@@ -677,7 +758,7 @@ async function transcribe(
     },
     body: JSON.stringify({
       text,
-      engine: text ? `Workers AI (${WHISPER})` : "",
+      engine,
       degraded: !text,
       note,
     }),
@@ -807,6 +888,10 @@ export default {
       );
       if (fresh.ok) ctx.waitUntil(cache.put(request, fresh.clone()));
       return fresh;
+    }
+
+    if (url.pathname === "/api/asr/home" && request.method === "GET") {
+      return homeStatus(env);
     }
 
     // Speech is answered here, not forwarded: see `transcribe`. It records

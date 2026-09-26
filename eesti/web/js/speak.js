@@ -18,6 +18,20 @@ let recorder = null, chunks = [], recording = false, asrReady = false;
 let evalAvailable = false, practiceClip = null;
 
 
+/* The owner's Mac mini (`eesti/asrserver.py`), when the deployment routes speech
+   to it: said first, since it is who will hear the answer. The route exists only
+   behind the Worker; elsewhere it is a 404 and nothing changes. */
+function homeRecogniser() {
+  api("/api/asr/home", null, "GET").then(r => r.json()).then(h => {
+    if (!h.configured) return;
+    const line = h.online
+      ? "Сейчас тебя слушает твой Mac mini (Voxtral): запись уходит на него через туннель Cloudflare и там не сохраняется. "
+      : "Mac mini сейчас недоступен — распознаёт Cloudflare. ";
+    for (const id of ["#recPrivacy", "#vestlusPrivacy"])
+      $(id).textContent = line + $(id).textContent;
+  }).catch(() => {});
+}
+
 // Ask once what this deployment can do, and say so rather than offering a
 // feature that silently does nothing.
 api("/api/asr", null, "GET").then(r => r.json()).then(a => {
@@ -37,12 +51,12 @@ api("/api/asr", null, "GET").then(r => r.json()).then(a => {
     : "";
   $("#recPrivacy").textContent = a.hosted
     ? `Для распознавания запись отправляется ${destination}.${fallback} Аудиофайл обычного упражнения приложение не сохраняет; остаётся текст.`
-    : a.local || a.voxtral
+    : a.local || a.voxtral || a["voxtral-rt"]
       ? "Распознавание выполняется на этом компьютере. Аудиофайл обычного упражнения приложение не сохраняет; остаётся текст."
       : "Распознавание сейчас недоступно. Запись можно прослушать здесь; приложение не сохраняет аудиофайл обычного упражнения.";
   $("#evalPrivacy").textContent = a.hosted
     ? `Копия записи сохраняется на этом компьютере. Для черновой расшифровки аудио отправляется ${destination}.${fallback}`
-    : a.local || a.voxtral
+    : a.local || a.voxtral || a["voxtral-rt"]
       ? "Запись и черновая расшифровка остаются на этом компьютере."
       : "Запись сохраняется на этом компьютере; черновая расшифровка сейчас недоступна.";
   $("#vestlusMic").disabled = !canRecord || !asrReady;
@@ -52,9 +66,10 @@ api("/api/asr", null, "GET").then(r => r.json()).then(a => {
       : "Распознавание сейчас недоступно; можно отвечать текстом.";
   $("#vestlusPrivacy").textContent = a.hosted
     ? `Запись для распознавания отправляется ${destination}.${fallback} Аудиофайл разговора приложение не сохраняет.`
-    : a.local || a.voxtral
+    : a.local || a.voxtral || a["voxtral-rt"]
       ? "Распознавание выполняется на этом компьютере. Аудиофайл разговора приложение не сохраняет."
       : "Аудиофайл разговора приложение не сохраняет.";
+  homeRecogniser();
 }).catch(() => {
   $("#recPrivacy").textContent = "Не удалось узнать, куда отправится запись. Попробуй обновить страницу перед записью.";
   $("#evalPrivacy").textContent = "Распознавание недоступно; запись сохранится только на этом компьютере.";

@@ -68,7 +68,11 @@ With `requirements-local-asr.txt` installed and `VOXTRAL_RT_MODEL` set,
 `providers/asr.py` asks TalTech's Voxtral Realtime first (measured in
 `docs/asr-evaluation.md`); otherwise it looks for whisper.cpp with TalTech's
 Estonian verbatim model, then Voxtral via llama.cpp, after the hosted engines.
-Cloud Run never sets the variable, so the phone app stays on Workers AI. `/api/asr` reports which engines this
+Cloud Run never sets the variable. The deployed app reaches Voxtral only
+through the owner's Mac mini (`eesti/asrserver.py`, `deploy/home-asr/README.md`):
+the Worker sends each recording there through a Workers VPC Service bound to a
+Cloudflare Tunnel, waits at most 25 s, and otherwise uses Workers AI. The
+speaking page says which one is listening (`/api/asr/home`). `/api/asr` reports which engines this
 process can use.
 
 
