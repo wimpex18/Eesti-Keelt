@@ -53,7 +53,8 @@ Lookup order — **Russian:** seed → live dictionary → EVS → HAR
 (`eesti/api/grammar.py`), with native-level wording folded under *täpsem
 seletus* when PSV answers. **Rektsioon, muuttüüp:** live, else PSV and EVS.
 **Example phrases with Russian** (*Näited* on the word card): EVS only, every
-phrase in EKI's order, three shown and the rest folded; domain terms
+phrase in EKI's order, three shown and the rest folded; the same phrases on
+meaning cards in Järjekord (`evs.practice_phrase`); domain terms
 (*zool*, *aj*…) and archaic renderings are left out.
 **Question-word cue** (`küsisõnad`): EVS only, the sense EVS illustrates with
 a direct question (`docs/curriculum.md`). No other source in the repo has

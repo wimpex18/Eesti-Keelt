@@ -10,8 +10,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import mining, review
-from .deps import review_db
+from .. import evs, mining, review
+from .deps import db, review_db
 from .render import _glosses_for, _topic_name
 
 router = APIRouter()
@@ -49,6 +49,10 @@ def review_queue(limit: int = 20, kind: str | None = None) -> dict:
                 "prompt": i.prompt, "answer": i.answer,
                 "distractor": i.distractor, "why_ru": i.why_ru,
                 "context": i.context, "reps": i.reps, "lapses": i.lapses,
+                # A meaning card shows the word in use: an EVS phrase with its
+                # Russian, a different one each time it comes back.
+                "phrase": (evs.practice_phrase(db(), i.lemma, i.reps)
+                           if i.kind == "vocab" else None),
             }
             for i in items
         ],

@@ -256,6 +256,59 @@ class TestExamplePhrases:
         assert "näited: EKI eesti-vene sõnaraamat · CC BY 4.0" in card
 
 
+class TestPhrasePractice:
+    """A meaning card in Järjekord shows an EVS phrase, and from the second review
+    asks for it to be built from tiles (`review.js`, `wireBuilder`)."""
+
+    @pytest.mark.parametrize("phrase, ok", [
+        ("kus sa elad?", True),
+        ("lapsed õpivad lugema", True),
+        ("hea arst", False),                         # too short to order
+        ("kriitika {kelle/mille} aadressil", False),  # an open slot
+        ("loeb valjusti / kõvasti", False),          # two answers
+        ("lugesin ajalehest, et ...", False),        # unfinished
+    ])
+    def test_buildable(self, phrase, ok):
+        assert evs.buildable(phrase) is ok
+
+    def test_a_different_phrase_each_review_buildable_first(self, tmp_path):
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, [
+            evs.Example("lugema", "raamatut lugema", "читать книгу"),
+            evs.Example("lugema", "lapsed õpivad lugema", "дети учатся читать"),
+            evs.Example("lugema", "loeb lastele muinasjutte", "он читает детям сказки"),
+        ])
+        seen = [evs.practice_phrase(conn, "lugema", n)["et"] for n in range(3)]
+        assert seen == ["lapsed õpivad lugema", "loeb lastele muinasjutte",
+                        "lapsed õpivad lugema"]
+        assert evs.practice_phrase(conn, "lugema", 0)["build"] is True
+        assert evs.practice_phrase(conn, "puudub", 0) is None
+
+    def test_short_phrases_are_shown_but_not_built(self, tmp_path):
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, [evs.Example("hea", "hea arst", "хороший врач")])
+        assert evs.practice_phrase(conn, "hea", 4) == {
+            "et": "hea arst", "ru": "хороший врач", "build": False}
+
+    def test_the_queue_sends_it_with_meaning_cards_only(self, client, tmp_path, monkeypatch):
+        from eesti import config, review
+
+        path = tmp_path / "eesti.db"
+        conn = wordlist.connect(path)
+        evs.store_examples(conn, [
+            evs.Example("lugema", "lapsed õpivad lugema", "дети учатся читать")])
+        conn.commit()
+        monkeypatch.setattr(config, "DB_PATH", path)
+        monkeypatch.setattr(config, "REVIEW_DB", tmp_path / "review.db")
+        queue = review.connect(tmp_path / "review.db")
+        review.add(queue, kind="vocab", lemma="lugema", prompt="lugema", answer="читать")
+        review.add(queue, kind="obj-case", lemma="lugema", prompt="Ma ____ raamatu.",
+                   answer="lugesin")
+        items = {i["kind"]: i for i in client.get("/api/review").json()["items"]}
+        assert items["vocab"]["phrase"]["et"] == "lapsed õpivad lugema"
+        assert items["obj-case"]["phrase"] is None
+
+
 class TestTheCommand:
     def test_check_writes_nothing(self, xml, tmp_path, monkeypatch, capsys):
         from eesti import config

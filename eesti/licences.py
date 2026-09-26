@@ -310,7 +310,8 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "for each küsisõnad answer word, the Russian of the sense EVS "
         "illustrates with a direct question (`kus` → где), shown as the cue "
         "for the drill's blank, and `evs_example`: EVS's example phrases, "
-        "each with EKI's Russian, shown under *Näited* on the word card. "
+        "each with EKI's Russian, shown under *Näited* on the word card and "
+        "on meaning cards in Järjekord, where one can be built from tiles. "
         "Same terms as EKI's other downloads: "
         "process and present it any way needed, with the attribution kept "
         "and the changes described.",

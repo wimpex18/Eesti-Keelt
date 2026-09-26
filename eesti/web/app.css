@@ -929,6 +929,8 @@ a.lib-item{text-decoration:none;color:inherit}
   font-size:var(--fs-note);line-height:1.45}
 .phrases .phrase-list li:first-child{border-top:0}
 .phrases .phrase-list .gloss{display:block;color:var(--gloss)}
+.phrases .phrase-list li:has(.phrase-say){padding-left:52px;position:relative;min-height:52px}
+.phrases .phrase-say{position:absolute;left:0;top:var(--s1);width:44px;height:44px}
 .phrases .slot{color:var(--muted)}
 .phrases .fuller .phrase-list{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
 .quiz{margin-top:var(--s5)}
@@ -1327,6 +1329,22 @@ body:has(#tab-status:not([hidden])) .rail-card:is([data-for="status"], [data-als
 .fc-meaning{font-size:var(--fs-lead);font-weight:650;color:var(--gloss);margin-top:var(--s2)}
 .flashcard .why{margin-top:var(--s2)}
 .fc-back{animation:verdict-in var(--t) var(--ease) both}
+/* Koosta fraas: the Russian, a line the tapped words go to, the bank they come
+   from. Tiles are the ordinary ghost button at word size, 44px tall. */
+.fc-build{margin:var(--s3) auto 0;max-width:560px}
+.fc-build h4{font-size:var(--fs-meta);font-weight:700;color:var(--muted);margin:0}
+.fc-ru{margin-top:var(--s1);font-size:var(--fs-ui);color:var(--gloss)}
+.fc-line, .fc-bank{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--s2);
+  min-height:52px;padding:var(--s2) 0}
+.fc-line{margin-top:var(--s2);border-bottom:1px solid var(--line)}
+.fc-tile{min-height:44px;font-family:var(--f-read);font-size:var(--fs-body)}
+.fc-built{margin-top:var(--s2)}
+.fc-built .hint{display:block;margin-top:var(--s1)}
+.fc-phrase{display:flex;align-items:flex-start;justify-content:center;gap:var(--s2);
+  margin-top:var(--s3);text-align:left;font-size:var(--fs-note);line-height:1.45}
+.fc-phrase .gloss{color:var(--gloss)}
+.fc-say-phrase{width:44px;height:44px;flex:none}
+.flashcard .attrib{margin-top:var(--s1);color:var(--muted);font-size:var(--fs-gloss)}
 /* The three ratings are one control: equal thirds, in the same place on every card. */
 .row:has(> button[data-r]){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2);align-items:stretch}
 .row:has(> button[data-r]) > button[data-r]{width:100%;min-height:52px;font-size:var(--fs-ui);padding:8px 6px}

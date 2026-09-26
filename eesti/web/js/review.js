@@ -163,9 +163,78 @@ async function finishReview() {
   out.appendChild(end);
 }
 
+/* The word in use: an EVS phrase with EKI's Russian, spoken on a tap. */
+function phraseHtml(p) {
+  return `<div class="fc-phrase">
+      <button class="iconbtn fc-say-phrase" type="button"
+              title="Kuula — прослушать" aria-label="Kuula fraasi — прослушать фразу"></button>
+      <div><div lang="et">${esc(p.et)}</div><div class="gloss" lang="ru">${esc(p.ru)}</div></div>
+    </div>
+    <div class="attrib" lang="et">näide: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
+}
+
+/* Tiles in an order that is not the answer's (a phrase of repeated words may
+   have no other order; then it is shown as it is). */
+function shuffled(words) {
+  const out = words.map((w, i) => ({w, i}));
+  for (let tries = 0; tries < 6; tries++) {
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    if (out.some((t, k) => t.w !== words[k])) break;
+  }
+  return out;
+}
+
+/* Koosta fraas: the Russian is given, the Estonian is built by tapping its words
+   in order. Code compares the order with EKI's phrase and says so; the learner
+   still rates the card, because Estonian allows more than one order and the
+   meaning, not the tiles, is what is being scheduled. */
+function wireBuilder(el, it, reveal) {
+  // Punctuation stays off the tiles: `käisid?` would say which word ends it.
+  const words = it.phrase.et.split(/\s+/).map(w => w.replace(/[.,!?;:»«"]+/g, ""))
+    .filter(Boolean);
+  const line = el.querySelector(".fc-line"), bank = el.querySelector(".fc-bank");
+  const check = el.querySelector(".fc-check"), verdict = el.querySelector(".fc-built");
+  const tile = t => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ghost fc-tile";
+    b.lang = "et";
+    b.textContent = t.w;
+    b.onclick = () => {
+      (b.parentElement === bank ? line : bank).appendChild(b);
+      check.disabled = line.children.length !== words.length;
+    };
+    return b;
+  };
+  shuffled(words).forEach(t => bank.appendChild(tile(t)));
+  check.onclick = () => {
+    const built = [...line.children].map(b => b.textContent);
+    const same = built.join(" ") === words.join(" ");
+    el.querySelectorAll(".fc-tile").forEach(b => b.disabled = true);
+    check.closest(".row").hidden = true;
+    verdict.hidden = false;
+    bank.hidden = true;
+    // A different order is not marked wrong: `poiss soravalt loeb` is Estonian
+    // too. The verdict stays neutral and names EKI's order.
+    verdict.className = "fc-built verdict" + (same ? " ok" : "");
+    verdict.innerHTML = same
+      ? `Верно — как у EKI.`
+      : `У EKI порядок такой: <strong lang="et">${esc(it.phrase.et)}</strong>
+         <span class="hint">Другой порядок слов тоже бывает верным — оцени себя сам.</span>`;
+    reveal();
+  };
+}
+
 function renderVocabCard(it) {
   const el = document.createElement("div");
   el.className = "drill flashcard";
+  const p = it.phrase;
+  // Tiles from the second review on: the first time, the phrase is shown with the
+  // meaning, so it is met before it is built.
+  const build = !!(p && p.build && it.reps > 0);
   el.innerHTML = `
     <div class="fc-face">
       <span class="fc-word" lang="et">${esc(it.lemma)}</span>
@@ -173,14 +242,24 @@ function renderVocabCard(it) {
               title="Kuula — прослушать" aria-label="Kuula — прослушать"></button>
     </div>
     ${it.context ? `<div class="rev-ctx" lang="et">${esc(it.context)}</div>` : ""}
+    ${build ? `<div class="fc-build">
+        <h4 lang="et">Koosta fraas <i class="ru" lang="ru">собери фразу</i></h4>
+        <div class="fc-ru" lang="ru">${esc(p.ru)}</div>
+        <div class="fc-line" aria-label="Fraas — фраза" aria-live="polite"></div>
+        <div class="fc-bank"></div>
+        <div class="row"><button class="go fc-check" disabled lang="et">Kontrolli
+          <i class="ru" lang="ru">проверить</i></button></div>
+        <div class="fc-built" role="status" hidden></div>
+      </div>` : ""}
     <div class="row">
-      <button class="go fc-show" lang="et">Näita <i class="ru" lang="ru">показать</i></button>
+      <button class="${build ? "ghost" : "go"} fc-show" lang="et">Näita <i class="ru" lang="ru">показать</i></button>
       ${it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
     <div class="fc-note hint" hidden></div>
     <div class="fc-back" hidden>
       <div class="fc-meaning">${esc(it.answer)}</div>
       ${it.why_ru ? `<div class="why">${md(it.why_ru)}</div>` : ""}
+      ${p ? phraseHtml(p) : ""}
       <div class="row">
         <button class="ghost" data-r="again" lang="et">Ei mäleta <i class="ru" lang="ru">не помню</i></button>
         <button class="ghost" data-r="hard" lang="et">Raske <i class="ru" lang="ru">трудно</i></button>
@@ -189,16 +268,29 @@ function renderVocabCard(it) {
     </div>
     <div class="verdict" role="status"></div>`;
 
+  const note = msg => {
+    const n = el.querySelector(".fc-note");
+    n.textContent = msg;
+    n.hidden = false;
+  };
   el.querySelector(".fc-say").innerHTML = navIcon("speaker-high");
-  el.querySelector(".fc-say").onclick = () => speakWord(it.lemma, msg => {
-    const note = el.querySelector(".fc-note");
-    note.textContent = msg;
-    note.hidden = false;
-  });
-  el.querySelector(".fc-show").onclick = e => {
-    e.target.closest(".row").hidden = true;
+  el.querySelector(".fc-say").onclick = () => speakWord(it.lemma, note);
+  const sayPhrase = el.querySelector(".fc-say-phrase");
+  if (sayPhrase) {
+    sayPhrase.innerHTML = navIcon("speaker-high");
+    sayPhrase.onclick = () => speakWord(p.et, note);
+  }
+  const show = el.querySelector(".fc-show");
+  const reveal = () => {
+    show.closest(".row").hidden = true;
     el.querySelector(".fc-back").hidden = false;
   };
+  show.onclick = () => {
+    // Skipping the tiles is allowed; they are put away so the card reads as done.
+    el.querySelectorAll(".fc-tile, .fc-check").forEach(b => b.disabled = true);
+    reveal();
+  };
+  if (build) wireBuilder(el, it, reveal);
   wireGrading(el, it);
   return el;
 }

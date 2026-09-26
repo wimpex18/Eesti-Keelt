@@ -451,3 +451,32 @@ def examples(conn: sqlite3.Connection, lemma: str) -> list[dict]:
     except sqlite3.Error:
         return []
     return [{"et": et, "ru": ru} for et, ru in rows]
+
+
+#: A phrase a learner can build from tiles: whole words only, short enough to
+#: hold in mind (`lapsed õpivad lugema`, `kus sa elad?`).
+TILES = range(3, 8)
+
+
+def buildable(estonian: str) -> bool:
+    """Whether a phrase makes a tile exercise: 3–7 words, no open slot, no
+    alternatives (`/`), no ellipsis or brackets — one answer, spelled out.
+    """
+    if any(mark in estonian for mark in ("{", "/", "...", "…", "(", "[")):
+        return False
+    return len(estonian.split()) in TILES
+
+
+def practice_phrase(conn: sqlite3.Connection, lemma: str, turn: int) -> dict | None:
+    """The phrase a review of `lemma` shows, a different one each `turn` (the
+    card's repetitions): `{"et", "ru", "build"}`, `build` saying whether it can
+    be built from tiles. Buildable phrases come first, in EKI's order. None when
+    EVS has no phrase for the word.
+    """
+    found = examples(conn, lemma)
+    if not found:
+        return None
+    ready = [p for p in found if buildable(p["et"])]
+    pool = ready or found
+    chosen = pool[turn % len(pool)]
+    return {**chosen, "build": bool(ready)}
