@@ -77,9 +77,14 @@
   /* ── Glass: the navigation layer floats over the content ── */
   --glass:rgba(255,255,255,.64);
   --glass-strong:rgba(255,255,255,.82);
-  --glass-rim:rgba(255,255,255,.9);
-  --glass-edge:rgba(13,23,38,.08);
+  --glass-rim:#fff;                     /* the specular line along the top */
+  --glass-sheen:rgba(255,255,255,.5);   /* light caught again at the foot */
+  --glass-edge:rgba(13,23,38,.06);
+  --glass-line:rgba(15,23,42,.14);      /* the darker outer edge (iOS 27) */
   --glass-shadow:0 8px 24px -14px rgba(15,23,42,.22);
+  /* Every glass surface lifts the same way: one token, never a copied stack. */
+  --glass-lift:inset 0 1px 0 var(--glass-rim), inset 0 -1px 0 var(--glass-sheen),
+    inset 0 0 0 1px var(--glass-edge), 0 0 0 .5px var(--glass-line), var(--glass-shadow);
 
   /* ── Type ── */
   --f-ui:"Geologica",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -135,7 +140,8 @@
     --hero-btn:#f4f7fc; --hero-btn-ink:#16224a;
     --sky:#00c3ff; --sand:#e8d9ae; --pale:#1b3563;
     --glass:rgba(22,30,44,.62); --glass-strong:rgba(26,35,50,.82);
-    --glass-rim:rgba(255,255,255,.12); --glass-edge:rgba(0,0,0,.45);
+    --glass-rim:rgba(255,255,255,.2); --glass-sheen:rgba(255,255,255,.05);
+  --glass-edge:rgba(255,255,255,.04); --glass-line:rgba(0,0,0,.6);
     --glass-shadow:0 10px 28px -16px rgba(0,0,0,.6);
     --shadow:0 0 0 1px var(--line);
     --lift:0 0 0 1px color-mix(in srgb, var(--ink) 22%, var(--line));
@@ -164,7 +170,8 @@
     --hero-btn:#f4f7fc; --hero-btn-ink:#16224a;
     --sky:#00c3ff; --sand:#e8d9ae; --pale:#1b3563;
   --glass:rgba(22,30,44,.62); --glass-strong:rgba(26,35,50,.82);
-  --glass-rim:rgba(255,255,255,.12); --glass-edge:rgba(0,0,0,.45);
+  --glass-rim:rgba(255,255,255,.2); --glass-sheen:rgba(255,255,255,.05);
+  --glass-edge:rgba(255,255,255,.04); --glass-line:rgba(0,0,0,.6);
   --glass-shadow:0 10px 28px -16px rgba(0,0,0,.6);
   --shadow:0 0 0 1px var(--line);
   --lift:0 0 0 1px color-mix(in srgb, var(--ink) 22%, var(--line));
@@ -176,7 +183,11 @@
 [hidden]{display:none !important}
 
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;scrollbar-color:var(--line) transparent}
+/* The root carries the page colour too: Safari 26 ignores theme-color and tints
+   its toolbars and the overscroll from the root's own background. */
+html{-webkit-text-size-adjust:100%;scrollbar-color:var(--line) transparent;background:var(--bg)}
+:root[data-theme="dark"]{color-scheme:dark}
+:root[data-theme="light"]{color-scheme:light}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:400 var(--fs-body)/1.55 var(--f-ui);font-variation-settings:var(--soft);
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
@@ -196,7 +207,7 @@ input, textarea{caret-color:var(--accent)}
 .glass, .modes, .celebrate-card, #wordCard, #vocCard{
   background:var(--glass);
   -webkit-backdrop-filter:blur(24px) saturate(1.8);backdrop-filter:blur(24px) saturate(1.8);
-  box-shadow:inset 0 1px 0 var(--glass-rim), inset 0 0 0 1px var(--glass-edge), var(--glass-shadow)}
+  box-shadow:var(--glass-lift)}
 @media (prefers-reduced-transparency:reduce), (prefers-contrast:more){
   .glass, .modes, .celebrate-card, #wordCard, #vocCard, .spine[class]{
     background:var(--panel);-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -306,7 +317,7 @@ nav .lbl .ru{display:none}
     padding:22px 12px 14px;
     background:var(--glass);
     -webkit-backdrop-filter:blur(24px) saturate(1.8);backdrop-filter:blur(24px) saturate(1.8);
-    box-shadow:inset 0 1px 0 var(--glass-rim), inset 0 0 0 1px var(--glass-edge), var(--glass-shadow)}
+    box-shadow:var(--glass-lift)}
   :root[data-glass="off"] .spine{background:var(--panel);-webkit-backdrop-filter:none;backdrop-filter:none}
   .brand{padding:0 8px}
   .brand h1{font-size:19px}
@@ -1491,3 +1502,24 @@ button.quiet .ru{display:inline;margin-left:4px;font-style:normal;font-weight:40
 .iconbtn.mic.on { color: var(--bad); box-shadow: inset 0 0 0 1px currentColor; }
 .iconbtn.mic[aria-busy="true"] { opacity: .6; }
 .asr-check { margin-top: var(--s2); }
+
+/* ── The gliding selection (js/glide.js) ─────────────────────────────
+   One capsule per tab list slides to the chosen tab; the tabs themselves go clear.
+   It wears the look each list's selected tab had on its own, so the page reads the
+   same without script. Here, at the end, to beat the per-list selected rules. */
+.gliding:not(.modes){position:relative}
+.gliding > [role="tab"]{position:relative;z-index:1}
+.gliding > [role="tab"][aria-selected="true"]{background:none;box-shadow:none}
+.glide{position:absolute;top:0;left:0;z-index:0;pointer-events:none;border-radius:999px;
+  background:var(--raised);box-shadow:0 0 0 1px var(--line);
+  transition:transform var(--t) var(--spring), width var(--t) var(--spring),
+             height var(--t) var(--spring)}
+.glide.glide-jump{transition:none}
+nav > .glide{background:var(--glass-strong);box-shadow:inset 0 0 0 1px var(--glass-edge)}
+.modes > .glide{background:var(--ctl);border-radius:24px;box-shadow:none}
+@media (min-width:720px) and (min-height:560px), (min-width:1080px){
+  /* Relative only to hold the capsule: the dock's fixed offsets must not shift it. */
+  .modes.gliding{position:relative;inset:auto}
+  .modes > .glide{border-radius:18px}
+  nav[data-mode-nav] > .glide{border-radius:16px}
+}

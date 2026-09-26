@@ -12,7 +12,8 @@ paths:
 - Never set `textContent` on an element with decorated children (the Russian gloss); use `setLabel`.
 - Every `var(--token)` must be defined; spacing uses `--s1`…`--s7`; colours are tokens, never hex in rules.
 - Give each information role its own treatment; colour by role, not by language.
-- Glass (`--glass`) is for the navigation layer only; content stays on solid sheets.
+- Glass is for the navigation layer and cards floating over content (the word card) only; content stays on solid sheets. A new floating bar takes the `.glass` class (fill, blur, `--glass-lift`, the reduced-transparency and Vähem läbipaistvust fallbacks); never copy the recipe. See DESIGN.md "Adding a page or section".
+- Any choice between views is `role="tablist"` with `role="tab"` + `aria-selected`: `js/glide.js` then slides one capsule to the selection, also for lists added later. Keep a per-list selected look for the no-script case.
 - From 720px `.wrap` is a grid (spine, column, rail) with rows placed by number: place anything added at its top level deliberately.
 - Before making a container flex, check what its children relied on normal flow for.
 - `.panel > :first-child` owns the top-margin reset; do not copy inline resets.

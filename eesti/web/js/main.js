@@ -13,6 +13,7 @@ import {goToPlace, selectTab} from "./router.js";
    they evaluate. A module nobody imports never runs, and the panel would open
    with every button silently dead. `tests/test_ui_contract.py` fails on a module
    the entry point cannot reach. */
+import "./glide.js";
 import "./reading.js";
 import "./sources.js";
 import "./words.js";

@@ -60,8 +60,10 @@ white. One warm note, Haapsalu sand, is reserved for rest and reward. Colour
 otherwise belongs to an information role, never to a language.
 
 The interface follows **Apple's Liquid Glass rule of two layers**: navigation
-and controls float on glass (the spine, the phone dock, switches, the word
-card, the celebration); content sits on the plain page, separated by lines rather than cards. Glass turns solid
+and what floats over content sit on glass (the spine, the phone dock, the word
+card, the celebration) and a selection glides between tabs on one capsule;
+content sits on the plain page, separated by lines rather than cards. The
+switches choose content, so their track is solid. Glass turns solid
 with `prefers-reduced-transparency`, `prefers-contrast: more`, or the app's own
 **Vähem läbipaistvust** switch (Safari does not report the system setting).
 
@@ -92,7 +94,7 @@ Tokens live in `eesti/web/app.css` (`:root`), mirrored for dark under
 | Page / sheet | `--bg` / `--panel` | #f8fafc / #ffffff | #0b1120 / #131c2e | Page and content sheets |
 | Daylight | `--hero-bg` + `--hero-rim` | #d9e8fc → #e8f1fc → #f6efdc | #1b2842 → #2a2d38 | The hero: a pale sky settling into sand, with a glass rim; ink text, a blue "now" |
 | Evening | `--night-a/b` | #0b1433 → #142257 | #101a33 → #16224a | The celebration card: a Baltic evening with Narva light |
-| Glass | `--glass` + rim/edge/shadow | white 64% | slate 62% | The navigation layer |
+| Glass | `--glass` + `--glass-lift` | white 64% | slate 62% | The navigation layer: a white specular line on top, light caught again at the foot, a darker outer edge (iOS 27) and a soft shadow |
 
 **Colour by role.** Blue acts, moss is right, cranberry is wrong, cloudberry
 cautions, lake means. Russian text is never coloured for being Russian.
@@ -151,7 +153,14 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   ink rule; row labels (cases, persons) stay pinned while the forms scroll
   sideways on a phone, with a soft edge showing there is more. A table whose
   first column is data (numerals) has no pinned labels.
-- **Switches** (`.levels`): a glass track, the chosen state a white capsule.
+- **Switches** (`.levels`): a grey track, the chosen state a white capsule.
+- **The gliding selection** (`js/glide.js`). Every `role="tablist"` (the modes,
+  each mode's tabs, the switches) carries one capsule that slides, with a slight
+  spring, to the chosen tab, instead of one capsule vanishing and another
+  appearing. It wears that list's selected look (glass pill in the tabs, grey in
+  the dock, white in a switch). It jumps, not slides, when a list first shows, and
+  it is instant under reduced motion. Without the script each tab paints its own
+  capsule, so the page reads the same.
 - **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
   Home and End, with only the selected tab in the Tab order.
 
@@ -218,8 +227,32 @@ filter row's apply button is secondary. Text: 12 gloss/meta · 14 note/hint ·
 ## Depth
 
 Content sheets are separated by a 1px line (`--shadow` is a hairline ring), not a
-drop shadow. Only the floating glass layer (spine, dock, word card) casts a soft
-shadow. The page has no background glows.
+drop shadow. Only the floating glass layer (spine, dock, and the word card over
+the text it glosses) casts a soft shadow. The page has no background
+glows. The root (`html`) carries the page colour as well as `body`: Safari 26
+ignores `theme-color` and tints its toolbars and the overscroll from it.
+
+## Adding a page or section
+
+Glass is not something a new screen chooses; it comes from where the thing sits.
+
+- **Content** (a new panel, list, exercise, reader): on the plain page, in the
+  shared treatment under Controls, never glass. No new shadow or card fill.
+- **Navigation that floats over content** (a new bar, dock or sidebar): give it
+  the `.glass` class. It then takes `--glass`, the blur and `--glass-lift`, turns
+  solid under reduced transparency, higher contrast and Vähem läbipaistvust, and
+  follows both themes. Never copy the recipe into a new rule.
+- **A card that floats over the content it explains** (like the word card over
+  its text): glass as well, by adding it to the `.glass` rule's selector list
+  in `app.css`, as `#wordCard` is; the fallbacks come with it.
+- **A choice between views** (tabs, a segmented switch): mark it up as
+  `role="tablist"` with `role="tab"` children and `aria-selected`. It then gets
+  the gliding capsule and the arrow-key pattern with no extra code, including
+  when it is added to the page later. Give it a selected look of its own in
+  `app.css` for the no-script case, and a `.glide` colour at the end of the file
+  if that look is new.
+- A new floating layer that must not follow this belongs in this document
+  first.
 
 ## Motion
 
@@ -232,11 +265,14 @@ script scrolling stops being smooth.
 ## Do's and Don'ts
 
 **Do:** use tokens for every colour and the `--s1`…`--s7` scale; keep glass on
-the navigation layer and content on solid sheets; keep Estonian material in the
+the navigation layer (`.glass`, `--glass-lift`) and content on solid sheets; build
+every choice between views as a `role="tablist"` so it glides; keep Estonian material in the
 cut; keep 44px touch targets; check 1440×900, 402×874, 874×402 and 744×1133 in
 both themes.
 
 **Don't:** use cream or grey-beige grounds; put paragraph text or drill inputs on
-glass; fill more than one or two buttons per view; add streaks, points or a single
+glass; copy the glass recipe or hand-roll a selection capsule; add refraction or
+lensing filters (Safari ignores them, so every iPhone would see a different page
+from desktop Chrome); fill more than one or two buttons per view; add streaks, points or a single
 readiness percentage; celebrate anything but code-decided mastery; colour text by
 its language.
