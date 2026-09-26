@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-09-26T21:13:00.522Z",
+        "reason": "Codex QA: detector treats the dark hero muted text token as a background; actual hero text uses the dark hero surface in DESIGN.md, verified in Chrome in both themes."
+      }
+    ]
+  }
+}

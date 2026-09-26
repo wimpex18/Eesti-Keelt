@@ -62,7 +62,8 @@ def principal_forms(
         "SELECT c.word, c.genitive, c.partitive, w.proficiency"
         "  FROM object_cases c JOIN words w ON w.word = c.word"
         f" WHERE c.distinct_ = 1 AND w.proficiency IN ({marks})"
-        "   AND (',' || REPLACE(w.pos, ' ', '') || ',') LIKE '%,s,%'",
+        "   AND (',' || REPLACE(w.pos, ' ', '') || ',') LIKE '%,s,%'"
+        " ORDER BY c.word",
         levels,
     ).fetchall()
     if only is not None:

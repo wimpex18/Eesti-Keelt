@@ -437,11 +437,11 @@ button.ghost:active:not(:disabled), a.ghost:active{transform:scale(.97)}
 button.ghost:disabled{opacity:.45;cursor:default}
 button.ghost .ru, a.ghost .ru{color:var(--muted)}
 a.ghost{display:inline-flex;align-items:center}
-.linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
+.linky{display:inline-flex;align-items:center;min-height:44px;min-width:44px;background:none;border:0;padding:0;color:var(--accent);cursor:pointer;
   text-align:left;font:inherit;font-weight:600;text-decoration:underline;
   text-decoration-thickness:1px;text-underline-offset:3px}
 .linky:hover{color:var(--accent-deep)}
-.logbtn{margin-top:var(--s2);min-height:36px;background:var(--ctl);border:0;
+.logbtn{margin-top:var(--s2);min-height:44px;background:var(--ctl);border:0;
   border-radius:999px;padding:7px 14px;font:inherit;font-size:var(--fs-note);font-weight:600;
   color:var(--ink);cursor:pointer;transition:background-color var(--quick) var(--ease)}
 .logbtn:hover:not(:disabled){background:var(--ctl-hover)}
@@ -449,8 +449,7 @@ a.ghost{display:inline-flex;align-items:center}
 .btn-ico{display:inline-block;vertical-align:-3px;width:18px;height:18px;margin-right:6px;flex:none}
 .inline-ico{display:inline-block;vertical-align:-2px;width:15px;height:15px}
 
-/* Fields are filled, not outlined: a soft well that turns white and rings blue when
-   it has the focus. */
+/* Outlined fields use a soft surface and a blue focus ring. */
 select, input[type=text], input[type=number]{min-height:48px;padding:10px 16px;
   border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);
   color:var(--ink);font:inherit;
@@ -488,7 +487,7 @@ label select{min-width:0;max-width:100%}
 
 /* Segmented switch: a glass track, the chosen state a white capsule. */
 .levels{display:inline-flex;gap:3px;padding:4px;border-radius:999px;background:var(--ctl)}
-.levels button{min-height:40px;padding:6px 16px;border:0;border-radius:999px;background:none;
+.levels button{min-height:44px;min-width:44px;padding:6px 16px;border:0;border-radius:999px;background:none;
   font:inherit;font-size:var(--fs-note);font-weight:700;color:var(--muted);cursor:pointer;
   transition:background-color var(--quick) var(--ease),color var(--quick) var(--ease)}
 .levels button .ru{font-weight:400}
@@ -498,7 +497,8 @@ label select{min-width:0;max-width:100%}
   background:color-mix(in srgb, var(--ink) 5%, transparent)}
 
 /* ── Disclosures: a heading you can open, not a box ───────────────── */
-details > summary{cursor:pointer;list-style:none}
+details > summary{cursor:pointer;list-style:none;min-height:44px;align-content:center}
+details > summary > .ru{display:inline;margin-left:5px}
 details > summary::-webkit-details-marker{display:none}
 .fold, .today, .mock, .offline, .vestlus, .evalset, .asr-report, #queueBox{
   border-top:1px solid var(--line);padding-top:var(--s2)}
@@ -514,7 +514,7 @@ details.more > summary, .exam-preview > summary{
   transform:translateY(-3px) rotate(45deg);transition:transform var(--t) var(--ease)}
 details[open] > summary::after{transform:translateY(2px) rotate(-135deg)}
 details.more{margin-top:var(--s3)}
-details.more > summary{min-height:40px;font-size:var(--fs-note);font-weight:650;color:var(--ink-2)}
+details.more > summary{min-height:44px;font-size:var(--fs-note);font-weight:650;color:var(--ink-2)}
 details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 
 /* ── Text roles ───────────────────────────────────────────────────── */
@@ -680,7 +680,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   background:color-mix(in srgb, var(--btn) 88%, var(--ink));color:var(--on-btn)}
 .drill.done > .row > button{opacity:.5;cursor:default}
 /* The tutor's offer under a verdict: a quiet secondary action. */
-.verdict .tutorbtn{min-height:40px;padding:6px 14px;font-size:var(--fs-note)}
+.verdict .tutorbtn{min-height:44px;padding:6px 14px;font-size:var(--fs-note)}
 .drill .row{margin-top:var(--s2)}
 /* The instruction under a prompt: word, form, meaning and level, each its own role. */
 .task{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;order:-1;
@@ -793,7 +793,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 .today-block > button{align-self:center}
 .today-minutes{display:flex;flex-direction:row;align-items:center;gap:8px;margin-top:var(--s4);
   font-weight:600;color:var(--ink-2)}
-.today-minutes select{min-height:40px}
+.today-minutes select{min-height:44px}
 @media (min-width:900px){
   /* Wide: the plan reads left to right like the strip above it. */
   .today-list.as-row{grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:var(--s5)}
@@ -827,7 +827,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 .topic .name{min-width:0;font-weight:650;overflow-wrap:anywhere}
 .topic .meta{grid-column:2;font-size:var(--fs-meta);color:var(--muted)}
 .topic .acts{grid-column:3;grid-row:1 / span 2;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.topic button{min-height:36px;padding:4px 12px;font-size:var(--fs-meta)}
+.topic button{min-height:44px;padding:4px 12px;font-size:var(--fs-meta)}
 @media (pointer:coarse){.topic button{min-height:44px}}
 .topic button.quiet{padding-inline:0 var(--s2)}
 .topic:hover{background:color-mix(in srgb, var(--tint) 70%, transparent)}
@@ -899,16 +899,18 @@ a.lib-item{text-decoration:none;color:inherit}
 .prose p{margin:0 0 1em}
 .prose w{cursor:pointer;border-radius:3px;transition:background-color var(--quick) var(--ease)}
 .prose w:hover{background:var(--accent-soft);color:var(--accent)}
+.prose w:focus-visible{outline:2px solid var(--accent);outline-offset:2px;background:var(--accent-soft)}
 .prose w.hard{background:var(--warn-soft);box-shadow:0 2px 0 -0.5px var(--warn-fill)}
 .prose ::selection{background:color-mix(in srgb, var(--accent) 22%, transparent)}
 #wordCard, #vocCard{position:sticky;bottom:var(--s3);z-index:5;margin-top:var(--s4);
-  padding:16px 18px;border-radius:var(--r-lg);background:var(--panel);
-  box-shadow:0 0 0 1px var(--line), var(--glass-shadow);
+  padding:16px 18px;border-radius:var(--r-lg);
   animation:verdict-in var(--t) var(--ease)}
+.card-content{max-height:calc(100dvh - var(--dock-h) - 220px);overflow-y:auto;overscroll-behavior:contain;
+  overflow-wrap:anywhere}
 @media (max-width:719px){
   #wordCard, #vocCard{bottom:calc(var(--dock-h) + 12px)}
 }
-.card-close{position:absolute;top:10px;right:10px;width:36px;height:36px}
+.card-close{position:absolute;top:10px;right:10px;width:44px;height:44px}
 .card-close svg{width:16px;height:16px}
 #wordCard, #vocCard{padding-right:56px}
 #wordCard .lemma{font-family:var(--f-read);font-size:24px;font-weight:600}
@@ -919,7 +921,7 @@ a.lib-item{text-decoration:none;color:inherit}
 #wordCard .pair{margin-top:7px;font-size:var(--fs-ui)}
 #wordCard .pair b{color:var(--accent)}
 .meaning .def{color:var(--ink);font-size:var(--fs-ui);line-height:1.55}
-.meaning .examples{margin:var(--s2) 0 0;padding-left:18px;color:var(--gloss);font-size:var(--fs-note);line-height:1.6}
+.meaning .examples{margin:var(--s2) 0 0;padding-left:18px;color:var(--ink);font-size:var(--fs-note);line-height:1.6}
 .meaning .examples li{margin-bottom:2px}
 /* Attribution: quiet, legible, never a gesture at one. */
 .meaning .attrib{margin-top:var(--s2);color:var(--muted);font-size:var(--fs-gloss)}
@@ -1034,7 +1036,7 @@ audio.enhanced{display:none !important}
   font-variant-numeric:tabular-nums;text-align:center}
 .pl-now{color:var(--ink)}
 .pl-time:empty{display:none}
-.pl-seek{flex:1 1 0;min-width:48px;height:24px;margin:0;background:transparent;cursor:pointer;
+.pl-seek{flex:1 1 0;min-width:48px;height:44px;margin:0;background:transparent;cursor:pointer;
   -webkit-appearance:none;appearance:none}
 .pl-seek:disabled{cursor:default;opacity:.5}
 .pl-seek::-webkit-slider-runnable-track{height:6px;border-radius:3px;
@@ -1049,7 +1051,7 @@ audio.enhanced{display:none !important}
 .pl-seek:hover::-webkit-slider-thumb, .pl-seek:focus-visible::-webkit-slider-thumb{transform:scale(1.1)}
 .pl-seek:focus-visible{outline:none}
 .pl-seek:focus-visible::-webkit-slider-runnable-track{box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)}
-.pl-back, .pl-rate{flex:none;height:40px;min-width:40px;padding:0 10px;border:0;border-radius:999px;cursor:pointer;
+.pl-back, .pl-rate{flex:none;height:44px;min-width:44px;padding:0 10px;border:0;border-radius:999px;cursor:pointer;
   font:inherit;font-size:var(--fs-meta);font-weight:600;font-variant-numeric:tabular-nums;
   transition:background-color var(--quick) var(--ease), color var(--quick) var(--ease)}
 .pl-back{background:var(--ctl);color:var(--ink-2)}
@@ -1095,10 +1097,8 @@ audio.enhanced{display:none !important}
 
 /* ── Writing ──────────────────────────────────────────────────────── */
 .write-stage{padding:6px 6px 14px}
-.write-stage textarea{min-height:220px;border:0;background:transparent;padding:18px 18px 10px;
-  font-family:var(--f-read);font-size:var(--fs-read);line-height:1.7;box-shadow:none}
-.write-stage textarea:focus-visible{box-shadow:none}
-.write-stage:focus-within{box-shadow:0 0 0 2px var(--accent), var(--shadow)}
+.write-stage textarea{min-height:220px;padding:18px 18px 10px;
+  font-family:var(--f-read);font-size:var(--fs-read);line-height:1.7}
 .write-foot{margin:0;padding:0 12px}
 .word-count{margin-left:auto;font-variant-numeric:tabular-nums}
 
@@ -1256,8 +1256,8 @@ audio.enhanced{display:none !important}
 .rail .forecast{height:84px}
 
 /* ── Marks earned: milestones as seals ────────────────────────────── */
-.seals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s2)}
-.seal{display:grid;grid-template-rows:auto 2.5em auto;justify-items:center;align-items:start;gap:6px;text-align:center;min-width:0}
+.seals{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,80px),1fr));gap:var(--s2)}
+.seal{display:grid;grid-template-rows:auto minmax(2.5em,auto) auto;justify-items:center;align-items:start;gap:6px;text-align:center;min-width:0;overflow-wrap:anywhere}
 .seal svg{width:58px;height:58px}
 .seal .ring-bg{fill:none;stroke:var(--line);stroke-width:2}
 .seal .ring-fg{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;
@@ -1330,7 +1330,7 @@ body:has(#tab-status:not([hidden])) .rail-card:is([data-for="status"], [data-als
 .fc-face{display:flex;align-items:center;justify-content:center;gap:var(--s3);min-height:110px}
 .fc-word{font-family:var(--f-read);font-size:clamp(32px, 9vw, 52px);font-weight:500;
   letter-spacing:-.025em;line-height:1.1;overflow-wrap:anywhere}
-.fc-say{width:40px;height:40px;flex:none}
+.fc-say{width:44px;height:44px;flex:none}
 .flashcard .row{justify-content:center}
 .flashcard .rev-ctx{text-align:center}
 .fc-meaning{font-size:var(--fs-lead);font-weight:650;color:var(--gloss);margin-top:var(--s2)}
@@ -1429,7 +1429,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
   .spine{flex-wrap:nowrap;margin-bottom:var(--s3)}
   .brand h1{display:none}
   nav[data-mode-nav]{order:0;flex:1 1 auto;min-width:0;margin:0;padding:0 var(--s2)}
-  .page-head > .seg button{min-height:40px}
+  .page-head > .seg button{min-height:44px}
   .page-head > .seg button i.ru{display:none}
   /* 402px of height belongs to the sentence being answered: while a set is on
      screen the hero steps aside (the drill's task line says what is practised).
@@ -1523,7 +1523,7 @@ dialog.lesson::backdrop{background:color-mix(in srgb, var(--ink) 40%, transparen
 
 /* A quiet text action inside a list row (Reegel on Kogu rada): no fill, so the
    row's real actions keep their weight. */
-button.quiet{display:inline-flex;align-items:center;min-height:36px;padding:4px 8px;border:0;
+button.quiet{display:inline-flex;align-items:center;min-height:44px;padding:4px 8px;border:0;
   border-radius:999px;background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-meta);
   font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);
   text-decoration-thickness:1px;text-underline-offset:3px}

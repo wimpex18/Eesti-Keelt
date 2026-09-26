@@ -103,6 +103,34 @@ class TestAgainstTheLiveCatalogue:
 
 
 class TestTheApiTellsTheUiToLinkOut:
+    @pytest.mark.parametrize("indexed_external", [True, False])
+    def test_workbooks_share_the_exam_download_availability(self, indexed_external):
+        from pathlib import Path
+        from fastapi.testclient import TestClient
+        from eesti import config
+        from eesti.app import app
+        from eesti.library import exam_material
+        from eesti.sources import Item, add_items, connect, register
+
+        conn = connect(config.CONTENT_DB)
+        register(conn)
+        add_items(conn, [Item("harno", "eksam", title="Konsultatsioonivihik",
+                             level="A2", meta={"external": indexed_external, "kind": "vihik",
+                                 "format": "pdf", "file": "A2/vihik.pdf",
+                                 "url": "https://harno.ee/vihik.pdf"})])
+        client = TestClient(app)
+        before = client.get("/api/library?skill=eksam").json()["items"][0]
+        assert before["external"] and not before["local"]
+        file = Path(config.EXAM_DIR) / "A2/vihik.pdf"
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(b"%PDF-1.4\n")
+        after = client.get("/api/library?skill=eksam").json()["items"][0]
+        exam = exam_material(conn, "A2")["muu"][0]
+        assert after["local"] and after["file"]
+        assert (after["local"], after["file"], after["format"]) == (
+            exam["local"], exam["file"], exam["format"])
+        assert after["url"] == before["url"]
+
     def test_a_pointer_is_flagged(self):
         from eesti.api.library import _pointer
 

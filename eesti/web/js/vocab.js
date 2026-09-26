@@ -63,7 +63,7 @@ function analysisHtml(a, chosen = false) {
       <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`;
 }
 
-async function fillWordCard(word, card, contextFor) {
+async function fillWordCard(word, card, contextFor, retry) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
   /* Which word the card is showing now. A lookup or enrichment that returns after
@@ -80,7 +80,7 @@ async function fillWordCard(word, card, contextFor) {
     d = await (await api("/api/lookup/" + encodeURIComponent(word) + query, null, "GET")).json();
   } catch (e) {
     if (stale()) return;
-    card.replaceChildren(retryableError(e.message, () => showWordCard(word, card, contextFor)));
+    card.replaceChildren(retryableError(e.message, retry));
     return;
   }
   if (stale()) return;
@@ -365,16 +365,31 @@ $("#vocOut").addEventListener("click", e => {
     card.id = "vocCard";
     $("#tab-sonad").append(card);
   }
-  showWordCard(b.dataset.word, card, null);
+  showWordCard(b.dataset.word, card, null, b);
 });
 
 
 /* A word card, with a way to put it away: it floats over the text or the list
    it was opened from, so it must never be the only way back to them. */
-export async function showWordCard(word, card, contextFor) {
-  await fillWordCard(word, card, contextFor);
-  if (card.hidden || card.querySelector(".card-close")) return;
-  card.insertAdjacentHTML("afterbegin", `<button class="iconbtn card-close" type="button"
-    title="Sulge — закрыть" aria-label="Sulge — закрыть">${icon("x", {weight: "bold"})}</button>`);
-  card.querySelector(".card-close").onclick = () => { card.hidden = true; };
+export async function showWordCard(word, card, contextFor, opener = document.activeElement) {
+  const previous = card.querySelector(".card-content");
+  if (previous) previous.dataset.shown = "";
+  card.hidden = false;
+  card.innerHTML = `<button class="iconbtn card-close" type="button"
+    title="Sulge — закрыть" aria-label="Sulge — закрыть">${icon("x", {weight: "bold"})}</button>`;
+  const body = document.createElement("div");
+  body.className = "card-content";
+  card.append(body);
+  const close = card.querySelector(".card-close");
+  close.onclick = () => {
+    body.dataset.shown = "";
+    card.hidden = true;
+    if (opener instanceof HTMLElement && opener.isConnected && !card.contains(opener))
+      opener.focus({preventScroll: true});
+  };
+  card.onkeydown = e => {
+    if (e.key === "Escape") { e.preventDefault(); close.click(); }
+  };
+  close.focus({preventScroll: true});
+  await fillWordCard(word, body, contextFor, () => showWordCard(word, card, contextFor, opener));
 }

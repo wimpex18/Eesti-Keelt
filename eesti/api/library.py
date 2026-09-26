@@ -79,24 +79,35 @@ def library(skill: str = "lugemine", section: str | None = None,
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
                 "words": len(( r["body"] or "").split()),
-                # Official exam tasks are pointers (HARNO copyright, scored on their page); the UI
-                # links out instead of opening an empty reader.
-                **_pointer(r["meta"]),
+                # Downloaded official material uses the same availability check
+                # as Eksam; undownloaded tasks retain their attribution link.
+                **_pointer(r["meta"], level=r["level"], source_id=r["source_id"],
+                           body=r["body"]),
             }
             for r in rows
         ]
     }
 
 
-def _pointer(meta: str | None) -> dict:
-    """`{"external": True, "url": ...}` for an indexed task, else `{}`."""
+def _pointer(meta: str | None, *, level: str | None = None,
+             source_id: str | None = None, body: str | None = None) -> dict:
+    """Indexed task attribution and any locally available official file."""
     try:
         data = json.loads(meta or "{}")
     except ValueError:
         return {}
-    if not data.get("external"):
+    official = source_id in {"harno", "eis"}
+    if not data.get("external") and not official:
         return {}
-    return {"external": True, "url": data.get("url"), "note": data.get("note")}
+    pointer = {"external": True, "url": data.get("url"), "note": data.get("note")}
+    if official:
+        from ..library import _file_here, exam_stored_path
+
+        file_here = _file_here(exam_stored_path(data, level, source_id))
+        pointer.update(format=data.get("format"), file=file_here,
+                       local=file_here or bool((body or "").strip()))
+        pointer["external"] = not pointer["local"]
+    return pointer
 
 
 @router.get("/api/reading/next")

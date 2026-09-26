@@ -33,7 +33,7 @@ export function mountVideo(host, url) {
   host.innerHTML = `<div class="video"><iframe
     src="https://www.youtube-nocookie.com/embed/${esc(id)}"
     title="Eksami tutvustav video — вводное видео об экзамене" loading="lazy" allowfullscreen
-    referrerpolicy="no-referrer"></iframe></div>`;
+    referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
 }
 
 

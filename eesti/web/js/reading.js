@@ -193,7 +193,7 @@ async function openItem(id) {
   // Wrap each word so it can be clicked; non-words pass through untouched.
   $("#readerBody").innerHTML = esc(d.body).replace(
     /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+/g,
-    m => `<w class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
+    m => `<w role="button" tabindex="0" class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
   $("#wordCard").hidden = true;
   show();
   // The questions are a separate request: a text opens whether or not it has any.
@@ -314,5 +314,11 @@ $("#readerBody").addEventListener("click", e => {
   showWordCard(e.target.textContent, $("#wordCard"), w =>
     (($("#readerBody").textContent.match(new RegExp(
       "[^.!?]*" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.!?]*[.!?]"))
-      || [])[0] || "").trim() || null);
+      || [])[0] || "").trim() || null, e.target);
+});
+$("#readerBody").addEventListener("keydown", e => {
+  if (e.target.tagName === "W" && ["Enter", " "].includes(e.key)) {
+    e.preventDefault();
+    e.target.click();
+  }
 });

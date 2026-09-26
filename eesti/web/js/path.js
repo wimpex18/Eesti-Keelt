@@ -515,7 +515,7 @@ async function startPractice({focus = true} = {}) {
   const out = $("#practiceOut"); out.innerHTML = "";
   newSet(pathTally);
   $("#pathScore").textContent = "";
-  const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Загружаю…");
+  const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Laadin…");
   try {
     const body = {count: 10};
     if (pathTopic) body.topic = pathTopic;
@@ -690,11 +690,15 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const lock = () => {
     if (input) input.disabled = true;
     if (check) check.disabled = true;
+    const mic = el.querySelector(".mic");
+    if (mic) mic.disabled = true;
     choices.forEach(b => b.disabled = true);
   };
   const unlock = () => {
     if (input) input.disabled = false;
     if (check) check.disabled = false;
+    const mic = el.querySelector(".mic");
+    if (mic) mic.disabled = false;
     choices.forEach(b => { b.disabled = false; b.classList.remove("picked"); });
   };
   const locked = () => (input ? input.disabled : choices[0]?.disabled);

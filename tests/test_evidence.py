@@ -151,11 +151,22 @@ class TestSignedItems:
             again = regenerate(issued["ref"])
             assert (again.prompt, again.answer) == (it["prompt"], it["answer"])
 
-    def test_a_checkpoint_ref_regenerates_its_item(self, client):
+    @pytest.mark.parametrize("seed", [0, 1, 585213190])
+    def test_a_checkpoint_ref_regenerates_its_item(self, client, monkeypatch, tmp_path, seed):
+        import shutil
+
         from eesti.itemref import regenerate, verify
 
-        items = client.get("/api/checkpoint/A1?count=6").json()["items"]
+        # Start with a cold, isolated form cache; obj-case fills it during the
+        # first checkpoint. Replay must keep exactly the issued item order.
+        words = tmp_path / "cold-words.db"
+        shutil.copyfile(config.DB_PATH, words)
+        monkeypatch.setattr(config, "DB_PATH", words)
+        with sqlite3.connect(words) as conn:
+            conn.execute("DELETE FROM object_cases")
+        items = client.get(f"/api/checkpoint/A1?count=6&seed={seed}").json()["items"]
         assert items
+        assert "pohivormid" in {it["topic"] for it in items}
         for it in items:
             again = regenerate(verify(it["token"])["ref"])
             assert (again.prompt, again.answer) == (it["prompt"], it["answer"])

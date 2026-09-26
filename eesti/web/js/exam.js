@@ -6,6 +6,7 @@ import {paintMock} from "./mock.js";
 import {newTally, renderPracticeItem} from "./path.js";
 import {loadRail} from "./review.js";
 import {examLevel, setExamLevel} from "./state.js";
+import {YT, mountVideo} from "./media.js";
 
 /* One petal per part, in the flower's own shape: a tick when there is contact, a
    bar when there is none, dashed and questioned when the app cannot tell. */
@@ -195,7 +196,8 @@ export async function loadExam() {
       <p class="why">${esc(why)}</p>` + items.map(linkRow).join("") + `</div>`;
   }
   for (const [part, items] of Object.entries(material.ulesanded || {})) {
-    out += `<div class="kindgroup"><h3 lang="et">${esc(part)} — ${items.length}</h3>` +
+    const name = spec?.parts.find(p => p.id === part)?.et || part;
+    out += `<div class="kindgroup"><h3 lang="et">${esc(name)} — ${items.length}</h3>` +
       items.map(linkRow).join("") + `</div>`;
   }
   /* Whatever no group above claimed. `exam_material` returns unknown kinds in
@@ -215,7 +217,11 @@ export async function loadExam() {
 
 /* A downloaded task opens here; anything not downloaded still links out
    (`cli harvest-exam --download`). */
-const linkRow = it => it.local
+const linkRow = it => YT.test(it.url || "")
+  ? `<div class="lib-item"><button class="linky" data-video="${esc(it.url)}"
+       lang="${langOf(it.title)}">${esc(it.title)}</button>
+       <span class="lib-meta">video · в приложении</span></div>`
+  : it.local
   ? `<div class="lib-item">
        <button class="linky" data-task="${esc(it.id)}" data-fmt="${esc(it.format || "")}"
                data-file="${it.file ? 1 : 0}"
@@ -377,13 +383,22 @@ document.addEventListener("click", e => {
     }
     return;
   }
-  const b = e.target.closest("#tab-exam button[data-task]");
+  const b = e.target.closest("#tab-exam button[data-task], #tab-vihikud button[data-task], #tab-exam button[data-video], #tab-vihikud button[data-video]");
   if (!b) return;
   const row = b.closest(".lib-item");
   // A second click closes what the first opened.
   const open = row.nextElementSibling;
   if (open && open.classList.contains("exam-task")) open.remove();
-  else openTask(row, b.dataset.task, b.dataset.fmt, b.dataset.file === "1");
+  else if (b.dataset.video) {
+    const box = document.createElement("div");
+    box.className = "exam-task";
+    box.innerHTML = `<button class="ghost" lang="et">Sulge <span class="ru" lang="ru">закрыть</span></button>
+      <a class="hint" href="${esc(b.dataset.video)}" target="_blank" rel="noopener" lang="et">Allikas</a>
+      <div data-player></div>`;
+    row.after(box);
+    mountVideo(box.querySelector("[data-player]"), b.dataset.video);
+    box.querySelector("button").onclick = () => { box.remove(); b.focus(); };
+  } else openTask(row, b.dataset.task, b.dataset.fmt || "", b.dataset.file === "1");
 });
 
 
@@ -398,7 +413,7 @@ document.querySelectorAll("#tab-exam .levels button").forEach(b => b.onclick = (
 
 export async function loadVihikud() {
   const d = await (await api("/api/library?skill=eksam&limit=40", null, "GET")).json();
-  const rows = (d.items || []).filter(i => i.external);
+  const rows = (d.items || []).filter(i => i.external || i.local);
   $("#vihikudList").innerHTML = rows.length
     ? rows.map(linkRow).join("")
     : emptyState({

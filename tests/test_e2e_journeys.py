@@ -192,17 +192,22 @@ def _pw(request, chromium_path):
 #: The two viewports: phone (the main use) and desktop.
 VIEWPORTS = {
     "desktop": {"viewport": {"width": 1440, "height": 900}},
-    "phone": {"viewport": {"width": 390, "height": 844},
+    "phone": {"viewport": {"width": 393, "height": 852},
               "is_mobile": True, "has_touch": True},
 }
 
 
+@pytest.fixture
+def service_workers():
+    return "allow"
+
+
 @pytest.fixture(params=list(VIEWPORTS), ids=list(VIEWPORTS))
-def page(request, _pw, live_server):
+def page(request, _pw, live_server, service_workers):
     """A page at one viewport, with console errors, page errors and 5xx responses
     collected for assertions.
     """
-    context = _pw.new_context(**VIEWPORTS[request.param])
+    context = _pw.new_context(service_workers=service_workers, **VIEWPORTS[request.param])
     pg = context.new_page()
     pg.errors, pg.failed_requests = [], []
     pg.on("pageerror", lambda e: pg.errors.append(str(e)[:300]))
@@ -383,7 +388,10 @@ class TestTheGrammarDrill:
         first = item.locator(".verdict").inner_text()
         assert item.locator("input").is_disabled(), "graded item still accepts input"
         # The check button is spent with the item, so a second submission has no way in.
-        assert item.locator("button").is_disabled(), "graded item's check button is live"
+        assert item.get_by_role("button", name="Kontrolli", exact=False, include_hidden=True).is_disabled(), "graded item's check button is live"
+        mic = item.locator(".mic")
+        if mic.count():
+            assert mic.is_disabled(), "graded item's microphone is live"
         item.locator("input").press("Enter")
         page.wait_for_timeout(400)
         assert item.locator(".verdict").inner_text() == first
@@ -826,6 +834,106 @@ class TestMobileLayout:
 
 
 class TestDiscoveredDefects:
+    @pytest.fixture
+    def service_workers(self):
+        # WebKit's worker forwards requests outside Playwright's route hooks.
+        # Stubbed regressions need page requests; offline journeys keep the worker.
+        return "block"
+
+    def test_long_word_card_keeps_close_and_actions_reachable(self, page):
+        """A long EKI entry must scroll inside its card above the phone dock."""
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={
+            "found": True, "definition": "Näide", "examples": ["See on raamat."] * 40,
+        }))
+        open_tab(page, "revise", "sonad")
+        word = page.locator("#vocOut button[data-word]").first
+        word.wait_for(state="visible")
+        word.click()
+        page.wait_for_selector("#vocCard .examples li")
+        page.locator("#vocCard #skipBtn").focus()
+        assert page.locator("#vocCard #skipBtn").evaluate("""el => {
+            const r = el.getBoundingClientRect();
+            return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        }""")
+        close = page.locator("#vocCard .card-close")
+        assert close.evaluate("""el => {
+            const r = el.getBoundingClientRect();
+            return r.width >= 44 && r.height >= 44 &&
+              el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        }""")
+        close.click()
+        assert page.locator("#vocCard").is_hidden()
+        assert not page.errors, page.errors
+
+    def test_exam_video_opens_in_the_app(self, page, live_server):
+        page.route("https://www.youtube-nocookie.com/embed/*", lambda r: r.fulfill(
+            content_type="text/html", body="<html><body>Video</body></html>"))
+        open_tab(page, "exam", "exam")
+        video = page.locator("#examMaterial button[data-video]").first
+        video.wait_for(state="visible")
+        with page.expect_request("https://www.youtube-nocookie.com/embed/*") as embed:
+            video.click()
+        # YouTube rejects unidentified embeds with error 153. Send only the
+        # app's origin, never its reading route or sentence.
+        assert embed.value.all_headers().get("referer") == live_server + "/"
+        iframe = page.locator("#examMaterial .exam-task iframe")
+        iframe.wait_for(state="attached")
+        assert iframe.get_attribute("src").startswith("https://www.youtube-nocookie.com/embed/")
+        page.locator("#examMaterial .exam-task button").click()
+        assert iframe.count() == 0
+        assert not page.errors, page.errors
+
+    def test_word_card_can_close_before_lookup_returns(self, page):
+        """A slow dictionary must not trap the learner or reopen a dismissed card."""
+        pending = []
+        page.route("**/api/lookup/*", lambda route: pending.append(route))
+        open_tab(page, "revise", "sonad")
+        word = page.locator("#vocOut button[data-word]").first
+        word.wait_for(state="visible")
+        word.click()
+        close = page.get_by_role("button", name="Sulge — закрыть", exact=True)
+        close.wait_for(state="visible")
+        assert pending
+        close.press("Escape")
+        assert page.locator("#vocCard").is_hidden()
+        assert word.evaluate("el => el === document.activeElement")
+        pending[0].fulfill(json={"found": False, "word": "test"})
+        page.wait_for_load_state("networkidle")
+        assert page.locator("#vocCard").is_hidden()
+        assert not page.errors, page.errors
+
+    def test_downloaded_workbook_opens_here_and_undownloaded_links_out(self, page):
+        page.route("**/api/library?skill=eksam*", lambda r: r.fulfill(json={"items": [
+            {"id": "qa-vihik", "title": "Konsultatsioonivihik", "external": False,
+             "local": True, "format": "pdf", "file": True},
+            {"id": "qa-external", "title": "Muu vihik", "external": True,
+             "local": False, "format": "pdf", "url": "https://harno.ee/vihik.pdf"},
+        ]}))
+        page.route("**/api/exam/text/qa-vihik", lambda r: r.fulfill(json={"available": False}))
+        page.route("**/api/exam/native/qa-vihik", lambda r: r.fulfill(json={"available": False}))
+        page.route("**/api/exam/pages/qa-vihik", lambda r: r.fulfill(json={"pages": 1}))
+        page.route("**/api/exam/page/qa-vihik/*", lambda r: r.fulfill(
+            content_type="image/svg+xml", body='<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120"><rect width="100" height="120" fill="white"/></svg>'))
+        open_tab(page, "revise", "vihikud")
+        page.get_by_role("button", name="Konsultatsioonivihik", exact=True).click()
+        page.locator("#vihikudList .exam-pages img").wait_for(state="visible")
+        assert page.get_by_role("link", name="Muu vihik", exact=True).get_attribute("href") == "https://harno.ee/vihik.pdf"
+        page.locator("#vihikudList .exam-task [data-close]").click()
+        assert page.locator("#vihikudList .exam-task").count() == 0
+        assert not page.errors, page.errors
+
+    def test_model_success_is_not_presented_as_deterministic_form_analysis(self, page):
+        page.route("**/api/check", lambda r: r.fulfill(json={
+            "corrections": [], "engine": "llm:workers-ai", "degraded": False}))
+        open_tab(page, "learn", "write")
+        page.fill("#text", "Ma elan Tallinnas.")
+        page.click("#checkBtn")
+        page.wait_for_selector("#checkOut .engine")
+        text = page.locator("#checkOut").inner_text()
+        assert "Модель не предложила исправлений" in text
+        assert "не подтверждение правильности" in text
+        assert "Разбор форм" not in text
+
     """Routing and preference behaviours a learner relies on."""
 
     def test_a_reload_keeps_you_where_you_were(self, page):
