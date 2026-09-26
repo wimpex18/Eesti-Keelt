@@ -18,7 +18,9 @@ diagram below against the page in both directions.
 └── Kirjutamine   grammar check through the provider chain, back-translation
 
 Kordamine — "what am I forgetting?"
-├── Järjekord     the FSRS queue: wrong answers and words mined from reading
+├── Järjekord     the FSRS queue: wrong answers and words mined from reading; a
+│                 word's card shows an EVS phrase and, from its second review,
+│                 asks for it to be built from tiles (Koosta fraas)
 ├── Sõnavara      the word list by CEFR level and part of speech, commonest first
 └── Töövihikud    official HARNO workbooks (PDF pages in-app when downloaded)
 

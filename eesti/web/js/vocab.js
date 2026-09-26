@@ -2,7 +2,8 @@
 
 import {$, api, esc} from "./core.js";
 import {icon} from "./icons.js";
-import {retryableError, skeleton, uiIcon} from "./chrome.js";
+import {navIcon, retryableError, skeleton, uiIcon} from "./chrome.js";
+import {sayable, speakWord, withSlots} from "./media.js";
 import {refreshDueBadge} from "./review.js";
 
 /* A form's name as the exam says it, with its Russian gloss beside it. */
@@ -10,16 +11,79 @@ const tagLabel = t => t.ru
   ? `<span lang="et">${esc(t.name)} <i class="ru" lang="ru">${esc(t.ru)}</i></span>` : esc(t.name);
 
 
+/* EVS's example phrases, each Estonian with EKI's Russian under it. An open
+   slot (`{kelle}`) is set in italics: the phrase leaves it for the learner to
+   fill. Three show; the rest (all of them — `käima` has
+   144) are folded into a scrolling list, since the card is a reminder. */
+const SHOWN_PHRASES = 3;
+
+function phraseItem(p) {
+  // A phrase with an open slot is not a sentence anyone says; it gets no voice.
+  const say = p.et.includes("{") ? "" :
+    `<button class="iconbtn phrase-say" type="button" data-say="${esc(sayable(p.et))}"
+       title="Kuula — прослушать" aria-label="Kuula — прослушать">${navIcon("speaker-high")}</button>`;
+  return `<li>${say}<span lang="et">${withSlots(p.et)}</span>` +
+    `<span class="gloss" lang="ru">${withSlots(p.ru)}</span></li>`;
+}
+
+/* Idioms (väljendid) are folded whole: an idiom is worth knowing once the word
+   is, and it does not mean what its words say. */
+function phrasesHtml(phrases, idioms = []) {
+  const head = phrases.slice(0, SHOWN_PHRASES), rest = phrases.slice(SHOWN_PHRASES);
+  let html = "";
+  if (head.length) html += `<h4 lang="et">Näited <i class="ru" lang="ru">с переводом</i></h4>` +
+    `<ul class="phrase-list">${head.map(phraseItem).join("")}</ul>`;
+  if (rest.length) {
+    html += `<details class="fuller"><summary lang="et">veel ${rest.length} näidet</summary>` +
+      `<ul class="phrase-list">${rest.map(phraseItem).join("")}</ul></details>`;
+  }
+  if (idioms.length) {
+    html += `<details class="fuller"><summary lang="et">Väljendid (${idioms.length})
+        <i class="ru" lang="ru">выражения</i></summary>` +
+      `<ul class="phrase-list">${idioms.map(phraseItem).join("")}</ul></details>`;
+  }
+  html += `<div class="hint phrase-note" hidden></div>` +
+    `<div class="attrib" lang="et">näited: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
+  return html;
+}
+
+
+/* One reading of the word: lemma, level, what the form is. In a sentence, the
+   reading the sentence uses is marked and its form comes first; a word with no
+   form to name (`kus`, `aga`) shows its part of speech instead. */
+function analysisHtml(a, chosen = false) {
+  const tags = a.tags.length
+    ? a.tags.map(t => t.in_context ? `<b>${tagLabel(t)}</b>` : tagLabel(t)).join(" · ")
+    : a.pos_name ? `<span lang="et">${esc(a.pos_name)} <i class="ru" lang="ru">${esc(a.pos_ru)}</i></span>` : "";
+  return `
+    <div class="lemma" lang="et">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
+    ${chosen ? `<div class="in-context" lang="et">selles lauses <i class="ru" lang="ru">в этом предложении</i></div>` : ""}
+    ${tags ? `<div class="tags" lang="et">${tags}</div>` : ""}
+    ${a.object_case_contrast ? `<div class="pair" lang="et">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
+      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`;
+}
+
 async function fillWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
+  /* Which word the card is showing now. A lookup or enrichment that returns after
+     the learner has tapped another word belongs to the old one and is dropped,
+     instead of landing its meaning under the new word. */
+  const shown = String(Math.random());
+  card.dataset.shown = shown;
+  const stale = () => card.dataset.shown !== shown;
+  // The sentence the word was met in, so the card can say which reading it is.
+  const sentence = contextFor ? contextFor(word) : null;
+  const query = sentence ? "?sentence=" + encodeURIComponent(sentence.slice(0, 400)) : "";
   let d;
   try {
-    d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
+    d = await (await api("/api/lookup/" + encodeURIComponent(word) + query, null, "GET")).json();
   } catch (e) {
+    if (stale()) return;
     card.replaceChildren(retryableError(e.message, () => showWordCard(word, card, contextFor)));
     return;
   }
+  if (stale()) return;
   /* `found:false` covers two answers: the word is absent from the lexicon, or the
      lookup could not run (`error`, e.g. the forms table was never exported). The
      second must not read as "not found". */
@@ -45,17 +109,25 @@ async function fillWordCard(word, card, contextFor) {
     <div class="hint">«<span lang="et">Tean</span>» — выучено, идёт в счёт. «<span lang="et">Pole vaja</span>» — не предлагать,
       в счёт не идёт.</div>
     <div id="mineNote"></div>`;
-  card.innerHTML = d.analyses.slice(0, 2).map(a => `
-    <div class="lemma" lang="et">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
-    <div class="tags" lang="et">${a.tags.map(tagLabel).join(" · ")}</div>
-    ${a.object_case_contrast ? `<div class="pair" lang="et">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
-      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>") + mineBtn;
+  /* With the sentence's reading known, it is the card; the other readings are
+     one quiet line, since the sentence has already chosen. */
+  const others = d.in_context ? d.analyses.slice(1) : [];
+  const otherName = a => a.tags[0] ? `${a.lemma} (${a.tags[0].name})` : a.lemma;
+  const otherLine = others.length
+    ? `<div class="hint other-readings" lang="et">muud võimalused:
+        ${esc(others.map(otherName).join(", "))}</div>` : "";
+  // "In this sentence" only where there was a choice to make.
+  const ambiguous = d.analyses.length > 1 || d.analyses[0].tags.length > 1;
+  const readings = d.in_context
+    ? analysisHtml(d.analyses[0], ambiguous) + otherLine
+    : d.analyses.slice(0, 2).map(a => analysisHtml(a))
+        .join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>");
+  card.innerHTML = readings + mineBtn;
 
   // Mining the word queues the GRAMMAR pattern behind it, with the sentence as
   // context — not a translation. Refusals explain themselves.
   card.querySelector("#mineBtn").onclick = async e => {
     e.target.disabled = true;
-    const sentence = contextFor ? contextFor(word) : null;
     const note = card.querySelector("#mineNote");
     try {
       const r = await (await api("/api/mine", {word, context: sentence || null})).json();
@@ -82,7 +154,7 @@ async function fillWordCard(word, card, contextFor) {
   api("/api/enrich/" + encodeURIComponent(enrichLemma), null, "GET")
     .then(r => r.json())
     .then(x => {
-      if (!x.found) return;
+      if (!x.found || stale()) return;
       const bits = [];
       if (x.governs?.length) bits.push(`<span lang="et">rektsioon: <b>${esc(x.governs.join(", "))}</b></span>`);
       if (x.inflection_type) bits.push(`<span lang="et">muuttüüp <b>${esc(String(x.inflection_type))}</b></span>`);
@@ -149,6 +221,21 @@ async function fillWordCard(word, card, contextFor) {
         const box = document.createElement("div");
         box.className = "pair meaning";
         box.innerHTML = meaning.join("");
+        slot.append(box);
+      }
+      if (x.phrases?.length || x.idioms?.length) {
+        const box = document.createElement("div");
+        box.className = "pair meaning phrases";
+        box.innerHTML = phrasesHtml(x.phrases || [], x.idioms || []);
+        box.addEventListener("click", e => {
+          const b = e.target.closest("[data-say]");
+          // A failed voice is said under the list, where a phone shows it.
+          if (b) speakWord(b.dataset.say, msg => {
+            const note = box.querySelector(".phrase-note");
+            note.textContent = msg;
+            note.hidden = false;
+          });
+        });
         slot.append(box);
       }
       if (bits.length) {

@@ -17,7 +17,7 @@ from pathlib import Path
 from estnltk.vabamorf.morf import synthesize
 
 from .config import DATA
-from .morph import case_forms
+from .morph import _readings, case_forms
 from .wordlist import declines
 
 # The 28 nominal case/number combinations. Object case needs sg g / sg p, but
@@ -96,6 +96,18 @@ def _tags_for(pos: str | None) -> tuple[str, ...]:
     return tuple(sorted(tags))
 
 
+def _reads_back(form: str, lemma: str, tag: str) -> bool:
+    """Whether Vabamorf, analysing `form`, finds `lemma` in `tag`.
+
+    `synthesize` answers every request: an adverb gets fourteen "plural cases"
+    that are all `kus`, and a postposition a plural (`aadressilideta`). About
+    one generated row in five is such an invention; a form Vabamorf cannot read
+    back is not one the card may name.
+    """
+    return any(l.casefold() == lemma.casefold() and f == tag
+               for l, f in _readings(form))
+
+
 def export(
     src: sqlite3.Connection,
     dest_path: Path | None = None,
@@ -119,9 +131,13 @@ def export(
         seen: set[tuple[str, str]] = set()
         for tag in _tags_for(pos):
             for form in synthesize(lemma, tag) or []:
-                if (form, tag) not in seen:
+                if (form, tag) not in seen and _reads_back(form, lemma, tag):
                     seen.add((form, tag))
                     form_rows.append((form, lemma, tag))
+        # A word with no form that reads back (`kus`, `aga`, `aitäh`, `WC`) is
+        # still a word: it is listed once, as itself, with no invented tag.
+        if not seen:
+            form_rows.append((lemma.lower(), lemma, ""))
 
         # Only words that decline get a citation form: Vabamorf synthesises paradigms for
         # adverbs and imperatives too (`alguses` → `algusese`).

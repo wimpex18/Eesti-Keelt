@@ -36,13 +36,14 @@ def from_reading(
     """
     from .lookup import lookup
 
-    found = lookup(word)
+    found = lookup(word, context)
     if not found.get("found"):
         return MineResult(False, f"«{word}» — такого слова в словаре нет")
 
     analyses = found["analyses"]
-    # Prefer a reading that actually carries an object-case contrast.
-    best = next(
+    # The reading the sentence uses (`mulle` in *Anna mulle* is `mina`, not the
+    # bubble); without one, a reading that carries an object-case contrast.
+    best = next((a for a in analyses if a.get("in_context")), None) or next(
         (a for a in analyses if a.get("object_case_contrast")), analyses[0]
     )
     lemma = best["lemma"]

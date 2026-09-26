@@ -1,0 +1,7 @@
+# Optional, owner's machine only: TalTech's Voxtral Realtime Estonian as the first
+# speech lane of `cli serve` (eesti/evals/asr_voxtral.py). Never in the image.
+# Also set VOXTRAL_RT_MODEL to the downloaded model directory (8.9 GB).
+torch
+transformers>=5.2
+mistral-common[audio]
+av

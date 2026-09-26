@@ -111,6 +111,7 @@ def available() -> dict:
         "huggingface": bool(os.environ.get("HF_TOKEN")),
         "local": bool(binary and model),
         "voxtral": all(_voxtral_paths()),
+        "voxtral-rt": _voxtral_rt_ready(),
     }
     return {
         **engines,
@@ -270,6 +271,25 @@ def _hosted(audio: bytes, mime: str = "audio/wav") -> Transcript | None:
     return Transcript(text.strip(), f"{HF_MODEL} (üldmudel)")
 
 
+def _voxtral_rt_ready() -> bool:
+    """`VOXTRAL_RT_MODEL` names a local model directory and PyTorch is importable."""
+    where = os.environ.get("VOXTRAL_RT_MODEL")
+    if not where or not Path(where).is_dir():
+        return False
+    import importlib.util
+
+    return all(importlib.util.find_spec(m) for m in ("torch", "transformers", "av"))
+
+
+def _voxtral_rt(audio: bytes) -> Transcript | None:
+    from ..evals.asr_voxtral import transcribe as voxtral_rt
+
+    try:
+        return voxtral_rt(audio)
+    except Exception as exc:  # noqa: BLE001 - a local engine failing is a skipped lane
+        return Transcript("", "voxtral-rt", degraded=True, note=str(exc)[:300])
+
+
 def engines(audio: bytes, mime: str = "audio/wav", context: str = "") -> tuple:
     """`(name, call)` for every engine, in the order the chain tries them.
 
@@ -277,7 +297,12 @@ def engines(audio: bytes, mime: str = "audio/wav", context: str = "") -> tuple:
     how two of them are compared before a swap (`eesti/evals/asr.py`).
     """
     suffix = ".wav" if "wav" in mime else ".webm" if "webm" in mime else ".ogg"
-    return (
+    # TalTech's Voxtral Realtime leads when this machine has it (`VOXTRAL_RT_MODEL`
+    # and PyTorch): on the 26 Sep 2026 bench it misheard a third as many words
+    # as Workers AI (docs/asr-evaluation.md). An explicit local opt-in, never
+    # set on Cloud Run; everywhere else the chain starts at Workers AI.
+    local_first = (("voxtral-rt", lambda: _voxtral_rt(audio)),) if _voxtral_rt_ready() else ()
+    return local_first + (
         ("workers-ai", lambda: _cloudflare(audio, context)),
         ("openrouter-audio", lambda: _openrouter(audio, mime, context)),
         ("hf-whisper", lambda: _hosted(audio, mime)),
@@ -288,7 +313,7 @@ def engines(audio: bytes, mime: str = "audio/wav", context: str = "") -> tuple:
 
 #: The engines by name, for `--engine` on the eval.
 NAMES = ("workers-ai", "openrouter-audio", "hf-whisper", "whisper.cpp", "voxtral")
-EVAL_NAMES = (*NAMES, "faster-whisper")
+EVAL_NAMES = (*NAMES, "faster-whisper", "voxtral-rt")
 
 
 def transcribe_with(name: str, audio: bytes, mime: str = "audio/wav",
@@ -298,6 +323,10 @@ def transcribe_with(name: str, audio: bytes, mime: str = "audio/wav",
         from ..evals.asr_reference import transcribe as reference
 
         return reference(audio)
+    if name == "voxtral-rt":
+        from ..evals.asr_voxtral import transcribe as voxtral_rt
+
+        return voxtral_rt(audio)  # raises, so a comparison never scores a silent skip
     for engine, call in engines(audio, mime, context):
         if engine == name:
             return call()

@@ -195,6 +195,7 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
 
     asked = [q.word for q in QUESTIONS]
     cues = evs.question_senses(path, asked)
+    phrases = evs.parse_examples(path)
 
     if args.check:
         sample = {e.lemma: e for e in entries}
@@ -203,13 +204,19 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
             if word in sample:
                 print(f"    {word}: {', '.join(sample[word].russian)}")
         print(f"  {len(cues)} of {len(asked)} question words with a Russian cue")
+        idioms = sum(p.kind == evs.IDIOM for p in phrases)
+        print(f"  {len(phrases) - idioms:,} example phrases and {idioms:,} idioms with Russian")
         print("  Nothing was written. Drop --check to import.")
         return 0
 
     conn = connect()
     stats = evs.store(conn, entries)
     evs.store_questions(conn, cues)
+    evs.store_examples(conn, phrases)
     print(f"  {stats['entries']:,} lemmas with Russian stored")
+    idioms = sum(p.kind == evs.IDIOM for p in phrases)
+    print(f"  {len(phrases) - idioms:,} example phrases (näited) and {idioms:,} idioms "
+          "(väljendid) with Russian stored")
     print(f"  {len(cues)} of {len(asked)} question words with a Russian cue "
           "(küsisõnad)")
     print("  Source: Eesti-vene sõnaraamat, EKI, CC BY 4.0.")
@@ -419,6 +426,19 @@ def cmd_asr_verify(args: argparse.Namespace) -> int:
                 accepted=args.accepted, focus=tuple(args.focus or ()),
                 tags=tuple(args.tag or ()), question=args.question)
     print("Verified transcript sealed to this recording; edits require verification again.")
+    return 0
+
+
+def cmd_asr_bench(args: argparse.Namespace) -> int:
+    """Build the ready-made speech benchmark (`eesti/evals/asr_bench.py`)."""
+    from ..evals.asr_bench import build
+
+    result = build(args.folder, native=args.native)
+    print(f"  {result['native']} native EKI sentences, {result['planted']} synthetic "
+          f"sentences with a planted error, {result['controls']} synthetic controls")
+    print(f"  -> {result['folder']}")
+    print("  Compare two engines: python -m eesti.cli eval --suite asr "
+          f"--folder {result['folder']} --engine workers-ai --engine voxtral-rt")
     return 0
 
 
@@ -644,6 +664,12 @@ def register(sub) -> None:
     p.add_argument("--tag", action="append", help="slice: names, numbers, hesitation, etc.")
     p.add_argument("--question", default="", help="actual open-answer question context, never target transcript")
     p.set_defaults(func=cmd_asr_verify)
+
+    p = sub.add_parser("asr-bench", help="build a ready-made speech benchmark: EKI "
+                       "native sentences plus synthetic planted-error sentences")
+    p.add_argument("--folder", help="default data/eval/asr-bench")
+    p.add_argument("--native", type=int, default=20, help="EKI sentences to include")
+    p.set_defaults(func=cmd_asr_bench)
 
     p = sub.add_parser("eval", help="score an engine: grammar, or speech recognition")
     p.add_argument(

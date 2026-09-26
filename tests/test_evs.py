@@ -180,8 +180,155 @@ class TestTheCardPrefersEki:
     def test_the_card_credits_eki_only_when_eki_answered(self):
         card = (ROOT / "eesti" / "web" / "js" / "vocab.js").read_text(encoding="utf-8")
         guard = card.index('russian_source === "eki-evs"')
-        credit = card.index("EKI eesti-vene sõnaraamat")
+        credit = card.index("EKI eesti-vene sõnaraamat", guard)
         assert 0 < credit - guard < 200
+
+
+EXAMPLES = (
+    '<x:A x:KF="ev21"><x:P><x:mg><x:m x:O="aadress">aadress</x:m><x:sl>s</x:sl>'
+    '</x:mg></x:P><x:S><x:tp x:tnr="1"><x:tg><x:xp xml:lang="ru"><x:xg><x:x>'
+    '"адрес</x:x></x:xg></x:xp></x:tg><x:np>'
+    '<x:ng><x:n>saatja aadress</x:n><x:qnp><x:qng xml:lang="ru"><x:qn>"адрес '
+    'отправ"ителя</x:qn></x:qng><x:qng xml:lang="ru"><x:qn>обр"атный "адрес</x:qn>'
+    '</x:qng><x:qng xml:lang="ru"><x:qn>тр"етий</x:qn></x:qng></x:qnp></x:ng>'
+    '<x:ng><x:n>kriitika <x:r>kelle/mille</x:r> aadressil</x:n><x:qnp>'
+    '<x:qng xml:lang="ru"><x:qn>кр"итика в <x:xr>чей</x:xr> "адрес</x:qn>'
+    '<x:vrek>кого</x:vrek></x:qng></x:qnp></x:ng>'
+    '<x:ng><x:n w="nn">aadressbüroo</x:n><x:qnp><x:v>aj</x:v><x:qng xml:lang="ru">'
+    '<x:qn>адр"есное бюр"о</x:qn></x:qng></x:qnp></x:ng>'
+    '<x:ng><x:n>vana aadress</x:n><x:qnp><x:qng xml:lang="ru"><x:qn>стар"инный '
+    '"адрес</x:qn><x:s>van</x:s></x:qng></x:qnp></x:ng>'
+    '</x:np></x:tp></x:S><x:F><x:fg><x:f>aadressi <x:r>kellele</x:r> täpsustama</x:f>'
+    '<x:fqnp><x:fqng xml:lang="ru"><x:qf>уточн"ить "адрес</x:qf><x:vrek>кому</x:vrek>'
+    '</x:fqng></x:fqnp></x:fg></x:F></x:A>\n'
+)
+
+
+class TestExamplePhrases:
+    """EVS's example phrases, each with its Russian: the word card's *Näited*."""
+
+    @pytest.fixture
+    def phrases(self, tmp_path):
+        path = tmp_path / "evs.xml"
+        path.write_text(REAL_SHAPE + EXAMPLES, encoding="utf-8")
+        return evs.parse_examples(path)
+
+    def test_a_phrase_keeps_its_russian_without_marks(self, phrases):
+        assert evs.Example("iga", "küps iga", "зрелый возраст") in phrases
+
+    def test_two_renderings_at_most(self, phrases):
+        got = next(p for p in phrases if p.estonian == "saatja aadress")
+        assert got.russian == "адрес отправителя; обратный адрес"
+
+    def test_an_open_slot_is_kept_in_braces(self, phrases):
+        got = next(p for p in phrases if "kriitika" in p.estonian)
+        assert got.estonian == "kriitika {kelle/mille} aadressil"
+        assert got.russian == "критика в {чей} адрес"
+
+    def test_estonian_keeps_its_quotation_marks(self, tmp_path):
+        path = tmp_path / "evs.xml"
+        path.write_text(
+            '<x:A><x:P><x:mg><x:m>hinne</x:m></x:mg></x:P><x:S><x:tp><x:np><x:ng>'
+            '<x:n>tegi eksami hindele "väga hea"</x:n><x:qnp><x:qng xml:lang="ru">'
+            '<x:qn>сдал экз"амен на «отл"ично»</x:qn></x:qng></x:qnp></x:ng></x:np>'
+            '</x:tp></x:S></x:A>\n', encoding="utf-8")
+        assert evs.parse_examples(path) == [evs.Example(
+            "hinne", 'tegi eksami hindele "väga hea"', "сдал экзамен на «отлично»")]
+
+    def test_idioms_are_kept_apart(self, phrases, tmp_path):
+        idiom = evs.Example("aadress", "aadressi {kellele} täpsustama", "уточнить адрес",
+                            evs.IDIOM)
+        assert idiom in phrases
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, phrases)
+        assert evs.examples(conn, "aadress", evs.IDIOM) == [
+            {"et": "aadressi {kellele} täpsustama", "ru": "уточнить адрес"}]
+        assert all(p["et"] != idiom.estonian for p in evs.examples(conn, "aadress"))
+
+    def test_domain_terms_and_archaic_renderings_are_left_out(self, phrases):
+        shown = {p.estonian for p in phrases}
+        assert "aadressbüroo" not in shown and "vana aadress" not in shown
+
+    def test_stored_in_ekis_order_and_served(self, phrases, tmp_path):
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, phrases)
+        evs.store_examples(conn, phrases)
+        assert [p["et"] for p in evs.examples(conn, "aadress")] == [
+            "saatja aadress", "kriitika {kelle/mille} aadressil"]
+        assert evs.examples(conn, "puudub") == []
+
+    def test_a_database_that_never_imported_answers_empty(self, tmp_path):
+        assert evs.examples(wordlist.connect(tmp_path / "empty.db"), "iga") == []
+
+    def test_the_word_card_gets_them_credited(self, client, tmp_path, monkeypatch, phrases):
+        from eesti import config, gloss
+
+        path = tmp_path / "eesti.db"
+        conn = wordlist.connect(path)
+        evs.store_examples(conn, phrases)
+        conn.commit()
+        monkeypatch.setattr(config, "DB_PATH", path)
+        monkeypatch.setattr(config, "VOCAB_DB", tmp_path / "vocab.db")
+        monkeypatch.setattr(gloss, "remember", lambda conn, lemma: None)
+        got = client.get("/api/enrich/iga").json()
+        assert got["found"] is True
+        assert got["phrases"] == [{"et": "küps iga", "ru": "зрелый возраст"}]
+        assert got["phrases_source"] == "eki-evs"
+        card = (ROOT / "eesti" / "web" / "js" / "vocab.js").read_text(encoding="utf-8")
+        assert "näited: EKI eesti-vene sõnaraamat · CC BY 4.0" in card
+
+
+class TestPhrasePractice:
+    """A meaning card in Järjekord shows an EVS phrase, and from the second review
+    asks for it to be built from tiles (`review.js`, `wireBuilder`)."""
+
+    @pytest.mark.parametrize("phrase, ok", [
+        ("kus sa elad?", True),
+        ("lapsed õpivad lugema", True),
+        ("hea arst", False),                         # too short to order
+        ("kriitika {kelle/mille} aadressil", False),  # an open slot
+        ("loeb valjusti / kõvasti", False),          # two answers
+        ("lugesin ajalehest, et ...", False),        # unfinished
+    ])
+    def test_buildable(self, phrase, ok):
+        assert evs.buildable(phrase) is ok
+
+    def test_a_different_phrase_each_review_buildable_first(self, tmp_path):
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, [
+            evs.Example("lugema", "raamatut lugema", "читать книгу"),
+            evs.Example("lugema", "lapsed õpivad lugema", "дети учатся читать"),
+            evs.Example("lugema", "loeb lastele muinasjutte", "он читает детям сказки"),
+        ])
+        seen = [evs.practice_phrase(conn, "lugema", n)["et"] for n in range(3)]
+        assert seen == ["lapsed õpivad lugema", "loeb lastele muinasjutte",
+                        "lapsed õpivad lugema"]
+        assert evs.practice_phrase(conn, "lugema", 0)["build"] is True
+        assert evs.practice_phrase(conn, "puudub", 0) is None
+
+    def test_short_phrases_are_shown_but_not_built(self, tmp_path):
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, [evs.Example("hea", "hea arst", "хороший врач")])
+        assert evs.practice_phrase(conn, "hea", 4) == {
+            "et": "hea arst", "ru": "хороший врач", "build": False}
+
+    def test_the_queue_sends_it_with_meaning_cards_only(self, client, tmp_path, monkeypatch):
+        from eesti import config, review
+
+        path = tmp_path / "eesti.db"
+        conn = wordlist.connect(path)
+        evs.store_examples(conn, [
+            evs.Example("lugema", "lapsed õpivad lugema", "дети учатся читать")])
+        conn.commit()
+        monkeypatch.setattr(config, "DB_PATH", path)
+        monkeypatch.setattr(config, "REVIEW_DB", tmp_path / "review.db")
+        queue = review.connect(tmp_path / "review.db")
+        review.add(queue, kind="vocab", lemma="lugema", prompt="lugema", answer="читать")
+        review.add(queue, kind="obj-case", lemma="lugema", prompt="Ma ____ raamatu.",
+                   answer="lugesin")
+        items = {i["kind"]: i for i in client.get("/api/review").json()["items"]}
+        assert items["vocab"]["phrase"]["et"] == "lapsed õpivad lugema"
+        assert items["obj-case"]["phrase"] is None
 
 
 class TestTheCommand:
@@ -191,7 +338,8 @@ class TestTheCommand:
 
         monkeypatch.setattr(config, "DB_PATH", tmp_path / "own.db")
         assert main(["import-evs", str(xml), "--check"]) == 0
-        assert "3 lemmas with Russian" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "3 lemmas with Russian" in out and "1 example phrases and 0 idioms" in out
         assert evs.imported(wordlist.connect()) == 0
         assert main(["import-evs", str(xml)]) == 0
         assert evs.imported(wordlist.connect()) == 3

@@ -199,6 +199,20 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_asr_serve(args: argparse.Namespace) -> int:
+    """The home speech service (`eesti/asrserver.py`) for the Worker's tunnel."""
+    import os
+
+    import uvicorn
+
+    missing = [n for n in ("VOXTRAL_RT_MODEL", "HOME_ASR_TOKEN") if not os.environ.get(n)]
+    if missing:
+        print(f"Set {', '.join(missing)} first (deploy/home-asr/README.md).", file=sys.stderr)
+        return 1
+    uvicorn.run("eesti.asrserver:app", host=args.host, port=args.port)
+    return 0
+
+
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
     p = sub.add_parser("verify-backup", help="replay a private event export in temporary stores")
@@ -228,6 +242,12 @@ def register(sub) -> None:
     p.add_argument("--force", action="store_true",
                    help="replace an existing pair (silences current subscribers)")
     p.set_defaults(func=cmd_push_keys)
+
+    p = sub.add_parser("asr-serve",
+                       help="home speech service: Voxtral for the deployed app, via a tunnel")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8790)
+    p.set_defaults(func=cmd_asr_serve)
 
     p = sub.add_parser("serve", help="run the local web app")
     p.add_argument("--host", default="127.0.0.1")

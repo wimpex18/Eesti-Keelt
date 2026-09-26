@@ -46,9 +46,11 @@ def check(req: CheckRequest) -> dict:
 
 
 @router.get("/api/lookup/{word}")
-def lookup_word(word: str) -> dict:
-    """Analyse one word: lemma, case, CEFR level, and its object-case pair."""
-    return lookup(word)
+def lookup_word(word: str, sentence: str | None = None) -> dict:
+    """Analyse one word: lemma, case, CEFR level, and its object-case pair; with
+    the sentence it was met in, which reading that sentence uses.
+    """
+    return lookup(word, sentence)
 
 
 class TranslateRequest(BaseModel):
@@ -151,6 +153,11 @@ def _russian(word: str, kept) -> dict:
     return {"russian": found, "russian_source": source}
 
 
+def _same(sentence: str) -> str:
+    """A sentence as compared across dictionaries: no punctuation, no case."""
+    return re.sub(r"[^\w ]", "", sentence).casefold().strip()
+
+
 @router.get("/api/enrich/{word}")
 def enrich_word(word: str) -> dict:
     """Word card enrichment: definition, Russian, rection and muuttüüp.
@@ -177,8 +184,15 @@ def enrich_word(word: str) -> dict:
     live_rection = [p.strip() for p in ((live.rection if live else "") or "").split(",") if p.strip()]
     governs = live_rection or list(simple.rection if simple else ())
     inflection_type = (live.inflection_type if live and live.inflection_type else None) or offline_type
+    # The word in use with EKI's Russian beside it (EVS), offline: the card
+    # shows three and folds the rest.
+    # A phrase the card already shows as a sentence (`Kus sa elad?`) is not
+    # repeated.
+    seen = {_same(e) for e in meaning["examples"]}
+    phrases = [p for p in evs.examples(words, word) if _same(p["et"]) not in seen]
+    idioms = evs.examples(words, word, evs.IDIOM)
     shown = (meaning["definition"] or meaning["examples"] or russian["russian"]
-             or governs or inflection_type)
+             or governs or inflection_type or phrases or idioms)
     return {
         "word": word,
         # Found if any source had something to show.
@@ -194,6 +208,10 @@ def enrich_word(word: str) -> dict:
         # a word card is a reminder, not an entry. Whose Russian wins is
         # `meaning.py`'s call.
         **russian,
+        "phrases": phrases,
+        "phrases_source": "eki-evs" if phrases else None,
+        # EVS's idioms for the word (*väljendid*), with their Russian.
+        "idioms": idioms,
         # The dictionary this app deliberately does not rebuild — one link
         # rather than a scraper the maintainers asked us not to write.
         "sonaveeb": sonapi.entry_url(live.lemma if live else word),

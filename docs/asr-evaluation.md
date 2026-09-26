@@ -16,7 +16,7 @@ checkout, so there is no paired WER or false-accept result supporting a switch
 | [TalTech Whisper verbatim](https://huggingface.co/TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604) | Local paired reference via its official CTranslate2 checkpoint and `faster-whisper`; its name does not guarantee preservation of learner errors. |
 | [TalTech streaming Zipformer](https://huggingface.co/TalTechNLP/streaming-zipformer.et-en) | Possible small local or live-caption trial if partial transcripts become useful. It is not the current comparison engine. |
 | [TalTech Voxtral Mini Estonian](https://huggingface.co/TalTechNLP/Voxtral-Mini-3B-2507-estonian) | Larger instruction-following speech model; requires a separate runtime and error-preservation evaluation. |
-| [TalTech Voxtral Realtime](https://huggingface.co/TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609) | GPU-oriented streaming option; short exercises currently use record-and-submit. |
+| [TalTech Voxtral Realtime](https://huggingface.co/TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609) | 3 Sep 2026, Apache-2.0, 4B parameters in BF16 (8.9 GB), 6.8% WER on the Kõnetõlke benchmark (native broadcast speech, not learners). Streaming needs vLLM on a CUDA GPU; Transformers ≥ 5.2 transcribes whole files. No hosted endpoint (Workers AI offers none) and no MLX or GGUF build of the Estonian weights yet, so it cannot serve the phone app. Its role is a local paired candidate once `Hindamiskomplekt` holds verified clips; short exercises stay record-and-submit. |
 
 [TartuNLP's ASR API](https://github.com/TartuNLP/speech-to-text-api) is an
 asynchronous job stack rather than an established hosted short-answer endpoint
@@ -25,6 +25,34 @@ translation, grammar GEC and ASR are separate services. Model-card scores,
 public native-speech WER and runtime feasibility cannot substitute for a
 paired test on this learner's voice. Any local reference runs on the owner's
 hardware; no additional production inference host is configured.
+
+## A ready-made benchmark
+
+`python -m eesti.cli asr-bench` writes `data/eval/asr-bench/`: 20 EKI
+*kõnekorpus* sentences read by native speakers (EKI's text is the truth), and
+16 TartuNLP-synthesised learner sentences, 12 with one planted error each
+(`Ma ostsin uus auto`, the recogniser must not hand back *uue*) and 4 correct
+controls (`eesti/evals/asr_bench.py`). Truth is known by construction, so the
+seal carries `provenance` instead of a listening confirmation. It ranks engines
+on mishearing and on silent correction before any learner clip exists; it is
+not a learner's voice.
+
+`--engine voxtral-rt` runs TalTech's Voxtral Realtime through Transformers on
+the owner's machine (`eesti/evals/asr_voxtral.py`, `VOXTRAL_RT_MODEL`); it is an
+eval engine only, never in the production chain.
+
+| Engine (26 Sep 2026) | Bench WER | Bench CER | Owner's 8 clips WER | Planted errors "fixed" (bench + owner) | Median latency |
+|---|---|---|---|---|---|
+| Workers AI Whisper turbo (production) | 20.0% | 3.6% | 36.4% | 0 of 15 | 2.8 s (hosted) |
+| TalTech Voxtral Realtime (`voxtral-rt`, Apple M5, MPS, BF16) | 6.5% | 1.0% | 7.3% | 1 of 15 (`vastus` → *vastust*) | 5.4 s bench, 13 s owner (local) |
+
+The owner's set is 8 verified read-aloud clips (3 planted errors), below the
+20-clip pilot floor: a strong signal, not a decision. Voxtral heard the owner's
+accent far better (*õpin*, *piima*, *Tallinnas* where Whisper wrote *ipin*,
+*pima*, *Tallinas*) but once supplied the grammatical form. No free host can
+serve it, so production stays on Workers AI; with `requirements-local-asr.txt`
+installed and `VOXTRAL_RT_MODEL` set, `cli serve` asks Voxtral first
+(`providers/asr.py`).
 
 ## Make a trustworthy private corpus in the app
 

@@ -1,21 +1,24 @@
 # Handoff
 
 ## Current state
-PRs #72–#84 are merged. The production deep smoke passes for the current `main`
+PRs #72–#85 are merged. The production deep smoke passes for the current `main`
 image. Cloud Run has one instance with mounted EKI audio and HARNO exam storage;
-Workers AI GPT-OSS-120B is the automatic grammar/tutor lane with deterministic
-fallback, and Cloudflare Workers AI is production ASR. Native A2/B1 reading
-controls need private sidecars under `data/exam/`.
+Workers AI GPT-OSS-120B is the grammar/tutor lane; Workers AI is production ASR.
 
 ## Current task
-Branch `claude/project-thread-9ji581`: phone polish. The Rada pulse's Eksam
-tile says `не начаты: N` on one line with a 48px flower; the Ülevaade A2/B1
-switch is centred with its line; exam part rows put the contact dashes at the
-row's end; an empty state's actions stack as equal capsules under 720px.
+Branch `claude/evs-examples` (PR #86): the word card's *Näited* shows EVS
+phrases with Russian (`evs_example`, `cli import-evs`), credited to EKI. Meaning
+cards in Järjekord show one phrase and, from the second review, a tile builder
+(*Koosta fraas*, `review.js`). EVS idioms fold under *Väljendid*. The form
+index keeps only forms Vabamorf reads back, and a word tapped in a text is
+looked up with its sentence (*selles lauses*, `lookup.py`). Speech: `cli
+asr-bench` plus the owner's 8 sealed clips; Voxtral Realtime (7% WER vs
+Workers AI 36% on the owner's voice) is the first lane of local `cli serve`
+only (owner chose Mac-only; `requirements-local-asr.txt`, `VOXTRAL_RT_MODEL`).
 
 ## Next step
-User reviews the draft PR on a phone and merges; after deploy run the `smoke`
-workflow with `deep: true`. Uncommitted paths after commit: none.
+User reviews the PR and merges; Cloud Build re-imports EVS in the image. After
+deploy run the `smoke` workflow with `deep: true`. Uncommitted paths: none.
 
 ## Open questions
 Whether to let EstLLM write comprehension questions in local `cli serve`
@@ -23,5 +26,4 @@ Whether to let EstLLM write comprehension questions in local `cli serve`
 lane's token budget: a long sentence returned `empty reply (length)`.
 
 ## Remaining checks
-Actual Chrome reminder delivery, and ASR on learner speech (Kuidas mind
-kuuldakse fills as the learner reads aloud).
+Chrome reminder delivery; 12 more owner clips to reach the ASR pilot floor.

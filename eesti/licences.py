@@ -309,15 +309,22 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "the learner's `word_gloss`. The same import stores `evs_question`: "
         "for each küsisõnad answer word, the Russian of the sense EVS "
         "illustrates with a direct question (`kus` → где), shown as the cue "
-        "for the drill's blank. Same terms as EKI's other downloads: "
+        "for the drill's blank, and `evs_example`: EVS's example phrases and idioms, "
+        "each with EKI's Russian, shown under *Näited* on the word card and "
+        "on meaning cards in Järjekord, where one can be built from tiles. "
+        "Same terms as EKI's other downloads: "
         "process and present it any way needed, with the attribution kept "
         "and the changes described.",
         changes="Из словарной статьи взяты заглавное слово, часть речи и не "
                 "более пяти русских переводов — по одному на значение, затем "
                 "следующие. Отброшены пометы ударения и вида, устаревшие "
-                "переводы, формы, управление и переведённые примеры. Для "
+                "переводы, формы и управление. Для "
                 "вопросительных слов (küsisõnad) отдельно взяты переводы "
-                "того значения, пример к которому — прямой вопрос.",
+                "того значения, пример к которому — прямой вопрос. Примеры "
+                "употребления взяты с русским переводом (не более двух "
+                "вариантов), без помет ударения и вида; устаревшие переводы "
+                "и специальные термины с пометой области отброшены, "
+                "свободное место в примере выделено курсивом.",
     ),
     Source(
         "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,

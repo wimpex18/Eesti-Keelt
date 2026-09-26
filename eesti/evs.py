@@ -5,8 +5,9 @@ lemmas with Russian, so a word card has Russian offline, over budget, or with
 the live dictionary down.
 
 Kept: headword, part of speech, at most `MAX_RUSSIAN` translations. Dropped:
-Russian grammar notes, government (`vrek`), example phrases, and archaic (`van`)
-translations.
+Russian grammar notes, government (`vrek`) and archaic (`van`) translations.
+The example phrases, each with EKI's Russian, are kept apart in `evs_example`
+(`examples()`): the word in use, not what it means.
 
 **Order:** EKI's order within an article, neutral before labelled; across
 homonyms, the word with the most senses leads (`_merge`).
@@ -318,3 +319,189 @@ def imported(conn: sqlite3.Connection) -> int:
         return conn.execute("SELECT COUNT(*) FROM evs_gloss").fetchone()[0]
     except sqlite3.Error:
         return 0
+
+
+# ---------------------------------------------------------------------------
+# Example phrases: the word in use, with EKI's Russian beside it
+# ---------------------------------------------------------------------------
+
+#: A slot the phrase leaves open, EVS's `<r>` (`kriitika <r>kelle/mille</r>
+#: aadressil`) and its Russian `<xr>` (`в <xr>чей</xr> адрес`), is kept in
+#: braces; the card sets it in italics. EVS itself never uses a brace.
+SLOT = "{{{}}}"
+
+#: How many alternative Russian renderings one phrase keeps (`olen sellest
+#: kusagilt lugenud` → "я где-то читал об этом", then a colloquial variant).
+MAX_RENDERINGS = 2
+
+
+#: The two kinds of phrase EVS gives a word: a usage example (`np/ng`) and an
+#: idiom (`F/fg`, *väljend*: `abistavat kätt sirutama` "протягивать руку помощи").
+EXAMPLE, IDIOM = "näide", "väljend"
+
+
+@dataclass(frozen=True)
+class Example:
+    lemma: str
+    estonian: str
+    russian: str
+    kind: str = EXAMPLE
+
+
+def _flatten(node, slot_tags: tuple[str, ...], russian: bool = False) -> str:
+    """A phrase as text, with its open slots in braces. On the Russian side EVS's
+    stress (`"`) and aspect (`*`) marks go; an Estonian phrase keeps its quotation
+    marks (`tegi eksami hindele "väga hea"`).
+    """
+    out: list[str] = [node.text or ""]
+    for child in node:
+        inner = ekixml.text(child)
+        if child.tag in slot_tags and inner:
+            out.append(" " + SLOT.format(inner) + " ")
+        elif child.tag not in ("s", "vrek"):
+            out.append(inner)
+        out.append(child.tail or "")
+    shell = type(node)(node.tag)
+    shell.text = "".join(out)
+    text = ekixml.text(shell)
+    if russian:
+        text = text.replace('"', "").replace("*", "")
+    return text.replace("[]", "").replace("{ ", "{").replace(" }", "}").strip()
+
+
+def _example(ng, tags=("n", "qnp", "qng", "qn")) -> tuple[str, str] | None:
+    """(Estonian, Russian) for one `ng` (or, with the idiom tags, one `fg`), or
+    None when it is not a learner's example.
+
+    Left out: a domain term (`aafrika elevant`, labelled *zool*, *aj*…, with its
+    Latin name) — a dictionary of specialist names, not usage — and any phrase
+    whose every Russian rendering is archaic or missing.
+    """
+    head, group, lang, word = tags
+    estonian = " / ".join(t for t in (_flatten(n, ("r",)) for n in ng.findall(head)) if t)
+    if not estonian:
+        return None
+    renderings: list[str] = []
+    for qnp in ng.findall(group):
+        if qnp.find("v") is not None or qnp.find("ld") is not None:
+            return None
+        for qng in qnp.findall(lang):
+            if qng.get(ekixml.XML_LANG) != "ru":
+                continue
+            if ARCHAIC in ({ekixml.text(s) for s in qng.findall("s")}
+                           | {ekixml.text(s) for s in qnp.findall("s")}):
+                continue
+            found = qng.find(word)
+            ru = _flatten(found, ("xr",), russian=True) if found is not None else ""
+            if ru and ru != "_":
+                renderings.append(ru)
+    renderings = list(dict.fromkeys(renderings))[:MAX_RENDERINGS]
+    return (estonian, "; ".join(renderings)) if renderings else None
+
+
+#: Where each kind sits in an article, and its tags (phrase, group, language
+#: group, Russian).
+_PLACES = ((EXAMPLE, "S/tp/np/ng", ("n", "qnp", "qng", "qn")),
+           (IDIOM, "F/fg", ("f", "fqnp", "fqng", "qf")))
+
+
+def parse_examples(path: Path | str) -> list[Example]:
+    """Every example phrase and idiom EVS gives a lemma, in EKI's order: article
+    by article, sense by sense, idioms after the examples. A phrase shared by
+    two headwords of one article is kept for each.
+    """
+    out: list[Example] = []
+    seen: set[tuple[str, str]] = set()
+    for article in ekixml.articles(path):
+        lemmas = ekixml.headwords(article)
+        if not lemmas:
+            continue
+        for kind, where, tags in _PLACES:
+            for ng in article.findall(where):
+                found = _example(ng, tags)
+                if not found:
+                    continue
+                for lemma in lemmas:
+                    if (lemma, found[0]) in seen:
+                        continue
+                    seen.add((lemma, found[0]))
+                    out.append(Example(lemma, *found, kind))
+    return out
+
+
+EXAMPLE_SCHEMA = """
+-- EVS's example phrases with their Russian: reference data, like `evs_gloss`.
+CREATE TABLE IF NOT EXISTS evs_example (
+    lemma    TEXT NOT NULL,
+    seq      INTEGER NOT NULL,   -- EKI's order within the lemma
+    estonian TEXT NOT NULL,      -- open slots in braces (`SLOT`)
+    russian  TEXT NOT NULL,
+    kind     TEXT NOT NULL DEFAULT 'näide',   -- EXAMPLE or IDIOM
+    PRIMARY KEY (lemma, seq)
+) WITHOUT ROWID;
+"""
+
+
+def store_examples(conn: sqlite3.Connection, examples: list[Example]) -> int:
+    """Replace `evs_example` with `examples`. Idempotent."""
+    conn.executescript(EXAMPLE_SCHEMA)
+    ekixml.ensure_column(conn, "evs_example", "kind")
+    counter: dict[str, int] = {}
+
+    def rows():
+        for e in examples:
+            counter[e.lemma] = counter.get(e.lemma, 0) + 1
+            yield e.lemma, counter[e.lemma], e.estonian, e.russian, e.kind
+
+    with conn:
+        conn.execute("DELETE FROM evs_example")
+        conn.executemany(
+            "INSERT INTO evs_example (lemma, seq, estonian, russian, kind) "
+            "VALUES (?,?,?,?,?)", rows())
+    return len(examples)
+
+
+#: The most phrases one card receives. EVS's longest list (`käima`) is 144.
+MAX_EXAMPLES = 200
+
+
+def examples(conn: sqlite3.Connection, lemma: str, kind: str = EXAMPLE) -> list[dict]:
+    """A lemma's phrases of one kind as `{"et", "ru"}`, in EKI's order; `[]`
+    without the table.
+    """
+    try:
+        rows = conn.execute(
+            "SELECT estonian, russian FROM evs_example WHERE lemma = ? AND kind = ? "
+            "ORDER BY seq LIMIT ?", (lemma, kind, MAX_EXAMPLES)).fetchall()
+    except sqlite3.Error:
+        return []
+    return [{"et": et, "ru": ru} for et, ru in rows]
+
+
+#: A phrase a learner can build from tiles: whole words only, short enough to
+#: hold in mind (`lapsed õpivad lugema`, `kus sa elad?`).
+TILES = range(3, 8)
+
+
+def buildable(estonian: str) -> bool:
+    """Whether a phrase makes a tile exercise: 3–7 words, no open slot, no
+    alternatives (`/`), no ellipsis or brackets — one answer, spelled out.
+    """
+    if any(mark in estonian for mark in ("{", "/", "...", "…", "(", "[")):
+        return False
+    return len(estonian.split()) in TILES
+
+
+def practice_phrase(conn: sqlite3.Connection, lemma: str, turn: int) -> dict | None:
+    """The phrase a review of `lemma` shows, a different one each `turn` (the
+    card's repetitions): `{"et", "ru", "build"}`, `build` saying whether it can
+    be built from tiles. Buildable phrases come first, in EKI's order. None when
+    EVS has no phrase for the word.
+    """
+    found = examples(conn, lemma)
+    if not found:
+        return None
+    ready = [p for p in found if buildable(p["et"])]
+    pool = ready or found
+    chosen = pool[turn % len(pool)]
+    return {**chosen, "build": bool(ready)}
