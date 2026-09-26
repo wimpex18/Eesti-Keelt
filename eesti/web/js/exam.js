@@ -215,9 +215,18 @@ export async function loadExam() {
     });
 }
 
+/* A YouTube link, by its host: a `v=` in a PDF's query (`vihik.pdf?v=2`) is a
+   cache-buster, not a video. */
+function youTube(url) {
+  try {
+    const host = new URL(url).hostname.replace(/^(www|m)\./, "");
+    return ["youtube.com", "youtu.be", "youtube-nocookie.com"].includes(host) && YT.test(url);
+  } catch { return false; }
+}
+
 /* A downloaded task opens here; anything not downloaded still links out
    (`cli harvest-exam --download`). */
-const linkRow = it => YT.test(it.url || "")
+const linkRow = it => youTube(it.url || "")
   ? `<div class="lib-item"><button class="linky" data-video="${esc(it.url)}"
        lang="${langOf(it.title)}">${esc(it.title)}</button>
        <span class="lib-meta">video · в приложении</span></div>`

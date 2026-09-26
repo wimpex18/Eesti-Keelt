@@ -10,7 +10,7 @@
           "eesti/web/index.html"
         ],
         "createdAt": "2026-09-26T21:13:00.522Z",
-        "reason": "Codex QA: detector treats the dark hero muted text token as a background; actual hero text uses the dark hero surface in DESIGN.md, verified in Chrome in both themes."
+        "reason": "The rendered-page scan of index.html reports this with no line and no value an ignore can match, so it is ignored for that file only; the detector reads the dark hero's muted token (#b3c2d8) as the background of its ink (#f4f7fc). Real hero text contrast is 6.1:1 or more in both themes."
       },
       {
         "rule": "pulsing-dot",
@@ -19,26 +19,16 @@
           "eesti/web/index.html"
         ],
         "createdAt": "2026-09-26T21:40:17.483Z",
-        "reason": "QA: speak.js adds the dot only while MediaRecorder is recording and removes it on stop; this reports live capture, not decorative status."
+        "reason": "The rendered-page scan of index.html reports this with no line and no value an ignore can match, so it is ignored for that file only; its source, `.rec .dot` in app.css, is annotated in place: the dot shows only while MediaRecorder is recording."
       },
       {
         "rule": "layout-transition",
         "value": "*",
         "files": [
-          "eesti/web/app.css",
           "eesti/web/index.html"
         ],
         "createdAt": "2026-09-26T21:40:17.554Z",
-        "reason": "QA: DESIGN.md specifies the folding dock and gliding selection capsule; transitions predate this PR, were checked at all requested sizes, and collapse under reduced motion."
-      },
-      {
-        "rule": "bounce-easing",
-        "value": "*",
-        "files": [
-          "eesti/web/app.css"
-        ],
-        "createdAt": "2026-09-26T21:40:17.617Z",
-        "reason": "QA: DESIGN.md explicitly specifies a slight spring for the gliding tab selection; the existing spring token implements that pinned behavior."
+        "reason": "The rendered-page scan of index.html reports this with no line and no value an ignore can match, so it is ignored for that file only; its sources in app.css (the folding dock, the glide capsule) are annotated line by line."
       },
       {
         "rule": "tight-leading",
@@ -47,17 +37,16 @@
           "eesti/web/index.html"
         ],
         "createdAt": "2026-09-26T21:40:37.179Z",
-        "reason": "QA: the reported 1.25 line height belongs to compact controls and milestone labels, not body prose. Body text uses 1.6; labels were visually checked in both themes and viewports, with milestone overlap fixed separately."
+        "reason": "The rendered-page scan of index.html reports this with no line and no value an ignore can match, so it is ignored for that file only; the 1.25 line height belongs to compact controls and milestone labels; body prose uses 1.6."
       },
       {
         "rule": "side-tab",
         "value": "*",
         "files": [
-          "eesti/web/app.css",
           "eesti/web/index.html"
         ],
         "createdAt": "2026-09-26T21:40:37.250Z",
-        "reason": "QA: existing correction and lesson accents predate this PR; obj-case changes the correction stripe to the warning colour for the documented priority grammar weakness. The user requested defect fixes and explicitly excluded redesign, so retain this established teaching treatment."
+        "reason": "The rendered-page scan of index.html reports this with no line and no value an ignore can match, so it is ignored for that file only; its source, `.corr::before` in app.css, is annotated in place (the correction stripe)."
       }
     ]
   }

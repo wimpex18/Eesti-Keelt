@@ -166,11 +166,6 @@ def items_for(
         if topic == "uhildumine":
             return agreement_drills(words, levels=levels, count=count,
                                     seed=seed, only=only)
-        from .wordlist import index_object_cases
-
-        # Fill forms before selecting a checkpoint's principal-form items.
-        # Later generators also populate this cache; replay must keep the same set.
-        index_object_cases(words, levels=levels)
         return principal_forms(words, levels=levels, count=count, seed=seed,
                                only=only)
 

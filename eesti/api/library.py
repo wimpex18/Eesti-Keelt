@@ -79,10 +79,8 @@ def library(skill: str = "lugemine", section: str | None = None,
                 "licence": r["licence"],
                 "audio_url": r["audio_url"],
                 "words": len(( r["body"] or "").split()),
-                # Downloaded official material uses the same availability check
-                # as Eksam; undownloaded tasks retain their attribution link.
                 **_pointer(r["meta"], level=r["level"], source_id=r["source_id"],
-                           body=r["body"]),
+                           body=r["body"], audio_url=r["audio_url"]),
             }
             for r in rows
         ]
@@ -90,24 +88,31 @@ def library(skill: str = "lugemine", section: str | None = None,
 
 
 def _pointer(meta: str | None, *, level: str | None = None,
-             source_id: str | None = None, body: str | None = None) -> dict:
-    """Indexed task attribution and any locally available official file."""
+             source_id: str | None = None, body: str | None = None,
+             audio_url: str | None = None) -> dict:
+    """Where a row opens. `external` sends Lugemine and Kuulamine to the official
+    page; an official row also says whether its file or text is here
+    (`library.official_availability`), which Töövihikud opens in the viewer.
+    """
+    from ..library import OFFICIAL_SOURCES, official_availability
+
     try:
         data = json.loads(meta or "{}")
     except ValueError:
         return {}
-    official = source_id in {"harno", "eis"}
-    if not data.get("external") and not official:
-        return {}
-    pointer = {"external": True, "url": data.get("url"), "note": data.get("note")}
-    if official:
-        from ..library import _file_here, exam_stored_path
-
-        file_here = _file_here(exam_stored_path(data, level, source_id))
-        pointer.update(format=data.get("format"), file=file_here,
-                       local=file_here or bool((body or "").strip()))
-        pointer["external"] = not pointer["local"]
-    return pointer
+    if source_id not in OFFICIAL_SOURCES:
+        if not data.get("external"):
+            return {}
+        return {"external": True, "url": data.get("url"), "note": data.get("note")}
+    has_body = bool((body or "").strip())
+    # The reader shows text and the player streams `audio_url`; a PDF or other
+    # downloaded file is neither, so without one of those the row links out, as a
+    # task indexed as external always does.
+    external = bool(data.get("external")) or (
+        not (has_body or audio_url) and bool(data.get("url")))
+    return {"external": external, "url": data.get("url"), "note": data.get("note"),
+            "format": data.get("format"),
+            **official_availability(data, level, source_id, has_body)}
 
 
 @router.get("/api/reading/next")

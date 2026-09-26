@@ -254,12 +254,12 @@ def _next_task(content, level: str, skill: str) -> dict | None:
         meta = _json.loads(row["meta"] or "{}")
     except ValueError:
         meta = {}
-    from .library import _file_here, exam_stored_path
+    from .library import official_availability
 
-    local = bool(row["body_length"]) or _file_here(exam_stored_path(
-        meta, row["level"], row["source_id"]))
+    here = official_availability(meta, row["level"], row["source_id"],
+                                 bool(row["body_length"]))
     return {"id": row["id"], "title": row["title"],
-            "url": meta.get("url"), "local": local}
+            "url": meta.get("url"), "local": here["local"]}
 
 
 def _speaking_evidence() -> str:

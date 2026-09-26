@@ -41,7 +41,10 @@ async function runCheck() {
         <div class="why">Обратный перевод (TartuNLP). Грамматика может быть
         верной, а смысл — не тем, который ты имел в виду.</div></div>`;
     }
-    if (!res.corrections.length) {
+    if (res.engine === "none") {
+      // No checker answered: the banner above says so, and an empty list here
+      // would read as a clean pass.
+    } else if (!res.corrections.length) {
       html += emptyState({
         icon: "done",
         title: "Ошибок не найдено",

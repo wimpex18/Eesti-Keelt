@@ -10,10 +10,16 @@ attribution, outlined writing input, in-app official material/video, milestone
 wrapping, correct empty-state heading levels, graded microphone locking and
 stable checkpoint regeneration.
 Generator version is 2; signed answers remain authoritative for grading.
+Review follow-ups: official rows share `library.official_availability`; a
+catalogued link-out stays one in Lugemine/Kuulamine and `audio_url` rows stay in
+the app. `principal_forms` draws candidates from `words` only, so a seed
+regenerates whatever the form cache holds. Reader words are one roving tab
+stop. Impeccable ignores: CSS lines annotated in place; index.html page-scan
+rules (no line or value to match) are ignored for that file only.
 
-Validation: 2409 Python tests passed (1 skip); 155 Chromium/WebKit journeys
-passed (3 viewport skips); `npm run typecheck` passed.
+Validation: `pytest tests/ -n auto` and `npm run typecheck` pass; browser
+journeys pass in Chromium (the video test now serves its own catalogue).
 Production queue was empty; saved-progress journeys used isolated local state.
 
 Next step: user reviews draft PR #89 from `codex/production-qa`.
-Uncommitted paths: none after the QA commit. Blockers: none.
+Uncommitted paths: none. Blockers: none.

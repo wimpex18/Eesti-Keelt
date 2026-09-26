@@ -190,10 +190,14 @@ async function openItem(id) {
     : "";
 
   const hard = new Set((p.hard_words || []).map(w => w.toLowerCase()));
-  // Wrap each word so it can be clicked; non-words pass through untouched.
+  // Wrap each word so it can be clicked; non-words pass through untouched. One
+  // word at a time is a tab stop (arrows move it), so a long text is one stop
+  // and a screen reader still reads it as prose.
   $("#readerBody").innerHTML = esc(d.body).replace(
     /[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+/g,
-    m => `<w role="button" tabindex="0" class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
+    m => `<w tabindex="-1" class="${hard.has(m.toLowerCase()) ? "hard" : ""}">${m}</w>`);
+  const first = $("#readerBody w");
+  if (first) first.tabIndex = 0;
   $("#wordCard").hidden = true;
   show();
   // The questions are a separate request: a text opens whether or not it has any.
@@ -309,16 +313,32 @@ $("#xlBtn").onclick = async () => {
 
 // The reader supplies the sentence around the word; the vocabulary list, which
 // has no sentence, passes nothing and the card behaves identically otherwise.
+/* The roving word: the one tab stop in the text. */
+function rove(to) {
+  $("#readerBody").querySelectorAll('w[tabindex="0"]').forEach(w => { w.tabIndex = -1; });
+  to.tabIndex = 0;
+  to.focus();
+}
+
 $("#readerBody").addEventListener("click", e => {
   if (e.target.tagName !== "W") return;
+  rove(e.target);
   showWordCard(e.target.textContent, $("#wordCard"), w =>
     (($("#readerBody").textContent.match(new RegExp(
       "[^.!?]*" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^.!?]*[.!?]"))
       || [])[0] || "").trim() || null, e.target);
 });
 $("#readerBody").addEventListener("keydown", e => {
-  if (e.target.tagName === "W" && ["Enter", " "].includes(e.key)) {
+  if (e.target.tagName !== "W") return;
+  if (["Enter", " "].includes(e.key)) {
     e.preventDefault();
     e.target.click();
+    return;
   }
+  const words = [...$("#readerBody").querySelectorAll("w")];
+  const at = words.indexOf(e.target);
+  const to = {ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: words.length - 1}[e.key];
+  if (to === undefined || !words[to]) return;
+  e.preventDefault();
+  rove(words[to]);
 });

@@ -582,7 +582,9 @@
       <h3 id="readerTitle" class="reader-title" lang="et"></h3>
       <div id="readerAudio"></div>
       <p class="hint" id="readerProfile"></p>
-      <div id="readerBody" class="prose" lang="et"></div>
+      <p class="sr-only" id="readerKeys" lang="ru">Слова текста: стрелки влево и вправо
+        переходят между словами, Enter открывает карточку слова.</p>
+      <div id="readerBody" class="prose" lang="et" aria-describedby="readerKeys"></div>
       <!-- Translation on request only: a reader handed Russian reads the Russian. -->
       <div class="row">
         <button class="ghost" id="xlBtn" lang="et">Tõlgi valitud lause <span class="ru" lang="ru">перевести предложение</span></button>

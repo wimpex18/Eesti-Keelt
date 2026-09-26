@@ -19,6 +19,7 @@ from eesti.forms import (agreement_drills, connegative, negation_drills,
 @pytest.fixture
 def words(tmp_path):
     conn = sqlite3.connect(tmp_path / "w.db")
+    conn.row_factory = sqlite3.Row   # as `wordlist.connect` opens it
     conn.executescript("""
         CREATE TABLE words (word TEXT PRIMARY KEY, freq_rank INTEGER,
                             proficiency TEXT, pos TEXT);
@@ -71,6 +72,18 @@ class TestPrincipalForms:
         assert item.check(item.answer)
         assert item.check(f"  {item.answer.upper()} ")   # trimmed, casefolded
         assert not item.check(item.distractor)
+
+    def test_the_items_do_not_depend_on_what_the_cache_holds(self, words):
+        """A signed checkpoint regenerates from its seed. Another drill caching a
+        word's forms (`object_case_rows`, as obj-case does) must not change them."""
+        from eesti.wordlist import object_case_rows
+
+        words.execute("INSERT INTO words VALUES ('laud', 300, 'A1', 'adj, s')")
+        cold = [(i.prompt, i.answer) for i in principal_forms(words, count=3, seed=5)]
+        words.execute("DELETE FROM object_cases WHERE word = 'laud'")
+        object_case_rows(words, ["laud"])
+        warm = [(i.prompt, i.answer) for i in principal_forms(words, count=3, seed=5)]
+        assert cold == warm and len(cold) == 3
 
     def test_the_explanation_is_in_russian(self, words):
         """The rule this project states first: explanations are Russian."""

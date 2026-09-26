@@ -867,11 +867,25 @@ class TestDiscoveredDefects:
         assert not page.errors, page.errors
 
     def test_exam_video_opens_in_the_app(self, page, live_server):
+        # The official catalogue is harvested, not built in CI; serve one video
+        # and one PDF whose `?v=` is a cache-buster, never a YouTube id.
+        material = {"sooritusnaidis": [], "kirjeldus": [], "teave": [], "vorm": [],
+                    "ulesanded": {}, "muu": [], "video": [
+                        {"id": "harno:video", "title": "Eksami tutvustus", "skill": "",
+                         "url": "https://www.youtube.com/watch?v=abcdefghijk",
+                         "format": "", "local": False, "file": False},
+                        {"id": "harno:pdf", "title": "Töövihik", "skill": "",
+                         "url": "https://harno.ee/vihik.pdf?v=1690000000",
+                         "format": "pdf", "local": False, "file": False}]}
+        page.route(re.compile(r".*/api/exam/(A1|A2|B1|B2|C1)$"), lambda r: r.fulfill(
+            content_type="application/json",
+            body=json.dumps(material | {"level": r.request.url.rsplit("/", 1)[1]})))
         page.route("https://www.youtube-nocookie.com/embed/*", lambda r: r.fulfill(
             content_type="text/html", body="<html><body>Video</body></html>"))
         open_tab(page, "exam", "exam")
         video = page.locator("#examMaterial button[data-video]").first
         video.wait_for(state="visible")
+        assert page.locator("#examMaterial button[data-video]").count() == 1
         with page.expect_request("https://www.youtube-nocookie.com/embed/*") as embed:
             video.click()
         # YouTube rejects unidentified embeds with error 153. Send only the
