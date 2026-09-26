@@ -348,8 +348,11 @@ class Example:
     kind: str = EXAMPLE
 
 
-def _flatten(node, slot_tags: tuple[str, ...]) -> str:
-    """A phrase as text, with its open slots in braces and EVS's marks gone."""
+def _flatten(node, slot_tags: tuple[str, ...], russian: bool = False) -> str:
+    """A phrase as text, with its open slots in braces. On the Russian side EVS's
+    stress (`"`) and aspect (`*`) marks go; an Estonian phrase keeps its quotation
+    marks (`tegi eksami hindele "väga hea"`).
+    """
     out: list[str] = [node.text or ""]
     for child in node:
         inner = ekixml.text(child)
@@ -360,8 +363,10 @@ def _flatten(node, slot_tags: tuple[str, ...]) -> str:
         out.append(child.tail or "")
     shell = type(node)(node.tag)
     shell.text = "".join(out)
-    return (ekixml.text(shell).replace('"', "").replace("*", "").replace("[]", "")
-            .replace("{ ", "{").replace(" }", "}").strip())
+    text = ekixml.text(shell)
+    if russian:
+        text = text.replace('"', "").replace("*", "")
+    return text.replace("[]", "").replace("{ ", "{").replace(" }", "}").strip()
 
 
 def _example(ng, tags=("n", "qnp", "qng", "qn")) -> tuple[str, str] | None:
@@ -386,7 +391,8 @@ def _example(ng, tags=("n", "qnp", "qng", "qn")) -> tuple[str, str] | None:
             if ARCHAIC in ({ekixml.text(s) for s in qng.findall("s")}
                            | {ekixml.text(s) for s in qnp.findall("s")}):
                 continue
-            ru = _flatten(qng.find(word), ("xr",)) if qng.find(word) is not None else ""
+            found = qng.find(word)
+            ru = _flatten(found, ("xr",), russian=True) if found is not None else ""
             if ru and ru != "_":
                 renderings.append(ru)
     renderings = list(dict.fromkeys(renderings))[:MAX_RENDERINGS]

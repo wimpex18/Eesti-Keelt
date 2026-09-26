@@ -2,7 +2,7 @@
 
 import {emptyState, flowerSvg, forecastHtml, navIcon, sealsHtml} from "./chrome.js";
 import {$, api, esc, md, ruCount, taskLine} from "./core.js";
-import {speakWord} from "./media.js";
+import {sayable, speakWord, withSlots} from "./media.js";
 import {examLevel} from "./state.js";
 
 /* The rail is refreshed after every graded answer; only the latest request paints. */
@@ -165,10 +165,11 @@ async function finishReview() {
 
 /* The word in use: an EVS phrase with EKI's Russian, spoken on a tap. */
 function phraseHtml(p) {
-  return `<div class="fc-phrase">
-      <button class="iconbtn fc-say-phrase" type="button"
-              title="Kuula — прослушать" aria-label="Kuula fraasi — прослушать фразу"></button>
-      <div><div lang="et">${esc(p.et)}</div><div class="gloss" lang="ru">${esc(p.ru)}</div></div>
+  // A phrase with an open slot (`{kelle}`) is shown, not spoken.
+  const say = p.et.includes("{") ? "" : `<button class="iconbtn fc-say-phrase" type="button"
+              title="Kuula — прослушать" aria-label="Kuula fraasi — прослушать фразу"></button>`;
+  return `<div class="fc-phrase">${say}
+      <div><div lang="et">${withSlots(p.et)}</div><div class="gloss" lang="ru">${withSlots(p.ru)}</div></div>
     </div>
     <div class="attrib" lang="et">näide: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
 }
@@ -278,7 +279,7 @@ function renderVocabCard(it) {
   const sayPhrase = el.querySelector(".fc-say-phrase");
   if (sayPhrase) {
     sayPhrase.innerHTML = navIcon("speaker-high");
-    sayPhrase.onclick = () => speakWord(p.et, note);
+    sayPhrase.onclick = () => speakWord(sayable(p.et), note);
   }
   const show = el.querySelector(".fc-show");
   const reveal = () => {
@@ -287,7 +288,9 @@ function renderVocabCard(it) {
   };
   show.onclick = () => {
     // Skipping the tiles is allowed; they are put away so the card reads as done.
-    el.querySelectorAll(".fc-tile, .fc-check").forEach(b => b.disabled = true);
+    el.querySelectorAll(".fc-tile").forEach(b => b.disabled = true);
+    const check = el.querySelector(".fc-check");
+    if (check) check.closest(".row").hidden = true;
     reveal();
   };
   if (build) wireBuilder(el, it, reveal);

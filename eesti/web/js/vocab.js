@@ -3,7 +3,7 @@
 import {$, api, esc} from "./core.js";
 import {icon} from "./icons.js";
 import {navIcon, retryableError, skeleton, uiIcon} from "./chrome.js";
-import {speakWord} from "./media.js";
+import {sayable, speakWord, withSlots} from "./media.js";
 import {refreshDueBadge} from "./review.js";
 
 /* A form's name as the exam says it, with its Russian gloss beside it. */
@@ -18,13 +18,12 @@ const tagLabel = t => t.ru
 const SHOWN_PHRASES = 3;
 
 function phraseItem(p) {
-  const slots = t => esc(t).replace(/\{([^{}]+)\}/g, '<i class="slot">$1</i>');
   // A phrase with an open slot is not a sentence anyone says; it gets no voice.
   const say = p.et.includes("{") ? "" :
-    `<button class="iconbtn phrase-say" type="button" data-say="${esc(p.et)}"
+    `<button class="iconbtn phrase-say" type="button" data-say="${esc(sayable(p.et))}"
        title="Kuula — прослушать" aria-label="Kuula — прослушать">${navIcon("speaker-high")}</button>`;
-  return `<li>${say}<span lang="et">${slots(p.et)}</span>` +
-    `<span class="gloss" lang="ru">${slots(p.ru)}</span></li>`;
+  return `<li>${say}<span lang="et">${withSlots(p.et)}</span>` +
+    `<span class="gloss" lang="ru">${withSlots(p.ru)}</span></li>`;
 }
 
 /* Idioms (väljendid) are folded whole: an idiom is worth knowing once the word
@@ -43,7 +42,8 @@ function phrasesHtml(phrases, idioms = []) {
         <i class="ru" lang="ru">выражения</i></summary>` +
       `<ul class="phrase-list">${idioms.map(phraseItem).join("")}</ul></details>`;
   }
-  html += `<div class="attrib" lang="et">näited: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
+  html += `<div class="hint phrase-note" hidden></div>` +
+    `<div class="attrib" lang="et">näited: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
   return html;
 }
 
@@ -195,7 +195,12 @@ async function fillWordCard(word, card, contextFor) {
         box.innerHTML = phrasesHtml(x.phrases || [], x.idioms || []);
         box.addEventListener("click", e => {
           const b = e.target.closest("[data-say]");
-          if (b) speakWord(b.dataset.say, msg => { b.title = msg; });
+          // A failed voice is said under the list, where a phone shows it.
+          if (b) speakWord(b.dataset.say, msg => {
+            const note = box.querySelector(".phrase-note");
+            note.textContent = msg;
+            note.hidden = false;
+          });
         });
         slot.append(box);
       }

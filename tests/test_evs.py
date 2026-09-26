@@ -225,6 +225,16 @@ class TestExamplePhrases:
         assert got.estonian == "kriitika {kelle/mille} aadressil"
         assert got.russian == "критика в {чей} адрес"
 
+    def test_estonian_keeps_its_quotation_marks(self, tmp_path):
+        path = tmp_path / "evs.xml"
+        path.write_text(
+            '<x:A><x:P><x:mg><x:m>hinne</x:m></x:mg></x:P><x:S><x:tp><x:np><x:ng>'
+            '<x:n>tegi eksami hindele "väga hea"</x:n><x:qnp><x:qng xml:lang="ru">'
+            '<x:qn>сдал экз"амен на «отл"ично»</x:qn></x:qng></x:qnp></x:ng></x:np>'
+            '</x:tp></x:S></x:A>\n', encoding="utf-8")
+        assert evs.parse_examples(path) == [evs.Example(
+            "hinne", 'tegi eksami hindele "väga hea"', "сдал экзамен на «отлично»")]
+
     def test_idioms_are_kept_apart(self, phrases, tmp_path):
         idiom = evs.Example("aadress", "aadressi {kellele} täpsustama", "уточнить адрес",
                             evs.IDIOM)

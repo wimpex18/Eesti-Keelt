@@ -68,6 +68,15 @@ export async function mountAudio(host, url) {
 }
 
 
+/* A dictionary phrase as it is said: EVS's alternatives (`valjusti / kõvasti`)
+   read as a list, optional parts (`[on]`) read in. */
+export const sayable = text => text.replace(/\s+\/\s+/g, ", ").replace(/[[\]]/g, "");
+
+/* EVS marks an open slot in braces (`{kelle}`); it is set in italics. */
+export const withSlots = text =>
+  esc(text).replace(/\{([^{}]+)\}/g, '<i class="phrase-slot">$1</i>');
+
+
 export async function speakWord(word, onError, tag = "") {
   /* A native speaker where EKI recorded one, synthesis otherwise.
 

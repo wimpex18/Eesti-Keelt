@@ -41,6 +41,8 @@ class ReviewGrade(BaseModel):
 def review_queue(limit: int = 20, kind: str | None = None) -> dict:
     """Items due for review, most overdue first."""
     items = review.due(review_db(), limit=limit, kind=kind)
+    # One words-database connection for the queue's meaning cards, none without them.
+    words = db() if any(i.kind == "vocab" for i in items) else None
     return {
         "items": [
             {
@@ -51,7 +53,7 @@ def review_queue(limit: int = 20, kind: str | None = None) -> dict:
                 "context": i.context, "reps": i.reps, "lapses": i.lapses,
                 # A meaning card shows the word in use: an EVS phrase with its
                 # Russian, a different one each time it comes back.
-                "phrase": (evs.practice_phrase(db(), i.lemma, i.reps)
+                "phrase": (evs.practice_phrase(words, i.lemma, i.reps)
                            if i.kind == "vocab" else None),
             }
             for i in items

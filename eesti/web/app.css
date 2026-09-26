@@ -933,7 +933,7 @@ a.lib-item{text-decoration:none;color:inherit}
 .phrases .phrase-list .gloss{display:block;color:var(--gloss)}
 .phrases .phrase-list li:has(.phrase-say){padding-left:52px;position:relative;min-height:52px}
 .phrases .phrase-say{position:absolute;left:0;top:var(--s1);width:44px;height:44px}
-.phrases .slot{color:var(--muted)}
+.phrase-slot{color:var(--muted)}
 .phrases .fuller .phrase-list{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
 .quiz{margin-top:var(--s5)}
 .quiz-item{padding:var(--s3) 0;border-top:1px solid var(--line)}
