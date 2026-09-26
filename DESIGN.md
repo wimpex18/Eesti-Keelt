@@ -60,10 +60,10 @@ white. One warm note, Haapsalu sand, is reserved for rest and reward. Colour
 otherwise belongs to an information role, never to a language.
 
 The interface follows **Apple's Liquid Glass rule of two layers**: navigation
-floats on glass (the spine, the phone dock, the celebration) and a selection
-glides between tabs on one capsule; content sits on the plain page, separated by
-lines rather than cards. The word card and the switches hold or choose content,
-so they are solid. Glass turns solid
+and what floats over content sit on glass (the spine, the phone dock, the word
+card, the celebration) and a selection glides between tabs on one capsule;
+content sits on the plain page, separated by lines rather than cards. The
+switches choose content, so their track is solid. Glass turns solid
 with `prefers-reduced-transparency`, `prefers-contrast: more`, or the app's own
 **Vähem läbipaistvust** switch (Safari does not report the system setting).
 
@@ -227,8 +227,8 @@ filter row's apply button is secondary. Text: 12 gloss/meta · 14 note/hint ·
 ## Depth
 
 Content sheets are separated by a 1px line (`--shadow` is a hairline ring), not a
-drop shadow. Only the floating glass layer (spine, dock) casts a soft shadow, and
-the word card, which floats over the text it glosses. The page has no background
+drop shadow. Only the floating glass layer (spine, dock, and the word card over
+the text it glosses) casts a soft shadow. The page has no background
 glows. The root (`html`) carries the page colour as well as `body`: Safari 26
 ignores `theme-color` and tints its toolbars and the overscroll from it.
 
@@ -242,6 +242,9 @@ Glass is not something a new screen chooses; it comes from where the thing sits.
   the `.glass` class. It then takes `--glass`, the blur and `--glass-lift`, turns
   solid under reduced transparency, higher contrast and Vähem läbipaistvust, and
   follows both themes. Never copy the recipe into a new rule.
+- **A card that floats over the content it explains** (like the word card over
+  its text): glass as well, by adding it to the `.glass` rule's selector list
+  in `app.css`, as `#wordCard` is; the fallbacks come with it.
 - **A choice between views** (tabs, a segmented switch): mark it up as
   `role="tablist"` with `role="tab"` children and `aria-selected`. It then gets
   the gliding capsule and the arrow-key pattern with no extra code, including
