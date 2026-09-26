@@ -14,7 +14,10 @@ by `cli import-evs`), three shown and the rest folded, credited to EKI. Meaning
 cards in Järjekord show one phrase and, from the second review, a tile builder
 (*Koosta fraas*, `review.js`). EVS idioms fold under *Väljendid*. The form
 index keeps only forms Vabamorf reads back, and a word tapped in a text is
-looked up with its sentence (*selles lauses*, `lookup.py`).
+looked up with its sentence (*selles lauses*, `lookup.py`). Speech: `cli
+asr-bench` plus the owner's 8 sealed clips; Voxtral Realtime (7% WER vs
+Workers AI 36% on the owner's voice) is the first lane of local `cli serve`
+only (owner chose Mac-only; `requirements-local-asr.txt`, `VOXTRAL_RT_MODEL`).
 
 ## Next step
 User reviews the PR and merges; Cloud Build re-imports EVS in the image. After

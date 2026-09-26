@@ -64,8 +64,11 @@ correctness, and EKI already publishes free exercises.
 
 ## Running ASR locally
 
-`providers/asr.py` looks for whisper.cpp with TalTech's Estonian verbatim model,
-then Voxtral, after the hosted engines. `/api/asr` reports which engines this
+With `requirements-local-asr.txt` installed and `VOXTRAL_RT_MODEL` set,
+`providers/asr.py` asks TalTech's Voxtral Realtime first (measured in
+`docs/asr-evaluation.md`); otherwise it looks for whisper.cpp with TalTech's
+Estonian verbatim model, then Voxtral via llama.cpp, after the hosted engines.
+Cloud Run never sets the variable, so the phone app stays on Workers AI. `/api/asr` reports which engines this
 process can use.
 
 
