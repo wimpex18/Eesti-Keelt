@@ -359,6 +359,11 @@ def _no_real_keys(monkeypatch):
 
     for name in KNOWN_KEYS:
         monkeypatch.delenv(name, raising=False)
+    # Local engines the developer's `.env` may point at: a test that wants one
+    # sets it, so the owner's Voxtral install never reorders the chain under test.
+    for name in ("VOXTRAL_RT_MODEL", "VOXTRAL_MODEL_PATH", "WHISPER_CPP_MODEL",
+                 "ASR_REFERENCE_MODEL"):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture(autouse=True)
