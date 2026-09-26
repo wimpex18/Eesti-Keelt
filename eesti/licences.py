@@ -309,7 +309,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "the learner's `word_gloss`. The same import stores `evs_question`: "
         "for each küsisõnad answer word, the Russian of the sense EVS "
         "illustrates with a direct question (`kus` → где), shown as the cue "
-        "for the drill's blank, and `evs_example`: EVS's example phrases, "
+        "for the drill's blank, and `evs_example`: EVS's example phrases and idioms, "
         "each with EKI's Russian, shown under *Näited* on the word card and "
         "on meaning cards in Järjekord, where one can be built from tiles. "
         "Same terms as EKI's other downloads: "

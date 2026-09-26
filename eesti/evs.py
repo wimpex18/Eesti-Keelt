@@ -335,11 +335,17 @@ SLOT = "{{{}}}"
 MAX_RENDERINGS = 2
 
 
+#: The two kinds of phrase EVS gives a word: a usage example (`np/ng`) and an
+#: idiom (`F/fg`, *väljend*: `abistavat kätt sirutama` "протягивать руку помощи").
+EXAMPLE, IDIOM = "näide", "väljend"
+
+
 @dataclass(frozen=True)
 class Example:
     lemma: str
     estonian: str
     russian: str
+    kind: str = EXAMPLE
 
 
 def _flatten(node, slot_tags: tuple[str, ...]) -> str:
@@ -358,37 +364,45 @@ def _flatten(node, slot_tags: tuple[str, ...]) -> str:
             .replace("{ ", "{").replace(" }", "}").strip())
 
 
-def _example(ng) -> tuple[str, str] | None:
-    """(Estonian, Russian) for one `ng`, or None when it is not a learner's example.
+def _example(ng, tags=("n", "qnp", "qng", "qn")) -> tuple[str, str] | None:
+    """(Estonian, Russian) for one `ng` (or, with the idiom tags, one `fg`), or
+    None when it is not a learner's example.
 
     Left out: a domain term (`aafrika elevant`, labelled *zool*, *aj*…, with its
     Latin name) — a dictionary of specialist names, not usage — and any phrase
     whose every Russian rendering is archaic or missing.
     """
-    estonian = " / ".join(t for t in (_flatten(n, ("r",)) for n in ng.findall("n")) if t)
+    head, group, lang, word = tags
+    estonian = " / ".join(t for t in (_flatten(n, ("r",)) for n in ng.findall(head)) if t)
     if not estonian:
         return None
     renderings: list[str] = []
-    for qnp in ng.findall("qnp"):
+    for qnp in ng.findall(group):
         if qnp.find("v") is not None or qnp.find("ld") is not None:
             return None
-        for qng in qnp.findall("qng"):
+        for qng in qnp.findall(lang):
             if qng.get(ekixml.XML_LANG) != "ru":
                 continue
             if ARCHAIC in ({ekixml.text(s) for s in qng.findall("s")}
                            | {ekixml.text(s) for s in qnp.findall("s")}):
                 continue
-            ru = _flatten(qng.find("qn"), ("xr",)) if qng.find("qn") is not None else ""
+            ru = _flatten(qng.find(word), ("xr",)) if qng.find(word) is not None else ""
             if ru and ru != "_":
                 renderings.append(ru)
     renderings = list(dict.fromkeys(renderings))[:MAX_RENDERINGS]
     return (estonian, "; ".join(renderings)) if renderings else None
 
 
+#: Where each kind sits in an article, and its tags (phrase, group, language
+#: group, Russian).
+_PLACES = ((EXAMPLE, "S/tp/np/ng", ("n", "qnp", "qng", "qn")),
+           (IDIOM, "F/fg", ("f", "fqnp", "fqng", "qf")))
+
+
 def parse_examples(path: Path | str) -> list[Example]:
-    """Every example phrase EVS gives a lemma, in EKI's order: article by article,
-    sense by sense. A phrase shared by two headwords of one article is kept for
-    each.
+    """Every example phrase and idiom EVS gives a lemma, in EKI's order: article
+    by article, sense by sense, idioms after the examples. A phrase shared by
+    two headwords of one article is kept for each.
     """
     out: list[Example] = []
     seen: set[tuple[str, str]] = set()
@@ -396,15 +410,16 @@ def parse_examples(path: Path | str) -> list[Example]:
         lemmas = ekixml.headwords(article)
         if not lemmas:
             continue
-        for ng in article.findall("S/tp/np/ng"):
-            found = _example(ng)
-            if not found:
-                continue
-            for lemma in lemmas:
-                if (lemma, found[0]) in seen:
+        for kind, where, tags in _PLACES:
+            for ng in article.findall(where):
+                found = _example(ng, tags)
+                if not found:
                     continue
-                seen.add((lemma, found[0]))
-                out.append(Example(lemma, *found))
+                for lemma in lemmas:
+                    if (lemma, found[0]) in seen:
+                        continue
+                    seen.add((lemma, found[0]))
+                    out.append(Example(lemma, *found, kind))
     return out
 
 
@@ -415,6 +430,7 @@ CREATE TABLE IF NOT EXISTS evs_example (
     seq      INTEGER NOT NULL,   -- EKI's order within the lemma
     estonian TEXT NOT NULL,      -- open slots in braces (`SLOT`)
     russian  TEXT NOT NULL,
+    kind     TEXT NOT NULL DEFAULT 'näide',   -- EXAMPLE or IDIOM
     PRIMARY KEY (lemma, seq)
 ) WITHOUT ROWID;
 """
@@ -423,18 +439,19 @@ CREATE TABLE IF NOT EXISTS evs_example (
 def store_examples(conn: sqlite3.Connection, examples: list[Example]) -> int:
     """Replace `evs_example` with `examples`. Idempotent."""
     conn.executescript(EXAMPLE_SCHEMA)
+    ekixml.ensure_column(conn, "evs_example", "kind")
     counter: dict[str, int] = {}
 
     def rows():
         for e in examples:
             counter[e.lemma] = counter.get(e.lemma, 0) + 1
-            yield e.lemma, counter[e.lemma], e.estonian, e.russian
+            yield e.lemma, counter[e.lemma], e.estonian, e.russian, e.kind
 
     with conn:
         conn.execute("DELETE FROM evs_example")
         conn.executemany(
-            "INSERT INTO evs_example (lemma, seq, estonian, russian) VALUES (?,?,?,?)",
-            rows())
+            "INSERT INTO evs_example (lemma, seq, estonian, russian, kind) "
+            "VALUES (?,?,?,?,?)", rows())
     return len(examples)
 
 
@@ -442,12 +459,14 @@ def store_examples(conn: sqlite3.Connection, examples: list[Example]) -> int:
 MAX_EXAMPLES = 200
 
 
-def examples(conn: sqlite3.Connection, lemma: str) -> list[dict]:
-    """A lemma's phrases as `{"et", "ru"}`, in EKI's order; `[]` without the table."""
+def examples(conn: sqlite3.Connection, lemma: str, kind: str = EXAMPLE) -> list[dict]:
+    """A lemma's phrases of one kind as `{"et", "ru"}`, in EKI's order; `[]`
+    without the table.
+    """
     try:
         rows = conn.execute(
-            "SELECT estonian, russian FROM evs_example WHERE lemma = ? ORDER BY seq "
-            "LIMIT ?", (lemma, MAX_EXAMPLES)).fetchall()
+            "SELECT estonian, russian FROM evs_example WHERE lemma = ? AND kind = ? "
+            "ORDER BY seq LIMIT ?", (lemma, kind, MAX_EXAMPLES)).fetchall()
     except sqlite3.Error:
         return []
     return [{"et": et, "ru": ru} for et, ru in rows]

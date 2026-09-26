@@ -189,7 +189,7 @@ def enrich_word(word: str) -> dict:
     seen = {_same(e) for e in meaning["examples"]}
     phrases = [p for p in evs.examples(words, word) if _same(p["et"]) not in seen]
     shown = (meaning["definition"] or meaning["examples"] or russian["russian"]
-             or governs or inflection_type or phrases)
+             or governs or inflection_type or phrases or evs.examples(words, word, evs.IDIOM))
     return {
         "word": word,
         # Found if any source had something to show.
@@ -207,6 +207,8 @@ def enrich_word(word: str) -> dict:
         **russian,
         "phrases": phrases,
         "phrases_source": "eki-evs" if phrases else None,
+        # EVS's idioms for the word (*väljendid*), with their Russian.
+        "idioms": evs.examples(words, word, evs.IDIOM),
         # The dictionary this app deliberately does not rebuild — one link
         # rather than a scraper the maintainers asked us not to write.
         "sonaveeb": sonapi.entry_url(live.lemma if live else word),

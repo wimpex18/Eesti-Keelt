@@ -198,7 +198,9 @@ EXAMPLES = (
     '<x:qn>адр"есное бюр"о</x:qn></x:qng></x:qnp></x:ng>'
     '<x:ng><x:n>vana aadress</x:n><x:qnp><x:qng xml:lang="ru"><x:qn>стар"инный '
     '"адрес</x:qn><x:s>van</x:s></x:qng></x:qnp></x:ng>'
-    '</x:np></x:tp></x:S></x:A>\n'
+    '</x:np></x:tp></x:S><x:F><x:fg><x:f>aadressi <x:r>kellele</x:r> täpsustama</x:f>'
+    '<x:fqnp><x:fqng xml:lang="ru"><x:qf>уточн"ить "адрес</x:qf><x:vrek>кому</x:vrek>'
+    '</x:fqng></x:fqnp></x:fg></x:F></x:A>\n'
 )
 
 
@@ -222,6 +224,16 @@ class TestExamplePhrases:
         got = next(p for p in phrases if "kriitika" in p.estonian)
         assert got.estonian == "kriitika {kelle/mille} aadressil"
         assert got.russian == "критика в {чей} адрес"
+
+    def test_idioms_are_kept_apart(self, phrases, tmp_path):
+        idiom = evs.Example("aadress", "aadressi {kellele} täpsustama", "уточнить адрес",
+                            evs.IDIOM)
+        assert idiom in phrases
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store_examples(conn, phrases)
+        assert evs.examples(conn, "aadress", evs.IDIOM) == [
+            {"et": "aadressi {kellele} täpsustama", "ru": "уточнить адрес"}]
+        assert all(p["et"] != idiom.estonian for p in evs.examples(conn, "aadress"))
 
     def test_domain_terms_and_archaic_renderings_are_left_out(self, phrases):
         shown = {p.estonian for p in phrases}
@@ -317,7 +329,7 @@ class TestTheCommand:
         monkeypatch.setattr(config, "DB_PATH", tmp_path / "own.db")
         assert main(["import-evs", str(xml), "--check"]) == 0
         out = capsys.readouterr().out
-        assert "3 lemmas with Russian" in out and "1 example phrases" in out
+        assert "3 lemmas with Russian" in out and "1 example phrases and 0 idioms" in out
         assert evs.imported(wordlist.connect()) == 0
         assert main(["import-evs", str(xml)]) == 0
         assert evs.imported(wordlist.connect()) == 3

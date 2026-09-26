@@ -27,13 +27,21 @@ function phraseItem(p) {
     `<span class="gloss" lang="ru">${slots(p.ru)}</span></li>`;
 }
 
-function phrasesHtml(phrases) {
+/* Idioms (väljendid) are folded whole: an idiom is worth knowing once the word
+   is, and it does not mean what its words say. */
+function phrasesHtml(phrases, idioms = []) {
   const head = phrases.slice(0, SHOWN_PHRASES), rest = phrases.slice(SHOWN_PHRASES);
-  let html = `<h4 lang="et">Näited <i class="ru" lang="ru">с переводом</i></h4>` +
+  let html = "";
+  if (head.length) html += `<h4 lang="et">Näited <i class="ru" lang="ru">с переводом</i></h4>` +
     `<ul class="phrase-list">${head.map(phraseItem).join("")}</ul>`;
   if (rest.length) {
     html += `<details class="fuller"><summary lang="et">veel ${rest.length} näidet</summary>` +
       `<ul class="phrase-list">${rest.map(phraseItem).join("")}</ul></details>`;
+  }
+  if (idioms.length) {
+    html += `<details class="fuller"><summary lang="et">Väljendid (${idioms.length})
+        <i class="ru" lang="ru">выражения</i></summary>` +
+      `<ul class="phrase-list">${idioms.map(phraseItem).join("")}</ul></details>`;
   }
   html += `<div class="attrib" lang="et">näited: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
   return html;
@@ -181,10 +189,10 @@ async function fillWordCard(word, card, contextFor) {
         box.innerHTML = meaning.join("");
         slot.append(box);
       }
-      if (x.phrases?.length) {
+      if (x.phrases?.length || x.idioms?.length) {
         const box = document.createElement("div");
         box.className = "pair meaning phrases";
-        box.innerHTML = phrasesHtml(x.phrases);
+        box.innerHTML = phrasesHtml(x.phrases || [], x.idioms || []);
         box.addEventListener("click", e => {
           const b = e.target.closest("[data-say]");
           if (b) speakWord(b.dataset.say, msg => { b.title = msg; });
