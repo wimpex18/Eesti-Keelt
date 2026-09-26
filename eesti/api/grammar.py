@@ -46,9 +46,11 @@ def check(req: CheckRequest) -> dict:
 
 
 @router.get("/api/lookup/{word}")
-def lookup_word(word: str) -> dict:
-    """Analyse one word: lemma, case, CEFR level, and its object-case pair."""
-    return lookup(word)
+def lookup_word(word: str, sentence: str | None = None) -> dict:
+    """Analyse one word: lemma, case, CEFR level, and its object-case pair; with
+    the sentence it was met in, which reading that sentence uses.
+    """
+    return lookup(word, sentence)
 
 
 class TranslateRequest(BaseModel):

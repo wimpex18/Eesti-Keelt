@@ -48,16 +48,42 @@ function phrasesHtml(phrases, idioms = []) {
 }
 
 
+/* One reading of the word: lemma, level, what the form is. In a sentence, the
+   reading the sentence uses is marked and its form comes first; a word with no
+   form to name (`kus`, `aga`) shows its part of speech instead. */
+function analysisHtml(a, chosen = false) {
+  const tags = a.tags.length
+    ? a.tags.map(t => t.in_context ? `<b>${tagLabel(t)}</b>` : tagLabel(t)).join(" · ")
+    : a.pos_name ? `<span lang="et">${esc(a.pos_name)} <i class="ru" lang="ru">${esc(a.pos_ru)}</i></span>` : "";
+  return `
+    <div class="lemma" lang="et">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
+    ${chosen ? `<div class="in-context" lang="et">selles lauses <i class="ru" lang="ru">в этом предложении</i></div>` : ""}
+    ${tags ? `<div class="tags" lang="et">${tags}</div>` : ""}
+    ${a.object_case_contrast ? `<div class="pair" lang="et">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
+      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`;
+}
+
 async function fillWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
+  /* Which word the card is showing now. A lookup or enrichment that returns after
+     the learner has tapped another word belongs to the old one and is dropped,
+     instead of landing its meaning under the new word. */
+  const shown = String(Math.random());
+  card.dataset.shown = shown;
+  const stale = () => card.dataset.shown !== shown;
+  // The sentence the word was met in, so the card can say which reading it is.
+  const sentence = contextFor ? contextFor(word) : null;
+  const query = sentence ? "?sentence=" + encodeURIComponent(sentence.slice(0, 400)) : "";
   let d;
   try {
-    d = await (await api("/api/lookup/" + encodeURIComponent(word), null, "GET")).json();
+    d = await (await api("/api/lookup/" + encodeURIComponent(word) + query, null, "GET")).json();
   } catch (e) {
+    if (stale()) return;
     card.replaceChildren(retryableError(e.message, () => showWordCard(word, card, contextFor)));
     return;
   }
+  if (stale()) return;
   /* `found:false` covers two answers: the word is absent from the lexicon, or the
      lookup could not run (`error`, e.g. the forms table was never exported). The
      second must not read as "not found". */
@@ -83,17 +109,25 @@ async function fillWordCard(word, card, contextFor) {
     <div class="hint">«<span lang="et">Tean</span>» — выучено, идёт в счёт. «<span lang="et">Pole vaja</span>» — не предлагать,
       в счёт не идёт.</div>
     <div id="mineNote"></div>`;
-  card.innerHTML = d.analyses.slice(0, 2).map(a => `
-    <div class="lemma" lang="et">${esc(a.lemma)}${a.level ? ` <span class="hint">${esc(a.level)}</span>` : ""}</div>
-    <div class="tags" lang="et">${a.tags.map(tagLabel).join(" · ")}</div>
-    ${a.object_case_contrast ? `<div class="pair" lang="et">sihitis: <b>${esc(a.genitive)}</b> (omastav) /
-      <b>${esc(a.partitive)}</b> (osastav)</div>` : ""}`).join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>") + mineBtn;
+  /* With the sentence's reading known, it is the card; the other readings are
+     one quiet line, since the sentence has already chosen. */
+  const others = d.in_context ? d.analyses.slice(1) : [];
+  const otherName = a => a.tags[0] ? `${a.lemma} (${a.tags[0].name})` : a.lemma;
+  const otherLine = others.length
+    ? `<div class="hint other-readings" lang="et">muud võimalused:
+        ${esc(others.map(otherName).join(", "))}</div>` : "";
+  // "In this sentence" only where there was a choice to make.
+  const ambiguous = d.analyses.length > 1 || d.analyses[0].tags.length > 1;
+  const readings = d.in_context
+    ? analysisHtml(d.analyses[0], ambiguous) + otherLine
+    : d.analyses.slice(0, 2).map(a => analysisHtml(a))
+        .join("<hr style='border:0;border-top:1px solid var(--line);margin:9px 0'>");
+  card.innerHTML = readings + mineBtn;
 
   // Mining the word queues the GRAMMAR pattern behind it, with the sentence as
   // context — not a translation. Refusals explain themselves.
   card.querySelector("#mineBtn").onclick = async e => {
     e.target.disabled = true;
-    const sentence = contextFor ? contextFor(word) : null;
     const note = card.querySelector("#mineNote");
     try {
       const r = await (await api("/api/mine", {word, context: sentence || null})).json();
@@ -120,7 +154,7 @@ async function fillWordCard(word, card, contextFor) {
   api("/api/enrich/" + encodeURIComponent(enrichLemma), null, "GET")
     .then(r => r.json())
     .then(x => {
-      if (!x.found) return;
+      if (!x.found || stale()) return;
       const bits = [];
       if (x.governs?.length) bits.push(`<span lang="et">rektsioon: <b>${esc(x.governs.join(", "))}</b></span>`);
       if (x.inflection_type) bits.push(`<span lang="et">muuttüüp <b>${esc(String(x.inflection_type))}</b></span>`);

@@ -913,6 +913,9 @@ a.lib-item{text-decoration:none;color:inherit}
 #wordCard, #vocCard{padding-right:56px}
 #wordCard .lemma{font-family:var(--f-read);font-size:24px;font-weight:600}
 #wordCard .tags{font-size:var(--fs-note);color:var(--muted);margin-top:3px}
+#wordCard .tags b{color:var(--ink);font-weight:650}
+#wordCard .in-context{margin-top:2px;font-size:var(--fs-meta);font-weight:700;color:var(--accent)}
+#wordCard .other-readings{margin-top:var(--s1)}
 #wordCard .pair{margin-top:7px;font-size:var(--fs-ui)}
 #wordCard .pair b{color:var(--accent)}
 .meaning .def{color:var(--ink);font-size:var(--fs-ui);line-height:1.55}

@@ -16,7 +16,7 @@ checkout, so there is no paired WER or false-accept result supporting a switch
 | [TalTech Whisper verbatim](https://huggingface.co/TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604) | Local paired reference via its official CTranslate2 checkpoint and `faster-whisper`; its name does not guarantee preservation of learner errors. |
 | [TalTech streaming Zipformer](https://huggingface.co/TalTechNLP/streaming-zipformer.et-en) | Possible small local or live-caption trial if partial transcripts become useful. It is not the current comparison engine. |
 | [TalTech Voxtral Mini Estonian](https://huggingface.co/TalTechNLP/Voxtral-Mini-3B-2507-estonian) | Larger instruction-following speech model; requires a separate runtime and error-preservation evaluation. |
-| [TalTech Voxtral Realtime](https://huggingface.co/TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609) | GPU-oriented streaming option; short exercises currently use record-and-submit. |
+| [TalTech Voxtral Realtime](https://huggingface.co/TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609) | 3 Sep 2026, Apache-2.0, 4B parameters in BF16 (8.9 GB), 6.8% WER on the Kõnetõlke benchmark (native broadcast speech, not learners). Streaming needs vLLM on a CUDA GPU; Transformers ≥ 5.2 transcribes whole files. No hosted endpoint (Workers AI offers none) and no MLX or GGUF build of the Estonian weights yet, so it cannot serve the phone app. Its role is a local paired candidate once `Hindamiskomplekt` holds verified clips; short exercises stay record-and-submit. |
 
 [TartuNLP's ASR API](https://github.com/TartuNLP/speech-to-text-api) is an
 asynchronous job stack rather than an established hosted short-answer endpoint

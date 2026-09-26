@@ -1,7 +1,8 @@
 """Word lookup against the exported form index (`edge.db`).
 
 Click any word for its lemma, its case and whether it is at the learner's level.
-Needs no Vabamorf at runtime.
+Needs no Vabamorf at runtime; with the sentence the word was met in, Vabamorf's
+disambiguator (when installed) says which reading that sentence uses.
 """
 
 from __future__ import annotations
@@ -82,8 +83,47 @@ def _db(path: str | None = None) -> sqlite3.Connection | None:
     return _open(str(target))
 
 
-def lookup(word: str) -> dict:
-    """Analyses for one surface form, plus the lemma's CEFR level."""
+#: The word list's part-of-speech codes as a card names them, Estonian with its
+#: Russian gloss: shown for a word with no inflection to name (`kus`, `aga`).
+POS_NAMES = {
+    "s": ("nimisõna", "существительное"), "v": ("tegusõna", "глагол"),
+    "adj": ("omadussõna", "прилагательное"), "adv": ("määrsõna", "наречие"),
+    "pron": ("asesõna", "местоимение"), "num": ("arvsõna", "числительное"),
+    "konj": ("sidesõna", "союз"), "postp": ("tagasõna", "послелог"),
+    "prep": ("eessõna", "предлог"), "interj": ("hüüdsõna", "междометие"),
+    "prop": ("pärisnimi", "имя собственное"),
+}
+
+#: The longest sentence a lookup reads for context.
+MAX_SENTENCE = 400
+
+
+def _in_context(word: str, sentence: str) -> tuple[str, str] | None:
+    """The (lemma, form) Vabamorf's disambiguator gives `word` in `sentence`:
+    `teed` is tea (`sg p`) in *Ma joon teed* and roads (`pl n`) in *Need teed
+    viivad linna*. None without Vabamorf, or when the word is not in it.
+    """
+    try:
+        from .morph import analyze
+    except ImportError:
+        return None
+    try:
+        tokens = analyze(sentence[:MAX_SENTENCE])
+    except Exception:  # noqa: BLE001 - context is a refinement, never a failure
+        return None
+    wanted = word.strip().casefold()
+    for token in tokens:
+        if token.text.casefold() == wanted:
+            return token.lemma, token.form
+    return None
+
+
+def lookup(word: str, sentence: str | None = None) -> dict:
+    """Analyses for one surface form, plus the lemma's CEFR level.
+
+    With the `sentence` it was met in, the reading that sentence gives it is
+    marked `in_context` and put first, and so is its tag.
+    """
     conn = _db()
     if conn is None:
         return {"word": word, "found": False, "error": "run `cli export` first"}
@@ -109,19 +149,35 @@ def lookup(word: str) -> dict:
             "SELECT genitive, partitive, distinct_ FROM object_cases WHERE lemma = ?",
             (lemma,),
         ).fetchone()
+        pos = meta["pos"] if meta else None
+        named = POS_NAMES.get((pos or "").split(",")[0])
         out.append({
             "lemma": lemma,
+            # An empty tag is a word with nothing to inflect (`export.py`).
             "tags": [{"tag": t, "name": TAG_NAMES.get(t, t), "ru": TAG_RU.get(t, "")}
-                     for t in tags],
+                     for t in tags if t],
             "level": meta["proficiency"] if meta else None,
-            "pos": meta["pos"] if meta else None,
+            "pos": pos,
+            "pos_name": named[0] if named else None,
+            "pos_ru": named[1] if named else None,
             "genitive": cases["genitive"] if cases else None,
             "partitive": cases["partitive"] if cases else None,
             # Flagged so the reader can point out the contrast in the wild —
             # seeing it in a real sentence is worth more than another drill.
             "object_case_contrast": bool(cases and cases["distinct_"]) if cases else False,
         })
-    return {"word": word, "found": True, "analyses": out}
+    reading = _in_context(word, sentence) if sentence else None
+    if reading:
+        lemma, form = reading
+        for analysis in out:
+            if analysis["lemma"].casefold() == lemma.casefold():
+                analysis["in_context"] = True
+                for tag in analysis["tags"]:
+                    tag["in_context"] = tag["tag"] == form
+                analysis["tags"].sort(key=lambda t: not t["in_context"])
+        out.sort(key=lambda a: not a.get("in_context"))
+    return {"word": word, "found": True, "analyses": out,
+            "in_context": bool(reading and any(a.get("in_context") for a in out))}
 
 
 def lemmas_in(text: str) -> list[str]:
