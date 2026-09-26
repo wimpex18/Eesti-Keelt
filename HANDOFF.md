@@ -12,7 +12,9 @@ Branch `claude/evs-examples`: the word card's *Näited* shows EKI EVS's example
 phrases with their Russian (137 316 for 34 802 lemmas, `evs_example`, imported
 by `cli import-evs`), three shown and the rest folded, credited to EKI. Meaning
 cards in Järjekord show one phrase and, from the second review, a tile builder
-(*Koosta fraas*, `review.js`).
+(*Koosta fraas*, `review.js`). EVS idioms fold under *Väljendid*. The form
+index keeps only forms Vabamorf reads back, and a word tapped in a text is
+looked up with its sentence (*selles lauses*, `lookup.py`).
 
 ## Next step
 User reviews the PR and merges; Cloud Build re-imports EVS in the image. After
