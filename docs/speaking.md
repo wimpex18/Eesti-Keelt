@@ -49,51 +49,27 @@ learner presses Kontrolli.
 
 ## Where the voice goes
 
-In production the recording goes to Cloudflare Workers AI (Whisper, language
-`et`) through the Worker. The app does not archive that audio; the evidence log
-**does retain transcripts and practice signals**, and exports contain them.
-Provider handling follows [Cloudflare's data policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/).
-Local-only recognition keeps audio on the machine only when hosted lanes are
-not configured. Eval recording intentionally saves audio locally. These are
-three different privacy boundaries.
+The deployed Worker sends the recording first to the owner's Mac mini (the home
+service, `eesti/asrserver.py`: TalTech's Estonian recogniser, reached through a
+Workers VPC Service on a Cloudflare Tunnel; the Mac is not on the public
+Internet), and to Cloudflare Workers AI Whisper (language `et`) when the Mac
+does not answer within 25 s. The speaking page says which one is listening
+(`/api/asr/home`). Neither keeps the audio; the evidence log **does retain
+transcripts and practice signals**, and exports contain them. Workers AI
+follows [Cloudflare's data policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/).
+Under local `cli serve`, `providers/asr.py` asks Voxtral Realtime first when
+`requirements-local-asr.txt` is installed and `VOXTRAL_RT_MODEL` is set, then
+the hosted engines, then whisper.cpp and Voxtral via llama.cpp; `/api/asr`
+reports which it can use. Eval recording intentionally saves audio locally.
+
+Engine measurements and the recording/verification workflow are in
+`docs/asr-evaluation.md`; setting up the home service is
+`deploy/home-asr/README.md`.
 
 ## Not built
 
 Acoustic pronunciation scoring: forced alignment gives timings, not
 correctness, and EKI already publishes free exercises.
-
-## Running ASR locally
-
-With `requirements-local-asr.txt` installed and `VOXTRAL_RT_MODEL` set,
-`providers/asr.py` asks TalTech's Voxtral Realtime first (measured in
-`docs/asr-evaluation.md`); otherwise it looks for whisper.cpp with TalTech's
-Estonian verbatim model, then Voxtral via llama.cpp, after the hosted engines.
-Cloud Run never sets the variable. The deployed app reaches Voxtral only
-through the owner's Mac mini (`eesti/asrserver.py`, `deploy/home-asr/README.md`):
-the Worker sends each recording there through a Workers VPC Service bound to a
-Cloudflare Tunnel, waits at most 25 s, and otherwise uses Workers AI. The
-speaking page says which one is listening (`/api/asr/home`). `/api/asr` reports which engines this
-process can use.
-
-
-## Before swapping a recogniser
-
-The production choice is Cloudflare plus a **local TalTech benchmark reference**,
-not an additional production service. `docs/asr-evaluation.md` contains the
-current model comparison and the complete recording/verification workflow.
-
-`Hindamiskomplekt` under local `cli serve` records an answer in the app, either
-from a dedicated read/question prompt or from an ordinary speaking exercise.
-The proposed ASR transcript is editable in the same panel. Listen, correct it,
-and confirm what was actually said; the prompt is never the transcript. The
-private clip, draft and verified transcript stay under `data/eval/asr/` (or
-`EESTI_ASR_EVAL_DIR`). `cli eval --suite asr` defaults to the production
-recogniser. Only verified pairs are scored. The
-harness reports WER, CER, latency, aligned false acceptance, morphology-sensitive
-errors and per-clip coverage, with a paired comparison of named engines.
-`faster-whisper` is an eval-only optional CPU backend for TalTech's official CT2
-weights. The existing whisper.cpp reference needs WAV input. No learner clips
-are present here, so comparative quality remains unmeasured.
 
 ## A human voice where EKI recorded one
 

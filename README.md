@@ -20,8 +20,9 @@ not set mastery or FSRS ratings.
   conversation practice, and a private in-app speech review set during local use.
 - **Kirjutamine** — grammar check with explanations in Russian, back-translation,
   and a queue to the Notion error log.
-- **Kordamine** — FSRS review of mistakes and mined words; **Sõnavara** lists
-  words by CEFR level and frequency.
+- **Kordamine** — FSRS review of mistakes and mined words, with EKI's
+  Estonian–Russian example phrases built from tiles; **Sõnavara** lists words by
+  CEFR level and frequency.
 - **Eksam** — readiness per exam part, timed practice, HARNO material in-app,
   and two reviewed native reading exercises.
 
@@ -45,8 +46,9 @@ Terminal practice is available too: `cli placement`, `cli practice`,
 ## Deployment
 
 Google Cloud Run (the app) behind a Cloudflare Worker with Access (login,
-state snapshots, speech). See [`docs/deploy.md`](docs/deploy.md) for setup
-and cost limits.
+state snapshots, speech). Speech is transcribed on the owner's Mac mini when it
+is on ([`deploy/home-asr/README.md`](deploy/home-asr/README.md)), else by
+Workers AI. See [`docs/deploy.md`](docs/deploy.md) for setup and cost limits.
 
 ## Documentation
 

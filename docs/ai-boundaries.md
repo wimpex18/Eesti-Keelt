@@ -17,7 +17,7 @@ Where a model touches the learner, and where code decides.
 | Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
 | Playing the exam partner (`Vestlus`) | `tutor.converse`: a task card from the bank and the turns so far | yes; Estonian only, capped at 8 turns, never a correction or a verdict, and the forms Vabamorf rejects are named |
 | Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
-| Transcribing speech | Workers AI Whisper (production), provider chain locally | yes |
+| Transcribing speech | the owner's home service, then Workers AI Whisper (production); provider chain locally | yes |
 | Read-aloud comparison | `difflib` against the known sentence | no |
 | Feedback on a spoken answer | LLM chain over the transcript | yes, and advisory |
 
