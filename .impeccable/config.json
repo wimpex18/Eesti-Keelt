@@ -11,6 +11,53 @@
         ],
         "createdAt": "2026-09-26T21:13:00.522Z",
         "reason": "Codex QA: detector treats the dark hero muted text token as a background; actual hero text uses the dark hero surface in DESIGN.md, verified in Chrome in both themes."
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-09-26T21:40:17.483Z",
+        "reason": "QA: speak.js adds the dot only while MediaRecorder is recording and removes it on stop; this reports live capture, not decorative status."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "eesti/web/app.css",
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-09-26T21:40:17.554Z",
+        "reason": "QA: DESIGN.md specifies the folding dock and gliding selection capsule; transitions predate this PR, were checked at all requested sizes, and collapse under reduced motion."
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "*",
+        "files": [
+          "eesti/web/app.css"
+        ],
+        "createdAt": "2026-09-26T21:40:17.617Z",
+        "reason": "QA: DESIGN.md explicitly specifies a slight spring for the gliding tab selection; the existing spring token implements that pinned behavior."
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-09-26T21:40:37.179Z",
+        "reason": "QA: the reported 1.25 line height belongs to compact controls and milestone labels, not body prose. Body text uses 1.6; labels were visually checked in both themes and viewports, with milestone overlap fixed separately."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "eesti/web/app.css",
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-09-26T21:40:37.250Z",
+        "reason": "QA: existing correction and lesson accents predate this PR; obj-case changes the correction stripe to the warning colour for the documented priority grammar weakness. The user requested defect fixes and explicitly excluded redesign, so retain this established teaching treatment."
       }
     ]
   }

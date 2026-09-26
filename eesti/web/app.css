@@ -1362,7 +1362,7 @@ body:has(#tab-status:not([hidden])) .rail-card:is([data-for="status"], [data-als
 .empty-mark{width:52px;height:52px;margin:0 auto 14px;border-radius:999px;display:grid;place-items:center;
   background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)}
 .empty-mark svg{width:24px;height:24px}
-.empty-state h4{margin:0;font-size:var(--fs-body);font-weight:750}
+.empty-state h3{margin:0;font-size:var(--fs-body);font-weight:750}
 .empty-state p{margin:var(--s2) auto 0;max-width:44ch;font-size:var(--fs-note);line-height:1.6;color:var(--muted)}
 .empty-state .row{justify-content:center;margin-top:var(--s4)}
 /* On a phone the actions stack as one column of equal capsules. */

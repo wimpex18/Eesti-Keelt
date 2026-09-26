@@ -553,6 +553,7 @@ class TestWriting:
     def test_an_empty_submission_says_what_is_missing(self, page):
         """An empty submission shows a Russian message instead of doing nothing."""
         open_tab(page, "learn", "write")
+        assert page.get_by_role("heading", name="Проверка письма", level=3).is_visible()
         page.click("#checkBtn")
         page.wait_for_timeout(800)
         said = page.locator("#checkOut").inner_text().strip()
