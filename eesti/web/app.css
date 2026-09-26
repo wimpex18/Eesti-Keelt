@@ -381,6 +381,8 @@ nav .lbl .ru{display:none}
     min-height:50px;line-height:1.2;padding:6px 10px}
   .page-head > .seg button i.ru{display:block;margin:2px 0 0}
   .exam-head > .seg{flex:0 0 auto;display:inline-flex}
+  /* The level switch sits level with the line it qualifies. */
+  .exam-head{align-items:center}
 }
 .sec-title, .sec-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
   margin:0;font-size:var(--fs-lead);font-weight:700;letter-spacing:-.015em}
@@ -610,7 +612,7 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   font-variant-numeric:tabular-nums}
 .pulse-big small{font-size:var(--fs-note);font-weight:600;color:var(--muted);letter-spacing:0}
 .pulse-sub{font-size:var(--fs-gloss);color:var(--muted);line-height:1.3}
-.pulse-flower .flower{width:44px;height:44px;margin:1px 0}
+.pulse-flower .flower{width:48px;height:48px;margin:1px 0}
 .pulse-week{display:flex;gap:3px;margin-top:4px}
 .pulse-week i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--accent) 10%, var(--tint))}
 .pulse-week i.on{background:var(--accent)}
@@ -1129,13 +1131,15 @@ audio.enhanced{display:none !important}
 .part-mark.yes{background:var(--tint);color:var(--accent)}
 .part-mark.no{background:var(--warn-soft);color:var(--warn)}
 .part-mark.unknown{color:var(--muted)}
-.part-body{min-width:0}
+/* The contact dashes sit at the row's end, clear of the name and its gloss. */
+.part-body{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:var(--s3);align-items:center}
+.part-body > :not(.part-name, .contact){grid-column:1 / -1}
 .part-name{font-weight:750;font-size:var(--fs-body)}
 .part-name .ru{display:inline;margin-left:6px}
 .part-ev{display:block;font-size:var(--fs-note);color:var(--muted)}
 .part-next{font-size:var(--fs-note);margin-top:4px}
 .part-next .inline-ico{color:var(--accent)}
-.contact{display:inline-flex;gap:3px;vertical-align:1px;margin-left:8px}
+.contact{display:inline-flex;gap:3px}
 .contact i{width:14px;height:5px;border-radius:3px;background:var(--line)}
 .contact i.on{background:var(--accent)}
 .measures{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--s3);margin-top:var(--s4)}
@@ -1330,6 +1334,11 @@ body:has(#tab-status:not([hidden])) .rail-card:is([data-for="status"], [data-als
 .empty-state h4{margin:0;font-size:var(--fs-body);font-weight:750}
 .empty-state p{margin:var(--s2) auto 0;max-width:44ch;font-size:var(--fs-note);line-height:1.6;color:var(--muted)}
 .empty-state .row{justify-content:center;margin-top:var(--s4)}
+/* On a phone the actions stack as one column of equal capsules. */
+@media (max-width:719px){
+  .empty-state .row{display:grid;grid-template-columns:minmax(0,260px)}
+  .empty-state .row > *{justify-content:center}
+}
 .skel-wrap{display:flex;flex-direction:column;gap:var(--s2)}
 .skel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 .skel-row, .skel-tile{border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:9px;background:var(--panel)}
