@@ -12,6 +12,8 @@ from functools import lru_cache
 from importlib.metadata import version
 from pathlib import Path
 
+MODEL = "TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"
+
 
 def _fingerprint(path: Path) -> str:
     """Include decoding assets: identical weights can use different tokenizers."""
@@ -35,7 +37,7 @@ def _load(folder: str):
                 f"ctranslate2/{version('ctranslate2')} "
                 f"cpu/int8 beam=5 temperature=0 artifacts-sha256:{digest}")
     return WhisperModel(str(path), device="cpu", compute_type="int8",
-                        local_files_only=True), identity
+                        cpu_threads=os.cpu_count() or 4, local_files_only=True), identity
 
 
 def transcribe(audio: bytes):

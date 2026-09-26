@@ -1,5 +1,13 @@
-"""The home speech service: TalTech's Voxtral Realtime on an always-on Mac,
+"""The home speech service: a TalTech Estonian recogniser on an always-on Mac,
 reached by the Worker through a Cloudflare Tunnel.
+
+Two engines, by what the Mac can run (both measured on the owner's voice at 7%
+WER against Workers AI's 36%, docs/asr-evaluation.md):
+
+| Mac | Engine | Set |
+|---|---|---|
+| Apple silicon | Voxtral Realtime, GPU (`eesti/evals/asr_voxtral.py`) | `VOXTRAL_RT_MODEL` |
+| Intel (e.g. Mac mini 2018) | Whisper large-v3-turbo et-verbatim, CPU int8 (`eesti/evals/asr_reference.py`) | `ASR_REFERENCE_MODEL` |
 
 No free host can run a 4B speech model, but the owner's Mac mini can. This is
 the smallest service that lets the deployed app use it:
@@ -34,12 +42,28 @@ _state = {"loaded": False, "error": ""}
 _busy = threading.Lock()
 
 
+def _engine():
+    """(name, transcribe, warm-up) for the engine this Mac is set up for."""
+    if os.environ.get("VOXTRAL_RT_MODEL"):
+        from .evals import asr_voxtral
+
+        return (asr_voxtral.MODEL, asr_voxtral.transcribe,
+                lambda: asr_voxtral._load(os.environ["VOXTRAL_RT_MODEL"]))
+    if os.environ.get("ASR_REFERENCE_MODEL"):
+        from .evals import asr_reference
+
+        return (asr_reference.MODEL, asr_reference.transcribe,
+                lambda: asr_reference._load(os.environ["ASR_REFERENCE_MODEL"]))
+    return None
+
+
 def _warm() -> None:
     """Load the model now, so the first learner does not wait for it."""
     try:
-        from .evals.asr_voxtral import _load
-
-        _load(os.environ["VOXTRAL_RT_MODEL"])
+        engine = _engine()
+        if engine is None:
+            raise RuntimeError("set VOXTRAL_RT_MODEL or ASR_REFERENCE_MODEL")
+        engine[2]()
         _state["loaded"] = True
     except Exception as exc:  # noqa: BLE001 - reported by /health, not raised
         _state["error"] = f"{type(exc).__name__}: {exc}"[:300]
@@ -57,10 +81,9 @@ app = FastAPI(title="eesti home speech", docs_url=None, redoc_url=None,
 
 @app.get("/health")
 def health() -> dict:
-    from .evals.asr_voxtral import MODEL
-
-    return {"ok": _state["loaded"], "engine": MODEL, "loaded": _state["loaded"],
-            "error": _state["error"]}
+    engine = _engine()
+    return {"ok": _state["loaded"], "engine": engine[0] if engine else "",
+            "loaded": _state["loaded"], "error": _state["error"]}
 
 
 @app.post("/transcribe")
@@ -75,13 +98,15 @@ async def transcribe(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="no audio")
     if len(audio) > MAX_BYTES:
         raise HTTPException(status_code=413, detail="recording too long")
-    from .evals.asr_voxtral import transcribe as voxtral_rt
+    engine = _engine()
+    if engine is None:
+        raise HTTPException(status_code=503, detail="no engine configured")
 
     def run():
         with _busy:
-            return voxtral_rt(audio)
+            return engine[1](audio)
 
     got = await run_in_threadpool(run)
     if got is None:
-        raise HTTPException(status_code=503, detail="VOXTRAL_RT_MODEL is not set")
+        raise HTTPException(status_code=503, detail="no engine configured")
     return {"text": got.text, "engine": got.engine}

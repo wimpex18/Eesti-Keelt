@@ -23,17 +23,25 @@ phone / laptop ─▶ Worker ─(VPC Service → Tunnel)─▶ Mac mini :8790  e
 
 ## 2. Set up the Mac mini (once)
 
-Needs [Homebrew](https://brew.sh). In Terminal on the Mac mini:
+No Homebrew needed; it works on Intel Macs (a 2018 Mac mini) and Apple
+silicon. The engine follows the processor: Intel runs TalTech's Whisper
+et-verbatim on the CPU (1.6 GB, about 10 s a recording on a quad-core i3),
+Apple silicon runs Voxtral Realtime on the GPU (8.9 GB). Both misheard 7% of
+the owner's words where Workers AI misheard 36%.
 
-```bash
-git clone https://github.com/wimpex18/Eesti-Keelt.git ~/Eesti-Keelt
-cd ~/Eesti-Keelt && zsh deploy/home-asr/install.sh <token-from-step-1>
-```
+1. On the Mac mini, open <https://github.com/wimpex18/Eesti-Keelt> in Safari
+   (signed in to GitHub), **Code → Download ZIP**, and double-click the ZIP.
+2. In Terminal:
 
-It installs everything, downloads the 8.9 GB model, starts the speech service
-and the tunnel, and makes both start again after a restart. At the end it
-prints the **service secret**. In **System Settings → Energy**, turn on
-**Prevent automatic sleeping when the display is off**.
+   ```bash
+   cd ~/Downloads/Eesti-Keelt-main && zsh deploy/home-asr/install.sh <token-from-step-1>
+   ```
+
+It installs everything into `~/.eesti-home-asr`, downloads the model, starts
+the speech service and the tunnel, and makes both start again after a restart.
+At the end it prints `"ok":true` and the **service secret**. In **System
+Settings → Energy**, turn on **Prevent automatic sleeping when the display is
+off**. Keep the unpacked folder where it is: the service runs from it.
 
 ## 3. Point the Worker at it (once, on the computer with the repo)
 
@@ -55,7 +63,7 @@ when the Mac is off.
 
 ## Updating and checking
 
-- Update: `cd ~/Eesti-Keelt && git pull && zsh deploy/home-asr/install.sh <token>`.
+- Update: download the ZIP again, unpack it in the same place, re-run `install.sh`.
 - Health on the Mac mini: `curl http://127.0.0.1:8790/health`.
 - Logs: `~/.eesti-home-asr/asr.log` and `tunnel.log`.
 - Stop: `launchctl bootout gui/$(id -u)/ee.eesti-keelt.home-asr` (and `home-tunnel`).

@@ -14,6 +14,7 @@ def home(monkeypatch):
     from eesti.evals import asr_voxtral
 
     monkeypatch.setenv("HOME_ASR_TOKEN", "s3cret")
+    monkeypatch.setenv("VOXTRAL_RT_MODEL", "/nowhere")
     monkeypatch.setattr(asr_voxtral, "transcribe",
                         lambda audio: Transcript("Ma ostsin uus auto.", "voxtral-rt"))
     return TestClient(asrserver.app)

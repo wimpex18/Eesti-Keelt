@@ -205,7 +205,9 @@ def cmd_asr_serve(args: argparse.Namespace) -> int:
 
     import uvicorn
 
-    missing = [n for n in ("VOXTRAL_RT_MODEL", "HOME_ASR_TOKEN") if not os.environ.get(n)]
+    missing = [n for n in ("HOME_ASR_TOKEN",) if not os.environ.get(n)]
+    if not (os.environ.get("VOXTRAL_RT_MODEL") or os.environ.get("ASR_REFERENCE_MODEL")):
+        missing.append("VOXTRAL_RT_MODEL or ASR_REFERENCE_MODEL")
     if missing:
         print(f"Set {', '.join(missing)} first (deploy/home-asr/README.md).", file=sys.stderr)
         return 1
