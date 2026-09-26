@@ -28,5 +28,5 @@ judgement without a replay, so it is reported apart from verified clips and
 never feeds a provider switch alone (`eesti/asrcheck.py`).
 
 `docs/asr-evaluation.md` is the operational workflow and model comparison.
-The current checkpoint has no learner evaluation recordings. Production stays
-on Cloudflare while the TalTech reference path is available for measurement.
+The owner has 8 verified clips; `cli asr-bench` adds a native and synthetic
+benchmark whose truth is known by construction.

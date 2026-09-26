@@ -7,8 +7,9 @@ request time, which is why the app runs in a container and not in a Worker.
 ## Request path
 
 ```
-browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers AI speech)
-              └─► Cloud Run: FastAPI (eesti.app) ─► eesti/api/* ─► domain modules ─► SQLite
+browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, speech)
+              ├─► Cloud Run: FastAPI (eesti.app) ─► eesti/api/* ─► domain modules ─► SQLite
+              └─► speech: Mac mini home service (VPC Service → Tunnel), else Workers AI Whisper
 ```
 
 - `eesti/app.py` builds the app: origin guard (`PROXY_TOKEN`), routers, static
@@ -18,6 +19,8 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
   (one per screen plus `core`, `router`, `chrome`, `media`, `state`; `main.js`
   bootstraps last) and `sw.js`. No build step.
 - `deploy/worker.ts` is the Worker; `wrangler.jsonc` configures it.
+- `eesti/asrserver.py` is the home speech service on the owner's Mac mini
+  (`deploy/home-asr/`), outside Cloud Run.
 
 ## API modules
 
@@ -48,7 +51,7 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, Workers 
 | Grammar reference | `grammar.py` (EKK links), `estgec.py` (EstGEC-L2 word-order corrections) |
 | Tutor | `tutor.py` — the one boundary a model is called across (ADR-0002): explanations, the writing and transcript checks, translation, and the exam partner |
 | Providers | `providers/grammar.py` (check chain, per-correction provenance), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
-| Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `asr.py` (verified learner audio), `health.py` (GEC POST contract), `fetch.py` |
+| Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `asr.py` (verified learner audio), `asr_bench.py` (ready-made speech benchmark), `asr_reference.py` and `asr_voxtral.py` (TalTech engines), `health.py` (GEC POST contract), `fetch.py` |
 | Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` (licences **and** engines: version, quota, what leaves the device), `logs.py` (JSON lines, never learner text), `providers/budget.py` (a day's allowance per lane) |
 | CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |
 

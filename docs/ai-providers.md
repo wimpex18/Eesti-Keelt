@@ -5,7 +5,7 @@
 | Task | Engine | Boundary |
 |---|---|---|
 | Grammar explanations and tutor | Cloudflare Workers AI GPT-OSS-120B, then deterministic Vabamorf evidence | Models explain and assess open writing; code owns drill keys, mastery and FSRS (`docs/ai-boundaries.md`). |
-| Speech recognition | Cloudflare Workers AI Whisper through the Worker | Transcript and feedback are advisory. The learner reviews recorded audio in `Hindamiskomplekt` before it can become ASR evaluation data (`docs/asr-evaluation.md`). |
+| Speech recognition | TalTech's Estonian recogniser on the owner's Mac mini (home service), Cloudflare Workers AI Whisper as fallback, both through the Worker | Transcript and feedback are advisory. The learner reviews recorded audio in `Hindamiskomplekt` before it can become ASR evaluation data (`docs/asr-evaluation.md`). |
 | Estonian speech synthesis | TartuNLP Neurokõne | Valid complete WAV files are cached atomically; an uncached failure is visible. |
 | Sentence translation | TartuNLP Neurotõlge | Translation supports reading and writing; it never grades an answer. |
 | Word lookup | Ekilex with `EKILEX_API_KEY`, then the Sõnaveeb mirror | Dictionary answers retain their source. |
@@ -48,7 +48,7 @@ replacement from a changed proposal, and both detection and clean-pass rates
 matter. Review actual edits and Russian explanations before a lane change.
 The separate `--track external` uses TalTech's corrected-sentence material
 and reports recall by error class plus a clean-control rate; words are compared
-without edge punctuation or case. On 2026-09-25 GPT-OSS-120B caught 8/10 on the
+without edge punctuation or case. GPT-OSS-120B catches 8/10 on the
 hand set with 8/8 clean, but only 2/40 attested learner errors on the external
 track (clean 16/20). Its two hand-set misses (`minen`, `teesin`) are non-words
 that the deterministic spelling check flags instead. Prior candidate
@@ -62,15 +62,14 @@ python -m eesti.cli eval --provider workers-ai --track external
 python -m eesti.cli models --provider nvidia --limit 10
 ```
 
-**Newer candidates (checked 2026-09-25).** Of the models released in August or
-September 2026, only Qwen3.8-27B runs on the Workers Free plan; GLM-5.3,
+**Newer candidates.** Of the newest models, only Qwen3.8-27B runs on the Workers Free plan; GLM-5.3,
 GLM-5.3 Flash and DeepSeek V4 answer "not available on the Workers Free plan".
 Qwen3.8-27B caught 6/7 and left 7/7 clean on the hand set, but 4 of 18 cases
 came back empty (`length`, 2000 tokens), so GPT-OSS-120B stays the pin. The
-NVIDIA evaluation lane is pinned to DeepSeek V4.1 Flash (10 Sept 2026); its
-free endpoint timed out on every hand-set sentence that day, as did GLM-5.3
-and GLM-5.3 Flash. Evals share the production Workers AI allowance of 10,000
-neurons a day, which also pays for Whisper: one hand-set run is affordable,
+NVIDIA evaluation lane is pinned to DeepSeek V4.1 Flash; its free endpoint,
+like GLM-5.3 and GLM-5.3 Flash, timed out on every hand-set sentence when
+measured. Evals share the production Workers AI allowance of 10,000
+neurons a day, which also pays for the Whisper fallback: one hand-set run is affordable,
 the external track on several models is not.
 
 Model IDs can disappear. Check the live catalogue and the task-specific eval
@@ -114,7 +113,7 @@ LOCAL_LLM_MODEL=hf.co/mradermacher/Llama-3.1-EstLLM-8B-Instruct-1125-GGUF:Q4_K_M
 python -m eesti.cli eval --provider local
 ```
 
-Measured on 2026-09-25 (M5, 32 GB, Q4_K_M, temperature 0): the hand set
+Measured on an M5 with 32 GB (Q4_K_M, temperature 0), the hand set
 caught 9/10 planted errors but left **0/8** correct sentences alone; six of
 those were no-op "corrections" and two were wrong edits (`võtmeid` → `võtme`).
 With Vabamorf evidence attached it caught 7/10 and still passed 0/8. The app's

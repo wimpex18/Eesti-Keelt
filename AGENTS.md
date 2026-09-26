@@ -12,8 +12,8 @@ learn → practise → check. Its most important known grammar weakness is
   `docs/ai-boundaries.md`.
 - Workers AI GPT-OSS-120B is the automatic hosted grammar/tutor lane, followed
   by deterministic offline evidence. Other grammar models are evaluation-only.
-  Cloudflare Workers AI is production ASR; when the owner's Mac mini service is
-  bound (`deploy/home-asr/`), the Worker asks its Voxtral first and falls back. Change a lane only after its own
+  Speech goes to the owner's Mac mini home service (`deploy/home-asr/`), with
+  Workers AI Whisper as fallback. Change a lane only after its own
   task-specific evaluation; ASR needs human-verified learner audio, not prompts
   used as transcripts.
 - Never invent a linguistic fact. Take forms from Vabamorf and rules from EKI's

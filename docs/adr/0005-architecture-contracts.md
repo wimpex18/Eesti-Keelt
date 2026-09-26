@@ -5,21 +5,18 @@
 ## Decision
 
 Keep the modular FastAPI application, SQLite event log and projections, the
-Cloudflare Access/Worker front door and the singleton Durable Object. Keep
-Workers AI Whisper in production and use TalTech verbatim Whisper as a **local
-benchmark reference**, not a second production dependency. Preserve deterministic
-planning, grading and FSRS. Use the measured Workers AI explaining lane; unavailable GEC and low-quality
-normalization/LLM candidates are explicit evaluation tools only. No framework migration,
-message broker, vector store, streaming service or new model host is needed for
-the redesign.
+Cloudflare Access/Worker front door and the singleton Durable Object. Speech
+goes to the owner's home service first (TalTech's Estonian recogniser on the
+owner's Mac, reached by a Workers VPC Service over a Cloudflare Tunnel) and to
+Workers AI Whisper when it does not answer; the home machine is the owner's
+own, not a paid host. Preserve deterministic planning, grading and FSRS. Use
+the measured Workers AI explaining lane; unavailable GEC and low-quality
+normalization/LLM candidates are explicit evaluation tools only. No framework
+migration, message broker, vector store or streaming service is needed.
 
-This is a feasibility and evidence decision, **not a measured ASR quality win**.
-There are no learner recordings in the local evaluation folder, hence no
-verified learner transcripts and no comparative WER/false-accept result. Native
-EKI recordings and cached TTS are present; neither is learner ground truth.
-The current model stays until the workflow in `docs/asr-evaluation.md` supplies
-paired evidence and a deployable improvement. Catalogue presence is insufficient. Actual native EKI controls establish that
-local CT2 and Zipformer can run; they are not learner ground truth.
+The speech order rests on the benchmark and the owner's first 8 verified clips
+(`docs/asr-evaluation.md`: 7% against 36% WER), below the 20-clip pilot floor.
+Whisper stays the fallback, and more verified clips can still reverse it.
 
 ## Architectural contracts to preserve
 
@@ -33,7 +30,7 @@ local CT2 and Zipformer can run; they are not learner ground truth.
 | AI/provenance | `eesti/tutor.py` is the common boundary for model feedback. `deterministic`, `model+verified`, `model-only` and transcript `advisory` have different meanings. Form existence does not prove contextual correctness. Detect object-case swaps from morphology even if the model supplied the wrong tag; deterministic findings take precedence. No model output changes mastery or FSRS. |
 | Providers | Workers AI is the sole hosted grammar/tutor lane; an explicitly configured local trial precedes it. GEC, normalization and other hosted candidates are evaluation-only. Offline deterministic evidence handles failure. Explicit model IDs remain operational choices; changing a model requires the grammar eval. Never equate an empty/malformed response with correctness. |
 | Quotas/breakers | Keep persistent per-lane counters and exponential cooldown. Breaker connections open on each request thread; tutor failures share the breaker. Interactive calls make one attempt per lane. Counts are best-effort call allowances, not exact account/token/Neuron billing caps; snapshot lag and concurrency can lose counts. Worker ASR uses Cloudflare's quota and does not traverse Python's budget. No automatic paid upgrade or retry storm. |
-| Speech | Cloudflare receives production audio; no app audio archive. Transcripts/practice signals enter evidence; feedback stays advisory. Recognition is not pronunciation assessment. Local CT2 reference dependencies stay outside the deployment image. |
+| Speech | The home service or, failing it, Cloudflare receives production audio; no app audio archive. Transcripts/practice signals enter evidence; feedback stays advisory. Recognition is not pronunciation assessment. Local CT2 reference dependencies stay outside the deployment image. |
 | Offline/sync | Keep cached shell and explicit IndexedDB drill packs; never cache API responses. Re-grade signed items server-side and deduplicate queued event IDs. Preserve pending answers across UI upgrades. There is no general offline tutor, exam or multi-device conflict resolver. |
 | Reminders | Keep opt-in, evidence-driven facts, quiet hours, deduplication and encrypted Web Push. Deployed VAPID bindings and cron are verified; browser delivery remains unmeasured. Cron restores state before deciding. No motivational scoring, email service or retained conversation transcript is needed. |
 | Privacy/recovery | Exported events contain writing and speech transcripts. `cli verify-backup` replays an export twice into isolated stores and rejects unsupported events. Manual private off-account exports remain the independent backup; live replication is not a backup. See `docs/deploy.md`. |
@@ -63,8 +60,7 @@ local CT2 and Zipformer can run; they are not learner ground truth.
   difficult conditions. No claimed sample size guarantees statistical power.
 - **Streaming/local production ASR:** deferred. Short record-and-submit answers
   do not need partial transcripts. CPU Zipformer is the first streaming option
-  to revisit if live interaction becomes a requirement; GPU Voxtral adds no
-  demonstrated learning benefit today.
+  to revisit if live interaction becomes a requirement.
 - **Acoustic scoring, conversation scoring, generated listening tasks, web
   placement sweep and missing curriculum generators:** remain separate product
   work. Current practice/contact signals and CLI placement are usable; scoring

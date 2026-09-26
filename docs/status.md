@@ -62,9 +62,6 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 
 - **Acoustic pronunciation scoring** — the app links to EKI's free
   pronunciation exercises instead.
-- **Local ASR in production** — recognition runs on Cloudflare Workers AI; the
-  speaking panel says the recording leaves the device. Local whisper.cpp works
-  only under `cli serve`.
 - **The `tuttav` word status has no control** — it sits on the same side of
   "settled" as `õpin`; the stored status remains supported.
 
@@ -94,13 +91,14 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   headword for them. EKI's Russian–Estonian dictionary (VES, same licence
   page) might attest them from the Russian side (`с кем` → `kellega`); it is
   not downloaded or checked.
-- **ASR learner quality is being measured, not yet known.** `Kuidas mind kuuldakse` in Rääkimine scores confirmed read-aloud sentences and planted-error probes (`eesti/asrcheck.py`); it shows no rate until 20 sentences and 5 probes. The existing harness compares named
-  engines on manually verified audio, including false acceptance and morphology;
-  this checkout has no learner eval clips. Native EKI controls ran on Cloudflare,
-  TalTech CT2 and Zipformer, establishing runtime feasibility, not learner accuracy.
-  Recording prompts are not ground truth.
-  Production remains Cloudflare with a local TalTech reference; see
-  `docs/asr-evaluation.md`.
+- **ASR on the learner's voice rests on 8 verified clips.** The home service's
+  TalTech engine misheard 7% of the owner's words against Workers AI's 36%, on
+  fewer than the 20-clip pilot floor (`docs/asr-evaluation.md`). `Kuidas mind
+  kuuldakse` in Rääkimine keeps measuring the production recogniser
+  (`eesti/asrcheck.py`).
+- **Speech quality depends on the owner's Mac mini being awake.** When it is
+  off, the Worker falls back to Workers AI after up to 25 s
+  (`deploy/home-asr/README.md`).
 - **State replication is asynchronous.** Event copying follows the response;
   an origin crash before copying can lose acknowledged work. There is no
   independent nightly backup or self-service erasure. Private exports can be
