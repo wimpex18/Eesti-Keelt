@@ -921,6 +921,16 @@ a.lib-item{text-decoration:none;color:inherit}
 .meaning .fuller{margin-top:var(--s2)}
 .meaning .fuller summary{cursor:pointer;color:var(--muted);font-size:var(--fs-meta)}
 .meaning .fuller .def{margin-top:var(--s1);color:var(--gloss)}
+/* EVS's example phrases: Estonian over its Russian, a hairline between pairs. */
+.phrases{margin-top:var(--s3)}
+.phrases h4{font-size:var(--fs-meta);font-weight:700;color:var(--muted);margin:0}
+.phrases .phrase-list{list-style:none;margin:var(--s1) 0 0;padding:0}
+.phrases .phrase-list li{padding:var(--s1) 0;border-top:1px solid var(--line);
+  font-size:var(--fs-note);line-height:1.45}
+.phrases .phrase-list li:first-child{border-top:0}
+.phrases .phrase-list .gloss{display:block;color:var(--gloss)}
+.phrases .slot{color:var(--muted)}
+.phrases .fuller .phrase-list{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
 .quiz{margin-top:var(--s5)}
 .quiz-item{padding:var(--s3) 0;border-top:1px solid var(--line)}
 .quiz-item p{margin:0 0 var(--s2);font-family:var(--f-read);font-size:var(--fs-body)}

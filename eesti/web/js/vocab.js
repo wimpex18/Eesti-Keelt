@@ -10,6 +10,31 @@ const tagLabel = t => t.ru
   ? `<span lang="et">${esc(t.name)} <i class="ru" lang="ru">${esc(t.ru)}</i></span>` : esc(t.name);
 
 
+/* EVS's example phrases, each Estonian with EKI's Russian under it. An open
+   slot (`{kelle}`) is set in italics: the phrase leaves it for the learner to
+   fill. Three show; the rest (all of them — `käima` has
+   144) are folded into a scrolling list, since the card is a reminder. */
+const SHOWN_PHRASES = 3;
+
+function phraseItem(p) {
+  const slots = t => esc(t).replace(/\{([^{}]+)\}/g, '<i class="slot">$1</i>');
+  return `<li><span lang="et">${slots(p.et)}</span>` +
+    `<span class="gloss" lang="ru">${slots(p.ru)}</span></li>`;
+}
+
+function phrasesHtml(phrases) {
+  const head = phrases.slice(0, SHOWN_PHRASES), rest = phrases.slice(SHOWN_PHRASES);
+  let html = `<h4 lang="et">Näited <i class="ru" lang="ru">с переводом</i></h4>` +
+    `<ul class="phrase-list">${head.map(phraseItem).join("")}</ul>`;
+  if (rest.length) {
+    html += `<details class="fuller"><summary lang="et">veel ${rest.length} näidet</summary>` +
+      `<ul class="phrase-list">${rest.map(phraseItem).join("")}</ul></details>`;
+  }
+  html += `<div class="attrib" lang="et">näited: EKI eesti-vene sõnaraamat · CC BY 4.0</div>`;
+  return html;
+}
+
+
 async function fillWordCard(word, card, contextFor) {
   card.hidden = false;
   card.innerHTML = skeleton(1);
@@ -149,6 +174,12 @@ async function fillWordCard(word, card, contextFor) {
         const box = document.createElement("div");
         box.className = "pair meaning";
         box.innerHTML = meaning.join("");
+        slot.append(box);
+      }
+      if (x.phrases?.length) {
+        const box = document.createElement("div");
+        box.className = "pair meaning phrases";
+        box.innerHTML = phrasesHtml(x.phrases);
         slot.append(box);
       }
       if (bits.length) {

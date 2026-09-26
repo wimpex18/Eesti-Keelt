@@ -195,6 +195,7 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
 
     asked = [q.word for q in QUESTIONS]
     cues = evs.question_senses(path, asked)
+    phrases = evs.parse_examples(path)
 
     if args.check:
         sample = {e.lemma: e for e in entries}
@@ -203,13 +204,16 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
             if word in sample:
                 print(f"    {word}: {', '.join(sample[word].russian)}")
         print(f"  {len(cues)} of {len(asked)} question words with a Russian cue")
+        print(f"  {len(phrases):,} example phrases with Russian")
         print("  Nothing was written. Drop --check to import.")
         return 0
 
     conn = connect()
     stats = evs.store(conn, entries)
     evs.store_questions(conn, cues)
+    evs.store_examples(conn, phrases)
     print(f"  {stats['entries']:,} lemmas with Russian stored")
+    print(f"  {len(phrases):,} example phrases with Russian stored (näited)")
     print(f"  {len(cues)} of {len(asked)} question words with a Russian cue "
           "(küsisõnad)")
     print("  Source: Eesti-vene sõnaraamat, EKI, CC BY 4.0.")

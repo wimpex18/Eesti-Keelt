@@ -13,7 +13,7 @@ can answer "may this be shown to anyone but the owner?".
 | Enriched Ekilex word list (KristjanPikhof) | CC-BY-SA-4.0 | 160 000+ lemmas, estimated CEFR, frequency rank |
 | EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | CC-BY-4.0 | official A1/A2/B1 levels, outranks the estimate |
 | EKI *põhisõnavara sõnastik* (PSV) | CC-BY-4.0 | learner-level definitions, examples, rection |
-| EKI *Eesti-vene sõnaraamat* (EVS) | CC-BY-4.0 | offline Russian, inflection type, question-word cues |
+| EKI *Eesti-vene sõnaraamat* (EVS) | CC-BY-4.0 | offline Russian, inflection type, question-word cues, example phrases with Russian |
 | EKI *Võõrsõnade leksikon* (VSL), *seletav sõnaraamat* (EKSS) | CC-BY-4.0 | fallback Estonian definitions |
 | EKI *Haridussõnastik* (HAR) | CC-BY-4.0 | fallback Russian for education terms |
 | Ekilex API (EKI) | CC-BY-4.0 | live word card with `EKILEX_API_KEY` |
@@ -43,7 +43,7 @@ the EKK rection page use separate request paths.
 |---|---|---|
 | `A1A2B1.txt` | `cli import-levels` | 4 456 lemmas with official level |
 | `psv_EKI_CCBY40.xml.gz` | `cli import-psv` | 4 849 learner definitions |
-| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 8 question-word cues (`evs_question`) |
+| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 8 question-word cues (`evs_question`); 137 316 example phrases with Russian for 34 802 lemmas (`evs_example`) |
 | `vsl_EKI_CCBY40.xml.gz` | `cli import-vsl` | 30 095 definitions |
 | `har_EKI_CCBY40.xml.gz` | `cli import-har` | 5 905 terms with Russian |
 | `ekss_EKI_CCBY40.xml.gz` | `cli import-ekss` | 117 937 definitions |
@@ -52,6 +52,9 @@ Lookup order — **Russian:** seed → live dictionary → EVS → HAR
 (`eesti/meaning.py`). **Definition:** PSV → live → VSL → EKSS
 (`eesti/api/grammar.py`), with native-level wording folded under *täpsem
 seletus* when PSV answers. **Rektsioon, muuttüüp:** live, else PSV and EVS.
+**Example phrases with Russian** (*Näited* on the word card): EVS only, every
+phrase in EKI's order, three shown and the rest folded; domain terms
+(*zool*, *aj*…) and archaic renderings are left out.
 **Question-word cue** (`küsisõnad`): EVS only, the sense EVS illustrates with
 a direct question (`docs/curriculum.md`). No other source in the repo has
 Russian for question words: the seed has none, PSV, VSL and EKSS have no
