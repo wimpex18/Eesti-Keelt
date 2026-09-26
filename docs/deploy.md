@@ -3,7 +3,8 @@
 | Part | Where | Why |
 |---|---|---|
 | App | **Google Cloud Run** (always-free tier), scales to zero | Vabamorf is a compiled C++ extension; Workers cannot run it, Cloudflare Containers need a paid plan |
-| Front door | **Cloudflare Worker + Access** (free plan) | one login, state snapshots, Workers AI speech |
+| Front door | **Cloudflare Worker + Access** (free plan) | one login, state snapshots, speech |
+| Speech | the owner's **Mac mini** (home service) through a Cloudflare Tunnel, **Workers AI** Whisper as fallback | TalTech's Estonian model hears the learner far better; no free host can run it |
 
 ## Security: two doors, two locks
 
@@ -176,6 +177,7 @@ Smoke warns on any zero.
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | — | ✅ | Workers AI Read token for `eval.yml` |
 | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `WORKER_URL` | — | ✅ | smoke test service token |
 | `MISTRAL_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY` | ✅ | ✅ | grammar lanes; Actions copies for the eval |
+| `HOME_ASR_TOKEN` | — | Worker secret (dashboard) | proves a recording came from the Worker to the Mac mini home service |
 | `HF_TOKEN` | optional | — | hosted Whisper fallback for speech |
 | `EKILEX_API_KEY` | ✅ | — | live Ekilex word card |
 | `NOTION_TOKEN` | ✅ | — | sending corrections to `Vead` |
@@ -216,6 +218,15 @@ dictionary, library and topic links.
   **`deep: true`** after any provider or key change: it sends one sentence and
   prints which engine answered, or the per-lane failure diagnostics.
 
+## Home speech service
+
+`deploy/home-asr/README.md`: a Cloudflare Tunnel from the Mac mini, a Workers
+VPC Service on it (`vpc_services` in `wrangler.jsonc`, binding `HOME_ASR`), the
+`HOME_ASR_TOKEN` Worker secret, and `deploy/home-asr/install.sh` on the Mac.
+The `deploy` workflow's token needs permission to bind VPC Services
+(Connectivity Directory Bind). Check it from the speaking page ("Сейчас тебя
+слушает твой Mac mini") or on the Mac: `curl http://127.0.0.1:8790/health`.
+
 ## First-time Cloudflare notes
 
 - Open **Workers & Pages** once before the first deploy, or `wrangler deploy`
@@ -227,10 +238,11 @@ dictionary, library and topic links.
 ## Cost
 
 The intended single-learner workload uses free allocations, not a guaranteed
-zero-cost SLA. Workers AI Whisper is listed at about $0.0005/audio minute
-inside a shared daily allocation; see `docs/asr-evaluation.md`. Monitor actual
-Cloud Run/storage/build and account-wide AI usage; no paid inference host is
-part of the chosen architecture.
+zero-cost SLA. Workers AI Whisper, the speech fallback, is listed at about
+$0.0005/audio minute inside a shared daily allocation. The home service costs
+the Mac mini's electricity; Tunnels and Workers VPC are free. Monitor Cloud
+Run/storage/build and account-wide AI usage; no paid inference host is part of
+the architecture.
 
 ## Backup, recovery and erasure
 
