@@ -255,7 +255,7 @@ async function paintPulse() {
     tiles.push(`<a class="pulse-tile pulse-flower" href="#exam">
       <span class="pulse-label" lang="et">Eksam ${esc(ready.level)}</span>
       ${flowerSvg(ready.parts, ready.contact_target || 3, {labels: false})}
-      <span class="pulse-sub">${open ? `не начато: ${open} из 4` : "все части начаты"}</span></a>`);
+      <span class="pulse-sub">${open ? `не начаты: ${open}` : "все части начаты"}</span></a>`);
   }
   if (status && status.rhythm && status.rhythm.length) {
     const active = status.rhythm.slice(-28).filter(d => d.n > 0).length;

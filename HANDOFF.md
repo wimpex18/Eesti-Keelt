@@ -1,7 +1,7 @@
 # Handoff
 
 ## Current state
-PRs #72–#84 are merged. The production deep smoke passes for the current `main`
+PRs #72–#85 are merged. The production deep smoke passes for the current `main`
 image. Cloud Run has one instance with mounted EKI audio and HARNO exam storage;
 Workers AI GPT-OSS-120B is the automatic grammar/tutor lane with deterministic
 fallback, and Cloudflare Workers AI is production ASR. Native A2/B1 reading
