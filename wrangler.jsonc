@@ -24,6 +24,12 @@
   // learner reading sentences aloud does not approach.
   "ai": { "binding": "AI" },
 
+  // The owner's Mac mini speech service (eesti/asrserver.py) through the
+  // eesti-home-asr Cloudflare Tunnel; no public hostname. deploy/home-asr/README.md.
+  "vpc_services": [
+    { "binding": "HOME_ASR", "service_id": "01a0df5c-f394-7fc1-982d-f65aae000b43", "remote": true }
+  ],
+
   // Reminders (`LearnerState.remind`). Hourly is enough: the app answers with
   // what is worth saying at this hour in Europe/Tallinn, and a tag keeps one
   // fact from arriving twice. Cron is free-plan.
