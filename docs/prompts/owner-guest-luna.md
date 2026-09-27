@@ -99,8 +99,8 @@ page shows the learner's progress.
 
 ## Validation before you stop
 
-Run the full suite, the typecheck, both wrangler dry runs and the browser
-journeys; take the screenshots in criterion 4 and inspect them. Then re-read
+Run the full suite, the typecheck, `npx wrangler deploy --dry-run` and the
+browser journeys; take the screenshots in criterion 4 and inspect them. Then re-read
 `docs/identity.md` "Routes for a guest" against `eesti.api.paths()` once
 more: a route added since is unclassified until you classify it.
 
@@ -108,12 +108,12 @@ more: a route added since is unclassified until you classify it.
 
 Rewrite `HANDOFF.md` as the present-state note `AGENTS.md` asks for (≤30
 lines): what is done, the exact next step (the owner sets `OWNER_EMAIL` and
-adds the testing account to Access, then merges), uncommitted paths, blockers. Update the PR
-description with Before/After and the validation you ran. Stop there; do not
+adds the testing account to Access, then merges), uncommitted paths,
+blockers. Update the PR description with Before/After and the validation you ran. Stop there; do not
 merge or deploy.
 
 If something cannot be done without violating a rule above (for example the
-context variable does not reach sync routes, or an owner-only route cannot be
-gated without changing its contract), stop that part, leave the test that shows
+context variable does not reach sync routes, or `ctx.access` behaves
+differently from the docs), stop that part, leave the test that shows
 it failing as `xfail` with the reason, and record it under Blockers in
 `HANDOFF.md` rather than inventing a workaround.
