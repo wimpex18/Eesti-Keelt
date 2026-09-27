@@ -1,4 +1,4 @@
-"""The FastAPI application: single learner, served locally (`cli serve`) or on
+"""The FastAPI application: scope-aware learners, served locally (`cli serve`) or on
 Cloud Run behind the Cloudflare Worker.
 
 This module is the assembly: the application object, the one piece of
@@ -9,7 +9,6 @@ the deployment scripts import from `eesti.app`. Every route lives in
 
 from __future__ import annotations
 
-import hmac
 import os
 import time
 from pathlib import Path
@@ -17,7 +16,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import api, logs
+from . import api, guest, identity, logs
 from .evidence import NotRestored
 from .api.deps import (  # noqa: F401  -- re-exported; the tests and CLI read these
     BOOT_ID,
@@ -46,38 +45,63 @@ app = FastAPI(title="Eesti-Keelt", docs_url="/api/docs")
 logs.setup()
 
 
-@app.middleware("http")
-async def _proxy_guard(request: Request, call_next):
-    """Keep the origin from becoming a way around the front door.
+class IdentityMiddleware:
+    """Resolve identity for the whole ASGI request, including sync route threads.
 
-    Cloud Run is invoked unauthenticated, so its `run.app` URL is public while
-    Access guards only the Worker. With `PROXY_TOKEN` set, every request must carry
-    it (only the Worker holds it); unset, as under `cli serve`, the guard is off.
-    `/api/health` reports `origin_guarded`.
+    Starlette's BaseHTTPMiddleware wrapper starts the downstream app in another
+    task. ContextVar changes made around `call_next` do not reliably reach that
+    task, so scope is set in this pure ASGI layer and copied by AnyIO when a sync
+    endpoint runs in its worker thread.
     """
-    expected = os.environ.get("PROXY_TOKEN")
-    if expected and not hmac.compare_digest(
-        request.headers.get(PROXY_HEADER, ""), expected
-    ):
-        return JSONResponse({"detail": "not authorised"}, status_code=403)
-    started = time.monotonic()
-    response = await call_next(request)
-    response.headers["x-boot-id"] = BOOT_ID
-    # One line per API call: what was asked, how it went, how long it took.
-    # Never what was written or said (`eesti/logs.py`).
-    if request.url.path.startswith("/api/"):
-        logs.event("request", path=request.url.path, method=request.method,
-                   status=response.status_code,
-                   ms=round((time.monotonic() - started) * 1000),
-                   request_id=request.headers.get("cf-ray", ""), boot=BOOT_ID)
-    # How far the evidence log has got, so the Worker pulls only when there is
-    # something new (`deploy/worker.ts`, `pullEvents`).
-    # Only API calls record evidence; the page and its assets never need it.
-    if request.url.path.startswith("/api/"):
-        seq = _events_seq()
-        if seq is not None:
-            response.headers["x-events-seq"] = str(seq)
-    return response
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, asgi_scope, receive, send):
+        if asgi_scope["type"] != "http":
+            await self.app(asgi_scope, receive, send)
+            return
+
+        request = Request(asgi_scope, receive)
+        who = identity.resolve(request.headers, request.cookies, os.environ)
+        started = time.monotonic()
+        path = request.url.path
+        method = request.method
+
+        async def send_response(message):
+            if message["type"] == "http.response.start":
+                headers = [(key, value) for key, value in message.get("headers", [])
+                           if key.lower() not in (b"x-boot-id", b"x-events-seq")]
+                headers.append((b"x-boot-id", BOOT_ID.encode()))
+                if path.startswith("/api/") and who is not None and who.permanent:
+                    seq = _events_seq()
+                    if seq is not None:
+                        headers.append((b"x-events-seq", str(seq).encode()))
+                if who is not None and who.is_guest and who.issued:
+                    secure = "; Secure" if asgi_scope.get("scheme") == "https" else ""
+                    cookie = (f"{identity.SANDBOX_COOKIE}={who.id}; HttpOnly{secure}; "
+                              "SameSite=Lax; Max-Age=86400; Path=/")
+                    headers.append((b"set-cookie", cookie.encode("latin-1")))
+                message["headers"] = headers
+                if path.startswith("/api/"):
+                    logs.event("request", path=path, method=method,
+                               status=message["status"],
+                               ms=round((time.monotonic() - started) * 1000),
+                               request_id=request.headers.get("cf-ray", ""), boot=BOOT_ID)
+            await send(message)
+
+        if who is None:
+            response = JSONResponse({"detail": "not authorised"}, status_code=403)
+            await response(asgi_scope, receive, send_response)
+            return
+
+        with identity.use(who):
+            if who.is_guest:
+                guest.ensure(who.id)
+            await self.app(asgi_scope, receive, send_response)
+
+
+app.add_middleware(IdentityMiddleware)
 
 
 def _events_seq() -> int | None:
@@ -86,7 +110,7 @@ def _events_seq() -> int | None:
 
     from . import config
 
-    path = Path(config.EVENTS_DB)
+    path = Path(config.learner_db("EVENTS_DB"))
     if not path.exists():
         return None
     try:

@@ -76,6 +76,11 @@ def notion_push(req: NotionPush) -> dict:
     rows. A row that fails to send stays queued.
     """
     from ..notion import Row, mark_pushed, pending, push
+    from ..identity import OWNER, current
+
+    if current().kind != OWNER:
+        raise HTTPException(status_code=403,
+                            detail="Отправлять ошибки в Notion может только владелец.")
 
     if not os.environ.get("NOTION_TOKEN"):
         raise HTTPException(

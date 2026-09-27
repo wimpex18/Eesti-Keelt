@@ -10,8 +10,8 @@
     "skipLibCheck": true
   },
   "include": ["deploy/**/*.ts"],
-  // `push.check.ts` runs under Node, not workerd: it uses Node's own WebCrypto
-  // types and imports with a `.ts` extension, which this Worker config forbids.
-  // It is checked by running it (`tests/test_push_crypto.py`).
-  "exclude": ["deploy/push.check.ts"]
+  // These Node-only verification/operator scripts are run directly under Node;
+  // their Node built-in types do not belong in the Worker type environment.
+  "exclude": ["deploy/push.check.ts", "deploy/accounts.check.ts",
+              "deploy/reset-account-password.ts"]
 }

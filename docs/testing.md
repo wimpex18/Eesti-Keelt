@@ -1,15 +1,16 @@
 # Testing
 
-One learner uses this app. The suite exists to catch what would hurt that
-learner (a wrong answer key, lost progress, a leaked secret, a broken screen),
-not to guard the source's shape. A test that only checks source text, CSS or a
-count in a doc is not added.
+The app keeps permanent state separately for every signed-in account and gives
+each guest a throwaway sandbox. The suite checks isolation, lost progress, a
+leaked secret and broken screens. Narrow source-contract tests pin the Worker
+and FastAPI's shared route and identity boundaries because they run in separate
+runtimes; other tests exercise behavior instead of checking CSS or doc counts.
 
 ## Suites
 
 | Suite | Command | Time | Runs in CI |
 |---|---|---|---|
-| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~15 s | yes — `tests.yml` |
+| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~20–25 s | yes — `tests.yml` |
 | **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | yes — `journeys` job; reading journeys skip without the corpus |
 | **Browser, full matrix** | same, with `--all-browsers` | longer than the default pairings | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (Workers AI), manual |
@@ -95,7 +96,9 @@ supplied export is replayable, not that every remote event reached the export.
 ## Not covered
 
 - Speaking end to end (microphone, Workers AI); only the panel is exercised.
-- The Worker's behaviour: it is typechecked, not run. Anything behind
-  Cloudflare Access is checked with `smoke`.
+- Production authentication: account helpers run under Node and browser
+  journeys use a Worker-shaped response boundary. The actual Worker runtime is
+  checked separately with `wrangler dev` and the deployed app with `smoke`;
+  tests never create an account in production.
 - Notion push with a real token; the LLM branch of `/api/check` locally.
 - Audio actually heard, FSRS spacing over real time, Firefox, screen readers.

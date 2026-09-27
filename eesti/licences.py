@@ -410,7 +410,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "Inflection type, rection, Russian glosses, definitions. Single lookups "
         "only — never batch, the upstream asks not to be crawled. Answers are "
         "kept in vocab.db (eesti/gloss.py) so a word is asked about once ever, "
-        "capped per day, and the store is private to one learner behind Access "
+        "capped per day, and the store is private to one account behind Access "
         "— never redistributed.",
     ),
     Source(

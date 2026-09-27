@@ -10,12 +10,12 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from ..providers import tts
-from .deps import content_db, db, progress_db, vocab_db
+from .deps import content_db, db, owner_scope, progress_db, vocab_db
 
 router = APIRouter()
 
@@ -403,7 +403,7 @@ def speaking_check_report() -> dict:
 # errand: this route writes audio to `data/eval/asr/` and refuses to exist on
 # the deployment, where `PROXY_TOKEN` is set. The audio stays on the machine.
 
-@router.get("/api/eval/available")
+@router.get("/api/eval/available", dependencies=[Depends(owner_scope)])
 def eval_available() -> dict:
     """Expose the recording tool locally without generating a random prompt."""
     import os
@@ -414,7 +414,7 @@ def eval_available() -> dict:
     return {"local": True}
 
 
-@router.post("/api/eval/clip")
+@router.post("/api/eval/clip", dependencies=[Depends(owner_scope)])
 async def eval_clip(request: Request) -> dict:
     """Save raw audio and its task; only a later human review supplies truth."""
     import os
@@ -480,7 +480,7 @@ class EvalDraft(BaseModel):
     engine: str = Field(max_length=200)
 
 
-@router.post("/api/eval/draft/{stem}")
+@router.post("/api/eval/draft/{stem}", dependencies=[Depends(owner_scope)])
 def eval_draft(stem: str, draft: EvalDraft) -> dict:
     """Keep the machine's guess beside the clip, never in the reviewed .txt."""
     import json
@@ -507,7 +507,7 @@ class EvalReview(BaseModel):
     planted_said: bool = False
 
 
-@router.post("/api/eval/review/{stem}")
+@router.post("/api/eval/review/{stem}", dependencies=[Depends(owner_scope)])
 def eval_review(stem: str, review: EvalReview) -> dict:
     """Seal a clip reviewed in the local app; ASR and prompt are never truth."""
     import os
@@ -553,7 +553,7 @@ def eval_review(stem: str, review: EvalReview) -> dict:
     return {"verified": stem, "planted": index is not None}
 
 
-@router.get("/api/eval/prompt")
+@router.get("/api/eval/prompt", dependencies=[Depends(owner_scope)])
 def eval_prompt(planted: bool = False, seed: int | None = None) -> dict:
     """A sentence to read for the eval set.
 

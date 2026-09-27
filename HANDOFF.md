@@ -1,25 +1,17 @@
 # Handoff
 
-Current task: learners, guests and the profile page (ADR-0006). The design
-pass is on `main`; the implementation goes on a new branch and PR.
+Current task: PR #91 account isolation, profile, backend and design audit is complete.
 
-Done (senior pass): decisions in `docs/adr/0006-learners-and-guests.md`; the
-file-by-file plan, routes by scope and profile page spec in `docs/identity.md`.
-Accounts live in the app: sign-up/sign-in run by the Worker, stored in the
-`singleton` Durable Object. The first account is the owner (keeps existing
-progress), the second a permanent learner with their own files and object;
-not signed in is a throwaway guest sandbox. All material for everyone.
-`eesti/identity.py` and `config.learner_db` are implemented and tested
-(`tests/test_identity.py`) but not wired into the app. Skeletons: `deploy/accounts.ts`,
-`eesti/guest.py`, `eesti/profile.py`, `eesti/api/profile.py` (not
-registered), `docs/skeletons/profile.js` (not served), and skipped
-`tests/test_guest_isolation.py`, `tests/test_learners.py`,
-`tests/test_profile.py`. Brief: `docs/prompts/learners-guests-luna.md`.
+Branch: `luna/learners-and-guests`; open PR #91.
 
-Next step: implement `docs/identity.md` "Origin changes" in order, then the
-Worker changes, the profile API and page, the deploy workflow and operator
-notes. Unskip the skeleton tests as each part lands.
+Done: fixed request-scoped household/guest allowance persistence, hardened account inputs and removal, and corrected profile recovery, focus, tab state, language markup and spacing. Current-state identity, architecture, deployment, testing and status docs match the implementation.
 
-Validation so far: `pytest tests/ -n auto` and `npm run typecheck` pass.
-Uncommitted paths: none. Blockers: the owner adds the `SESSION_SECRET` Worker
-secret; after merge, the owner signs up first, then the second person.
+Verification: full suite 2,482 passed, 1 skipped; browser journeys 167 passed, 3 skipped; typecheck, Worker account checks, morphology validation and `git diff --check` passed. Reviewed desktop, tablet, phone and landscape layouts in light and dark themes.
+
+Branch check: `claude/home-asr-binding` is 14 commits behind main and its sole ahead commit is patch-identical to `db8fbfe`, already merged in PR #88. Nothing should be merged from it.
+
+Next: owner reviews and merges PR #91.
+
+Uncommitted paths: none after the audit commit.
+
+Blockers: none.

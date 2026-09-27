@@ -395,12 +395,16 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     exam_dir.mkdir(exist_ok=True)
     monkeypatch.setattr(config, "EXAM_DIR", str(exam_dir))
 
-    # Unbind the breaker, which importing the app binds to the real `progress.db`;
-    # tests that exercise it bind their own store.
-    from eesti.providers import breaker
+    # Importing the app binds provider state once for the process. Tests that
+    # exercise a store directly temporarily override those globals, so restore
+    # the request-scoped allowance opener for every test. Otherwise test order
+    # decides whether later calls are counted at all.
+    from eesti.api.deps import allowance_db
+    from eesti.providers import breaker, budget
 
     breaker.bind(None)
     breaker.reset()
+    budget.bind_later(allowance_db)
 
     lookup._open.cache_clear()
     yield

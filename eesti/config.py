@@ -78,11 +78,14 @@ def learner_db(name: str) -> str:
     if scope.kind == OWNER:
         return globals()[name]
     root = GUEST_DIR if scope.kind == GUEST else LEARNERS_DIR
-    return str(Path(root) / scope.id / _LEARNER_FILES[name])
+    target = Path(root) / scope.id / _LEARNER_FILES[name]
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return str(target)
 
 
 def guest_shared_db() -> str:
     """The one store all guest sandboxes count their allowances in."""
+    Path(GUEST_DIR).mkdir(parents=True, exist_ok=True)
     return str(Path(GUEST_DIR) / "shared.db")
 
 

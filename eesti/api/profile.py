@@ -1,12 +1,10 @@
-"""The profile and the guest sandbox (ADR-0006).
-
-SKELETON, not yet in `eesti.api.ROUTERS`. Register it (before `state.router`)
-once the routes work, and document it in `docs/architecture.md`.
-"""
+"""The profile and the guest sandbox (ADR-0006)."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from contextlib import ExitStack, closing
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -21,27 +19,74 @@ class NameRequest(BaseModel):
 def me() -> dict:
     """`profile.summary` for the request's scope (`identity.current()`).
 
-    TODO(Luna): open the log and projections through `deps` (which resolve
-    `config.learner_db`), call `profile.summary`, close them.
     """
-    raise NotImplementedError
+    from .. import evidence, profile
+    from ..identity import current
+    from . import deps
+
+    with ExitStack() as stack:
+        log = stack.enter_context(closing(evidence.connect()))
+        progress = stack.enter_context(closing(deps.progress_db()))
+        reviews = stack.enter_context(closing(deps.review_db()))
+        vocabulary = stack.enter_context(closing(deps.vocab_db()))
+        return profile.summary(log=log, progress=progress, reviews=reviews,
+                               vocabulary=vocabulary, scope=current())
 
 
 @router.post("/api/me")
 def rename(req: NameRequest) -> dict:
     """Set the name, then answer as `GET /api/me`.
 
-    TODO(Luna): `profile.set_name`; a ValueError is a 400 with its Russian text.
     Allowed for guests too: it writes to their sandbox.
     """
-    raise NotImplementedError
+    from .. import profile
+
+    try:
+        profile.set_name(req.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return me()
+
+
+@router.post("/api/me/reset")
+def reset_profile_progress() -> dict:
+    """Reset study data for the current permanent account, preserving identity."""
+    from .. import profile
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Сброс прогресса доступен только постоянному аккаунту.")
+    return profile.reset_progress()
+
+
+@router.post("/api/me/restore")
+def restore_profile_progress() -> dict:
+    """Restore the latest reset point for the current permanent account."""
+    from .. import profile
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Восстановление прогресса доступно только постоянному аккаунту.")
+    try:
+        return profile.restore_progress()
+    except profile.NoRestorableProgress as exc:
+        raise HTTPException(status_code=409,
+                            detail="Нет сброса прогресса, который можно восстановить.") from exc
 
 
 @router.post("/api/guest/reset")
 def guest_reset() -> dict:
     """Throw this guest sandbox away; the next request starts empty.
 
-    TODO(Luna): 403 for a permanent scope, owner or learner (Russian detail);
-    for a guest, `guest.reset(scope.id)` and answer `{"reset": scope.id}`.
     """
-    raise NotImplementedError
+    from .. import guest
+    from ..identity import current
+
+    scope = current()
+    if not scope.is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Очищать гостевую песочницу может только гость.")
+    guest.reset(scope.id)
+    return {"reset": scope.id}

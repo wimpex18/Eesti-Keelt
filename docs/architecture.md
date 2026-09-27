@@ -7,8 +7,10 @@ request time, which is why the app runs in a container and not in a Worker.
 ## Request path
 
 ```
-browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, speech)
-              ├─► Cloud Run: FastAPI (eesti.app) ─► eesti/api/* ─► domain modules ─► SQLite
+browser ─► Cloudflare Worker (Access, account sessions, PROXY_TOKEN, snapshots, speech)
+              ├─ accounts + owner state ─► Durable Object `singleton`
+              ├─ each learner ─────────────► Durable Object `learner:<id>`
+              ├─► Cloud Run: FastAPI (eesti.app) ─► eesti/api/* ─► domain modules ─► scoped SQLite
               └─► speech: Mac mini home service (VPC Service → Tunnel), else Workers AI Whisper
 ```
 
@@ -19,6 +21,9 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, speech)
   (one per screen plus `core`, `router`, `chrome`, `media`, `state`; `main.js`
   bootstraps last) and `sw.js`. No build step.
 - `deploy/worker.ts` is the Worker; `wrangler.jsonc` configures it.
+- `eesti/identity.py` resolves each request to the owner, a permanent learner
+  or a guest sandbox. `config.learner_db()` selects that scope's files; guests
+  have no Durable Object and permanent accounts restore through their own.
 - `eesti/asrserver.py` is the home speech service on the owner's Mac mini
   (`deploy/home-asr/`), outside Cloud Run.
 
@@ -34,6 +39,7 @@ browser ─► Cloudflare Worker (Access, PROXY_TOKEN, state snapshots, speech)
 | `api/grammar.py` | sentence check, word lookup and word card |
 | `api/library.py`, `api/speech.py`, `api/exam.py` | material, sound (TTS/ASR/dictation/speaking), readiness |
 | `api/notion.py`, `api/state.py`, `api/sources.py` | error log, snapshot export/import, licence credits |
+| `api/profile.py` | profile summary, name event, account progress reset/restore and guest sandbox reset |
 
 ## Domain modules
 
@@ -65,8 +71,9 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 | `data/edge.db` | form index (`forms`, `object_cases`) | built into the image (`cli export`) |
 | `data/content.db` | library items, sources, topic links | harvested locally, pushed with `push-content.sh` |
 | `data/audio.db` | EKI's recordings: word forms and read sentences (`cli import-haaldused`, `cli import-konekorpus`) | imported from the EKI archive; local, never snapshotted |
-| `data/events.db` | the evidence log: every learner-state change as an append-only event (`eesti/evidence.py`) | created at runtime; copied event by event into the Worker's Durable Object |
-| `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | projections of the log (mastery, FSRS cards, word statuses, error queue), plus stored glosses and the provider breaker | created at runtime; rebuilt from the log on restore; snapshotted by the Worker for the caches |
+| `data/events.db`, `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | the owner's evidence log and projections (mastery, FSRS cards, word statuses, error queue), stored glosses and provider breaker | created at runtime; rebuilt from the log on restore; snapshotted by `singleton` |
+| `data/learners/<id>/*.db` | each permanent learner's log and projections | restored by that learner's `learner:<id>` object |
+| `data/guest/<sandbox>/*.db`, `data/guest/shared.db` | temporary guest progress and the allowance shared by guest sandboxes | local to the instance; never snapshotted; idle sandboxes are swept |
 
 `data/seed_glossary.tsv` is tracked and copied into the image.
 
@@ -82,10 +89,10 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 4. Tests run offline: `tests/test_offline.py` blocks sockets, and `conftest.py`
    fails any outbound HTTP outside the `TestAgainstTheLive…` classes.
 
-## Redesign boundary and recovery
+## UI boundary and recovery
 
-The final scope and deferred decisions are in
-`docs/adr/0005-architecture-contracts.md`. Presentation consumes domain APIs;
+The architectural decisions are in `docs/adr/0005-architecture-contracts.md`.
+Presentation consumes domain APIs;
 keep signed item fields, event IDs, topic IDs and advisory/provenance labels
 stable when replacing screens. `planning.Block.action` contains tab names and
 needs an explicit UI mapping if navigation changes.

@@ -58,6 +58,13 @@ def api_paths(page: str) -> set[str]:
     return out
 
 
+# These routes terminate at the Cloudflare Worker and are deliberately absent
+# from FastAPI's origin route table.
+WORKER_ONLY_ROUTES = {
+    "/api/auth/me", "/api/auth/signup", "/api/auth/login", "/api/auth/logout",
+}
+
+
 class TestEveryEndpointThePageCallsExists:
     def test_no_call_is_to_a_route_that_does_not_exist(self, page):
         """A typo or a renamed route shows as an empty panel, never an error."""
@@ -67,7 +74,7 @@ class TestEveryEndpointThePageCallsExists:
             re.sub(r"\{[^}]+\}", "{x}", path).rstrip("/")
             for path in api.paths(app_module.app)
         }
-        for path in api_paths(page):
+        for path in api_paths(page) - WORKER_ONLY_ROUTES:
             assert path in routes, f"the page calls {path}, which is not a route"
 
 

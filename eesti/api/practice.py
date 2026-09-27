@@ -449,7 +449,8 @@ def offline_pack(count: int = 24) -> dict:
     here = resume(progress)
     if here:
         topics.append(here)
-    weak = weak_rules(rule_evidence(progress, review_connect(config.REVIEW_DB)))
+    weak = weak_rules(rule_evidence(
+        progress, review_connect(config.learner_db("REVIEW_DB"))))
     topics += [e.topic for e in weak if e.topic not in topics][:2]
     if not topics:
         topics = ["kusisonad"]

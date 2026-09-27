@@ -36,6 +36,20 @@
  * work.
  */
 import { DurableObject } from "cloudflare:workers";
+import {
+  AccountError,
+  accountById,
+  accountCount,
+  authenticate,
+  createAccount,
+  deleteAccount,
+  ensureAccounts,
+  readSession,
+  signSession,
+  SESSION_COOKIE,
+  type Account,
+  type Who,
+} from "./accounts";
 import { type PushSubscription, sendPush } from "./push";
 
 interface Env {
@@ -48,6 +62,8 @@ interface Env {
   PROXY_TOKEN: string;
   /** Guards the snapshot endpoints on the app. */
   STATE_TOKEN: string;
+  /** Signs the in-app account session; without it the app remains the owner-only legacy app. */
+  SESSION_SECRET?: string;
   /**
    * Set to "1" to serve without Cloudflare Access. The escape hatch, not the
    * default -- see `requireAccess`.
@@ -141,13 +157,15 @@ interface BlobMeta {
 }
 
 /**
- * One instance, named "singleton": one learner, one body of state.
+ * The stable owner instance, named "singleton": the original state and account registry.
  *
  * It holds the snapshot and does all the talking to Cloud Run that is *about*
  * state. Ordinary traffic does not come through here — a Durable Object in the
  * request path would add a hop to every drill for no benefit.
  */
 export class LearnerState extends DurableObject<Env> {
+  /** Each permanent object is bound to one account identity for its lifetime. */
+  private who: Who | null = null;
   /** The boot id of the instance we last confirmed holds the learner's state. */
   private lastBoot: string | null = null;
   private lastSeen = 0;
@@ -189,6 +207,58 @@ export class LearnerState extends DurableObject<Env> {
     );
   }
 
+  async bindWho(who: Who): Promise<void> {
+    const saved = await this.ctx.storage.get<Who>("who");
+    if (saved && (saved.scope !== who.scope ||
+        (saved.scope !== "guest" && who.scope !== "guest" && saved.id !== who.id))) {
+      throw new Error("Durable Object identity does not match its account");
+    }
+    await this.ctx.storage.put<Who>("who", who);
+    this.who = who;
+  }
+
+  private async hydrateWho(): Promise<void> {
+    this.who ??= (await this.ctx.storage.get<Who>("who")) ?? null;
+  }
+
+  accountCount(): number {
+    return accountCount(this.ctx.storage.sql);
+  }
+
+  accountById(id: string): Account | null {
+    return accountById(this.ctx.storage.sql, id);
+  }
+
+  deleteAccount(id: string): Account | null {
+    return deleteAccount(this.ctx.storage.sql, id);
+  }
+
+  accountList(): Account[] {
+    ensureAccounts(this.ctx.storage.sql);
+    return this.ctx.storage.sql.exec<{ id: string; email: string; created: string }>(
+      "SELECT id, email, created FROM accounts ORDER BY created, id").toArray();
+  }
+
+  /** Permanently clear this learner's snapshot, log, subscriptions and metadata. */
+  async clearAccountData(): Promise<void> {
+    await this.ctx.storage.deleteAlarm();
+    await this.ctx.storage.deleteAll();
+    this.who = null;
+    this.lastBoot = null;
+    this.lastSeen = 0;
+    this.lastSnapshot = 0;
+    this.cursor = 0;
+    this.restoring = null;
+  }
+
+  createAccount(email: string, password: string): Promise<Account> {
+    return createAccount(this.ctx.storage.sql, email, password);
+  }
+
+  authenticate(email: string, password: string): Promise<Account> {
+    return authenticate(this.ctx.storage.sql, email, password);
+  }
+
   /** Remember a browser's subscription. Re-subscribing replaces it. */
   async subscribe(sub: PushSubscription): Promise<number> {
     this.ctx.storage.sql.exec(
@@ -219,6 +289,7 @@ export class LearnerState extends DurableObject<Env> {
    * The app decides *what* (`eesti/reminders.py`); this decides *again?*.
    */
   async remind(): Promise<{ sent: number; skipped: number }> {
+    await this.hydrateWho();
     if (!this.env.VAPID_PUBLIC_KEY || !this.env.VAPID_PRIVATE_KEY) {
       return { sent: 0, skipped: 0 };
     }
@@ -288,11 +359,19 @@ export class LearnerState extends DurableObject<Env> {
   }
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
+      ...extra,
       "x-proxy-token": this.env.PROXY_TOKEN,
       "x-state-token": this.env.STATE_TOKEN,
-      ...extra,
     };
+    if (this.who) {
+      headers["x-eesti-scope"] = this.who.scope;
+      if (this.who.scope === "learner") headers["x-eesti-learner"] = this.who.id;
+      if (this.who.scope !== "guest" && this.who.email) {
+        headers["x-eesti-email"] = this.who.email;
+      }
+    }
+    return headers;
   }
 
   /** Read a blob back out of storage, or null if there isn't a whole one. */
@@ -416,6 +495,7 @@ export class LearnerState extends DurableObject<Env> {
    * write becomes the only thing the next snapshot holds.
    */
   async ensureRestored(): Promise<boolean> {
+    await this.hydrateWho();
     if (this.lastBoot && Date.now() - this.lastSeen < LIVENESS_TTL_MS) return true;
     // Durable Objects interleave requests at every `await`: without this, two
     // requests arriving on a cold start would each run a restore.
@@ -456,7 +536,7 @@ export class LearnerState extends DurableObject<Env> {
       return true;
     }
 
-    await this.syncCorpus();
+    if (this.who?.scope === "owner") await this.syncCorpus();
 
     const saved = await this.load("snap");
     // The snapshot first: it carries the caches (dictionary answers, the
@@ -578,6 +658,7 @@ export class LearnerState extends DurableObject<Env> {
    * ten-minute session costs ten snapshots rather than a hundred.
    */
   async snapshot(force = false): Promise<boolean> {
+    await this.hydrateWho();
     if (!force && Date.now() - this.lastSnapshot < SNAPSHOT_MIN_GAP_MS) {
       return false;
     }
@@ -610,6 +691,7 @@ export class LearnerState extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
+    await this.hydrateWho();
     await this.snapshot(true);
     await this.ctx.storage.setAlarm(Date.now() + SNAPSHOT_EVERY_MS);
   }
@@ -697,6 +779,8 @@ async function transcribe(
   request: Request,
   env: Env,
   url: URL,
+  who: Who,
+  legacyOwner: boolean,
 ): Promise<Response> {
   if (!env.AI && !homeConfigured(env)) {
     return Response.json(
@@ -750,12 +834,12 @@ async function transcribe(
   const target = url.searchParams.get("target") ?? "";
   const graded = new URL("/api/transcribe/text", env.CLOUD_RUN_URL);
   if (target) graded.searchParams.set("target", target);
+  const headers = applyScopeHeaders(new Headers(), who, legacyOwner);
+  headers.set("content-type", "application/json");
+  headers.set("x-proxy-token", env.PROXY_TOKEN);
   return fetch(graded, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-proxy-token": env.PROXY_TOKEN,
-    },
+    headers,
     body: JSON.stringify({
       text,
       engine,
@@ -785,8 +869,174 @@ function notRestored(): Response {
   );
 }
 
-function stub(env: Env) {
+function singletonStub(env: Env) {
   return env.LEARNER_STATE.get(env.LEARNER_STATE.idFromName("singleton"));
+}
+
+/** Match the account-id contract in `eesti/identity.py`. */
+export function learnerId(raw: string): string | null {
+  return /^l-[0-9a-f]{16}$/.test(raw) ? raw : null;
+}
+
+async function stubFor(env: Env, who: Who) {
+  if (who.scope === "guest") return null;
+  const id = who.scope === "learner" ? learnerId(who.id) : null;
+  if (who.scope === "learner" && !id) throw new Error("Invalid learner account id");
+  const name = who.scope === "owner" ? "singleton" : "learner:" + id;
+  const object = env.LEARNER_STATE.get(env.LEARNER_STATE.idFromName(name));
+  await object.bindWho(who);
+  return object;
+}
+
+async function resolveWho(request: Request, env: Env): Promise<{
+  who: Who; legacyOwner: boolean; signupOpen: boolean;
+}> {
+  if (!env.SESSION_SECRET) {
+    return { who: { scope: "owner", id: "owner", email: "" },
+      legacyOwner: true, signupOpen: false };
+  }
+  const singleton = singletonStub(env);
+  const count = await singleton.accountCount();
+  if (count === 0) {
+    return { who: { scope: "owner", id: "owner", email: "" },
+      legacyOwner: true, signupOpen: true };
+  }
+  const cookie = readCookie(request.headers.get("cookie"), SESSION_COOKIE);
+  const id = cookie ? await readSession(cookie, env.SESSION_SECRET) : null;
+  const account = id ? await singleton.accountById(id) : null;
+  if (!account) return { who: { scope: "guest" }, legacyOwner: false, signupOpen: true };
+  return {
+    who: account.id === "owner"
+      ? { scope: "owner", id: "owner", email: account.email }
+      : { scope: "learner", id: account.id, email: account.email },
+    legacyOwner: false,
+    signupOpen: true,
+  };
+}
+
+function readCookie(header: string | null, name: string): string | null {
+  for (const part of (header ?? "").split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return value.join("=") || null;
+  }
+  return null;
+}
+
+function applyScopeHeaders(headers: Headers, who: Who, legacyOwner: boolean): Headers {
+  headers.delete("x-eesti-scope");
+  headers.delete("x-eesti-learner");
+  headers.delete("x-eesti-email");
+  if (!legacyOwner) {
+    headers.set("x-eesti-scope", who.scope);
+    if (who.scope === "learner") headers.set("x-eesti-learner", who.id);
+    if (who.scope !== "guest" && who.email) headers.set("x-eesti-email", who.email);
+  }
+  return headers;
+}
+
+function sessionCookie(value: string, maxAge = 90 * 24 * 60 * 60): string {
+  return `${SESSION_COOKIE}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+}
+
+function authUnavailable(): Response {
+  return Response.json(
+    { detail: "Вход по аккаунту пока не настроен. Обратись к владельцу приложения." },
+    { status: 503 },
+  );
+}
+
+async function authRoute(request: Request, env: Env): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith("/api/auth/")) return null;
+  if (!env.SESSION_SECRET) return authUnavailable();
+  const singleton = singletonStub(env);
+
+  if (url.pathname === "/api/auth/me" && request.method === "GET") {
+    const { who, signupOpen } = await resolveWho(request, env);
+    return Response.json({ ...who, signup_open: signupOpen });
+  }
+  if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+    return Response.json({ ok: true }, {
+      headers: { "set-cookie": sessionCookie("", 0) },
+    });
+  }
+  if (url.pathname === "/api/auth/remove" && request.method === "POST") {
+    const { who } = await resolveWho(request, env);
+    if (who.scope !== "owner") {
+      return Response.json({ detail: "Удалять аккаунты может только основной аккаунт." },
+        { status: 403 });
+    }
+    let body: { id?: unknown; confirm?: unknown };
+    try {
+      body = await request.json() as typeof body;
+    } catch {
+      return Response.json({ detail: "Запрос не удалось прочитать." }, { status: 400 });
+    }
+    if (typeof body.id !== "string" || !/^l-[0-9a-f]{16}$/.test(body.id)
+        || body.confirm !== true) {
+      return Response.json({ detail: "Укажи ID ученика и подтверди удаление." },
+        { status: 400 });
+    }
+    const singleton = singletonStub(env);
+    const account = await singleton.accountById(body.id);
+    try {
+      const removed = await fetch(new URL("/api/state/remove-account", env.CLOUD_RUN_URL), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-proxy-token": env.PROXY_TOKEN,
+          "x-state-token": env.STATE_TOKEN,
+          "x-eesti-scope": "owner",
+        },
+        body: JSON.stringify({ id: body.id }),
+      });
+      if (!removed.ok) throw new Error(`origin cleanup returned ${removed.status}`);
+    } catch {
+      return Response.json({
+        detail: "Удаление не завершено: файлы приложения недоступны. Повтори запрос.",
+      }, { status: 503 });
+    }
+    try {
+      const learner = env.LEARNER_STATE.get(
+        env.LEARNER_STATE.idFromName("learner:" + body.id));
+      await learner.clearAccountData();
+    } catch {
+      return Response.json({
+        detail: "Удаление не завершено: хранилище недоступно. Повтори запрос с тем же ID.",
+      }, { status: 503 });
+    }
+    await singleton.deleteAccount(body.id);
+    return Response.json({ id: body.id, removed: Boolean(account), progress_deleted: true });
+  }
+  if ((url.pathname === "/api/auth/signup" || url.pathname === "/api/auth/login")
+      && request.method === "POST") {
+    let body: { email?: unknown; password?: unknown };
+    try {
+      body = await request.json() as typeof body;
+    } catch {
+      return Response.json({ detail: "Запрос не удалось прочитать." }, { status: 400 });
+    }
+    if (typeof body.email !== "string" || typeof body.password !== "string") {
+      return Response.json({ detail: "Укажи электронную почту и пароль." }, { status: 400 });
+    }
+    try {
+      const account = url.pathname.endsWith("/signup")
+        ? await singleton.createAccount(body.email, body.password)
+        : await singleton.authenticate(body.email, body.password);
+      const scope = account.id === "owner" ? "owner" : "learner";
+      const value = await signSession(account.id, env.SESSION_SECRET);
+      return Response.json({ id: account.id, email: account.email, scope }, {
+        headers: { "set-cookie": sessionCookie(value) },
+      });
+    } catch (error) {
+      if (error instanceof AccountError) {
+        return Response.json({ detail: error.message }, { status: error.status });
+      }
+      return Response.json({ detail: "Не удалось создать сессию. Попробуй ещё раз." },
+        { status: 500 });
+    }
+  }
+  return new Response("not found", { status: 404 });
 }
 
 export default {
@@ -800,7 +1050,19 @@ export default {
    */
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     if (!env.CLOUD_RUN_URL) return;
-    ctx.waitUntil(stub(env).remind());
+    const singleton = singletonStub(env);
+    const accounts = await singleton.accountList();
+    if (!accounts.length) {
+      const owner = await stubFor(env, { scope: "owner", id: "owner", email: "" });
+      if (owner) ctx.waitUntil(owner.remind());
+    }
+    for (const account of accounts) {
+      const who: Who = account.id === "owner"
+        ? { scope: "owner", id: "owner", email: account.email }
+        : { scope: "learner", id: account.id, email: account.email };
+      const learner = await stubFor(env, who);
+      if (learner) ctx.waitUntil(learner.remind());
+    }
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -813,6 +1075,10 @@ export default {
 
     const denied = requireAccess(env, ctx);
     if (denied) return denied;
+
+    const url = new URL(request.url);
+    const auth = await authRoute(request, env);
+    if (auth) return auth;
 
     // The Worker's own back channel. Exposing these through the proxy would let
     // anyone past Access overwrite everything.
@@ -828,22 +1094,27 @@ export default {
       "/api/events/import",
       "/api/state/export",
       "/api/state/import",
+      "/api/state/remove-account",
       "/api/content/export",
       "/api/content/import",
       "/api/progress/reset",
       "/api/reminders",
     ];
-    const url = new URL(request.url);
     if (BACK_CHANNEL.includes(url.pathname)) {
       return new Response("not found", { status: 404 });
     }
 
-    const learner = stub(env);
+    const { who, legacyOwner } = await resolveWho(request, env);
+    const learner = await stubFor(env, who);
 
     /* Reminders. The subscription and the VAPID keys live here, so these three
        are answered rather than forwarded — and they work while the origin is
        still waking up, which is exactly when a learner turns them on. */
     if (url.pathname.startsWith("/api/push/")) {
+      if (!learner) {
+        return Response.json({ detail: "Напоминания доступны только аккаунту." },
+          { status: 403 });
+      }
       if (url.pathname === "/api/push/key") {
         return Response.json({
           key: env.VAPID_PUBLIC_KEY ?? null,
@@ -869,7 +1140,14 @@ export default {
       return new Response("not found", { status: 404 });
     }
 
-    const restored = await learner.ensureRestored();
+    if (who.scope === "learner") {
+      // The reading corpus is shared, but only the singleton archives and
+      // restores it. Make that origin material available before a learner's
+      // isolated store starts serving requests after a cold start.
+      const owner = await stubFor(env, { scope: "owner", id: "owner", email: "" });
+      if (owner) await owner.ensureRestored();
+    }
+    const restored = learner ? await learner.ensureRestored() : true;
     const writes = request.method !== "GET" && request.method !== "HEAD";
 
     /* Audio never changes — a synthesised sentence, or EKI's reader saying a
@@ -899,9 +1177,11 @@ export default {
     // what it recorded is copied out like any other.
     if (url.pathname === "/api/transcribe" && request.method === "POST") {
       if (!restored) return notRestored();
-      const heard = await transcribe(request, env, url);
+      const heard = await transcribe(request, env, url, who, legacyOwner);
       const seen = Number(heard.headers.get("x-events-seq") ?? "");
-      if (Number.isFinite(seen) && seen > 0) ctx.waitUntil(learner.pullEvents(seen));
+      if (learner && Number.isFinite(seen) && seen > 0) {
+        ctx.waitUntil(learner.pullEvents(seen));
+      }
       return heard;
     }
 
@@ -916,7 +1196,7 @@ export default {
     }
 
     const target = new URL(url.pathname + url.search, env.CLOUD_RUN_URL);
-    const headers = new Headers(request.headers);
+    const headers = applyScopeHeaders(new Headers(request.headers), who, legacyOwner);
     headers.set("x-proxy-token", env.PROXY_TOKEN);
     // Cloud Run routes on Host; forwarding the Worker's hostname 404s.
     headers.delete("host");
@@ -941,12 +1221,12 @@ export default {
     // Anything that changed state is worth a snapshot, but not synchronously —
     // the learner should never wait on a backup. Debounced by the alarm the
     // Durable Object already holds.
-    if (writes) {
+    if (writes && learner) {
       ctx.waitUntil(learner.snapshot());
     }
     // New evidence is copied out right away, not on the snapshot's timer.
     const seq = Number(response.headers.get("x-events-seq") ?? "");
-    if (Number.isFinite(seq) && seq > 0) {
+    if (learner && Number.isFinite(seq) && seq > 0) {
       ctx.waitUntil(learner.pullEvents(seq));
     }
 

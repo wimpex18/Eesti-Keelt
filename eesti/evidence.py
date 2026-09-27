@@ -94,13 +94,20 @@ def now() -> str:
 
 
 def learner() -> str:
-    return os.environ.get("EESTI_LEARNER", "owner")
+    from .identity import OWNER_SCOPE, current
+
+    scope = current()
+    # The CLI can label its own events without importing the request layer. In
+    # an HTTP request the resolved scope is always authoritative.
+    if scope == OWNER_SCOPE:
+        return os.environ.get("EESTI_LEARNER", scope.learner)
+    return scope.learner
 
 
 def connect(path: Path | str | None = None) -> sqlite3.Connection:
     from . import config
 
-    target = Path(path or config.EVENTS_DB)
+    target = Path(path or config.learner_db("EVENTS_DB"))
     target.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(target)
     conn.row_factory = sqlite3.Row
@@ -157,9 +164,11 @@ def record(type_: str, payload: dict, *, ts: str | None = None,
     """
     ev = Event(id=id_ or str(uuid.uuid7()), type=type_, ts=ts or now(),
                payload=payload, learner=learner())
+    from .identity import current
+
     with connect() as conn:
         if not has_backfill(conn):
-            if restored_by_worker():
+            if restored_by_worker() and not current().is_guest:
                 raise NotRestored("the evidence log has not been restored yet")
             backfill(conn)
         _insert(conn, ev)
@@ -204,7 +213,7 @@ def _open(name: str) -> sqlite3.Connection:
                    progress, review, vocab)
 
     if name == "progress":
-        conn = progress.connect(config.PROGRESS_DB)
+        conn = progress.connect(config.learner_db("PROGRESS_DB"))
         conn.executescript(checkpoint.SCHEMA)
         conn.executescript(exam.SCHEMA)
         conn.executescript(mock.SCHEMA)
@@ -212,17 +221,17 @@ def _open(name: str) -> sqlite3.Connection:
         dictation.ensure(conn)
         return conn
     if name == "review":
-        return review.connect(config.REVIEW_DB)
+        return review.connect(config.learner_db("REVIEW_DB"))
     if name == "vocab":
-        return vocab.connect(config.VOCAB_DB)
+        return vocab.connect(config.learner_db("VOCAB_DB"))
     if name == "notion":
-        return notion.connect(config.NOTION_DB)
+        return notion.connect(config.learner_db("NOTION_DB"))
     raise KeyError(name)
 
 
 def _register_all() -> None:
     """Import every module that registers an apply function."""
-    from . import (checkpoint, dictation, exam, library, mock,  # noqa: F401
+    from . import (checkpoint, dictation, exam, library, mock, profile,  # noqa: F401
                    notion, progress, review, vocab)
 
 
@@ -253,17 +262,20 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
 #: text's own span, and it is practice for `lugemine` rather than evidence
 #: about a grammar rule, so it is kept and never projected.
 LOG_ONLY = ("writing", "speech", "asr-check", "plan-issued", "conversation", "comprehension",
-            "reminder-settings", "fsrs-parameters", "questions-made")
+            "reminder-settings", "fsrs-parameters", "questions-made",
+            "profile-progress-restored")
 for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 
 
-def since(conn: sqlite3.Connection, types: tuple[str, ...], after_ts: str) -> list[Event]:
-    """Events of these types at or after an ISO time, oldest first."""
+def since(conn: sqlite3.Connection, types: tuple[str, ...], after_ts: str,
+          *, after_seq: int = 0) -> list[Event]:
+    """Events of these types at or after an ISO time and sequence, oldest first."""
     marks = ",".join("?" * len(types))
     rows = conn.execute(
-        f"SELECT * FROM events WHERE type IN ({marks}) AND ts >= ? ORDER BY seq",  # noqa: S608
-        (*types, after_ts))
+        f"SELECT * FROM events WHERE type IN ({marks}) AND ts >= ? AND seq > ?"
+        " ORDER BY seq",  # noqa: S608
+        (*types, after_ts, after_seq))
     return [_row(r) for r in rows]
 
 
@@ -349,8 +361,18 @@ def rebuild(conn: sqlite3.Connection | None = None, *, strict: bool = False) -> 
                     target.execute(
                         "DELETE FROM sqlite_sequence WHERE name IN (%s)"
                         % ",".join("?" * len(tables)), tables)
+        timeline = events(conn)
+        restored_resets = {
+            ev.payload.get("reset_event_id") for ev in timeline
+            if ev.type == "profile-progress-restored"
+        }
         n = 0
-        for ev in events(conn):
+        for ev in timeline:
+            # The restore marker is append-only. When replaying, omit the reset
+            # it supersedes so the history before it becomes active again.
+            if ev.type == "profile-progress-reset" and ev.id in restored_resets:
+                n += 1
+                continue
             # One event this code cannot replay (a type from a newer release, after
             # a rollback) must not stop the rest: skipped, reported, kept in the log.
             try:
@@ -376,8 +398,18 @@ def settle(conn: sqlite3.Connection) -> dict:
     this is the first run on a pre-log state: backfill from the projections.
     """
     if has_backfill(conn):
-        return {"rebuilt": rebuild(conn), "backfilled": 0}
-    return {"rebuilt": 0, "backfilled": backfill(conn)}
+        result = {"rebuilt": rebuild(conn), "backfilled": 0}
+    else:
+        result = {"rebuilt": 0, "backfilled": backfill(conn)}
+
+    from .identity import LEARNER, current
+
+    if current().kind == LEARNER and not conn.execute(
+        "SELECT 1 FROM events WHERE type = 'joined' LIMIT 1"
+    ).fetchone():
+        _insert(conn, Event(id=str(uuid.uuid7()), type="joined", ts=now(),
+                            learner=learner(), payload={}))
+    return result
 
 
 def card_id(key: str) -> int:

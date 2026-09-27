@@ -13,6 +13,7 @@ import {loadPath, loadStatus, setPathMode} from "./path.js";
 import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions} from "./speak.js";
 import {loadVocab} from "./vocab.js";
+import {loadProfile} from "./profile.js";
 
 const TABS = [...document.querySelectorAll("section.panel[id^='tab-']")]
   .map(s => s.id.slice("tab-".length));
@@ -23,6 +24,7 @@ const ON_OPEN = {
   path: () => loadPath(),
   review: () => refreshDueBadge(),
   status: () => loadStatus(),
+  profile: () => loadProfile(),
   sonad: once(() => loadVocab(false)),
   // Like Sõnavara: the list is there when the tab opens; `Näita` re-filters.
   read: once(() => loadLibrary(false)),

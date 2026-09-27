@@ -29,11 +29,12 @@ Eksam — "am I ready?"
 │                 exam's own shape, the sitting being prepared for,
 │                 Proovieksam (one part on the exam's clock), and HARNO's own
 │                 past tasks, read and played in the app where downloaded
-└── Edenemine     progress report
+├── Edenemine     progress report
+└── Profiil       account identity, evidence summary, seals and practice rhythm
 ```
 
-Õppimine is the path plus the exam's four skills, so the phone's tab row holds
-five tabs. Tabs are in the URL hash (`#write`); each change pushes history,
+Õppimine is the path plus the exam's four skills, so it has five tabs; Eksam has
+three, for eleven tabs in total. Tabs are in the URL hash (`#write`); each change pushes history,
 re-selecting the current tab pushes nothing. The `#drill` compatibility route
 opens Rada in Vaba harjutus. A drill set shows one unanswered item at a time on every device;
 for `obj-case` the case to use appears only with the verdict, since choosing it
