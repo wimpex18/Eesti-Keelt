@@ -10,48 +10,50 @@ import pytest
 from eesti import config, identity
 from eesti.identity import GUEST, OWNER, Scope
 
-GUARDED = {"PROXY_TOKEN": "owner-secret", "GUEST_PROXY_TOKEN": "guest-secret"}
+GUARDED = {"PROXY_TOKEN": "worker-secret"}
+WORKER = {"x-proxy-token": "worker-secret"}
 
 
-class TestOnTheDeployment:
-    def test_the_owner_token_is_the_owner_with_the_access_email(self):
+class TestBehindTheWorker:
+    def test_no_scope_header_is_the_owner_as_before(self):
+        assert identity.resolve(WORKER, {}, GUARDED) == Scope(OWNER)
+
+    def test_the_owner_carries_the_access_email(self):
         scope = identity.resolve(
-            {"x-proxy-token": "owner-secret", "x-eesti-email": "me@example.com"},
+            {**WORKER, "x-eesti-scope": "owner", "x-eesti-email": "me@example.com"},
             {}, GUARDED)
         assert scope == Scope(OWNER, email="me@example.com")
 
-    def test_the_guest_token_is_a_public_guest(self):
+    def test_a_second_account_is_a_guest_with_its_email(self):
         scope = identity.resolve(
-            {"x-proxy-token": "guest-secret", "x-eesti-guest": "codex-run"}, {}, GUARDED)
-        assert scope.kind == GUEST and scope.public and scope.sandbox == "codex-run"
+            {**WORKER, "x-eesti-scope": "guest", "x-eesti-email": "test@example.com",
+             "x-eesti-guest": "codex-run"}, {}, GUARDED)
+        assert scope == Scope(GUEST, sandbox="codex-run", email="test@example.com")
 
-    def test_no_header_promotes_a_guest(self):
-        scope = identity.resolve(
-            {"x-proxy-token": "guest-secret", "x-eesti-scope": "owner"}, {}, GUARDED)
-        assert scope.is_guest
+    def test_a_service_token_guest_has_no_email(self):
+        scope = identity.resolve({**WORKER, "x-eesti-scope": "guest"}, {}, GUARDED)
+        assert scope.is_guest and scope.email is None
 
-    def test_a_guest_never_carries_an_email(self):
-        scope = identity.resolve(
-            {"x-proxy-token": "guest-secret", "x-eesti-email": "me@example.com"},
-            {}, GUARDED)
-        assert scope.email is None
+    @pytest.mark.parametrize("token", ["", "wrong"])
+    def test_without_the_worker_token_nothing_is_answered(self, token):
+        headers = {"x-proxy-token": token, "x-eesti-scope": "owner"}
+        assert identity.resolve(headers, {}, GUARDED) is None
 
-    @pytest.mark.parametrize("token", ["", "wrong", "guest-secret"])
-    def test_anything_else_is_refused(self, token):
-        env = {"PROXY_TOKEN": "owner-secret"}   # no guest Worker configured
-        assert identity.resolve({"x-proxy-token": token}, {}, env) is None
+    def test_an_unknown_scope_is_refused_rather_than_written_to_the_owner(self):
+        assert identity.resolve({**WORKER, "x-eesti-scope": "gust"}, {}, GUARDED) is None
+
+    def test_the_local_default_does_not_apply_behind_the_worker(self):
+        env = {**GUARDED, "EESTI_SCOPE": "guest"}
+        assert identity.resolve(WORKER, {}, env) == Scope(OWNER)
 
 
 class TestLocally:
     def test_the_default_is_the_owner(self):
         assert identity.resolve({}, {}, {}) == Scope(OWNER)
 
-    def test_a_header_chooses_a_private_guest(self):
-        scope = identity.resolve({"x-eesti-scope": "guest"}, {}, {})
-        assert scope.is_guest and not scope.public
-
-    def test_an_unknown_scope_is_refused_rather_than_written_to_the_owner(self):
-        assert identity.resolve({"x-eesti-scope": "gust"}, {}, {}) is None
+    def test_a_header_or_the_environment_chooses_a_guest(self):
+        assert identity.resolve({"x-eesti-scope": "guest"}, {}, {}).is_guest
+        assert identity.resolve({}, {}, {"EESTI_SCOPE": "guest"}).is_guest
 
 
 class TestSandboxes:

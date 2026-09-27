@@ -29,9 +29,9 @@ def test_profile_set_survives_strict_replay(tmp_path):
     (`cli verify-backup`)."""
 
 
-def test_the_owner_email_comes_from_the_front_door(client, monkeypatch):
-    """With PROXY_TOKEN set, `x-eesti-email` is echoed as `email`; a guest's
-    `email` is null whatever it sends."""
+def test_the_email_comes_from_the_front_door(client, monkeypatch):
+    """With PROXY_TOKEN set, `x-eesti-email` is echoed as `email` in both
+    scopes, `scope` says which; without the header `email` is null."""
 
 
 def test_level_milestones_and_rhythm_match_their_own_routes(client):

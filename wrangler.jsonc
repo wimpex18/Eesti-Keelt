@@ -35,19 +35,7 @@
   // fact from arriving twice. Cron is free-plan.
   "triggers": { "crons": ["7 * * * *"] },
 
-  "observability": { "enabled": true },
-
-  // The guest door (ADR-0006, docs/identity.md): `wrangler deploy --env guest`
-  // publishes `eesti-keelt-guest`, with no Access, no Durable Object, no AI,
-  // no home speech and no cron. Its only secrets are CLOUD_RUN_URL and
-  // GUEST_PROXY_TOKEN. Nothing deploys it until the deploy workflow is taught to.
-  "env": {
-    "guest": {
-      "name": "eesti-keelt-guest",
-      "main": "deploy/guest.ts",
-      "triggers": { "crons": [] }
-    }
-  }
+  "observability": { "enabled": true }
 
   // Secrets, set with `wrangler secret put` or by the deploy workflow, and
   // never committed:
@@ -58,6 +46,8 @@
   //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
   //                   Web Push (`cli push-keys` writes them into .env, and
   //                   deploy/set-push-keys.sh pushes them)
+  //   OWNER_EMAIL     the owner's Access email (ADR-0006): that identity is
+  //                   the permanent learner, any other is a guest sandbox
   //
   // LLM keys are not Worker secrets: the app reads them on Cloud Run
   // (deploy/set-llm-key.sh).

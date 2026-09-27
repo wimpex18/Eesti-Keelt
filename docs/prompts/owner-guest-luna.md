@@ -11,9 +11,10 @@ implement it exactly, test it, and hand off. Do not redesign.
 
 ## Task
 
-Implement ADR-0006: owner progress stays permanent and private; AI agents and
-tests get an unauthenticated guest path with full app flows in a separate,
-throwaway sandbox; and a Profile page shows the learner's progress.
+Implement ADR-0006: the owner's Access account keeps permanent progress; any
+other Access identity (the owner's testing account, Claude/Codex, tests) gets
+the full app with all material in a separate, throwaway sandbox; and a Profile
+page shows the learner's progress.
 
 ## Read first, in this order (they are authoritative)
 
@@ -26,8 +27,7 @@ throwaway sandbox; and a Profile page shows the learner's progress.
    components" (Seals, Rütm) before touching the page.
 6. The code already on the branch: `eesti/identity.py`, `config.learner_db`,
    `tests/test_identity.py` (done), and the skeletons `eesti/guest.py`,
-   `eesti/profile.py`, `eesti/api/profile.py`, `deploy/guest.ts`,
-   `wrangler.jsonc` `env.guest`, `docs/skeletons/profile.js`,
+   `eesti/profile.py`, `eesti/api/profile.py`, `docs/skeletons/profile.js`,
    `tests/test_guest_isolation.py`, `tests/test_profile.py`.
 
 ## Rules
@@ -56,34 +56,39 @@ throwaway sandbox; and a Profile page shows the learner's progress.
    and passes: a guest answer changes no owner file byte; owner and guest (and
    two sandboxes) see only their own progress; guest responses have no
    `x-events-seq`; the guest log needs no restore; snapshot/event export carry
-   owner rows only; public guests get only redistributable material and 403 on
-   owner-only files; every route is classified; guest allowances are shared and
-   smaller; guests cannot push to Notion; `POST /api/guest/reset` works for a
-   guest and is 403 for the owner; sweeping drops idle and surplus sandboxes.
-2. **Front doors.** `deploy/guest.ts` complete per spec; `deploy/worker.ts`
-   strips `x-eesti-*` from callers and sets `x-eesti-email` from
-   `ctx.access.getIdentity()`; `npm run typecheck` passes;
-   `npx wrangler deploy --env guest --dry-run` lists no bindings and the owner
-   dry run lists the same three as before. A test keeps the guest `REFUSED`
-   list equal to the owner `BACK_CHANNEL`.
+   owner rows only; a guest sees the same material as the owner; every route
+   is classified; Notion push, eval and reminder settings are refused to a
+   guest; guest allowances are shared and smaller; `POST /api/guest/reset`
+   works for a guest and is 403 for the owner; sweeping drops idle and surplus
+   sandboxes.
+2. **Worker.** `deploy/worker.ts` per `docs/identity.md` "Worker changes":
+   strips caller-sent `x-eesti-scope`/`x-eesti-email`, derives the scope from
+   `ctx.access.getIdentity()` and `OWNER_EMAIL` (unset: no headers, behaviour
+   as today), refuses `/api/push/*` to a guest, skips snapshot/pull for a
+   guest, and forwards the scope on the speech path. `npm run typecheck`
+   passes; a test reads `deploy/worker.ts` as `tests/test_origin_guard.py`
+   does and pins these rules; checked with `wrangler dev` and
+   `access.dev.identity` as the owner and as another email.
 3. **Profile API.** `GET /api/me` and `POST /api/me` return the shape in
    `eesti/profile.py`; every test in `tests/test_profile.py` is implemented and
    passes, including strict replay of `profile-set`.
 4. **Profile page** (a required deliverable, not polish). A `Profiil` tab in the
    Eksam mode with: editable name (Muuda / Salvesta / Loobu), email, *Õpib
    alates*, *Viimati*, level (current, exam goal, checkpoints), seals per level
-   with an A1/A2/B1 tablist, Rütm, totals, and for guests the sandbox line on
-   every screen plus *Tühjenda liivakast*. Checked in a real browser at
+   with an A1/A2/B1 tablist, Rütm, totals, which account is signed in
+   (*Põhikonto* or *Külaline*), and for guests the sandbox line on every screen
+   plus *Tühjenda liivakast*. Checked in a real browser at
    1440×900, 402×874 and 874×402 (touch), 744×1133 (touch), light and dark:
    screenshots looked at, no horizontal scroll, targets ≥44px, nothing
    clipped. `docs/app-structure.md` lists the tab.
 5. **Journeys.** `tests/test_e2e_journeys.py` covers the profile (view, rename,
    guest line, reset) and runs its progress-writing journeys in a guest
    sandbox; `pytest tests/test_e2e_journeys.py --browser -q` passes.
-6. **Deploy path.** `.github/workflows/deploy.yml` deploys the guest env only
-   when `GUEST_PROXY_TOKEN` exists (warning otherwise) and targets the owner
-   with `--env=""`; `docs/deploy.md` has the owner's one-time steps for
-   `GUEST_PROXY_TOKEN` (Cloud Run + repository secret) without any value.
+6. **Deploy path.** `.github/workflows/deploy.yml` pushes the `OWNER_EMAIL`
+   Worker secret and warns (does not fail) when it is missing;
+   `docs/deploy.md` has the owner's one-time steps (the `OWNER_EMAIL` secret,
+   the testing account in the Access policy, an optional service token for
+   headless agents) without any value.
 7. **Docs.** `docs/architecture.md` (request path, API and domain module
    tables), `docs/status.md` (replace the "Tests and agents write into the
    owner's log" known issue with what works now and what remains),
@@ -96,14 +101,14 @@ throwaway sandbox; and a Profile page shows the learner's progress.
 
 Run the full suite, the typecheck, both wrangler dry runs and the browser
 journeys; take the screenshots in criterion 4 and inspect them. Then re-read
-`docs/identity.md` "Routes for a public guest" against `eesti.api.paths()` once
+`docs/identity.md` "Routes for a guest" against `eesti.api.paths()` once
 more: a route added since is unclassified until you classify it.
 
 ## Hand-off
 
 Rewrite `HANDOFF.md` as the present-state note `AGENTS.md` asks for (≤30
-lines): what is done, the exact next step (the owner creates
-`GUEST_PROXY_TOKEN`, then merges), uncommitted paths, blockers. Update the PR
+lines): what is done, the exact next step (the owner sets `OWNER_EMAIL` and
+adds the testing account to Access, then merges), uncommitted paths, blockers. Update the PR
 description with Before/After and the validation you ran. Stop there; do not
 merge or deploy.
 

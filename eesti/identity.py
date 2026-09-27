@@ -1,12 +1,15 @@
 """Who a request is for: the owner, or a guest sandbox (ADR-0006).
 
-The front door decides, never the page. On the deployment the origin reads the
-scope off the secret the Worker presents: `PROXY_TOKEN` is the owner's Worker
-(behind Cloudflare Access), `GUEST_PROXY_TOKEN` the guest Worker (no Access).
-A header cannot promote a guest to the owner, because the guest Worker does
-not hold the owner's token. Without `PROXY_TOKEN` (`cli serve`, tests) the
-origin guard is off, and `x-eesti-scope` or `EESTI_SCOPE` chooses; the default
-is the owner, as before.
+Both come through the one Worker behind Cloudflare Access. The Worker reads
+the Access identity and says which scope it is (`x-eesti-scope`): the owner's
+email is the owner; any other Access identity (the owner's second, testing
+account, or a service token for a headless agent) is a guest. The origin
+trusts that header only on a request that carries `PROXY_TOKEN`, which only
+the Worker holds. A request with no scope header is the owner, as before this
+existed, so an older Worker keeps working unchanged.
+
+Without `PROXY_TOKEN` (`cli serve`, tests) the origin guard is off and the
+same header, or `EESTI_SCOPE`, chooses; the default is the owner.
 
 The scope travels in a context variable for the length of one request, so
 `config.learner_db` can hand each request its own databases without any route
@@ -27,13 +30,13 @@ OWNER = "owner"
 GUEST = "guest"
 SCOPES = (OWNER, GUEST)
 
-#: Chooses the scope where the origin guard is off (local, tests).
+#: Set by the Worker from the Access identity; locally, by a test or developer.
 SCOPE_HEADER = "x-eesti-scope"
 #: Names a guest sandbox: agents and tests pick a readable one.
 SANDBOX_HEADER = "x-eesti-guest"
 #: Keeps a browser in the sandbox it was given on first contact.
 SANDBOX_COOKIE = "eesti_guest"
-#: The owner's Access email, set by the owner Worker from `ctx.access`.
+#: The Access email, set by the Worker from `ctx.access.getIdentity()`.
 EMAIL_HEADER = "x-eesti-email"
 
 #: A sandbox name is also a directory name: short, lower case, no dots.
@@ -45,9 +48,7 @@ class Scope:
     kind: str = OWNER
     #: The guest sandbox; None for the owner.
     sandbox: str | None = None
-    #: Reached from the public guest host: owner-only material is withheld.
-    public: bool = False
-    #: The owner's sign-in email when the front door knows it.
+    #: The Access email when the front door knows it (a service token has none).
     email: str | None = None
     #: The sandbox was made up for this request; the response sets the cookie.
     issued: bool = False
@@ -88,37 +89,28 @@ def sandbox_name(raw: str | None) -> str | None:
     return name if _SANDBOX.fullmatch(name) else None
 
 
-def _guest(headers: Mapping[str, str], cookies: Mapping[str, str],
-           public: bool) -> Scope:
-    named = sandbox_name(headers.get(SANDBOX_HEADER)) or sandbox_name(
-        cookies.get(SANDBOX_COOKIE))
-    if named:
-        return Scope(GUEST, sandbox=named, public=public)
-    return Scope(GUEST, sandbox=f"g-{secrets.token_hex(6)}", public=public,
-                 issued=True)
-
-
 def resolve(headers: Mapping[str, str], cookies: Mapping[str, str],
             env: Mapping[str, str]) -> Scope | None:
     """The request's scope, or None when it must be refused (403).
 
     `headers` must be case-insensitive or lower-cased (Starlette's are).
     """
-    owner_token = env.get("PROXY_TOKEN") or ""
-    guest_token = env.get("GUEST_PROXY_TOKEN") or ""
-    presented = headers.get("x-proxy-token") or ""
-
-    if owner_token:
-        if hmac.compare_digest(presented, owner_token):
-            return Scope(OWNER, email=(headers.get(EMAIL_HEADER) or "").strip() or None)
-        if guest_token and hmac.compare_digest(presented, guest_token):
-            return _guest(headers, cookies, public=True)
+    expected = env.get("PROXY_TOKEN") or ""
+    if expected and not hmac.compare_digest(headers.get("x-proxy-token") or "", expected):
         return None
 
-    # The guard is off: a developer's machine or a test client.
-    kind = (headers.get(SCOPE_HEADER) or env.get("EESTI_SCOPE") or OWNER).strip().lower()
+    email = (headers.get(EMAIL_HEADER) or "").strip() or None
+    default = OWNER if expected else (env.get("EESTI_SCOPE") or OWNER)
+    kind = (headers.get(SCOPE_HEADER) or default).strip().lower()
     if kind == OWNER:
-        return Scope(OWNER, email=(env.get("EESTI_OWNER_EMAIL") or "").strip() or None)
-    if kind == GUEST:
-        return _guest(headers, cookies, public=env.get("EESTI_GUEST_PUBLIC") == "1")
-    return None
+        if not expected:
+            email = email or (env.get("EESTI_OWNER_EMAIL") or "").strip() or None
+        return Scope(OWNER, email=email)
+    if kind != GUEST:
+        return None   # a typo must not write into the owner's log
+
+    named = sandbox_name(headers.get(SANDBOX_HEADER)) or sandbox_name(
+        cookies.get(SANDBOX_COOKIE))
+    if named:
+        return Scope(GUEST, sandbox=named, email=email)
+    return Scope(GUEST, sandbox=f"g-{secrets.token_hex(6)}", email=email, issued=True)

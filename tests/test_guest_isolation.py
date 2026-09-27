@@ -48,28 +48,25 @@ def test_the_snapshot_and_export_routes_carry_only_the_owner(client, monkeypatch
     rows only, even after guest activity."""
 
 
-def test_a_public_guest_gets_only_redistributable_material(client, monkeypatch):
-    """With `EESTI_GUEST_PUBLIC=1`: library, topic links and sections hold no
-    row whose source has `redistributable = 0`."""
+def test_a_guest_sees_the_same_material_as_the_owner(client):
+    """Library sections and counts are identical in both scopes: no licence
+    gating by scope (ADR-0006, 6)."""
 
 
-def test_every_route_is_classified_for_a_public_guest(client):
-    """Each path in `eesti.api.paths()` is in exactly one of the tables in
-    `docs/identity.md` ("Routes for a public guest"): allowed, content-gated,
-    refused (403), or back channel. A new route fails this until classified."""
+def test_every_route_is_classified_for_a_guest(client):
+    """Each path in `eesti.api.paths()` is in exactly one row of
+    `docs/identity.md` "Routes for a guest". A new route fails this until
+    classified."""
 
 
-def test_owner_only_files_are_refused_to_a_public_guest(client, monkeypatch):
-    """HARNO files, EKI recordings and ERR audio answer 403 with Russian text."""
+def test_owner_only_actions_are_refused_to_a_guest(client):
+    """`/api/notion/push`, every `/api/eval/*` route and
+    `/api/reminders/settings` answer 403 with Russian text to a guest."""
 
 
 def test_guest_allowances_are_shared_and_smaller(client, monkeypatch):
     """Two sandboxes spend one `budget.GUEST_CAPS` allowance in
     `config.guest_shared_db()`; the owner's `progress.db` budget is untouched."""
-
-
-def test_a_guest_never_queues_for_notion_push(client):
-    """`/api/notion/push` in guest scope is refused; nothing leaves the app."""
 
 
 def test_guest_reset_empties_the_sandbox_and_refuses_the_owner(client):

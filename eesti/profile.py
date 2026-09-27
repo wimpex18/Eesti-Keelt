@@ -3,7 +3,7 @@
 Derived, like everything else, from the evidence log and the projections; the
 only thing stored is the name, as a `profile-set` event. There is no profile
 table and no second persistence source. Email is not stored at all: it is the
-Access identity the owner's Worker passes on each request (`identity.Scope`).
+Access identity the Worker passes on each request (`identity.Scope`).
 
 SKELETON. `docs/identity.md` ("Profile") is the specification; the shapes
 below are the contract `eesti/api/profile.py` and `eesti/web/js/profile.js`
@@ -72,7 +72,7 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
           "scope": "owner" | "guest",
           "sandbox": str | None,
           "name": str | None,
-          "email": str | None,               # owner only, from Access
+          "email": str | None,               # the Access email; None for a service token
           "since": ISO timestamp | None,     # first event that is not `backfill`
           "last_active": ISO timestamp | None,   # latest practice event
           "active_days_28": int,             # days with practice, last 28
