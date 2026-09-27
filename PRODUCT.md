@@ -6,10 +6,10 @@ web
 
 ## Users
 
-One learner: the owner, a Russian speaker at roughly A1, working toward the
-Estonian A2/B1 *tasemeeksam*. No exam is booked; the sitting is planned for
-2027. There are no other users and no sign-up; the deployed app sits behind
-Cloudflare Access.
+The owner and other learners are Russian speakers working toward the Estonian
+A2/B1 *tasemeeksam*. Each permanent account has separate progress; signed-out
+use is an isolated guest sandbox. In-app sign-up and sign-in run at the
+Cloudflare Worker in front of the deployed app.
 
 The learner splits work by device: the installed PWA on a phone for short
 drill and review sessions, a desktop for reading, writing and longer work.
@@ -54,7 +54,10 @@ advisory feedback. The app says plainly what was checked and by what.
   justifying in Russian; drill content in Estonian. A Russian caveat names the
   Estonian term and glosses it once; never transliterate a term. Enforced by
   `tests/test_ui_language.py`.
-- Readiness may be shown per exam part and as one overall progress score.
+- Readiness is shown per exam part; there is no overall progress score because a
+  zero in one part fails the exam regardless of the others.
+- A learner may save a self-assessed starting band for recommendations. It is
+  not CEFR evidence, mastery or an exam result.
 - `level` means CEFR and only official HARNO/EIS material has one; `band`
   (`kergem`/`keskmine`/`raskem`) is relative difficulty.
 - No linguistic fact without a source (Vabamorf forms, EKK rules).

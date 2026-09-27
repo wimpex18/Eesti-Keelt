@@ -127,6 +127,15 @@
     <!-- Where things stand, for the screens that have no rail: the review queue,
          the exam flower and the week's rhythm, each a way into its own screen. -->
     <nav class="pulse" id="pathPulse" aria-label="Kokkuvõte — сводка"></nav>
+    <!-- A pressure-free daily checklist from recorded evidence. It adds no points,
+         streak or mastery; an empty review queue is already complete. -->
+    <section class="daily-steps" id="dailySteps" aria-labelledby="dailyStepsTitle" hidden>
+      <div>
+        <h3 id="dailyStepsTitle" lang="et">Tänased sammud <i class="ru" lang="ru">шаги на сегодня</i></h3>
+        <p lang="ru">В любом порядке. Пропущенный день ничего не отнимает.</p>
+      </div>
+      <ol id="dailyStepsList"></ol>
+    </section>
     <div id="pathHead" class="banner" hidden></div>
     <!-- The set being answered. Beads fill as items are graded; the score line
          says the same in words. -->
@@ -201,6 +210,7 @@
             <option value="A1,A2">A1–A2</option>
             <option value="B1">B1</option>
           </select>
+          <span class="field-recommendation" id="freeRecommendation" hidden></span>
         </label>
         <button class="go" id="freeBtn" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
       </div>
@@ -529,6 +539,7 @@
           <option value="B2">B2</option>
           <option value="C1">C1</option>
         </select>
+        <span class="field-recommendation" id="vocRecommendation" hidden></span>
       </label>
       <label lang="et">Sõnaliik <i class="ru" lang="ru">часть речи</i>
         <select id="vocPos">
@@ -693,6 +704,9 @@
 
 <!-- The Reegel page (js/lesson.js): a solid sheet over the page. -->
 <dialog id="lessonSheet" class="lesson" aria-label="Reegel — правило"></dialog>
+<!-- Two short, optional starting questions. The answer is a recommendation only,
+     never a CEFR result or recorded mastery. -->
+<dialog id="onboardingSheet" class="onboarding" aria-label="Leia oma algus — выбрать начало"></dialog>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

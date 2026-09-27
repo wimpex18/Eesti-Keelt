@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from eesti import evidence, review
-from eesti.learner import daily_activity
+from eesti.learner import daily_activity, today_steps
 
 
 def test_a_late_evening_answer_counts_on_the_tallinn_day(tmp_path):
@@ -29,6 +29,26 @@ def test_settings_are_not_practice(tmp_path):
         payload={}, learner="me"))
     days = daily_activity(log, days=1, now=datetime(2026, 3, 3, 10, tzinfo=timezone.utc))
     assert days[0]["n"] == 0
+
+
+def test_today_steps_use_real_events_and_do_not_demand_an_empty_queue(tmp_path):
+    log = evidence.connect(tmp_path / "events.db")
+    for index, type_ in enumerate(("attempt", "attempt", "review", "dictation")):
+        evidence._insert(log, evidence.Event(
+            id=f"s{index}", type=type_, ts="2026-03-03T09:00:00+00:00",
+            payload={}, learner="me",
+        ))
+    now = datetime(2026, 3, 3, 10, tzinfo=timezone.utc)
+    steps = today_steps(log, review_due=2, now=now)
+    assert steps == [
+        {"id": "practice", "done": 2, "target": 5, "complete": False, "href": "#path"},
+        {"id": "review", "done": 1, "target": 3, "complete": False, "href": "#review"},
+        {"id": "skill", "done": 1, "target": 1, "complete": True, "href": "#read"},
+    ]
+    empty = today_steps(evidence.connect(tmp_path / "empty.db"), review_due=0, now=now)
+    assert empty[1] == {
+        "id": "review", "done": 0, "target": 0, "complete": True, "href": "#review",
+    }
 
 
 def test_the_forecast_puts_overdue_today_and_tomorrow_tomorrow(tmp_path):

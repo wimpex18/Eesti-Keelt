@@ -10,6 +10,13 @@ let authView = "login";
 let resetNotice = "";
 
 const LEVELS = ["A1", "A2", "B1"];
+const START_BAND_NAMES = {
+  a0: "A0", a1: "A1", "a1-a2": "A1–A2", a2: "A2", "a2-b1": "A2–B1",
+  unsure: "pole valitud",
+};
+const FOCUS_NAMES = {
+  path: "Rada", words: "Sõnavara", speaking: "Rääkimine", exam: "Eksam",
+};
 
 function date(value) {
   if (!value) return '<span lang="et">Veel mitte <span class="ru" lang="ru">пока нет</span></span>';
@@ -63,6 +70,12 @@ function profileRows(me) {
   const emailValue = me.email
     ? esc(me.email)
     : '<span lang="et">puudub</span><span class="profile-sub" lang="ru">не указан</span>';
+  const start = me.onboarding;
+  const startValue = start
+    ? `${esc(START_BAND_NAMES[start.start_band] || "—")} · ${esc(FOCUS_NAMES[start.focus] || "Rada")}`
+    : '<span lang="et">pole valitud</span><span class="profile-sub" lang="ru">ещё не выбрано</span>';
+  const startControl = me.scope === "guest" ? "" :
+    `<button class="linky" type="button" id="editOnboarding" lang="et">${start ? "Muuda" : "Vali"} <span class="ru" lang="ru">${start ? "изменить" : "выбрать"}</span></button>`;
   return `<dl class="profile-rows">
     <div class="profile-row"><dt lang="et">Nimi <span class="ru" lang="ru">имя</span></dt>
       <dd><span id="profileName">${nameValue || '<span class="hint">—</span>'}</span>
@@ -77,6 +90,8 @@ function profileRows(me) {
       </dd></div>
     <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${emailValue}</dd></div>
     <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${scopeDescription(me.scope)}</span>${controls}</dd></div>
+    <div class="profile-row"><dt lang="et">Algus <span class="ru" lang="ru">старт</span></dt><dd>${startValue}${startControl}
+      <span class="profile-sub" lang="ru">Самооценка для рекомендаций, не подтверждённый уровень CEFR.</span></dd></div>
     <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
     <div class="profile-row"><dt lang="et">Viimati <span class="ru" lang="ru">последнее занятие</span></dt><dd>${date(me.last_active)}</dd></div>
     <div class="profile-row"><dt lang="et">Tase <span class="ru" lang="ru">уровень</span></dt>
@@ -162,7 +177,7 @@ function profileHtml(me, notice = "") {
 }
 
 function startOptionsHtml(me) {
-  if ((Number(me.totals?.attempts) || 0) > 0) return "";
+  if ((Number(me.totals?.attempts) || 0) > 0 || me.onboarding) return "";
   return `<section class="profile-section profile-start-section" aria-labelledby="profileStartTitle">
     <h3 class="sec-head" id="profileStartTitle" lang="et">Alusta siit <i class="ru" lang="ru">начните здесь</i></h3>
     <p class="hint profile-start-copy" lang="ru">Выберите, с чего начать. В «Vaba harjutus» (свободной практике) можно менять сложность A1–B1; другие разделы доступны в любой момент.</p>
@@ -289,6 +304,7 @@ function bindProfile(out) {
       }
       authView = "login";
       await Promise.all([loadProfile(), paintScope()]);
+      window.dispatchEvent(new CustomEvent("eesti:identity-changed"));
       if (profileError) {
         showError(out, `Аккаунт создан, но имя не сохранено. ${profileError}`);
       }

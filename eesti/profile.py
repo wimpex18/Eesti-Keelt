@@ -25,9 +25,14 @@ JOINED = "joined"
 PROGRESS_RESET = "profile-progress-reset"
 #: Replays learning history through a particular reset marker.
 PROGRESS_RESTORED = "profile-progress-restored"
+#: The learner's optional self-assessed starting point and preferred first lane.
+ONBOARDING_SET = "onboarding-set"
 
 #: Longest name accepted, after trimming.
 NAME_MAX = 60
+
+START_BANDS = ("a0", "a1", "a1-a2", "a2", "a2-b1", "unsure")
+FOCUSES = ("path", "words", "speaking", "exam")
 
 
 def clean_name(raw: str | None) -> str | None:
@@ -45,8 +50,9 @@ def clean_name(raw: str | None) -> str | None:
 
 @applies(JOINED)
 @applies(PROFILE_SET)
+@applies(ONBOARDING_SET)
 def _profile_set(stores: Stores, ev: Event) -> None:
-    """Nothing to project: the name and the date are read back from the log.
+    """Nothing to project: profile facts are read back from the log.
 
     Registered so strict replay (`cli verify-backup`) accepts the event. Add
     `profile` to `evidence._register_all` so the registration always runs.
@@ -138,6 +144,44 @@ def set_name(name: str | None) -> Event:
     return evidence.record(PROFILE_SET, {"name": clean_name(name)})
 
 
+def set_onboarding(start_band: str, focus: str, *, skipped: bool = False) -> Event:
+    """Record the learner's self-assessed starting point and preferred lane.
+
+    This is a display recommendation, never an exam result, curriculum mastery
+    or CEFR evidence. A skipped onboarding is recorded so it is not shown again.
+    """
+    if start_band not in START_BANDS:
+        raise ValueError("Выберите один из предложенных стартовых вариантов.")
+    if focus not in FOCUSES:
+        raise ValueError("Выберите одно направление для начала.")
+    from . import evidence
+
+    return evidence.record(ONBOARDING_SET, {
+        "start_band": start_band,
+        "focus": focus,
+        "skipped": bool(skipped),
+    })
+
+
+def onboarding(log: sqlite3.Connection) -> dict | None:
+    """Latest self-assessed starting preference, or ``None`` before onboarding."""
+    row = log.execute(
+        "SELECT payload,ts FROM events WHERE type = ? ORDER BY seq DESC LIMIT 1",
+        (ONBOARDING_SET,),
+    ).fetchone()
+    if row is None:
+        return None
+    import json
+
+    payload = json.loads(row["payload"])
+    return {
+        "start_band": payload.get("start_band", "unsure"),
+        "focus": payload.get("focus", "path"),
+        "skipped": bool(payload.get("skipped", False)),
+        "set_at": row["ts"],
+    }
+
+
 def name(log: sqlite3.Connection) -> str | None:
     """The name from the latest `profile-set` event, or None.
 
@@ -163,6 +207,8 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
           "scope": "owner" | "learner" | "guest",
           "sandbox": str | None,             # the guest sandbox; None otherwise
           "name": str | None,
+          "onboarding": {"start_band": str, "focus": str,
+                           "skipped": bool, "set_at": str} | None,
           "email": str | None,               # the account email; None for a guest
           "since": ISO timestamp | None,     # `joined`, else the first event
                                              # that is not `backfill`
@@ -219,6 +265,7 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
         "scope": scope.kind,
         "sandbox": scope.id if scope.is_guest else None,
         "name": name(log),
+        "onboarding": onboarding(log),
         "email": scope.email,
         "since": since.ts if since else None,
         "last_active": last_active,

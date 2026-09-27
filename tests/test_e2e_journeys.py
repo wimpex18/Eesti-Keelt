@@ -414,7 +414,8 @@ class TestProfile:
     def test_signup_signin_and_signout(self, page):
         """Exercise the auth views with a local Worker-shaped response boundary."""
         state = {"scope": "guest", "email": "", "name": "", "password": "",
-                 "resets": 0, "restores": 0, "restore_available": False}
+                 "resets": 0, "restores": 0, "restore_available": False,
+                 "onboarding": None}
 
         def respond(route):
             request = route.request
@@ -445,6 +446,13 @@ class TestProfile:
                 state["restores"] += 1
                 state["restore_available"] = False
                 route.fulfill(json={"restored": True, "event_id": "test-restore"})
+            elif path == "/api/me/onboarding":
+                state["onboarding"] = {
+                    **request.post_data_json,
+                    "set_at": "2026-09-27T12:00:00+00:00",
+                }
+                route.fulfill(json={"scope": state["scope"],
+                                    "onboarding": state["onboarding"]})
             elif path == "/api/me":
                 if request.method == "POST":
                     state["name"] = request.post_data_json.get("name", "")
@@ -454,13 +462,15 @@ class TestProfile:
                     data = response.json()
                     data.update(scope=state["scope"], email=state["email"] or None,
                                 name=state["name"] or data.get("name"),
-                                restore_available=state["restore_available"])
+                                restore_available=state["restore_available"],
+                                onboarding=state["onboarding"])
                     route.fulfill(response=response, json=data)
             else:
                 route.continue_()
 
         page.route("**/api/auth/**", respond)
         page.route("**/api/me", respond)
+        page.route("**/api/me/onboarding", respond)
         page.route("**/api/me/reset", respond)
         page.route("**/api/me/restore", respond)
         page.reload(wait_until="networkidle")
@@ -475,6 +485,9 @@ class TestProfile:
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
         assert page.locator("#profileOut").get_by_text("aino@example.test").is_visible()
+        page.wait_for_selector("#onboardingSheet[open]")
+        page.click("#onboardingSheet [data-skip]")
+        page.wait_for_selector("#onboardingSheet", state="hidden")
 
         page.click("#profileReset")
         assert page.locator("#profileResetConfirm").is_visible()
@@ -1637,6 +1650,16 @@ class TestPractisingOffline:
 class TestTodaysPlan:
     """Rada opens on today's plan; a block's Alusta starts what it names."""
 
+    def test_the_daily_steps_are_evidence_not_points(self, page):
+        open_tab(page, "learn", "path")
+        page.wait_for_selector("#dailySteps:not([hidden])", timeout=15000)
+        steps = page.locator("#dailyStepsList > li")
+        assert steps.count() == 3
+        text = page.locator("#dailySteps").inner_text()
+        assert "Пропущенный день ничего не отнимает" in text
+        assert "балл" not in text.lower() and "серия" not in text.lower()
+        assert not browser_errors(page), browser_errors(page)
+
     def test_the_plan_is_there_and_starts_practice(self, page):
         open_tab(page, "learn", "path")
         page.wait_for_selector("#todayList .today-block", state="attached", timeout=15000)
@@ -1649,6 +1672,54 @@ class TestTodaysPlan:
         if start.count():
             start.first.click()
             page.wait_for_selector("#practiceOut .drill", timeout=15000)
+        assert not browser_errors(page), browser_errors(page)
+
+
+class TestOnboarding:
+    """A permanent learner can answer two quick questions and reach real work."""
+
+    @pytest.fixture
+    def service_workers(self):
+        # Both browser engines must let the test model the Worker's account
+        # response instead of serving the origin's guest response from the PWA.
+        return "block"
+
+    def test_two_steps_save_a_recommendation_and_open_it(self, page):
+        state = {"onboarding": None, "saved": None}
+
+        def profile_route(route):
+            data = route.fetch().json()
+            data.update({
+                "scope": "owner", "email": "learner@example.test",
+                "onboarding": state["onboarding"],
+            })
+            route.fulfill(json=data)
+
+        def onboarding_route(route):
+            state["saved"] = route.request.post_data_json
+            state["onboarding"] = {
+                **state["saved"], "set_at": "2026-09-27T12:00:00+00:00",
+            }
+            route.fulfill(json={"scope": "owner", "onboarding": state["onboarding"]})
+
+        page.route("**/api/me", profile_route)
+        page.route("**/api/me/onboarding", onboarding_route)
+        # The Worker emits the same transition after sign-up; the onboarding
+        # should open without making the learner hunt through the profile.
+        page.evaluate("window.dispatchEvent(new CustomEvent('eesti:identity-changed'))")
+        page.wait_for_selector("#onboardingSheet[open]")
+
+        page.check('#onboardingSheet input[value="a1-a2"]')
+        page.click("#onboardingSheet [data-next]")
+        page.check('#onboardingSheet input[value="words"]')
+        page.click("#onboardingSheet [data-save]")
+
+        page.wait_for_selector("#tab-sonad:not([hidden])")
+        assert state["saved"] == {
+            "start_band": "a1-a2", "focus": "words", "skipped": False,
+        }
+        assert page.input_value("#vocLevel") == "A2"
+        assert page.locator('button[data-tab="sonad"].recommended').count() == 1
         assert not browser_errors(page), browser_errors(page)
 
 
