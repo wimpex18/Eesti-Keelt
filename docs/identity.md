@@ -8,21 +8,21 @@ update this file in the same change.
 ## Request path
 
 ```
-owner          ─┐                          scope owner   → DO "singleton"
-household      ─┼─► Worker (Access) ──────► scope learner → DO "learner:<id>"
-testing / agent ┘   ctx.access identity     scope guest   → no DO
-                          │ PROXY_TOKEN + x-eesti-scope + x-eesti-email [+ x-eesti-guest]
-                          ▼
+browser / agent ─► Worker (Access as today)
+                   ├─ /api/auth/*  sign-up, sign-in, sign-out, me  (accounts in DO "singleton")
+                   └─ session cookie → owner | learner <id> | no session → guest
+                        │ PROXY_TOKEN + x-eesti-scope [+ x-eesti-learner, x-eesti-email, x-eesti-guest]
+                        ▼
    origin: _proxy_guard → identity.resolve → identity.use(scope) → routes
            → config.learner_db(name) → data/*.db | data/learners/<id>/ | data/guest/<sandbox>/
 ```
 
 | Request reaches the origin with | Scope | Files |
 |---|---|---|
-| `PROXY_TOKEN`, no `x-eesti-scope` (old Worker, or `OWNER_EMAIL` unset) | `owner` | `config.PROGRESS_DB` … `config.EVENTS_DB` |
+| `PROXY_TOKEN`, no `x-eesti-scope` (old Worker, or no accounts yet) | `owner` | `config.PROGRESS_DB` … `config.EVENTS_DB` |
 | `PROXY_TOKEN`, `x-eesti-scope: owner` | `owner` | owner files |
-| `PROXY_TOKEN`, `x-eesti-scope: learner` and `x-eesti-email` | `learner`, id `learner_id(email)` | `config.LEARNERS_DIR/<id>/` |
-| `PROXY_TOKEN`, `x-eesti-scope: learner`, no email | refused, 403 | – |
+| `PROXY_TOKEN`, `x-eesti-scope: learner`, valid `x-eesti-learner` | `learner` | `config.LEARNERS_DIR/<id>/` |
+| `PROXY_TOKEN`, `x-eesti-scope: learner`, missing or malformed id | refused, 403 | – |
 | `PROXY_TOKEN`, `x-eesti-scope: guest` | `guest` | `config.GUEST_DIR/<sandbox>/` |
 | guarded origin, wrong or no token | refused, 403 | – |
 | unguarded (`cli serve`, tests): header, else `EESTI_SCOPE`, else owner | as chosen | as above |
@@ -110,48 +110,57 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
 
 ## Worker changes
 
-`deploy/worker.ts`.
+`deploy/worker.ts`, with the account logic in `deploy/accounts.ts` (skeleton).
 
-1. **Who.** After `requireAccess`, delete caller-sent `x-eesti-scope` and
-   `x-eesti-email` (`x-eesti-guest` may pass: it only names a sandbox). Read
-   `(await ctx.access?.getIdentity())?.email`. With `OWNER_EMAIL` set: the
-   owner's email (case-insensitive) → `owner`; an email in `LEARNER_EMAILS`
-   (comma-separated, case-insensitive) → `learner`; anything else → `guest`.
-   Set `x-eesti-scope`, and `x-eesti-email` when there is one. Without
-   `OWNER_EMAIL`: set neither, as today. `learnerId(email)` in TypeScript is
-   SHA-256 via `crypto.subtle`, `l-` plus the first 16 hex digits, identical to
-   `identity.learner_id` (a test pins one vector in both).
-2. **Which object.** `stub(env)` becomes `stubFor(env, who)`: `singleton` for the
-   owner, `learner:<id>` for a learner, none for a guest. The object remembers
-   its `who` (scope and email) in storage on `ensureRestored(who)`, and
-   `headers()` adds `x-eesti-scope`/`x-eesti-email` from it to every back-channel
-   call, so restore, snapshots, event pulls and reminders touch that learner's
-   files only. `syncCorpus` runs in `singleton` only.
-3. **Guests.** No object: skip `ensureRestored`, `snapshot` and `pullEvents`;
+1. **Accounts** (`deploy/accounts.ts`, stored by `LearnerState` named
+   `singleton`, table `accounts(id, email UNIQUE, salt, hash, created, failures,
+   locked_until)`):
+   - `POST /api/auth/signup {email, password}`: email normalised to lower case
+     and checked for shape; password ≥ 10 characters; refused (409, Russian
+     message) once `MAX_ACCOUNTS` (Worker var, default 2) accounts exist or the
+     email is taken. The first account gets id `owner`; later ones `l-` + 16 hex
+     from `crypto.getRandomValues`. Sets the session and answers `{id, email, scope}`.
+   - `POST /api/auth/login {email, password}`: constant-time compare; after 5
+     failures the account waits 60 s; the same Russian message for unknown email
+     and wrong password.
+   - `POST /api/auth/logout`: clears the cookie. `GET /api/auth/me`: `{scope,
+     id, email}` or `{scope: "guest"}`; `signup_open` says whether sign-up is
+     still possible.
+   - Session cookie `eesti_session`: `<id>.<expiry>.<hmac>` (HMAC-SHA-256 with
+     `SESSION_SECRET`), `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age` 90 days.
+     Without `SESSION_SECRET` the auth routes answer 503 and every request is the
+     owner, as today.
+2. **Who.** After `requireAccess`, delete caller-sent `x-eesti-scope`,
+   `x-eesti-learner` and `x-eesti-email` (`x-eesti-guest` may pass). A valid
+   session for an existing account sets `x-eesti-scope` (`owner` or `learner`),
+   `x-eesti-learner` (learners) and `x-eesti-email`. No valid session: `guest`
+   while at least one account exists; before the first account, no headers
+   (owner, as today, so nothing changes until the owner signs up).
+3. **Which object.** `stubFor(env, who)`: `singleton` for the owner,
+   `learner:<id>` for a learner, none for a guest. The object remembers its `who`
+   and `headers()` adds that scope to every back-channel call, so restore,
+   snapshots, event pulls and reminders touch that learner's files only.
+   `syncCorpus` runs in `singleton` only.
+4. **Guests.** No object: skip `ensureRestored`, `snapshot` and `pullEvents`;
    `/api/push/*` → 403 with a Russian message.
-4. **Speech.** `transcribe` forwards the caller's scope headers to
-   `/api/transcribe/text`, and pulls events into the caller's object.
-5. **Cron.** `scheduled` calls `remind()` on `singleton` and on
-   `learner:<id>` for each address in `LEARNER_EMAILS`.
-6. **`BACK_CHANNEL`** is unchanged: those paths stay 404 from outside.
+5. **Speech.** `transcribe` forwards the caller's scope headers to
+   `/api/transcribe/text` and pulls into the caller's object.
+6. **Cron.** `scheduled` reminds `singleton` and every learner account.
+7. **`BACK_CHANNEL`** unchanged: 404 from outside.
 
-Local check: `wrangler dev` with `access.dev.identity.email` set to the owner,
-then to a `LEARNER_EMAILS` address, then to another address (`docs/deploy.md`).
+Local check: `wrangler dev` with a local `SESSION_SECRET`: sign up twice, sign
+out, and confirm owner, learner and guest each land in their own files.
 
 ### Deploy and operator steps
 
-- New Worker secrets `OWNER_EMAIL` and `LEARNER_EMAILS`.
-  `.github/workflows/deploy.yml` pushes them like the others and warns (does not
-  fail) when `OWNER_EMAIL` is missing; an empty `LEARNER_EMAILS` is valid.
-- Adding a learner, in `docs/deploy.md` with no values: add the email to the
-  Worker's Access policy and to `LEARNER_EMAILS`, redeploy; the person signs in
-  with the one-time PIN Access sends and sets their name on Profiil.
-- Adding a testing account: the Access policy only. For headless agents,
-  optionally a service token with a *Service Auth* policy, its id and secret in
-  the agent's environment.
-- Removing a learner and erasing their data: the operator procedure in
-  `docs/deploy.md`, applied to that learner's object and directory.
-- Nothing changes on Cloud Run.
+- New Worker secret `SESSION_SECRET` (random, 32+ bytes); optional var
+  `MAX_ACCOUNTS`. `.github/workflows/deploy.yml` pushes the secret like the
+  others and warns (does not fail) when it is missing.
+- First use, in `docs/deploy.md` with no values: the owner opens Profiil and
+  creates the first account (it inherits all existing progress), then the
+  second person creates theirs. Nothing changes in Access or on Cloud Run.
+- A forgotten password or removing an account: the operator procedure in
+  `docs/deploy.md`.
 
 ## Profile
 
@@ -161,7 +170,7 @@ Sources, all existing:
 | Field | From |
 |---|---|
 | `name` | newest `profile-set` event in the scope's log |
-| `email` | `identity.current().email` (the Worker, from Access; null for a service token) |
+| `email` | `identity.current().email` (the account's email; null for a guest) |
 | `since` | the `joined` event (registration), else the first event other than `backfill` (a `legacy-row` counts: it is real history) |
 | `last_active`, `active_days_28`, `rhythm` | `learner.daily_activity` and `learner.PRACTICE_EVENTS` |
 | `level.current` | the level of `progress.resume`'s topic |
@@ -171,8 +180,8 @@ Sources, all existing:
 | `totals` | `attempts` rows, `progress.mastered`, generator topics, review cards, `vocab` known |
 
 `POST /api/me {"name": …}` records `profile-set` (`profile.clean_name`: trimmed,
-1–60 characters, blank clears). No other field is editable: email belongs to
-Access, dates and levels to the evidence.
+1–60 characters, blank clears). No other field is editable here: email belongs to
+the account, dates and levels to the evidence.
 
 ## Profile page
 
@@ -191,11 +200,11 @@ Starting point: `docs/skeletons/profile.js`.
   - *Nimi* (имя): the value, and *Muuda* (изменить) opening an inline field
     with *Salvesta* (сохранить) and *Loobu* (отмена); errors are the server's
     Russian `detail`.
-  - *E-post* (эл. почта): the Access email; for a service token, *puudub*
-    (нет).
+  - *E-post* (эл. почта): the account's email; for a guest, *puudub* (нет).
   - *Konto* (аккаунт): *Põhikonto* (основной, прогресс сохраняется),
     *Õppija* (ученик, свой прогресс сохраняется) or *Külaline* (гость,
-    песочница), so everyone sees at once which account is signed in.
+    песочница), so everyone sees at once which account is signed in; with an
+    account, *Logi välja* (выйти).
   - *Õpib alates* (учится с: registration) and *Viimati* (последнее занятие): dates in
     Russian format; empty log → *Veel mitte* (пока нет).
   - *Tase* (уровень): current path level, exam goal (level and date, or a link
@@ -208,8 +217,15 @@ Starting point: `docs/skeletons/profile.js`.
   words, each as a number with a Russian label (`ruCount`).
 - **Guest.** A line at the top of every screen (not glass, not dismissible):
   *Külaline* and, in Russian, that this is a sandbox and progress will not be
-  kept. On the profile, *Tühjenda liivakast* (очистить песочницу) calls
+  kept, with a link to Profiil to sign in. On the profile, *Tühjenda liivakast* (очистить песочницу) calls
   `POST /api/guest/reset`, then reloads the profile.
+- **Sign-up and sign-in** (guests only, on Profiil, above the rows): two
+  views in a `role="tablist"`: *Logi sisse* (войти) and *Loo konto* (создать
+  аккаунт, shown while `signup_open`). Fields *E-post*, *Parool* (пароль), and
+  for a new account *Nimi*; one primary button each. After sign-up the page
+  posts the name to `POST /api/me`, then reloads. Russian errors from the
+  server. A note under *Loo konto*: the first account takes over the progress
+  already recorded. Plain page, `autocomplete` attributes set, no glass.
 - **Viewports.** Phone 402×874 and 874×402 (touch), iPad mini 744×1133, desktop
   1440×900, light and dark: no horizontal scroll, the name field and buttons at
   least 44px, the rail's own cards unchanged (the profile adds none).

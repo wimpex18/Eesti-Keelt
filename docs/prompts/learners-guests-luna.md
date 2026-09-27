@@ -11,12 +11,13 @@ implement it exactly, test it, and hand off. Do not redesign.
 
 ## Task
 
-Implement ADR-0006. Cloudflare Access is the account system. The owner and
-each household learner (an email in `LEARNER_EMAILS`) keep permanent,
-separate progress, each with their own origin files and Durable Object. Any
-other Access identity (a testing account, Claude/Codex, tests) gets the full
-app with all material in a throwaway sandbox. A Profile page shows each
-person's progress.
+Implement ADR-0006. Accounts live in the app: a sign-up / sign-in page, run by
+the Worker, with accounts stored in the `singleton` Durable Object. The first
+account is the owner and inherits all existing progress; the second (capped by
+`MAX_ACCOUNTS`, default 2) is a permanent learner with their own files and
+Durable Object. Anyone not signed in (Claude, Codex, tests) gets the full app
+with all material in a throwaway sandbox and must never sign up. A Profile page
+shows each person's progress. Cloudflare Access stays exactly as it is.
 
 ## Read first, in this order (they are authoritative)
 
@@ -27,16 +28,18 @@ person's progress.
 4. `docs/adr/0005-architecture-contracts.md` (contracts you must not break).
 5. `DESIGN.md` "Adding a page or section", "Layout rhythm", "Signature
    components" (Seals, Rütm) before touching the page.
-6. The code already on the branch: `eesti/identity.py`, `config.learner_db`,
-   `tests/test_identity.py` (done), and the skeletons `eesti/guest.py`,
+6. The code already on `main`: `eesti/identity.py`, `config.learner_db`,
+   `tests/test_identity.py` (done), and the skeletons `deploy/accounts.ts`,
+   `eesti/guest.py`,
    `eesti/profile.py`, `eesti/api/profile.py`, `docs/skeletons/profile.js`,
    `tests/test_guest_isolation.py`, `tests/test_learners.py`,
    `tests/test_profile.py`.
 
 ## Rules
 
-- Work on branch `claude/owner-guest-split`; push to it so the existing draft
-  PR updates. Stage named paths only; never `git commit -a`. Do not merge.
+- The design PR is merged. Branch `luna/learners-and-guests` from the latest
+  `main`, push it, and open one draft PR for all of this work. Stage named
+  paths only; never `git commit -a`. Do not merge.
 - Replace every `TODO(Luna)` and `NotImplementedError`. Keep the signatures
   and response shapes written in the skeletons; if one is wrong, fix it and the
   spec together and say why in the PR.
@@ -53,6 +56,7 @@ person's progress.
 - Do not deploy, create secrets, or change Cloudflare/Google settings. Write the
   operator steps into `docs/deploy.md` instead.
 - Keep tests offline (`tests/test_offline.py`). No real credentials anywhere.
+- Never sign up or sign in on the deployed app yourself; test as a guest there.
 
 ## Acceptance criteria
 
@@ -69,18 +73,20 @@ person's progress.
    passes: two permanent learners never see each other's progress; each has
    their own back channel, restore and `x-events-seq`; a new learner gets one
    `joined` event; owner-only actions are refused; the allowance is shared.
-3. **Worker.** `deploy/worker.ts` per `docs/identity.md` "Worker changes":
-   strips caller-sent `x-eesti-scope`/`x-eesti-email`; derives the scope from
-   `ctx.access.getIdentity()`, `OWNER_EMAIL` and `LEARNER_EMAILS` (no
-   `OWNER_EMAIL`: no headers, behaviour as today); one `LearnerState` object per
-   permanent learner (`singleton` for the owner, `learner:<id>` otherwise) that
-   sends its learner's scope on every back-channel call; corpus sync in
-   `singleton` only; no object for guests and `/api/push/*` refused to them;
-   the cron reminds every permanent learner; `learnerId` equals
-   `identity.learner_id` on a pinned vector. `npm run typecheck` passes; a test
-   reads `deploy/worker.ts` as `tests/test_origin_guard.py` does and pins these
-   rules; checked with `wrangler dev` and `access.dev.identity` as the owner, a
-   learner and another email.
+3. **Worker and accounts.** `deploy/accounts.ts` and `deploy/worker.ts` per
+   `docs/identity.md` "Worker changes": `/api/auth/signup|login|logout|me` with
+   PBKDF2 hashes and an HMAC-signed `HttpOnly` session cookie; sign-up closes at
+   `MAX_ACCOUNTS`; the first account is `owner`; caller-sent `x-eesti-*` scope
+   headers are stripped and set from the session; no session is a guest once
+   an account exists (before that, and without `SESSION_SECRET`, everything is
+   the owner, as today); one `LearnerState` per permanent learner (`singleton`
+   for the owner, `learner:<id>`) sending its scope on every back-channel call;
+   corpus sync in `singleton` only; guests have no object and get 403 on
+   `/api/push/*`; the cron reminds both learners. `npm run typecheck` passes; a
+   test pins these rules the way `tests/test_origin_guard.py` reads
+   `deploy/worker.ts`, and the auth helpers are exercised under Node as
+   `deploy/push.check.ts` is; checked with `wrangler dev`: sign up twice, sign
+   out, each lands in its own files.
 4. **Profile API.** `GET /api/me` and `POST /api/me` return the shape in
    `eesti/profile.py`; every test in `tests/test_profile.py` is implemented and
    passes, including strict replay of `profile-set`.
@@ -88,20 +94,21 @@ person's progress.
    Eksam mode with: editable name (Muuda / Salvesta / Loobu), email, *Õpib
    alates*, *Viimati*, level (current, exam goal, checkpoints), seals per level
    with an A1/A2/B1 tablist, Rütm, totals, which account is signed in
-   (*Põhikonto*, *Õppija* or *Külaline*), and for guests the sandbox line on every screen
-   plus *Tühjenda liivakast*. Checked in a real browser at
+   (*Põhikonto*, *Õppija* or *Külaline*) with *Logi välja*, for guests the
+   sign-in / sign-up views (*Logi sisse*, *Loo konto*: e-mail, password, name),
+   the sandbox line on every screen and *Tühjenda liivakast*. Checked in a real browser at
    1440×900, 402×874 and 874×402 (touch), 744×1133 (touch), light and dark:
    screenshots looked at, no horizontal scroll, targets ≥44px, nothing
    clipped. `docs/app-structure.md` lists the tab.
 6. **Journeys.** `tests/test_e2e_journeys.py` covers the profile (view, rename,
-   guest line, reset) and runs its progress-writing journeys in a guest
+   sign-up, sign-in, sign-out, guest line, reset) and runs its progress-writing journeys in a guest
    sandbox; `pytest tests/test_e2e_journeys.py --browser -q` passes.
-7. **Deploy path.** `.github/workflows/deploy.yml` pushes the `OWNER_EMAIL`
-   and `LEARNER_EMAILS` Worker secrets and warns (does not fail) when
-   `OWNER_EMAIL` is missing; `docs/deploy.md` has, without any value, how to set
-   them, how to add a learner (Access policy + `LEARNER_EMAILS`, they sign
-   in with the Access PIN and set their name on Profiil), how to add a testing
-   account or service token, and how to erase one learner.
+7. **Deploy path.** `.github/workflows/deploy.yml` pushes the
+   `SESSION_SECRET` Worker secret and warns (does not fail) when it is missing;
+   `docs/deploy.md` has, without any value, how to create it, the first-use
+   order (the owner signs up first and inherits the progress, then the second
+   person), and the operator steps for a forgotten password or removing an
+   account.
 8. **Docs.** `docs/architecture.md` (request path, API and domain module
    tables), `docs/status.md` (replace the "Tests and agents write into the
    owner's log" known issue with what works now and what remains, and the
@@ -121,13 +128,13 @@ more: a route added since is unclassified until you classify it.
 ## Hand-off
 
 Rewrite `HANDOFF.md` as the present-state note `AGENTS.md` asks for (≤30
-lines): what is done, the exact next step (the owner sets `OWNER_EMAIL` and
-`LEARNER_EMAILS`, adds the emails to Access, then merges), uncommitted paths,
+lines): what is done, the exact next step (the owner adds `SESSION_SECRET`,
+merges, then signs up first), uncommitted paths,
 blockers. Update the PR description with Before/After and the validation you ran. Stop there; do not
 merge or deploy.
 
 If something cannot be done without violating a rule above (for example the
-context variable does not reach sync routes, or `ctx.access` behaves
-differently from the docs), stop that part, leave the test that shows
+context variable does not reach sync routes, or WebCrypto PBKDF2 is
+unavailable in the Workers runtime), stop that part, leave the test that shows
 it failing as `xfail` with the reason, and record it under Blockers in
 `HANDOFF.md` rather than inventing a workaround.

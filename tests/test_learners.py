@@ -1,7 +1,7 @@
 """A household of permanent learners (ADR-0006, `docs/identity.md`).
 
 SKELETON: every test names a requirement. Remove the skip and implement each
-against the real app with `x-eesti-scope: learner` and `x-eesti-email`.
+against the real app with the `HER` headers the Worker sends.
 """
 
 from __future__ import annotations
@@ -10,13 +10,14 @@ import pytest
 
 pytestmark = pytest.mark.skip(reason="ADR-0006 skeleton: implemented with the feature")
 
-HER = {"x-eesti-scope": "learner", "x-eesti-email": "her@example.com"}
+HER = {"x-eesti-scope": "learner", "x-eesti-learner": "l-0123456789abcdef",
+       "x-eesti-email": "her@example.com"}
 
 
 def test_two_learners_keep_separate_permanent_progress(client):
     """Owner answers topic A, the learner topic B: `/api/status`, `/api/review`
     and `/api/me` differ accordingly, and the learner's files are under
-    `config.LEARNERS_DIR/<learner_id>/` while the owner's files are untouched."""
+    `config.LEARNERS_DIR/l-0123456789abcdef/` while the owner's files are untouched."""
 
 
 def test_a_learner_has_her_own_back_channel(client, monkeypatch):
@@ -49,4 +50,4 @@ def test_learners_share_the_household_allowance(client, monkeypatch):
 
 
 def test_events_carry_the_learner_id(client):
-    """Her events have `learner == identity.learner_id("her@example.com")`."""
+    """Her events have `learner == "l-0123456789abcdef"`."""

@@ -1,5 +1,4 @@
-"""Who a request is for (ADR-0006): the scope the Worker's Access identity
-selects, and the databases that scope gets. `eesti/identity.py`,
+"""Who a request is for (ADR-0006): the scope the Worker's session selects, and the databases that scope gets. `eesti/identity.py`,
 `config.learner_db`."""
 
 from __future__ import annotations
@@ -13,6 +12,7 @@ from eesti.identity import GUEST, LEARNER, OWNER, Scope
 
 GUARDED = {"PROXY_TOKEN": "worker-secret"}
 WORKER = {"x-proxy-token": "worker-secret"}
+LID = "l-0123456789abcdef"
 
 
 class TestBehindTheWorker:
@@ -25,26 +25,25 @@ class TestBehindTheWorker:
             {}, GUARDED)
         assert scope == Scope(OWNER, email="me@example.com")
 
-    def test_a_learner_is_known_by_their_email(self):
+    def test_a_learner_is_known_by_their_account_id(self):
         scope = identity.resolve(
-            {**WORKER, "x-eesti-scope": "learner", "x-eesti-email": "Her@Example.com"},
-            {}, GUARDED)
-        assert scope.kind == LEARNER and scope.permanent
-        assert scope.id == identity.learner_id("her@example.com")
+            {**WORKER, "x-eesti-scope": "learner", "x-eesti-learner": LID,
+             "x-eesti-email": "her@example.com"}, {}, GUARDED)
+        assert scope == Scope(LEARNER, id=LID, email="her@example.com")
+        assert scope.permanent
 
-    def test_a_learner_without_an_email_is_refused(self):
-        assert identity.resolve({**WORKER, "x-eesti-scope": "learner"}, {}, GUARDED) is None
+    @pytest.mark.parametrize("lid", [None, "", "l-XYZ", "../owner", "l-0123"])
+    def test_a_learner_without_a_valid_id_is_refused(self, lid):
+        headers = {**WORKER, "x-eesti-scope": "learner"}
+        if lid is not None:
+            headers["x-eesti-learner"] = lid
+        assert identity.resolve(headers, {}, GUARDED) is None
 
-    def test_a_testing_account_is_a_guest_with_its_email(self):
+    def test_no_session_is_a_guest_without_an_email(self):
         scope = identity.resolve(
-            {**WORKER, "x-eesti-scope": "guest", "x-eesti-email": "test@example.com",
+            {**WORKER, "x-eesti-scope": "guest", "x-eesti-email": "x@example.com",
              "x-eesti-guest": "codex-run"}, {}, GUARDED)
-        assert scope == Scope(GUEST, id="codex-run", email="test@example.com")
-        assert not scope.permanent
-
-    def test_a_service_token_guest_has_no_email(self):
-        scope = identity.resolve({**WORKER, "x-eesti-scope": "guest"}, {}, GUARDED)
-        assert scope.is_guest and scope.email is None
+        assert scope == Scope(GUEST, id="codex-run") and not scope.permanent
 
     @pytest.mark.parametrize("token", ["", "wrong"])
     def test_without_the_worker_token_nothing_is_answered(self, token):
@@ -69,17 +68,11 @@ class TestLocally:
 
 
 class TestLearnerIds:
-    def test_the_id_is_stable_and_ignores_case_and_spaces(self):
-        assert identity.learner_id(" A@B.ee ") == identity.learner_id("a@b.ee")
+    def test_a_worker_issued_id_is_accepted(self):
+        assert identity.learner_id(LID) == LID
 
-    def test_the_id_is_a_safe_name_that_does_not_reveal_the_email(self):
-        lid = identity.learner_id("a@b.ee")
-        assert identity.sandbox_name(lid) == lid and "b.ee" not in lid
-
-    def test_the_worker_computes_the_same_id(self):
-        # `deploy/worker.ts` must derive the same value (SHA-256, first 16 hex).
-        assert identity.learner_id("a@b.ee") == "l-" + __import__(
-            "hashlib").sha256(b"a@b.ee").hexdigest()[:16]
+    def test_an_id_is_a_safe_directory_name(self):
+        assert identity.sandbox_name(LID) == LID
 
 
 class TestSandboxes:

@@ -9,7 +9,8 @@
    `rhythmHtml` from `chrome.js` rather than drawing new ones. No streak: the
    app has a rhythm, and nothing resets.
 
-   Konto shows Põhikonto, Õppija or Külaline (`me.scope`).
+   Konto shows Põhikonto, Õppija or Külaline (`me.scope`); a guest sees Logi
+   sisse / Loo konto (`/api/auth/*`, answered by the Worker).
 
    Wire-up left to do:
    - markup: the panel in `index.html` and its tab button in `#nav-exam`;

@@ -1,21 +1,22 @@
-"""Who a request is for: a permanent learner, or a guest sandbox (ADR-0006).
+"""Who a request is for: a signed-in learner, or a guest sandbox (ADR-0006).
 
-Everyone comes through the one Worker behind Cloudflare Access. The Worker reads
-the Access identity and tells the origin which scope it is (`x-eesti-scope`):
+Accounts live in the app, behind the existing Cloudflare Access door. The
+Worker owns sign-up, sign-in and the session cookie (`deploy/worker.ts`), and
+tells the origin who is signed in (`x-eesti-scope`, `x-eesti-learner`,
+`x-eesti-email`):
 
-- `owner`: the owner's email (`OWNER_EMAIL`). The original learner, whose files
-  keep their old paths and whose Durable Object keeps its old name.
-- `learner`: an email in `LEARNER_EMAILS` (the household: another person who
-  studies with the app). Permanent, with their own files and Durable Object,
-  named by `learner_id(email)`.
-- `guest`: any other Access identity (a testing account, a service token for a
-  headless agent). A throwaway sandbox.
+- `owner`: the first account ever created. It inherits the progress recorded
+  before accounts existed: the old file paths and the old Durable Object.
+- `learner`: every later account (the household is capped by the Worker).
+  Permanent, with its own files and Durable Object, named by its account id.
+- `guest`: no session. Claude, Codex and tests use the full app in a throwaway
+  sandbox and never sign up.
 
-The origin trusts that header only on a request carrying `PROXY_TOKEN`, which
-only the Worker holds. A request with no scope header is the owner, as before
-this existed, so an older Worker keeps working unchanged. Without `PROXY_TOKEN`
-(`cli serve`, tests) the guard is off and the same headers, or `EESTI_SCOPE`,
-choose; the default is the owner.
+The origin trusts those headers only on a request carrying `PROXY_TOKEN`,
+which only the Worker holds. A request with no scope header is the owner, as
+before accounts existed, so an older Worker keeps working unchanged. Without
+`PROXY_TOKEN` (`cli serve`, tests) the guard is off and the same headers, or
+`EESTI_SCOPE`, choose; the default is the owner.
 
 The scope travels in a context variable for the length of one request, so
 `config.learner_db` can hand each request its own databases without any route
@@ -24,7 +25,6 @@ knowing. Nothing here opens a file.
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import re
 import secrets
@@ -38,9 +38,11 @@ LEARNER = "learner"
 GUEST = "guest"
 SCOPES = (OWNER, LEARNER, GUEST)
 
-#: Set by the Worker from the Access identity; locally, by a test or developer.
+#: Set by the Worker from the session; locally, by a test or developer.
 SCOPE_HEADER = "x-eesti-scope"
-#: The Access email, set by the Worker from `ctx.access.getIdentity()`.
+#: A learner's account id, set by the Worker from the session.
+LEARNER_HEADER = "x-eesti-learner"
+#: The account's email, set by the Worker from the session.
 EMAIL_HEADER = "x-eesti-email"
 #: Names a guest sandbox: agents and tests pick a readable one.
 SANDBOX_HEADER = "x-eesti-guest"
@@ -51,19 +53,22 @@ SANDBOX_COOKIE = "eesti_guest"
 _SANDBOX = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
 
-def learner_id(email: str) -> str:
-    """A permanent learner's id: stable, a safe directory and Durable Object
-    name, and not the email itself. `deploy/worker.ts` computes the same."""
-    digest = hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
-    return f"l-{digest[:16]}"
+#: An account id as the Worker issues it: `l-` and 16 lower-case hex digits.
+_LEARNER_ID = re.compile(r"^l-[0-9a-f]{16}$")
+
+
+def learner_id(raw: str | None) -> str | None:
+    """A learner account id from the Worker, or None when it is malformed."""
+    value = (raw or "").strip()
+    return value if _LEARNER_ID.fullmatch(value) else None
 
 
 @dataclass(frozen=True)
 class Scope:
     kind: str = OWNER
-    #: `owner`, `l-<hex>` for a learner, the sandbox name for a guest.
+    #: `owner`, the account id for a learner, the sandbox name for a guest.
     id: str = OWNER
-    #: The Access email when the front door knows it (a service token has none).
+    #: The account's email; None for a guest.
     email: str | None = None
     #: The sandbox was made up for this request; the response sets the cookie.
     issued: bool = False
@@ -127,13 +132,14 @@ def resolve(headers: Mapping[str, str], cookies: Mapping[str, str],
             email = email or (env.get("EESTI_OWNER_EMAIL") or "").strip() or None
         return Scope(OWNER, email=email)
     if kind == LEARNER:
-        # A permanent learner is known only by their email: no email, no store.
-        return Scope(LEARNER, id=learner_id(email), email=email) if email else None
+        # A permanent learner is known by their account id: none, no store.
+        lid = learner_id(headers.get(LEARNER_HEADER))
+        return Scope(LEARNER, id=lid, email=email) if lid else None
     if kind != GUEST:
         return None   # a typo must not write into anyone's permanent log
 
     named = sandbox_name(headers.get(SANDBOX_HEADER)) or sandbox_name(
         cookies.get(SANDBOX_COOKIE))
     if named:
-        return Scope(GUEST, id=named, email=email)
-    return Scope(GUEST, id=f"g-{secrets.token_hex(6)}", email=email, issued=True)
+        return Scope(GUEST, id=named)
+    return Scope(GUEST, id=f"g-{secrets.token_hex(6)}", issued=True)
