@@ -83,7 +83,7 @@ def _meaning_card(
 
     analysis = analysis or {}
 
-    with gloss.connect(config.VOCAB_DB) as g:
+    with gloss.connect(config.learner_db("VOCAB_DB")) as g:
         known = gloss.stored(g, lemma)
 
     words = wordlist.connect()

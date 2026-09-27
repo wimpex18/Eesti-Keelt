@@ -27,6 +27,15 @@ CAPS: dict[str, int | None] = {
     "asr:workers-ai": 200,       # audio minutes cost neurons too
 }
 
+# Sandboxes share this smaller allowance; unknown lanes keep their normal cap.
+GUEST_CAPS: dict[str, int | None] = {
+    **CAPS,
+    "llm:workers-ai": 100,
+    "tartunlp": 200,
+    "tartunlp-mt": 200,
+    "asr:workers-ai": 50,
+}
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS budget (
     day   TEXT NOT NULL,
@@ -101,7 +110,7 @@ def spent(lane: str) -> int:
 
 def left(lane: str) -> int | None:
     """Calls still allowed today, or None where this project sets no cap."""
-    cap = CAPS.get(lane)
+    cap = _caps().get(lane)
     return None if cap is None else max(0, cap - spent(lane))
 
 
@@ -125,4 +134,10 @@ def spend(lane: str, calls: int = 1) -> None:
 def report() -> dict[str, dict]:
     """What each capped lane has spent today, for `/api/status`."""
     return {lane: {"cap": cap, "spent": spent(lane), "left": left(lane)}
-            for lane, cap in CAPS.items() if cap is not None}
+            for lane, cap in _caps().items() if cap is not None}
+
+
+def _caps() -> dict[str, int | None]:
+    from ..identity import current
+
+    return GUEST_CAPS if current().is_guest else CAPS

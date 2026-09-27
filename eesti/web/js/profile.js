@@ -1,0 +1,256 @@
+/* Identity and the evidence behind a learner's progress. */
+
+import {$, api, esc, ruCount} from "./core.js";
+import {retryableError, rhythmHtml, sealsHtml} from "./chrome.js";
+
+let currentMe = null;
+let authInfo = {scope: "owner", signup_open: false};
+let sealLevel = "A1";
+let authView = "login";
+
+const LEVELS = ["A1", "A2", "B1"];
+
+function date(value) {
+  if (!value) return "Veel mitte";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf())
+    ? "Veel mitte"
+    : parsed.toLocaleDateString("ru", {day: "numeric", month: "long", year: "numeric"});
+}
+
+function scopeName(scope) {
+  return ({owner: "Põhikonto", learner: "Õppija", guest: "Külaline"})[scope] || "Külaline";
+}
+
+function needsFirstAccount() {
+  return currentMe?.scope === "owner" && authInfo.signup_open && !authInfo.email;
+}
+
+function count(value, words) { return ruCount(Number(value) || 0, words); }
+
+function profileRows(me) {
+  const level = me.level || {};
+  const goal = level.goal;
+  const checkpointText = (level.checkpoints || []).join(", ") || "пока нет";
+  const target = goal
+    ? `${esc(goal.level || goal.target || "")} · ${date(goal.sitting)}`
+    : '<a href="#exam">Выбрать цель в обзоре Eksam</a>';
+  let controls = "";
+  if (me.scope === "guest") {
+    controls = '<button class="ghost" type="button" id="guestReset" lang="et">Tühjenda liivakast <span class="ru" lang="ru">очистить песочницу</span></button>';
+  } else if (!needsFirstAccount()) {
+    controls = '<button class="ghost" type="button" id="logoutBtn" lang="et">Logi välja <span class="ru" lang="ru">выйти</span></button>';
+  }
+  const nameValue = esc(me.name || "");
+  return `<dl class="profile-rows">
+    <div class="profile-row"><dt lang="et">Nimi <span class="ru" lang="ru">имя</span></dt>
+      <dd><span id="profileName">${nameValue || '<span class="hint">—</span>'}</span>
+        <button class="linky" type="button" id="editName" lang="et">Muuda <span class="ru" lang="ru">изменить</span></button>
+        <form id="nameForm" class="profile-name-form" hidden>
+          <label lang="et" for="nameInput">Nimi <i class="ru" lang="ru">имя</i></label>
+          <input id="nameInput" name="name" type="text" maxlength="60" autocomplete="name" value="${nameValue}">
+          <button class="primary" type="submit" lang="et">Salvesta <span class="ru" lang="ru">сохранить</span></button>
+          <button class="ghost" type="button" id="cancelName" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
+          <p class="profile-error" id="nameError" role="alert" hidden></p>
+        </form>
+      </dd></div>
+    <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${esc(me.email || "puudub")}</dd></div>
+    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span>${controls}</dd></div>
+    <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
+    <div class="profile-row"><dt lang="et">Viimati <span class="ru" lang="ru">последнее занятие</span></dt><dd>${date(me.last_active)}</dd></div>
+    <div class="profile-row"><dt lang="et">Tase <span class="ru" lang="ru">уровень</span></dt>
+      <dd><span>${esc(level.current || "—")}</span><span class="profile-sub">Экзаменационная цель: ${target}</span>
+        <span class="profile-sub">Зачтённые рубежи: ${esc(checkpointText)}</span></dd></div>
+  </dl>`;
+}
+
+function authHtml() {
+  if (currentMe?.scope !== "guest" && !needsFirstAccount()) return "";
+  const canSignup = !!authInfo.signup_open;
+  const tabs = canSignup
+    ? `<div class="levels profile-auth-tabs" role="tablist" aria-label="Konto — аккаунт">
+        <button type="button" role="tab" aria-selected="${authView === "login"}" data-auth-view="login" lang="et">Logi sisse <i class="ru" lang="ru">войти</i></button>
+        <button type="button" role="tab" aria-selected="${authView === "signup"}" data-auth-view="signup" lang="et">Loo konto <i class="ru" lang="ru">создать аккаунт</i></button>
+      </div>` : `<h3 class="sec-title" lang="et">Logi sisse <i class="ru" lang="ru">войти</i></h3>`;
+  const signup = authView === "signup" && canSignup;
+  return `<section class="profile-auth" aria-label="Sisselogimine">
+    ${tabs}
+    <form id="authForm" data-mode="${signup ? "signup" : "login"}">
+      ${signup ? `<label lang="et" for="authName">Nimi <i class="ru" lang="ru">имя</i></label>
+        <input id="authName" name="name" type="text" maxlength="60" autocomplete="name" required>` : ""}
+      <label lang="et" for="authEmail">E-post <i class="ru" lang="ru">эл. почта</i></label>
+      <input id="authEmail" name="email" type="email" autocomplete="email" required>
+      <label lang="et" for="authPassword">Parool <i class="ru" lang="ru">пароль</i></label>
+      <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" required>
+      <button class="go" type="submit" lang="et">${signup ? "Loo konto" : "Logi sisse"}<span class="ru" lang="ru">${signup ? "создать аккаунт" : "войти"}</span></button>
+      <p id="authError" class="profile-error" role="alert" hidden></p>
+    </form>
+    ${signup ? `<p class="note">${needsFirstAccount()
+      ? "Первый аккаунт продолжит историю, уже записанную в приложении."
+      : "Новая учётная запись получит отдельный прогресс."}</p>` : ""}
+  </section>`;
+}
+
+function profileHtml(me) {
+  const level = LEVELS.includes(sealLevel) ? sealLevel : "A1";
+  const totals = me.totals || {};
+  const seals = me.milestones?.[level] || [];
+  const activeDays = Number(me.active_days_28) || 0;
+  const scopes = authHtml();
+  return `${scopes}
+    ${me.scope === "guest" ? `<p class="profile-sandbox" lang="ru">Гостевой прогресс хранится только во временной песочнице и будет удалён. После регистрации он не переносится.</p>` : ""}
+    ${profileRows(me)}
+    <section class="profile-section">
+      <h3 class="sec-head" lang="et">Märgid <i class="ru" lang="ru">значки</i></h3>
+      <div class="levels profile-levels" role="tablist" aria-label="Tase — уровень">
+        ${LEVELS.map(item => `<button type="button" role="tab" aria-selected="${item === level}" data-seal-level="${item}">${item}</button>`).join("")}
+      </div>
+      <div id="profileSeals">${sealsHtml(seals)}</div>
+    </section>
+    <section class="profile-section">
+      <h3 class="sec-head" lang="et">Rütm <i class="ru" lang="ru">ритм</i></h3>
+      ${rhythmHtml(me.rhythm || [])}
+      <p class="hint profile-active-days">${count(activeDays, ["активный день", "активных дня", "активных дней"])} с занятиями за последние 4 недели.</p>
+    </section>
+    <section class="profile-section">
+      <h3 class="sec-head" lang="et">Kokku <i class="ru" lang="ru">итого</i></h3>
+      <ul class="profile-totals">
+        <li>${count(totals.attempts, ["попытка", "попытки", "попыток"])}</li>
+        <li>${count(totals.mastered, ["освоенная тема", "освоенные темы", "освоенных тем"])} из ${count(totals.topics, ["тема", "темы", "тем"])}</li>
+        <li>${count(totals.review_cards, ["карточка повторения", "карточки повторения", "карточек повторения"])}</li>
+        <li>${count(totals.known_words, ["известное слово", "известных слова", "известных слов"])}</li>
+      </ul>
+    </section>`;
+}
+
+async function readAuth() {
+  try { return await api("/api/auth/me").then(r => r.json()); }
+  catch { return {scope: currentMe?.scope || "owner", signup_open: false}; }
+}
+
+export async function loadProfile() {
+  const out = $("#profileOut");
+  if (!out) return;
+  try {
+    currentMe = await api("/api/me").then(r => r.json());
+    authInfo = await readAuth();
+    if (authInfo.scope !== currentMe.scope) authInfo.scope = currentMe.scope;
+    authView = needsFirstAccount() ? "signup" : "login";
+    out.innerHTML = profileHtml(currentMe);
+    bindProfile(out);
+  } catch (err) {
+    out.replaceChildren(retryableError(err.message, loadProfile));
+  }
+}
+
+function bindProfile(out) {
+  out.querySelectorAll('.profile-levels, .profile-auth-tabs').forEach(list => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const select = selected => tabs.forEach(tab => {
+      const active = tab === selected;
+      tab.tabIndex = active ? 0 : -1;
+      tab.setAttribute("aria-selected", String(active));
+    });
+    select(tabs.find(tab => tab.getAttribute("aria-selected") === "true") || tabs[0]);
+    list.addEventListener("keydown", event => {
+      if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+      const here = tabs.indexOf(document.activeElement);
+      if (here < 0) return;
+      event.preventDefault();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+        : event.key === "ArrowRight" ? (here + 1) % tabs.length
+        : (here - 1 + tabs.length) % tabs.length;
+      tabs[next].focus();
+      tabs[next].click();
+    });
+  });
+  out.querySelectorAll("[data-seal-level]").forEach(button => button.addEventListener("click", () => {
+    sealLevel = button.dataset.sealLevel;
+    out.querySelectorAll("[data-seal-level]").forEach(tab =>
+      tab.setAttribute("aria-selected", String(tab === button)));
+    $("#profileSeals").innerHTML = sealsHtml(currentMe.milestones?.[sealLevel] || []);
+  }));
+  out.querySelectorAll("[data-auth-view]").forEach(button => button.addEventListener("click", () => {
+    authView = button.dataset.authView;
+    out.innerHTML = profileHtml(currentMe);
+    bindProfile(out);
+  }));
+  $("#editName")?.addEventListener("click", () => {
+    $("#profileName").hidden = true;
+    $("#editName").hidden = true;
+    $("#nameForm").hidden = false;
+    $("#nameInput").focus();
+  });
+  $("#cancelName")?.addEventListener("click", () => loadProfile());
+  $("#nameForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const error = $("#nameError");
+    error.hidden = true;
+    try {
+      await api("/api/me", {name: $("#nameInput").value});
+      await loadProfile();
+    } catch (err) {
+      error.textContent = err.message;
+      error.hidden = false;
+    }
+  });
+  $("#authForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    const error = $("#authError");
+    error.hidden = true;
+    submit.disabled = true;
+    const values = Object.fromEntries(new FormData(form).entries());
+    try {
+      const authRoute = form.dataset.mode === "signup"
+        ? "/api/auth/signup" : "/api/auth/login";
+      await api(authRoute, {
+        email: values.email, password: values.password,
+      });
+      if (form.dataset.mode === "signup") await api("/api/me", {name: values.name});
+      authView = "login";
+      await Promise.all([loadProfile(), paintScope()]);
+    } catch (err) {
+      error.textContent = err.message;
+      error.hidden = false;
+    } finally { submit.disabled = false; }
+  });
+  $("#logoutBtn")?.addEventListener("click", async event => {
+    event.currentTarget.disabled = true;
+    try { await api("/api/auth/logout", {}); location.reload(); }
+    catch (err) { event.currentTarget.disabled = false; showError(out, err.message); }
+  });
+  $("#guestReset")?.addEventListener("click", async event => {
+    event.currentTarget.disabled = true;
+    try { await api("/api/guest/reset", {}); await Promise.all([loadProfile(), paintScope()]); }
+    catch (err) { event.currentTarget.disabled = false; showError(out, err.message); }
+  });
+}
+
+function showError(out, message) {
+  const notice = document.createElement("p");
+  notice.className = "profile-error";
+  notice.setAttribute("role", "alert");
+  notice.textContent = message;
+  out.prepend(notice);
+}
+
+export async function paintScope() {
+  const box = $("#scopeNotice");
+  if (!box) return;
+  try {
+    authInfo = await api("/api/auth/me").then(r => r.json());
+  } catch {
+    if (!currentMe) {
+      try { currentMe = await api("/api/me").then(r => r.json()); }
+      catch { return; }
+    }
+    authInfo = {scope: currentMe.scope, signup_open: false};
+  }
+  const guest = authInfo.scope === "guest";
+  box.hidden = !guest;
+  box.innerHTML = guest
+    ? '<span lang="et">Külaline</span><span lang="ru">Гостевой прогресс временный и не сохраняется.</span><a href="#profile" lang="et">Profiil <span class="ru" lang="ru">войти или создать аккаунт</span></a>'
+    : "";
+}

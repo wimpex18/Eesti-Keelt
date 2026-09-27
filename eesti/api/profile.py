@@ -6,7 +6,9 @@ once the routes work, and document it in `docs/architecture.md`.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from contextlib import ExitStack, closing
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -21,27 +23,46 @@ class NameRequest(BaseModel):
 def me() -> dict:
     """`profile.summary` for the request's scope (`identity.current()`).
 
-    TODO(Luna): open the log and projections through `deps` (which resolve
-    `config.learner_db`), call `profile.summary`, close them.
     """
-    raise NotImplementedError
+    from .. import evidence, profile
+    from ..identity import current
+    from . import deps
+
+    with ExitStack() as stack:
+        log = stack.enter_context(closing(evidence.connect()))
+        progress = stack.enter_context(closing(deps.progress_db()))
+        reviews = stack.enter_context(closing(deps.review_db()))
+        vocabulary = stack.enter_context(closing(deps.vocab_db()))
+        return profile.summary(log=log, progress=progress, reviews=reviews,
+                               vocabulary=vocabulary, scope=current())
 
 
 @router.post("/api/me")
 def rename(req: NameRequest) -> dict:
     """Set the name, then answer as `GET /api/me`.
 
-    TODO(Luna): `profile.set_name`; a ValueError is a 400 with its Russian text.
     Allowed for guests too: it writes to their sandbox.
     """
-    raise NotImplementedError
+    from .. import profile
+
+    try:
+        profile.set_name(req.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return me()
 
 
 @router.post("/api/guest/reset")
 def guest_reset() -> dict:
     """Throw this guest sandbox away; the next request starts empty.
 
-    TODO(Luna): 403 for a permanent scope, owner or learner (Russian detail);
-    for a guest, `guest.reset(scope.id)` and answer `{"reset": scope.id}`.
     """
-    raise NotImplementedError
+    from .. import guest
+    from ..identity import current
+
+    scope = current()
+    if not scope.is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Очищать гостевую песочницу может только гость.")
+    guest.reset(scope.id)
+    return {"reset": scope.id}

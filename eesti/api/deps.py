@@ -9,6 +9,7 @@ from __future__ import annotations
 import secrets
 from pathlib import Path
 
+from fastapi import HTTPException
 from .. import review
 from ..providers import budget
 from ..sources import connect as content_connect
@@ -40,19 +41,19 @@ def content_counts() -> dict:
 def review_db():
     from .. import config
 
-    return review.connect(config.REVIEW_DB)
+    return review.connect(config.learner_db("REVIEW_DB"))
 
 
 def progress_db():
     from .. import config, progress
 
-    return progress.connect(config.PROGRESS_DB)
+    return progress.connect(config.learner_db("PROGRESS_DB"))
 
 
 def vocab_db():
     from .. import config, vocab
 
-    return vocab.connect(config.VOCAB_DB)
+    return vocab.connect(config.learner_db("VOCAB_DB"))
 
 
 def notion_db():
@@ -60,7 +61,7 @@ def notion_db():
     from .. import config
     from ..notion import connect
 
-    return connect(config.NOTION_DB)
+    return connect(config.learner_db("NOTION_DB"))
 
 
 def gloss_db():
@@ -69,12 +70,12 @@ def gloss_db():
     """
     from .. import config, gloss
 
-    return gloss.connect(config.VOCAB_DB)
+    return gloss.connect(config.learner_db("VOCAB_DB"))
 
 
 # Generated items are not stored: the client returns the item with the answer and
-# the server re-grades it. Fine for one learner behind Access; a multi-user app
-# would need signed items or server-side sessions.
+# the server re-grades it. Signed item refs bind the answer to the issued prompt
+# across guest sandboxes and permanent accounts.
 
 #: The page and its static files. `parents[1]`, not `parent`: this module
 #: lives in `eesti/api/` and the web directory is `eesti/web/`.
@@ -93,6 +94,15 @@ def db():
     return connect()
 
 
+def owner_scope() -> None:
+    """FastAPI dependency for routes that act on the owner's private data."""
+    from ..identity import OWNER, current
+
+    if current().kind != OWNER:
+        raise HTTPException(status_code=403,
+                            detail="Эта операция доступна только владельцу приложения.")
+
+
 def _bind_breaker() -> None:
     """Point the provider breaker at the learner's database.
 
@@ -100,10 +110,21 @@ def _bind_breaker() -> None:
     snapshot. An opener is registered, so no path is resolved until the breaker
     first has something to record.
     """
+    from .. import config
+    from ..identity import current
+    from ..progress import connect as progress_connect
     from ..providers import breaker
 
+    def allowance_db():
+        # Permanent learners share the household allowance in the owner's
+        # snapshotted progress database; all guest sandboxes share a smaller
+        # allowance store that is never copied to a Durable Object.
+        path = (config.guest_shared_db() if current().is_guest
+                else config.PROGRESS_DB)
+        return progress_connect(path)
+
     breaker.bind_later(progress_db)
-    budget.bind_later(progress_db)
+    budget.bind_later(allowance_db)
 
 
 # Must run at import, before any provider is asked whether it is dead;

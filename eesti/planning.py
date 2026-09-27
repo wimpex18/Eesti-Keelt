@@ -186,8 +186,8 @@ def gather(now: datetime | None = None) -> PlanInputs:
     from .curriculum import by_id
 
     now = now or datetime.now(timezone.utc)
-    prog = progress.connect(config.PROGRESS_DB)
-    rev = review.connect(config.REVIEW_DB)
+    prog = progress.connect(config.learner_db("PROGRESS_DB"))
+    rev = review.connect(config.learner_db("REVIEW_DB"))
     with evidence.connect() as log:
         found = learner.rule_evidence(prog, rev, now)
         weak = []

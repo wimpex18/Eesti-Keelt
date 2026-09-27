@@ -17,6 +17,8 @@ data/exam/
 data/eval/
 
 .env
+.dev.vars
+.dev.vars.*
 deploy/ca-bundle.crt
 
 # Worker toolchain — installed, not committed.

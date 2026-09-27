@@ -5,9 +5,8 @@ only thing stored is the name, as a `profile-set` event. There is no profile
 table and no second persistence source. Email is not stored at all: it is the
 account's email the Worker passes on each request (`identity.Scope`).
 
-SKELETON. `docs/identity.md` ("Profile") is the specification; the shapes
-below are the contract `eesti/api/profile.py` and `eesti/web/js/profile.js`
-are written against. Replace every `NotImplementedError`.
+`docs/identity.md` ("Profile") is the specification; the shapes below are the
+contract `eesti/api/profile.py` and `eesti/web/js/profile.js` use.
 """
 
 from __future__ import annotations
@@ -53,18 +52,27 @@ def _profile_set(stores: Stores, ev: Event) -> None:
 def set_name(name: str | None) -> Event:
     """Record the learner's chosen name (`profile-set`, payload `{"name": ...}`).
 
-    TODO(Luna): `clean_name`, then `evidence.record(PROFILE_SET, {"name": ...})`.
     None clears the name.
     """
-    raise NotImplementedError
+    from . import evidence
+
+    return evidence.record(PROFILE_SET, {"name": clean_name(name)})
 
 
 def name(log: sqlite3.Connection) -> str | None:
     """The name from the latest `profile-set` event, or None.
 
-    TODO(Luna): newest `profile-set` by `seq`.
+    The latest event wins, including an event that clears the name.
     """
-    raise NotImplementedError
+    row = log.execute(
+        "SELECT payload FROM events WHERE type = ? ORDER BY seq DESC LIMIT 1",
+        (PROFILE_SET,),
+    ).fetchone()
+    if row is None:
+        return None
+    import json
+
+    return json.loads(row["payload"]).get("name")
 
 
 def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
@@ -92,7 +100,57 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
           "rhythm": [...],                   # learner.daily_activity, as /api/status
         }
 
-    TODO(Luna): compose from the existing functions named above; add no new
-    measure, streak or score.
     """
-    raise NotImplementedError
+    from . import (checkpoint, config, exam, learner, milestones,
+                   progress as progress_module, vocab)
+    from .evidence import events
+    from .curriculum import TOPICS, by_id
+
+    current_topic = progress_module.resume(progress)
+    current_level = by_id(current_topic).level if current_topic else None
+    selected_goal = exam.goal(progress)
+    current_events = events(log)
+
+    joined = next((ev for ev in current_events if ev.type == JOINED), None)
+    first = next((ev for ev in current_events if ev.type != "backfill"), None)
+    since = joined or first
+    practice = [ev for ev in current_events if ev.type in learner.PRACTICE_EVENTS]
+    rhythm = learner.daily_activity(log)
+    active_days = sum(day["n"] > 0 for day in rhythm[-28:])
+    last_active = max(practice, key=lambda ev: (ev.ts, ev.seq or 0)).ts if practice else None
+
+    generator_topics = {topic.id for topic in TOPICS if topic.generator}
+    attempts = progress.execute("SELECT COUNT(*) FROM attempts").fetchone()[0]
+    mastered = len(progress_module.mastered(progress) & generator_topics)
+    review_cards = reviews.execute("SELECT COUNT(*) FROM review_items").fetchone()[0]
+    known_words = vocabulary.execute(
+        "SELECT COUNT(*) FROM vocab_status WHERE status IN (?,?)",
+        (vocab.KNOWN, vocab.WELL_KNOWN),
+    ).fetchone()[0]
+    milestones_by_level = {
+        level: milestones.for_level(progress, level) for level in config.LEVELS
+    }
+
+    return {
+        "scope": scope.kind,
+        "sandbox": scope.id if scope.is_guest else None,
+        "name": name(log),
+        "email": scope.email,
+        "since": since.ts if since else None,
+        "last_active": last_active,
+        "active_days_28": active_days,
+        "level": {
+            "current": current_level,
+            "goal": selected_goal.to_dict() if selected_goal else None,
+            "checkpoints": sorted(checkpoint.passed_levels(progress)),
+        },
+        "milestones": milestones_by_level,
+        "totals": {
+            "attempts": attempts,
+            "mastered": mastered,
+            "topics": len(generator_topics),
+            "review_cards": review_cards,
+            "known_words": known_words,
+        },
+        "rhythm": rhythm,
+    }

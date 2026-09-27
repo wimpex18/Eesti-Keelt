@@ -22,6 +22,8 @@ import socket
 import subprocess
 import sys
 import time
+from uuid import uuid4
+from urllib.parse import urlsplit
 from pathlib import Path
 
 import pytest
@@ -207,19 +209,59 @@ def page(request, _pw, live_server, service_workers):
     """A page at one viewport, with console errors, page errors and 5xx responses
     collected for assertions.
     """
-    context = _pw.new_context(service_workers=service_workers, **VIEWPORTS[request.param])
+    context = _pw.new_context(
+        service_workers=service_workers,
+        extra_http_headers={"x-eesti-scope": "guest",
+                            "x-eesti-guest": f"e2e-{uuid4().hex[:12]}"},
+        **VIEWPORTS[request.param])
     pg = context.new_page()
-    pg.errors, pg.failed_requests = [], []
+    pg.errors, pg.failed_requests, pg.http_errors = [], [], []
     pg.on("pageerror", lambda e: pg.errors.append(str(e)[:300]))
     pg.on("console",
           lambda m: m.type == "error" and pg.errors.append(f"console: {m.text[:200]}"))
     pg.on("response",
           lambda r: r.status >= 500 and pg.failed_requests.append(f"{r.status} {r.url}"))
+    pg.on("response",
+          lambda r: r.status >= 400 and pg.http_errors.append(f"{r.status} {r.url}"))
+    # The profile/account routes are Worker-only. Model the actual signed-out
+    # Worker response while this suite talks straight to the FastAPI origin.
+    pg.route("**/api/auth/me", lambda route: route.fulfill(
+        json={"scope": "guest", "signup_open": True}))
     pg.goto(live_server, wait_until="networkidle")
     pg.viewport_name = request.param
     pg.engine_name = getattr(_pw, "engine_name", "chromium")
     yield pg
     context.close()
+
+
+def browser_errors(page):
+    """Unexpected page errors, excluding known local-only HTTP boundaries.
+
+    The voice module probes its local-only evaluation route. In a guest scope,
+    the origin correctly refuses it. The Worker-only auth endpoint is mocked by
+    the page fixture, but WebKit's service worker can bypass Playwright's route
+    hook and hit the FastAPI origin, where that route is intentionally absent.
+    """
+    expected = {
+        403: sum(error.startswith("403 ") and "/api/eval/available" in error
+                 for error in page.http_errors),
+        404: sum(error.startswith("404 ") and "/api/auth/me" in error
+                 for error in page.http_errors),
+    }
+    remaining = []
+    for error in page.errors:
+        if not error.startswith("console: Failed to load resource: "):
+            remaining.append(error)
+            continue
+        status = next((code for code, marker in (
+            (403, "status of 403 (Forbidden)"),
+            (404, "status of 404 (Not Found)"),
+        ) if expected[code] and marker in error), None)
+        if status is None:
+            remaining.append(error)
+        else:
+            expected[status] -= 1
+    return remaining
 
 
 #: mode -> tabs its navigation offers; derived from the page in
@@ -292,8 +334,111 @@ class TestNavigation:
         for mode in MODES:
             for tab in advertised_tabs(page, mode):
                 open_tab(page, mode, tab)
-        assert not page.errors, page.errors
+        assert not browser_errors(page), (
+            f"{browser_errors(page)}; HTTP errors: {page.http_errors}")
         assert not page.failed_requests, page.failed_requests
+
+
+class TestProfile:
+    """Profile controls keep a guest's test progress in its own sandbox."""
+
+    @pytest.fixture
+    def service_workers(self):
+        # Auth routes are intercepted with a local Worker-shaped boundary below;
+        # a controlling service worker would sit in front of Playwright's routes.
+        return "block"
+
+    def _open(self, page):
+        open_tab(page, "exam", "profile")
+        page.wait_for_selector("#profileOut .profile-rows", timeout=10000)
+
+    def test_guest_profile_shows_sandbox_and_reset(self, page):
+        self._open(page)
+        assert page.locator("#profileOut .profile-sandbox").is_visible()
+        assert page.locator("#guestReset").is_visible()
+        assert page.locator("#scopeNotice").is_visible()
+
+    def test_guest_can_rename_profile(self, page):
+        self._open(page)
+        page.click("#editName")
+        page.fill("#nameInput", "  Anu   Tamm  ")
+        page.click('#nameForm button[type="submit"]')
+        page.wait_for_function(
+            "() => document.querySelector('#profileName')?.textContent === 'Anu Tamm'")
+        assert page.locator("#nameForm").is_hidden()
+
+    def test_guest_can_reset_only_their_sandbox(self, page):
+        self._open(page)
+        page.click("#guestReset")
+        page.wait_for_function(
+            "() => document.querySelector('#profileOut .profile-rows') !== null")
+        assert page.locator("#scopeNotice").is_visible()
+
+    def test_signup_signin_and_signout(self, page):
+        """Exercise the auth views with a local Worker-shaped response boundary."""
+        state = {"scope": "guest", "email": "", "name": "", "password": ""}
+
+        def respond(route):
+            request = route.request
+            path = urlsplit(request.url).path
+            if path == "/api/auth/me":
+                route.fulfill(json={"scope": state["scope"], "email": state["email"],
+                                    "signup_open": True})
+            elif path in ("/api/auth/signup", "/api/auth/login"):
+                data = request.post_data_json
+                if path.endswith("/signup"):
+                    state.update(scope="learner", email=data["email"].lower(),
+                                 password=data["password"])
+                elif data["password"] == state["password"]:
+                    state.update(scope="learner", email=data["email"].lower())
+                else:
+                    route.fulfill(status=401, json={"detail": "Неверный пароль."})
+                    return
+                route.fulfill(json={"id": "l-0123456789abcdef", "email": state["email"],
+                                    "scope": state["scope"]})
+            elif path == "/api/auth/logout":
+                state.update(scope="guest")
+                route.fulfill(json={"ok": True})
+            elif path == "/api/me":
+                if request.method == "POST":
+                    state["name"] = request.post_data_json.get("name", "")
+                    route.fulfill(json={"name": state["name"], "scope": state["scope"]})
+                else:
+                    response = route.fetch()
+                    data = response.json()
+                    data.update(scope=state["scope"], email=state["email"] or None,
+                                name=state["name"] or data.get("name"))
+                    route.fulfill(response=response, json=data)
+            else:
+                route.continue_()
+
+        page.route("**/api/auth/**", respond)
+        page.route("**/api/me", respond)
+        page.reload(wait_until="networkidle")
+        self._open(page)
+        assert page.locator('[data-auth-view="signup"]').count(), page.locator(
+            "#profileOut").inner_text()
+        page.click('[data-auth-view="signup"]')
+        page.fill("#authName", "Aino")
+        page.fill("#authEmail", "aino@example.test")
+        page.fill("#authPassword", "test-password-1")
+        page.locator('#authForm button[type="submit"]').click()
+        page.wait_for_function(
+            "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
+        assert page.locator("#profileOut").get_by_text("aino@example.test").is_visible()
+
+        page.click("#logoutBtn")
+        page.wait_for_load_state("networkidle")
+        self._open(page)
+        page.fill("#authEmail", "aino@example.test")
+        page.fill("#authPassword", "test-password-1")
+        page.locator('#authForm button[type="submit"]').click()
+        page.wait_for_function(
+            "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
+        page.click("#logoutBtn")
+        page.wait_for_load_state("networkidle")
+        self._open(page)
+        assert page.locator("#profileOut .profile-sandbox").is_visible()
 
 
 #: The rendered counterpart of `test_ui_language.TestEachLabelIsReadInItsLanguage`,
@@ -438,7 +583,7 @@ class TestTheGrammarDrill:
             assert re.fullmatch(r"[а-яё ,]+", text), text
             assert not answers & set(re.findall(r"\w+", text.casefold()))
             assert visible, "a shown item's cue is hidden"
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_the_score_counts_only_answered_items(self, page):
         self._start(page)
@@ -527,7 +672,7 @@ class TestReading:
         page.wait_for_timeout(600)
         assert not page.is_visible("#xlOut")
         assert page.locator("#xlHint").inner_text().strip()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_clicking_a_word_opens_a_card(self, page):
         """`<w>` elements are the lookup surface; a text whose words are not
@@ -568,7 +713,7 @@ class TestWriting:
         page.wait_for_function(
             "()=>!document.querySelector('#checkBtn').disabled", timeout=90000)
         assert len(page.locator("#checkOut").inner_text().strip()) > 0
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_the_button_is_restored_after_a_check(self, page):
         """A button left saying "Kontrollin…" is a dead screen."""
@@ -864,7 +1009,7 @@ class TestDiscoveredDefects:
         }""")
         close.click()
         assert page.locator("#vocCard").is_hidden()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_exam_video_opens_in_the_app(self, page, live_server):
         # The official catalogue is harvested, not built in CI; serve one video
@@ -896,7 +1041,7 @@ class TestDiscoveredDefects:
         assert iframe.get_attribute("src").startswith("https://www.youtube-nocookie.com/embed/")
         page.locator("#examMaterial .exam-task button").click()
         assert iframe.count() == 0
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_word_card_can_close_before_lookup_returns(self, page):
         """A slow dictionary must not trap the learner or reopen a dismissed card."""
@@ -915,7 +1060,7 @@ class TestDiscoveredDefects:
         pending[0].fulfill(json={"found": False, "word": "test"})
         page.wait_for_load_state("networkidle")
         assert page.locator("#vocCard").is_hidden()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_downloaded_workbook_opens_here_and_undownloaded_links_out(self, page):
         page.route("**/api/library?skill=eksam*", lambda r: r.fulfill(json={"items": [
@@ -935,7 +1080,7 @@ class TestDiscoveredDefects:
         assert page.get_by_role("link", name="Muu vihik", exact=True).get_attribute("href") == "https://harno.ee/vihik.pdf"
         page.locator("#vihikudList .exam-task [data-close]").click()
         assert page.locator("#vihikudList .exam-task").count() == 0
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_model_success_is_not_presented_as_deterministic_form_analysis(self, page):
         page.route("**/api/check", lambda r: r.fulfill(json={
@@ -1008,7 +1153,8 @@ class TestDiscoveredDefects:
                 page.goto(f"{live_server}/#{tab}", wait_until="networkidle")
                 page.wait_for_timeout(700)
                 assert page.is_visible(f"#tab-{tab}"), f"#{tab} did not open"
-                assert not page.errors, f"#{tab} on {page.engine_name}: {page.errors}"
+                assert not browser_errors(page), (
+                    f"#{tab} on {page.engine_name}: {browser_errors(page)}")
 
     def test_an_unknown_hash_falls_back_rather_than_showing_nothing(self, page, live_server):
         page.goto(live_server + "/#not-a-tab", wait_until="networkidle")
@@ -1129,7 +1275,7 @@ class TestTheMeaningCardIsAFlashcard:
         page.wait_for_selector(".flashcard .verdict.ok", timeout=15000)
         verdict = card.locator(".verdict").inner_text()
         assert meaning in verdict and "снова" in verdict, verdict
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestChoosingTheSitting:
@@ -1144,7 +1290,7 @@ class TestChoosingTheSitting:
         page.click("#goalSet")
         page.wait_for_selector('#examGoal a[href="/api/goal.ics"]', timeout=15000)
         assert "до регистрации" in page.locator("#countdown").inner_text()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestTheConversationPartner:
@@ -1159,7 +1305,7 @@ class TestTheConversationPartner:
         page.click("#vestlusStart")
         page.wait_for_selector("#vestlusLog .hint", timeout=20000)
         assert "собеседник" in page.locator("#vestlusLog").inner_text().lower()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_a_spoken_turn_is_reviewed_before_sending(self, _pw, live_server):
         context = _pw.new_context(service_workers="block", viewport={"width": 390, "height": 844})
@@ -1222,6 +1368,10 @@ class TestSpeakingEvaluation:
 
     @pytest.mark.usefixtures("corpus")
     def test_question_mode_offers_a_recordable_task(self, page):
+        # Recording a local ASR evaluation set is an owner-only tool. Give this
+        # isolated test server its owner scope instead of the default guest.
+        page.context.set_extra_http_headers({"x-eesti-scope": "owner"})
+        page.goto(page.url.split("#")[0], wait_until="networkidle")
         open_tab(page, "learn", "speak")
         page.click("#evalSet > summary")
         page.select_option("#evalMode", "answer")
@@ -1232,7 +1382,7 @@ class TestSpeakingEvaluation:
         page.select_option("#evalMode", "read")
         page.wait_for_function("document.querySelector('#evalRec').disabled === false")
         assert page.locator("#evalPrompt").inner_text()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     def test_normal_answer_can_be_saved_and_reviewed_in_the_page(
             self, _pw, live_server):
@@ -1321,7 +1471,7 @@ class TestTheWholeSitting:
 
         page.click("#mockNext button")           # kuulamine
         page.wait_for_selector("#mockTasks .mock-task", timeout=20000)
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestTestingOutOfATopic:
@@ -1348,7 +1498,7 @@ class TestTestingOutOfATopic:
         page.click("#testoutDone")
         page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
         assert "из" in page.locator("#testoutVerdict").inner_text()
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestTheTimedMock:
@@ -1369,7 +1519,7 @@ class TestTheTimedMock:
         page.wait_for_selector("#mockVerdict.ok", timeout=20000)
         verdict = page.locator("#mockVerdict").inner_text()
         assert "из" in verdict and "не оценка экзамена" in verdict
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestPractisingOffline:
@@ -1411,7 +1561,7 @@ class TestPractisingOffline:
             return d.topics.reduce((n, t) => n + t.attempts, 0);
         }""")
         assert answered >= 1, "the offline answer never reached the server"
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestTodaysPlan:
@@ -1429,7 +1579,7 @@ class TestTodaysPlan:
         if start.count():
             start.first.click()
             page.wait_for_selector("#practiceOut .drill", timeout=15000)
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestAGrammarCardIsAnswered:
@@ -1462,7 +1612,7 @@ class TestAGrammarCardIsAnswered:
         page.wait_for_selector(f".drill.done:has-text('{lemma}') .verdict.ok", timeout=15000)
         verdict = card.locator(".verdict").inner_text()
         assert "Верно" in verdict and "снова" in verdict, verdict
-        assert not page.errors, page.errors
+        assert not browser_errors(page), browser_errors(page)
 
     @staticmethod
     def _reach(page, base, lemma):

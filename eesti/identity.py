@@ -7,7 +7,7 @@ tells the origin who is signed in (`x-eesti-scope`, `x-eesti-learner`,
 
 - `owner`: the first account ever created. It inherits the progress recorded
   before accounts existed: the old file paths and the old Durable Object.
-- `learner`: every later account (the household is capped by the Worker).
+- `learner`: every later account, each with its own permanent store.
   Permanent, with its own files and Durable Object, named by its account id.
 - `guest`: no session. Claude, Codex and tests use the full app in a throwaway
   sandbox and never sign up.

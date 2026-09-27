@@ -17,6 +17,7 @@ from . import (
     library,
     notion,
     practice,
+    profile,
     review,
     sources,
     speech,
@@ -37,6 +38,7 @@ ROUTERS = (
     speech.router,
     exam.router,
     vocab.router,
+    profile.router,
     state.router,
 )
 

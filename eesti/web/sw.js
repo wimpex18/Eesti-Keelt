@@ -21,7 +21,7 @@ const SHELL = `shell-${VERSION}`;
    directions. */
 const ASSETS = [
   "/", "/manifest.webmanifest", "/icon.svg", "/icon.png", "/app.css",
-  "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js",
+  "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js", "/js/profile.js",
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/voice.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
   "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",

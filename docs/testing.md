@@ -1,9 +1,10 @@
 # Testing
 
-One learner uses this app. The suite exists to catch what would hurt that
-learner (a wrong answer key, lost progress, a leaked secret, a broken screen),
-not to guard the source's shape. A test that only checks source text, CSS or a
-count in a doc is not added.
+The app keeps permanent state separately for every signed-in account and gives
+each guest a throwaway sandbox. The suite checks isolation, lost progress, a
+leaked secret and broken screens. Narrow source-contract tests pin the Worker
+and FastAPI's shared route and identity boundaries because they run in separate
+runtimes; other tests exercise behavior instead of checking CSS or doc counts.
 
 ## Suites
 
@@ -95,7 +96,8 @@ supplied export is replayable, not that every remote event reached the export.
 ## Not covered
 
 - Speaking end to end (microphone, Workers AI); only the panel is exercised.
-- The Worker's behaviour: it is typechecked, not run. Anything behind
-  Cloudflare Access is checked with `smoke`.
+- Production authentication: local Worker account flows are exercised with
+  `wrangler dev`; the deployed app is checked with `smoke`, never by signing up
+  through production during tests.
 - Notion push with a real token; the LLM branch of `/api/check` locally.
 - Audio actually heard, FSRS spacing over real time, Firefox, screen readers.

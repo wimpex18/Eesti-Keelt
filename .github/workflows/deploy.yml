@@ -46,6 +46,7 @@ jobs:
           CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
           PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
           STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
         run: |
           missing=""
           for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
@@ -69,6 +70,9 @@ jobs:
           set, so the Worker will answer 503 to every request. Enable \
           Cloudflare Access, then add the secret and re-run this workflow."
           fi
+          if [ -z "$SESSION_SECRET" ]; then
+            echo "::warning title=Account sign-up unavailable::SESSION_SECRET is not set. The Worker will keep legacy owner access, but account sign-up and sign-in will return 503. Add the repository secret under Settings -> Secrets and variables -> Actions."
+          fi
 
       # Secrets are pushed before the deploy so a first-ever deploy comes up
       # configured rather than answering 503 until someone remembers.
@@ -79,6 +83,7 @@ jobs:
           CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
           PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
           STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
@@ -93,6 +98,11 @@ jobs:
           fi
           put PROXY_TOKEN "$PROXY_TOKEN"
           put STATE_TOKEN "$STATE_TOKEN"
+          if [ -n "$SESSION_SECRET" ]; then
+            put SESSION_SECRET "$SESSION_SECRET"
+          else
+            echo "::warning::SESSION_SECRET is not set; account sign-up and sign-in remain unavailable."
+          fi
           # Reminders are signed and sent by the Worker (`sendPush`), so the
           # VAPID pair belongs here. Optional: without it the app says
           # reminders are not configured instead of asking for permission it

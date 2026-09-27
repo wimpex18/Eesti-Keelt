@@ -453,14 +453,15 @@ a.ghost{display:inline-flex;align-items:center}
 .inline-ico{display:inline-block;vertical-align:-2px;width:15px;height:15px}
 
 /* Outlined fields use a soft surface and a blue focus ring. */
-select, input[type=text], input[type=number]{min-height:48px;padding:10px 16px;
+select, input[type=text], input[type=number], input[type=email], input[type=password]{min-height:48px;padding:10px 16px;
   border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);
   color:var(--ink);font:inherit;
   /* 16px or more stops iOS Safari zooming the page when a field is focused. */
   font-size:var(--fs-body);
   transition:border-color var(--quick) var(--ease),background-color var(--quick) var(--ease),
              box-shadow var(--quick) var(--ease)}
-select:hover, input[type=text]:hover, textarea:hover{border-color:color-mix(in srgb, var(--ink) 25%, var(--line))}
+select:hover, input[type=text]:hover, input[type=email]:hover, input[type=password]:hover,
+textarea:hover{border-color:color-mix(in srgb, var(--ink) 25%, var(--line))}
 select:focus-visible, input:focus-visible, textarea:focus-visible{outline:2px solid transparent;background:var(--raised);
   border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)}
 select:disabled{opacity:.5}
@@ -486,6 +487,52 @@ label select{min-width:0;max-width:100%}
 .row > label > i.ru{margin-left:0}
 @media (max-width:560px){
   .row > label{flex:1 1 140px}
+}
+
+/* Identity is information on the page, carried by hairlines rather than cards. */
+.scope-notice{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px var(--s3);
+  margin:0 auto var(--s4);max-width:880px;padding:var(--s2) 0;border-bottom:1px solid var(--line);
+  font-size:var(--fs-note)}
+.scope-notice > [lang="et"]{font-weight:700;color:var(--ink)}
+.scope-notice > [lang="ru"]{color:var(--muted)}
+.scope-notice a{min-height:44px;display:inline-flex;align-items:center;gap:5px}
+.scope-notice .ru{display:inline;margin:0}
+.profile-auth{display:grid;gap:var(--s3);max-width:36rem}
+.profile-auth-tabs{justify-self:start}
+#authForm{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s2);max-width:30rem}
+#authForm > label{margin-top:var(--s2);font-weight:650;color:var(--ink-2)}
+#authForm > input{width:100%;min-width:0}
+#authForm > button{justify-self:start;margin-top:var(--s2)}
+.profile-sandbox{max-width:65ch;margin:var(--s4) 0;color:var(--muted);line-height:1.5}
+.profile-rows{margin:0;max-width:52rem}
+.profile-row{display:grid;grid-template-columns:minmax(10rem, .8fr) minmax(0,1.4fr);gap:var(--s3);
+  align-items:center;padding:var(--s3) 0;border-bottom:1px solid var(--line)}
+.profile-row:first-child{border-top:1px solid var(--line)}
+.profile-row dt{font-weight:650;color:var(--ink-2)}
+.profile-row dd{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin:0;min-width:0;overflow-wrap:anywhere}
+.profile-row dt .ru{font-weight:400}
+.profile-sub{flex-basis:100%;font-size:var(--fs-note);color:var(--muted)}
+.profile-sub a{display:inline-flex;align-items:center;min-height:44px}
+.profile-name-form{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:var(--s2)}
+.profile-name-form[hidden]{display:none}
+.profile-name-form label{grid-column:1/-1;font-weight:650;color:var(--ink-2)}
+.profile-name-form input{grid-column:1/-1;width:100%;min-width:0}
+.profile-error{color:var(--bad);font-size:var(--fs-note);line-height:1.5;overflow-wrap:anywhere}
+.profile-auth .profile-error{margin:0}
+.profile-section{max-width:52rem}
+.profile-section .sec-head{margin-bottom:var(--s3)}
+.profile-levels{margin-bottom:var(--s3)}
+.profile-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2) var(--s5);
+  list-style:none;padding:0;margin:0;font-variant-numeric:tabular-nums}
+.profile-totals li{padding:var(--s2) 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.profile-active-days{margin:var(--s2) 0 0}
+@media (max-width:560px){
+  .profile-row{grid-template-columns:minmax(0,1fr);gap:var(--s1);align-items:start}
+  .profile-row dd{padding-left:var(--s2)}
+  .profile-name-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .profile-name-form input{grid-column:1/-1}
+  .profile-name-form button{width:100%;min-height:48px}
+  .profile-totals{grid-template-columns:minmax(0,1fr)}
 }
 
 /* Segmented switch: a glass track, the chosen state a white capsule. */

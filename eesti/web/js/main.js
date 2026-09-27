@@ -6,6 +6,7 @@
 
 import {glossChrome, paintIcons} from "./chrome.js";
 import {goToPlace, selectTab} from "./router.js";
+import {paintScope} from "./profile.js";
 
 /* Imported for their wiring, not for a name.
 
@@ -34,6 +35,7 @@ addEventListener("hashchange", () => goToPlace(location.hash.slice(1)));
 paintIcons();
 
 glossChrome();
+paintScope();
 
 if (!goToPlace(location.hash.slice(1))) {
   selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));

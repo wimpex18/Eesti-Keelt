@@ -32,15 +32,15 @@ browser / agent ─► Worker (Access as today)
 
 ## Origin changes
 
-1. **Middleware** (`eesti/app.py`, `_proxy_guard`): replace the token
+1. **Middleware** (`eesti/app.py`, `IdentityMiddleware`): replace the token
    comparison with `identity.resolve(request.headers, request.cookies,
    os.environ)`. None → 403 as today. Run `call_next` inside
    `identity.use(scope)`. For a guest: call `guest.ensure(scope.id)` first; if
    `scope.issued`, set `eesti_guest` on the response (`HttpOnly`, `Secure` when
    the request is https, `SameSite=Lax`, `Max-Age` 86400, `Path=/`). Add
    `x-events-seq` for permanent scopes only, read from that scope's log.
-   Starlette runs sync routes in a thread pool and copies the context into it;
-   prove that with a test, not by assumption.
+   A pure ASGI middleware keeps the context through sync route execution;
+   the guest and learner isolation tests prove that the thread-pool routes use it.
 2. **Path resolution.** Replace each read of a learner path with
    `config.learner_db("<NAME>")`. The complete list today:
    `eesti/api/deps.py` (5), `eesti/evidence.py` (`connect`, `_open` ×4),
@@ -81,19 +81,22 @@ Everyone sees all material: no `public_only` gating by scope.
 
 ## Routes by scope
 
-Every path in `eesti.api.paths()` belongs to exactly one row;
-`tests/test_guest_isolation.py::test_every_route_is_classified` holds this
-table as data.
+Every path in `eesti.api.paths()` is named in exactly one row;
+`tests/test_guest_isolation.py::test_every_route_is_classified` compares the
+table with the live FastAPI route inventory. “Own files” means the request's
+permanent learner store; guest state routes are refused even when they name a
+guest store. Worker-only sign-up, sign-in, sign-out, account-status and
+owner-only account-removal routes are outside this FastAPI inventory.
 
 | Class | owner | learner | guest | Routes |
 |---|---|---|---|---|
-| Back channel (404 at the Worker, `STATE_TOKEN` at the origin) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/reminders` |
+| Back channel (`STATE_TOKEN`; 404 at Worker) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/reminders` |
 | Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset` |
-| Answered by the Worker from the caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
+| Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
-| Not for guests | yes | yes | 403 | `/api/reminders/settings` |
-| Everyone, own store | yes | yes | yes | everything else, including `/api/transcribe`, `/api/me`, `/api/me/export` |
-| Guests only | 403 | 403 | yes | `/api/guest/reset` |
+| Permanent accounts only | yes | yes | 403 | `/api/reminders/settings` |
+| Guest only | 403 | 403 | yes | `/api/guest/reset` |
+| Shared material and page assets; learner data stays in the current scope | yes | yes | yes | `/`, `/api/asr`, `/api/asr/home`, `/api/check`, `/api/checkpoint/{level}`, `/api/checkpoint/{level}/result`, `/api/curriculum`, `/api/dictation/answer`, `/api/dictation/next`, `/api/engines`, `/api/enrich/{word}`, `/api/exam-spec/{level}`, `/api/exam/file/{item_id}`, `/api/exam/image/{item_id}/{page}/{index}`, `/api/exam/native/{item_id}`, `/api/exam/native/{item_id}/check`, `/api/exam/page/{item_id}/{page}`, `/api/exam/pages/{item_id}`, `/api/exam/text/{item_id}`, `/api/exam/{level}`, `/api/goal`, `/api/goal.ics`, `/api/health`, `/api/lesson/{topic}`, `/api/library`, `/api/library/{item_id}`, `/api/lookup/{word}`, `/api/me`, `/api/me/export`, `/api/milestones/{level}`, `/api/mine`, `/api/mock-run/{level}`, `/api/mock/{level}`, `/api/mock/{level}/{part}`, `/api/modes`, `/api/notion/pending`, `/api/notion/queue`, `/api/pack`, `/api/plan`, `/api/practice`, `/api/practice/answer`, `/api/pronounce`, `/api/read/answer`, `/api/read/questions/{item_id}`, `/api/readiness/{level}`, `/api/reading/next`, `/api/review`, `/api/review/grade`, `/api/review/stats`, `/api/sources`, `/api/speak`, `/api/speaking`, `/api/speaking/check`, `/api/speaking/feedback`, `/api/speaking/probe`, `/api/speaking/readaloud`, `/api/status`, `/api/testout/{topic}`, `/api/themes`, `/api/transcribe`, `/api/transcribe/text`, `/api/translate`, `/api/tutor`, `/api/vocab`, `/api/vocab/known`, `/app.css`, `/fonts/{name}`, `/icon.png`, `/icon.svg`, `/js/{name}`, `/manifest.webmanifest`, `/sw.js`, `/vendor/{name}` |
 
 ## Guest sandboxes
 
@@ -110,22 +113,25 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
 
 ## Worker changes
 
-`deploy/worker.ts`, with the account logic in `deploy/accounts.ts` (skeleton).
+`deploy/worker.ts`, with the account logic in `deploy/accounts.ts`.
 
 1. **Accounts** (`deploy/accounts.ts`, stored by `LearnerState` named
    `singleton`, table `accounts(id, email UNIQUE, salt, hash, created, failures,
    locked_until)`):
    - `POST /api/auth/signup {email, password}`: email normalised to lower case
      and checked for shape; password ≥ 10 characters; refused (409, Russian
-     message) once `MAX_ACCOUNTS` (Worker var, default 2) accounts exist or the
-     email is taken. The first account gets id `owner`; later ones `l-` + 16 hex
-     from `crypto.getRandomValues`. Sets the session and answers `{id, email, scope}`.
+     message) only when the email is already taken. Sign-up remains open with
+     no account limit. The first account gets id `owner`; every later account
+     gets `l-` + 16 hex from `crypto.getRandomValues`. Sets the session and
+     answers `{id, email, scope}`.
    - `POST /api/auth/login {email, password}`: constant-time compare; after 5
      failures the account waits 60 s; the same Russian message for unknown email
      and wrong password.
    - `POST /api/auth/logout`: clears the cookie. `GET /api/auth/me`: `{scope,
-     id, email}` or `{scope: "guest"}`; `signup_open` says whether sign-up is
-     still possible.
+     id, email}` or `{scope: "guest"}`; with a configured secret,
+     `signup_open` remains true for unlimited sign-up.
+   - `POST /api/auth/remove`: owner-only; deletes a learner account and clears
+     its Durable Object state after explicit confirmation.
    - Session cookie `eesti_session`: `<id>.<expiry>.<hmac>` (HMAC-SHA-256 with
      `SESSION_SECRET`), `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age` 90 days.
      Without `SESSION_SECRET` the auth routes answer 503 and every request is the
@@ -153,12 +159,13 @@ out, and confirm owner, learner and guest each land in their own files.
 
 ### Deploy and operator steps
 
-- New Worker secret `SESSION_SECRET` (random, 32+ bytes); optional var
-  `MAX_ACCOUNTS`. `.github/workflows/deploy.yml` pushes the secret like the
-  others and warns (does not fail) when it is missing.
+- New Worker secret `SESSION_SECRET` (random, 32+ bytes).
+  `.github/workflows/deploy.yml` pushes the secret like the others and warns
+  (does not fail) when it is missing.
 - First use, in `docs/deploy.md` with no values: the owner opens Profiil and
-  creates the first account (it inherits all existing progress), then the
-  second person creates theirs. Nothing changes in Access or on Cloud Run.
+  creates the first account (it inherits all existing progress), then other
+  people create their accounts. Each later account is an independent learner.
+  Nothing changes in Access or on Cloud Run.
 - A forgotten password or removing an account: the operator procedure in
   `docs/deploy.md`.
 
@@ -187,7 +194,7 @@ the account, dates and levels to the evidence.
 
 Content, so plain page and the shared treatment (`DESIGN.md` "Adding a page or
 section", "Layout rhythm"); no glass, no new card, shadow, colour or streak.
-Starting point: `docs/skeletons/profile.js`.
+Implementation: `eesti/web/js/profile.js`.
 
 - **Where.** A third tab in the Eksam mode, after Edenemine:
   `<button role="tab" data-tab="profile">`, icon `◉`-style glyph like its
@@ -230,17 +237,15 @@ Starting point: `docs/skeletons/profile.js`.
   1440×900, light and dark: no horizontal scroll, the name field and buttons at
   least 44px, the rail's own cards unchanged (the profile adds none).
 
-## Tests to add
+## Verification
 
 - `tests/test_identity.py` (done) — scope resolution and paths.
-- `tests/test_guest_isolation.py`, `tests/test_learners.py`,
-  `tests/test_profile.py` — skeletons naming every requirement above; remove
-  their skips and fill them in.
-- Beside the `BACK_CHANNEL` check in `tests/test_origin_guard.py`: the Worker
-  strips caller-sent `x-eesti-scope` and `x-eesti-email`, picks the object by
-  scope, refuses `/api/push/*` to a guest, and its `learnerId` matches
-  `identity.learner_id` on a fixed vector (read from `deploy/worker.ts`, as
-  that test does).
-- Browser journeys (`tests/test_e2e_journeys.py`): the profile tab in all four
-  pairings, renaming, the guest line and sandbox reset; journeys that write
-  progress run in a guest sandbox by default.
+- `tests/test_guest_isolation.py`, `tests/test_learners.py` and
+  `tests/test_profile.py` cover isolation, route scope and profile behavior.
+- `tests/test_worker_accounts_contract.py` pins header replacement, guest
+  object and push restrictions, learner ID shape, unlimited sign-up and cron
+  coverage. `tests/test_accounts.py` runs password, session, account creation
+  and removal checks under Node.
+- Browser journeys (`tests/test_e2e_journeys.py`) cover the profile tab,
+  renaming, sign-up, sign-in, sign-out, the guest line and sandbox reset;
+  journeys that write progress run in a guest sandbox by default.

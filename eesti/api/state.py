@@ -34,11 +34,11 @@ def _state_paths() -> dict[str, Path]:
     from .. import config
 
     return {
-        "progress": Path(config.PROGRESS_DB),
-        "review": Path(config.REVIEW_DB),
-        "vocab": Path(config.VOCAB_DB),
+        "progress": Path(config.learner_db("PROGRESS_DB")),
+        "review": Path(config.learner_db("REVIEW_DB")),
+        "vocab": Path(config.learner_db("VOCAB_DB")),
         # Queued corrections are learner data and travel too.
-        "notion": Path(config.NOTION_DB),
+        "notion": Path(config.learner_db("NOTION_DB")),
     }
 
 
@@ -51,6 +51,19 @@ def _require_state_token(request: Request) -> None:
         raise HTTPException(status_code=503, detail="STATE_TOKEN is not configured")
     if not hmac.compare_digest(request.headers.get("x-state-token", ""), expected):
         raise HTTPException(status_code=403, detail="bad state token")
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Гостевая песочница не имеет доступа к журналу.")
+
+
+def _require_owner() -> None:
+    from ..identity import OWNER, current
+
+    if current().kind != OWNER:
+        raise HTTPException(status_code=403,
+                            detail="Эта операция доступна только владельцу приложения.")
 
 
 class ResetRequest(BaseModel):
@@ -65,6 +78,7 @@ def progress_reset(req: ResetRequest, request: Request) -> dict:
     A missing `topic` is refused unless `everything` is set explicitly.
     """
     _require_state_token(request)
+    _require_owner()
     from ..progress import reset
 
     if not req.topic and not req.everything:
@@ -151,6 +165,7 @@ def content_import(blob: ContentBlob, request: Request) -> dict:
     overwrites: the corpus is derived, so there is no learner work to lose.
     """
     _require_state_token(request)
+    _require_owner()
     from .. import config
 
     path = Path(config.CONTENT_DB)
@@ -171,6 +186,7 @@ def content_export(request: Request) -> dict:
     presence and size.
     """
     _require_state_token(request)
+    _require_owner()
     from .. import config
     from ..sources import available
 
@@ -309,7 +325,7 @@ def reminders_due(request: Request) -> dict:
     _require_state_token(request)
     with evidence.connect() as log:
         prefs = reminders.settings(log)
-        with review.connect(config.REVIEW_DB) as cards:
+        with review.connect(config.learner_db("REVIEW_DB")) as cards:
             found = reminders.due(log, cards, progress_db())
     return {"on": prefs["on"], "quiet": reminders.quiet(prefs),
             "reminders": [r.to_dict() for r in found]}
@@ -319,6 +335,11 @@ def reminders_due(request: Request) -> dict:
 def reminder_settings() -> dict:
     """The learner's own choices — the page reads these to draw the switch."""
     from .. import evidence, reminders
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Настройки напоминаний доступны только аккаунту.")
 
     with evidence.connect() as log:
         return reminders.settings(log)
@@ -328,6 +349,11 @@ def reminder_settings() -> dict:
 def choose_reminders(choice: ReminderChoice) -> dict:
     """Turn reminders on or off, and say when. Recorded as learner state."""
     from .. import reminders
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Настройки напоминаний доступны только аккаунту.")
 
     return reminders.choose(**{k: v for k, v in choice.model_dump().items()
                                if v is not None})

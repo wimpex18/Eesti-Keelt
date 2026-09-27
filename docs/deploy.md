@@ -28,6 +28,58 @@
 - Build steps that reach third parties or optional files end in `||` so a
   missing file or a 403 costs one feature, not the image.
 
+## In-app accounts
+
+Before the first account is created, add `SESSION_SECRET` under the repository's
+**Settings → Secrets and variables → Actions**. Generate at least 32 random
+bytes in a trusted terminal; for example, `openssl rand -hex 32`. Save the
+result directly as the GitHub secret. Do not put it in a commit, issue, chat or
+workflow variable. `.github/workflows/deploy.yml` pushes it to the Worker and
+warns without failing if it is absent. Without it, the Worker keeps legacy
+owner access and account sign-up/sign-in return 503.
+
+The first person to open **Profiil → Loo konto** becomes the owner and inherits
+all progress in the existing files and `singleton` object. Have the owner create
+that account first. Every later account is an independent learner with its own
+files and Durable Object. Sign-up remains open to people admitted by the current
+Cloudflare Access policy; there is no account-count limit. Access itself does
+not change.
+
+There is no self-service password recovery. For a forgotten password:
+
+1. In a trusted local terminal, run `node --experimental-strip-types
+   deploy/reset-account-password.ts` with Node 24. It prompts for the account
+   email and a replacement password without echoing the password, then prints
+   one `UPDATE` statement.
+2. In the Cloudflare dashboard, open **Workers & Pages → Durable Objects**,
+   select the `LEARNER_STATE` namespace, open **Data Studio**, select the object
+   named `singleton`, and run the generated statement. It replaces the hash and
+   clears that account's failed-login delay.
+3. If the reset follows a suspected session compromise, rotate `SESSION_SECRET`
+   in GitHub Actions and redeploy the Worker. That signs out every account;
+   progress is kept.
+
+To remove a learner account and permanently delete its progress:
+
+1. In the `singleton` Data Studio, run
+   `SELECT id, email, created FROM accounts ORDER BY created, id;` and copy the
+   learner's `l-…` id. Do not use `owner`.
+2. While signed in to the app as the owner, open the browser's developer
+   console and submit the removal with that exact id:
+
+   ```js
+   fetch("/api/auth/remove", {
+     method: "POST",
+     headers: {"Content-Type": "application/json"},
+     body: JSON.stringify({id: "l-…", confirm: true})
+   }).then(r => r.json())
+   ```
+
+   The Worker requires the owner session, removes the account row, and clears
+   the learner Durable Object's account data, events, snapshots and
+   subscriptions. This cannot be undone. If cleanup returns 503, retry with the
+   same id; sign-in was already disabled, and the retry finishes the cleanup.
+
 ## Learner state across cold starts
 
 Cloud Run disk is ephemeral. The app stamps every response with a boot id and
@@ -172,6 +224,7 @@ Smoke warns on any zero.
 | Name | Cloud Run env | GitHub Actions | Purpose |
 |---|---|---|---|
 | `PROXY_TOKEN`, `STATE_TOKEN` | ✅ | ✅ | origin guard, snapshot endpoints (set by `setup.sh`) |
+| `SESSION_SECRET` | — | Worker secret ✅ | signs account sessions; generate 32 random bytes or more |
 | `CLOUD_RUN_URL` | — | ✅ | where the Worker forwards |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Workers AI token ✅ | deploy token ✅ | Worker deploy (Actions); grammar lane (Cloud Run) |
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | — | ✅ | Workers AI Read token for `eval.yml` |

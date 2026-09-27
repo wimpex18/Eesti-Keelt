@@ -74,6 +74,7 @@
   <nav id="nav-exam" role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
     <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl" lang="et">Ülevaade</span></button>
     <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl" lang="et">Edenemine</span></button>
+    <button role="tab" aria-selected="false" data-tab="profile"><span class="ico" aria-hidden="true">◉</span><span class="lbl" lang="et">Profiil</span></button>
   </nav>
 
     <!-- Theme control: system, light, dark. "System" stays reachable so the page can
@@ -88,6 +89,7 @@
   </header>
 
   <main class="stage-col">
+  <aside id="scopeNotice" class="scope-notice" hidden aria-live="polite"></aside>
   <!-- ── The path ──────────────────────────────────────────────────
        Two ways through the same drills. `Rada`: ordered, gated, recorded; the
        learner sees one next topic first. `Vaba harjutus`: any topic, graded by the
@@ -366,6 +368,15 @@
          record the learner owns rather than a thing to do. -->
     <p class="hint data-link"><a href="/api/me/export" download lang="et">Minu andmed
       <span class="ru" lang="ru">скачать всё, что приложение записало обо мне (JSONL)</span></a></p>
+  </section>
+
+  <!-- Identity and the evidence behind the learner's progress. -->
+  <section class="panel" id="tab-profile" hidden>
+    <div class="page-head"><div>
+      <h2 class="page-title" lang="et">Profiil <i class="ru" lang="ru">профиль</i></h2>
+      <p class="lede">Здесь видно, кто учится и что подтверждают записи о занятиях.</p>
+    </div></div>
+    <div id="profileOut" aria-live="polite"><p class="hint">Загружаю профиль…</p></div>
   </section>
 
   <!-- ── Writing check ─────────────────────────────────────────────── -->
