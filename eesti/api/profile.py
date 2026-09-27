@@ -1,8 +1,4 @@
-"""The profile and the guest sandbox (ADR-0006).
-
-SKELETON, not yet in `eesti.api.ROUTERS`. Register it (before `state.router`)
-once the routes work, and document it in `docs/architecture.md`.
-"""
+"""The profile and the guest sandbox (ADR-0006)."""
 
 from __future__ import annotations
 
@@ -50,6 +46,18 @@ def rename(req: NameRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return me()
+
+
+@router.post("/api/me/reset")
+def reset_profile_progress() -> dict:
+    """Reset study data for the current permanent account, preserving identity."""
+    from .. import profile
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Сброс прогресса доступен только постоянному аккаунту.")
+    return profile.reset_progress()
 
 
 @router.post("/api/guest/reset")

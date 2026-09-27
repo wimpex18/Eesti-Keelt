@@ -511,7 +511,10 @@ label select{min-width:0;max-width:100%}
 .profile-row dt{font-weight:650;color:var(--ink-2)}
 .profile-row dd{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin:0;min-width:0;overflow-wrap:anywhere}
 .profile-row dt .ru{font-weight:400}
+.profile-row dd #editName{gap:6px}
+.profile-row dd #editName .ru{margin-inline-start:0}
 .profile-sub{flex-basis:100%;font-size:var(--fs-note);color:var(--muted)}
+.profile-scope-description{flex-basis:auto}
 .profile-sub a{display:inline-flex;align-items:center;min-height:44px}
 .profile-name-form{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:var(--s2)}
 .profile-name-form[hidden]{display:none}
@@ -521,11 +524,21 @@ label select{min-width:0;max-width:100%}
 .profile-auth .profile-error{margin:0}
 .profile-section{max-width:52rem}
 .profile-section .sec-head{margin-bottom:var(--s3)}
+.profile-legend{max-width:65ch;margin:0 0 var(--s3);line-height:1.5}
 .profile-levels{margin-bottom:var(--s3)}
 .profile-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2) var(--s5);
   list-style:none;padding:0;margin:0;font-variant-numeric:tabular-nums}
 .profile-totals li{padding:var(--s2) 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .profile-active-days{margin:var(--s2) 0 0}
+.profile-reset-copy{max-width:65ch;margin:0 0 var(--s3);line-height:1.5}
+.profile-reset-actions{display:flex;flex:1 1 100%;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);min-width:0}
+.profile-reset-confirm{display:flex;flex:1 1 100%;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3);
+  min-width:0;padding-top:var(--s2);border-top:1px solid var(--line);
+  scroll-margin-bottom:calc(var(--dock-h) + var(--s4))}
+.profile-reset-confirm[hidden]{display:none}
+.profile-reset-confirm p{flex:1 1 100%;max-width:65ch;margin:0;color:var(--muted);font-size:var(--fs-note);line-height:1.5}
+.profile-reset-confirm .profile-reset-yes{color:var(--bad)}
+.profile-success{margin:0;color:var(--good);font-size:var(--fs-note);line-height:1.5}
 @media (max-width:560px){
   .profile-row{grid-template-columns:minmax(0,1fr);gap:var(--s1);align-items:start}
   .profile-row dd{padding-left:var(--s2)}
@@ -533,6 +546,8 @@ label select{min-width:0;max-width:100%}
   .profile-name-form input{grid-column:1/-1}
   .profile-name-form button{width:100%;min-height:48px}
   .profile-totals{grid-template-columns:minmax(0,1fr)}
+  .profile-reset-actions, .profile-reset-confirm{align-items:stretch}
+  .profile-reset-actions > button, .profile-reset-confirm > button{width:100%;min-height:48px}
 }
 
 /* Segmented switch: a glass track, the chosen state a white capsule. */

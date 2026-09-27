@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from eesti import config, evidence
+from eesti import evidence
 
 
 def test_an_empty_log_is_a_profile_with_nothing_yet(client):
@@ -92,3 +92,104 @@ def test_level_milestones_and_rhythm_match_their_own_routes(client):
     assert me["rhythm"] == client.get("/api/status").json()["rhythm"]
     assert me["active_days_28"] == sum(day["n"] > 0 for day in me["rhythm"][-28:])
     assert me["last_active"] is not None
+
+
+def test_reset_clears_every_projection_and_preserves_the_profile(client, tmp_path):
+    """The reset marker survives replay without deleting account identity."""
+    from eesti import review
+
+    stamp = "2026-01-02T12:00:00+00:00"
+    stores = evidence.Stores()
+    try:
+        progress = stores["progress"]
+        with progress:
+            progress.execute(
+                "INSERT INTO attempts (topic,item_key,correct,answer,at,rule)"
+                " VALUES (?,?,?,?,?,?)",
+                ("obj-case", "seed", 1, "raamatu", stamp, None))
+            progress.execute(
+                "INSERT INTO topic_state (topic,mastered_at,via,last_seen)"
+                " VALUES (?,?,?,?)", ("obj-case", stamp, "practice", stamp))
+            progress.execute(
+                "INSERT INTO checkpoints (level,asked,correct,passed,at)"
+                " VALUES (?,?,?,?,?)", ("A1", 10, 10, 1, stamp))
+            progress.execute(
+                "INSERT INTO dictation (key,text,typed,matched,total,correct,at)"
+                " VALUES (?,?,?,?,?,?,?)", ("d1", "tere", "tere", 1, 1, 1, stamp))
+            progress.execute(
+                "INSERT INTO exposure (item_id,seen_at,minutes) VALUES (?,?,?)",
+                ("text-1", stamp, 2))
+            progress.execute(
+                "INSERT INTO goal (id,level,sitting,registration_closes,set_at)"
+                " VALUES (1,'A2','2026-10-01',NULL,?)", (stamp,))
+            progress.execute(
+                "INSERT INTO exam_sections (level,part,seconds,asked,correct,at,detail)"
+                " VALUES ('A2','lugemine',60,1,1,?,NULL)", (stamp,))
+        reviews = stores["review"]
+        with reviews:
+            reviews.execute(
+                "INSERT INTO review_items (id,kind,lemma,prompt,answer,card,due)"
+                " VALUES ('r1','obj-case','raamat','Ostan ___.','raamatu','{}',?)",
+                (stamp,))
+        vocabulary = stores["vocab"]
+        with vocabulary:
+            vocabulary.execute(
+                "INSERT INTO vocab_status (lemma,status,met_count,first_seen,last_seen)"
+                " VALUES ('raamat',5,1,?,?)", (stamp, stamp))
+        notion = stores["notion"]
+        with notion:
+            notion.execute(
+                "INSERT INTO notion_queue (wrong,correct,why,tag,on_date,pushed)"
+                " VALUES ('raamatu','raamatu','ok','obj-case','2026-01-02',NULL)")
+    finally:
+        stores.close()
+
+    assert client.post("/api/me", json={"name": "Aino Tamm"}).status_code == 200
+    before = client.get("/api/me").json()
+    assert before["totals"]["attempts"] == 1
+    assert before["totals"]["review_cards"] == before["totals"]["known_words"] == 1
+    with evidence.connect() as log:
+        evidence.record("fsrs-parameters", {"parameters": [0.1, 0.2]})
+    assert review.parameters() == (0.1, 0.2)
+
+    response = client.post("/api/me/reset", json={})
+    assert response.status_code == 200, response.text
+    assert response.json()["reset"] is True
+    after = client.get("/api/me").json()
+    assert after["name"] == before["name"] == "Aino Tamm"
+    assert after["since"] == before["since"]
+    assert after["last_active"] is None and after["active_days_28"] == 0
+    assert after["level"] == {"current": "A1", "goal": None, "checkpoints": []}
+    assert after["totals"]["attempts"] == after["totals"]["mastered"] == 0
+    assert after["totals"]["review_cards"] == after["totals"]["known_words"] == 0
+    assert not any(day["n"] for day in after["rhythm"])
+    assert review.parameters() is None
+
+    with evidence.connect() as log:
+        assert log.execute(
+            "SELECT 1 FROM events WHERE type=?", ("profile-progress-reset",)
+        ).fetchone()
+        assert evidence.rebuild(log) > 0
+        from eesti import recovery
+
+        backup = tmp_path / "profile-reset-events.jsonl"
+        backup.write_text(client.get("/api/me/export").text, encoding="utf-8")
+        assert recovery.verify_export(backup)["verified"] is True
+        backup.unlink()
+    replayed = evidence.Stores()
+    try:
+        for database, tables in evidence.PROJECTIONS.items():
+            for table in tables:
+                assert replayed[database].execute(
+                    f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+    finally:
+        replayed.close()
+
+
+def test_progress_reset_is_available_to_a_learner_account(client, monkeypatch):
+    monkeypatch.setenv("PROXY_TOKEN", "proxy-secret")
+    response = client.post("/api/me/reset", headers={
+        "x-proxy-token": "proxy-secret", "x-eesti-scope": "learner",
+        "x-eesti-learner": "l-0123456789abcdef", "x-eesti-email": "her@example.test",
+    }, json={})
+    assert response.status_code == 200, response.text

@@ -3,7 +3,7 @@
    `RU` is the one place a tab's gloss lives. It covers every state
    `progress.TopicProgress.state` can emit. */
 
-import {$, esc, gloss} from "./core.js";
+import {$, esc, gloss, ruCount} from "./core.js";
 import {BOLD, DUOTONE, icon} from "./icons.js";
 
 
@@ -463,8 +463,15 @@ export function rhythmHtml(days = []) {
   const cells = Array.from({length: lead}, () => `<span class="day pad"></span>`)
     .concat(days.map(d => {
       const lvl = d.n === 0 ? 0 : d.n < 5 ? 1 : d.n < 15 ? 2 : d.n < 40 ? 3 : 4;
-      const label = new Date(d.date + "T12:00:00").toLocaleDateString("ru", {day: "numeric", month: "short"});
-      return `<span class="day l${lvl}" title="${esc(label)}: ${d.n}"></span>`;
+      const date = new Date(d.date + "T12:00:00");
+      const label = date.toLocaleDateString("ru", {day: "numeric", month: "short"});
+      const accessibleDate = date.toLocaleDateString("ru", {
+        weekday: "long", day: "numeric", month: "long",
+      });
+      const amount = ruCount(d.n, ["упражнение", "упражнения", "упражнений"]);
+      return `<span class="day l${lvl}" role="img"
+        aria-label="${esc(`${accessibleDate}: ${amount}`)}"
+        title="${esc(label)}: ${d.n}"></span>`;
     })).join("");
   // The headline counts the last four weeks: long enough to be a rhythm, short
   // enough to move when the learner comes back.
@@ -473,8 +480,8 @@ export function rhythmHtml(days = []) {
     .map(x => `<span lang="et">${x}</span>`).join("");
   return `<div class="rhythm">
     <div class="rhythm-heads" aria-hidden="true">${heads}</div>
-    <div class="rhythm-grid" role="img"
-      aria-label="${esc(`Дней с занятиями за последние 4 недели: ${recent} из 28`)}">${cells}</div>
+    <div class="rhythm-grid" role="group"
+      aria-label="${esc(`Дни занятий за 12 недель. Последние 4 недели: ${recent} из 28 дней с занятиями.`)}">${cells}</div>
     <div class="rhythm-say"><b>${recent}</b> из 28 дней с занятиями за 4 недели</div></div>`;
 }
 

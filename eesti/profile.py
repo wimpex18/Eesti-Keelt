@@ -20,6 +20,8 @@ PROFILE_SET = "profile-set"
 #: The first contact of a permanent learner: registration. Recorded once, when
 #: a learner's restored log settles without one (`evidence.settle`).
 JOINED = "joined"
+#: Clears learning projections while preserving the account and its profile.
+PROGRESS_RESET = "profile-progress-reset"
 
 #: Longest name accepted, after trimming.
 NAME_MAX = 60
@@ -47,6 +49,35 @@ def _profile_set(stores: Stores, ev: Event) -> None:
     `profile` to `evidence._register_all` so the registration always runs.
     """
     return None
+
+
+@applies(PROGRESS_RESET)
+def _apply_progress_reset(stores: Stores, ev: Event) -> None:
+    """Clear every learner projection; replaying the marker repeats the reset."""
+    from . import evidence
+
+    for database, tables in evidence.PROJECTIONS.items():
+        conn = stores[database]
+        with conn:
+            for table in tables:
+                conn.execute(f"DELETE FROM {table}")  # noqa: S608 - fixed schema names
+
+
+def reset_progress() -> dict:
+    """Clear learning state in every projection and append a replayable marker.
+
+    The append-only evidence history is kept for recovery/export; the marker
+    makes its earlier events inactive in all rebuilt projections and summaries.
+    """
+    from . import evidence
+
+    event = evidence.record(PROGRESS_RESET, {})
+    stores = Stores()
+    try:
+        evidence.apply(stores, event)
+    finally:
+        stores.close()
+    return {"reset": True, "event_id": event.id}
 
 
 def set_name(name: str | None) -> Event:
@@ -114,8 +145,12 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
     joined = next((ev for ev in current_events if ev.type == JOINED), None)
     first = next((ev for ev in current_events if ev.type != "backfill"), None)
     since = joined or first
-    practice = [ev for ev in current_events if ev.type in learner.PRACTICE_EVENTS]
-    rhythm = learner.daily_activity(log)
+    reset = next((ev for ev in reversed(current_events)
+                  if ev.type == PROGRESS_RESET), None)
+    practice = [ev for ev in current_events
+                if ev.type in learner.PRACTICE_EVENTS
+                and (reset is None or ev.seq > reset.seq)]
+    rhythm = learner.daily_activity(log, after_seq=reset.seq if reset else 0)
     active_days = sum(day["n"] > 0 for day in rhythm[-28:])
     last_active = max(practice, key=lambda ev: (ev.ts, ev.seq or 0)).ts if practice else None
 

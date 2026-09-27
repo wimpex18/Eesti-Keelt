@@ -181,6 +181,13 @@ def test_guest_reset_empties_the_sandbox_and_refuses_the_owner(client):
     assert owner.status_code == 403
 
 
+def test_progress_reset_refuses_guests_without_changing_their_sandbox(client):
+    _answer(client, GUEST)
+    response = client.post("/api/me/reset", headers=GUEST, json={})
+    assert response.status_code == 403
+    assert client.get("/api/me", headers=GUEST).json()["totals"]["attempts"] == 1
+
+
 def test_idle_and_surplus_sandboxes_are_swept(tmp_path, monkeypatch):
     root = tmp_path / "guest"
     root.mkdir()

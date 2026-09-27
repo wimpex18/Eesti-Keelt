@@ -70,9 +70,9 @@ browser / agent ─► Worker (Access as today)
    `guest`: `/api/notion/push` (the owner's Notion) and every `/api/eval/*`
    route (the owner's voice set). `/api/notion/queue` stays allowed: it writes
    the caller's own store. `/api/reminders/settings` is refused to guests only.
-7. **New routes** (`eesti/api/profile.py`, then add it to `eesti.api.ROUTERS`
-   before `state.router`): `GET /api/me`, `POST /api/me`, `POST /api/guest/reset`.
-   Document them in `docs/architecture.md` (API modules table).
+7. **Profile routes** (`eesti/api/profile.py`, registered in
+   `eesti.api.ROUTERS`): `GET /api/me`, `POST /api/me`, `POST /api/me/reset`,
+   `POST /api/guest/reset`. Document them in `docs/architecture.md`.
 8. **New learner directory.** `config.LEARNERS_DIR/<id>/` is created on the
    first write, like the owner's files; on Cloud Run it is ephemeral and the
    learner's Durable Object restores it.
@@ -94,7 +94,7 @@ owner-only account-removal routes are outside this FastAPI inventory.
 | Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset` |
 | Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
-| Permanent accounts only | yes | yes | 403 | `/api/reminders/settings` |
+| Permanent accounts only | yes | yes | 403 | `/api/me/reset`, `/api/reminders/settings` |
 | Guest only | 403 | 403 | yes | `/api/guest/reset` |
 | Shared material and page assets; learner data stays in the current scope | yes | yes | yes | `/`, `/api/asr`, `/api/asr/home`, `/api/check`, `/api/checkpoint/{level}`, `/api/checkpoint/{level}/result`, `/api/curriculum`, `/api/dictation/answer`, `/api/dictation/next`, `/api/engines`, `/api/enrich/{word}`, `/api/exam-spec/{level}`, `/api/exam/file/{item_id}`, `/api/exam/image/{item_id}/{page}/{index}`, `/api/exam/native/{item_id}`, `/api/exam/native/{item_id}/check`, `/api/exam/page/{item_id}/{page}`, `/api/exam/pages/{item_id}`, `/api/exam/text/{item_id}`, `/api/exam/{level}`, `/api/goal`, `/api/goal.ics`, `/api/health`, `/api/lesson/{topic}`, `/api/library`, `/api/library/{item_id}`, `/api/lookup/{word}`, `/api/me`, `/api/me/export`, `/api/milestones/{level}`, `/api/mine`, `/api/mock-run/{level}`, `/api/mock/{level}`, `/api/mock/{level}/{part}`, `/api/modes`, `/api/notion/pending`, `/api/notion/queue`, `/api/pack`, `/api/plan`, `/api/practice`, `/api/practice/answer`, `/api/pronounce`, `/api/read/answer`, `/api/read/questions/{item_id}`, `/api/readiness/{level}`, `/api/reading/next`, `/api/review`, `/api/review/grade`, `/api/review/stats`, `/api/sources`, `/api/speak`, `/api/speaking`, `/api/speaking/check`, `/api/speaking/feedback`, `/api/speaking/probe`, `/api/speaking/readaloud`, `/api/status`, `/api/testout/{topic}`, `/api/themes`, `/api/transcribe`, `/api/transcribe/text`, `/api/translate`, `/api/tutor`, `/api/vocab`, `/api/vocab/known`, `/app.css`, `/fonts/{name}`, `/icon.png`, `/icon.svg`, `/js/{name}`, `/manifest.webmanifest`, `/sw.js`, `/vendor/{name}` |
 
@@ -222,9 +222,16 @@ Implementation: `eesti/web/js/profile.js`.
   weeks*, exactly as Edenemine words it.
 - **Kokku** (итого): attempts, topics mastered of total, review cards, known
   words, each as a number with a Russian label (`ruCount`).
+- **Reset progress.** Permanent accounts can use *Lähtesta edenemine* to clear
+  attempts, milestones, exam goal and sections, review cards, vocabulary status,
+  and queued corrections. It preserves the account, name and registration date.
+  The event log remains available to recovery/export; the reset marker makes
+  earlier learning events inactive when projections are rebuilt. The page asks
+  for confirmation before clearing. Guests retain the separate sandbox reset,
+  which also removes their sandbox name.
 - **Guest.** A line at the top of every screen (not glass, not dismissible):
   *Külaline* and, in Russian, that this is a sandbox and progress will not be
-  kept, with a link to Profiil to sign in. On the profile, *Tühjenda liivakast* (очистить песочницу) calls
+  kept, with a link to Profiil to sign in. On the profile, *Tühjenda liivakast* (очистить песочницу) confirms before calling
   `POST /api/guest/reset`, then reloads the profile.
 - **Sign-up and sign-in** (guests only, on Profiil, above the rows): two
   views in a `role="tablist"`: *Logi sisse* (войти) and *Loo konto* (создать

@@ -1,13 +1,15 @@
 # Handoff
 
-Current task: implement ADR-0006 with isolated learner accounts, guest sandboxes and the Profiil page.
+Current task: review PR #91 and add a safe profile progress reset.
 
-Done: the first account inherits existing progress; all later accounts are separate permanent learners. Sign-up is unlimited. Guests use disposable sandboxes. Profile UI, API, Worker auth and operator guidance are complete.
+Branch: `luna/learners-and-guests`; draft PR #91.
 
-Draft PR: [#91](https://github.com/wimpex18/Eesti-Keelt/pull/91), branch `luna/learners-and-guests`.
+Done: permanent accounts can reset study progress while keeping account identity. Guest sandbox reset now confirms first. Russian context and accessible rhythm labels clarify the profile.
 
-Next: the owner adds `SESSION_SECRET` under repository Settings → Secrets and variables → Actions, reviews and merges PR #91, then creates the first account as owner.
+Verification: full suite 2,479 passed, 1 skipped; browser journeys 163 passed, 3 skipped; latest language/profile checks 55 passed; typecheck passed.
 
-Uncommitted paths: none after this handoff update is committed.
+Next: commit the named paths and push to PR #91; owner reviews and merges.
 
-Blockers: owner must add `SESSION_SECRET` before production sign-up and sign-in will work.
+Uncommitted paths: `HANDOFF.md`, `.impeccable/critique/2026-09-27T13-25-26Z__eesti-web-js-profile-js.md`, `docs/architecture.md`, `docs/identity.md`, `eesti/api/profile.py`, `eesti/evidence.py`, `eesti/learner.py`, `eesti/profile.py`, `eesti/review.py`, `eesti/web/app.css`, `eesti/web/js/chrome.js`, `eesti/web/js/profile.js`, `tests/test_e2e_journeys.py`, `tests/test_guest_isolation.py`, `tests/test_profile.py`.
+
+Blockers: none.

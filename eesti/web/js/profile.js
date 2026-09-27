@@ -7,11 +7,12 @@ let currentMe = null;
 let authInfo = {scope: "owner", signup_open: false};
 let sealLevel = "A1";
 let authView = "login";
+let resetNotice = "";
 
 const LEVELS = ["A1", "A2", "B1"];
 
 function date(value) {
-  if (!value) return "Veel mitte";
+  if (!value) return '<span lang="et">Veel mitte <span class="ru" lang="ru">пока нет</span></span>';
   const parsed = new Date(value);
   return Number.isNaN(parsed.valueOf())
     ? "Veel mitte"
@@ -20,6 +21,14 @@ function date(value) {
 
 function scopeName(scope) {
   return ({owner: "Põhikonto", learner: "Õppija", guest: "Külaline"})[scope] || "Külaline";
+}
+
+function scopeDescription(scope) {
+  return ({
+    owner: "основной аккаунт; прогресс сохраняется",
+    learner: "отдельный аккаунт; прогресс сохраняется",
+    guest: "временная гостевая песочница",
+  })[scope] || "временная гостевая песочница";
 }
 
 function needsFirstAccount() {
@@ -37,11 +46,21 @@ function profileRows(me) {
     : '<a href="#exam">Выбрать цель в обзоре Eksam</a>';
   let controls = "";
   if (me.scope === "guest") {
-    controls = '<button class="ghost" type="button" id="guestReset" lang="et">Tühjenda liivakast <span class="ru" lang="ru">очистить песочницу</span></button>';
+    controls = `<div class="profile-reset-actions">
+      <button class="ghost" type="button" id="guestReset" aria-expanded="false" aria-controls="guestResetConfirm" lang="et">Tühjenda liivakast <span class="ru" lang="ru">очистить песочницу</span></button>
+      <div class="profile-reset-confirm" id="guestResetConfirm" hidden>
+        <p lang="ru">Будут удалены имя и временный прогресс этой песочницы.</p>
+        <button class="ghost profile-reset-yes" type="button" id="guestResetYes" lang="et">Jah, tühjenda <span class="ru" lang="ru">да, очистить</span></button>
+        <button class="ghost" type="button" id="guestResetCancel" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
+      </div>
+    </div>`;
   } else if (!needsFirstAccount()) {
     controls = '<button class="ghost" type="button" id="logoutBtn" lang="et">Logi välja <span class="ru" lang="ru">выйти</span></button>';
   }
   const nameValue = esc(me.name || "");
+  const emailValue = me.email
+    ? esc(me.email)
+    : '<span lang="et">puudub</span><span class="profile-sub" lang="ru">не указан</span>';
   return `<dl class="profile-rows">
     <div class="profile-row"><dt lang="et">Nimi <span class="ru" lang="ru">имя</span></dt>
       <dd><span id="profileName">${nameValue || '<span class="hint">—</span>'}</span>
@@ -54,8 +73,8 @@ function profileRows(me) {
           <p class="profile-error" id="nameError" role="alert" hidden></p>
         </form>
       </dd></div>
-    <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${esc(me.email || "puudub")}</dd></div>
-    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span>${controls}</dd></div>
+    <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${emailValue}</dd></div>
+    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${scopeDescription(me.scope)}</span>${controls}</dd></div>
     <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
     <div class="profile-row"><dt lang="et">Viimati <span class="ru" lang="ru">последнее занятие</span></dt><dd>${date(me.last_active)}</dd></div>
     <div class="profile-row"><dt lang="et">Tase <span class="ru" lang="ru">уровень</span></dt>
@@ -91,17 +110,19 @@ function authHtml() {
   </section>`;
 }
 
-function profileHtml(me) {
+function profileHtml(me, notice = "") {
   const level = LEVELS.includes(sealLevel) ? sealLevel : "A1";
   const totals = me.totals || {};
   const seals = me.milestones?.[level] || [];
   const activeDays = Number(me.active_days_28) || 0;
   const scopes = authHtml();
   return `${scopes}
+    ${notice ? `<p class="profile-success" lang="ru" role="status" aria-live="polite">${esc(notice)}</p>` : ""}
     ${me.scope === "guest" ? `<p class="profile-sandbox" lang="ru">Гостевой прогресс хранится только во временной песочнице и будет удалён. После регистрации он не переносится.</p>` : ""}
     ${profileRows(me)}
     <section class="profile-section">
       <h3 class="sec-head" lang="et">Märgid <i class="ru" lang="ru">значки</i></h3>
+      <p class="hint profile-legend" lang="ru">Этапы: первая тренировка, освоенная тема, контрольная уровня и практика по всем четырём частям экзамена.</p>
       <div class="levels profile-levels" role="tablist" aria-label="Tase — уровень">
         ${LEVELS.map(item => `<button type="button" role="tab" aria-selected="${item === level}" data-seal-level="${item}">${item}</button>`).join("")}
       </div>
@@ -110,6 +131,7 @@ function profileHtml(me) {
     <section class="profile-section">
       <h3 class="sec-head" lang="et">Rütm <i class="ru" lang="ru">ритм</i></h3>
       ${rhythmHtml(me.rhythm || [])}
+      <p class="hint profile-legend" lang="ru">Каждый столбик — один день; чем темнее клетка, тем больше было упражнений.</p>
       <p class="hint profile-active-days">${count(activeDays, ["активный день", "активных дня", "активных дней"])} с занятиями за последние 4 недели.</p>
     </section>
     <section class="profile-section">
@@ -120,7 +142,19 @@ function profileHtml(me) {
         <li>${count(totals.review_cards, ["карточка повторения", "карточки повторения", "карточек повторения"])}</li>
         <li>${count(totals.known_words, ["известное слово", "известных слова", "известных слов"])}</li>
       </ul>
-    </section>`;
+    </section>
+    ${me.scope !== "guest" && !needsFirstAccount() ? `<section class="profile-section profile-reset-section">
+      <h3 class="sec-head" lang="et">Lähtesta edenemine <i class="ru" lang="ru">сброс прогресса</i></h3>
+      <p class="hint profile-reset-copy" lang="ru">Занятия, контрольные, повторы и словарь будут сброшены. Аккаунт, имя и дата регистрации сохранятся.</p>
+      <div class="profile-reset-actions">
+        <button class="ghost" type="button" id="profileReset" aria-expanded="false" aria-controls="profileResetConfirm" lang="et">Lähtesta edenemine <span class="ru" lang="ru">сбросить прогресс</span></button>
+        <div class="profile-reset-confirm" id="profileResetConfirm" hidden>
+          <p lang="ru">Продолжить? Сброс нельзя отменить. Записи останутся в резервном журнале, но больше не будут учитываться в прогрессе.</p>
+          <button class="ghost profile-reset-yes" type="button" id="profileResetYes" lang="et">Jah, lähtesta <span class="ru" lang="ru">да, сбросить</span></button>
+          <button class="ghost" type="button" id="profileResetCancel" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
+        </div>
+      </div>
+    </section>` : ""}`;
 }
 
 async function readAuth() {
@@ -136,7 +170,9 @@ export async function loadProfile() {
     authInfo = await readAuth();
     if (authInfo.scope !== currentMe.scope) authInfo.scope = currentMe.scope;
     authView = needsFirstAccount() ? "signup" : "login";
-    out.innerHTML = profileHtml(currentMe);
+    const notice = resetNotice;
+    resetNotice = "";
+    out.innerHTML = profileHtml(currentMe, notice);
     bindProfile(out);
   } catch (err) {
     out.replaceChildren(retryableError(err.message, loadProfile));
@@ -221,10 +257,47 @@ function bindProfile(out) {
     try { await api("/api/auth/logout", {}); location.reload(); }
     catch (err) { event.currentTarget.disabled = false; showError(out, err.message); }
   });
-  $("#guestReset")?.addEventListener("click", async event => {
-    event.currentTarget.disabled = true;
-    try { await api("/api/guest/reset", {}); await Promise.all([loadProfile(), paintScope()]); }
-    catch (err) { event.currentTarget.disabled = false; showError(out, err.message); }
+  bindReset({
+    trigger: $("#profileReset"), confirm: $("#profileResetYes"),
+    cancel: $("#profileResetCancel"), box: $("#profileResetConfirm"),
+    endpoint: "/api/me/reset", message: "Прогресс сброшен. Аккаунт и профиль сохранены.",
+  });
+  bindReset({
+    trigger: $("#guestReset"), confirm: $("#guestResetYes"),
+    cancel: $("#guestResetCancel"), box: $("#guestResetConfirm"),
+    endpoint: "/api/guest/reset", message: "Гостевая песочница очищена.", guest: true,
+  });
+}
+
+function bindReset({trigger, confirm, cancel, box, endpoint, message, guest = false}) {
+  if (!trigger || !confirm || !cancel || !box) return;
+  trigger.addEventListener("click", () => {
+    box.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    box.scrollIntoView({block: "nearest"});
+    confirm.focus({preventScroll: true});
+  });
+  cancel.addEventListener("click", () => {
+    box.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.focus();
+  });
+  confirm.addEventListener("click", async () => {
+    trigger.disabled = true;
+    confirm.disabled = true;
+    try {
+      await api(endpoint, {});
+      resetNotice = message;
+      if (guest) await paintScope();
+      await loadProfile();
+    } catch (err) {
+      trigger.disabled = false;
+      confirm.disabled = false;
+      box.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+      showError($("#profileOut"), err.message);
+      trigger.focus();
+    }
   });
 }
 

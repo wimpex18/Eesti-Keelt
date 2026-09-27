@@ -370,13 +370,19 @@ class TestProfile:
     def test_guest_can_reset_only_their_sandbox(self, page):
         self._open(page)
         page.click("#guestReset")
+        assert page.locator("#guestResetConfirm").is_visible()
+        page.click("#guestResetCancel")
+        assert page.locator("#guestResetConfirm").is_hidden()
+        page.click("#guestReset")
+        page.click("#guestResetYes")
         page.wait_for_function(
             "() => document.querySelector('#profileOut .profile-rows') !== null")
         assert page.locator("#scopeNotice").is_visible()
 
     def test_signup_signin_and_signout(self, page):
         """Exercise the auth views with a local Worker-shaped response boundary."""
-        state = {"scope": "guest", "email": "", "name": "", "password": ""}
+        state = {"scope": "guest", "email": "", "name": "", "password": "",
+                 "resets": 0}
 
         def respond(route):
             request = route.request
@@ -399,6 +405,9 @@ class TestProfile:
             elif path == "/api/auth/logout":
                 state.update(scope="guest")
                 route.fulfill(json={"ok": True})
+            elif path == "/api/me/reset":
+                state["resets"] += 1
+                route.fulfill(json={"reset": True, "event_id": "test-reset"})
             elif path == "/api/me":
                 if request.method == "POST":
                     state["name"] = request.post_data_json.get("name", "")
@@ -414,6 +423,7 @@ class TestProfile:
 
         page.route("**/api/auth/**", respond)
         page.route("**/api/me", respond)
+        page.route("**/api/me/reset", respond)
         page.reload(wait_until="networkidle")
         self._open(page)
         assert page.locator('[data-auth-view="signup"]').count(), page.locator(
@@ -426,6 +436,16 @@ class TestProfile:
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
         assert page.locator("#profileOut").get_by_text("aino@example.test").is_visible()
+
+        page.click("#profileReset")
+        assert page.locator("#profileResetConfirm").is_visible()
+        page.click("#profileResetCancel")
+        assert state["resets"] == 0
+        page.click("#profileReset")
+        page.click("#profileResetYes")
+        page.wait_for_function(
+            "() => document.querySelector('.profile-success')?.textContent.includes('Прогресс сброшен')")
+        assert state["resets"] == 1
 
         page.click("#logoutBtn")
         page.wait_for_load_state("networkidle")

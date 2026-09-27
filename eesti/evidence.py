@@ -267,12 +267,14 @@ for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 
 
-def since(conn: sqlite3.Connection, types: tuple[str, ...], after_ts: str) -> list[Event]:
-    """Events of these types at or after an ISO time, oldest first."""
+def since(conn: sqlite3.Connection, types: tuple[str, ...], after_ts: str,
+          *, after_seq: int = 0) -> list[Event]:
+    """Events of these types at or after an ISO time and sequence, oldest first."""
     marks = ",".join("?" * len(types))
     rows = conn.execute(
-        f"SELECT * FROM events WHERE type IN ({marks}) AND ts >= ? ORDER BY seq",  # noqa: S608
-        (*types, after_ts))
+        f"SELECT * FROM events WHERE type IN ({marks}) AND ts >= ? AND seq > ?"
+        " ORDER BY seq",  # noqa: S608
+        (*types, after_ts, after_seq))
     return [_row(r) for r in rows]
 
 

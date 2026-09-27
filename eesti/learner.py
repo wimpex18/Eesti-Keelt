@@ -166,7 +166,7 @@ PRACTICE_EVENTS = ("attempt", "review", "dictation", "comprehension", "writing",
 
 
 def daily_activity(log: sqlite3.Connection, days: int = 84,
-                   now: datetime | None = None) -> list[dict]:
+                   now: datetime | None = None, *, after_seq: int = 0) -> list[dict]:
     """Practice events per local day (Europe/Tallinn), oldest first, `days` long.
 
     A rhythm, not a streak: an empty day is shown as empty and costs nothing.
@@ -181,7 +181,9 @@ def daily_activity(log: sqlite3.Connection, days: int = 84,
     first = (now - timedelta(days=days - 1)).date()
     start = datetime.combine(first, datetime.min.time(), tzinfo=zone)
     counts: dict = {}
-    for ev in evidence.since(log, PRACTICE_EVENTS, start.astimezone(timezone.utc).isoformat()):
+    for ev in evidence.since(
+            log, PRACTICE_EVENTS,
+            start.astimezone(timezone.utc).isoformat(), after_seq=after_seq):
         day = _when(ev.ts).astimezone(zone).date()
         counts[day] = counts.get(day, 0) + 1
     return [{"date": (first + timedelta(days=i)).isoformat(),
