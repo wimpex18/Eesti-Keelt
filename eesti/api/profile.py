@@ -41,7 +41,7 @@ def rename(req: NameRequest) -> dict:
 def guest_reset() -> dict:
     """Throw this guest sandbox away; the next request starts empty.
 
-    TODO(Luna): 403 for the owner scope (Russian detail); for a guest, delete
-    `config.GUEST_DIR/<sandbox>` and answer `{"reset": sandbox}`.
+    TODO(Luna): 403 for a permanent scope, owner or learner (Russian detail);
+    for a guest, `guest.reset(scope.id)` and answer `{"reset": scope.id}`.
     """
     raise NotImplementedError

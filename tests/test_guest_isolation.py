@@ -44,8 +44,8 @@ def test_the_guest_log_needs_no_restore(client, monkeypatch):
 
 
 def test_the_snapshot_and_export_routes_carry_only_the_owner(client, monkeypatch):
-    """`/api/state/export` and `/api/events` (with STATE_TOKEN) list owner
-    rows only, even after guest activity."""
+    """`/api/state/export` and `/api/events` (with STATE_TOKEN, owner scope)
+    list owner rows only, even after guest activity."""
 
 
 def test_a_guest_sees_the_same_material_as_the_owner(client):
@@ -53,15 +53,15 @@ def test_a_guest_sees_the_same_material_as_the_owner(client):
     gating by scope (ADR-0006, 6)."""
 
 
-def test_every_route_is_classified_for_a_guest(client):
+def test_every_route_is_classified(client):
     """Each path in `eesti.api.paths()` is in exactly one row of
-    `docs/identity.md` "Routes for a guest". A new route fails this until
-    classified."""
+    `docs/identity.md` "Routes by scope", and each row's owner/learner/guest
+    answer holds. A new route fails this until classified."""
 
 
-def test_owner_only_actions_are_refused_to_a_guest(client):
-    """`/api/notion/push`, every `/api/eval/*` route and
-    `/api/reminders/settings` answer 403 with Russian text to a guest."""
+def test_the_back_channel_refuses_guest_scope(client, monkeypatch):
+    """With STATE_TOKEN, `/api/state/export`, `/api/events` and
+    `/api/reminders` in guest scope answer 403."""
 
 
 def test_guest_allowances_are_shared_and_smaller(client, monkeypatch):
@@ -71,7 +71,7 @@ def test_guest_allowances_are_shared_and_smaller(client, monkeypatch):
 
 def test_guest_reset_empties_the_sandbox_and_refuses_the_owner(client):
     """POST /api/guest/reset: guest sandbox gone and next `/api/me` empty;
-    as owner, 403."""
+    as owner or learner, 403."""
 
 
 def test_idle_and_surplus_sandboxes_are_swept(tmp_path, monkeypatch):

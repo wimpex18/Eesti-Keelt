@@ -1,25 +1,28 @@
-# Owner, guest and profile
+# Learners, guests and profile
 
 The implementation specification for ADR-0006
-(`docs/adr/0006-owner-and-guest.md`). The ADR says why; this says what, file
-by file. Where this file and the code disagree after implementation, update
-this file in the same change.
+(`docs/adr/0006-learners-and-guests.md`). The ADR says why; this says what,
+file by file. Where this file and the code disagree after implementation,
+update this file in the same change.
 
 ## Request path
 
 ```
-owner account     ─┐                         x-eesti-scope: owner, x-eesti-email
-testing account   ─┼─► eesti-keelt Worker ──► + PROXY_TOKEN ──► Cloud Run origin
-agent (token)     ─┘   (Cloudflare Access)   x-eesti-scope: guest, x-eesti-guest
-                                                     │
-              _proxy_guard → identity.resolve → identity.use(scope) → routes
-                        → config.learner_db(name) → owner files or sandbox files
+owner          ─┐                          scope owner   → DO "singleton"
+household      ─┼─► Worker (Access) ──────► scope learner → DO "learner:<id>"
+testing / agent ┘   ctx.access identity     scope guest   → no DO
+                          │ PROXY_TOKEN + x-eesti-scope + x-eesti-email [+ x-eesti-guest]
+                          ▼
+   origin: _proxy_guard → identity.resolve → identity.use(scope) → routes
+           → config.learner_db(name) → data/*.db | data/learners/<id>/ | data/guest/<sandbox>/
 ```
 
-| Request reaches the origin with | Scope | Stores |
+| Request reaches the origin with | Scope | Files |
 |---|---|---|
 | `PROXY_TOKEN`, no `x-eesti-scope` (old Worker, or `OWNER_EMAIL` unset) | `owner` | `config.PROGRESS_DB` … `config.EVENTS_DB` |
 | `PROXY_TOKEN`, `x-eesti-scope: owner` | `owner` | owner files |
+| `PROXY_TOKEN`, `x-eesti-scope: learner` and `x-eesti-email` | `learner`, id `learner_id(email)` | `config.LEARNERS_DIR/<id>/` |
+| `PROXY_TOKEN`, `x-eesti-scope: learner`, no email | refused, 403 | – |
 | `PROXY_TOKEN`, `x-eesti-scope: guest` | `guest` | `config.GUEST_DIR/<sandbox>/` |
 | guarded origin, wrong or no token | refused, 403 | – |
 | unguarded (`cli serve`, tests): header, else `EESTI_SCOPE`, else owner | as chosen | as above |
@@ -32,50 +35,65 @@ agent (token)     ─┘   (Cloudflare Access)   x-eesti-scope: guest, x-eesti-g
 1. **Middleware** (`eesti/app.py`, `_proxy_guard`): replace the token
    comparison with `identity.resolve(request.headers, request.cookies,
    os.environ)`. None → 403 as today. Run `call_next` inside
-   `identity.use(scope)`. For a guest: call `guest.ensure(sandbox)` first; if
+   `identity.use(scope)`. For a guest: call `guest.ensure(scope.id)` first; if
    `scope.issued`, set `eesti_guest` on the response (`HttpOnly`, `Secure` when
-   the request is https, `SameSite=Lax`, `Max-Age` 86400, `Path=/`); do **not**
-   add `x-events-seq`. Starlette runs sync routes in a thread pool and copies
-   the context into it; prove that with a test, not by assumption.
+   the request is https, `SameSite=Lax`, `Max-Age` 86400, `Path=/`). Add
+   `x-events-seq` for permanent scopes only, read from that scope's log.
+   Starlette runs sync routes in a thread pool and copies the context into it;
+   prove that with a test, not by assumption.
 2. **Path resolution.** Replace each read of a learner path with
    `config.learner_db("<NAME>")`. The complete list today:
    `eesti/api/deps.py` (5), `eesti/evidence.py` (`connect`, `_open` ×4),
    `eesti/planning.py:189-190`, `eesti/mining.py:86`, `eesti/api/practice.py:452`,
-   `eesti/api/state.py:312`. Leave these on the owner's attributes:
-   `eesti/app.py` `_events_seq` (skip it for guests), `eesti/api/state.py`
-   `_state_paths` and the event export/import (the snapshot is the owner's),
-   `eesti/recovery.py`, `eesti/cli/*`. Re-grep for `_DB` before finishing.
-3. **Evidence** (`eesti/evidence.py`): `learner()` returns
+   `eesti/api/state.py` (`_state_paths` and line 312), `eesti/app.py`
+   (`_events_seq`). Leave `eesti/recovery.py` and `eesti/cli/*` on the owner's
+   attributes (they run outside a request). Re-grep for `_DB` before finishing.
+3. **Back channel per learner** (`eesti/api/state.py`): the snapshot, event and
+   reminder routes keep requiring `STATE_TOKEN` and now serve the caller's
+   permanent scope, because the calling Durable Object sends that learner's
+   scope headers. They refuse guest scope (403). `/api/state/import` still
+   refuses a store that already has rows, per learner. `/api/content/*` and
+   `/api/progress/reset` stay owner-only.
+4. **Evidence** (`eesti/evidence.py`): `learner()` returns
    `identity.current().learner` (keep `EESTI_LEARNER` as the owner override for
-   the CLI). In `record`, a guest log without the backfill marker gets the marker
-   written, never a `NotRestored`. Add `profile` to `_register_all`.
-4. **Allowances** (`eesti/providers/budget.py`): for a guest scope, count in
-   `config.guest_shared_db()` against `GUEST_CAPS` = `llm:workers-ai` 100,
-   `tartunlp` 200, `tartunlp-mt` 200, `asr:workers-ai` 50, every other lane
-   its owner cap. The breaker stays per store. `/api/engines` reports the
-   caller's own allowance.
-5. **Refusals** for a guest, 403 with a Russian `detail`: `/api/notion/push`
-   (the `Vead` log is the owner's) and every `/api/eval/*` route (the owner's
-   private speech set). Queueing a correction (`/api/notion/queue`) is allowed:
-   it stays in the sandbox.
-6. **New routes** (`eesti/api/profile.py`, then add it to `eesti.api.ROUTERS`
+   the CLI). In `record`, a guest log without the backfill marker gets the
+   marker written, never a `NotRestored`; a learner's log behaves like the
+   owner's (only its restore may start it). `settle` records `joined` once for a
+   `learner` scope whose log has none. Add `profile` to `_register_all`.
+5. **Allowances** (`eesti/providers/budget.py`, `breaker.py`): permanent scopes
+   bind to the owner's `progress.db` (one household allowance, today's caps);
+   guest scope binds to `config.guest_shared_db()` with `GUEST_CAPS` =
+   `llm:workers-ai` 100, `tartunlp` 200, `tartunlp-mt` 200, `asr:workers-ai` 50,
+   every other lane its normal cap. `/api/engines` reports the caller's
+   allowance.
+6. **Owner-only actions**, 403 with a Russian `detail` for `learner` and
+   `guest`: `/api/notion/push` (the owner's Notion) and every `/api/eval/*`
+   route (the owner's voice set). `/api/notion/queue` stays allowed: it writes
+   the caller's own store. `/api/reminders/settings` is refused to guests only.
+7. **New routes** (`eesti/api/profile.py`, then add it to `eesti.api.ROUTERS`
    before `state.router`): `GET /api/me`, `POST /api/me`, `POST /api/guest/reset`.
    Document them in `docs/architecture.md` (API modules table).
+8. **New learner directory.** `config.LEARNERS_DIR/<id>/` is created on the
+   first write, like the owner's files; on Cloud Run it is ephemeral and the
+   learner's Durable Object restores it.
 
-Guests see all material: no `public_only` gating by scope (ADR-0006, 6).
+Everyone sees all material: no `public_only` gating by scope.
 
-## Routes for a guest
+## Routes by scope
 
 Every path in `eesti.api.paths()` belongs to exactly one row;
-`tests/test_guest_isolation.py::test_every_route_is_classified_for_a_guest`
-holds this table as data.
+`tests/test_guest_isolation.py::test_every_route_is_classified` holds this
+table as data.
 
-| Class | Routes |
-|---|---|
-| Back channel (404 at the Worker, `STATE_TOKEN` at the origin; owner files only) | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/content/export`, `/api/content/import`, `/api/progress/reset`, `/api/reminders` |
-| Answered by the Worker, refused to a guest | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
-| Refused to a guest by the origin | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}`, `/api/reminders/settings` |
-| Allowed, sandboxed | everything else, including `/api/transcribe`, `/api/me`, `/api/me/export`, `/api/guest/reset` |
+| Class | owner | learner | guest | Routes |
+|---|---|---|---|---|
+| Back channel (404 at the Worker, `STATE_TOKEN` at the origin) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/reminders` |
+| Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset` |
+| Answered by the Worker from the caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
+| Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
+| Not for guests | yes | yes | 403 | `/api/reminders/settings` |
+| Everyone, own store | yes | yes | yes | everything else, including `/api/transcribe`, `/api/me`, `/api/me/export` |
+| Guests only | 403 | 403 | yes | `/api/guest/reset` |
 
 ## Guest sandboxes
 
@@ -92,32 +110,47 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
 
 ## Worker changes
 
-`deploy/worker.ts`, `fetch`, after `requireAccess`:
+`deploy/worker.ts`.
 
-1. Delete `x-eesti-scope` and `x-eesti-email` from the incoming headers
-   (`x-eesti-guest` may pass: it only names a sandbox).
-2. `const who = (await ctx.access?.getIdentity())?.email`. With `OWNER_EMAIL`
-   set: scope `owner` when `who` equals it case-insensitively, otherwise
-   `guest`; set both headers (`x-eesti-email` only when `who` exists). Without
-   `OWNER_EMAIL`: set neither, as today.
-3. For a guest: `/api/push/*` → 403 with a Russian message; skip
-   `learner.snapshot()` and `learner.pullEvents()` (the origin sends no
-   `x-events-seq` anyway). Restore gating stays as is: a guest waiting for the
-   owner's restore on a cold start is harmless.
-4. The speech path (`transcribe`) forwards the same scope headers to
-   `/api/transcribe/text`, so a guest transcript lands in the sandbox.
+1. **Who.** After `requireAccess`, delete caller-sent `x-eesti-scope` and
+   `x-eesti-email` (`x-eesti-guest` may pass: it only names a sandbox). Read
+   `(await ctx.access?.getIdentity())?.email`. With `OWNER_EMAIL` set: the
+   owner's email (case-insensitive) → `owner`; an email in `LEARNER_EMAILS`
+   (comma-separated, case-insensitive) → `learner`; anything else → `guest`.
+   Set `x-eesti-scope`, and `x-eesti-email` when there is one. Without
+   `OWNER_EMAIL`: set neither, as today. `learnerId(email)` in TypeScript is
+   SHA-256 via `crypto.subtle`, `l-` plus the first 16 hex digits, identical to
+   `identity.learner_id` (a test pins one vector in both).
+2. **Which object.** `stub(env)` becomes `stubFor(env, who)`: `singleton` for the
+   owner, `learner:<id>` for a learner, none for a guest. The object remembers
+   its `who` (scope and email) in storage on `ensureRestored(who)`, and
+   `headers()` adds `x-eesti-scope`/`x-eesti-email` from it to every back-channel
+   call, so restore, snapshots, event pulls and reminders touch that learner's
+   files only. `syncCorpus` runs in `singleton` only.
+3. **Guests.** No object: skip `ensureRestored`, `snapshot` and `pullEvents`;
+   `/api/push/*` → 403 with a Russian message.
+4. **Speech.** `transcribe` forwards the caller's scope headers to
+   `/api/transcribe/text`, and pulls events into the caller's object.
+5. **Cron.** `scheduled` calls `remind()` on `singleton` and on
+   `learner:<id>` for each address in `LEARNER_EMAILS`.
+6. **`BACK_CHANNEL`** is unchanged: those paths stay 404 from outside.
 
 Local check: `wrangler dev` with `access.dev.identity.email` set to the owner,
-then to another address (`docs/deploy.md`).
+then to a `LEARNER_EMAILS` address, then to another address (`docs/deploy.md`).
 
 ### Deploy and operator steps
 
-- New Worker secret `OWNER_EMAIL`. `.github/workflows/deploy.yml` pushes it
-  like the others and warns (does not fail) when it is missing.
-- The owner, once, in the Cloudflare dashboard: add the testing account's email
-  to the Worker's Access policy; optionally create a service token and a
-  *Service Auth* policy for headless agents, and put its id and secret in the
-  agent's environment. Write these steps into `docs/deploy.md` with no values.
+- New Worker secrets `OWNER_EMAIL` and `LEARNER_EMAILS`.
+  `.github/workflows/deploy.yml` pushes them like the others and warns (does not
+  fail) when `OWNER_EMAIL` is missing; an empty `LEARNER_EMAILS` is valid.
+- Adding a learner, in `docs/deploy.md` with no values: add the email to the
+  Worker's Access policy and to `LEARNER_EMAILS`, redeploy; the person signs in
+  with the one-time PIN Access sends and sets their name on Profiil.
+- Adding a testing account: the Access policy only. For headless agents,
+  optionally a service token with a *Service Auth* policy, its id and secret in
+  the agent's environment.
+- Removing a learner and erasing their data: the operator procedure in
+  `docs/deploy.md`, applied to that learner's object and directory.
 - Nothing changes on Cloud Run.
 
 ## Profile
@@ -129,7 +162,7 @@ Sources, all existing:
 |---|---|
 | `name` | newest `profile-set` event in the scope's log |
 | `email` | `identity.current().email` (the Worker, from Access; null for a service token) |
-| `since` | the first event in the log other than `backfill` (a `legacy-row` counts: it is real history) |
+| `since` | the `joined` event (registration), else the first event other than `backfill` (a `legacy-row` counts: it is real history) |
 | `last_active`, `active_days_28`, `rhythm` | `learner.daily_activity` and `learner.PRACTICE_EVENTS` |
 | `level.current` | the level of `progress.resume`'s topic |
 | `level.goal` | `exam.goal(progress)` |
@@ -160,10 +193,10 @@ Starting point: `docs/skeletons/profile.js`.
     Russian `detail`.
   - *E-post* (эл. почта): the Access email; for a service token, *puudub*
     (нет).
-  - *Režiim* (режим): *Põhikonto* (основной аккаунт, прогресс сохраняется) or
-    *Külaline* (гость, песочница), so the owner always sees which account is
-    signed in.
-  - *Õpib alates* (учится с) and *Viimati* (последнее занятие): dates in
+  - *Konto* (аккаунт): *Põhikonto* (основной, прогресс сохраняется),
+    *Õppija* (ученик, свой прогресс сохраняется) or *Külaline* (гость,
+    песочница), so everyone sees at once which account is signed in.
+  - *Õpib alates* (учится с: registration) and *Viimati* (последнее занятие): dates in
     Russian format; empty log → *Veel mitte* (пока нет).
   - *Tase* (уровень): current path level, exam goal (level and date, or a link
     to Ülevaade to choose one), checkpoints passed.
@@ -184,11 +217,14 @@ Starting point: `docs/skeletons/profile.js`.
 ## Tests to add
 
 - `tests/test_identity.py` (done) — scope resolution and paths.
-- `tests/test_guest_isolation.py`, `tests/test_profile.py` — skeletons naming
-  every requirement above; remove their skips and fill them in.
+- `tests/test_guest_isolation.py`, `tests/test_learners.py`,
+  `tests/test_profile.py` — skeletons naming every requirement above; remove
+  their skips and fill them in.
 - Beside the `BACK_CHANNEL` check in `tests/test_origin_guard.py`: the Worker
-  strips caller-sent `x-eesti-scope` and `x-eesti-email`, and refuses
-  `/api/push/*` to a guest (read from `deploy/worker.ts`, as that test does).
+  strips caller-sent `x-eesti-scope` and `x-eesti-email`, picks the object by
+  scope, refuses `/api/push/*` to a guest, and its `learnerId` matches
+  `identity.learner_id` on a fixed vector (read from `deploy/worker.ts`, as
+  that test does).
 - Browser journeys (`tests/test_e2e_journeys.py`): the profile tab in all four
   pairings, renaming, the guest line and sandbox reset; journeys that write
   progress run in a guest sandbox by default.

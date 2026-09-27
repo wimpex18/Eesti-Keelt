@@ -1,15 +1,21 @@
-"""Who a request is for: the owner, or a guest sandbox (ADR-0006).
+"""Who a request is for: a permanent learner, or a guest sandbox (ADR-0006).
 
-Both come through the one Worker behind Cloudflare Access. The Worker reads
-the Access identity and says which scope it is (`x-eesti-scope`): the owner's
-email is the owner; any other Access identity (the owner's second, testing
-account, or a service token for a headless agent) is a guest. The origin
-trusts that header only on a request that carries `PROXY_TOKEN`, which only
-the Worker holds. A request with no scope header is the owner, as before this
-existed, so an older Worker keeps working unchanged.
+Everyone comes through the one Worker behind Cloudflare Access. The Worker reads
+the Access identity and tells the origin which scope it is (`x-eesti-scope`):
 
-Without `PROXY_TOKEN` (`cli serve`, tests) the origin guard is off and the
-same header, or `EESTI_SCOPE`, chooses; the default is the owner.
+- `owner`: the owner's email (`OWNER_EMAIL`). The original learner, whose files
+  keep their old paths and whose Durable Object keeps its old name.
+- `learner`: an email in `LEARNER_EMAILS` (the household: another person who
+  studies with the app). Permanent, with their own files and Durable Object,
+  named by `learner_id(email)`.
+- `guest`: any other Access identity (a testing account, a service token for a
+  headless agent). A throwaway sandbox.
+
+The origin trusts that header only on a request carrying `PROXY_TOKEN`, which
+only the Worker holds. A request with no scope header is the owner, as before
+this existed, so an older Worker keeps working unchanged. Without `PROXY_TOKEN`
+(`cli serve`, tests) the guard is off and the same headers, or `EESTI_SCOPE`,
+choose; the default is the owner.
 
 The scope travels in a context variable for the length of one request, so
 `config.learner_db` can hand each request its own databases without any route
@@ -18,6 +24,7 @@ knowing. Nothing here opens a file.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import re
 import secrets
@@ -27,27 +34,35 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 
 OWNER = "owner"
+LEARNER = "learner"
 GUEST = "guest"
-SCOPES = (OWNER, GUEST)
+SCOPES = (OWNER, LEARNER, GUEST)
 
 #: Set by the Worker from the Access identity; locally, by a test or developer.
 SCOPE_HEADER = "x-eesti-scope"
+#: The Access email, set by the Worker from `ctx.access.getIdentity()`.
+EMAIL_HEADER = "x-eesti-email"
 #: Names a guest sandbox: agents and tests pick a readable one.
 SANDBOX_HEADER = "x-eesti-guest"
 #: Keeps a browser in the sandbox it was given on first contact.
 SANDBOX_COOKIE = "eesti_guest"
-#: The Access email, set by the Worker from `ctx.access.getIdentity()`.
-EMAIL_HEADER = "x-eesti-email"
 
 #: A sandbox name is also a directory name: short, lower case, no dots.
 _SANDBOX = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
 
+def learner_id(email: str) -> str:
+    """A permanent learner's id: stable, a safe directory and Durable Object
+    name, and not the email itself. `deploy/worker.ts` computes the same."""
+    digest = hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
+    return f"l-{digest[:16]}"
+
+
 @dataclass(frozen=True)
 class Scope:
     kind: str = OWNER
-    #: The guest sandbox; None for the owner.
-    sandbox: str | None = None
+    #: `owner`, `l-<hex>` for a learner, the sandbox name for a guest.
+    id: str = OWNER
     #: The Access email when the front door knows it (a service token has none).
     email: str | None = None
     #: The sandbox was made up for this request; the response sets the cookie.
@@ -58,9 +73,13 @@ class Scope:
         return self.kind == GUEST
 
     @property
+    def permanent(self) -> bool:
+        return self.kind in (OWNER, LEARNER)
+
+    @property
     def learner(self) -> str:
         """The `learner` field of an event recorded in this scope."""
-        return f"{GUEST}:{self.sandbox}" if self.is_guest else OWNER
+        return self.id if self.kind != GUEST else f"{GUEST}:{self.id}"
 
 
 OWNER_SCOPE = Scope()
@@ -102,15 +121,19 @@ def resolve(headers: Mapping[str, str], cookies: Mapping[str, str],
     email = (headers.get(EMAIL_HEADER) or "").strip() or None
     default = OWNER if expected else (env.get("EESTI_SCOPE") or OWNER)
     kind = (headers.get(SCOPE_HEADER) or default).strip().lower()
+
     if kind == OWNER:
         if not expected:
             email = email or (env.get("EESTI_OWNER_EMAIL") or "").strip() or None
         return Scope(OWNER, email=email)
+    if kind == LEARNER:
+        # A permanent learner is known only by their email: no email, no store.
+        return Scope(LEARNER, id=learner_id(email), email=email) if email else None
     if kind != GUEST:
-        return None   # a typo must not write into the owner's log
+        return None   # a typo must not write into anyone's permanent log
 
     named = sandbox_name(headers.get(SANDBOX_HEADER)) or sandbox_name(
         cookies.get(SANDBOX_COOKIE))
     if named:
-        return Scope(GUEST, sandbox=named, email=email)
-    return Scope(GUEST, sandbox=f"g-{secrets.token_hex(6)}", email=email, issued=True)
+        return Scope(GUEST, id=named, email=email)
+    return Scope(GUEST, id=f"g-{secrets.token_hex(6)}", email=email, issued=True)

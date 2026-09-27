@@ -1,4 +1,4 @@
-# Implementation prompt: owner/guest split and profile (GPT-6 Luna, xhigh)
+# Implementation prompt: learners, guests and profile (GPT-6 Luna, xhigh)
 
 Paste everything below the line into the implementer's session.
 
@@ -11,16 +11,18 @@ implement it exactly, test it, and hand off. Do not redesign.
 
 ## Task
 
-Implement ADR-0006: the owner's Access account keeps permanent progress; any
-other Access identity (the owner's testing account, Claude/Codex, tests) gets
-the full app with all material in a separate, throwaway sandbox; and a Profile
-page shows the learner's progress.
+Implement ADR-0006. Cloudflare Access is the account system. The owner and
+each household learner (an email in `LEARNER_EMAILS`) keep permanent,
+separate progress, each with their own origin files and Durable Object. Any
+other Access identity (a testing account, Claude/Codex, tests) gets the full
+app with all material in a throwaway sandbox. A Profile page shows each
+person's progress.
 
 ## Read first, in this order (they are authoritative)
 
 1. `AGENTS.md`, `HANDOFF.md`, `.claude/rules/*.md` (path rules for Python, web,
    tests, docs, deploy).
-2. `docs/adr/0006-owner-and-guest.md` (the decisions and why).
+2. `docs/adr/0006-learners-and-guests.md` (the decisions and why).
 3. `docs/identity.md` (the specification, file by file). Follow its order.
 4. `docs/adr/0005-architecture-contracts.md` (contracts you must not break).
 5. `DESIGN.md` "Adding a page or section", "Layout rhythm", "Signature
@@ -28,7 +30,8 @@ page shows the learner's progress.
 6. The code already on the branch: `eesti/identity.py`, `config.learner_db`,
    `tests/test_identity.py` (done), and the skeletons `eesti/guest.py`,
    `eesti/profile.py`, `eesti/api/profile.py`, `docs/skeletons/profile.js`,
-   `tests/test_guest_isolation.py`, `tests/test_profile.py`.
+   `tests/test_guest_isolation.py`, `tests/test_learners.py`,
+   `tests/test_profile.py`.
 
 ## Rules
 
@@ -46,6 +49,7 @@ page shows the learner's progress.
   `lang` attributes as `eesti/web/js/core.js` describes. No streak or score.
 - Never change owner behaviour: an owner request with the old headers must
   behave exactly as today, including restore, snapshots and `x-events-seq`.
+  The owner's file paths and the `singleton` Durable Object keep their names.
 - Do not deploy, create secrets, or change Cloudflare/Google settings. Write the
   operator steps into `docs/deploy.md` instead.
 - Keep tests offline (`tests/test_offline.py`). No real credentials anywhere.
@@ -57,58 +61,68 @@ page shows the learner's progress.
    two sandboxes) see only their own progress; guest responses have no
    `x-events-seq`; the guest log needs no restore; snapshot/event export carry
    owner rows only; a guest sees the same material as the owner; every route
-   is classified; Notion push, eval and reminder settings are refused to a
-   guest; guest allowances are shared and smaller; `POST /api/guest/reset`
+   is classified by scope; the back channel refuses guest scope; guest
+   allowances are shared and smaller; `POST /api/guest/reset`
    works for a guest and is 403 for the owner; sweeping drops idle and surplus
    sandboxes.
-2. **Worker.** `deploy/worker.ts` per `docs/identity.md` "Worker changes":
-   strips caller-sent `x-eesti-scope`/`x-eesti-email`, derives the scope from
-   `ctx.access.getIdentity()` and `OWNER_EMAIL` (unset: no headers, behaviour
-   as today), refuses `/api/push/*` to a guest, skips snapshot/pull for a
-   guest, and forwards the scope on the speech path. `npm run typecheck`
-   passes; a test reads `deploy/worker.ts` as `tests/test_origin_guard.py`
-   does and pins these rules; checked with `wrangler dev` and
-   `access.dev.identity` as the owner and as another email.
-3. **Profile API.** `GET /api/me` and `POST /api/me` return the shape in
+2. **Learners.** Every test in `tests/test_learners.py` is implemented and
+   passes: two permanent learners never see each other's progress; each has
+   her own back channel, restore and `x-events-seq`; a new learner gets one
+   `joined` event; owner-only actions are refused; the allowance is shared.
+3. **Worker.** `deploy/worker.ts` per `docs/identity.md` "Worker changes":
+   strips caller-sent `x-eesti-scope`/`x-eesti-email`; derives the scope from
+   `ctx.access.getIdentity()`, `OWNER_EMAIL` and `LEARNER_EMAILS` (no
+   `OWNER_EMAIL`: no headers, behaviour as today); one `LearnerState` object per
+   permanent learner (`singleton` for the owner, `learner:<id>` otherwise) that
+   sends its learner's scope on every back-channel call; corpus sync in
+   `singleton` only; no object for guests and `/api/push/*` refused to them;
+   the cron reminds every permanent learner; `learnerId` equals
+   `identity.learner_id` on a pinned vector. `npm run typecheck` passes; a test
+   reads `deploy/worker.ts` as `tests/test_origin_guard.py` does and pins these
+   rules; checked with `wrangler dev` and `access.dev.identity` as the owner, a
+   learner and another email.
+4. **Profile API.** `GET /api/me` and `POST /api/me` return the shape in
    `eesti/profile.py`; every test in `tests/test_profile.py` is implemented and
    passes, including strict replay of `profile-set`.
-4. **Profile page** (a required deliverable, not polish). A `Profiil` tab in the
+5. **Profile page** (a required deliverable, not polish). A `Profiil` tab in the
    Eksam mode with: editable name (Muuda / Salvesta / Loobu), email, *Õpib
    alates*, *Viimati*, level (current, exam goal, checkpoints), seals per level
    with an A1/A2/B1 tablist, Rütm, totals, which account is signed in
-   (*Põhikonto* or *Külaline*), and for guests the sandbox line on every screen
+   (*Põhikonto*, *Õppija* or *Külaline*), and for guests the sandbox line on every screen
    plus *Tühjenda liivakast*. Checked in a real browser at
    1440×900, 402×874 and 874×402 (touch), 744×1133 (touch), light and dark:
    screenshots looked at, no horizontal scroll, targets ≥44px, nothing
    clipped. `docs/app-structure.md` lists the tab.
-5. **Journeys.** `tests/test_e2e_journeys.py` covers the profile (view, rename,
+6. **Journeys.** `tests/test_e2e_journeys.py` covers the profile (view, rename,
    guest line, reset) and runs its progress-writing journeys in a guest
    sandbox; `pytest tests/test_e2e_journeys.py --browser -q` passes.
-6. **Deploy path.** `.github/workflows/deploy.yml` pushes the `OWNER_EMAIL`
-   Worker secret and warns (does not fail) when it is missing;
-   `docs/deploy.md` has the owner's one-time steps (the `OWNER_EMAIL` secret,
-   the testing account in the Access policy, an optional service token for
-   headless agents) without any value.
-7. **Docs.** `docs/architecture.md` (request path, API and domain module
+7. **Deploy path.** `.github/workflows/deploy.yml` pushes the `OWNER_EMAIL`
+   and `LEARNER_EMAILS` Worker secrets and warns (does not fail) when
+   `OWNER_EMAIL` is missing; `docs/deploy.md` has, without any value, how to set
+   them, how to add a learner (Access policy + `LEARNER_EMAILS`, she signs in
+   with the Access PIN and names herself on Profiil), how to add a testing
+   account or service token, and how to erase one learner.
+8. **Docs.** `docs/architecture.md` (request path, API and domain module
    tables), `docs/status.md` (replace the "Tests and agents write into the
-   owner's log" known issue with what works now and what remains),
+   owner's log" known issue with what works now and what remains, and the
+   single-learner wording anywhere it is now wrong),
    `docs/identity.md` matches the code, `docs/skeletons/` deleted after the page
    module moves to `eesti/web/js/profile.js`. `AGENTS.md` stays under 100 lines.
-8. **Suite.** `python -m pytest tests/ -q -n auto` and `npm run typecheck` pass
+9. **Suite.** `python -m pytest tests/ -q -n auto` and `npm run typecheck` pass
    with no new skips except ones that already skip for missing local data.
 
 ## Validation before you stop
 
 Run the full suite, the typecheck, `npx wrangler deploy --dry-run` and the
-browser journeys; take the screenshots in criterion 4 and inspect them. Then re-read
-`docs/identity.md` "Routes for a guest" against `eesti.api.paths()` once
+browser journeys; take the screenshots in criterion 5 and inspect them. Then re-read
+`docs/identity.md` "Routes by scope" against `eesti.api.paths()` once
 more: a route added since is unclassified until you classify it.
 
 ## Hand-off
 
 Rewrite `HANDOFF.md` as the present-state note `AGENTS.md` asks for (≤30
 lines): what is done, the exact next step (the owner sets `OWNER_EMAIL` and
-adds the testing account to Access, then merges), uncommitted paths,
+`LEARNER_EMAILS`, adds the emails to Access, then merges), uncommitted paths,
 blockers. Update the PR description with Before/After and the validation you ran. Stop there; do not
 merge or deploy.
 

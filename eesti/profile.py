@@ -16,8 +16,11 @@ import sqlite3
 
 from .evidence import Event, Stores, applies
 
-#: The one event this module records.
+#: The name the learner chose.
 PROFILE_SET = "profile-set"
+#: The first contact of a permanent learner: registration. Recorded once, when
+#: a learner's restored log settles without one (`evidence.settle`).
+JOINED = "joined"
 
 #: Longest name accepted, after trimming.
 NAME_MAX = 60
@@ -36,9 +39,10 @@ def clean_name(raw: str | None) -> str | None:
     return name
 
 
+@applies(JOINED)
 @applies(PROFILE_SET)
 def _profile_set(stores: Stores, ev: Event) -> None:
-    """Nothing to project: the name is read back from the log itself.
+    """Nothing to project: the name and the date are read back from the log.
 
     Registered so strict replay (`cli verify-backup`) accepts the event. Add
     `profile` to `evidence._register_all` so the registration always runs.
@@ -69,11 +73,12 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
     """Everything `GET /api/me` returns. Shape (all keys always present):
 
         {
-          "scope": "owner" | "guest",
-          "sandbox": str | None,
+          "scope": "owner" | "learner" | "guest",
+          "sandbox": str | None,             # the guest sandbox; None otherwise
           "name": str | None,
           "email": str | None,               # the Access email; None for a service token
-          "since": ISO timestamp | None,     # first event that is not `backfill`
+          "since": ISO timestamp | None,     # `joined`, else the first event
+                                             # that is not `backfill`
           "last_active": ISO timestamp | None,   # latest practice event
           "active_days_28": int,             # days with practice, last 28
           "level": {
