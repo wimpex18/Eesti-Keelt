@@ -52,7 +52,8 @@ the front door; `PROXY_TOKEN` protects the origin. The Worker copies learner
 events into a Durable Object asynchronously. Cloud Build rebuilds the origin
 on merge to `main`; the `deploy` workflow updates the Worker for Worker paths.
 Use the `smoke` workflow with `deep: true` after deployment. Operator scripts
-run in Google Cloud Shell; see `docs/deploy.md`.
+run in Google Cloud Shell; see `docs/deploy.md`. Owner and guest scopes (a
+sandbox for agents and tests): `docs/adr/0006-owner-and-guest.md`.
 
 ```bash
 python -m eesti.cli serve                    # http://127.0.0.1:8000

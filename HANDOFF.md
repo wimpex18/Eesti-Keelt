@@ -1,25 +1,23 @@
 # Handoff
 
-Current task: production QA fixes on `codex/production-qa`, ready for review.
-All ten routes checked in Chrome at 1440×900 and 393×852, light and dark,
-including route reload and browser history. Local fixes also checked at
-402×874, 874×402 and 744×1133 with touch emulation.
+Current task: owner/guest split and the profile page (ADR-0006), branch
+`claude/owner-guest-split`, one draft PR for docs, skeletons and the
+implementation.
 
-Fixes cover touch targets, accessible bounded word cards, language and engine
-attribution, outlined writing input, in-app official material/video, milestone
-wrapping, correct empty-state heading levels, graded microphone locking and
-stable checkpoint regeneration.
-Generator version is 2; signed answers remain authoritative for grading.
-Review follow-ups: official rows share `library.official_availability`; a
-catalogued link-out stays one in Lugemine/Kuulamine and `audio_url` rows stay in
-the app. `principal_forms` draws candidates from `words` only, so a seed
-regenerates whatever the form cache holds. Reader words are one roving tab
-stop. Impeccable ignores: CSS lines annotated in place; index.html page-scan
-rules (no line or value to match) are ignored for that file only.
+Done (senior pass): decisions in `docs/adr/0006-owner-and-guest.md`; the
+file-by-file plan, route classification and profile page spec in
+`docs/identity.md`. `eesti/identity.py` and `config.learner_db` are
+implemented and tested (`tests/test_identity.py`) but not yet wired into the
+app. Skeletons: `eesti/guest.py`, `eesti/profile.py`, `eesti/api/profile.py`
+(not registered), `deploy/guest.ts` + `wrangler.jsonc` `env.guest` (not
+deployed), `docs/skeletons/profile.js` (not served), and skipped test modules
+`tests/test_guest_isolation.py`, `tests/test_profile.py`.
 
-Validation: `pytest tests/ -n auto` and `npm run typecheck` pass; browser
-journeys pass in Chromium (the video test now serves its own catalogue).
-Production queue was empty; saved-progress journeys used isolated local state.
+Next step: implement `docs/identity.md` "Origin changes" in order, then the
+guest Worker, the profile API and page, the deploy workflow and operator notes.
+Unskip the skeleton tests as each part lands.
 
-Next step: user reviews draft PR #89 from `codex/production-qa`.
-Uncommitted paths: none. Blockers: none.
+Validation so far: `pytest tests/ -n auto` and `npm run typecheck` pass;
+`wrangler deploy --env guest --dry-run` lists no bindings.
+Uncommitted paths: none. Blockers: `GUEST_PROXY_TOKEN` must be created by the
+owner on Cloud Run and in repository secrets before the guest Worker can serve.

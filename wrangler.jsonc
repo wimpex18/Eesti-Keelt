@@ -35,7 +35,19 @@
   // fact from arriving twice. Cron is free-plan.
   "triggers": { "crons": ["7 * * * *"] },
 
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+
+  // The guest door (ADR-0006, docs/identity.md): `wrangler deploy --env guest`
+  // publishes `eesti-keelt-guest`, with no Access, no Durable Object, no AI,
+  // no home speech and no cron. Its only secrets are CLOUD_RUN_URL and
+  // GUEST_PROXY_TOKEN. Nothing deploys it until the deploy workflow is taught to.
+  "env": {
+    "guest": {
+      "name": "eesti-keelt-guest",
+      "main": "deploy/guest.ts",
+      "triggers": { "crons": [] }
+    }
+  }
 
   // Secrets, set with `wrangler secret put` or by the deploy workflow, and
   // never committed:

@@ -67,6 +67,10 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 
 ## Known issues
 
+- **Tests and agents write into the owner's log.** There is one evidence log,
+  so exploratory clicks and Claude/Codex runs on the deployment count as real
+  study. ADR-0006 splits owner and guest; `eesti/identity.py` resolves the
+  scope but nothing uses it yet. The plan is `docs/identity.md`.
 - **Grammar is qualified, not provider-count driven.** Workers AI GPT-OSS-120B
   is the only automatic hosted grammar/tutor lane, with deterministic offline
   degradation. Other LLMs, public GEC and est→est normalization remain explicit

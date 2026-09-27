@@ -47,6 +47,39 @@ NOTION_DB = "data/notion.db"
 # The evidence log (`eesti/evidence.py`): the source the four above are rebuilt from.
 EVENTS_DB = "data/events.db"
 
+# Guest sandboxes (ADR-0006): one directory per sandbox, each holding its own
+# copy of the five learner files, plus `shared.db` for the guest allowances.
+# On Cloud Run this is ephemeral disk and is never snapshotted.
+GUEST_DIR = os.environ.get("EESTI_GUEST_DIR", "data/guest")
+
+_LEARNER_FILES = {
+    "PROGRESS_DB": "progress.db",
+    "REVIEW_DB": "review.db",
+    "VOCAB_DB": "vocab.db",
+    "NOTION_DB": "notion.db",
+    "EVENTS_DB": "events.db",
+}
+
+
+def learner_db(name: str) -> str:
+    """The learner database `name` ("PROGRESS_DB", ...) for the current request.
+
+    The owner's path is this module's own attribute, read at call time, so a
+    test that redirects `config.PROGRESS_DB` still redirects the owner. A guest
+    gets the same file name inside its sandbox directory.
+    """
+    from .identity import current
+
+    scope = current()
+    if not scope.is_guest:
+        return globals()[name]
+    return str(Path(GUEST_DIR) / str(scope.sandbox) / _LEARNER_FILES[name])
+
+
+def guest_shared_db() -> str:
+    """The one store all guest sandboxes count their allowances in."""
+    return str(Path(GUEST_DIR) / "shared.db")
+
 # The exam board's own task files (`eesti/harvest/harno.py`): PDFs and listening
 # audio, downloaded for study and never committed.
 EXAM_DIR = os.environ.get("EESTI_EXAM_DIR", "data/exam")
