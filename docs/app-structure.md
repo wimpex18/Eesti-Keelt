@@ -9,7 +9,7 @@ diagram below against the page in both directions.
 ```
 Õppimine — "what am I learning today?"
 ├── Rada          the drills, two ways: Minu rada (prerequisite order, mastery-gated,
-│                 opens on today's set, with Plaan — today's plan) and Vaba harjutus
+│                 opens on today's set, with pressure-free Tänased sammud and Plaan) and Vaba harjutus
 │                 (any topic, nothing recorded)
 ├── Lugemine      reading texts ranked by the share of words within the learner's reach
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
@@ -30,7 +30,8 @@ Eksam — "am I ready?"
 │                 Proovieksam (one part on the exam's clock), and HARNO's own
 │                 past tasks, read and played in the app where downloaded
 ├── Edenemine     progress report
-└── Profiil       account identity, evidence summary, seals and practice rhythm
+└── Profiil       account identity, starting recommendation, evidence summary,
+                  seals and practice rhythm
 ```
 
 Õppimine is the path plus the exam's four skills, so it has five tabs; Eksam has

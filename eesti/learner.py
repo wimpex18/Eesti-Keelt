@@ -190,6 +190,47 @@ def daily_activity(log: sqlite3.Connection, days: int = 84,
              "n": counts.get(first + timedelta(days=i), 0)} for i in range(days)]
 
 
+def today_steps(log: sqlite3.Connection, *, review_due: int = 0,
+                now: datetime | None = None, after_seq: int = 0) -> list[dict]:
+    """Three small, evidence-backed goals for today, with no streak or points.
+
+    Reviews adapt to the real queue: an empty queue is already complete instead
+    of asking the learner to perform an impossible action.
+    """
+    from zoneinfo import ZoneInfo
+
+    from . import evidence
+    from .reminders import ZONE
+
+    zone = ZoneInfo(ZONE)
+    local_now = (now or datetime.now(timezone.utc)).astimezone(zone)
+    start = datetime.combine(local_now.date(), datetime.min.time(), tzinfo=zone)
+    events = evidence.since(
+        log, PRACTICE_EVENTS, start.astimezone(timezone.utc).isoformat(),
+        after_seq=after_seq,
+    )
+    attempts = sum(ev.type == "attempt" for ev in events)
+    reviews = sum(ev.type == "review" for ev in events)
+    skill_types = {
+        "dictation", "comprehension", "writing", "speech", "conversation",
+        "exam-section", "exposure",
+    }
+    skills = sum(ev.type in skill_types for ev in events)
+    review_target = min(3, reviews + max(0, review_due))
+
+    def step(id_: str, done: int, target: int, href: str) -> dict:
+        return {
+            "id": id_, "done": min(done, target), "target": target,
+            "complete": done >= target, "href": href,
+        }
+
+    return [
+        step("practice", attempts, 5, "#path"),
+        step("review", reviews, review_target, "#review"),
+        step("skill", skills, 1, "#read"),
+    ]
+
+
 @dataclass(frozen=True)
 class Mistake:
     event_id: str

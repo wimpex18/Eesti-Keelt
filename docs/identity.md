@@ -88,7 +88,7 @@ owner-only account-removal routes are outside this FastAPI inventory.
 | Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset`, `/api/state/remove-account` |
 | Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
-| Permanent accounts only | yes | yes | 403 | `/api/me/reset`, `/api/me/restore`, `/api/reminders/settings` |
+| Permanent accounts only | yes | yes | 403 | `/api/me/onboarding`, `/api/me/reset`, `/api/me/restore`, `/api/reminders/settings` |
 | Guest only | 403 | 403 | yes | `/api/guest/reset` |
 | Shared material and page assets; learner data stays in the current scope | yes | yes | yes | `/`, `/api/asr`, `/api/asr/home`, `/api/check`, `/api/checkpoint/{level}`, `/api/checkpoint/{level}/result`, `/api/curriculum`, `/api/dictation/answer`, `/api/dictation/next`, `/api/engines`, `/api/enrich/{word}`, `/api/exam-spec/{level}`, `/api/exam/file/{item_id}`, `/api/exam/image/{item_id}/{page}/{index}`, `/api/exam/native/{item_id}`, `/api/exam/native/{item_id}/check`, `/api/exam/page/{item_id}/{page}`, `/api/exam/pages/{item_id}`, `/api/exam/text/{item_id}`, `/api/exam/{level}`, `/api/goal`, `/api/goal.ics`, `/api/health`, `/api/lesson/{topic}`, `/api/library`, `/api/library/{item_id}`, `/api/lookup/{word}`, `/api/me`, `/api/me/export`, `/api/milestones/{level}`, `/api/mine`, `/api/mock-run/{level}`, `/api/mock/{level}`, `/api/mock/{level}/{part}`, `/api/modes`, `/api/notion/pending`, `/api/notion/queue`, `/api/pack`, `/api/plan`, `/api/practice`, `/api/practice/answer`, `/api/pronounce`, `/api/read/answer`, `/api/read/questions/{item_id}`, `/api/readiness/{level}`, `/api/reading/next`, `/api/review`, `/api/review/grade`, `/api/review/stats`, `/api/sources`, `/api/speak`, `/api/speaking`, `/api/speaking/check`, `/api/speaking/feedback`, `/api/speaking/probe`, `/api/speaking/readaloud`, `/api/status`, `/api/testout/{topic}`, `/api/themes`, `/api/transcribe`, `/api/transcribe/text`, `/api/translate`, `/api/tutor`, `/api/vocab`, `/api/vocab/known`, `/app.css`, `/fonts/{name}`, `/icon.png`, `/icon.svg`, `/js/{name}`, `/manifest.webmanifest`, `/sw.js`, `/vendor/{name}` |
 
@@ -172,6 +172,7 @@ Sources, all existing:
 | Field | From |
 |---|---|
 | `name` | newest `profile-set` event in the scope's log |
+| `onboarding` | newest `onboarding-set` event: self-assessed start band, preferred first lane, skipped flag and timestamp |
 | `email` | `identity.current().email` (the account's email; null for a guest) |
 | `since` | the `joined` event (registration), else the first event other than `backfill` (a `legacy-row` counts: it is real history) |
 | `last_active`, `active_days_28`, `rhythm` | `learner.daily_activity` and `learner.PRACTICE_EVENTS` |
@@ -183,8 +184,10 @@ Sources, all existing:
 | `restore_available`, `restore_at` | the latest reset marker not yet restored |
 
 `POST /api/me {"name": …}` records `profile-set` (`profile.clean_name`: trimmed,
-1–60 characters, blank clears). No other field is editable here: email belongs to
-the account, dates and levels to the evidence.
+1–60 characters, blank clears). `POST /api/me/onboarding` records a self-assessed
+start band and preferred first lane as `onboarding-set`; it is a display
+recommendation, not CEFR evidence, mastery or an exam result. Email belongs to
+the account, and dates and measured levels come from the evidence.
 
 ## Profile page
 
@@ -208,6 +211,9 @@ Implementation: `eesti/web/js/profile.js`.
     *Õppija* (ученик, свой прогресс сохраняется) or *Külaline* (гость,
     песочница), so everyone sees at once which account is signed in; with an
     account, *Logi välja* (выйти).
+  - *Algus* (старт): the saved self-assessment and first lane, with *Muuda*
+    (изменить). The Russian line says it is a recommendation, not a confirmed
+    CEFR level.
   - *Õpib alates* (учится с: registration) and *Viimati* (последнее занятие): dates in
     Russian format; empty log → *Veel mitte* (пока нет).
   - *Tase* (уровень): current path level, exam goal (level and date, or a link
@@ -218,11 +224,14 @@ Implementation: `eesti/web/js/profile.js`.
   weeks*, exactly as Edenemine words it.
 - **Kokku** (итого): attempts, topics mastered of total, review cards, known
   words, each as a number with a Russian label (`ruCount`).
-- **Start options.** With no recorded practice, a learner sees *Õpi rajal*,
-  *Harjuta vabalt* and *Valmistu eksamiks*. They open the ordered learning path,
-  free practice (with A1–B1 word-level choices), and the exam overview. The
-  learner can change level in free practice and can use every main section at
-  any time.
+- **Starting recommendation.** After account creation, two optional screens ask
+  for a self-assessed starting band (A0 through A2–B1) and first lane: Rada,
+  Sõnavara, Rääkimine or Eksam. The choice records `onboarding-set`, marks the
+  recommended navigation destination, preselects the corresponding word level
+  in free practice and Sõnavara, and opens the chosen real section. Skipping is
+  also recorded so the question does not return. Every section remains open;
+  the profile can change the choice. A learner with neither practice nor a saved
+  choice retains the three direct start links.
 - **Reset and restore progress.** Permanent accounts can use *Lähtesta
   edenemine* to clear
   attempts, milestones, exam goal and sections, review cards, vocabulary status,
@@ -261,5 +270,5 @@ Implementation: `eesti/web/js/profile.js`.
   and removal checks under Node.
 - Browser journeys (`tests/test_e2e_journeys.py`) cover the profile tab,
   renaming, sign-up, sign-in, sign-out, the guest line and sandbox reset;
-  empty-profile start links and reset/restore confirmation are covered too;
+  onboarding, empty-profile start links and reset/restore confirmation are covered too;
   journeys that write progress run in a guest sandbox by default.

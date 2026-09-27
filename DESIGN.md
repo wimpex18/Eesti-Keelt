@@ -210,6 +210,15 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   linked to the original. Licence terms stay in the sources footer.
 - **Plan strip.** The day as time, a segment per block as long as its minutes,
   coloured and glyphed by kind.
+- **Tänased sammud.** Three small boardwalk-shaped checks on Rada, computed from
+  today's evidence: drill attempts, cards actually due, and one skill contact.
+  They may be done in any order; an empty queue is complete and a missed day
+  removes nothing. No points, streak or mastery are attached.
+- **Starting recommendation.** Two optional, solid-sheet account screens: a
+  self-assessed start band and one preferred first lane. A two-plank marker is
+  the only progress decoration. Completion marks the recommended destination,
+  selects a suitable word filter and opens real work; it never skips curriculum
+  topics or presents the choice as confirmed CEFR evidence.
 - **Celebration.** Mastery only: a flower blooms on an evening card, announced
   through the page's polite live region. Any key or tap dismisses it; under
   reduced motion only the announcement remains.

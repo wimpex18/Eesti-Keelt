@@ -122,14 +122,21 @@ def status() -> dict:
     )
     # The practice rhythm: events per day over twelve weeks, drawn as a calendar.
     # No log yet is an empty rhythm, not an error.
-    from .. import evidence
-    from ..learner import daily_activity
+    from .. import evidence, profile
+    from ..learner import daily_activity, today_steps
 
     try:
         with evidence.connect() as log:
-            body["rhythm"] = daily_activity(log)
+            reset, _ = profile.reset_state(evidence.events(log))
+            after_seq = reset.seq if reset else 0
+            body["rhythm"] = daily_activity(log, after_seq=after_seq)
+            due = body.get("sections", {}).get("kordamine", {}).get("due", 0)
+            body["today_steps"] = today_steps(
+                log, review_due=due, after_seq=after_seq,
+            )
     except Exception:  # noqa: BLE001 - an unreadable log is shown as no rhythm
         body["rhythm"] = []
+        body["today_steps"] = []
     return body
 
 

@@ -7,6 +7,7 @@
 import {glossChrome, paintIcons} from "./chrome.js";
 import {goToPlace, selectTab} from "./router.js";
 import {paintScope} from "./profile.js";
+import {maybeShowOnboarding} from "./onboarding.js";
 
 /* Imported for their wiring, not for a name.
 
@@ -43,3 +44,5 @@ if (!goToPlace(location.hash.slice(1))) {
   // between the learner and the page they arrived from.
   history.replaceState(null, "", "#path");
 }
+
+maybeShowOnboarding();

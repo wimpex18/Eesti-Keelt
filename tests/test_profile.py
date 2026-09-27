@@ -14,10 +14,11 @@ def test_an_empty_log_is_a_profile_with_nothing_yet(client):
     assert set(body) == {
         "scope", "sandbox", "name", "email", "since", "last_active",
         "active_days_28", "level", "milestones", "totals", "rhythm",
-        "restore_available", "restore_at",
+        "restore_available", "restore_at", "onboarding",
     }
     assert body["scope"] == "owner" and body["sandbox"] is None
     assert body["name"] is body["email"] is body["since"] is body["last_active"] is None
+    assert body["onboarding"] is None
     assert body["active_days_28"] == 0
     assert body["totals"]["attempts"] == body["totals"]["mastered"] == 0
     assert body["totals"]["review_cards"] == body["totals"]["known_words"] == 0
@@ -57,6 +58,42 @@ def test_profile_set_survives_strict_replay(client, tmp_path):
     backup = tmp_path / "events.jsonl"
     backup.write_text(client.get("/api/me/export").text, encoding="utf-8")
     assert recovery.verify_export(backup)["verified"] is True
+
+
+def test_onboarding_is_saved_as_self_assessment_and_latest_choice_wins(client, tmp_path):
+    first = client.post("/api/me/onboarding", json={
+        "start_band": "a1-a2", "focus": "words",
+    })
+    assert first.status_code == 200, first.text
+    assert first.json()["onboarding"] | {"set_at": None} == {
+        "start_band": "a1-a2", "focus": "words", "skipped": False,
+        "set_at": None,
+    }
+    second = client.post("/api/me/onboarding", json={
+        "start_band": "a2", "focus": "speaking",
+    })
+    assert second.status_code == 200, second.text
+    assert second.json()["onboarding"]["start_band"] == "a2"
+    assert second.json()["onboarding"]["focus"] == "speaking"
+
+    backup = tmp_path / "events.jsonl"
+    backup.write_text(client.get("/api/me/export").text, encoding="utf-8")
+    from eesti import recovery
+
+    assert recovery.verify_export(backup)["verified"] is True
+
+
+def test_onboarding_rejects_unknown_values_and_guests(client, monkeypatch):
+    bad = client.post("/api/me/onboarding", json={
+        "start_band": "B2", "focus": "points",
+    })
+    assert bad.status_code == 400
+    monkeypatch.setenv("PROXY_TOKEN", "proxy-secret")
+    guest = client.post("/api/me/onboarding", headers={
+        "x-proxy-token": "proxy-secret", "x-eesti-scope": "guest",
+        "x-eesti-guest": "g-0123456789abcdef",
+    }, json={"start_band": "a1", "focus": "path"})
+    assert guest.status_code == 403
 
 
 def test_the_email_comes_from_the_front_door(client, monkeypatch):

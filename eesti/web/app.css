@@ -270,6 +270,14 @@ nav .ico{display:inline-flex;line-height:0}
 nav .ico svg{width:20px;height:20px;display:block}
 nav .lbl{display:block;white-space:nowrap}
 nav .lbl .ru{display:none}
+.nav-recommend{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:750;line-height:1.2}
+.nav-recommend svg{width:11px;height:11px}
+@media (max-width:1079px){
+  .nav-recommend{position:absolute;top:2px;right:2px;width:14px;height:14px;padding:1px;justify-content:center}
+  .nav-recommend span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .nav-recommend svg{width:10px;height:10px}
+}
 .badge{display:inline-block;min-width:20px;padding:1px 6px;border-radius:999px;
   background:var(--accent);color:var(--on-accent);font-size:var(--fs-gloss);font-weight:800;
   text-align:center;line-height:1.5;font-variant-numeric:tabular-nums}
@@ -559,6 +567,11 @@ label select{min-width:0;max-width:100%}
   .profile-reset-actions > button, .profile-reset-confirm > button{width:100%;min-height:48px}
 }
 
+.field-recommendation{grid-column:1/-1;display:inline-flex;justify-self:start;padding:2px 8px;
+  border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:var(--fs-gloss);
+  font-weight:700;line-height:1.5}
+.field-recommendation[hidden]{display:none}
+
 /* Segmented switch: a glass track, the chosen state a white capsule. */
 .levels{display:inline-flex;gap:3px;padding:4px;border-radius:999px;background:var(--ctl)}
 .levels button{min-height:44px;min-width:44px;padding:6px 16px;border:0;border-radius:999px;background:none;
@@ -691,6 +704,30 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 .pulse-week i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--accent) 10%, var(--tint))}
 .pulse-week i.on{background:var(--accent)}
 @media (min-width:1080px){.pulse{display:none}}
+
+/* Three evidence-backed actions, presented as boardwalk steps rather than points. */
+.daily-steps{display:grid;grid-template-columns:minmax(11rem,.65fr) minmax(0,1.35fr);
+  gap:var(--s4) var(--s6);align-items:start;padding:var(--s4) 0;border-block:1px solid var(--line)}
+.daily-steps > div > h3{margin:0;font-size:var(--fs-body);font-weight:750;letter-spacing:-.01em}
+.daily-steps > div > h3 .ru{display:inline;margin-left:5px}
+.daily-steps > div > p{margin:var(--s1) 0 0;color:var(--muted);font-size:var(--fs-gloss);line-height:1.4}
+.daily-steps ol{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3);
+  margin:0;padding:0}
+.daily-step-link{display:flex;align-items:center;gap:var(--s2);min-height:44px;color:var(--ink);
+  text-decoration:none}
+a.daily-step-link:hover strong{text-decoration:underline;text-underline-offset:3px}
+.daily-step-mark{display:grid;place-items:center;flex:0 0 34px;height:30px;border-radius:var(--r-xs);
+  background:var(--tint);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-2)}
+.daily-step-icon{width:18px;height:18px;color:var(--good)}
+.daily-step-count{font-size:var(--fs-gloss);font-weight:750;font-variant-numeric:tabular-nums}
+.daily-step-copy{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.daily-step-copy strong{font-size:var(--fs-note);font-weight:650}
+.daily-step-copy small{font-size:var(--fs-gloss);color:var(--muted)}
+.daily-steps li.complete .daily-step-copy strong{color:var(--ink-2)}
+@media (max-width:800px){
+  .daily-steps{grid-template-columns:minmax(0,1fr);gap:var(--s3)}
+  .daily-steps ol{grid-template-columns:minmax(0,1fr);gap:var(--s1)}
+}
 
 /* ── The stage: where a set is answered ───────────────────────────── */
 .stage{padding:var(--s5) 0 var(--s4);border-top:1px solid var(--line)}
@@ -1512,7 +1549,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
      With no set — still loading, failed, or empty — it stays as one compact line,
      because it holds the button that starts or retries the set. */
   .hero:not(:has(.hero-act > :not([hidden]))){display:none}
-  .pulse{display:none}
+  .pulse,.daily-steps{display:none}
   .hero{padding:12px 18px;border-radius:var(--r-lg);align-items:center}
   .hero .now{font-size:28px;margin-top:2px}
   .hero :is(.of, #pathGate, .trail, .swallow, .hero-eyebrow .ru){display:none}
@@ -1596,6 +1633,62 @@ dialog.lesson::backdrop{background:color-mix(in srgb, var(--ink) 40%, transparen
   .lesson-head h2{font-size:24px}
   .lesson-table th,.lesson-table td{padding:var(--s2) 10px}
   .lesson-table.labelled tbody th,.lesson-table.labelled thead th:first-child{padding-left:0}
+}
+
+/* The optional two-screen start: a solid, focused sheet with one authored path
+   marker. It is account setup, so a modal protects its keyboard focus. */
+dialog.onboarding{width:min(610px, calc(100vw - 2 * var(--s4)));max-height:calc(100dvh - 2 * var(--s4));
+  box-sizing:border-box;margin:auto;padding:var(--s5);border:0;border-radius:var(--r-lg);
+  background:var(--panel);color:var(--ink);box-shadow:0 16px 42px -20px color-mix(in srgb, var(--ink) 55%, transparent);
+  overflow:auto;overscroll-behavior:contain}
+dialog.onboarding::backdrop{background:color-mix(in srgb, var(--ink) 48%, transparent)}
+.onboarding-scene{position:relative;width:82px;height:50px;margin:0 auto var(--s3);color:var(--accent)}
+.onboarding-scene .onboarding-path{position:absolute;inset:0 auto auto 0;width:50px;height:50px}
+.onboarding-scene span{position:absolute;bottom:5px;width:8px;height:8px;border-radius:50%;
+  background:var(--good);box-shadow:0 0 0 4px var(--good-soft)}
+.onboarding-scene span:nth-of-type(1){left:48px}
+.onboarding-scene span:nth-of-type(2){left:62px;bottom:17px;width:6px;height:6px}
+.onboarding-scene span:nth-of-type(3){left:74px;bottom:30px;width:5px;height:5px}
+.onboarding-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;max-width:96px;
+  margin:0 auto var(--s5)}
+.onboarding-progress span{height:4px;border-radius:4px;background:var(--line)}
+.onboarding-progress span.done{background:var(--accent)}
+.onboarding-copy{text-align:center;max-width:54ch;margin:0 auto var(--s4)}
+.onboarding-copy h2{margin:0;font-size:var(--fs-title);font-weight:750;letter-spacing:-.03em;line-height:1.15}
+.onboarding-copy h2 .ru{margin-top:var(--s1);font-size:var(--fs-note)}
+.onboarding-copy p{margin:var(--s2) auto 0;color:var(--muted);font-size:var(--fs-note);line-height:1.5}
+.onboarding fieldset{border:0;margin:0;padding:0}
+.onboarding-levels{display:grid;gap:var(--s1)}
+.onboarding-levels label{display:grid;grid-template-columns:54px minmax(0,1fr) 20px;align-items:center;
+  gap:var(--s2);min-height:52px;padding:6px var(--s3);border-radius:var(--r-sm);cursor:pointer;
+  color:var(--ink);transition:background-color var(--quick) var(--ease),box-shadow var(--quick) var(--ease)}
+.onboarding-levels label:hover,.onboarding-levels label:has(input:checked){background:var(--accent-soft)}
+.onboarding-levels label:has(input:checked){box-shadow:inset 0 0 0 1px var(--accent)}
+.onboarding-levels strong{font-size:var(--fs-body);color:var(--accent);font-variant-numeric:tabular-nums}
+.onboarding-levels label > span,.onboarding-focus label > span{font-size:var(--fs-ui);font-weight:650;line-height:1.3}
+.onboarding-levels small,.onboarding-focus small{display:block;margin-top:2px;color:var(--muted);font-size:var(--fs-gloss);font-weight:400}
+.onboarding-levels input{grid-column:3;grid-row:1;width:18px;height:18px;margin:0}
+.onboarding-focus{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2)}
+.onboarding-focus label{display:grid;grid-template-columns:30px minmax(0,1fr) 18px;align-items:center;
+  gap:var(--s2);min-height:70px;padding:10px var(--s3);border-radius:var(--r-sm);background:var(--tint);
+  cursor:pointer;color:var(--ink);transition:background-color var(--quick) var(--ease),box-shadow var(--quick) var(--ease)}
+.onboarding-focus label:hover,.onboarding-focus label:has(input:checked){background:var(--accent-soft)}
+.onboarding-focus label:has(input:checked){box-shadow:inset 0 0 0 1px var(--accent)}
+.onboarding-focus label > svg{width:26px;height:26px;color:var(--accent)}
+.onboarding-focus input{grid-column:3;grid-row:1;width:18px;height:18px;margin:0}
+.onboarding-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-top:var(--s5)}
+.onboarding-skip .ru{display:inline;margin:0 0 0 4px}
+.onboarding-error{margin:var(--s3) 0 0;color:var(--bad);font-size:var(--fs-note)}
+@media (max-width:560px){
+  dialog.onboarding{width:calc(100vw - 2 * var(--s2));max-height:calc(100dvh - 2 * var(--s2));
+    padding:var(--s4);border-radius:var(--r)}
+  .onboarding-scene{margin-bottom:var(--s2)}
+  .onboarding-progress{margin-bottom:var(--s4)}
+  .onboarding-copy h2{font-size:24px}
+  .onboarding-focus{grid-template-columns:minmax(0,1fr)}
+  .onboarding-focus label{min-height:58px}
+  .onboarding-actions{align-items:stretch}
+  .onboarding-actions > :last-child{flex:1 1 auto}
 }
 
 /* A quiet text action inside a list row (Reegel on Kogu rada): no fill, so the

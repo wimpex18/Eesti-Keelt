@@ -54,7 +54,8 @@ system is separate.
    belong to each permanent account; guests cannot subscribe.
 9. **One household allowance** for provider calls (the owner's `progress.db`);
    guests count in `data/guest/shared.db` with smaller `GUEST_CAPS`.
-10. **Profile from the log.** Name (`profile-set`, editable), email (from the
+10. **Profile from the log.** Name (`profile-set`, editable), optional starting
+    recommendation (`onboarding-set`, self-assessment only), email (from the
     account), registration (`joined`), activity, level, milestones and rhythm.
     No streak.
 
@@ -63,8 +64,8 @@ system is separate.
 - Until the first account exists, and without `SESSION_SECRET`, every request is
   the owner, exactly as today.
 - The owner's paths, `singleton` object, event ids and snapshots are unchanged.
-- Event `learner`: `owner`, `l-<hex>`, or `guest:<sandbox>`; `profile-set` and
-  `joined` have no-op applies so strict replay accepts them.
+- Event `learner`: `owner`, `l-<hex>`, or `guest:<sandbox>`; `profile-set`,
+  `onboarding-set` and `joined` have no-op applies so strict replay accepts them.
 - ADR-0005 route contracts, signed item refs and offline queue IDs.
 
 ## Alternatives rejected

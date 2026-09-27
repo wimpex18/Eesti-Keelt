@@ -240,10 +240,19 @@ let pathLoad = 0;
    exam flower stands, and the rhythm of the last four weeks. Each opens its screen. */
 async function paintPulse() {
   const box = $("#pathPulse");
-  if (!box || matchMedia("(min-width:1080px)").matches) { if (box) box.innerHTML = ""; return; }
+  const showPulse = box && !matchMedia("(min-width:1080px)").matches;
   const get = u => api(u, null, "GET").then(r => r.json()).catch(() => null);
+  let dueRequest = Promise.resolve(null);
+  let readyRequest = Promise.resolve(null);
+  if (showPulse) {
+    dueRequest = get("/api/review/stats");
+    readyRequest = get(`/api/readiness/${examLevel()}`);
+  }
   const [due, ready, status] = await Promise.all([
-    get("/api/review/stats"), get(`/api/readiness/${examLevel()}`), get("/api/status")]);
+    dueRequest, readyRequest, get("/api/status"),
+  ]);
+  paintDailySteps(status?.today_steps || []);
+  if (!showPulse) { if (box) box.innerHTML = ""; return; }
   const tiles = [];
   if (due) tiles.push(`<a class="pulse-tile" href="#review">
       <span class="pulse-label" lang="et">Kordamine</span>
@@ -268,6 +277,32 @@ async function paintPulse() {
       <span class="sr-only">дней с занятиями за 4 недели</span></a>`);
   }
   box.innerHTML = tiles.join("");
+}
+
+const DAILY_STEP_COPY = {
+  practice: ["Harjuta viis korda", "5 упражнений"],
+  review: ["Korda tänased kaardid", "карточки на сегодня"],
+  skill: ["Kasuta üht oskust", "чтение, слух, речь или письмо"],
+};
+
+function paintDailySteps(steps) {
+  const section = $("#dailySteps"), list = $("#dailyStepsList");
+  if (!section || !list || !steps.length) { if (section) section.hidden = true; return; }
+  list.innerHTML = steps.map(step => {
+    const copy = DAILY_STEP_COPY[step.id] || [step.id, ""];
+    const empty = step.id === "review" && step.target === 0;
+    const count = empty ? "" : `${step.done}/${step.target}`;
+    const detail = empty ? "очередь пуста" : copy[1];
+    const mark = step.complete ? uiIcon("done", "daily-step-icon")
+      : `<span class="daily-step-count">${esc(count)}</span>`;
+    const body = `<span class="daily-step-mark" aria-hidden="true">${mark}</span>
+      <span class="daily-step-copy"><strong lang="et">${esc(empty ? "Järjekord on tühi" : copy[0])}</strong>
+      <small lang="ru">${esc(detail)}</small></span>`;
+    return `<li class="${step.complete ? "complete" : ""}">${step.complete
+      ? `<span class="daily-step-link">${body}</span>`
+      : `<a class="daily-step-link" href="${esc(step.href)}">${body}</a>`}</li>`;
+  }).join("");
+  section.hidden = false;
 }
 
 export async function loadPath() {

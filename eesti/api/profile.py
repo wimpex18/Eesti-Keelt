@@ -15,6 +15,12 @@ class NameRequest(BaseModel):
     name: str | None = None
 
 
+class OnboardingRequest(BaseModel):
+    start_band: str
+    focus: str
+    skipped: bool = False
+
+
 @router.get("/api/me")
 def me() -> dict:
     """`profile.summary` for the request's scope (`identity.current()`).
@@ -43,6 +49,24 @@ def rename(req: NameRequest) -> dict:
 
     try:
         profile.set_name(req.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return me()
+
+
+@router.post("/api/me/onboarding")
+def set_onboarding(req: OnboardingRequest) -> dict:
+    """Save a permanent learner's self-assessed starting preference."""
+    from .. import profile
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(
+            status_code=403,
+            detail="Стартовые настройки сохраняются только в постоянном аккаунте.",
+        )
+    try:
+        profile.set_onboarding(req.start_band, req.focus, skipped=req.skipped)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return me()
