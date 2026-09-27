@@ -1,9 +1,7 @@
 # Learners, guests and profile
 
-The implementation specification for ADR-0006
-(`docs/adr/0006-learners-and-guests.md`). The ADR says why; this says what,
-file by file. Where this file and the code disagree after implementation,
-update this file in the same change.
+This document describes the implemented identity and profile boundaries from
+ADR-0006 (`docs/adr/0006-learners-and-guests.md`).
 
 ## Request path
 
@@ -13,7 +11,7 @@ browser / agent ─► Worker (Access as today)
                    └─ session cookie → owner | learner <id> | no session → guest
                         │ PROXY_TOKEN + x-eesti-scope [+ x-eesti-learner, x-eesti-email, x-eesti-guest]
                         ▼
-   origin: _proxy_guard → identity.resolve → identity.use(scope) → routes
+   origin: IdentityMiddleware → identity.resolve → identity.use(scope) → routes
            → config.learner_db(name) → data/*.db | data/learners/<id>/ | data/guest/<sandbox>/
 ```
 
@@ -30,36 +28,32 @@ browser / agent ─► Worker (Access as today)
 
 `eesti/identity.py` implements this table and `tests/test_identity.py` pins it.
 
-## Origin changes
+## Origin
 
-1. **Middleware** (`eesti/app.py`, `IdentityMiddleware`): replace the token
-   comparison with `identity.resolve(request.headers, request.cookies,
-   os.environ)`. None → 403 as today. Run `call_next` inside
-   `identity.use(scope)`. For a guest: call `guest.ensure(scope.id)` first; if
-   `scope.issued`, set `eesti_guest` on the response (`HttpOnly`, `Secure` when
-   the request is https, `SameSite=Lax`, `Max-Age` 86400, `Path=/`). Add
-   `x-events-seq` for permanent scopes only, read from that scope's log.
+1. **Middleware** (`eesti/app.py`, `IdentityMiddleware`) resolves the request
+   headers, cookies and environment through `identity.resolve`; a refused
+   identity returns 403. `call_next` runs inside `identity.use(scope)`. For a
+   guest it ensures the sandbox first and, when the sandbox is newly issued,
+   sets `eesti_guest` (`HttpOnly`, `Secure` on HTTPS, `SameSite=Lax`,
+   `Max-Age` 86400, `Path=/`). Permanent scopes receive `x-events-seq` from
+   their own log.
    A pure ASGI middleware keeps the context through sync route execution;
    the guest and learner isolation tests prove that the thread-pool routes use it.
-2. **Path resolution.** Replace each read of a learner path with
-   `config.learner_db("<NAME>")`. The complete list today:
-   `eesti/api/deps.py` (5), `eesti/evidence.py` (`connect`, `_open` ×4),
-   `eesti/planning.py:189-190`, `eesti/mining.py:86`, `eesti/api/practice.py:452`,
-   `eesti/api/state.py` (`_state_paths` and line 312), `eesti/app.py`
-   (`_events_seq`). Leave `eesti/recovery.py` and `eesti/cli/*` on the owner's
-   attributes (they run outside a request). Re-grep for `_DB` before finishing.
+2. **Path resolution.** Request code resolves learner state through
+   `config.learner_db("<NAME>")`. Recovery and CLI commands use the owner's
+   paths because they run outside a request.
 3. **Back channel per learner** (`eesti/api/state.py`): the snapshot, event and
-   reminder routes keep requiring `STATE_TOKEN` and now serve the caller's
+   reminder routes require `STATE_TOKEN` and serve the caller's
    permanent scope, because the calling Durable Object sends that learner's
    scope headers. They refuse guest scope (403). `/api/state/import` still
    refuses a store that already has rows, per learner. `/api/content/*` and
    `/api/progress/reset` stay owner-only.
 4. **Evidence** (`eesti/evidence.py`): `learner()` returns
-   `identity.current().learner` (keep `EESTI_LEARNER` as the owner override for
-   the CLI). In `record`, a guest log without the backfill marker gets the
+   `identity.current().learner`; `EESTI_LEARNER` remains the owner override for
+   the CLI. In `record`, a guest log without the backfill marker gets the
    marker written, never a `NotRestored`; a learner's log behaves like the
    owner's (only its restore may start it). `settle` records `joined` once for a
-   `learner` scope whose log has none. Add `profile` to `_register_all`.
+   `learner` scope whose log has none. `_register_all` includes `profile`.
 5. **Allowances** (`eesti/providers/budget.py`, `breaker.py`): permanent scopes
    bind to the owner's `progress.db` (one household allowance, today's caps);
    guest scope binds to `config.guest_shared_db()` with `GUEST_CAPS` =
@@ -72,10 +66,9 @@ browser / agent ─► Worker (Access as today)
    the caller's own store. `/api/reminders/settings` is refused to guests only.
 7. **Profile routes** (`eesti/api/profile.py`, registered in
    `eesti.api.ROUTERS`): `GET /api/me`, `POST /api/me`, `POST /api/me/reset`,
-   `POST /api/me/restore`, `POST /api/guest/reset`. Document them in
-   `docs/architecture.md`.
-8. **New learner directory.** `config.LEARNERS_DIR/<id>/` is created on the
-   first write, like the owner's files; on Cloud Run it is ephemeral and the
+   `POST /api/me/restore`, `POST /api/guest/reset`.
+8. **Learner directories.** `config.LEARNERS_DIR/<id>/` is created on first
+   access, like the owner's files; on Cloud Run it is ephemeral and the
    learner's Durable Object restores it.
 
 Everyone sees all material: no `public_only` gating by scope.
@@ -92,7 +85,7 @@ owner-only account-removal routes are outside this FastAPI inventory.
 | Class | owner | learner | guest | Routes |
 |---|---|---|---|---|
 | Back channel (`STATE_TOKEN`; 404 at Worker) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/reminders` |
-| Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset` |
+| Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset`, `/api/state/remove-account` |
 | Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
 | Permanent accounts only | yes | yes | 403 | `/api/me/reset`, `/api/me/restore`, `/api/reminders/settings` |
@@ -112,7 +105,7 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
 `extraHTTPHeaders`); a browser without it gets a cookie. Start a run with
 `POST /api/guest/reset` for a clean slate.
 
-## Worker changes
+## Worker
 
 `deploy/worker.ts`, with the account logic in `deploy/accounts.ts`.
 
@@ -120,7 +113,8 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
    `singleton`, table `accounts(id, email UNIQUE, salt, hash, created, failures,
    locked_until)`):
    - `POST /api/auth/signup {email, password}`: email normalised to lower case
-     and checked for shape; password ≥ 10 characters; refused (409, Russian
+     and checked for shape and a 254-character maximum; passwords are 10–1024
+     characters; refused (409, Russian
      message) only when the email is already taken. Sign-up remains open with
      no account limit. The first account gets id `owner`; every later account
      gets `l-` + 16 hex from `crypto.getRandomValues`. Sets the session and
@@ -131,8 +125,10 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
    - `POST /api/auth/logout`: clears the cookie. `GET /api/auth/me`: `{scope,
      id, email}` or `{scope: "guest"}`; with a configured secret,
      `signup_open` remains true for unlimited sign-up.
-   - `POST /api/auth/remove`: owner-only; deletes a learner account and clears
-     its Durable Object state after explicit confirmation.
+   - `POST /api/auth/remove`: owner-only; after explicit confirmation, clears
+     the learner's origin files and Durable Object state before removing the
+     account row. A failed cleanup leaves the login in place so the request can
+     be retried without orphaning data.
    - Session cookie `eesti_session`: `<id>.<expiry>.<hmac>` (HMAC-SHA-256 with
      `SESSION_SECRET`), `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age` 90 days.
      Without `SESSION_SECRET` the auth routes answer 503 and every request is the
@@ -153,14 +149,12 @@ Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
 5. **Speech.** `transcribe` forwards the caller's scope headers to
    `/api/transcribe/text` and pulls into the caller's object.
 6. **Cron.** `scheduled` reminds `singleton` and every learner account.
-7. **`BACK_CHANNEL`** unchanged: 404 from outside.
-
-Local check: `wrangler dev` with a local `SESSION_SECRET`: sign up twice, sign
-out, and confirm owner, learner and guest each land in their own files.
+7. **Back channel.** Every origin route guarded by `STATE_TOKEN` returns 404
+   through the public Worker path.
 
 ### Deploy and operator steps
 
-- New Worker secret `SESSION_SECRET` (random, 32+ bytes).
+- Worker secret `SESSION_SECRET` is random, 32+ bytes.
   `.github/workflows/deploy.yml` pushes the secret like the others and warns
   (does not fail) when it is missing.
 - First use, in `docs/deploy.md` with no values: the owner opens Profiil and

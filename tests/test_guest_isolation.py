@@ -181,6 +181,46 @@ def test_guest_reset_empties_the_sandbox_and_refuses_the_owner(client):
     assert owner.status_code == 403
 
 
+def test_account_removal_deletes_only_the_named_learner_directory(
+        client, monkeypatch, tmp_path):
+    root = tmp_path / "learners"
+    target = root / "l-0123456789abcdef"
+    neighbour = root / "l-fedcba9876543210"
+    target.mkdir(parents=True)
+    neighbour.mkdir()
+    (target / "progress.db").write_text("private", encoding="utf-8")
+    (neighbour / "progress.db").write_text("keep", encoding="utf-8")
+    monkeypatch.setattr(config, "LEARNERS_DIR", str(root))
+    monkeypatch.setenv("STATE_TOKEN", "state-secret")
+
+    response = client.post(
+        "/api/state/remove-account",
+        headers={"x-state-token": "state-secret"},
+        json={"id": "l-0123456789abcdef"},
+    )
+    assert response.status_code == 200
+    assert not target.exists()
+    assert (neighbour / "progress.db").read_text(encoding="utf-8") == "keep"
+
+    malformed = client.post(
+        "/api/state/remove-account",
+        headers={"x-state-token": "state-secret"},
+        json={"id": "../owner"},
+    )
+    assert malformed.status_code == 400
+    refused = client.post(
+        "/api/state/remove-account",
+        headers={
+            "x-state-token": "state-secret",
+            "x-eesti-scope": "learner",
+            "x-eesti-learner": "l-fedcba9876543210",
+        },
+        json={"id": "l-fedcba9876543210"},
+    )
+    assert refused.status_code == 403
+    assert neighbour.exists()
+
+
 def test_progress_reset_refuses_guests_without_changing_their_sandbox(client):
     _answer(client, GUEST)
     response = client.post("/api/me/reset", headers=GUEST, json={})

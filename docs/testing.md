@@ -10,7 +10,7 @@ runtimes; other tests exercise behavior instead of checking CSS or doc counts.
 
 | Suite | Command | Time | Runs in CI |
 |---|---|---|---|
-| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~15 s | yes — `tests.yml` |
+| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~20–25 s | yes — `tests.yml` |
 | **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | yes — `journeys` job; reading journeys skip without the corpus |
 | **Browser, full matrix** | same, with `--all-browsers` | longer than the default pairings | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (Workers AI), manual |
@@ -96,8 +96,9 @@ supplied export is replayable, not that every remote event reached the export.
 ## Not covered
 
 - Speaking end to end (microphone, Workers AI); only the panel is exercised.
-- Production authentication: local Worker account flows are exercised with
-  `wrangler dev`; the deployed app is checked with `smoke`, never by signing up
-  through production during tests.
+- Production authentication: account helpers run under Node and browser
+  journeys use a Worker-shaped response boundary. The actual Worker runtime is
+  checked separately with `wrangler dev` and the deployed app with `smoke`;
+  tests never create an account in production.
 - Notion push with a real token; the LLM branch of `/api/check` locally.
 - Audio actually heard, FSRS spacing over real time, Firefox, screen readers.

@@ -7,6 +7,7 @@ so tests and callers can redirect it (`.claude/rules/python.md`).
 from __future__ import annotations
 
 import secrets
+import sqlite3
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -103,6 +104,19 @@ def owner_scope() -> None:
                             detail="Эта операция доступна только владельцу приложения.")
 
 
+def allowance_db() -> sqlite3.Connection:
+    """Open the allowance store for the current request scope.
+
+    Permanent accounts share the owner's snapshotted store. Guest sandboxes
+    share a smaller, ephemeral store that is never copied to a Durable Object.
+    """
+    from .. import config
+    from ..identity import current
+
+    path = config.guest_shared_db() if current().is_guest else config.PROGRESS_DB
+    return sqlite3.connect(path)
+
+
 def _bind_breaker() -> None:
     """Point the provider breaker at the learner's database.
 
@@ -110,18 +124,7 @@ def _bind_breaker() -> None:
     snapshot. An opener is registered, so no path is resolved until the breaker
     first has something to record.
     """
-    from .. import config
-    from ..identity import current
-    from ..progress import connect as progress_connect
     from ..providers import breaker
-
-    def allowance_db():
-        # Permanent learners share the household allowance in the owner's
-        # snapshotted progress database; all guest sandboxes share a smaller
-        # allowance store that is never copied to a Durable Object.
-        path = (config.guest_shared_db() if current().is_guest
-                else config.PROGRESS_DB)
-        return progress_connect(path)
 
     breaker.bind_later(progress_db)
     budget.bind_later(allowance_db)

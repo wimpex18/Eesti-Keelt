@@ -75,10 +75,10 @@ To remove a learner account and permanently delete its progress:
    }).then(r => r.json())
    ```
 
-   The Worker requires the owner session, removes the account row, and clears
-   the learner Durable Object's account data, events, snapshots and
-   subscriptions. This cannot be undone. If cleanup returns 503, retry with the
-   same id; sign-in was already disabled, and the retry finishes the cleanup.
+   The Worker requires the owner session, clears the learner's current origin
+   files and Durable Object data (events, snapshots and subscriptions), then
+   removes the account row. This cannot be undone. If cleanup returns 503, the
+   account remains available; retry with the same id.
 
 ## Learner state across cold starts
 

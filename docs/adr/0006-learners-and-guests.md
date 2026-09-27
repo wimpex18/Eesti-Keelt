@@ -26,9 +26,11 @@ system is separate.
    email, password hash, created) live in the `singleton` Durable Object's SQL
    store, so they are permanent and never on Cloud Run's ephemeral disk. The
    Worker answers the account routes itself, as it does `/api/push/*`.
-   Passwords are PBKDF2-SHA-256 (WebCrypto, 100 000 iterations, per-account
-   salt). The session is an `HttpOnly`, `Secure`, `SameSite=Lax` cookie holding
-   the account id and expiry, signed with `SESSION_SECRET`; it lasts 90 days.
+   Passwords are 10–1024 characters and use PBKDF2-SHA-256 (WebCrypto, 100 000
+   iterations, per-account salt); email addresses are limited to 254
+   characters. The session is an `HttpOnly`, `Secure`, `SameSite=Lax` cookie
+   holding the account id and expiry, signed with `SESSION_SECRET`; it lasts
+   90 days.
 2. **The first account is the owner.** It inherits everything recorded before
    accounts existed. Every later account is a `learner` with an id `l-` plus 16
    hex digits. Sign-up has no account-count limit; people can create accounts
@@ -76,15 +78,16 @@ system is separate.
 ## Residual risks
 
 - **No self-service password reset.** The operator uses the singleton account
-  store to replace the password hash; removing an account is a separate action
-  from deleting its learner Durable Object and files (`docs/deploy.md`).
+  store to replace the password hash. Owner-operated account removal clears the
+  learner's origin files and Durable Object before removing the account row
+  (`docs/deploy.md`).
 - **Order matters once.** Whoever signs up first becomes the owner and inherits
   the existing progress: the owner must sign up before anyone else.
 - **Sign-up stays open behind Access.** Anyone admitted by the existing Access
   policy can create an account; the user accepts this so they can create as many
   test accounts as needed.
-- **Password strength** is a minimum length of 10. Failed sign-ins receive a
-  per-account delay after the fifth attempt.
+- **Password strength** is a length of 10–1024 characters. Failed sign-ins
+  receive a per-account delay after the fifth attempt.
 - **One process for everyone.** A heavy test run slows all learners; one
   household allowance can be spent by one account.
 - **Past test activity stays in the owner's log.** New guest activity is

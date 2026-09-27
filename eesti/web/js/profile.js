@@ -4,7 +4,7 @@ import {$, api, esc, ruCount} from "./core.js";
 import {retryableError, rhythmHtml, sealsHtml} from "./chrome.js";
 
 let currentMe = null;
-let authInfo = {scope: "owner", signup_open: false};
+let authInfo = {scope: "owner", signup_open: false, available: false};
 let sealLevel = "A1";
 let authView = "login";
 let resetNotice = "";
@@ -15,8 +15,10 @@ function date(value) {
   if (!value) return '<span lang="et">Veel mitte <span class="ru" lang="ru">пока нет</span></span>';
   const parsed = new Date(value);
   return Number.isNaN(parsed.valueOf())
-    ? "Veel mitte"
-    : parsed.toLocaleDateString("ru", {day: "numeric", month: "long", year: "numeric"});
+    ? '<span lang="et">Veel mitte <span class="ru" lang="ru">пока нет</span></span>'
+    : `<span lang="ru">${esc(parsed.toLocaleDateString("ru", {
+      day: "numeric", month: "long", year: "numeric",
+    }))}</span>`;
 }
 
 function scopeName(scope) {
@@ -43,7 +45,7 @@ function profileRows(me) {
   const checkpointText = (level.checkpoints || []).join(", ") || "пока нет";
   const target = goal
     ? `${esc(goal.level || goal.target || "")} · ${date(goal.sitting)}`
-    : '<a href="#exam">Выбрать цель в обзоре Eksam</a>';
+    : '<a href="#exam" lang="et">Vali eesmärk <span class="ru" lang="ru">выбрать цель в обзоре Eksam</span></a>';
   let controls = "";
   if (me.scope === "guest") {
     controls = `<div class="profile-reset-actions">
@@ -54,7 +56,7 @@ function profileRows(me) {
         <button class="ghost" type="button" id="guestResetCancel" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
       </div>
     </div>`;
-  } else if (!needsFirstAccount()) {
+  } else if (authInfo.available && !needsFirstAccount()) {
     controls = '<button class="ghost" type="button" id="logoutBtn" lang="et">Logi välja <span class="ru" lang="ru">выйти</span></button>';
   }
   const nameValue = esc(me.name || "");
@@ -100,7 +102,7 @@ function authHtml() {
       <label lang="et" for="authEmail">E-post <i class="ru" lang="ru">эл. почта</i></label>
       <input id="authEmail" name="email" type="email" autocomplete="email" required>
       <label lang="et" for="authPassword">Parool <i class="ru" lang="ru">пароль</i></label>
-      <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" required>
+      <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" maxlength="1024" required>
       <button class="go" type="submit" lang="et">${signup ? "Loo konto" : "Logi sisse"}<span class="ru" lang="ru">${signup ? "создать аккаунт" : "войти"}</span></button>
       <p id="authError" class="profile-error" role="alert" hidden></p>
     </form>
@@ -189,8 +191,12 @@ function restoreHtml(me) {
 }
 
 async function readAuth() {
-  try { return await api("/api/auth/me").then(r => r.json()); }
-  catch { return {scope: currentMe?.scope || "owner", signup_open: false}; }
+  try {
+    const info = await api("/api/auth/me").then(r => r.json());
+    return {...info, available: true};
+  } catch {
+    return {scope: currentMe?.scope || "owner", signup_open: false, available: false};
+  }
 }
 
 export async function loadProfile() {
@@ -219,6 +225,7 @@ function bindProfile(out) {
       tab.setAttribute("aria-selected", String(active));
     });
     select(tabs.find(tab => tab.getAttribute("aria-selected") === "true") || tabs[0]);
+    tabs.forEach(tab => tab.addEventListener("click", () => select(tab)));
     list.addEventListener("keydown", event => {
       if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
       const here = tabs.indexOf(document.activeElement);
@@ -275,9 +282,16 @@ function bindProfile(out) {
       await api(authRoute, {
         email: values.email, password: values.password,
       });
-      if (form.dataset.mode === "signup") await api("/api/me", {name: values.name});
+      let profileError = "";
+      if (form.dataset.mode === "signup") {
+        try { await api("/api/me", {name: values.name}); }
+        catch (err) { profileError = err.message; }
+      }
       authView = "login";
       await Promise.all([loadProfile(), paintScope()]);
+      if (profileError) {
+        showError(out, `Аккаунт создан, но имя не сохранено. ${profileError}`);
+      }
     } catch (err) {
       error.textContent = err.message;
       error.hidden = false;
@@ -303,6 +317,7 @@ function bindProfile(out) {
     trigger: $("#guestReset"), confirm: $("#guestResetYes"),
     cancel: $("#guestResetCancel"), box: $("#guestResetConfirm"),
     endpoint: "/api/guest/reset", message: "Гостевая песочница очищена.", guest: true,
+    successFocus: "#guestReset",
   });
 }
 
@@ -356,13 +371,14 @@ export async function paintScope() {
   const box = $("#scopeNotice");
   if (!box) return;
   try {
-    authInfo = await api("/api/auth/me").then(r => r.json());
+    const info = await api("/api/auth/me").then(r => r.json());
+    authInfo = {...info, available: true};
   } catch {
     if (!currentMe) {
       try { currentMe = await api("/api/me").then(r => r.json()); }
       catch { return; }
     }
-    authInfo = {scope: currentMe.scope, signup_open: false};
+    authInfo = {scope: currentMe.scope, signup_open: false, available: false};
   }
   const guest = authInfo.scope === "guest";
   box.hidden = !guest;

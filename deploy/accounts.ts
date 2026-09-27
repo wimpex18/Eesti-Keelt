@@ -6,13 +6,15 @@
  * helpers and turns a valid session into the scope headers the origin trusts
  * (`eesti/identity.py`). Not signed in is a guest.
  *
- * `docs/identity.md` ("Worker changes") is the specification.
+ * `docs/identity.md` ("Worker") is the specification.
  */
 
 export const SESSION_COOKIE = "eesti_session";
 export const SESSION_DAYS = 90;
 export const PBKDF2_ITERATIONS = 100_000;
 export const PASSWORD_MIN = 10;
+export const PASSWORD_MAX = 1024;
+export const EMAIL_MAX = 254;
 
 export interface Account {
   /** `owner` for the first account, `l-` + 16 hex digits after that. */
@@ -29,7 +31,8 @@ export type Who =
 /** Lower-case, trimmed; null when it does not look like an email. */
 export function normaliseEmail(raw: string): string | null {
   const email = raw.trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+  return email.length <= EMAIL_MAX && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ? email : null;
 }
 
 /** `l-` + 16 hex digits from `crypto.getRandomValues`; `identity.learner_id` accepts it. */
@@ -134,6 +137,9 @@ export async function createAccount(
   if (password.length < PASSWORD_MIN) {
     throw new AccountError(400, `Пароль должен содержать не менее ${PASSWORD_MIN} символов.`);
   }
+  if (password.length > PASSWORD_MAX) {
+    throw new AccountError(400, `Пароль должен содержать не более ${PASSWORD_MAX} символов.`);
+  }
   ensureAccounts(sql);
   const saltBytes = crypto.getRandomValues(new Uint8Array(16));
   const salt = toHex(saltBytes);
@@ -159,6 +165,9 @@ export async function createAccount(
 export async function authenticate(
   sql: SqlStorage, emailRaw: string, password: string,
 ): Promise<Account> {
+  if (password.length > PASSWORD_MAX) {
+    throw new AccountError(400, `Пароль должен содержать не более ${PASSWORD_MAX} символов.`);
+  }
   const email = normaliseEmail(emailRaw);
   ensureAccounts(sql);
   const row = email

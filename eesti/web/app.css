@@ -516,6 +516,7 @@ label select{min-width:0;max-width:100%}
 .profile-sub{flex-basis:100%;font-size:var(--fs-note);color:var(--muted)}
 .profile-scope-description{flex-basis:auto}
 .profile-sub a{display:inline-flex;align-items:center;min-height:44px}
+.profile-sub a .ru{margin:0 0 0 4px}
 .profile-name-form{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:var(--s2)}
 .profile-name-form[hidden]{display:none}
 .profile-name-form label{grid-column:1/-1;font-weight:650;color:var(--ink-2)}

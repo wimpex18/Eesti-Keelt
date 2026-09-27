@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import hmac
 import os
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -71,6 +72,10 @@ class ResetRequest(BaseModel):
     everything: bool = False
 
 
+class AccountRemovalRequest(BaseModel):
+    id: str = Field(min_length=1)
+
+
 @router.post("/api/progress/reset")
 def progress_reset(req: ResetRequest, request: Request) -> dict:
     """Forget a topic's attempts (operator action, guarded by `STATE_TOKEN`).
@@ -87,6 +92,26 @@ def progress_reset(req: ResetRequest, request: Request) -> dict:
             detail="Pass a topic, or everything=true to clear all of it.",
         )
     return reset(progress_db(), req.topic)
+
+
+@router.post("/api/state/remove-account")
+def remove_account_files(req: AccountRemovalRequest, request: Request) -> dict:
+    """Remove one learner's ephemeral origin files during account deletion."""
+    _require_state_token(request)
+    _require_owner()
+    from .. import config
+    from ..identity import learner_id
+
+    account_id = learner_id(req.id)
+    if account_id is None:
+        raise HTTPException(status_code=400, detail="Некорректный ID ученика.")
+    directory = Path(config.LEARNERS_DIR) / account_id
+    if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+        raise HTTPException(status_code=409,
+                            detail="Путь данных ученика имеет неожиданный вид.")
+    if directory.is_dir():
+        shutil.rmtree(directory)
+    return {"id": account_id, "removed": not directory.exists()}
 
 
 @router.get("/api/state/export")

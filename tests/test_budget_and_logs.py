@@ -78,8 +78,11 @@ class TestTheLogLines:
             "eesti", logging.INFO, __file__, 1, "request", (), None))
         assert json.loads(line)["msg"] == "request"
 
-    def test_learner_content_is_dropped_not_trusted(self, caplog):
+    def test_learner_content_is_dropped_not_trusted(self, caplog, monkeypatch):
         logs.setup()
+        # The production logger writes directly to stdout and deliberately does
+        # not propagate. Let pytest's capture handler see this one test record.
+        monkeypatch.setattr(logging.getLogger(logs.LOGGER), "propagate", True)
         with caplog.at_level(logging.INFO, logger=logs.LOGGER):
             logs.event("check", path="/api/check", text="Ma elan Tallinnas",
                        transcript="ma ütlesin midagi", status=200)

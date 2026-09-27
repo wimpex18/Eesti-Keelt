@@ -89,10 +89,10 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 4. Tests run offline: `tests/test_offline.py` blocks sockets, and `conftest.py`
    fails any outbound HTTP outside the `TestAgainstTheLive…` classes.
 
-## Redesign boundary and recovery
+## UI boundary and recovery
 
-The final scope and deferred decisions are in
-`docs/adr/0005-architecture-contracts.md`. Presentation consumes domain APIs;
+The architectural decisions are in `docs/adr/0005-architecture-contracts.md`.
+Presentation consumes domain APIs;
 keep signed item fields, event IDs, topic IDs and advisory/provenance labels
 stable when replacing screens. `planning.Block.action` contains tab names and
 needs an explicit UI mapping if navigation changes.

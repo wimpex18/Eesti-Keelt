@@ -1,15 +1,18 @@
 # ADR-0005: Architecture contracts
 
-**Status:** Accepted. **Scope:** one learner, one origin, no paid inference host.
+**Status:** Accepted. **Scope:** per-account learner state, one origin, no paid
+inference host.
 
 ## Decision
 
 Keep the modular FastAPI application, SQLite event log and projections, the
-Cloudflare Access/Worker front door and the singleton Durable Object. Speech
-goes to the owner's home service first (TalTech's Estonian recogniser on the
-owner's Mac, reached by a Workers VPC Service over a Cloudflare Tunnel) and to
-Workers AI Whisper when it does not answer; the home machine is the owner's
-own, not a paid host. Preserve deterministic planning, grading and FSRS. Use
+Cloudflare Access/Worker front door and one Durable Object per permanent
+account; the owner's `singleton` object also holds the account registry and
+shared corpus. Speech goes to the owner's home service first (TalTech's
+Estonian recogniser on the owner's Mac, reached by a Workers VPC Service over a
+Cloudflare Tunnel) and to Workers AI Whisper when it does not answer; the home
+machine is the owner's own, not a paid host. Preserve deterministic planning,
+grading and FSRS. Use
 the measured Workers AI explaining lane; unavailable GEC and low-quality
 normalization/LLM candidates are explicit evaluation tools only. No framework
 migration, message broker, vector store or streaming service is needed.
@@ -35,21 +38,17 @@ Whisper stays the fallback, and more verified clips can still reverse it.
 | Reminders | Keep opt-in, evidence-driven facts, quiet hours, deduplication and encrypted Web Push. Deployed VAPID bindings and cron are verified; browser delivery remains unmeasured. Cron restores state before deciding. No motivational scoring, email service or retained conversation transcript is needed. |
 | Privacy/recovery | Exported events contain writing and speech transcripts. `cli verify-backup` replays an export twice into isolated stores and rejects unsupported events. Manual private off-account exports remain the independent backup; live replication is not a backup. See `docs/deploy.md`. |
 | Deployment | Keep one Cloud Run instance and one process, no traffic splitting between independent writable revisions. Asynchronous Worker event copying is not a durable acknowledgement: a crash before copying may lose acknowledged work. Scale-out requires moving the write authority, not increasing the instance limit. |
-| Testing | Offline domain tests and replay tests, separate live provider evals, local browser journeys for both viewports. Morphology gold validation remains the dependency-upgrade gate. The redesign must exercise journeys, offline replay and restored state. |
+| Testing | Offline domain tests and replay tests, separate live provider evals, and browser journeys in CI and locally for both viewports. Morphology gold validation remains the dependency-upgrade gate. UI changes must exercise journeys, offline replay and restored state. |
 
 ## Deferred items, decided individually
 
-- **Per-identity Durable Objects:** deferred. The origin itself is single-tenant;
-  changing only the object name would falsely imply isolation. Revisit only with
-  a real second learner and end-to-end identity-scoped storage. There is one
-  now: ADR-0006 supersedes this item.
-- **`DELETE /api/me`:** deferred as a self-service feature, not replaced with
-  progress reset. Erasure must coordinate the DO log/snapshots/push subscriptions,
-  origin, browser queue, exports and externally sent Notion rows. A partial
-  endpoint would resurrect data on restore. The operator procedure in
-  `docs/deploy.md` defines the scope; no deletion is performed by this work.
+- **Self-service erasure:** progress reset is not erasure. Owner-operated
+  account removal coordinates the registry, origin files and the learner
+  Durable Object; self-service erasure would also have to cover the browser
+  queue, exports and externally sent Notion rows. The current operator
+  procedure is in `docs/deploy.md`.
 - **Nightly independent backup:** deferred for this owner-operated app. Use a
-  private export before migrations/redesign and periodically during study,
+  private export before structural changes and periodically during study,
   validate it, and keep it outside the hosting account. This accepts loss since
   the last manual export if the hosting account is lost. Add scheduled encrypted
   backup only when that recovery-point tradeoff is unacceptable; do not put
@@ -68,13 +67,9 @@ Whisper stays the fallback, and more verified clips can still reverse it.
   needs validated criteria, and linguistic content needs cited answer keys.
 - **Conversation retention:** keep only occurrence/length. Retaining turns adds
   personal data without a current reader in readiness or planning.
-- **Browser journeys in CI:** retain the local release gate for now; a clean
-  fixture-only browser job is useful redesign work, not a reason to add private
-  corpora to CI. Current CI does not certify browser behaviour.
+## UI boundary
 
-## Redesign constraints
-
-The redesign may replace presentation without replacing domain functions. Keep
+Presentation changes may replace screens without replacing domain functions. Keep
 route contracts, stable IDs, provenance/advisory/degraded fields, signed tokens,
 and offline queue IDs. `planning.Block.action` currently includes tab names;
 map those at the UI boundary or migrate them together. DOM IDs and cross-module
@@ -84,7 +79,7 @@ frontend store. Cached pages may use older API contracts during rollout.
 Progress reset is not erasure. Replay skips unknown events on normal rollback;
 strict backup verification refuses them. A malformed event must never be silently
 reported as a fully verified backup. Do not introduce a second persistence source
-for questions, goals, reminders or fitted parameters during redesign.
+for questions, goals, reminders or fitted parameters during UI changes.
 
 ## Source of truth
 

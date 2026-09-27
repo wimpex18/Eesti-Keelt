@@ -38,6 +38,14 @@ def test_auth_routes_terminate_at_the_worker():
         assert f'"/api/auth/{route}"' in WORKER
 
 
+def test_account_removal_cleans_all_state_before_disabling_login():
+    removal = WORKER[WORKER.index('if (url.pathname === "/api/auth/remove"'):]
+    origin = removal.index('"/api/state/remove-account"')
+    durable_object = removal.index("clearAccountData()")
+    registry = removal.index("deleteAccount(body.id)")
+    assert origin < durable_object < registry
+
+
 def test_guests_have_no_durable_object_and_cannot_use_push():
     object_picker = _block("async function stubFor(")
     assert 'who.scope === "guest"' in object_picker

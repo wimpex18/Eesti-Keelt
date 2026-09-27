@@ -978,16 +978,34 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
         { status: 400 });
     }
     const singleton = singletonStub(env);
-    const account = await singleton.deleteAccount(body.id);
+    const account = await singleton.accountById(body.id);
+    try {
+      const removed = await fetch(new URL("/api/state/remove-account", env.CLOUD_RUN_URL), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-proxy-token": env.PROXY_TOKEN,
+          "x-state-token": env.STATE_TOKEN,
+          "x-eesti-scope": "owner",
+        },
+        body: JSON.stringify({ id: body.id }),
+      });
+      if (!removed.ok) throw new Error(`origin cleanup returned ${removed.status}`);
+    } catch {
+      return Response.json({
+        detail: "Удаление не завершено: файлы приложения недоступны. Повтори запрос.",
+      }, { status: 503 });
+    }
     try {
       const learner = env.LEARNER_STATE.get(
         env.LEARNER_STATE.idFromName("learner:" + body.id));
       await learner.clearAccountData();
     } catch {
       return Response.json({
-        detail: "Вход удалён, но очистить хранилище не удалось. Повтори запрос с тем же ID.",
+        detail: "Удаление не завершено: хранилище недоступно. Повтори запрос с тем же ID.",
       }, { status: 503 });
     }
+    await singleton.deleteAccount(body.id);
     return Response.json({ id: body.id, removed: Boolean(account), progress_deleted: true });
   }
   if ((url.pathname === "/api/auth/signup" || url.pathname === "/api/auth/login")
@@ -1076,6 +1094,7 @@ export default {
       "/api/events/import",
       "/api/state/export",
       "/api/state/import",
+      "/api/state/remove-account",
       "/api/content/export",
       "/api/content/import",
       "/api/progress/reset",

@@ -400,8 +400,16 @@ class TestProfile:
         page.click("#guestReset")
         page.click("#guestResetYes")
         page.wait_for_function(
-            "() => document.querySelector('#profileOut .profile-rows') !== null")
+            "() => document.querySelector('#guestReset') === document.activeElement")
         assert page.locator("#scopeNotice").is_visible()
+        assert page.locator("#guestReset").evaluate("el => el === document.activeElement")
+
+    def test_profile_level_tabs_move_selection_and_keyboard_focus_together(self, page):
+        self._open(page)
+        page.click('[data-seal-level="B1"]')
+        assert page.locator('[data-seal-level="B1"]').get_attribute("aria-selected") == "true"
+        assert page.locator('[data-seal-level="B1"]').get_attribute("tabindex") == "0"
+        assert page.locator('[data-seal-level="A1"]').get_attribute("tabindex") == "-1"
 
     def test_signup_signin_and_signout(self, page):
         """Exercise the auth views with a local Worker-shaped response boundary."""

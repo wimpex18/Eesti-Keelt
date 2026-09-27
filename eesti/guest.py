@@ -4,7 +4,7 @@ Each sandbox is `config.GUEST_DIR/<name>/` with its own five learner files.
 Nothing here is ever snapshotted or copied to the Durable Object, and a cold
 start on Cloud Run removes all of it, which is intended.
 
-SKELETON. `docs/identity.md` ("Guest sandboxes") is the specification.
+`docs/identity.md` ("Guest sandboxes") is the specification.
 """
 
 from __future__ import annotations

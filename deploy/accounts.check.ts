@@ -8,6 +8,7 @@ import {
   deleteAccount,
   hashPassword,
   normaliseEmail,
+  PASSWORD_MAX,
   readSession,
   signSession,
 } from "./accounts.ts";
@@ -77,6 +78,7 @@ async function expectStatus(action: () => unknown | Promise<unknown>, status: nu
 async function main() {
   assert(normaliseEmail(" Person@Example.com ") === "person@example.com", "email normalization failed");
   assert(normaliseEmail("not-an-email") === null, "invalid email accepted");
+  assert(normaliseEmail(`${"a".repeat(250)}@example.com`) === null, "oversized email accepted");
   const sql = new MemorySql() as unknown as SqlStorage;
   const owner = await createAccount(sql, "Owner@example.com", "long-password-1");
   assert(owner.id === "owner" && owner.email === "owner@example.com", "first account is not owner");
@@ -92,6 +94,8 @@ async function main() {
 
   await expectStatus(() => createAccount(sql, "bad", "long-password-1"), 400);
   await expectStatus(() => createAccount(sql, "new@example.com", "short"), 400);
+  await expectStatus(() => createAccount(sql, "new@example.com", "x".repeat(PASSWORD_MAX + 1)), 400);
+  await expectStatus(() => authenticate(sql, owner.email, "x".repeat(PASSWORD_MAX + 1)), 400);
   await expectStatus(() => createAccount(sql, owner.email, "another-password"), 409);
 
   const good = await authenticate(sql, "PERSON0@example.com", "long-password-2");
