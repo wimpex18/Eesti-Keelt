@@ -67,7 +67,7 @@ person's progress.
    sandboxes.
 2. **Learners.** Every test in `tests/test_learners.py` is implemented and
    passes: two permanent learners never see each other's progress; each has
-   her own back channel, restore and `x-events-seq`; a new learner gets one
+   their own back channel, restore and `x-events-seq`; a new learner gets one
    `joined` event; owner-only actions are refused; the allowance is shared.
 3. **Worker.** `deploy/worker.ts` per `docs/identity.md` "Worker changes":
    strips caller-sent `x-eesti-scope`/`x-eesti-email`; derives the scope from
@@ -99,8 +99,8 @@ person's progress.
 7. **Deploy path.** `.github/workflows/deploy.yml` pushes the `OWNER_EMAIL`
    and `LEARNER_EMAILS` Worker secrets and warns (does not fail) when
    `OWNER_EMAIL` is missing; `docs/deploy.md` has, without any value, how to set
-   them, how to add a learner (Access policy + `LEARNER_EMAILS`, she signs in
-   with the Access PIN and names herself on Profiil), how to add a testing
+   them, how to add a learner (Access policy + `LEARNER_EMAILS`, they sign
+   in with the Access PIN and set their name on Profiil), how to add a testing
    account or service token, and how to erase one learner.
 8. **Docs.** `docs/architecture.md` (request path, API and domain module
    tables), `docs/status.md` (replace the "Tests and agents write into the
