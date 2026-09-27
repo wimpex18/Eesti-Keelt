@@ -39,7 +39,7 @@ browser ─► Cloudflare Worker (Access, account sessions, PROXY_TOKEN, snapsho
 | `api/grammar.py` | sentence check, word lookup and word card |
 | `api/library.py`, `api/speech.py`, `api/exam.py` | material, sound (TTS/ASR/dictation/speaking), readiness |
 | `api/notion.py`, `api/state.py`, `api/sources.py` | error log, snapshot export/import, licence credits |
-| `api/profile.py` | profile summary, name event, account progress reset and guest sandbox reset |
+| `api/profile.py` | profile summary, name event, account progress reset/restore and guest sandbox reset |
 
 ## Domain modules
 

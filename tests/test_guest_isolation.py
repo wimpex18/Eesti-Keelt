@@ -185,6 +185,8 @@ def test_progress_reset_refuses_guests_without_changing_their_sandbox(client):
     _answer(client, GUEST)
     response = client.post("/api/me/reset", headers=GUEST, json={})
     assert response.status_code == 403
+    restore = client.post("/api/me/restore", headers=GUEST, json={})
+    assert restore.status_code == 403
     assert client.get("/api/me", headers=GUEST).json()["totals"]["attempts"] == 1
 
 

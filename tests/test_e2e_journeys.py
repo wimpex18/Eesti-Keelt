@@ -352,6 +352,30 @@ class TestProfile:
         open_tab(page, "exam", "profile")
         page.wait_for_selector("#profileOut .profile-rows", timeout=10000)
 
+    def test_new_profile_offers_learning_practice_and_exam_shortcuts(self, page):
+        self._open(page)
+        assert page.locator("#profileStartTitle").is_visible()
+        assert page.locator("#profileStartPath").get_by_text("Õpi rajal").is_visible()
+        assert page.locator("#profileStartPractice").get_by_text("Harjuta vabalt").is_visible()
+        assert page.locator("#profileStartExam").get_by_text("Valmistu eksamiks").is_visible()
+
+        page.click("#profileStartPath")
+        page.wait_for_function("() => !document.querySelector('#tab-path').hidden")
+        assert page.locator("#tab-path").is_visible()
+        assert page.locator("#pathRada").is_visible()
+
+        self._open(page)
+        page.click("#profileStartPractice")
+        page.wait_for_function("() => !document.querySelector('#pathFree').hidden")
+        assert page.locator("#pathFree").is_visible()
+        page.select_option("#freeLevel", "B1")
+        assert page.locator("#freeLevel").input_value() == "B1"
+
+        self._open(page)
+        page.click("#profileStartExam")
+        page.wait_for_function("() => !document.querySelector('#tab-exam').hidden")
+        assert page.locator("#tab-exam").is_visible()
+
     def test_guest_profile_shows_sandbox_and_reset(self, page):
         self._open(page)
         assert page.locator("#profileOut .profile-sandbox").is_visible()
@@ -382,7 +406,7 @@ class TestProfile:
     def test_signup_signin_and_signout(self, page):
         """Exercise the auth views with a local Worker-shaped response boundary."""
         state = {"scope": "guest", "email": "", "name": "", "password": "",
-                 "resets": 0}
+                 "resets": 0, "restores": 0, "restore_available": False}
 
         def respond(route):
             request = route.request
@@ -407,7 +431,12 @@ class TestProfile:
                 route.fulfill(json={"ok": True})
             elif path == "/api/me/reset":
                 state["resets"] += 1
+                state["restore_available"] = True
                 route.fulfill(json={"reset": True, "event_id": "test-reset"})
+            elif path == "/api/me/restore":
+                state["restores"] += 1
+                state["restore_available"] = False
+                route.fulfill(json={"restored": True, "event_id": "test-restore"})
             elif path == "/api/me":
                 if request.method == "POST":
                     state["name"] = request.post_data_json.get("name", "")
@@ -416,7 +445,8 @@ class TestProfile:
                     response = route.fetch()
                     data = response.json()
                     data.update(scope=state["scope"], email=state["email"] or None,
-                                name=state["name"] or data.get("name"))
+                                name=state["name"] or data.get("name"),
+                                restore_available=state["restore_available"])
                     route.fulfill(response=response, json=data)
             else:
                 route.continue_()
@@ -424,6 +454,7 @@ class TestProfile:
         page.route("**/api/auth/**", respond)
         page.route("**/api/me", respond)
         page.route("**/api/me/reset", respond)
+        page.route("**/api/me/restore", respond)
         page.reload(wait_until="networkidle")
         self._open(page)
         assert page.locator('[data-auth-view="signup"]').count(), page.locator(
@@ -446,6 +477,17 @@ class TestProfile:
         page.wait_for_function(
             "() => document.querySelector('.profile-success')?.textContent.includes('Прогресс сброшен')")
         assert state["resets"] == 1
+        assert page.locator("#profileRestore").is_visible()
+        page.click("#profileRestore")
+        assert page.locator("#profileRestoreConfirm").is_visible()
+        page.click("#profileRestoreCancel")
+        assert state["restores"] == 0
+        page.click("#profileRestore")
+        page.click("#profileRestoreYes")
+        page.wait_for_function(
+            "() => document.querySelector('.profile-success')?.textContent.includes('Прогресс восстановлен')")
+        assert state["restores"] == 1
+        assert page.locator("#profileRestore").count() == 0
 
         page.click("#logoutBtn")
         page.wait_for_load_state("networkidle")

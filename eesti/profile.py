@@ -12,6 +12,7 @@ contract `eesti/api/profile.py` and `eesti/web/js/profile.js` use.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 
 from .evidence import Event, Stores, applies
 
@@ -22,6 +23,8 @@ PROFILE_SET = "profile-set"
 JOINED = "joined"
 #: Clears learning projections while preserving the account and its profile.
 PROGRESS_RESET = "profile-progress-reset"
+#: Replays learning history through a particular reset marker.
+PROGRESS_RESTORED = "profile-progress-restored"
 
 #: Longest name accepted, after trimming.
 NAME_MAX = 60
@@ -63,6 +66,30 @@ def _apply_progress_reset(stores: Stores, ev: Event) -> None:
                 conn.execute(f"DELETE FROM {table}")  # noqa: S608 - fixed schema names
 
 
+def reset_state(current_events: list[Event]) -> tuple[Event | None, Event | None]:
+    """Return the latest effective reset and the latest reset still restorable.
+
+    A restore event neutralizes one reset during replay and consumes all older
+    restore points. A later reset creates a new restore point.
+    """
+    restored_ids = {
+        ev.payload.get("reset_event_id") for ev in current_events
+        if ev.type == PROGRESS_RESTORED
+    }
+    restored_through = max(
+        (int(ev.payload.get("through_seq", 0)) for ev in current_events
+         if ev.type == PROGRESS_RESTORED), default=0)
+    resets = [ev for ev in current_events if ev.type == PROGRESS_RESET]
+    effective = next((ev for ev in reversed(resets) if ev.id not in restored_ids), None)
+    latest = resets[-1] if resets else None
+    restorable = latest if latest and (latest.seq or 0) > restored_through else None
+    return effective, restorable
+
+
+class NoRestorableProgress(LookupError):
+    """There is no unconsumed reset point for this account."""
+
+
 def reset_progress() -> dict:
     """Clear learning state in every projection and append a replayable marker.
 
@@ -78,6 +105,27 @@ def reset_progress() -> dict:
     finally:
         stores.close()
     return {"reset": True, "event_id": event.id}
+
+
+def restore_progress() -> dict:
+    """Restore the latest reset point, keeping any later learning events.
+
+    A later reset replaces this restore point. Restoring it does not reactivate
+    still older reset points.
+    """
+    from . import evidence
+
+    with closing(evidence.connect()) as log:
+        _, reset = reset_state(evidence.events(log))
+        if reset is None:
+            raise NoRestorableProgress("there is no progress reset to restore")
+        event = evidence.record(PROGRESS_RESTORED, {
+            "reset_event_id": reset.id,
+            "through_seq": reset.seq,
+        })
+        evidence.rebuild(log, strict=True)
+    return {"restored": True, "event_id": event.id,
+            "reset_event_id": reset.id}
 
 
 def set_name(name: str | None) -> Event:
@@ -129,6 +177,8 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
           "totals": {"attempts": int, "mastered": int, "topics": int,
                      "review_cards": int, "known_words": int},
           "rhythm": [...],                   # learner.daily_activity, as /api/status
+          "restore_available": bool,
+          "restore_at": ISO timestamp | None, # most recent available reset point
         }
 
     """
@@ -145,8 +195,7 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
     joined = next((ev for ev in current_events if ev.type == JOINED), None)
     first = next((ev for ev in current_events if ev.type != "backfill"), None)
     since = joined or first
-    reset = next((ev for ev in reversed(current_events)
-                  if ev.type == PROGRESS_RESET), None)
+    reset, restorable_reset = reset_state(current_events)
     practice = [ev for ev in current_events
                 if ev.type in learner.PRACTICE_EVENTS
                 and (reset is None or ev.seq > reset.seq)]
@@ -188,4 +237,6 @@ def summary(*, log: sqlite3.Connection, progress: sqlite3.Connection,
             "known_words": known_words,
         },
         "rhythm": rhythm,
+        "restore_available": restorable_reset is not None,
+        "restore_at": restorable_reset.ts if restorable_reset else None,
     }

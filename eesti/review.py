@@ -128,15 +128,15 @@ def parameters() -> tuple[float, ...] | None:
     derived from the learner's review history, they travel with it, and a
     rebuild replays them. `None` means the published defaults.
     """
-    from . import evidence
-    from .profile import PROGRESS_RESET
+    from . import evidence, profile
 
     try:
         with evidence.connect() as log:
+            reset, _ = profile.reset_state(evidence.events(log))
             row = log.execute(
                 "SELECT payload FROM events WHERE type = 'fsrs-parameters'"
-                " AND seq > COALESCE((SELECT MAX(seq) FROM events WHERE type = ?), 0)"
-                " ORDER BY seq DESC LIMIT 1", (PROGRESS_RESET,)).fetchone()
+                " AND seq > ? ORDER BY seq DESC LIMIT 1",
+                (reset.seq if reset else 0,)).fetchone()
     except sqlite3.Error:      # no log yet: the defaults are the right answer
         return None
     if row is None:

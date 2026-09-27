@@ -119,6 +119,7 @@ function profileHtml(me, notice = "") {
   return `${scopes}
     ${notice ? `<p class="profile-success" lang="ru" role="status" aria-live="polite">${esc(notice)}</p>` : ""}
     ${me.scope === "guest" ? `<p class="profile-sandbox" lang="ru">Гостевой прогресс хранится только во временной песочнице и будет удалён. После регистрации он не переносится.</p>` : ""}
+    ${startOptionsHtml(me)}
     ${profileRows(me)}
     <section class="profile-section">
       <h3 class="sec-head" lang="et">Märgid <i class="ru" lang="ru">значки</i></h3>
@@ -143,18 +144,48 @@ function profileHtml(me, notice = "") {
         <li>${count(totals.known_words, ["известное слово", "известных слова", "известных слов"])}</li>
       </ul>
     </section>
+    ${restoreHtml(me)}
     ${me.scope !== "guest" && !needsFirstAccount() ? `<section class="profile-section profile-reset-section">
       <h3 class="sec-head" lang="et">Lähtesta edenemine <i class="ru" lang="ru">сброс прогресса</i></h3>
-      <p class="hint profile-reset-copy" lang="ru">Занятия, контрольные, повторы и словарь будут сброшены. Аккаунт, имя и дата регистрации сохранятся.</p>
+      <p class="hint profile-reset-copy" lang="ru">Занятия, контрольные, повторы и словарь будут сброшены. Аккаунт, имя и дата регистрации сохранятся. До следующего сброса прогресс можно восстановить здесь.</p>
       <div class="profile-reset-actions">
         <button class="ghost" type="button" id="profileReset" aria-expanded="false" aria-controls="profileResetConfirm" lang="et">Lähtesta edenemine <span class="ru" lang="ru">сбросить прогресс</span></button>
         <div class="profile-reset-confirm" id="profileResetConfirm" hidden>
-          <p lang="ru">Продолжить? Сброс нельзя отменить. Записи останутся в резервном журнале, но больше не будут учитываться в прогрессе.</p>
+          <p lang="ru">После сброса прогресс можно восстановить в профиле. Новый сброс заменит эту точку восстановления.</p>
           <button class="ghost profile-reset-yes" type="button" id="profileResetYes" lang="et">Jah, lähtesta <span class="ru" lang="ru">да, сбросить</span></button>
           <button class="ghost" type="button" id="profileResetCancel" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
         </div>
       </div>
     </section>` : ""}`;
+}
+
+function startOptionsHtml(me) {
+  if ((Number(me.totals?.attempts) || 0) > 0) return "";
+  return `<section class="profile-section profile-start-section" aria-labelledby="profileStartTitle">
+    <h3 class="sec-head" id="profileStartTitle" lang="et">Alusta siit <i class="ru" lang="ru">начните здесь</i></h3>
+    <p class="hint profile-start-copy" lang="ru">Выберите, с чего начать. В «Vaba harjutus» (свободной практике) можно менять сложность A1–B1; другие разделы доступны в любой момент.</p>
+    <nav class="profile-start-actions" aria-label="Alustamine — начало">
+      <a class="ghost" id="profileStartPath" href="#path" lang="et">Õpi rajal <span class="ru" lang="ru">учиться по плану</span></a>
+      <a class="ghost" id="profileStartPractice" href="#drill" lang="et">Harjuta vabalt <span class="ru" lang="ru">свободная практика</span></a>
+      <a class="ghost" id="profileStartExam" href="#exam" lang="et">Valmistu eksamiks <span class="ru" lang="ru">подготовка к экзамену</span></a>
+    </nav>
+  </section>`;
+}
+
+function restoreHtml(me) {
+  if (me.scope === "guest" || !me.restore_available || needsFirstAccount()) return "";
+  return `<section class="profile-section profile-restore-section">
+    <h3 class="sec-head" lang="et">Taasta edenemine <i class="ru" lang="ru">восстановить прогресс</i></h3>
+    <p class="hint profile-reset-copy" lang="ru">Можно вернуть прогресс до последнего сброса. Занятия, сделанные после него, тоже сохранятся. Следующий сброс заменит эту точку восстановления.</p>
+    <div class="profile-reset-actions">
+      <button class="ghost" type="button" id="profileRestore" aria-expanded="false" aria-controls="profileRestoreConfirm" lang="et">Taasta edenemine <span class="ru" lang="ru">восстановить прогресс</span></button>
+      <div class="profile-reset-confirm" id="profileRestoreConfirm" hidden>
+        <p lang="ru">Вернуть прогресс до последнего сброса, включая занятия после него? Аккаунт и профиль останутся без изменений.</p>
+        <button class="ghost profile-restore-yes" type="button" id="profileRestoreYes" lang="et">Jah, taasta <span class="ru" lang="ru">да, восстановить</span></button>
+        <button class="ghost" type="button" id="profileRestoreCancel" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
+      </div>
+    </div>
+  </section>`;
 }
 
 async function readAuth() {
@@ -263,13 +294,20 @@ function bindProfile(out) {
     endpoint: "/api/me/reset", message: "Прогресс сброшен. Аккаунт и профиль сохранены.",
   });
   bindReset({
+    trigger: $("#profileRestore"), confirm: $("#profileRestoreYes"),
+    cancel: $("#profileRestoreCancel"), box: $("#profileRestoreConfirm"),
+    endpoint: "/api/me/restore", message: "Прогресс восстановлен вместе с занятиями после сброса.",
+    successFocus: "#profileReset",
+  });
+  bindReset({
     trigger: $("#guestReset"), confirm: $("#guestResetYes"),
     cancel: $("#guestResetCancel"), box: $("#guestResetConfirm"),
     endpoint: "/api/guest/reset", message: "Гостевая песочница очищена.", guest: true,
   });
 }
 
-function bindReset({trigger, confirm, cancel, box, endpoint, message, guest = false}) {
+function bindReset({trigger, confirm, cancel, box, endpoint, message, guest = false,
+                    successFocus = "#profileRestore"}) {
   if (!trigger || !confirm || !cancel || !box) return;
   trigger.addEventListener("click", () => {
     box.hidden = false;
@@ -290,6 +328,11 @@ function bindReset({trigger, confirm, cancel, box, endpoint, message, guest = fa
       resetNotice = message;
       if (guest) await paintScope();
       await loadProfile();
+      const next = $(successFocus);
+      if (next) {
+        next.scrollIntoView({block: "center"});
+        next.focus({preventScroll: true});
+      }
     } catch (err) {
       trigger.disabled = false;
       confirm.disabled = false;

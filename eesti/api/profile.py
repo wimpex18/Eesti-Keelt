@@ -60,6 +60,22 @@ def reset_profile_progress() -> dict:
     return profile.reset_progress()
 
 
+@router.post("/api/me/restore")
+def restore_profile_progress() -> dict:
+    """Restore the latest reset point for the current permanent account."""
+    from .. import profile
+    from ..identity import current
+
+    if current().is_guest:
+        raise HTTPException(status_code=403,
+                            detail="Восстановление прогресса доступно только постоянному аккаунту.")
+    try:
+        return profile.restore_progress()
+    except profile.NoRestorableProgress as exc:
+        raise HTTPException(status_code=409,
+                            detail="Нет сброса прогресса, который можно восстановить.") from exc
+
+
 @router.post("/api/guest/reset")
 def guest_reset() -> dict:
     """Throw this guest sandbox away; the next request starts empty.

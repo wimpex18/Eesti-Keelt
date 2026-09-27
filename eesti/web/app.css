@@ -524,6 +524,11 @@ label select{min-width:0;max-width:100%}
 .profile-auth .profile-error{margin:0}
 .profile-section{max-width:52rem}
 .profile-section .sec-head{margin-bottom:var(--s3)}
+.profile-start-section{margin:0 0 var(--s4)}
+.profile-start-copy{max-width:65ch;margin:0 0 var(--s3);line-height:1.5}
+.profile-start-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12.5rem),1fr));gap:var(--s2)}
+.profile-start-actions > a{min-height:60px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;text-align:left}
+.profile-start-actions > a .ru{font-size:var(--fs-gloss)}
 .profile-legend{max-width:65ch;margin:0 0 var(--s3);line-height:1.5}
 .profile-levels{margin-bottom:var(--s3)}
 .profile-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2) var(--s5);
@@ -538,6 +543,7 @@ label select{min-width:0;max-width:100%}
 .profile-reset-confirm[hidden]{display:none}
 .profile-reset-confirm p{flex:1 1 100%;max-width:65ch;margin:0;color:var(--muted);font-size:var(--fs-note);line-height:1.5}
 .profile-reset-confirm .profile-reset-yes{color:var(--bad)}
+.profile-reset-confirm .profile-restore-yes{color:var(--good)}
 .profile-success{margin:0;color:var(--good);font-size:var(--fs-note);line-height:1.5}
 @media (max-width:560px){
   .profile-row{grid-template-columns:minmax(0,1fr);gap:var(--s1);align-items:start}
@@ -546,6 +552,8 @@ label select{min-width:0;max-width:100%}
   .profile-name-form input{grid-column:1/-1}
   .profile-name-form button{width:100%;min-height:48px}
   .profile-totals{grid-template-columns:minmax(0,1fr)}
+  .profile-start-actions{grid-template-columns:minmax(0,1fr)}
+  .profile-start-actions > a{min-height:48px}
   .profile-reset-actions, .profile-reset-confirm{align-items:stretch}
   .profile-reset-actions > button, .profile-reset-confirm > button{width:100%;min-height:48px}
 }

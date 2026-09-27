@@ -262,7 +262,8 @@ def _backfill_marker(stores: Stores, ev: Event) -> None:
 #: text's own span, and it is practice for `lugemine` rather than evidence
 #: about a grammar rule, so it is kept and never projected.
 LOG_ONLY = ("writing", "speech", "asr-check", "plan-issued", "conversation", "comprehension",
-            "reminder-settings", "fsrs-parameters", "questions-made")
+            "reminder-settings", "fsrs-parameters", "questions-made",
+            "profile-progress-restored")
 for _type in LOG_ONLY:
     applies(_type)(lambda stores, ev: None)
 
@@ -360,8 +361,18 @@ def rebuild(conn: sqlite3.Connection | None = None, *, strict: bool = False) -> 
                     target.execute(
                         "DELETE FROM sqlite_sequence WHERE name IN (%s)"
                         % ",".join("?" * len(tables)), tables)
+        timeline = events(conn)
+        restored_resets = {
+            ev.payload.get("reset_event_id") for ev in timeline
+            if ev.type == "profile-progress-restored"
+        }
         n = 0
-        for ev in events(conn):
+        for ev in timeline:
+            # The restore marker is append-only. When replaying, omit the reset
+            # it supersedes so the history before it becomes active again.
+            if ev.type == "profile-progress-reset" and ev.id in restored_resets:
+                n += 1
+                continue
             # One event this code cannot replay (a type from a newer release, after
             # a rollback) must not stop the rest: skipped, reported, kept in the log.
             try:
