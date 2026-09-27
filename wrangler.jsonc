@@ -46,6 +46,8 @@
   //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
   //                   Web Push (`cli push-keys` writes them into .env, and
   //                   deploy/set-push-keys.sh pushes them)
+  //   SESSION_SECRET  signs the in-app session cookie (ADR-0006,
+  //                   deploy/accounts.ts); unset, everyone is the owner
   //
   // LLM keys are not Worker secrets: the app reads them on Cloud Run
   // (deploy/set-llm-key.sh).

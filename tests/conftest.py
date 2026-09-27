@@ -385,6 +385,9 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     for name in ("PROGRESS_DB", "REVIEW_DB", "VOCAB_DB", "NOTION_DB", "EVENTS_DB"):
         target = str(scratch / f"{name.split('_')[0].lower()}.db")
         monkeypatch.setattr(config, name, target)
+    # Other learners and guest sandboxes (ADR-0006) live beside them, never under the real `data/`.
+    monkeypatch.setattr(config, "GUEST_DIR", str(scratch / "guest"))
+    monkeypatch.setattr(config, "LEARNERS_DIR", str(scratch / "learners"))
 
     # The downloaded exam material: empty unless a test puts a file there, so a
     # test never serves the learner's own copy of HARNO's PDFs.

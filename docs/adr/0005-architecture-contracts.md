@@ -41,7 +41,8 @@ Whisper stays the fallback, and more verified clips can still reverse it.
 
 - **Per-identity Durable Objects:** deferred. The origin itself is single-tenant;
   changing only the object name would falsely imply isolation. Revisit only with
-  a real second learner and end-to-end identity-scoped storage.
+  a real second learner and end-to-end identity-scoped storage. There is one
+  now: ADR-0006 supersedes this item.
 - **`DELETE /api/me`:** deferred as a self-service feature, not replaced with
   progress reset. Erasure must coordinate the DO log/snapshots/push subscriptions,
   origin, browser queue, exports and externally sent Notion rows. A partial
