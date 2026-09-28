@@ -90,8 +90,47 @@ function paintTheme() {
 
 
 // ── today's plan ────────────────────────────────────────────────────
+let todayPlan = {minutes: 0, blocks: []};
+let todaySteps = [];
+
 function todayMinutes() {
   try { return Number(localStorage.getItem("todayMinutes")) || 20; } catch { return 20; }
+}
+
+function paintTodaySummary() {
+  const bits = [];
+  if (todaySteps.length) {
+    const complete = todaySteps.filter(step => step.complete).length;
+    bits.push(`${complete}/${todaySteps.length} tehtud`);
+  }
+  if (todayPlan.minutes) bits.push(`${todayPlan.minutes} min`);
+  $("#todaySum").textContent = bits.join(" · ");
+}
+
+function planBlockComplete(block) {
+  const step = id => todaySteps.find(candidate => candidate.id === id)?.complete;
+  if (block.kind === "review") return step("review");
+  if (block.kind === "skill" || block.kind === "read") return step("skill");
+  return ["repair", "refresh", "new"].includes(block.kind) && step("practice");
+}
+
+function nextPlanBlock() {
+  const blocks = todayPlan.blocks || [];
+  if (!blocks.length) return null;
+  const current = blocks.findIndex(block => block.action?.tab === "path"
+    && (!block.action.topic || block.action.topic === pathTopic));
+  const ordered = current < 0
+    ? blocks : [...blocks.slice(current + 1), ...blocks.slice(0, current)];
+  return ordered.find(block => block.action && !planBlockComplete(block)) || null;
+}
+
+function markPracticeStep(tally) {
+  if (tally !== pathTally || !tally.record) return;
+  const step = todaySteps.find(candidate => candidate.id === "practice");
+  if (!step) return;
+  step.done = Math.min(step.target, step.done + tally.answered);
+  step.complete = step.done >= step.target;
+  paintDailySteps(todaySteps);
 }
 
 async function loadToday() {
@@ -102,14 +141,13 @@ async function loadToday() {
   const strip = $("#todayStrip");
   try {
     const p = await (await api(`/api/plan?minutes=${minutes}`, null, "GET")).json();
+    todayPlan = {minutes: p.minutes || minutes, blocks: p.blocks || []};
+    paintTodaySummary();
     if (!(p.blocks || []).length) {
       list.innerHTML = `<li class="hint">На сегодня ничего не запланировано.</li>`;
-      $("#todaySum").textContent = "";
       strip.innerHTML = "";
       return;
     }
-    $("#todaySum").textContent = `${p.minutes} мин · ` +
-      ruCount(p.blocks.length, ["шаг", "шага", "шагов"]);
     /* The day as time: one segment per block, as long as its minutes. */
     strip.innerHTML = p.blocks.map((b, i) =>
       `<span class="strip-seg" data-kind="${esc(b.kind)}"
@@ -134,6 +172,8 @@ async function loadToday() {
     list.querySelectorAll("button[data-i]").forEach(btn => btn.onclick = () =>
       startBlock(p.blocks[Number(btn.dataset.i)].action));
   } catch (e) {
+    todayPlan = {minutes, blocks: []};
+    paintTodaySummary();
     strip.innerHTML = "";
     list.innerHTML = `<li class="hint">План не загрузился: ${esc(e.message)}</li>`;
   }
@@ -287,8 +327,10 @@ const DAILY_STEP_COPY = {
 
 function paintDailySteps(steps) {
   const section = $("#dailySteps"), list = $("#dailyStepsList");
-  if (!section || !list || !steps.length) { if (section) section.hidden = true; return; }
-  list.innerHTML = steps.map(step => {
+  todaySteps = (steps || []).map(step => ({...step}));
+  paintTodaySummary();
+  if (!section || !list || !todaySteps.length) { if (section) section.hidden = true; return; }
+  list.innerHTML = todaySteps.map(step => {
     const copy = DAILY_STEP_COPY[step.id] || [step.id, ""];
     const empty = step.id === "review" && step.target === 0;
     const count = empty ? "" : `${step.done}/${step.target}`;
@@ -548,6 +590,7 @@ async function startPractice({focus = true} = {}) {
      the latest may paint, or a slow first answer replaces the learner's choice. */
   const mine = ++practiceRequest;
   const out = $("#practiceOut"); out.innerHTML = "";
+  $("#pathRada").classList.remove("has-running-set");
   newSet(pathTally);
   $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Laadin…");
@@ -593,6 +636,7 @@ async function startPractice({focus = true} = {}) {
       <button class="quiet" type="button" data-lesson="${esc(res.topic)}" lang="et">reegel
         <i class="ru" lang="ru">правило</i></button></div>`;
     loaded = true;
+    $("#pathRada").classList.add("has-running-set");
     pathTally.size = res.items.length;
     paintBeads(pathTally);
     res.items.forEach((it, i) =>
@@ -636,6 +680,18 @@ function finishSet(tally, res) {
       `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
     ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">повторить ошибки</span></button>` : "";
+  markPracticeStep(tally);
+  const next = tally === pathTally ? nextPlanBlock() : null;
+  const progress = tally === pathTally && todaySteps.length
+    ? `<p class="today-progress" lang="ru">Сегодня выполнено ${todaySteps.filter(step => step.complete).length}
+         из ${todaySteps.length} шагов.</p>` : "";
+  const continuation = next
+    ? `<button class="go" data-act="continue" lang="et">${uiIcon("next")}Jätka: ${esc(next.et)}
+         <span class="ru" lang="ru">дальше: ${esc(next.ru)}</span></button>
+       <button class="ghost" data-act="new" lang="et">Uued laused
+         <span class="ru" lang="ru">ещё задания</span></button>`
+    : `<button class="go" data-act="new" lang="et">${uiIcon("next")}Uued laused
+         <span class="ru" lang="ru">новые задания</span></button>`;
   const end = document.createElement("div");
   /* The score, the beads again, and the next set under the thumb. A set nearly all
      right wears moss; the count is the reward, not a streak. */
@@ -644,9 +700,10 @@ function finishSet(tally, res) {
   end.setAttribute("role", "status");
   end.innerHTML = `<h4 lang="et">Komplekt tehtud <i class="ru" lang="ru">набор пройден</i></h4>
     <p class="set-score">${tally.correct}<small> из ${tally.size} верно</small></p>
-    <div class="beads" aria-hidden="true">${beadsHtml(tally)}</div>${gate}${missed}
-    <div class="row">${redo}<button class="go" data-act="new" lang="et">${uiIcon("next")}Uued laused <span class="ru" lang="ru">новые задания</span></button></div>`;
+    <div class="beads" aria-hidden="true">${beadsHtml(tally)}</div>${gate}${progress}${missed}
+    <div class="row">${redo}${continuation}</div>`;
   end.querySelector('[data-act="new"]').onclick = tally.again;
+  end.querySelector('[data-act="continue"]')?.addEventListener("click", () => startBlock(next.action));
   end.querySelector('[data-act="redo"]')?.addEventListener("click", () => redoMissed(tally));
   // The score line said the same thing one line lower; the card says it now.
   $(tally.out).textContent = "";

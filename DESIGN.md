@@ -128,7 +128,8 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   brand, the three modes with glosses, the open mode's tabs, and the two actions
   at its foot. Below 1080px there is no rail, so Rada carries the **pulse**:
   three tiles (Kordamine due today, the exam flower, the four-week rhythm), each
-  opening its own screen.
+  opening its own screen. On Rada an active set compacts the hero and comes before
+  the plan and pulse, so the first answer remains above the phone dock.
 - **Desk (≥1080px).** Spine 264px, a working column up to 880px, and a 320px
   context rail: the readiness flower, the next topic, the review forecast and
   the milestone seals. A rail card hides while its own panel is open.
@@ -208,12 +209,19 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   records nothing — Kordamine owns memory.
 - **Reader source.** One line above the title: *Allikas* and the source's name,
   linked to the original. Licence terms stay in the sources footer.
-- **Plan strip.** The day as time, a segment per block as long as its minutes,
-  coloured and glyphed by kind.
+- **Plan strip.** Inside **Täna**, the day as time: a segment per block as long as
+  its minutes, coloured and glyphed by kind. Its summary also reports how many
+  evidence-backed daily steps are complete.
 - **Tänased sammud.** Three small boardwalk-shaped checks on Rada, computed from
   today's evidence: drill attempts, cards actually due, and one skill contact.
   They may be done in any order; an empty queue is complete and a missed day
-  removes nothing. No points, streak or mastery are attached.
+  removes nothing. They live inside **Täna** with the generated time plan, so
+  evidence and recommendations read as one system. No points, streak or mastery
+  are attached.
+- **Set completion.** The score, beads and missed sentences close the block. On
+  Minu rada the primary action continues into the next incomplete block from
+  today's plan; another set remains a secondary choice. Vaba harjutus stays
+  self-contained and records nothing.
 - **Starting recommendation.** Two optional, solid-sheet account screens: a
   self-assessed start band and one preferred first lane. A two-plank marker is
   the only progress decoration. Completion marks the recommended destination,

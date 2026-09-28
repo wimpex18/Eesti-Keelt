@@ -32,6 +32,9 @@ export async function loadRail() {
     const next = (path.topics || []).find(t => t.id === path.resume);
     ready.parts = ready.parts || [];
     const untouched = ready.parts.filter(p => p.touched === false);
+    const measuredContact = ready.parts
+      .filter(p => p.touched !== null)
+      .reduce((total, p) => total + (p.contact || 0), 0);
     /* The exam first, as the flower: four parts, none of which may be zero. Then
        what to do next, the queue, and the marks already made. The date only once
        one is chosen: with none, a countdown counts down to nothing. `data-for`
@@ -43,7 +46,9 @@ export async function loadRail() {
         <h3 lang="et"><span>Eksam ${esc(ready.level)} <i class="ru" lang="ru">готовность</i></span>
           <a href="#exam" lang="et">Ülevaade</a></h3>
         ${flowerSvg(ready.parts, ready.contact_target || 3)}
-        <div class="rail-note">${untouched.length
+        <div class="rail-note">${!measuredContact
+          ? "Практика по частям появится здесь после первого задания. Это не оценка готовности."
+          : untouched.length
           ? `Не тронуто: <span lang="et">${untouched.map(p => esc(p.et)).join(", ")}</span>.
              Ни одна часть не должна быть нулём.`
           : "Контакт есть со всеми измеряемыми частями. Это не прогноз результата."}

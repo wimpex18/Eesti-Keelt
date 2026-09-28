@@ -1650,14 +1650,23 @@ class TestPractisingOffline:
 class TestTodaysPlan:
     """Rada opens on today's plan; a block's Alusta starts what it names."""
 
+    @pytest.fixture
+    def service_workers(self):
+        # The continuation journey stubs the plan and one-item practice at the
+        # page boundary; a controlling worker would bypass those routes.
+        return "block"
+
     def test_the_daily_steps_are_evidence_not_points(self, page):
         open_tab(page, "learn", "path")
         page.wait_for_selector("#dailySteps:not([hidden])", timeout=15000)
         steps = page.locator("#dailyStepsList > li")
         assert steps.count() == 3
+        assert page.locator("#today #dailySteps").count() == 1
         text = page.locator("#dailySteps").inner_text()
         assert "Пропущенный день ничего не отнимает" in text
         assert "балл" not in text.lower() and "серия" not in text.lower()
+        summary = page.locator("#todaySum").inner_text()
+        assert "/3 tehtud" in summary and "min" in summary
         assert not browser_errors(page), browser_errors(page)
 
     def test_the_plan_is_there_and_starts_practice(self, page):
@@ -1672,6 +1681,52 @@ class TestTodaysPlan:
         if start.count():
             start.first.click()
             page.wait_for_selector("#practiceOut .drill", timeout=15000)
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_finished_set_continues_the_plan(self, page):
+        plan = {
+            "minutes": 10,
+            "blocks": [
+                {"kind": "new", "minutes": 5, "et": "Sihitis", "ru": "новая тема",
+                 "why": "Следующая тема.",
+                 "action": {"tab": "path", "topic": "obj-case"}, "detail": None},
+                {"kind": "skill", "minutes": 5, "et": "Kirjutamine", "ru": "письмо",
+                 "why": "Следующая часть занятия.",
+                 "action": {"tab": "write"}, "detail": None},
+            ],
+        }
+        item = {"prompt": "Ma ostan ____.", "answer": "raamatu", "lemma": "raamat",
+                "hint": "omastav", "level": "A2", "token": "journey-token"}
+        page.route("**/api/plan?*", lambda route: route.fulfill(json=plan))
+        page.route("**/api/practice/answer", lambda route: route.fulfill(json={
+            "correct": True, "accuracy": .8, "gate": "8/10", "russian": [],
+            "just_mastered": False,
+        }))
+        page.route("**/api/practice", lambda route: route.fulfill(json={
+            "topic": "obj-case", "et": "Sihitis", "level": "A2", "items": [item],
+            "glosses": {}, "theme": "",
+        }))
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector("#practiceOut .drill", timeout=15000)
+
+        if page.viewport_name == "phone":
+            control = page.locator("#practiceOut .drill input").evaluate("""el => {
+                const r = el.getBoundingClientRect();
+                return {top: r.top, bottom: r.bottom, viewport: innerHeight};
+            }""")
+            assert control["bottom"] < control["viewport"] - 80, (
+                f"first answer is below the phone dock: {control}")
+
+        answer = page.locator("#practiceOut .drill input")
+        answer.fill("raamatu")
+        answer.press("Enter")
+        page.wait_for_selector('#practiceOut .set-end [data-act="continue"]')
+        end = page.locator("#practiceOut .set-end")
+        assert "Kirjutamine" in end.inner_text()
+        assert "Сегодня выполнено" in end.inner_text()
+        end.locator('[data-act="continue"]').click()
+        page.wait_for_function("() => !document.querySelector('#tab-write').hidden")
+        assert page.locator("#tab-write").is_visible()
         assert not browser_errors(page), browser_errors(page)
 
 

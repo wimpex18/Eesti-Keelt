@@ -89,7 +89,7 @@ advisory feedback. The app says plainly what was checked and by what.
 2. **Say what is not checked.** Limits are stated in Russian, where the
    learner meets them.
 3. **Every part of the exam counts.** Progress is shown per part and per
-   skill, and may also be shown as one overall score.
+   skill; it is never collapsed into one reassuring overall score.
 4. **The interface teaches.** Estonian is the default surface; Russian
    explains.
 5. **Fit the session.** Phone work is quick and repeatable; desktop work is

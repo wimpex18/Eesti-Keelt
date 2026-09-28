@@ -1,17 +1,15 @@
 # Handoff
 
-Current task: optional two-screen onboarding and evidence-backed, pressure-free daily steps are complete.
+Current task: make Rada one coherent guided daily session.
 
-Branch: `codex/onboarding-daily-steps`; open PR #92. PR #91 is merged.
+Branch: `codex/guided-today-session` from `main`; ready to commit and open a PR.
 
-Done: permanent accounts can save a self-assessed start band and preferred first lane; the app marks and opens the recommendation and preselects suitable word filters. Rada shows three daily evidence steps with no points, streak or mastery. Profile, identity, status, structure, product, design and ADR docs describe the current behavior.
+Implemented: the active drill precedes supporting status on phones; its hero compacts while a set runs. Täna combines daily evidence and the generated plan. A completed Minu rada set continues into the next incomplete plan block, while Vaba harjutus stays self-contained. Empty readiness copy waits for evidence before warning.
 
-Verification: full suite 2,485 passed, 1 skipped; browser journeys 171 passed, 3 skipped; typecheck and `git diff --check` passed. Reviewed 1440×900, 744×1133, 402×874 and 874×402 in light and dark with no horizontal overflow or new runtime errors.
+Verification: 2,485 tests passed, 1 skipped; 173 browser journeys passed, 3 skipped in Chromium and WebKit; `npm run typecheck`, JS syntax and `git diff --check` pass. Inspected light and dark at 1440×900, 744×1133, 402×874 and 874×402; detector reported only existing advisory token findings.
 
-Branch check: `claude/home-asr-binding` is 14 commits behind main and its sole ahead commit is patch-identical to `db8fbfe`, already merged in PR #88. Nothing should be merged from it.
+Next: commit, push and open the PR; then review and merge it. Keep state-durability work in a separate change.
 
-Next: owner reviews and merges PR #92.
-
-Uncommitted paths: none after the onboarding commit.
+Uncommitted paths: `PRODUCT.md`, `DESIGN.md`, `HANDOFF.md`, `docs/status.md`, `docs/app-structure.md`, `eesti/web/index.html`, `eesti/web/app.css`, `eesti/web/js/path.js`, `eesti/web/js/review.js`, `tests/test_e2e_journeys.py`.
 
 Blockers: none.

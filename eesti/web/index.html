@@ -124,18 +124,6 @@
       </div>
       <div class="trail" id="pathTrail"></div>
     </div>
-    <!-- Where things stand, for the screens that have no rail: the review queue,
-         the exam flower and the week's rhythm, each a way into its own screen. -->
-    <nav class="pulse" id="pathPulse" aria-label="Kokkuvõte — сводка"></nav>
-    <!-- A pressure-free daily checklist from recorded evidence. It adds no points,
-         streak or mastery; an empty review queue is already complete. -->
-    <section class="daily-steps" id="dailySteps" aria-labelledby="dailyStepsTitle" hidden>
-      <div>
-        <h3 id="dailyStepsTitle" lang="et">Tänased sammud <i class="ru" lang="ru">шаги на сегодня</i></h3>
-        <p lang="ru">В любом порядке. Пропущенный день ничего не отнимает.</p>
-      </div>
-      <ol id="dailyStepsList"></ol>
-    </section>
     <div id="pathHead" class="banner" hidden></div>
     <!-- The set being answered. Beads fill as items are graded; the score line
          says the same in words. -->
@@ -149,11 +137,21 @@
       <div id="practiceOut"></div>
     </div>
 
-    <!-- Today's plan (`eesti/planning.py`). After the drill in the markup, so a phone
-         shows the drill first; wide screens move it above (`app.css`). -->
+    <!-- One "today" surface: evidence-backed steps say what has happened; the plan
+         says what to do next. Both stay after the active drill so a phone reaches
+         real practice before it has to understand the whole system. -->
     <details class="today" id="today" open>
-      <summary><span lang="et">Plaan <i class="ru" lang="ru">план на сегодня</i></span>
-        <span class="hint" id="todaySum"></span></summary>
+      <summary><span lang="et">Täna <i class="ru" lang="ru">сегодня</i></span>
+        <span class="hint" id="todaySum" lang="et"></span></summary>
+      <!-- Pressure-free evidence: no points, streak or mastery; an empty review
+           queue is already complete. -->
+      <section class="daily-steps" id="dailySteps" aria-labelledby="dailyStepsTitle" hidden>
+        <div>
+          <h3 id="dailyStepsTitle" lang="et">Tänased sammud <i class="ru" lang="ru">шаги на сегодня</i></h3>
+          <p lang="ru">В любом порядке. Пропущенный день ничего не отнимает.</p>
+        </div>
+        <ol id="dailyStepsList"></ol>
+      </section>
       <div class="today-strip" id="todayStrip" aria-hidden="true"></div>
       <ol class="today-list" id="todayList"><li class="hint">Загружаю…</li></ol>
       <label class="today-minutes" lang="et">Aega täna <i class="ru" lang="ru">минут сегодня</i>
@@ -163,6 +161,9 @@
         </select>
       </label>
     </details>
+    <!-- Where things stand, for the screens that have no rail. This follows the
+         active session and today's plan, so status never blocks the first answer. -->
+    <nav class="pulse" id="pathPulse" aria-label="Kokkuvõte — сводка"></nav>
     <!-- A set to carry: drills are made on the server, so without one there is
          nothing to answer unless it was fetched in advance (`js/offline.js`). -->
     <details class="offline fold" id="offline">
