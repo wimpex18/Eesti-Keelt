@@ -23,6 +23,12 @@ export interface Account {
   created: string;
 }
 
+/** Sensitive account record used only inside an encrypted disaster backup. */
+export interface AccountBackup extends Account {
+  salt: string;
+  hash: string;
+}
+
 export type Who =
   | { scope: "owner"; id: "owner"; email: string }
   | { scope: "learner"; id: string; email: string }
@@ -116,6 +122,43 @@ export function accountById(sql: SqlStorage, id: string): Account | null {
   const row = sql.exec<AccountRow>(
     "SELECT id, email, created FROM accounts WHERE id = ?", id).toArray()[0];
   return row ? { id: row.id, email: row.email, created: row.created } : null;
+}
+
+export function backupAccounts(sql: SqlStorage): AccountBackup[] {
+  ensureAccounts(sql);
+  return sql.exec<AccountRow>(
+    "SELECT id, email, salt, hash, created FROM accounts ORDER BY created, id",
+  ).toArray().map(({ id, email, salt, hash, created }) =>
+    ({ id, email, salt, hash, created }));
+}
+
+/** Insert missing account credentials, rejecting divergence before any write. */
+export function restoreAccounts(sql: SqlStorage, incoming: AccountBackup[]): number {
+  ensureAccounts(sql);
+  const existing = sql.exec<AccountRow>(
+    "SELECT id, email, salt, hash, created FROM accounts ORDER BY created, id",
+  ).toArray();
+  const byId = new Map(existing.map((row) => [row.id, row]));
+  const byEmail = new Map(existing.map((row) => [row.email, row]));
+  for (const account of incoming) {
+    const current = byId.get(account.id) ?? byEmail.get(account.email);
+    if (current && (current.id !== account.id || current.email !== account.email ||
+        current.salt !== account.salt || current.hash !== account.hash ||
+        current.created !== account.created)) {
+      throw new Error(`account restore conflicts with ${account.id}`);
+    }
+  }
+  let added = 0;
+  for (const account of incoming) {
+    if (byId.has(account.id)) continue;
+    sql.exec(
+      "INSERT INTO accounts (id,email,salt,hash,created,failures,locked_until) " +
+        "VALUES (?,?,?,?,?,0,0)",
+      account.id, account.email, account.salt, account.hash, account.created,
+    );
+    added += 1;
+  }
+  return added;
 }
 
 /** Remove a learner login. The caller separately clears that learner's object. */

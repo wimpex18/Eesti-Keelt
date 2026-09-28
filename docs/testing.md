@@ -93,6 +93,12 @@ temporary databases, twice. Tests cover unsupported events/versions, duplicates,
 missing backfill marker and keeping live stores unchanged. This proves the
 supplied export is replayable, not that every remote event reached the export.
 
+`node deploy/backup-state.mjs self-test` generates temporary keys, encrypts and
+decrypts a complete fixture, authenticates it and passes its log through the
+same strict replay verifier. A scheduled real backup does that replay check for
+every non-empty account before committing the encrypted file. Procedures and a
+non-writing restore rehearsal are in `deploy/backup/README.md`.
+
 ## Not covered
 
 - Speaking end to end (microphone, Workers AI); only the panel is exercised.

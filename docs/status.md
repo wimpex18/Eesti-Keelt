@@ -106,6 +106,8 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
   (`deploy/home-asr/README.md`).
 - **Live replication is not an independent backup.** Successful permanent-account
   API responses now wait for the Durable Object's event acknowledgement, but a
-  hosting-account loss can still remove both live copies. There is no independent
-  nightly backup or self-service erasure. Private exports can be replay-checked
-  with `cli verify-backup`; see `docs/deploy.md` and ADR-0005.
+  hosting-account loss can still remove both live copies. The external encrypted
+  pull, strict replay check and resumable restore are implemented in
+  `deploy/backup/`; they become operational only after the owner installs the
+  launchd job, sets its read-only token and confirms a real backup. Self-service
+  erasure remains absent. See `docs/deploy.md` and ADR-0005.

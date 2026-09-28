@@ -41,15 +41,29 @@ import {
   accountById,
   accountCount,
   authenticate,
+  backupAccounts,
   createAccount,
   deleteAccount,
   ensureAccounts,
   readSession,
+  restoreAccounts,
   signSession,
   SESSION_COOKIE,
   type Account,
+  type AccountBackup,
   type Who,
 } from "./accounts";
+import {
+  BACKUP_FORMAT,
+  BACKUP_VERSION,
+  canonical,
+  MAX_BACKUP_BYTES,
+  MAX_EVENTS_PER_LEARNER,
+  type LearnerBackup,
+  type LearnerBackupPage,
+  type StateBackup,
+  validateBackup,
+} from "./backup";
 import { type PushSubscription, sendPush } from "./push";
 
 interface Env {
@@ -64,6 +78,10 @@ interface Env {
   STATE_TOKEN: string;
   /** Signs the in-app account session; without it the app remains the owner-only legacy app. */
   SESSION_SECRET?: string;
+  /** Read-only credential for an external machine to pull disaster backups. */
+  BACKUP_TOKEN?: string;
+  /** Separate, temporary credential enabled only during a disaster restore. */
+  RESTORE_TOKEN?: string;
   /**
    * Set to "1" to serve without Cloudflare Access. The escape hatch, not the
    * default -- see `requireAccess`.
@@ -240,6 +258,81 @@ export class LearnerState extends DurableObject<Env> {
     ensureAccounts(this.ctx.storage.sql);
     return this.ctx.storage.sql.exec<{ id: string; email: string; created: string }>(
       "SELECT id, email, created FROM accounts ORDER BY created, id").toArray();
+  }
+
+  accountBackups(): AccountBackup[] {
+    return backupAccounts(this.ctx.storage.sql);
+  }
+
+  restoreAccountBackups(accounts: AccountBackup[]): number {
+    return restoreAccounts(this.ctx.storage.sql, accounts);
+  }
+
+  /** The authoritative evidence log, without snapshots or device subscriptions. */
+  async backupEvidence(after = 0): Promise<LearnerBackupPage> {
+    await this.hydrateWho();
+    if (!this.who || this.who.scope === "guest") {
+      throw new Error("cannot back up an unbound learner object");
+    }
+    const limit = 1_000;
+    const rows = this.ctx.storage.sql.exec<{ dseq: number; body: string }>(
+      "SELECT dseq, body FROM events WHERE dseq > ? ORDER BY dseq LIMIT ?",
+      after, limit,
+    ).toArray();
+    return {
+      who: this.who,
+      eventsJson: `[${rows.map((row) => row.body).join(",")}]`,
+      next: rows.at(-1)?.dseq ?? after,
+      done: rows.length < limit,
+    };
+  }
+
+  evidenceCount(): number {
+    return Number(this.ctx.storage.sql.exec<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM events",
+    ).toArray()[0]?.count ?? 0);
+  }
+
+  /** Read-only, paged preflight used before any account or event is added. */
+  checkEvidencePage(offset: number, eventsJson: string): number {
+    const events = JSON.parse(eventsJson) as Record<string, unknown>[];
+    const current = this.ctx.storage.sql.exec<{ body: string }>(
+      "SELECT body FROM events ORDER BY dseq LIMIT ? OFFSET ?",
+      events.length, offset,
+    ).toArray();
+    if (current.length !== events.length) {
+      throw new Error(`event restore changed during preflight at position ${offset + 1}`);
+    }
+    for (let i = 0; i < current.length; i++) {
+      if (canonical(JSON.parse(current[i].body)) !== canonical(events[i])) {
+        throw new Error(`event restore diverges at position ${offset + i + 1}`);
+      }
+    }
+    return current.length;
+  }
+
+  /** Append one missing page, refusing a concurrent or out-of-order mutation. */
+  async appendEvidencePage(expectedCount: number, eventsJson: string): Promise<number> {
+    const events = JSON.parse(eventsJson) as Record<string, unknown>[];
+    if (this.evidenceCount() !== expectedCount) {
+      throw new Error("event restore changed while pages were appended");
+    }
+    for (const event of events) {
+      this.ctx.storage.sql.exec(
+        "INSERT INTO events (id, body) VALUES (?, ?)",
+        String(event.id), JSON.stringify(event),
+      );
+    }
+    if (events.length) {
+      // The origin may still hold a pre-disaster projection. Force the normal
+      // restore gate to rebuild it from this log before another API request.
+      await this.ctx.storage.delete("origin");
+      this.lastBoot = null;
+      this.lastSeen = 0;
+      this.cursor = 0;
+      this.restoring = null;
+    }
+    return events.length;
   }
 
   /** Permanently clear this learner's snapshot, log, subscriptions and metadata. */
@@ -1121,6 +1214,200 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
   return new Response("not found", { status: 404 });
 }
 
+function backupHeaders(extra: Record<string, string> = {}): HeadersInit {
+  return {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+    ...extra,
+  };
+}
+
+async function backupAuthorised(request: Request, secret: string): Promise<boolean> {
+  const header = request.headers.get("authorization") ?? "";
+  const given = header.startsWith("Bearer ") ? header.slice(7) : "";
+  const encode = new TextEncoder();
+  const [left, right] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encode.encode(given)),
+    crypto.subtle.digest("SHA-256", encode.encode(secret)),
+  ]);
+  const a = new Uint8Array(left);
+  const b = new Uint8Array(right);
+  let difference = given.length ^ secret.length;
+  for (let i = 0; i < a.length; i++) difference |= a[i] ^ b[i];
+  return difference === 0;
+}
+
+async function limitedText(request: Request, limit: number): Promise<string> {
+  const announced = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(announced) && announced > limit) throw new Error("backup is too large");
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let body = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      throw new Error("backup is too large");
+    }
+    body += decoder.decode(value, { stream: true });
+  }
+  return body + decoder.decode();
+}
+
+/**
+ * Machine-only disaster channel. It deliberately runs before Access and before
+ * the Cloud Run configuration check: an independent machine must still pull or
+ * restore the Durable Object log when the app or Access configuration is down.
+ */
+async function backupRoute(request: Request, env: Env): Promise<Response | null> {
+  const url = new URL(request.url);
+  const exporting = url.pathname === "/api/backup/export";
+  const restoring = url.pathname === "/api/backup/restore";
+  if (!exporting && !restoring) return null;
+
+  if (env.BACKUP_TOKEN && env.RESTORE_TOKEN &&
+      env.BACKUP_TOKEN === env.RESTORE_TOKEN) {
+    return Response.json({ detail: "backup and restore credentials must differ" }, {
+      status: 503,
+      headers: backupHeaders(),
+    });
+  }
+  const secret = exporting ? env.BACKUP_TOKEN : env.RESTORE_TOKEN;
+  if (!secret || secret.length < 32) {
+    return Response.json({ detail: "backup channel is not configured" }, {
+      status: 503,
+      headers: backupHeaders(),
+    });
+  }
+  if (!(await backupAuthorised(request, secret))) {
+    return Response.json({ detail: "forbidden" }, {
+      status: 403,
+      headers: backupHeaders(),
+    });
+  }
+  if ((exporting && request.method !== "GET") ||
+      (restoring && request.method !== "POST")) {
+    return Response.json({ detail: "method not allowed" }, {
+      status: 405,
+      headers: backupHeaders({ allow: exporting ? "GET" : "POST" }),
+    });
+  }
+
+  if (exporting) {
+    const singleton = singletonStub(env);
+    const accounts = await singleton.accountBackups();
+    const identities: Exclude<Who, { scope: "guest" }>[] = accounts.length
+      ? accounts.map((account: AccountBackup) => account.id === "owner"
+        ? { scope: "owner", id: "owner", email: account.email }
+        : { scope: "learner", id: account.id, email: account.email })
+      : [{ scope: "owner", id: "owner", email: "" }];
+    const learners: LearnerBackup[] = [];
+    for (const who of identities) {
+      const object = await stubFor(env, who);
+      if (!object) throw new Error("permanent identity has no Durable Object");
+      const events: Record<string, unknown>[] = [];
+      let after = 0;
+      for (;;) {
+        const page = await object.backupEvidence(after);
+        if (page.who.id !== who.id || page.who.scope !== who.scope) {
+          throw new Error("learner identity changed during backup");
+        }
+        events.push(...JSON.parse(page.eventsJson) as Record<string, unknown>[]);
+        if (events.length > MAX_EVENTS_PER_LEARNER) {
+          throw new Error(`learner log is too large: ${who.id}`);
+        }
+        if (page.done) break;
+        if (page.next <= after) throw new Error("learner backup cursor did not advance");
+        after = page.next;
+      }
+      learners.push({ who, events });
+    }
+    const bundle: StateBackup = {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      made: new Date().toISOString(),
+      accounts,
+      learners,
+    };
+    validateBackup(bundle);
+    const body = JSON.stringify(bundle);
+    if (new TextEncoder().encode(body).byteLength > MAX_BACKUP_BYTES) {
+      return Response.json({ detail: "backup exceeds the supported size" }, {
+        status: 413,
+        headers: backupHeaders(),
+      });
+    }
+    return new Response(body, {
+      headers: backupHeaders({
+        "content-disposition": `attachment; filename="eesti-keelt-${bundle.made.slice(0, 10)}.json"`,
+      }),
+    });
+  }
+
+  let bundle: unknown;
+  try {
+    bundle = JSON.parse(await limitedText(request, MAX_BACKUP_BYTES));
+    validateBackup(bundle);
+  } catch (error) {
+    return Response.json({
+      detail: error instanceof Error ? error.message : "invalid backup",
+    }, { status: 400, headers: backupHeaders() });
+  }
+
+  // Preflight every log before the first account or event write. Applying is
+  // append-only and repeats the same check, so an interrupted restore resumes.
+  const targets: {
+    object: DurableObjectStub<LearnerState>;
+    log: LearnerBackup;
+    current: number;
+  }[] = [];
+  try {
+    for (const log of bundle.learners) {
+      const object = await stubFor(env, log.who);
+      if (!object) throw new Error("permanent identity has no Durable Object");
+      const current = await object.evidenceCount();
+      const shared = Math.min(current, log.events.length);
+      for (let offset = 0; offset < shared; offset += 1_000) {
+        await object.checkEvidencePage(
+          offset,
+          JSON.stringify(log.events.slice(offset, Math.min(offset + 1_000, shared))),
+        );
+      }
+      // A newer live log may extend the backup. Never truncate it.
+      targets.push({ object, log, current });
+    }
+    const singleton = singletonStub(env);
+    const accountsAdded = await singleton.restoreAccountBackups(bundle.accounts);
+    let eventsAdded = 0;
+    for (const { object, log, current } of targets) {
+      let expected = current;
+      for (let offset = current; offset < log.events.length; offset += 1_000) {
+        const added = await object.appendEvidencePage(
+          expected,
+          JSON.stringify(log.events.slice(offset, offset + 1_000)),
+        );
+        eventsAdded += added;
+        expected += added;
+      }
+    }
+    return Response.json({
+      restored: true,
+      accounts_added: accountsAdded,
+      events_added: eventsAdded,
+      learners: targets.length,
+    }, { headers: backupHeaders() });
+  } catch (error) {
+    return Response.json({
+      detail: error instanceof Error ? error.message : "restore failed",
+      retry_safe: true,
+    }, { status: 409, headers: backupHeaders() });
+  }
+}
+
 export default {
   /**
    * The reminder cron (`wrangler.jsonc` → triggers.crons).
@@ -1148,6 +1435,9 @@ export default {
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const backup = await backupRoute(request, env);
+    if (backup) return backup;
+
     if (!env.CLOUD_RUN_URL) {
       return new Response(
         "CLOUD_RUN_URL is not configured. See docs/deploy.md.",

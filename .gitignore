@@ -20,6 +20,8 @@ data/eval/
 .dev.vars
 .dev.vars.*
 deploy/ca-bundle.crt
+*.ekb
+.backup-self-test-*/
 
 # Worker toolchain — installed, not committed.
 node_modules/

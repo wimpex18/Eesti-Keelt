@@ -48,6 +48,8 @@
   //                   deploy/set-push-keys.sh pushes them)
   //   SESSION_SECRET  signs the in-app session cookie (ADR-0006,
   //                   deploy/accounts.ts); unset, everyone is the owner
+  //   BACKUP_TOKEN   read-only machine credential for off-account export
+  //   RESTORE_TOKEN  separate disaster-only credential; normally unset
   //
   // LLM keys are not Worker secrets: the app reads them on Cloud Run
   // (deploy/set-llm-key.sh).
