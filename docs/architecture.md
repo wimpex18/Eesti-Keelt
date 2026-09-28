@@ -98,9 +98,11 @@ stable when replacing screens. `planning.Block.action` contains tab names and
 needs an explicit UI mapping if navigation changes.
 
 One origin process and one writable revision are architectural constraints.
-Worker event copying is asynchronous (`waitUntil`), so the response is not a
-durable acknowledgement. Snapshots also carry operational state that is absent
-from the event log. Unknown events stay in the log but normal replay skips them;
+The Worker returns a successful permanent-account API response only after the
+learner's Durable Object confirms the origin's event sequence; failed
+confirmation is a retriable 503. Snapshots remain asynchronous and also carry
+operational state that is absent from the event log. Unknown events stay in the
+log but normal replay skips them;
 `eesti/recovery.py` uses strict replay into temporary databases to validate an
 export without changing live state. This is verification, not a production
 restore or erasure endpoint. Recovery and deletion scope: `docs/deploy.md`.

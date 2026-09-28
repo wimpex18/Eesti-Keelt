@@ -91,7 +91,7 @@ matters for the caches it carries (stored glosses, the provider breaker).
 | When | What |
 |---|---|
 | new boot id | snapshot in (`POST /api/state/import`), then the whole log in batches (`POST /api/events/import`); the last batch settles: the instance rebuilds its learner tables from the log, or, the first time ever, backfills the log from them |
-| any response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) |
+| any successful response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) and returns success only after the Durable Object reaches that sequence |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
 Events are keyed by id, so copying one twice changes nothing. On Cloud Run
@@ -113,11 +113,20 @@ Safeguards:
 - a snapshot is taken only from the instance the Worker restored (its boot id);
 - an export with no learner rows (`learner_rows`) never replaces a snapshot
   that has some; a half-written snapshot counts as none;
+- event copying is retried briefly and a success is replaced by a retriable 503
+  if the Durable Object cannot confirm the origin's sequence; online drill and
+  review retries reuse their event id and therefore cannot count twice;
 - the service runs with `--max-instances 1` (set by `setup.sh`, checked by
   `check-service.sh`): a second instance would keep its own copy.
 
-A crash before asynchronous event copying can lose acknowledged answers;
-snapshots are an additional recovery copy, not a durability acknowledgement.
+For the event log, a successful API response is now a durability
+acknowledgement. A request that receives the explicit 503 may already have
+reached the origin, so refresh its state before repeating a lower-frequency
+action. The visible drill and review retry controls are safe to use directly:
+they preserve one event id and one submitted answer. The request was not
+reported as safely saved until the Durable Object confirmed it.
+Snapshots remain an additional recovery copy for caches and projections, not
+the acknowledgement.
 
 ## EKI's recordings
 

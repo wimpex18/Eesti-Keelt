@@ -182,6 +182,20 @@ class TestSignedItems:
         assert ev.payload["expected"] == it["answer"]
         assert ev.payload["latency_ms"] == 1234 and ev.payload["correct"] is True
 
+    def test_retrying_one_online_answer_id_records_it_once(self, client):
+        it = client.post("/api/practice", json={"topic": "tingiv", "count": 1}).json()["items"][0]
+        answer = {
+            "topic": "tingiv", "prompt": "", "answer": "", "given": it["answer"],
+            "token": it["token"], "latency_ms": 1234, "event_id": "online-retry-1",
+        }
+        first = client.post("/api/practice/answer", json=answer)
+        second = client.post("/api/practice/answer", json=answer)
+        assert first.status_code == second.status_code == 200
+        assert first.json()["event_id"] == second.json()["event_id"] == "online-retry-1"
+        with evidence.connect() as log:
+            matching = [ev for ev in evidence.events(log) if ev.id == "online-retry-1"]
+        assert len(matching) == 1
+
 
 class TestAutoRating:
     def test_a_typed_review_answer_is_rated_by_code(self, client):
@@ -199,6 +213,108 @@ class TestAutoRating:
     def test_rating_and_answer_are_not_both_accepted(self, client):
         r = client.post("/api/review/grade", json={"id": "x", "rating": "good", "given": "y"})
         assert r.status_code == 400
+
+    def test_retrying_one_review_event_does_not_advance_the_card_twice(self, client):
+        it = client.post("/api/practice", json={"topic": "tingiv", "count": 1}).json()["items"][0]
+        client.post("/api/practice/answer", json={
+            "topic": "tingiv", "prompt": "", "answer": "", "given": "vale",
+            "token": it["token"],
+        })
+        card = _a_card()
+        request = {
+            "id": card,
+            "given": it["answer"],
+            "latency_ms": 1234,
+            "event_id": "review-retry-1",
+        }
+        first = client.post("/api/review/grade", json=request)
+        second = client.post("/api/review/grade", json=request)
+        assert first.status_code == second.status_code == 200
+        assert first.json() == second.json()
+        with evidence.connect() as log:
+            matching = [ev for ev in evidence.events(log) if ev.id == "review-retry-1"]
+        assert len(matching) == 1
+        from eesti import review
+
+        conn = review.connect(config.REVIEW_DB)
+        try:
+            row = conn.execute(
+                "SELECT reps FROM review_items WHERE id = ?", (card,)).fetchone()
+        finally:
+            conn.close()
+        assert row[0] == 2  # the original miss, then one retried review
+
+    def test_review_retry_finishes_a_logged_but_unapplied_event(self, client):
+        it = client.post(
+            "/api/practice", json={"topic": "tingiv", "count": 1}
+        ).json()["items"][0]
+        client.post("/api/practice/answer", json={
+            "topic": "tingiv", "prompt": "", "answer": "", "given": "vale",
+            "token": it["token"],
+        })
+        card = _a_card()
+        payload = {
+            "id": card,
+            "rating": "good",
+            "auto": True,
+            "given": it["answer"],
+            "latency_ms": 1234,
+        }
+        evidence.record_once("review", payload, id_="interrupted-review-1")
+
+        response = client.post("/api/review/grade", json={
+            "id": card,
+            "given": it["answer"],
+            "latency_ms": 1234,
+            "event_id": "interrupted-review-1",
+        })
+
+        assert response.status_code == 200
+        from eesti import review
+
+        conn = review.connect(config.REVIEW_DB)
+        try:
+            row = conn.execute(
+                "SELECT reps FROM review_items WHERE id = ?", (card,)
+            ).fetchone()
+        finally:
+            conn.close()
+        assert row[0] == 2
+
+    def test_one_review_event_id_cannot_be_reused_for_another_answer(self, client):
+        it = client.post(
+            "/api/practice", json={"topic": "tingiv", "count": 1}
+        ).json()["items"][0]
+        client.post("/api/practice/answer", json={
+            "topic": "tingiv", "prompt": "", "answer": "", "given": "vale",
+            "token": it["token"],
+        })
+        card = _a_card()
+        first = client.post("/api/review/grade", json={
+            "id": card,
+            "given": it["answer"],
+            "latency_ms": 1234,
+            "event_id": "review-collision-1",
+        })
+        changed = client.post("/api/review/grade", json={
+            "id": card,
+            "given": "teine vastus",
+            "latency_ms": 1234,
+            "event_id": "review-collision-1",
+        })
+
+        assert first.status_code == 200
+        assert changed.status_code == 400
+        from eesti import review
+
+        conn = review.connect(config.REVIEW_DB)
+        try:
+            row = conn.execute(
+                "SELECT reps FROM review_items WHERE id = ?", (card,)
+            ).fetchone()
+        finally:
+            conn.close()
+        assert row[0] == 2
 
     @pytest.mark.parametrize("correct,latency,rating", [
         (False, None, "again"), (True, None, "good"), (True, 1000, "good"),

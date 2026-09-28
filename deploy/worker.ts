@@ -123,6 +123,9 @@ const SNAPSHOT_EVERY_MS = 5 * 60 * 1000;
 const LIVENESS_TTL_MS = 60 * 1000;
 /** Floor on how often a write triggers a snapshot. See `snapshot`. */
 const SNAPSHOT_MIN_GAP_MS = 60 * 1000;
+/** A just-answered origin is normally immediately readable; retry brief edge or
+ *  container hand-off failures before asking the learner to send again. */
+const EVENT_SYNC_ATTEMPTS = 3;
 /**
  * Storage values have a per-entry size limit, and a year of answers will not
  * fit in one. Chunking at 96 KiB stays under it with room to spare and costs
@@ -505,6 +508,14 @@ export class LearnerState extends DurableObject<Env> {
     return this.restoring;
   }
 
+  /** One RPC gives the proxy both the restore gate and the durable cursor that
+   *  was current before the origin request, avoiding a second DO hop for reads
+   *  that recorded nothing. */
+  async prepareOrigin(): Promise<{ restored: boolean; cursor: number }> {
+    const restored = await this.ensureRestored();
+    return { restored, cursor: this.cursor };
+  }
+
   private async restore(): Promise<boolean> {
 
     let boot: string;
@@ -614,10 +625,12 @@ export class LearnerState extends DurableObject<Env> {
   /**
    * Copy events the origin has and this store lacks. `seen` is the origin's
    * `x-events-seq`; nothing is fetched when it is not ahead of the cursor. Only
-   * the instance this object restored is asked, as for snapshots.
-   */
-  async pullEvents(seen: number): Promise<void> {
-    if (!this.lastBoot || seen <= this.cursor) return;
+  * the instance this object restored is asked, as for snapshots.
+  */
+  async pullEvents(seen: number): Promise<boolean> {
+    if (!(await this.ensureRestored())) return false;
+    if (seen <= this.cursor) return true;
+    if (!this.lastBoot) return false;
     for (;;) {
       let body: { events?: { id: string; seq: number }[]; last_seq?: number };
       try {
@@ -625,10 +638,17 @@ export class LearnerState extends DurableObject<Env> {
           this.origin(`/api/events?after=${this.cursor}&limit=500`),
           { headers: this.headers() },
         );
-        if (!res.ok || res.headers.get("x-boot-id") !== this.lastBoot) return;
+        if (!res.ok || res.headers.get("x-boot-id") !== this.lastBoot) {
+          // The next attempt must re-check the boot and restore before it may
+          // touch the origin. Keeping a minute-old liveness result here could
+          // let a retry write into a replacement container's empty state.
+          this.lastSeen = 0;
+          return false;
+        }
         body = await res.json();
       } catch {
-        return;
+        this.lastSeen = 0;
+        return false;
       }
       const batch = body.events ?? [];
       for (const ev of batch) {
@@ -644,7 +664,11 @@ export class LearnerState extends DurableObject<Env> {
         boot: this.lastBoot,
         cursor: this.cursor,
       });
-      if (batch.length === 0 || this.cursor >= (body.last_seq ?? 0)) return;
+      if (this.cursor >= seen) return true;
+      if (batch.length === 0 || this.cursor >= (body.last_seq ?? 0)) {
+        this.lastSeen = 0;
+        return false;
+      }
     }
   }
 
@@ -867,6 +891,64 @@ function notRestored(): Response {
       headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "5" },
     },
   );
+}
+
+function durabilityUnconfirmed(): Response {
+  return Response.json(
+    {
+      detail: "Не удалось подтвердить сохранение прогресса. Не закрывай страницу и проверь данные через несколько секунд.",
+    },
+    {
+      status: 503,
+      headers: { "retry-after": "2", "x-eesti-durability": "unconfirmed" },
+    },
+  );
+}
+
+/**
+ * Do not acknowledge learner evidence until its per-account Durable Object has
+ * copied through the sequence reported by the origin. The event log is the
+ * source of truth; snapshots can remain asynchronous because they only add
+ * recoverable caches and a second copy of projections.
+ */
+async function confirmEventDurability(
+  response: Response,
+  learner: DurableObjectStub<LearnerState> | null,
+  path: string,
+  knownCursor = 0,
+): Promise<Response> {
+  const seen = Number(response.headers.get("x-events-seq") ?? "");
+  if (!learner || !Number.isFinite(seen) || seen <= 0) return response;
+
+  let copied = seen <= knownCursor;
+  for (let attempt = 0; attempt < EVENT_SYNC_ATTEMPTS && !copied; attempt++) {
+    try {
+      copied = await learner.pullEvents(seen);
+    } catch {
+      copied = false;
+    }
+    if (!copied && attempt + 1 < EVENT_SYNC_ATTEMPTS) {
+      await new Promise(resolve => setTimeout(resolve, 100 * (2 ** attempt)));
+    }
+  }
+  if (!copied && response.ok) {
+    console.error(JSON.stringify({
+      message: "learner event durability unconfirmed",
+      path,
+      originSeq: seen,
+    }));
+    await response.body?.cancel().catch(() => undefined);
+    return durabilityUnconfirmed();
+  }
+  if (!copied) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set("x-eesti-durable-seq", String(seen));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function singletonStub(env: Env) {
@@ -1147,7 +1229,10 @@ export default {
       const owner = await stubFor(env, { scope: "owner", id: "owner", email: "" });
       if (owner) await owner.ensureRestored();
     }
-    const restored = learner ? await learner.ensureRestored() : true;
+    const prepared = learner
+      ? await learner.prepareOrigin()
+      : { restored: true, cursor: 0 };
+    const restored = prepared.restored;
     const writes = request.method !== "GET" && request.method !== "HEAD";
 
     /* Audio never changes — a synthesised sentence, or EKI's reader saying a
@@ -1178,11 +1263,10 @@ export default {
     if (url.pathname === "/api/transcribe" && request.method === "POST") {
       if (!restored) return notRestored();
       const heard = await transcribe(request, env, url, who, legacyOwner);
-      const seen = Number(heard.headers.get("x-events-seq") ?? "");
-      if (learner && Number.isFinite(seen) && seen > 0) {
-        ctx.waitUntil(learner.pullEvents(seen));
-      }
-      return heard;
+      const response = await confirmEventDurability(
+        heard, learner, url.pathname, prepared.cursor);
+      if (learner) ctx.waitUntil(learner.snapshot());
+      return response;
     }
 
     // Any API call may record evidence (opening a text is a GET that does), so
@@ -1218,16 +1302,15 @@ export default {
       );
     }
 
-    // Anything that changed state is worth a snapshot, but not synchronously —
-    // the learner should never wait on a backup. Debounced by the alarm the
-    // Durable Object already holds.
+    // New evidence is the source of truth: confirm its durable copy before the
+    // learner sees success. A failed copy returns a retriable 503 instead of an
+    // acknowledgement that a terminating container could erase.
+    response = await confirmEventDurability(
+      response, learner, url.pathname, prepared.cursor);
+    // Anything else that changed state is worth a snapshot, but not
+    // synchronously. It carries recoverable caches and projections only.
     if (writes && learner) {
       ctx.waitUntil(learner.snapshot());
-    }
-    // New evidence is copied out right away, not on the snapshot's timer.
-    const seq = Number(response.headers.get("x-events-seq") ?? "");
-    if (learner && Number.isFinite(seq) && seq > 0) {
-      ctx.waitUntil(learner.pullEvents(seq));
     }
 
     // The origin cannot see the AI binding, so it reports every hosted engine

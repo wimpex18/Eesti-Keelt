@@ -1,15 +1,15 @@
 # Handoff
 
-Current task: make Rada one coherent guided daily session.
+Current task: make permanent-account state acknowledgements durable and retries safe.
 
-Branch: `codex/guided-today-session`; PR #93 is open against `main`.
+Branch: `codex/durable-event-ack` from merged `main`; no PR yet.
 
-Implemented: the active drill precedes supporting status on phones; its hero compacts while a set runs. Täna combines daily evidence and the generated plan. A completed Minu rada set continues into the next incomplete plan block, while Vaba harjutus stays self-contained. Empty readiness copy waits for evidence before warning.
+Implemented: successful origin API responses wait for the learner Durable Object to copy through `x-events-seq`; failed copy/boot changes re-run restoration and return an explicit 503 instead of acknowledging vulnerable work. Practice and review retries preserve one answer, latency and event id; FSRS applies each review event exactly once. Snapshots remain asynchronous and guests unchanged.
 
-Verification: 2,485 tests passed, 1 skipped; 173 browser journeys passed, 3 skipped in Chromium and WebKit; `npm run typecheck`, JS syntax and `git diff --check` pass. Inspected light and dark at 1440×900, 744×1133, 402×874 and 874×402; detector reported only existing advisory token findings.
+Verification: 2,495 tests passed, 1 skipped; 173 browser journeys passed, 3 skipped in Chromium and WebKit; the focused failure retry passed on desktop and phone. TypeScript, JS syntax, `git diff --check` and Wrangler dry-run pass.
 
-Next: review GitHub checks and merge PR #93. Keep state-durability work in a separate change.
+Next: commit the named paths, push, open a PR, and watch GitHub checks.
 
-Uncommitted paths: none.
+Uncommitted paths: `HANDOFF.md`, `deploy/worker.ts`, four docs, five app files, and four test files.
 
 Blockers: none.

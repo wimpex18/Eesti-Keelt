@@ -773,23 +773,32 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     </div>`}
     <div class="verdict" role="status"></div>`;
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  // One answer keeps one identity while the learner retries a durability 503.
+  // The origin already deduplicates event_id, so a confirmed-but-interrupted
+  // first response cannot count the same drill twice.
+  const eventId = tally.record ? crypto.randomUUID() : "";
   addMic(input?.parentElement, input, it.prompt);
   const choices = [...el.querySelectorAll(".choice")];
   // One holder for "what was answered", whichever shape the item took, so the
   // submit path below stays single.
   let picked = "";
+  let submittedGiven = null;
+  let submittedLatency = null;
+  let inFlight = false;
   const check = el.querySelector(".row > button.ghost");
   const lock = () => {
+    inFlight = true;
     if (input) input.disabled = true;
     if (check) check.disabled = true;
     choices.forEach(b => b.disabled = true);
   };
-  const unlock = () => {
-    if (input) input.disabled = false;
+  const unlockRetry = () => {
+    inFlight = false;
+    if (input) input.disabled = true;
     if (check) check.disabled = false;
-    choices.forEach(b => { b.disabled = false; b.classList.remove("picked"); });
+    choices.forEach(b => { b.disabled = b.dataset.choice !== submittedGiven; });
   };
-  const locked = () => (input ? input.disabled : choices[0]?.disabled);
+  const locked = () => inFlight;
 
   const grade = async () => {
     if (locked()) return;
@@ -804,6 +813,8 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       input.focus();
       return;
     }
+    submittedGiven ??= input ? input.value : picked;
+    submittedLatency ??= Math.round(performance.now() - (started ?? rendered));
     lock();
     let res;
     try {
@@ -813,20 +824,21 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       // cached from before tokens existed.
       res = await (await api("/api/practice/answer", {
         topic, prompt: it.prompt, answer: it.answer,
-        given: input ? input.value : picked,
+        given: submittedGiven,
         distractor: it.distractor || "", lemma: it.lemma || "",
         label: it.hint || "", rule: it.rule || "", why_ru: it.why_ru || "",
         token: it.token || "",
-        latency_ms: Math.round(performance.now() - (started ?? rendered)),
+        event_id: eventId,
+        latency_ms: submittedLatency,
         record: tally.record,
       })).json();
     } catch (e) {
-      /* Nothing was recorded, so the item is not spent: unlock it and keep what was
-         typed, so the learner can send it again once the connection is back. */
-      unlock();
+      /* No durable success was confirmed, so the item is not spent. Keep the
+         same event id and typed answer for a safe retry. */
+      unlockRetry();
       verdict.className = "verdict no";
-      verdict.innerHTML = `Ответ не проверен. ${esc(e.message)}
-        <span class="hint">Попробуй ещё раз.</span>`;
+      verdict.innerHTML = `Сохранение ответа пока не подтверждено. ${esc(e.message)}
+        <span class="hint">Задание осталось на экране.</span>`;
       return;
     }
     // Answered, but the set was replaced while the answer was on its way: this item
@@ -839,7 +851,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
        was the learner's, underlined in cranberry when it was not. */
     const blank = el.querySelector(".prompt .blank");
     // With parallel forms ("tube ~ tubasid") the sentence takes the one typed, if right.
-    const said = res.correct && input ? input.value.trim() : it.answer.split(" ~ ")[0];
+    const said = res.correct && input ? submittedGiven.trim() : it.answer.split(" ~ ")[0];
     if (blank && !choices.length) {
       blank.textContent = said;
       blank.classList.add("filled", res.correct ? "ok" : "no");
@@ -862,7 +874,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
           : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", said))}</strong>`
             // A choice topic hid its form until now; the rule is the lesson either way.
             + (it.form_after ? `<br><span class="why">${md(it.why_ru || "")}</span>` : ""))
-      : wrongVerdict(input ? input.value : picked, it.answer, it.why_ru);
+      : wrongVerdict(submittedGiven, it.answer, it.why_ru);
     /* The meaning arrives with the grade: `/api/practice/answer` looks up at most
        this one word. Only shown when the hint above did not already carry it. */
     if (res.russian?.length && !ru.length) {

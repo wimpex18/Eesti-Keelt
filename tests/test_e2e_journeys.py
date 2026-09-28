@@ -1698,10 +1698,21 @@ class TestTodaysPlan:
         item = {"prompt": "Ma ostan ____.", "answer": "raamatu", "lemma": "raamat",
                 "hint": "omastav", "level": "A2", "token": "journey-token"}
         page.route("**/api/plan?*", lambda route: route.fulfill(json=plan))
-        page.route("**/api/practice/answer", lambda route: route.fulfill(json={
-            "correct": True, "accuracy": .8, "gate": "8/10", "russian": [],
-            "just_mastered": False,
-        }))
+        answers = []
+
+        def answer(route):
+            answers.append(route.request.post_data_json)
+            if len(answers) == 1:
+                route.fulfill(status=503, json={
+                    "detail": "Не удалось подтвердить сохранение прогресса.",
+                })
+                return
+            route.fulfill(json={
+                "correct": True, "accuracy": .8, "gate": "8/10", "russian": [],
+                "just_mastered": False,
+            })
+
+        page.route("**/api/practice/answer", answer)
         page.route("**/api/practice", lambda route: route.fulfill(json={
             "topic": "obj-case", "et": "Sihitis", "level": "A2", "items": [item],
             "glosses": {}, "theme": "",
@@ -1720,7 +1731,23 @@ class TestTodaysPlan:
         answer = page.locator("#practiceOut .drill input")
         answer.fill("raamatu")
         answer.press("Enter")
+        page.wait_for_selector("#practiceOut .verdict.no")
+        assert "Сохранение ответа пока не подтверждено" in page.locator(
+            "#practiceOut .verdict.no").inner_text()
+        assert answer.is_disabled()
+        assert any("503" in error for error in page.failed_requests)
+        page.errors.clear()
+        page.failed_requests.clear()
+        page.http_errors.clear()
+        retry = page.locator("#practiceOut .drill .row > button.ghost")
+        assert retry.is_enabled()
+        retry.evaluate("button => button.click()")
         page.wait_for_selector('#practiceOut .set-end [data-act="continue"]')
+        assert len(answers) == 2
+        assert re.fullmatch(r"[0-9a-f-]{36}", answers[0]["event_id"])
+        assert answers[1]["event_id"] == answers[0]["event_id"]
+        assert answers[1]["given"] == answers[0]["given"] == "raamatu"
+        assert answers[1]["latency_ms"] == answers[0]["latency_ms"]
         end = page.locator("#practiceOut .set-end")
         assert "Kirjutamine" in end.inner_text()
         assert "Сегодня выполнено" in end.inner_text()

@@ -243,7 +243,8 @@ class TestATwoChoiceItemIsAnsweredByChoosing:
 
     def test_the_chosen_sentence_is_what_gets_submitted(self, page):
         fn = page.split("function renderPracticeItem")[1]
-        assert "given: input ? input.value : picked" in fn
+        assert "submittedGiven ??= input ? input.value : picked" in fn
+        assert "given: submittedGiven" in fn
 
     def test_the_typed_path_still_exists_for_every_other_item(self, page):
         fn = page.split("function renderPracticeItem")[1]

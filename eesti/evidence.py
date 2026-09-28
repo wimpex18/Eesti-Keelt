@@ -3,8 +3,9 @@
 The log is the source of truth. `progress.db`, `review.db`, `vocab.db` and
 `notion.db` hold *projections* of it: each can be thrown away and rebuilt by
 replaying the log (`rebuild`). The Worker keeps the durable copy of the log in the
-learner's Durable Object and pulls new events after every request
-(`/api/events`); a fresh instance gets the whole log back (`/api/events/import`).
+learner's Durable Object and confirms new events before returning a successful
+permanent-account API response (`/api/events`); a fresh instance gets the whole
+log back (`/api/events/import`).
 
 How a change is recorded:
 
@@ -58,7 +59,7 @@ CREATE TABLE IF NOT EXISTS events (
 PROJECTIONS: dict[str, tuple[str, ...]] = {
     "progress": ("attempts", "topic_state", "checkpoints", "dictation", "exposure",
                  "goal", "exam_sections"),
-    "review": ("review_items",),
+    "review": ("review_applications", "review_items"),
     "vocab": ("vocab_status",),
     "notion": ("notion_queue",),
 }
@@ -162,6 +163,17 @@ def record(type_: str, payload: dict, *, ts: str | None = None,
     arrives first is refused, since backfilling an empty instance would mark an
     empty history as the whole of it.
     """
+    return record_once(type_, payload, ts=ts, id_=id_)[0]
+
+
+def record_once(type_: str, payload: dict, *, ts: str | None = None,
+                id_: str | None = None) -> tuple[Event, bool]:
+    """Append an event and say whether it was new.
+
+    A caller that applies a projection itself uses the boolean to make a retry
+    idempotent. Reusing an id for different evidence is rejected rather than
+    silently turning one learner action into another.
+    """
     ev = Event(id=id_ or str(uuid.uuid7()), type=type_, ts=ts or now(),
                payload=payload, learner=learner())
     from .identity import current
@@ -171,8 +183,18 @@ def record(type_: str, payload: dict, *, ts: str | None = None,
             if restored_by_worker() and not current().is_guest:
                 raise NotRestored("the evidence log has not been restored yet")
             backfill(conn)
-        _insert(conn, ev)
-    return ev
+        added = _insert(conn, ev)
+        if not added:
+            row = conn.execute("SELECT * FROM events WHERE id = ?", (ev.id,)).fetchone()
+            existing = _row(row)
+            if (
+                existing.type != ev.type
+                or existing.learner != ev.learner
+                or existing.payload != ev.payload
+            ):
+                raise ValueError("event id is already used for different evidence")
+            return existing, False
+    return ev, True
 
 
 # --------------------------------------------------------------------------

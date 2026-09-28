@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS review_items (
 );
 CREATE INDEX IF NOT EXISTS idx_due ON review_items(due);
 CREATE INDEX IF NOT EXISTS idx_kind ON review_items(kind);
+CREATE TABLE IF NOT EXISTS review_applications (
+    event_id    TEXT PRIMARY KEY,
+    item_id     TEXT NOT NULL
+);
 """
 
 
@@ -288,7 +292,7 @@ def auto_rating(correct: bool, latency_ms: int | None = None) -> str:
 
 def grade(conn: sqlite3.Connection, item_id_: str, rating: str, *,
           auto: bool = False, given: str | None = None,
-          latency_ms: int | None = None) -> dict:
+          latency_ms: int | None = None, event_id: str | None = None) -> dict:
     """Record a review and reschedule. Returns the new due date and interval.
 
     The event is the FSRS review log: rating, whether code or the learner chose
@@ -301,17 +305,17 @@ def grade(conn: sqlite3.Connection, item_id_: str, rating: str, *,
         raise KeyError(item_id_)
     payload = {"id": item_id_, "rating": rating, "auto": auto, "given": given,
                "latency_ms": latency_ms}
-    ev = evidence.record("review", payload)
-    return _grade(conn, payload, ev.ts)
+    ev, _ = evidence.record_once("review", payload, id_=event_id)
+    return _grade(conn, payload, ev.ts, event_id=ev.id)
 
 
 @evidence.applies("review")
 def _apply_grade(stores, ev) -> None:
-    _grade(stores["review"], ev.payload, ev.ts)
+    _grade(stores["review"], ev.payload, ev.ts, event_id=ev.id)
 
 
 def answer(conn: sqlite3.Connection, item_id_: str, given: str,
-           latency_ms: int | None = None) -> dict:
+           latency_ms: int | None = None, *, event_id: str | None = None) -> dict:
     """Grade a typed answer to a card and rate it from the result (`auto_rating`)."""
     row = conn.execute(
         "SELECT answer FROM review_items WHERE id = ?", (item_id_,)).fetchone()
@@ -319,25 +323,58 @@ def answer(conn: sqlite3.Connection, item_id_: str, given: str,
         raise KeyError(item_id_)
     correct = accepts(row["answer"], given)
     rating = auto_rating(correct, latency_ms)
-    out = grade(conn, item_id_, rating, auto=True, given=given, latency_ms=latency_ms)
+    out = grade(conn, item_id_, rating, auto=True, given=given,
+                latency_ms=latency_ms, event_id=event_id)
     return out | {"correct": correct, "rating": rating, "answer": row["answer"]}
 
 
-def _grade(conn: sqlite3.Connection, p: dict, at: str) -> dict:
+def _graded_state(conn: sqlite3.Connection, item_id_: str, at: str) -> dict:
+    """Return the already-applied schedule for an idempotent retry."""
+    row = conn.execute(
+        "SELECT due, reps, lapses FROM review_items WHERE id = ?", (item_id_,)
+    ).fetchone()
+    if row is None:
+        raise KeyError(item_id_)
+    due = datetime.fromisoformat(row["due"])
+    interval = due - datetime.fromisoformat(at)
+    return {
+        "id": item_id_, "due": row["due"],
+        "interval_days": round(interval.total_seconds() / 86400, 2),
+        "reps": row["reps"], "lapses": row["lapses"],
+    }
+
+
+def _grade(
+    conn: sqlite3.Connection,
+    p: dict,
+    at: str,
+    *,
+    event_id: str | None = None,
+) -> dict:
     item_id_, rating = p["id"], p["rating"]
+    if rating not in RATINGS:
+        raise ValueError(f"unknown rating: {rating}")
     row = conn.execute(
         "SELECT card, reps, lapses FROM review_items WHERE id = ?", (item_id_,)
     ).fetchone()
     if row is None:
         raise KeyError(item_id_)
 
-    when = datetime.fromisoformat(at)
-    card = Card.from_dict(json.loads(row["card"]))
-    updated, _log = _scheduler().review_card(card, RATINGS[rating],
-                                             review_datetime=when)
-
-    lapses = row["lapses"] + (1 if rating == "again" else 0)
     with conn:
+        if event_id:
+            inserted = conn.execute(
+                "INSERT OR IGNORE INTO review_applications (event_id, item_id) VALUES (?, ?)",
+                (event_id, item_id_),
+            ).rowcount
+            if not inserted:
+                return _graded_state(conn, item_id_, at)
+
+        when = datetime.fromisoformat(at)
+        card = Card.from_dict(json.loads(row["card"]))
+        updated, _log = _scheduler().review_card(
+            card, RATINGS[rating], review_datetime=when
+        )
+        lapses = row["lapses"] + (1 if rating == "again" else 0)
         conn.execute(
             "UPDATE review_items SET card = ?, due = ?, reps = ?, lapses = ?"
             " WHERE id = ?",
