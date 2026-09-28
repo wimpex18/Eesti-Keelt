@@ -1,15 +1,21 @@
 # Handoff
 
-Current task: independent encrypted off-account backup and tested disaster restore; implementation complete.
+Current task: durable acknowledgement fix and branch cleanup in PR #94.
+Branch: `codex/durable-event-ack`, against `main`.
 
-Branch: `codex/durable-event-ack`; PR #94 is open against `main`.
+Permanent-account success confirms the response's event sequence and origin boot.
+Drill/review retries preserve event identity and timing; FSRS applies a review once.
+Free practice stays editable after a failed check. Worker behavior tests cover
+container replacement, cursor shortcuts, failed copying and speech evidence.
 
-Implemented: permanent-account responses wait for the Durable Object event copy; retries preserve one event and FSRS applies it once. A separate Mac job now pulls every account/log through a read-only token, encrypts with AES-GCM plus RSA-OAEP, decrypts and strictly replays the stored artifact before its atomic commit, and reports daily failure. Restore uses a separate temporary token, preflights paged logs, rejects divergence and only appends a missing suffix.
+Scheduled independent backups are deferred at the user's request. Backup scripts,
+machine export/restore routes and secrets are removed from this PR. Private manual
+exports and the existing replay verifier remain. No Mac mini backup job was installed.
 
-Verification: 2,503 tests passed, 1 skipped; backup pull/encryption/tamper/replay/dry-run tests pass; TypeScript, Node and zsh syntax, `git diff --check` and Wrangler dry-run pass. The earlier 173 browser journeys passed with 3 skips; this addition changes no web UI.
+Verification: 2,488 Python tests passed (1 skip); 177 browser journeys passed
+(3 viewport skips); 6 Worker tests, typecheck, Wrangler dry-run and diff check passed.
+Screenshots inspected across all tabs at desktop, phone, landscape and tablet sizes.
+Clean checkout: Worker tests/typecheck and 43 evidence/recovery tests passed.
 
-Next: merge and deploy PR #94, then follow `deploy/backup/README.md`: choose the external destination, install the launchd job, set `BACKUP_TOKEN`, kick-start one real pull and confirm `last-success`. Keep `RESTORE_TOKEN` unset outside a recovery.
-
-Uncommitted paths: none after the pending commit.
-
-Blockers: code has none. Off-account protection is not operational until the one-time destination and secret setup above.
+Next: user review/merge PR #94, then deep smoke after automated deployment.
+Uncommitted paths: none after this commit. No code blockers; CI runs on push.

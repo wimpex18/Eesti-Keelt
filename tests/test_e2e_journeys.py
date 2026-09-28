@@ -635,6 +635,51 @@ class TestTheGrammarDrill:
         assert "✗" not in item.locator(".verdict").inner_text()
         assert page.locator("#freeScore").inner_text().strip() == "", "empty answer was scored"
 
+    @pytest.mark.parametrize("choice", [False, True], ids=["typed", "choice"])
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_a_failed_free_check_keeps_the_answer_editable(self, page, choice):
+        """A failed check in unrecorded practice must let the learner edit it."""
+        drill = {"prompt": "Ma ostan ____.", "answer": "raamatu", "lemma": "raamat"}
+        if choice:
+            drill["choices"] = ["vale", "teine"]
+        page.route("**/api/practice", lambda route: route.fulfill(json={
+            "items": [drill], "glosses": {}, "theme": "",
+        }))
+        self._start(page)
+        sent = []
+
+        def grade(route):
+            sent.append(route.request.post_data_json)
+            if len(sent) == 1:
+                route.fulfill(status=503, json={"detail": "temporary failure"})
+            else:
+                route.fulfill(json={"correct": False, "russian": []})
+
+        page.route("**/api/practice/answer", grade)
+        item = page.locator("#freeOut .drill").first
+        answer = item.locator('[data-choice="teine"]' if choice else "input")
+        if choice:
+            item.locator('[data-choice="vale"]').click()
+        else:
+            answer.fill("vale")
+            answer.press("Enter")
+        page.wait_for_function("document.querySelector('#freeOut .verdict').textContent.includes('Ответ пока не проверен')")
+        assert answer.is_enabled()
+        # The deliberately failed request is expected, not a page error.
+        page.errors.clear()
+        page.failed_requests.clear()
+        page.http_errors.clear()
+        if choice:
+            answer.click()
+        else:
+            answer.fill("teine")
+            answer.press("Enter")
+        page.wait_for_function("document.querySelector('#freeOut .verdict').textContent.includes('✗')")
+        assert [request["given"] for request in sent] == ["vale", "teine"]
+        assert all(not request["record"] and not request["event_id"] for request in sent)
+        assert answer.is_disabled()
+        assert not browser_errors(page), browser_errors(page)
+
     def test_a_question_word_blank_carries_a_russian_cue(self, page):
         """`küsisõnad` has no lemma to gloss; its blank carries EVS's Russian
         for the wanted word, marked Russian, and never the Estonian answer."""
@@ -1332,6 +1377,7 @@ class TestTheMeaningCardIsAFlashcard:
             return await r.json();
         }""", [live_server, word])
 
+    @pytest.mark.parametrize("service_workers", ["block"])
     def test_reveal_then_rate(self, page, live_server):
         """Reveal then grade, as one flow: a graded card is no longer due for a later test."""
         word, meaning = self._word(page)
@@ -1354,8 +1400,27 @@ class TestTheMeaningCardIsAFlashcard:
         assert meaning in card.locator(".fc-meaning").inner_text()
         assert card.locator("button[data-r]").first.is_visible()
 
+        requests = []
+
+        def grade(route):
+            requests.append(route.request.post_data_json)
+            if len(requests) == 1:
+                route.fulfill(status=503, json={"detail": "temporary failure"})
+            else:
+                route.continue_()
+
+        page.route("**/api/review/grade", grade)
+        card.locator('button[data-r="good"]').click()
+        page.wait_for_selector(".flashcard .verdict.no")
+        assert card.locator('button[data-r="good"]').is_enabled()
+        assert card.locator('button[data-r="again"]').is_disabled()
+        page.errors.clear()
+        page.failed_requests.clear()
+        page.http_errors.clear()
         card.locator('button[data-r="good"]').click()
         page.wait_for_selector(".flashcard .verdict.ok", timeout=15000)
+        assert len(requests) == 2 and requests[0] == requests[1]
+        assert requests[0]["event_id"]
         verdict = card.locator(".verdict").inner_text()
         assert meaning in verdict and "снова" in verdict, verdict
         assert not browser_errors(page), browser_errors(page)
@@ -1469,7 +1534,9 @@ class TestSpeakingEvaluation:
 
     def test_normal_answer_can_be_saved_and_reviewed_in_the_page(
             self, _pw, live_server):
-        context = _pw.new_context(viewport={"width": 390, "height": 844})
+        context = _pw.new_context(
+            viewport={"width": 390, "height": 844},
+            extra_http_headers={"x-eesti-scope": "owner"})
         context.add_init_script("""(() => {
           Object.defineProperty(navigator, 'mediaDevices', {configurable: true,
             value: {getUserMedia: async () => ({getTracks: () => [{stop() {}}]})}});
@@ -1809,6 +1876,7 @@ class TestAGrammarCardIsAnswered:
     """A grammar card in the queue is answered, and code rates it; there are no
     self-rating buttons on it (`review.auto_rating`)."""
 
+    @pytest.mark.parametrize("service_workers", ["block"])
     def test_type_the_form_and_see_the_verdict(self, page, live_server):
         # A card of its own per engine and viewport: the server's queue is shared,
         # and an answered card is no longer due for the next run.
@@ -1824,15 +1892,28 @@ class TestAGrammarCardIsAnswered:
         page.click('.modes button[data-mode="revise"]')
         card = self._reach(page, live_server, lemma)
         assert card.locator("button[data-r]").count() == 0
+        requests = []
+
+        def grade(route):
+            requests.append(route.request.post_data_json)
+            if len(requests) == 1:
+                route.fulfill(status=503, json={"detail": "temporary failure"})
+            else:
+                route.continue_()
+
+        page.route("**/api/review/grade", grade)
         card.locator("input").fill("läheksin")
-        if page.viewport_name == "phone":
-            # The phone keyboard's Enter: emulation has no keyboard, so a tap on
-            # Kontrolli blurs the field and the mode bar, hidden while typing,
-            # comes back under the pointer before the click lands.
-            card.locator("input").press("Enter")
-        else:
-            card.locator("button[data-check]").click()
+        card.locator("input").press("Enter")
+        page.wait_for_selector("#reviewOut .verdict.no")
+        assert card.locator("input").is_disabled()
+        assert card.locator("button[data-check]").is_enabled()
+        page.errors.clear()
+        page.failed_requests.clear()
+        page.http_errors.clear()
+        card.locator("button[data-check]").click()
         page.wait_for_selector(f".drill.done:has-text('{lemma}') .verdict.ok", timeout=15000)
+        assert len(requests) == 2 and requests[0] == requests[1]
+        assert requests[0]["event_id"]
         verdict = card.locator(".verdict").inner_text()
         assert "Верно" in verdict and "снова" in verdict, verdict
         assert not browser_errors(page), browser_errors(page)

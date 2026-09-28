@@ -794,9 +794,16 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   };
   const unlockRetry = () => {
     inFlight = false;
-    if (input) input.disabled = true;
+    if (input) input.disabled = tally.record;
     if (check) check.disabled = false;
-    choices.forEach(b => { b.disabled = b.dataset.choice !== submittedGiven; });
+    choices.forEach(b => {
+      b.disabled = tally.record && b.dataset.choice !== submittedGiven;
+      if (!tally.record) b.classList.remove("picked");
+    });
+    if (!tally.record) {
+      submittedGiven = null;
+      submittedLatency = null;
+    }
   };
   const locked = () => inFlight;
 
@@ -833,11 +840,13 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
         record: tally.record,
       })).json();
     } catch (e) {
-      /* No durable success was confirmed, so the item is not spent. Keep the
-         same event id and typed answer for a safe retry. */
+      /* The item is not spent. Recorded practice retries the same event and
+         answer; free practice lets the learner edit the answer. */
       unlockRetry();
       verdict.className = "verdict no";
-      verdict.innerHTML = `Сохранение ответа пока не подтверждено. ${esc(e.message)}
+      verdict.innerHTML = `${tally.record
+        ? "Сохранение ответа пока не подтверждено."
+        : "Ответ пока не проверен."} ${esc(e.message)}
         <span class="hint">Задание осталось на экране.</span>`;
       return;
     }

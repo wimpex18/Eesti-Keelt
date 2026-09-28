@@ -4,6 +4,7 @@
   "description": "Cloudflare Worker that fronts the Eesti-Keelt app on Cloud Run. The app itself is Python; this is only the doorman.",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test:worker": "node --import ./tests/worker-runtime.mjs --test tests/worker.test.mjs",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

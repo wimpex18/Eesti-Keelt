@@ -11,6 +11,7 @@ runtimes; other tests exercise behavior instead of checking CSS or doc counts.
 | Suite | Command | Time | Runs in CI |
 |---|---|---|---|
 | **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~20–25 s | yes — `tests.yml` |
+| **Worker** | `npm run test:worker` | ~2 s | yes — `worker` job |
 | **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | yes — `journeys` job; reading journeys skip without the corpus |
 | **Browser, full matrix** | same, with `--all-browsers` | longer than the default pairings | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (Workers AI), manual |
@@ -93,11 +94,11 @@ temporary databases, twice. Tests cover unsupported events/versions, duplicates,
 missing backfill marker and keeping live stores unchanged. This proves the
 supplied export is replayable, not that every remote event reached the export.
 
-`node deploy/backup-state.mjs self-test` generates temporary keys, encrypts and
-decrypts a complete fixture, authenticates it and passes its log through the
-same strict replay verifier. A scheduled real backup does that replay check for
-every non-empty account before committing the encrypted file. Procedures and a
-non-writing restore rehearsal are in `deploy/backup/README.md`.
+`npm run test:worker` runs the Worker routes and Durable Object methods under
+Node with isolated SQLite stores and a simulated origin. It verifies that a
+replacement boot cannot acknowledge a lost event, cursor shortcuts use the
+same boot, transient copying failures retry, and speech follows the same
+acknowledgement. The Worker job runs these tests and typechecking in CI.
 
 ## Not covered
 

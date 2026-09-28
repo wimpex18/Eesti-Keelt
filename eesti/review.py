@@ -305,7 +305,7 @@ def grade(conn: sqlite3.Connection, item_id_: str, rating: str, *,
         raise KeyError(item_id_)
     payload = {"id": item_id_, "rating": rating, "auto": auto, "given": given,
                "latency_ms": latency_ms}
-    ev, _ = evidence.record_once("review", payload, id_=event_id)
+    ev = evidence.record("review", payload, id_=event_id)
     return _grade(conn, payload, ev.ts, event_id=ev.id)
 
 

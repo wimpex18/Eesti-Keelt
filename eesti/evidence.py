@@ -162,17 +162,9 @@ def record(type_: str, payload: dict, *, ts: str | None = None,
     On the deployment that is the Worker's restore's job (`settle`): a write that
     arrives first is refused, since backfilling an empty instance would mark an
     empty history as the whole of it.
-    """
-    return record_once(type_, payload, ts=ts, id_=id_)[0]
 
-
-def record_once(type_: str, payload: dict, *, ts: str | None = None,
-                id_: str | None = None) -> tuple[Event, bool]:
-    """Append an event and say whether it was new.
-
-    A caller that applies a projection itself uses the boolean to make a retry
-    idempotent. Reusing an id for different evidence is rejected rather than
-    silently turning one learner action into another.
+    Retrying the same id returns the original event and timestamp. Reusing that
+    id for different evidence is rejected; projections must also deduplicate it.
     """
     ev = Event(id=id_ or str(uuid.uuid7()), type=type_, ts=ts or now(),
                payload=payload, learner=learner())
@@ -193,8 +185,8 @@ def record_once(type_: str, payload: dict, *, ts: str | None = None,
                 or existing.payload != ev.payload
             ):
                 raise ValueError("event id is already used for different evidence")
-            return existing, False
-    return ev, True
+            return existing
+    return ev
 
 
 # --------------------------------------------------------------------------

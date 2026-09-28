@@ -9,19 +9,14 @@ from . import config, evidence
 
 
 def verify_export(path: Path) -> dict:
-    """Read a JSONL export and exercise its replay in isolated stores."""
-    incoming = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
-                if line.strip()]
-    return verify_events(incoming)
-
-
-def verify_events(incoming: list[dict]) -> dict:
     """Exercise replay twice without touching the learner's working stores.
 
     This checks completeness markers and replayability, not authenticity. Keep
     exports private; the event payloads include writing and speech transcripts.
     No production restore or erasure is performed by this diagnostic.
     """
+    incoming = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()]
     if any(row.get("v", evidence.VERSION) not in (0, evidence.VERSION) for row in incoming):
         raise ValueError("unsupported event version in export")
     ids = [row["id"] for row in incoming]

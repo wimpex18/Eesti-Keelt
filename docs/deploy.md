@@ -91,7 +91,7 @@ matters for the caches it carries (stored glosses, the provider breaker).
 | When | What |
 |---|---|
 | new boot id | snapshot in (`POST /api/state/import`), then the whole log in batches (`POST /api/events/import`); the last batch settles: the instance rebuilds its learner tables from the log, or, the first time ever, backfills the log from them |
-| any successful response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) and returns success only after the Durable Object reaches that sequence |
+| any successful response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) and returns success only after the Durable Object reaches that sequence for the response's boot id |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
 Events are keyed by id, so copying one twice changes nothing. On Cloud Run
@@ -114,12 +114,13 @@ Safeguards:
 - an export with no learner rows (`learner_rows`) never replaces a snapshot
   that has some; a half-written snapshot counts as none;
 - event copying is retried briefly and a success is replaced by a retriable 503
-  if the Durable Object cannot confirm the origin's sequence; online drill and
-  review retries reuse their event id and therefore cannot count twice;
+  if the Durable Object cannot confirm the sequence for that response's boot id;
+  online drill and review retries reuse their event id and therefore cannot
+  count twice;
 - the service runs with `--max-instances 1` (set by `setup.sh`, checked by
   `check-service.sh`): a second instance would keep its own copy.
 
-For the event log, a successful API response is now a durability
+For the event log, a successful API response is a durability
 acknowledgement. A request that receives the explicit 503 may already have
 reached the origin, so refresh its state before repeating a lower-frequency
 action. The visible drill and review retry controls are safe to use directly:
@@ -314,23 +315,12 @@ responses wait until the event log reaches the Durable Object; snapshots remain
 asynchronous because they hold projections and caches, not the replay authority.
 Keep one writable revision/instance; do not scale this design horizontally.
 
-The repository includes an external pull backup in `deploy/backup/`. On the
-owner's Mac it uses a dedicated read-only Worker credential, exports account
-credentials and every permanent learner's authoritative event log, replays each
-non-empty log twice in isolated databases, then writes only an AES-256-GCM
-encrypted `.ekb` file to a chosen off-account location. launchd runs it daily.
-This protection is **not active** until the operator installs it, configures
-`BACKUP_TOKEN`, performs a real pull and checks its success log. Full setup,
-verification and disaster recovery are in `deploy/backup/README.md`.
+Independent scheduled backups are deferred. The app has no backup job on the
+Mac mini and no machine export or disaster-restore endpoint. A hosting-account
+loss can remove the live Durable Objects; keep a private export outside that
+account before migrations and periodically during study.
 
-The restore path uses a different `RESTORE_TOKEN`, which should exist only for
-the recovery window. Restore validates the complete bundle before writes,
-rejects divergent logs, appends only a missing suffix and never truncates a
-newer live log. It is safe to repeat after an interruption. Delete the restore
-secret immediately after the recovery and run the deep smoke workflow before
-reopening learner traffic.
-
-For an additional per-account export, download `Minu andmed` (`/api/me/export`)
+Download `Minu andmed` (`/api/me/export`)
 while signed in and save the JSONL privately. It contains learner writing and
 transcripts, never raw production audio. Verify:
 
@@ -338,14 +328,16 @@ transcripts, never raw production audio. Verify:
 python -m eesti.cli verify-backup /private/path/eesti-keelt-events.jsonl
 ```
 
-This also replays twice into temporary databases, checks stable projections, refuses
+This replays twice into temporary databases, checks stable projections, refuses
 unknown/unreplayable events or a missing backfill marker, and leaves live state
 untouched. It proves replayability, not authenticity or that the server export
 was complete at a particular time. It does not restore dictionary caches, push
 subscriptions, the private library, exam/audio mounts or recordings. Those need
 their original sources or separate private backups. Keep exports out of public
 Actions artifacts and git. Cloudflare's SQLite-backed recovery remains a useful
-account-local option, not a substitute for the encrypted external copy.
+account-local option, not a substitute for a private export outside the hosting
+account. A production restore must coordinate the origin and its Durable Object
+so the next request cannot overwrite the restored history.
 
 `reset-progress.sh --everything` resets practice; it does **not erase personal
 data**. For owner-requested erasure, take the app offline, stop cron and revoke

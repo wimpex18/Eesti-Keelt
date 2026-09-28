@@ -25,15 +25,6 @@ def test_private_export_replays_twice_without_touching_current_stores(tmp_path):
     assert Path(config.EVENTS_DB).read_bytes() == before
 
 
-def test_in_memory_event_backup_uses_the_same_strict_replay_check():
-    with evidence.connect() as log:
-        evidence.backfill(log)
-        incoming = [event.to_dict() for event in evidence.events(log)]
-    result = recovery.verify_events(incoming)
-    assert result['verified'] is True
-    assert result['events'] == len(incoming)
-
-
 def test_unsupported_event_is_not_a_successful_restore(tmp_path):
     evidence.record('future-unsupported', {})
     backup = tmp_path / 'backup.jsonl'

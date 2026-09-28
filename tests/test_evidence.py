@@ -260,7 +260,7 @@ class TestAutoRating:
             "given": it["answer"],
             "latency_ms": 1234,
         }
-        evidence.record_once("review", payload, id_="interrupted-review-1")
+        evidence.record("review", payload, id_="interrupted-review-1")
 
         response = client.post("/api/review/grade", json={
             "id": card,
