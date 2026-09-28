@@ -8,8 +8,8 @@ Implemented: successful origin API responses wait for the learner Durable Object
 
 Verification: 2,495 tests passed, 1 skipped; 173 browser journeys passed, 3 skipped in Chromium and WebKit; the focused failure retry passed on desktop and phone. TypeScript, JS syntax, `git diff --check` and Wrangler dry-run pass.
 
-Next: commit the named paths, push, open a PR, and watch GitHub checks.
+Next: push, open a PR, and watch GitHub checks.
 
-Uncommitted paths: `HANDOFF.md`, `deploy/worker.ts`, four docs, five app files, and four test files.
+Uncommitted paths: `HANDOFF.md` (this status refresh).
 
 Blockers: none.
