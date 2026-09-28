@@ -1,15 +1,21 @@
 # Handoff
 
-Current task: make Rada one coherent guided daily session.
+Current task: durable acknowledgement fix and branch cleanup in PR #94.
+Branch: `codex/durable-event-ack`, against `main`.
 
-Branch: `codex/guided-today-session`; PR #93 is open against `main`.
+Permanent-account success confirms the response's event sequence and origin boot.
+Drill/review retries preserve event identity and timing; FSRS applies a review once.
+Free practice stays editable after a failed check. Worker behavior tests cover
+container replacement, cursor shortcuts, failed copying and speech evidence.
 
-Implemented: the active drill precedes supporting status on phones; its hero compacts while a set runs. Täna combines daily evidence and the generated plan. A completed Minu rada set continues into the next incomplete plan block, while Vaba harjutus stays self-contained. Empty readiness copy waits for evidence before warning.
+Scheduled independent backups are deferred at the user's request. Backup scripts,
+machine export/restore routes and secrets are removed from this PR. Private manual
+exports and the existing replay verifier remain. No Mac mini backup job was installed.
 
-Verification: 2,485 tests passed, 1 skipped; 173 browser journeys passed, 3 skipped in Chromium and WebKit; `npm run typecheck`, JS syntax and `git diff --check` pass. Inspected light and dark at 1440×900, 744×1133, 402×874 and 874×402; detector reported only existing advisory token findings.
+Verification: 2,488 Python tests passed (1 skip); 177 browser journeys passed
+(3 viewport skips); 6 Worker tests, typecheck, Wrangler dry-run and diff check passed.
+Screenshots inspected across all tabs at desktop, phone, landscape and tablet sizes.
+Clean checkout: Worker tests/typecheck and 43 evidence/recovery tests passed.
 
-Next: review GitHub checks and merge PR #93. Keep state-durability work in a separate change.
-
-Uncommitted paths: none.
-
-Blockers: none.
+Next: user review/merge PR #94, then deep smoke after automated deployment.
+Uncommitted paths: none after this commit. No code blockers; CI runs on push.

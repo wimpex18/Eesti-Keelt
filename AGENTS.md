@@ -48,9 +48,10 @@ the learner; no sitting is assumed.
 ## Runtime and verification
 
 FastAPI/Vabamorf runs on one Cloud Run instance. Cloudflare Worker + Access is
-the front door; `PROXY_TOKEN` protects the origin. The Worker copies learner
-events into a Durable Object asynchronously. Cloud Build rebuilds the origin
-on merge to `main`; the `deploy` workflow updates the Worker for Worker paths.
+the front door; `PROXY_TOKEN` protects the origin. Permanent-account API
+success waits for the Durable Object to confirm the event sequence for that
+response's origin boot. Cloud Build rebuilds the origin on merge to `main`;
+the `deploy` workflow updates the Worker for Worker paths.
 Use the `smoke` workflow with `deep: true` after deployment. Operator scripts
 run in Google Cloud Shell; see `docs/deploy.md`. Learners and guests (each
 person's own progress; sandboxes for agents and tests):

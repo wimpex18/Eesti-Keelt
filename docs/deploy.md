@@ -91,7 +91,7 @@ matters for the caches it carries (stored glosses, the provider breaker).
 | When | What |
 |---|---|
 | new boot id | snapshot in (`POST /api/state/import`), then the whole log in batches (`POST /api/events/import`); the last batch settles: the instance rebuilds its learner tables from the log, or, the first time ever, backfills the log from them |
-| any response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) |
+| any successful response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) and returns success only after the Durable Object reaches that sequence for the response's boot id |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
 Events are keyed by id, so copying one twice changes nothing. On Cloud Run
@@ -113,11 +113,21 @@ Safeguards:
 - a snapshot is taken only from the instance the Worker restored (its boot id);
 - an export with no learner rows (`learner_rows`) never replaces a snapshot
   that has some; a half-written snapshot counts as none;
+- event copying is retried briefly and a success is replaced by a retriable 503
+  if the Durable Object cannot confirm the sequence for that response's boot id;
+  online drill and review retries reuse their event id and therefore cannot
+  count twice;
 - the service runs with `--max-instances 1` (set by `setup.sh`, checked by
   `check-service.sh`): a second instance would keep its own copy.
 
-A crash before asynchronous event copying can lose acknowledged answers;
-snapshots are an additional recovery copy, not a durability acknowledgement.
+For the event log, a successful API response is a durability
+acknowledgement. A request that receives the explicit 503 may already have
+reached the origin, so refresh its state before repeating a lower-frequency
+action. The visible drill and review retry controls are safe to use directly:
+they preserve one event id and one submitted answer. The request was not
+reported as safely saved until the Durable Object confirmed it.
+Snapshots remain an additional recovery copy for caches and projections, not
+the acknowledgement.
 
 ## EKI's recordings
 
@@ -300,16 +310,19 @@ the architecture.
 ## Backup, recovery and erasure
 
 The Durable Object's copied log and snapshots are live replication in the same
-hosting account. They are not an independent backup and the write response is
-not a durable acknowledgement: copying uses `waitUntil`. An origin crash before
-the copy can lose acknowledged answers. Snapshot intervals concern operational
-caches as well as legacy learner state; they do not bound every event-loss case.
+hosting account. They are not an independent backup. Successful permanent-account
+responses wait until the event log reaches the Durable Object; snapshots remain
+asynchronous because they hold projections and caches, not the replay authority.
 Keep one writable revision/instance; do not scale this design horizontally.
 
-Before a state migration or redesign, download `Minu andmed`
-(`/api/me/export`) while signed in and save the JSONL privately outside the
-hosting account. Repeat periodically during study; there is no nightly export.
-It contains learner writing and transcripts, never raw production audio. Verify:
+Independent scheduled backups are deferred. The app has no backup job on the
+Mac mini and no machine export or disaster-restore endpoint. A hosting-account
+loss can remove the live Durable Objects; keep a private export outside that
+account before migrations and periodically during study.
+
+Download `Minu andmed` (`/api/me/export`)
+while signed in and save the JSONL privately. It contains learner writing and
+transcripts, never raw production audio. Verify:
 
 ```bash
 python -m eesti.cli verify-backup /private/path/eesti-keelt-events.jsonl
@@ -321,17 +334,10 @@ untouched. It proves replayability, not authenticity or that the server export
 was complete at a particular time. It does not restore dictionary caches, push
 subscriptions, the private library, exam/audio mounts or recordings. Those need
 their original sources or separate private backups. Keep exports out of public
-Actions artifacts and git. Losing the hosting account means losing work since
-the most recent independent export.
-
-For a real recovery, first stop learner traffic/cron and preserve the current
-state. Validate the chosen export with the matching code version, restore into
-an isolated local checkout and inspect the reconstructed state. Production
-replacement must replace the DO authority and origin together; uploading only
-the origin log is insufficient because the DO can restore the other copy.
-There is no coordinated production overwrite command. Cloudflare's
-SQLite-backed DO recovery facilities are an additional account-local option,
-not a substitute for a tested off-account export.
+Actions artifacts and git. Cloudflare's SQLite-backed recovery remains a useful
+account-local option, not a substitute for a private export outside the hosting
+account. A production restore must coordinate the origin and its Durable Object
+so the next request cannot overwrite the restored history.
 
 `reset-progress.sh --everything` resets practice; it does **not erase personal
 data**. For owner-requested erasure, take the app offline, stop cron and revoke

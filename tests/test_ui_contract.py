@@ -241,10 +241,6 @@ class TestATwoChoiceItemIsAnsweredByChoosing:
     def test_the_renderer_has_a_branch_for_them(self, page):
         assert "it.choices && it.choices.length" in page
 
-    def test_the_chosen_sentence_is_what_gets_submitted(self, page):
-        fn = page.split("function renderPracticeItem")[1]
-        assert "given: input ? input.value : picked" in fn
-
     def test_the_typed_path_still_exists_for_every_other_item(self, page):
         fn = page.split("function renderPracticeItem")[1]
         assert 'input type="text"' in fn

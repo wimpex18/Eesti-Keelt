@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  worker:
+    runs-on: ubuntu-latest
+    name: Worker durability
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:worker
+
   test:
     runs-on: ubuntu-latest
     strategy:

@@ -36,8 +36,8 @@ Whisper stays the fallback, and more verified clips can still reverse it.
 | Speech | The home service or, failing it, Cloudflare receives production audio; no app audio archive. Transcripts/practice signals enter evidence; feedback stays advisory. Recognition is not pronunciation assessment. Local CT2 reference dependencies stay outside the deployment image. |
 | Offline/sync | Keep cached shell and explicit IndexedDB drill packs; never cache API responses. Re-grade signed items server-side and deduplicate queued event IDs. Preserve pending answers across UI upgrades. There is no general offline tutor, exam or multi-device conflict resolver. |
 | Reminders | Keep opt-in, evidence-driven facts, quiet hours, deduplication and encrypted Web Push. Deployed VAPID bindings and cron are verified; browser delivery remains unmeasured. Cron restores state before deciding. No motivational scoring, email service or retained conversation transcript is needed. |
-| Privacy/recovery | Exported events contain writing and speech transcripts. `cli verify-backup` replays an export twice into isolated stores and rejects unsupported events. Manual private off-account exports remain the independent backup; live replication is not a backup. See `docs/deploy.md`. |
-| Deployment | Keep one Cloud Run instance and one process, no traffic splitting between independent writable revisions. Asynchronous Worker event copying is not a durable acknowledgement: a crash before copying may lose acknowledged work. Scale-out requires moving the write authority, not increasing the instance limit. |
+| Privacy/recovery | Exported events contain writing and speech transcripts. Strict replay verification runs in temporary stores and leaves live state untouched. Live replication is not an independent backup; scheduled off-account backups are deferred. See `docs/deploy.md`. |
+| Deployment | Keep one Cloud Run instance and one process, no traffic splitting between independent writable revisions. The Worker returns a successful permanent-account API response only after that account's Durable Object has copied through the event sequence for that response's origin boot; a failed confirmation is an explicit retriable 503. Snapshots remain asynchronous because the event log, not the projections or caches they carry, is the source of truth. Scale-out still requires moving the write authority, not increasing the instance limit. |
 | Testing | Offline domain tests and replay tests, separate live provider evals, and browser journeys in CI and locally for both viewports. Morphology gold validation remains the dependency-upgrade gate. UI changes must exercise journeys, offline replay and restored state. |
 
 ## Deferred items, decided individually
@@ -47,12 +47,11 @@ Whisper stays the fallback, and more verified clips can still reverse it.
   Durable Object; self-service erasure would also have to cover the browser
   queue, exports and externally sent Notion rows. The current operator
   procedure is in `docs/deploy.md`.
-- **Nightly independent backup:** deferred for this owner-operated app. Use a
-  private export before structural changes and periodically during study,
-  validate it, and keep it outside the hosting account. This accepts loss since
-  the last manual export if the hosting account is lost. Add scheduled encrypted
-  backup only when that recovery-point tradeoff is unacceptable; do not put
-  learner JSONL in public CI artifacts.
+- **Independent backup:** scheduled off-account backup and disaster restore
+  are deferred. Private exports can be strictly replay-checked with
+  `cli verify-backup`. Keep them outside the hosting account and never put
+  plaintext learner data in CI artifacts. The Mac mini is a speech service,
+  with Workers AI fallback, and has no backup job.
 - **FSRS optimiser:** implemented; running it is deferred until enough history
   exists. A forced small-data fit is an experiment, not evidence of improvement.
 - **Recorded ASR corpus:** remains necessary. Start with 20 manually verified

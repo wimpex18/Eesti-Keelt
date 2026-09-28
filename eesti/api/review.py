@@ -30,6 +30,7 @@ class ReviewAdd(BaseModel):
 
 class ReviewGrade(BaseModel):
     id: str
+    event_id: str = ""
     # The learner's own rating: again | hard | good | easy. For recall cards.
     rating: str | None = None
     # A typed answer instead: code grades it and chooses the rating.
@@ -84,8 +85,10 @@ def review_grade(req: ReviewGrade) -> dict:
                             "либо оценка (rating), но не оба сразу.")
     try:
         if req.given is not None:
-            return review.answer(review_db(), req.id, req.given, req.latency_ms)
-        return review.grade(review_db(), req.id, req.rating)
+            return review.answer(review_db(), req.id, req.given, req.latency_ms,
+                                 event_id=req.event_id or None)
+        return review.grade(review_db(), req.id, req.rating,
+                            event_id=req.event_id or None)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="unknown item") from exc
     except ValueError as exc:

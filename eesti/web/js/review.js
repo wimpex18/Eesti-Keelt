@@ -305,19 +305,24 @@ function renderVocabCard(it) {
 
 function wireGrading(el, it) {
   const verdict = el.querySelector(".verdict");
+  const eventId = crypto.randomUUID();
+  let submittedRating = null;
   const rate = on => el.querySelectorAll("button[data-r]").forEach(x => x.disabled = !on);
   el.querySelectorAll("button[data-r]").forEach(b => b.onclick = async () => {
+    submittedRating ??= b.dataset.r;
     rate(false);
     let r;
     try {
       r = await (await api("/api/review/grade",
-                           {id: it.id, rating: b.dataset.r})).json();
+                           {id: it.id, rating: submittedRating, event_id: eventId})).json();
     } catch (e) {
-      // Not recorded, so the card stays due: give the ratings back.
-      rate(true);
+      // No durable success was confirmed: keep the same event id and card.
+      el.querySelectorAll("button[data-r]").forEach(x => {
+        x.disabled = x.dataset.r !== submittedRating;
+      });
       verdict.className = "verdict no";
-      verdict.innerHTML = `Оценка не записана. ${esc(e.message)}
-        <span class="hint">Попробуй ещё раз.</span>`;
+      verdict.innerHTML = `Сохранение оценки пока не подтверждено. ${esc(e.message)}
+        <span class="hint">Карточка осталась на экране.</span>`;
       return;
     }
     reviewRated++;
@@ -371,6 +376,9 @@ function wireAnswer(el, it) {
   const input = el.querySelector("input");
   const controls = () => el.querySelectorAll("button[data-pick], button[data-check], input");
   let started = null;
+  let submittedGiven = null;
+  let submittedLatency = null;
+  const eventId = crypto.randomUUID();
   const rendered = performance.now();
   el.addEventListener("focusin", () => { started ??= performance.now(); });
   const send = async given => {
@@ -380,18 +388,25 @@ function wireAnswer(el, it) {
       input?.focus();
       return;
     }
+    submittedGiven ??= given;
     controls().forEach(x => x.disabled = true);
     let r;
     try {
+      submittedLatency ??= Math.round(performance.now() - (started ?? rendered));
       r = await (await api("/api/review/grade", {
-        id: it.id, given,
-        latency_ms: Math.round(performance.now() - (started ?? rendered)),
+        id: it.id, given: submittedGiven, event_id: eventId,
+        latency_ms: submittedLatency,
       })).json();
     } catch (e) {
-      controls().forEach(x => x.disabled = false);
+      el.querySelectorAll("button[data-pick]").forEach(x => {
+        x.disabled = x.dataset.pick !== submittedGiven;
+      });
+      if (input) input.disabled = true;
+      const check = el.querySelector("button[data-check]");
+      if (check) check.disabled = false;
       verdict.className = "verdict no";
-      verdict.innerHTML = `Ответ не записан. ${esc(e.message)}
-        <span class="hint">Попробуй ещё раз.</span>`;
+      verdict.innerHTML = `Сохранение ответа пока не подтверждено. ${esc(e.message)}
+        <span class="hint">Карточка осталась на экране.</span>`;
       return;
     }
     reviewRated++;

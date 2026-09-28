@@ -38,7 +38,7 @@ the same change that makes it untrue.
 | **Review schedule** | FSRS-6 with the published parameters until there are about 1 000 reviews; `cli optimise-review` then fits this learner's own and records them as a `fsrs-parameters` event, so they travel with the log. The optimiser's dependencies (torch, pandas) stay off the deployment: it is run locally, once in a while. |
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
 | **Operations** | One JSON line per API call on stdout (`eesti/logs.py`), carrying route, status and duration and never what was written or said. Each provider lane has a daily allowance (`providers/budget.py`), reported by `/api/engines`. |
-| **Deployment** | Cloud Run capped at one instance behind a Cloudflare Worker + Access; EKI recordings and HARNO exam files are mounted from Cloud Storage. The evidence log is copied into the Worker's Durable Object after every request and pushed back into each new instance; all EKI reference data and the reading corpus are present. |
+| **Deployment** | Cloud Run capped at one instance behind a Cloudflare Worker + Access; EKI recordings and HARNO exam files are mounted from Cloud Storage. A successful permanent-account API response waits until the evidence log is copied through its reported sequence for the same origin boot in the learner's Durable Object; failed confirmation is a retriable 503. The log is pushed back into each new instance; all EKI reference data and the reading corpus are present. |
 | **Accounts** | In-app sign-up and sign-in run in the Worker. The first account owns the existing progress; each later account has its own files and Durable Object, with no account-count limit. Signed-out use gets an isolated guest sandbox and a smaller shared provider allowance. `Eksam → Profiil` shows identity, the editable starting recommendation and recorded progress; permanent accounts can reset and restore progress without changing the account or profile. |
 
 ## What is missing
@@ -104,7 +104,9 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - **Speech quality depends on the owner's Mac mini being awake.** When it is
   off, the Worker falls back to Workers AI after up to 25 s
   (`deploy/home-asr/README.md`).
-- **State replication is asynchronous.** Event copying follows the response;
-  an origin crash before copying can lose acknowledged work. There is no
-  independent nightly backup or self-service erasure. Private exports can be
-  replay-checked with `cli verify-backup`; see `docs/deploy.md` and ADR-0005.
+- **Live replication is not an independent backup.** Permanent-account API
+  responses wait for acknowledgement of the event sequence and origin boot,
+  but a hosting-account loss can still remove the live copies. Scheduled
+  independent backups and self-service erasure are deferred. Private exports
+  can be replay-checked with `cli verify-backup`; see `docs/deploy.md` and
+  ADR-0005.
