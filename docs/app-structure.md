@@ -9,8 +9,9 @@ diagram below against the page in both directions.
 ```
 Õppimine — "what am I learning today?"
 ├── Rada          the drills, two ways: Minu rada (prerequisite order, mastery-gated,
-│                 opens on today's set, with pressure-free Tänased sammud and Plaan) and Vaba harjutus
-│                 (any topic, nothing recorded)
+│                 opens on today's set; Täna combines pressure-free evidence and
+│                 the time plan, then continues into the next useful block) and
+│                 Vaba harjutus (any topic, nothing recorded)
 ├── Lugemine      reading texts ranked by the share of words within the learner's reach
 ├── Kuulamine     dictation (graded), TTS on any text, radio episodes
 ├── Rääkimine     paired-exam question bank, read-aloud, open answers, and

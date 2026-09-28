@@ -684,6 +684,12 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
   .hero-act{flex-direction:row;flex-wrap:wrap;align-items:flex-end}
   .hero-act button.go{flex:1 1 auto}
   .hero-act label{flex:1 1 100%}
+  /* Once the set exists, the topic becomes a compact orientation line and the
+     sentence—not the progress illustration—owns the first viewport. */
+  #pathRada.has-running-set .hero{padding:14px 16px;gap:0;border-radius:var(--r)}
+  #pathRada.has-running-set .hero :is(.swallow,.trail,#pathGate,.hero-act){display:none}
+  #pathRada.has-running-set .hero .now{margin-top:3px;font-size:30px}
+  #pathRada.has-running-set .hero .of{margin-top:5px}
 }
 
 /* ── The pulse: the rail's three facts, where there is no rail ──────── */
@@ -837,6 +843,8 @@ a.daily-step-link:hover strong{text-decoration:underline;text-underline-offset:3
 .set-end .set-score small{font-size:var(--fs-body);font-weight:600;color:var(--muted);letter-spacing:0}
 .set-end .beads{margin:var(--s3) auto 0;max-width:280px}
 .set-end .hint{margin:var(--s3) auto 0;max-width:44ch}
+.set-end .today-progress{margin:var(--s3) auto 0;max-width:44ch;color:var(--ink-2);
+  font-size:var(--fs-note);line-height:1.5}
 .set-end .row{justify-content:center;margin-top:var(--s4)}
 .set-end.great{background:none}
 .set-end.great h4{color:var(--good)}
@@ -869,6 +877,7 @@ a.daily-step-link:hover strong{text-decoration:underline;text-underline-offset:3
 .today{border-top:0;padding-top:0}
 .today > summary{gap:4px 10px;font-size:var(--fs-lead);letter-spacing:-.02em}
 .today > summary .hint{font-size:var(--fs-note);font-weight:500;letter-spacing:0}
+.today .daily-steps{margin-top:var(--s3);border-top:0}
 .today-strip{display:flex;gap:4px;height:10px;margin-top:var(--s2)}
 .today-strip:empty{display:none}
 .strip-seg{flex:1 1 0;min-width:10px;border-radius:3px;background:var(--line);
