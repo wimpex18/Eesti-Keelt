@@ -1,5 +1,5 @@
 ---
-name: Eesti keel
+name: Laudtee
 description: Laudtee — a boardwalk across the bog to the A2/B1 exam, in Estonian blue, black and white.
 colors:
   estonian-blue: "#0030de"
@@ -43,7 +43,7 @@ rounded:
 spacing: "4px scale: --s1 4 · --s2 8 · --s3 12 · --s4 16 · --s5 24 · --s6 32 · --s7 48"
 ---
 
-# Design System: Eesti keel
+# Design System: Laudtee
 
 ## Overview
 
@@ -52,6 +52,12 @@ crossed on boardwalks, plank after plank, each laid before the next can be
 walked. The path to the exam is built the same way: a topic is a plank, laid
 only when code has checked the learner's answers. The metaphor draws the path,
 the progress and the rewards, and keeps the product honest.
+
+**Laudtee is the app's name.** The subject descriptor is **Eesti keel · A2/B1**.
+Its original mark is three straight-edged planks receding upward to the right,
+from `eesti/web/brand/mark.svg`. It belongs to the learning path and stays the
+same across explanation languages. The cornflower remains the readiness
+illustration for contact with the four exam parts; it is not the app icon.
 
 The ground is **near-white, cool and quiet** (`#f8fafc` page, white sheets),
 never cream. The colour is **Estonian blue** from Brand Estonia (`#0030DE`),
@@ -101,8 +107,16 @@ cautions, lake means. Russian text is never coloured for being Russian.
 **Never hue alone.** Every coloured state also has a shape: node icons,
 filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
+The inline brand mark uses `--accent`, so it follows both themes. Installed
+icons and social artwork use the fixed Estonian-blue identity with a white
+mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
+
 ## Typography
 
+- **Brand name** (650, 20px; 19px in the spine; soft): Geologica with −0.03em
+  tracking. The header's subject descriptor is 11px in muted ink. The phone
+  launch name is 32px/1.2, with the descriptor at 14px. Keep the name as text
+  in the UI; generated wordmark and social SVGs carry outlined lettering.
 - **Hero** (600, clamp 38→60px, cut): the current topic's name.
 - **Title** (800, 30px): the page title, hidden on a phone where the tab row
   already names the place.
@@ -134,10 +148,16 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   context rail: the readiness flower, the next topic, the review forecast and
   the milestone seals. A rail card hides while its own panel is open.
 - **iPhone landscape (touch, ≤500px tall).** One line of chrome; the hero and the
-  pulse step aside while a set is on screen; a 44px dock.
+  pulse step aside while a set is on screen; a 44px dock. The brand keeps its
+  36px mark and hides the name and descriptor to leave room for the tabs.
 
 ## Controls
 
+- **Brand / home link.** The 36px inline plank mark and a two-line name and
+  descriptor share a 44px-minimum home target to Rada (`#path`), with a 10px
+  gap. The name stays ink on hover; the normal blue keyboard focus ring
+  identifies the link. Preserve its Russian accessible home label and the
+  Estonian language tags on visible name and subject.
 - **Buttons are flat capsules, in four ranks.** *Primary* (`.go`, `.primary`):
   solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per
   view — a started Sõnatrenn demotes Alusta. *Secondary* (`.ghost`, `.logbtn`,
@@ -167,6 +187,13 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
 ## Signature components
 
+- **Platform identity.** A 64×64 master supplies the inline header/launch mark,
+  blue rounded favicon tile, platform rasters and social cards. Use the regular
+  icon for unmasked contexts, the separately inset full-bleed artwork for
+  maskable installation and Apple, and the single-colour silhouette for Safari
+  pinning and monochrome contexts. Rebuild derivatives with
+  `deploy/build-brand.py`; do not redraw a derivative independently. Provenance,
+  output sizes and routes are in `docs/brand.md`.
 - **Hero (Praegu).** A quiet daylight surface: a pale sky fading into Haapsalu
   sand under a white glass rim, a soft slate dusk in dark (no glows or contour rings)
   with a faint barn swallow (suitsupääsuke) gliding in the corner. It holds the
@@ -279,13 +306,28 @@ drop into place, the resume node breathes, the swallow glides. Under
 `prefers-reduced-motion` every animation, delay and transition collapses and
 script scrolling stops being smooth.
 
+**Phone launch passage.** On eligible coarse-pointer, non-hover phones, the
+three planks are visible at the first frame. Light passes from the nearest
+to the furthest: 420ms per plank, staggered by 120ms. The cover fades for
+180ms after 720ms, completing at 900ms with `--ease`; CSS supplies its own
+deadline and the inline script removes it. It never waits for a font, app
+module, data or network response. A tap or key dismisses it immediately.
+
+Eligibility is width ≤719px, or width ≤1023px with height ≤559px, always with
+`pointer: coarse` and `hover: none`. Desktop and tablet open directly. Reduced
+motion, prerendering, history restoration and same-origin navigation skip
+the passage (an explicit reload can show it). With JavaScript unavailable the
+cover remains hidden. Saved theme and transparency are restored before body
+paint independently of the passage; the cover is inert and hidden from
+assistive technology, and never traps focus.
+
 ## Do's and Don'ts
 
 **Do:** use tokens for every colour and the `--s1`…`--s7` scale; keep glass on
 the navigation layer (`.glass`, `--glass-lift`) and content on solid sheets; build
 every choice between views as a `role="tablist"` so it glides; keep Estonian material in the
 cut; keep 44px touch targets; check 1440×900, 402×874, 874×402 and 744×1133 in
-both themes.
+both themes; keep the plank identity distinct from readiness evidence.
 
 **Don't:** use cream or grey-beige grounds; put paragraph text or drill inputs on
 glass; copy the glass recipe or hand-roll a selection capsule; add refraction or

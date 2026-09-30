@@ -1290,6 +1290,9 @@ export default {
     headers.set("x-proxy-token", env.PROXY_TOKEN);
     // Cloud Run routes on Host; forwarding the Worker's hostname 404s.
     headers.delete("host");
+    // Social artwork needs the public front door, not the Cloud Run hostname.
+    // Overwrite any client-supplied value before the guarded origin sees it.
+    headers.set("x-brand-origin", url.origin);
 
     let response: Response;
     try {

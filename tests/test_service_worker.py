@@ -147,7 +147,7 @@ class TestThePrecacheListAndThePageAgree:
     def _requested() -> set[str]:
         page = markup()
         return set(re.findall(r'<link rel="stylesheet" href="([^"]+)"', page)) | \
-               set(re.findall(r'<script type="module" src="([^"]+)"', page))
+               set(re.findall(r'<script(?: type="module")? src="([^"]+)"', page))
 
     def test_there_is_something_to_compare(self, source):
         assert self._precached(source) and self._requested()

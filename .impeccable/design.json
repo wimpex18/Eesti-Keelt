@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T20:53:02Z",
+  "title": "Design System: Laudtee",
+  "extensions": {
+    "motion": [
+      {
+        "name": "brand-passage",
+        "value": "420ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "Light crosses each already-visible plank; no geometry movement."
+      },
+      {
+        "name": "brand-plank-stagger",
+        "value": "120ms",
+        "purpose": "Second and third planks start at 120ms and 240ms."
+      },
+      {
+        "name": "brand-clear",
+        "value": "180ms cubic-bezier(.22,1,.36,1) 720ms both",
+        "purpose": "Independent CSS dismissal ends at 900ms; the inline script also removes the cover."
+      },
+      {
+        "name": "brand-launch-deadline",
+        "value": "900ms",
+        "purpose": "Maximum phone launch passage; tap/key dismisses immediately and reduced motion skips it."
+      }
+    ],
+    "breakpoints": [
+      { "name": "brand-phone-max-width", "value": "719px" },
+      { "name": "brand-phone-landscape-max-width", "value": "1023px" },
+      { "name": "brand-phone-landscape-max-height", "value": "559px" },
+      { "name": "brand-header-touch-landscape-max-height", "value": "500px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Laudtee home identity",
+      "kind": "custom",
+      "description": "Original three-plank mark and real-text Geologica name in the existing home link. Coarse-pointer launch eligibility is width ≤719px, or width ≤1023px with height ≤559px, always without hover. The header hides its word stack in touch landscape at height ≤500px.",
+      "html": "<a class=\"ds-brand\" href=\"#path\" aria-label=\"Laudtee — на главную\"><svg class=\"ds-brand-mark\" viewBox=\"0 0 64 64\" aria-hidden=\"true\"><path d=\"M14 42 42 34V44L14 52Z\"/><path d=\"M19 29 45 21.5V31.5L19 39Z\"/><path d=\"M24 16 48 9V19L24 26Z\"/></svg><div class=\"ds-brand-word\"><h1 lang=\"et\">Laudtee</h1><span lang=\"et\">Eesti keel · A2/B1</span></div></a>",
+      "css": ".ds-brand{display:flex;align-items:center;gap:10px;color:var(--ink,#0f172a);text-decoration:none;min-height:44px;border-radius:var(--r-sm,12px);font-family:var(--f-ui,\"Geologica\",ui-sans-serif,system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif);font-variation-settings:var(--soft,\"SHRP\" 0)}.ds-brand:hover{color:var(--ink,#0f172a)}.ds-brand:focus-visible{outline:2px solid var(--accent,#0030de);outline-offset:2px;border-radius:6px}.ds-brand-mark{width:36px;height:36px;flex:none;fill:var(--accent,#0030de)}.ds-brand-word{display:grid;gap:2px}.ds-brand h1{margin:0;font-size:var(--fs-lead,20px);font-weight:650;letter-spacing:-.03em;line-height:1.2}.ds-brand-word>span{font-size:11px;color:var(--muted,#566376);line-height:1.4;white-space:nowrap}@media (min-width:720px) and (min-height:560px),(min-width:1080px){.ds-brand{padding:0 8px}.ds-brand h1{font-size:19px}}@media (hover:none) and (max-height:500px){.ds-brand-word{display:none}}"
+    }
+  ]
+}

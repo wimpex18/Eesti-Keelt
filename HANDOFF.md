@@ -1,21 +1,20 @@
 # Handoff
 
-Current task: durable acknowledgement fix and branch cleanup in PR #94.
-Branch: `codex/durable-event-ack`, against `main`.
+Current task: Laudtee identity, ready for PR review.
+Branch: `codex/laudtee-identity`, against `main`.
 
-Permanent-account success confirms the response's event sequence and origin boot.
-Drill/review retries preserve event identity and timing; FSRS applies a review once.
-Free practice stays editable after a failed check. Worker behavior tests cover
-container replacement, cursor shortcuts, failed copying and speech evidence.
+Laudtee names the app; Eesti keel · A2/B1 describes its subject.
+One original three-plank SVG supplies header, browser, Apple/PWA and social art.
+The 900 ms phone-only passage is inlined before paint, with no extra fetch.
+Reduced motion, desktop/tablet and restored documents open directly.
+The Worker supplies the public origin for social image metadata.
+Artwork rebuild: `.venv/bin/python deploy/build-brand.py`; see `docs/brand.md`.
 
-Scheduled independent backups are deferred at the user's request. Backup scripts,
-machine export/restore routes and secrets are removed from this PR. Private manual
-exports and the existing replay verifier remain. No Mac mini backup job was installed.
+Verification: 2,491 Python tests passed (1 skip); 189 browser journeys passed
+(3 viewport skips); 7 Worker tests, typecheck and Wrangler dry-run passed.
+All tabs inspected at desktop, phone, landscape and tablet sizes in both themes.
+Independent reviewer scored the startup fix resolved (`ship`).
 
-Verification: 2,488 Python tests passed (1 skip); 177 browser journeys passed
-(3 viewport skips); 6 Worker tests, typecheck, Wrangler dry-run and diff check passed.
-Screenshots inspected across all tabs at desktop, phone, landscape and tablet sizes.
-Clean checkout: Worker tests/typecheck and 43 evidence/recovery tests passed.
-
-Next: user review/merge PR #94, then deep smoke after automated deployment.
-Uncommitted paths: none after this commit. No code blockers; CI runs on push.
+Next: user review/merge the identity PR, then run deep smoke after automated
+origin and Worker deployment. Production has not changed in this branch.
+Uncommitted paths: none after this commit. No code blockers.

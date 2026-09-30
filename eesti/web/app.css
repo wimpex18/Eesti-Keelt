@@ -1,4 +1,4 @@
-/* Eesti keel — "Laudtee", the boardwalk across the bog.
+/* Laudtee — the boardwalk across the bog.
 
    The path is a boardwalk: each plank a topic, laid when code has checked it.
    Cornflower (rukkilill), black (must) and birch white are the ground; colour
@@ -229,9 +229,37 @@ input, textarea{caret-color:var(--accent)}
 .brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;
   min-height:44px;border-radius:var(--r-sm)}
 .brand:hover{color:var(--ink)}
-.brand-mark{width:28px;height:28px;flex:none;fill:var(--accent)}
-.brand-mark circle{fill:var(--ink)}
-.brand h1{margin:0;font-size:var(--fs-lead);font-weight:800;letter-spacing:-.03em}
+.brand-mark{width:36px;height:36px;flex:none;fill:var(--accent)}
+.brand h1{margin:0;font-size:var(--fs-lead);font-weight:650;letter-spacing:-.03em}
+.brand-word{display:grid;gap:2px}
+.brand-word > span{font-size:11px;color:var(--muted);line-height:1.4;white-space:nowrap}
+
+/* A passage across three planks. The silhouette is there from the first frame;
+   only the light changes. CSS also dismisses it if script execution stops. */
+.brand-splash{display:none}
+@media (pointer:coarse) and (hover:none) and (max-width:719px),
+       (pointer:coarse) and (hover:none) and (max-width:1023px) and (max-height:559px){
+  :root[data-brand-reveal] .brand-splash{
+    position:fixed;inset:0;z-index:100;display:grid;place-items:center;
+    background:var(--bg);color:var(--ink);pointer-events:none;
+    animation:brand-clear 180ms var(--ease) 720ms both;
+  }
+  .brand-splash-stage{display:grid;justify-items:center;gap:var(--s2);padding:var(--s5);
+    padding-bottom:calc(var(--s7) + env(safe-area-inset-bottom))}
+  .brand-splash-mark{width:112px;height:112px;fill:var(--accent);margin-bottom:var(--s3)}
+  .brand-splash-mark path{animation:brand-passage 420ms var(--ease) both}
+  .brand-splash-mark path:nth-child(2){animation-delay:120ms}
+  .brand-splash-mark path:nth-child(3){animation-delay:240ms}
+  .brand-splash-name{font-size:32px;font-weight:650;letter-spacing:-.03em;line-height:1.2}
+  .brand-splash-subject{font-size:var(--fs-note);color:var(--muted)}
+}
+@keyframes brand-passage{
+  0%{fill:var(--accent);opacity:.3}
+  40%{fill:var(--sky);opacity:1}
+  100%{fill:var(--accent);opacity:1}
+}
+@keyframes brand-clear{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){:root[data-brand-reveal] .brand-splash{display:none}}
 .hdr-actions{display:flex;gap:var(--s2);margin-left:auto}
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;
   width:44px;height:44px;padding:0;border:0;border-radius:999px;
@@ -1549,7 +1577,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--fs-gloss);line-height:1.5
   :root{--dock-h:calc(58px + env(safe-area-inset-bottom))}
   /* One line of chrome: the mark, the tabs, the actions. */
   .spine{flex-wrap:nowrap;margin-bottom:var(--s3)}
-  .brand h1{display:none}
+  .brand-word{display:none}
   nav[data-mode-nav]{order:0;flex:1 1 auto;min-width:0;margin:0;padding:0 var(--s2)}
   .page-head > .seg button{min-height:44px}
   .page-head > .seg button i.ru{display:none}

@@ -264,6 +264,74 @@ def browser_errors(page):
     return remaining
 
 
+class TestBrandOpening:
+    """A mobile opening must clear promptly even when app bootstrap fails;
+    desktop, reduced motion and script-free opens go straight to content.
+    """
+
+    @pytest.mark.parametrize("motion,width,touch,plays", [
+        ("no-preference", 402, True, True),
+        ("reduce", 402, True, False),
+        ("no-preference", 1440, False, False),
+        ("no-preference", 744, True, False),
+    ])
+    def test_opening_policy_and_deadline(self, _pw, live_server, motion, width, touch, plays):
+        context = _pw.new_context(viewport={"width": width, "height": 874},
+                                  has_touch=touch, is_mobile=touch,
+                                  reduced_motion=motion, service_workers="block")
+        pg = context.new_page()
+        errors = []
+        requests = []
+        pg.on("pageerror", lambda error: errors.append(str(error)))
+        pg.on("request", lambda request: requests.append(request.url))
+        # The opening is independent of whether the app modules start at all.
+        pg.route("**/js/main.js", lambda route: route.abort())
+        pg.clock.install(time=0)
+        pg.clock.pause_at(1)
+        try:
+            pg.goto(live_server, wait_until="domcontentloaded")
+            assert pg.locator("#brandSplash").is_visible() is plays
+            pg.clock.run_for(950)
+            assert not pg.locator(".brand-splash").is_visible()
+            assert pg.get_by_role("link", name="Laudtee — на главную").is_visible()
+            assert not errors
+            assert not any(url.endswith("/brand-reveal.js") for url in requests)
+        finally:
+            context.close()
+
+    def test_unavailable_opening_capability_and_no_javascript_leave_content_visible(self, _pw, live_server):
+        for javascript in (True, False):
+            context = _pw.new_context(viewport={"width": 402, "height": 874},
+                                      has_touch=True, is_mobile=True,
+                                      java_script_enabled=javascript,
+                                      service_workers="block")
+            pg = context.new_page()
+            # A missing opening capability must degrade to direct content.
+            pg.add_init_script("window.matchMedia = () => { throw new Error('unavailable') }")
+            pg.route("**/js/main.js", lambda route: route.abort())
+            try:
+                pg.goto(live_server, wait_until="domcontentloaded")
+                assert not pg.locator("#brandSplash").is_visible()
+                assert pg.get_by_role("link", name="Laudtee — на главную").is_visible()
+            finally:
+                context.close()
+
+    def test_returning_to_a_document_does_not_replay_the_opening(self, _pw, live_server):
+        context = _pw.new_context(viewport={"width": 402, "height": 874},
+                                  has_touch=True, is_mobile=True, service_workers="block")
+        pg = context.new_page()
+        pg.route("**/js/main.js", lambda route: route.abort())
+        pg.clock.install(time=0)
+        pg.clock.pause_at(1)
+        try:
+            pg.goto(live_server, wait_until="domcontentloaded")
+            assert pg.locator("#brandSplash").is_visible()
+            pg.evaluate("window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}))")
+            assert not pg.locator(".brand-splash").is_visible()
+        finally:
+            context.close()
+
+
 #: mode -> tabs its navigation offers; derived from the page in
 #: `test_every_advertised_tab_is_reachable`.
 MODES = ("learn", "revise", "exam")
