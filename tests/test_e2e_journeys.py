@@ -264,6 +264,120 @@ def browser_errors(page):
     return remaining
 
 
+class TestMobileGlassNavigation:
+    """Dragging must preview without loading panels, then select once on release.
+    The scrolling skill row must remain reachable through the same gesture.
+    """
+
+    @pytest.fixture
+    def glass_page(self, _pw, live_server):
+        ctx = _pw.new_context(viewport={"width": 402, "height": 874},
+                              is_mobile=True, has_touch=True, service_workers="block",
+                              extra_http_headers={"x-eesti-scope": "guest",
+                                  "x-eesti-guest": f"glass-{uuid4().hex[:12]}"})
+        pg = ctx.new_page()
+        pg.route("**/api/auth/me", lambda route: route.fulfill(
+            json={"scope": "guest", "signup_open": True}))
+        pg.goto(live_server, wait_until="networkidle")
+        pg.locator(".brand-splash").wait_for(state="hidden")
+        yield pg
+        ctx.close()
+
+    def test_skill_drag_previews_then_selects_once(self, glass_page):
+        pg = glass_page
+        start = pg.locator('[data-tab="path"]').bounding_box()
+        target = pg.locator('[data-tab="read"]').bounding_box()
+        history = pg.evaluate("history.length")
+        pg.mouse.move(start["x"] + start["width"] / 2, start["y"] + start["height"] / 2)
+        pg.mouse.down()
+        pg.mouse.move(target["x"] + target["width"] / 2, target["y"] + target["height"] / 2, steps=8)
+        assert pg.locator('nav[data-mode-nav="learn"] .glass-lens').is_visible()
+        assert pg.locator("#tab-path").is_visible()
+        assert pg.locator("#tab-read").is_hidden()
+        pg.mouse.up()
+        assert pg.locator("#tab-read").is_visible()
+        assert pg.evaluate("location.hash") == "#read"
+        assert pg.evaluate("history.length") == history + 1
+        assert pg.locator('[data-tab="read"]').get_attribute("aria-selected") == "true"
+
+    def test_mode_drag_activates_only_on_release(self, glass_page):
+        pg = glass_page
+        a = pg.locator('[data-mode="learn"]').bounding_box()
+        b = pg.locator('[data-mode="exam"]').bounding_box()
+        pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+        pg.mouse.down()
+        pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
+        assert pg.locator(".modes .glass-lens").is_visible()
+        assert pg.locator("#tab-exam").is_hidden()
+        pg.mouse.up()
+        assert pg.locator("#tab-exam").is_visible()
+        assert pg.evaluate("location.hash") == "#exam"
+
+    def test_drag_scrolls_to_the_last_skill(self, glass_page):
+        pg = glass_page
+        row = pg.locator('nav[data-mode-nav="learn"]')
+        start = pg.locator('[data-tab="path"]').bounding_box()
+        box = row.bounding_box()
+        pg.mouse.move(start["x"] + start["width"] / 2, start["y"] + start["height"] / 2)
+        pg.mouse.down()
+        pg.mouse.move(box["x"] + box["width"] - 5, start["y"] + start["height"] / 2, steps=10)
+        pg.wait_for_function("""() => {
+          const row = document.querySelector('nav[data-mode-nav="learn"]');
+          return row.scrollLeft >= row.scrollWidth - row.clientWidth - 1;
+        }""")
+        assert pg.locator("#tab-path").is_visible()
+        pg.mouse.up()
+        assert pg.locator("#tab-write").is_visible()
+        assert pg.evaluate("location.hash") == "#write"
+
+    @pytest.mark.parametrize("cancel", ["keyboard", "pointer"])
+    def test_cancel_keeps_the_current_panel_and_normal_taps_work(self, glass_page, cancel):
+        pg = glass_page
+        a = pg.locator('[data-mode="learn"]').bounding_box()
+        b = pg.locator('[data-mode="exam"]').bounding_box()
+        pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+        pg.mouse.down()
+        pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=8)
+        if cancel == "keyboard":
+            pg.keyboard.press("Escape")
+        else:
+            pg.locator(".modes").dispatch_event("pointercancel", {"pointerId": 1})
+        pg.mouse.up()
+        assert pg.locator("#tab-path").is_visible()
+        pg.click('[data-mode="revise"]')
+        assert pg.locator("#tab-review").is_visible()
+
+    def test_native_touch_slide_is_not_cancelled_by_horizontal_scrolling(self, glass_page, _pw):
+        if _pw.engine_name != "chromium":
+            pytest.skip("native touch injection is a Chromium protocol capability")
+        pg = glass_page
+        cdp = pg.context.new_cdp_session(pg)
+        a = pg.locator('[data-tab="path"]').bounding_box()
+        b = pg.locator('[data-tab="read"]').bounding_box()
+        y = a["y"] + a["height"] / 2
+        x0, x1 = a["x"] + a["width"] / 2, b["x"] + b["width"] / 2
+        def touch(kind, x):
+            cdp.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": []
+                if kind == "touchEnd" else [{"x": x, "y": y, "id": 1}]})
+        touch("touchStart", x0)
+        for step in range(1, 9):
+            touch("touchMove", x0 + (x1 - x0) * step / 8)
+        assert pg.locator('nav[data-mode-nav="learn"] .glass-lens').is_visible()
+        assert pg.locator("#tab-path").is_visible()
+        touch("touchEnd", x1)
+        pg.locator("#tab-read").wait_for(state="visible")
+        assert pg.evaluate("location.hash") == "#read"
+
+    def test_header_login_opens_the_existing_account_form(self, glass_page):
+        pg = glass_page
+        button = pg.get_by_role("link", name="Logi sisse — войти", exact=True)
+        assert button.is_visible()
+        assert button.locator("svg").is_visible()
+        button.click()
+        pg.locator("#authEmail").wait_for(state="visible")
+        assert pg.evaluate("location.hash") == "#profile"
+
+
 class TestBrandOpening:
     """A mobile opening must clear promptly even when app bootstrap fails;
     desktop, reduced motion and script-free opens go straight to content.
@@ -293,7 +407,7 @@ class TestBrandOpening:
             assert pg.locator("#brandSplash").is_visible() is plays
             pg.clock.run_for(950)
             assert not pg.locator(".brand-splash").is_visible()
-            assert pg.get_by_role("link", name="Laudtee — на главную").is_visible()
+            assert pg.get_by_role("link", name="Estep — на главную").is_visible()
             assert not errors
             assert not any(url.endswith("/brand-reveal.js") for url in requests)
         finally:
@@ -312,7 +426,7 @@ class TestBrandOpening:
             try:
                 pg.goto(live_server, wait_until="domcontentloaded")
                 assert not pg.locator("#brandSplash").is_visible()
-                assert pg.get_by_role("link", name="Laudtee — на главную").is_visible()
+                assert pg.get_by_role("link", name="Estep — на главную").is_visible()
             finally:
                 context.close()
 
@@ -547,12 +661,14 @@ class TestProfile:
             "#profileOut").inner_text()
         page.click('[data-auth-view="signup"]')
         page.fill("#authName", "Aino")
+        assert page.get_by_role("link", name="Logi sisse — войти", exact=True).is_visible()
         page.fill("#authEmail", "aino@example.test")
         page.fill("#authPassword", "test-password-1")
         page.locator('#authForm button[type="submit"]').click()
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
         assert page.locator("#profileOut").get_by_text("aino@example.test").is_visible()
+        assert page.get_by_role("link", name="Profiil — профиль", exact=True).is_visible()
         page.wait_for_selector("#onboardingSheet[open]")
         page.click("#onboardingSheet [data-skip]")
         page.wait_for_selector("#onboardingSheet", state="hidden")
@@ -1502,10 +1618,24 @@ class TestChoosingTheSitting:
         page.wait_for_selector("#examSpec .hint", timeout=15000)
         assert "48 из 80" in page.locator("#examSpec").inner_text()
 
-        page.select_option("#goalSitting", "2026-11-07")
+        # Published sittings and their registration windows move with the real
+        # server date. Countdown boundary behavior is covered with explicit
+        # dates in test_readiness; this journey checks selection and rendering.
+        sitting = page.locator('#goalSitting option:not([value=""])').first
+        if not sitting.count():
+            pytest.skip("no published upcoming sitting")
+        chosen = sitting.get_attribute("value")
+        page.select_option("#goalSitting", chosen)
         page.click("#goalSet")
         page.wait_for_selector('#examGoal a[href="/api/goal.ics"]', timeout=15000)
-        assert "до регистрации" in page.locator("#countdown").inner_text()
+        saved, ready = page.evaluate("""async () => Promise.all([
+          fetch('/api/goal').then(r => r.json()),
+          fetch('/api/readiness/A2').then(r => r.json())
+        ])""")
+        assert saved["goal"]["sitting"] == chosen
+        assert ready["countdown"] and ready["countdown"] != "экзамен ещё не выбран"
+        page.wait_for_function("text => document.querySelector('#countdown').textContent === text",
+                               arg=ready["countdown"])
         assert not browser_errors(page), browser_errors(page)
 
 

@@ -1,4 +1,4 @@
-"""Rebuild Laudtee's icons and outlined social artwork from brand/mark.svg.
+"""Rebuild Estep's icons and outlined social artwork from brand/mark.svg.
 
 Run with the project's Python: python deploy/build-brand.py.
 Requires Pillow, fontTools and Brotli (asset tooling only, not app dependencies).
@@ -38,7 +38,7 @@ def svg(body: str, width: int = 64, height: int = 64) -> str:
 
 def png(image: Image.Image, path: Path) -> None:
     meta = PngImagePlugin.PngInfo()
-    meta.add_text("Source", "Original Laudtee vector artwork: eesti/web/brand/mark.svg; "
+    meta.add_text("Source", "Original Estep vector artwork: eesti/web/brand/mark.svg; "
                   "Geologica (SIL OFL), rendered by deploy/build-brand.py")
     meta.add_text("impeccable:prompt", "Origin: original vector artwork in eesti/web/brand/mark.svg, "
                   "rasterized by deploy/build-brand.py. Social lettering uses self-hosted "
@@ -47,7 +47,7 @@ def png(image: Image.Image, path: Path) -> None:
 
 
 def icon(size: int, *, full_bleed: bool = False, mono: bool = False) -> Image.Image:
-    """Supersample the three straight-edged planks; masks need their own inset."""
+    """Supersample the stepped E silhouette; masks need their own inset."""
     factor = 4
     image = Image.new("RGBA", (size * factor, size * factor))
     draw = ImageDraw.Draw(image)
@@ -126,7 +126,7 @@ def main() -> None:
     for name, width, height in (("og-default", 1200, 630), ("twitter-default", 1200, 600)):
         body = f'<rect width="{width}" height="{height}" fill="{PAGE}"/>'
         body += f'<g transform="translate(80 80) scale(1.5)">{tile}</g>'
-        lines = [("Laudtee", 210, 153, 68, 650, INK),
+        lines = [("Estep", 210, 153, 68, 650, INK),
                  ("Eesti keel", 80, 336, 88, 650, BLUE),
                  ("A2 / B1", 80, 401, 38, 450, INK),
                  ("Õpi. Harjuta. Kontrolli.", 80, height - 80, 30, 450, MUTED)]
@@ -141,7 +141,7 @@ def main() -> None:
         png(image, BRAND / f"{name}.png")
 
     (BRAND / "wordmark.svg").write_text(svg(
-        lettering("Laudtee", 0, 56, 64, 650, "currentColor"), 294, 72))
+        lettering("Estep", 0, 56, 64, 650, "currentColor"), 208, 72))
     # The page needs inline fills for theme and motion. Keep those small copies
     # mechanically tied to the same vector source.
     page = WEB / "index.html"
@@ -149,6 +149,8 @@ def main() -> None:
     for location, classname in (("header", "brand-mark"), ("splash", "brand-splash-mark")):
         inline = (f'<svg class="{classname}" viewBox="0 0 64 64" aria-hidden="true">'
                   + "".join(f'<path d="{d}"/>' for d in PATHS) + "</svg>")
+        if location == "splash":
+            inline = inline.replace("</svg>", '<circle class="brand-step" r="3"/></svg>')
         pattern = f'(<!-- brand:{location}:start -->).*?(<!-- brand:{location}:end -->)'
         markup, count = re.subn(pattern, lambda m: m[1] + "\n      " + inline + "\n      " + m[2],
                                markup, flags=re.S)

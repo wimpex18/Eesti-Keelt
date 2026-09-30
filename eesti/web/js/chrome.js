@@ -63,7 +63,7 @@ export function stateIcon(state) {
 const NAV_ICON = {
   path: "path", read: "book-open-text", listen: "headphones", speak: "microphone",
   write: "pencil-simple-line", review: "cards", sonad: "translate", vihikud: "notebook",
-  exam: "flower", status: "chart-line-up",
+  exam: "flower", status: "chart-line-up", profile: "user-circle",
 };
 
 const MODE_ICON = {learn: "graduation-cap", revise: "arrows-clockwise", exam: "exam"};
@@ -268,28 +268,6 @@ $("#themeBtn").onclick = () => {
 };
 
 paintTheme();
-
-/* Less glass: the navigation layer turns solid. Safari does not report the
-   system's "reduce transparency", so the switch is the app's own. */
-function paintGlass() {
-  const off = document.documentElement.dataset.glass === "off";
-  const btn = $("#glassBtn");
-  btn.innerHTML = icon("drop-half");
-  btn.setAttribute("aria-pressed", String(off));
-}
-
-$("#glassBtn").onclick = () => {
-  const off = document.documentElement.dataset.glass !== "off";
-  if (off) document.documentElement.dataset.glass = "off";
-  else delete document.documentElement.dataset.glass;
-  try {
-    if (off) localStorage.setItem("glass", "off");
-    else localStorage.removeItem("glass");
-  } catch (e) {}
-  paintGlass();
-};
-
-paintGlass();
 
 export function glossChrome() {
   document.querySelectorAll("nav[data-mode-nav] button[data-tab] .lbl")

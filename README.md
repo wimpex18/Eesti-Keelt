@@ -1,6 +1,6 @@
-# Laudtee
+# Estep
 
-**Laudtee** (the Eesti-Keelt repository) is an Estonian learning app for
+**Estep** (the Eesti-Keelt repository) is an Estonian learning app for
 Russian speakers preparing for the
 **A2/B1 tasemeeksam**.
 

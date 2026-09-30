@@ -7,6 +7,8 @@ its directory.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import json
 import os
 from html import escape
@@ -33,6 +35,7 @@ def index(request: Request) -> str:
             origin = forwarded
     return ((WEB / "index.html").read_text(encoding="utf-8")
             .replace("__BRAND_ORIGIN__", escape(origin, quote=True))
+            .replace("__BRAND_YEAR__", str(datetime.now(timezone.utc).year))
             .replace("__BRAND_REVEAL__", (WEB / "brand-reveal.js").read_text(encoding="utf-8")))
 
 
@@ -185,8 +188,8 @@ def manifest() -> Response:
     """Enough for "Add to Home Screen" to produce an app-like window."""
     return Response(
         json.dumps({
-            "name": "Laudtee · Eesti keel",
-            "short_name": "Laudtee",
+            "name": "Estep · Eesti keel",
+            "short_name": "Estep",
             "description": "Eesti keele õppimine ja A2/B1 tasemeeksami ettevalmistus",
             "id": "/",
             "scope": "/",

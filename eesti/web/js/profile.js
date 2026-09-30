@@ -1,6 +1,7 @@
 /* Identity and the evidence behind a learner's progress. */
 
 import {$, api, esc, ruCount} from "./core.js";
+import {icon} from "./icons.js";
 import {retryableError, rhythmHtml, sealsHtml} from "./chrome.js";
 
 let currentMe = null;
@@ -205,6 +206,20 @@ function restoreHtml(me) {
   </section>`;
 }
 
+function paintAccount() {
+  const button = $("#accountBtn");
+  if (!button) return;
+  const signedOut = authInfo.scope === "guest" ||
+    (authInfo.available && authInfo.signup_open && !authInfo.email);
+  const label = signedOut ? "Logi sisse — войти" : "Profiil — профиль";
+  button.innerHTML = icon(signedOut ? "sign-in" : "user-circle");
+  button.title = label;
+  button.setAttribute("aria-label", label);
+}
+
+// A neutral profile icon is ready before the account probe returns.
+paintAccount();
+
 async function readAuth() {
   try {
     const info = await api("/api/auth/me").then(r => r.json());
@@ -221,6 +236,7 @@ export async function loadProfile() {
     currentMe = await api("/api/me").then(r => r.json());
     authInfo = await readAuth();
     if (authInfo.scope !== currentMe.scope) authInfo.scope = currentMe.scope;
+    paintAccount();
     authView = needsFirstAccount() ? "signup" : "login";
     const notice = resetNotice;
     resetNotice = "";
@@ -396,6 +412,7 @@ export async function paintScope() {
     }
     authInfo = {scope: currentMe.scope, signup_open: false, available: false};
   }
+  paintAccount();
   const guest = authInfo.scope === "guest";
   box.hidden = !guest;
   box.innerHTML = guest

@@ -1,15 +1,18 @@
-# Laudtee identity
+# Estep identity
 
-Laudtee is the app's name. **Eesti keel · A2/B1** is its subject descriptor;
-the document title and installed full name are **Laudtee · Eesti keel**.
-The name carries the existing boardwalk learning-path metaphor across the
-current Russian and planned English and Ukrainian explanation languages.
+Estep is the app's name, formed from **Estonian + step**.
+**Eesti keel · A2/B1** is its subject descriptor in metadata and the phone launch
+passage; the document title and installed full name are **Estep · Eesti keel**.
+The header shows only Estep, alongside a 48px mark and a 28px name (26px in the
+spine). The existing boardwalk learning-path metaphor remains separate from the
+name, across the current Russian and planned English and Ukrainian explanation
+languages.
 It makes no exam outcome, CEFR assessment or mastery claim.
 
-The mark is three straight-edged planks receding upward to the right. Its
+The mark is one stepped E with three chamfered treads and a longer foot. Its
 canonical artwork is `eesti/web/brand/mark.svg`, an original project vector on
 a 64×64 viewBox. The in-app mark uses the current theme's accent; platform
-tiles use white planks on Estonian blue (`#0030de`). The existing cornflower
+tiles use a white E on Estonian blue (`#0030de`). The existing cornflower
 continues to illustrate contact with the four exam parts, separately from the
 app identity. Learning evidence and source boundaries remain in
 `ai-boundaries.md`, `sources.md` and `../DESIGN.md`.
@@ -41,7 +44,9 @@ Asset tooling requires **Pillow, fontTools and Brotli** in that environment.
 These are generator tools, not added application runtime dependencies. Inputs
 are `eesti/web/brand/mark.svg` and `eesti/web/fonts/geologica-latin.woff2`;
 the generator also refreshes the inline header and launch copies between the
-`brand:header` and `brand:splash` markers in `eesti/web/index.html`.
+`brand:header` and `brand:splash` markers in `eesti/web/index.html`, including
+the launch passage's point. The master silhouette is shared; only the launch
+copy adds the animated circle.
 
 | Output | Use |
 |---|---|
@@ -52,13 +57,13 @@ the generator also refreshes the inline header and launch copies between the
 | `icon-mono.svg`, `icon-mono.png` | Single-colour transparent silhouette; 512px raster |
 | `safari-pinned-tab.svg` | Black silhouette, tinted by Safari's mask-icon colour |
 | `apple-touch-icon.png` | Full-bleed blue Apple artwork, 180px |
-| `wordmark.svg` | Outlined Laudtee lettering |
+| `wordmark.svg` | Outlined Estep lettering |
 | `og-default.svg`, `og-default.png` | 1200×630 social card |
 | `twitter-default.svg`, `twitter-default.png` | 1200×600 social card |
 
 All outputs above live under `eesti/web/brand/`. The generator also refreshes
 the legacy `eesti/web/icon.png` as a 512px full-bleed icon. Social cards say
-**Laudtee**, **Eesti keel**, **A2 / B1** and **Õpi. Harjuta. Kontrolli.**
+**Estep**, **Eesti keel**, **A2 / B1** and **Õpi. Harjuta. Kontrolli.**
 
 ## Serving and metadata
 
@@ -66,7 +71,7 @@ the legacy `eesti/web/icon.png` as a 512px full-bleed icon. Social cards say
 with `Cache-Control: no-cache` and directory traversal protection. Root
 `/favicon.ico` and `/apple-touch-icon.png` use their brand counterparts.
 Compatibility routes `/icon.svg` and `/icon.png` remain available.
-`/manifest.webmanifest` names Laudtee, starts at `/`, and declares distinct
+`/manifest.webmanifest` names Estep, starts at `/`, and declares distinct
 regular, maskable and monochrome icons. The page declares ICO, PNG and SVG
 favicons, Apple artwork, Safari pinning, and Open Graph/Twitter metadata.
 
@@ -81,20 +86,45 @@ be deployed for that propagation to be active.
 
 The root HTML also replaces `__BRAND_REVEAL__` with the canonical contents of
 `eesti/web/brand-reveal.js` inside the head script. There is no separately
-fetched reveal script or standalone reveal route.
+fetched reveal script or standalone reveal route. The server also replaces
+`__BRAND_YEAR__` with the current UTC year in **© [year] Estep**. The footer
+explains the name in Russian (**Estonian + step: эстонский шаг за шагом.**) and
+keeps **Allikad ja litsentsid** with the existing source/licence disclosure.
+The copyright line names the app, with no person or company claim.
+
+## Header and phone navigation
+
+The home link opens Rada. Profile/login replaces the header transparency
+control; `eesti/web/js/profile.js` paints **Logi sisse** with a sign-in icon for
+signed-out use and **Profiil** with a user-circle otherwise. Both open the
+existing profile screen, where the established account flow runs. Theme cycling
+remains beside it. Reduced transparency and higher contrast use the automatic
+solid fallback; previously saved `glass=off` still works.
+
+On coarse-pointer, non-hover phones, both the skill row and bottom mode dock
+use a press/slide/release magnifying lens adapted from WanderAlt. A hold or
+horizontal drag lifts an inert copy of the labels. Preview changes neither
+panel nor history; release commits through the existing router. The row scrolls
+at its edges to expose hidden skills. Cancellation restores the selected tab;
+quick taps and keyboard navigation remain ordinary navigation. Desktop, tablet
+and other segmented controls retain the quiet selection glide. The lens is
+eligible at width ≤719px, or width ≤1079px with height ≤559px; reduced motion
+removes its magnification. The detailed behavior is in `DESIGN.md` and
+`eesti/web/js/glide.js`.
 
 ## Launch, accessibility and offline
 
-The saved theme and transparency choice are restored in the head before body
-paint, independently of launch eligibility. The optional cover uses the
+The saved theme and any existing `glass=off` preference are restored in the head
+before body paint, independently of launch eligibility. The optional cover uses the
 current page surface and appears only for `pointer: coarse` and `hover: none`
 at width ≤719px, or width ≤1023px and height ≤559px. Desktop and tablet open
 directly; reduced motion, prerendering, back/forward restoration and
 same-origin navigation skip the cover. An explicit reload may show it.
 
-The three planks exist in the first frame. Each has a 420ms light passage,
-with 120ms staggering; the cover starts a 180ms fade at 720ms and finishes at
-900ms. JavaScript removes it at that deadline and CSS hides it independently.
+The stepped E exists in the first frame. A small point moves along its foot
+and climbs one level inside the mark for 600ms after an 80ms delay; the cover
+starts a 180ms fade at 720ms and finishes at 900ms. JavaScript removes it at that
+deadline and CSS hides it independently.
 It does not wait for fonts, modules, data or a network response. A tap or key
 dismisses it immediately; page hiding and restored-page events clear it.
 The cover is `aria-hidden`, `inert` and pointer-transparent. It traps no focus.
