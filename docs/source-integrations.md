@@ -44,6 +44,10 @@ The owner's Durable Object archives shared corpus; guests/permanent learners
 restore it before use while retaining separate progress. HARNO files and EKI
 recordings travel via GCS mounts, not the corpus snapshot. Publishing either
 without the other can leave catalogue entries whose downloads are absent.
+Owner health confirms the origin and archived corpus checksums, including a
+replacement uploaded during the same boot. Atomic chunk-generation publication
+retains the earlier archive if a replacement fails; older archives remain
+readable. The procedure is in `docs/deploy.md`.
 
 ## Engines, evaluation and implementation assets
 

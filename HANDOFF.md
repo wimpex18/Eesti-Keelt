@@ -1,26 +1,28 @@
 # Handoff
 
-Current task: source/materials audit and safe learning improvements.
-Branch: `codex/materials-learning`; base: PR #102 (`codex/source-provenance`).
+Current task: finish source audit and reliable private-material publication.
+Branch: `codex/dev-7-corpus-publication`; base: PR #103.
 
-Section browsing now respects offsets with stable round-robin skill coverage.
-Listening shelves can load/retry later pages without clearing opened lessons.
-Radio notes no longer hardcode counts or promise every lesson has a transcript.
-Object-case guidance uses EKI SÜ 38/40: completion may be future; full objects
-can be omastav or nimetav; ordinary and contrastive negation are distinguished.
-The EKK/Teatmik ledger now describes the attributed rules/forms actually used.
+Origin health fingerprints the usable corpus independently of process boot.
+The singleton archives changes uploaded to a warm origin; owner health forces
+that check and reports corpus_archived_revision for publication confirmation.
+Corpus chunks publish through a generation pointer, retaining the previous
+archive on interrupted writes. Legacy archives remain readable; learner event
+replay and durability gates remain separate. Operator instructions are updated.
 
 Verified: 2,517 Python tests passed, 1 skipped; 224 browser journeys passed,
-4 skipped; 21 Worker tests and typecheck passed. All 11 tabs inspected in both
-themes at desktop, phone portrait/landscape and tablet. Real ERR MP3/HLS played
-on desktop/phone; the object lesson opens and starts deterministic practice.
-Private local corpus: 506 items, all 461 previous ids retained; 48 HARNO files
-validated/refreshed. Reference and source map: docs/source-integrations.md.
+4 skipped; 22 Worker tests, typecheck and Worker dry-run passed. One startup
+visibility assertion passed its focused retry and the next full browser pass.
+Prior UI: all 11 tabs in both themes at desktop, phone portrait/landscape and
+tablet inspected; actual ERR MP3/HLS and lesson → practice verified on phone/PC.
+Private corpus: 506 items, all 461 previous ids retained; 48 HARNO files refreshed.
 
-Next: publish this PR, fix warm-origin corpus archive refresh, complete report.
-Durable unresolved coverage/freshness/review work: Linear DEV-5 through DEV-9.
-PRs #100 → #101 → #102 are open; user merges in order. No deployment performed.
-Uncommitted paths: library/API/listening UI, object lesson/reference, attribution,
-tests, source/status docs and this handoff. Private data is git-ignored.
-Blocker for production changes: owner merges, then private corpus/media upload
-and the deep smoke workflow; the existing archive must retain the new corpus.
+Next: publish this PR; correct B1 writing's now-unambiguous HARNO 35-minute
+clock/two-task description; finish official-PDF visual checks and audit report.
+PRs #100 → #101 → #102 → #103 passed CI; user merges in order. No deployment.
+Uncommitted paths: Worker/publishing script, corpus health/revision, publication
+docs, regression tests and this handoff. Temporary visual test is not staged.
+Durable unresolved work: Linear DEV-5 through DEV-9. Latest Python 3.14.8 has
+no managed macOS download yet; local 3.14.7, production patch needs attestation.
+After merging: publish private corpus/exam files, confirm both corpus hashes
+via owner health, then deep smoke. Private data remains git-ignored.

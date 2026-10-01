@@ -37,6 +37,13 @@ def content_counts() -> dict:
     return corpus_counts(config.CONTENT_DB)
 
 
+def content_revision() -> str | None:
+    from .. import config
+    from ..sources import revision
+
+    return revision(config.CONTENT_DB)
+
+
 # Learner databases, resolved from `config` when opened — one source of truth for
 # the app and the state snapshot.
 def review_db():
