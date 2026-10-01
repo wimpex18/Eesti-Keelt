@@ -452,18 +452,28 @@ LESSONS.update({
     ),
     "obj-case": LessonText(
         points_ru=(
-            "Полное дополнение (**täissihitis**) — omastav или nimetav: действие "
-            "завершено и охватывает объект целиком: *Aednik kasvatas suure "
-            "kõrvitsa*.",
-            "Частичное (**osasihitis**) — osastav: процесс, часть или неопределённое "
-            "количество: *Ma kohtasin sõpra*, *Ta luges raamatut*.",
-            "При отрицании — всегда osastav.",
-            "Частицы завершённости (*läbi, ära, valmis*) требуют täissihitis: *Loe "
-            "see raamat läbi*.",
-            "Некоторые глаголы берут только osastav: *armastama, ootama, "
-            "kohtama*.",
+            "**Täissihitis** (полное дополнение) обозначает целый объект и "
+            "действие, которое достигло или достигнет результата: *Virve "
+            "õmbles endale uue seeliku*. Завершённость может относиться и к "
+            "будущему: *Õmble endale uus seelik!*.",
+            "**Osasihitis** (частичное дополнение) — osastav (частичный падеж): "
+            "часть, неопределённое количество или действие без указанного "
+            "результата: *Virve õmbles endale uut seelikut*.",
+            "Для одного целого объекта обычная форма täissihitis — omastav "
+            "(родительный падеж): *Isa viis lapse lasteaeda*.",
+            "Во множественном числе, при приказе и в безличном предложении "
+            "täissihitis стоит в nimetav (именительный падеж): *Isa viis "
+            "lapsed lasteaeda*; *Vii laps lasteaeda!*; *Laps viiakse lasteaeda*.",
+            "Дополнение при da-инфинитиве тоже может быть в nimetav: *Isa "
+            "ülesandeks jäi laps lasteaeda viia*.",
+            "При обычном отрицании — osastav: *Ma ei ostnud leiba*. Даже "
+            "указание результата не отменяет отрицания. Противопоставление "
+            "*mitte … vaid* сохраняет полное дополнение: *Ta ei ostnud mitte "
+            "maasturi, vaid paadi*.",
+            "Некоторые глаголы допускают только osasihitis, независимо от "
+            "того, целый ли объект: *Leena armastab lapsi*.",
         ),
-        sources=(ekk("SÜ 37"),),
+        sources=(ekk("SÜ 38"), ekk("SÜ 40")),
     ),
     "arvsonad": LessonText(
         points_ru=(
@@ -675,8 +685,9 @@ TIPS: dict[str, Tip] = {
                      "Ma tahan magama.", "Ma tahan magada."),
     "kohakaanded": Tip("Куда — *-sse / -le*, где — *-s / -l*, откуда — *-st / -lt*.",
                        "Ma elan Tallinnasse.", "Ma elan Tallinnas."),
-    "obj-case": Tip("Сделал целиком — omastav; процесс или «не» — osastav.",
-                    "Ma ostsin raamatut. (купил)", "Ma ostsin raamatu."),
+    "obj-case": Tip("Täissihitis (полное дополнение) — omastav или nimetav; "
+                    "при приказе — nimetav (именительный падеж).",
+                    "Vii lapse lasteaeda!", "Vii laps lasteaeda!"),
     "arvsonad": Tip("После числа больше одного — osastav ед. ч.",
                     "kaks raamatud", "kaks raamatut"),
     "kellaaeg": Tip("Половина, четверть — к **следующему** часу, как «половина десятого».",

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..lookup import annotate
@@ -41,7 +41,8 @@ def modes() -> dict:
 @router.get("/api/library")
 def library(skill: str = "lugemine", section: str | None = None,
             level: str | None = None, band: str | None = None,
-            limit: int = 60, offset: int = 0) -> dict:
+            limit: int = Query(60, ge=1, le=500),
+            offset: int = Query(0, ge=0)) -> dict:
     """Harvested study material, by skill or by section.
 
     Prefer `section`: it also applies the `kind` filters a skill alone ignores.
@@ -55,7 +56,7 @@ def library(skill: str = "lugemine", section: str | None = None,
 
         try:
             rows = browse(conn, section=section, level=level, band=band,
-                          limit=limit)
+                          limit=limit, offset=offset)
             total = section_count(conn, section=section, level=level, band=band)
         except KeyError as exc:
             raise HTTPException(
