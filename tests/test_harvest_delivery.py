@@ -1,6 +1,8 @@
 """An unavailable source must not erase the library or block another source."""
 
 import argparse
+import json
+from dataclasses import replace
 
 from eesti import config
 from eesti.cli.harvest import cmd_harvest_exam, cmd_harvest_reading
@@ -54,3 +56,69 @@ def test_eis_outage_keeps_existing_tasks_and_harvests_harno(tmp_path, monkeypatc
     with connect(path) as conn:
         assert {row[0] for row in conn.execute("SELECT source_id FROM items")} == {"eis", "harno"}
         assert conn.execute("SELECT id FROM items WHERE source_id='eis'").fetchone()[0] == old.id
+
+
+def test_partial_reading_harvest_keeps_other_texts_and_existing_ids(tmp_path, monkeypatch):
+    path = tmp_path / "content.db"
+    old = Item("selges-keeles", "lugemine", title="Üks", body="Tere!",
+               meta={"url": "https://example.test/1"})
+    other = replace(old, title="Teine", meta={"url": "https://example.test/2"})
+    with connect(path) as conn:
+        register(conn)
+        add_items(conn, [old, other])
+        conn.execute("INSERT INTO topic_items VALUES ('gen-stem', ?, 3)", (old.id,))
+    monkeypatch.setattr(selges, "fetch", lambda **kwargs: [
+        selges.Post(old.meta["url"], "Parandatud", "Tere hommikust!", "2018-01-01")])
+    assert cmd_harvest_reading(argparse.Namespace(db=str(path), limit=1)) == 0
+    with connect(path) as conn:
+        rows = {r["id"]: r for r in conn.execute("SELECT * FROM items")}
+        assert set(rows) == {old.id, other.id}
+        assert rows[old.id]["body"] == "Tere hommikust!"
+        assert not conn.execute("SELECT * FROM topic_items").fetchall()
+        assert len(json.loads(rows[old.id]["meta"])["content_sha256"]) == 64
+
+
+def test_failed_eis_download_keeps_text_recordings_and_other_levels(tmp_path, monkeypatch):
+    path = tmp_path / "content.db"
+    monkeypatch.setattr(config, "CONTENT_DB", path)
+    task = eis.Task("42", "A2", "kuulamine", "Kuulamine")
+    old = eis.to_items([task], {"42": ("Kuula ja vasta.", ["https://example.test/a.mp3"])})[0]
+    other = replace(old, level="B1", title="B1", meta={**old.meta, "url": "https://example.test/b1"})
+    with connect(path) as conn:
+        register(conn)
+        add_items(conn, [old, other])
+    monkeypatch.setattr(eis, "catalogue", lambda levels: [task])
+    monkeypatch.setattr(eis, "fetch_task", lambda task: ("", []))
+    monkeypatch.setattr(harno, "catalogue", lambda: [])
+    for download in (True, False):
+        assert cmd_harvest_exam(argparse.Namespace(levels="A2", download=download)) == 0
+    with connect(path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 2
+        row = conn.execute("SELECT * FROM items WHERE id=?", (old.id,)).fetchone()
+        assert row["body"] == old.body and row["audio_url"] == old.audio_url
+        assert json.loads(row["meta"])["audio"] == old.meta["audio"]
+        assert json.loads(row["meta"])["external"] is False
+
+
+def test_refresh_is_atomic_when_a_later_row_fails(tmp_path):
+    import sqlite3
+    import pytest
+    with connect(tmp_path / "content.db") as conn:
+        register(conn)
+        old = Item("err-lihtsad", "lugemine", body="Tere!", meta={"url": "https://example.test/1"})
+        add_items(conn, [old])
+        with pytest.raises(sqlite3.IntegrityError):
+            add_items(conn, [replace(old, body="Muutus."), Item("err-lihtsad", None)])
+        assert conn.execute("SELECT body FROM items").fetchone()[0] == old.body
+
+
+def test_truncated_or_repeated_archive_page_is_rejected(monkeypatch):
+    import pytest
+    from eesti import net
+    post = {"ID": 1, "URL": "https://example.test/1", "title": "Üks", "content": "Tere!"}
+    monkeypatch.setattr(selges, "POLITE_DELAY", 0)
+    for second in ([], [post]):
+        pages = iter([{"found": 2, "posts": [post]}, {"found": 2, "posts": second}])
+        monkeypatch.setattr(net, "get", lambda *a, **kw: json.dumps(next(pages)))
+        with pytest.raises(ValueError, match="pagination"):
+            selges.fetch()

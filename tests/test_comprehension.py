@@ -29,7 +29,7 @@ def text_item(tmp_path, monkeypatch):
     conn = connect(db)
     register(conn)
     item = Item(source_id="selges-keeles", skill="lugemine", level="A2",
-                title="Uus raamatukogu", body=TEXT, meta={})
+                title="Uus raamatukogu", body=TEXT, meta={"url": "https://example.test/text"})
     add_items(conn, [item])
     conn.close()
     monkeypatch.setattr(config, "CONTENT_DB", db)
@@ -108,6 +108,31 @@ class TestTheAnswerNeverTravelsToThePage:
 
 
 class TestMakingThemDoesNotTrustTheModel:
+    def test_refreshed_text_cannot_grade_an_old_page_against_a_new_question(
+            self, client, text_item, monkeypatch):
+        from eesti import tutor
+        with evidence.connect() as log:
+            comprehension.save(log, text_item, [comprehension.Question(
+                0, "Kui kaua maja ehitati?", "kaks aastat", "llm:test")], text=TEXT)
+        changed = TEXT.replace("kaks aastat", "kolm aastat")
+        with connect(config.CONTENT_DB) as corpus:
+            add_items(corpus, [Item("selges-keeles", "lugemine", level="A2",
+                title="Uus raamatukogu", body=changed,
+                meta={"url": "https://example.test/text"})])
+        assert client.get(f"/api/read/questions/{text_item}").json()["questions"] == []
+        monkeypatch.setattr(tutor, "propose_questions", lambda *a, **k: ([
+            {"q": "Kui kaua maja ehitati?", "a": "kolm aastat"}], "llm:test"))
+        fresh = client.post(f"/api/read/questions/{text_item}").json()["questions"]
+        assert fresh[0]["idx"] == 1
+        old = client.post("/api/read/answer", json={
+            "item_id": text_item, "idx": 0, "answer": "kaks aastat"})
+        assert old.status_code == 404
+        new = client.post("/api/read/answer", json={
+            "item_id": text_item, "idx": 1, "answer": "kolm aastat"})
+        assert new.json()["correct"]
+        with evidence.connect() as log:
+            assert log.execute("SELECT COUNT(*) FROM events WHERE type='questions-made'").fetchone()[0] == 2
+
     def test_only_the_proposals_the_text_keys_survive(self, text_item, monkeypatch):
         from eesti import tutor
 

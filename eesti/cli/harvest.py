@@ -43,7 +43,7 @@ def cmd_harvest(args: argparse.Namespace) -> int:
 def cmd_harvest_reading(args: argparse.Namespace) -> int:
     """Harvest simplified-Estonian reading material (Selges keeles), the reading corpus."""
     from ..harvest.selges import fetch, to_items
-    from ..sources import add_items, clear_source, connect, register
+    from ..sources import add_items, connect, register
 
     posts = fetch(limit=args.limit)
     if not posts:
@@ -52,7 +52,6 @@ def cmd_harvest_reading(args: argparse.Namespace) -> int:
     items = to_items(posts)
     conn = connect(content_path(args))
     register(conn)
-    clear_source(conn, "selges-keeles")
     add_items(conn, items)
 
     words = sum(p.word_count for p in posts)
@@ -126,7 +125,7 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
     """
     from .. import config
     from ..harvest.eis import LEVELS, catalogue, fetch_task, to_items
-    from ..sources import (add_items, clear_source, connect as content_connect,
+    from ..sources import (add_items, connect as content_connect,
                            register)
 
     from ..harvest import harno
@@ -154,9 +153,6 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
                 bodies[task.id] = (body, audio)
         print(f"EIS tasks read into the app: {len(bodies)} of {len(tasks)}")
     if tasks:
-        # Ids are content hashes, so a task that gained its text would otherwise
-        # be added beside the pointer row it replaces.
-        clear_source(conn, "eis")
         stored += add_items(conn, to_items(tasks, bodies))
         by_level: dict[str, int] = {}
         for task in tasks:
@@ -174,11 +170,10 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
         materials = []
         print(f"\nharno.ee unavailable: {str(exc)[:100]}")
     if materials and getattr(args, "download", False):
-        got = harno.download(materials)
+        got = harno.download(materials, refresh=getattr(args, "refresh", False))
         print(f"\nharno.ee files: {got['downloaded']} downloaded, "
               f"{got['already_there']} already here, {got['failed']} failed")
     if materials:
-        clear_source(conn, "harno")
         stored += add_items(conn, harno.to_items(materials))
         counts: dict[tuple[str, str], int] = {}
         for m in materials:
@@ -195,8 +190,8 @@ def cmd_harvest_exam(args: argparse.Namespace) -> int:
 def cmd_harvest_news(args: argparse.Namespace) -> int:
     """Fetch ERR's simplified weekly news — the one live reading source.
 
-    Re-runnable: items are keyed by content hash, so a weekly `--limit 5` updates
-    only what changed.
+    Re-runnable: source URLs preserve item identities, so a weekly `--limit 5`
+    updates those issues while retaining older ones.
     """
     from .. import config
     from ..harvest import lihtsad
@@ -377,6 +372,8 @@ def register(sub) -> None:
         "--download", action="store_true",
         help="fetch the task PDFs and listening audio into data/exam, and read "
              "each EIS task into the app, instead of only linking out")
+    p.add_argument("--refresh", action="store_true",
+                   help="with --download, re-fetch HARNO files; retain usable copies on failure")
     p.set_defaults(func=cmd_harvest_exam)
 
     p = sub.add_parser("prepare-exam", help="extract private, page-aware exam tasks")
