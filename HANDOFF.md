@@ -18,7 +18,6 @@ All 11 tabs inspected at four required sizes in both themes; profile states
 and the final spacing/editor confirmation have separate screenshots.
 Evidence: local profile-qa/report.md under the task visualization directory.
 Production accounts/progress were not changed during this profile audit.
-
 Worker e168c14 is live (deploy 36878069950); production QA login returned 401.
 Deep smoke 36878287721 passed with Mac mini inference from GitHub's runner.
 The tunnel supports other networks; system sleep is disabled, locking works.
