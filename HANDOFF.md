@@ -1,24 +1,24 @@
 # Handoff
 
-Current task: Estep identity, phone navigation and Linear tracking policy.
-Branch: `codex/laudtee-identity`; PR: #95 against `main`.
+Current task: end-to-end product QA and landscape answer reachability.
+Branch: `codex/product-qa-e2e`; base: `main`.
 
-Estep (Estonian + step) names the app; the larger header has no subject subtitle.
-One stepped-E vector supplies browser, Apple/PWA and social artwork.
-Phones have a 900 ms point-climbing splash with early dismissal and motion/
-restoration exclusions. Desktop and tablet open directly.
-Phone skill and mode rows support hold/drag preview and release to select,
-including edge scrolling and cancellation. Profile/login replaces transparency.
-The footer explains the name, shows the current year and retains sources.
-AGENTS.md includes the user's durable-backlog Linear tracking policy.
-Artwork rebuild: `.venv/bin/python deploy/build-brand.py`; see `docs/brand.md`.
+The initial landscape answer and check controls now fit above the mode dock.
+A regression measures reachability and dock clearance in Chromium and WebKit.
+It fails against the previous CSS and passes with the compact practice layout.
 
 Verification: 2,491 Python tests passed (1 skip); typecheck and 7 Worker tests
-passed. The Worker dry-run passed. 202 browser journeys passed (4 skips).
-All 11 tabs inspected at desktop, phone, landscape and tablet sizes in both
-themes. Independent scoped finish review: ship; raster provenance complete.
+passed; 204 browser journeys passed (4 skips). All 11 tabs inspected at desktop,
+phone, landscape and tablet sizes in both themes; production inspected on phone
+and desktop. The current origin passes a fresh deep smoke.
 
-Next: user review/merge PR #95, then run deep smoke after automated origin
-and Worker deployment.
+Next: owner reviews/merges the QA PR. Resolve PM-26: deployment credentials lack
+VPC service access, leaving the production Worker stale. Its auth endpoint is
+404 and its home ASR lane is unconfigured despite a healthy Mac mini tunnel.
+Then redeploy and verify disposable account isolation, home transcription and
+offline-home fallback. Deep smoke writes one sample writing event; the stale
+Worker routes that service-token call to the legacy owner.
+
 Uncommitted paths: none after this commit.
-No code blockers; production has not changed in this branch.
+Blocker: VPC-authorized deployment credential; actual home ASR inference remains
+unverified. No deployment or merge performed in this branch.

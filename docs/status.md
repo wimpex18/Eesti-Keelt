@@ -69,6 +69,13 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 
 ## Known issues
 
+- **Production Worker deployment is blocked by VPC authorization.** The origin
+  serves the current app, but the Worker does not serve `/api/auth/me` and
+  `/api/asr/home` reports an unconfigured home lane. The registered home speech
+  tunnel is healthy; deployment credentials need access to its VPC service
+  before the Worker can bind it. Account isolation and home transcription need
+  live verification after redeployment; see
+  [PM-26](https://linear.app/pm-career-transition/issue/PM-26/restore-worker-deployment-vpc-permission-failure-leaves-home-asr-and).
 - **Password recovery remains owner-managed.** There is no self-service reset
   screen. The owner can reset a password using the procedure in
   `docs/deploy.md`; account removal is available to the owner and clears that
