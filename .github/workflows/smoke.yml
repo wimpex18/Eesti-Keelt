@@ -374,12 +374,15 @@ jobs:
             # it is not learner audio or an ASR quality evaluation.
             if curl -sf "${auth[@]}" -G --data-urlencode 'text=Ma elan Tallinnas.' \
                 "$URL/api/speak" -o "$RUNNER_TEMP/speech.wav"; then
-              heard="$(curl -sf --max-time 70 "${auth[@]}" -X POST \
+              speech_http="$(curl -s --max-time 70 "${auth[@]}" -X POST \
                 -H 'Content-Type: audio/wav' --data-binary "@$RUNNER_TEMP/speech.wav" \
-                "$URL/api/transcribe")" || heard='{}'
+                -o "$RUNNER_TEMP/heard.json" -w '%{http_code}' \
+                "$URL/api/transcribe")" || speech_http=000
+              heard="$(cat "$RUNNER_TEMP/heard.json" 2>/dev/null || echo '{}')"
               speech_engine="$(jq -r '.engine // ""' <<<"$heard")"
               if ! jq -e '.degraded == false and (.text | length > 0)' <<<"$heard" >/dev/null; then
-                echo "::error::Generated speech sample did not transcribe."
+                speech_note="$(jq -r 'if (.note | type) == "string" then .note[0:160] else "" end' <<<"$heard" 2>/dev/null || echo '')"
+                echo "::error::Generated speech sample did not transcribe (HTTP $speech_http; engine $speech_engine; $speech_note)."
                 fail=1
               elif jq -e '.online == true' <<<"$home" >/dev/null && \
                    [[ "$speech_engine" != *"Mac mini"* ]]; then

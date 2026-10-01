@@ -17,8 +17,10 @@ Cloudflare deployment permission is saved and main Worker deployment succeeded.
 Home health is online with the Mac mini locked; model loaded, services running,
 automatic system sleep disabled. No private audio or owner-account signup used.
 
-Next: deploy this tested Worker branch, run isolated deep smoke, and hand off
-PR #96 then this PR for owner review/merge. Frontend updates await origin build.
+Next: diagnose the generated speech sample failure in isolated deep smoke;
+Worker branch deployed and live guest/grammar checks pass. PR #97 stacks on #96.
+Frontend updates await owner merges and the origin build.
 Uncommitted paths: none after this commit.
-Remaining verification: authenticated home transcription and live guest scope.
+Blocker: generated speech sample fails despite online home health; HTTP
+diagnostics added. Home transcription remains unverified.
 The previous smoke's owner writing event remains intact; no progress was reset.
