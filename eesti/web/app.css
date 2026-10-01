@@ -1802,5 +1802,22 @@ nav > .glide{background:var(--glass-strong);box-shadow:inset 0 0 0 1px var(--gla
 }
 @media (hover:none) and (max-height:500px){
   .modes .glass-option .ico svg{width:20px;height:20px}
+  /* Keep the first landscape answer above the dock. The rule shares the
+     progress row; display:contents preserves the existing reading order. */
+  #tab-path > .page-head > div:first-child{display:none}
+  #pathModes{padding:0}
+  #pathRada{margin-top:var(--s2)}
+  #pathStage{display:grid;grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;column-gap:var(--s3);padding-top:0}
+  #pathStage > .stage-top, #practiceOut, #practiceOut > .set-head{display:contents}
+  #pathBeads{grid-column:1;grid-row:1;max-width:420px}
+  #pathScore{grid-column:1;grid-row:2}
+  #pathScore:empty, #practiceOut > .set-head > span:empty{display:none}
+  #practiceOut > .set-head > button{grid-column:2;grid-row:1}
+  #practiceOut > .set-head > span, #practiceOut > .drill{grid-column:1 / -1}
+  #practiceOut > .set-head + .drill{border-top:0;padding-top:0}
+  #practiceOut .drill-pos{margin-bottom:var(--s1)}
+  #practiceOut .prompt{font-size:24px;margin-bottom:var(--s2)}
+  #practiceOut .drill > .row{margin-top:var(--s1)}
 }
 @media (prefers-reduced-motion:reduce){.glass-copy{transform:none}}

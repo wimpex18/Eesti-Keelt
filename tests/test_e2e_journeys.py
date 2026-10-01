@@ -2206,6 +2206,19 @@ class TestPhoneInLandscape:
             "#practiceOut .drill", "e=>e.getBoundingClientRect().top")
         assert top < 402 * 0.8, f"first drill starts at {top}px of 402"
 
+    def test_the_first_answer_is_reachable_above_the_dock(self, landscape):
+        """Opening a short phone session must expose its answer and check button."""
+        blocked = landscape.evaluate("""() => {
+          const drill = document.querySelector('#practiceOut .drill:not(.done)');
+          const dock = document.querySelector('.modes').getBoundingClientRect();
+          return [...drill.querySelectorAll('input, .row button')].filter(e => {
+            const r = e.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return r.top < 0 || r.bottom > dock.top || !hit || !e.contains(hit);
+          }).map(e => e.getAttribute('aria-label') || e.textContent.trim());
+        }""")
+        assert not blocked, f"first answer controls hidden by the dock: {blocked}"
+
     def test_nothing_scrolls_sideways(self, landscape):
         assert landscape.evaluate(
             "document.scrollingElement.scrollWidth <= innerWidth + 1")
