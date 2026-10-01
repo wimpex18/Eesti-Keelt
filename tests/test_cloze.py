@@ -201,7 +201,7 @@ def test_items_carry_their_handbook_reference(content):
     for item in items:
         ref = item.reference
         assert ref and ref["known"]
-        assert ref["ekk_section"] == "SÜ 37"
+        assert ref["ekk_section"] == "SÜ 38"
         assert item.to_dict()["reference"] == ref
 
 

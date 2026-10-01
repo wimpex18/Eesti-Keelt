@@ -36,7 +36,7 @@ class TestGrammarReferences:
     @pytest.mark.parametrize(
         "tag, section",
         [
-            ("obj-case", "SÜ 37"),    # Sihitis: täis- ja osasihitis
+            ("obj-case", "SÜ 38"),    # Täis- ja osasihitis: selection conditions
             ("rektsioon", "SÜ 65"),   # Rektsioon
             ("word-order", "SÜ 91"),  # Lause sõnajärg: olulisim info lause lõpus
             ("gen-stem", "M 52"),     # Omastav kääne

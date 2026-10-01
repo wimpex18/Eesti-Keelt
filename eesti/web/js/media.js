@@ -1,8 +1,7 @@
 /* Playing what the library holds: HLS, YouTube, plain audio, and one word.
 
-   hls.js is vendored rather than loaded from a CDN, and it is load-bearing:
-   44 of the 91 audio items are HLS streams, which Safari plays natively and
-   Chrome and Firefox do not. */
+   hls.js is vendored rather than loaded from a CDN. ERR archives include HLS
+   streams, which Safari plays natively and Chrome and Firefox do not. */
 
 import {api, esc} from "./core.js";
 import {icon} from "./icons.js";

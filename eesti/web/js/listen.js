@@ -122,15 +122,53 @@ export async function loadListenLibrary() {
         <span class="hint">${sec.items}${sec.with_audio
           ? " · " + uiIcon("note", "inline-ico") + " " + sec.with_audio : ""}</span></h3>
       <p class="hint sec-note">${esc(sec.note || "")}</p>
-      <div class="sec-list" data-section="${esc(sec.id)}"></div>`).join("");
+      <div class="sec-list" data-section="${esc(sec.id)}"></div>
+      <button class="ghost sec-more" lang="et" hidden>Veel <span class="ru" lang="ru">ещё материалы</span></button>
+      <p class="hint sec-error" role="alert" hidden></p>`).join("");
 
     for (const el of box.querySelectorAll(".sec-list")) {
       const id = el.dataset.section;
-      const {items} = await (await api(
-        `/api/library?section=${encodeURIComponent(id)}&limit=60`, null, "GET")).json();
-      // A pointer is a link, not a player: EIS tasks keep their audio and scoring on
-      // eis.harno.ee and nothing of theirs is stored here.
-      el.innerHTML = (items || []).map(it => it.external
+      const more = el.nextElementSibling, error = more.nextElementSibling;
+      let shown = 0;
+      async function loadPage() {
+        more.disabled = true;
+        error.hidden = true;
+        try {
+          const {items, total} = await (await api(
+            `/api/library?section=${encodeURIComponent(id)}&limit=60&offset=${shown}`, null, "GET")).json();
+          if (!items?.length && shown < total)
+            throw new Error("Список материалов временно не загрузился. Попробуй ещё раз.");
+          const page = document.createElement("div");
+          page.innerHTML = listenRows(items || []);
+          page.querySelectorAll(".lib-item[data-id]").forEach(row =>
+            actsAsButton(row, e => {
+              if (!e.target.closest(".lib-open")) openListenItem(row);
+            }, row.querySelector("h4")));
+          el.append(...page.children);
+          shown += (items || []).length;
+          more.hidden = shown >= total;
+          setLabel(more, "Veel");
+          more.querySelector(".ru").textContent = "ещё материалы";
+        } catch (e) {
+          // A later page failing must not discard an already opened player.
+          error.textContent = "Не удалось загрузить материалы: " + e.message;
+          error.hidden = false;
+          more.hidden = false;
+          setLabel(more, "Proovi uuesti");
+          more.querySelector(".ru").textContent = "повторить";
+        } finally { more.disabled = false; }
+      }
+      more.onclick = loadPage;
+      await loadPage();
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+function listenRows(items) {
+  // External official tasks retain the publisher's player and scoring.
+  return items.map(it => it.external
         ? `<a class="lib-item" href="${esc(it.url || "#")}" target="_blank"
               rel="noopener">
              <h4 lang="${langOf(it.title)}">${esc(it.title)}</h4>
@@ -143,16 +181,6 @@ export async function loadListenLibrary() {
                it.level ? " · " + esc(it.level) : ""}</span>
              <div class="lib-open" hidden></div>
            </div>`).join("");
-      /* A click on the opened player or text belongs to it: it must not fold the
-         row shut under the learner's hand. */
-      el.querySelectorAll(".lib-item[data-id]").forEach(row =>
-        actsAsButton(row, e => {
-          if (!e.target.closest(".lib-open")) openListenItem(row);
-        }, row.querySelector("h4")));
-    }
-  } catch (e) {
-    box.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
-  }
 }
 
 async function openListenItem(row) {

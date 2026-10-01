@@ -72,8 +72,8 @@ SECTIONS: tuple[Section, ...] = (
                                         "konsultatsioon", "teave", "video",
                                         "kirjeldus")),
     Section("saated", "Saated", "передачи", ("grammatika",),
-            "Радиокурсы, у которых есть расшифровка: 28 уроков, объяснение "
-            "по-русски с эстонскими примерами.",
+            "Радиокурсы: объяснение по-русски с эстонскими примерами. "
+            "К части уроков есть текст.",
             mode="oppimine"),
 
     # -- Kordamine ---------------------------------------------------------
@@ -206,11 +206,13 @@ def browse(
     band: str | None = None,
     limit: int = 20,
     public_only: bool = False,
+    offset: int = 0,
 ) -> list[sqlite3.Row]:
-    """Material in one section. Unordered by design — this is a shelf, not a path.
+    """Material in one section. This is a shelf, not a prerequisite path.
 
     Skills within a section are dealt round-robin so none is crowded out by the
-    limit.
+    limit. Stable ordering and slicing apply after that deal, so later pages
+    neither repeat items nor lose a less numerous skill.
     """
     meta = by_id(section)
     kind_sql, kind_params = _kind_clause(meta)
@@ -229,17 +231,17 @@ def browse(
         params += filter_params
         sql += kind_sql
         params += kind_params
-        sql += " LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY i.added_on, i.id LIMIT ?"
+        params.append(offset + limit)
         return content.execute(sql, params).fetchall()
 
     per_skill = [rows_for(skill) for skill in meta.skills]
     out: list[sqlite3.Row] = []
-    while any(per_skill) and len(out) < limit:
+    while any(per_skill) and len(out) < offset + limit:
         for rows in per_skill:
-            if rows and len(out) < limit:
+            if rows and len(out) < offset + limit:
                 out.append(rows.pop(0))
-    return out
+    return out[offset:]
 
 
 def count(

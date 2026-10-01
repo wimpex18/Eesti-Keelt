@@ -66,6 +66,25 @@ WORKER_ONLY_ROUTES = {
 
 
 class TestEveryEndpointThePageCallsExists:
+    def test_section_offset_reaches_radio_items_beyond_the_first_page(self, client, monkeypatch, tmp_path):
+        from eesti import config
+        from eesti.sources import Item, add_items, connect, register
+
+        path = tmp_path / "radio.db"
+        conn = connect(path)
+        register(conn)
+        add_items(conn, [Item("err-r4", "grammatika", title=f"Saade {n}",
+                             body="Ma elan Tallinnas.") for n in range(73)])
+        conn.close()
+        monkeypatch.setattr(config, "CONTENT_DB", str(path))
+        first = client.get("/api/library?section=saated&limit=60").json()
+        last = client.get("/api/library?section=saated&limit=60&offset=60").json()
+        assert first["total"] == last["total"] == 73
+        assert last["offset"] == 60 and len(last["items"]) == 13
+        ids = [r["id"] for r in first["items"] + last["items"]]
+        assert len(ids) == len(set(ids)) == 73
+        assert client.get("/api/library?section=saated&offset=-1").status_code == 422
+
     def test_no_call_is_to_a_route_that_does_not_exist(self, page):
         """A typo or a renamed route shows as an empty panel, never an error."""
         from eesti import api
@@ -338,7 +357,7 @@ class TestAPointerIsALinkNotAPlayer:
         assert any(not i.get("external") for i in got["items"])
 
     def test_the_page_branches_on_it(self, page):
-        fn = function_body(page, "async function loadListenLibrary")
+        fn = function_body(page, "function listenRows")
         assert "it.external" in fn
         assert 'target="_blank"' in fn
 

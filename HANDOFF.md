@@ -1,25 +1,26 @@
 # Handoff
 
-Current task: make audited source inputs and installed versions verifiable.
-Branch: `codex/source-provenance`; base: `codex/materials-refresh` (PR #101).
+Current task: source/materials audit and safe learning improvements.
+Branch: `codex/materials-learning`; base: PR #102 (`codex/source-provenance`).
 
-Word-list download pins the verified upstream commit and SHA-256, validates
-cached/downloaded bytes and replaces atomically. Bad TSV imports keep words
-and derived forms. Docker fingerprints actual word-list and EKI input files;
-health exposes those fingerprints and runtime dependency versions separately
-from import row counts. HLS.js upstream licence/notices are now included.
-The end-to-end source map is in docs/source-integrations.md.
-Wrangler/Workers types are updated to current stable; local FastAPI matches
-the production build's current stable release. No model lane was changed.
+Section browsing now respects offsets with stable round-robin skill coverage.
+Listening shelves can load/retry later pages without clearing opened lessons.
+Radio notes no longer hardcode counts or promise every lesson has a transcript.
+Object-case guidance uses EKI SÜ 38/40: completion may be future; full objects
+can be omastav or nimetav; ordinary and contrastive negation are distinguished.
+The EKK/Teatmik ledger now describes the attributed rules/forms actually used.
 
-Verified: 2,514 Python tests passed, 1 skipped; 21 Worker tests, typecheck and
-Worker dry-run passed. 222 browser journeys passed, 4 skipped; all 11 tabs
-inspected in both themes at desktop, phone portrait/landscape and tablet.
-Private local corpus has 506 items; all 461 original ids remain.
-PRs #100 → #101 are ready; user merges in order. No deployment performed.
-Next: publish this PR; fix truncated radio shelf
-and qualify the source-backed object-case lesson; finish audit report/backlog.
-Uncommitted paths: source-provenance code/Docker, dependency locks, source docs,
-HLS licence, word-list tests and this handoff. Private data stays git-ignored.
-Blocker for deployed changes: owner merges, then operator publishes private
-corpus/exam updates and runs deep smoke.
+Verified: 2,517 Python tests passed, 1 skipped; 224 browser journeys passed,
+4 skipped; 21 Worker tests and typecheck passed. All 11 tabs inspected in both
+themes at desktop, phone portrait/landscape and tablet. Real ERR MP3/HLS played
+on desktop/phone; the object lesson opens and starts deterministic practice.
+Private local corpus: 506 items, all 461 previous ids retained; 48 HARNO files
+validated/refreshed. Reference and source map: docs/source-integrations.md.
+
+Next: publish this PR, fix warm-origin corpus archive refresh, complete report.
+Durable unresolved coverage/freshness/review work: Linear DEV-5 through DEV-9.
+PRs #100 → #101 → #102 are open; user merges in order. No deployment performed.
+Uncommitted paths: library/API/listening UI, object lesson/reference, attribution,
+tests, source/status docs and this handoff. Private data is git-ignored.
+Blocker for production changes: owner merges, then private corpus/media upload
+and the deep smoke workflow; the existing archive must retain the new corpus.
