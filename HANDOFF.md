@@ -1,24 +1,24 @@
 # Handoff
 
-Current task: end-to-end product QA and landscape answer reachability.
-Branch: `codex/product-qa-e2e`; base: `main`.
+Current task: PM-26 deployment recovery and isolated product QA.
+Branch: `codex/pm-26-worker-deployment`, stacked on PR #96.
 
-The initial landscape answer and check controls now fit above the mode dock.
-A regression measures reachability and dock clearance in Chromium and WebKit.
-It fails against the previous CSS and passes with the compact practice layout.
+Explicit guest headers override owner sessions and bootstrap owner access.
+Speech preserves the guest sandbox through the Worker-to-origin handoff.
+Smoke confirms Worker and origin guest scope before any deep submission.
+Deep smoke checks generated reference audio routing, not ASR quality.
+Deployment checks VPC service access before pushing secrets.
+Speaking copy distinguishes Mac mini recognition from Cloudflare fallback.
 
-Verification: 2,491 Python tests passed (1 skip); typecheck and 7 Worker tests
-passed; 204 browser journeys passed (4 skips). All 11 tabs inspected at desktop,
-phone, landscape and tablet sizes in both themes; production inspected on phone
-and desktop. The current origin passes a fresh deep smoke.
+Verification: 2,499 Python tests passed (1 skip); 14 Worker tests and typecheck
+passed; 210 browser journeys passed (4 skips), plus 2 landscape regressions.
+All 11 tabs inspected at all four required sizes in both themes.
+Cloudflare deployment permission is saved and main Worker deployment succeeded.
+Home health is online with the Mac mini locked; model loaded, services running,
+automatic system sleep disabled. No private audio or owner-account signup used.
 
-Next: owner reviews/merges the QA PR. Resolve PM-26: deployment credentials lack
-VPC service access, leaving the production Worker stale. Its auth endpoint is
-404 and its home ASR lane is unconfigured despite a healthy Mac mini tunnel.
-Then redeploy and verify disposable account isolation, home transcription and
-offline-home fallback. Deep smoke writes one sample writing event; the stale
-Worker routes that service-token call to the legacy owner.
-
+Next: deploy this tested Worker branch, run isolated deep smoke, and hand off
+PR #96 then this PR for owner review/merge. Frontend updates await origin build.
 Uncommitted paths: none after this commit.
-Blocker: VPC-authorized deployment credential; actual home ASR inference remains
-unverified. No deployment or merge performed in this branch.
+Remaining verification: authenticated home transcription and live guest scope.
+The previous smoke's owner writing event remains intact; no progress was reset.

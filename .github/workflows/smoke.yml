@@ -17,7 +17,7 @@ on:
     inputs:
       deep:
         description: >-
-          Also send one sentence through the grammar chain. Consumes Workers
+          Also send one sentence through grammar and generated audio through speech. Consumes Workers
           AI quota, so it is opt-in rather than run on every deploy.
         type: boolean
         default: false
@@ -34,6 +34,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out smoke helpers
+        uses: actions/checkout@v7
+
       - name: Check the deployment answers, and answers correctly
         env:
           URL: ${{ secrets.WORKER_URL }}
@@ -55,6 +58,12 @@ jobs:
           auth=(-H "CF-Access-Client-Id: $CF_ID"
                 -H "CF-Access-Client-Secret: $CF_SECRET")
           fail=0
+          sandbox_ready=0
+          if source deploy/smoke-sandbox.sh; then
+            sandbox_ready=1
+          else
+            fail=1
+          fi
 
           # 1. The front door is shut to anyone without the token (the licence obligation).
           code="$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/health")"
@@ -273,10 +282,21 @@ jobs:
           curl -s "${auth[@]}" "$URL/api/asr" | grep -q '"ready":true' \
             && echo "speech .................. configured (audio inference not tested)" \
             || echo "::warning::/api/asr reports not ready."
+          home="$(curl -s "${auth[@]}" "$URL/api/asr/home")"
+          if ! jq -e '.configured == true' <<<"$home" >/dev/null; then
+            echo "::error::Home ASR binding unavailable; deploy the Worker with VPC service access."
+            fail=1
+          elif jq -e '.online == true' <<<"$home" >/dev/null; then
+            echo "home speech ............. online (audio inference not tested)"
+          else
+            echo "::warning::Home ASR configured but offline; Cloudflare fallback remains available."
+          fi
 
           # VAPID lives on the Worker. A configured cron alone cannot send push.
-          push="$(curl -s "${auth[@]}" "$URL/api/push/key")"
-          if [ "$(jq -r '.configured // false' <<<"$push")" = true ]; then
+          push="$(curl -s -w '\n%{http_code}' "${auth[@]}" "$URL/api/push/key")"
+          if [ "$(tail -1 <<<"$push")" = 403 ]; then
+            echo "reminder keys ........... not inspected (guest sandbox cannot subscribe)"
+          elif [ "$(sed '$d' <<<"$push" | jq -r '.configured // false')" = true ]; then
             echo "reminder keys ........... configured (browser opt-in/delivery not tested)"
           else
             echo "::warning::Reminders lack Worker VAPID keys; configure them before browser opt-in."
@@ -330,6 +350,10 @@ jobs:
           #    documented weakness: "Ma lugesin raamatut läbi" — completed, so genitive
           #    `raamatu`.
           if [ "$DEEP" = "true" ]; then
+            if [ "$sandbox_ready" != 1 ]; then
+              echo "::error::Deep grammar submission skipped: sandbox isolation unconfirmed."
+              exit 1
+            fi
             answer="$(curl -s "${auth[@]}" -X POST "$URL/api/check" \
               -H 'Content-Type: application/json' \
               -d '{"text":"Ma lugesin raamatut läbi."}')"
@@ -345,6 +369,29 @@ jobs:
               *)     echo "::warning::Answered by '$engine' — no explanation \
           behind it. Lanes: $(field diagnostics)" ;;
             esac
+
+            # Generated reference audio proves routing/authentication only;
+            # it is not learner audio or an ASR quality evaluation.
+            if curl -sf "${auth[@]}" -G --data-urlencode 'text=Ma elan Tallinnas.' \
+                "$URL/api/speak" -o "$RUNNER_TEMP/speech.wav"; then
+              heard="$(curl -sf --max-time 70 "${auth[@]}" -X POST \
+                -H 'Content-Type: audio/wav' --data-binary "@$RUNNER_TEMP/speech.wav" \
+                "$URL/api/transcribe")" || heard='{}'
+              speech_engine="$(jq -r '.engine // ""' <<<"$heard")"
+              if ! jq -e '.degraded == false and (.text | length > 0)' <<<"$heard" >/dev/null; then
+                echo "::error::Generated speech sample did not transcribe."
+                fail=1
+              elif jq -e '.online == true' <<<"$home" >/dev/null && \
+                   [[ "$speech_engine" != *"Mac mini"* ]]; then
+                echo "::error::Home ASR reported online but sample used $speech_engine; check HOME_ASR_TOKEN and Mac service logs."
+                fail=1
+              else
+                echo "speech chain ............ OK (answered by $speech_engine; routing only)"
+              fi
+            else
+              echo "::error::Generated reference audio unavailable; speech chain not verified."
+              fail=1
+            fi
           fi
 
           # 9. Which live dictionary answers the word card: Ekilex (with `EKILEX_API_KEY`) or

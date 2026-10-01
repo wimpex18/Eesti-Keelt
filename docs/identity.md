@@ -102,7 +102,9 @@ sandboxes idle over 24 h, then the oldest beyond 50; `reset` removes one.
 `identity.sandbox_name`, so a name is always a safe single directory.
 
 Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
-`extraHTTPHeaders`); a browser without it gets a cookie. Start a run with
+`extraHTTPHeaders`). The Worker treats an explicit valid sandbox as guest traffic
+even with a signed-in session or before the first account exists; malformed
+names are refused before forwarding. A browser without it gets a cookie. Start a run with
 `POST /api/guest/reset` for a clean slate.
 
 ## Worker

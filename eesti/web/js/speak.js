@@ -25,10 +25,10 @@ function homeRecogniser() {
   api("/api/asr/home", null, "GET").then(r => r.json()).then(h => {
     if (!h.configured) return;
     const line = h.online
-      ? "Сейчас тебя слушает твой Mac mini: запись уходит на него через туннель Cloudflare и там не сохраняется. "
+      ? "Сейчас тебя слушает твой Mac mini: запись уходит на него через туннель Cloudflare и там не сохраняется. Если Mac не ответит, запись распознает Cloudflare. "
       : "Mac mini сейчас недоступен — распознаёт Cloudflare. ";
-    for (const id of ["#recPrivacy", "#vestlusPrivacy"])
-      $(id).textContent = line + $(id).textContent;
+    $("#recPrivacy").textContent = line + "Аудиофайл обычного упражнения приложение не сохраняет; остаётся текст.";
+    $("#vestlusPrivacy").textContent = line + "Аудиофайл разговора приложение не сохраняет.";
   }).catch(() => {});
 }
 

@@ -1801,6 +1801,35 @@ class TestSpeakingEvaluation:
             context.close()
 
 
+    @pytest.mark.parametrize("online", [True, False])
+    @pytest.mark.parametrize("viewport_name", list(VIEWPORTS))
+    def test_home_speech_discloses_the_primary_and_fallback_destination(
+            self, _pw, live_server, viewport_name, online):
+        context = _pw.new_context(service_workers="block", **VIEWPORTS[viewport_name])
+        try:
+            page = context.new_page()
+            page.route("**/api/asr", lambda route: route.fulfill(
+                status=200, content_type="application/json",
+                body=json.dumps({"ready": True, "hosted": True, "cloudflare": True})))
+            page.route("**/api/asr/home", lambda route: route.fulfill(
+                status=200, content_type="application/json",
+                body=json.dumps({"configured": True, "online": online})))
+            page.goto(live_server, wait_until="networkidle")
+            open_tab(page, "learn", "speak")
+            page.wait_for_function("document.querySelector('#recPrivacy').textContent.includes('Mac mini')")
+            for selector in ("#recPrivacy", "#vestlusPrivacy"):
+                text = page.locator(selector).text_content()
+                assert "Cloudflare" in text
+                assert "приложение не сохраняет" in text
+                if online:
+                    assert "Если Mac не ответит" in text
+                    assert "Для распознавания запись отправляется в Cloudflare" not in text
+                else:
+                    assert "недоступен" in text
+        finally:
+            context.close()
+
+
 class TestTheWholeSitting:
     """Terve eksam: the parts come one after another, each with its own clock."""
 

@@ -74,6 +74,12 @@ jobs:
             echo "::warning title=Account sign-up unavailable::SESSION_SECRET is not set. The Worker will keep legacy owner access, but account sign-up and sign-in will return 503. Add the repository secret under Settings -> Secrets and variables -> Actions."
           fi
 
+      - name: Check VPC service access before changing secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash deploy/check-vpc-access.sh
+
       # Secrets are pushed before the deploy so a first-ever deploy comes up
       # configured rather than answering 503 until someone remembers.
       - name: Push Worker secrets
