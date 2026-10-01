@@ -20,8 +20,7 @@ COPY eesti/ ./eesti/
 # Derived from the public CC-BY-SA word list; nothing owner-only is baked in.
 RUN python -m eesti.cli fetch-data \
  && python -m eesti.cli build \
- && python -m eesti.cli export \
- && rm -rf data/raw
+ && python -m eesti.cli export
 
 # EKK's rection table comes from EKI and may refuse a datacenter IP: a failure
 # costs the `rektsioon` topic, not the image.
@@ -51,6 +50,9 @@ RUN python -m eesti.cli import-har deploy/eki/har_EKI_CCBY40.xml.gz || \
 RUN python -m eesti.cli import-ekss deploy/eki/ekss_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI explanatory dictionary not in the build context. See docs/sources.md."
 
+# Actual input bytes, independently of whether an optional import succeeded.
+RUN python -m eesti.reference > REFERENCE_INPUTS.json && rm -rf data/raw
+
 # ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------
@@ -66,6 +68,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY eesti/ ./eesti/
 COPY --from=builder /build/data/ ./data/
+COPY --from=builder /build/REFERENCE_INPUTS.json ./REFERENCE_INPUTS.json
 # The hand-written glossary is tracked, not built, so copy it explicitly.
 COPY data/seed_glossary.tsv ./data/seed_glossary.tsv
 

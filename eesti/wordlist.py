@@ -143,7 +143,10 @@ def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
 
     rows = []
     with src.open(encoding="utf-8", newline="") as fh:
-        for rec in csv.DictReader(fh, delimiter="\t"):
+        reader = csv.DictReader(fh, delimiter="\t")
+        if not {"word", "freq_rank", "proficiency", "pos"} <= set(reader.fieldnames or ()):
+            raise ValueError("Word list TSV is missing required columns; existing words kept")
+        for rec in reader:
             word = (rec.get("word") or "").strip()
             if not word:
                 continue
@@ -157,6 +160,8 @@ def build(conn: sqlite3.Connection, raw_dir: Path | None = None) -> int:
                 )
             )
 
+    if not rows:
+        raise ValueError("Word list TSV has no usable words; existing words kept")
     with conn:
         conn.execute("DELETE FROM words")
         conn.executemany(
