@@ -78,6 +78,10 @@ matching import with `--check`, commit.
 
 All owner-only items are served only behind Cloudflare Access.
 
+The shared corpus is restored through the owner's Durable Object before both
+guest and permanent learner requests. Guests keep separate progress and never
+receive the owner's learner state.
+
 `cli harvest-reading` keeps existing material if the source returns no readable
 posts. EIS and HARNO harvesting are independent: an EIS outage keeps its previous
 tasks and still allows HARNO to refresh. Deleting a source also removes its

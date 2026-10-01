@@ -1253,10 +1253,10 @@ export default {
       return new Response("not found", { status: 404 });
     }
 
-    if (who.scope === "learner") {
+    if (who.scope !== "owner") {
       // The reading corpus is shared, but only the singleton archives and
-      // restores it. Make that origin material available before a learner's
-      // isolated store starts serving requests after a cold start.
+      // restores it. Guests can be the first visitors after a cold start too;
+      // restore shared material before forwarding their isolated requests.
       const owner = await stubFor(env, { scope: "owner", id: "owner", email: "" });
       if (owner) await owner.ensureRestored();
     }
