@@ -1,6 +1,6 @@
 ---
-name: Eesti keel
-description: Laudtee — a boardwalk across the bog to the A2/B1 exam, in Estonian blue, black and white.
+name: Estep
+description: Estep — Estonian, one step at a time, in Estonian blue, black and white.
 colors:
   estonian-blue: "#0030de"
   paldski: "#0062f5"
@@ -43,15 +43,23 @@ rounded:
 spacing: "4px scale: --s1 4 · --s2 8 · --s3 12 · --s4 16 · --s5 24 · --s6 32 · --s7 48"
 ---
 
-# Design System: Eesti keel
+# Design System: Estep
 
 ## Overview
 
-**North star: "Laudtee" — the boardwalk across the bog.** Estonian bogs are
-crossed on boardwalks, plank after plank, each laid before the next can be
+**North star: "Laudtee" — the existing boardwalk learning-path metaphor.**
+Estonian bogs are crossed on boardwalks, plank after plank, each laid before the next can be
 walked. The path to the exam is built the same way: a topic is a plank, laid
 only when code has checked the learner's answers. The metaphor draws the path,
 the progress and the rewards, and keeps the product honest.
+
+**Estep is the app's name: Estonian + step.** The original mark is one stepped
+E, with three chamfered treads and a longer foot, from
+`eesti/web/brand/mark.svg`. The subject descriptor **Eesti keel · A2/B1** appears
+in metadata and the phone launch passage; the header shows only the name. The
+identity stays the same across explanation languages. The cornflower remains
+the readiness illustration for contact with the four exam parts; it is not the
+app icon.
 
 The ground is **near-white, cool and quiet** (`#f8fafc` page, white sheets),
 never cream. The colour is **Estonian blue** from Brand Estonia (`#0030DE`),
@@ -64,8 +72,9 @@ and what floats over content sit on glass (the spine, the phone dock, the word
 card, the celebration) and a selection glides between tabs on one capsule;
 content sits on the plain page, separated by lines rather than cards. The
 switches choose content, so their track is solid. Glass turns solid
-with `prefers-reduced-transparency`, `prefers-contrast: more`, or the app's own
-**Vähem läbipaistvust** switch (Safari does not report the system setting).
+with `prefers-reduced-transparency` or `prefers-contrast: more`. A previously
+saved `glass=off` preference is still honoured; the header now exposes profile
+and theme actions.
 
 One typeface, **Geologica** (Monokrom, OFL), self-hosted under
 `eesti/web/fonts/`. The interface is set soft; Estonian material is set in the
@@ -101,8 +110,16 @@ cautions, lake means. Russian text is never coloured for being Russian.
 **Never hue alone.** Every coloured state also has a shape: node icons,
 filled, empty or hatched petals, a glyph per plan block, beads that stay.
 
+The inline brand mark uses `--accent`, so it follows both themes. Installed
+icons and social artwork use the fixed Estonian-blue identity with a white
+mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
+
 ## Typography
 
+- **Brand name** (650, 28px; 26px in the spine; soft): Geologica with −0.03em
+  tracking, alongside a 48px mark. The header has no subject subtitle. The phone
+  launch name is 32px/1.2, with the descriptor at 14px. Keep the name as text
+  in the UI; generated wordmark and social SVGs carry outlined lettering.
 - **Hero** (600, clamp 38→60px, cut): the current topic's name.
 - **Title** (800, 30px): the page title, hidden on a phone where the tab row
   already names the place.
@@ -134,10 +151,21 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   context rail: the readiness flower, the next topic, the review forecast and
   the milestone seals. A rail card hides while its own panel is open.
 - **iPhone landscape (touch, ≤500px tall).** One line of chrome; the hero and the
-  pulse step aside while a set is on screen; a 44px dock.
+  pulse step aside while a set is on screen; a 44px dock. The brand keeps its
+  48px mark and hides the name to leave room for the tabs.
 
 ## Controls
 
+- **Brand / home link.** The 48px inline stepped E and the single-line Estep
+  name share a 44px-minimum home target to Rada (`#path`), with a 10px gap. The
+  name stays ink on hover; the normal blue keyboard focus ring identifies the
+  link. Preserve its Russian accessible home label and the Estonian language
+  tag on the visible name.
+- **Account / theme actions.** The 44px account link opens the existing Profiil
+  screen (`#profile`). `eesti/web/js/profile.js` paints sign-in and **Logi sisse**
+  for the signed-out scope, user-circle and **Profiil** otherwise; each has a
+  Russian accessible gloss. The adjacent theme button retains system/light/dark
+  cycling. There is no transparency setting in the header.
 - **Buttons are flat capsules, in four ranks.** *Primary* (`.go`, `.primary`):
   solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per
   view — a started Sõnatrenn demotes Alusta. *Secondary* (`.ghost`, `.logbtn`,
@@ -162,18 +190,36 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   the dock, white in a switch). It jumps, not slides, when a list first shows, and
   it is instant under reduced motion. Without the script each tab paints its own
   capsule, so the page reads the same.
+- **Phone navigation lens** (`eesti/web/js/glide.js`). The skill row and bottom
+  modes adapt WanderAlt's press → slide → release gesture. A 140ms hold or 6px
+  horizontal movement lifts a glass lens with an inert, `aria-hidden` copy of
+  the labels at 1.12×. It follows the finger and scrolls near the row's edges to
+  reach hidden skills. Preview never opens a panel or writes history; release
+  activates the destination through the existing click/router. Cancel, Escape,
+  lost capture on the list, resize or page hiding restores the current
+  selection. A quick tap and keyboard navigation keep their ordinary behavior;
+  other segmented controls retain the quiet glide. The gesture requires coarse
+  pointer and no hover, at width ≤719px, or width ≤1079px and height ≤559px.
+  Reduced motion removes magnification; solid glass fallbacks still apply.
 - **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
   Home and End, with only the selected tab in the Tab order.
 
 ## Signature components
 
+- **Platform identity.** A 64×64 master supplies the inline header/launch mark,
+  blue rounded favicon tile, platform rasters and social cards. Use the regular
+  icon for unmasked contexts, the separately inset full-bleed artwork for
+  maskable installation and Apple, and the single-colour silhouette for Safari
+  pinning and monochrome contexts. Rebuild derivatives with
+  `deploy/build-brand.py`; do not redraw a derivative independently. Provenance,
+  output sizes and routes are in `docs/brand.md`.
 - **Hero (Praegu).** A quiet daylight surface: a pale sky fading into Haapsalu
   sand under a white glass rim, a soft slate dusk in dark (no glows or contour rings)
   with a faint barn swallow (suitsupääsuke) gliding in the corner. It holds the
   resume topic, its Russian name and level, the **gate** (ten slots for the
   topic's last answers against 8 of 10), and the **boardwalk**.
-- **Laudtee.** An SVG plank path through a window of the curriculum around the
-  resume topic (5–13 nodes by width). Mastered nodes are moss with a tick; the
+- **Boardwalk (Laudtee).** An SVG plank path through a window of the curriculum
+  around the resume topic (5–13 nodes by width). Mastered nodes are moss with a tick; the
   resume node is white with a slow halo; open nodes are outlined in Narva; theory
   is dashed. *Kogu rada* opens one vertical boardwalk per level.
 - **Beads.** One per item in a set: waiting, now (pulsing), right, wrong. The end
@@ -207,6 +253,11 @@ filled, empty or hatched petals, a glyph per plan block, beads that stay.
   progress line, the Russian meaning as the largest text, then the answer row. A miss shows the right word, its omastav/osastav when the list has
   them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
   records nothing — Kordamine owns memory.
+- **Identity / sources footer.** Estep's meaning is explained in Russian:
+  **Estonian + step: эстонский шаг за шагом.** A separate **© [year] Estep**
+  line uses the current UTC year supplied by `eesti/api/assets.py`; it names no
+  person or company. **Allikad ja litsentsid** retains the source/licence
+  disclosure and loads the source list on first opening.
 - **Reader source.** One line above the title: *Allikas* and the source's name,
   linked to the original. Licence terms stay in the sources footer.
 - **Plan strip.** Inside **Täna**, the day as time: a segment per block as long as
@@ -257,8 +308,8 @@ Glass is not something a new screen chooses; it comes from where the thing sits.
   shared treatment under Controls, never glass. No new shadow or card fill.
 - **Navigation that floats over content** (a new bar, dock or sidebar): give it
   the `.glass` class. It then takes `--glass`, the blur and `--glass-lift`, turns
-  solid under reduced transparency, higher contrast and Vähem läbipaistvust, and
-  follows both themes. Never copy the recipe into a new rule.
+  solid under reduced transparency, higher contrast or the retained `glass=off`
+  preference, and follows both themes. Never copy the recipe into a new rule.
 - **A card that floats over the content it explains** (like the word card over
   its text): glass as well, by adding it to the `.glass` rule's selector list
   in `app.css`, as `#wordCard` is; the fallbacks come with it.
@@ -279,17 +330,31 @@ drop into place, the resume node breathes, the swallow glides. Under
 `prefers-reduced-motion` every animation, delay and transition collapses and
 script scrolling stops being smooth.
 
+**Phone launch passage.** On eligible coarse-pointer, non-hover phones, the
+stepped E is visible at the first frame. A small point travels along the foot
+and climbs one level inside the E: 600ms after an 80ms delay. The cover fades for
+180ms after 720ms, completing at 900ms with `--ease`; CSS supplies its own
+deadline and the inline script removes it. It never waits for a font, app
+module, data or network response. A tap or key dismisses it immediately.
+
+Eligibility is width ≤719px, or width ≤1023px with height ≤559px, always with
+`pointer: coarse` and `hover: none`. Desktop and tablet open directly. Reduced
+motion, prerendering, history restoration and same-origin navigation skip
+the passage (an explicit reload can show it). With JavaScript unavailable the
+cover remains hidden. Saved theme and transparency are restored before body
+paint independently of the passage; the cover is inert and hidden from
+assistive technology, and never traps focus.
+
 ## Do's and Don'ts
 
 **Do:** use tokens for every colour and the `--s1`…`--s7` scale; keep glass on
 the navigation layer (`.glass`, `--glass-lift`) and content on solid sheets; build
 every choice between views as a `role="tablist"` so it glides; keep Estonian material in the
 cut; keep 44px touch targets; check 1440×900, 402×874, 874×402 and 744×1133 in
-both themes.
+both themes; keep the stepped-E identity distinct from readiness evidence.
 
 **Don't:** use cream or grey-beige grounds; put paragraph text or drill inputs on
-glass; copy the glass recipe or hand-roll a selection capsule; add refraction or
-lensing filters (Safari ignores them, so every iPhone would see a different page
-from desktop Chrome); fill more than one or two buttons per view; add streaks, points or a single
-readiness percentage; celebrate anything but code-decided mastery; colour text by
+glass; copy the glass recipe or hand-roll a selection capsule; add SVG refraction
+or displacement filters to navigation; fill more than one or two buttons per
+view; add streaks, points or a single readiness percentage; celebrate anything but code-decided mastery; colour text by
 its language.

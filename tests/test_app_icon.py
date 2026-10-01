@@ -53,13 +53,6 @@ class TestTheArtworkCarriesNoFontDependency:
             "draw it as paths instead")
         assert "font-family" not in ICON_SVG
 
-    def test_the_svg_is_the_cornflower(self):
-        """The page's own mark: four petals round a heart, drawn as paths."""
-        from eesti.api.assets import ICON_SVG
-
-        assert ICON_SVG.count("<path") == 4 and "<circle" in ICON_SVG
-
-
 class TestTheManifestOffersBoth:
     def test_it_declares_a_raster_as_well_as_the_svg(self, client):
         icons = json.loads(client.get("/manifest.webmanifest").text)["icons"]
@@ -73,3 +66,48 @@ class TestTheManifestOffersBoth:
         icons = json.loads(client.get("/manifest.webmanifest").text)["icons"]
         png = [i for i in icons if i["type"] == "image/png"]
         assert png and any("maskable" in i.get("purpose", "") for i in png)
+
+    def test_each_declared_install_icon_is_served_at_its_declared_size(self, client):
+        """An installer must get the declared artwork, rather than a 404 or a
+        mislabeled raster; Android's maskable glyph must survive the safe crop.
+        """
+        from io import BytesIO
+        from PIL import Image
+
+        icons = client.get("/manifest.webmanifest").json()["icons"]
+        for item in icons:
+            response = client.get(item["src"])
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith(item["type"])
+            if item["type"] == "image/png":
+                image = Image.open(BytesIO(response.content)).convert("RGBA")
+                width, height = map(int, item["sizes"].split("x"))
+                assert image.size == (width, height)
+                if item["purpose"] == "maskable":
+                    assert image.getextrema()[3] == (255, 255)
+                    white = [(x, y) for y in range(height) for x in range(width)
+                             if min(image.getpixel((x, y))[:3]) > 240]
+                    assert white
+                    assert all((x-width/2)**2 + (y-height/2)**2 <= (.4*width)**2
+                               for x, y in white)
+
+    def test_apple_and_favicon_conventional_urls_work(self, client):
+        from io import BytesIO
+        from PIL import Image
+
+        assert Image.open(BytesIO(client.get("/apple-touch-icon.png").content)).size == (180, 180)
+        ico = Image.open(BytesIO(client.get("/favicon.ico").content))
+        assert ico.ico.sizes() == {(16, 16), (32, 32), (48, 48)}
+
+    def test_social_images_use_the_serving_origin_locally(self, client):
+        response = client.get("/", headers={"x-brand-origin": "https://forged.test"})
+        assert 'content="http://testserver/brand/og-default.png"' in response.text
+        assert "forged.test" not in response.text
+
+    def test_social_images_use_the_guarded_front_door(self, client, monkeypatch):
+        monkeypatch.setenv("PROXY_TOKEN", "test-token")
+        response = client.get("/", headers={"x-proxy-token": "test-token",
+                                            "x-brand-origin": "https://learn.example"})
+        assert response.status_code == 200
+        assert 'content="https://learn.example/brand/og-default.png"' in response.text
+        assert client.get("/brand/og-default.png", headers={"x-proxy-token": "test-token"}).content.startswith(PNG_MAGIC)

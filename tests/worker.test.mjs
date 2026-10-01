@@ -72,6 +72,22 @@ async function seed(app, count = 10, cursor = count) {
   app.owner.snapshot = async () => true;
 }
 
+test("the front door overwrites a forged social artwork origin", async () => {
+  const app = setup();
+  await seed(app);
+  let forwarded;
+  globalThis.fetch = async request => {
+    forwarded = request;
+    return new Response("<html>Estep</html>", {headers: {"content-type": "text/html"}});
+  };
+  const response = await worker.fetch(new Request("https://learn.test/", {
+    headers: {"x-brand-origin": "https://forged.test"},
+  }), app.env, app.ctx);
+  assert.equal(response.status, 200);
+  assert.equal(forwarded.headers.get("x-brand-origin"), "https://learn.test");
+  assert.equal(forwarded.headers.get("host"), null);
+});
+
 test("a replacement boot cannot acknowledge a lost event at the same sequence", async () => {
   const app = setup();
   globalThis.fetch = async url => {

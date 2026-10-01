@@ -21,6 +21,10 @@ const SHELL = `shell-${VERSION}`;
    directions. */
 const ASSETS = [
   "/", "/manifest.webmanifest", "/icon.svg", "/icon.png", "/app.css",
+  "/favicon.ico", "/apple-touch-icon.png",
+  "/brand/mark.svg", "/brand/favicon.svg", "/brand/favicon-32.png",
+  "/brand/safari-pinned-tab.svg", "/brand/icon-192.png", "/brand/icon-512.png",
+  "/brand/icon-maskable.png", "/brand/icon-mono.png",
   "/js/main.js", "/js/core.js", "/js/state.js", "/js/router.js", "/js/profile.js",
   "/js/onboarding.js",
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",

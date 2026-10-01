@@ -1,21 +1,24 @@
 # Handoff
 
-Current task: durable acknowledgement fix and branch cleanup in PR #94.
-Branch: `codex/durable-event-ack`, against `main`.
+Current task: Estep identity, phone navigation and Linear tracking policy.
+Branch: `codex/laudtee-identity`; PR: #95 against `main`.
 
-Permanent-account success confirms the response's event sequence and origin boot.
-Drill/review retries preserve event identity and timing; FSRS applies a review once.
-Free practice stays editable after a failed check. Worker behavior tests cover
-container replacement, cursor shortcuts, failed copying and speech evidence.
+Estep (Estonian + step) names the app; the larger header has no subject subtitle.
+One stepped-E vector supplies browser, Apple/PWA and social artwork.
+Phones have a 900 ms point-climbing splash with early dismissal and motion/
+restoration exclusions. Desktop and tablet open directly.
+Phone skill and mode rows support hold/drag preview and release to select,
+including edge scrolling and cancellation. Profile/login replaces transparency.
+The footer explains the name, shows the current year and retains sources.
+AGENTS.md includes the user's durable-backlog Linear tracking policy.
+Artwork rebuild: `.venv/bin/python deploy/build-brand.py`; see `docs/brand.md`.
 
-Scheduled independent backups are deferred at the user's request. Backup scripts,
-machine export/restore routes and secrets are removed from this PR. Private manual
-exports and the existing replay verifier remain. No Mac mini backup job was installed.
+Verification: 2,491 Python tests passed (1 skip); typecheck and 7 Worker tests
+passed. The Worker dry-run passed. 202 browser journeys passed (4 skips).
+All 11 tabs inspected at desktop, phone, landscape and tablet sizes in both
+themes. Independent scoped finish review: ship; raster provenance complete.
 
-Verification: 2,488 Python tests passed (1 skip); 177 browser journeys passed
-(3 viewport skips); 6 Worker tests, typecheck, Wrangler dry-run and diff check passed.
-Screenshots inspected across all tabs at desktop, phone, landscape and tablet sizes.
-Clean checkout: Worker tests/typecheck and 43 evidence/recovery tests passed.
-
-Next: user review/merge PR #94, then deep smoke after automated deployment.
-Uncommitted paths: none after this commit. No code blockers; CI runs on push.
+Next: user review/merge PR #95, then run deep smoke after automated origin
+and Worker deployment.
+Uncommitted paths: none after this commit.
+No code blockers; production has not changed in this branch.

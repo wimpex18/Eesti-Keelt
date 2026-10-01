@@ -7,9 +7,14 @@ its directory.
 
 from __future__ import annotations
 
-import json
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+import json
+import os
+from html import escape
+from urllib.parse import urlsplit
+
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from .deps import WEB
@@ -17,29 +22,52 @@ from .deps import WEB
 router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
-def index() -> str:
-    return (WEB / "index.html").read_text(encoding="utf-8")
+def index(request: Request) -> str:
+    origin = str(request.base_url).rstrip("/")
+    # The guarded origin accepts only the Worker's header. Local development
+    # uses its own request URL and ignores a forged proxy header.
+    forwarded = request.headers.get("x-brand-origin", "")
+    if os.environ.get("PROXY_TOKEN") and forwarded:
+        parsed = urlsplit(forwarded)
+        if (parsed.scheme == "https" and parsed.hostname and not parsed.username
+                and not parsed.password and not parsed.path and not parsed.query
+                and not parsed.fragment):
+            origin = forwarded
+    return ((WEB / "index.html").read_text(encoding="utf-8")
+            .replace("__BRAND_ORIGIN__", escape(origin, quote=True))
+            .replace("__BRAND_YEAR__", str(datetime.now(timezone.utc).year))
+            .replace("__BRAND_REVEAL__", (WEB / "brand-reveal.js").read_text(encoding="utf-8")))
 
 
 # --------------------------------------------------------------------------
 # Installable on a phone: manifest and icons
 # --------------------------------------------------------------------------
 
-#: The app mark: a cornflower (rukkilill), four petals round a dark heart, in
-#: white on Estonian blue. Drawn as paths, so it depends on no font.
-ICON_SVG = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
-    '<stop offset="0" stop-color="#0062f5"/>'
-    '<stop offset="1" stop-color="#000087"/></linearGradient></defs>'
-    '<rect width="64" height="64" rx="15" fill="url(#g)"/>'
-    '<g transform="translate(32 32)" fill="#ffffff">'
-    '<path transform="rotate(-45)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
-    '<path transform="rotate(45)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
-    '<path transform="rotate(135)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
-    '<path transform="rotate(225)" d="M0 -3C-7 -9-10 -17-8 -26L-5 -31 0 -27 5 -31 8 -26C10 -17 7 -9 0 -3Z"/>'
-    '<circle r="5.6" fill="#0f172a"/></g></svg>'
-)
+#: Compatibility endpoint for existing bookmarks. The vector master and all
+#: install variants live together under brand/; deploy/build-brand.py builds them.
+ICON_SVG = (WEB / "brand/favicon.svg").read_text(encoding="utf-8")
+BRAND_TYPES = {".svg": "image/svg+xml", ".png": "image/png",
+               ".ico": "image/x-icon"}
+
+
+@router.get("/brand/{name}")
+def brand_asset(name: str) -> FileResponse:
+    path = (WEB / "brand" / name).resolve()
+    if (path.parent != (WEB / "brand").resolve() or not path.is_file()
+            or path.suffix not in BRAND_TYPES):
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type=BRAND_TYPES[path.suffix],
+                        headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/favicon.ico")
+def favicon() -> FileResponse:
+    return brand_asset("favicon.ico")
+
+
+@router.get("/apple-touch-icon.png")
+def apple_touch_icon() -> FileResponse:
+    return brand_asset("apple-touch-icon.png")
 
 
 #: What the page loads besides itself, by extension. Anything not here is not
@@ -103,16 +131,13 @@ def font(name: str) -> FileResponse:
 
 @router.get("/icon.svg")
 def icon_svg() -> Response:
-    return Response(ICON_SVG, media_type="image/svg+xml",
-                    headers={"Cache-Control": "public, max-age=86400"})
+    return Response((WEB / "brand/favicon.svg").read_text(encoding="utf-8"),
+                    media_type="image/svg+xml", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/icon.png")
 def icon_png() -> FileResponse:
-    """The home-screen icon as a committed 512×512 raster: iOS ignores SVG for
-    `apple-touch-icon`. Full bleed with the glyph at 74 % so a maskable crop keeps
-    the dots.
-    """
+    """Compatibility raster for installed copies using the original URL."""
     return FileResponse(WEB / "icon.png", media_type="image/png")
 
 
@@ -163,23 +188,33 @@ def manifest() -> Response:
     """Enough for "Add to Home Screen" to produce an app-like window."""
     return Response(
         json.dumps({
-            "name": "Eesti keel",
-            "short_name": "Eesti keel",
+            "name": "Estep · Eesti keel",
+            "short_name": "Estep",
+            "description": "Eesti keele õppimine ja A2/B1 tasemeeksami ettevalmistus",
+            "id": "/",
+            "scope": "/",
             "start_url": "/",
             "display": "standalone",
             "background_color": "#f8fafc",
-            "theme_color": "#0030de",
+            "theme_color": "#f8fafc",
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.
             "lang": "ru",
-            # SVG where accepted, the raster for installers that need one; `maskable` makes
-            # Android crop the full-bleed artwork instead of framing it.
+            # Separate regular and maskable artwork: platform masks must not
+            # clip the glyph or leave transparent corners in the crop.
             "icons": [
-                {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml",
+                {"src": "/brand/favicon.svg", "sizes": "any", "type": "image/svg+xml",
                  "purpose": "any"},
-                {"src": "/icon.png", "sizes": "512x512", "type": "image/png",
-                 "purpose": "any maskable"},
+                {"src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png",
+                 "purpose": "any"},
+                {"src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png",
+                 "purpose": "any"},
+                {"src": "/brand/icon-maskable.png", "sizes": "512x512", "type": "image/png",
+                 "purpose": "maskable"},
+                {"src": "/brand/icon-mono.png", "sizes": "512x512", "type": "image/png",
+                 "purpose": "monochrome"},
             ],
         }),
         media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
     )

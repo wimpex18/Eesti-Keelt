@@ -1,6 +1,7 @@
-# Eesti-Keelt
+# Estep
 
-An Estonian learning app for Russian speakers preparing for the
+**Estep** (the Eesti-Keelt repository) is an Estonian learning app for
+Russian speakers preparing for the
 **A2/B1 tasemeeksam**.
 
 Drills are generated from an Estonian word list with the Vabamorf morphological

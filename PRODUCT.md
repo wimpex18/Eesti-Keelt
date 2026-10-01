@@ -70,7 +70,10 @@ advisory feedback. The app says plainly what was checked and by what.
 
 ## Brand Commitments
 
-- Name: **Eesti keel**.
+- Name: **Estep**, with **Eesti keel · A2/B1** identifying the subject.
+  The boardwalk identity belongs to the learning path, independent of the
+  learner's explanation language. Russian is supported today; English and
+  Ukrainian are planned explanation languages.
 - The interface is itself language exposure: Estonian labels with a Russian
   gloss where the learner needs it.
 - Honest about limits: a caveat the learner cannot read is not a caveat.

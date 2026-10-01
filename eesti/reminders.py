@@ -158,7 +158,7 @@ def due(log: sqlite3.Connection, review: sqlite3.Connection,
         # Once per stretch of silence, not once a day: the tag is the day the
         # learner stopped, so a longer gap does not send a second one.
         out.append(Reminder(
-            f"tagasi-{studied}", "Eesti keel",
+            f"tagasi-{studied}", "Estep",
             f"Перерыв {_count((today - studied).days, 'день', 'дня', 'дней')}. "
             "Даже десять минут помогут не забыть карточки.",
             "/#path"))
