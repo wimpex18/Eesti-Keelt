@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, test } from "node:test";
 import worker, { LearnerState } from "../deploy/worker.ts";
+import { signSession } from "../deploy/accounts.ts";
 
 const originalFetch = globalThis.fetch;
 const stores = [];
@@ -87,6 +88,106 @@ test("the front door overwrites a forged social artwork origin", async () => {
   assert.equal(forwarded.headers.get("x-brand-origin"), "https://learn.test");
   assert.equal(forwarded.headers.get("host"), null);
 });
+
+for (const mode of ["legacy", "bootstrap", "owner", "learner"]) {
+  test(`an explicit sandbox cannot write into the ${mode} account`, async () => {
+    const app = setup();
+    if (mode !== "legacy") app.env.SESSION_SECRET = "test-session-secret";
+    let cookie = "";
+    if (mode === "owner" || mode === "learner") {
+      const owner = await app.owner.createAccount("owner@example.test", "test-password");
+      const account = mode === "owner" ? owner : await app.owner.createAccount(
+        "learner@example.test", "test-password");
+      cookie = `eesti_session=${await signSession(account.id, app.env.SESSION_SECRET)}`;
+    }
+    let forwarded;
+    globalThis.fetch = async request => {
+      forwarded = request;
+      return Response.json({ scope: request.headers.get("x-eesti-scope") });
+    };
+    const response = await worker.fetch(new Request("https://learn.test/api/check", {
+      method: "POST", headers: { "x-eesti-guest": "qa-run-42", cookie,
+        "x-eesti-scope": "owner", "x-eesti-learner": "l-1234567890abcdef" },
+    }), app.env, app.ctx);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).scope, "guest");
+    assert.equal(forwarded.headers.get("x-eesti-guest"), "qa-run-42");
+    assert.equal(forwarded.headers.get("x-eesti-learner"), null);
+    assert.equal(forwarded.headers.get("x-eesti-email"), null);
+    assert.equal(app.pending.length, 0);
+  });
+}
+
+test("an invalid explicit sandbox fails before origin or account access", async () => {
+  const app = setup();
+  app.env.LEARNER_STATE.get = () => { throw new Error("account accessed"); };
+  globalThis.fetch = async () => { throw new Error("origin accessed"); };
+  for (const name of ["", "../owner", "a".repeat(41)]) {
+    const response = await worker.fetch(new Request("https://learn.test/api/check", {
+      method: "POST", headers: { "x-eesti-guest": name }, body: "{}",
+    }), app.env, app.ctx);
+    assert.equal(response.status, 400);
+  }
+});
+
+for (const identity of [
+  "faster-whisper/1.2.1 ctranslate2/4.6.0 cpu/int8 beam=5 temperature=0 artifacts-sha256:" + "a".repeat(64),
+  "future-recogniser/" + "v".repeat(200),
+]) {
+  test(`home speech fits the origin engine contract (${identity.split("/")[0]})`, async () => {
+    const app = setup();
+    app.env.HOME_ASR_TOKEN = "test-home-token";
+    app.env.HOME_ASR = { async fetch() {
+      return Response.json({ text: "Tere", engine: identity });
+    } };
+    globalThis.fetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      // TranscriptIn rejects a longer label before grading or recording evidence.
+      return Response.json(body, { status: body.engine.length <= 120 ? 200 : 422 });
+    };
+    const response = await worker.fetch(new Request("https://learn.test/api/transcribe", {
+      method: "POST", headers: { "x-eesti-guest": "speech-qa" },
+      body: new Uint8Array([1, 2, 3]),
+    }), app.env, app.ctx);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.text, "Tere");
+    assert.equal(body.degraded, false);
+    assert.ok(body.engine.startsWith(identity.split("/")[0]));
+    assert.ok(body.engine.endsWith(" · Mac mini"));
+    assert.ok(!body.engine.includes("artifacts-sha256:"));
+  });
+}
+
+for (const homeOnline of [true, false]) {
+  test(`speech retains its guest sandbox when home ASR is ${homeOnline ? "online" : "offline"}`, async () => {
+    const app = setup();
+    app.env.SESSION_SECRET = "test-session-secret";
+    app.env.HOME_ASR_TOKEN = "test-home-token";
+    app.env.HOME_ASR = { async fetch() {
+      return homeOnline ? Response.json({ text: "Tere", engine: "home-test" })
+        : new Response("unavailable", { status: 503 });
+    } };
+    let fallbackCalls = 0;
+    app.env.AI = { async run() { fallbackCalls++; return { text: "Tere" }; } };
+    let forwarded;
+    globalThis.fetch = async (url, init) => {
+      forwarded = { url, init };
+      return Response.json({ ...JSON.parse(init.body), scope: init.headers.get("x-eesti-scope") });
+    };
+    const response = await worker.fetch(new Request("https://learn.test/api/transcribe", {
+      method: "POST", headers: { "x-eesti-guest": "speech-qa", "content-type": "audio/wav" },
+      body: new Uint8Array([1, 2, 3]),
+    }), app.env, app.ctx);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.scope, "guest");
+    assert.equal(forwarded.init.headers.get("x-eesti-guest"), "speech-qa");
+    assert.equal(fallbackCalls, homeOnline ? 0 : 1);
+    assert.match(body.engine, homeOnline ? /Mac mini/ : /Workers AI/);
+    assert.equal(app.pending.length, 0);
+  });
+}
 
 test("a replacement boot cannot acknowledge a lost event at the same sequence", async () => {
   const app = setup();
@@ -208,4 +309,3 @@ test("speech evidence follows the same boot-bound acknowledgement", async () => 
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("retry-after"), "2");
 });
-

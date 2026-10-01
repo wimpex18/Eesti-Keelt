@@ -259,7 +259,8 @@ class TestTheSmokeRunSaysWhenItIsLookingAtTheOldImage:
         import yaml
 
         doc = yaml.safe_load(cls.WORKFLOW.read_text(encoding="utf-8"))
-        return doc["jobs"]["check"]["steps"][0]
+        return next(step for step in doc["jobs"]["check"]["steps"]
+                    if "Check the deployment" in step.get("name", ""))
 
     @classmethod
     def _script(cls) -> str:

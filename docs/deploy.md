@@ -269,17 +269,24 @@ If `gcloud` has no project: `gcloud config set project <id>`.
 
 ## Verifying production
 
-A session cannot read the deployed app. Use the **`smoke`** workflow
+Use the **`smoke`** workflow for repeatable deployment checks
 (Actions → smoke → Run workflow). It runs after `deploy`, daily, and on demand,
 and checks: Access closed, health, readable EKI audio and HARNO exam files,
 image build stamp vs `main`, origin guard, speech, reference counts, live
 dictionary, library and topic links.
 
+Smoke first asks the Worker account endpoint and origin profile to confirm a
+named guest sandbox. If either disagrees, the run fails and sends no grammar
+sample. It also checks that the home speech binding is configured; an offline
+Mac is a warning because Cloudflare fallback is intentional.
+
 - Wait until the image is newer than the merge (10–15 min), or smoke reports on
   the previous image — it prints which.
 - `grammar explains … configured` only reads configuration. Run with
   **`deep: true`** after any provider or key change: it sends one sentence and
-  prints which engine answered, or the per-lane failure diagnostics.
+  generated reference audio in the guest sandbox and prints which engines
+  answered, or the per-lane failure diagnostics. The speech sample proves
+  routing and authentication, not recognition quality.
 
 ## Home speech service
 
@@ -287,7 +294,12 @@ dictionary, library and topic links.
 VPC Service on it (`vpc_services` in `wrangler.jsonc`, binding `HOME_ASR`), the
 `HOME_ASR_TOKEN` Worker secret, and `deploy/home-asr/install.sh` on the Mac.
 The `deploy` workflow's token needs permission to bind VPC Services
-(Connectivity Directory Bind). Check it from the speaking page ("Сейчас тебя
+(Connectivity Directory Bind). It checks access to each configured service
+before pushing secrets. In Cloudflare **Manage account → Account API tokens**,
+edit the deployment token's account policy, add **Connectivity Directory →
+Bind**, review and save. Keep its existing permissions; an existing token's
+permission update needs no replacement GitHub secret. Then run **Actions →
+deploy → Run workflow**. Check it from the speaking page ("Сейчас тебя
 слушает твой Mac mini") or on the Mac: `curl http://127.0.0.1:8790/health`.
 
 ## First-time Cloudflare notes

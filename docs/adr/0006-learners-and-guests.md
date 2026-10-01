@@ -61,8 +61,9 @@ system is separate.
 
 ## Contracts to preserve
 
-- Until the first account exists, and without `SESSION_SECRET`, every request is
-  the owner, exactly as today.
+- Until the first account exists, and without `SESSION_SECRET`, requests without
+  an explicit `x-eesti-guest` sandbox are the owner, exactly as today. An explicit
+  valid sandbox always selects guest scope, including for signed-in accounts.
 - The owner's paths, `singleton` object, event ids and snapshots are unchanged.
 - Event `learner`: `owner`, `l-<hex>`, or `guest:<sandbox>`; `profile-set`,
   `onboarding-set` and `joined` have no-op applies so strict replay accepts them.

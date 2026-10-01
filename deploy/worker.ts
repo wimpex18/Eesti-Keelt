@@ -37,7 +37,7 @@
  */
 import { DurableObject } from "cloudflare:workers";
 import {
-  AccountError,
+  accountFailure,
   accountById,
   accountCount,
   authenticate,
@@ -767,6 +767,17 @@ function homeFetch(env: Env, path: string, init: RequestInit): Promise<Response>
     : fetch(new URL(path, env.HOME_ASR_URL), init);
 }
 
+/** TranscriptIn's engine is a bounded learner-facing label. The service/eval
+ * keeps the full artifact fingerprint; sending it here exceeded the origin's
+ * 120-character contract and rejected otherwise successful recognition. */
+function homeEngineLabel(identity: string | undefined): string {
+  const suffix = " · Mac mini";
+  const label = (identity?.trim() || "Home ASR")
+    .replace(/\s+artifacts-sha256:[a-f0-9]{64}$/i, "");
+  const room = 120 - suffix.length;
+  return (label.length <= room ? label : label.slice(0, room - 1) + "…") + suffix;
+}
+
 async function homeTranscribe(
   audio: ArrayBuffer,
   mime: string,
@@ -783,7 +794,7 @@ async function homeTranscribe(
     if (!response.ok) return null;
     const out = (await response.json()) as { text?: string; engine?: string };
     const text = (out.text ?? "").trim();
-    return text ? { text, engine: `${out.engine ?? "Voxtral"} · Mac mini` } : null;
+    return text ? { text, engine: homeEngineLabel(out.engine) } : null;
   } catch {
     return null;
   }
@@ -864,6 +875,8 @@ async function transcribe(
   const graded = new URL("/api/transcribe/text", env.CLOUD_RUN_URL);
   if (target) graded.searchParams.set("target", target);
   const headers = applyScopeHeaders(new Headers(), who, legacyOwner);
+  const sandbox = request.headers.get("x-eesti-guest");
+  if (who.scope === "guest" && sandbox) headers.set("x-eesti-guest", sandbox);
   headers.set("content-type", "application/json");
   headers.set("x-proxy-token", env.PROXY_TOKEN);
   return fetch(graded, {
@@ -979,6 +992,12 @@ async function stubFor(env: Env, who: Who) {
 async function resolveWho(request: Request, env: Env): Promise<{
   who: Who; legacyOwner: boolean; signupOpen: boolean;
 }> {
+  // Explicit test sandboxes never inherit a signed-in or bootstrap owner.
+  // fetch validates the name before any account or origin operation.
+  if (request.headers.has("x-eesti-guest")) {
+    return { who: { scope: "guest" }, legacyOwner: false,
+      signupOpen: Boolean(env.SESSION_SECRET) };
+  }
   if (!env.SESSION_SECRET) {
     return { who: { scope: "owner", id: "owner", email: "" },
       legacyOwner: true, signupOpen: false };
@@ -1117,8 +1136,9 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
         headers: { "set-cookie": sessionCookie(value) },
       });
     } catch (error) {
-      if (error instanceof AccountError) {
-        return Response.json({ detail: error.message }, { status: error.status });
+      const failure = accountFailure(error);
+      if (failure) {
+        return Response.json({ detail: failure.message }, { status: failure.status });
       }
       return Response.json({ detail: "Не удалось создать сессию. Попробуй ещё раз." },
         { status: 500 });
@@ -1163,6 +1183,11 @@ export default {
 
     const denied = requireAccess(env, ctx);
     if (denied) return denied;
+
+    const sandbox = request.headers.get("x-eesti-guest");
+    if (sandbox !== null && !/^[a-z0-9][a-z0-9-]{0,39}$/.test(sandbox.trim().toLowerCase())) {
+      return Response.json({ detail: "Недопустимое имя тестовой среды." }, { status: 400 });
+    }
 
     const url = new URL(request.url);
     const auth = await authRoute(request, env);

@@ -83,6 +83,15 @@ export class AccountError extends Error {
   }
 }
 
+/** RPC preserves serializable fields, but not the custom Error prototype. */
+export function accountFailure(error: unknown): { status: number; message: string } | null {
+  if (!error || typeof error !== "object") return null;
+  const value = error as { name?: unknown; status?: unknown; message?: unknown };
+  return value.name === "AccountError" && typeof value.status === "number"
+    && [400, 401, 409, 429].includes(value.status) && typeof value.message === "string"
+    ? { status: value.status, message: value.message } : null;
+}
+
 interface AccountRow extends Record<string, SqlStorageValue> {
   id: string;
   email: string;

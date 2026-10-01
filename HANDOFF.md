@@ -1,24 +1,30 @@
 # Handoff
 
-Current task: end-to-end product QA and landscape answer reachability.
-Branch: `codex/product-qa-e2e`; base: `main`.
+Current task: publish the verified profile/auth and DEV-4 runtime fixes to main.
+Branch: `codex/profile-runtime-main`; PR base must be `main`.
 
-The initial landscape answer and check controls now fit above the mode dock.
-A regression measures reachability and dock clearance in Chromium and WebKit.
-It fails against the previous CSS and passes with the compact practice layout.
+Worker auth preserves 400/401/409/429 through real Durable Object RPC.
+Signup/login reload the document to discard the previous identity's UI state.
+Profile fixes include auth retry, keyboard/draft handling, password visibility,
+truthful bootstrap/path/rhythm/skipped-onboarding copy and current-level badges.
+Inline name editing keeps the phone dock away from Save/Cancel on WebKit.
+Signup-name failure remains visible after onboarding and clears on retry.
 
-Verification: 2,491 Python tests passed (1 skip); typecheck and 7 Worker tests
-passed; 204 browser journeys passed (4 skips). All 11 tabs inspected at desktop,
-phone, landscape and tablet sizes in both themes; production inspected on phone
-and desktop. The current origin passes a fresh deep smoke.
-
-Next: owner reviews/merges the QA PR. Resolve PM-26: deployment credentials lack
-VPC service access, leaving the production Worker stale. Its auth endpoint is
-404 and its home ASR lane is unconfigured despite a healthy Mac mini tunnel.
-Then redeploy and verify disposable account isolation, home transcription and
-offline-home fallback. Deep smoke writes one sample writing event; the stale
-Worker routes that service-token call to the legacy owner.
-
-Uncommitted paths: none after this commit.
-Blocker: VPC-authorized deployment credential; actual home ASR inference remains
-unverified. No deployment or merge performed in this branch.
+Verified: 2,499 Python tests passed (1 skip); 222 browser journeys (4 skips);
+19 Worker tests, typecheck and Worker dry-run passed. CI/morphology gate passed.
+Real local Worker/origin owner and learner journeys verified independent
+progress, names, signup/login/logout and reversible progress reset/restore.
+All 11 tabs inspected at four required sizes in both themes; profile states
+and the final spacing/editor confirmation have separate screenshots.
+Evidence: local profile-qa/report.md under the task visualization directory.
+Production accounts/progress were not changed during this profile audit.
+Worker e168c14 is live (deploy 36878069950); production QA login returned 401.
+Deep smoke 36878287721 passed with Mac mini inference from GitHub's runner.
+The tunnel supports other networks; system sleep is disabled, locking works.
+Current user LaunchAgents require one login after reboot.
+Next: owner merges this main-targeted PR; confirm Cloud Run build and deep smoke.
+Earlier stacked merges did not bring these changes to main.
+The owner must create the first Estep account personally before friends sign up.
+Linear rules specify Development/DEV, Eesti-Keelt and EK issue titles.
+Uncommitted paths: none after this handoff commit. Blocker: main integration.
+Password recovery remains operator-managed (docs/deploy.md).
