@@ -1,7 +1,7 @@
 # Home speech service (Mac mini)
 
-The deployed app sends each spoken answer to TalTech's Voxtral Realtime on an
-always-on Mac, and to Workers AI Whisper whenever that Mac does not answer
+The deployed app sends each spoken answer to the processor-appropriate TalTech
+recogniser on an always-on Mac, and to Workers AI Whisper whenever that Mac does not answer
 within 25 seconds. On the owner's voice Voxtral misheard 7% of words, Whisper
 36% (`docs/asr-evaluation.md`). The Mac is never on the public Internet: the
 Worker reaches it through a Cloudflare Tunnel bound as a **Workers VPC
@@ -38,7 +38,10 @@ the owner's words where Workers AI misheard 36%.
    ```
 
 It installs everything into `~/.eesti-home-asr`, downloads the model, starts
-the speech service and the tunnel, and makes both start again after a restart.
+the speech service and the tunnel, and registers both as user LaunchAgents.
+They start when that user logs in after a restart. Locking the screen keeps
+them running; logging out stops them. After a reboot, unlock and log in once,
+then the screen can remain locked.
 At the end it prints `"ok":true` and the **service secret**. In **System
 Settings → Energy**, turn on **Prevent automatic sleeping when the display is
 off**. Keep the unpacked folder where it is: the service runs from it.
@@ -71,3 +74,9 @@ when the Mac is off.
 Recordings are held in memory for one request and never written to disk on
 the Mac. The service listens on 127.0.0.1 only and refuses a recording without
 the service secret.
+
+The Worker forwards a learner-facing engine label of at most 120 characters,
+including `Mac mini`, to the origin. It omits the trailing artifact SHA-256
+fingerprint from that label; the home service and evaluation reports retain
+the full identity. This keeps successful recognition within the origin's
+transcript contract.

@@ -130,6 +130,35 @@ test("an invalid explicit sandbox fails before origin or account access", async 
   }
 });
 
+for (const identity of [
+  "faster-whisper/1.2.1 ctranslate2/4.6.0 cpu/int8 beam=5 temperature=0 artifacts-sha256:" + "a".repeat(64),
+  "future-recogniser/" + "v".repeat(200),
+]) {
+  test(`home speech fits the origin engine contract (${identity.split("/")[0]})`, async () => {
+    const app = setup();
+    app.env.HOME_ASR_TOKEN = "test-home-token";
+    app.env.HOME_ASR = { async fetch() {
+      return Response.json({ text: "Tere", engine: identity });
+    } };
+    globalThis.fetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      // TranscriptIn rejects a longer label before grading or recording evidence.
+      return Response.json(body, { status: body.engine.length <= 120 ? 200 : 422 });
+    };
+    const response = await worker.fetch(new Request("https://learn.test/api/transcribe", {
+      method: "POST", headers: { "x-eesti-guest": "speech-qa" },
+      body: new Uint8Array([1, 2, 3]),
+    }), app.env, app.ctx);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.text, "Tere");
+    assert.equal(body.degraded, false);
+    assert.ok(body.engine.startsWith(identity.split("/")[0]));
+    assert.ok(body.engine.endsWith(" · Mac mini"));
+    assert.ok(!body.engine.includes("artifacts-sha256:"));
+  });
+}
+
 for (const homeOnline of [true, false]) {
   test(`speech retains its guest sandbox when home ASR is ${homeOnline ? "online" : "offline"}`, async () => {
     const app = setup();

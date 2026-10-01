@@ -767,6 +767,17 @@ function homeFetch(env: Env, path: string, init: RequestInit): Promise<Response>
     : fetch(new URL(path, env.HOME_ASR_URL), init);
 }
 
+/** TranscriptIn's engine is a bounded learner-facing label. The service/eval
+ * keeps the full artifact fingerprint; sending it here exceeded the origin's
+ * 120-character contract and rejected otherwise successful recognition. */
+function homeEngineLabel(identity: string | undefined): string {
+  const suffix = " · Mac mini";
+  const label = (identity?.trim() || "Home ASR")
+    .replace(/\s+artifacts-sha256:[a-f0-9]{64}$/i, "");
+  const room = 120 - suffix.length;
+  return (label.length <= room ? label : label.slice(0, room - 1) + "…") + suffix;
+}
+
 async function homeTranscribe(
   audio: ArrayBuffer,
   mime: string,
@@ -783,7 +794,7 @@ async function homeTranscribe(
     if (!response.ok) return null;
     const out = (await response.json()) as { text?: string; engine?: string };
     const text = (out.text ?? "").trim();
-    return text ? { text, engine: `${out.engine ?? "Voxtral"} · Mac mini` } : null;
+    return text ? { text, engine: homeEngineLabel(out.engine) } : null;
   } catch {
     return null;
   }
