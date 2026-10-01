@@ -1,14 +1,18 @@
 /* Identity and the evidence behind a learner's progress. */
 
-import {$, api, esc, ruCount} from "./core.js";
+import {$, api, esc, ruCount, setLabel} from "./core.js";
 import {icon} from "./icons.js";
 import {retryableError, rhythmHtml, sealsHtml} from "./chrome.js";
 
 let currentMe = null;
 let authInfo = {scope: "owner", signup_open: false, available: false};
-let sealLevel = "A1";
+let sealLevel = null;
 let authView = "login";
 let resetNotice = "";
+let authDraft = {email: "", name: ""};
+let profileIdentity = "";
+const ACCOUNT_NOTICE = "eesti-profile-account-notice";
+let accountNotice = "";
 
 const LEVELS = ["A1", "A2", "B1"];
 const START_BAND_NAMES = {
@@ -72,9 +76,12 @@ function profileRows(me) {
     ? esc(me.email)
     : '<span lang="et">puudub</span><span class="profile-sub" lang="ru">не указан</span>';
   const start = me.onboarding;
-  const startValue = start
-    ? `${esc(START_BAND_NAMES[start.start_band] || "—")} · ${esc(FOCUS_NAMES[start.focus] || "Rada")}`
-    : '<span lang="et">pole valitud</span><span class="profile-sub" lang="ru">ещё не выбрано</span>';
+  let startValue = '<span lang="et">pole valitud</span><span class="profile-sub" lang="ru">ещё не выбрано</span>';
+  if (start?.skipped) {
+    startValue = '<span lang="et">Vahele jäetud</span><span class="profile-sub" lang="ru">вопросы о старте пропущены</span>';
+  } else if (start) {
+    startValue = `${esc(START_BAND_NAMES[start.start_band] || "—")} · ${esc(FOCUS_NAMES[start.focus] || "Rada")}`;
+  }
   const startControl = me.scope === "guest" ? "" :
     `<button class="linky" type="button" id="editOnboarding" lang="et">${start ? "Muuda" : "Vali"} <span class="ru" lang="ru">${start ? "изменить" : "выбрать"}</span></button>`;
   return `<dl class="profile-rows">
@@ -90,18 +97,22 @@ function profileRows(me) {
         </form>
       </dd></div>
     <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${emailValue}</dd></div>
-    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${scopeDescription(me.scope)}</span>${controls}</dd></div>
+    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${needsFirstAccount() ? "Konto puudub" : me.scope === "owner" && !me.email ? "Pole sisse logitud" : scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${needsFirstAccount() ? "Аккаунт ещё не создан. Первый аккаунт продолжит существующую историю." : me.scope === "owner" && !me.email ? "Учебная история доступна без входа в аккаунт Estep." : scopeDescription(me.scope)}</span>${controls}</dd></div>
     <div class="profile-row"><dt lang="et">Algus <span class="ru" lang="ru">старт</span></dt><dd>${startValue}${startControl}
       <span class="profile-sub" lang="ru">Самооценка для рекомендаций, не подтверждённый уровень CEFR.</span></dd></div>
     <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
     <div class="profile-row"><dt lang="et">Viimati <span class="ru" lang="ru">последнее занятие</span></dt><dd>${date(me.last_active)}</dd></div>
-    <div class="profile-row"><dt lang="et">Tase <span class="ru" lang="ru">уровень</span></dt>
-      <dd><span>${esc(level.current || "—")}</span><span class="profile-sub">Экзаменационная цель: ${target}</span>
+    <div class="profile-row"><dt lang="et">Raja tase <span class="ru" lang="ru">уровень пути</span></dt>
+      <dd><span>${esc(level.current || "—")}</span><span class="profile-sub" lang="ru">Уровень текущих тем в учебном пути, не результат экзамена.</span><span class="profile-sub">Экзаменационная цель: ${target}</span>
         <span class="profile-sub">Зачтённые рубежи: ${esc(checkpointText)}</span></dd></div>
   </dl>`;
 }
 
 function authHtml() {
+  if (!authInfo.available) return `<section class="profile-auth" aria-label="Sisselogimine">
+    <p class="profile-error" role="alert" lang="ru">Не удалось проверить вход в аккаунт. ${esc(authInfo.error || "Попробуй ещё раз.")}</p>
+    <button class="ghost" id="retryAuth" type="button" lang="et">Proovi uuesti <span class="ru" lang="ru">проверить вход ещё раз</span></button>
+  </section>`;
   if (currentMe?.scope !== "guest" && !needsFirstAccount()) return "";
   const canSignup = !!authInfo.signup_open;
   const tabs = canSignup
@@ -112,18 +123,23 @@ function authHtml() {
   const signup = authView === "signup" && canSignup;
   return `<section class="profile-auth" aria-label="Sisselogimine">
     ${tabs}
+    <p class="hint" lang="ru">Аккаунт Estep сохраняет твой прогресс. Cloudflare Access только открывает доступ к сайту.</p>
     <form id="authForm" data-mode="${signup ? "signup" : "login"}">
       ${signup ? `<label lang="et" for="authName">Nimi <i class="ru" lang="ru">имя</i></label>
         <input id="authName" name="name" type="text" maxlength="60" autocomplete="name" required>` : ""}
       <label lang="et" for="authEmail">E-post <i class="ru" lang="ru">эл. почта</i></label>
-      <input id="authEmail" name="email" type="email" autocomplete="email" required>
+      <input id="authEmail" name="email" type="email" autocomplete="username" maxlength="254" required>
       <label lang="et" for="authPassword">Parool <i class="ru" lang="ru">пароль</i></label>
-      <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" maxlength="1024" required>
-      <button class="go" type="submit" lang="et">${signup ? "Loo konto" : "Logi sisse"}<span class="ru" lang="ru">${signup ? "создать аккаунт" : "войти"}</span></button>
+      <div class="profile-password-field">
+        <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" maxlength="1024" aria-describedby="authPasswordHelp" required>
+        <button class="ghost" id="showPassword" type="button" aria-controls="authPassword" aria-pressed="false" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
+      </div>
+      <p id="authPasswordHelp" class="hint" lang="ru">${signup ? "Не менее 10 символов. Используй отдельный пароль для Estep." : "Если забыл пароль Estep, обратись к владельцу приложения. Самостоятельного сброса пока нет."}</p>
+      <button class="go" type="submit" lang="et">${signup ? "Loo konto" : "Logi sisse"} <span class="ru" lang="ru">${signup ? "создать аккаунт" : "войти"}</span></button>
       <p id="authError" class="profile-error" role="alert" hidden></p>
     </form>
     ${signup ? `<p class="note">${needsFirstAccount()
-      ? "Первый аккаунт продолжит историю, уже записанную в приложении."
+      ? "В приложении пока нет аккаунтов. Первый аккаунт станет основным и продолжит историю, уже записанную в приложении."
       : "Новая учётная запись получит отдельный прогресс."}</p>` : ""}
   </section>`;
 }
@@ -150,7 +166,7 @@ function profileHtml(me, notice = "") {
     <section class="profile-section">
       <h3 class="sec-head" lang="et">Rütm <i class="ru" lang="ru">ритм</i></h3>
       ${rhythmHtml(me.rhythm || [])}
-      <p class="hint profile-legend" lang="ru">Каждый столбик — один день; чем темнее клетка, тем больше было упражнений.</p>
+      <p class="hint profile-legend" lang="ru">Каждая клетка — день; чем темнее, тем больше занятий. Показаны последние 12 недель.</p>
       <p class="hint profile-active-days">${count(activeDays, ["активный день", "активных дня", "активных дней"])} с занятиями за последние 4 недели.</p>
     </section>
     <section class="profile-section">
@@ -178,7 +194,7 @@ function profileHtml(me, notice = "") {
 }
 
 function startOptionsHtml(me) {
-  if ((Number(me.totals?.attempts) || 0) > 0 || me.onboarding) return "";
+  if ((Number(me.totals?.attempts) || 0) > 0 || (me.onboarding && !me.onboarding.skipped)) return "";
   return `<section class="profile-section profile-start-section" aria-labelledby="profileStartTitle">
     <h3 class="sec-head" id="profileStartTitle" lang="et">Alusta siit <i class="ru" lang="ru">начните здесь</i></h3>
     <p class="hint profile-start-copy" lang="ru">Выберите, с чего начать. В «Vaba harjutus» (свободной практике) можно менять сложность A1–B1; другие разделы доступны в любой момент.</p>
@@ -211,8 +227,8 @@ function paintAccount() {
   if (!button) return;
   const signedOut = authInfo.scope === "guest" ||
     (authInfo.available && authInfo.signup_open && !authInfo.email);
-  const label = signedOut ? "Logi sisse — войти" : "Profiil — профиль";
-  button.innerHTML = icon(signedOut ? "sign-in" : "user-circle");
+  const label = signedOut ? "Profiil — войти или создать аккаунт" : "Profiil — профиль";
+  button.innerHTML = icon("user-circle");
   button.title = label;
   button.setAttribute("aria-label", label);
 }
@@ -224,8 +240,9 @@ async function readAuth() {
   try {
     const info = await api("/api/auth/me").then(r => r.json());
     return {...info, available: true};
-  } catch {
-    return {scope: currentMe?.scope || "owner", signup_open: false, available: false};
+  } catch (err) {
+    return {scope: currentMe?.scope || "owner", signup_open: false,
+      available: false, error: err.message};
   }
 }
 
@@ -236,12 +253,22 @@ export async function loadProfile() {
     currentMe = await api("/api/me").then(r => r.json());
     authInfo = await readAuth();
     if (authInfo.scope !== currentMe.scope) authInfo.scope = currentMe.scope;
+    const identity = `${currentMe.scope}:${currentMe.email || ""}`;
+    if (identity !== profileIdentity) {
+      sealLevel = LEVELS.includes(currentMe.level?.current) ? currentMe.level.current : "A1";
+      profileIdentity = identity;
+    }
     paintAccount();
     authView = needsFirstAccount() ? "signup" : "login";
     const notice = resetNotice;
     resetNotice = "";
     out.innerHTML = profileHtml(currentMe, notice);
     bindProfile(out);
+    try {
+      accountNotice = sessionStorage.getItem(ACCOUNT_NOTICE) || accountNotice;
+      sessionStorage.removeItem(ACCOUNT_NOTICE);
+    } catch { /* Storage is optional; account access is not. */ }
+    if (accountNotice) showError(out, accountNotice);
   } catch (err) {
     out.replaceChildren(retryableError(err.message, loadProfile));
   }
@@ -276,28 +303,51 @@ function bindProfile(out) {
     $("#profileSeals").innerHTML = sealsHtml(currentMe.milestones?.[sealLevel] || []);
   }));
   out.querySelectorAll("[data-auth-view]").forEach(button => button.addEventListener("click", () => {
+    authDraft = {email: $("#authEmail")?.value || "", name: $("#authName")?.value || authDraft.name};
     authView = button.dataset.authView;
     out.innerHTML = profileHtml(currentMe);
     bindProfile(out);
+    $("#authEmail").value = authDraft.email;
+    if ($("#authName")) $("#authName").value = authDraft.name;
+    out.querySelector(`[data-auth-view="${authView}"]`)?.focus();
   }));
+  $("#retryAuth")?.addEventListener("click", async () => {
+    await loadProfile();
+    ($("#authEmail") || $("#retryAuth"))?.focus();
+  });
+  $("#showPassword")?.addEventListener("click", event => {
+    const button = event.currentTarget;
+    const showing = $("#authPassword").type === "password";
+    $("#authPassword").type = showing ? "text" : "password";
+    button.setAttribute("aria-pressed", String(showing));
+    setLabel(button, showing ? "Peida" : "Näita");
+    const gloss = button.querySelector(".ru");
+    gloss.textContent = showing ? "скрыть" : "показать";
+  });
   $("#editName")?.addEventListener("click", () => {
     $("#profileName").hidden = true;
     $("#editName").hidden = true;
     $("#nameForm").hidden = false;
     $("#nameInput").focus();
   });
-  $("#cancelName")?.addEventListener("click", () => loadProfile());
+  $("#cancelName")?.addEventListener("click", async () => {
+    await loadProfile(); $("#editName")?.focus();
+  });
   $("#nameForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const error = $("#nameError");
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
     error.hidden = true;
+    submit.disabled = true;
     try {
       await api("/api/me", {name: $("#nameInput").value});
+      accountNotice = "";
       await loadProfile();
+      $("#editName")?.focus();
     } catch (err) {
       error.textContent = err.message;
       error.hidden = false;
-    }
+    } finally { submit.disabled = false; }
   });
   $("#authForm")?.addEventListener("submit", async event => {
     event.preventDefault();
@@ -318,12 +368,14 @@ function bindProfile(out) {
         try { await api("/api/me", {name: values.name}); }
         catch (err) { profileError = err.message; }
       }
-      authView = "login";
-      await Promise.all([loadProfile(), paintScope()]);
-      window.dispatchEvent(new CustomEvent("eesti:identity-changed"));
       if (profileError) {
-        showError(out, `Аккаунт создан, но имя не сохранено. ${profileError}`);
+        try { sessionStorage.setItem(ACCOUNT_NOTICE,
+          `Аккаунт создан, но имя не сохранено. Измени его в профиле. ${profileError}`); }
+        catch { /* Do not retain the previous learner's page state. */ }
       }
+      // Every module may hold the previous guest/account's practice or dialogue.
+      // Reload, as on logout, before rendering another permanent identity.
+      location.reload();
     } catch (err) {
       error.textContent = err.message;
       error.hidden = false;

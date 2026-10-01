@@ -370,7 +370,7 @@ class TestMobileGlassNavigation:
 
     def test_header_login_opens_the_existing_account_form(self, glass_page):
         pg = glass_page
-        button = pg.get_by_role("link", name="Logi sisse — войти", exact=True)
+        button = pg.get_by_role("link", name="Profiil — войти или создать аккаунт", exact=True)
         assert button.is_visible()
         assert button.locator("svg").is_visible()
         button.click()
@@ -593,11 +593,71 @@ class TestProfile:
         assert page.locator('[data-seal-level="B1"]').get_attribute("tabindex") == "0"
         assert page.locator('[data-seal-level="A1"]').get_attribute("tabindex") == "-1"
 
-    def test_signup_signin_and_signout(self, page):
+    def test_auth_tabs_keep_keyboard_focus_and_email_draft(self, page):
+        self._open(page)
+        page.fill("#authEmail", "learner@example.test")
+        page.locator('[data-auth-view="login"]').focus()
+        page.locator('[data-auth-view="login"]').press("ArrowRight")
+        signup = page.locator('[data-auth-view="signup"]')
+        assert signup.evaluate("el => el === document.activeElement")
+        assert signup.get_attribute("aria-selected") == "true"
+        assert page.locator("#authEmail").input_value() == "learner@example.test"
+        signup.press("ArrowLeft")
+        assert page.locator('[data-auth-view="login"]').evaluate(
+            "el => el === document.activeElement")
+
+    def test_profile_selects_current_path_level_and_identifies_bootstrap(self, page):
+        def profile(route):
+            response = route.fetch()
+            data = response.json()
+            data.update(scope="owner", email=None)
+            data["level"]["current"] = "B1"
+            route.fulfill(response=response, json=data)
+        page.route("**/api/me", profile)
+        page.route("**/api/auth/me", lambda route: route.fulfill(json={
+            "scope": "owner", "email": "", "signup_open": True}))
+        self._open(page)
+        assert page.locator('[data-seal-level="B1"]').get_attribute("aria-selected") == "true"
+        assert page.locator(".profile-scope-description").inner_text() != "основной аккаунт; прогресс сохраняется"
+        assert page.locator("#profileOut").get_by_text("Konto puudub", exact=True).is_visible()
+
+    def test_unavailable_auth_keeps_profile_and_offers_retry(self, page):
+        available = False
+        def auth(route):
+            if available:
+                route.fulfill(json={"scope": "guest", "signup_open": True})
+            else:
+                route.fulfill(status=503, json={"detail": "Вход временно недоступен."})
+        page.route("**/api/auth/me", auth)
+        self._open(page)
+        assert page.locator("#profileOut .profile-rows").is_visible()
+        assert page.locator("#authForm").count() == 0
+        assert page.locator("#retryAuth").is_visible()
+        available = True
+        page.click("#retryAuth")
+        page.wait_for_selector("#authEmail")
+
+    def test_password_visibility_and_name_cancel_are_keyboard_accessible(self, page):
+        self._open(page)
+        page.fill("#authPassword", "isolated-password")
+        page.click("#showPassword")
+        assert page.locator("#authPassword").get_attribute("type") == "text"
+        assert page.locator("#showPassword").get_attribute("aria-pressed") == "true"
+        page.click("#showPassword")
+        assert page.locator("#authPassword").get_attribute("type") == "password"
+        page.click("#editName")
+        page.click("#cancelName")
+        page.wait_for_function("() => document.activeElement?.id === 'editName'")
+
+    @pytest.mark.parametrize("name_save_fails", [False, True])
+    def test_signup_signin_and_signout(self, page, name_save_fails):
         """Exercise the auth views with a local Worker-shaped response boundary."""
         state = {"scope": "guest", "email": "", "name": "", "password": "",
                  "resets": 0, "restores": 0, "restore_available": False,
                  "onboarding": None}
+        documents = []
+        page.on("framenavigated", lambda frame: documents.append(frame.url)
+                if frame == page.main_frame else None)
 
         def respond(route):
             request = route.request
@@ -637,6 +697,9 @@ class TestProfile:
                                     "onboarding": state["onboarding"]})
             elif path == "/api/me":
                 if request.method == "POST":
+                    if name_save_fails:
+                        route.fulfill(status=503, json={"detail": "Имя временно не сохранено."})
+                        return
                     state["name"] = request.post_data_json.get("name", "")
                     route.fulfill(json={"name": state["name"], "scope": state["scope"]})
                 else:
@@ -661,17 +724,33 @@ class TestProfile:
             "#profileOut").inner_text()
         page.click('[data-auth-view="signup"]')
         page.fill("#authName", "Aino")
-        assert page.get_by_role("link", name="Logi sisse — войти", exact=True).is_visible()
+        assert page.get_by_role("link", name="Profiil — войти или создать аккаунт", exact=True).is_visible()
         page.fill("#authEmail", "aino@example.test")
         page.fill("#authPassword", "test-password-1")
+        before_auth = len(documents)
         page.locator('#authForm button[type="submit"]').click()
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
         assert page.locator("#profileOut").get_by_text("aino@example.test").is_visible()
         assert page.get_by_role("link", name="Profiil — профиль", exact=True).is_visible()
+        assert len(documents) > before_auth, "Changing identity must discard the old page's state"
         page.wait_for_selector("#onboardingSheet[open]")
         page.click("#onboardingSheet [data-skip]")
         page.wait_for_selector("#onboardingSheet", state="hidden")
+        page.wait_for_function(
+            "() => document.querySelector('#profileOut')?.textContent.includes('Vahele jäetud')")
+        assert page.locator("#profileStartPath").is_visible()
+        if name_save_fails:
+            assert page.locator('#profileOut > [role="alert"]').is_visible()
+            assert "Аккаунт создан, но имя не сохранено" in page.locator(
+                '#profileOut > [role="alert"]').inner_text()
+            name_save_fails = False
+            page.click("#editName")
+            page.fill("#nameInput", "Aino")
+            page.locator('#nameForm button[type="submit"]').click()
+            page.wait_for_function(
+                "() => document.querySelector('#profileName')?.textContent === 'Aino'")
+            assert page.locator('#profileOut > [role="alert"]').count() == 0
 
         page.click("#profileReset")
         assert page.locator("#profileResetConfirm").is_visible()

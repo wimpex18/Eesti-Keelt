@@ -1,7 +1,7 @@
 /* Two optional starting questions. They tune recommendations only: the answers
    never skip the curriculum, award mastery or claim a CEFR result. */
 
-import {$, api, esc} from "./core.js";
+import {$, api, esc, setLabel} from "./core.js";
 import {icon} from "./icons.js";
 import {goToPlace} from "./router.js";
 import {setExamLevel} from "./state.js";
@@ -142,7 +142,7 @@ async function save() {
   saving = true;
   const dialog = $("#onboardingSheet");
   const button = dialog.querySelector("[data-save]");
-  if (button) { button.disabled = true; button.textContent = "Salvestan…"; }
+  if (button) { button.disabled = true; setLabel(button, "Salvestan…"); }
   try {
     me = await api("/api/me/onboarding", {...draft, skipped: false}).then(response => response.json());
     syncRecommendation(me.onboarding);
@@ -175,6 +175,7 @@ async function skip() {
     }).then(response => response.json());
     syncRecommendation(me.onboarding);
     dialog.close();
+    if ($("#tab-profile")?.checkVisibility()) goToPlace("profile");
   } catch (error) {
     step = 2;
     render();

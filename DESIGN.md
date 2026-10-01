@@ -138,7 +138,8 @@ mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
   selected tab sits on a small glass capsule; the page; and a **floating glass
   dock** of the three modes, clear of the home indicator (56px targets; the open
   mode is tinted blue). Scrolling down folds the dock to its marks; scrolling up
-  or reaching the top unfolds it. The dock hides while typing. Gutter 16px plus
+  or reaching the top unfolds it. The dock hides while typing or while the inline
+  profile name editor is open, keeping Save/Cancel clear on WebKit. Gutter 16px plus
   safe areas.
 - **Spine (≥720px and ≥560px tall; iPad mini).** A **floating glass sidebar**
   inset 12px from the window, 32px radius, fixed so the brand never scrolls away:
@@ -162,9 +163,9 @@ mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
   link. Preserve its Russian accessible home label and the Estonian language
   tag on the visible name.
 - **Account / theme actions.** The 44px account link opens the existing Profiil
-  screen (`#profile`). `eesti/web/js/profile.js` paints sign-in and **Logi sisse**
-  for the signed-out scope, user-circle and **Profiil** otherwise; each has a
-  Russian accessible gloss. The adjacent theme button retains system/light/dark
+  screen (`#profile`). `eesti/web/js/profile.js` keeps the user-circle glyph
+  in every account state. Its accessible **Profiil** label explains that guests
+  can sign in or create an account. The adjacent theme button retains system/light/dark
   cycling. There is no transparency setting in the header.
 - **Buttons are flat capsules, in four ranks.** *Primary* (`.go`, `.primary`):
   solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per

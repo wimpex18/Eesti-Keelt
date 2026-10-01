@@ -37,7 +37,7 @@
  */
 import { DurableObject } from "cloudflare:workers";
 import {
-  AccountError,
+  accountFailure,
   accountById,
   accountCount,
   authenticate,
@@ -1136,8 +1136,9 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
         headers: { "set-cookie": sessionCookie(value) },
       });
     } catch (error) {
-      if (error instanceof AccountError) {
-        return Response.json({ detail: error.message }, { status: error.status });
+      const failure = accountFailure(error);
+      if (failure) {
+        return Response.json({ detail: failure.message }, { status: failure.status });
       }
       return Response.json({ detail: "Не удалось создать сессию. Попробуй ещё раз." },
         { status: 500 });

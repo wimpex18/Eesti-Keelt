@@ -124,6 +124,10 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
    - `POST /api/auth/login {email, password}`: constant-time compare; after 5
      failures the account waits 60 s; the same Russian message for unknown email
      and wrong password.
+   - Account errors cross a Durable Object RPC boundary as serializable
+     `name`, `status` and `message`, without the custom Error prototype. The
+     Worker preserves validation (400), invalid credentials (401), duplicate
+     signup (409) and temporary lockout (429); unexpected errors stay generic.
    - `POST /api/auth/logout`: clears the cookie. `GET /api/auth/me`: `{scope,
      id, email}` or `{scope: "guest"}`; with a configured secret,
      `signup_open` remains true for unlimited sign-up.
@@ -207,23 +211,31 @@ Implementation: `eesti/web/js/profile.js`.
   right; stacked on the phone):
   - *Nimi* (имя): the value, and *Muuda* (изменить) opening an inline field
     with *Salvesta* (сохранить) and *Loobu* (отмена); errors are the server's
-    Russian `detail`.
+    Russian `detail`. The mobile dock stays hidden for the whole inline edit,
+    so WebKit's input blur cannot cover Save/Cancel before a tap completes.
   - *E-post* (эл. почта): the account's email; for a guest, *puudub* (нет).
   - *Konto* (аккаунт): *Põhikonto* (основной, прогресс сохраняется),
     *Õppija* (ученик, свой прогресс сохраняется) or *Külaline* (гость,
     песочница), so everyone sees at once which account is signed in; with an
     account, *Logi välja* (выйти).
+    Before any account exists, *Konto puudub* explains that the first account
+    continues the existing history. The unguarded local owner without an app
+    session is labelled *Pole sisse logitud*, rather than a signed-in account.
   - *Algus* (старт): the saved self-assessment and first lane, with *Muuda*
     (изменить). The Russian line says it is a recommendation, not a confirmed
     CEFR level.
+    Skipping is shown as *Vahele jäetud* (вопросы пропущены), with the direct
+    start links retained until the learner practises or chooses a recommendation.
   - *Õpib alates* (учится с: registration) and *Viimati* (последнее занятие): dates in
     Russian format; empty log → *Veel mitte* (пока нет).
-  - *Tase* (уровень): current path level, exam goal (level and date, or a link
+  - *Raja tase* (уровень пути): current topic level, explicitly not an exam
+    result; exam goal (level and date, or a link
     to Ülevaade to choose one), checkpoints passed.
 - **Märgid** (значки): a level switch (`role="tablist"`, A1 · A2 · B1, the
   current level selected) over `sealsHtml(milestones[level])`.
 - **Rütm** (ритм): `rhythmHtml(rhythm)` and *active days in the last four
-  weeks*, exactly as Edenemine words it.
+  weeks*, exactly as Edenemine words it. The legend identifies each cell as a
+  day and the whole grid as the last 12 weeks.
 - **Kokku** (итого): attempts, topics mastered of total, review cards, known
   words, each as a number with a Russian label (`ruCount`).
 - **Starting recommendation.** After account creation, two optional screens ask
@@ -250,13 +262,23 @@ Implementation: `eesti/web/js/profile.js`.
   *Külaline* and, in Russian, that this is a sandbox and progress will not be
   kept, with a link to Profiil to sign in. On the profile, *Tühjenda liivakast* (очистить песочницу) confirms before calling
   `POST /api/guest/reset`, then reloads the profile.
-- **Sign-up and sign-in** (guests only, on Profiil, above the rows): two
+- **Sign-up and sign-in** (guests and the first-account bootstrap, on Profiil,
+  above the rows): two
   views in a `role="tablist"`: *Logi sisse* (войти) and *Loo konto* (создать
   аккаунт, shown while `signup_open`). Fields *E-post*, *Parool* (пароль), and
   for a new account *Nimi*; one primary button each. After sign-up the page
-  posts the name to `POST /api/me`, then reloads. Russian errors from the
-  server. A note under *Loo konto*: the first account takes over the progress
-  already recorded. Plain page, `autocomplete` attributes set, no glass.
+  posts the name to `POST /api/me`. Signup, login and logout reload the document
+  to discard every module's previous learner state. An unsuccessful name save
+  after signup leaves a one-time notice on the new account's profile.
+  Tabs preserve email/name drafts and keyboard focus; passwords are not kept
+  across tab switches. *Näita/Peida* controls password visibility. Signup explains
+  the ten-character minimum; login explains the existing operator-managed
+  password recovery. Russian errors come from the server, with retry available.
+  A note under *Loo konto* distinguishes the first account's existing history
+  from later accounts' separate progress. The introduction distinguishes Estep
+  accounts from Cloudflare Access. If the account probe fails, profile evidence
+  stays visible with *Proovi uuesti* instead of an unusable login form. Plain
+  page, `autocomplete` attributes set, no glass.
 - **Viewports.** Phone 402×874 and 874×402 (touch), iPad mini 744×1133, desktop
   1440×900, light and dark: no horizontal scroll, the name field and buttons at
   least 44px, the rail's own cards unchanged (the profile adds none).
@@ -270,7 +292,12 @@ Implementation: `eesti/web/js/profile.js`.
   object and push restrictions, learner ID shape, unlimited sign-up and cron
   coverage. `tests/test_accounts.py` runs password, session, account creation
   and removal checks under Node.
+- `tests/worker-auth.test.mjs` exercises real workerd Durable Object RPC for
+  validation, indistinguishable invalid credentials, session cookies, logout,
+  duplicate signup and lockout; `npm run test:worker` includes it.
 - Browser journeys (`tests/test_e2e_journeys.py`) cover the profile tab,
   renaming, sign-up, sign-in, sign-out, the guest line and sandbox reset;
   onboarding, empty-profile start links and reset/restore confirmation are covered too;
+  auth-tab focus, drafts, password visibility, auth-probe recovery, current-level
+  milestones and document reloads on identity changes have regressions;
   journeys that write progress run in a guest sandbox by default.
