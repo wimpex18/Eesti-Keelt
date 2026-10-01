@@ -1,28 +1,28 @@
 # Handoff
 
-Current task: finish source audit and reliable private-material publication.
-Branch: `codex/dev-7-corpus-publication`; base: PR #103.
+Current task: source audit and B1 exam-format correction, ready for review.
+Branch: `codex/harno-writing-clock`; base: PR #104.
 
-Origin health fingerprints the usable corpus independently of process boot.
-The singleton archives changes uploaded to a warm origin; owner health forces
-that check and reports corpus_archived_revision for publication confirmation.
-Corpus chunks publish through a generation pointer, retaining the previous
-archive on interrupted writes. Legacy archives remain readable; learner event
-replay and durability gates remain separate. Operator instructions are updated.
+B1 writing uses HARNO's 35-minute clock and describes both official tasks.
+The mock explicitly practises one longer text over the whole part's clock.
+Source/store/UI map: docs/source-integrations.md; feature gaps: docs/status.md.
+Private corpus has 506 items, all 461 old ids retained; 48 HARNO files refreshed.
+It remains local/git-ignored; learner progress and model lanes are unchanged.
 
-Verified: 2,517 Python tests passed, 1 skipped; 224 browser journeys passed,
-4 skipped; 22 Worker tests, typecheck and Worker dry-run passed. One startup
-visibility assertion passed its focused retry and the next full browser pass.
-Prior UI: all 11 tabs in both themes at desktop, phone portrait/landscape and
-tablet inspected; actual ERR MP3/HLS and lesson → practice verified on phone/PC.
-Private corpus: 506 items, all 461 previous ids retained; 48 HARNO files refreshed.
+Verified: 2,519 Python tests passed, 1 skipped; 224 browser journeys passed,
+4 skipped; 22 Worker tests, typecheck and Worker dry-run passed. Speech-save
+journey timed out once, then passed both focused engines and the full rerun.
+All 11 tabs/both themes inspected in four viewports; desktop/phone MP3/HLS,
+object-case lesson → practice, official A2/B1 forms and B1 timer checked.
+PRs #100 → #101 → #102 → #103 → #104 → #105 are open; user merges in order.
+Uncommitted paths after this commit: none. Temporary visual tests removed;
+private corpus/media remain ignored. No code deployment/private upload.
 
-Next: publish this PR; correct B1 writing's now-unambiguous HARNO 35-minute
-clock/two-task description; finish official-PDF visual checks and audit report.
-PRs #100 → #101 → #102 → #103 passed CI; user merges in order. No deployment.
-Uncommitted paths: Worker/publishing script, corpus health/revision, publication
-docs, regression tests and this handoff. Temporary visual test is not staged.
-Durable unresolved work: Linear DEV-5 through DEV-9. Latest Python 3.14.8 has
-no managed macOS download yet; local 3.14.7, production patch needs attestation.
-After merging: publish private corpus/exam files, confirm both corpus hashes
-via owner health, then deep smoke. Private data remains git-ignored.
+Next: user merges the stack in order after CI; publish private corpus/exam files,
+confirm equal non-null origin/archive corpus hashes in owner health, then run
+smoke with deep: true. Current production's guest-material smoke failed;
+post-merge deployment and deep verification remain pending.
+Durable gaps: Linear DEV-5–DEV-9 (multilingual/A0, native exams, refresh,
+linguistic review, corpus-backed CI). Local Python 3.14.7; no managed macOS
+3.14.8 download yet. Production patch/input hashes need new health attestation.
+Audit evidence/report: source-audit under this chat's visualization directory.
