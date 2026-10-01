@@ -15,6 +15,7 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 # Re-exported, not merely imported: `from ..sources import REGISTRY` is what
@@ -119,6 +120,26 @@ def available(path: Path | str) -> bool:
         # No `items` table, or not a database at all. Either way there is
         # nothing to read.
         return False
+
+
+@lru_cache(maxsize=8)
+def _file_revision(path: str, mtime: int, size: int) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def revision(path: Path | str) -> str | None:
+    """Identify a usable corpus; rehash only when its actual file changes.
+
+    Unlike a boot id, this changes on an operator upload to a warm origin.
+    """
+    target = Path(path)
+    if not available(target):
+        return None
+    try:
+        stat = target.stat()
+        return _file_revision(str(target.resolve()), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        return None
 
 
 def corpus_counts(path: Path | str) -> dict[str, int]:

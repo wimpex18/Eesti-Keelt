@@ -154,6 +154,8 @@ interface BlobMeta {
   chunks: number;
   bytes: number;
   at: number;
+  /** Corpus generations keep the previous archive readable until publication. */
+  prefix?: string;
   /** Learner rows in a `snap` export (see `/api/state/export`); absent before
    *  the origin reported them. */
   rows?: number;
@@ -172,6 +174,7 @@ export class LearnerState extends DurableObject<Env> {
   /** The boot id of the instance we last confirmed holds the learner's state. */
   private lastBoot: string | null = null;
   private lastSeen = 0;
+  private lastCorpusRevision: string | null = null;
   private lastSnapshot = 0;
   /** The origin's event sequence number already copied here, for `lastBoot`. */
   private cursor = 0;
@@ -249,6 +252,7 @@ export class LearnerState extends DurableObject<Env> {
     this.who = null;
     this.lastBoot = null;
     this.lastSeen = 0;
+    this.lastCorpusRevision = null;
     this.lastSnapshot = 0;
     this.cursor = 0;
     this.restoring = null;
@@ -381,22 +385,39 @@ export class LearnerState extends DurableObject<Env> {
   private async load(blob: Blob): Promise<string | null> {
     const meta = await this.ctx.storage.get<BlobMeta>(`${blob}-meta`);
     if (!meta) return null;
-    const parts = await this.ctx.storage.list<string>({ prefix: `${blob}/` });
-    if (parts.size !== meta.chunks) {
-      // A blob half-written by an interrupted save is worse than none: it would
-      // restore a truncated SQLite file over a working one.
-      return null;
-    }
+    const prefix = meta.prefix ?? blob; // Older deployed archives remain readable.
+    const parts = await this.ctx.storage.list<string>({ prefix: `${prefix}/` });
     let out = "";
     for (let i = 0; i < meta.chunks; i++) {
-      const part = parts.get(`${blob}/${i}`);
+      const part = parts.get(`${prefix}/${i}`);
       if (part === undefined) return null;
       out += part;
     }
-    return out;
+    return out.length === meta.bytes ? out : null;
   }
 
   private async save(blob: Blob, body: string, rows?: number): Promise<void> {
+    if (blob === "corpus") {
+      const prefix = `corpus/${crypto.randomUUID()}`;
+      const chunks = Object.fromEntries(Array.from(
+        { length: Math.ceil(body.length / CHUNK) }, (_, i) =>
+          [`${prefix}/${i}`, body.slice(i * CHUNK, (i + 1) * CHUNK)]));
+      const entries = Object.entries(chunks);
+      for (let i = 0; i < entries.length; i += 64)
+        await this.ctx.storage.put(Object.fromEntries(entries.slice(i, i + 64)));
+      // The pointer changes only after every new chunk is durable. A failure
+      // before this line leaves the old generation available for restoration.
+      await this.ctx.storage.put<BlobMeta>("corpus-meta", {
+        prefix, chunks: entries.length, bytes: body.length, at: Date.now(),
+      });
+      try {
+        const stale = [...(await this.ctx.storage.list<string>({ prefix: "corpus/" }))]
+          .map(([k]) => k).filter(k => !k.startsWith(`${prefix}/`));
+        for (let i = 0; i < stale.length; i += 64)
+          await this.ctx.storage.delete(stale.slice(i, i + 64));
+      } catch { /* Published data is safe; stale chunks can be cleaned next time. */ }
+      return;
+    }
     const chunks: Record<string, string> = {};
     for (let i = 0; i * CHUNK < body.length; i++) {
       chunks[`${blob}/${i}`] = body.slice(i * CHUNK, (i + 1) * CHUNK);
@@ -435,8 +456,8 @@ export class LearnerState extends DurableObject<Env> {
 
      Which way it moves depends on who has it:
 
-     - the container has one and this store does not  ->  **archive it**, which
-       is how a freshly pushed harvest becomes permanent
+     - the container has one -> **archive it**, including an operator's newer
+       upload while the same origin process is still serving requests
      - this store has one and the container does not  ->  **restore it**, which
        is every cold start after that
 
@@ -456,13 +477,20 @@ export class LearnerState extends DurableObject<Env> {
 
     const stored = await this.ctx.storage.get<BlobMeta>("corpus-meta");
 
-    if (onContainer && !stored) {
+    if (onContainer) {
       const res = await fetch(this.origin("/api/content/export?full=1"), {
         headers: this.headers(),
       });
       if (!res.ok) return false;
-      await this.save("corpus", await res.text());
-      return true;
+      const body = await res.text();
+      try {
+        const database = (JSON.parse(body) as { database?: unknown }).database;
+        if (typeof database !== "string" || !database) return false;
+      } catch { return false; }
+      try {
+        await this.save("corpus", body);
+        return true;
+      } catch { return false; }
     }
 
     if (!onContainer && stored) {
@@ -503,9 +531,9 @@ export class LearnerState extends DurableObject<Env> {
    * write reach an instance that may be missing the learner's history, or that
    * write becomes the only thing the next snapshot holds.
    */
-  async ensureRestored(): Promise<boolean> {
+  async ensureRestored(force = false): Promise<boolean> {
     await this.hydrateWho();
-    if (this.lastBoot && Date.now() - this.lastSeen < LIVENESS_TTL_MS) return true;
+    if (!force && this.lastBoot && Date.now() - this.lastSeen < LIVENESS_TTL_MS) return true;
     // Durable Objects interleave requests at every `await`: without this, two
     // requests arriving on a cold start would each run a restore.
     this.restoring ??= this.restore().finally(() => {
@@ -517,26 +545,37 @@ export class LearnerState extends DurableObject<Env> {
   /** One RPC gives the proxy both the restore gate and the durable cursor that
    *  was current before the origin request, avoiding a second DO hop for reads
    *  that recorded nothing. */
-  async prepareOrigin(): Promise<{ restored: boolean; boot: string | null; cursor: number }> {
-    const restored = await this.ensureRestored();
-    return { restored, boot: this.lastBoot, cursor: this.cursor };
+  async prepareOrigin(force = false): Promise<{
+    restored: boolean; boot: string | null; cursor: number; corpus: string | null;
+  }> {
+    const restored = await this.ensureRestored(force);
+    return { restored, boot: this.lastBoot, cursor: this.cursor, corpus: this.lastCorpusRevision };
   }
 
   private async restore(): Promise<boolean> {
 
     let boot: string;
+    let corpusRevision: string | null;
     try {
       const res = await fetch(this.origin("/api/health"), {
         headers: this.headers(),
       });
       if (!res.ok) return false;
-      boot = ((await res.json()) as { boot?: string }).boot ?? "";
+      const health = (await res.json()) as { boot?: string; corpus_revision?: string | null };
+      boot = health.boot ?? "";
+      corpusRevision = health.corpus_revision ?? null;
     } catch {
       // Cloud Run cold-starting or briefly unreachable. Reads may still go
       // through and surface the real error; writes wait.
       return false;
     }
     if (!boot) return false;
+
+    if (this.who?.scope === "owner" &&
+        (boot !== this.lastBoot || corpusRevision !== this.lastCorpusRevision)) {
+      if (!(await this.syncCorpus())) return false;
+      this.lastCorpusRevision = corpusRevision;
+    }
 
     if (boot === this.lastBoot) {
       this.lastSeen = Date.now();
@@ -552,8 +591,6 @@ export class LearnerState extends DurableObject<Env> {
       this.lastSeen = Date.now();
       return true;
     }
-
-    if (this.who?.scope === "owner" && !(await this.syncCorpus())) return false;
 
     const saved = await this.load("snap");
     // The snapshot first: it carries the caches (dictionary answers, the
@@ -1267,8 +1304,8 @@ export default {
       if (owner) await owner.ensureRestored();
     }
     const prepared = learner
-      ? await learner.prepareOrigin()
-      : { restored: true, boot: null, cursor: 0 };
+      ? await learner.prepareOrigin(who.scope === "owner" && url.pathname === "/api/health")
+      : { restored: true, boot: null, cursor: 0, corpus: null };
     const restored = prepared.restored;
     const writes = request.method !== "GET" && request.method !== "HEAD";
 
@@ -1351,6 +1388,19 @@ export default {
     // synchronously. It carries recoverable caches and projections only.
     if (writes && learner) {
       ctx.waitUntil(learner.snapshot());
+    }
+
+    // Owner health is an explicit publication check. The origin's checksum
+    // and the confirmed archive checksum must agree before an operator closes
+    // the publishing session; ordinary requests retain the liveness cache.
+    if (url.pathname === "/api/health" && who.scope === "owner" && response.ok) {
+      const healthHeaders = new Headers(response.headers);
+      for (const name of ["content-length", "content-encoding", "etag"])
+        healthHeaders.delete(name);
+      return Response.json({
+        ...((await response.json()) as Record<string, unknown>),
+        corpus_archived_revision: restored ? prepared.corpus : null,
+      }, { headers: healthHeaders });
     }
 
     // The origin cannot see the AI binding, so it reports every hosted engine

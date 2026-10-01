@@ -205,7 +205,10 @@ derived from HARNO's URL using the downloader's filename rule.
 
 Owner-only, so not in the image. Harvest locally and push; publication rebuilds
 topic links against the current corpus. The
-Worker archives it and restores it to every new container.
+Worker archives it and restores it to every new container. A corpus checksum
+changes independently of the origin boot, so uploading to a warm instance also
+updates the archive. Chunk generations publish through a final pointer; a
+failed replacement retains the previous usable archive.
 
 ```bash
 python -m eesti.cli harvest && python -m eesti.cli harvest-reading && python -m eesti.cli harvest-news
@@ -215,6 +218,13 @@ python -m eesti.cli link-topics                 # optional local preview
 python -m eesti.cli fetch-data && python -m eesti.cli build
 bash deploy/push-content.sh data/content.db     # rebuilds links, then uploads
 ```
+
+After uploading, open `/api/health` through the front door **as the owner**.
+This explicit check bypasses the ordinary one-minute liveness cache. Confirm
+that `corpus_revision` and `corpus_archived_revision` are equal and non-null;
+retry the check if necessary before closing the publishing session. The origin
+alone cannot attest the Durable Object copy. Publish refreshed exam files with
+`deploy/push-exam.sh` as well, then run the `smoke` workflow with `deep: true`.
 
 ## Reference data in the image
 
