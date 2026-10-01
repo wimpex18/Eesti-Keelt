@@ -73,6 +73,22 @@ async function seed(app, count = 10, cursor = count) {
   app.owner.snapshot = async () => true;
 }
 
+test("a guest restores the shared reading corpus before opening the library", async () => {
+  const app = setup();
+  let restored = false;
+  app.owner.ensureRestored = async () => { restored = true; return true; };
+  globalThis.fetch = async request => {
+    assert.equal(request.headers.get("x-eesti-scope"), "guest");
+    assert.equal(request.headers.get("x-eesti-guest"), "materials-audit");
+    return Response.json({ total: restored ? 349 : 0 });
+  };
+  const response = await worker.fetch(new Request("https://learn.test/api/library", {
+    headers: { "x-eesti-guest": "materials-audit" },
+  }), app.env, app.ctx);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).total, 349);
+});
+
 test("the front door overwrites a forged social artwork origin", async () => {
   const app = setup();
   await seed(app);
