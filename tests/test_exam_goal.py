@@ -59,6 +59,16 @@ class TestTheSpec:
         assert body["sessions"] and "2027" in body["next_year"]
         assert client.get("/api/exam-spec/C2").status_code == 404
 
+    @pytest.mark.parametrize("level,minutes", [("A2", 30), ("B1", 35)])
+    def test_official_writing_time_reaches_the_spec_and_practice_clock(self, client, level, minutes):
+        """HARNO's B1 writing clock is 35 minutes; A2 remains 30."""
+        spec = client.get(f"/api/exam-spec/{level}").json()
+        writing = next(part for part in spec["parts"] if part["id"] == "kirjutamine")
+        assert writing["minutes"] == minutes
+        assert client.get(f"/api/mock/{level}/kirjutamine?seed=1").json()["minutes"] == minutes
+        assert client.get(f"/api/mock-run/{level}").json()["minutes"] == sum(
+            part["minutes"] for part in spec["parts"])
+
 
 class TestTheGoal:
     def test_none_is_chosen_to_begin_with(self, client):
