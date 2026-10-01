@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import csv
+from pathlib import Path
 
 import pytest
 
@@ -123,3 +124,32 @@ class TestTheCacheOnlyEverHoldsNouns:
         wordlist.build(db, raw_dir=source([row("raamat")]))
         assert [w.word for w in wordlist.nouns_at_level(db)] == ["raamat"]
         assert wordlist.declines("s")
+
+
+@pytest.mark.parametrize("broken", ["<html>Unavailable</html>", "word\tfreq_rank\tproficiency\tpos\n"])
+def test_invalid_refresh_keeps_existing_words_and_forms(db, source, broken):
+    raw = source([row("raamat")])
+    wordlist.build(db, raw)
+    wordlist.index_object_cases(db)
+    (raw / "est_words_160k.tsv").write_text(broken)
+    with pytest.raises(ValueError, match="existing words kept"):
+        wordlist.build(db, raw)
+    assert db.execute("SELECT word FROM words").fetchone()[0] == "raamat"
+    assert db.execute("SELECT COUNT(*) FROM object_cases").fetchone()[0] == 1
+
+
+def test_failed_forced_download_preserves_the_previous_tsv(tmp_path, monkeypatch):
+    import argparse
+    import urllib.request
+    from eesti import config
+    from eesti.cli.build import cmd_fetch_data
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    monkeypatch.setattr(config, "RAW", raw)
+    path = raw / "est_words_160k.tsv"
+    path.write_bytes(b"previous usable list")
+    monkeypatch.setattr(urllib.request, "urlretrieve", lambda url, dest: Path(dest).write_bytes(b"<html>Error</html>"))
+    with pytest.raises(ValueError, match="existing file kept"):
+        cmd_fetch_data(argparse.Namespace(force=True))
+    assert path.read_bytes() == b"previous usable list"
+    assert list(raw.iterdir()) == [path]

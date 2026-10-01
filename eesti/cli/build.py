@@ -7,6 +7,8 @@ native gold forms, and a provider's live model catalogue.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -26,14 +28,10 @@ def _providers() -> tuple[str, ...]:
 
     return tuple(PROVIDERS)
 
-WORDLIST_BASE = (
-    "https://raw.githubusercontent.com/KristjanPikhof/"
-    "Estonian-Wordlist-Enriched-Ekilex/main/data"
-)
 # Only the small CEFR/frequency table is needed. The 79 MB inflected-forms file
 # is deliberately skipped: its form lists are de-duplicated, so position cannot
 # be mapped to a case. Vabamorf synthesis supplies labelled forms instead.
-WORDLIST_FILES = ("est_words_160k.tsv",)
+from ..reference import WORDLIST_BASE, WORDLIST_FILES, WORDLIST_SHA256
 
 def cmd_fetch_data(args: argparse.Namespace) -> int:
     from .. import config
@@ -42,10 +40,20 @@ def cmd_fetch_data(args: argparse.Namespace) -> int:
     for name in WORDLIST_FILES:
         dest = config.RAW / name
         if dest.exists() and not args.force:
+            if hashlib.sha256(dest.read_bytes()).hexdigest() != WORDLIST_SHA256[name]:
+                raise ValueError(f"{name}: checksum differs from the verified source; use fetch-data --force")
             print(f"  {name}: already present ({dest.stat().st_size:,} bytes)")
             continue
         print(f"  {name}: downloading...", flush=True)
-        urllib.request.urlretrieve(f"{WORDLIST_BASE}/{name}", dest)
+        with tempfile.NamedTemporaryFile(dir=config.RAW, delete=False) as file:
+            staged = Path(file.name)
+        try:
+            urllib.request.urlretrieve(f"{WORDLIST_BASE}/{name}", staged)
+            if hashlib.sha256(staged.read_bytes()).hexdigest() != WORDLIST_SHA256[name]:
+                raise ValueError(f"{name}: unexpected upstream checksum; existing file kept")
+            staged.replace(dest)
+        finally:
+            staged.unlink(missing_ok=True)
         print(f"  {name}: {dest.stat().st_size:,} bytes")
     print("Source: Estonian-Wordlist-Enriched-Ekilex (CC-BY-SA-4.0), from Ekilex/EKI.")
     return 0

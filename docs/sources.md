@@ -36,7 +36,12 @@ wrote them. For more than the stored fields, link to Sõnaveeb
 ## EKI files (`deploy/eki/`)
 
 Downloaded from <https://arhiiv.eki.ee/litsents/>, committed (XML gzipped) and
-imported by the `Dockerfile` into `data/eesti.db`. These bulk dictionary files are imported locally; live Ekilex lookups and
+imported by the `Dockerfile` into `data/eesti.db`. `/api/health` reports actual
+runtime dependency versions and the image's reference input fingerprints;
+input presence is distinct from the imported row counts. The word-list download
+pins an upstream commit and verifies SHA-256 (`eesti/reference.py`). Authenticated
+EKI hashes identify the supplied bytes; they do not prove those bytes are the
+newest upstream publication. These bulk dictionary files are imported locally; live Ekilex lookups and
 the EKK rection page use separate request paths.
 
 | File | Import | Rows |
@@ -138,6 +143,10 @@ providers in `docs/ai-providers.md`.
 | Asset | Licence | Where |
 |---|---|---|
 | Geologica (Monokrom) | SIL OFL 1.1 | `eesti/web/fonts/`, licence beside the files |
+| HLS.js light player | Apache-2.0 | `eesti/web/vendor/hls.light.min.js`, upstream licence/notices alongside |
 | Phosphor Icons | MIT | inlined in `eesti/web/js/icons.js`; `eesti/web/vendor/phosphor-icons.LICENSE` |
 
-Both are served from this origin; the page asks no font or icon host for anything.
+These assets are served from this origin; the page asks no font or icon host for anything.
+
+The ingestion/store/UI map and freshness boundaries are in
+`docs/source-integrations.md`.

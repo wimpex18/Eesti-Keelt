@@ -1,25 +1,25 @@
 # Handoff
 
-Current task: audit source integrations and learning-material coverage.
-Branch: `codex/materials-refresh`; base: `codex/source-refresh-audit` (PR #100).
+Current task: make audited source inputs and installed versions verifiable.
+Branch: `codex/source-provenance`; base: `codex/materials-refresh` (PR #101).
 
-Refreshes merge by upstream URL and level, preserving issued item ids and
-usable text/audio/files on partial, pointer-only and failed harvests.
-Reading questions check refreshed text and never reuse old question indices.
-HARNO downloads validate format before atomic replacement; --refresh rechecks
-cached files. Content import validates a nonempty SQLite library before swap.
-Selges pagination checks totals and rejects repeated pages.
-Source catalogue checks and content/file hashes are retained as provenance.
+Word-list download pins the verified upstream commit and SHA-256, validates
+cached/downloaded bytes and replaces atomically. Bad TSV imports keep words
+and derived forms. Docker fingerprints actual word-list and EKI input files;
+health exposes those fingerprints and runtime dependency versions separately
+from import row counts. HLS.js upstream licence/notices are now included.
+The end-to-end source map is in docs/source-integrations.md.
+Wrangler/Workers types are updated to current stable; local FastAPI matches
+the production build's current stable release. No model lane was changed.
 
-Verified: 2,511 Python tests passed, 1 skipped; focused failure regressions pass.
-222 browser journeys passed, 4 skipped; no web source files changed.
-21 Worker tests and typecheck passed. Corpus restore rejection retries.
-PR #100 separately fixes guest-first shared-corpus restoration; user merges.
-Local private corpus: 506 items; 461 previous ids retained, 44 radio lessons
-and one current news issue added; 48 HARNO files refreshed successfully.
-Backup and refresh checks are in the task source-audit artifact directory.
-Next: publish this focused PR, complete the
-version/licensing inventory and remaining material corrections.
-Uncommitted paths: none after this commit. Private corpus/exam data stays
-git-ignored; learner progress is unchanged.
-Blocker for production verification: owner merges the PRs before deployment.
+Verified: 2,514 Python tests passed, 1 skipped; 21 Worker tests, typecheck and
+Worker dry-run passed. 222 browser journeys passed, 4 skipped; all 11 tabs
+inspected in both themes at desktop, phone portrait/landscape and tablet.
+Private local corpus has 506 items; all 461 original ids remain.
+PRs #100 → #101 are ready; user merges in order. No deployment performed.
+Next: publish this PR; fix truncated radio shelf
+and qualify the source-backed object-case lesson; finish audit report/backlog.
+Uncommitted paths: source-provenance code/Docker, dependency locks, source docs,
+HLS licence, word-list tests and this handoff. Private data stays git-ignored.
+Blocker for deployed changes: owner merges, then operator publishes private
+corpus/exam updates and runs deep smoke.

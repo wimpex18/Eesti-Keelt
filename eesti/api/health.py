@@ -31,6 +31,7 @@ router = APIRouter()
 
 @router.get("/api/health")
 def health() -> dict:
+    from .. import reference
     conn = db()
     words = conn.execute("SELECT COUNT(*) FROM words").fetchone()[0]
     drillable = conn.execute(
@@ -62,6 +63,8 @@ def health() -> dict:
         # does not mean it holds data, and each import may fail without failing the build
         # (`docs/sources.md`), so the deployment reports which landed.
         "reference": _reference(conn),
+        "dependencies": reference.dependencies(),
+        "reference_inputs": reference.deployment_inputs(),
     }
 
 
