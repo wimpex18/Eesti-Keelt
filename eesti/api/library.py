@@ -270,7 +270,7 @@ def read_questions(item_id: str) -> dict:
 
     text = _text_of(item_id)
     with evidence.connect() as log:
-        made = comprehension.stored(log, item_id)
+        made = comprehension.stored(log, item_id, text=text)
     return {
         "item_id": item_id,
         "questions": [q.asked() for q in made],
@@ -310,7 +310,8 @@ def read_answer(req: ReadAnswer) -> dict:
     from .. import comprehension, evidence
 
     with evidence.connect() as log:
-        questions = {q.idx: q for q in comprehension.stored(log, req.item_id)}
+        questions = {q.idx: q for q in comprehension.stored(
+            log, req.item_id, text=_text_of(req.item_id))}
     question = questions.get(req.idx)
     if question is None:
         raise HTTPException(status_code=404, detail="Этот вопрос не найден.")

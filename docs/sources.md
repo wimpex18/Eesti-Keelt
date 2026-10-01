@@ -9,7 +9,7 @@ can answer "may this be shown to anyone but the owner?".
 
 | Source | Licence | Used for |
 |---|---|---|
-| Vabamorf via EstNLTK | permissive | all forms, analysis, spelling — the answer key |
+| Vabamorf via EstNLTK | LGPL-2.1 / GPL-2.0 | all forms, analysis, spelling — the answer key |
 | Enriched Ekilex word list (KristjanPikhof) | CC-BY-SA-4.0 | 160 000+ lemmas, estimated CEFR, frequency rank |
 | EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | CC-BY-4.0 | official A1/A2/B1 levels, outranks the estimate |
 | EKI *põhisõnavara sõnastik* (PSV) | CC-BY-4.0 | learner-level definitions, examples, rection |
@@ -41,7 +41,7 @@ the EKK rection page use separate request paths.
 
 | File | Import | Rows |
 |---|---|---|
-| `A1A2B1.txt` | `cli import-levels` | 4 456 lemmas with official level |
+| `A1A2B1.txt` | `cli import-levels` | 4 340 distinct lemmas with official level |
 | `psv_EKI_CCBY40.xml.gz` | `cli import-psv` | 4 849 learner definitions |
 | `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 8 question-word cues (`evs_question`); 137 316 example phrases and 1 912 idioms with Russian (`evs_example`) |
 | `vsl_EKI_CCBY40.xml.gz` | `cli import-vsl` | 30 095 definitions |
@@ -82,13 +82,29 @@ The shared corpus is restored through the owner's Durable Object before both
 guest and permanent learner requests. Guests keep separate progress and never
 receive the owner's learner state.
 
-`cli harvest-reading` keeps existing material if the source returns no readable
-posts. EIS and HARNO harvesting are independent: an EIS outage keeps its previous
-tasks and still allows HARNO to refresh. Deleting a source also removes its
-old topic links. `cli push-content` rebuilds both morphology-derived links and
-explicit lesson-label links before uploading the corpus; it requires a built
-word list on the publishing machine. `cli link-topics` remains useful for a
-local preview. This analysis runs at publication, never in a learner request.
+Harvests merge by source URL and official level, retaining the first issued
+item id and original addition date. A partial or empty refresh does not delete
+other texts or levels; pointer-only and failed EIS fetches retain stored text,
+recordings and files. Changed text invalidates its derived topic links.
+Stored reading questions
+check the current text; replacement questions use new indices, preserving the
+event history without grading an old page against a new key. Item
+metadata records catalogue check time and the SHA-256 of the retained content.
+Selges pagination checks the advertised total and rejects repeated pages.
+EIS and HARNO harvesting are independent, so either can refresh during an
+outage of the other. Intentional source deletion removes its topic links.
+
+HARNO downloads validate the file format before an atomic replacement;
+`cli harvest-exam --download --refresh` rechecks existing files and keeps usable
+copies when a request fails. The catalogue stores file size and SHA-256 for
+valid local copies. A file hash identifies bytes, not their publication date.
+Content uploads reject empty or damaged databases before replacing the usable
+library. The Worker confirms corpus import before accepting the restored boot,
+so a rejected import is retried. `cli push-content` rebuilds both
+morphology-derived links and explicit
+lesson-label links before uploading; it requires a built word list on the
+publishing machine. `cli link-topics` remains useful for a local preview.
+This analysis runs at publication, never in a learner request.
 
 Public source checks exercise parsing as well as HTTP reachability: the
 [Selges archive API](https://public-api.wordpress.com/rest/v1.1/sites/selgeskeeles.wordpress.com/posts/?number=1),
