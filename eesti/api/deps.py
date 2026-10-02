@@ -36,6 +36,13 @@ def content_counts() -> dict:
                 "topic_links": conn.execute("SELECT COUNT(*) FROM topic_items").fetchone()[0]}
 
 
+def content_revision() -> str | None:
+    from .. import config
+    from ..sources import revision
+
+    return revision(config.CONTENT_DB)
+
+
 # Learner databases, resolved from `config` when opened — one source of truth for
 # the app and the state snapshot.
 def review_db():

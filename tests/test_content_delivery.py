@@ -90,6 +90,28 @@ class TestReceivingAHarvest:
                         headers={"x-state-token": TOKEN})
         assert deployment.get("/api/health").json()["library"] is True
 
+    def test_health_identifies_a_second_upload_without_changing_the_origin_boot(self, deployment, harvest, tmp_path):
+        import hashlib
+        from eesti.sources import Item, add_items, connect
+
+        before = deployment.get("/api/health").json()
+        assert before["corpus_revision"] is None
+        headers = {"x-state-token": TOKEN}
+        deployment.post("/api/content/import", json={"database": harvest}, headers=headers)
+        first = deployment.get("/api/health").json()
+        assert first["corpus_revision"] == hashlib.sha256(base64.b64decode(harvest)).hexdigest()
+        updated = tmp_path / "updated.db"
+        updated.write_bytes(base64.b64decode(harvest))
+        with connect(updated) as conn:
+            source = conn.execute("SELECT source_id FROM items LIMIT 1").fetchone()[0]
+            add_items(conn, [Item(source, "lugemine", title="Uus tekst", body="Tere!")])
+        raw = updated.read_bytes()
+        deployment.post("/api/content/import", json={"database": base64.b64encode(raw).decode()}, headers=headers)
+        second = deployment.get("/api/health").json()
+        assert second["boot"] == first["boot"] == before["boot"]
+        assert second["corpus_revision"] == hashlib.sha256(raw).hexdigest()
+        assert second["corpus_revision"] != first["corpus_revision"]
+
     def test_a_second_push_replaces_the_first(self, deployment, harvest):
         """Unlike the learner snapshot, this one overwrites on purpose: a corpus
         is derived from a harvest, so there is no accumulated work to lose, and

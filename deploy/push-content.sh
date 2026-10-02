@@ -77,6 +77,6 @@ STATE_TOKEN="$STATE_TOKEN" PROXY_TOKEN="$PROXY_TOKEN" \
   python3 -m eesti.cli push-content --url "$URL" --database "$DB"
 
 echo
-echo "Open the app and check the reading list. If it is still empty, the Worker"
-echo "has not looked yet -- it archives on the next cold start, or you can force"
-echo "one by deploying a new revision."
+echo "Open /api/health through the app as the owner to confirm publication."
+echo "corpus_revision and corpus_archived_revision must be equal and non-null."
+echo "If they differ, retry that health check before closing this session."
