@@ -385,17 +385,16 @@ export class LearnerState extends DurableObject<Env> {
 
      Both are no-ops once they agree, so this runs on every boot change without
      costing anything in the ordinary case. */
-  private async syncCorpus(): Promise<void> {
+  private async syncCorpus(): Promise<boolean> {
     let onContainer = false;
     try {
       const res = await fetch(this.origin("/api/content/export"), {
         headers: this.headers(),
       });
-      if (res.ok) {
-        onContainer = ((await res.json()) as { present?: boolean }).present ?? false;
-      }
+      if (!res.ok) return false;
+      onContainer = ((await res.json()) as { present?: boolean }).present ?? false;
     } catch {
-      return;
+      return false;
     }
 
     const stored = await this.ctx.storage.get<BlobMeta>("corpus-meta");
@@ -404,21 +403,28 @@ export class LearnerState extends DurableObject<Env> {
       const res = await fetch(this.origin("/api/content/export?full=1"), {
         headers: this.headers(),
       });
-      if (res.ok) await this.save("corpus", await res.text());
-      return;
+      if (!res.ok) return false;
+      await this.save("corpus", await res.text());
+      return true;
     }
 
     if (!onContainer && stored) {
       const corpus = await this.load("corpus");
-      if (!corpus) return;
+      if (!corpus) return false;
       // The app takes `{database: "<base64>"}`; the archive holds the whole
       // export envelope, which carries the same key.
-      await fetch(this.origin("/api/content/import"), {
-        method: "POST",
-        headers: this.headers({ "content-type": "application/json" }),
-        body: corpus,
-      });
+      try {
+        const res = await fetch(this.origin("/api/content/import"), {
+          method: "POST",
+          headers: this.headers({ "content-type": "application/json" }),
+          body: corpus,
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
     }
+    return true;
   }
 
   /** Throw the archived library away, so the next push replaces it. */
@@ -490,7 +496,7 @@ export class LearnerState extends DurableObject<Env> {
       return true;
     }
 
-    if (this.who?.scope === "owner") await this.syncCorpus();
+    if (this.who?.scope === "owner" && !(await this.syncCorpus())) return false;
 
     const saved = await this.load("snap");
     // The snapshot first: it carries the caches (dictionary answers, the

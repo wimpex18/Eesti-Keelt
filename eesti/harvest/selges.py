@@ -57,6 +57,8 @@ def _clean(markup: str) -> str:
 def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
     """Page through the archive. `limit` caps the number of posts for a dry run."""
     posts: list[Post] = []
+    seen: set[int] = set()
+    received = 0
     page = 1
     while True:
         url = f"{API.format(site=site)}?number={PAGE_SIZE}&page={page}"
@@ -65,11 +67,22 @@ def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
         payload = json.loads(
             net.get(url, "Selges keeles", timeout=TIMEOUT, retries=RETRIES))
 
-        batch = payload.get("posts") or []
+        batch = payload.get("posts")
+        if not isinstance(batch, list) or not isinstance(payload.get("found"), int):
+            raise ValueError("Selges keeles response has no posts/found catalogue")
         if not batch:
+            if received < payload["found"]:
+                raise ValueError("Selges keeles pagination ended before its advertised total")
             break
 
         for item in batch:
+            upstream_id = item.get("ID")
+            if not isinstance(upstream_id, int):
+                raise ValueError("Selges keeles post has no numeric ID")
+            if upstream_id in seen:
+                raise ValueError("Selges keeles pagination repeated a post")
+            seen.add(upstream_id)
+            received += 1
             body = _clean(item.get("content") or "")
             if not body:
                 continue
@@ -84,7 +97,7 @@ def fetch(site: str = SITE, limit: int | None = None) -> list[Post]:
             if limit and len(posts) >= limit:
                 return posts
 
-        if len(batch) < PAGE_SIZE:
+        if received >= payload["found"]:
             break
         page += 1
         time.sleep(POLITE_DELAY)

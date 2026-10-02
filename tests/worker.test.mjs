@@ -368,3 +368,29 @@ test("public audio never reuses the old unscoped cache or caches private owner c
     assert.deepEqual(written, [seen[1]]);
   } finally { globalThis.caches = previousCaches; }
 });
+
+test("a rejected corpus restore retries before accepting the new origin boot", async () => {
+  const app = setup();
+  await app.owner.bindWho({ scope: "owner", id: "owner", email: "" });
+  const { storage } = app.objects.get("singleton");
+  const corpus = JSON.stringify({ database: "archived-private-corpus" });
+  await storage.put("corpus-meta", { chunks: 1, bytes: corpus.length, at: 0 });
+  await storage.put("corpus/0", corpus);
+  let imports = 0;
+  globalThis.fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/health") return Response.json({ boot: "fresh-boot" });
+    if (path === "/api/content/export") return Response.json({ present: false });
+    if (path === "/api/content/import") {
+      assert.equal(init.body, corpus);
+      return Response.json({}, { status: ++imports === 1 ? 422 : 200 });
+    }
+    if (path === "/api/events/import") return Response.json({ ingested_seq: 0 });
+    throw new Error(`Unexpected origin request: ${path}`);
+  };
+  assert.equal(await app.owner.ensureRestored(), false);
+  assert.equal(await storage.get("origin"), undefined);
+  assert.equal(await app.owner.ensureRestored(), true);
+  assert.equal(imports, 2);
+  assert.equal((await storage.get("origin")).boot, "fresh-boot");
+});

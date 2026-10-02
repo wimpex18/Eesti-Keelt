@@ -28,6 +28,7 @@ recorded still names the same question next month.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -120,7 +121,7 @@ def _as_written(text: str, answer: str) -> str:
     return found.group(0) if found else answer
 
 
-def stored(log: sqlite3.Connection, item_id: str) -> list[Question]:
+def stored(log: sqlite3.Connection, item_id: str, *, text: str | None = None) -> list[Question]:
     """The questions written for this text, newest set wins."""
     for row in log.execute(
             "SELECT payload FROM events WHERE type = 'questions-made'"
@@ -128,13 +129,22 @@ def stored(log: sqlite3.Connection, item_id: str) -> list[Question]:
         made = json.loads(row["payload"])
         if made.get("item") != item_id or made.get("v") != VERSION:
             continue
+        if text is not None:
+            digest = made.get("text_sha256")
+            if digest and digest != hashlib.sha256(text.encode()).hexdigest():
+                return []
+            # Older events have no digest. Keep their questions only while all
+            # stored keys still occur once in the text the learner is reading.
+            if not digest and any(occurrences(text, q["answer"]) != 1
+                                  for q in made.get("questions", [])):
+                return []
         return [Question(q["idx"], q["question"], q["answer"], q["engine"])
                 for q in made.get("questions", [])]
     return []
 
 
 def save(log: sqlite3.Connection, item_id: str,
-         questions: list[Question]) -> list[Question]:
+         questions: list[Question], *, text: str | None = None) -> list[Question]:
     """Record one set of questions as learner state."""
     from . import evidence
 
@@ -142,6 +152,8 @@ def save(log: sqlite3.Connection, item_id: str,
         "item": item_id,
         "v": VERSION,
         "made": _now(),
+        **({"text_sha256": hashlib.sha256(text.encode()).hexdigest()}
+           if text is not None else {}),
         "questions": [{"idx": q.idx, "question": q.question, "answer": q.answer,
                        "engine": q.engine} for q in questions],
     })
@@ -160,7 +172,7 @@ def make(log: sqlite3.Connection, item_id: str, text: str,
     Returns an empty list when the text is too short, no lane is available, or
     nothing the model proposed survived verification.
     """
-    have = stored(log, item_id)
+    have = stored(log, item_id, text=text)
     if have:
         return have
     if not long_enough(text):
@@ -168,6 +180,9 @@ def make(log: sqlite3.Connection, item_id: str, text: str,
     from .tutor import propose_questions
 
     proposed, engine = propose_questions(text, want)
+    # Do not reuse an index from the previous edition: an already-open page
+    # must never have its old answer graded against a newly written question.
+    first_idx = max((q.idx for q in stored(log, item_id)), default=-1) + 1
     kept: list[Question] = []
     seen: set[str] = set()
     for pair in proposed:
@@ -175,10 +190,10 @@ def make(log: sqlite3.Connection, item_id: str, text: str,
         if answer is None or normalise(answer) in seen:
             continue
         seen.add(normalise(answer))
-        kept.append(Question(len(kept), pair["q"].strip(), answer, engine))
+        kept.append(Question(first_idx + len(kept), pair["q"].strip(), answer, engine))
         if len(kept) >= want:
             break
-    return save(log, item_id, kept) if kept else []
+    return save(log, item_id, kept, text=text) if kept else []
 
 
 def grade(question: Question, given: str) -> dict:

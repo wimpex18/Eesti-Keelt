@@ -12,6 +12,8 @@ import hmac
 import os
 import shutil
 import sqlite3
+import tempfile
+from contextlib import closing
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -195,12 +197,30 @@ def content_import(blob: ContentBlob, request: Request) -> dict:
 
     path = Path(config.CONTENT_DB)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(base64.b64decode(blob.database))
-
-    from ..sources import connect as _connect
-
-    with _connect(path) as conn:
-        items = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+    staged = None
+    try:
+        raw = base64.b64decode(blob.database, validate=True)
+        with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".db", delete=False) as file:
+            staged = Path(file.name)
+            file.write(raw)
+        # Validate without the forgiving opener: it would turn a broken upload
+        # into an empty library and conceal the failure after overwriting it.
+        with closing(sqlite3.connect(f"file:{staged}?mode=ro", uri=True)) as conn:
+            if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise ValueError("invalid SQLite database")
+            items = conn.execute(
+                "SELECT COUNT(*) FROM items i JOIN sources s ON s.id=i.source_id"
+            ).fetchone()[0]
+            if not items:
+                raise ValueError("empty library")
+            conn.execute("SELECT id,source_id,skill,level,title,body,audio_url,meta,added_on FROM items LIMIT 1")
+        staged.replace(path)
+    except (ValueError, sqlite3.Error) as exc:
+        raise HTTPException(status_code=422,
+                            detail="Библиотека пуста или повреждена. Существующие материалы сохранены.") from exc
+    finally:
+        if staged is not None:
+            staged.unlink(missing_ok=True)
     return {"bytes": path.stat().st_size, "items": items}
 
 

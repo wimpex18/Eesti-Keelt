@@ -53,6 +53,23 @@ def harvest(tmp_path):
 
 
 class TestReceivingAHarvest:
+    @pytest.mark.parametrize("bad", ["not base64", base64.b64encode(b"<html>Unavailable</html>").decode()])
+    def test_bad_upload_preserves_the_readable_library(self, deployment, harvest, bad):
+        deployment.post("/api/content/import", json={"database": harvest},
+                        headers={"x-state-token": TOKEN})
+        response = deployment.post("/api/content/import", json={"database": bad},
+                                   headers={"x-state-token": TOKEN})
+        assert response.status_code == 422
+        assert deployment.get("/api/library").json()["items"][0]["title"] == "Proovitekst"
+
+    def test_empty_upload_preserves_the_readable_library(self, deployment, harvest, tmp_path):
+        from eesti.sources import connect, register
+        path = tmp_path / "empty.db"
+        with connect(path) as conn:
+            register(conn)
+        empty = base64.b64encode(path.read_bytes()).decode()
+        self.test_bad_upload_preserves_the_readable_library(deployment, harvest, empty)
+
     def test_a_pushed_library_becomes_readable(self, deployment, harvest):
         pushed = deployment.post(
             "/api/content/import",

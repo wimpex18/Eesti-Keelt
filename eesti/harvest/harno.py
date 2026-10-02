@@ -20,7 +20,11 @@ sample performance (*sooritusnäidis*) are different activities.
 from __future__ import annotations
 
 import re
+import hashlib
+import io
+import tempfile
 import urllib.parse
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -258,7 +262,7 @@ def text_of(path: Path | str) -> str:
 
 
 def download(materials: list["Material"], root: Path | str | None = None,
-             timeout: float = 60.0) -> dict:
+             timeout: float = 60.0, *, refresh: bool = False) -> dict:
     """Fetch the task files themselves, so the app can open them offline.
 
     The exam board publishes PDFs and listening audio; a link is only useful
@@ -273,27 +277,77 @@ def download(materials: list["Material"], root: Path | str | None = None,
             skipped += 1
             continue
         target = local_path(material, root)
-        if target.exists() and target.stat().st_size:
+        if not refresh and usable_file(target, material.fmt):
             skipped += 1
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             body = net.get(material.url, "HARNO file", timeout=timeout,
                            retries=1, ua=UA, binary=True)
+            if not isinstance(body, bytes) or not valid_file(body, material.fmt):
+                raise ValueError("HARNO returned an unreadable file")
+            # An interrupted download or a 200 HTML error must not replace the
+            # learner's usable copy. The temporary file shares its filesystem.
+            with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as file:
+                temporary = Path(file.name)
+                try:
+                    file.write(body)
+                except BaseException:
+                    temporary.unlink(missing_ok=True)
+                    raise
+            try:
+                temporary.replace(target)
+            finally:
+                temporary.unlink(missing_ok=True)
         except Exception:  # noqa: BLE001 - one missing file is not fatal
             failed += 1
             continue
-        target.write_bytes(body if isinstance(body, bytes) else body.encode())
         got += 1
     return {"downloaded": got, "already_there": skipped, "failed": failed}
+
+
+def valid_file(body: bytes, fmt: str) -> bool:
+    """Check the published format, including a readable PDF page tree."""
+    if fmt == "pdf":
+        if not body.startswith(b"%PDF-"):
+            return False
+        try:
+            from pypdf import PdfReader
+            return bool(PdfReader(io.BytesIO(body)).pages)
+        except Exception:  # noqa: BLE001 - malformed upstream file
+            return False
+    if fmt == "mp3":
+        return len(body) > 3 and (body.startswith(b"ID3") or
+                                 (body[0] == 0xff and body[1] & 0xe0 == 0xe0))
+    if fmt == "wav":
+        return len(body) > 12 and body[:4] == b"RIFF" and body[8:12] == b"WAVE"
+    if fmt == "docx":
+        try:
+            with zipfile.ZipFile(io.BytesIO(body)) as file:
+                return "word/document.xml" in file.namelist()
+        except (zipfile.BadZipFile, OSError):
+            return False
+    return False
+
+
+def usable_file(path: Path, fmt: str) -> bool:
+    try:
+        return valid_file(path.read_bytes(), fmt)
+    except OSError:
+        return False
 
 
 def to_items(materials: list[Material], root: Path | str | None = None) -> list:
     """Pointers, plus the file itself where it was downloaded."""
     from ..sources import Item
 
-    return [
-        Item(
+    items = []
+    for m in materials:
+        if m.kind in NOT_INDEXED:
+            continue
+        path = local_path(m, root)
+        available = usable_file(path, m.fmt)
+        item = Item(
             source_id="harno",
             # Material that belongs to the level as a whole -- the information
             # sheet, the annotated sample, the intro video -- is filed under
@@ -304,7 +358,7 @@ def to_items(materials: list[Material], root: Path | str | None = None) -> list:
             # The PDF's own text when it is here, so the task can be read in the
             # app rather than only linked to.
             body=(text_of(local_path(m, root))
-                  if m.fmt == "pdf" and local_path(m, root).exists() else ""),
+                  if m.fmt == "pdf" and available else ""),
             audio_url=m.url if m.fmt in ("mp3", "wav") else None,
             meta={
                 "url": m.url,
@@ -315,12 +369,13 @@ def to_items(materials: list[Material], root: Path | str | None = None) -> list:
                 # folder can move without rewriting the catalogue.
                 "file": (f"{m.level or 'yldine'}/"
                          f"{local_path(m, root).name}"
-                         if local_path(m, root).exists() else None),
-                "external": not local_path(m, root).exists(),
+                         if available else None),
+                "external": not available,
+                "file_sha256": hashlib.sha256(path.read_bytes()).hexdigest() if available else None,
+                "file_bytes": path.stat().st_size if available else None,
                 "official": True,
                 "note": "Официальный экзаменационный материал — © Haridus- ja Noorteamet.",
             },
         )
-        for m in materials
-        if m.kind not in NOT_INDEXED
-    ]
+        items.append(item)
+    return items

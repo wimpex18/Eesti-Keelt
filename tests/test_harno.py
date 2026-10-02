@@ -88,6 +88,38 @@ class TestWhatIsHeldLocally:
         assert item.body == ""
 
 
+class TestSafeRefresh:
+    @pytest.mark.parametrize("bad", [b"", b"<html>Service unavailable</html>", b"%PDF-1.4\ntruncated"])
+    def test_bad_response_keeps_the_previous_pdf(self, tmp_path, monkeypatch, bad):
+        from eesti import net
+        from eesti.harvest.harno import Material, download, local_path
+        material = Material("https://harno.ee/x/task.pdf", "A2", "lugemine",
+                            "Lugemine", "ulesanne", "pdf")
+        path = local_path(material, tmp_path)
+        path.parent.mkdir()
+        original = _one_page_pdf("Loe ja vasta.")
+        path.write_bytes(original)
+        monkeypatch.setattr(net, "get", lambda *a, **kw: bad)
+        result = download([material], tmp_path, refresh=True)
+        assert result["failed"] == 1
+        assert path.read_bytes() == original
+        assert list(path.parent.iterdir()) == [path]
+        item = to_items([material], tmp_path)[0]
+        assert item.meta["file_bytes"] == len(original)
+        assert len(item.meta["file_sha256"]) == 64
+        assert "Loe ja vasta." in item.body
+
+    def test_html_saved_as_pdf_is_not_offered_as_a_download(self, tmp_path):
+        from eesti.harvest.harno import Material, local_path
+        material = Material("https://harno.ee/x/task.pdf", "B1", "lugemine",
+                            "Lugemine", "ulesanne", "pdf")
+        path = local_path(material, tmp_path)
+        path.parent.mkdir()
+        path.write_bytes(b"<html>Error</html>")
+        item = to_items([material], tmp_path)[0]
+        assert item.meta["file"] is None and item.meta["external"]
+
+
 class TestClassification:
     def test_the_level_comes_from_the_page_structure(self):
         """Not the filename. `teade` is the B1 notice task and says so nowhere

@@ -84,10 +84,12 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - **Allowances are not billing caps.** Workers AI speech and text share the
   account allocation; local counters do not measure all account usage. The
   weekly grammar eval checks the production lane.
-- **Source refreshes preserve usable data.** Empty Selges responses keep the
-  existing corpus; EIS failure does not stop HARNO. Deleting source content
-  clears its links. Content upload rebuilds topic links before publishing and
-  refuses without the publishing machine's built word list.
+- **Source refreshes preserve usable data.** Partial and pointer-only harvests
+  merge by source URL and level, preserving issued ids, stored text, recordings
+  and other levels. HARNO validates downloads before atomic replacement;
+  content upload rejects empty or corrupt databases. Refresh metadata records
+  checks and hashes, without claiming a publication date for unversioned files.
+  Upload rebuilds topic links and requires a built word list.
 - **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
   deployed, and Chrome on the owner's Mac is subscribed; actual delivery has
   not been confirmed.
