@@ -15,12 +15,12 @@ fixed; all 12 targeted plan/landscape/translation checks passed. Four broad-run
 failures need dictionary examples or multiple corpus bands absent in the fixture.
 Screenshots inspected across desktop, phone, landscape and tablet; Impeccable
 review approved the scoped exercise extension. Existing design tokens preserved.
-Publication to wimpex18/Eesti-Keelt and a focused PR are approved by the user.
+Published: https://github.com/wimpex18/Eesti-Keelt/pull/106 (owner merges).
 Next: owner merges the exercise PR. Continue public access separately via
 `docs/public-access-followup.md` (bootstrap-owner and source-access gates).
 Uncommitted paths: none after this commit.
 Blocker: no Cloudflare/Google deployment credentials in the current environment;
 the live URL still redirects to Cloudflare Access. Public mode is not enabled.
 The Linear follow-up remains blocked by automatic approval review; remaining
-public-access work is documented locally. The approved GitHub upload is pending.
+public-access work is documented in the repository. GitHub publication succeeded.
 Local review patch: `.impeccable/review/a1-exercise-guidance.patch`.
