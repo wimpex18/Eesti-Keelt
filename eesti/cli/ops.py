@@ -69,8 +69,8 @@ def cmd_push_content(args: argparse.Namespace) -> int:
 
     The corpus is owner-only (so not in the image) and Cloud Run's disk is
     ephemeral, so the Worker keeps it and restores it to each fresh container. The
-    target is the Cloud Run origin (guarded by `PROXY_TOKEN`), since a script cannot
-    pass Cloudflare Access. Tokens come from the environment, never arguments.
+    target is the guarded Cloud Run origin using `PROXY_TOKEN` and `STATE_TOKEN`.
+    Tokens come from the environment, never arguments.
     """
     import base64
     import json

@@ -8,9 +8,8 @@
 # © ERR and Selges keeles carries no reuse grant, and the image is built from a
 # public repository.
 #
-# It targets Cloud Run rather than the Worker because Cloudflare Access is an
-# interactive login a script cannot satisfy; the origin is guarded by
-# PROXY_TOKEN, which a script can send. The Worker then archives the corpus from
+# It targets the protected operator endpoints on Cloud Run.
+# PROXY_TOKEN and STATE_TOKEN authenticate the upload. The Worker then archives the corpus from
 # the origin and restores it into every container that starts afterwards.
 #
 # You never see or type either token: they are read straight out of the running

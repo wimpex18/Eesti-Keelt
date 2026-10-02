@@ -13,7 +13,7 @@ The eight clean controls are grounded as follows:
 |---|---|---|
 | `Ma lugesin selle raamatu läbi.` | Completed, whole object: omastav. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/) |
 | `Ma ei ostnud piletit.` | Negated object: osastav; EKI's rule includes a ticket example. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/) |
-| `Ta luges raamatut terve õhtu.` | Duration does not establish completion; osastav is licensed. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/) |
+| `Ta luges raamatut terve õhtu.` | Duration does not establish completion; osastav is supported. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/) |
 | `Ma ostsin uue auto.` | Completed purchase of one whole car: omastav. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/) |
 | `Ma sõin suppi.` | Unbounded quantity: osastav. | [EKI: osasihitis/täissihitis](https://eki.ee/teatmik/osasihitis-ja-taissihitis/) |
 | `Homme ma lähen kooli ja tulen kell viis tagasi.` | `lähen` and `tulen` are ordinary first-person forms; no object is being tested. | [Sõnaveeb: minema](https://sonaveeb.ee/search/lite/dlall/minema/1/est?uilang=en), [tulema](https://sonaveeb.ee/search/unif/dlall/dsall/tulema/1/est?uilang=en) |

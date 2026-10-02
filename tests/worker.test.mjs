@@ -37,7 +37,7 @@ function setup() {
     CLOUD_RUN_URL: "https://origin.test",
     PROXY_TOKEN: "test-proxy",
     STATE_TOKEN: "test-state",
-    ALLOW_UNAUTHENTICATED: "1",
+
     LEARNER_STATE: {
       idFromName(name) { return name; },
       get(name) {
@@ -61,6 +61,9 @@ function originResponse(body, seq, boot = "boot-A", status = 200) {
 }
 
 async function seed(app, count = 10, cursor = count) {
+  app.env.SESSION_SECRET = "test-session-secret";
+  const account = await app.owner.createOwnerAccount("owner@example.test", "test-password");
+  app.cookie = `eesti_session=${await signSession(account.id, app.env.SESSION_SECRET)}`;
   await app.owner.bindWho({ scope: "owner", id: "owner", email: "" });
   const { storage } = app.objects.get("singleton");
   for (let i = 1; i <= count; i++) {
@@ -95,10 +98,10 @@ test("the front door overwrites a forged social artwork origin", async () => {
   let forwarded;
   globalThis.fetch = async request => {
     forwarded = request;
-    return new Response("<html>Estep</html>", {headers: {"content-type": "text/html"}});
+    return new Response("<html>Grove</html>", {headers: {"content-type": "text/html"}});
   };
   const response = await worker.fetch(new Request("https://learn.test/", {
-    headers: {"x-brand-origin": "https://forged.test"},
+    headers: {"x-brand-origin": "https://forged.test", cookie: app.cookie},
   }), app.env, app.ctx);
   assert.equal(response.status, 200);
   assert.equal(forwarded.headers.get("x-brand-origin"), "https://learn.test");
@@ -111,7 +114,7 @@ for (const mode of ["legacy", "bootstrap", "owner", "learner"]) {
     if (mode !== "legacy") app.env.SESSION_SECRET = "test-session-secret";
     let cookie = "";
     if (mode === "owner" || mode === "learner") {
-      const owner = await app.owner.createAccount("owner@example.test", "test-password");
+      const owner = await app.owner.createOwnerAccount("owner@example.test", "test-password");
       const account = mode === "owner" ? owner : await app.owner.createAccount(
         "learner@example.test", "test-password");
       cookie = `eesti_session=${await signSession(account.id, app.env.SESSION_SECRET)}`;
@@ -222,7 +225,7 @@ test("a replacement boot cannot acknowledge a lost event at the same sequence", 
     if (path === "/api/events") return originResponse({ events: [event("different-B", 11)], last_seq: 11 }, 11, "boot-B");
     throw new Error(path);
   };
-  const response = await worker.fetch(new Request("https://app.test/api/profile"), app.env, app.ctx);
+  const response = await worker.fetch(new Request("https://app.test/api/profile", {headers: {cookie: app.cookie}}), app.env, app.ctx);
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("x-eesti-durability"), "unconfirmed");
   assert.equal(app.objects.get("singleton").db.prepare("SELECT COUNT(*) AS n FROM events WHERE id='lost-A'").get().n, 0);
@@ -245,7 +248,7 @@ test("an old boot's higher cursor cannot skip copying new evidence", async () =>
     }
     throw new Error(path);
   };
-  const response = await worker.fetch(new Request("https://app.test/api/profile"), app.env, app.ctx);
+  const response = await worker.fetch(new Request("https://app.test/api/profile", {headers: {cookie: app.cookie}}), app.env, app.ctx);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-eesti-durable-seq"), "11");
   assert.equal(copied, 1);
@@ -263,7 +266,7 @@ test("unchanged reads reuse a cursor only from their own boot", async () => {
     throw new Error(path);
   };
   await seed(app);
-  const response = await worker.fetch(new Request("https://app.test/api/profile"), app.env, app.ctx);
+  const response = await worker.fetch(new Request("https://app.test/api/profile", {headers: {cookie: app.cookie}}), app.env, app.ctx);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-eesti-durable-seq"), "10");
   assert.equal(copies, 0);
@@ -279,7 +282,7 @@ test("a failed copy preserves the origin's error and never confirms success", as
     throw new Error(path);
   };
   await seed(app);
-  const response = await worker.fetch(new Request("https://app.test/api/profile"), app.env, app.ctx);
+  const response = await worker.fetch(new Request("https://app.test/api/profile", {headers: {cookie: app.cookie}}), app.env, app.ctx);
   assert.equal(response.status, 400);
   assert.equal(response.headers.get("x-eesti-durable-seq"), null);
   assert.deepEqual(await response.json(), { detail: "bad input" });
@@ -300,7 +303,7 @@ test("a transient copy failure retries the same boot before acknowledging", asyn
     }
     throw new Error(path);
   };
-  const response = await worker.fetch(new Request("https://app.test/api/profile"), app.env, app.ctx);
+  const response = await worker.fetch(new Request("https://app.test/api/profile", {headers: {cookie: app.cookie}}), app.env, app.ctx);
   assert.equal(response.status, 200);
   assert.equal(calls, 2);
   assert.equal(app.objects.get("singleton").db.prepare("SELECT COUNT(*) AS n FROM events").get().n, 11);
@@ -320,8 +323,48 @@ test("speech evidence follows the same boot-bound acknowledgement", async () => 
     throw new Error(path);
   };
   const response = await worker.fetch(new Request("https://app.test/api/transcribe", {
-    method: "POST", body: "test-audio", headers: { "content-type": "audio/webm" },
+    method: "POST", body: "test-audio", headers: { "content-type": "audio/webm", cookie: app.cookie },
   }), app.env, app.ctx);
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("retry-after"), "2");
+});
+
+test("public identity remains guest when sessions are not configured", async () => {
+  const app = setup();
+  app.env.LEARNER_STATE.get = () => { throw new Error("anonymous probe must not read account state"); };
+  for (const headers of [{}, {"x-eesti-scope": "owner", cookie: "eesti_session=forged"}]) {
+    const response = await worker.fetch(new Request("https://learn.test/api/auth/me", {headers}), app.env, app.ctx);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {scope: "guest", signup_open: false});
+  }
+  const signup = await worker.fetch(new Request("https://learn.test/api/auth/signup", {
+    method: "POST", body: JSON.stringify({email: "visitor@example.test", password: "test-password"}),
+  }), app.env, app.ctx);
+  assert.equal(signup.status, 503);
+});
+
+test("public audio never reuses the old unscoped cache or caches private owner clips", async () => {
+  const app = setup();
+  app.owner.ensureRestored = async () => true;
+  const previousCaches = globalThis.caches;
+  const seen = [], written = [];
+  globalThis.caches = {default: {
+    async match(request) { seen.push(request.url); return undefined; },
+    async put(request) { written.push(request.url); },
+  }};
+  globalThis.fetch = async request => {
+    assert.equal(request.headers.get("x-eesti-scope"), "guest");
+    return new Response("private clip", {headers: {"cache-control": "private, no-store"}});
+  };
+  try {
+    const response = await worker.fetch(new Request("https://learn.test/api/speak?text=Tere"), app.env, app.ctx);
+    assert.equal(response.status, 200);
+    assert.equal(new URL(seen[0]).searchParams.get("__scope"), "public");
+    assert.equal(new URL(seen[0]).searchParams.get("__grove_audio"), "public-v1");
+    assert.deepEqual(written, []);
+    globalThis.fetch = async () => new Response("synthesis", {headers: {"cache-control": "public, max-age=31536000"}});
+    await worker.fetch(new Request("https://learn.test/api/speak?text=Tere"), app.env, app.ctx);
+    await Promise.all(app.pending);
+    assert.deepEqual(written, [seen[1]]);
+  } finally { globalThis.caches = previousCaches; }
 });

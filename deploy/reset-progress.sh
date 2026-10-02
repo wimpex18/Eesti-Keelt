@@ -5,9 +5,8 @@
 #   bash deploy/reset-progress.sh kusisonad
 #   bash deploy/reset-progress.sh --everything
 #
-# Targets the Cloud Run origin rather than the Worker, for the same reason
-# push-content.sh does: Cloudflare Access is an interactive login and a script
-# cannot satisfy one. Both tokens are read out of the running service, so you
+# Targets the Cloud Run operator endpoints, as push-content.sh does.
+# Both tokens are read out of the running service, so you
 # never see or type either.
 set -euo pipefail
 

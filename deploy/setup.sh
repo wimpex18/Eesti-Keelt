@@ -15,8 +15,7 @@
 #   1. Invents PROXY_TOKEN and STATE_TOKEN. These are not accounts you sign up
 #      for -- they are two random strings whose only job is to be known in two
 #      places and nowhere else. PROXY_TOKEN proves a request came through the
-#      Cloudflare Worker, so the public run.app URL is not a way around
-#      Cloudflare Access. STATE_TOKEN guards the endpoints that export and
+#      Cloudflare Worker, so the public run.app URL rejects untrusted identity headers. STATE_TOKEN guards the endpoints that export and
 #      import your progress.
 #
 #   2. Puts them on the Cloud Run service, because the app reads them from its
@@ -192,7 +191,7 @@ both create credentials, which is not something a script should do for you.
      Each waits for you to paste the value and press Ctrl-D.
 
   2. Merge the open pull request. The deploy workflow runs on its own, and
-     when it finishes, turn on Access:
-       Workers & Pages -> eesti-keelt -> Settings -> Domains & Routes
-       -> Enable Cloudflare Access -> allowed email: your own.
+     verifies public entry after the updated Cloud Run build is ready.
+     Set WORKER_URL to the existing workers.dev URL. The deployment token needs
+     Account Access: Apps and Policies Write to remove the old login gate.
 NEXT

@@ -94,7 +94,8 @@ def _has_texts(path: Path) -> bool:
     try:
         with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
             return conn.execute(
-                "SELECT 1 FROM items WHERE body != '' LIMIT 1").fetchone() is not None
+                "SELECT 1 FROM items i JOIN sources s ON s.id=i.source_id "
+                "WHERE i.body != '' AND s.redistributable=1 LIMIT 1").fetchone() is not None
     except sqlite3.Error:
         return False
 
@@ -114,7 +115,7 @@ def _has_forms(path: Path) -> bool:
 def corpus() -> None:
     """Skip a journey that needs reading texts when none are built."""
     if os.environ.get("EESTI_E2E_NO_CORPUS") or not _has_texts(ROOT / "data" / "content.db"):
-        pytest.skip("no reading corpus — run `python -m eesti.cli harvest-reading`")
+        pytest.skip("no shared reading corpus available to public guests")
 
 
 @pytest.fixture(scope="session")
@@ -254,6 +255,9 @@ def page(request, _pw, live_server, service_workers):
     pg.route("**/api/auth/me", lambda route: route.fulfill(
         json={"scope": "guest", "signup_open": True}))
     pg.goto(live_server, wait_until="networkidle")
+    # Network idle can precede ES-module bootstrap on a loaded test machine.
+    # Wait for the rendered navigation that every journey interacts with.
+    pg.wait_for_selector("#nav-learn button[data-tab=path] .ico svg", state="attached")
     pg.viewport_name = request.param
     pg.engine_name = getattr(_pw, "engine_name", "chromium")
     yield pg
@@ -306,6 +310,13 @@ class TestMobileGlassNavigation:
             json={"scope": "guest", "signup_open": True}))
         pg.goto(live_server, wait_until="networkidle")
         pg.locator(".brand-splash").wait_for(state="hidden")
+        # Starting a phone practice set intentionally scrolls to its first item.
+        # These tests begin with the navigation visible, as after scrolling home.
+        pg.locator("#practiceOut .drill").first.wait_for(state="attached")
+        pg.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        pg.evaluate("window.scrollTo({top: 0, behavior: 'instant'})")
+        pg.wait_for_function("window.scrollY === 0 && !document.body.classList.contains('dock-min')")
+        pg.wait_for_timeout(300)  # Let the dock's size transition settle before dragging.
         yield pg
         ctx.close()
 
@@ -433,7 +444,7 @@ class TestBrandOpening:
             assert pg.locator("#brandSplash").is_visible() is plays
             pg.clock.run_for(950)
             assert not pg.locator(".brand-splash").is_visible()
-            assert pg.get_by_role("link", name="Estep — на главную").is_visible()
+            assert pg.get_by_role("link", name="Grove — на главную").is_visible()
             assert not errors
             assert not any(url.endswith("/brand-reveal.js") for url in requests)
         finally:
@@ -452,7 +463,7 @@ class TestBrandOpening:
             try:
                 pg.goto(live_server, wait_until="domcontentloaded")
                 assert not pg.locator("#brandSplash").is_visible()
-                assert pg.get_by_role("link", name="Estep — на главную").is_visible()
+                assert pg.get_by_role("link", name="Grove — на главную").is_visible()
             finally:
                 context.close()
 
@@ -632,20 +643,20 @@ class TestProfile:
         assert page.locator('[data-auth-view="login"]').evaluate(
             "el => el === document.activeElement")
 
-    def test_profile_selects_current_path_level_and_identifies_bootstrap(self, page):
+    def test_profile_selects_current_path_level_and_identifies_owner(self, page):
         def profile(route):
             response = route.fetch()
             data = response.json()
-            data.update(scope="owner", email=None)
+            data.update(scope="owner", email="owner@example.test")
             data["level"]["current"] = "B1"
             route.fulfill(response=response, json=data)
         page.route("**/api/me", profile)
         page.route("**/api/auth/me", lambda route: route.fulfill(json={
-            "scope": "owner", "email": "", "signup_open": True}))
+            "scope": "owner", "email": "owner@example.test", "signup_open": True}))
         self._open(page)
         assert page.locator('[data-seal-level="B1"]').get_attribute("aria-selected") == "true"
-        assert page.locator(".profile-scope-description").inner_text() != "основной аккаунт; прогресс сохраняется"
-        assert page.locator("#profileOut").get_by_text("Konto puudub", exact=True).is_visible()
+        assert page.locator(".profile-scope-description").inner_text() == "основной аккаунт; прогресс сохраняется"
+        assert page.locator("#profileOut").get_by_text("Põhikonto", exact=True).is_visible()
 
     def test_unavailable_auth_keeps_profile_and_offers_retry(self, page):
         available = False
@@ -831,6 +842,7 @@ _WRONG_VOICE = r"""() => {
   for (let n; (n = walk.nextNode());) {
     const el = n.parentElement, t = n.data.trim();
     if (!el || !t || el.closest("script,style")) continue;
+    if (t === "Grove" && langOf(el) === "en") continue;
     const latin = LATIN.test(t), cyr = CYR.test(t);
     if (cyr && !latin && langOf(el) === "et") bad.push(`Russian read as et: ${t.slice(0, 40)}`);
     const words = t.split(/[\s·—→←↗✓✗■()«»:,;!?+]+/).filter(Boolean);
@@ -1231,7 +1243,9 @@ class TestTheSelectedSkillIsVisible:
 
     @pytest.mark.parametrize("tab", ["write", "speak", "sonad"])
     def test_a_deep_link_scrolls_the_row_to_it(self, page, live_server, tab):
+        page.goto("about:blank")
         page.goto(f"{live_server}#{tab}", wait_until="networkidle")
+        page.wait_for_selector(f"#tab-{tab}:not([hidden])")
         page.wait_for_timeout(400)
         verdict = page.evaluate("""()=>{
           const nav=document.querySelector('nav[data-mode-nav]:not([hidden])');
@@ -1244,7 +1258,11 @@ class TestTheSelectedSkillIsVisible:
 
     def test_the_page_itself_is_not_scrolled_to_do_it(self, page, live_server):
         """Without scrolling the document itself (`scrollIntoView` would)."""
+        # A fresh document models an incoming link. Changing only the hash on
+        # the fixture's practice page retains its intentional phone scroll.
+        page.goto("about:blank")
         page.goto(f"{live_server}#write", wait_until="networkidle")
+        page.wait_for_selector("#tab-write:not([hidden])")
         page.wait_for_timeout(400)
         assert page.evaluate("()=>Math.round(window.scrollY)") == 0
 

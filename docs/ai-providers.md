@@ -93,8 +93,7 @@ python -m eesti.cli eval --provider tartunlp
 
 The [TartuNLP GEC 8B](https://huggingface.co/tartuNLP/Llama-3.1-8B-est-gec-july-2025)
 and its [Ollama wrapper](https://github.com/TartuNLP/gec-ollama-api) are
-separate local correction experiments. The wrapper's licence does not relicense
-the model weights. A corrected sentence alone is not a sourced Russian
+separate local correction experiments. A corrected sentence alone is not a sourced Russian
 explanation or a drop-in replacement for the app's JSON tutor prompt. No
 always-on model host or laptop tunnel is part of production.
 

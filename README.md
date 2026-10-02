@@ -1,8 +1,9 @@
-# Estep
+# Grove
 
-**Estep** (the Eesti-Keelt repository) is an Estonian learning app for
+**Grove** (the Eesti-Keelt repository) is an Estonian learning app for
 Russian speakers preparing for the
-**A2/B1 tasemeeksam**.
+**A2/B1 tasemeeksam**. Open the app and practise as a guest, or create an
+account in **Profiil** to keep your own progress between devices.
 
 Drills are generated from an Estonian word list with the Vabamorf morphological
 analyser and graded by code. Models explain corrections, support open writing
@@ -24,8 +25,8 @@ not set mastery or FSRS ratings.
 - **Kordamine** — FSRS review of mistakes and mined words, with EKI's
   Estonian–Russian example phrases built from tiles; **Sõnavara** lists words by
   CEFR level and frequency.
-- **Eksam** — readiness per exam part, timed practice, HARNO material in-app,
-  and two reviewed native reading exercises.
+- **Eksam** — readiness per exam part and timed practice; the owner’s library
+  supports HARNO material and reviewed native reading exercises.
 
 ## Quick start
 
@@ -46,7 +47,7 @@ Terminal practice is available too: `cli placement`, `cli practice`,
 
 ## Deployment
 
-Google Cloud Run (the app) behind a Cloudflare Worker with Access (login,
+Google Cloud Run (the app) behind a public Cloudflare Worker (optional in-app accounts,
 state snapshots, speech). Speech is transcribed on the owner's Mac mini when it
 is on ([`deploy/home-asr/README.md`](deploy/home-asr/README.md)), else by
 Workers AI. See [`docs/deploy.md`](docs/deploy.md) for setup and cost limits.
@@ -59,11 +60,5 @@ Workers AI. See [`docs/deploy.md`](docs/deploy.md) for setup and cost limits.
 - [`docs/ai-boundaries.md`](docs/ai-boundaries.md) · [`docs/ai-providers.md`](docs/ai-providers.md) · [`docs/speaking.md`](docs/speaking.md)
 - [`docs/testing.md`](docs/testing.md) · [`docs/setup.md`](docs/setup.md) · [`docs/deploy.md`](docs/deploy.md)
 - [`docs/exam-native.md`](docs/exam-native.md) · [`docs/asr-evaluation.md`](docs/asr-evaluation.md)
-
-## Licences
-
-The word list is CC-BY-SA-4.0; EKI dictionaries are CC-BY-4.0 with attribution.
-Keep source attribution for every dataset. Details in
-[`docs/sources.md`](docs/sources.md).
 
 Agent instructions: [`AGENTS.md`](AGENTS.md).

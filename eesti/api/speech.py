@@ -31,16 +31,16 @@ def _human(text: str) -> Response | None:
     A real reader is what the exam plays, and Estonian quantity is audible in a
     way synthesis does not reliably produce (`eesti/haaldus.py`).
     """
-    from .. import config, haaldus
+    from .. import config, haaldus, identity
 
-    if not Path(config.AUDIO_DB).exists():
+    if identity.current().kind != identity.OWNER or not Path(config.AUDIO_DB).exists():
         return None
     row = haaldus.said(haaldus.connect(config.AUDIO_DB), text)
     if row is None:
         return None
     return Response(
         content=row["audio"], media_type=row["mime"],
-        headers={"cache-control": "public, max-age=31536000, immutable",
+        headers={"cache-control": "private, no-store",
                  "x-audio-source": row["source"]})
 
 
@@ -113,10 +113,10 @@ def _human_passages(count: int, seed: int | None) -> list:
     """
     import random
 
-    from .. import config, haaldus
+    from .. import config, haaldus, identity
     from ..dictation import MAX_WORDS, MIN_WORDS, Passage, key_of
 
-    if not Path(config.AUDIO_DB).exists():
+    if identity.current().kind != identity.OWNER or not Path(config.AUDIO_DB).exists():
         return []
     try:
         conn = haaldus.connect(config.AUDIO_DB)

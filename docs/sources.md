@@ -1,31 +1,31 @@
 # Sources
 
-Every third party the app draws on. The ledger of record is
-`eesti/licences.py` (`REGISTRY`), served at `/api/sources` and shown in
-`Allikad`; `licence` and `redistributable` are columns, so every library item
-can answer "may this be shown to anyone but the owner?".
+Source credits are served from `eesti.sources.REGISTRY` at `/api/sources` and
+shown in **Allikad**. Library items link to their original source and describe
+changes. Public visitors see shared learning material; personal imports stay
+in the owner's library.
 
 ## Language data
 
-| Source | Licence | Used for |
-|---|---|---|
-| Vabamorf via EstNLTK | permissive | all forms, analysis, spelling — the answer key |
-| Enriched Ekilex word list (KristjanPikhof) | CC-BY-SA-4.0 | 160 000+ lemmas, estimated CEFR, frequency rank |
-| EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | CC-BY-4.0 | official A1/A2/B1 levels, outranks the estimate |
-| EKI *põhisõnavara sõnastik* (PSV) | CC-BY-4.0 | learner-level definitions, examples, rection |
-| EKI *Eesti-vene sõnaraamat* (EVS) | CC-BY-4.0 | offline Russian, inflection type, question-word cues, example phrases with Russian |
-| EKI *Võõrsõnade leksikon* (VSL), *seletav sõnaraamat* (EKSS) | CC-BY-4.0 | fallback Estonian definitions |
-| EKI *Haridussõnastik* (HAR) | CC-BY-4.0 | fallback Russian for education terms |
-| Ekilex API (EKI) | CC-BY-4.0 | live word card with `EKILEX_API_KEY` |
-| Sõnaveeb via `api.sonapi.ee` | Ekilex data CC-BY-4.0, third-party endpoint | live word card without a key |
-| EKI *Eesti keele grammatika tabelid* (PSV) | CC-BY-4.0, with the PSV dictionary | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
-| EKI teatmik, *Asesõnade käänamine* | © EKI — forms transcribed with the source named | pronoun paradigms (`eesti/pronouns.py`) |
-| *Eesti keele käsiraamat* (EKK) | © EKI — linked, not reproduced | rule links per topic; SÜ 65 rection list |
-| EKI *põhisõnavara hääldused* | CC-BY-4.0, owner-only | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
-| EKI *kõnekorpused* | CC-BY-4.0; the works read stay in copyright | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
-| `data/seed_glossary.tsv` | own work | 315 hand-written glosses for drill words |
+| Source | Used for |
+|---|---|
+| Vabamorf via EstNLTK | all forms, analysis, spelling — the answer key |
+| Enriched Ekilex word list (KristjanPikhof) | 160 000+ lemmas, estimated CEFR, frequency rank |
+| EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | official A1/A2/B1 levels, outranks the estimate |
+| EKI *põhisõnavara sõnastik* (PSV) | learner-level definitions, examples, rection |
+| EKI *Eesti-vene sõnaraamat* (EVS) | offline Russian, inflection type, question-word cues, example phrases with Russian |
+| EKI *Võõrsõnade leksikon* (VSL), *seletav sõnaraamat* (EKSS) | fallback Estonian definitions |
+| EKI *Haridussõnastik* (HAR) | fallback Russian for education terms |
+| Ekilex API (EKI) | live word card with `EKILEX_API_KEY` |
+| Sõnaveeb via `api.sonapi.ee` | live word card without a key |
+| EKI *Eesti keele grammatika tabelid* (PSV) | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
+| EKI teatmik, *Asesõnade käänamine* | pronoun paradigms (`eesti/pronouns.py`) |
+| *Eesti keele käsiraamat* (EKK) | rule links per topic; SÜ 65 rection list |
+| EKI *põhisõnavara hääldused* | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
+| EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
+| `data/seed_glossary.tsv` | 315 hand-written glosses for drill words |
 
-Keep EKI attribution wherever EKI text is shown (`eesti/licences.py`).
+Keep EKI attribution wherever EKI text is shown (`eesti.sources.REGISTRY`).
 
 Sõnaveeb and Ekilex answers are stored once per word in `vocab.db`
 (`gloss.py`) under a daily cap: the Russian, the definitions, the rection, the
@@ -35,7 +35,7 @@ wrote them. For more than the stored fields, link to Sõnaveeb
 
 ## EKI files (`deploy/eki/`)
 
-Downloaded from <https://arhiiv.eki.ee/litsents/>, committed (XML gzipped) and
+Downloaded from <https://arhiiv.eki.ee/>, committed (XML gzipped) and
 imported by the `Dockerfile` into `data/eesti.db`. These bulk dictionary files are imported locally; live Ekilex lookups and
 the EKK rection page use separate request paths.
 
@@ -67,16 +67,17 @@ matching import with `--check`, commit.
 
 ## Reading and listening material
 
-| Source | Licence | Used for |
-|---|---|---|
-| Selges keeles (WordPress.com API) | no reuse grant — owner-only | reading texts, cloze sentences |
-| ERR *Lihtsad uudised* | © ERR — owner-only | weekly reading feed |
-| ERR Raadio 4 language archives | © ERR — owner-only | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
-| HARNO exam material | © HARNO — owner-only | past tasks and listening audio, downloaded by `cli harvest-exam --download` into `data/exam/` for private study, read in `Eksam`; never committed, never redistributed, always shown with the board's name |
-| EIS public tasks | © HARNO — owner-only | the task's own text and its recordings, read in `Eksam` (`cli harvest-exam --download`); scoring stays at EIS, which is the only place the answers exist |
-| Own material (`cli ingest`) | treated as ungranted | owner-only |
+| Source | Used for |
+|---|---|
+| Selges keeles (WordPress.com API) | reading texts, cloze sentences |
+| ERR *Lihtsad uudised* | weekly reading feed |
+| ERR Raadio 4 language archives | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
+| HARNO exam material | past tasks and listening audio, downloaded by `cli harvest-exam --download` into `data/exam/` for private study, read in `Eksam`; never committed, always shown with the board's name |
+| EIS public tasks | the task's own text and its recordings, read in `Eksam` (`cli harvest-exam --download`); scoring stays at EIS, which is the only place the answers exist |
+| Own material (`cli ingest`) | owner-only |
 
-All owner-only items are served only behind Cloudflare Access.
+Personal imported items are available only to the signed-in owner. Public
+content reads filter source visibility before selecting items, files or drills.
 
 The shared corpus is restored through the owner's Durable Object before both
 guest and permanent learner requests. Guests keep separate progress and never
@@ -104,13 +105,13 @@ promise third-party uptime.
 
 ## Grammar evidence and evaluation
 
-| Source | Licence | Used for |
-|---|---|---|
-| EVKK learner corpus (TLU) | counts only | ranking error tags |
-| EstGEC-L2 (TLU) | GPL-3.0, not redistributed | attested word-order corrections |
-| GiellaLT `lang-est-x-utee` | LGPL-3.0 — rules re-implemented, nothing copied | agreement exceptions |
-| TalTech `inflection_et` | benchmark | validating Vabamorf (`cli validate`) |
-| TalTech `grammar_et` | no licence — local only | second eval track (`evals/external.py`) |
+| Source | Used for |
+|---|---|
+| EVKK learner corpus (TLU) | ranking error tags |
+| EstGEC-L2 (TLU) | attested word-order corrections |
+| GiellaLT `lang-est-x-utee` | agreement exceptions |
+| TalTech `inflection_et` | validating Vabamorf (`cli validate`) |
+| TalTech `grammar_et` | second eval track (`evals/external.py`) |
 
 ## Services
 
@@ -119,9 +120,9 @@ providers in `docs/ai-providers.md`.
 
 ## Typeface and icons
 
-| Asset | Licence | Where |
-|---|---|---|
-| Geologica (Monokrom) | SIL OFL 1.1 | `eesti/web/fonts/`, licence beside the files |
-| Phosphor Icons | MIT | inlined in `eesti/web/js/icons.js`; `eesti/web/vendor/phosphor-icons.LICENSE` |
+| Asset | Where |
+|---|---|
+| Geologica (Monokrom) | `eesti/web/fonts/`, notices beside the files |
+| Phosphor Icons | inlined in `eesti/web/js/icons.js`; notices beside the source |
 
 Both are served from this origin; the page asks no font or icon host for anything.

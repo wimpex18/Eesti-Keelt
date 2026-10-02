@@ -1,39 +1,6 @@
-/**
- * The doorman in front of the app — and the keeper of its memory.
- *
- * The app itself is a FastAPI process on **Google Cloud Run**, not in this
- * Worker and not in a Cloudflare Container. `cloze`, `conjugation`, `patterns`
- * and `verbs` all call Vabamorf at request time, and Vabamorf is a compiled C++
- * Python extension; Workers run JavaScript and WASM. Cloudflare Containers
- * would have hosted it directly, but they require the Workers Paid plan, and
- * this has to cost nothing. Cloud Run's always-free tier runs the same image.
- *
- * That split gives this Worker three jobs.
- *
- * **Routing.** Forward every request to the Cloud Run service, unchanged.
- *
- * **Closing the back door.** Cloud Run must allow unauthenticated invocations
- * for the free path to work, so its `run.app` URL answers the whole internet.
- * Cloudflare Access guards *this* Worker, not that URL. So every proxied
- * request carries `PROXY_TOKEN`, a secret only this Worker holds, and the app
- * refuses anything without it. Access guards the front door; the token means
- * there is only one door.
- *
- * **Persistence.** Cloud Run disk is ephemeral and the service scales to zero,
- * so a fresh instance starts with the image's databases and none of the
- * learner's. Mastery, review queue and vocabulary are SQLite files on that
- * disk. Without the snapshotting below, a lunch break would silently reset
- * everything the curriculum exists to accumulate.
- *
- * There is no shutdown hook a Worker can observe, so restarts are noticed
- * rather than announced: the app stamps every response with a boot id, and a
- * boot id this Worker has not seen means a new, empty instance.
- *
- * **What this is NOT:** the security boundary on its own. That is Cloudflare
- * Access, in front of this Worker. Around 421 harvested items are owner-only by
- * licence — ERR transcripts are © ERR, Selges keeles carries no reuse grant —
- * so deploying without an Access policy publishes someone else's copyrighted
- * work.
+/** Public front door for Grove: trusted identity, speech and durable progress.
+ * The guarded Cloud Run origin accepts only PROXY_TOKEN. Anonymous requests
+ * always use guest scope; in-app sessions select permanent learner state.
  */
 import { DurableObject } from "cloudflare:workers";
 import {
@@ -62,13 +29,8 @@ interface Env {
   PROXY_TOKEN: string;
   /** Guards the snapshot endpoints on the app. */
   STATE_TOKEN: string;
-  /** Signs the in-app account session; without it the app remains the owner-only legacy app. */
+  /** Signs the in-app account session; without it visitors remain guests. */
   SESSION_SECRET?: string;
-  /**
-   * Set to "1" to serve without Cloudflare Access. The escape hatch, not the
-   * default -- see `requireAccess`.
-   */
-  ALLOW_UNAUTHENTICATED?: string;
   /**
    * Web Push (`sendPush`). The public key is handed to the page so the browser
    * can subscribe; the private key signs the VAPID token that proves to Apple's
@@ -89,28 +51,6 @@ interface Env {
   HOME_ASR?: Fetcher;
   HOME_ASR_URL?: string;
   HOME_ASR_TOKEN?: string;
-}
-
-/* Refuse anything that did not come through Cloudflare Access.
-
-   Access is a dashboard setting, which can be switched off by accident or fail to
-   apply without anything complaining. Enforcing it in code makes losing it a
-   locked door rather than a silent opening.
-
-   When Access is enabled, the runtime puts an identity on every request that
-   passed it; without one this returns a page saying so. `ALLOW_UNAUTHENTICATED`
-   exists for deliberately serving without Access, and is deliberately awkward:
-   the default has to be the safe one. */
-function requireAccess(env: Env, ctx: ExecutionContext): Response | null {
-  if (ctx.access || env.ALLOW_UNAUTHENTICATED === "1") return null;
-  return new Response(
-    "This app is not protected by Cloudflare Access, so it will not serve.\n\n" +
-      "Enable it: Workers & Pages -> eesti-keelt -> Access -> All traffic,\n" +
-      "with the 'Cloudflare account' policy.\n\n" +
-      "To serve without Access on purpose, set ALLOW_UNAUTHENTICATED=1.\n" +
-      "See docs/deploy.md.",
-    { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } },
-  );
 }
 
 /** Snapshot on a timer as well as after work, so a crash costs minutes at most. */
@@ -256,6 +196,10 @@ export class LearnerState extends DurableObject<Env> {
 
   createAccount(email: string, password: string): Promise<Account> {
     return createAccount(this.ctx.storage.sql, email, password);
+  }
+
+  createOwnerAccount(email: string, password: string): Promise<Account> {
+    return createAccount(this.ctx.storage.sql, email, password, true);
   }
 
   authenticate(email: string, password: string): Promise<Account> {
@@ -428,10 +372,9 @@ export class LearnerState extends DurableObject<Env> {
   /* Keep the harvested library alive across cold starts, in whichever direction
      is needed.
 
-     The corpus cannot ship in the image (owner-only by licence, public
-     repository) and cannot be uploaded through this Worker (Access is an
-     interactive login a script cannot satisfy). So it is pushed to the origin,
-     which a script can authenticate to, and archived from there.
+     Personal imports stay out of the public container image. Operator scripts
+     push the corpus to the guarded origin, and this object archives it there.
+     The origin filters public reads to sources marked redistributable.
 
      Which way it moves depends on who has it:
 
@@ -820,7 +763,6 @@ async function transcribe(
   env: Env,
   url: URL,
   who: Who,
-  legacyOwner: boolean,
 ): Promise<Response> {
   if (!env.AI && !homeConfigured(env)) {
     return Response.json(
@@ -874,7 +816,7 @@ async function transcribe(
   const target = url.searchParams.get("target") ?? "";
   const graded = new URL("/api/transcribe/text", env.CLOUD_RUN_URL);
   if (target) graded.searchParams.set("target", target);
-  const headers = applyScopeHeaders(new Headers(), who, legacyOwner);
+  const headers = applyScopeHeaders(new Headers(), who);
   const sandbox = request.headers.get("x-eesti-guest");
   if (who.scope === "guest" && sandbox) headers.set("x-eesti-guest", sandbox);
   headers.set("content-type", "application/json");
@@ -990,33 +932,27 @@ async function stubFor(env: Env, who: Who) {
 }
 
 async function resolveWho(request: Request, env: Env): Promise<{
-  who: Who; legacyOwner: boolean; signupOpen: boolean;
+  who: Who; signupOpen: boolean;
 }> {
   // Explicit test sandboxes never inherit a signed-in or bootstrap owner.
   // fetch validates the name before any account or origin operation.
   if (request.headers.has("x-eesti-guest")) {
-    return { who: { scope: "guest" }, legacyOwner: false,
+    return { who: { scope: "guest" },
       signupOpen: Boolean(env.SESSION_SECRET) };
   }
   if (!env.SESSION_SECRET) {
-    return { who: { scope: "owner", id: "owner", email: "" },
-      legacyOwner: true, signupOpen: false };
+    return { who: { scope: "guest" }, signupOpen: false };
   }
   const singleton = singletonStub(env);
-  const count = await singleton.accountCount();
-  if (count === 0) {
-    return { who: { scope: "owner", id: "owner", email: "" },
-      legacyOwner: true, signupOpen: true };
-  }
   const cookie = readCookie(request.headers.get("cookie"), SESSION_COOKIE);
   const id = cookie ? await readSession(cookie, env.SESSION_SECRET) : null;
   const account = id ? await singleton.accountById(id) : null;
-  if (!account) return { who: { scope: "guest" }, legacyOwner: false, signupOpen: true };
+  if (!account) return { who: { scope: "guest" }, signupOpen: true };
   return {
     who: account.id === "owner"
       ? { scope: "owner", id: "owner", email: account.email }
       : { scope: "learner", id: account.id, email: account.email },
-    legacyOwner: false,
+
     signupOpen: true,
   };
 }
@@ -1029,15 +965,13 @@ function readCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-function applyScopeHeaders(headers: Headers, who: Who, legacyOwner: boolean): Headers {
+function applyScopeHeaders(headers: Headers, who: Who): Headers {
   headers.delete("x-eesti-scope");
   headers.delete("x-eesti-learner");
   headers.delete("x-eesti-email");
-  if (!legacyOwner) {
-    headers.set("x-eesti-scope", who.scope);
-    if (who.scope === "learner") headers.set("x-eesti-learner", who.id);
-    if (who.scope !== "guest" && who.email) headers.set("x-eesti-email", who.email);
-  }
+  headers.set("x-eesti-scope", who.scope);
+  if (who.scope === "learner") headers.set("x-eesti-learner", who.id);
+  if (who.scope !== "guest" && who.email) headers.set("x-eesti-email", who.email);
   return headers;
 }
 
@@ -1055,8 +989,6 @@ function authUnavailable(): Response {
 async function authRoute(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/auth/")) return null;
-  if (!env.SESSION_SECRET) return authUnavailable();
-  const singleton = singletonStub(env);
 
   if (url.pathname === "/api/auth/me" && request.method === "GET") {
     const { who, signupOpen } = await resolveWho(request, env);
@@ -1067,6 +999,12 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
       headers: { "set-cookie": sessionCookie("", 0) },
     });
   }
+  if (url.pathname === "/api/auth/bootstrap" &&
+      (!env.STATE_TOKEN || request.headers.get("x-state-token") !== env.STATE_TOKEN)) {
+    return new Response("not found", { status: 404 });
+  }
+  if (!env.SESSION_SECRET) return authUnavailable();
+  const singleton = singletonStub(env);
   if (url.pathname === "/api/auth/remove" && request.method === "POST") {
     const { who } = await resolveWho(request, env);
     if (who.scope !== "owner") {
@@ -1115,7 +1053,8 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
     await singleton.deleteAccount(body.id);
     return Response.json({ id: body.id, removed: Boolean(account), progress_deleted: true });
   }
-  if ((url.pathname === "/api/auth/signup" || url.pathname === "/api/auth/login")
+  if ((url.pathname === "/api/auth/signup" || url.pathname === "/api/auth/login"
+      || url.pathname === "/api/auth/bootstrap")
       && request.method === "POST") {
     let body: { email?: unknown; password?: unknown };
     try {
@@ -1127,7 +1066,9 @@ async function authRoute(request: Request, env: Env): Promise<Response | null> {
       return Response.json({ detail: "Укажи электронную почту и пароль." }, { status: 400 });
     }
     try {
-      const account = url.pathname.endsWith("/signup")
+      const account = url.pathname.endsWith("/bootstrap")
+        ? await singleton.createOwnerAccount(body.email, body.password)
+        : url.pathname.endsWith("/signup")
         ? await singleton.createAccount(body.email, body.password)
         : await singleton.authenticate(body.email, body.password);
       const scope = account.id === "owner" ? "owner" : "learner";
@@ -1160,10 +1101,6 @@ export default {
     if (!env.CLOUD_RUN_URL) return;
     const singleton = singletonStub(env);
     const accounts = await singleton.accountList();
-    if (!accounts.length) {
-      const owner = await stubFor(env, { scope: "owner", id: "owner", email: "" });
-      if (owner) ctx.waitUntil(owner.remind());
-    }
     for (const account of accounts) {
       const who: Who = account.id === "owner"
         ? { scope: "owner", id: "owner", email: account.email }
@@ -1181,9 +1118,6 @@ export default {
       );
     }
 
-    const denied = requireAccess(env, ctx);
-    if (denied) return denied;
-
     const sandbox = request.headers.get("x-eesti-guest");
     if (sandbox !== null && !/^[a-z0-9][a-z0-9-]{0,39}$/.test(sandbox.trim().toLowerCase())) {
       return Response.json({ detail: "Недопустимое имя тестовой среды." }, { status: 400 });
@@ -1194,7 +1128,7 @@ export default {
     if (auth) return auth;
 
     // The Worker's own back channel. Exposing these through the proxy would let
-    // anyone past Access overwrite everything.
+    // a public visitor overwrite permanent state.
     //
     // The exact set of origin routes that require `STATE_TOKEN`, not a path prefix:
     // the reset and content-import routes do not share the `/api/state/` prefix. The
@@ -1217,7 +1151,7 @@ export default {
       return new Response("not found", { status: 404 });
     }
 
-    const { who, legacyOwner } = await resolveWho(request, env);
+    const { who } = await resolveWho(request, env);
     const learner = await stubFor(env, who);
 
     /* Reminders. The subscription and the VAPID keys live here, so these three
@@ -1273,14 +1207,20 @@ export default {
     if ((url.pathname === "/api/speak" || url.pathname === "/api/pronounce")
         && request.method === "GET") {
       const cache = caches.default;
-      const hit = await cache.match(request);
+      const cacheUrl = new URL(request.url);
+      cacheUrl.searchParams.set("__grove_audio", "public-v1");
+      cacheUrl.searchParams.set("__scope", who.scope === "owner" ? "owner" : "public");
+      const cacheKey = new Request(cacheUrl);
+      const hit = await cache.match(cacheKey);
       if (hit) return hit;
       const fresh = await fetch(
         new Request(new URL(url.pathname + url.search, env.CLOUD_RUN_URL), {
-          headers: { "x-proxy-token": env.PROXY_TOKEN },
+          headers: applyScopeHeaders(new Headers({ "x-proxy-token": env.PROXY_TOKEN }), who),
         }),
       );
-      if (fresh.ok) ctx.waitUntil(cache.put(request, fresh.clone()));
+      if (fresh.ok && !/private|no-store/i.test(fresh.headers.get("cache-control") ?? "")) {
+        ctx.waitUntil(cache.put(cacheKey, fresh.clone()));
+      }
       return fresh;
     }
 
@@ -1293,7 +1233,7 @@ export default {
     // what it recorded is copied out like any other.
     if (url.pathname === "/api/transcribe" && request.method === "POST") {
       if (!restored) return notRestored();
-      const heard = await transcribe(request, env, url, who, legacyOwner);
+      const heard = await transcribe(request, env, url, who);
       const response = await confirmEventDurability(
         heard, learner, url.pathname, prepared);
       if (learner) ctx.waitUntil(learner.snapshot());
@@ -1311,7 +1251,7 @@ export default {
     }
 
     const target = new URL(url.pathname + url.search, env.CLOUD_RUN_URL);
-    const headers = applyScopeHeaders(new Headers(request.headers), who, legacyOwner);
+    const headers = applyScopeHeaders(new Headers(request.headers), who);
     headers.set("x-proxy-token", env.PROXY_TOKEN);
     // Cloud Run routes on Host; forwarding the Worker's hostname 404s.
     headers.delete("host");

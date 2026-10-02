@@ -14,8 +14,8 @@ phone / laptop ─▶ Worker ─(VPC Service → Tunnel)─▶ Mac mini :8790  e
 
 The learner can use the deployed app from any Internet connection; being on
 the Mac's Wi-Fi is unnecessary. The Mac needs power, Internet and a logged-in
-user session. Cloudflare Access still decides who can open the app, so a
-friend must be allowed by its policy before testing with a separate app account.
+user session. Anyone can open Grove and practise as a guest or create a
+separate in-app account to retain progress.
 
 ## 1. Create the tunnel (Cloudflare dashboard, once)
 

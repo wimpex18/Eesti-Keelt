@@ -1,6 +1,6 @@
 ---
-name: Estep
-description: Estep — Estonian, one step at a time, in Estonian blue, black and white.
+name: Grove
+description: Grove — a little room to grow your Estonian, in Estonian blue, black and white.
 colors:
   estonian-blue: "#0030de"
   paldski: "#0062f5"
@@ -43,7 +43,7 @@ rounded:
 spacing: "4px scale: --s1 4 · --s2 8 · --s3 12 · --s4 16 · --s5 24 · --s6 32 · --s7 48"
 ---
 
-# Design System: Estep
+# Design System: Grove
 
 ## Overview
 
@@ -53,8 +53,8 @@ walked. The path to the exam is built the same way: a topic is a plank, laid
 only when code has checked the learner's answers. The metaphor draws the path,
 the progress and the rewards, and keeps the product honest.
 
-**Estep is the app's name: Estonian + step.** The original mark is one stepped
-E, with three chamfered treads and a longer foot, from
+**Grove is the app’s name: a small wood, with a quiet connection to Estonia’s forests.**
+The original mark is a curved leaf with a short stem, from
 `eesti/web/brand/mark.svg`. The subject descriptor **Eesti keel · A2/B1** appears
 in metadata and the phone launch passage; the header shows only the name. The
 identity stays the same across explanation languages. The cornflower remains
@@ -157,7 +157,7 @@ mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
 
 ## Controls
 
-- **Brand / home link.** The 48px inline stepped E and the single-line Estep
+- **Brand / home link.** The 48px inline leaf and the single-line Grove
   name share a 44px-minimum home target to Rada (`#path`), with a 10px gap. The
   name stays ink on hover; the normal blue keyboard focus ring identifies the
   link. Preserve its Russian accessible home label and the Estonian language
@@ -192,7 +192,7 @@ mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
   it is instant under reduced motion. Without the script each tab paints its own
   capsule, so the page reads the same.
 - **Phone navigation lens** (`eesti/web/js/glide.js`). The skill row and bottom
-  modes adapt WanderAlt's press → slide → release gesture. A 140ms hold or 6px
+  modes use a press → slide → release gesture. A 140ms hold or 6px
   horizontal movement lifts a glass lens with an inert, `aria-hidden` copy of
   the labels at 1.12×. It follows the finger and scrolls near the row's edges to
   reach hidden skills. Preview never opens a panel or writes history; release
@@ -254,13 +254,12 @@ mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
   progress line, the Russian meaning as the largest text, then the answer row. A miss shows the right word, its omastav/osastav when the list has
   them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
   records nothing — Kordamine owns memory.
-- **Identity / sources footer.** Estep's meaning is explained in Russian:
-  **Estonian + step: эстонский шаг за шагом.** A separate **© [year] Estep**
+- **Identity / sources footer.** Grove's meaning is explained in Russian:
+  **маленькая роща: место, где растёт твой эстонский.** A separate **© [year] Grove**
   line uses the current UTC year supplied by `eesti/api/assets.py`; it names no
-  person or company. **Allikad ja litsentsid** retains the source/licence
-  disclosure and loads the source list on first opening.
+  person or company. **Allikad** retains source credits and loads the source list on first opening.
 - **Reader source.** One line above the title: *Allikas* and the source's name,
-  linked to the original. Licence terms stay in the sources footer.
+  linked to the original. Source credits remain in the sources footer.
 - **Plan strip.** Inside **Täna**, the day as time: a segment per block as long as
   its minutes, coloured and glyphed by kind. Its summary also reports how many
   evidence-backed daily steps are complete.
@@ -332,8 +331,8 @@ drop into place, the resume node breathes, the swallow glides. Under
 script scrolling stops being smooth.
 
 **Phone launch passage.** On eligible coarse-pointer, non-hover phones, the
-stepped E is visible at the first frame. A small point travels along the foot
-and climbs one level inside the E: 600ms after an 80ms delay. The cover fades for
+leaf unfolds from its stem over 560ms after a 40ms delay. The name rises
+6px and fades in over 360ms from 160ms. The cover fades for
 180ms after 720ms, completing at 900ms with `--ease`; CSS supplies its own
 deadline and the inline script removes it. It never waits for a font, app
 module, data or network response. A tap or key dismisses it immediately.
@@ -352,7 +351,7 @@ assistive technology, and never traps focus.
 the navigation layer (`.glass`, `--glass-lift`) and content on solid sheets; build
 every choice between views as a `role="tablist"` so it glides; keep Estonian material in the
 cut; keep 44px touch targets; check 1440×900, 402×874, 874×402 and 744×1133 in
-both themes; keep the stepped-E identity distinct from readiness evidence.
+both themes; keep the leaf identity distinct from readiness evidence.
 
 **Don't:** use cream or grey-beige grounds; put paragraph text or drill inputs on
 glass; copy the glass recipe or hand-roll a selection capsule; add SVG refraction

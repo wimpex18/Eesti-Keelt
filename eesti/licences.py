@@ -4,8 +4,8 @@
     redistributable = 0  ->  owner only, behind auth (HARNO material,
                              copyrighted transcripts, anything hand-fed)
 
-Access control is data-driven: the same HARNO PDF is fine to study from and not
-to serve publicly, which is why Cloudflare Access is required.
+Access control is data-driven: nonowner content connections filter sources
+before serving items, files or derived exercises.
 
 `changes` is a field because CC BY 4.0 requires naming the source **and
 indicating changes** wherever the material is presented; `/api/sources` serves
@@ -227,8 +227,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "and 232 of 237 pass `is_reordering` unchanged, so one gate governs both. "
         "`redistributable = 0` is a choice, not a limit — GPL-3.0 permits "
         "conveying the work with its licence and source, and this app conveys "
-        "nothing: the corpus rides `content.db` to one deployment behind "
-        "Access. MultiGEC-2025 distributes the identical 258 texts as `EIC` "
+        "nothing: the corpus rides `content.db` to the owner’s authenticated library. MultiGEC-2025 distributes the identical 258 texts as `EIC` "
         "under terms limiting use to scientific and research purposes, which "
         "exam self-study is not; TLU publish it themselves with no such "
         "clause, and that is the door used.",
@@ -410,7 +409,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "Inflection type, rection, Russian glosses, definitions. Single lookups "
         "only — never batch, the upstream asks not to be crawled. Answers are "
         "kept in vocab.db (eesti/gloss.py) so a word is asked about once ever, "
-        "capped per day, and the store is private to one account behind Access "
+        "capped per day, and the store is private to its signed-in account "
         "— never redistributed.",
     ),
     Source(

@@ -7,7 +7,7 @@ request time, which is why the app runs in a container and not in a Worker.
 ## Request path
 
 ```
-browser ─► Cloudflare Worker (Access, account sessions, PROXY_TOKEN, snapshots, speech)
+browser ─► Cloudflare Worker (public entry, account sessions, PROXY_TOKEN, snapshots, speech)
               ├─ accounts + owner state ─► Durable Object `singleton`
               ├─ each learner ─────────────► Durable Object `learner:<id>`
               ├─► Cloud Run: FastAPI (eesti.app) ─► eesti/api/* ─► domain modules ─► scoped SQLite
@@ -38,7 +38,7 @@ browser ─► Cloudflare Worker (Access, account sessions, PROXY_TOKEN, snapsho
 | `api/practice.py`, `api/review.py`, `api/vocab.py` | drills and grading, FSRS queue, word statuses |
 | `api/grammar.py` | sentence check, word lookup and word card |
 | `api/library.py`, `api/speech.py`, `api/exam.py` | material, sound (TTS/ASR/dictation/speaking), readiness |
-| `api/notion.py`, `api/state.py`, `api/sources.py` | error log, snapshot export/import, licence credits |
+| `api/notion.py`, `api/state.py`, `api/sources.py` | error log, snapshot export/import, source credits |
 | `api/profile.py` | profile summary, name event, account progress reset/restore and guest sandbox reset |
 
 ## Domain modules
@@ -58,7 +58,7 @@ browser ─► Cloudflare Worker (Access, account sessions, PROXY_TOKEN, snapsho
 | Tutor | `tutor.py` — the one boundary a model is called across (ADR-0002): explanations, the writing and transcript checks, translation, and the exam partner |
 | Providers | `providers/grammar.py` (check chain, per-correction provenance), `llm.py`, `asr.py`, `tts.py`, `translate.py`, `sonapi.py`, `ekilex.py`, `breaker.py` |
 | Evals | `evals/gec.py` (18-case grammar eval), `external.py` (grammar_et), `morphology.py` (Vabamorf vs gold), `asr.py` (verified learner audio), `asr_bench.py` (ready-made speech benchmark), `asr_reference.py` and `asr_voxtral.py` (TalTech engines), `health.py` (GEC POST contract), `fetch.py` |
-| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, `licences.py` (licences **and** engines: version, quota, what leaves the device), `logs.py` (JSON lines, never learner text), `providers/budget.py` (a day's allowance per lane) |
+| Operations | `config.py`, `env.py` (`KNOWN_KEYS`), `net.py`, `notion.py`, source/engine registry ( version, quota, what leaves the device), `logs.py` (JSON lines, never learner text), `providers/budget.py` (a day's allowance per lane) |
 | CLI | `cli/` — `build`, `harvest`, `study`, `assess`, `report`, `ops` |
 
 ## Databases

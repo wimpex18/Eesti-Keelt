@@ -42,7 +42,7 @@ advisory feedback. The app says plainly what was checked and by what.
 - Phone: Rada (incl. Vaba harjutus), Järjekord (FSRS queue) — short bursts.
 - Desktop: Lugemine, Kirjutamine, Kuulamine, Rääkimine — longer sessions.
 - Material comes from EKI dictionaries and handbook (EKK), Selges keeles, ERR
-  *Lihtsad uudised*, and licensed HARNO tasks presented in the app.
+  *Lihtsad uudised*, and owner-imported HARNO tasks presented in the app.
 
 ## Capabilities and Constraints
 
@@ -70,7 +70,7 @@ advisory feedback. The app says plainly what was checked and by what.
 
 ## Brand Commitments
 
-- Name: **Estep**, with **Eesti keel · A2/B1** identifying the subject.
+- Name: **Grove**, an English word for a small wood, connected to Estonia’s forests, with **Eesti keel · A2/B1** identifying the subject.
   The boardwalk identity belongs to the learning path, independent of the
   learner's explanation language. Russian is supported today; English and
   Ukrainian are planned explanation languages.

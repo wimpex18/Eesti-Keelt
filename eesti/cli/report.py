@@ -112,8 +112,8 @@ def cmd_library(args: argparse.Namespace) -> int:
                   f"{'  (' + str(row['with_audio']) + ' with audio)' if row['with_audio'] else '':<22}"
                   f" {row['et']}")
         public = sum(s["items"] for s in sections(content, public_only=True))
-        print(f"\n{public} item(s) may be served publicly — the rest is owner-only "
-              "by licence,\nwhich is what Cloudflare Access exists to enforce.")
+        print(f"\n{public} item(s) may be served publicly; other material stays "
+              "in the authenticated owner's library.")
         print("Browse one: `library --section lugemine`")
         return 0
 

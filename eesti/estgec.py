@@ -9,7 +9,7 @@ share no sentences, and both pass the same `is_reordering` gate (pairs that also
 change a case ending, `R:WO:NOM:FORM`, are rejected by it).
 
 Licence: GPL-3.0, © Language Technology Research Group, Tallinn University. Not
-conveyed: it rides `content.db` to one deployment behind Access and is never
+conveyed: it rides `content.db` to the owner’s authenticated library and is never
 served to third parties. (MultiGEC-2025's `EIC` copy is research-only; TLU's own
 publication is used.)
 """

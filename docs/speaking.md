@@ -89,6 +89,6 @@ On the deployment the same file is mounted from Cloud Storage
 (`deploy/push-audio.sh`, `docs/deploy.md`), so the phone gets the human voice
 too; the Worker caches each clip at the edge after the first play.
 
-The archive is `arhiiv.eki.ee/litsents` (CC BY 4.0). The audio is not served to
-anyone else — Access guards the app, and the novels behind the speech corpora
-are still in copyright.
+Owner-imported sentence recordings are used only in the owner’s requests and
+are never placed in the public edge cache. Public word-form pronunciation uses
+EKI dictionary recordings; other public speech uses synthesis.

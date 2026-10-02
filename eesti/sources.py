@@ -171,6 +171,17 @@ def connect(path: Path | str) -> sqlite3.Connection:
         conn = sqlite3.connect(":memory:")
         conn.executescript(SCHEMA)
     conn.row_factory = sqlite3.Row
+    from . import identity
+    if identity.current().kind != identity.OWNER:
+        # Connection-local views also cover direct IDs, exam files and derived
+        # drills. Operator ingestion outside requests continues to use tables.
+        conn.executescript("""
+            CREATE TEMP VIEW items AS
+            SELECT i.* FROM main.items i JOIN main.sources s ON s.id=i.source_id
+            WHERE s.redistributable=1;
+            CREATE TEMP VIEW topic_items AS
+            SELECT t.* FROM main.topic_items t JOIN items i ON i.id=t.item_id;
+        """)
     return conn
 
 

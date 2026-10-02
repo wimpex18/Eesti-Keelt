@@ -25,7 +25,6 @@ const load = once(async () => {
       // somebody can follow, not a name in small type.
       if (s.url) bits.push(`<a href="${esc(s.url)}" target="_blank"
         rel="noopener">${esc(new URL(s.url).hostname)}</a>`);
-      bits.push(`<span class="lic">${esc(s.licence)}</span>`);
       // Only where a licence asks for it, which is exactly where `changes` is
       // non-empty. Printing "no changes" under everything else would turn a
       // legal statement into decoration.

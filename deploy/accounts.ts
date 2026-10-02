@@ -17,7 +17,7 @@ export const PASSWORD_MAX = 1024;
 export const EMAIL_MAX = 254;
 
 export interface Account {
-  /** `owner` for the first account, `l-` + 16 hex digits after that. */
+  /** `owner` is provisioned by the operator; public sign-up uses `l-` + 16 hex digits. */
   id: string;
   email: string;
   created: string;
@@ -140,6 +140,7 @@ export async function createAccount(
   sql: SqlStorage,
   emailRaw: string,
   password: string,
+  owner = false,
 ): Promise<Account> {
   const email = normaliseEmail(emailRaw);
   if (!email) throw new AccountError(400, "Введи действующий адрес электронной почты.");
@@ -154,13 +155,14 @@ export async function createAccount(
   const salt = toHex(saltBytes);
   const hash = await hashPassword(password, salt);
 
-  // No await occurs between the count and insert, so concurrent requests cannot
-  // both see an empty table and claim the owner identity.
-  const count = accountCount(sql);
+  // Check and insert without yielding: public sign-up can never claim owner.
+  if (owner && accountById(sql, "owner")) {
+    throw new AccountError(409, "Основной аккаунт уже настроен.");
+  }
   if (sql.exec<{ id: string }>("SELECT id FROM accounts WHERE email = ?", email).toArray().length) {
     throw new AccountError(409, "Этот адрес электронной почты уже зарегистрирован.");
   }
-  const id = count === 0 ? "owner" : newLearnerId();
+  const id = owner ? "owner" : newLearnerId();
   const created = new Date().toISOString();
   try {
     sql.exec("INSERT INTO accounts (id,email,salt,hash,created) VALUES (?,?,?,?,?)",

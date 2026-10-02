@@ -1,13 +1,13 @@
 """Who a request is for: a signed-in learner, or a guest sandbox (ADR-0006).
 
-Accounts live in the app, behind the existing Cloudflare Access door. The
+Grove opens publicly and accounts live in the app. The
 Worker owns sign-up, sign-in and the session cookie (`deploy/worker.ts`), and
 tells the origin who is signed in (`x-eesti-scope`, `x-eesti-learner`,
 `x-eesti-email`):
 
-- `owner`: the first account ever created. It inherits the progress recorded
+- `owner`: the operator-provisioned account. It inherits the progress recorded
   before accounts existed: the old file paths and the old Durable Object.
-- `learner`: every later account, each with its own permanent store.
+- `learner`: every public sign-up, each with its own permanent store.
   Permanent, with its own files and Durable Object, named by its account id.
 - `guest`: no session. Claude, Codex and tests use the full app in a throwaway
   sandbox and never sign up.

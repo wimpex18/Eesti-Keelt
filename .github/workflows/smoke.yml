@@ -1,15 +1,4 @@
-# Checks the *deployed* app, not the code.
-#
-# Cloudflare Access closes the front door and PROXY_TOKEN the origin, so nobody
-# can reach the running app directly. This workflow gets in with an Access
-# **service token** held in GitHub Actions secrets.
-#
-# Setup, once:
-#   1. Zero Trust -> Access -> Service Auth -> Service Tokens -> Create.
-#   2. Add the pair as repository secrets CF_ACCESS_CLIENT_ID and
-#      CF_ACCESS_CLIENT_SECRET, plus WORKER_URL.
-#   3. On the Worker's Access application, add a policy:
-#      Action "Service Auth", Include -> Service Token -> the one you made.
+# Checks the deployed public app anonymously. Only WORKER_URL is needed.
 name: smoke
 
 on:
@@ -40,8 +29,6 @@ jobs:
       - name: Check the deployment answers, and answers correctly
         env:
           URL: ${{ secrets.WORKER_URL }}
-          CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           DEEP: ${{ inputs.deep }}
           # Set only for `workflow_run`: the commit whose deploy fired this run.
           TRIGGER_COMMIT_AT: ${{ github.event.workflow_run.head_commit.timestamp }}
@@ -49,14 +36,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -z "$URL" ] || [ -z "$CF_ID" ] || [ -z "$CF_SECRET" ]; then
+          if [ -z "$URL" ]; then
             echo "::warning::Smoke test not configured. Add WORKER_URL, \
-          CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET to run it."
+          to run it."
             exit 0
           fi
 
-          auth=(-H "CF-Access-Client-Id: $CF_ID"
-                -H "CF-Access-Client-Secret: $CF_SECRET")
+          auth=()
           fail=0
           sandbox_ready=0
           if source deploy/smoke-sandbox.sh; then
@@ -65,16 +51,18 @@ jobs:
             fail=1
           fi
 
-          # 1. The front door is shut to anyone without the token (the licence obligation).
-          code="$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/health")"
-          if [ "$code" = "302" ] || [ "$code" = "403" ]; then
-            echo "closed to anonymous ...... OK ($code)"
-          else
-            echo "::error::Anonymous request returned $code — the app is OPEN."
+          # Anonymous entry must succeed and must never inherit owner state.
+          code="$(curl -s -o /dev/null -w '%{http_code}' "$URL/")"
+          if [ "$code" != "200" ]; then
+            echo "::error::Public shell returned $code"
+            fail=1
+          fi
+          me="$(curl -sf "$URL/api/auth/me")"
+          if [ "$(jq -r '.scope' <<<"$me")" != "guest" ]; then
+            echo "::error::Anonymous visitors must be guests"
             fail=1
           fi
 
-          # 2. It answers a request that carries the service token.
           body="$(curl -s "${auth[@]}" "$URL/api/health")"
           echo "$body" | grep -q '"words"' \
             && echo "health .................. OK" \
@@ -226,45 +214,8 @@ jobs:
                 fail=1
               fi
             else
-              tasks="$(jq '[.[] | arrays | .[] | select(.id)] | length' \
-                "$RUNNER_TEMP/exam-a2.json")"
-              # A task from this deployed catalogue distinguishes missing file
-              # metadata from a path present in metadata but absent on the mount.
-              probe_id="$(jq -r '[.[] | arrays | .[] | select(.id) | .id][0] // empty' \
-                "$RUNNER_TEMP/exam-a2.json")"
-              probe_code="$(curl -s -o "$RUNNER_TEMP/exam-probe" -w '%{http_code}' \
-                "${auth[@]}" "$URL/api/exam/file/$probe_id")"
-              reason="$(jq -r '.detail // "unknown reason"' \
-                "$RUNNER_TEMP/exam-probe" 2>/dev/null || echo "HTTP $probe_code")"
-              echo "::error::A2 has $tasks catalogue entries but no readable file: $reason"
-              jq -c '[.[] | arrays | .[] | select(.id)][0]
-                | {source, format, url}' "$RUNNER_TEMP/exam-a2.json"
-              fail=1
+              echo "public exam catalogue ... OK (no shared PDF tasks)"
             fi
-          fi
-
-          # The two reviewed reading controls (`exam_native.REVIEWED`) need their
-          # private sidecars on the mount and an unchanged PDF. Asking every A2 and
-          # B1 PDF task is many calls, so it runs only on a deep check.
-          if [ "$DEEP" = true ]; then
-            for level in A2 B1; do
-              curl -sf "${auth[@]}" "$URL/api/exam/$level" -o "$RUNNER_TEMP/exam-$level.json" || true
-              verified=0
-              # Tasks sit at any depth (`ulesanded` groups them by exam part).
-              for id in $(jq -r '[.. | objects | select(.file == true and .format == "pdf") | .id] | .[]' \
-                  "$RUNNER_TEMP/exam-$level.json" 2>/dev/null); do
-                if curl -sf "${auth[@]}" "$URL/api/exam/native/$id" \
-                    | jq -e '.verified == true and (.questions | length) > 0' >/dev/null 2>&1; then
-                  verified=$((verified + 1))
-                fi
-              done
-              if [ "$verified" -gt 0 ]; then
-                echo "native reading $level ...... OK ($verified reviewed control)"
-              else
-                echo "::error::No reviewed native reading control answers for $level: sidecar missing or PDF changed."
-                fail=1
-              fi
-            done
           fi
 
           # 5b. Which *code* is answering: a behaviour only newer code has (`total` on
@@ -430,7 +381,7 @@ jobs:
           offers anything to read. Run 'python -m eesti.cli link-topics' and \
           push again."
           else
-            echo "::warning::No reading library — push a harvest."
+            echo "public reading library ... empty (personal imports are excluded)"
           fi
 
           exit $fail

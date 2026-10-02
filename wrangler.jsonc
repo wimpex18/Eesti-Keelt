@@ -41,17 +41,15 @@
   // never committed:
   //   CLOUD_RUN_URL   https://<service>-<hash>.<region>.run.app
   //   PROXY_TOKEN     shared with the Cloud Run service; without it the
-  //                   run.app URL would be a way around Cloudflare Access
+  //                   origin would accept untrusted identity headers
   //   STATE_TOKEN     guards the snapshot endpoints
   //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
   //                   Web Push (`cli push-keys` writes them into .env, and
   //                   deploy/set-push-keys.sh pushes them)
   //   SESSION_SECRET  signs the in-app session cookie (ADR-0006,
-  //                   deploy/accounts.ts); unset, everyone is the owner
+  //                   deploy/accounts.ts); unset, everyone is a guest
   //
   // LLM keys are not Worker secrets: the app reads them on Cloud Run
   // (deploy/set-llm-key.sh).
   //
-  // And one plain variable, only if you mean it:
-  //   ALLOW_UNAUTHENTICATED=1   serve without Cloudflare Access
 }
