@@ -1,21 +1,21 @@
 # Handoff
 
-Current task: integrate stranded material commits and remove old branches.
-Branch: codex/integrate-main-history; PR base: current main (c662118).
-User authorized commit, merge and deletion of all non-main Eesti-Keelt branches.
-PRs #101–#105 merged into former stack bases, leaving five commits outside main.
-All five substantive commits and all six surviving stack tips are integrated.
-Grove/public access, beginner scaffolding and owner-only boundaries are retained.
-Source refresh preserves material and identity; provenance and media shelves are
-restored, along with DEV-7 durable publication and HARNO B1 writing timing.
-Python: 2516 passed, 14 skipped. Worker: 26 passed. Typecheck and dry-run passed.
-Full browser rerun pending; focused translation test passes in both engines.
-Owner publication fixture now signs in; mocked translation blocks service workers.
-All 11 tabs captured at desktop/phone/landscape/tablet sizes in both themes.
-Next: finish browser/CI checks, merge, prove reachability and delete non-main refs.
+Current task: non-main branch and obsolete skill cleanup.
+User authorized commit, merge and deletion of non-main Eesti-Keelt branches.
+Five reviewed material commits from PRs #101–#105 were stranded in stack bases.
+All five substantive commits and all six stack tips are integrated and verified;
+Grove/public access, beginner guidance and owner-only boundaries are retained.
+Restored safe refresh, source provenance, media shelves, object-case guidance,
+DEV-7 durable corpus publication and HARNO B1 writing timing.
+Code verification at 6817b5c: Python 2516 passed / 14 skipped;
+browser 206 passed / 24 skipped; Worker 26 passed; typecheck and dry-run passed.
+GitHub PR #108 CI passed. Later changes are this completion note only.
+All 11 tabs inspected at four viewport sizes in light and dark themes.
 Product QA installations and project Impeccable remnants removed.
-WanderAlt removal merged as PR #198; pre-existing launch edit preserved.
-Recovery bundles and screenshots: branch-cleanup-2026-10-02 in this task artifacts.
+WanderAlt removal merged in PR #198; pre-existing launch edit preserved.
+Branch policy after cleanup: main only, with original tips proved reachable.
+Recovery bundle and screenshots: branch-cleanup-2026-10-02 in task artifacts.
+Next operational step: verify Cloud Run rebuild and public deployment;
+existing deploy failed and anonymous production checks still return HTTP 403.
+Do not remove the Access gate before confirming a public-safe origin.
 Uncommitted paths after this commit: none. No learner data or credentials changed.
-Deployment: existing main deploy failed awaiting a public-safe Cloud Run build;
-merge success must not be mistaken for confirmed live origin deployment.
