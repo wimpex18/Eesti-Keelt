@@ -406,6 +406,9 @@ test("a rejected corpus restore retries before accepting the new origin boot", a
 
 test("a warm-origin corpus update is archived and restored on the next boot", async () => {
   const app = setup();
+  app.env.SESSION_SECRET = "test-session-secret";
+  const account = await app.owner.createOwnerAccount("owner@example.test", "test-password");
+  const cookie = `eesti_session=${await signSession(account.id, app.env.SESSION_SECRET)}`;
   await app.owner.bindWho({ scope: "owner", id: "owner", email: "" });
   const { storage } = app.objects.get("singleton");
   let boot = "warm-boot", revision = "old-hash", present = true, broken = false;
@@ -459,7 +462,12 @@ test("a warm-origin corpus update is archived and restored on the next boot", as
   assert.equal(replayed, 1, "a corpus update must not replay learner progress");
   corpus = JSON.stringify({ database: "explicit-publication-check" });
   revision = "checked-hash";
-  const checked = await worker.fetch(new Request("https://learn.test/api/health"), app.env, app.ctx);
+  const guest = await worker.fetch(new Request("https://learn.test/api/health"), app.env, app.ctx);
+  assert.equal((await guest.json()).corpus_archived_revision, undefined,
+    "guest health must not attest an owner's publication");
+  const checked = await worker.fetch(new Request("https://learn.test/api/health", {
+    headers: { cookie },
+  }), app.env, app.ctx);
   const health = await checked.json();
   assert.equal(health.corpus_revision, revision);
   assert.equal(health.corpus_archived_revision, revision, "owner health bypasses the liveness cache");

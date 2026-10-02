@@ -37,6 +37,8 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 
 
+# WebKit service workers bypass page.route; this test needs its mocked engine.
+@pytest.mark.parametrize("service_workers", ["block"])
 def test_exercise_translation_is_requested_and_does_not_submit_an_answer(page):
     """Optional translation must not spend an attempt or run on set creation."""
     translations = []
