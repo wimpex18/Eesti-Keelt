@@ -6,8 +6,9 @@ User explicitly authorized commit, merge and deletion of all non-main branches.
 Five substantive commits from PRs #101–#105 never reached main: those PRs were
 merged into former stack bases. Integrating every surviving branch tip preserves
 both their changes and ancestry while retaining Grove/public access from main.
-Current merge: durable corpus publication and archive/origin hash attestation.
-Public-access and corpus-restoration regressions are both retained; checks pending.
+All five substantive commits and all six stack branch tips are integrated.
+Grove/public access, beginner scaffolding and owner-only material boundaries retained.
+B1 writing uses the reviewed HARNO clock; verification is now pending.
 Next: finish integration, run Python/Worker/browser checks and inspect viewports;
 merge into main, verify branch reachability, then delete non-main refs.
 Product QA local installations and Eesti-Keelt Impeccable remnants were removed.
