@@ -15,7 +15,7 @@ What keeps it from becoming a harvest, in code:
 - `sonapi` spaces live requests a second apart, under a lock;
 - `DAILY_BUDGET` caps new words per day.
 
-Ekilex data is CC BY 4.0; this store is scoped to one account behind Access, and never
+Ekilex data is CC BY 4.0; this store is scoped to its learner's account, and never
 redistributed (attribution in `licences.py`).
 """
 

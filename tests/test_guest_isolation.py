@@ -124,10 +124,10 @@ def test_the_snapshot_and_export_routes_carry_only_the_owner(client, monkeypatch
     assert client.get("/api/events", headers=STATE | {"x-eesti-guest": "t1"}).status_code == 403
 
 
-def test_a_guest_sees_the_same_material_as_the_owner(client):
+def test_a_guest_sees_the_same_modes_and_source_credits_as_the_owner(client):
     owner_modes = client.get("/api/modes").json()
     guest_modes = client.get("/api/modes", headers=GUEST).json()
-    assert guest_modes == owner_modes
+    assert [m["id"] for m in guest_modes["modes"]] == [m["id"] for m in owner_modes["modes"]]
     owner_sources = client.get("/api/sources").json()
     guest_sources = client.get("/api/sources", headers=GUEST).json()
     assert guest_sources == owner_sources

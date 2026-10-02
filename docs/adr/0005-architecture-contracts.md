@@ -6,7 +6,7 @@ inference host.
 ## Decision
 
 Keep the modular FastAPI application, SQLite event log and projections, the
-Cloudflare Access/Worker front door and one Durable Object per permanent
+public Cloudflare Worker front door and one Durable Object per permanent
 account; the owner's `singleton` object also holds the account registry and
 shared corpus. Speech goes to the owner's home service first (TalTech's
 Estonian recogniser on the owner's Mac, reached by a Workers VPC Service over a

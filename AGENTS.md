@@ -18,8 +18,8 @@ learn → practise → check. Its most important known grammar weakness is
   used as transcripts.
 - Never invent a linguistic fact. Take forms from Vabamorf and rules from EKI's
   handbook or Teatmik; label a model-supplied claim as such. Preserve source
-  attribution (`docs/sources.md`, `eesti/licences.py`, `/api/sources`).
-- Keep the learner in the app: present licensed text, PDFs, audio, video and
+  attribution (`docs/sources.md`, `eesti.sources.REGISTRY`, `/api/sources`).
+- Keep the learner in the app: present source-attributed text, PDFs, audio, video and
   exercises in its own UI. External links remain for attribution, undownloaded
   material and tasks whose official answers exist only on another site.
 - Keep credentials out of chat, commits and environment boxes. Use the existing
@@ -47,7 +47,7 @@ the learner; no sitting is assumed.
 
 ## Runtime and verification
 
-FastAPI/Vabamorf runs on one Cloud Run instance. Cloudflare Worker + Access is
+FastAPI/Vabamorf runs on one Cloud Run instance. public Cloudflare Worker is
 the front door; `PROXY_TOKEN` protects the origin. Permanent-account API
 success waits for the Durable Object to confirm the event sequence for that
 response's origin boot. Cloud Build rebuilds the origin on merge to `main`;

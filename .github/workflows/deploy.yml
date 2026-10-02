@@ -47,10 +47,11 @@ jobs:
           PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
           STATE_TOKEN: ${{ secrets.STATE_TOKEN }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
         run: |
           missing=""
           for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
-                      PROXY_TOKEN STATE_TOKEN; do
+                      CLOUD_RUN_URL WORKER_URL PROXY_TOKEN STATE_TOKEN; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
@@ -59,19 +60,8 @@ jobs:
             echo "See docs/deploy.md for what each one is."
             exit 1
           fi
-          # CLOUD_RUN_URL is deliberately NOT required, and that is a safety
-          # feature rather than a loose end. Cloudflare Access can only be
-          # switched on for a Worker that already exists, so the first deploy
-          # would otherwise open the URL for however long it takes to click the
-          # toggle. Deploy without it and the Worker answers 503 to everyone;
-          # add it after Access is on and re-run. See docs/deploy.md.
-          if [ -z "$CLOUD_RUN_URL" ]; then
-            echo "::warning title=Worker deployed closed::CLOUD_RUN_URL is not \
-          set, so the Worker will answer 503 to every request. Enable \
-          Cloudflare Access, then add the secret and re-run this workflow."
-          fi
           if [ -z "$SESSION_SECRET" ]; then
-            echo "::warning title=Account sign-up unavailable::SESSION_SECRET is not set. The Worker will keep legacy owner access, but account sign-up and sign-in will return 503. Add the repository secret under Settings -> Secrets and variables -> Actions."
+            echo "::warning title=Account sign-up unavailable::SESSION_SECRET is not set. Anonymous practice stays available; account sign-up and sign-in will return 503. Add the repository secret under Settings -> Secrets and variables -> Actions."
           fi
 
       - name: Check VPC service access before changing secrets
@@ -127,3 +117,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
+
+      - name: Open and verify public access
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUD_RUN_URL: ${{ secrets.CLOUD_RUN_URL }}
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+        run: python3 deploy/open-public-access.py

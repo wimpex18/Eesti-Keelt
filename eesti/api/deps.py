@@ -6,6 +6,8 @@ so tests and callers can redirect it (`.claude/rules/python.md`).
 
 from __future__ import annotations
 
+from contextlib import closing
+
 import secrets
 import sqlite3
 from pathlib import Path
@@ -24,17 +26,14 @@ def content_db():
 
 
 def content_available() -> bool:
-    from .. import config
-    from ..sources import available
-
-    return available(config.CONTENT_DB)
+    with closing(content_db()) as conn:
+        return bool(conn.execute("SELECT 1 FROM items LIMIT 1").fetchone())
 
 
 def content_counts() -> dict:
-    from .. import config
-    from ..sources import corpus_counts
-
-    return corpus_counts(config.CONTENT_DB)
+    with closing(content_db()) as conn:
+        return {"items": conn.execute("SELECT COUNT(*) FROM items").fetchone()[0],
+                "topic_links": conn.execute("SELECT COUNT(*) FROM topic_items").fetchone()[0]}
 
 
 # Learner databases, resolved from `config` when opened — one source of truth for

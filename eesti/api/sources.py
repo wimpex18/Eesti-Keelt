@@ -1,4 +1,4 @@
-"""Who made the material, under what licence, and what we did to it.
+"""Who made the material and what we did to it.
 
 Serves `licences.REGISTRY` so the page can credit sources: CC BY 4.0 (EKI,
 Ekilex) requires the reference to be kept and changes described wherever the
@@ -15,9 +15,7 @@ router = APIRouter()
 
 @router.get("/api/sources")
 def sources() -> dict:
-    """The licence ledger as the page renders it: names, licences, links and our
-    changes — all public.
-    """
+    """Source names, links, changes and registry metadata for public credits."""
     from ..sources import REGISTRY
 
     return {
@@ -28,9 +26,7 @@ def sources() -> dict:
                 "kind": s.kind,
                 "licence": s.licence,
                 "url": s.url,
-                # Whether this may be served to anyone, or is owner-only and
-                # lives behind Access. Rendered, because "personal study only"
-                # is worth the learner knowing before they share a screenshot.
+                # Public corpus filtering uses this source flag.
                 "redistributable": s.redistributable,
                 # Empty for everything we only link to, only count, or wrote
                 # ourselves. Present exactly where a licence asks for it.

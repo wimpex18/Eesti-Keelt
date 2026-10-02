@@ -10,9 +10,9 @@ Material that cannot be sequenced or checked (e.g. unscripted radio) belongs
 here, not on the path. Opening an item records exposure, never mastery;
 vocabulary coverage comes from `vocab.py`.
 
-Licence gating is a filter: `browse(..., public_only=True)` filters on the
-source's licence, so a new source cannot leak by forgetting to tag rows.
-Owner-only material is why Cloudflare Access is required.
+Public visibility is a filter: nonowner content connections and
+`browse(..., public_only=True)` expose only sources marked redistributable.
+Personal material remains in the authenticated owner's library.
 """
 
 from __future__ import annotations

@@ -561,6 +561,9 @@ class TestEachLabelIsReadInItsLanguage:
             for text, parent in _texts(tree.root):
                 if not LATIN.search(text) or CYRILLIC.search(text) or _neutral(text):
                     continue
+                if text.strip() == "Grove":
+                    assert _lang(parent, default) == "en", "English brand name needs its own voice"
+                    continue
                 if _nearest(parent, _is_label) and not _in_gloss(parent) \
                         and _lang(parent, default) != "et":
                     wrong.append(f"{where}: <{parent.tag}> {_show(text)!r}")

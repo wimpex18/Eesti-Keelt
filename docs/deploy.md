@@ -3,19 +3,19 @@
 | Part | Where | Why |
 |---|---|---|
 | App | **Google Cloud Run** (always-free tier), scales to zero | Vabamorf is a compiled C++ extension; Workers cannot run it, Cloudflare Containers need a paid plan |
-| Front door | **Cloudflare Worker + Access** (free plan) | one login, state snapshots, speech |
+| Front door | **Public Cloudflare Worker** (free plan) | optional in-app login, state snapshots, speech |
 | Speech | the owner's **Mac mini** (home service) through a Cloudflare Tunnel, **Workers AI** Whisper as fallback | TalTech's Estonian model hears the learner far better; no free host can run it |
 
-## Security: two doors, two locks
+## Public entry and protected origin
 
-- Cloud Run allows unauthenticated invocations (required for the free tier), so
-  its `run.app` URL is public. **`PROXY_TOKEN`**, known only to the Worker, is
-  required on every request; without it the app answers 403. Unset (local
-  `cli serve`) the guard is off. `/api/health` reports `origin_guarded`.
-- **Cloudflare Access** guards the Worker with the *Cloudflare account* policy
-  (never *Email domain*). The Worker also refuses any request without an Access
-  identity; `ALLOW_UNAUTHENTICATED=1` is the deliberate escape hatch.
-- `/api/state/*` requires `STATE_TOKEN` and is 404 from outside the Worker.
+Visitors open Grove without a login gate. Unsigned visitors get isolated guest
+progress; optional in-app accounts keep each learner’s progress across devices.
+The Worker rebuilds identity headers from its signed session, never from caller
+claims. Personal corpus imports remain available only to the owner.
+
+Cloud Run requires `PROXY_TOKEN` on every request. Without it the origin answers
+403. Local `cli serve` has no guard unless the token is configured.
+`/api/state/*` also requires `STATE_TOKEN` and is 404 through the public Worker.
 
 ## Deploying
 
@@ -30,20 +30,19 @@
 
 ## In-app accounts
 
-Before the first account is created, add `SESSION_SECRET` under the repository's
-**Settings → Secrets and variables → Actions**. Generate at least 32 random
-bytes in a trusted terminal; for example, `openssl rand -hex 32`. Save the
-result directly as the GitHub secret. Do not put it in a commit, issue, chat or
-workflow variable. `.github/workflows/deploy.yml` pushes it to the Worker and
-warns without failing if it is absent. Without it, the Worker keeps legacy
-owner access and account sign-up/sign-in return 503.
+Configure `SESSION_SECRET` in repository **Settings → Secrets and variables →
+Actions**. Generate at least 32 random bytes in a trusted terminal (for example,
+`openssl rand -hex 32`) and save them directly as the secret. Deployment pushes
+it to the Worker. Without it, public guest practice and `/api/auth/me` remain
+available; sign-up and sign-in return 503.
 
-The first person to open **Profiil → Loo konto** becomes the owner and inherits
-all progress in the existing files and `singleton` object. Have the owner create
-that account first. Every later account is an independent learner with its own
-files and Durable Object. Sign-up remains open to people admitted by the current
-Cloudflare Access policy; there is no account-count limit. Access itself does
-not change.
+Public **Profiil → Loo konto** creates a learner with separate progress.
+Existing owner credentials and the `singleton` object remain valid. If an owner
+login has never been provisioned, run `python3 deploy/create-owner.py` in a
+trusted terminal with `WORKER_URL` and `STATE_TOKEN` supplied from the secret
+store. It prompts for email/password without echoing the password. The protected
+`POST /api/auth/bootstrap` provisions `owner` once, independently of public
+sign-up. An existing owner needs no migration.
 
 There is no self-service password recovery. For a forgotten password:
 
@@ -238,7 +237,7 @@ Smoke warns on any zero.
 | `CLOUD_RUN_URL` | — | ✅ | where the Worker forwards |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Workers AI token ✅ | deploy token ✅ | Worker deploy (Actions); grammar lane (Cloud Run) |
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | — | ✅ | Workers AI Read token for `eval.yml` |
-| `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `WORKER_URL` | — | ✅ | smoke test service token |
+| `WORKER_URL` | — | ✅ | public-entry verification and anonymous smoke |
 | `MISTRAL_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY` | ✅ | ✅ | grammar lanes; Actions copies for the eval |
 | `HOME_ASR_TOKEN` | — | Worker secret (dashboard) | proves a recording came from the Worker to the Mac mini home service |
 | `HF_TOKEN` | optional | — | hosted Whisper fallback for speech |
@@ -271,7 +270,7 @@ If `gcloud` has no project: `gcloud config set project <id>`.
 
 Use the **`smoke`** workflow for repeatable deployment checks
 (Actions → smoke → Run workflow). It runs after `deploy`, daily, and on demand,
-and checks: Access closed, health, readable EKI audio and HARNO exam files,
+and checks: public shell, anonymous guest identity, health, readable EKI audio,
 image build stamp vs `main`, origin guard, speech, reference counts, live
 dictionary, library and topic links.
 
@@ -306,13 +305,21 @@ deploy → Run workflow**. Check it from the speaking page ("Сейчас теб
 
 - Open **Workers & Pages** once before the first deploy, or `wrangler deploy`
   fails with code 10063 (no `workers.dev` subdomain).
-- Enable Access as soon as the first deploy is green. For a zero-length gap,
-  deploy without `CLOUD_RUN_URL` (Worker answers 503), enable Access, then add
-  the secret and re-run.
+- Set `WORKER_URL` to the existing `https://…workers.dev` URL, together with
+  `CLOUD_RUN_URL`, `PROXY_TOKEN`, `STATE_TOKEN` and the Cloudflare deployment
+  credentials. The token also needs **Account → Access: Apps and Policies →
+  Write** for the public-entry migration.
+- After Worker deployment, `deploy/open-public-access.py` waits for Cloud Run’s
+  `public_access: true` health marker before removing the login gate for this
+  exact hostname. It leaves unrelated and wildcard applications untouched,
+  refuses applications shared with other domains, then verifies anonymous
+  shell, health and guest identity. A failed migration fails the deploy workflow;
+  correct the reported configuration and rerun it. Smoke requires only
+  `WORKER_URL`, with no external login credentials.
 
 ## Cost
 
-The intended single-learner workload uses free allocations, not a guaranteed
+The typical practice workload uses free allocations, not a guaranteed
 zero-cost SLA. Workers AI Whisper, the speech fallback, is listed at about
 $0.0005/audio minute inside a shared daily allocation. The home service costs
 the Mac mini's electricity; Tunnels and Workers VPC are free. Monitor Cloud

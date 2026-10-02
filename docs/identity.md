@@ -6,7 +6,7 @@ ADR-0006 (`docs/adr/0006-learners-and-guests.md`).
 ## Request path
 
 ```
-browser / agent ─► Worker (Access as today)
+browser / agent ─► Worker (public entry)
                    ├─ /api/auth/*  sign-up, sign-in, sign-out, me  (accounts in DO "singleton")
                    └─ session cookie → owner | learner <id> | no session → guest
                         │ PROXY_TOKEN + x-eesti-scope [+ x-eesti-learner, x-eesti-email, x-eesti-guest]
@@ -17,7 +17,7 @@ browser / agent ─► Worker (Access as today)
 
 | Request reaches the origin with | Scope | Files |
 |---|---|---|
-| `PROXY_TOKEN`, no `x-eesti-scope` (old Worker, or no accounts yet) | `owner` | `config.PROGRESS_DB` … `config.EVENTS_DB` |
+| `PROXY_TOKEN`, no `x-eesti-scope` (trusted operator compatibility) | `owner` | `config.PROGRESS_DB` … `config.EVENTS_DB` |
 | `PROXY_TOKEN`, `x-eesti-scope: owner` | `owner` | owner files |
 | `PROXY_TOKEN`, `x-eesti-scope: learner`, valid `x-eesti-learner` | `learner` | `config.LEARNERS_DIR/<id>/` |
 | `PROXY_TOKEN`, `x-eesti-scope: learner`, missing or malformed id | refused, 403 | – |
@@ -71,7 +71,9 @@ browser / agent ─► Worker (Access as today)
    access, like the owner's files; on Cloud Run it is ephemeral and the
    learner's Durable Object restores it.
 
-Everyone sees all material: no `public_only` gating by scope.
+Nonowner content connections expose only shared source items. This applies to
+listings, direct IDs, topic links, exam files and corpus-derived drills. Personal
+sentence recordings also require the owner’s scope; public speech uses synthesis.
 
 ## Routes by scope
 
@@ -103,7 +105,7 @@ sandboxes idle over 24 h, then the oldest beyond 50; `reset` removes one.
 
 Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
 `extraHTTPHeaders`). The Worker treats an explicit valid sandbox as guest traffic
-even with a signed-in session or before the first account exists; malformed
+even with a signed-in session or with an empty account registry; malformed
 names are refused before forwarding. A browser without it gets a cookie. Start a run with
 `POST /api/guest/reset` for a clean slate.
 
@@ -117,9 +119,7 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
    - `POST /api/auth/signup {email, password}`: email normalised to lower case
      and checked for shape and a 254-character maximum; passwords are 10–1024
      characters; refused (409, Russian
-     message) only when the email is already taken. Sign-up remains open with
-     no account limit. The first account gets id `owner`; every later account
-     gets `l-` + 16 hex from `crypto.getRandomValues`. Sets the session and
+     message) only when the email is already taken. Public sign-up gets `l-` + 16 hex from `crypto.getRandomValues`. Sets the session and
      answers `{id, email, scope}`.
    - `POST /api/auth/login {email, password}`: constant-time compare; after 5
      failures the account waits 60 s; the same Russian message for unknown email
@@ -130,27 +130,29 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
      signup (409) and temporary lockout (429); unexpected errors stay generic.
    - `POST /api/auth/logout`: clears the cookie. `GET /api/auth/me`: `{scope,
      id, email}` or `{scope: "guest"}`; with a configured secret,
-     `signup_open` remains true for unlimited sign-up.
+     `signup_open` reports whether sessions are configured.
+   - `POST /api/auth/bootstrap`: `STATE_TOKEN`-protected operator provisioning
+     of the owner; returns 409 when an owner already exists.
    - `POST /api/auth/remove`: owner-only; after explicit confirmation, clears
      the learner's origin files and Durable Object state before removing the
      account row. A failed cleanup leaves the login in place so the request can
      be retried without orphaning data.
    - Session cookie `eesti_session`: `<id>.<expiry>.<hmac>` (HMAC-SHA-256 with
      `SESSION_SECRET`), `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age` 90 days.
-     Without `SESSION_SECRET` the auth routes answer 503 and every request is the
-     owner, as today.
-2. **Who.** After `requireAccess`, delete caller-sent `x-eesti-scope`,
+     Without `SESSION_SECRET`, account writes return 503, while `/me` and logout
+     still work. Anonymous requests remain guests.
+2. **Who.** Delete caller-sent `x-eesti-scope`,
    `x-eesti-learner` and `x-eesti-email` (`x-eesti-guest` may pass). A valid
    session for an existing account sets `x-eesti-scope` (`owner` or `learner`),
    `x-eesti-learner` (learners) and `x-eesti-email`. No valid session: `guest`
-   while at least one account exists; before the first account, no headers
-   (owner, as today, so nothing changes until the owner signs up).
+   regardless of account registry or session-secret configuration.
 3. **Which object.** `stubFor(env, who)`: `singleton` for the owner,
    `learner:<id>` for a learner, none for a guest. The object remembers its `who`
    and `headers()` adds that scope to every back-channel call, so restore,
    snapshots, event pulls and reminders touch that learner's files only.
    `syncCorpus` runs in `singleton` only.
-4. **Guests.** No object: skip `ensureRestored`, `snapshot` and `pullEvents`;
+4. **Guests.** No personal object, snapshots or event pulls. Restore the shared
+   corpus through the singleton before forwarding guest requests;
    `/api/push/*` → 403 with a Russian message.
 5. **Speech.** `transcribe` forwards the caller's scope headers to
    `/api/transcribe/text` and pulls into the caller's object.
@@ -163,10 +165,8 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
 - Worker secret `SESSION_SECRET` is random, 32+ bytes.
   `.github/workflows/deploy.yml` pushes the secret like the others and warns
   (does not fail) when it is missing.
-- First use, in `docs/deploy.md` with no values: the owner opens Profiil and
-  creates the first account (it inherits all existing progress), then other
-  people create their accounts. Each later account is an independent learner.
-  Nothing changes in Access or on Cloud Run.
+- Owner provisioning and public deployment: `docs/deploy.md`. Existing owner
+  credentials remain valid; public sign-up always creates separate learner state.
 - A forgotten password or removing an account: the operator procedure in
   `docs/deploy.md`.
 
@@ -218,9 +218,6 @@ Implementation: `eesti/web/js/profile.js`.
     *Õppija* (ученик, свой прогресс сохраняется) or *Külaline* (гость,
     песочница), so everyone sees at once which account is signed in; with an
     account, *Logi välja* (выйти).
-    Before any account exists, *Konto puudub* explains that the first account
-    continues the existing history. The unguarded local owner without an app
-    session is labelled *Pole sisse logitud*, rather than a signed-in account.
   - *Algus* (старт): the saved self-assessment and first lane, with *Muuda*
     (изменить). The Russian line says it is a recommendation, not a confirmed
     CEFR level.
@@ -262,7 +259,7 @@ Implementation: `eesti/web/js/profile.js`.
   *Külaline* and, in Russian, that this is a sandbox and progress will not be
   kept, with a link to Profiil to sign in. On the profile, *Tühjenda liivakast* (очистить песочницу) confirms before calling
   `POST /api/guest/reset`, then reloads the profile.
-- **Sign-up and sign-in** (guests and the first-account bootstrap, on Profiil,
+- **Sign-up and sign-in** (guests, on Profiil,
   above the rows): two
   views in a `role="tablist"`: *Logi sisse* (войти) and *Loo konto* (создать
   аккаунт, shown while `signup_open`). Fields *E-post*, *Parool* (пароль), and
@@ -274,9 +271,9 @@ Implementation: `eesti/web/js/profile.js`.
   across tab switches. *Näita/Peida* controls password visibility. Signup explains
   the ten-character minimum; login explains the existing operator-managed
   password recovery. Russian errors come from the server, with retry available.
-  A note under *Loo konto* distinguishes the first account's existing history
-  from later accounts' separate progress. The introduction distinguishes Estep
-  accounts from Cloudflare Access. If the account probe fails, profile evidence
+  A note under *Loo konto* explains that the new account has its own progress.
+  The introduction explains optional accounts and public guest use.
+  If the account probe fails, profile evidence
   stays visible with *Proovi uuesti* instead of an unusable login form. Plain
   page, `autocomplete` attributes set, no glass.
 - **Viewports.** Phone 402×874 and 874×402 (touch), iPad mini 744×1133, desktop
@@ -289,7 +286,7 @@ Implementation: `eesti/web/js/profile.js`.
 - `tests/test_guest_isolation.py`, `tests/test_learners.py` and
   `tests/test_profile.py` cover isolation, route scope and profile behavior.
 - `tests/test_worker_accounts_contract.py` pins header replacement, guest
-  object and push restrictions, learner ID shape, unlimited sign-up and cron
+  object and push restrictions, learner ID shape, public sign-up and cron
   coverage. `tests/test_accounts.py` runs password, session, account creation
   and removal checks under Node.
 - `tests/worker-auth.test.mjs` exercises real workerd Durable Object RPC for

@@ -80,8 +80,8 @@ async function main() {
   assert(normaliseEmail("not-an-email") === null, "invalid email accepted");
   assert(normaliseEmail(`${"a".repeat(250)}@example.com`) === null, "oversized email accepted");
   const sql = new MemorySql() as unknown as SqlStorage;
-  const owner = await createAccount(sql, "Owner@example.com", "long-password-1");
-  assert(owner.id === "owner" && owner.email === "owner@example.com", "first account is not owner");
+  const owner = await createAccount(sql, "Owner@example.com", "long-password-1", true);
+  assert(owner.id === "owner" && owner.email === "owner@example.com", "operator provisioning did not create owner");
   const accounts = [owner];
   for (let i = 0; i < 8; i++) {
     accounts.push(await createAccount(sql, `person${i}@example.com`, `long-password-${i + 2}`));

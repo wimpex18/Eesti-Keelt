@@ -217,7 +217,7 @@ def catalogue(html: str | None = None) -> list[Material]:
 
 
 #: Where the downloaded files live. Owner-only study material, so it sits in
-#: `data/` (git-ignored) and is served only to the learner behind Access.
+#: `data/` (git-ignored) and is served only to the authenticated owner.
 FOLDER = "data/exam"
 
 

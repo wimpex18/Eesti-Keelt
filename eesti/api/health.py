@@ -37,6 +37,7 @@ def health() -> dict:
         "SELECT COUNT(*) FROM object_cases WHERE distinct_=1"
     ).fetchone()[0]
     return {
+        "public_access": True,
         "words": words,
         "drillable_nouns": drillable,
         "rules": sorted({t.rule for t in TEMPLATES}),

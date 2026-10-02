@@ -1,26 +1,21 @@
 # Handoff
 
-Current task: beginner exercise guidance for Russian-speaking learners.
-Branch: `codex/a1-exercise-guidance`; PR base: `main` (366a35b).
-Implemented: explicit Russian instructions, case/person glosses, whole-sentence
-Russian support for known personal-pronoun frames, and optional online sentence
-translation. Phone sets scroll the first exercise into view without focusing
-the keyboard. Grading and signed item identity are unchanged.
-Existing Estep name, stepped-E artwork and phone launch motion are already on main.
-Verification: 2,467 Python tests passed, 34 skipped; two full-dictionary tests
-excluded because this workspace contains a miniature fixture. 131 focused tests
-passed after the final edits; typecheck passed.
-Browser: 184 passed in the broad run. Its two phone guidance regressions were
-fixed; all 12 targeted plan/landscape/translation checks passed. Four broad-run
-failures need dictionary examples or multiple corpus bands absent in the fixture.
-Screenshots inspected across desktop, phone, landscape and tablet; Impeccable
-review approved the scoped exercise extension. Existing design tokens preserved.
-Published: https://github.com/wimpex18/Eesti-Keelt/pull/106 (owner merges).
-Next: owner merges the exercise PR. Continue public access separately via
-`docs/public-access-followup.md` (bootstrap-owner and source-access gates).
-Uncommitted paths: none after this commit.
-Blocker: no Cloudflare/Google deployment credentials in the current environment;
-the live URL still redirects to Cloudflare Access. Public mode is not enabled.
-The Linear follow-up remains blocked by automatic approval review; remaining
-public-access work is documented in the repository. GitHub publication succeeded.
-Local review patch: `.impeccable/review/a1-exercise-guidance.patch`.
+Current task: Grove rebranding, public access and requested skill cleanup.
+Branch: `codex/rebrand-public-access`; PR base: `main` (465943f).
+Implemented: leaf mark, regenerated platform/social assets and leaf-unfurl opening.
+Anonymous requests remain guests; public sign-up creates separate learner accounts.
+Existing owner state is preserved; protected operator bootstrap provisions an owner.
+Nonowner corpus reads and private recordings are restricted; audio caches are scoped.
+Deployment waits for a public-safe origin, opens only this Worker hostname and verifies it.
+Docs/source credits are current; obsolete closed-access follow-up and Impeccable files are removed.
+QA/product and WanderAlt copies are on the user’s computer, inaccessible remotely.
+Local cleanup: `python3 deploy/remove-local-skills.py` previews; `--apply` removes matches.
+Python suite: 2,475 passed/34 skipped; added cleanup/public-access regressions also pass.
+Typecheck and 24 Worker tests pass. Chromium: 171 passed/23 skipped, one dock-timing failure.
+That fixture waits for the dock transition; rerun of all 7 drag journeys passes.
+Deep-link/icon rerun: 12 passed; Profile rerun: 22 passed.
+All 11 tabs inspected at desktop, phone portrait/landscape and tablet, both themes.
+Next: publish the new PR; user merges, then deployment verifies public access.
+Uncommitted paths: this PR’s branding, access, deployment, documentation and cleanup changes.
+Deployment limitation: no runtime credentials here; live URL still redirects until merge/deploy.
+Cloudflare deployment token requires Account Access: Apps and Policies Write.

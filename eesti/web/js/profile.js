@@ -5,7 +5,7 @@ import {icon} from "./icons.js";
 import {retryableError, rhythmHtml, sealsHtml} from "./chrome.js";
 
 let currentMe = null;
-let authInfo = {scope: "owner", signup_open: false, available: false};
+let authInfo = {scope: "guest", signup_open: false, available: false};
 let sealLevel = null;
 let authView = "login";
 let resetNotice = "";
@@ -45,10 +45,6 @@ function scopeDescription(scope) {
   })[scope] || "временная гостевая песочница";
 }
 
-function needsFirstAccount() {
-  return currentMe?.scope === "owner" && authInfo.signup_open && !authInfo.email;
-}
-
 function count(value, words) { return ruCount(Number(value) || 0, words); }
 
 function profileRows(me) {
@@ -68,7 +64,7 @@ function profileRows(me) {
         <button class="ghost" type="button" id="guestResetCancel" lang="et">Loobu <span class="ru" lang="ru">отмена</span></button>
       </div>
     </div>`;
-  } else if (authInfo.available && !needsFirstAccount()) {
+  } else if (authInfo.available) {
     controls = '<button class="ghost" type="button" id="logoutBtn" lang="et">Logi välja <span class="ru" lang="ru">выйти</span></button>';
   }
   const nameValue = esc(me.name || "");
@@ -97,7 +93,7 @@ function profileRows(me) {
         </form>
       </dd></div>
     <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${emailValue}</dd></div>
-    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${needsFirstAccount() ? "Konto puudub" : me.scope === "owner" && !me.email ? "Pole sisse logitud" : scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${needsFirstAccount() ? "Аккаунт ещё не создан. Первый аккаунт продолжит существующую историю." : me.scope === "owner" && !me.email ? "Учебная история доступна без входа в аккаунт Estep." : scopeDescription(me.scope)}</span>${controls}</dd></div>
+    <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${scopeDescription(me.scope)}</span>${controls}</dd></div>
     <div class="profile-row"><dt lang="et">Algus <span class="ru" lang="ru">старт</span></dt><dd>${startValue}${startControl}
       <span class="profile-sub" lang="ru">Самооценка для рекомендаций, не подтверждённый уровень CEFR.</span></dd></div>
     <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
@@ -113,8 +109,11 @@ function authHtml() {
     <p class="profile-error" role="alert" lang="ru">Не удалось проверить вход в аккаунт. ${esc(authInfo.error || "Попробуй ещё раз.")}</p>
     <button class="ghost" id="retryAuth" type="button" lang="et">Proovi uuesti <span class="ru" lang="ru">проверить вход ещё раз</span></button>
   </section>`;
-  if (currentMe?.scope !== "guest" && !needsFirstAccount()) return "";
+  if (currentMe?.scope !== "guest") return "";
   const canSignup = !!authInfo.signup_open;
+  if (!canSignup) return `<section class="profile-auth" aria-label="Sisselogimine">
+    <p class="hint" lang="ru">Можно заниматься гостем. Вход по аккаунту сейчас не настроен.</p>
+  </section>`;
   const tabs = canSignup
     ? `<div class="levels profile-auth-tabs" role="tablist" aria-label="Konto — аккаунт">
         <button type="button" role="tab" aria-selected="${authView === "login"}" data-auth-view="login" lang="et">Logi sisse <i class="ru" lang="ru">войти</i></button>
@@ -123,7 +122,7 @@ function authHtml() {
   const signup = authView === "signup" && canSignup;
   return `<section class="profile-auth" aria-label="Sisselogimine">
     ${tabs}
-    <p class="hint" lang="ru">Аккаунт Estep сохраняет твой прогресс. Cloudflare Access только открывает доступ к сайту.</p>
+    <p class="hint" lang="ru">Можно заниматься без входа. Аккаунт Grove сохраняет твой прогресс между устройствами.</p>
     <form id="authForm" data-mode="${signup ? "signup" : "login"}">
       ${signup ? `<label lang="et" for="authName">Nimi <i class="ru" lang="ru">имя</i></label>
         <input id="authName" name="name" type="text" maxlength="60" autocomplete="name" required>` : ""}
@@ -134,13 +133,11 @@ function authHtml() {
         <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" maxlength="1024" aria-describedby="authPasswordHelp" required>
         <button class="ghost" id="showPassword" type="button" aria-controls="authPassword" aria-pressed="false" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
       </div>
-      <p id="authPasswordHelp" class="hint" lang="ru">${signup ? "Не менее 10 символов. Используй отдельный пароль для Estep." : "Если забыл пароль Estep, обратись к владельцу приложения. Самостоятельного сброса пока нет."}</p>
+      <p id="authPasswordHelp" class="hint" lang="ru">${signup ? "Не менее 10 символов. Используй отдельный пароль для Grove." : "Если забыл пароль Grove, обратись к владельцу приложения. Самостоятельного сброса пока нет."}</p>
       <button class="go" type="submit" lang="et">${signup ? "Loo konto" : "Logi sisse"} <span class="ru" lang="ru">${signup ? "создать аккаунт" : "войти"}</span></button>
       <p id="authError" class="profile-error" role="alert" hidden></p>
     </form>
-    ${signup ? `<p class="note">${needsFirstAccount()
-      ? "В приложении пока нет аккаунтов. Первый аккаунт станет основным и продолжит историю, уже записанную в приложении."
-      : "Новая учётная запись получит отдельный прогресс."}</p>` : ""}
+    ${signup ? `<p class="note">Новая учётная запись получит отдельный прогресс.</p>` : ""}
   </section>`;
 }
 
@@ -179,7 +176,7 @@ function profileHtml(me, notice = "") {
       </ul>
     </section>
     ${restoreHtml(me)}
-    ${me.scope !== "guest" && !needsFirstAccount() ? `<section class="profile-section profile-reset-section">
+    ${me.scope !== "guest" ? `<section class="profile-section profile-reset-section">
       <h3 class="sec-head" lang="et">Lähtesta edenemine <i class="ru" lang="ru">сброс прогресса</i></h3>
       <p class="hint profile-reset-copy" lang="ru">Занятия, контрольные, повторы и словарь будут сброшены. Аккаунт, имя и дата регистрации сохранятся. До следующего сброса прогресс можно восстановить здесь.</p>
       <div class="profile-reset-actions">
@@ -207,7 +204,7 @@ function startOptionsHtml(me) {
 }
 
 function restoreHtml(me) {
-  if (me.scope === "guest" || !me.restore_available || needsFirstAccount()) return "";
+  if (me.scope === "guest" || !me.restore_available) return "";
   return `<section class="profile-section profile-restore-section">
     <h3 class="sec-head" lang="et">Taasta edenemine <i class="ru" lang="ru">восстановить прогресс</i></h3>
     <p class="hint profile-reset-copy" lang="ru">Можно вернуть прогресс до последнего сброса. Занятия, сделанные после него, тоже сохранятся. Следующий сброс заменит эту точку восстановления.</p>
@@ -259,7 +256,7 @@ export async function loadProfile() {
       profileIdentity = identity;
     }
     paintAccount();
-    authView = needsFirstAccount() ? "signup" : "login";
+    authView = "login";
     const notice = resetNotice;
     resetNotice = "";
     out.innerHTML = profileHtml(currentMe, notice);

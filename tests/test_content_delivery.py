@@ -3,8 +3,7 @@
 The corpus is owner-only (not in the image) and Cloud Run's disk is ephemeral, so
 a harvest is pushed to the origin, the Worker archives it, and each new
 container gets it back. These tests cover receiving a push and handing the
-archive back. The push is authenticated by `STATE_TOKEN`, since a script cannot
-pass Cloudflare Access.
+archive back. The operator push uses `PROXY_TOKEN` and `STATE_TOKEN`.
 """
 
 from __future__ import annotations
