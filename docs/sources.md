@@ -20,7 +20,8 @@ in the owner's library.
 | Sõnaveeb via `api.sonapi.ee` | live word card without a key |
 | EKI *Eesti keele grammatika tabelid* (PSV) | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
 | EKI teatmik, *Asesõnade käänamine* | pronoun paradigms (`eesti/pronouns.py`) |
-| *Eesti keele käsiraamat* (EKK) | rule links per topic; SÜ 65 rection list |
+| *Eesti keele käsiraamat* (EKK) | own Russian explanations and short attributed examples link to their sections; SÜ 65 rection facts |
+| EKI teatmik | pronoun declension facts with stress/stem marks removed; source linked in each lesson |
 | EKI *põhisõnavara hääldused* | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
 | EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
 | `data/seed_glossary.tsv` | 315 hand-written glosses for drill words |

@@ -6,7 +6,7 @@ User explicitly authorized commit, merge and deletion of all non-main branches.
 Five substantive commits from PRs #101–#105 never reached main: those PRs were
 merged into former stack bases. Integrating every surviving branch tip preserves
 both their changes and ancestry while retaining Grove/public access from main.
-Current merge: source provenance; runtime/input hashes and dependency pins added.
+Current merge: material shelves, media paging and object-case lesson guidance.
 Public-access and corpus-restoration regressions are both retained; checks pending.
 Next: finish integration, run Python/Worker/browser checks and inspect viewports;
 merge into main, verify branch reachability, then delete non-main refs.

@@ -116,6 +116,25 @@ def test_browse_respects_the_limit(content):
     assert len(browse(content, "lugemine", limit=2)) == 2
 
 
+def test_section_pages_reach_all_items_without_repeating_skills(content):
+    """A section with uneven skill counts remains complete across small pages."""
+    from eesti.sources import Item, add_items
+
+    add_items(content, [
+        Item("harno", skill, body=f"{skill} {n}", title=f"{skill} {n}",
+             meta={"kind": "ulesanne"})
+        for skill, count in [("kirjutamine", 9), ("raakimine", 2)]
+        for n in range(count)
+    ])
+    whole = browse(content, "eksam", limit=100)
+    pages = [row for offset in range(0, len(whole), 3)
+             for row in browse(content, "eksam", limit=3, offset=offset)]
+    assert [r["id"] for r in pages] == [r["id"] for r in whole]
+    assert len({r["id"] for r in pages}) == 11
+    assert {r["skill"] for r in pages[:3]} == {"kirjutamine", "raakimine"}
+    assert browse(content, "eksam", limit=3, offset=11) == []
+
+
 def test_the_library_is_not_ordered_by_anything_the_learner_must_follow(content):
     """A shelf, not a path: browsing twice gives the same set, and nothing in
     the result claims a position or a gate."""

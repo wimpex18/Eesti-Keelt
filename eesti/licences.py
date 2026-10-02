@@ -439,16 +439,13 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
     ),
     Source(
         "ekk", "Eesti keele käsiraamat (EKI)", "file",
-        "© Eesti Keele Instituut — linked to, not reproduced", False,
+        "© Eesti Keele Instituut — attributed rules and brief examples", False,
         "https://arhiiv.eki.ee/books/ekk09/index.php",
-        "The handbook this project points at instead of restating grammar. Two "
-        "uses, both deliberate: every rule explanation links to its section "
-        "rather than paraphrasing it, and SÜ 65 — the handbook's own list of "
-        "rections people get wrong — is fetched once for 62 lexical facts "
-        "(headword, correct frame, marked wrong frame). EKK's example "
-        "sentences are **not** stored; rection drills are built over the "
-        "harvested corpus instead, so nothing of the prose is reproduced and "
-        "the sentences sit at the learner's level rather than the handbook's.\n\n"
+        "Own Russian explanations paraphrase the cited rules; brief Estonian "
+        "examples are attributed through each lesson's section links. Complete "
+        "chapters are not imported. SÜ 65's rection facts (headword, correct "
+        "frame, marked wrong frame) are fetched for deterministic practice; "
+        "its full example sentences are not imported into that table.\n\n"
         "EKK 2009 is the handbook linked to, but **ÕS 2025 is the basis of the "
         "written-language norm from 2026-01-01**, and EKI route current rection "
         "and usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
@@ -456,6 +453,14 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "`rektsioon` drill marks an answer wrong and `rection.errors` corrects "
         "free writing — so a contrast ÕS has revised would be taught stale. "
         "Checked as prose, not as code: see docs/sources.md.",
+    ),
+    Source(
+        "eki-teatmik", "EKI teatmik", "file",
+        "© Eesti Keele Instituut — attributed grammatical facts", False,
+        "https://teatmik.eki.ee/teatmik/asesonade-kaanamine/",
+        "Pronoun forms are transcribed from the named declension tables, with "
+        "stress/stem marks removed. Grammar lessons retain the source link. "
+        "This record does not grant wholesale reuse of the site's prose.",
     ),
     Source(
         "oma-materjal", "Oma materjal — käsitsi lisatud", "file",

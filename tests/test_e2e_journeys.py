@@ -1421,6 +1421,40 @@ class TestDiscoveredDefects:
         # Stubbed regressions need page requests; offline journeys keep the worker.
         return "block"
 
+    def test_radio_later_page_retries_without_losing_an_open_lesson(self, page):
+        page.route("**/api/modes", lambda r: r.fulfill(json={"modes": [{
+            "id": "oppimine", "sections": [{"id": "saated", "et": "Saated",
+                "items": 73, "with_audio": 0, "note": "Уроки с текстом."}]}]}))
+        requests = []
+        def catalogue(route):
+            from urllib.parse import parse_qs
+            offset = int(parse_qs(urlsplit(route.request.url).query)["offset"][0])
+            requests.append(offset)
+            # Even an erroneous empty 200 must retain the earlier page and allow retry.
+            stop = 60 if offset == 0 else (offset if requests.count(60) == 1 else 73)
+            route.fulfill(json={"total": 73, "items": [
+                {"id": f"qa-radio-{n}", "title": f"Saade {n}", "words": 3}
+                for n in range(offset, stop)]})
+        page.route("**/api/library?section=saated*", catalogue)
+        page.route("**/api/library/qa-radio-*", lambda r: r.fulfill(json={
+            "body": "Ma elan Tallinnas.", "audio_url": None}))
+        open_tab(page, "learn", "listen")
+        rows = page.locator('#listenLib [data-section="saated"] .lib-item')
+        rows.first.locator("h4").click()
+        rows.first.locator(".listen-text").wait_for(state="visible")
+        page.locator("#listenLib .sec-more").click()
+        page.get_by_role("button", name="Proovi uuesti").wait_for(state="visible")
+        assert rows.count() == 60
+        assert rows.first.locator(".listen-text").is_visible()
+        page.get_by_role("button", name="Proovi uuesti").click()
+        page.wait_for_function("document.querySelectorAll('#listenLib .lib-item').length === 73")
+        assert requests == [0, 60, 60]
+        assert page.locator("#listenLib .sec-more").is_hidden()
+        rows.last.locator("h4").click()
+        rows.last.locator(".listen-text").wait_for(state="visible")
+        assert len(set(rows.evaluate_all("els => els.map(e => e.dataset.id)"))) == 73
+        assert not browser_errors(page), browser_errors(page)
+
     def test_long_word_card_keeps_close_and_actions_reachable(self, page):
         """A long EKI entry must scroll inside its card above the phone dock."""
         page.route("**/api/enrich/*", lambda r: r.fulfill(json={
