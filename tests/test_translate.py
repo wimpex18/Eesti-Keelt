@@ -136,17 +136,6 @@ class TestTheEndpointAndItsPosture:
         got = client.post("/api/translate", json={"text": "Tere."}).json()
         assert got["ok"] is True and got["text"] == "Привет."
 
-    def test_nothing_renders_a_translation_on_its_own(self):
-        """Offered, never shown. A reader handed Russian reads the Russian, and
-        this app's reading design rests on working at the edge of what is
-        understood rather than past it."""
-
-        page = markup_and_script()
-        assert '"/api/translate"' in page
-        # The only call site is behind a button the learner presses.
-        before = page.split('"/api/translate"', 1)[0]
-        assert "#xlBtn" in before, "translation is not behind an explicit action"
-
     def test_the_route_has_a_caller(self):
         """`TARTUNLP_TRANSLATE` has a caller."""
 

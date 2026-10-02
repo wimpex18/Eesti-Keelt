@@ -123,6 +123,7 @@ export function taskLine(it, ru, opts) {
   // card's topic — provenance, not a task — so it takes the quiet shape.
   const quiet = !!(opts && opts.quiet);
   if (form && !quiet) bits.push(`<span class="form" lang="et">${esc(form)}</span>`);
+  if (it.lemma_ru) ru = [it.lemma_ru];
   if (ru && ru.length)
     bits.push(`<span class="gloss" lang="ru">${esc(ru.slice(0, 2).join(", "))}</span>`);
   // Chips last, and in the quiet shape the meaning comes before the topic:
@@ -130,6 +131,69 @@ export function taskLine(it, ru, opts) {
   if (form && quiet) bits.push(`<span class="lvl" lang="et">${esc(form)}</span>`);
   if (it.level) bits.push(`<span class="lvl">${esc(it.level)}</span>`);
   return `<span class="task">${bits.join("")}</span>`;
+}
+
+// Plain-language readings of the EKI case questions and personal pronouns.
+// A choice exercise keeps its empty label: guidance must not choose its answer.
+const FORM_RU = {
+  alaleütlev: "кому? на что? куда?", alalütlev: "у кого? на чём? где?",
+  alaltütlev: "от кого? с чего? откуда?", sisseütlev: "в кого? во что? куда?",
+  seesütlev: "в ком? в чём? где?", seestütlev: "из кого? из чего? откуда?",
+  omastav: "родительный падеж", osastav: "частичный падеж",
+  kaasaütlev: "с кем? с чем?", ilmaütlev: "без кого? без чего?",
+  olevik: "настоящее время", lihtminevik: "простое прошедшее время",
+  mina: "я", ma: "я", sina: "ты", sa: "ты", tema: "он / она", ta: "он / она",
+  meie: "мы", me: "мы", teie: "вы", te: "вы", nemad: "они", nad: "они",
+};
+
+export function addPracticeSupport(el, it, {offline = false} = {}) {
+  const prompt = el.querySelector(".prompt");
+  if (!prompt) return;
+  const instruction = document.createElement("p");
+  instruction.className = "practice-instruction";
+  instruction.lang = "ru";
+  const form = it.form_ru ? `${it.label} — ${it.form_ru}` : (it.label || "").split(", ").map(term =>
+    FORM_RU[term] ? `${term} — ${FORM_RU[term]}` : term).join("; ");
+  instruction.textContent = it.choices?.length
+    ? "Выбери подходящее предложение."
+    : `Впиши форму${it.lemma ? ` слова ${it.lemma}` : " слова"}.${form ? ` ${form}${/[?.!]$/.test(form) ? "" : "."}` : ""}`;
+  prompt.before(instruction);
+  const support = document.createElement("div");
+  support.className = "practice-meaning";
+  prompt.after(support);
+  if (it.sentence_ru) {
+    support.lang = "ru";
+    support.textContent = it.sentence_ru;
+    return;
+  }
+  // Offline packs never make a network request for an optional crutch.
+  if (offline) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ghost";
+  button.lang = "et";
+  button.innerHTML = '<span lang="et">Tõlge <span class="ru" lang="ru">перевод предложения</span></span>';
+  const result = document.createElement("p");
+  result.lang = "ru";
+  result.setAttribute("role", "status");
+  support.append(button, result);
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    result.textContent = "Перевожу…";
+    try {
+      const text = it.choices?.length ? it.answer
+        : it.prompt.replace("____", (it.answer || "").split(" ~ ")[0]);
+      const translated = await (await api("/api/translate", {text, target: "rus"})).json();
+      result.textContent = translated.ok
+        ? `${translated.text} · автоматический перевод (${translated.engine})`
+        : translated.detail;
+      if (translated.ok) button.hidden = true;
+    } catch (err) {
+      result.textContent = err.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 const CYRILLIC = /[\u0400-\u04ff]/;

@@ -1827,3 +1827,7 @@ nav > .glide{background:var(--glass-strong);box-shadow:inset 0 0 0 1px var(--gla
   #practiceOut .drill > .row{margin-top:var(--s1)}
 }
 @media (prefers-reduced-motion:reduce){.glass-copy{transform:none}}
+/* Exercise reading support belongs to the solid content sheet. */
+.practice-instruction { margin: 0 0 var(--s3); color: var(--ink); }
+.practice-meaning { margin: var(--s2) 0 var(--s4); }
+.practice-meaning p { margin: var(--s2) 0 0; }
