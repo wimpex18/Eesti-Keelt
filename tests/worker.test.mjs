@@ -23,8 +23,15 @@ function object(env) {
       },
     },
     async get(key) { return values.get(key); },
-    async put(key, value) { values.set(key, structuredClone(value)); },
-    async delete(key) { return values.delete(key); },
+    async put(key, value) {
+      if (typeof key === "object") {
+        for (const [k, v] of Object.entries(key)) values.set(k, structuredClone(v));
+      } else values.set(key, structuredClone(value));
+    },
+    async delete(key) {
+      if (Array.isArray(key)) return key.reduce((n, k) => n + Number(values.delete(k)), 0);
+      return values.delete(key);
+    },
     async list({ prefix }) { return new Map([...values].filter(([key]) => key.startsWith(prefix))); },
     async setAlarm() {},
   };
@@ -261,6 +268,7 @@ test("unchanged reads reuse a cursor only from their own boot", async () => {
   globalThis.fetch = async url => {
     const path = new URL(url instanceof Request ? url.url : url).pathname;
     if (path === "/api/health") return Response.json({ boot: "boot-A" });
+    if (path === "/api/content/export") return Response.json({ present: false });
     if (path === "/api/profile") return originResponse({ name: "saved" }, 10);
     if (path === "/api/events") copies++;
     throw new Error(path);
@@ -277,6 +285,7 @@ test("a failed copy preserves the origin's error and never confirms success", as
   globalThis.fetch = async url => {
     const path = new URL(url instanceof Request ? url.url : url).pathname;
     if (path === "/api/health") return Response.json({ boot: "boot-A" });
+    if (path === "/api/content/export") return Response.json({ present: false });
     if (path === "/api/profile") return originResponse({ detail: "bad input" }, 11, "boot-A", 400);
     if (path === "/api/events") throw new Error("offline");
     throw new Error(path);
@@ -367,4 +376,106 @@ test("public audio never reuses the old unscoped cache or caches private owner c
     await Promise.all(app.pending);
     assert.deepEqual(written, [seen[1]]);
   } finally { globalThis.caches = previousCaches; }
+});
+
+test("a rejected corpus restore retries before accepting the new origin boot", async () => {
+  const app = setup();
+  await app.owner.bindWho({ scope: "owner", id: "owner", email: "" });
+  const { storage } = app.objects.get("singleton");
+  const corpus = JSON.stringify({ database: "archived-private-corpus" });
+  await storage.put("corpus-meta", { chunks: 1, bytes: corpus.length, at: 0 });
+  await storage.put("corpus/0", corpus);
+  let imports = 0;
+  globalThis.fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/health") return Response.json({ boot: "fresh-boot" });
+    if (path === "/api/content/export") return Response.json({ present: false });
+    if (path === "/api/content/import") {
+      assert.equal(init.body, corpus);
+      return Response.json({}, { status: ++imports === 1 ? 422 : 200 });
+    }
+    if (path === "/api/events/import") return Response.json({ ingested_seq: 0 });
+    throw new Error(`Unexpected origin request: ${path}`);
+  };
+  assert.equal(await app.owner.ensureRestored(), false);
+  assert.equal(await storage.get("origin"), undefined);
+  assert.equal(await app.owner.ensureRestored(), true);
+  assert.equal(imports, 2);
+  assert.equal((await storage.get("origin")).boot, "fresh-boot");
+});
+
+test("a warm-origin corpus update is archived and restored on the next boot", async () => {
+  const app = setup();
+  app.env.SESSION_SECRET = "test-session-secret";
+  const account = await app.owner.createOwnerAccount("owner@example.test", "test-password");
+  const cookie = `eesti_session=${await signSession(account.id, app.env.SESSION_SECRET)}`;
+  await app.owner.bindWho({ scope: "owner", id: "owner", email: "" });
+  const { storage } = app.objects.get("singleton");
+  let boot = "warm-boot", revision = "old-hash", present = true, broken = false;
+  let corpus = JSON.stringify({ database: "old-private-corpus" });
+  let replayed = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/api/health") return Response.json({ boot, corpus_revision: revision });
+    if (url.pathname === "/api/content/export") {
+      if (url.searchParams.has("full")) return new Response(broken ? "{}" : corpus);
+      return Response.json({ present });
+    }
+    if (url.pathname === "/api/content/import") {
+      assert.equal(init.body, corpus, "cold start must receive the newer corpus");
+      present = true;
+      return Response.json({});
+    }
+    if (url.pathname === "/api/events/import") {
+      replayed++;
+      return Response.json({ ingested_seq: 0 });
+    }
+    throw new Error(`Unexpected origin request: ${url.pathname}`);
+  };
+  assert.equal(await app.owner.ensureRestored(), true);
+  assert.equal(await app.owner.load("corpus"), corpus);
+  const old = corpus;
+  corpus = JSON.stringify({ database: "new-private-corpus".repeat(13000) });
+  revision = "new-hash";
+  app.owner.lastSeen = 0; // Advance past the ordinary liveness cache.
+  broken = true;
+  assert.equal(await app.owner.ensureRestored(), false);
+  assert.equal(await app.owner.load("corpus"), old, "failed export keeps the usable archive");
+  broken = false;
+  const put = storage.put;
+  let partial = true;
+  storage.put = async (key, value) => {
+    if (typeof key === "object" && partial) {
+      partial = false;
+      await put(Object.fromEntries(Object.entries(key).slice(0, 1)));
+      throw new Error("interrupted chunk write");
+    }
+    return put(key, value);
+  };
+  assert.equal(await app.owner.ensureRestored(), false);
+  assert.equal(await app.owner.load("corpus"), old, "interrupted chunks retain the old pointer");
+  storage.put = put;
+  assert.equal(await app.owner.ensureRestored(), true);
+  assert.equal(await app.owner.load("corpus"), corpus);
+  assert.equal((await storage.list({ prefix: "corpus/" })).size,
+    (await storage.get("corpus-meta")).chunks, "old/interrupted generations are cleaned");
+  assert.equal(replayed, 1, "a corpus update must not replay learner progress");
+  corpus = JSON.stringify({ database: "explicit-publication-check" });
+  revision = "checked-hash";
+  const guest = await worker.fetch(new Request("https://learn.test/api/health"), app.env, app.ctx);
+  assert.equal((await guest.json()).corpus_archived_revision, undefined,
+    "guest health must not attest an owner's publication");
+  const checked = await worker.fetch(new Request("https://learn.test/api/health", {
+    headers: { cookie },
+  }), app.env, app.ctx);
+  const health = await checked.json();
+  assert.equal(health.corpus_revision, revision);
+  assert.equal(health.corpus_archived_revision, revision, "owner health bypasses the liveness cache");
+  assert.equal(await app.owner.load("corpus"), corpus);
+  boot = "cold-boot";
+  present = false;
+  revision = null;
+  app.owner.lastSeen = 0;
+  assert.equal(await app.owner.ensureRestored(), true);
+  assert.equal(replayed, 2);
 });

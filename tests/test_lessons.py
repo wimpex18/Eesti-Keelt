@@ -88,4 +88,4 @@ class TestRussianForEveryTopic:
             assert t.id in TIPS and TIPS[t.id].wrong != TIPS[t.id].right, t.id
 
     def test_the_tip_reaches_the_page(self):
-        assert lesson("obj-case")["tip"]["right"] == "Ma ostsin raamatu."
+        assert lesson("obj-case")["tip"]["right"] == "Vii laps lasteaeda!"

@@ -44,13 +44,17 @@ REFERENCES: dict[str, Reference] = {
         tag="obj-case",
         et_term="täissihitis ja osasihitis",
         ru_term="полное и частичное дополнение",
-        ekk_section="SÜ 37",
+        ekk_section="SÜ 38",
         chapter=SUNTAKS,
         subsection=2,
         summary_ru=(
-            "**Täissihitis** (omastav või nimetav) — действие завершено и объект "
-            "охвачен целиком. **Osasihitis** (osastav) — процесс, часть объекта "
-            "или отрицание. Отрицание всегда требует osastav."
+            "**Täissihitis** (полное дополнение) — целый объект и действие, "
+            "которое достигло или достигнет результата; форма — omastav "
+            "(родительный падеж) или nimetav (именительный падеж). "
+            "**Osasihitis** (частичное дополнение) — osastav (частичный падеж): "
+            "процесс, часть или неопределённое количество. При обычном "
+            "отрицании тоже osastav; противопоставление *mitte … vaid* — "
+            "исключение. Выбор omastav или nimetav разобран в уроке по SÜ 40."
         ),
     ),
     "verb-form": Reference(

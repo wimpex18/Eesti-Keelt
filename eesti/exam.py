@@ -21,7 +21,7 @@ from datetime import date
 
 #: Where the numbers come from, and when they were last checked against it.
 SOURCE = "https://harno.ee/eesti-keele-tasemeeksamid"
-VERIFIED = date(2026, 9, 19)
+VERIFIED = date(2026, 10, 1)
 
 #: Pass rule, both levels: 60 % of the total, and no part at zero.
 PASS_SHARE = 0.6
@@ -82,10 +82,10 @@ SPECS: dict[str, Spec] = {
              note="Оценивают два экзаменатора; в одиночку это не измерить."),
     )),
     "B1": Spec("B1", (
-        Part("kirjutamine", "Kirjutamine", "письмо", 30, 25,
-             "Анкета или сообщение (около 50 слов), либо рассказ или личное "
-             "письмо (около 100 слов).",
-             note="HARNO называет 30 или 35 минут; берём меньшее."),
+        Part("kirjutamine", "Kirjutamine", "письмо", 35, 25,
+             "Два задания: сначала анкета с 10 вопросами или сообщение "
+             "(около 50 слов), затем рассказ или личное письмо "
+             "(около 100 слов)."),
         Part("kuulamine", "Kuulamine", "аудирование", 30, 25,
              "Записи с вопросами.", note="HARNO: 30–35 минут."),
         Part("lugemine", "Lugemine", "чтение", 50, 25,

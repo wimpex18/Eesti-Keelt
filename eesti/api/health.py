@@ -21,6 +21,7 @@ from .deps import (
     content_available,
     content_counts,
     content_db,
+    content_revision,
     db,
     progress_db,
     review_db,
@@ -31,6 +32,7 @@ router = APIRouter()
 
 @router.get("/api/health")
 def health() -> dict:
+    from .. import reference
     conn = db()
     words = conn.execute("SELECT COUNT(*) FROM words").fetchone()[0]
     drillable = conn.execute(
@@ -52,6 +54,7 @@ def health() -> dict:
         # reading but gives every drill an empty `reading` list (`cli link-topics` fills
         # it).
         "corpus": content_counts(),
+        "corpus_revision": content_revision(),
         # Verifiable rather than assumed: on a deployment this must be true, and
         # if it is false the origin is answering the open internet.
         "origin_guarded": bool(os.environ.get("PROXY_TOKEN")),
@@ -63,6 +66,8 @@ def health() -> dict:
         # does not mean it holds data, and each import may fail without failing the build
         # (`docs/sources.md`), so the deployment reports which landed.
         "reference": _reference(conn),
+        "dependencies": reference.dependencies(),
+        "reference_inputs": reference.deployment_inputs(),
     }
 
 

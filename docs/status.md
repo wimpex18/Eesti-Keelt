@@ -19,7 +19,7 @@ the same change that makes it untrue.
 | **Vocabulary** | `Sõnavara` lists the word list by CEFR level and part of speech, commonest first; the word card sets a status. *Sõnatrenn* asks ten learning words from their Russian meaning and checks the typed Estonian against the word list; a miss can be queued for Kordamine. It records nothing. |
 | **Meaning** | **315 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). Definitions: EKI PSV → live → VSL → EKSS. |
 | **Live dictionary** | EKI's Ekilex API when `EKILEX_API_KEY` is set, otherwise the Sõnaveeb mirror; answers stored once per word. |
-| **Rules** | 36 of 37 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kogu rada, a running set and free practice: the EKK summary, a one-line gist with the typical mistake, written points in Russian for every topic (`eesti/lessontext.py`, each citing EKK, the EKI teatmik or EKI's learner grammar tables), a form table built by Vabamorf with each case's question and ending, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
+| **Rules** | 36 of 37 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kogu rada, a running set and free practice: the EKK summary, a one-line gist with the typical mistake, written points in Russian for every topic (`eesti/lessontext.py`, each citing EKK, the EKI teatmik or EKI's learner grammar tables); object-case points distinguish completion from tense, omastav from nimetav, and ordinary negation from contrastive negation, a form table built by Vabamorf with each case's question and ending, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
 | **Word readings** | The form index (`edge.db`) keeps only forms Vabamorf reads back to the same lemma and tag; a word with nothing to inflect (`kus`, `aga`) is listed once and named by its part of speech. A word tapped in a text is looked up with its sentence: Vabamorf's disambiguator marks the reading it uses (*selles lauses*), puts it first, and **Kordamisse** queues that word (`mulle` in *Anna mulle* is `mina`). TartuNLP's neural tagger (`est-roberta-vm-morph-tagging`, CC BY-SA 4.0) was measured on 2 000 genuinely ambiguous words in EVS phrases, where EKI's headword says which word is meant: Vabamorf 66% right, 24% left open, 10% wrong; the tagger 75% right, 5% left open, 16% wrong. Where Vabamorf leaves a word open, the tagger agrees with EKI about half the time even at 99% confidence, so it is not used: a confidently wrong reading on the card is worse than two honest ones, and it would put PyTorch in the image. |
 | **Example phrases** | The word card's *Näited*: EKI EVS's example phrases, each with its Russian, offline — 137 316 phrases for 34 802 lemmas (`evs.examples`). Three show, the rest fold, each with a play button; the word's 1 912 EVS idioms fold under *Väljendid*. A word's meaning card in Järjekord shows one (a different one each review) and, from the second review, asks for it to be built from tiles (*Koosta fraas*); code compares the order with EKI's and says so neutrally, and the learner still rates the card. |
 | **Question-word cues** | A `kusisonad` item shows the Russian for the question word its blank wants, from EKI EVS (`docs/curriculum.md`): 8 of 12 answer words. |
@@ -28,9 +28,9 @@ the same change that makes it untrue.
 | **Writing** | Grammar check through the provider chain (`docs/ai-providers.md`), plus deterministic spelling, subject–verb agreement and rection checks; back-translation; corrections queue for the Notion `Vead` log. |
 | **Listening** | Dictation (graded) from sentences read by EKI's own readers where they exist, the corpus otherwise; TartuNLP TTS on any text; ERR episode audio. |
 | **Speaking** | Paired-exam question bank with TTS, read-aloud with comparison, open-answer feedback over the transcript, `Vestlus` (a model plays the partner), and — under `cli serve` only — optional saving from ordinary mic practice into `Hindamiskomplekt`. The learner can play a saved answer, correct tentative ASR text in the page and confirm what was actually said for the private speech eval set. Ordinary practice audio stays unsaved. Each answer is recorded with what code can measure — answered or not, words, pace, and the share of words Vabamorf does not know, which flags a transcript the recogniser struggled with. Readiness reports that practice and still refuses to judge the part. A drill answer can be spoken: the microphone beside the answer box fills it with what was heard, and the learner checks it before grading (`eesti/web/js/voice.js`). |
-| **Exam** | HARNO's own shape as data (`eesti/exam.py`): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
+| **Exam** | HARNO's own shape as data (`eesti/exam.py`): A2 4×20, B1 4×25, pass at 60 % with no part at zero, and the published sittings. Writing has two tasks: 30 minutes at A2, 35 at B1. The learner picks a sitting in `Eksam`; it is learner state (a `goal-set` event), drives the countdown and exports as `.ics`. |
 | **Official tasks** | Owner-imported HARNO PDFs, recordings and EIS tasks open inside `Eksam`. `cli prepare-exam` writes private page-aware PDF sidecars with individual figures and optional Estonian OCR. A visually checked A2 reading PDF supplies six native choices; a B1 reading PDF supplies nine situation-to-ad matches. Both use their printed keys and are practice only; these owner-only tasks are verified from the owner’s session. The other 27 task PDFs remain ungraded page text and figures, plus original pages. EIS scoring still opens on its own site. Absent downloads link out. Private study only; every task carries © Haridus- ja Noorteamet (`docs/exam-native.md`). |
-| **Mock** | `Proovieksam`: one exam part on the exam's own clock, or all four in the exam's order (`eesti/mock.py`). Reading is gap-fill in corpus sentences, listening is dictation, writing is HARNO's task shape graded on length plus the deterministic checks (spelling, agreement, rection), speaking is the question bank and is never scored. Each section says what it really is, and counts as evidence for its part. |
+| **Mock** | `Proovieksam`: one exam part on the exam's own clock, or all four in the exam's order (`eesti/mock.py`). Reading is gap-fill in corpus sentences, listening is dictation, writing practises only the longer task over the whole part's clock and checks length plus deterministic spelling, agreement and rection, speaking is the question bank and is never scored. Each section says what it really is, and counts as evidence for its part. |
 | **Readiness** | Four exam parts reported separately with reasons in Russian; a section sat on the clock counts as contact for its part. Each part carries its contact count towards the threshold of three (`contact`, `contact_target`), drawn as the petals of one cornflower; Rääkimine is hatched as unmeasured (`DESIGN.md`). |
 | **Interface** | Grove retains the boardwalk learning-path metaphor (`DESIGN.md`): Estonian blue on near-white, a floating glass sidebar on tablet and desktop with a context rail from 1080px, a floating glass dock on the phone. The phone skill row and mode dock have an inert magnifying lens for press/slide/release navigation; preview changes no panel or history, release commits, and quick taps and keyboard behavior remain. Header account/login opens Profiil beside theme cycling; automatic reduced-transparency/contrast fallbacks and existing saved preferences remain supported. Geologica is self-hosted under `eesti/web/fonts/`; icons are Phosphor in `eesti/web/js/icons.js`. Progress is drawn as the boardwalk, the mastery gate, the readiness flower, a 12-week practice rhythm (`/api/status` `rhythm`) and a 14-day review forecast (`/api/review/stats` `forecast`). Permanent accounts get an optional two-screen start recommendation; its A0–A2–B1 wording is explicitly self-assessment, never CEFR evidence. |
 | **Milestones** | Four level-specific markers derive from recorded practice, topic mastery, a passed checkpoint and completion of all four mock parts. They award no points, streaks or mastery (`eesti/milestones.py`). |
@@ -61,6 +61,14 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - `uhendverbid` and `liitsonad` have too few marked examples in the corpus for
   the attested-corrections approach behind `word-order`.
 
+### Instructional coverage
+
+Explanations and word meanings currently support Russian speakers. English and
+Ukrainian speakers do not have equivalent instructional support. The A0 starting
+recommendation does not constitute a complete beginner course. Candidate courses
+and dictionary exports still need rights and quality review
+(`docs/source-integrations.md`).
+
 ### Not built, by decision
 
 - **Acoustic pronunciation scoring** — the app links to EKI's free
@@ -84,10 +92,12 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 - **Allowances are not billing caps.** Workers AI speech and text share the
   account allocation; local counters do not measure all account usage. The
   weekly grammar eval checks the production lane.
-- **Source refreshes preserve usable data.** Empty Selges responses keep the
-  existing corpus; EIS failure does not stop HARNO. Deleting source content
-  clears its links. Content upload rebuilds topic links before publishing and
-  refuses without the publishing machine's built word list.
+- **Source refreshes preserve usable data.** Partial and pointer-only harvests
+  merge by source URL and level, preserving issued ids, stored text, recordings
+  and other levels. HARNO validates downloads before atomic replacement;
+  content upload rejects empty or corrupt databases. Refresh metadata records
+  checks and hashes, without claiming a publication date for unversioned files.
+  Upload rebuilds topic links and requires a built word list.
 - **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
   deployed, and Chrome on the owner's Mac is subscribed; actual delivery has
   not been confirmed.

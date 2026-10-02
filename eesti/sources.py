@@ -14,7 +14,8 @@ import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 # Re-exported, not merely imported: `from ..sources import REGISTRY` is what
@@ -121,6 +122,26 @@ def available(path: Path | str) -> bool:
         return False
 
 
+@lru_cache(maxsize=8)
+def _file_revision(path: str, mtime: int, size: int) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def revision(path: Path | str) -> str | None:
+    """Identify a usable corpus; rehash only when its actual file changes.
+
+    Unlike a boot id, this changes on an operator upload to a warm origin.
+    """
+    target = Path(path)
+    if not available(target):
+        return None
+    try:
+        stat = target.stat()
+        return _file_revision(str(target.resolve()), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        return None
+
+
 def corpus_counts(path: Path | str) -> dict[str, int]:
     """Corpus size (`items`) and how much a drill can reach (`topic_links`).
 
@@ -199,7 +220,13 @@ def register(conn: sqlite3.Connection, sources: tuple[Source, ...] = REGISTRY) -
 
 
 def add_items(conn: sqlite3.Connection, items: list[Item]) -> int:
-    """Insert or update by content hash. Safe to re-run on the same input."""
+    """Merge a harvest without losing stored content or issued item identities.
+
+    A source URL and official level identify a published item; the content hash
+    remains the first id for new items and the fallback for hand-fed material.
+    Missing members of a partial harvest are kept. Intentional removal uses
+    `clear_source`, never an empty upstream response.
+    """
     known = {r["id"] for r in conn.execute("SELECT id FROM sources")}
     unknown = {i.source_id for i in items} - known
     if unknown:
@@ -208,24 +235,56 @@ def add_items(conn: sqlite3.Connection, items: list[Item]) -> int:
             "Add them to REGISTRY with an explicit licence first."
         )
     today = date.today().isoformat()
+    checked = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    existing = {}
+    for source in {i.source_id for i in items}:
+        for row in conn.execute("SELECT * FROM items WHERE source_id=?", (source,)):
+            meta = json.loads(row["meta"] or "{}")
+            if meta.get("url"):
+                existing[(source, row["level"] or "", meta["url"])] = row
     with conn:
-        conn.executemany(
-            "INSERT OR REPLACE INTO items"
-            " (id,source_id,skill,level,band,title,body,audio_url,meta,added_on)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?)",
-            [
-                (i.id, i.source_id, i.skill, i.level, i.band, i.title, i.body,
-                 i.audio_url, json.dumps(i.meta, ensure_ascii=False), today)
-                for i in items
-            ],
-        )
+        for item in items:
+            meta = dict(item.meta)
+            key = (item.source_id, item.level or "", meta.get("url"))
+            old = existing.get(key) if meta.get("url") else None
+            item_id = old["id"] if old else item.id
+            body, audio = item.body, item.audio_url
+            if old:
+                previous = json.loads(old["meta"] or "{}")
+                # A failed task fetch or a pointer-only run must not downgrade
+                # a task the learner could already read and hear.
+                if not body and old["body"]:
+                    body = old["body"]
+                    meta = {**previous, **meta}
+                audio = audio or old["audio_url"]
+                for field in ("file", "audio", "file_sha256", "file_bytes"):
+                    if not meta.get(field) and previous.get(field):
+                        meta[field] = previous[field]
+                if body or meta.get("file"):
+                    meta["external"] = False
+                if body != old["body"] or audio != old["audio_url"]:
+                    conn.execute("DELETE FROM topic_items WHERE item_id=?", (item_id,))
+            meta["checked_on"] = checked
+            # This hashes the content actually retained, not an empty response.
+            meta["content_sha256"] = hashlib.sha256(
+                f"{item.source_id}|{item.title}|{body}|{audio}".encode("utf-8")
+            ).hexdigest()
+            conn.execute(
+                "INSERT INTO items"
+                " (id,source_id,skill,level,band,title,body,audio_url,meta,added_on)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET"
+                " skill=excluded.skill, level=excluded.level, band=excluded.band,"
+                " title=excluded.title, body=excluded.body, audio_url=excluded.audio_url,"
+                " meta=excluded.meta",
+                (item_id, item.source_id, item.skill, item.level, item.band, item.title,
+                 body, audio, json.dumps(meta, ensure_ascii=False), today))
+            if meta.get("url"):
+                existing[key] = conn.execute("SELECT * FROM items WHERE id=?", (item_id,)).fetchone()
     return len(items)
 
 
 def clear_source(conn: sqlite3.Connection, source_id: str) -> int:
-    """Drop every item from one source before re-harvesting: ids are content hashes,
-    so changed cleaning would otherwise insert duplicates.
-    """
+    """Explicitly remove a source and its derived topic links."""
     with conn:
         conn.execute(
             "DELETE FROM topic_items WHERE item_id IN "

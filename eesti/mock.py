@@ -9,7 +9,7 @@ says plainly what it is:
 |---|---|---|
 | `lugemine` | gap-fill in real corpus sentences | code |
 | `kuulamine` | dictation of corpus sentences | code, word by word |
-| `kirjutamine` | HARNO's own task shape and word minimum | by code: length, and the deterministic checks (spelling, agreement, rection) |
+| `kirjutamine` | one longer text and a practice length threshold | by code: length, and the deterministic checks (spelling, agreement, rection) |
 | `raakimine` | the paired-exam question bank, recorded | not scored — the exam is paired |
 
 Each finished section records an `exam-section` event, which readiness counts.
@@ -32,7 +32,8 @@ NOTE = {
                  "понимание фразы, а не экзаменационные вопросы."),
     "kuulamine": ("На экзамене это записи с вопросами. Здесь — диктант "
                   "(etteütlus) по корпусу: слышишь и записываешь."),
-    "kirjutamine": ("Задание в форме экзамена: тип текста и минимум слов. "
+    "kirjutamine": ("На экзамене два задания. Здесь — тренировка одного "
+                    "длинного текста в течение всего времени части. "
                     "Код считает слова и находит то, что решается без модели: "
                     "орфографию, согласование (ühildumine) и рекцию "
                     "(rektsioon). Объяснения — во вкладке Kirjutamine."),
@@ -113,13 +114,19 @@ def _listening(level: str, minutes: int, seed: int, content, words, vocabulary) 
 
 
 def _writing(level: str, minutes: int) -> Section:
-    part = SPECS[level].part("kirjutamine")
     return Section(level, "kirjutamine", minutes, "writing",
-                   [{"about": part.about, "min_words": MIN_WORDS[level]}],
+                   [{"about": WRITING_ABOUT[level], "min_words": MIN_WORDS[level]}],
                    note=NOTE["kirjutamine"])
 
 
-#: HARNO's own minimum for the longer writing task, by level.
+#: This practice asks only the longer task, not both official writing tasks.
+WRITING_ABOUT = {
+    "A2": "Напиши сообщение, приглашение или описание.",
+    "B1": "Напиши рассказ или личное письмо.",
+}
+
+#: Practice thresholds: HARNO's A2 minimum and B1 approximate length target.
+#: These are not HARNO's writing scores.
 MIN_WORDS = {"A2": 30, "B1": 100}
 
 
@@ -200,7 +207,7 @@ def counts(progress: sqlite3.Connection, level: str) -> dict[str, int]:
 def check_writing(text: str, level: str) -> dict:
     """Grade a mock's writing by what code can decide, and nothing else.
 
-    Length against HARNO's minimum, and the three deterministic checks the
+    Length against the practice threshold, and the three deterministic checks the
     writing tab already merges into every answer: spelling, subject-verb
     agreement and EKK's rection list. No model here — a model's judgement of a
     text is advisory evidence, and Kirjutamine is where it explains itself.
