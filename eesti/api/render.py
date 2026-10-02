@@ -23,6 +23,9 @@ def item_for_page(item) -> dict:
     shown = item.to_dict()
     if shown.get("topic") in CHOICE_TOPICS:
         shown["form_after"], shown["label"] = shown["label"], ""
+    from ..scaffolding import pronoun_support
+
+    shown.update(pronoun_support(shown))
     return shown
 
 

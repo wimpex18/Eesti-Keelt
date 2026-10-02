@@ -2,7 +2,7 @@
 
 import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml,
   stateIcon, uiIcon} from "./chrome.js";
-import {$, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import {$, addPracticeSupport, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
 import {onLessonPractice} from "./lesson.js";
@@ -641,6 +641,14 @@ async function startPractice({focus = true} = {}) {
     paintBeads(pathTally);
     res.items.forEach((it, i) =>
       out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {}, focus)));
+    // A phone session opens on the task. Added reading support must not push
+    // its answer below the dock; scroll without opening the software keyboard.
+    if (matchMedia("(max-width:719px), (hover:none) and (max-width:1079px) and (max-height:559px)").matches) {
+      requestAnimationFrame(() => {
+        const first = out.querySelector(".drill");
+        if (first?.checkVisibility()) first.scrollIntoView({block: "start", behavior: "instant"});
+      });
+    }
   } catch (e) {
     if (mine !== practiceRequest) return;
     out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
@@ -772,6 +780,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       ${taskLine(it, ru)}
     </div>`}
     <div class="verdict" role="status"></div>`;
+  addPracticeSupport(el, it);
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
   // One answer keeps one identity while the learner retries a durability 503.
   // The origin already deduplicates event_id, so a confirmed-but-interrupted
@@ -923,7 +932,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       grade();
     });
   } else {
-    el.querySelector("button").onclick = grade;
+    check.onclick = grade;
     input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
     if (i === 0 && focus) setTimeout(() => input.focus(), 0);
   }
@@ -1095,10 +1104,11 @@ function renderOfflineItem(it, i, glosses) {
     <div class="row">
       <input type="text" size="18" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>
       <button class="go" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
-      ${taskLine({lemma: it.lemma, label: it.hint || "", level: it.level || ""},
+      ${taskLine({lemma: it.lemma, lemma_ru: it.lemma_ru, label: it.hint || "", level: it.level || ""},
                  ru, {quiet: true})}
     </div>
     <div class="verdict" role="status"></div>`;
+  addPracticeSupport(el, it, {offline: true});
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
   const started = performance.now();
   const check = async () => {

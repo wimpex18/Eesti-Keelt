@@ -36,6 +36,32 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def test_exercise_translation_is_requested_and_does_not_submit_an_answer(page):
+    """Optional translation must not spend an attempt or run on set creation."""
+    translations = []
+    answers = []
+    page.on("request", lambda req: answers.append(req) if "/api/practice/answer" in req.url else None)
+
+    def translated(route):
+        translations.append(route.request.post_data_json)
+        route.fulfill(json={"ok": True, "text": "Я живу каждый день.", "engine": "test-translation"})
+
+    page.route("**/api/translate", translated)
+    page.locator("#pathModes button").nth(1).click()
+    page.locator("#freeTopic").select_option("olevik")
+    page.locator("#freeBtn").click()
+    item = page.locator("#freeOut .drill").first
+    item.wait_for()
+    assert not translations
+    assert not answers
+    item.locator(".practice-meaning button").click()
+    page.wait_for_function("document.querySelector('#freeOut .practice-meaning p').textContent.includes('test-translation')")
+    assert len(translations) == 1
+    assert "____" not in translations[0]["text"]
+    assert not answers
+    assert item.locator(".row > button.ghost").is_enabled()
+
 from conftest import browsers_root, chromium_binary  # noqa: E402
 
 
