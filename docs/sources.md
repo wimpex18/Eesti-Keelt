@@ -36,7 +36,12 @@ wrote them. For more than the stored fields, link to Sõnaveeb
 ## EKI files (`deploy/eki/`)
 
 Downloaded from <https://arhiiv.eki.ee/>, committed (XML gzipped) and
-imported by the `Dockerfile` into `data/eesti.db`. These bulk dictionary files are imported locally; live Ekilex lookups and
+imported by the `Dockerfile` into `data/eesti.db`. `/api/health` reports actual
+runtime dependency versions and the image's reference input fingerprints;
+input presence is distinct from the imported row counts. The word-list download
+pins an upstream commit and verifies SHA-256 (`eesti/reference.py`). Authenticated
+EKI hashes identify the supplied bytes; they do not prove those bytes are the
+newest upstream publication. These bulk dictionary files are imported locally; live Ekilex lookups and
 the EKK rection page use separate request paths.
 
 | File | Import | Rows |
@@ -139,6 +144,10 @@ providers in `docs/ai-providers.md`.
 | Asset | Where |
 |---|---|
 | Geologica (Monokrom) | `eesti/web/fonts/`, notices beside the files |
+| HLS.js light player | `eesti/web/vendor/hls.light.min.js`, upstream notices alongside |
 | Phosphor Icons | inlined in `eesti/web/js/icons.js`; notices beside the source |
 
-Both are served from this origin; the page asks no font or icon host for anything.
+These assets are served from this origin; the page asks no font or icon host for anything.
+
+The ingestion/store/UI map and freshness boundaries are in
+`docs/source-integrations.md`.

@@ -144,10 +144,13 @@ ENGINES: tuple[Source, ...] = (
         verified="2026-09-19",
     ),
     Source(
-        "inflection-et", "TalTech inflection_et", "engine", "MIT", True,
-        "https://github.com/TalTechNLP/inflection_et",
-        "Checked against Vabamorf in the morphology eval; not in the request path.",
-        data_leaves="none", verified="2026-09-19",
+        "inflection-et", "TalTech inflection_et", "engine",
+        "Licence not declared — evaluation only", False,
+        "https://huggingface.co/datasets/TalTechNLP/inflection_et",
+        "Checked against Vabamorf in the morphology eval; not in the request "
+        "path or redistributed as learner material. The dataset card does "
+        "not declare a licence.",
+        data_leaves="none", verified="2026-10-01",
     ),
 )
 
@@ -476,6 +479,13 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "https://github.com/phosphor-icons/core",
         "The interface icons, inlined as paths in `eesti/web/js/icons.js`; the MIT "
         "licence travels in `eesti/web/vendor/phosphor-icons.LICENSE`.",
+    ),
+    Source(
+        "hls-js", "HLS.js", "asset", "Apache-2.0", True,
+        "https://github.com/video-dev/hls.js",
+        "Unmodified light browser player for ERR HLS recordings; served from "
+        "this origin with its upstream licence and notices.",
+        version="1.7.3",
     ),
     Source(
         "generated", "Genereeritud harjutused", "generated",
