@@ -109,32 +109,14 @@ export async function loadExam() {
   $("#countdown").textContent =
     ready.countdown || (ready.deadline && ready.deadline.note) || "";
 
-  /* The flower leads: four parts, their contact, and the verdict in words beside
-     it. The one thing to do next follows, then each part with what to open. */
-  const next = (path.topics || []).find(t => t.id === path.resume);
-  const target = ready.contact_target || 3;
-  const firstReason = ready.reasons[0] || "";
-  let html = `<div class="bloom">
-    ${flowerSvg(ready.parts, target)}
-    <div>
-      <div class="bloom-verdict">${esc(String(ready.verdict || "").charAt(0).toUpperCase()
-        + String(ready.verdict || "").slice(1))}</div>
-      ${firstReason ? `<p class="why">${esc(firstReason)}</p>` : ""}
-      ${next ? `<div class="next-step">
-        <span lang="et">Järgmine samm <i class="ru" lang="ru">следующий шаг</i></span>
-        <a class="rail-go" href="#path" lang="et"><b>${esc(next.et)}</b> → Harjuta</a>
-      </div>` : ""}
-    </div></div>`;
+  let html = `<p class="readiness-verdict" lang="ru">${esc(ready.verdict || "")}</p>`;
   html += `<div class="parts">`;
   for (const part of ready.parts) {
     const [cls, glyph] = MARK[String(part.touched ?? null)];
-    const dots = part.touched === null ? "" : `<span class="contact" aria-hidden="true">${
-      Array.from({length: target}, (_, i) =>
-        `<i class="${i < Math.min(target, part.contact ?? (part.touched ? target : 0)) ? "on" : ""}"></i>`).join("")}</span>`;
     html += `<div class="part-row">
       <span class="part-mark ${cls}">${markIcon(glyph)}</span>
       <span class="part-body">
-        <span class="part-name" lang="et">${esc(part.et)} <i class="ru" lang="ru">${esc(part.ru || "")}</i></span>${dots}
+        <span class="part-name" lang="et">${esc(part.et)} <i class="ru" lang="ru">${esc(part.ru || "")}</i></span>
         <span class="part-ev">${esc(part.evidence)}</span>
         ${part.next_task ? `<div class="part-next">${uiIcon("next", "inline-ico")} ${part.next_task.local
             ? `<button class="linky" data-open-task="${esc(part.next_task.id)}"
@@ -146,22 +128,7 @@ export async function loadExam() {
   }
   html += `</div>`;
 
-  /* The two measures behind the verdict, as meters: grammar topics of this level and
-     words of this level. Named lists of what is left fold beneath. */
-  const g = ready.grammar || {}, v = ready.vocabulary || {};
-  const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
-  let measures = "";
-  if (g.topics) measures += `<div class="measure"><b lang="et">Grammatika</b>
-      <div class="stat-big">${g.mastered}<small> / ${g.topics} тем${g.checkpoint_passed ? " · контрольная пройдена" : ""}</small></div>
-      <div class="meter good" aria-hidden="true"><span style="width:${pct(g.mastered, g.topics)}%"></span></div></div>`;
-  if (v.measured) measures += `<div class="measure"><b lang="et">Sõnavara</b>
-      <div class="stat-big">${v.known}<small> из ${v.level_words} слов уровня</small></div>
-      <div class="meter" aria-hidden="true"><span style="width:${pct(v.known, v.level_words)}%"></span></div></div>`;
-  if (milestones.milestones?.length) measures += `<div class="measure"><b lang="et">Saavutused</b>
-      <div class="stat-big">${milestones.milestones.filter(m => m.complete).length}<small> / ${milestones.milestones.length} вех</small></div>
-      <div class="meter" aria-hidden="true"><span style="width:${pct(milestones.milestones.filter(m => m.complete).length, milestones.milestones.length)}%"></span></div></div>`;
-  if (measures) html += `<div class="measures">${measures}</div>`;
-
+  const g = ready.grammar || {};
   let detail = "";
   if (ready.reasons.length)
     detail += `<ul class="hint">` + ready.reasons.map(r => `<li>${esc(r)}</li>`).join("") + `</ul>`;

@@ -35,8 +35,7 @@ def index(request: Request) -> str:
             origin = forwarded
     return ((WEB / "index.html").read_text(encoding="utf-8")
             .replace("__BRAND_ORIGIN__", escape(origin, quote=True))
-            .replace("__BRAND_YEAR__", str(datetime.now(timezone.utc).year))
-            .replace("__BRAND_REVEAL__", (WEB / "brand-reveal.js").read_text(encoding="utf-8")))
+            .replace("__BRAND_YEAR__", str(datetime.now(timezone.utc).year)))
 
 
 # --------------------------------------------------------------------------
@@ -195,8 +194,8 @@ def manifest() -> Response:
             "scope": "/",
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#f8fafc",
-            "theme_color": "#f8fafc",
+            "background_color": "#edf5f0",
+            "theme_color": "#edf5f0",
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.
             "lang": "ru",

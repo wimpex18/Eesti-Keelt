@@ -1,224 +1,113 @@
-/* Two optional starting questions. They tune recommendations only: the answers
-   never skip the curriculum, award mastery or claim a CEFR result. */
-
+/* Starting choices are navigation. Only server-checked probes award mastery. */
 import {$, api, esc, setLabel} from "./core.js";
-import {icon} from "./icons.js";
 import {goToPlace} from "./router.js";
-import {setExamLevel} from "./state.js";
-
 const LEVELS = [
-  ["a0", "A0", "Alustan nullist", "Начинаю с нуля"],
-  ["a1", "A1", "Tean mõnda sõna", "Знаю отдельные слова и фразы"],
-  ["a1-a2", "A1–A2", "Saan lihtsast jutust aru", "Понимаю простые бытовые фразы"],
-  ["a2", "A2", "Räägin tuttavatel teemadel", "Могу говорить о знакомых темах"],
-  ["a2-b1", "A2–B1", "Liigun B1 poole", "Готовлюсь двигаться к B1"],
+  ["a1", "Tean mõnda sõna", "Знаю отдельные слова — начальные темы"],
+  ["a1-a2", "Saan lihtsast jutust aru", "Понимаю простые фразы — начальные темы"],
+  ["a2", "Räägin tuttavatel teemadel", "Общаюсь на знакомые темы — после начальных тем"],
+  ["a2-b1", "Liigun edasi", "Хочу двигаться дальше — после базовых тем"],
 ];
-
-const FOCUSES = [
-  ["path", "path", "Rada", "Системно по темам"],
-  ["words", "translate", "Sõnavara", "Слова и чтение"],
-  ["speaking", "microphone", "Rääkimine", "Слушать и говорить"],
-  ["exam", "flower", "Eksam", "Подготовка к экзамену"],
-];
-
-const TARGETS = {path: "path", words: "sonad", speaking: "speak", exam: "exam"};
-const LEVEL_FILTER = {
-  a0: "A1", a1: "A1", "a1-a2": "A1,A2", a2: "A1,A2", "a2-b1": "B1",
-  unsure: "A1,A2,B1",
-};
-
-let me = null;
-let step = 1;
-let editing = false;
-let saving = false;
-let draft = {start_band: "", focus: "path"};
-
-function recommendationText(band) {
-  return ({a0: "A1", a1: "A1", "a1-a2": "A1–A2", a2: "A1–A2",
-    "a2-b1": "B1", unsure: "A1–B1"})[band] || "A1–B1";
+let busy = false, seen = [], failed = [], probe = null, entry = null;
+const out = () => $("#onboardingContent");
+function route(tab) {
+  goToPlace(tab);
+  if (location.hash !== "#" + tab) history.pushState(null, "", "#" + tab);
 }
-
-function syncRecommendation(onboarding) {
-  document.querySelectorAll(".nav-recommend").forEach(mark => mark.remove());
-  document.querySelectorAll("nav[data-mode-nav] button.recommended").forEach(button => {
-    button.classList.remove("recommended");
-    button.setAttribute("aria-label", button.dataset.baseLabel || button.getAttribute("aria-label") || "");
-  });
-  if (!onboarding || onboarding.skipped) return;
-
-  const target = TARGETS[onboarding.focus] || "path";
-  const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${target}"]`);
-  if (button) {
-    button.dataset.baseLabel = button.dataset.baseLabel || button.getAttribute("aria-label") || "";
-    button.classList.add("recommended");
-    button.setAttribute("aria-label", `${button.dataset.baseLabel}. Sulle soovitatud — рекомендовано вам`);
-    button.insertAdjacentHTML("beforeend", `<span class="nav-recommend" title="Sulle soovitatud — рекомендовано вам">
-      ${icon("sparkle")}<span>Sulle</span></span>`);
-  }
-
-  const filter = LEVEL_FILTER[onboarding.start_band] || "A1,A2,B1";
-  const free = $("#freeLevel");
-  if (free && [...free.options].some(option => option.value === filter)) free.value = filter;
-  const voc = $("#vocLevel");
-  const vocLevel = filter === "B1" ? "B1" : filter === "A1,A2" ? "A2" : "A1";
-  if (voc) voc.value = vocLevel;
-  const text = `Soovitus: ${recommendationText(onboarding.start_band)}`;
-  for (const id of ["#freeRecommendation", "#vocRecommendation"]) {
-    const mark = $(id);
-    if (mark) { mark.textContent = text; mark.hidden = false; }
+function error(message, retry) {
+  const box = out().querySelector(".start-error");
+  box.hidden = false; box.textContent = message;
+  if (retry) {
+    const b = document.createElement("button"); b.className = "ghost"; b.lang = "et";
+    b.innerHTML = '<span lang="et">Proovi uuesti <span class="ru" lang="ru">попробовать снова</span></span>';
+    b.onclick = retry; box.appendChild(b);
   }
 }
-
-function scene() {
-  return `<div class="onboarding-scene" aria-hidden="true">
-    ${icon("path", {cls: "onboarding-path"})}
-    <span></span><span></span><span></span>
-  </div>`;
+function frame(body) {
+  out().innerHTML = body + '<p class="start-error banner" role="alert" hidden></p>';
+  out().querySelector("[data-back]")?.addEventListener("click", renderStart);
 }
-
-function progress() {
-  return `<div class="onboarding-progress" aria-label="${step} из 2">
-    <span class="done"></span><span class="${step === 2 ? "done" : ""}"></span>
-  </div>`;
-}
-
-function levelScreen() {
-  return `${scene()}${progress()}
-    <div class="onboarding-copy">
-      <h2 lang="et">Kust alustame? <span class="ru" lang="ru">с чего начнём?</span></h2>
-      <p lang="ru">Это быстрая самооценка, не тест и не подтверждённый уровень CEFR. Она только настроит первые рекомендации.</p>
+export function renderStart() {
+  frame(`<h2 class="page-title" lang="et">Kust alustame? <i class="ru" lang="ru">с чего начнём?</i></h2>
+    <p lang="ru">Выбери удобный старт. Позже можно вернуться и изменить маршрут.</p>
+    <div class="start-routes">
+      <button class="start-route" data-start="a0" lang="et"><strong>Alustan algusest</strong><span lang="ru">С начала: правила, примеры и первые упражнения.</span></button>
+      <button class="start-route" data-choose lang="et"><strong>Valin alguse</strong><span lang="ru">Что-то уже знаю: выберу точку входа сам.</span></button>
+      <button class="start-route" data-assess lang="et"><strong>Proovin ennast</strong><span lang="ru">Не уверен: короткая проверка грамматики, до 3 тем.</span></button>
     </div>
-    <fieldset class="onboarding-levels">
-      <legend class="sr-only">Praegune algus — текущая точка старта</legend>
-      ${LEVELS.map(([value, level, et, ru]) => `<label>
-        <input type="radio" name="start-band" value="${value}"${draft.start_band === value ? " checked" : ""}>
-        <strong>${level}</strong><span lang="et">${et}<small lang="ru">${ru}</small></span>
-      </label>`).join("")}
-    </fieldset>
-    <div class="onboarding-actions">
-      <button class="linky onboarding-skip" type="button" data-skip lang="et">${editing ? "Loobu" : "Praegu mitte"} <span class="ru" lang="ru">${editing ? "отмена" : "пропустить"}</span></button>
-      <button class="go" type="button" data-next${draft.start_band ? "" : " disabled"} lang="et">Edasi <span class="ru" lang="ru">дальше</span></button>
-    </div>`;
+    <p class="hint" lang="ru">Объяснения сейчас на русском. Это учебный маршрут, не подтверждение уровня CEFR.</p>
+    <a class="quiet" href="#path" lang="et">Vaata esmalt ringi <span class="ru" lang="ru">сначала осмотреться</span></a>`);
+  out().querySelector("[data-start]").onclick = () => chooseGoal("a0");
+  out().querySelector("[data-choose]").onclick = renderLevels;
+  out().querySelector("[data-assess]").onclick = () => {seen = []; failed = []; nextProbe();};
 }
-
-function focusScreen() {
-  return `${scene()}${progress()}
-    <div class="onboarding-copy">
-      <h2 lang="et">Mis sind tagasi toob <span class="ru" lang="ru">что хочется делать?</span></h2>
-      <p lang="ru">Выберите первое направление. Все разделы останутся доступны, а выбор можно изменить в профиле.</p>
-    </div>
-    <fieldset class="onboarding-focus">
-      <legend class="sr-only">Esimene suund — первое направление</legend>
-      ${FOCUSES.map(([value, mark, et, ru]) => `<label>
-        <input type="radio" name="focus" value="${value}"${draft.focus === value ? " checked" : ""}>
-        ${icon(mark)}<span lang="et">${et}<small lang="ru">${ru}</small></span>
-      </label>`).join("")}
-    </fieldset>
-    <p class="onboarding-error" role="alert" hidden></p>
-    <div class="onboarding-actions">
-      <button class="ghost" type="button" data-back lang="et">Tagasi <span class="ru" lang="ru">назад</span></button>
-      <button class="go" type="button" data-save lang="et">Näita minu algust <span class="ru" lang="ru">показать старт</span></button>
-    </div>`;
+function renderLevels() {
+  frame(`<h2 class="page-title" lang="et">Vali oma algus <i class="ru" lang="ru">выбери точку старта</i></h2>
+    <p lang="ru">Знакомые темы останутся в курсе с отметкой «пропущено». Их можно вернуть. Освоение засчитывается только после проверки.</p>
+    <div class="start-routes">${LEVELS.map(([band, et, ru]) => `<button class="start-route" data-band="${band}" lang="et"><strong>${et}</strong><span lang="ru">${ru}</span></button>`).join("")}</div>
+    <button class="ghost" data-back lang="et">Tagasi <span class="ru" lang="ru">назад</span></button>`);
+  out().querySelectorAll("[data-band]").forEach(b => b.onclick = () => chooseGoal(b.dataset.band));
 }
-
-function render() {
-  const dialog = $("#onboardingSheet");
-  if (!dialog) return;
-  dialog.innerHTML = step === 1 ? levelScreen() : focusScreen();
-  dialog.querySelectorAll('input[type="radio"]').forEach(input => input.addEventListener("change", () => {
-    if (input.name === "start-band") draft.start_band = input.value;
-    else draft.focus = input.value;
-    render();
-    dialog.querySelector(`input[value="${input.value}"]`)?.focus();
-  }));
-  dialog.querySelector("[data-next]")?.addEventListener("click", () => { step = 2; render(); });
-  dialog.querySelector("[data-back]")?.addEventListener("click", () => { step = 1; render(); });
-  dialog.querySelector("[data-skip]")?.addEventListener("click", skip);
-  dialog.querySelector("[data-save]")?.addEventListener("click", save);
+function chooseGoal(band) {
+  frame(`<h2 class="page-title" lang="et">Milleks õpid? <i class="ru" lang="ru">для чего учишься?</i></h2>
+    <p lang="ru">Оба направления доступны всегда. Сейчас выберем первый шаг.</p>
+    <div class="start-routes"><button class="start-route" data-focus="path" lang="et"><strong>Igapäevane eesti keel</strong><span lang="ru">Учиться для жизни: темы курса и четыре навыка.</span></button>
+    <button class="start-route" data-focus="exam" lang="et"><strong>Valmistun eksamiks</strong><span lang="ru">Подготовка A2/B1: задания и пробный экзамен.</span></button></div>
+    <button class="ghost" data-back lang="et">Tagasi <span class="ru" lang="ru">назад</span></button>`);
+  out().querySelectorAll("[data-focus]").forEach(b => b.onclick = () => save(band, b.dataset.focus, true));
 }
-
-async function save() {
-  if (saving || !draft.start_band || !draft.focus) return;
-  saving = true;
-  const dialog = $("#onboardingSheet");
-  const button = dialog.querySelector("[data-save]");
-  if (button) { button.disabled = true; setLabel(button, "Salvestan…"); }
+async function save(band, focus = "path", navigate = false) {
+  if (busy) return; busy = true;
+  out().querySelectorAll("button").forEach(b => b.disabled = true);
   try {
-    me = await api("/api/me/onboarding", {...draft, skipped: false}).then(response => response.json());
-    syncRecommendation(me.onboarding);
-    dialog.close();
-    if (editing) goToPlace("profile");
-    else {
-      if (draft.focus === "exam") {
-        const level = draft.start_band === "a2-b1" ? "B1" : "A2";
-        setExamLevel(level);
-        document.querySelectorAll("#tab-exam .levels button").forEach(tab =>
-          tab.setAttribute("aria-selected", String(tab.dataset.level === level)));
-      }
-      goToPlace(TARGETS[draft.focus] || "path");
-    }
-  } catch (error) {
-    const out = dialog.querySelector(".onboarding-error");
-    if (out) { out.textContent = error.message; out.hidden = false; }
-    if (button) button.disabled = false;
-  } finally { saving = false; }
+    await api("/api/me/onboarding", {start_band: band, focus, navigate,
+      explanation_language: "ru", skipped: false});
+    route(focus === "exam" ? "exam" : "path");
+  } catch (e) { error(e.message); }
+  finally { busy = false; out().querySelectorAll("button").forEach(b => b.disabled = false); }
 }
-
-async function skip() {
-  const dialog = $("#onboardingSheet");
-  if (editing) { dialog.close(); return; }
-  if (saving) return;
-  saving = true;
+async function nextProbe() {
+  frame('<h2 class="page-title" lang="et">Proovin ennast <i class="ru" lang="ru">короткая проверка</i></h2><p role="status" lang="ru">Подбираю задания…</p>');
   try {
-    me = await api("/api/me/onboarding", {
-      start_band: "unsure", focus: "path", skipped: true,
-    }).then(response => response.json());
-    syncRecommendation(me.onboarding);
-    dialog.close();
-    if ($("#tab-profile")?.checkVisibility()) goToPlace("profile");
-  } catch (error) {
-    step = 2;
-    render();
-    const out = dialog.querySelector(".onboarding-error");
-    if (out) { out.textContent = error.message; out.hidden = false; }
-  } finally { saving = false; }
+    const query = new URLSearchParams({seen: seen.join(","), failed: failed.join(","), limit: "3"});
+    const result = await api("/api/placement/next?" + query, null, "GET").then(r => r.json());
+    entry = result.entry;
+    if (result.done) { showResult(); return; }
+    probe = result.next;
+    frame(`<h2 class="page-title" lang="et">${esc(probe.et)}</h2><p lang="ru">Тема ${seen.length + 1} из максимум 3. Проверяются только эти задания; это не экзамен CEFR.</p>
+      <form id="placementForm">${probe.items.map((it, i) => `<label class="placement-task" lang="et">${esc(it.prompt)}<input name="answer${i}" aria-label="Vastus ${i + 1} — ответ" lang="et" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>`).join("")}
+      <button class="go" type="submit" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button></form>
+      <button class="quiet" data-stop lang="et">Lõpeta siin <span class="ru" lang="ru">закончить здесь</span></button>`);
+    out().querySelector("[data-stop]").onclick = showResult;
+    out().querySelector("form").onsubmit = async event => {
+      event.preventDefault(); if (busy) return; busy = true;
+      const form = event.currentTarget, b = form.querySelector("button"); b.disabled = true; setLabel(b, "Kontrollin…");
+      try {
+        const r = await api(`/api/testout/${encodeURIComponent(probe.topic)}`, {seed: probe.seed,
+          given: [...form.querySelectorAll("input")].map(input => input.value)}).then(response => response.json());
+        seen.push(probe.topic); if (!r.passed) failed.push(probe.topic);
+        frame(`<h2 class="page-title" lang="et">${esc(probe.et)}</h2><p class="verdict ${r.passed ? "ok" : "no"}" lang="ru">${r.correct} из ${r.asked} верно. ${r.passed ? "Тема засчитана по проверенным ответам." : "Тема остаётся для изучения."}</p><button class="go" data-next lang="et">Edasi <span class="ru" lang="ru">дальше</span></button>`);
+        out().querySelector("[data-next]").onclick = nextProbe;
+      } catch (e) { error(e.message); b.disabled = false; setLabel(b, "Kontrolli"); }
+      finally { busy = false; }
+    };
+  } catch (e) { error(e.message, nextProbe); }
 }
-
-async function open({edit = false} = {}) {
-  const dialog = $("#onboardingSheet");
-  if (!dialog) return;
-  if (!me || edit) {
-    try { me = await api("/api/me").then(response => response.json()); }
-    catch { return; }
-  }
-  if (me.scope === "guest") return;
-  editing = edit;
-  step = 1;
-  draft = {
-    start_band: me.onboarding?.start_band === "unsure" ? "" : (me.onboarding?.start_band || ""),
-    focus: me.onboarding?.focus || "path",
-  };
-  render();
-  if (!dialog.open) dialog.showModal();
+function showResult() {
+  frame(`<h2 class="page-title" lang="et">Sinu algus <i class="ru" lang="ru">твоя точка старта</i></h2>
+    <p lang="ru">${seen.length ? `Проверено тем: ${seen.length}.` : "Проверка остановлена без результата."} ${entry ? `Начни с темы <span lang="et">${esc(entry.et)}</span>.` : "Начни с первой доступной темы курса."} Можно пропускать знакомое и возвращаться.</p>
+    <p class="hint" lang="ru">Проверка касается грамматики; уровень CEFR не подтверждён.</p>
+    <button class="go" data-save lang="et">Alusta õppimist <span class="ru" lang="ru">начать учиться</span></button>
+    <button class="ghost" data-back lang="et">Muuda algust <span class="ru" lang="ru">выбрать иначе</span></button>`);
+  out().querySelector("[data-save]").onclick = () => save("unsure");
 }
-
 export async function maybeShowOnboarding({force = false} = {}) {
   try {
-    me = await api("/api/me").then(response => response.json());
-    syncRecommendation(me.onboarding);
-    // The origin's unauthenticated local owner has no durable account identity;
-    // show automatically only once the front door provides a permanent email.
-    if (me.scope !== "guest" && !me.onboarding && (force || me.email)) await open();
-  } catch { /* A starting suggestion must never block the app. */ }
+    const me = await api("/api/me", null, "GET").then(r => r.json());
+    if (location.hash === "#start" || force || !me.onboarding && location.hash === "#path") {
+      renderStart(); route("start");
+    }
+  } catch { /* Core skills remain reachable when the profile cannot load. */ }
 }
-
-document.addEventListener("click", event => {
-  if (event.target.closest("#editOnboarding")) open({edit: true});
-});
-
-$("#onboardingSheet")?.addEventListener("cancel", event => {
-  event.preventDefault();
-  skip();
-});
-
+window.addEventListener("eesti:place", event => { if (event.detail === "start") renderStart(); });
+document.addEventListener("click", event => { if (event.target.closest("#editOnboarding")) route("start"); });
 window.addEventListener("eesti:identity-changed", () => maybeShowOnboarding({force: true}));

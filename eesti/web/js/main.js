@@ -5,7 +5,7 @@
    evaluated avoids the temporal dead zone. */
 
 import {glossChrome, paintIcons} from "./chrome.js";
-import {goToPlace, selectTab} from "./router.js";
+import {goToPlace} from "./router.js";
 import {paintScope} from "./profile.js";
 import {maybeShowOnboarding} from "./onboarding.js";
 
@@ -15,7 +15,6 @@ import {maybeShowOnboarding} from "./onboarding.js";
    they evaluate. A module nobody imports never runs, and the panel would open
    with every button silently dead. `tests/test_ui_contract.py` fails on a module
    the entry point cannot reach. */
-import "./glide.js";
 import "./reading.js";
 import "./sources.js";
 import "./words.js";
@@ -27,7 +26,12 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-addEventListener("hashchange", () => goToPlace(location.hash.slice(1)));
+addEventListener("hashchange", () => {
+  if (!goToPlace(location.hash.slice(1))) {
+    goToPlace("path");
+    history.replaceState(null, "", "#path");
+  }
+});
 
 
 // The path is the default landing tab: it is the one screen that answers
@@ -39,7 +43,7 @@ glossChrome();
 paintScope();
 
 if (!goToPlace(location.hash.slice(1))) {
-  selectTab(document.querySelector('nav[data-mode-nav="learn"] button'));
+  goToPlace("path");
   // Replace, never push: the landing tab must not become an extra Back step
   // between the learner and the page they arrived from.
   history.replaceState(null, "", "#path");

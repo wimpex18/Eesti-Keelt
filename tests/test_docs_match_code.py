@@ -184,8 +184,15 @@ class TestTheModeStructure:
     @staticmethod
     def _page_tabs() -> set[str]:
         html = markup_and_script()
-        return set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)',
-                              html, re.S))
+        skills = set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)',
+                                html, re.S))
+        header = html[html.index('<header class="spine">'):]
+        header = header[:header.index('</header>')]
+        destinations = {label.strip() for label in re.findall(
+            r'<a[^>]*href="#[a-z]+"[^>]*lang="et"[^>]*>([^<]+)', header)}
+        account = re.search(r'aria-label="([^—]+) —[^\"]*"[^>]*id="accountBtn"', header)
+        assert account, "the account link must have an accessible name"
+        return skills | destinations | {account.group(1).strip()}
 
     def test_the_diagram_lists_every_tab_the_page_has(self):
         missing = self._page_tabs() - self._diagram_tabs()

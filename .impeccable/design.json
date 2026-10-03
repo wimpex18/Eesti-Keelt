@@ -1,0 +1,901 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T08:28:42.237384Z",
+  "title": "Design System: Grove",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0107 158.85)",
+          "oklch(25% 0.0107 158.85)",
+          "oklch(35% 0.0107 158.85)",
+          "oklch(45% 0.0107 158.85)",
+          "oklch(55% 0.0107 158.85)",
+          "oklch(65% 0.0107 158.85)",
+          "oklch(80% 0.0107 158.85)",
+          "oklch(95% 0.0107 158.85)"
+        ]
+      },
+      "bg-2": {
+        "role": "neutral",
+        "displayName": "Bg 2",
+        "tonalRamp": [
+          "oklch(15% 0.0158 154.46)",
+          "oklch(25% 0.0158 154.46)",
+          "oklch(35% 0.0158 154.46)",
+          "oklch(45% 0.0158 154.46)",
+          "oklch(55% 0.0158 154.46)",
+          "oklch(65% 0.0158 154.46)",
+          "oklch(80% 0.0158 154.46)",
+          "oklch(95% 0.0158 154.46)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(45% 0.0000 0.00)",
+          "oklch(55% 0.0000 0.00)",
+          "oklch(65% 0.0000 0.00)",
+          "oklch(80% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0449 167.31)",
+          "oklch(25% 0.0449 167.31)",
+          "oklch(35% 0.0449 167.31)",
+          "oklch(45% 0.0449 167.31)",
+          "oklch(55% 0.0449 167.31)",
+          "oklch(65% 0.0449 167.31)",
+          "oklch(80% 0.0449 167.31)",
+          "oklch(95% 0.0449 167.31)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "tonalRamp": [
+          "oklch(15% 0.0438 166.81)",
+          "oklch(25% 0.0438 166.81)",
+          "oklch(35% 0.0438 166.81)",
+          "oklch(45% 0.0438 166.81)",
+          "oklch(55% 0.0438 166.81)",
+          "oklch(65% 0.0438 166.81)",
+          "oklch(80% 0.0438 166.81)",
+          "oklch(95% 0.0438 166.81)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0326 157.81)",
+          "oklch(25% 0.0326 157.81)",
+          "oklch(35% 0.0326 157.81)",
+          "oklch(45% 0.0326 157.81)",
+          "oklch(55% 0.0326 157.81)",
+          "oklch(65% 0.0326 157.81)",
+          "oklch(80% 0.0326 157.81)",
+          "oklch(95% 0.0326 157.81)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15% 0.0244 155.10)",
+          "oklch(25% 0.0244 155.10)",
+          "oklch(35% 0.0244 155.10)",
+          "oklch(45% 0.0244 155.10)",
+          "oklch(55% 0.0244 155.10)",
+          "oklch(65% 0.0244 155.10)",
+          "oklch(80% 0.0244 155.10)",
+          "oklch(95% 0.0244 155.10)"
+        ]
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "Line Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0168 151.09)",
+          "oklch(25% 0.0168 151.09)",
+          "oklch(35% 0.0168 151.09)",
+          "oklch(45% 0.0168 151.09)",
+          "oklch(55% 0.0168 151.09)",
+          "oklch(65% 0.0168 151.09)",
+          "oklch(80% 0.0168 151.09)",
+          "oklch(95% 0.0168 151.09)"
+        ]
+      },
+      "tint": {
+        "role": "neutral",
+        "displayName": "Tint",
+        "tonalRamp": [
+          "oklch(15% 0.0141 155.58)",
+          "oklch(25% 0.0141 155.58)",
+          "oklch(35% 0.0141 155.58)",
+          "oklch(45% 0.0141 155.58)",
+          "oklch(55% 0.0141 155.58)",
+          "oklch(65% 0.0141 155.58)",
+          "oklch(80% 0.0141 155.58)",
+          "oklch(95% 0.0141 155.58)"
+        ]
+      },
+      "nav": {
+        "role": "primary",
+        "displayName": "Nav",
+        "tonalRamp": [
+          "oklch(15% 0.0521 165.40)",
+          "oklch(25% 0.0521 165.40)",
+          "oklch(35% 0.0521 165.40)",
+          "oklch(45% 0.0521 165.40)",
+          "oklch(55% 0.0521 165.40)",
+          "oklch(65% 0.0521 165.40)",
+          "oklch(80% 0.0521 165.40)",
+          "oklch(95% 0.0521 165.40)"
+        ]
+      },
+      "on-nav": {
+        "role": "neutral",
+        "displayName": "On Nav",
+        "tonalRamp": [
+          "oklch(15% 0.0074 151.89)",
+          "oklch(25% 0.0074 151.89)",
+          "oklch(35% 0.0074 151.89)",
+          "oklch(45% 0.0074 151.89)",
+          "oklch(55% 0.0074 151.89)",
+          "oklch(65% 0.0074 151.89)",
+          "oklch(80% 0.0074 151.89)",
+          "oklch(95% 0.0074 151.89)"
+        ]
+      },
+      "nav-muted": {
+        "role": "neutral",
+        "displayName": "Nav Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0263 154.40)",
+          "oklch(25% 0.0263 154.40)",
+          "oklch(35% 0.0263 154.40)",
+          "oklch(45% 0.0263 154.40)",
+          "oklch(55% 0.0263 154.40)",
+          "oklch(65% 0.0263 154.40)",
+          "oklch(80% 0.0263 154.40)",
+          "oklch(95% 0.0263 154.40)"
+        ]
+      },
+      "nav-active": {
+        "role": "primary",
+        "displayName": "Nav Active",
+        "tonalRamp": [
+          "oklch(15% 0.0611 159.96)",
+          "oklch(25% 0.0611 159.96)",
+          "oklch(35% 0.0611 159.96)",
+          "oklch(45% 0.0611 159.96)",
+          "oklch(55% 0.0611 159.96)",
+          "oklch(65% 0.0611 159.96)",
+          "oklch(80% 0.0611 159.96)",
+          "oklch(95% 0.0611 159.96)"
+        ]
+      },
+      "btn": {
+        "role": "primary",
+        "displayName": "Btn",
+        "tonalRamp": [
+          "oklch(15% 0.0559 165.07)",
+          "oklch(25% 0.0559 165.07)",
+          "oklch(35% 0.0559 165.07)",
+          "oklch(45% 0.0559 165.07)",
+          "oklch(55% 0.0559 165.07)",
+          "oklch(65% 0.0559 165.07)",
+          "oklch(80% 0.0559 165.07)",
+          "oklch(95% 0.0559 165.07)"
+        ]
+      },
+      "on-btn": {
+        "role": "primary",
+        "displayName": "On Btn",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(45% 0.0000 0.00)",
+          "oklch(55% 0.0000 0.00)",
+          "oklch(65% 0.0000 0.00)",
+          "oklch(80% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15% 0.1525 31.00)",
+          "oklch(25% 0.1525 31.00)",
+          "oklch(35% 0.1525 31.00)",
+          "oklch(45% 0.1525 31.00)",
+          "oklch(55% 0.1525 31.00)",
+          "oklch(65% 0.1525 31.00)",
+          "oklch(80% 0.1525 31.00)",
+          "oklch(95% 0.1525 31.00)"
+        ]
+      },
+      "accent-deep": {
+        "role": "primary",
+        "displayName": "Accent Deep",
+        "tonalRamp": [
+          "oklch(15% 0.1284 30.99)",
+          "oklch(25% 0.1284 30.99)",
+          "oklch(35% 0.1284 30.99)",
+          "oklch(45% 0.1284 30.99)",
+          "oklch(55% 0.1284 30.99)",
+          "oklch(65% 0.1284 30.99)",
+          "oklch(80% 0.1284 30.99)",
+          "oklch(95% 0.1284 30.99)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Accent Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0213 39.38)",
+          "oklch(25% 0.0213 39.38)",
+          "oklch(35% 0.0213 39.38)",
+          "oklch(45% 0.0213 39.38)",
+          "oklch(55% 0.0213 39.38)",
+          "oklch(65% 0.0213 39.38)",
+          "oklch(80% 0.0213 39.38)",
+          "oklch(95% 0.0213 39.38)"
+        ]
+      },
+      "coral": {
+        "role": "primary",
+        "displayName": "Coral",
+        "tonalRamp": [
+          "oklch(15% 0.1637 31.56)",
+          "oklch(25% 0.1637 31.56)",
+          "oklch(35% 0.1637 31.56)",
+          "oklch(45% 0.1637 31.56)",
+          "oklch(55% 0.1637 31.56)",
+          "oklch(65% 0.1637 31.56)",
+          "oklch(80% 0.1637 31.56)",
+          "oklch(95% 0.1637 31.56)"
+        ]
+      },
+      "good": {
+        "role": "secondary",
+        "displayName": "Good",
+        "tonalRamp": [
+          "oklch(15% 0.0854 159.07)",
+          "oklch(25% 0.0854 159.07)",
+          "oklch(35% 0.0854 159.07)",
+          "oklch(45% 0.0854 159.07)",
+          "oklch(55% 0.0854 159.07)",
+          "oklch(65% 0.0854 159.07)",
+          "oklch(80% 0.0854 159.07)",
+          "oklch(95% 0.0854 159.07)"
+        ]
+      },
+      "good-soft": {
+        "role": "secondary",
+        "displayName": "Good Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0199 154.90)",
+          "oklch(25% 0.0199 154.90)",
+          "oklch(35% 0.0199 154.90)",
+          "oklch(45% 0.0199 154.90)",
+          "oklch(55% 0.0199 154.90)",
+          "oklch(65% 0.0199 154.90)",
+          "oklch(80% 0.0199 154.90)",
+          "oklch(95% 0.0199 154.90)"
+        ]
+      },
+      "bad": {
+        "role": "secondary",
+        "displayName": "Bad",
+        "tonalRamp": [
+          "oklch(15% 0.1533 18.39)",
+          "oklch(25% 0.1533 18.39)",
+          "oklch(35% 0.1533 18.39)",
+          "oklch(45% 0.1533 18.39)",
+          "oklch(55% 0.1533 18.39)",
+          "oklch(65% 0.1533 18.39)",
+          "oklch(80% 0.1533 18.39)",
+          "oklch(95% 0.1533 18.39)"
+        ]
+      },
+      "bad-soft": {
+        "role": "secondary",
+        "displayName": "Bad Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0213 3.09)",
+          "oklch(25% 0.0213 3.09)",
+          "oklch(35% 0.0213 3.09)",
+          "oklch(45% 0.0213 3.09)",
+          "oklch(55% 0.0213 3.09)",
+          "oklch(65% 0.0213 3.09)",
+          "oklch(80% 0.0213 3.09)",
+          "oklch(95% 0.0213 3.09)"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Warn",
+        "tonalRamp": [
+          "oklch(15% 0.1027 70.19)",
+          "oklch(25% 0.1027 70.19)",
+          "oklch(35% 0.1027 70.19)",
+          "oklch(45% 0.1027 70.19)",
+          "oklch(55% 0.1027 70.19)",
+          "oklch(65% 0.1027 70.19)",
+          "oklch(80% 0.1027 70.19)",
+          "oklch(95% 0.1027 70.19)"
+        ]
+      },
+      "warn-soft": {
+        "role": "secondary",
+        "displayName": "Warn Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0329 83.71)",
+          "oklch(25% 0.0329 83.71)",
+          "oklch(35% 0.0329 83.71)",
+          "oklch(45% 0.0329 83.71)",
+          "oklch(55% 0.0329 83.71)",
+          "oklch(65% 0.0329 83.71)",
+          "oklch(80% 0.0329 83.71)",
+          "oklch(95% 0.0329 83.71)"
+        ]
+      },
+      "gloss": {
+        "role": "secondary",
+        "displayName": "Gloss",
+        "tonalRamp": [
+          "oklch(15% 0.0702 208.48)",
+          "oklch(25% 0.0702 208.48)",
+          "oklch(35% 0.0702 208.48)",
+          "oklch(45% 0.0702 208.48)",
+          "oklch(55% 0.0702 208.48)",
+          "oklch(65% 0.0702 208.48)",
+          "oklch(80% 0.0702 208.48)",
+          "oklch(95% 0.0702 208.48)"
+        ]
+      },
+      "dark-bg": {
+        "role": "neutral",
+        "displayName": "Dark Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0267 170.84)",
+          "oklch(25% 0.0267 170.84)",
+          "oklch(35% 0.0267 170.84)",
+          "oklch(45% 0.0267 170.84)",
+          "oklch(55% 0.0267 170.84)",
+          "oklch(65% 0.0267 170.84)",
+          "oklch(80% 0.0267 170.84)",
+          "oklch(95% 0.0267 170.84)"
+        ]
+      },
+      "dark-bg-2": {
+        "role": "neutral",
+        "displayName": "Dark Bg 2",
+        "tonalRamp": [
+          "oklch(15% 0.0345 164.88)",
+          "oklch(25% 0.0345 164.88)",
+          "oklch(35% 0.0345 164.88)",
+          "oklch(45% 0.0345 164.88)",
+          "oklch(55% 0.0345 164.88)",
+          "oklch(65% 0.0345 164.88)",
+          "oklch(80% 0.0345 164.88)",
+          "oklch(95% 0.0345 164.88)"
+        ]
+      },
+      "dark-panel": {
+        "role": "neutral",
+        "displayName": "Dark Panel",
+        "tonalRamp": [
+          "oklch(15% 0.0397 164.14)",
+          "oklch(25% 0.0397 164.14)",
+          "oklch(35% 0.0397 164.14)",
+          "oklch(45% 0.0397 164.14)",
+          "oklch(55% 0.0397 164.14)",
+          "oklch(65% 0.0397 164.14)",
+          "oklch(80% 0.0397 164.14)",
+          "oklch(95% 0.0397 164.14)"
+        ]
+      },
+      "dark-raised": {
+        "role": "neutral",
+        "displayName": "Dark Raised",
+        "tonalRamp": [
+          "oklch(15% 0.0467 158.22)",
+          "oklch(25% 0.0467 158.22)",
+          "oklch(35% 0.0467 158.22)",
+          "oklch(45% 0.0467 158.22)",
+          "oklch(55% 0.0467 158.22)",
+          "oklch(65% 0.0467 158.22)",
+          "oklch(80% 0.0467 158.22)",
+          "oklch(95% 0.0467 158.22)"
+        ]
+      },
+      "dark-ink": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0101 145.50)",
+          "oklch(25% 0.0101 145.50)",
+          "oklch(35% 0.0101 145.50)",
+          "oklch(45% 0.0101 145.50)",
+          "oklch(55% 0.0101 145.50)",
+          "oklch(65% 0.0101 145.50)",
+          "oklch(80% 0.0101 145.50)",
+          "oklch(95% 0.0101 145.50)"
+        ]
+      },
+      "dark-ink-2": {
+        "role": "neutral",
+        "displayName": "Dark Ink 2",
+        "tonalRamp": [
+          "oklch(15% 0.0262 150.75)",
+          "oklch(25% 0.0262 150.75)",
+          "oklch(35% 0.0262 150.75)",
+          "oklch(45% 0.0262 150.75)",
+          "oklch(55% 0.0262 150.75)",
+          "oklch(65% 0.0262 150.75)",
+          "oklch(80% 0.0262 150.75)",
+          "oklch(95% 0.0262 150.75)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0352 154.68)",
+          "oklch(25% 0.0352 154.68)",
+          "oklch(35% 0.0352 154.68)",
+          "oklch(45% 0.0352 154.68)",
+          "oklch(55% 0.0352 154.68)",
+          "oklch(65% 0.0352 154.68)",
+          "oklch(80% 0.0352 154.68)",
+          "oklch(95% 0.0352 154.68)"
+        ]
+      },
+      "dark-line": {
+        "role": "neutral",
+        "displayName": "Dark Line",
+        "tonalRamp": [
+          "oklch(15% 0.0439 158.50)",
+          "oklch(25% 0.0439 158.50)",
+          "oklch(35% 0.0439 158.50)",
+          "oklch(45% 0.0439 158.50)",
+          "oklch(55% 0.0439 158.50)",
+          "oklch(65% 0.0439 158.50)",
+          "oklch(80% 0.0439 158.50)",
+          "oklch(95% 0.0439 158.50)"
+        ]
+      },
+      "dark-line-soft": {
+        "role": "neutral",
+        "displayName": "Dark Line Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0458 158.78)",
+          "oklch(25% 0.0458 158.78)",
+          "oklch(35% 0.0458 158.78)",
+          "oklch(45% 0.0458 158.78)",
+          "oklch(55% 0.0458 158.78)",
+          "oklch(65% 0.0458 158.78)",
+          "oklch(80% 0.0458 158.78)",
+          "oklch(95% 0.0458 158.78)"
+        ]
+      },
+      "dark-tint": {
+        "role": "neutral",
+        "displayName": "Dark Tint",
+        "tonalRamp": [
+          "oklch(15% 0.0447 159.15)",
+          "oklch(25% 0.0447 159.15)",
+          "oklch(35% 0.0447 159.15)",
+          "oklch(45% 0.0447 159.15)",
+          "oklch(55% 0.0447 159.15)",
+          "oklch(65% 0.0447 159.15)",
+          "oklch(80% 0.0447 159.15)",
+          "oklch(95% 0.0447 159.15)"
+        ]
+      },
+      "dark-btn": {
+        "role": "primary",
+        "displayName": "Dark Btn",
+        "tonalRamp": [
+          "oklch(15% 0.0428 150.55)",
+          "oklch(25% 0.0428 150.55)",
+          "oklch(35% 0.0428 150.55)",
+          "oklch(45% 0.0428 150.55)",
+          "oklch(55% 0.0428 150.55)",
+          "oklch(65% 0.0428 150.55)",
+          "oklch(80% 0.0428 150.55)",
+          "oklch(95% 0.0428 150.55)"
+        ]
+      },
+      "dark-on-btn": {
+        "role": "primary",
+        "displayName": "Dark On Btn",
+        "tonalRamp": [
+          "oklch(15% 0.0435 163.68)",
+          "oklch(25% 0.0435 163.68)",
+          "oklch(35% 0.0435 163.68)",
+          "oklch(45% 0.0435 163.68)",
+          "oklch(55% 0.0435 163.68)",
+          "oklch(65% 0.0435 163.68)",
+          "oklch(80% 0.0435 163.68)",
+          "oklch(95% 0.0435 163.68)"
+        ]
+      },
+      "dark-accent": {
+        "role": "primary",
+        "displayName": "Dark Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0836 33.46)",
+          "oklch(25% 0.0836 33.46)",
+          "oklch(35% 0.0836 33.46)",
+          "oklch(45% 0.0836 33.46)",
+          "oklch(55% 0.0836 33.46)",
+          "oklch(65% 0.0836 33.46)",
+          "oklch(80% 0.0836 33.46)",
+          "oklch(95% 0.0836 33.46)"
+        ]
+      },
+      "dark-accent-deep": {
+        "role": "primary",
+        "displayName": "Dark Accent Deep",
+        "tonalRamp": [
+          "oklch(15% 0.0536 35.36)",
+          "oklch(25% 0.0536 35.36)",
+          "oklch(35% 0.0536 35.36)",
+          "oklch(45% 0.0536 35.36)",
+          "oklch(55% 0.0536 35.36)",
+          "oklch(65% 0.0536 35.36)",
+          "oklch(80% 0.0536 35.36)",
+          "oklch(95% 0.0536 35.36)"
+        ]
+      },
+      "dark-accent-soft": {
+        "role": "primary",
+        "displayName": "Dark Accent Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0539 36.71)",
+          "oklch(25% 0.0539 36.71)",
+          "oklch(35% 0.0539 36.71)",
+          "oklch(45% 0.0539 36.71)",
+          "oklch(55% 0.0539 36.71)",
+          "oklch(65% 0.0539 36.71)",
+          "oklch(80% 0.0539 36.71)",
+          "oklch(95% 0.0539 36.71)"
+        ]
+      },
+      "dark-coral": {
+        "role": "primary",
+        "displayName": "Dark Coral",
+        "tonalRamp": [
+          "oklch(15% 0.1265 34.20)",
+          "oklch(25% 0.1265 34.20)",
+          "oklch(35% 0.1265 34.20)",
+          "oklch(45% 0.1265 34.20)",
+          "oklch(55% 0.1265 34.20)",
+          "oklch(65% 0.1265 34.20)",
+          "oklch(80% 0.1265 34.20)",
+          "oklch(95% 0.1265 34.20)"
+        ]
+      },
+      "dark-good": {
+        "role": "secondary",
+        "displayName": "Dark Good",
+        "tonalRamp": [
+          "oklch(15% 0.0544 154.21)",
+          "oklch(25% 0.0544 154.21)",
+          "oklch(35% 0.0544 154.21)",
+          "oklch(45% 0.0544 154.21)",
+          "oklch(55% 0.0544 154.21)",
+          "oklch(65% 0.0544 154.21)",
+          "oklch(80% 0.0544 154.21)",
+          "oklch(95% 0.0544 154.21)"
+        ]
+      },
+      "dark-good-soft": {
+        "role": "secondary",
+        "displayName": "Dark Good Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0604 158.02)",
+          "oklch(25% 0.0604 158.02)",
+          "oklch(35% 0.0604 158.02)",
+          "oklch(45% 0.0604 158.02)",
+          "oklch(55% 0.0604 158.02)",
+          "oklch(65% 0.0604 158.02)",
+          "oklch(80% 0.0604 158.02)",
+          "oklch(95% 0.0604 158.02)"
+        ]
+      },
+      "dark-bad": {
+        "role": "secondary",
+        "displayName": "Dark Bad",
+        "tonalRamp": [
+          "oklch(15% 0.0913 7.24)",
+          "oklch(25% 0.0913 7.24)",
+          "oklch(35% 0.0913 7.24)",
+          "oklch(45% 0.0913 7.24)",
+          "oklch(55% 0.0913 7.24)",
+          "oklch(65% 0.0913 7.24)",
+          "oklch(80% 0.0913 7.24)",
+          "oklch(95% 0.0913 7.24)"
+        ]
+      },
+      "dark-bad-soft": {
+        "role": "secondary",
+        "displayName": "Dark Bad Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0563 1.30)",
+          "oklch(25% 0.0563 1.30)",
+          "oklch(35% 0.0563 1.30)",
+          "oklch(45% 0.0563 1.30)",
+          "oklch(55% 0.0563 1.30)",
+          "oklch(65% 0.0563 1.30)",
+          "oklch(80% 0.0563 1.30)",
+          "oklch(95% 0.0563 1.30)"
+        ]
+      },
+      "dark-warn": {
+        "role": "secondary",
+        "displayName": "Dark Warn",
+        "tonalRamp": [
+          "oklch(15% 0.0931 83.71)",
+          "oklch(25% 0.0931 83.71)",
+          "oklch(35% 0.0931 83.71)",
+          "oklch(45% 0.0931 83.71)",
+          "oklch(55% 0.0931 83.71)",
+          "oklch(65% 0.0931 83.71)",
+          "oklch(80% 0.0931 83.71)",
+          "oklch(95% 0.0931 83.71)"
+        ]
+      },
+      "dark-warn-soft": {
+        "role": "secondary",
+        "displayName": "Dark Warn Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0435 85.55)",
+          "oklch(25% 0.0435 85.55)",
+          "oklch(35% 0.0435 85.55)",
+          "oklch(45% 0.0435 85.55)",
+          "oklch(55% 0.0435 85.55)",
+          "oklch(65% 0.0435 85.55)",
+          "oklch(80% 0.0435 85.55)",
+          "oklch(95% 0.0435 85.55)"
+        ]
+      },
+      "dark-gloss": {
+        "role": "secondary",
+        "displayName": "Dark Gloss",
+        "tonalRamp": [
+          "oklch(15% 0.0469 191.29)",
+          "oklch(25% 0.0469 191.29)",
+          "oklch(35% 0.0469 191.29)",
+          "oklch(45% 0.0469 191.29)",
+          "oklch(55% 0.0469 191.29)",
+          "oklch(65% 0.0469 191.29)",
+          "oklch(80% 0.0469 191.29)",
+          "oklch(95% 0.0469 191.29)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Next-lesson title."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page title; rule titles use their observed heavier variant."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section heading and lead role."
+      },
+      "prompt": {
+        "displayName": "Prompt",
+        "purpose": "Guided Estonian drill sentence; 22px on phones."
+      },
+      "reading": {
+        "displayName": "Reading",
+        "purpose": "Continuous Estonian prose, at most 66ch."
+      },
+      "answer": {
+        "displayName": "Answer",
+        "purpose": "Estonian answer fields."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Interface and explanation paragraphs."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Control text."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "Explanation and supporting copy."
+      },
+      "metadata": {
+        "displayName": "Metadata",
+        "purpose": "Glosses, source labels and both phone skill labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 8px 24px -12px rgba(23,56,44,.22)",
+        "purpose": "Opaque word cards and mobile Veel menu."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.16,1,.3,1)",
+        "purpose": "State-transition easing."
+      },
+      {
+        "name": "quick",
+        "value": "140ms",
+        "purpose": "Control response."
+      },
+      {
+        "name": "t",
+        "value": "240ms",
+        "purpose": "Feedback arrival."
+      },
+      {
+        "name": "slow",
+        "value": "420ms",
+        "purpose": "Set-end arrival and item-state mark response."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1079px"
+      },
+      {
+        "name": "phone",
+        "value": "719px"
+      },
+      {
+        "name": "short-touch",
+        "value": "559px",
+        "purpose": "Maximum height with hover:none; selects the one-column shell."
+      }
+    ],
+    "notes": [
+      "Tonal ramps are synthesized OKLCH panel previews, not additional shipped colour tokens.",
+      "Source scan only; no fresh rendered contrast or viewport coverage is asserted."
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid spruce action for the next learning step.",
+      "html": "<button class=\"ds-primary\" lang=\"et\">Edasi <span lang=\"ru\">дальше</span></button>",
+      "css": ".ds-primary{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);background:var(--btn,#244e3d);color:var(--on-btn,#fff);border:0;border-radius:var(--r-sm,12px);min-height:48px;padding:var(--s3,12px) var(--s5,24px);display:inline-flex;align-items:center;justify-content:center;gap:var(--s2,8px);font-size:var(--fs-ui,15px);font-weight:600;line-height:1.25;cursor:pointer;transition:background-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1));}.ds-primary span{font-size:var(--fs-meta,12px);font-weight:400;opacity:.85}.ds-primary:hover:not(:disabled){background:color-mix(in srgb,var(--btn,#244e3d) 88%,var(--ink,#17382c))}.ds-primary:active:not(:disabled){transform:scale(.97)}.ds-primary:focus-visible{outline:3px solid var(--accent,#a63424);outline-offset:3px;}.ds-primary:disabled{opacity:.45;cursor:default}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral supporting action with the established target size.",
+      "html": "<button class=\"ds-secondary\" lang=\"et\">Muuda <span lang=\"ru\">изменить</span></button>",
+      "css": ".ds-secondary{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);background:var(--tint,#e4eee7);color:var(--ink,#17382c);border:0;border-radius:var(--r-xs,8px);min-height:44px;padding:10px 20px;font-size:var(--fs-ui,15px);font-weight:600;line-height:1.25;cursor:pointer;transition:background-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1));}.ds-secondary span{font-size:var(--fs-meta,12px);color:var(--muted,#53685b);font-weight:400;margin-left:4px}.ds-secondary:hover:not(:disabled){background:var(--bg-2,#e2ede5)}.ds-secondary:active:not(:disabled){transform:scale(.97)}.ds-secondary:focus-visible{outline:3px solid var(--accent,#a63424);outline-offset:3px;}.ds-secondary:disabled{opacity:.45;cursor:default}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Quiet row action",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Small supporting rule action with an accessible hit area.",
+      "html": "<button class=\"ds-quiet\" lang=\"et\">Reegel <span lang=\"ru\">правило</span></button>",
+      "css": ".ds-quiet{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);background:transparent;color:var(--ink-2,#355548);border:0;border-radius:var(--r-xs,8px);padding:4px 8px;min-height:44px;display:inline-flex;align-items:center;font-size:var(--fs-meta,12px);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line,#cbdcd0);text-underline-offset:3px;transition:background-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1));}.ds-quiet span{font-weight:400;color:var(--muted,#53685b);margin-left:4px}.ds-quiet:hover{color:var(--ink,#17382c);background:var(--tint,#e4eee7);text-decoration-color:currentColor}.ds-quiet:focus-visible{outline:3px solid var(--accent,#a63424);outline-offset:3px;}@media(prefers-reduced-motion:reduce){.ds-quiet{transition:none}}"
+    },
+    {
+      "name": "Labelled field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Opaque outlined field with the label above its value.",
+      "html": "<label class=\"ds-label\" for=\"ds-answer\"><span lang=\"et\">Vastus</span> <span lang=\"ru\">ответ</span></label><input class=\"ds-field\" id=\"ds-answer\" type=\"text\" />",
+      "css": ".ds-label{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);display:flex;align-items:baseline;gap:6px;color:var(--ink-2,#355548);font-size:14px;font-weight:650;margin-bottom:6px}.ds-label [lang=ru]{color:var(--muted,#53685b);font-size:12px;font-weight:400}.ds-field{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);background:var(--panel,#fff);color:var(--ink,#17382c);min-height:48px;padding:10px 16px;border:1px solid var(--line,#cbdcd0);border-radius:var(--r-sm,12px);font-size:16px;caret-color:var(--accent,#a63424);transition:border-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),background-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),box-shadow var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1))}.ds-field:hover{border-color:color-mix(in srgb,var(--ink,#17382c) 25%,var(--line,#cbdcd0))}.ds-field:focus-visible{outline:2px solid transparent;background:var(--raised,#fff);border-color:var(--accent,#a63424);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#a63424) 14%,transparent)}@media(prefers-reduced-motion:reduce){.ds-field{transition:none}}"
+    },
+    {
+      "name": "Persistent skills",
+      "kind": "nav",
+      "refersTo": "skill-navigation",
+      "description": "The same four labelled skills in a spruce column or phone row.",
+      "html": "<nav class=\"ds-skills\" aria-label=\"Õpioskused — навыки\" role=\"tablist\"><button role=\"tab\" aria-selected=\"true\"><svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M232,56V200H160a32,32,0,0,0-32,32V88a32,32,0,0,1,32-32Z\" class=\"ds-duo\"/><path d=\"M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64ZM160,88h40a8,8,0,0,1,0,16H160a8,8,0,0,1,0-16Zm48,40a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,128Zm0,32a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,160Z\"/></svg><span lang=\"et\">Lugemine<span class=\"ds-nav-gloss\" lang=\"ru\">чтение</span></span></button><button role=\"tab\" aria-selected=\"false\"><svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M80,144v40a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V128H64A16,16,0,0,1,80,144Zm112-16a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16h16a16,16,0,0,0,16-16V128Z\" class=\"ds-duo\"/><path d=\"M201.89,54.66A104.08,104.08,0,0,0,24,128v56a24,24,0,0,0,24,24H64a24,24,0,0,0,24-24V144a24,24,0,0,0-24-24H40.36A88,88,0,0,1,128,40h.67a87.71,87.71,0,0,1,87,80H192a24,24,0,0,0-24,24v40a24,24,0,0,0,24,24h16a24,24,0,0,0,24-24V128A103.41,103.41,0,0,0,201.89,54.66ZM64,136a8,8,0,0,1,8,8v40a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V136Zm152,48a8,8,0,0,1-8,8H192a8,8,0,0,1-8-8V144a8,8,0,0,1,8-8h24Z\"/></svg><span lang=\"et\">Kuulamine<span class=\"ds-nav-gloss\" lang=\"ru\">аудирование</span></span></button><button role=\"tab\" aria-selected=\"false\"><svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M168,64v64a40,40,0,0,1-40,40h0a40,40,0,0,1-40-40V64a40,40,0,0,1,40-40h0A40,40,0,0,1,168,64Z\" class=\"ds-duo\"/><path d=\"M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z\"/></svg><span lang=\"et\">Rääkimine<span class=\"ds-nav-gloss\" lang=\"ru\">говорение</span></span></button><button role=\"tab\" aria-selected=\"false\"><svg viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M221.66,90.34,192,120,136,64l29.66-29.66a8,8,0,0,1,11.31,0L221.66,79A8,8,0,0,1,221.66,90.34Z\" class=\"ds-duo\"/><path d=\"M227.32,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H216a8,8,0,0,0,0-16H115.32l112-112A16,16,0,0,0,227.32,73.37ZM48,163.31l88-88L180.69,120l-88,88H48Zm144-54.62L147.32,64l24-24L216,84.69Z\"/></svg><span lang=\"et\">Kirjutamine<span class=\"ds-nav-gloss\" lang=\"ru\">письмо</span></span></button></nav>",
+      "css": ".ds-skills{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);display:flex;flex-direction:column;gap:4px;background:var(--nav,#173e2f);padding:16px;color:var(--on-nav,#f5faf6)}.ds-skills button{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);display:flex;align-items:center;gap:12px;text-align:left;min-height:54px;padding:8px 12px;border:0;border-radius:var(--r-xs,8px);background:transparent;color:var(--on-nav,#f5faf6);font-size:16px;font-weight:500;line-height:1.35;cursor:pointer;transition:background-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1));}.ds-skills svg{width:24px;height:24px;flex:none}.ds-nav-gloss{display:block;color:var(--nav-muted,#c3d5c8);font-size:12px;font-weight:400}.ds-skills button[aria-selected=true]{background:var(--nav-active,#2e5943);box-shadow:inset 0 -2px var(--coral,#c54834)}.ds-skills button:hover{background:var(--nav-active,#2e5943)}.ds-skills button:focus-visible{outline:3px solid var(--accent,#a63424);outline-offset:3px;}@media(max-width:719px){.ds-skills{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:8px 4px}.ds-skills button{flex-direction:column;justify-content:center;gap:4px;min-height:60px;min-width:0;padding:4px;text-align:center;font-size:12px}.ds-skills svg{width:22px;height:22px}}@media(prefers-reduced-motion:reduce){.ds-skills button{transition:none}}"
+    },
+    {
+      "name": "Recommendation tag",
+      "kind": "chip",
+      "refersTo": "recommendation-chip",
+      "description": "Static contextual recommendation, not a clickable filter.",
+      "html": "<span class=\"ds-chip\" lang=\"et\">Soovitus</span>",
+      "css": ".ds-chip{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);display:inline-flex;padding:2px 8px;border-radius:999px;background:var(--accent-soft,#fbe9e3);color:var(--accent,#a63424);font-size:var(--fs-gloss,12px);font-weight:700;line-height:1.5}"
+    },
+    {
+      "name": "Task sheet",
+      "kind": "card",
+      "refersTo": "task-sheet",
+      "description": "Solid reading or practice area with no elevated shadow.",
+      "html": "<section class=\"ds-sheet\"><h3 lang=\"et\">Harjuta</h3><p lang=\"ru\">Разбери правило на примерах, попробуй сам и получи проверку.</p></section>",
+      "css": ".ds-sheet{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);background:var(--panel,#fff);color:var(--ink,#17382c);border:0;border-radius:var(--r,16px);padding:var(--s5,24px);box-shadow:none;max-width:76ch}.ds-sheet h3{font-size:var(--fs-lead,20px);line-height:1.2;letter-spacing:-.025em;margin:0 0 16px}.ds-sheet p{font-size:var(--fs-body,16px);line-height:1.6;max-width:72ch;margin:0}@media(max-width:719px){.ds-sheet{padding:var(--s4,16px)}}"
+    },
+    {
+      "name": "Practice step strip",
+      "kind": "custom",
+      "refersTo": "step-strip",
+      "description": "Labelled lesson progress with a coral current-step underline.",
+      "html": "<ol class=\"ds-steps\" aria-label=\"Õppetunni sammud — шаги урока\"><li aria-current=\"step\" lang=\"et\">Õpi<span lang=\"ru\">разбери</span></li><li lang=\"et\">Harjuta<span lang=\"ru\">попробуй</span></li><li lang=\"et\">Kontrolli<span lang=\"ru\">проверь</span></li></ol>",
+      "css": ".ds-steps{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);list-style:none;display:flex;gap:var(--s5,24px);padding:0;margin:24px 0 32px;border-bottom:1px solid var(--line,#cbdcd0)}.ds-steps li{flex:1;padding:0 0 var(--s3,12px);color:var(--muted,#53685b);font-size:16px;line-height:1.6}.ds-steps span{display:block;font-size:12px;font-weight:400}.ds-steps li[aria-current]{color:var(--accent,#a63424);box-shadow:0 2px var(--coral,#c54834);font-weight:600}@media(max-width:719px){.ds-steps{gap:12px;margin:16px 0 24px}.ds-steps li{font-size:14px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Practice rhythm",
+    "overview": "Grove is a calm working place for learning Estonian. Spruce navigation gives the\napp a stable edge, mint opens the working area, and opaque task sheets give text,\nanswers and corrections a dependable reading surface. Comfortable humanist type\nand a restrained coral current-step mark carry the identity.\n\nThe signature is the labelled three-step strip: Õpi → Harjuta → Kontrolli. It\nborrows the rhythm of Baltic colour bands while remaining an ordinary progress\nindicator. Navigation, fields and disclosures use familiar web controls. Grove's\nleaf and name remain the identity; the interface opens directly into the app.",
+    "keyCharacteristics": [
+      "Spruce navigation, mint ground, opaque task surfaces.",
+      "Coral current-step marks and separately labelled result states.",
+      "One humanist family, with a sharper cut for Estonian material.",
+      "Four persistent skills and a stable answer → correction → next-action rhythm.",
+      "Short responsive layouts, readable glosses and progressive disclosure."
+    ],
+    "rules": [
+      {
+        "name": "The State Has Words Rule",
+        "body": "Colour supports a visible label, icon or explicit correction; it never carries the result alone. A skipped item is labelled as ungraded and uses a neutral progress mark.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shared Face Rule",
+        "body": "Use the same family across languages; sharpness marks learning material. Estonian UI labels keep a Russian gloss where the MVP needs it, without colouring text merely because it is Russian.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stable Workspace Rule",
+        "body": "Keep one guided item in the task surface. Reserve the correction region (144px) and a separate next-action zone (at least 48px); completed answers move to an optional disclosure after the workspace.",
+        "section": "layout"
+      },
+      {
+        "name": "The Opaque Reading Rule",
+        "body": "Text, answers and their explanations sit on opaque surfaces. A floating word explanation keeps the same solid task colour.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do reuse spruce navigation, mint ground and opaque task surfaces through the root tokens.",
+      "Do keep all four skills reachable and both bottom-skill labels at 12px.",
+      "Do preserve the single guided item, reserved correction area and explicit Edasi action.",
+      "Do pair colour with a readable state label, icon or correction.",
+      "Do keep Estonian learning material in the sharper Geologica cut and Russian explanations in the soft cut.",
+      "Do retain visible source attribution, readable limits, keyboard focus and at least 44px control targets.",
+      "Do derive platform artwork from the original leaf and local font, with provenance on shipping rasters."
+    ],
+    "donts": [
+      "Don't restore the discarded glass shell, boardwalk layout or timed opening passage as house defaults.",
+      "Don't put reading, answer fields, corrections or word explanations on transparent surfaces.",
+      "Don't let completed-answer history grow inside the active guided workspace.",
+      "Don't use colour alone for mastery, correctness, skipping or recording state.",
+      "Don't colour text merely because of its language or shrink a caveat until it is unreadable.",
+      "Don't replace source-backed evidence with decorative scores, streaks or an overall exam-readiness percentage."
+    ]
+  }
+}

@@ -29,12 +29,13 @@ export const RU = {
   "Rääkimine": "говорение", "Kirjutamine": "письмо",
   "Järjekord": "очередь", "Töövihikud": "тетради",
   "Ülevaade": "обзор", "Edenemine": "прогресс",
-  /* Path states: exactly the five `progress.TopicProgress.state` emits.
+  /* Path states: exactly those `progress.TopicProgress.state` emits.
      `tests/test_path_states.py` checks the two lists against each other. */
   /* Each answers "can I do this now, and if not, why not?": what to press, or that
      the topic opens by itself once the named topics are done. */
   "reference": "теория", "ready": "открыто", "locked": "откроется позже",
   "in progress": "в работе", "mastered": "пройдено",
+  "skipped": "пропущено",
 };
 
 const STATE_ICON = {
@@ -43,6 +44,7 @@ const STATE_ICON = {
   "in progress": "circle-half",
   "mastered":    "check-circle",
   "locked":      "lock-simple",
+  "skipped":     "arrow-right",
 };
 
 function svgIcon(d) {

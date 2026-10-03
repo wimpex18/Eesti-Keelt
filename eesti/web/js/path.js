@@ -9,6 +9,7 @@ import {onLessonPractice} from "./lesson.js";
 import {addMic} from "./voice.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 import {examLevel} from "./state.js";
+import {icon} from "./icons.js";
 
 // ── the path ────────────────────────────────────────────────────────
 let pathTopic = null;
@@ -28,7 +29,8 @@ const freeTally = {answered: 0, correct: 0, size: 0, missed: [], marks: [], out:
 /* A new set on a tally. `gen` names the set, so an answer still in flight from the
    set it replaced is not counted in this one (see `grade`). */
 function newSet(tally) {
-  Object.assign(tally, {answered: 0, correct: 0, size: 0, missed: [], marks: [],
+  $(tally.box)?.parentElement.querySelector(".session-history")?.remove();
+  Object.assign(tally, {answered: 0, correct: 0, size: 0, skipped: 0, missed: [], marks: [],
                         gen: (tally.gen || 0) + 1});
   paintBeads(tally);
 }
@@ -40,7 +42,7 @@ function newSet(tally) {
 function beadsHtml(tally) {
   return Array.from({length: tally.size}, (_, i) => {
     const m = tally.marks[i];
-    const cls = m === true ? "ok" : m === false ? "no"
+    const cls = m === true ? "ok" : m === false ? "no" : m === "skipped" ? "skipped"
       : i === tally.marks.filter(x => x !== undefined).length ? "now" : "";
     return `<span class="bead ${cls}"></span>`;
   }).join("");
@@ -53,13 +55,14 @@ function paintBeads(tally) {
 
 /* A tally for a set rendered somewhere else (the Kontrolltöö). */
 export function newTally(out, box, again) {
+  $(box)?.parentElement.querySelector(".session-history")?.remove();
   // A Kontrolltöö is a test: its misses are listed, not re-drilled on the spot.
   return {answered: 0, correct: 0, size: 0, missed: [], marks: [], out, box, record: true,
           again, redo: false};
 }
 
 let pathMeta = {};
-let autoStarted = false, practiceRequest = 0;
+let practiceRequest = 0, lessonRequest = 0, sessionTopic = null;
 /* What the learner types is the thing being graded: iOS must not capitalise it,
    correct it or underline it, and a password manager must not offer to fill it. */
 const ANSWER_FIELD = `autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"`;
@@ -89,115 +92,6 @@ function paintTheme() {
 }
 
 
-// ── today's plan ────────────────────────────────────────────────────
-let todayPlan = {minutes: 0, blocks: []};
-let todaySteps = [];
-
-function todayMinutes() {
-  try { return Number(localStorage.getItem("todayMinutes")) || 20; } catch { return 20; }
-}
-
-function paintTodaySummary() {
-  const bits = [];
-  if (todaySteps.length) {
-    const complete = todaySteps.filter(step => step.complete).length;
-    bits.push(`${complete}/${todaySteps.length} tehtud`);
-  }
-  if (todayPlan.minutes) bits.push(`${todayPlan.minutes} min`);
-  $("#todaySum").textContent = bits.join(" · ");
-}
-
-function planBlockComplete(block) {
-  const step = id => todaySteps.find(candidate => candidate.id === id)?.complete;
-  if (block.kind === "review") return step("review");
-  if (block.kind === "skill" || block.kind === "read") return step("skill");
-  return ["repair", "refresh", "new"].includes(block.kind) && step("practice");
-}
-
-function nextPlanBlock() {
-  const blocks = todayPlan.blocks || [];
-  if (!blocks.length) return null;
-  const current = blocks.findIndex(block => block.action?.tab === "path"
-    && (!block.action.topic || block.action.topic === pathTopic));
-  const ordered = current < 0
-    ? blocks : [...blocks.slice(current + 1), ...blocks.slice(0, current)];
-  return ordered.find(block => block.action && !planBlockComplete(block)) || null;
-}
-
-function markPracticeStep(tally) {
-  if (tally !== pathTally || !tally.record) return;
-  const step = todaySteps.find(candidate => candidate.id === "practice");
-  if (!step) return;
-  step.done = Math.min(step.target, step.done + tally.answered);
-  step.complete = step.done >= step.target;
-  paintDailySteps(todaySteps);
-}
-
-async function loadToday() {
-  const list = $("#todayList");
-  if (!list) return;
-  const minutes = todayMinutes();
-  $("#todayMinutes").value = String(minutes);
-  const strip = $("#todayStrip");
-  try {
-    const p = await (await api(`/api/plan?minutes=${minutes}`, null, "GET")).json();
-    todayPlan = {minutes: p.minutes || minutes, blocks: p.blocks || []};
-    paintTodaySummary();
-    if (!(p.blocks || []).length) {
-      list.innerHTML = `<li class="hint">На сегодня ничего не запланировано.</li>`;
-      strip.innerHTML = "";
-      return;
-    }
-    /* The day as time: one segment per block, as long as its minutes. */
-    strip.innerHTML = p.blocks.map((b, i) =>
-      `<span class="strip-seg" data-kind="${esc(b.kind)}"
-         style="flex-grow:${b.minutes};animation-delay:${i * 90}ms"></span>`).join("");
-    // Up to three blocks read left to right under the strip; more stack as a list.
-    list.classList.toggle("as-row", p.blocks.length <= 3);
-    list.innerHTML = p.blocks.map((b, i) => {
-      const d = b.detail;
-      const mistake = d ? `<div class="today-mistake" lang="et">
-          <del>${esc(d.answer || "—")}</del> → <ins>${esc(d.expected)}</ins>
-          · ${esc(d.solution)}</div>` : "";
-      return `<li class="today-block" data-kind="${esc(b.kind)}">
-        <span class="today-kind" aria-hidden="true">${kindIcon(b.kind)}</span>
-        <div class="today-what">
-          <span class="today-min">${b.minutes} мин</span>
-          <strong lang="et">${esc(b.et)} <i class="ru" lang="ru">${esc(b.ru)}</i></strong>
-          <p class="hint">${esc(b.why)}</p>${mistake}
-        </div>
-        <button class="ghost" data-i="${i}" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
-      </li>`;
-    }).join("");
-    list.querySelectorAll("button[data-i]").forEach(btn => btn.onclick = () =>
-      startBlock(p.blocks[Number(btn.dataset.i)].action));
-  } catch (e) {
-    todayPlan = {minutes, blocks: []};
-    paintTodaySummary();
-    strip.innerHTML = "";
-    list.innerHTML = `<li class="hint">План не загрузился: ${esc(e.message)}</li>`;
-  }
-}
-
-function startBlock(action) {
-  if (action.tab === "path") {
-    pathTopic = action.topic;
-    pathRules = action.rules || null;
-    paintTheme();
-    startPractice();
-    $("#practiceOut").scrollIntoView({block: "start", behavior: glide()});
-    return;
-  }
-  // The router follows the hash (`main.js`), and Back returns to the plan.
-  location.hash = "#" + action.tab;
-}
-
-$("#todayMinutes").onchange = e => {
-  try { localStorage.setItem("todayMinutes", e.target.value); } catch {}
-  loadToday();
-};
-
-
 /* Today's date in Estonian: the interface is exposure, and a date is a word the
    learner reads every day. */
 function paintDate() {
@@ -210,158 +104,19 @@ function paintDate() {
 }
 
 
-/* The boardwalk: a window of the path around the resume topic, drawn as planks
-   with one node per topic. Mastered nodes are moss with a tick, the resume topic
-   is cornflower with a halo, open ones are outlined, later ones grey, theory
-   dashed. As many nodes as the width holds; the whole path is one tap away. */
-let trailData = null;
-
-function drawTrail() {
-  const box = $("#pathTrail");
-  if (!box || !trailData) return;
-  const {topics, resume, mastered, total} = trailData;
-  const width = box.clientWidth || 600;
-  const count = Math.max(5, Math.min(13, Math.floor(width / 72)));
-  const here = Math.max(0, topics.findIndex(t => t.id === resume));
-  let start = Math.max(0, here - Math.floor(count * 0.4));
-  start = Math.min(start, Math.max(0, topics.length - count));
-  const shown = topics.slice(start, start + count);
-  if (!shown.length) { box.innerHTML = ""; return; }
-  const step = 72, W = step * (shown.length - 1) + 40, H = 70;
-  const pts = shown.map((_, i) => [20 + i * step,
-    35 + Math.sin((start + i) * 0.95) * 15]);
-  // A smooth line through the nodes (Catmull-Rom as cubic Béziers).
-  let d = `M${pts[0][0]} ${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-    d += ` C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6},` +
-         `${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6},${p2[0]} ${p2[1]}`;
-  }
-  const nodes = shown.map((t, i) => {
-    const [x, y] = pts[i], now = t.id === resume;
-    const r = now ? 12 : t.state === "mastered" ? 10 : t.state === "locked"
-      || t.state === "reference" ? 6.5 : 8.5;
-    const cls = `node ${t.state.replace(" ", "-")}${now ? " now" : ""}`;
-    const tick = t.state === "mastered"
-      ? `<path class="tick" d="M${x - 4.5} ${y}l3 3 6-6.5"/>` : "";
-    const halo = now ? `<circle class="halo" cx="${x}" cy="${y}" r="17"/>` : "";
-    return `<g><title>${esc(t.et)} — ${esc(RU[t.state] || t.state)}</title>
-      ${halo}<circle class="${cls}" cx="${x}" cy="${y}" r="${r}"/>${tick}</g>`;
-  }).join("");
-  const label = `Rada: ${mastered} из ${total} пройдено` +
-    (topics[here] ? `, сейчас ${topics[here].et}` : "");
-  box.innerHTML = `<svg viewBox="-4 0 ${W + 8} ${H}" role="img" aria-label="${esc(label)}">
-      <path class="plank" d="${d}"/><path class="seam" d="${d}"/>${nodes}</svg>
-    <div class="trail-legend"><span lang="ru">${mastered} из ${total} пройдено ·
-      ${ruCount(topics.filter(t => t.state === "ready" || t.state === "in progress").length,
-                ["тема открыта", "темы открыты", "тем открыто"])}</span>
-      <a href="#pathAll" data-open-path lang="et">Kogu rada →</a></div>`;
-  box.querySelector("[data-open-path]").onclick = e => {
-    e.preventDefault();
-    $("#pathAll").open = true;
-    $("#pathAll").scrollIntoView({block: "start", behavior: glide()});
-  };
-}
-
-if ("ResizeObserver" in window) {
-  let lastWidth = 0;
-  new ResizeObserver(([entry]) => {
-    const w = Math.round(entry.contentRect.width);
-    if (Math.abs(w - lastWidth) > 30) { lastWidth = w; drawTrail(); }
-  }).observe($("#pathTrail"));
-}
-
-
-/* `loadPath` runs from several places (the tab, a mastery, a test-out, an offline
-   send); only the latest request may paint. */
 let pathLoad = 0;
 
-/* The pulse: three small tiles where the desk has its rail — what is due, how the
-   exam flower stands, and the rhythm of the last four weeks. Each opens its screen. */
-async function paintPulse() {
-  const box = $("#pathPulse");
-  const showPulse = box && !matchMedia("(min-width:1080px)").matches;
-  const get = u => api(u, null, "GET").then(r => r.json()).catch(() => null);
-  let dueRequest = Promise.resolve(null);
-  let readyRequest = Promise.resolve(null);
-  if (showPulse) {
-    dueRequest = get("/api/review/stats");
-    readyRequest = get(`/api/readiness/${examLevel()}`);
-  }
-  const [due, ready, status] = await Promise.all([
-    dueRequest, readyRequest, get("/api/status"),
-  ]);
-  paintDailySteps(status?.today_steps || []);
-  if (!showPulse) { if (box) box.innerHTML = ""; return; }
-  const tiles = [];
-  if (due) tiles.push(`<a class="pulse-tile" href="#review">
-      <span class="pulse-label" lang="et">Kordamine</span>
-      <span class="pulse-big">${due.due || 0}</span>
-      <span class="pulse-sub">${due.due ? "к повторению сегодня"
-        : due.total ? "сегодня ничего" : "очередь пуста"}</span></a>`);
-  if (ready && ready.parts) {
-    const open = ready.parts.filter(p => p.touched === false).length;
-    tiles.push(`<a class="pulse-tile pulse-flower" href="#exam">
-      <span class="pulse-label" lang="et">Eksam ${esc(ready.level)}</span>
-      ${flowerSvg(ready.parts, ready.contact_target || 3, {labels: false})}
-      <span class="pulse-sub">${open ? `не начаты: ${open}` : "все части начаты"}</span></a>`);
-  }
-  if (status && status.rhythm && status.rhythm.length) {
-    const active = status.rhythm.slice(-28).filter(d => d.n > 0).length;
-    const week = status.rhythm.slice(-7).map(d =>
-      `<i class="${d.n ? "on" : ""}"></i>`).join("");
-    tiles.push(`<a class="pulse-tile" href="#status">
-      <span class="pulse-label" lang="et">Rütm</span>
-      <span class="pulse-big">${active}<small>/28</small></span>
-      <span class="pulse-week" aria-hidden="true">${week}</span>
-      <span class="sr-only">дней с занятиями за 4 недели</span></a>`);
-  }
-  box.innerHTML = tiles.join("");
-}
-
-const DAILY_STEP_COPY = {
-  practice: ["Harjuta viis korda", "5 упражнений"],
-  review: ["Korda tänased kaardid", "карточки на сегодня"],
-  skill: ["Kasuta üht oskust", "чтение, слух, речь или письмо"],
-};
-
-function paintDailySteps(steps) {
-  const section = $("#dailySteps"), list = $("#dailyStepsList");
-  todaySteps = (steps || []).map(step => ({...step}));
-  paintTodaySummary();
-  if (!section || !list || !todaySteps.length) { if (section) section.hidden = true; return; }
-  list.innerHTML = todaySteps.map(step => {
-    const copy = DAILY_STEP_COPY[step.id] || [step.id, ""];
-    const empty = step.id === "review" && step.target === 0;
-    const count = empty ? "" : `${step.done}/${step.target}`;
-    const detail = empty ? "очередь пуста" : copy[1];
-    const mark = step.complete ? uiIcon("done", "daily-step-icon")
-      : `<span class="daily-step-count">${esc(count)}</span>`;
-    const body = `<span class="daily-step-mark" aria-hidden="true">${mark}</span>
-      <span class="daily-step-copy"><strong lang="et">${esc(empty ? "Järjekord on tühi" : copy[0])}</strong>
-      <small lang="ru">${esc(detail)}</small></span>`;
-    return `<li class="${step.complete ? "complete" : ""}">${step.complete
-      ? `<span class="daily-step-link">${body}</span>`
-      : `<a class="daily-step-link" href="${esc(step.href)}">${body}</a>`}</li>`;
-  }).join("");
-  section.hidden = false;
-}
-
 export async function loadPath() {
-  loadToday();
   paintDate();
-  paintPulse();
   const mine = ++pathLoad;
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
     if (mine !== pathLoad) return;
     // A load that worked clears an earlier load's error (never a mastery note).
     if ($("#pathHead").className === "banner") $("#pathHead").hidden = true;
-    pathTopic = p.resume;
-    const next = p.topics.find(t => t.id === p.resume);
-    const place = p.topics.findIndex(t => t.id === p.resume);
+    if (!sessionTopic) pathTopic = p.resume;
+    const next = p.topics.find(t => t.id === (sessionTopic || p.resume));
     $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
-    $("#pathPos").textContent = next ? `тема ${place + 1} из ${p.total}` : "";
     const tried = next && next.attempts
       ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
         (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
@@ -369,20 +124,12 @@ export async function loadPath() {
     $("#pathOf").innerHTML = next
       ? `${next.ru ? `<span lang="ru">${esc(next.ru)}</span> · ` : ""}${esc(next.level)}${tried}`
       : `${p.mastered}/${p.total} тем`;
-    $("#pathGate").innerHTML = next && p.gate ? gateHtml(p.resume_recent || [], p.gate) : "";
     p.topics.forEach(t => { pathMeta[t.id] = t; });
-    trailData = {topics: p.topics, resume: p.resume, mastered: p.mastered, total: p.total};
-    drawTrail();
     paintTheme();
-    /* Rada answers "what am I learning today?", so it opens on today's drill, not on
-       a button that fetches it. Once per page: coming back to the tab keeps the set
-       the learner is in. Nothing is focused, so a phone does not open its keyboard
-       over the first sentence. */
-    if (!autoStarted && !$("#practiceOut").children.length) {
-      autoStarted = true;
-      startPractice({focus: false});
-    }
-
+    setLabel($("#practiceBtn"), sessionTopic ? "Jätka" : "Alusta");
+    $("#practiceBtn .ru").textContent = sessionTopic ? "продолжить урок" : "начать урок";
+    $("#practiceBtn").disabled = !next && !sessionTopic;
+    $("#practiceBtn").hidden = false;
     /* The whole path, level by level, as one boardwalk per level. */
     const levels = [...new Set(p.topics.map(t => t.level))];
     $("#pathList").innerHTML = levels.map(lv => {
@@ -398,18 +145,18 @@ export async function loadPath() {
           t.accuracy === null || t.accuracy === undefined ? "" : `${Math.round(t.accuracy * 100)}%`,
         ].filter(Boolean).join(" · ");
         const rule = `<button class="quiet" data-lesson="${esc(t.id)}" lang="et">reegel <i class="ru" lang="ru">правило</i></button>`;
-        const acts = t.state === "ready" || t.state === "in progress"
-          ? `<span class="acts">${rule}<button class="ghost" data-topic="${esc(t.id)}" lang="et">harjuta <i class="ru" lang="ru">решать</i></button>
-             <button class="ghost" data-testout="${esc(t.id)}" lang="et">testi välja <i class="ru" lang="ru">сдать экстерном</i></button></span>`
-          : `<span class="acts">${rule}</span>`;
+        const acts = `<span class="acts"><button class="ghost" data-topic="${esc(t.id)}" lang="et">Õpi <i class="ru" lang="ru">изучить</i></button>
+          <details class="topic-options"><summary lang="et">Veel <span class="ru" lang="ru">действия</span></summary>
+          ${rule}${t.state !== "reference" ? `<button class="quiet" data-testout="${esc(t.id)}" lang="et">Kontrolli teadmisi <span class="ru" lang="ru">проверить знания</span></button>` : ""}
+          ${t.state === "mastered" ? "" : `<button class="quiet" data-skip="${esc(t.id)}" data-skipped="${t.state === "skipped"}" lang="et">${t.state === "skipped" ? "Too tagasi" : "Jäta vahele"}<span class="ru" lang="ru">${t.state === "skipped" ? "вернуть в маршрут" : "пропустить тему"}</span></button>`}</details></span>`;
         return `<div class="topic ${t.state.replace(" ", "-")}${t.id === p.resume ? " now" : ""}">
           <span class="st" title="${esc(RU[t.state] || t.state)}">${stateIcon(t.state)}<span class="st-word" lang="ru">${esc(RU[t.state] || t.state)}</span></span>
           <span class="name" lang="et">${esc(t.et)}</span>
           ${meta ? `<span class="meta">${meta}</span>` : ""}
           ${acts}</div>`;
       }).join("");
-      return `<div class="path-level"><h4><span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>
-        <span class="hint">${done} из ${here.length} пройдено</span></h4>${rows}</div>`;
+      return `<details class="path-level"${lv === next?.level ? " open" : ""}><summary><span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>
+        <span class="hint">${done} из ${here.length} пройдено</span>${icon("caret-down", {cls: "fold-chevron"})}</summary>${rows}</details>`;
     }).join("");
   } catch (e) {
     if (mine !== pathLoad) return;
@@ -433,9 +180,9 @@ export async function loadStatus() {
     ]);
     const s = d.sections; let html = "";
     const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
-    if (d.rhythm?.length) html += `<section class="stat-card wide">
+    if (d.rhythm?.length) html += `<details class="progress-details"><summary lang="et">Rütm <span class="ru" lang="ru">история занятий</span></summary><section class="stat-card wide">
       <h3 lang="et">Rütm <i class="ru" lang="ru">занятия по дням, 12 недель</i></h3>
-      ${rhythmHtml(d.rhythm)}</section>`;
+      ${rhythmHtml(d.rhythm)}</section></details>`;
     if (s.rada) html += `<section class="stat-card">
       <h3 lang="et">Rada <i class="ru" lang="ru">путь</i></h3>
       <div class="stat-big">${s.rada.mastered}<small> / ${s.rada.total} тем</small></div>
@@ -472,10 +219,10 @@ export async function loadStatus() {
       <div class="stat-big">${s.raamatukogu.items || 0}<small> ${ruCount(s.raamatukogu.items || 0,
         ["материал", "материала", "материалов"]).replace(/^\S+ /, "")}</small></div>
       <p class="why">${ruCount(Math.round(s.raamatukogu.minutes || 0), ["минута", "минуты", "минут"])} с текстами и записями.</p></section>`;
-    if (marks.milestones?.length) html += `<section class="stat-card">
+    if (marks.milestones?.length) html += `<details class="progress-details"><summary lang="et">Märgid <span class="ru" lang="ru">этапы обучения</span></summary><section class="stat-card">
       <h3 lang="et">Märgid <i class="ru" lang="ru">вехи ${esc(examLevel())}</i></h3>
       ${sealsHtml(marks.milestones)}
-      <p class="hint">Отмечают сделанное; очков и серий нет.</p></section>`;
+      <p class="hint">Отмечают сделанное; очков и серий нет.</p></section></details>`;
     // The caveat comes from the API, in Russian, so it is written once and matches
     // what the numbers mean.
     html += `<div class="engine">${esc(d.caveat || "")}</div>`;
@@ -484,22 +231,71 @@ export async function loadStatus() {
 }
 
 
-$("#pathList").addEventListener("click", e => {
-  const out = e.target.closest("button[data-testout]");
-  if (out) {
-    $("#pathAll").open = false;
-    startTestOut(out.dataset.testout);
+$("#pathList").addEventListener("click", async e => {
+  const skip = e.target.closest("button[data-skip]");
+  if (skip) {
+    skip.disabled = true;
+    try {
+      await api(`/api/course/topics/${encodeURIComponent(skip.dataset.skip)}/skip`,
+        {skip: skip.dataset.skipped !== "true"});
+      await loadPath();
+    } catch (error) { skip.disabled = false; skip.parentElement.insertAdjacentHTML("beforeend", `<p role="alert">${esc(error.message)}</p>`); }
     return;
   }
+  const test = e.target.closest("button[data-testout]");
+  if (test) { startTestOut(test.dataset.testout); return; }
   const b = e.target.closest("button[data-topic]");
-  if (b) {
-    pathTopic = b.dataset.topic;
-    $("#pathAll").open = false;
-    paintTheme();
-    startPractice();
-  }
+  if (b) beginLesson(b.dataset.topic);
 });
 
+function sessionStep(step) {
+  document.querySelectorAll(".lesson-steps li").forEach(li => {
+    if (li.dataset.step === step) li.setAttribute("aria-current", "step");
+    else li.removeAttribute("aria-current");
+  });
+}
+function showSession() {
+  const hash = "#session/" + encodeURIComponent(sessionTopic || pathTopic || "");
+  if (location.hash !== hash) location.hash = hash;
+}
+export async function ensureSession(topic) {
+  if (sessionTopic && (!topic || sessionTopic === topic)) return;
+  if (!topic) await loadPath();
+  beginLesson(topic || pathTopic);
+}
+async function beginLesson(topic = pathTopic) {
+  if (!topic) return;
+  const request = ++lessonRequest;
+  sessionTopic = topic; pathTopic = topic;
+  showSession(); sessionStep("learn");
+  $("#pathRada").hidden = true;
+  const intro = $("#lessonIntro"); intro.hidden = false;
+  intro.innerHTML = '<p role="status">Загружаю правило и примеры…</p>';
+  try {
+    const lesson = await api(`/api/lesson/${encodeURIComponent(topic)}`, null, "GET").then(r => r.json());
+    if (request !== lessonRequest) return;
+    setLabel($("#sessionTitle"), lesson.et);
+    const points = lesson.points_ru || [];
+    intro.innerHTML = `<div class="lesson-copy">
+      <p class="lesson-gist" lang="ru">${md(lesson.tip?.gist_ru || lesson.rule?.summary_ru || lesson.ru || "")}</p>
+      ${points.length ? `<ul>${points.slice(0, 3).map(point => `<li>${md(point)}</li>`).join("")}</ul>` : ""}
+      ${(lesson.examples || []).length ? `<div class="lesson-examples" lang="et">${lesson.examples.slice(0, 3).map(ex => `<p>${esc(ex.before)}<strong>${esc(ex.answer)}</strong>${esc(ex.after)}</p>`).join("")}</div>` : ""}
+      <div class="lesson-source" lang="ru">${(lesson.sources || []).map(ref => `<a href="${esc(ref.url)}" target="_blank" rel="noopener">${esc(ref.label)}</a>`).join(" · ")}</div>
+      <button class="quiet" data-lesson="${esc(topic)}" lang="et">Reegel tervikuna <span class="ru" lang="ru">полное правило</span></button></div>
+      <div class="lesson-actions">${lesson.drillable ? `<button class="go" id="beginPractice" lang="et">Harjuta <span class="ru" lang="ru">попробовать на заданиях</span></button>` : `<a class="go" href="#course" lang="et">Kursuse juurde <span class="ru" lang="ru">к темам курса</span></a>`}
+      <button class="quiet" id="skipLesson" lang="et">Tean juba — jäta vahele <span class="ru" lang="ru">уже знаю — пропустить тему</span></button></div>`;
+    $("#beginPractice")?.addEventListener("click", () => startPractice({focus: false}));
+    $("#skipLesson").onclick = async () => {
+      $("#skipLesson").disabled = true;
+      try { await api(`/api/course/topics/${encodeURIComponent(topic)}/skip`, {skip: true}); sessionTopic = null; await loadPath(); location.hash = "#path"; }
+      catch (error) { $("#skipLesson").disabled = false; intro.insertAdjacentHTML("beforeend", `<p role="alert">${esc(error.message)}</p>`); }
+    };
+    loadPath();
+  } catch (error) {
+    intro.innerHTML = `<p role="alert">${esc(error.message)}</p><button class="go" id="retryLesson" lang="et">Proovi uuesti <span class="ru" lang="ru">загрузить урок ещё раз</span></button>`;
+    $("#retryLesson").onclick = () => beginLesson(topic);
+  }
+}
 
 /* A missed item can be explained — by a model, saying so, grounded in Vabamorf
    and EKK, and never deciding anything (`eesti/tutor.py`). */
@@ -530,6 +326,10 @@ function offerExplanation(verdict, eventId) {
 /* Test-out: five items, all five right marks the topic known (`placement.py`).
    Answered as one set, graded by the server, so the page never decides. */
 async function startTestOut(topic) {
+  sessionTopic = topic;
+  showSession(); sessionStep("check");
+  $("#lessonIntro").hidden = true; $("#pathRada").hidden = false;
+  setLabel($("#sessionTitle"), pathMeta[topic]?.et || "Kontroll");
   const out = $("#practiceOut");
   out.innerHTML = `<p class="hint">Загружаю…</p>`;
   let set;
@@ -586,6 +386,9 @@ async function loadThemes() {
 
 async function startPractice({focus = true} = {}) {
   let loaded = false;
+  showSession(); sessionStep("practice");
+  $("#lessonIntro").hidden = true; $("#pathRada").hidden = false;
+  sessionTopic = pathTopic;
   /* The auto-start and a topic picked from Kogu rada can be in flight together; only
      the latest may paint, or a slow first answer replaces the learner's choice. */
   const mine = ++practiceRequest;
@@ -595,7 +398,7 @@ async function startPractice({focus = true} = {}) {
   $("#pathScore").textContent = "";
   const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Laadin…");
   try {
-    const body = {count: 10};
+    const body = {count: 5};
     if (pathTopic) body.topic = pathTopic;
     if (pathRules) { body.rules = pathRules; pathRules = null; }
     const theme = themeApplies() ? $("#wordTheme").value : "";
@@ -658,12 +461,12 @@ async function startPractice({focus = true} = {}) {
     btn.disabled = false;
     /* With a set on screen, answering is the main action; the button only swaps
        the set, so it steps down to a secondary one. */
-    btn.className = loaded ? "ghost" : "go";
+    btn.className = "go";
     // With a set on screen the next set is offered at its end, not above it.
-    btn.hidden = loaded;
+    btn.hidden = false;
     btn.querySelector(".btn-ico")?.replaceWith(
       document.createRange().createContextualFragment(uiIcon(loaded ? "next" : "play")));
-    const [et, ru] = loaded ? NEW_SET : START;
+    const [et, ru] = loaded ? ["Jätka", "продолжить урок"] : ["Alusta", "начать урок"];
     setLabel(btn, et);
     btn.querySelector(".ru").textContent = ru;
   }
@@ -688,18 +491,11 @@ function finishSet(tally, res) {
       `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
     ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">повторить ошибки</span></button>` : "";
-  markPracticeStep(tally);
-  const next = tally === pathTally ? nextPlanBlock() : null;
-  const progress = tally === pathTally && todaySteps.length
-    ? `<p class="today-progress" lang="ru">Сегодня выполнено ${todaySteps.filter(step => step.complete).length}
-         из ${todaySteps.length} шагов.</p>` : "";
-  const continuation = next
-    ? `<button class="go" data-act="continue" lang="et">${uiIcon("next")}Jätka: ${esc(next.et)}
-         <span class="ru" lang="ru">дальше: ${esc(next.ru)}</span></button>
-       <button class="ghost" data-act="new" lang="et">Uued laused
-         <span class="ru" lang="ru">ещё задания</span></button>`
-    : `<button class="go" data-act="new" lang="et">${uiIcon("next")}Uued laused
-         <span class="ru" lang="ru">новые задания</span></button>`;
+  if (tally === pathTally) sessionStep("check");
+  const progress = tally.skipped ? `<p lang="ru">Пропущено: ${tally.skipped}. Они не проверены и не засчитаны.</p>` : "";
+  const advance = tally === pathTally && (res.just_mastered || pathMeta[sessionTopic]?.state === "mastered");
+  const continuation = `<button class="go" data-act="new" lang="et">${uiIcon("next")}${advance ? "Järgmine teema" : "Uued laused"} <span class="ru" lang="ru">${advance ? "следующая тема" : "ещё задания"}</span></button>
+    <a class="ghost" href="#path" lang="et">Kodu <span class="ru" lang="ru">на главную</span></a>`;
   const end = document.createElement("div");
   /* The score, the beads again, and the next set under the thumb. A set nearly all
      right wears moss; the count is the reward, not a streak. */
@@ -707,11 +503,21 @@ function finishSet(tally, res) {
   if (tally.size && tally.correct >= 0.8 * tally.size) end.classList.add("great");
   end.setAttribute("role", "status");
   end.innerHTML = `<h4 lang="et">Komplekt tehtud <i class="ru" lang="ru">набор пройден</i></h4>
-    <p class="set-score">${tally.correct}<small> из ${tally.size} верно</small></p>
+    <p class="set-score">${tally.correct}<small> из ${tally.answered} проверенных верно</small></p>
     <div class="beads" aria-hidden="true">${beadsHtml(tally)}</div>${gate}${progress}${missed}
     <div class="row">${redo}${continuation}</div>`;
-  end.querySelector('[data-act="new"]').onclick = tally.again;
-  end.querySelector('[data-act="continue"]')?.addEventListener("click", () => startBlock(next.action));
+  end.querySelector('[data-act="new"]').onclick = advance ? async e => {
+    const button = e.currentTarget;
+    button.disabled = true;
+    try {
+      const p = await (await api("/api/curriculum", null, "GET")).json();
+      if (p.resume) await beginLesson(p.resume);
+      else location.hash = "#course";
+    } catch (error) {
+      button.disabled = false;
+      end.insertAdjacentHTML("beforeend", `<p class="banner">Следующая тема не загрузилась: ${esc(error.message)}. Попробуй ещё раз.</p>`);
+    }
+  } : tally.again;
   end.querySelector('[data-act="redo"]')?.addEventListener("click", () => redoMissed(tally));
   // The score line said the same thing one line lower; the card says it now.
   $(tally.out).textContent = "";
@@ -738,6 +544,13 @@ function redoMissed(tally) {
 
 
 export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = pathTally) {
+  // First exposure offers recognition before recall, using only issued forms.
+  // The signed server item still grades the selected form; skipping submits none.
+  if (tally === pathTally && !(pathMeta[topic]?.attempts) && !it.choices?.length
+      && it.distractor && !it.answer.split(" ~ ").includes(it.distractor)) {
+    const options = [it.answer.split(" ~ ")[0], it.distractor];
+    it = {...it, choices: i % 2 ? options : options.reverse()};
+  }
   /* What the word means, when the app already knows.
 
      The gloss comes from the local store, so it is either instantly there or
@@ -749,7 +562,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const ru = (it.answer_ru && it.answer_ru.length)
     ? it.answer_ru : (glosses || {})[it.lemma] || [];
   const el = document.createElement("div");
-  el.className = "drill";
+  el.className = "drill guided-item";
   /* The answer time starts when the learner turns to the item (its field gets
      focus), not when the set was built: items wait their turn on a phone. */
   let started = null;
@@ -818,8 +631,6 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
 
   const grade = async () => {
     if (locked()) return;
-    // Answered from the keyboard: the next item gets the keyboard when this is graded.
-    const typed = !!input && document.activeElement === input;
     /* An empty box is not an answer. Here it would also be recorded: against the
        accuracy that gates mastery, and into the review queue. The first item is
        focused on load, so one stray Enter would do it. Ask again instead. */
@@ -870,23 +681,23 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     const blank = el.querySelector(".prompt .blank");
     // With parallel forms ("tube ~ tubasid") the sentence takes the one typed, if right.
     const said = res.correct && input ? submittedGiven.trim() : it.answer.split(" ~ ")[0];
-    if (blank && !choices.length) {
+    if (blank) {
       blank.textContent = said;
       blank.classList.add("filled", res.correct ? "ok" : "no");
     }
     // A miss goes on the set's list, to be looked at and redone at its end.
     if (!res.correct) tally.missed.push({it, topic});
-    /* Graded: on a phone the next item appears under this one (see `.drill.done`
-       in app.css). Keep this verdict in view above the keyboard and the thumb bar. */
-    el.classList.add("done");
+    // Correction stays with this task until the learner chooses to continue.
+    // No completed stack can move the next question down the workspace.
+    el.classList.add("done", "await-next");
+    el.querySelector(".exercise-skip").hidden = true;
     requestAnimationFrame(() => verdict.scrollIntoView({block: "nearest"}));
-    if (typed) el.nextElementSibling?.querySelector?.("input")?.focus({preventScroll: true});
     verdict.className = "verdict " + (res.correct ? "ok" : "no");
     // A choice item's prompt is a question with no blank, so the answered sentence is
     // shown instead. The rule is shown either way: on a right answer it says why,
     // which for word order is the lesson.
     verdict.innerHTML = res.correct
-      ? (choices.length
+      ? (choices.length && !blank
           ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
           : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", said))}</strong>`
@@ -906,7 +717,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     if (res.accuracy != null && res.gate)
       line += ` · ${Math.round(res.accuracy * 100)}% из последних ${res.gate.split("/")[1]}`;
     $(tally.out).textContent = line;
-    if (tally.size && tally.answered === tally.size) finishSet(tally, res);
+    awaitForward(res);
     if (res.just_mastered) {
       // Good news wears the accent. `#pathHead` is shared with the error path, so the
       // class is set at each use.
@@ -936,11 +747,65 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
     if (i === 0 && focus) setTimeout(() => input.focus(), 0);
   }
+  const skip = document.createElement("button");
+  skip.className = "quiet exercise-skip"; skip.lang = "et";
+  skip.innerHTML = '<span lang="et">Jäta ülesanne vahele <span class="ru" lang="ru">пропустить задание</span></span>';
+  skip.onclick = () => {
+    if (inFlight || el.classList.contains("done")) return;
+    el.classList.add("done", "skipped", "await-next"); tally.skipped = (tally.skipped || 0) + 1;
+    tally.marks[i] = "skipped"; paintBeads(tally);
+    input && (input.disabled = true); if (check) check.disabled = true;
+    choices.forEach(b => b.disabled = true);
+    verdict.textContent = "Пропущено — ответ не проверен и не засчитан. Можно попробовать в следующем наборе.";
+    skip.hidden = true;
+    awaitForward({});
+  };
+  const feedback = document.createElement("div");
+  feedback.className = "exercise-feedback";
+  el.appendChild(feedback);
+  feedback.appendChild(verdict);
+  const actions = document.createElement("div");
+  actions.className = "exercise-actions";
+  actions.appendChild(skip);
+  const forward = document.createElement("button");
+  forward.className = "go exercise-next"; forward.lang = "et"; forward.hidden = true;
+  forward.innerHTML = '<span lang="et">Edasi <span class="ru" lang="ru">дальше</span></span>';
+  actions.appendChild(forward); feedback.appendChild(actions);
+  function awaitForward(res) {
+    forward.hidden = false;
+    forward.onclick = () => {
+      forward.disabled = true;
+      const box = $(tally.box);
+      let history = box.parentElement.querySelector(".session-history");
+      if (!history) {
+        history = document.createElement("details"); history.className = "session-history fold";
+        history.innerHTML = '<summary lang="et">Minu vastused <span class="ru" lang="ru">ответы этого набора</span></summary><ol></ol>';
+        box.after(history);
+      }
+      const entry = document.createElement("li");
+      const sentence = document.createElement("p"); sentence.lang = "et";
+      sentence.textContent = el.querySelector(".prompt").textContent;
+      const result = verdict.cloneNode(true);
+      result.removeAttribute("role");
+      result.querySelectorAll("button").forEach(button => button.remove());
+      result.querySelectorAll(".row:empty").forEach(row => row.remove());
+      entry.append(sentence, result); history.querySelector("ol").appendChild(entry);
+      el.classList.remove("await-next"); el.classList.add("archived"); el.hidden = true;
+      if (tally.answered + (tally.skipped || 0) === tally.size) finishSet(tally, res);
+      else {
+        const next = box.querySelector(".drill:not(.done)");
+        next?.scrollIntoView({block: "nearest"});
+        next?.querySelector("input, .choice")?.focus({preventScroll: true});
+      }
+    };
+  }
   return el;
 }
 
 
-$("#practiceBtn").onclick = () => startPractice();
+$("#practiceBtn").onclick = () => {
+  if (sessionTopic) showSession(); else beginLesson();
+};
 // A new word theme is a new set: with the button folded into the end card, the
 // select itself starts it.
 $("#wordTheme").addEventListener("change", () => startPractice());
@@ -952,7 +817,7 @@ $("#wordTheme").addEventListener("change", () => startPractice());
 export function setPathMode(mode) {
   document.querySelectorAll("#pathModes button").forEach(b =>
     b.setAttribute("aria-selected", b.dataset.pm === mode));
-  $("#pathRada").hidden = mode !== "rada";
+  $("#courseTopics").hidden = mode !== "rada";
   $("#pathFree").hidden = mode !== "vaba";
   if (mode === "vaba") fillFreeTopics();
 }
@@ -1056,7 +921,7 @@ $("#offlineGet").onclick = async () => {
   const btn = $("#offlineGet");
   btn.disabled = true;
   try {
-    await offline.fetchPack(24);
+    await offline.fetchPack(5);
     await paintOffline();
   } catch (e) {
     $("#offlineState").textContent = "Не скачалось: " + e.message;
@@ -1066,6 +931,10 @@ $("#offlineGet").onclick = async () => {
 $("#offlinePractice").onclick = async () => {
   const pack = await offline.savedPack();
   if (!pack) return;
+  sessionTopic = pack.items[0]?.topic || pathTopic;
+  showSession(); sessionStep("practice");
+  $("#lessonIntro").hidden = true;
+  $("#pathRada").hidden = false;
   /* A set fetched on load can still be in flight; claiming the request id
      stops it painting over the offline one when it lands. */
   practiceRequest++;
@@ -1155,7 +1024,6 @@ paintOffline();
 /* "Harjuta" on a Reegel page starts a Minu rada set on that topic. */
 onLessonPractice(topic => {
   pathTopic = topic;
-  $("#pathAll").open = false;
   paintTheme();
   startPractice();
 });

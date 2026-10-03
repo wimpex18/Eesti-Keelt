@@ -10,6 +10,17 @@ from pydantic import BaseModel
 router = APIRouter()
 
 
+@router.get("/api/auth/me")
+def local_session() -> dict:
+    """Local preview has no Worker account service; studying remains available.
+
+    The public Worker handles this route before proxying to the origin.
+    """
+    from ..identity import current
+
+    return {"scope": current().kind, "signup_open": False, "local": True}
+
+
 class NameRequest(BaseModel):
     #: Null or blank clears the name.
     name: str | None = None
@@ -19,6 +30,8 @@ class OnboardingRequest(BaseModel):
     start_band: str
     focus: str
     skipped: bool = False
+    navigate: bool = False
+    explanation_language: str | None = None
 
 
 @router.get("/api/me")
@@ -56,17 +69,13 @@ def rename(req: NameRequest) -> dict:
 
 @router.post("/api/me/onboarding")
 def set_onboarding(req: OnboardingRequest) -> dict:
-    """Save a permanent learner's self-assessed starting preference."""
+    """Save a starting preference in this learner's account or guest sandbox."""
     from .. import profile
-    from ..identity import current
-
-    if current().is_guest:
-        raise HTTPException(
-            status_code=403,
-            detail="Стартовые настройки сохраняются только в постоянном аккаунте.",
-        )
     try:
-        profile.set_onboarding(req.start_band, req.focus, skipped=req.skipped)
+        profile.set_onboarding(
+            req.start_band, req.focus, skipped=req.skipped, navigate=req.navigate,
+            explanation_language=req.explanation_language,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return me()

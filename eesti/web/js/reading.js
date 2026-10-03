@@ -49,6 +49,8 @@ export async function loadLibrary(append = false) {
     }
     if (mine !== libRequest) return;
     libShown += items.length;
+    $(".read-catalogue").open = !!libShown;
+    if (libShown) $("#readingStarter").hidden = true;
 
     /* `total` is the server's count for the same filter; `items.length` is only the
        page size. */
@@ -61,6 +63,7 @@ export async function loadLibrary(append = false) {
     $("#libNote").className = fallback ? "banner" : "hint";
     $("#libMore").hidden = !more;
     if (!items.length && !append) {
+      if (choice === "soovitatud" || !choice) { loadStarter(); list.innerHTML = ""; return; }
       /* A band that happens to be empty is not an empty library: say which it is,
          and give the way back to the whole shelf. */
       const band = choice && choice !== "soovitatud";
@@ -119,6 +122,22 @@ export async function loadLibrary(append = false) {
     pendingItem = null;
     openItem(id);
   }
+}
+
+async function loadStarter() {
+  const box = $("#readingStarter");
+  box.hidden = false;
+  box.innerHTML = '<p role="status">Подбираю короткие предложения…</p>';
+  try {
+    const d = await api("/api/learning/sentences", null, "GET").then(r => r.json());
+    box.innerHTML = `<h3 lang="et">Loe lühikesi lauseid <span class="ru" lang="ru">прочитай короткие предложения</span></h3>
+      <p lang="ru">Нажми на незнакомое слово, чтобы посмотреть значение и формы.</p>
+      <div class="prose" lang="et">${d.sentences.map(sentence => `<p>${esc(sentence).replace(/[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+/g, word => `<button type="button" data-word="${word}">${word}</button>`)}</p>`).join("")}</div>
+      <p class="hint" lang="ru">${esc(d.note)} ${d.reference?.known ? `<a href="${esc(d.reference.url)}" target="_blank" rel="noopener">EKK ${esc(d.reference.ekk_section)}</a>` : ""}</p>
+      <button class="ghost" data-lesson="${esc(d.topic)}" lang="et">Vaata reeglit <span class="ru" lang="ru">разобрать правило</span></button>`;
+    box.querySelectorAll("[data-word]").forEach(button => button.onclick = () =>
+      showWordCard(button.dataset.word, $("#wordCard"), () => button.closest("p").textContent, button));
+  } catch (e) { box.innerHTML = `<p role="alert">${esc(e.message)}</p>`; box.appendChild(retryableError("Короткий текст не загрузился.", loadStarter)); }
 }
 
 

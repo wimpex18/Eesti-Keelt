@@ -30,7 +30,7 @@ const ASSETS = [
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/voice.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
   "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",
-  "/js/remind.js", "/js/icons.js", "/js/words.js", "/js/lesson.js", "/js/glide.js",
+  "/js/remind.js", "/js/icons.js", "/js/words.js", "/js/lesson.js",
   "/fonts/geologica-latin.woff2", "/fonts/geologica-latin-ext.woff2",
   "/fonts/geologica-cyrillic.woff2",
 ];
@@ -138,7 +138,7 @@ const OFFLINE_PAGE = `<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Нет соединения</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;margin:0;min-height:100vh;
-display:grid;place-items:center;background:#f8fafc;color:#0f172a;padding:24px}
+display:grid;place-items:center;background:#edf5f0;color:#17382c;padding:24px}
 div{max-width:32ch;text-align:center}h1{font-size:19px;margin:0 0 8px}
 p{margin:0;color:#64748b}
 @media (prefers-color-scheme:dark){body{background:#0b1120;color:#eef2f8}p{color:#96a1b3}}</style>

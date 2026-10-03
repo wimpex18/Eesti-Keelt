@@ -1,360 +1,419 @@
 ---
 name: Grove
-description: Grove — a little room to grow your Estonian, in Estonian blue, black and white.
+description: Practice rhythm — spruce navigation, mint working ground and a clear next action for learning Estonian.
 colors:
-  estonian-blue: "#0030de"
-  paldski: "#0062f5"
-  liivi: "#000087"
-  narva: "#00c3ff"
-  parnu: "#cee2fd"
-  haapsalu: "#fceec8"
-  mustkivi: "#0f172a"
-  majakivi: "#3d4b5e"
-  kabelikivi: "#566376"
-  pahkla: "#f1f5f9"
-  page: "#f8fafc"
-  sheet: "#ffffff"
-  line: "#e2e8f0"
-  sammal: "#17804f"
-  johvikas: "#cc2f45"
-  murakas: "#955400"
-  murakas-mark: "#f0a020"
-  jarv: "#0b7285"
+  bg: '#edf5f0'
+  bg-2: '#e2ede5'
+  panel: '#ffffff'
+  ink: '#17382c'
+  ink-2: '#355548'
+  muted: '#53685b'
+  line: '#cbdcd0'
+  line-soft: '#dde8df'
+  tint: '#e4eee7'
+  nav: '#173e2f'
+  on-nav: '#f5faf6'
+  nav-muted: '#c3d5c8'
+  nav-active: '#2e5943'
+  btn: '#244e3d'
+  on-btn: '#ffffff'
+  accent: '#a63424'
+  accent-deep: '#85291c'
+  accent-soft: '#fbe9e3'
+  coral: '#c54834'
+  good: '#256747'
+  good-soft: '#e5f3e9'
+  bad: '#a52f3d'
+  bad-soft: '#fae7eb'
+  warn: '#805000'
+  warn-soft: '#fcf0d9'
+  gloss: '#16606a'
+  dark-bg: '#13251f'
+  dark-bg-2: '#1d342a'
+  dark-panel: '#213c30'
+  dark-raised: '#294736'
+  dark-ink: '#f1f7f1'
+  dark-ink-2: '#d2e3d5'
+  dark-muted: '#aec6b5'
+  dark-line: '#486554'
+  dark-line-soft: '#365443'
+  dark-tint: '#2c4939'
+  dark-btn: '#cce8d1'
+  dark-on-btn: '#183629'
+  dark-accent: '#ffbaaa'
+  dark-accent-deep: '#ffd2c6'
+  dark-accent-soft: '#563329'
+  dark-coral: '#ff9a82'
+  dark-good: '#b9dfc4'
+  dark-good-soft: '#204933'
+  dark-bad: '#ffb2c0'
+  dark-bad-soft: '#522d38'
+  dark-warn: '#f0ce8b'
+  dark-warn-soft: '#493d23'
+  dark-gloss: '#b1dedb'
 typography:
-  family: "Geologica (variable: weight 300–800, sharpness SHRP 0–100), system fallbacks"
-  interface: "Geologica, SHRP 0 (soft)"
-  material: "Geologica, SHRP 55 (cut) — every Estonian sentence, answer, word and title"
-  hero: "clamp(38px, 9vw, 60px) / 600"
-  title: "28px / 700"
-  prompt: "24px, 28px from 720px"
-  reading: "19px / 1.8"
-  answer: "18px / 500"
-  body: "16px"
-  ui: "15px"
-  note: "14px"
-  meta: "12px"
-  gloss: "12px"
+  display:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: clamp(28px, 3vw, 40px)
+    lineHeight: 1.2
+    letterSpacing: -0.025em
+  headline:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 32px
+    fontWeight: 600
+    lineHeight: 1.2
+    letterSpacing: -0.025em
+  title:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 20px
+    lineHeight: 1.2
+    letterSpacing: -0.025em
+  prompt:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 24px
+    lineHeight: 1.5
+    letterSpacing: -0.005em
+    fontVariation: '"SHRP" 40'
+  reading:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 19px
+    lineHeight: 1.8
+    fontVariation: '"SHRP" 40'
+  answer:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 18px
+    fontWeight: 500
+    fontVariation: '"SHRP" 40'
+  body:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.6
+    fontVariation: '"SHRP" 0'
+  label:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 15px
+    fontWeight: 600
+    lineHeight: 1.25
+  note:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 14px
+    lineHeight: 1.55
+  metadata:
+    fontFamily: Geologica, ui-sans-serif, system-ui, sans-serif
+    fontSize: 12px
+    fontWeight: 400
 rounded:
-  control: "999px (buttons, switches, tabs)"
-  field: "16px"
-  sheet: "24px"
-  hero: "32px"
-  glass-dock: "30px"
-spacing: "4px scale: --s1 4 · --s2 8 · --s3 12 · --s4 16 · --s5 24 · --s6 32 · --s7 48"
+  r-xs: 8px
+  r-sm: 12px
+  r: 16px
+spacing:
+  s1: 4px
+  s2: 8px
+  s3: 12px
+  s4: 16px
+  s5: 24px
+  s6: 32px
+  s7: 48px
+components:
+  button-primary:
+    backgroundColor: '{colors.btn}'
+    textColor: '{colors.on-btn}'
+    typography: '{typography.label}'
+    rounded: '{rounded.r-sm}'
+    padding: 12px 24px
+  button-primary-hover:
+    backgroundColor: 'color-mix(in srgb, #244e3d 88%, #17382c)'
+  button-secondary:
+    backgroundColor: '{colors.tint}'
+    textColor: '{colors.ink}'
+    typography: '{typography.label}'
+    rounded: '{rounded.r-xs}'
+    padding: 10px 20px
+  button-quiet:
+    backgroundColor: transparent
+    textColor: '{colors.ink-2}'
+    rounded: '{rounded.r-xs}'
+    padding: 4px 8px
+  field:
+    backgroundColor: '{colors.panel}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body}'
+    rounded: '{rounded.r-sm}'
+    padding: 10px 16px
+  skill-navigation:
+    backgroundColor: '{colors.nav}'
+    textColor: '{colors.on-nav}'
+    rounded: '{rounded.r-xs}'
+  recommendation-chip:
+    backgroundColor: '{colors.accent-soft}'
+    textColor: '{colors.accent}'
+    rounded: 999px
+    padding: 2px 8px
+  task-sheet:
+    backgroundColor: '{colors.panel}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.r}'
+    padding: 24px
+  step-strip:
+    textColor: '{colors.muted}'
+    typography: '{typography.body}'
+    padding: 0 0 12px
 ---
 
 # Design System: Grove
 
 ## Overview
 
-**North star: "Laudtee" — the existing boardwalk learning-path metaphor.**
-Estonian bogs are crossed on boardwalks, plank after plank, each laid before the next can be
-walked. The path to the exam is built the same way: a topic is a plank, laid
-only when code has checked the learner's answers. The metaphor draws the path,
-the progress and the rewards, and keeps the product honest.
+**Creative North Star: "Practice rhythm"**
 
-**Grove is the app’s name: a small wood, with a quiet connection to Estonia’s forests.**
-The original mark is a curved leaf with a short stem, from
-`eesti/web/brand/mark.svg`. The subject descriptor **Eesti keel · A2/B1** appears
-in metadata and the phone launch passage; the header shows only the name. The
-identity stays the same across explanation languages. The cornflower remains
-the readiness illustration for contact with the four exam parts; it is not the
-app icon.
+Grove is a calm working place for learning Estonian. Spruce navigation gives the
+app a stable edge, mint opens the working area, and opaque task sheets give text,
+answers and corrections a dependable reading surface. Comfortable humanist type
+and a restrained coral current-step mark carry the identity.
 
-The ground is **near-white, cool and quiet** (`#f8fafc` page, white sheets),
-never cream. The colour is **Estonian blue** from Brand Estonia (`#0030DE`),
-with its partners Paldski, Liivi, Narva and Pärnu, black text (Mustkivi) and
-white. One warm note, Haapsalu sand, is reserved for rest and reward. Colour
-otherwise belongs to an information role, never to a language.
+The signature is the labelled three-step strip: Õpi → Harjuta → Kontrolli. It
+borrows the rhythm of Baltic colour bands while remaining an ordinary progress
+indicator. Navigation, fields and disclosures use familiar web controls. Grove's
+leaf and name remain the identity; the interface opens directly into the app.
 
-The interface follows **Apple's Liquid Glass rule of two layers**: navigation
-and what floats over content sit on glass (the spine, the phone dock, the word
-card, the celebration) and a selection glides between tabs on one capsule;
-content sits on the plain page, separated by lines rather than cards. The
-switches choose content, so their track is solid. Glass turns solid
-with `prefers-reduced-transparency` or `prefers-contrast: more`. A previously
-saved `glass=off` preference is still honoured; the header now exposes profile
-and theme actions.
+This record comes from [the stylesheet](eesti/web/app.css),
+[the shell](eesti/web/index.html) and current modules. The authorised
+[direction contract](.impeccable/decisions/practice-rhythm-contract.md) replaces
+the previous visual world. Its chooser is a critique reference; no comp image
+was approved. [Original roll evidence](.impeccable/review/roll-evidence.md)
+records seed `6ecca7d2`, re-roll round 1, grounded candidate 6. The implementation
+is the authority for exact values and behaviour.
 
-One typeface, **Geologica** (Monokrom, OFL), self-hosted under
-`eesti/web/fonts/`. The interface is set soft; Estonian material is set in the
-same face at a sharper cut (`--cut`, SHRP 55), so it reads as material without a
-second family. Icons are **Phosphor** (MIT), inlined in `eesti/web/js/icons.js`:
-one line style: Phosphor regular outlines (the duotone fill is hidden) for navigation and marks at 20–24px, and bold for the small glyphs inside buttons.
+**Key Characteristics:**
+
+- Spruce navigation, mint ground, opaque task surfaces.
+- Coral current-step marks and separately labelled result states.
+- One humanist family, with a sharper cut for Estonian material.
+- Four persistent skills and a stable answer → correction → next-action rhythm.
+- Short responsive layouts, readable glosses and progressive disclosure.
 
 ## Colors
 
-Tokens live in `eesti/web/app.css` (`:root`), mirrored for dark under
-`prefers-color-scheme: dark` and `[data-theme="dark"]`.
+Forest greens establish place and action, coral marks current position, and
+semantic colours support checked feedback. Frontmatter values are normative;
+they come from root properties in the stylesheet.
 
-| Role | Token | Light | Dark | Meaning |
-|---|---|---|---|---|
-| Estonian blue | `--accent` | #0030de | #00c3ff (Narva) | Action text, selection, focus, "now", readiness petals |
-| Button fill | `--btn` / `--btn-2` | #0030de → #0062f5 | #0062f5 → #2f7bff | Prominent buttons, with white text |
-| Liivi | `--accent-deep` | #000087 | — | Tinted-button text, hover |
-| Accent mist | `--accent-soft` | #e6eefd | #0c2544 | Selected fills, next-step strip |
-| Narva | `--sky` | #00c3ff | #00c3ff | Light in the hero, chart glow |
-| Haapsalu | `--sand` | #fceec8 | #e8d9ae | Rest and reward, sparingly |
-| Sammal | `--good` | #17804f | #4fcb8c | Right answer, mastered |
-| Jõhvikas | `--bad` | #cc2f45 | #ff7d8c | The wrong form; kept rare |
-| Murakas | `--warn` / `--warn-fill` | #955400 / #f0a020 | #f5b451 | Caution, untouched exam part, `obj-case` |
-| Järv | `--gloss` | #0b7285 | #52d0da | What a word means, and only that |
-| Mustkivi | `--ink` | #0f172a | #eef2f8 | Text |
-| Page / sheet | `--bg` / `--panel` | #f8fafc / #ffffff | #0b1120 / #131c2e | Page and content sheets |
-| Daylight | `--hero-bg` + `--hero-rim` | #d9e8fc → #e8f1fc → #f6efdc | #1b2842 → #2a2d38 | The hero: a pale sky settling into sand, with a glass rim; ink text, a blue "now" |
-| Evening | `--night-a/b` | #0b1433 → #142257 | #101a33 → #16224a | The celebration card: a Baltic evening with Narva light |
-| Glass | `--glass` + `--glass-lift` | white 64% | slate 62% | The navigation layer: a white specular line on top, light caught again at the foot, a darker outer edge (iOS 27) and a soft shadow |
+### Primary
 
-**Colour by role.** Blue acts, moss is right, cranberry is wrong, cloudberry
-cautions, lake means. Russian text is never coloured for being Russian.
-**Never hue alone.** Every coloured state also has a shape: node icons,
-filled, empty or hatched petals, a glyph per plan block, beads that stay.
+- **Spruce** (`nav`, `btn`): navigation and primary action. The primary action
+  becomes light green with dark text in the dark theme.
+- **Coral** (`accent`, `coral`): links, focus, the current lesson step and the
+  selected skill's underline. The darker accent carries text; coral carries
+  the thin state mark. Both become lighter in the dark theme.
 
-The inline brand mark uses `--accent`, so it follows both themes. Installed
-icons and social artwork use the fixed Estonian-blue identity with a white
-mark; the launch cover uses the current page's `--bg`, `--ink` and `--accent`.
+### Secondary
+
+- **Moss** (`good`, `good-soft`): a checked correct answer and its supportive fill.
+- **Berry** (`bad`, `bad-soft`): an incorrect attempt or a recording alarm state.
+- **Amber** (`warn`, `warn-soft`): caution and material needing attention.
+- **Lake** (`gloss`): lexical meaning, rather than a language identity colour.
+
+### Neutral
+
+- **Mint ground** (`bg`, `bg-2`): page and deeper neutral interaction tone.
+- **Task surface** (`panel`, `dark-panel`, `dark-raised`): opaque reading and
+  answer surfaces; the dark raised tone also identifies a focused field.
+- **Forest ink** (`ink`, `ink-2`, `muted`): primary text, supporting text and metadata.
+- **Rules and tracks** (`line`, `line-soft`, `tint`): list dividers, correction
+  separators and neutral selected-control grounds.
+- **Navigation foregrounds** (`on-nav`, `nav-muted`, `nav-active`): labels,
+  Russian glosses and selected or hovered navigation backgrounds. These
+  spruce navigation colours remain fixed across themes.
+
+Dark-prefixed frontmatter entries are the observed dark replacements for the
+matching root role. System preference applies unless a saved light or dark
+choice is restored before paint. Component snippets use live root properties.
+
+**The State Has Words Rule.** Colour supports a visible label, icon or explicit correction; it never carries the result alone. A skipped item is labelled as ungraded and uses a neutral progress mark.
 
 ## Typography
 
-- **Brand name** (650, 28px; 26px in the spine; soft): Geologica with −0.03em
-  tracking, alongside a 48px mark. The header has no subject subtitle. The phone
-  launch name is 32px/1.2, with the descriptor at 14px. Keep the name as text
-  in the UI; generated wordmark and social SVGs carry outlined lettering.
-- **Hero** (600, clamp 38→60px, cut): the current topic's name.
-- **Title** (800, 30px): the page title, hidden on a phone where the tab row
-  already names the place.
-- **Prompt** (24px, 28px from 720px, cut): drill sentences. The blank is a blue
-  rule that fills with the right form once graded.
-- **Reading** (19px/1.8, cut, max 66ch): Lugemine prose; the reader's title up to 36px.
-- **Answer** (18px/500, cut): answer fields. What the learner types is Estonian.
-- **Lead / body / ui / note / meta / gloss**: 20 / 16 / 15 / 14 / 13 / 12px.
-- Numbers that change in place use `tabular-nums`. Fields are at least 16px, so
-  iOS never zooms on focus.
+**Display Font:** Geologica, with ui-sans-serif, system-ui and sans-serif fallbacks.
+**Body Font:** the same family; there is no separate display, serif or icon font.
+
+Geologica is self-hosted in Latin, Latin extended and Cyrillic subsets under
+[the font directory](eesti/web/fonts/), with [SIL OFL](eesti/web/fonts/OFL-Geologica.txt).
+Available weights are 300–800. Interface and Russian text use the soft sharpness
+setting (`SHRP` 0); Estonian sentences, answers, words and rule titles use the
+sharper setting (`SHRP` 40).
+
+### Hierarchy
+
+- **Display:** next-lesson title; its clamp becomes 28px on a phone and 24px on
+  a short touch viewport.
+- **Headline:** page titles, weight 600; 28px on phones and 24px on short touch
+  viewports. A rule title uses weight 700, with its level below the title.
+- **Title / lead:** section headings and lesson gist, with the gist at 1.5 line
+  height. Phone gist text is 18px.
+- **Prompt:** guided drill text, 22px on a phone. Grading retains the same size
+  until the learner chooses Edasi.
+- **Reading:** continuous Estonian prose, at most 66ch. Ordinary paragraphs are
+  bounded at 72ch; lesson sheets are bounded at 76ch.
+- **Answer:** Estonian answer fields, weight 500. General fields remain at least
+  16px to prevent focus zoom on iOS.
+- **Label / note / metadata:** control text, explanation and small glosses.
+  Both Estonian and Russian bottom-skill labels are 12px. Segmented controls
+  use 14px, weight 700.
+- **Review word:** separate observed clamp (32px to 52px), weight 500, line
+  height 1.1, tracking −0.025em. It is recall material, not a page heading.
+- Changing counts and times use tabular numerals.
+
+**The Shared Face Rule.** Use the same family across languages; sharpness marks learning material. Estonian UI labels keep a Russian gloss where the MVP needs it, without colouring text merely because it is Russian.
 
 ## Layout
 
-- **Phone (<720px, and touch screens under 560px tall).** A top row with the mark,
-  the name and two icon buttons; the open mode's tabs as a scrolling row where the
-  selected tab sits on a small glass capsule; the page; and a **floating glass
-  dock** of the three modes, clear of the home indicator (56px targets; the open
-  mode is tinted blue). Scrolling down folds the dock to its marks; scrolling up
-  or reaching the top unfolds it. The dock hides while typing or while the inline
-  profile name editor is open, keeping Save/Cancel clear on WebKit. Gutter 16px plus
-  safe areas.
-- **Spine (≥720px and ≥560px tall; iPad mini).** A **floating glass sidebar**
-  inset 12px from the window, 32px radius, fixed so the brand never scrolls away:
-  brand, the three modes with glosses, the open mode's tabs, and the two actions
-  at its foot. Below 1080px there is no rail, so Rada carries the **pulse**:
-  three tiles (Kordamine due today, the exam flower, the four-week rhythm), each
-  opening its own screen. On Rada an active set compacts the hero and comes before
-  the plan and pulse, so the first answer remains above the phone dock.
-- **Desk (≥1080px).** Spine 264px, a working column up to 880px, and a 320px
-  context rail: the readiness flower, the next topic, the review forecast and
-  the milestone seals. A rail card hides while its own panel is open.
-- **iPhone landscape (touch, ≤500px tall).** One line of chrome; the hero and the
-  pulse step aside while a set is on screen; a 44px dock. The brand keeps its
-  48px mark and hides the name to leave room for the tabs.
+The desktop frame is bounded at 1440px: sticky navigation (236px), a flexible
+working column bounded at 940px, a 48px gap and 24px × 32px outer padding.
+There is no context rail. Navigation begins 24px from the top and occupies the
+available viewport height; the working column owns the task.
 
-## Controls
+At widths up to 1079px, navigation narrows to 200px, the gap becomes 24px and
+frame padding becomes 16px. The next-lesson copy and action stack; topic actions
+move below their name rather than compressing the text.
 
-- **Brand / home link.** The 48px inline leaf and the single-line Grove
-  name share a 44px-minimum home target to Rada (`#path`), with a 10px gap. The
-  name stays ink on hover; the normal blue keyboard focus ring identifies the
-  link. Preserve its Russian accessible home label and the Estonian language
-  tag on the visible name.
-- **Account / theme actions.** The 44px account link opens the existing Profiil
-  screen (`#profile`). `eesti/web/js/profile.js` keeps the user-circle glyph
-  in every account state. Its accessible **Profiil** label explains that guests
-  can sign in or create an account. The adjacent theme button retains system/light/dark
-  cycling. There is no transparency setting in the header.
-- **Buttons are flat capsules, in four ranks.** *Primary* (`.go`, `.primary`):
-  solid Estonian blue, no gradient, rim or glow; darker under the pointer. One per
-  view — a started Sõnatrenn demotes Alusta. *Secondary* (`.ghost`, `.logbtn`,
-  tutor offer): a neutral grey fill (`--ctl`, ink at 6%) with ink text. *Ghost*
-  (`.linky`, Vihje): text only; `.quiet` is its neutral form for a secondary
-  link inside a list row (Reegel on Kogu rada and over a running set). *Icon*:
-  44px neutral circles, Phosphor glyphs, never a text character. Heights 44px,
-  52px for a drill's answer action and the mic beside it. Disabled: 45% opacity. Blue is kept for the primary
-  action, focus, selection, progress and "now" — never as a tint on a control.
-- **Fields are outlined.** White with a 1px line at rest; on focus a blue edge and a
-  3px blue halo. Labels sit above with the Russian
-  gloss on the same line. The drill's answer field is 52px, spans the column, in the cut.
-- **Form tables** (Reegel): lines, not boxes. Column heads in meta grey over an
-  ink rule; row labels (cases, persons) stay pinned while the forms scroll
-  sideways on a phone, with a soft edge showing there is more. A table whose
-  first column is data (numerals) has no pinned labels.
-- **Switches** (`.levels`): a grey track, the chosen state a white capsule.
-- **The gliding selection** (`js/glide.js`). Every `role="tablist"` (the modes,
-  each mode's tabs, the switches) carries one capsule that slides, with a slight
-  spring, to the chosen tab, instead of one capsule vanishing and another
-  appearing. It wears that list's selected look (glass pill in the tabs, grey in
-  the dock, white in a switch). It jumps, not slides, when a list first shows, and
-  it is instant under reduced motion. Without the script each tab paints its own
-  capsule, so the page reads the same.
-- **Phone navigation lens** (`eesti/web/js/glide.js`). The skill row and bottom
-  modes use a press → slide → release gesture. A 140ms hold or 6px
-  horizontal movement lifts a glass lens with an inert, `aria-hidden` copy of
-  the labels at 1.12×. It follows the finger and scrolls near the row's edges to
-  reach hidden skills. Preview never opens a panel or writes history; release
-  activates the destination through the existing click/router. Cancel, Escape,
-  lost capture on the list, resize or page hiding restores the current
-  selection. A quick tap and keyboard navigation keep their ordinary behavior;
-  other segmented controls retain the quiet glide. The gesture requires coarse
-  pointer and no hover, at width ≤719px, or width ≤1079px and height ≤559px.
-  Reduced motion removes magnification; solid glass fallbacks still apply.
-- **Tab lists** — modes, tabs, Minu rada / Vaba harjutus, A2 / B1 — take arrows,
-  Home and End, with only the selected tab in the Tab order.
+At widths up to 719px, or on a non-hover viewport up to 559px high, the frame
+becomes one column with 16px side gutters. The header keeps the brand home
+link, visible Kursus return, Veel disclosure, account and theme controls.
+Four skills become a fixed, solid spruce bottom bar in equal columns, with
+safe-area padding and a reserved page-bottom allowance. Phone task surfaces
+use 16–24px padding. Short touch viewports reduce vertical spacing and restore
+a compact side-by-side next-lesson layout.
 
-## Signature components
+Spacing follows the seven frontmatter steps. Main sheets use 24–48px padding
+on desktop, lessons 32px; secondary lists use hairline rows. Text wraps within
+its available width. Tables may scroll sideways; labelled tables pin row labels.
 
-- **Platform identity.** A 64×64 master supplies the inline header/launch mark,
-  blue rounded favicon tile, platform rasters and social cards. Use the regular
-  icon for unmasked contexts, the separately inset full-bleed artwork for
-  maskable installation and Apple, and the single-colour silhouette for Safari
-  pinning and monochrome contexts. Rebuild derivatives with
-  `deploy/build-brand.py`; do not redraw a derivative independently. Provenance,
-  output sizes and routes are in `docs/brand.md`.
-- **Hero (Praegu).** A quiet daylight surface: a pale sky fading into Haapsalu
-  sand under a white glass rim, a soft slate dusk in dark (no glows or contour rings)
-  with a faint barn swallow (suitsupääsuke) gliding in the corner. It holds the
-  resume topic, its Russian name and level, the **gate** (ten slots for the
-  topic's last answers against 8 of 10), and the **boardwalk**.
-- **Boardwalk (Laudtee).** An SVG plank path through a window of the curriculum
-  around the resume topic (5–13 nodes by width). Mastered nodes are moss with a tick; the
-  resume node is white with a slow halo; open nodes are outlined in Narva; theory
-  is dashed. *Kogu rada* opens one vertical boardwalk per level.
-- **Beads.** One per item in a set: waiting, now (pulsing), right, wrong. The end
-  card repeats them.
-- **Stage and drill.** A white sheet; one item at a time; the blank fills with
-  the right form; the verdict shows the attempt struck through, the right form
-  and the rule in Russian; a recorded miss offers *Selgita*. On a phone, earlier
-  answers fold to their sentence and verdict.
-- **Rukkilill, the readiness flower.** Four petals for the four exam parts, three
-  segments each lighting one contact toward `contact_target`; Rääkimine hatched as
-  unmeasured. Contact, never a prediction. On Ülevaade beside the verdict, and in the rail.
-- **Rütm.** Twelve weeks of days, Monday at the top, in four tints of blue; the
-  headline counts active days in the last four. Rest is simply light — nothing
-  resets.
-- **Forecast.** Cards coming due over fourteen days; today solid, later days
-  lighter. In Järjekord, Edenemine and the rail.
-- **Seals (Märgid).** The level's milestones as seals whose ring fills with the
-  count and turns solid blue when complete. They award nothing.
-- **Word card.** Floats over the text or list it came from, and always has a
-  close button.
-- **Player (Mängija).** Every `<audio>` in the app is drawn as one capsule: a
-  round blue play button (a spinner while a stream loads), the time, a seek track
-  filled to the playhead, the length, *−5* seconds (hidden under 420px) and a
-  speed chip cycling 1× → 0.75× → 1.25×, remembered per device. It stays on one
-  line; a recording that cannot play says so in Russian. The native element stays
-  in the page, hidden, so the media code is unchanged.
-- **Sõnatrenn.** In Sõnavara: ten words the learner marked *õpin* (topped up with
-  the commonest new A1 words) shown by their Russian meaning; the learner types
-  the Estonian, compared with the word list's spelling. *Vihje*, a quiet text action under the answer, reveals a letter
-  at a time. It is a practice space on the page, not a card: heading, a thin
-  progress line, the Russian meaning as the largest text, then the answer row. A miss shows the right word, its omastav/osastav when the list has
-  them, a *Kuula* button and *Kordamisse*; the end card lists the misses. It
-  records nothing — Kordamine owns memory.
-- **Identity / sources footer.** Grove's meaning is explained in Russian:
-  **маленькая роща: место, где растёт твой эстонский.** A separate **© [year] Grove**
-  line uses the current UTC year supplied by `eesti/api/assets.py`; it names no
-  person or company. **Allikad** retains source credits and loads the source list on first opening.
-- **Reader source.** One line above the title: *Allikas* and the source's name,
-  linked to the original. Source credits remain in the sources footer.
-- **Plan strip.** Inside **Täna**, the day as time: a segment per block as long as
-  its minutes, coloured and glyphed by kind. Its summary also reports how many
-  evidence-backed daily steps are complete.
-- **Tänased sammud.** Three small boardwalk-shaped checks on Rada, computed from
-  today's evidence: drill attempts, cards actually due, and one skill contact.
-  They may be done in any order; an empty queue is complete and a missed day
-  removes nothing. They live inside **Täna** with the generated time plan, so
-  evidence and recommendations read as one system. No points, streak or mastery
-  are attached.
-- **Set completion.** The score, beads and missed sentences close the block. On
-  Minu rada the primary action continues into the next incomplete block from
-  today's plan; another set remains a secondary choice. Vaba harjutus stays
-  self-contained and records nothing.
-- **Starting recommendation.** Two optional, solid-sheet account screens: a
-  self-assessed start band and one preferred first lane. A two-plank marker is
-  the only progress decoration. Completion marks the recommended destination,
-  selects a suitable word filter and opens real work; it never skips curriculum
-  topics or presents the choice as confirmed CEFR evidence.
-- **Celebration.** Mastery only: a flower blooms on an evening card, announced
-  through the page's polite live region. Any key or tap dismisses it; under
-  reduced motion only the announcement remains.
+**The Stable Workspace Rule.** Keep one guided item in the task surface. Reserve the correction region (144px) and a separate next-action zone (at least 48px); completed answers move to an optional disclosure after the workspace.
 
-## Layout rhythm
+## Elevation & Depth
 
-One left edge per column. Exercises (drills, Sõnatrenn, Kordamine cards, the
-checkpoint, dictation, the readiness bloom, progress stats) share one treatment:
-on the page, ruled by a 1px line above, no card fill. The meta line (position,
-form, level) sits above the answer; the answer spans the column. Section heads
-open with a rule and 24px. Lists (words, library) are hairline rows, not tiles. A
-filter row's apply button is secondary. Text: 12 gloss/meta · 14 note/hint ·
-16 body · 20 section · 28 title and big numbers · 40 score.
+Tonal separation carries hierarchy: mint page, opaque task sheets and spruce
+navigation. The sidebar, bottom bar and task sheets have no drop shadow.
+Word cards and the mobile Veel menu use the existing soft overlay shadow
+(`0 8px 24px -12px rgba(23,56,44,.22)`). Word cards remain opaque in both themes.
+Thin rules organise lists, form tables and corrections.
 
-## Depth
+Ordinary keyboard focus uses a 3px accent outline with 3px offset. Fields use
+an accent edge and a 3px halo at 14% accent. Selected skills and lesson steps
+use a thin coral underline rather than added elevation.
 
-Content sheets are separated by a 1px line (`--shadow` is a hairline ring), not a
-drop shadow. Only the floating glass layer (spine, dock, and the word card over
-the text it glosses) casts a soft shadow. The page has no background
-glows. The root (`html`) carries the page colour as well as `body`: Safari 26
-ignores `theme-color` and tints its toolbars and the overscroll from it.
+**The Opaque Reading Rule.** Text, answers and their explanations sit on opaque surfaces. A floating word explanation keeps the same solid task colour.
 
-## Adding a page or section
+## Shapes
 
-Glass is not something a new screen chooses; it comes from where the thing sits.
+The shared corner family is modest: 8px for navigation and quiet controls,
+12px for primary controls and fields, 16px for task surfaces and sidebar.
+The step strip is a flat line with equal flexible sections. Topic lists align
+status, name and actions in rows. Compact recommendation tags remain capsules;
+audio retains its established rounded player shape. These component-specific
+shapes do not make all controls capsules.
 
-- **Content** (a new panel, list, exercise, reader): on the plain page, in the
-  shared treatment under Controls, never glass. No new shadow or card fill.
-- **Navigation that floats over content** (a new bar, dock or sidebar): give it
-  the `.glass` class. It then takes `--glass`, the blur and `--glass-lift`, turns
-  solid under reduced transparency, higher contrast or the retained `glass=off`
-  preference, and follows both themes. Never copy the recipe into a new rule.
-- **A card that floats over the content it explains** (like the word card over
-  its text): glass as well, by adding it to the `.glass` rule's selector list
-  in `app.css`, as `#wordCard` is; the fallbacks come with it.
-- **A choice between views** (tabs, a segmented switch): mark it up as
-  `role="tablist"` with `role="tab"` children and `aria-selected`. It then gets
-  the gliding capsule and the arrow-key pattern with no extra code, including
-  when it is added to the page later. Give it a selected look of its own in
-  `app.css` for the no-script case, and a `.glide` colour at the end of the file
-  if that look is new.
-- A new floating layer that must not follow this belongs in this document
-  first.
+## Components
 
-## Motion
+### Buttons
 
-140ms response, 240ms state change, 420ms arrival, `cubic-bezier(.22,1,.36,1)`.
-Beads pop, petals grow in turn, the plan strip and the forecast rise, verdicts
-drop into place, the resume node breathes, the swallow glides. Under
-`prefers-reduced-motion` every animation, delay and transition collapses and
-script scrolling stops being smooth.
+Primary actions are solid spruce, at least 48px high, with 12px corners and
+12px × 24px padding. Pointer hover darkens the fill; pressing retains the
+source's small scale response. Disabled primary and secondary buttons use 45%
+opacity. Secondary buttons use a neutral tint; quiet actions use supporting ink
+and a text treatment. Both retain at least 44px targets and 8px corners.
+Icon controls have at least a 44px square target. The drill microphone matches
+the 52px answer-field height; recording adds a berry state and inset rule.
 
-**Phone launch passage.** On eligible coarse-pointer, non-hover phones, the
-leaf unfolds from its stem over 560ms after a 40ms delay. The name rises
-6px and fades in over 360ms from 160ms. The cover fades for
-180ms after 720ms, completing at 900ms with `--ease`; CSS supplies its own
-deadline and the inline script removes it. It never waits for a font, app
-module, data or network response. A tap or key dismisses it immediately.
+### Chips
 
-Eligibility is width ≤719px, or width ≤1023px with height ≤559px, always with
-`pointer: coarse` and `hover: none`. Desktop and tablet open directly. Reduced
-motion, prerendering, history restoration and same-origin navigation skip
-the passage (an explicit reload can show it). With JavaScript unavailable the
-cover remains hidden. Saved theme and transparency are restored before body
-paint independently of the passage; the cover is inert and hidden from
-assistive technology, and never traps focus.
+Recommendation tags are compact accent-tinted capsules, with 2px × 8px padding,
+12px text and weight 700. Segmented choices have a neutral 12px-corner track
+with 4px padding; the selected 8px-corner item uses opaque task colour.
+Selection is immediate, with the existing keyboard tab pattern.
+
+### Cards / Containers
+
+Next lesson, rule page, guided stage, starter reader and exam entry share an
+opaque task surface and 16px corners. Spacing and type establish priority.
+The desktop next lesson divides copy and action; one recommended action leads.
+Set completion uses neutral tint, score, result marks and continuation.
+Optional tools use disclosures.
+
+### Inputs / Fields
+
+General fields have opaque task backgrounds, 1px neutral borders, 12px corners,
+48px minimum height and 10px × 16px padding. Answer fields are 52px high with
+16px corners, 12px × 18px padding and the answer type role. Labels sit above
+with a Russian gloss; focus uses the depth treatment. Choice answers have a
+neutral border and accent selected outline. Textareas resize vertically.
+
+### Navigation
+
+Desktop primary links and four skills live in the spruce column. Active links
+use a spruce tint; selected skills also carry a coral underline. Skills use
+24px icons on desktop and 22px on phones. All four remain reachable on every
+page. On phones, Kursus stays in the header and Veel opens a 220px-wide spruce
+menu; account and theme retain separate targets.
+
+Icons are bundled Phosphor path data in [icons.js](eesti/web/js/icons.js), with
+[its MIT notice](eesti/web/vendor/phosphor-icons.LICENSE). Navigation and marks
+use the bundled default set; small button icons use its bold set. SVG paths
+inherit text colour and require no external icon request.
+
+### Practice rhythm
+
+The labelled strip in [the shell](eesti/web/index.html) updates its current
+step through [path.js](eesti/web/js/path.js). One guided item holds its sentence,
+disabled answer controls and correction until Edasi is pressed. Long feedback
+scrolls inside the reserved region. Earlier answers appear in Minu vastused
+after the workspace, without pushing the active item down a completed stack.
+Topic rows distinguish skipped, open, in-progress, mastered and reference states
+with labels and icons.
+
+The full rule page in [lesson.js](eesti/web/js/lesson.js) leads with its title,
+then level metadata, explanation, forms, examples and sources. Exam entry starts
+with the open Proovieksam disclosure; readiness and supporting material follow.
+
+### Identity and opening
+
+The original [64×64 leaf master](eesti/web/brand/mark.svg) supplies the inline
+brand and platform artwork. Desktop pairs a 40px mark with a 26px name; phone
+pairs a 32px mark with a 24px name. Platform tiles use spruce and white; social
+artwork uses mint and outlined Geologica lettering. Rebuild derivatives with
+[the brand generator](deploy/build-brand.py); roles are in [the brand record](docs/brand.md).
+Eleven shipping PNGs, including the fallback app icon, carry embedded original
+vector/font provenance. This identity set contains no generated raster illustrations.
+
+[main.js](eesti/web/js/main.js) opens the requested route or home directly,
+without a timed cover. State changes use 140ms response, 240ms feedback and
+420ms arrival with `cubic-bezier(.16,1,.3,1)`. Set-end arrival uses a small
+clip/opacity change. Reduced motion collapses animation, transition and smooth
+scrolling while retaining the same controls.
 
 ## Do's and Don'ts
 
-**Do:** use tokens for every colour and the `--s1`…`--s7` scale; keep glass on
-the navigation layer (`.glass`, `--glass-lift`) and content on solid sheets; build
-every choice between views as a `role="tablist"` so it glides; keep Estonian material in the
-cut; keep 44px touch targets; check 1440×900, 402×874, 874×402 and 744×1133 in
-both themes; keep the leaf identity distinct from readiness evidence.
+### Do:
 
-**Don't:** use cream or grey-beige grounds; put paragraph text or drill inputs on
-glass; copy the glass recipe or hand-roll a selection capsule; add SVG refraction
-or displacement filters to navigation; fill more than one or two buttons per
-view; add streaks, points or a single readiness percentage; celebrate anything but code-decided mastery; colour text by
-its language.
+- Do reuse spruce navigation, mint ground and opaque task surfaces through the root tokens.
+- Do keep all four skills reachable and both bottom-skill labels at 12px.
+- Do preserve the single guided item, reserved correction area and explicit Edasi action.
+- Do pair colour with a readable state label, icon or correction.
+- Do keep Estonian learning material in the sharper Geologica cut and Russian explanations in the soft cut.
+- Do retain visible source attribution, readable limits, keyboard focus and at least 44px control targets.
+- Do derive platform artwork from the original leaf and local font, with provenance on shipping rasters.
+
+### Don't:
+
+- Don't restore the discarded glass shell, boardwalk layout or timed opening passage as house defaults.
+- Don't put reading, answer fields, corrections or word explanations on transparent surfaces.
+- Don't let completed-answer history grow inside the active guided workspace.
+- Don't use colour alone for mastery, correctness, skipping or recording state.
+- Don't colour text merely because of its language or shrink a caveat until it is unreadable.
+- Don't replace source-backed evidence with decorative scores, streaks or an overall exam-readiness percentage.
+
+Not canonized or repaired: retired glass/boardwalk names and old descriptive
+comments remain in styles and modules; their presence does not define the
+replacement world. This source-based record does not assert fresh rendered
+contrast, viewport coverage or complete English/Ukrainian instructional support.

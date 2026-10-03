@@ -1,8 +1,8 @@
 # Eesti-Keelt
 
-Estonian A2/B1 exam preparation for Russian speakers. The app teaches through
-learn → practise → check. Its most important known grammar weakness is
-`obj-case` (genitive versus partitive for a completed object).
+Free Estonian learning and A2/B1 exam preparation; Russian is the MVP audience.
+Beginner learning and English/Ukrainian support are release direction in PRODUCT.md.
+The app uses learn → practise → check. Known weakness: `obj-case` (completed object, genitive vs partitive).
 
 ## Boundaries
 
@@ -33,6 +33,8 @@ learn → practise → check. Its most important known grammar weakness is
 | UI labels and grammar terms | Estonian |
 | Explanations, warnings and reasons | Russian |
 | Examples and drills | Estonian |
+
+This is the MVP contract; prepare Russian/English/Ukrainian instructional copy with stable topic/progress identities (PRODUCT.md).
 
 In Russian explanations, retain an Estonian grammar term and gloss it once;
 never transliterate it. `tests/test_ui_language.py` checks this.

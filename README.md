@@ -1,8 +1,11 @@
 # Grove
 
-**Grove** (the Eesti-Keelt repository) is an Estonian learning app for
-Russian speakers preparing for the
-**A2/B1 tasemeeksam**. Open the app and practise as a guest, or create an
+**Grove** (the Eesti-Keelt repository) is a free educational app for learning
+Estonian. The MVP supports Russian-speaking learners and **A2/B1 tasemeeksam**
+preparation. The product direction includes learning from the beginning,
+flexible entry and skipping, and English and Ukrainian explanation languages;
+the confirmed brief is in [`PRODUCT.md`](PRODUCT.md), and current coverage is
+in [`docs/status.md`](docs/status.md). Open the app and practise as a guest, or create an
 account in **Profiil** to keep your own progress between devices.
 
 Drills are generated from an Estonian word list with the Vabamorf morphological

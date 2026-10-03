@@ -239,8 +239,10 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "harno", "HARNO tasemeeksami materjalid", "file",
         "© Haridus- ja Noorteamet — personal study only", False,
         "https://harno.ee/eesti-keele-tasemeeksamid",
-        "Official sample tasks and listening MP3s for A2/B1/B2/C1. Free to "
-        "download and study from; NOT free to republish. Owner-only, always.",
+        "Official sample tasks and listening MP3s for A2/B1/B2/C1. Publicly "
+        "available for study; public reuse rights are not established in this "
+        "ledger. Currently served only in the owner's library pending source "
+        "rights review.",
     ),
     Source(
         "eis", "EIS avalikud ülesanded", "api",

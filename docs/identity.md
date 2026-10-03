@@ -90,9 +90,9 @@ owner-only account-removal routes are outside this FastAPI inventory.
 | Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset`, `/api/state/remove-account` |
 | Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
-| Permanent accounts only | yes | yes | 403 | `/api/me/onboarding`, `/api/me/reset`, `/api/me/restore`, `/api/reminders/settings` |
+| Permanent accounts only | yes | yes | 403 | `/api/me/reset`, `/api/me/restore`, `/api/reminders/settings` |
 | Guest only | 403 | 403 | yes | `/api/guest/reset` |
-| Shared material and page assets; learner data stays in the current scope | yes | yes | yes | `/`, `/api/asr`, `/api/asr/home`, `/api/check`, `/api/checkpoint/{level}`, `/api/checkpoint/{level}/result`, `/api/curriculum`, `/api/dictation/answer`, `/api/dictation/next`, `/api/engines`, `/api/enrich/{word}`, `/api/exam-spec/{level}`, `/api/exam/file/{item_id}`, `/api/exam/image/{item_id}/{page}/{index}`, `/api/exam/native/{item_id}`, `/api/exam/native/{item_id}/check`, `/api/exam/page/{item_id}/{page}`, `/api/exam/pages/{item_id}`, `/api/exam/text/{item_id}`, `/api/exam/{level}`, `/api/goal`, `/api/goal.ics`, `/api/health`, `/api/lesson/{topic}`, `/api/library`, `/api/library/{item_id}`, `/api/lookup/{word}`, `/api/me`, `/api/me/export`, `/api/milestones/{level}`, `/api/mine`, `/api/mock-run/{level}`, `/api/mock/{level}`, `/api/mock/{level}/{part}`, `/api/modes`, `/api/notion/pending`, `/api/notion/queue`, `/api/pack`, `/api/plan`, `/api/practice`, `/api/practice/answer`, `/api/pronounce`, `/api/read/answer`, `/api/read/questions/{item_id}`, `/api/readiness/{level}`, `/api/reading/next`, `/api/review`, `/api/review/grade`, `/api/review/stats`, `/api/sources`, `/api/speak`, `/api/speaking`, `/api/speaking/check`, `/api/speaking/feedback`, `/api/speaking/probe`, `/api/speaking/readaloud`, `/api/status`, `/api/testout/{topic}`, `/api/themes`, `/api/transcribe`, `/api/transcribe/text`, `/api/translate`, `/api/tutor`, `/api/vocab`, `/api/vocab/known`, `/app.css`, `/apple-touch-icon.png`, `/brand/{name}`, `/favicon.ico`, `/fonts/{name}`, `/icon.png`, `/icon.svg`, `/js/{name}`, `/manifest.webmanifest`, `/sw.js`, `/vendor/{name}` |
+| Shared material and page assets; learner data stays in the current scope | yes | yes | yes | `/`, `/api/auth/me`, `/api/course/topics/{topic}/skip`, `/api/learning/sentences`, `/api/me/onboarding`, `/api/placement/next`, `/api/asr`, `/api/asr/home`, `/api/check`, `/api/checkpoint/{level}`, `/api/checkpoint/{level}/result`, `/api/curriculum`, `/api/dictation/answer`, `/api/dictation/next`, `/api/engines`, `/api/enrich/{word}`, `/api/exam-spec/{level}`, `/api/exam/file/{item_id}`, `/api/exam/image/{item_id}/{page}/{index}`, `/api/exam/native/{item_id}`, `/api/exam/native/{item_id}/check`, `/api/exam/page/{item_id}/{page}`, `/api/exam/pages/{item_id}`, `/api/exam/text/{item_id}`, `/api/exam/{level}`, `/api/goal`, `/api/goal.ics`, `/api/health`, `/api/lesson/{topic}`, `/api/library`, `/api/library/{item_id}`, `/api/lookup/{word}`, `/api/me`, `/api/me/export`, `/api/milestones/{level}`, `/api/mine`, `/api/mock-run/{level}`, `/api/mock/{level}`, `/api/mock/{level}/{part}`, `/api/modes`, `/api/notion/pending`, `/api/notion/queue`, `/api/pack`, `/api/plan`, `/api/practice`, `/api/practice/answer`, `/api/pronounce`, `/api/read/answer`, `/api/read/questions/{item_id}`, `/api/readiness/{level}`, `/api/reading/next`, `/api/review`, `/api/review/grade`, `/api/review/stats`, `/api/sources`, `/api/speak`, `/api/speaking`, `/api/speaking/check`, `/api/speaking/feedback`, `/api/speaking/probe`, `/api/speaking/readaloud`, `/api/status`, `/api/testout/{topic}`, `/api/themes`, `/api/transcribe`, `/api/transcribe/text`, `/api/translate`, `/api/tutor`, `/api/vocab`, `/api/vocab/known`, `/app.css`, `/apple-touch-icon.png`, `/brand/{name}`, `/favicon.ico`, `/fonts/{name}`, `/icon.png`, `/icon.svg`, `/js/{name}`, `/manifest.webmanifest`, `/sw.js`, `/vendor/{name}` |
 
 ## Guest sandboxes
 
@@ -191,8 +191,12 @@ Sources, all existing:
 
 `POST /api/me {"name": …}` records `profile-set` (`profile.clean_name`: trimmed,
 1–60 characters, blank clears). `POST /api/me/onboarding` records a self-assessed
-start band and preferred first lane as `onboarding-set`; it is a display
-recommendation, not CEFR evidence, mastery or an exam result. Email belongs to
+start band and preferred first lane as `onboarding-set`, including in a guest
+sandbox. Without `navigate`, it is a display recommendation. With `navigate`,
+it moves the course past earlier chapters as reversible navigation, never
+CEFR evidence, mastery or an exam result. An optional `explanation_language`
+field prepares stable preferences for `ru`, `en` and `uk`; it does not make
+unreviewed translations available. Email belongs to
 the account, and dates and measured levels come from the evidence.
 
 ## Profile page

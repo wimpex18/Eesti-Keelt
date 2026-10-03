@@ -78,7 +78,7 @@ function profileRows(me) {
   } else if (start) {
     startValue = `${esc(START_BAND_NAMES[start.start_band] || "—")} · ${esc(FOCUS_NAMES[start.focus] || "Rada")}`;
   }
-  const startControl = me.scope === "guest" ? "" :
+  const startControl =
     `<button class="linky" type="button" id="editOnboarding" lang="et">${start ? "Muuda" : "Vali"} <span class="ru" lang="ru">${start ? "изменить" : "выбрать"}</span></button>`;
   return `<dl class="profile-rows">
     <div class="profile-row"><dt lang="et">Nimi <span class="ru" lang="ru">имя</span></dt>
@@ -95,7 +95,7 @@ function profileRows(me) {
     <div class="profile-row"><dt lang="et">E-post <span class="ru" lang="ru">эл. почта</span></dt><dd>${emailValue}</dd></div>
     <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${scopeDescription(me.scope)}</span>${controls}</dd></div>
     <div class="profile-row"><dt lang="et">Algus <span class="ru" lang="ru">старт</span></dt><dd>${startValue}${startControl}
-      <span class="profile-sub" lang="ru">Самооценка для рекомендаций, не подтверждённый уровень CEFR.</span></dd></div>
+      <span class="profile-sub" lang="ru">Точка входа в курс; можно изменить. Уровень CEFR не подтверждён.</span></dd></div>
     <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
     <div class="profile-row"><dt lang="et">Viimati <span class="ru" lang="ru">последнее занятие</span></dt><dd>${date(me.last_active)}</dd></div>
     <div class="profile-row"><dt lang="et">Raja tase <span class="ru" lang="ru">уровень пути</span></dt>
@@ -152,29 +152,7 @@ function profileHtml(me, notice = "") {
     ${me.scope === "guest" ? `<p class="profile-sandbox" lang="ru">Гостевой прогресс хранится только во временной песочнице и будет удалён. После регистрации он не переносится.</p>` : ""}
     ${startOptionsHtml(me)}
     ${profileRows(me)}
-    <section class="profile-section">
-      <h3 class="sec-head" lang="et">Märgid <i class="ru" lang="ru">значки</i></h3>
-      <p class="hint profile-legend" lang="ru">Этапы: первая тренировка, освоенная тема, контрольная уровня и практика по всем четырём частям экзамена.</p>
-      <div class="levels profile-levels" role="tablist" aria-label="Tase — уровень">
-        ${LEVELS.map(item => `<button type="button" role="tab" aria-selected="${item === level}" data-seal-level="${item}">${item}</button>`).join("")}
-      </div>
-      <div id="profileSeals">${sealsHtml(seals)}</div>
-    </section>
-    <section class="profile-section">
-      <h3 class="sec-head" lang="et">Rütm <i class="ru" lang="ru">ритм</i></h3>
-      ${rhythmHtml(me.rhythm || [])}
-      <p class="hint profile-legend" lang="ru">Каждая клетка — день; чем темнее, тем больше занятий. Показаны последние 12 недель.</p>
-      <p class="hint profile-active-days">${count(activeDays, ["активный день", "активных дня", "активных дней"])} с занятиями за последние 4 недели.</p>
-    </section>
-    <section class="profile-section">
-      <h3 class="sec-head" lang="et">Kokku <i class="ru" lang="ru">итого</i></h3>
-      <ul class="profile-totals">
-        <li>${count(totals.attempts, ["попытка", "попытки", "попыток"])}</li>
-        <li>${count(totals.mastered, ["освоенная тема", "освоенные темы", "освоенных тем"])} из ${count(totals.topics, ["тема", "темы", "тем"])}</li>
-        <li>${count(totals.review_cards, ["карточка повторения", "карточки повторения", "карточек повторения"])}</li>
-        <li>${count(totals.known_words, ["известное слово", "известных слова", "известных слов"])}</li>
-      </ul>
-    </section>
+    <p class="profile-progress-link"><a href="#status" lang="et">Edenemine <span class="ru" lang="ru">занятия и прогресс</span></a></p>
     ${restoreHtml(me)}
     ${me.scope !== "guest" ? `<section class="profile-section profile-reset-section">
       <h3 class="sec-head" lang="et">Lähtesta edenemine <i class="ru" lang="ru">сброс прогресса</i></h3>
@@ -190,18 +168,7 @@ function profileHtml(me, notice = "") {
     </section>` : ""}`;
 }
 
-function startOptionsHtml(me) {
-  if ((Number(me.totals?.attempts) || 0) > 0 || (me.onboarding && !me.onboarding.skipped)) return "";
-  return `<section class="profile-section profile-start-section" aria-labelledby="profileStartTitle">
-    <h3 class="sec-head" id="profileStartTitle" lang="et">Alusta siit <i class="ru" lang="ru">начните здесь</i></h3>
-    <p class="hint profile-start-copy" lang="ru">Выберите, с чего начать. В «Vaba harjutus» (свободной практике) можно менять сложность A1–B1; другие разделы доступны в любой момент.</p>
-    <nav class="profile-start-actions" aria-label="Alustamine — начало">
-      <a class="ghost" id="profileStartPath" href="#path" lang="et">Õpi rajal <span class="ru" lang="ru">учиться по плану</span></a>
-      <a class="ghost" id="profileStartPractice" href="#drill" lang="et">Harjuta vabalt <span class="ru" lang="ru">свободная практика</span></a>
-      <a class="ghost" id="profileStartExam" href="#exam" lang="et">Valmistu eksamiks <span class="ru" lang="ru">подготовка к экзамену</span></a>
-    </nav>
-  </section>`;
-}
+function startOptionsHtml() { return ""; }
 
 function restoreHtml(me) {
   if (me.scope === "guest" || !me.restore_available) return "";
@@ -372,6 +339,7 @@ function bindProfile(out) {
       }
       // Every module may hold the previous guest/account's practice or dialogue.
       // Reload, as on logout, before rendering another permanent identity.
+      if (form.dataset.mode === "signup") history.replaceState(null, "", "#start");
       location.reload();
     } catch (err) {
       error.textContent = err.message;

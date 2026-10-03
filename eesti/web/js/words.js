@@ -13,7 +13,7 @@ import {emptyState, uiIcon} from "./chrome.js";
 import {speakWord} from "./media.js";
 import {refreshDueBadge} from "./review.js";
 
-const SIZE = 10;
+const SIZE = 5;
 let set = [], marks = [], missed = [];
 
 // The word list's spelling is the answer; case and outer spaces are not the point.
@@ -45,13 +45,13 @@ async function pool() {
 function paintBeads() {
   $("#workoutBeads").innerHTML = set.map((_, i) => {
     const m = marks[i];
-    const cls = m === true ? "ok" : m === false ? "no"
+    const cls = m === true ? "ok" : m === false ? "no" : m === "skipped" ? "skipped"
       : i === marks.filter(x => x !== undefined).length ? "now" : "";
     return `<span class="bead ${cls}"></span>`;
   }).join("");
-  const done = marks.filter(x => x !== undefined).length;
+  const done = marks.filter(x => typeof x === "boolean").length;
   $("#workoutScore").textContent = done
-    ? `${marks.filter(Boolean).length}/${done} верно` : "";
+    ? `${marks.filter(m => m === true).length}/${done} верно` : "";
 }
 
 
@@ -135,19 +135,32 @@ function renderWord(w, i) {
   };
   el.querySelector("[data-check]").onclick = check;
   input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+  const skip = document.createElement("button");
+  skip.className = "quiet exercise-skip"; skip.lang = "et";
+  skip.innerHTML = '<span lang="et">Jäta sõna vahele <span class="ru" lang="ru">пропустить слово</span></span>';
+  skip.onclick = () => {
+    if (el.classList.contains("done")) return;
+    marks[i] = "skipped"; el.classList.add("done", "skipped");
+    el.querySelectorAll("input,button").forEach(control => control.disabled = true);
+    verdict.textContent = "Пропущено — слово не отмечено известным и ответ не проверен.";
+    paintBeads();
+    if (marks.filter(m => m !== undefined).length === set.length) finish();
+  };
+  el.appendChild(skip);
   return el;
 }
 
 
 function finish() {
   const out = $("#workoutOut");
-  const right = marks.filter(Boolean).length;
+  const right = marks.filter(m => m === true).length;
   const great = right >= 0.8 * set.length;
   const end = document.createElement("div");
   end.className = "set-end" + (great ? " great" : "");
   end.setAttribute("role", "status");
   end.innerHTML = `<h4 lang="et">Trenn tehtud <i class="ru" lang="ru">тренировка пройдена</i></h4>
-    <p class="set-score">${right}<small> из ${set.length} верно</small></p>
+    <p class="set-score">${right}<small> из ${marks.filter(m => typeof m === "boolean").length} проверенных верно</small></p>
+    ${marks.includes("skipped") ? `<p lang="ru">Пропущено слов: ${marks.filter(m => m === "skipped").length}. Они не проверены и не отмечены известными.</p>` : ""}
     <div class="beads" aria-hidden="true">${$("#workoutBeads").innerHTML}</div>
     ${missed.length ? `<ul class="set-missed">${missed.map(w =>
       `<li><b lang="et">${esc(w.word)}</b> <span lang="ru">— ${esc(w.russian)}</span></li>`).join("")}</ul>` : ""}

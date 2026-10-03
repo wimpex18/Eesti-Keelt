@@ -9,7 +9,8 @@ import {$, once} from "./core.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
 import {loadLibrary} from "./reading.js";
-import {loadPath, loadStatus, setPathMode} from "./path.js";
+import {loadPath, loadStatus, setPathMode, ensureSession} from "./path.js";
+import {ensureRule} from "./lesson.js";
 import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions} from "./speak.js";
 import {loadVocab} from "./vocab.js";
@@ -22,6 +23,7 @@ const ON_OPEN = {
   exam: () => loadExam(),
   vihikud: () => loadVihikud(),
   path: () => loadPath(),
+  course: () => loadPath(),
   review: () => refreshDueBadge(),
   status: () => loadStatus(),
   profile: () => loadProfile(),
@@ -41,7 +43,7 @@ document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
   panel.setAttribute("aria-labelledby", b.id);
 });
 
-/* The other tab lists (the modes, Minu rada / Vaba harjutus, A2 / B1) follow the
+/* The other tab lists (Minu rada / Vaba harjutus, A2 / B1) follow the
    same keyboard pattern: arrows and Home/End move and select, and only the
    selected tab is in the Tab order. */
 function rove(list) {
@@ -105,43 +107,20 @@ function keepVisible(button) {
 
 
 export function selectTab(button) {
-  button.closest("nav").querySelectorAll("button").forEach(x => {
-    x.setAttribute("aria-selected", x === button);
-    // Roving tabindex: only the selected tab is in the Tab order.
-    x.tabIndex = x === button ? 0 : -1;
-  });
-  keepVisible(button);
-  const tab = button.dataset.tab;
-  TABS.forEach(t => $("#tab-" + t).hidden = (t !== tab));
-  // Fetched when opened rather than on page load: the exam view is two
-  // requests and most sessions never go near it.
-  ON_OPEN[tab]?.();
+  goToPlace(button.dataset.tab);
+  rememberPlace();
 }
 
 
-document.querySelectorAll("nav button").forEach(
+document.querySelectorAll("nav button[data-tab]").forEach(
   b => b.onclick = () => { selectTab(b); rememberPlace(); });
 
+// A link to the page already open does not fire hashchange. Still dismiss the
+// menu so its overlay cannot cover that page's controls on a phone.
+document.querySelectorAll('.more-nav a').forEach(a => a.addEventListener('click', () => {
+  document.querySelector('.more-nav').open = false;
+}));
 
-function selectMode(m, tab) {
-  // Re-tapping the current mode stays put: jumping to the mode's first tab would
-  // also push a history entry the learner never chose.
-  if (m.getAttribute("aria-selected") === "true") return;
-  document.querySelectorAll(".modes button").forEach(x =>
-    x.setAttribute("aria-selected", x === m));
-  document.querySelectorAll("nav[data-mode-nav]").forEach(nav => {
-    nav.hidden = nav.dataset.modeNav !== m.dataset.mode;
-  });
-  // Land on the tab asked for, else the mode's first, so switching never shows a
-  // blank panel and a deep link does not load a panel it is about to leave.
-  selectTab(tab || document.querySelector(
-    `nav[data-mode-nav="${m.dataset.mode}"] button`));
-  document.querySelectorAll(".modes").forEach(rove);
-}
-
-
-document.querySelectorAll(".modes button").forEach(
-  m => m.onclick = () => { selectMode(m); rememberPlace(); });
 
 function rememberPlace() {
   const tab = [...document.querySelectorAll("section.panel")]
@@ -151,21 +130,39 @@ function rememberPlace() {
 
 
 export function goToPlace(tab) {
+  const [page, encodedTopic] = tab.split("/");
+  let topic;
+  try { topic = encodedTopic ? decodeURIComponent(encodedTopic) : null; }
+  catch { return false; }
+  tab = page;
   /* `#drill` was the free-practice tab; it is Rada's second mode now, so an old
      bookmark still lands on the same drills. */
   if (tab === "drill") {
-    const ok = goToPlace("path");
+    const ok = goToPlace("course");
     setPathMode("vaba");
     return ok;
   }
-  // `#path` itself means the path: a link to it (the rail's Harjuta) lands on Rada,
-  // not on whichever mode the panel was last left in.
-  if (tab === "path") setPathMode("rada");
+  // A Course link opens the guided syllabus; #drill still opens free practice.
+  if (tab === "course") setPathMode("rada");
+  if (tab === "rule" && !topic) return goToPlace("course");
+  if (!TABS.includes(tab)) return false;
   const button = document.querySelector(`nav[data-mode-nav] button[data-tab="${tab}"]`);
-  if (!button) return false;
-  const mode = button.closest("nav").dataset.modeNav;
-  const modeButton = document.querySelector(`.modes button[data-mode="${mode}"]`);
-  if (modeButton.getAttribute("aria-selected") === "true") selectTab(button);
-  else selectMode(modeButton, button);
+  const changed = $("#tab-" + tab).hidden;
+  document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(x => {
+    x.setAttribute("aria-selected", String(x === button));
+    x.tabIndex = x === button || !button && x.dataset.tab === "read" ? 0 : -1;
+  });
+  if (button) keepVisible(button);
+  document.querySelectorAll('.primary-nav a, .more-nav a, #accountBtn').forEach(a => {
+    if (a.hash === "#" + tab) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+  TABS.forEach(t => $("#tab-" + t).hidden = (t !== tab));
+  document.querySelector(".more-nav").open = false;
+  if (changed) window.scrollTo({top: 0});
+  ON_OPEN[tab]?.();
+  if (tab === "session") ensureSession(topic);
+  if (tab === "rule") ensureRule(topic);
+  window.dispatchEvent(new CustomEvent("eesti:place", {detail: tab}));
   return true;
 }
