@@ -14,6 +14,7 @@ Review evidence: .impeccable/review/blue-material-round2 (105 viewport/full pair
 Five viewport classes plus dark phone/desktop inspected; no horizontal overflow.
 Checks: 2532 Python passed/1 skipped; 191 browser passed/23 skipped;
 typecheck, 26 Worker tests and diff check passed. Four auth cases rechecked.
+Auth journeys explicitly await login/logout reloads; prior CI exposed that race.
 Reviewer verdict: ship, all three listed material/documentation fixes resolved.
 Fresh documenter updated DESIGN.md/sidecar; reviewer verified all 70 colour roles.
 Hook active; one index.html low-contrast value ignore for confirmed theme mixing.

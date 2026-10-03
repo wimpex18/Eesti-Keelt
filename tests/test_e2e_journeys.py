@@ -588,16 +588,19 @@ class TestProfile:
         assert state["restores"] == 1
         assert page.locator("#profileRestore").count() == 0
 
-        page.click("#logoutBtn")
-        page.wait_for_load_state("networkidle")
+        # Logout awaits its API before reloading. Network-idle on the old
+        # document can resolve first, so observe the navigation before clicking.
+        with page.expect_navigation(wait_until="networkidle"):
+            page.click("#logoutBtn")
         self._open(page)
         page.fill("#authEmail", "aino@example.test")
         page.fill("#authPassword", "test-password-1")
-        page.locator('#authForm button[type="submit"]').click()
+        with page.expect_navigation(wait_until="networkidle"):
+            page.locator('#authForm button[type="submit"]').click()
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
-        page.click("#logoutBtn")
-        page.wait_for_load_state("networkidle")
+        with page.expect_navigation(wait_until="networkidle"):
+            page.click("#logoutBtn")
         self._open(page)
         assert page.locator("#profileOut .profile-sandbox").is_visible()
 
