@@ -50,7 +50,6 @@ def clean_name(raw: str | None) -> str | None:
 
 @applies(JOINED)
 @applies(PROFILE_SET)
-@applies(ONBOARDING_SET)
 def _profile_set(stores: Stores, ev: Event) -> None:
     """Nothing to project: profile facts are read back from the log.
 
@@ -58,6 +57,13 @@ def _profile_set(stores: Stores, ev: Event) -> None:
     `profile` to `evidence._register_all` so the registration always runs.
     """
     return None
+
+
+@applies(ONBOARDING_SET)
+def _apply_onboarding(stores: Stores, ev: Event) -> None:
+    from .course import apply_start
+
+    apply_start(stores["progress"], ev.payload, ev.ts)
 
 
 @applies(PROGRESS_RESET)
@@ -144,23 +150,38 @@ def set_name(name: str | None) -> Event:
     return evidence.record(PROFILE_SET, {"name": clean_name(name)})
 
 
-def set_onboarding(start_band: str, focus: str, *, skipped: bool = False) -> Event:
+def set_onboarding(start_band: str, focus: str, *, skipped: bool = False,
+                   navigate: bool = False, explanation_language: str | None = None) -> Event:
     """Record the learner's self-assessed starting point and preferred lane.
 
-    This is a display recommendation, never an exam result, curriculum mastery
-    or CEFR evidence. A skipped onboarding is recorded so it is not shown again.
+    With `navigate`, earlier chapters are passed over as reversible navigation.
+    It never awards curriculum mastery, an exam result or CEFR evidence. A skipped onboarding is recorded so it is not shown again.
     """
     if start_band not in START_BANDS:
         raise ValueError("Выберите один из предложенных стартовых вариантов.")
     if focus not in FOCUSES:
         raise ValueError("Выберите одно направление для начала.")
+    if explanation_language is not None and explanation_language not in ("ru", "en", "uk"):
+        raise ValueError("Такой язык объяснений не поддерживается.")
     from . import evidence
 
-    return evidence.record(ONBOARDING_SET, {
+    payload = {
         "start_band": start_band,
         "focus": focus,
         "skipped": bool(skipped),
-    })
+    }
+    if navigate:
+        payload["navigate"] = True
+    if explanation_language is not None:
+        payload["explanation_language"] = explanation_language
+    ev = evidence.record(ONBOARDING_SET, payload)
+    if navigate:
+        from . import config, progress
+        from .course import apply_start
+
+        with closing(progress.connect(config.learner_db("PROGRESS_DB"))) as conn:
+            apply_start(conn, payload, ev.ts)
+    return ev
 
 
 def onboarding(log: sqlite3.Connection) -> dict | None:
@@ -179,6 +200,9 @@ def onboarding(log: sqlite3.Connection) -> dict | None:
         "focus": payload.get("focus", "path"),
         "skipped": bool(payload.get("skipped", False)),
         "set_at": row["ts"],
+        **({"navigate": True} if payload.get("navigate") else {}),
+        **({"explanation_language": payload["explanation_language"]}
+           if "explanation_language" in payload else {}),
     }
 
 

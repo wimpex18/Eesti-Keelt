@@ -4,7 +4,7 @@
    `progress.TopicProgress.state` can emit. */
 
 import {$, esc, gloss, ruCount} from "./core.js";
-import {BOLD, DUOTONE, icon} from "./icons.js";
+import {BOLD, DUOTONE, icon, skillIcon} from "./icons.js";
 
 
 // ── health ──────────────────────────────────────────────────────────
@@ -29,12 +29,13 @@ export const RU = {
   "Rääkimine": "говорение", "Kirjutamine": "письмо",
   "Järjekord": "очередь", "Töövihikud": "тетради",
   "Ülevaade": "обзор", "Edenemine": "прогресс",
-  /* Path states: exactly the five `progress.TopicProgress.state` emits.
+  /* Path states: exactly those `progress.TopicProgress.state` emits.
      `tests/test_path_states.py` checks the two lists against each other. */
   /* Each answers "can I do this now, and if not, why not?": what to press, or that
      the topic opens by itself once the named topics are done. */
   "reference": "теория", "ready": "открыто", "locked": "откроется позже",
   "in progress": "в работе", "mastered": "пройдено",
+  "skipped": "пропущено",
 };
 
 const STATE_ICON = {
@@ -43,6 +44,7 @@ const STATE_ICON = {
   "in progress": "circle-half",
   "mastered":    "check-circle",
   "locked":      "lock-simple",
+  "skipped":     "arrow-right",
 };
 
 function svgIcon(d) {
@@ -194,7 +196,7 @@ export function paintIcons() {
   document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
     const d = NAV_ICON[b.dataset.tab];
     const slot = b.querySelector(".ico");
-    if (d && slot) slot.innerHTML = navIcon(d);
+    if (d && slot) slot.innerHTML = skillIcon(b.dataset.tab) || navIcon(d);
     /* A name that does not depend on the label being painted.
 
        Between 720 and 1079px the skills are a rail of marks and `.lbl` is

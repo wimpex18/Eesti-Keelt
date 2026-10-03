@@ -73,11 +73,11 @@ class TestTheExamsOwnWordsSurvive:
     """Translating these away would cost the learner the exam vocabulary."""
 
     @pytest.mark.parametrize("word", [
-        "Rada", "Lugemine", "Kuulamine", "Rääkimine", "Kirjutamine",
-        "Sõnavara", "Õppimine", "Kordamine", "Eksam",
+        "Kursus", "Lugemine", "Kuulamine", "Rääkimine", "Kirjutamine",
+        "Sõnavara", "Kordamine", "Eksam",
     ])
     def test_the_estonian_label_is_still_there(self, page, word):
-        assert f">{word}<" in page or f">{word}<span" in page, (
+        assert re.search(r">" + re.escape(word) + r"\s*<", page), (
             f"{word} is the word on the exam paper and must stay on screen")
 
     @pytest.mark.parametrize("word", [
@@ -593,4 +593,3 @@ class TestEachLabelIsReadInItsLanguage:
         assert glosses >= 70, glosses
         assert labels >= 80, labels
         assert len(files) >= 10, files
-

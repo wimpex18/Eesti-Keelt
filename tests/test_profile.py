@@ -83,7 +83,7 @@ def test_onboarding_is_saved_as_self_assessment_and_latest_choice_wins(client, t
     assert recovery.verify_export(backup)["verified"] is True
 
 
-def test_onboarding_rejects_unknown_values_and_guests(client, monkeypatch):
+def test_onboarding_rejects_unknown_values_and_isolates_guests(client, monkeypatch):
     bad = client.post("/api/me/onboarding", json={
         "start_band": "B2", "focus": "points",
     })
@@ -93,7 +93,12 @@ def test_onboarding_rejects_unknown_values_and_guests(client, monkeypatch):
         "x-proxy-token": "proxy-secret", "x-eesti-scope": "guest",
         "x-eesti-guest": "g-0123456789abcdef",
     }, json={"start_band": "a1", "focus": "path"})
-    assert guest.status_code == 403
+    assert guest.status_code == 200
+    assert guest.json()["onboarding"]["start_band"] == "a1"
+    owner = client.get("/api/me", headers={
+        "x-proxy-token": "proxy-secret", "x-eesti-scope": "owner",
+    })
+    assert owner.json()["onboarding"] is None
 
 
 def test_the_email_comes_from_the_front_door(client, monkeypatch):

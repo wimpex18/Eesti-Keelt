@@ -21,7 +21,7 @@ from fontTools.pens.transformPen import TransformPen
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "eesti/web"
 BRAND = WEB / "brand"
-BLUE, WHITE, PAGE, INK, MUTED = "#0030de", "#ffffff", "#f8fafc", "#0f172a", "#566376"
+BLUE, WHITE, PAGE, INK, MUTED = "#2359c4", "#ffffff", "#f0f6fd", "#172f4b", "#506681"
 PATHS = [p.attrib["d"] for p in ET.parse(BRAND / "mark.svg").iter()
          if p.tag.endswith("}path")]
 
@@ -105,7 +105,7 @@ def main() -> None:
         body += f'<g transform="translate(80 80) scale(1.5)">{tile}</g>'
         lines = [("Grove", 210, 153, 68, 650, INK),
                  ("Eesti keel", 80, 336, 88, 650, BLUE),
-                 ("A2 / B1", 80, 401, 38, 450, INK),
+                 ("Õppimine · A2 / B1", 80, 401, 38, 450, INK),
                  ("Õpi. Harjuta. Kontrolli.", 80, height - 80, 30, 450, MUTED)]
         image = Image.new("RGB", (width, height), PAGE)
         image.paste(icon(96), (80, 80), icon(96))
@@ -123,7 +123,7 @@ def main() -> None:
     # mechanically tied to the same vector source.
     page = WEB / "index.html"
     markup = page.read_text(encoding="utf-8")
-    for location, classname in (("header", "brand-mark"), ("splash", "brand-splash-mark")):
+    for location, classname in (("header", "brand-mark"),):
         inline = (f'<svg class="{classname}" viewBox="0 0 64 64" aria-hidden="true">'
                   + "".join(f'<path class="brand-{role}" fill-rule="evenodd" d="{d}"/>' for role, d in zip(("leaf", "stem"), PATHS)) + "</svg>")
         pattern = f'(<!-- brand:{location}:start -->).*?(<!-- brand:{location}:end -->)'

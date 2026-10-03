@@ -142,35 +142,11 @@ class TestVerbsMatch:
             assert client.get(path).status_code == 200, path
 
 
-class TestTheDesktopRail:
-    """The desktop rail: its hiding rule must precede the media query that shows it
-    (same specificity, so order decides).
-    """
-
-    def test_the_hiding_rule_comes_before_the_query_that_undoes_it(self, page):
-        css = styles()
-        hide = css.index(".rail{display:none}")
-        query = css.index("@media (min-width:1080px)")
-        assert hide < query, (
-            "`.rail{display:none}` must precede the media query; at equal "
-            "specificity the later declaration wins and the rail disappears"
-        )
-
-    def test_the_query_turns_the_rail_back_on(self, page):
-        # Search the whole media block, not a fixed-size prefix.
-        block = media_block(styles(), "@media (min-width:1080px)")
-        assert "display:flex" in block.split(".rail{")[1]
-
-    def test_the_countdown_follows_the_level_the_learner_picked(self, page):
-        """The countdown follows the level the learner selected."""
-        fn = page.split("async function loadRail")[1][:900]
-        assert "/api/readiness/${examLevel()}" in fn
-        assert "/api/readiness/B1" not in fn
-        assert "/api/readiness/A2" not in fn
-
-    def test_the_rail_is_refreshed_when_what_it_shows_changes(self, page):
-        """The rail re-renders when mastery or due reviews change."""
-        assert page.count("loadRail()") >= 4  # load, level switch, path, review
+class TestFocusedNavigation:
+    def test_four_skills_are_persistent(self, page):
+        assert set(re.findall(r'data-tab="([a-z]+)"', markup())) == {"read", "listen", "speak", "write"}
+        assert 'id="rail"' not in markup()
+        assert 'class="modes"' not in markup()
 
 
 class TestEveryTabOpensItsOwnPanel:
@@ -191,7 +167,8 @@ class TestEveryTabOpensItsOwnPanel:
     def test_every_panel_has_a_button(self, page):
         """An orphan panel is one that shows and never hides, because nothing
         ever selects a different tab within its group."""
-        missing = self.panels(page) - self.buttons(page)
+        destinations = set(re.findall(r'href="#([a-z]+)', markup())) | self.buttons(page) | {"session", "rule"}
+        missing = self.panels(page) - destinations
         assert not missing, f"panels no tab opens: {sorted(missing)}"
 
     def test_the_switch_set_is_read_from_the_document(self, page):

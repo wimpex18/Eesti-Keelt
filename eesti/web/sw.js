@@ -1,6 +1,7 @@
 /* Service worker: the installed app starts, and says something useful offline.
 
-   It does not pretend the app works offline: drills are generated on the server.
+   New drills require the server. Previously downloaded packs are handled by
+   offline.js; this worker keeps the shell readable and APIs uncached.
 
    1. **Code is never served stale.** Icons and the manifest are cache-first. The
       page, stylesheet and ES modules are network-first with a cached fallback,
@@ -30,7 +31,7 @@ const ASSETS = [
   "/js/chrome.js", "/js/media.js", "/js/path.js", "/js/review.js",
   "/js/vocab.js", "/js/voice.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
   "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",
-  "/js/remind.js", "/js/icons.js", "/js/words.js", "/js/lesson.js", "/js/glide.js",
+  "/js/remind.js", "/js/icons.js", "/js/words.js", "/js/lesson.js",
   "/fonts/geologica-latin.woff2", "/fonts/geologica-latin-ext.woff2",
   "/fonts/geologica-cyrillic.woff2",
 ];
@@ -137,11 +138,18 @@ self.addEventListener("fetch", event => {
 const OFFLINE_PAGE = `<!doctype html><html lang="ru"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Нет соединения</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;margin:0;min-height:100vh;
-display:grid;place-items:center;background:#f8fafc;color:#0f172a;padding:24px}
-div{max-width:32ch;text-align:center}h1{font-size:19px;margin:0 0 8px}
-p{margin:0;color:#64748b}
-@media (prefers-color-scheme:dark){body{background:#0b1120;color:#eef2f8}p{color:#96a1b3}}</style>
-<div><h1>Нет соединения</h1>
-<p>Упражнения создаются на сервере, поэтому без интернета их не открыть.
-Попробуй ещё раз, когда связь появится.</p></div>`;
+<style>*{box-sizing:border-box}body{font:16px/1.6 system-ui,sans-serif;margin:0;
+min-height:100vh;display:grid;place-items:center;background:#f0f6fd;color:#172f4b;padding:24px}
+main{width:100%;max-width:36ch}h1{font-size:24px;line-height:1.3;margin:0 0 12px}
+p{margin:0 0 24px;color:#506681}
+a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:12px 16px;
+border-radius:12px;background:#2359c4;color:#fff;font-weight:600;text-decoration:none}
+a:focus-visible{outline:3px solid #2359c4;outline-offset:4px}
+.ru{font-size:14px;font-weight:400}
+@media (prefers-color-scheme:dark){body{background:#152236;color:#edf4ff}
+p{color:#b3c5de}a{background:#aac9ff;color:#16345e}
+a:focus-visible{outline-color:#aac9ff}}</style>
+<main><h1>Нет соединения</h1>
+<p>Приложение ещё не сохранено для работы без сети.
+Подключись к интернету и попробуй снова.</p>
+<a href="/" lang="et">Proovi uuesti <span class="ru" lang="ru">повторить</span></a></main>`;

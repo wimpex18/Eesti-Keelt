@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS events (
 #: breaker, repairs, the dictionary cache) is operational and survives a rebuild.
 PROJECTIONS: dict[str, tuple[str, ...]] = {
     "progress": ("attempts", "topic_state", "checkpoints", "dictation", "exposure",
-                 "goal", "exam_sections"),
+                 "goal", "exam_sections", "course_choices"),
     "review": ("review_applications", "review_items"),
     "vocab": ("vocab_status",),
     "notion": ("notion_queue",),
@@ -245,7 +245,7 @@ def _open(name: str) -> sqlite3.Connection:
 
 def _register_all() -> None:
     """Import every module that registers an apply function."""
-    from . import (checkpoint, dictation, exam, library, mock, profile,  # noqa: F401
+    from . import (checkpoint, course, dictation, exam, library, mock, profile,  # noqa: F401
                    notion, progress, review, vocab)
 
 

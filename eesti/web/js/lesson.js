@@ -7,6 +7,8 @@ import {icon} from "./icons.js";
 import {showItem} from "./reading.js";
 
 const sheet = $("#lessonSheet");
+let previous = "#course";
+function closeRule() { location.hash = previous; }
 
 
 function tableHtml(t) {
@@ -26,8 +28,8 @@ function tableHtml(t) {
 function render(L) {
   const rule = L.rule;
   let html = `<header class="lesson-head">
-      <div><span class="lv" data-level="${esc(L.level)}">${esc(L.level)}</span>
-        <h2 lang="et">${esc(L.et)} <i class="ru" lang="ru">${esc(L.ru)}</i></h2></div>
+      <div><h2 lang="et">${esc(L.et)} <i class="ru" lang="ru">${esc(L.ru)}</i></h2>
+        <span class="lv" data-level="${esc(L.level)}">${esc(L.level)}</span></div>
       <button class="iconbtn" id="lessonClose" type="button" aria-label="Sulge — закрыть">${icon("x", {weight: "bold"})}</button>
     </header>`;
   /* The gist first, then the mistake it prevents: the shape of a flashcard. */
@@ -63,26 +65,32 @@ function render(L) {
 
 
 export async function openLesson(topic, onPractice) {
+  sheet.dataset.topic = topic;
   sheet.innerHTML = `<p class="hint">Загружаю…</p>`;
-  if (!sheet.open) sheet.showModal();
+  if (!location.hash.startsWith("#rule/")) previous = location.hash || "#course";
+  location.hash = "#rule/" + encodeURIComponent(topic);
   try {
     const L = await (await api(`/api/lesson/${encodeURIComponent(topic)}`, null, "GET")).json();
     sheet.innerHTML = render(L);
-    $("#lessonClose").onclick = () => sheet.close();
+    $("#lessonClose").onclick = () => closeRule();
     sheet.querySelectorAll("[data-read]").forEach(b => b.onclick = () => {
-      sheet.close();
+      closeRule();
       // Through the hash, so the tab change enters history like any other.
       location.hash = "#read";
       showItem(b.dataset.read);
     });
     const go = $("#lessonPractice");
-    if (go) go.onclick = () => { sheet.close(); (onPractice || practiseHandler)(topic); };
+    if (go) go.onclick = () => { closeRule(); (onPractice || practiseHandler)(topic); };
     $("#lessonClose").focus();
   } catch (e) {
     sheet.innerHTML = `<div class="banner">${esc(e.message)}</div>
       <div class="row"><button class="ghost" type="button" lang="et">Sulge <span class="ru" lang="ru">закрыть</span></button></div>`;
-    sheet.querySelector("button").onclick = () => sheet.close();
+    sheet.querySelector("button").onclick = () => closeRule();
   }
+}
+
+export function ensureRule(topic) {
+  if (topic && sheet.dataset.topic !== topic) openLesson(topic);
 }
 
 
@@ -90,9 +98,6 @@ export async function openLesson(topic, onPractice) {
 let practiseHandler = () => {};
 export function onLessonPractice(fn) { practiseHandler = fn; }
 
-
-// A click on the backdrop closes the sheet; a click inside it does not.
-sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
 
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-lesson]");

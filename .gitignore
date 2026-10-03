@@ -8,6 +8,8 @@ data/raw/
 data/cache/
 # Runtime databases — all generated, none belong in the repo.
 data/*.db
+data/guest/
+data/learners/
 audio-cache/
 
 # HARNO exam material is copyright Haridus- ja Noorteamet.
@@ -45,3 +47,5 @@ deploy/eki/*
 .claude/launch.json
 
 # Local visual review captures.
+.impeccable/review/
+.impeccable/questions/

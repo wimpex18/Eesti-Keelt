@@ -33,17 +33,19 @@ def test_it_comes_before_the_nav_rule_it_has_to_beat(css):
     assert css.index("[hidden]") < css.index("nav{display:flex")
 
 
-def test_both_navigations_still_exist(css):
-    """If one is ever removed, the rule above stops mattering and this test
-    should be revisited rather than silently passing forever."""
+def test_skills_and_course_destinations_are_present(css):
+    """Four permanent skills and ordinary links replace the three mode bars."""
     assert 'data-mode-nav="learn"' in css
-    assert 'data-mode-nav="exam"' in css
+    assert 'class="primary-nav"' in css
+    assert 'class="more-nav"' in css
+    for tab in ("read", "listen", "speak", "write"):
+        assert f'data-tab="{tab}"' in css
 
 
-def test_the_inactive_one_ships_hidden(css):
-    """The exam navigation must start hidden; the learner lands on learning."""
-    exam = re.search(r'<nav[^>]*data-mode-nav="exam"[^>]*>', css)
-    assert exam and "hidden" in exam.group(0)
+def test_the_skill_navigation_never_starts_hidden(css):
+    skills = re.search(r'<nav[^>]*data-mode-nav="learn"[^>]*>', css)
+    assert skills and "hidden" not in skills.group(0)
+    assert 'data-mode-nav="exam"' not in css
 
 
 def test_the_source_footer_clears_the_fixed_navigation(css):

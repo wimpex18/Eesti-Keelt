@@ -419,7 +419,8 @@ class TestAnEmptyTopicSaysWhy:
         got = client.post("/api/practice",
                           json={"topic": "sonajark", "count": 5}).json()
         assert got["items"] == []
-        assert "push-content" in got["detail"]
+        assert "Выбери другую тему" in got["detail"]
+        assert "push-content" not in got["detail"]
 
     def test_the_reason_is_in_russian(self, client):
         """It is an instruction to act on, not a label."""

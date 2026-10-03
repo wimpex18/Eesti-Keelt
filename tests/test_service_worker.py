@@ -114,12 +114,6 @@ class TestTheOfflineTextIsReadable:
         page = source[source.index("OFFLINE_PAGE"):]
         assert any("Ѐ" <= ch <= "ӿ" for ch in page)
 
-    def test_it_does_not_promise_offline_exercises(self, source):
-        """Drills are generated on the server. Saying otherwise would send the
-        learner looking for something that cannot be there."""
-        page = source[source.index("OFFLINE_PAGE"):]
-        assert "сервере" in page
-
     def test_the_page_says_the_same_thing_when_a_fetch_fails(self):
         """A failed fetch shows a Russian message, not the browser's English "Failed to
         fetch".

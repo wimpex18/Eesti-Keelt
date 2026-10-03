@@ -1,102 +1,101 @@
 # App structure
 
-Three modes (`library.MODES`); every screen answers one of their questions.
-Tabs live in `eesti/web/index.html`; `tests/test_docs_match_code.py` checks the
-diagram below against the page in both directions.
+The Practice rhythm interface leads with one next lesson. Four skills stay in
+navigation on every page. Course, review, exam and account are ordinary
+destinations rather than mutually exclusive mode bars. `library.MODES` still
+classifies source material; it does not determine the navigation shell.
 
 ## The structure, as built
 
 ```
-Õppimine — "what am I learning today?"
-├── Rada          the drills, two ways: Minu rada (prerequisite order, mastery-gated,
-│                 opens on today's set; Täna combines pressure-free evidence and
-│                 the time plan, then continues into the next useful block) and
-│                 Vaba harjutus (any topic, nothing recorded)
-├── Lugemine      reading texts ranked by the share of words within the learner's reach
-├── Kuulamine     dictation (graded), TTS on any text, radio episodes
-├── Rääkimine     paired-exam question bank, read-aloud, open answers, and
-│                 Vestlus — a model plays the exam partner, never scoring
-└── Kirjutamine   grammar check through the provider chain, back-translation
+Learning and practice
+├── Kodu          one next lesson or the current session, with a starting-point link
+├── Kursus        ordered topics, rules, checked test-out and reversible skips;
+│                 Vaba harjutus and a five-item offline pack live here
+├── Lugemine      source texts and word lookup; five source-backed starter
+│                 sentences when the imported library is empty
+├── Kuulamine     dictation first; the recording library and custom TTS fold below
+├── Rääkimine     read-aloud, questions, open responses and partner conversation
+└── Kirjutamine   a short daily writing prompt, grammar feedback and translation
 
-Kordamine — "what am I forgetting?"
-├── Järjekord     the FSRS queue: wrong answers and words mined from reading; a
-│                 word's card shows an EVS phrase and, from its second review,
-│                 asks for it to be built from tiles (Koosta fraas)
-├── Sõnavara      the word list by CEFR level and part of speech, commonest first
-└── Töövihikud    official HARNO workbooks (PDF pages in-app when downloaded)
-
-Eksam — "am I ready?"
-├── Ülevaade      readiness verdict, four exam parts reported separately, the
-│                 exam's own shape, the sitting being prepared for,
-│                 Proovieksam (one part on the exam's clock), and HARNO's own
-│                 past tasks, read and played in the app where downloaded
-├── Edenemine     progress report
-└── Profiil       account identity, starting recommendation, evidence summary,
-                  seals and practice rhythm
+Supporting destinations
+├── Kordamine     FSRS queue, with vocabulary and progress links
+├── Sõnavara      five-word practice; the full word collection is an optional fold
+├── Töövihikud    official HARNO materials and in-app downloaded PDF pages
+├── Eksam         optional A2/B1 practice, mock exam and official tasks;
+│                 readiness, format, sitting and grammar checks open on request
+├── Edenemine     recorded progress, history, forecast, reminders and data export
+└── Profiil       identity, starting point and reset/restore recovery
 ```
 
-Õppimine is the path plus the exam's four skills, so it has five tabs; Eksam has
-three, for eleven tabs in total. Tabs are in the URL hash (`#write`); each change pushes history,
-re-selecting the current tab pushes nothing. The `#drill` compatibility route
-opens Rada in Vaba harjutus. A drill set shows one unanswered item at a time on every device;
-for `obj-case` the case to use appears only with the verdict, since choosing it
-is the exercise.
+Context pages have no extra permanent navigation item: `#start` is onboarding,
+`#session/<topic>` is learn → practise → check, and `#rule/<topic>` is the full
+reference. Rules use a page rather than a modal. Word lookup keeps its contextual
+popover. Source text, audio, video and PDFs stay in their in-app viewers when
+available; attribution links remain visible.
 
-## What grades each screen
+Onboarding offers beginning, a selected starting point, or a bounded grammar
+assessment of up to three existing five-item topic checks. This is a course
+recommendation, not certified CEFR. Guests can use it and revise their choice
+from Home or Profile. Russian explanations are the MVP; English/Ukrainian are
+prepared in the profile data contract but are not advertised as complete courses.
 
-| Screen | Kind | Graded by | Writes |
-|---|---|---|---|
-| Rada · Minu rada | generated exercise | code | mastery, review queue |
-| Rada · Vaba harjutus | generated exercise | code (same endpoint, `record: false`) | nothing |
-| Rada · Offline | a pack fetched in advance | the page shows a verdict; the server re-grades from the token when the answers arrive | attempts, with the time they happened |
-| Järjekord | scheduled exercise | code | FSRS card state |
-| Kuulamine · dictation | generated exercise | code, word-aligned | dictation history |
-| Sõnavara | list | — | word status |
-| Lugemine | material + lookup | — | word encounters |
-| Kirjutamine | free text | **a model** (explains), plus deterministic checks | Notion queue |
-| Rääkimine | speech | **ASR** (transcribes), never scored | speech evidence |
-| Rääkimine · Vestlus | conversation | **a model** plays the partner; nothing is scored | that a conversation happened, and how long |
-| Ülevaade · Proovieksam | timed section, or all four in order | code (reading, listening, writing: length + deterministic checks); speaking not scored | exam sections |
-| Kuulamine · TTS, Ülevaade, Edenemine, Töövihikud | material / report | — | nothing |
+Routes live in the hash. Skill changes push history; re-selecting the same skill
+adds no history. Deep lesson and rule links survive a reload, unknown routes
+recover to Home, and `#drill` opens Course's free practice. Desktop uses a left
+navigation column; phones use a compact header, native More menu and permanent
+four-skill bottom row.
+Appearance is changed from the shared header; Profile links to Progress instead
+of duplicating its evidence or data export.
 
-Only Kirjutamine and Rääkimine involve a model, and neither decides whether an
-answer is right (`docs/ai-boundaries.md`).
+The cached shell can open offline, and a previously downloaded five-item pack
+can be answered there. When no shell copy exists, the service worker presents a
+small Russian explanation and **Proovi uuesti** link. Retrying while offline
+keeps that recovery screen; after connectivity returns it opens the app.
 
-## Deliberate overlaps
+## What grades each activity
 
-- **Minu rada vs Vaba harjutus** — one tab, one generator path, one grader
-  (`/api/practice`, `/api/practice/answer`). Minu rada decides what is next and
-  records mastery; Vaba harjutus lets the learner pick any topic (and, for
-  object case, one sub-rule) and records nothing.
-- **Sõnavara vs Järjekord** — a word is chosen in Sõnavara and comes back in
-  Järjekord. Both use one word card (`showWordCard()`) with `+ Kordamisse` and
-  `Tean seda sõna`.
-- **Lugemine vs Sõnavara** — reading records encounters; Sõnavara lists them.
-- **Sections vs tabs** — seven library sections, ten tabs. Other `oppimine`
-  sections render inside Kuulamine from `/api/modes`; `eksam` sections are
-  reached through `exam_material`. `tests/test_ui_contract.py` checks both
-  directions.
+| Activity | Graded by | Writes |
+|---|---|---|
+| Guided five-item practice | code against issued forms | attempts, mastery and review queue |
+| Free practice | same code, `record: false` | nothing |
+| Topic test-out / onboarding grammar check | server checks all five answers | checked mastery only on a pass |
+| Topic skip / selected start | navigation choice | `course_choices`, never attempts or mastery |
+| Exercise or word skip | no grade | current session only; no mastery or FSRS |
+| Offline pack | local verdict, then server re-grades the signed item | attempts at the original answer time |
+| Kordamine | code and FSRS | review card state |
+| Sõnavara collection | no grade | explicit word status |
+| Reading and word lookup | no grade | encounters and explicit mining choices |
+| Reading questions | code against the text's stored span | comprehension evidence |
+| Dictation | code, word-aligned | dictation history |
+| Free writing | labelled model explanations plus deterministic checks | correction queue; advisory evidence |
+| Speech | ASR and deterministic measurements | practice evidence, never mastery |
+| Partner conversation | a labelled model plays the partner | contact and duration; no score |
+| Mock exam | code for reading/listening and deterministic writing checks | exam sections; speaking remains unscored |
+| TTS, material viewers and reports | no grade | no checked mastery |
 
-## Word statuses
+Models never decide drill correctness, mastery or FSRS. Engine and source
+attribution stay attached to feedback (`docs/ai-boundaries.md`).
 
-`õpin` (set on first encounter), `tean` (word card), `eiran` (**Pole vaja**),
-`teadsin ammu`, `tuttav` (no control; same side of "settled" as `õpin`).
+## Consolidation and progression
 
-## Progress measures
+Course owns guided and free grammar practice. Vocabulary chooses or mines words;
+Review schedules them. Reading and vocabulary share one word card. Exam owns
+timed practice and exam evidence; ordinary skills need no exam goal. Progress
+owns history, so Profile and Home do not repeat readiness flowers, totals, rhythm
+grids or competing time plans.
 
-| Section | Measure |
-|---|---|
-| Rada | topics mastered / total, current position |
-| Sõnavara | words known within each frequency band |
-| Kordamine | due today, cards scheduled |
-| Lugemine · Kuulamine | texts and recordings opened, minutes spent |
-| Eksam | readiness per exam part |
+Topic states are locked, ready, in progress, mastered, reference-only and skipped.
+Every state has a textual label and icon. Prerequisites come from
+`eesti/curriculum.py`. Reference topics do not block subsequent practice.
 
-No single overall percentage: the exam fails a zero in any one part.
+`POST /api/course/topics/{topic}/skip` stores a navigation skip; `skip: false`
+restores it. Starting-point choices move past earlier chapters only when
+onboarding explicitly requests `navigate`. These changes never create attempts,
+FSRS cards or readiness. Learners can still open any topic's rule or practise it.
+Known exercises and words can be passed over without being marked correct;
+skips are named separately in the result and can be revisited in another set.
 
-## Path rules
-
-Topics have three states — locked, available, mastered — plus test-out on any
-available topic. Prerequisites come from the topic graph in `curriculum.py`. A
-topic with no generator is a reference topic (`progress.reference_topics()`)
-and does not block anything downstream.
+Word statuses remain `õpin`, `tean`, `eiran`, `teadsin ammu` and `tuttav`.
+Checked topic mastery, vocabulary knowledge, review scheduling and the four exam
+parts remain separate measures. There is no combined overall percentage.

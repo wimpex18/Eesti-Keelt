@@ -5,6 +5,20 @@ shown in **Allikad**. Library items link to their original source and describe
 changes. Public visitors see shared learning material; personal imports stay
 in the owner's library.
 
+## Free educational use
+
+Grove is free and non-commercial. Public educational material is welcome as a
+source; in-app reuse follows the material's licence, permission or an applicable
+exception, with attribution. Public access alone does not establish a right to
+republish a complete document, recording or course. For example, [ERR's terms](https://info.err.ee/982667/kasutustingimused-ja-kommenteerimine)
+distinguish private non-commercial use and linking from other reuse requiring
+permission.
+
+The ledger records current source access. Owner-only status can change after
+the reuse basis is established; it is not a permanent product limitation.
+Openly licensed resources should be shared within their terms rather than
+restricted just because they were first imported by the owner.
+
 ## Language data
 
 | Source | Used for |

@@ -7,6 +7,7 @@ Russian, because a miss may be the recogniser rather than the learner's mouth.
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from urllib.parse import quote
 
@@ -146,13 +147,26 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         passages = choose(
             content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
         ) if content is not None else []
+    if not passages:
+        from ..dictation import Passage, key_of
+        from ..lessons import examples
+
+        sentences = [row["before"] + row["answer"] + row["after"]
+                     for row in examples("olevik", count=max(1, min(count, 10)),
+                                         seed=seed if seed is not None else secrets.randbelow(2**31))]
+        passages = [Passage(text, key_of(text), len(text.split()), source_id="generated")
+                    for text in sentences]
     return {
         "passages": [p.to_dict() for p in passages],
         "words": [MIN_WORDS, MAX_WORDS],
         "caveat": CAVEAT,
+        "starter": any(p.source_id == "generated" for p in passages),
         # Both explain, so both are Russian: how the exercise works, and why there is no
         # exercise and what would produce one.
-        "note": ("Прослушай и запиши услышанное."
+        "note": ("Учебные предложения приложения: формы из Vabamorf/EKI. "
+                 "Прослушай и запиши услышанное."
+                 if any(p.source_id == "generated" for p in passages) else
+                 "Прослушай и запиши услышанное."
                  if passages else
                  "Диктанты (etteütlus) берутся из корпуса текстов, а его ещё "
                  "не добавили в приложение."),
@@ -272,6 +286,14 @@ def read_aloud(kind: str = "lause", n: int = 8, levels: str = "A1,A2,B1",
 
         items = sentences_to_say(content_db(), count=n, seed=seed, words=db(),
                                  known=known_lemmas(vocab_db()))
+        if not items:
+            from ..lessons import examples
+            from ..pronunciation import ReadAloud
+
+            items = [ReadAloud(row["before"] + row["answer"] + row["after"],
+                               "lause", None, "generated")
+                     for row in examples("olevik", count=max(1, min(n, 20)),
+                                         seed=seed if seed is not None else secrets.randbelow(2**31))]
     else:
         raise HTTPException(status_code=400, detail="kind must be sona or lause")
     return {"kind": kind, "items": [i.to_dict() for i in items]}

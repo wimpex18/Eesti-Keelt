@@ -8,7 +8,7 @@ uploaded" are different states and the learner is told which.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from pydantic import BaseModel, Field
 
@@ -126,6 +126,7 @@ def curriculum_path() -> dict:
                 "id": r.topic, "level": r.level, "et": r.et,
                 "ru": russian.get(r.topic, ""), "state": r.state,
                 "attempts": r.attempts, "accuracy": r.accuracy,
+                "drillable": r.drillable, "skipped": r.skipped,
                 # Ids kept as well: the page needs them to link, and a caller
                 # that wants to match on identity must not have to reverse a
                 # display string to get it back.
@@ -138,6 +139,22 @@ def curriculum_path() -> dict:
             for r in rows
         ],
     }
+
+
+class TopicSkip(BaseModel):
+    skip: bool = True
+
+
+@router.post("/api/course/topics/{topic}/skip")
+def skip_topic(topic: str, req: TopicSkip) -> dict:
+    """Move past a topic, or put it back, without asserting knowledge."""
+    from ..course import set_skip
+
+    try:
+        set_skip(progress_db(), topic, req.skip)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Такой темы нет.") from exc
+    return curriculum_path()
 
 
 @router.get("/api/lesson/{topic}")
@@ -230,7 +247,7 @@ def practice_items(req: PracticeRequest) -> dict:
         elif needs_corpus:
             detail = (
                 "Для этой темы нужен текстовый корпус, а он ещё не загружен на "
-                "сервер — задания появятся после `deploy/push-content.sh`."
+                "сервер. Выбери другую тему в курсе или открой правило."
             )
         else:
             detail = f"Генератор «{meta.generator}» ничего не вернул для этой темы."
@@ -407,6 +424,62 @@ def testout_items(topic: str, seed: int | None = None) -> dict:
 class TestOut(BaseModel):
     seed: int
     given: list[str] = Field(min_length=1, max_length=10)
+
+
+@router.get("/api/placement/next")
+def placement_next(seen: str = "", failed: str = "",
+                   limit: int = Query(3, ge=1, le=12)) -> dict:
+    """A bounded grammar entry assessment using the existing five-item probes.
+
+    Client history only chooses what to show. Actual passes are server-graded
+    test-outs; this endpoint never awards mastery or a certified CEFR level.
+    """
+    from ..curriculum import TOPICS, unlocks
+    from ..placement import MAX_FAILURES, candidates
+
+    identities = {topic.id for topic in TOPICS}
+    attempted = set(seen.split(",")) & identities
+    misses = set(failed.split(",")) & attempted
+    pruned = set().union(*(set(unlocks(topic)) for topic in misses)) if misses else set()
+    pending = [topic for topic in candidates(progress_db())
+               if topic.id not in attempted and topic.id not in pruned]
+    done = len(attempted) >= limit or len(misses) >= MAX_FAILURES or not pending
+    entries = [topic for topic in TOPICS if topic.id in misses]
+    entry = entries[0] if entries else (pending[0] if pending else None)
+    return {
+        "done": done,
+        "next": None if done else testout_items(pending[0].id),
+        "entry": ({"id": entry.id, "et": entry.et, "ru": entry.ru,
+                   "band": {"A1": "a1", "A2": "a2", "B1": "a2-b1"}[entry.level]}
+                  if entry else None),
+        "limit": limit,
+        "note": "Это точка входа в грамматику, а не подтверждение уровня CEFR.",
+    }
+
+
+@router.get("/api/learning/sentences")
+def learning_sentences(topic: str = "olevik", seed: int = 0) -> dict:
+    """Short, app-generated sentences for reading, listening and read-aloud.
+
+    This starter remains usable without an imported corpus. Forms and sentence
+    frames are the existing deterministic drills, with the rule source attached.
+    """
+    from ..curriculum import by_id
+    from ..lessons import examples
+
+    try:
+        meta = by_id(topic)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Такой темы нет.") from exc
+    return {
+        "topic": topic, "et": meta.et, "ru": meta.ru,
+        "sentences": [row["before"] + row["answer"] + row["after"]
+                      for row in examples(topic, count=5, seed=seed)],
+        "source": "Genereeritud harjutused",
+        "source_id": "generated",
+        "reference": _topic_reference(meta),
+        "note": "Учебные предложения приложения; формы проверены Vabamorf/EKI.",
+    }
 
 
 @router.post("/api/testout/{topic}")

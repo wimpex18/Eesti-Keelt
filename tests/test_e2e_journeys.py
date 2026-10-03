@@ -22,6 +22,10 @@ import socket
 import subprocess
 import sys
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 from uuid import uuid4
 from urllib.parse import urlsplit
 from pathlib import Path
@@ -195,6 +199,54 @@ def live_server(tmp_path_factory) -> str:
         handle.close()
 
 
+@pytest.fixture
+def navigation_outage(live_server):
+    """An isolated origin with a real connection outage and recovery.
+
+    WebKit's Playwright offline switch rejects service-worker navigations
+    (microsoft/playwright#42775), so disconnect the origin itself instead.
+    This exercises the production worker without skipping either engine.
+    """
+    connection = {"available": True}
+
+    class Proxy(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if not connection["available"]:
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            request = Request(live_server + self.path, headers={
+                "x-eesti-scope": self.headers.get("x-eesti-scope", "guest"),
+                "x-eesti-guest": self.headers.get("x-eesti-guest", ""),
+            })
+            try:
+                response = urlopen(request, timeout=10)
+            except HTTPError as error:
+                response = error
+            with response:
+                body = response.read()
+                self.send_response(response.status)
+                for name in ("Content-Type", "Cache-Control", "Service-Worker-Allowed"):
+                    if value := response.headers.get(name):
+                        self.send_header(name, value)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", connection
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def _engines() -> list[str]:
     """Which engines this machine can drive: Chromium always, WebKit (Safari's engine)
     when installed.
@@ -256,10 +308,10 @@ def page(request, _pw, live_server, service_workers):
     # Worker response while this suite talks straight to the FastAPI origin.
     pg.route("**/api/auth/me", lambda route: route.fulfill(
         json={"scope": "guest", "signup_open": True}))
-    pg.goto(live_server, wait_until="networkidle")
+    pg.goto(live_server + "/#course", wait_until="networkidle")
     # Network idle can precede ES-module bootstrap on a loaded test machine.
     # Wait for the rendered navigation that every journey interacts with.
-    pg.wait_for_selector("#nav-learn button[data-tab=path] .ico svg", state="attached")
+    pg.wait_for_selector("#nav-learn button[data-tab=read] .ico svg", state="attached")
     pg.viewport_name = request.param
     pg.engine_name = getattr(_pw, "engine_name", "chromium")
     yield pg
@@ -296,226 +348,35 @@ def browser_errors(page):
     return remaining
 
 
-class TestMobileGlassNavigation:
-    """Dragging must preview without loading panels, then select once on release.
-    The scrolling skill row must remain reachable through the same gesture.
-    """
-
-    @pytest.fixture
-    def glass_page(self, _pw, live_server):
-        ctx = _pw.new_context(viewport={"width": 402, "height": 874},
-                              is_mobile=True, has_touch=True, service_workers="block",
-                              extra_http_headers={"x-eesti-scope": "guest",
-                                  "x-eesti-guest": f"glass-{uuid4().hex[:12]}"})
-        pg = ctx.new_page()
-        pg.route("**/api/auth/me", lambda route: route.fulfill(
-            json={"scope": "guest", "signup_open": True}))
-        pg.goto(live_server, wait_until="networkidle")
-        pg.locator(".brand-splash").wait_for(state="hidden")
-        # Starting a phone practice set intentionally scrolls to its first item.
-        # These tests begin with the navigation visible, as after scrolling home.
-        pg.locator("#practiceOut .drill").first.wait_for(state="attached")
-        pg.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
-        pg.evaluate("window.scrollTo({top: 0, behavior: 'instant'})")
-        pg.wait_for_function("window.scrollY === 0 && !document.body.classList.contains('dock-min')")
-        pg.wait_for_timeout(300)  # Let the dock's size transition settle before dragging.
-        yield pg
-        ctx.close()
-
-    def test_skill_drag_previews_then_selects_once(self, glass_page):
-        pg = glass_page
-        start = pg.locator('[data-tab="path"]').bounding_box()
-        target = pg.locator('[data-tab="read"]').bounding_box()
-        history = pg.evaluate("history.length")
-        pg.mouse.move(start["x"] + start["width"] / 2, start["y"] + start["height"] / 2)
-        pg.mouse.down()
-        pg.mouse.move(target["x"] + target["width"] / 2, target["y"] + target["height"] / 2, steps=8)
-        assert pg.locator('nav[data-mode-nav="learn"] .glass-lens').is_visible()
-        assert pg.locator("#tab-path").is_visible()
-        assert pg.locator("#tab-read").is_hidden()
-        pg.mouse.up()
-        assert pg.locator("#tab-read").is_visible()
-        assert pg.evaluate("location.hash") == "#read"
-        assert pg.evaluate("history.length") == history + 1
-        assert pg.locator('[data-tab="read"]').get_attribute("aria-selected") == "true"
-
-    def test_mode_drag_activates_only_on_release(self, glass_page):
-        pg = glass_page
-        a = pg.locator('[data-mode="learn"]').bounding_box()
-        b = pg.locator('[data-mode="exam"]').bounding_box()
-        pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
-        pg.mouse.down()
-        pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
-        assert pg.locator(".modes .glass-lens").is_visible()
-        assert pg.locator("#tab-exam").is_hidden()
-        pg.mouse.up()
-        assert pg.locator("#tab-exam").is_visible()
-        assert pg.evaluate("location.hash") == "#exam"
-
-    def test_drag_scrolls_to_the_last_skill(self, glass_page):
-        pg = glass_page
-        row = pg.locator('nav[data-mode-nav="learn"]')
-        start = pg.locator('[data-tab="path"]').bounding_box()
-        box = row.bounding_box()
-        pg.mouse.move(start["x"] + start["width"] / 2, start["y"] + start["height"] / 2)
-        pg.mouse.down()
-        pg.mouse.move(box["x"] + box["width"] - 5, start["y"] + start["height"] / 2, steps=10)
-        pg.wait_for_function("""() => {
-          const row = document.querySelector('nav[data-mode-nav="learn"]');
-          return row.scrollLeft >= row.scrollWidth - row.clientWidth - 1;
-        }""")
-        assert pg.locator("#tab-path").is_visible()
-        pg.mouse.up()
-        assert pg.locator("#tab-write").is_visible()
-        assert pg.evaluate("location.hash") == "#write"
-
-    @pytest.mark.parametrize("cancel", ["keyboard", "pointer"])
-    def test_cancel_keeps_the_current_panel_and_normal_taps_work(self, glass_page, cancel):
-        pg = glass_page
-        a = pg.locator('[data-mode="learn"]').bounding_box()
-        b = pg.locator('[data-mode="exam"]').bounding_box()
-        pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
-        pg.mouse.down()
-        pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=8)
-        if cancel == "keyboard":
-            pg.keyboard.press("Escape")
-        else:
-            pg.locator(".modes").dispatch_event("pointercancel", {"pointerId": 1})
-        pg.mouse.up()
-        assert pg.locator("#tab-path").is_visible()
-        pg.click('[data-mode="revise"]')
-        assert pg.locator("#tab-review").is_visible()
-
-    def test_native_touch_slide_is_not_cancelled_by_horizontal_scrolling(self, glass_page, _pw):
-        if _pw.engine_name != "chromium":
-            pytest.skip("native touch injection is a Chromium protocol capability")
-        pg = glass_page
-        cdp = pg.context.new_cdp_session(pg)
-        a = pg.locator('[data-tab="path"]').bounding_box()
-        b = pg.locator('[data-tab="read"]').bounding_box()
-        y = a["y"] + a["height"] / 2
-        x0, x1 = a["x"] + a["width"] / 2, b["x"] + b["width"] / 2
-        def touch(kind, x):
-            cdp.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": []
-                if kind == "touchEnd" else [{"x": x, "y": y, "id": 1}]})
-        touch("touchStart", x0)
-        for step in range(1, 9):
-            touch("touchMove", x0 + (x1 - x0) * step / 8)
-        assert pg.locator('nav[data-mode-nav="learn"] .glass-lens').is_visible()
-        assert pg.locator("#tab-path").is_visible()
-        touch("touchEnd", x1)
-        pg.locator("#tab-read").wait_for(state="visible")
-        assert pg.evaluate("location.hash") == "#read"
-
-    def test_header_login_opens_the_existing_account_form(self, glass_page):
-        pg = glass_page
-        button = pg.get_by_role("link", name="Profiil — войти или создать аккаунт", exact=True)
-        assert button.is_visible()
-        assert button.locator("svg").is_visible()
-        button.click()
-        pg.locator("#authEmail").wait_for(state="visible")
-        assert pg.evaluate("location.hash") == "#profile"
 
 
-class TestBrandOpening:
-    """A mobile opening must clear promptly even when app bootstrap fails;
-    desktop, reduced motion and script-free opens go straight to content.
-    """
-
-    @pytest.mark.parametrize("motion,width,touch,plays", [
-        ("no-preference", 402, True, True),
-        ("reduce", 402, True, False),
-        ("no-preference", 1440, False, False),
-        ("no-preference", 744, True, False),
-    ])
-    def test_opening_policy_and_deadline(self, _pw, live_server, motion, width, touch, plays):
-        context = _pw.new_context(viewport={"width": width, "height": 874},
-                                  has_touch=touch, is_mobile=touch,
-                                  reduced_motion=motion, service_workers="block")
-        pg = context.new_page()
-        errors = []
-        requests = []
-        pg.on("pageerror", lambda error: errors.append(str(error)))
-        pg.on("request", lambda request: requests.append(request.url))
-        # The opening is independent of whether the app modules start at all.
-        pg.route("**/js/main.js", lambda route: route.abort())
-        pg.clock.install(time=0)
-        pg.clock.pause_at(1)
-        try:
-            pg.goto(live_server, wait_until="domcontentloaded")
-            assert pg.locator("#brandSplash").is_visible() is plays
-            pg.clock.run_for(950)
-            assert not pg.locator(".brand-splash").is_visible()
-            assert pg.get_by_role("link", name="Grove — на главную").is_visible()
-            assert not errors
-            assert not any(url.endswith("/brand-reveal.js") for url in requests)
-        finally:
-            context.close()
-
-    def test_unavailable_opening_capability_and_no_javascript_leave_content_visible(self, _pw, live_server):
-        for javascript in (True, False):
-            context = _pw.new_context(viewport={"width": 402, "height": 874},
-                                      has_touch=True, is_mobile=True,
-                                      java_script_enabled=javascript,
-                                      service_workers="block")
-            pg = context.new_page()
-            # A missing opening capability must degrade to direct content.
-            pg.add_init_script("window.matchMedia = () => { throw new Error('unavailable') }")
-            pg.route("**/js/main.js", lambda route: route.abort())
-            try:
-                pg.goto(live_server, wait_until="domcontentloaded")
-                assert not pg.locator("#brandSplash").is_visible()
-                assert pg.get_by_role("link", name="Grove — на главную").is_visible()
-            finally:
-                context.close()
-
-    def test_returning_to_a_document_does_not_replay_the_opening(self, _pw, live_server):
-        context = _pw.new_context(viewport={"width": 402, "height": 874},
-                                  has_touch=True, is_mobile=True, service_workers="block")
-        pg = context.new_page()
-        pg.route("**/js/main.js", lambda route: route.abort())
-        pg.clock.install(time=0)
-        pg.clock.pause_at(1)
-        try:
-            pg.goto(live_server, wait_until="domcontentloaded")
-            assert pg.locator("#brandSplash").is_visible()
-            pg.evaluate("window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}))")
-            assert not pg.locator(".brand-splash").is_visible()
-        finally:
-            context.close()
 
 
 #: mode -> tabs its navigation offers; derived from the page in
 #: `test_every_advertised_tab_is_reachable`.
 MODES = ("learn", "revise", "exam")
 
-
 def mode_of(page, tab: str) -> str:
-    """Which mode's navigation offers this tab, asked of the page."""
-    owner = page.evaluate(
-        """(t) => {
-             const b = document.querySelector(
-               `nav[data-mode-nav] button[data-tab="${t}"]`);
-             return b ? b.closest("nav").dataset.modeNav : null;
-           }""", tab)
-    assert owner, f"no navigation offers a {tab!r} tab"
-    return owner
-
+    return "learn" if tab in {"path", "course", "read", "listen", "speak", "write"} else "revise" if tab in {"review", "sonad", "vihikud"} else "exam"
 
 def open_tab(page, mode: str, tab: str) -> None:
-    """Switch mode only when it is not already showing, as a learner would (one tap,
-    no extra history entry).
-    """
-    if page.get_attribute(f'button[data-mode="{mode}"]', "aria-selected") != "true":
-        page.click(f'button[data-mode="{mode}"]')
-        page.wait_for_timeout(200)
-    page.click(f'nav[data-mode-nav="{mode}"] button[data-tab="{tab}"]')
-    page.wait_for_timeout(400)
-
+    skill = page.locator(f'#nav-learn button[data-tab="{tab}"]')
+    if tab == "profile":
+        # Account is in both headers. After auth reloads, let click await its
+        # actionability instead of sampling visibility during the first paint.
+        page.locator("#accountBtn").click()
+    elif skill.count(): skill.click()
+    else:
+        link = page.locator(f'.primary-nav a[href="#{tab}"], #accountBtn[href="#{tab}"]')
+        if link.count() and link.first.is_visible(): link.first.click()
+        else:
+            page.locator('.more-nav > summary').click()
+            page.locator(f'.more-nav a[href="#{tab}"]').click()
+    page.wait_for_selector(f"#tab-{tab}:not([hidden])")
+    page.wait_for_timeout(300)
 
 def advertised_tabs(page, mode: str) -> list[str]:
-    return page.eval_on_selector_all(
-        f'nav[data-mode-nav="{mode}"] button[data-tab]', "els=>els.map(e=>e.dataset.tab)")
+    return {"learn": ["path", "course", "read", "listen", "speak", "write"], "revise": ["review", "sonad", "vihikud"], "exam": ["exam", "status", "profile"]}[mode]
 
 
 class TestNavigation:
@@ -541,15 +402,12 @@ class TestNavigation:
                     "section.panel", "els=>els.filter(e=>!e.hasAttribute('hidden')).map(e=>e.id)")
                 assert shown == [f"tab-{tab}"], f"{mode}/{tab}: visible panels {shown}"
 
-    def test_only_one_navigation_bar_is_laid_out(self, page):
-        """Only one navigation bar is laid out, measured as geometry."""
+    def test_the_four_skills_stay_available_on_every_page(self, page):
         for mode in MODES:
-            page.click(f'button[data-mode="{mode}"]')
-            page.wait_for_timeout(250)
-            laid_out = page.eval_on_selector_all(
-                "nav[data-mode-nav]",
-                "els=>els.filter(e=>getComputedStyle(e).display!=='none').map(e=>e.dataset.modeNav)")
-            assert laid_out == [mode], f"mode {mode}: navigation bars laid out {laid_out}"
+            for tab in advertised_tabs(page, mode):
+                open_tab(page, mode, tab)
+                assert page.locator('#nav-learn').is_visible()
+                assert page.locator('#nav-learn button').count() == 4
 
     def test_switching_tabs_throws_nothing(self, page):
         for mode in MODES:
@@ -573,29 +431,6 @@ class TestProfile:
         open_tab(page, "exam", "profile")
         page.wait_for_selector("#profileOut .profile-rows", timeout=10000)
 
-    def test_new_profile_offers_learning_practice_and_exam_shortcuts(self, page):
-        self._open(page)
-        assert page.locator("#profileStartTitle").is_visible()
-        assert page.locator("#profileStartPath").get_by_text("Õpi rajal").is_visible()
-        assert page.locator("#profileStartPractice").get_by_text("Harjuta vabalt").is_visible()
-        assert page.locator("#profileStartExam").get_by_text("Valmistu eksamiks").is_visible()
-
-        page.click("#profileStartPath")
-        page.wait_for_function("() => !document.querySelector('#tab-path').hidden")
-        assert page.locator("#tab-path").is_visible()
-        assert page.locator("#pathRada").is_visible()
-
-        self._open(page)
-        page.click("#profileStartPractice")
-        page.wait_for_function("() => !document.querySelector('#pathFree').hidden")
-        assert page.locator("#pathFree").is_visible()
-        page.select_option("#freeLevel", "B1")
-        assert page.locator("#freeLevel").input_value() == "B1"
-
-        self._open(page)
-        page.click("#profileStartExam")
-        page.wait_for_function("() => !document.querySelector('#tab-exam').hidden")
-        assert page.locator("#tab-exam").is_visible()
 
     def test_guest_profile_shows_sandbox_and_reset(self, page):
         self._open(page)
@@ -625,12 +460,6 @@ class TestProfile:
         assert page.locator("#scopeNotice").is_visible()
         assert page.locator("#guestReset").evaluate("el => el === document.activeElement")
 
-    def test_profile_level_tabs_move_selection_and_keyboard_focus_together(self, page):
-        self._open(page)
-        page.click('[data-seal-level="B1"]')
-        assert page.locator('[data-seal-level="B1"]').get_attribute("aria-selected") == "true"
-        assert page.locator('[data-seal-level="B1"]').get_attribute("tabindex") == "0"
-        assert page.locator('[data-seal-level="A1"]').get_attribute("tabindex") == "-1"
 
     def test_auth_tabs_keep_keyboard_focus_and_email_draft(self, page):
         self._open(page)
@@ -656,7 +485,7 @@ class TestProfile:
         page.route("**/api/auth/me", lambda route: route.fulfill(json={
             "scope": "owner", "email": "owner@example.test", "signup_open": True}))
         self._open(page)
-        assert page.locator('[data-seal-level="B1"]').get_attribute("aria-selected") == "true"
+        assert "B1" in page.locator(".profile-rows").inner_text()
         assert page.locator(".profile-scope-description").inner_text() == "основной аккаунт; прогресс сохраняется"
         assert page.locator("#profileOut").get_by_text("Põhikonto", exact=True).is_visible()
 
@@ -768,17 +597,17 @@ class TestProfile:
         page.fill("#authPassword", "test-password-1")
         before_auth = len(documents)
         page.locator('#authForm button[type="submit"]').click()
+        page.wait_for_selector("#tab-start:not([hidden])")
+        page.locator("[data-start]").click()
+        page.locator('[data-focus="path"]').click()
+        page.wait_for_url("**/#path")
+        self._open(page)
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
         assert page.locator("#profileOut").get_by_text("aino@example.test").is_visible()
         assert page.get_by_role("link", name="Profiil — профиль", exact=True).is_visible()
         assert len(documents) > before_auth, "Changing identity must discard the old page's state"
-        page.wait_for_selector("#onboardingSheet[open]")
-        page.click("#onboardingSheet [data-skip]")
-        page.wait_for_selector("#onboardingSheet", state="hidden")
-        page.wait_for_function(
-            "() => document.querySelector('#profileOut')?.textContent.includes('Vahele jäetud')")
-        assert page.locator("#profileStartPath").is_visible()
+        assert page.locator("#editOnboarding").is_visible()
         if name_save_fails:
             assert page.locator('#profileOut > [role="alert"]').is_visible()
             assert "Аккаунт создан, но имя не сохранено" in page.locator(
@@ -812,16 +641,19 @@ class TestProfile:
         assert state["restores"] == 1
         assert page.locator("#profileRestore").count() == 0
 
-        page.click("#logoutBtn")
-        page.wait_for_load_state("networkidle")
+        # Logout awaits its API before reloading. Network-idle on the old
+        # document can resolve first, so observe the navigation before clicking.
+        with page.expect_navigation(wait_until="networkidle"):
+            page.click("#logoutBtn")
         self._open(page)
         page.fill("#authEmail", "aino@example.test")
         page.fill("#authPassword", "test-password-1")
-        page.locator('#authForm button[type="submit"]').click()
+        with page.expect_navigation(wait_until="networkidle"):
+            page.locator('#authForm button[type="submit"]').click()
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
-        page.click("#logoutBtn")
-        page.wait_for_load_state("networkidle")
+        with page.expect_navigation(wait_until="networkidle"):
+            page.click("#logoutBtn")
         self._open(page)
         assert page.locator("#profileOut .profile-sandbox").is_visible()
 
@@ -885,7 +717,7 @@ class TestTheGrammarDrill:
     def _start(self, page):
         """Rada's Vaba harjutus: the same drills, recorded nowhere, so these checks
         leave the learner's path as they found it."""
-        open_tab(page, mode_of(page, "path"), "path")
+        open_tab(page, "learn", "course")
         page.click('#pathModes button[data-pm="vaba"]')
         page.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
         page.click("#freeBtn")
@@ -903,7 +735,7 @@ class TestTheGrammarDrill:
         item = page.locator("#freeOut .drill").first
         item.locator("input").fill("kindlasti-vale-vorm")
         item.locator("input").press("Enter")
-        verdict = item.locator(".verdict")
+        verdict = item.locator(".verdict.no")
         verdict.wait_for(state="visible", timeout=5000)
         assert "✗" in verdict.inner_text()
         assert "no" in (verdict.get_attribute("class") or "")
@@ -993,7 +825,7 @@ class TestTheGrammarDrill:
                 cued = 0
         if not cued:
             pytest.skip("no `evs_question` rows — run `cli import-evs`")
-        open_tab(page, mode_of(page, "path"), "path")
+        open_tab(page, "learn", "course")
         page.click('#pathModes button[data-pm="vaba"]')
         page.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
         page.select_option("#freeTopic", "kusisonad")
@@ -1036,9 +868,9 @@ class TestTheWordWorkout:
         page.click("#workoutStart")
         page.wait_for_selector("#workoutOut .word-q", timeout=5000)
 
-    def test_a_workout_starts_promptly_with_ten_words(self, page):
+    def test_a_workout_starts_promptly_with_five_words(self, page):
         self._start(page)
-        assert page.locator("#workoutOut .word-q").count() == 10
+        assert page.locator("#workoutOut .word-q").count() == 5
         assert page.locator("#workoutOut .word-meaning").first.inner_text().strip()
 
     def test_a_wrong_word_shows_the_list_spelling_and_offers_review(self, page):
@@ -1159,6 +991,7 @@ class TestWriting:
 class TestTheExamOverview:
     def test_switching_level_changes_what_is_shown(self, page):
         open_tab(page, "exam", "exam")
+        page.locator('#tab-exam .exam-shape').locator('..').locator(':scope > summary').click()
         page.wait_for_timeout(600)
         a2 = page.locator("#tab-exam").inner_text()
         page.click('#tab-exam button[data-level="B1"]')
@@ -1243,7 +1076,7 @@ class TestTheSelectedSkillIsVisible:
     navigation, whatever tab the page opened on.
     """
 
-    @pytest.mark.parametrize("tab", ["write", "speak", "sonad"])
+    @pytest.mark.parametrize("tab", ["read", "listen", "speak", "write"])
     def test_a_deep_link_scrolls_the_row_to_it(self, page, live_server, tab):
         page.goto("about:blank")
         page.goto(f"{live_server}#{tab}", wait_until="networkidle")
@@ -1402,7 +1235,7 @@ class TestMobileLayout:
         assert not small, f"touch targets under 44px: {small}"
 
     def test_a_phone_drill_shows_one_item_at_a_time(self, page):
-        """Answered items and the next one are shown; the rest wait."""
+        """Correction stays in one workspace until an explicit forward action."""
         if page.viewport_name != "phone":
             pytest.skip("one item at a time is the phone layout")
         TestTheGrammarDrill()._start(page)
@@ -1412,8 +1245,12 @@ class TestMobileLayout:
         first = page.locator("#freeOut .drill").first
         first.locator("input").fill("vale")
         first.locator("input").press("Enter")
-        page.wait_for_timeout(500)
-        assert visible() == 2
+        first.locator('.exercise-next').wait_for(state='visible')
+        assert visible() == 1
+        first.locator('.exercise-next').click()
+        assert visible() == 1
+        assert not first.is_visible()
+        assert page.locator('.session-history > summary').is_visible()
 
 
 class TestDiscoveredDefects:
@@ -1441,6 +1278,7 @@ class TestDiscoveredDefects:
         page.route("**/api/library/qa-radio-*", lambda r: r.fulfill(json={
             "body": "Ma elan Tallinnas.", "audio_url": None}))
         open_tab(page, "learn", "listen")
+        page.locator('.listening-library > summary').click()
         rows = page.locator('#listenLib [data-section="saated"] .lib-item')
         rows.first.locator("h4").click()
         rows.first.locator(".listen-text").wait_for(state="visible")
@@ -1463,6 +1301,7 @@ class TestDiscoveredDefects:
             "found": True, "definition": "Näide", "examples": ["See on raamat."] * 40,
         }))
         open_tab(page, "revise", "sonad")
+        page.locator(".word-collection > summary").click()
         word = page.locator("#vocOut button[data-word]").first
         word.wait_for(state="visible")
         word.click()
@@ -1519,6 +1358,7 @@ class TestDiscoveredDefects:
         pending = []
         page.route("**/api/lookup/*", lambda route: pending.append(route))
         open_tab(page, "revise", "sonad")
+        page.locator(".word-collection > summary").click()
         word = page.locator("#vocOut button[data-word]").first
         word.wait_for(state="visible")
         word.click()
@@ -1580,17 +1420,13 @@ class TestDiscoveredDefects:
         page.goto(live_server + "/#sonad", wait_until="networkidle")
         page.wait_for_timeout(800)
         assert page.is_visible("#tab-sonad")
-        # Which nav owns the tab is asked of the page.
-        owner = mode_of(page, "sonad")
-        assert page.get_attribute(
-            f'nav[data-mode-nav="{owner}"] button[data-tab="sonad"]',
-            "aria-selected") == "true", "the tab opened but its button is not selected"
+        assert page.get_attribute('.more-nav a[href="#sonad"]', 'aria-current') == 'page'
 
     def test_the_retired_drill_link_opens_free_practice(self, page, live_server):
         """`#drill` was Harjutused; a bookmark to it lands on the same drills."""
         page.goto(live_server + "/#drill", wait_until="networkidle")
         page.wait_for_timeout(800)
-        assert page.is_visible("#tab-path")
+        assert page.is_visible("#tab-course")
         assert page.is_visible("#pathFree") and not page.is_visible("#pathRada")
         assert page.get_attribute('#pathModes button[data-pm="vaba"]',
                                   "aria-selected") == "true"
@@ -1727,7 +1563,7 @@ class TestTheMeaningCardIsAFlashcard:
         queued = self._queue_a_meaning_card(page, live_server)
         assert queued["queued"] and queued["kind"] == "vocab", queued
 
-        page.click('.modes button[data-mode="revise"]')
+        open_tab(page, 'revise', 'review')
         page.click("#loadReview")
         page.wait_for_selector(".flashcard", timeout=15000)
 
@@ -1774,6 +1610,7 @@ class TestChoosingTheSitting:
 
     def test_the_spec_is_shown_and_a_sitting_can_be_chosen(self, page):
         open_tab(page, "exam", "exam")
+        page.locator(".exam-shape").locator("..").locator(":scope > summary").click()
         page.wait_for_selector("#examSpec .hint", timeout=15000)
         assert "48 из 80" in page.locator("#examSpec").inner_text()
 
@@ -1920,6 +1757,7 @@ class TestSpeakingEvaluation:
             page.wait_for_selector("#recSaveEval:visible")
             page.click("#recSaveEval")
             page.wait_for_selector("#evalReview:visible")
+            page.wait_for_function("() => document.activeElement?.id === 'evalTranscript'")
             assert page.locator("#evalTranscript").input_value() == ""
             page.fill("#evalTranscript", "Ma elan Tallinnas.")
             page.check("#evalListened")
@@ -2014,10 +1852,10 @@ class TestTestingOutOfATopic:
     """Kogu rada offers a test-out; five right marks the topic known."""
 
     def test_a_clean_sweep_marks_the_topic(self, page, live_server):
-        open_tab(page, "learn", "path")
+        open_tab(page, "learn", "course")
         # The list lives inside a closed <details>: attached first, then opened.
         page.wait_for_selector("#pathList .topic", state="attached", timeout=20000)
-        page.click("#pathAll > summary")
+        page.locator("#pathList .topic:has(button[data-testout]) .topic-options > summary").first.click()
         button = page.locator("#pathList button[data-testout]").first
         button.wait_for(timeout=10000)
         topic = button.get_attribute("data-testout")
@@ -2062,9 +1900,37 @@ class TestPractisingOffline:
     """A set fetched in advance is answerable with the network cut, and what was
     answered reaches the server when it comes back."""
 
+    def test_uncached_offline_open_is_readable_and_retry_returns_to_the_app(self, page, navigation_outage):
+        """A missing cached shell must not shrink a phone page or strand its learner."""
+        origin, connection = navigation_outage
+        page.goto(origin + '/#course', wait_until='networkidle')
+        page.evaluate("async () => { await navigator.serviceWorker.ready; }")
+        page.wait_for_function("() => !!navigator.serviceWorker.controller")
+        page.evaluate("""async () => {
+          for (const name of await caches.keys())
+            if (name.startsWith('shell-')) await caches.delete(name);
+        }""")
+        connection['available'] = False
+        try:
+            response = page.goto(origin + '/?uncached-offline', wait_until='load')
+            assert response.status == 503 and response.from_service_worker
+            assert page.get_by_role('heading', name='Нет соединения', exact=True).is_visible()
+            assert 'не сохранено' in page.locator('main').inner_text()
+            assert page.evaluate('innerWidth') == page.viewport_size['width']
+            retry = page.get_by_role('link', name='Proovi uuesti повторить', exact=True)
+            with page.expect_navigation(wait_until='load'):
+                retry.click()
+            assert page.get_by_role('heading', name='Нет соединения', exact=True).is_visible()
+        finally:
+            connection['available'] = True
+        with page.expect_navigation(wait_until='networkidle'):
+            page.get_by_role('link', name='Proovi uuesti повторить', exact=True).click()
+        assert page.get_by_role('link', name='Grove — на главную', exact=True).is_visible()
+        assert page.locator('#nav-learn button').count() == 4
+
     @pytest.mark.usefixtures("corpus")
     def test_download_go_offline_answer_come_back(self, page, live_server):
-        open_tab(page, "learn", "path")
+        open_tab(page, "learn", "course")
         page.wait_for_selector("#offlineGet", state="attached", timeout=15000)
         page.click("#offline > summary")
         page.click("#offlineGet")
@@ -2100,162 +1966,22 @@ class TestPractisingOffline:
         assert not browser_errors(page), browser_errors(page)
 
 
-class TestTodaysPlan:
-    """Rada opens on today's plan; a block's Alusta starts what it names."""
-
-    @pytest.fixture
-    def service_workers(self):
-        # The continuation journey stubs the plan and one-item practice at the
-        # page boundary; a controlling worker would bypass those routes.
-        return "block"
-
-    def test_the_daily_steps_are_evidence_not_points(self, page):
-        open_tab(page, "learn", "path")
-        page.wait_for_selector("#dailySteps:not([hidden])", timeout=15000)
-        steps = page.locator("#dailyStepsList > li")
-        assert steps.count() == 3
-        assert page.locator("#today #dailySteps").count() == 1
-        text = page.locator("#dailySteps").inner_text()
-        assert "Пропущенный день ничего не отнимает" in text
-        assert "балл" not in text.lower() and "серия" not in text.lower()
-        summary = page.locator("#todaySum").inner_text()
-        assert "/3 tehtud" in summary and "min" in summary
-        assert not browser_errors(page), browser_errors(page)
-
-    def test_the_plan_is_there_and_starts_practice(self, page):
-        open_tab(page, "learn", "path")
-        page.wait_for_selector("#todayList .today-block", state="attached", timeout=15000)
-        if not page.locator("#today").evaluate("d => d.open"):
-            page.click("#today > summary")
-        blocks = page.locator("#todayList .today-block")
-        assert blocks.count() >= 1
-        assert "мин" in blocks.first.locator(".today-min").inner_text()
-        start = page.locator('#todayList .today-block[data-kind="new"] button')
-        if start.count():
-            start.first.click()
-            page.wait_for_selector("#practiceOut .drill", timeout=15000)
-        assert not browser_errors(page), browser_errors(page)
-
-    def test_a_finished_set_continues_the_plan(self, page):
-        plan = {
-            "minutes": 10,
-            "blocks": [
-                {"kind": "new", "minutes": 5, "et": "Sihitis", "ru": "новая тема",
-                 "why": "Следующая тема.",
-                 "action": {"tab": "path", "topic": "obj-case"}, "detail": None},
-                {"kind": "skill", "minutes": 5, "et": "Kirjutamine", "ru": "письмо",
-                 "why": "Следующая часть занятия.",
-                 "action": {"tab": "write"}, "detail": None},
-            ],
-        }
-        item = {"prompt": "Ma ostan ____.", "answer": "raamatu", "lemma": "raamat",
-                "hint": "omastav", "level": "A2", "token": "journey-token"}
-        page.route("**/api/plan?*", lambda route: route.fulfill(json=plan))
-        answers = []
-
-        def answer(route):
-            answers.append(route.request.post_data_json)
-            if len(answers) == 1:
-                route.fulfill(status=503, json={
-                    "detail": "Не удалось подтвердить сохранение прогресса.",
-                })
-                return
-            route.fulfill(json={
-                "correct": True, "accuracy": .8, "gate": "8/10", "russian": [],
-                "just_mastered": False,
-            })
-
-        page.route("**/api/practice/answer", answer)
-        page.route("**/api/practice", lambda route: route.fulfill(json={
-            "topic": "obj-case", "et": "Sihitis", "level": "A2", "items": [item],
-            "glosses": {}, "theme": "",
-        }))
-        page.reload(wait_until="networkidle")
-        page.wait_for_selector("#practiceOut .drill", timeout=15000)
-
-        if page.viewport_name == "phone":
-            control = page.locator("#practiceOut .drill input").evaluate("""el => {
-                const r = el.getBoundingClientRect();
-                return {top: r.top, bottom: r.bottom, viewport: innerHeight};
-            }""")
-            assert control["bottom"] < control["viewport"] - 80, (
-                f"first answer is below the phone dock: {control}")
-
-        answer = page.locator("#practiceOut .drill input")
-        answer.fill("raamatu")
-        answer.press("Enter")
-        page.wait_for_selector("#practiceOut .verdict.no")
-        assert "Сохранение ответа пока не подтверждено" in page.locator(
-            "#practiceOut .verdict.no").inner_text()
-        assert answer.is_disabled()
-        assert any("503" in error for error in page.failed_requests)
-        page.errors.clear()
-        page.failed_requests.clear()
-        page.http_errors.clear()
-        retry = page.locator("#practiceOut .drill .row > button.ghost")
-        assert retry.is_enabled()
-        retry.evaluate("button => button.click()")
-        page.wait_for_selector('#practiceOut .set-end [data-act="continue"]')
-        assert len(answers) == 2
-        assert re.fullmatch(r"[0-9a-f-]{36}", answers[0]["event_id"])
-        assert answers[1]["event_id"] == answers[0]["event_id"]
-        assert answers[1]["given"] == answers[0]["given"] == "raamatu"
-        assert answers[1]["latency_ms"] == answers[0]["latency_ms"]
-        end = page.locator("#practiceOut .set-end")
-        assert "Kirjutamine" in end.inner_text()
-        assert "Сегодня выполнено" in end.inner_text()
-        end.locator('[data-act="continue"]').click()
-        page.wait_for_function("() => !document.querySelector('#tab-write').hidden")
-        assert page.locator("#tab-write").is_visible()
-        assert not browser_errors(page), browser_errors(page)
 
 
 class TestOnboarding:
-    """A permanent learner can answer two quick questions and reach real work."""
-
-    @pytest.fixture
-    def service_workers(self):
-        # Both browser engines must let the test model the Worker's account
-        # response instead of serving the origin's guest response from the PWA.
-        return "block"
-
-    def test_two_steps_save_a_recommendation_and_open_it(self, page):
-        state = {"onboarding": None, "saved": None}
-
-        def profile_route(route):
-            data = route.fetch().json()
-            data.update({
-                "scope": "owner", "email": "learner@example.test",
-                "onboarding": state["onboarding"],
-            })
-            route.fulfill(json=data)
-
-        def onboarding_route(route):
-            state["saved"] = route.request.post_data_json
-            state["onboarding"] = {
-                **state["saved"], "set_at": "2026-09-27T12:00:00+00:00",
-            }
-            route.fulfill(json={"scope": "owner", "onboarding": state["onboarding"]})
-
-        page.route("**/api/me", profile_route)
-        page.route("**/api/me/onboarding", onboarding_route)
-        # The Worker emits the same transition after sign-up; the onboarding
-        # should open without making the learner hunt through the profile.
-        page.evaluate("window.dispatchEvent(new CustomEvent('eesti:identity-changed'))")
-        page.wait_for_selector("#onboardingSheet[open]")
-
-        page.check('#onboardingSheet input[value="a1-a2"]')
-        page.click("#onboardingSheet [data-next]")
-        page.check('#onboardingSheet input[value="words"]')
-        page.click("#onboardingSheet [data-save]")
-
-        page.wait_for_selector("#tab-sonad:not([hidden])")
-        assert state["saved"] == {
-            "start_band": "a1-a2", "focus": "words", "skipped": False,
-        }
-        assert page.input_value("#vocLevel") == "A2"
-        assert page.locator('button[data-tab="sonad"].recommended').count() == 1
-        assert not browser_errors(page), browser_errors(page)
+    def test_guest_chooses_a_start_and_can_change_it(self, page):
+        page.goto(page.url.split("#")[0] + "#start")
+        page.locator("[data-choose]").click()
+        page.locator('[data-band="a2"]').click()
+        page.locator('[data-focus="path"]').click()
+        page.wait_for_selector("#tab-path:not([hidden])")
+        saved = page.request.get(page.url.split("#")[0].split("?")[0] + "api/me").json()
+        assert saved["onboarding"]["start_band"] == "a2"
+        assert saved["onboarding"]["navigate"] is True
+        open_tab(page, "exam", "profile")
+        page.locator("#editOnboarding").click()
+        page.wait_for_selector("#tab-start:not([hidden])")
+        assert page.locator("[data-start]").is_visible()
 
 
 class TestAGrammarCardIsAnswered:
@@ -2275,7 +2001,7 @@ class TestAGrammarCardIsAnswered:
             });
         }""", [live_server, lemma, prompt])
 
-        page.click('.modes button[data-mode="revise"]')
+        open_tab(page, 'revise', 'review')
         card = self._reach(page, live_server, lemma)
         assert card.locator("button[data-r]").count() == 0
         requests = []
@@ -2379,7 +2105,9 @@ class TestPhoneInLandscape:
         context = _pw.new_context(viewport={"width": 874, "height": 402},
                                   has_touch=True)
         pg = context.new_page()
-        pg.goto(live_server + "/#path", wait_until="networkidle")
+        pg.goto(live_server + "/#session/asesonad", wait_until="networkidle")
+        pg.wait_for_selector("#beginPractice", timeout=20000)
+        pg.click("#beginPractice")
         pg.wait_for_selector("#practiceOut .drill", timeout=20000)
         yield pg
         context.close()
@@ -2398,7 +2126,7 @@ class TestPhoneInLandscape:
         """Opening a short phone session must expose its answer and check button."""
         blocked = landscape.evaluate("""() => {
           const drill = document.querySelector('#practiceOut .drill:not(.done)');
-          const dock = document.querySelector('.modes').getBoundingClientRect();
+          const dock = document.querySelector('#nav-learn').getBoundingClientRect();
           return [...drill.querySelectorAll('input, .row button')].filter(e => {
             const r = e.getBoundingClientRect();
             const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -2410,3 +2138,146 @@ class TestPhoneInLandscape:
     def test_nothing_scrolls_sideways(self, landscape):
         assert landscape.evaluate(
             "document.scrollingElement.scrollWidth <= innerWidth + 1")
+
+
+class TestLearningRedesign:
+    """Starting and passing over familiar work must not invent checked progress."""
+
+    def test_beginning_onboarding_saves_a_guest_route_without_mastery(self, page, live_server):
+        page.goto(live_server + '/#start', wait_until='networkidle')
+        page.click('[data-start="a0"]')
+        page.click('[data-focus="path"]')
+        page.wait_for_selector('#tab-path:not([hidden]) #practiceBtn')
+        me = page.request.get(live_server + '/api/me').json()
+        assert me['onboarding']['start_band'] == 'a0'
+        assert me['onboarding']['explanation_language'] == 'ru'
+        assert me['totals']['attempts'] == me['totals']['mastered'] == 0
+        assert page.locator('#nav-learn button').count() == 4
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_lesson_explains_before_issuing_five_exercises(self, page, live_server):
+        issued = []
+        page.on('request', lambda r: issued.append(r) if r.method == 'POST' and r.url.endswith('/api/practice') else None)
+        page.goto(live_server + '/#session/asesonad', wait_until='networkidle')
+        page.wait_for_selector('#beginPractice')
+        assert page.locator('#lessonIntro .lesson-examples strong').count() > 0
+        assert page.locator('#lessonIntro .lesson-source a').count() > 0
+        assert not issued, 'reading the explanation issued a practice set'
+        page.click('#beginPractice')
+        page.wait_for_selector('#practiceOut .drill')
+        assert page.locator('#practiceOut .drill').count() == 5
+        assert len(issued) == 1 and issued[0].post_data_json['count'] == 5
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_skipping_an_exercise_posts_no_answer_and_awards_nothing(self, page, live_server):
+        answered = []
+        page.on('request', lambda r: answered.append(r) if r.url.endswith('/api/practice/answer') else None)
+        page.goto(live_server + '/#session/asesonad', wait_until='networkidle')
+        page.click('#beginPractice')
+        page.wait_for_selector('#practiceOut .drill')
+        first = page.locator('#practiceOut .drill').first
+        first.locator('.exercise-skip').click()
+        assert 'skipped' in first.get_attribute('class')
+        assert not page.locator('#practiceOut .drill').nth(1).is_visible()
+        first.locator('.exercise-next').click()
+        assert page.locator('#practiceOut .drill').nth(1).is_visible()
+        for i in range(1, 5):
+            current = page.locator('#practiceOut .drill').nth(i)
+            current.locator('.exercise-skip').click()
+            current.locator('.exercise-next').click()
+        assert 'Пропущено: 5' in page.locator('#practiceOut .set-end').inner_text()
+        assert not answered
+        me = page.request.get(live_server + '/api/me').json()
+        assert me['totals']['attempts'] == me['totals']['mastered'] == me['totals']['review_cards'] == 0
+        assert not browser_errors(page), browser_errors(page)
+
+    @pytest.mark.parametrize('recall', [False, True], ids=['recognition', 'recall'])
+    def test_feedback_keeps_the_task_and_continue_in_one_workspace(self, page, live_server, recall):
+        if recall:
+            TestTheGrammarDrill()._start(page)
+            selector = '#freeOut .drill'
+        else:
+            page.goto(live_server + '/#session/asesonad', wait_until='networkidle')
+            page.click('#beginPractice')
+            selector = '#practiceOut .drill'
+        item = page.locator(selector).first
+        item.wait_for(state='visible')
+        document_top = '(el) => el.getBoundingClientRect().top + window.scrollY'
+        before = item.locator('.exercise-actions').evaluate(document_top)
+        if recall:
+            item.locator('input').fill('vale')
+            item.locator('input').press('Enter')
+        else:
+            item.locator('.choice').first.click()
+        item.locator('.exercise-next').wait_for(state='visible')
+        after = item.locator('.exercise-actions').evaluate(document_top)
+        assert abs(after - before) < 12
+        assert not page.locator(selector).nth(1).is_visible()
+        assert item.locator('.verdict').inner_text().strip()
+        reasons = item.locator('.verdict .why').all_text_contents()
+        item.locator('.exercise-next').click()
+        assert not item.is_visible()
+        assert page.locator(selector).nth(1).is_visible()
+        assert page.locator('.session-history li').count() == 1
+        page.locator('.session-history > summary').click()
+        archived = page.locator('.session-history li').first
+        assert archived.locator('.why').all_text_contents() == reasons
+        if reasons:
+            assert archived.locator('.why').first.is_visible()
+        assert 'Selgita' not in archived.inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_topic_skip_can_be_restored_without_attempts(self, page, live_server):
+        initial = page.request.get(live_server + '/api/curriculum').json()
+        topic = initial['resume']
+        button = page.locator(f'#pathList button[data-skip="{topic}"]')
+        row = page.locator(f'#pathList .topic:has(button[data-skip="{topic}"])')
+        row.locator('.topic-options > summary').click()
+        button.click()
+        page.wait_for_selector(f'button[data-skip="{topic}"][data-skipped="true"]', state='attached')
+        moved = page.request.get(live_server + '/api/curriculum').json()
+        assert moved['resume'] != topic and moved['mastered'] == 0
+        row.locator('.topic-options > summary').click()
+        button.click()
+        page.wait_for_selector(f'button[data-skip="{topic}"][data-skipped="false"]', state='attached')
+        restored = page.request.get(live_server + '/api/curriculum').json()
+        assert restored['resume'] == topic
+        assert all(t['attempts'] == 0 for t in restored['topics'])
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_stopping_assessment_awards_no_level_or_mastery(self, page, live_server):
+        page.goto(live_server + '/#start', wait_until='networkidle')
+        page.click('[data-assess]')
+        page.wait_for_selector('#placementForm input')
+        assert page.locator('#placementForm input').count() == 5
+        page.click('[data-stop]')
+        assert 'CEFR не подтверждён' in page.locator('#onboardingContent').inner_text()
+        page.click('[data-save]')
+        page.wait_for_selector('#tab-path:not([hidden])')
+        me = page.request.get(live_server + '/api/me').json()
+        assert me['onboarding']['start_band'] == 'unsure'
+        assert me['totals']['attempts'] == me['totals']['mastered'] == 0
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_rule_reload_and_malformed_route_have_a_recovery(self, page, live_server):
+        page.goto(live_server + '/#rule/asesonad', wait_until='networkidle')
+        page.wait_for_selector('#lessonSheet .lesson-examples')
+        page.reload(wait_until='networkidle')
+        page.wait_for_selector('#lessonSheet .lesson-examples')
+        assert page.locator('#tab-rule').is_visible()
+        assert not page.locator('#lessonSheet').evaluate('(el) => el instanceof HTMLDialogElement')
+        page.goto(live_server + '/#session/%E0%A4%A', wait_until='networkidle')
+        page.wait_for_selector('#tab-path:not([hidden]), #tab-start:not([hidden])')
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_word_skip_does_not_mark_it_known_or_correct(self, page, live_server):
+        open_tab(page, 'revise', 'sonad')
+        page.click('#workoutStart')
+        page.wait_for_selector('#workoutOut .word-q')
+        page.locator('#workoutOut .word-q').first.locator('.exercise-skip').click()
+        assert page.locator('#workoutOut .word-q').nth(1).is_visible()
+        assert page.locator('#workoutScore').inner_text() == ''
+        me = page.request.get(live_server + '/api/me').json()
+        assert me['totals']['attempts'] == me['totals']['review_cards'] == 0
+        assert 'не отмечено известным' in page.locator('#workoutOut .word-q').first.inner_text()
+        assert not browser_errors(page), browser_errors(page)

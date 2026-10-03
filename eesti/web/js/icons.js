@@ -100,3 +100,17 @@ export function icon(name, {cls = "", weight = "duotone", label = ""} = {}) {
   const a11y = label ? `role="img" aria-label="${label}"` : `aria-hidden="true"`;
   return `<svg class="ph${cls ? " " + cls : ""}" viewBox="0 0 256 256" fill="currentColor" ${a11y}>${d}</svg>`;
 }
+
+/* Original Grove skill pictograms: one 32-unit grid, rounded 2-unit lines,
+   and one secondary fill. Labels on their controls carry the accessible name. */
+const SKILL = {
+  read: '<path class="skill-fill" d="M4 6h6a8 8 0 0 1 6 3 8 8 0 0 1 6-3h6v18h-6a8 8 0 0 0-6 3 8 8 0 0 0-6-3H4Z"/><path d="M4 6h6a8 8 0 0 1 6 3 8 8 0 0 1 6-3h6v18h-6a8 8 0 0 0-6 3 8 8 0 0 0-6-3H4ZM16 9v18M8 11h3M8 15h3M21 11h3M21 15h3"/>',
+  listen: '<rect class="skill-fill" x="4" y="15" width="6" height="11" rx="3"/><rect class="skill-fill" x="22" y="15" width="6" height="11" rx="3"/><path d="M4 18v-2a12 12 0 0 1 24 0v2M10 18v5a3 3 0 0 1-6 0v-5a3 3 0 0 1 6 0ZM28 18v5a3 3 0 0 1-6 0v-5a3 3 0 0 1 6 0Z"/>',
+  speak: '<rect class="skill-fill" x="11" y="3" width="10" height="18" rx="5"/><rect x="11" y="3" width="10" height="18" rx="5"/><path d="M7 16a9 9 0 0 0 18 0M16 25v4M12 29h8M14 8h4M14 12h4"/>',
+  write: '<path class="skill-fill" d="m6 20-2 8 8-2L27 11a3 3 0 0 0 0-4l-2-2a3 3 0 0 0-4 0Z"/><path d="m6 20-2 8 8-2L27 11a3 3 0 0 0 0-4l-2-2a3 3 0 0 0-4 0ZM18 8l6 6M6 20l6 6M8 24l13-13"/>',
+};
+
+export function skillIcon(name) {
+  if (!SKILL[name]) return "";
+  return `<svg class="skill-icon skill-${name}" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SKILL[name]}</svg>`;
+}

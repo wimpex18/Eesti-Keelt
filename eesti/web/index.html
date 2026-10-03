@@ -1,42 +1,43 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="ru">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"/>
 <!-- viewport-fit=cover lets the layout reach under the iPhone's notch and home
      indicator; the safe-area insets below put the padding back where it counts. -->
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Grove · Eesti keel</title>
-<meta name="application-name" content="Grove">
-<meta name="description" content="Изучение эстонского языка и подготовка к экзамену A2/B1: учись, практикуйся, проверяй.">
+<meta content="Grove" name="application-name"/>
+<meta content="Эстонский с начала и подготовка A2/B1. Чтение, слух, речь и письмо; понятный следующий шаг." name="description"/>
 <!-- Add to Home Screen on iOS: standalone display, and a status bar that
      follows the page rather than sitting on top of it as a white slab. -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Grove">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b1120">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" href="/brand/favicon-32.png" type="image/png" sizes="32x32">
-<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
-<link rel="mask-icon" href="/brand/safari-pinned-tab.svg" color="#0030de">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Grove">
-<meta property="og:title" content="Grove · Eesti keel">
-<meta property="og:description" content="Изучение эстонского языка и подготовка к экзамену A2/B1.">
-<meta property="og:image" content="__BRAND_ORIGIN__/brand/og-default.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Grove · Eesti keel · A2/B1">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Grove · Eesti keel">
-<meta name="twitter:description" content="Изучение эстонского языка и подготовка к экзамену A2/B1.">
-<meta name="twitter:image" content="__BRAND_ORIGIN__/brand/twitter-default.png">
-<meta name="twitter:image:alt" content="Grove · Eesti keel · A2/B1">
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="Grove" name="apple-mobile-web-app-title"/>
+<meta content="yes" name="mobile-web-app-capable"/>
+<meta content="#f0f6fd" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#152236" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<link href="/manifest.webmanifest" rel="manifest"/>
+<link href="/favicon.ico" rel="icon" sizes="any"/>
+<link href="/brand/favicon-32.png" rel="icon" sizes="32x32" type="image/png"/>
+<link href="/brand/favicon.svg" rel="icon" type="image/svg+xml"/>
+<link href="/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180"/>
+<link color="#2359c4" href="/brand/safari-pinned-tab.svg" rel="mask-icon"/>
+<meta content="website" property="og:type"/>
+<meta content="Grove" property="og:site_name"/>
+<meta content="Grove · Eesti keel" property="og:title"/>
+<meta content="Изучение эстонского языка и подготовка к экзамену A2/B1." property="og:description"/>
+<meta content="__BRAND_ORIGIN__/brand/og-default.png" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="Grove · Eesti keel · Õppimine · A2/B1" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="Grove · Eesti keel" name="twitter:title"/>
+<meta content="Изучение эстонского языка и подготовка к экзамену A2/B1." name="twitter:description"/>
+<meta content="__BRAND_ORIGIN__/brand/twitter-default.png" name="twitter:image"/>
+<meta content="Grove · Eesti keel · Õppimine · A2/B1" name="twitter:image:alt"/>
 <script>
-/* Saved appearance is independent of the optional reveal script. */
+/* Restore the saved appearance before paint. */
 (() => {
   try {
     const theme = localStorage.getItem("theme");
@@ -46,698 +47,580 @@
 })();
 </script>
 <!-- The two faces the page reads first, fetched before the stylesheet asks. -->
-<link rel="preload" href="/fonts/geologica-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/geologica-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css">
-<!-- The origin inlines the small reveal source: no extra request before paint. -->
-<script>__BRAND_REVEAL__</script>
+<link as="font" crossorigin="" href="/fonts/geologica-latin.woff2" rel="preload" type="font/woff2"/>
+<link as="font" crossorigin="" href="/fonts/geologica-cyrillic.woff2" rel="preload" type="font/woff2"/>
+<link href="/app.css" rel="stylesheet"/>
 </head>
 <body>
-<div id="brandSplash" class="brand-splash" aria-hidden="true" inert>
-  <div class="brand-splash-stage">
-    <!-- brand:splash:start -->
-      <svg class="brand-splash-mark" viewBox="0 0 64 64" aria-hidden="true"><path class="brand-leaf" fill-rule="evenodd" d="M14 36C14 19 30 11 51 13C53 34 44 49 28 49C22 49 17 44 14 36ZM22 42L40 23L42 25L25 44Z"/><path class="brand-stem" fill-rule="evenodd" d="M14 52L18 53L28 41L25 38Z"/></svg>
-      <!-- brand:splash:end -->
-    <span class="brand-splash-name" lang="en">Grove</span>
-    <span class="brand-splash-subject" lang="et">Eesti keel · A2/B1</span>
-  </div>
-</div>
 <div class="wrap">
-  <!-- The spine: brand, the three modes, the open mode's tabs and the two actions.
-       Desktop and tablet: a full-height column on the left. Phone: the brand and
-       actions on top, the tabs a scrolling row under them, the modes a thumb dock
-       at the bottom. One markup, three arrangements (`app.css`). -->
-  <header class="spine">
-    <a class="brand" href="#path" aria-label="Grove — на главную">
-      <!-- brand:header:start -->
+<!-- Permanent skills and supporting destinations; header and bottom skills on phones. -->
+<header class="spine"><a aria-label="Grove — на главную" class="brand" href="#path">
+<!-- brand:header:start -->
       <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path class="brand-leaf" fill-rule="evenodd" d="M14 36C14 19 30 11 51 13C53 34 44 49 28 49C22 49 17 44 14 36ZM22 42L40 23L42 25L25 44Z"/><path class="brand-stem" fill-rule="evenodd" d="M14 52L18 53L28 41L25 38Z"/></svg>
       <!-- brand:header:end -->
-      <div class="brand-word"><h1 lang="en">Grove</h1></div>
-    </a>
-    <!-- Mode, then skill. -->
-    <div class="modes" role="tablist" aria-label="Režiim — режим">
-      <button role="tab" aria-selected="true"  data-mode="learn" aria-controls="nav-learn" lang="et">Õppimine</button>
-      <button role="tab" aria-selected="false" data-mode="revise" aria-controls="nav-revise" lang="et">Kordamine</button>
-      <button role="tab" aria-selected="false" data-mode="exam" aria-controls="nav-exam" lang="et">Eksam</button>
-    </div>
-  <!-- The destinations; on a phone this bar is fixed to the bottom.
-       Each mode answers one question. Õppimine: the path, then the exam's four
-       skills. Kordamine: what the app brings back, the words it brings back from,
-       and the official homework. Eksam: where you stand. -->
-  <nav id="nav-learn" role="tablist" data-mode-nav="learn" aria-label="Õppimine — обучение">
-    <button role="tab" aria-selected="true"  data-tab="path"><span class="ico" aria-hidden="true">◎</span><span class="lbl" lang="et">Rada</span></button>
-    <button role="tab" aria-selected="false" data-tab="read"><span class="ico" aria-hidden="true">▤</span><span class="lbl" lang="et">Lugemine</span></button>
-    <button role="tab" aria-selected="false" data-tab="listen"><span class="ico" aria-hidden="true">♪</span><span class="lbl" lang="et">Kuulamine</span></button>
-    <button role="tab" aria-selected="false" data-tab="speak"><span class="ico" aria-hidden="true">◉</span><span class="lbl" lang="et">Rääkimine</span></button>
-    <button role="tab" aria-selected="false" data-tab="write"><span class="ico" aria-hidden="true">✎</span><span class="lbl" lang="et">Kirjutamine</span></button>
-  </nav>
+<div class="brand-word"><h1 lang="en">Grove</h1></div>
+</a>
+<a class="mobile-course" href="#course" lang="et">Kursus <span class="ru" lang="ru">темы курса</span></a>
+<nav aria-label="Peamised lehed — основные разделы" class="primary-nav">
+<a href="#path" lang="et">Kodu <span class="ru" lang="ru">главная</span></a>
+<a href="#course" lang="et">Kursus <span class="ru" lang="ru">темы курса</span></a>
+<a href="#review" lang="et">Kordamine <span class="ru" lang="ru">повторение</span><span class="badge" hidden="" id="dueBadge"></span></a>
+<a href="#exam" lang="et">Eksam <span class="ru" lang="ru">подготовка</span></a>
+</nav>
+<nav aria-label="Õpioskused — навыки" data-mode-nav="learn" id="nav-learn" role="tablist">
+<button aria-selected="false" data-tab="read" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Lugemine</span></button>
+<button aria-selected="false" data-tab="listen" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kuulamine</span></button>
+<button aria-selected="false" data-tab="speak" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Rääkimine</span></button>
+<button aria-selected="false" data-tab="write" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kirjutamine</span></button>
+</nav>
+<details class="more-nav"><summary lang="et">Veel <span class="ru" lang="ru">разделы</span></summary>
+<nav aria-label="Muud lehed — другие разделы">
+<a href="#path" lang="et">Kodu <span lang="ru">главная</span></a>
+<a href="#course" lang="et">Kursus <span lang="ru">темы курса</span></a>
+<a href="#review" lang="et">Kordamine <span lang="ru">повторение</span></a>
+<a href="#exam" lang="et">Eksam <span lang="ru">подготовка</span></a>
+<a href="#sonad" lang="et">Sõnavara <span lang="ru">слова</span></a>
+<a href="#vihikud" lang="et">Töövihikud <span lang="ru">официальные материалы</span></a>
+<a href="#status" lang="et">Edenemine <span lang="ru">прогресс</span></a>
+</nav>
+</details><div class="hdr-actions">
+<a aria-label="Profiil — профиль" class="iconbtn" href="#profile" id="accountBtn" title="Profiil — профиль"></a>
+<button class="iconbtn" id="themeBtn" type="button"></button>
+</div></header>
+<main class="stage-col">
 
-  <!-- "What am I forgetting?" — the queue the app schedules, the word list the
-       learner feeds it from, and the consultation workbooks (homework, not exam). -->
-  <nav id="nav-revise" role="tablist" data-mode-nav="revise" hidden aria-label="Kordamine — повторение">
-    <button role="tab" aria-selected="true"  data-tab="review"><span class="ico" aria-hidden="true">↻</span><span class="lbl" lang="et">Järjekord</span><span id="dueBadge" class="badge" hidden></span></button>
-    <button role="tab" aria-selected="false" data-tab="sonad"><span class="ico" aria-hidden="true">▦</span><span class="lbl" lang="et">Sõnavara</span></button>
-    <button role="tab" aria-selected="false" data-tab="vihikud"><span class="ico" aria-hidden="true">▤</span><span class="lbl" lang="et">Töövihikud</span></button>
-  </nav>
-
-  <nav id="nav-exam" role="tablist" data-mode-nav="exam" hidden aria-label="Eksam — экзамен">
-    <button role="tab" aria-selected="true"  data-tab="exam"><span class="ico" aria-hidden="true">◫</span><span class="lbl" lang="et">Ülevaade</span></button>
-    <button role="tab" aria-selected="false" data-tab="status"><span class="ico" aria-hidden="true">▦</span><span class="lbl" lang="et">Edenemine</span></button>
-    <button role="tab" aria-selected="false" data-tab="profile"><span class="ico" aria-hidden="true">◉</span><span class="lbl" lang="et">Profiil</span></button>
-  </nav>
-
-    <!-- Theme control: system, light, dark. "System" stays reachable so the page can
-         follow the device. No `aria-pressed`: it cycles three states; the
-         accessible name says which is active and is rewritten with the icon. -->
-    <div class="hdr-actions">
-      <a id="accountBtn" class="iconbtn" href="#profile"
-              title="Profiil — профиль" aria-label="Profiil — профиль"></a>
-      <button id="themeBtn" class="iconbtn" type="button"></button>
-    </div>
-  </header>
-
-  <main class="stage-col">
-  <aside id="scopeNotice" class="scope-notice" hidden aria-live="polite"></aside>
-  <!-- ── The path ──────────────────────────────────────────────────
+<!-- ── The path ──────────────────────────────────────────────────
        Two ways through the same drills. `Rada`: ordered, gated, recorded; the
        learner sees one next topic first. `Vaba harjutus`: any topic, graded by the
        same code, recorded nowhere. -->
-  <section class="panel" id="tab-path">
-    <div class="page-head">
-      <div>
-        <h2 class="page-title" lang="et">Rada <i class="ru" lang="ru">путь</i></h2>
-        <p class="page-date" id="pathDate" lang="et"></p>
-      </div>
-      <div class="levels seg" id="pathModes" role="tablist" aria-label="Harjutamine — режим">
-        <button role="tab" aria-selected="true"  data-pm="rada" aria-controls="pathRada" lang="et">Minu rada <i class="ru" lang="ru">по порядку</i></button>
-        <button role="tab" aria-selected="false" data-pm="vaba" aria-controls="pathFree" lang="et">Vaba harjutus <i class="ru" lang="ru">без записи</i></button>
-      </div>
-    </div>
-    <div id="pathRada" role="tabpanel">
-    <!-- What to do now: the resume topic, where it sits on the path, and the one
-         button. The trail is drawn from /api/curriculum (`js/path.js`). -->
-    <div class="hero" id="pathHero">
-      <svg class="swallow" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 12c3 0 5 4 4 9 10-2 30-1 50 9-20-2-38-1-50 1l2 7 5 18-11-12-11 12 5-18 2-7c-12-2-30-3-50-1 20-10 40-11 50-9-1-5 1-9 4-9z"/></svg>
-      <div class="hero-text">
-        <div class="hero-eyebrow" lang="et">Praegu <i class="ru" lang="ru">сейчас</i> <span class="hero-pos" id="pathPos" lang="ru"></span></div>
-        <div class="now" id="pathNow" lang="et">…</div>
-        <div class="of" id="pathOf"></div>
-        <div id="pathGate"></div>
-      </div>
-      <div class="hero-act">
-        <button class="go" id="practiceBtn" lang="et">Harjuta <span class="ru" lang="ru">упражняться</span></button>
-        <label lang="et">Sõnade teema <i class="ru" lang="ru">тема слов</i>
-          <select id="wordTheme"><option value="">kõik sõnad</option></select>
-        </label>
-      </div>
-      <div class="trail" id="pathTrail"></div>
-    </div>
-    <div id="pathHead" class="banner" hidden></div>
-    <!-- The set being answered. Beads fill as items are graded; the score line
-         says the same in words. -->
-    <div class="stage" id="pathStage">
-      <div class="stage-top">
-        <div class="beads" id="pathBeads" aria-hidden="true"></div>
-        <span class="hint" id="pathScore"></span>
-      </div>
-      <!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
-           drilled over. The label hides for topics it cannot change. -->
-      <div id="practiceOut"></div>
-    </div>
-
-    <!-- One "today" surface: evidence-backed steps say what has happened; the plan
-         says what to do next. Both stay after the active drill so a phone reaches
-         real practice before it has to understand the whole system. -->
-    <details class="today" id="today" open>
-      <summary><span lang="et">Täna <i class="ru" lang="ru">сегодня</i></span>
-        <span class="hint" id="todaySum" lang="et"></span></summary>
-      <!-- Pressure-free evidence: no points, streak or mastery; an empty review
-           queue is already complete. -->
-      <section class="daily-steps" id="dailySteps" aria-labelledby="dailyStepsTitle" hidden>
-        <div>
-          <h3 id="dailyStepsTitle" lang="et">Tänased sammud <i class="ru" lang="ru">шаги на сегодня</i></h3>
-          <p lang="ru">В любом порядке. Пропущенный день ничего не отнимает.</p>
-        </div>
-        <ol id="dailyStepsList"></ol>
-      </section>
-      <div class="today-strip" id="todayStrip" aria-hidden="true"></div>
-      <ol class="today-list" id="todayList"><li class="hint">Загружаю…</li></ol>
-      <label class="today-minutes" lang="et">Aega täna <i class="ru" lang="ru">минут сегодня</i>
-        <select id="todayMinutes">
-          <option value="10">10</option><option value="20" selected>20</option>
-          <option value="40">40</option>
-        </select>
-      </label>
-    </details>
-    <!-- Where things stand, for the screens that have no rail. This follows the
-         active session and today's plan, so status never blocks the first answer. -->
-    <nav class="pulse" id="pathPulse" aria-label="Kokkuvõte — сводка"></nav>
-    <!-- A set to carry: drills are made on the server, so without one there is
-         nothing to answer unless it was fetched in advance (`js/offline.js`). -->
-    <details class="offline fold" id="offline">
-      <summary lang="et">Võrguta <i class="ru" lang="ru">набор без интернета</i></summary>
-      <p class="hint" id="offlineState">…</p>
-      <div class="row">
-        <button class="ghost" id="offlineGet" lang="et">Lae alla
-          <span class="ru" lang="ru">скачать набор</span></button>
-        <button class="go" id="offlinePractice" lang="et" hidden>Harjuta
-          <span class="ru" lang="ru">решать офлайн</span></button>
-        <button class="ghost" id="offlineSend" lang="et" hidden>Saada vastused
-          <span class="ru" lang="ru">отправить ответы</span></button>
-      </div>
-    </details>
-    <details id="pathAll" class="fold">
-      <summary lang="et">Kogu rada <i class="ru" lang="ru">все темы по порядку</i></summary>
-      <p class="note">Тема открывается, когда пройдены темы, на которых она строится.
-        Теория ничего не закрывает.</p>
-      <div id="pathList"></div>
-    </details>
-    </div>
-    <div id="pathFree" role="tabpanel" hidden>
-      <!-- While a set runs, the three controls fold into this one line. -->
-      <div class="free-summary" id="freeSummary" hidden>
-        <span id="freeWhat"></span>
-        <button class="ghost" id="freeLesson" data-lesson="" lang="et">Reegel <span class="ru" lang="ru">правило</span></button>
-        <button class="ghost" id="freeEdit" lang="et">Muuda <span class="ru" lang="ru">изменить</span></button>
-      </div>
-      <div class="row free-controls" id="freeControls">
-        <label lang="et">Teema <i class="ru" lang="ru">тема</i>
-          <select id="freeTopic"></select>
-        </label>
-        <label id="freeRuleLabel" lang="et" hidden>Reegel <i class="ru" lang="ru">правило</i>
-          <select id="freeRule">
-            <option value="">kõik</option>
-            <option value="negation">eitus → osastav</option>
-            <option value="completed">lõpetatud → omastav</option>
-            <option value="ongoing">kestev → osastav</option>
-          </select>
-        </label>
-        <label lang="et">Raskus <i class="ru" lang="ru">уровень слов</i>
-          <select id="freeLevel">
-            <option value="A1,A2,B1">A1–B1</option>
-            <option value="A1">A1</option>
-            <option value="A1,A2">A1–A2</option>
-            <option value="B1">B1</option>
-          </select>
-          <span class="field-recommendation" id="freeRecommendation" hidden></span>
-        </label>
-        <button class="go" id="freeBtn" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
-      </div>
-      <p class="hint" id="freeNote">Любая тема, даже ещё закрытая. Ответы никуда не
+<section class="panel" id="tab-path">
+<div class="page-head"><div><h2 class="page-title" lang="et">Õpime eesti keelt <i class="ru" lang="ru">учим эстонский</i></h2><p class="page-date" id="pathDate" lang="et"></p></div></div>
+<section aria-labelledby="pathNow" class="next-lesson">
+<div class="next-copy"><h3 id="pathNow" lang="et">Laadin…</h3><p id="pathOf"></p>
+<p class="lesson-purpose" lang="ru">Разбери правило на примерах, попробуй сам и получи проверку.</p></div>
+<div class="next-action"><button class="go" id="practiceBtn" lang="et">Alusta <span class="ru" lang="ru">начать урок</span></button><a class="quiet" href="#course" lang="et">Vali teine teema <span class="ru" lang="ru">выбрать другую тему</span></a></div>
+</section>
+<div class="home-links"><a href="#review" lang="et">Korda õpitut <span class="ru" lang="ru">повтори изученное</span></a><a href="#start" lang="et">Muuda algust <span class="ru" lang="ru">выбери точку старта</span></a></div>
+<p class="home-note" lang="ru">Чтение, слух, речь и письмо всегда доступны в навигации. Можно учиться с начала или двигаться сразу к знакомым темам.</p></section><section class="panel" hidden="" id="tab-course">
+<div class="page-head"><div><h2 class="page-title" lang="et">Kursus <i class="ru" lang="ru">темы курса</i></h2><p lang="ru">Учись по порядку или выбери то, что нужно сейчас.</p></div></div>
+<div id="courseBody"><div aria-label="Harjutamine — режим" class="levels seg" id="pathModes" role="tablist">
+<button aria-controls="pathRada" aria-selected="true" data-pm="rada" lang="et" role="tab">Minu rada <i class="ru" lang="ru">по порядку</i></button>
+<button aria-controls="pathFree" aria-selected="false" data-pm="vaba" lang="et" role="tab">Vaba harjutus <i class="ru" lang="ru">без записи</i></button>
+</div><div id="courseTopics"><div class="fold" id="pathAll">
+<p class="note">Выбирай любую тему. Пропуск меняет маршрут; только проверенные ответы засчитывают освоение.</p>
+<div id="pathList"></div>
+</div></div><div hidden="" id="pathFree" role="tabpanel">
+<!-- While a set runs, the three controls fold into this one line. -->
+<div class="free-summary" hidden="" id="freeSummary">
+<span id="freeWhat"></span>
+<button class="ghost" data-lesson="" id="freeLesson" lang="et">Reegel <span class="ru" lang="ru">правило</span></button>
+<button class="ghost" id="freeEdit" lang="et">Muuda <span class="ru" lang="ru">изменить</span></button>
+</div>
+<div class="row free-controls" id="freeControls">
+<label lang="et">Teema <i class="ru" lang="ru">тема</i>
+<select id="freeTopic"></select>
+</label>
+<label hidden="" id="freeRuleLabel" lang="et">Reegel <i class="ru" lang="ru">правило</i>
+<select id="freeRule">
+<option value="">kõik</option>
+<option value="negation">eitus → osastav</option>
+<option value="completed">lõpetatud → omastav</option>
+<option value="ongoing">kestev → osastav</option>
+</select>
+</label>
+<label lang="et">Raskus <i class="ru" lang="ru">уровень слов</i>
+<select id="freeLevel">
+<option value="A1,A2,B1">A1–B1</option>
+<option value="A1">A1</option>
+<option value="A1,A2">A1–A2</option>
+<option value="B1">B1</option>
+</select>
+<span class="field-recommendation" hidden="" id="freeRecommendation"></span>
+</label>
+<button class="go" id="freeBtn" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
+</div>
+<p class="hint" id="freeNote">Любая тема, даже ещё закрытая. Ответы никуда не
         записываются: ни в прогресс Rada, ни в повторение.</p>
-      <div class="stage" id="freeStage">
-        <div class="stage-top">
-          <div class="beads" id="freeBeads" aria-hidden="true"></div>
-          <div class="score" id="freeScore"></div>
-        </div>
-        <div id="freeOut"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Speaking ──────────────────────────────────────────────────
+<div class="stage" id="freeStage">
+<div class="stage-top">
+<div aria-hidden="true" class="beads" id="freeBeads"></div>
+<div class="score" id="freeScore"></div>
+</div>
+<div id="freeOut"></div>
+</div>
+</div></div>
+<details class="offline fold" id="offline">
+<summary lang="et">Võrguta <i class="ru" lang="ru">набор без интернета</i></summary>
+<p class="hint" id="offlineState">…</p>
+<div class="row">
+<button class="ghost" id="offlineGet" lang="et">Lae alla
+          <span class="ru" lang="ru">скачать набор</span></button>
+<button class="go" hidden="" id="offlinePractice" lang="et">Harjuta
+          <span class="ru" lang="ru">решать офлайн</span></button>
+<button class="ghost" hidden="" id="offlineSend" lang="et">Saada vastused
+          <span class="ru" lang="ru">отправить ответы</span></button>
+</div>
+</details></section>
+<section class="panel" hidden="" id="tab-session">
+<div class="session-heading"><a class="quiet" href="#course" lang="et">Kursus <span class="ru" lang="ru">к темам</span></a><h2 class="page-title" id="sessionTitle" lang="et">Õppetund <i class="ru" lang="ru">урок</i></h2></div>
+<ol aria-label="Õppetunni sammud — шаги урока" class="lesson-steps"><li aria-current="step" data-step="learn" lang="et">Õpi <span lang="ru">разбери</span></li><li data-step="practice" lang="et">Harjuta <span lang="ru">попробуй</span></li><li data-step="check" lang="et">Kontrolli <span lang="ru">проверь</span></li></ol>
+<div id="lessonIntro"></div><div aria-label="Harjutamine — упражнения" id="pathRada" role="region"><div class="banner" hidden="" id="pathHead"></div><details class="fold session-options"><summary lang="et">Sõnade teema <span class="ru" lang="ru">настройка слов</span></summary><label lang="et">Sõnade teema <i class="ru" lang="ru">тема слов</i>
+<select id="wordTheme"><option value="">kõik sõnad</option></select>
+</label></details><div class="stage" id="pathStage">
+<div class="stage-top">
+<div aria-hidden="true" class="beads" id="pathBeads"></div>
+<span class="hint" id="pathScore"></span>
+</div>
+<!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
+           drilled over. The label hides for topics it cannot change. -->
+<div id="practiceOut"></div>
+</div></div>
+</section>
+<section class="panel" hidden="" id="tab-start"><div class="start-content" id="onboardingContent"></div></section>
+<!-- ── Speaking ──────────────────────────────────────────────────
        The B1 speaking exam is paired, so this voices the other side and lets the
        learner hear themselves; it does not score speech. -->
-  <section class="panel" id="tab-speak" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Rääkimine <i class="ru" lang="ru">говорение</i></h2>
-      <p class="lede">Вопросы экзамена, чтение вслух и разговор с собеседником. Речь распознаётся, но не оценивается.</p>
-    </div></div>
-    <!-- The prompt and the microphone share one surface: read or answer, then record. -->
-    <div class="stage speak-stage">
-      <div class="row speak-controls">
-        <select id="speakMode" aria-label="Harjutus — упражнение">
-          <option value="lause">Loe ette: laused — вслух</option>
-          <option value="sona">Loe ette: sõnad — вслух</option>
-          <option value="vastus">Vasta küsimusele — ответ</option>
-        </select>
-        <select id="speakTopic" aria-label="Teema — тема"></select>
-      </div>
-      <div class="prompt speak-prompt" id="speakPrompt" lang="et">…</div>
-      <div class="row">
-        <button class="ghost" id="speakPlay" lang="et">Kuula ette <span class="ru" lang="ru">прослушать</span></button>
-        <button class="ghost" id="speakNext" lang="et" hidden>Järgmine <span class="ru" lang="ru">дальше</span></button>
-      </div>
-      <audio id="speakModel" controls hidden></audio>
-
-      <div class="rec">
-        <button class="go rec-btn" id="recBtn" lang="et">Salvesta vastus <span class="ru" lang="ru">записать ответ</span></button>
-        <span class="hint" id="recState">Для записи нужен микрофон и защищённое соединение.</span>
-      </div>
-    </div>
-    <!-- The actual destination depends on the configured ASR engine. -->
-    <p class="hint" id="recPrivacy">Проверяю, где будет распознана запись…</p>
-    <audio id="recPlayback" controls hidden></audio>
-    <div id="recHeard" class="corr" hidden></div>
-    <button class="ghost" id="recSaveEval" lang="et" hidden>Lisa hindamiskomplekti
+<section class="panel" hidden="" id="tab-speak">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Rääkimine <i class="ru" lang="ru">говорение</i></h2>
+<p class="lede">Вопросы экзамена, чтение вслух и разговор с собеседником. Речь распознаётся, но не оценивается.</p>
+</div></div>
+<!-- The prompt and the microphone share one surface: read or answer, then record. -->
+<div class="stage speak-stage">
+<div class="row speak-controls">
+<select aria-label="Harjutus — упражнение" id="speakMode">
+<option value="lause">Loe ette: laused — вслух</option>
+<option value="sona">Loe ette: sõnad — вслух</option>
+<option value="vastus">Vasta küsimusele — ответ</option>
+</select>
+<select aria-label="Teema — тема" id="speakTopic"></select>
+</div>
+<div class="prompt speak-prompt" id="speakPrompt" lang="et">…</div>
+<div class="row">
+<button class="ghost" id="speakPlay" lang="et">Kuula ette <span class="ru" lang="ru">прослушать</span></button>
+<button class="ghost" hidden="" id="speakNext" lang="et">Järgmine <span class="ru" lang="ru">дальше</span></button>
+</div>
+<audio controls="" hidden="" id="speakModel"></audio>
+<div class="rec">
+<button class="go rec-btn" id="recBtn" lang="et">Salvesta vastus <span class="ru" lang="ru">записать ответ</span></button>
+<span class="hint" id="recState">Для записи нужен микрофон и защищённое соединение.</span>
+</div>
+</div>
+<!-- The actual destination depends on the configured ASR engine. -->
+<p class="hint" id="recPrivacy">Проверяю, где будет распознана запись…</p>
+<audio controls="" hidden="" id="recPlayback"></audio>
+<div class="corr" hidden="" id="recHeard"></div>
+<button class="ghost" hidden="" id="recSaveEval" lang="et">Lisa hindamiskomplekti
       <span class="ru" lang="ru">сохранить эту запись для сравнения</span></button>
-    <div id="recNote" class="engine"></div>
-
-    <!-- Read-aloud sentences confirmed as read, scored against what was heard
+<div class="engine" id="recNote"></div>
+<!-- Read-aloud sentences confirmed as read, scored against what was heard
          (eesti/asrcheck.py). Counts only; no audio is kept. -->
-    <details class="asr-report">
-      <summary lang="et">Kuidas mind kuuldakse <i class="ru" lang="ru">как меня слышат</i></summary>
-      <p class="hint">Читай предложения вслух в режиме <b lang="et">Loe ette: laused</b>
+<details class="asr-report">
+<summary lang="et">Kuidas mind kuuldakse <i class="ru" lang="ru">как меня слышат</i></summary>
+<p class="hint">Читай предложения вслух в режиме <b lang="et">Loe ette: laused</b>
         и после каждого отметь, прочитал ли ты его как написано. Каждое четвёртое
         содержит намеренную ошибку.</p>
-      <div id="asrReport" class="hint" role="status"></div>
-    </details>
-
-    <!-- Recording the speech eval set. Local only (`cli serve`): the route is
+<div class="hint" id="asrReport" role="status"></div>
+</details>
+<!-- Recording the speech eval set. Local only (`cli serve`): the route is
          absent on the deployment, so this block stays hidden there (ADR-0003). -->
-    <details class="evalset" id="evalSet" hidden>
-      <summary lang="et">Hindamiskomplekt <i class="ru" lang="ru">запись набора для оценки</i></summary>
-      <p class="hint">Отвечай на вопросы или читай вслух здесь либо в обычном
+<details class="evalset" hidden="" id="evalSet">
+<summary lang="et">Hindamiskomplekt <i class="ru" lang="ru">запись набора для оценки</i></summary>
+<p class="hint">Отвечай на вопросы или читай вслух здесь либо в обычном
         упражнении выше. Выбранная запись остаётся на этом компьютере.
         Прослушай её, исправь черновую расшифровку прямо здесь и подтверди.
         Начни с 20 проверенных ответов из разных занятий.</p>
-      <div class="row">
-        <label lang="et">Harjutus <i class="ru" lang="ru">упражнение</i>
-          <select id="evalMode">
-            <option value="read">Loe ette — прочитай вслух</option>
-            <option value="answer">Vasta küsimusele — ответь на вопрос</option>
-          </select>
-        </label>
-        <button class="go" id="evalNext" lang="et">Järgmine ülesanne
+<div class="row">
+<label lang="et">Harjutus <i class="ru" lang="ru">упражнение</i>
+<select id="evalMode">
+<option value="read">Loe ette — прочитай вслух</option>
+<option value="answer">Vasta küsimusele — ответь на вопрос</option>
+</select>
+</label>
+<button class="go" id="evalNext" lang="et">Järgmine ülesanne
           <span class="ru" lang="ru">следующее задание</span></button>
-        <button class="ghost" id="evalRec" lang="et" disabled>● Salvesta
+<button class="ghost" disabled="" id="evalRec" lang="et">● Salvesta
           <span class="ru" lang="ru">записать</span></button>
-        <span class="hint" id="evalCount"></span>
-      </div>
-      <div class="prompt" id="evalPrompt" lang="et"></div>
-      <p class="hint" id="evalNote"></p>
-      <p class="hint" id="evalPrivacy">Проверяю, какой движок распознаёт речь…</p>
-      <audio id="evalPlayback" controls hidden></audio>
-      <div id="evalHeard" class="corr" hidden></div>
-      <div id="evalReview" class="eval-review" hidden>
-        <label for="evalTranscript" lang="et">Ärakiri
+<span class="hint" id="evalCount"></span>
+</div>
+<div class="prompt" id="evalPrompt" lang="et"></div>
+<p class="hint" id="evalNote"></p>
+<p class="hint" id="evalPrivacy">Проверяю, какой движок распознаёт речь…</p>
+<audio controls="" hidden="" id="evalPlayback"></audio>
+<div class="corr" hidden="" id="evalHeard"></div>
+<div class="eval-review" hidden="" id="evalReview">
+<label for="evalTranscript" lang="et">Ärakiri
           <span class="ru" lang="ru">Что ты действительно сказал? Исправь текст после прослушивания.</span></label>
-        <textarea id="evalTranscript" lang="et" rows="3" autocomplete="off"></textarea>
-        <label class="eval-confirm" lang="ru"><input id="evalListened" type="checkbox">
+<textarea autocomplete="off" id="evalTranscript" lang="et" rows="3"></textarea>
+<label class="eval-confirm" lang="ru"><input id="evalListened" type="checkbox"/>
           Я прослушал запись и проверил каждое слово.</label>
-        <label class="eval-confirm" id="evalPlantedRow" lang="ru" hidden>
-          <input id="evalPlanted" type="checkbox">
+<label class="eval-confirm" hidden="" id="evalPlantedRow" lang="ru">
+<input id="evalPlanted" type="checkbox"/>
           Я действительно произнёс ошибочную форму <b id="evalPlantedWord" lang="et"></b>.</label>
-        <button class="go" id="evalVerify" lang="et">Kinnita ärakiri
+<button class="go" id="evalVerify" lang="et">Kinnita ärakiri
           <span class="ru" lang="ru">подтвердить расшифровку</span></button>
-        <p class="hint" id="evalReviewNote" role="status"></p>
-      </div>
-    </details>
-
-    <!-- The exam is paired, so practice has two sides: a model plays the partner
+<p class="hint" id="evalReviewNote" role="status"></p>
+</div>
+</details>
+<!-- The exam is paired, so practice has two sides: a model plays the partner
          (ADR-0002). It never corrects and never scores. -->
-    <details class="vestlus" id="vestlus">
-      <summary lang="et">Vestlus <i class="ru" lang="ru">разговор с собеседником</i></summary>
-      <p class="hint">Собеседника играет модель: она отвечает по-эстонски и
+<details class="vestlus" id="vestlus">
+<summary lang="et">Vestlus <i class="ru" lang="ru">разговор с собеседником</i></summary>
+<p class="hint">Собеседника играет модель: она отвечает по-эстонски и
         задаёт вопросы, но <strong>не проверяет и не оценивает</strong>. На
         экзамене (B1) эта часть сдаётся в паре.</p>
-      <div class="row">
-        <button class="go" id="vestlusStart" lang="et">Alusta vestlust
+<div class="row">
+<button class="go" id="vestlusStart" lang="et">Alusta vestlust
           <span class="ru" lang="ru">начать разговор</span></button>
-        <span class="hint" id="vestlusTurns"></span>
-      </div>
-      <div id="vestlusLog" class="vestlus-log"></div>
-      <div class="row" id="vestlusRow" hidden>
-        <input type="text" id="vestlusSay" size="32" lang="et"
-          aria-label="Sinu vastus — твой ответ" autocapitalize="sentences"
-          autocorrect="off" spellcheck="false" autocomplete="off">
-        <button class="ghost" id="vestlusMic" type="button" lang="et" disabled>Räägi
+<span class="hint" id="vestlusTurns"></span>
+</div>
+<div class="vestlus-log" id="vestlusLog"></div>
+<div class="row" hidden="" id="vestlusRow">
+<input aria-label="Sinu vastus — твой ответ" autocapitalize="sentences" autocomplete="off" autocorrect="off" id="vestlusSay" lang="et" size="32" spellcheck="false" type="text"/>
+<button class="ghost" disabled="" id="vestlusMic" lang="et" type="button">Räägi
           <span class="ru" lang="ru">сказать вслух</span></button>
-        <button class="ghost" id="vestlusSend" lang="et">Vasta
+<button class="ghost" id="vestlusSend" lang="et">Vasta
           <span class="ru" lang="ru">ответить</span></button>
-      </div>
-      <p class="hint" id="vestlusMicState" role="status">Запись недоступна.</p>
-      <p class="hint" id="vestlusPrivacy"></p>
-      <audio id="vestlusVoice" controls hidden aria-label="Слушать ответ собеседника"></audio>
-    </details>
-
-    <!-- Optional official resources beyond the native read-aloud and conversation tools. -->
-    <div class="outbound">
-      <div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
-      <div class="row">
-        <a class="ghost" lang="et" href="https://sonaveeb.ee/pronunciation-exercises/"
-           target="_blank" rel="noopener">Hääldusharjutused →</a>
-        <a class="ghost" lang="et" href="https://sonaveeb.ee/learn" target="_blank"
-           rel="noopener">Väljendid A1–B1 →</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Progress ──────────────────────────────────────────────────
+</div>
+<p class="hint" id="vestlusMicState" role="status">Запись недоступна.</p>
+<p class="hint" id="vestlusPrivacy"></p>
+<audio aria-label="Слушать ответ собеседника" controls="" hidden="" id="vestlusVoice"></audio>
+</details>
+<!-- Optional official resources beyond the native read-aloud and conversation tools. -->
+<div class="outbound">
+<div class="hint">Произношение и бытовые фразы — бесплатные упражнения EKI:</div>
+<div class="row">
+<a class="ghost" href="https://sonaveeb.ee/pronunciation-exercises/" lang="et" rel="noopener" target="_blank">Hääldusharjutused →</a>
+<a class="ghost" href="https://sonaveeb.ee/learn" lang="et" rel="noopener" target="_blank">Väljendid A1–B1 →</a>
+</div>
+</div>
+</section>
+<!-- ── Progress ──────────────────────────────────────────────────
        A measure per section and no aggregate: the exam fails a zero in any part. -->
-  <section class="panel" id="tab-status" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Edenemine <i class="ru" lang="ru">прогресс</i></h2>
-      <p class="lede">У каждой части своя мера. Общего балла нет: экзамен проверяет части по отдельности.</p>
-    </div></div>
-    <div id="statusOut" class="status-out">Загружаю…</div>
-    <!-- Reminders. Counts only ever leave the device, and the switch says so. -->
-    <div id="remind" class="remind-box">
-      <div class="row">
-        <button class="ghost" id="remindBtn" lang="et">Meeldetuletused
+<section class="panel" hidden="" id="tab-status">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Edenemine <i class="ru" lang="ru">прогресс</i></h2>
+<p class="lede">Проверенные ответы, повторение и занятия. Пропуски и самостоятельные отметки не означают освоение.</p>
+</div></div>
+<div class="status-out" id="statusOut">Загружаю…</div>
+<!-- Reminders. Counts only ever leave the device, and the switch says so. -->
+<div class="remind-box" id="remind">
+<div class="row">
+<button class="ghost" id="remindBtn" lang="et">Meeldetuletused
           <span class="ru" lang="ru">напоминания</span></button>
-        <span class="hint" id="remindHint"></span>
-      </div>
-      <div class="row" id="remindWhen" hidden>
-        <label class="hint" for="remindHour" lang="ru">напомнить, если за день ничего не сделано, после</label>
-        <select id="remindHour" aria-label="Час напоминания"></select>
-      </div>
-    </div>
-    <!-- The evidence log, whole: everything recorded about the learner. Last, as a
+<span class="hint" id="remindHint"></span>
+</div>
+<div class="row" hidden="" id="remindWhen">
+<label class="hint" for="remindHour" lang="ru">напомнить, если за день ничего не сделано, после</label>
+<select aria-label="Час напоминания" id="remindHour"></select>
+</div>
+</div>
+<!-- The evidence log, whole: everything recorded about the learner. Last, as a
          record the learner owns rather than a thing to do. -->
-    <p class="hint data-link"><a href="/api/me/export" download lang="et">Minu andmed
+<p class="hint data-link"><a download="" href="/api/me/export" lang="et">Minu andmed
       <span class="ru" lang="ru">скачать всё, что приложение записало обо мне (JSONL)</span></a></p>
-  </section>
-
-  <!-- Identity and the evidence behind the learner's progress. -->
-  <section class="panel" id="tab-profile" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Profiil <i class="ru" lang="ru">профиль</i></h2>
-      <p class="lede">Здесь видно, кто учится и что подтверждают записи о занятиях.</p>
-    </div></div>
-    <div id="profileOut"><p class="hint">Загружаю профиль…</p></div>
-  </section>
-
-  <!-- ── Writing check ─────────────────────────────────────────────── -->
-  <section class="panel" id="tab-write" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Kirjutamine <i class="ru" lang="ru">письмо</i></h2>
-      <p class="lede">Напиши по-эстонски. Формы проверяет код, объясняет модель — и всегда подписано, кто что проверил.</p>
-    </div></div>
-    <!-- A sheet to write on: the text is Estonian material, so it is set in the serif. -->
-    <div class="stage write-stage">
-      <textarea id="text" lang="et" autocapitalize="sentences" autocorrect="off" spellcheck="false"
-        aria-label="Tekst — текст для проверки" placeholder="Напиши или вставь эстонский текст…"></textarea>
-      <div class="row write-foot">
-        <button class="go" id="checkBtn" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
-        <span class="hint kbd-hint">Ctrl+Enter</span>
-        <span class="hint word-count" id="textCount"></span>
-      </div>
-    </div>
-    <div id="checkOut"></div>
-
-    <!-- The error-log queue: send named, checked rows to the Vead log. -->
-    <details id="queueBox" class="fold">
-      <summary lang="et">Vigade logi <i class="ru" lang="ru">ждёт отправки в Notion</i> <span id="queueCount"></span></summary>
-      <div id="queueList"></div>
-      <div class="row">
-        <button class="go" id="queueSend" lang="et">Saada valitud Notionisse <span class="ru" lang="ru">отправить в Notion</span></button>
-        <span class="hint" id="queueNote"></span>
-      </div>
-    </details>
-  </section>
-
-  <!-- ── Exam ──────────────────────────────────────────────────────── -->
-  <section class="panel" id="tab-exam" hidden>
-    <div class="page-head exam-head">
-      <div>
-        <h2 class="page-title" lang="et">Ülevaade <i class="ru" lang="ru">обзор</i></h2>
-        <span id="countdown" class="countdown"></span>
-      </div>
-      <div class="levels seg" role="tablist" aria-label="Tase — уровень">
-        <button role="tab" aria-selected="true"  data-level="A2">A2</button>
-        <button role="tab" aria-selected="false" data-level="B1">B1</button>
-      </div>
-    </div>
-
-    <!-- Filled from /api/readiness/{level}: the four parts as the petals of one
-         flower, the verdict in Russian, and what to open next for each part. -->
-    <div id="readiness"></div>
-
-    <!-- The exam's own shape and sittings, from /api/exam-spec/{level}
-         (`eesti/exam.py`): the points differ by level, so nothing is hard-coded. -->
-    <div class="exam-shape">
-      <h3 class="sec-title" lang="et">Eksami kuju <i class="ru" lang="ru">как устроен экзамен</i></h3>
-      <div id="examSpec"></div>
-      <div id="examGoal" class="exam-goal"></div>
-    </div>
-
-    <!-- The timed mock: one exam part on the exam's clock (`eesti/mock.py`). -->
-    <details class="mock fold" id="mock">
-      <summary lang="et">Proovieksam <i class="ru" lang="ru">пробный экзамен на время</i></summary>
-      <div class="row" id="mockParts"></div>
-      <div class="row"><button class="ghost" id="mockWhole" lang="et">Terve eksam
+</section>
+<!-- Identity and the evidence behind the learner's progress. -->
+<section class="panel" hidden="" id="tab-profile">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Profiil <i class="ru" lang="ru">профиль</i></h2>
+<p class="lede">Точка старта, аккаунт и настройки твоего обучения.</p>
+</div></div><aside aria-live="polite" class="scope-notice" hidden="" id="scopeNotice"></aside>
+<div id="profileOut"><p class="hint">Загружаю профиль…</p></div>
+</section>
+<!-- ── Writing check ─────────────────────────────────────────────── -->
+<section class="panel" hidden="" id="tab-write">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Kirjutamine <i class="ru" lang="ru">письмо</i></h2>
+<p class="lede">Выбери небольшую тему, напиши текст и разбери подсказки.</p>
+</div></div>
+<!-- A sheet to write on: the text is Estonian material, so it is set in the serif. -->
+<div class="stage write-stage">
+<div class="writing-prompt"><h3 lang="et">Minu päev <span class="ru" lang="ru">мой день</span></h3><p lang="ru">Напиши 2–3 предложения о своём дне: что ты делаешь, куда идёшь, что читаешь. Затем проверь текст. Можно заменить тему своей.</p></div><textarea aria-label="Tekst — текст для проверки" autocapitalize="sentences" autocorrect="off" id="text" lang="et" placeholder="Напиши или вставь эстонский текст…" spellcheck="false"></textarea>
+<div class="row write-foot">
+<button class="go" id="checkBtn" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+<span class="hint kbd-hint">Ctrl+Enter</span>
+<span class="hint word-count" id="textCount"></span>
+</div>
+</div>
+<div id="checkOut"></div>
+<!-- The error-log queue: send named, checked rows to the Vead log. -->
+<details class="fold" id="queueBox">
+<summary lang="et">Vigade logi <i class="ru" lang="ru">ждёт отправки в Notion</i> <span id="queueCount"></span></summary>
+<div id="queueList"></div>
+<div class="row">
+<button class="go" id="queueSend" lang="et">Saada valitud Notionisse <span class="ru" lang="ru">отправить в Notion</span></button>
+<span class="hint" id="queueNote"></span>
+</div>
+</details>
+</section>
+<!-- ── Exam ──────────────────────────────────────────────────────── -->
+<section class="panel" hidden="" id="tab-exam">
+<div class="page-head exam-head">
+<div>
+<h2 class="page-title" lang="et">Eksam <i class="ru" lang="ru">подготовка A2/B1</i></h2>
+<span class="countdown" id="countdown"></span>
+</div>
+<div aria-label="Tase — уровень" class="levels seg" role="tablist">
+<button aria-selected="true" data-level="A2" role="tab">A2</button>
+<button aria-selected="false" data-level="B1" role="tab">B1</button>
+</div>
+</div><details class="mock fold exam-entry" id="mock" open>
+<summary lang="et">Proovieksam <i class="ru" lang="ru">пробный экзамен на время</i></summary>
+<p lang="ru">Выбери одну часть и попробуй задания на время. Это тренировка в приложении; её результат не подтверждает готовность к официальному экзамену.</p>
+<div class="row" id="mockParts"></div>
+<div class="row"><button class="ghost" id="mockWhole" lang="et">Terve eksam
         <span class="ru" lang="ru">все четыре части подряд</span></button></div>
-      <div id="mockOut"></div>
-    </details>
-
-    <!-- The checkpoint: a mixed set across the whole level. -->
-    <div class="checkpoint">
-      <div class="row">
-        <button class="go" id="checkpointBtn" lang="et">Kontrolltöö <span class="ru" lang="ru">контрольная</span></button>
-        <span class="hint" id="checkpointNote"></span>
-        <span class="hint" id="checkpointScore"></span>
-      </div>
-      <div id="checkpointOut"></div>
-    </div>
-
-    <!-- Filled from /api/exam/{level}, grouped by what each thing is for. -->
-    <div id="examMaterial"></div>
-  </section>
-
-  <section class="panel" id="tab-vihikud" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Töövihikud <i class="ru" lang="ru">тетради</i></h2>
-      <p class="lede">Официальные консультационные тетради, в том числе
+<div id="mockOut"></div>
+<a class="quiet" href="#vihikud" lang="et">Töövihikud <span class="ru" lang="ru">официальные материалы</span></a>
+</details>
+<!-- Filled from /api/readiness/{level}: the four parts as the petals of one
+         flower, the verdict in Russian, and what to open next for each part. -->
+<details class="fold"><summary lang="et">Minu valmisolek <span class="ru" lang="ru">моя готовность</span></summary><div id="readiness"></div></details>
+<!-- The exam's own shape and sittings, from /api/exam-spec/{level}
+         (`eesti/exam.py`): the points differ by level, so nothing is hard-coded. -->
+<details class="fold"><summary lang="et">Eksami korraldus <span class="ru" lang="ru">формат и дата</span></summary><div class="exam-shape">
+<h3 class="sec-title" lang="et">Eksami kuju <i class="ru" lang="ru">как устроен экзамен</i></h3>
+<div id="examSpec"></div>
+<div class="exam-goal" id="examGoal"></div>
+</div></details>
+<!-- The timed mock: one exam part on the exam's clock (`eesti/mock.py`). -->
+<div id="examMaterial"></div>
+<!-- The checkpoint: a mixed set across the whole level. -->
+<details class="fold"><summary lang="et">Grammatika kontroll <span class="ru" lang="ru">проверка тем курса</span></summary><div class="checkpoint">
+<div class="row">
+<button class="go" id="checkpointBtn" lang="et">Kontrolltöö <span class="ru" lang="ru">контрольная</span></button>
+<span class="hint" id="checkpointNote"></span>
+<span class="hint" id="checkpointScore"></span>
+</div>
+<div id="checkpointOut"></div>
+</div></details>
+<!-- Filled from /api/exam/{level}, grouped by what each thing is for. -->
+</section>
+<section class="panel" hidden="" id="tab-vihikud">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Töövihikud <i class="ru" lang="ru">тетради</i></h2>
+<p class="lede">Официальные консультационные тетради, в том числе
         заполняемые на компьютере. Это домашняя работа, а не экзамен.</p>
-    </div></div>
-    <div id="vihikudList" class="lib-list"></div>
-  </section>
-
-  <section class="panel" id="tab-review" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Järjekord <i class="ru" lang="ru">очередь повторения</i></h2>
-      <p class="lede">Сюда попадают ошибки и слова, отмеченные при чтении. Каждая карточка
+</div></div>
+<div class="lib-list" id="vihikudList"></div>
+</section>
+<section class="panel" hidden="" id="tab-review">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Kordamine <i class="ru" lang="ru">повторение</i></h2>
+<p class="lede">Сюда попадают ошибки и слова, отмеченные при чтении. Каждая карточка
         возвращается тем раньше, чем труднее она тебе далась.</p>
-    </div></div>
-    <div id="reviewForecast"></div>
-    <div class="row" id="reviewStart">
-      <button class="go" id="loadReview" aria-describedby="reviewStats" lang="et">Alusta kordamist <span class="ru" lang="ru">начать повторение</span></button>
-      <span class="hint" id="reviewStats"></span>
-    </div>
-    <!-- An empty queue says where to go instead: the intro above already says where
+</div></div>
+<details class="fold"><summary lang="et">Kordamise plaan <span class="ru" lang="ru">расписание карточек</span></summary><div id="reviewForecast"></div></details>
+<div class="row" id="reviewStart">
+<button aria-describedby="reviewStats" class="go" id="loadReview" lang="et">Alusta kordamist <span class="ru" lang="ru">начать повторение</span></button>
+<span class="hint" id="reviewStats"></span>
+</div>
+<!-- An empty queue says where to go instead: the intro above already says where
          cards come from. -->
-    <div class="empty-state" id="reviewEmpty" hidden>
-      <div class="empty-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"/><path d="M21 3.6v5.2h-5.2"/></svg></div>
-      <h3>Очередь пока пуста</h3>
-      <p>Карточки появляются из ошибок в упражнениях, из слов, отмеченных при чтении,
+<div class="empty-state" hidden="" id="reviewEmpty">
+<div class="empty-mark"><svg aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" viewbox="0 0 24 24">
+<path d="M20.6 11a8.6 8.6 0 1 0-2 6.4"></path><path d="M21 3.6v5.2h-5.2"></path></svg></div>
+<h3>Очередь пока пуста</h3>
+<p>Карточки появляются из ошибок в упражнениях, из слов, отмеченных при чтении,
         и из слов, которые ты добавишь в Sõnavara кнопкой «Kordamisse».</p>
-      <div class="row"><a class="ghost" href="#path" lang="et">Mine Radale <span class="ru" lang="ru">к упражнениям</span></a>
-        <a class="ghost" href="#sonad" lang="et">Vali sõnu <span class="ru" lang="ru">выбрать слова</span></a></div>
-    </div>
-    <!-- The words the learner keeps getting wrong (`/api/review/stats` `struggling`). -->
-    <div id="reviewHard" hidden></div>
-    <div id="reviewOut"></div>
-  </section>
-
-  <!-- ── Vocabulary ────────────────────────────────────────────────────
+<div class="row"><a class="ghost" href="#path" lang="et">Mine Radale <span class="ru" lang="ru">к упражнениям</span></a>
+<a class="ghost" href="#sonad" lang="et">Vali sõnu <span class="ru" lang="ru">выбрать слова</span></a></div>
+</div>
+<!-- The words the learner keeps getting wrong (`/api/review/stats` `struggling`). -->
+<div hidden="" id="reviewHard"></div>
+<div id="reviewOut"></div>
+<nav aria-label="Sõnavara — словарь" class="review-tools"><a href="#sonad" lang="et">Sõnavara <span class="ru" lang="ru">слова и тренировка</span></a><a href="#status" lang="et">Edenemine <span class="ru" lang="ru">посмотреть прогресс</span></a></nav></section>
+<!-- ── Vocabulary ────────────────────────────────────────────────────
        The word list, commonest first. The level filter selects the CEFR-tagged
        minority, which is the A1–B1 exam vocabulary. -->
-  <section class="panel" id="tab-sonad" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Sõnavara <i class="ru" lang="ru">словарь</i></h2>
-      <p class="lede">Список слов, сначала самые частотные. Нажми на слово, чтобы открыть карточку.</p>
-    </div></div>
-    <!-- Sõnatrenn: the Russian meaning, the Estonian word typed back (`js/words.js`). -->
-    <section class="workout" aria-labelledby="workoutHead">
-      <div class="workout-intro">
-        <div>
-          <h3 class="sec-title" id="workoutHead" lang="et">Sõnatrenn <i class="ru" lang="ru">тренировка слов</i></h3>
-          <p class="note">Десять слов из тех, что ты учишь: по переводу вспомни эстонское
+<section class="panel" hidden="" id="tab-sonad">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Sõnavara <i class="ru" lang="ru">словарь</i></h2>
+<p class="lede">Список слов, сначала самые частотные. Нажми на слово, чтобы открыть карточку.</p>
+</div></div>
+<!-- Sõnatrenn: the Russian meaning, the Estonian word typed back (`js/words.js`). -->
+<section aria-labelledby="workoutHead" class="workout">
+<div class="workout-intro">
+<div>
+<h3 class="sec-title" id="workoutHead" lang="et">Sõnatrenn <i class="ru" lang="ru">тренировка слов</i></h3>
+<p class="note">Пять слов из тех, что ты учишь: по переводу вспомни эстонское
             слово. Ответы никуда не записываются — ошибки можно отправить в повторение.</p>
-        </div>
-        <button class="go" id="workoutStart" type="button" lang="et">Alusta <span class="ru" lang="ru">начать</span></button>
-      </div>
-      <div class="stage" id="workoutStage" hidden>
-        <div class="stage-top">
-          <div class="beads" id="workoutBeads" aria-hidden="true"></div>
-          <span class="hint" id="workoutScore"></span>
-        </div>
-        <div id="workoutOut"></div>
-      </div>
-    </section>
-    <div class="row filter">
-      <label lang="et">Tase <i class="ru" lang="ru">уровень</i>
-        <select id="vocLevel">
-          <option value="">kõik</option>
-          <option value="A1" selected>A1</option>
-          <option value="A2">A2</option>
-          <option value="B1">B1</option>
-          <option value="B2">B2</option>
-          <option value="C1">C1</option>
-        </select>
-        <span class="field-recommendation" id="vocRecommendation" hidden></span>
-      </label>
-      <label lang="et">Sõnaliik <i class="ru" lang="ru">часть речи</i>
-        <select id="vocPos">
-          <option value="">kõik</option>
-          <option value="s">nimisõna</option>
-          <option value="v">tegusõna</option>
-          <option value="adj">omadussõna</option>
-          <option value="adv">määrsõna</option>
-        </select>
-      </label>
-      <label lang="et">Olek <i class="ru" lang="ru">статус</i>
-        <select id="vocStatus">
-          <option value="">kõik</option>
-          <option value="new">uued</option>
-          <option value="learning">õpin</option>
-          <option value="known">tean</option>
-          <option value="well_known">teadsin ammu</option>
-          <option value="ignored">eiran</option>
-        </select>
-      </label>
-      <button id="vocBtn" class="primary" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
-    </div>
-    <div id="vocOut" aria-live="polite"></div>
-    <div class="row" id="vocMore" hidden>
-      <button class="ghost" id="vocMoreBtn" lang="et">Veel sõnu <span class="ru" lang="ru">ещё слова</span></button>
-    </div>
-  </section>
-
-  <!-- ── Reading ───────────────────────────────────────────────────── -->
-  <section class="panel" id="tab-read" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Lugemine <i class="ru" lang="ru">чтение</i></h2>
-      <p class="lede">Тексты по доле знакомых слов: сначала те, что уже по силам.</p>
-    </div></div>
-    <div class="row filter">
-      <label lang="et">Valik <i class="ru" lang="ru">подборка</i>
-        <select id="readLevel">
-          <!-- Default, because it is the only option that knows anything about
-               *this* reader. The rest rank texts against each other. -->
-          <option value="soovitatud">soovitatud sulle</option>
-          <option value="">kõik</option>
-          <option value="kergem">kergem</option>
-          <option value="keskmine">keskmine</option>
-          <option value="raskem">raskem</option>
-        </select>
-      </label>
-      <button class="primary" id="loadLib" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
-    </div>
-    <!-- The count sits outside the wrapping control row, so it does not move. -->
-    <p class="hint" id="libCount"></p>
-    <!-- Why the recommended list is in this order, in Russian (from the server). -->
-    <p class="hint" id="libNote" lang="ru" hidden></p>
-    <div id="libList"></div>
-    <div class="row" id="libMore" hidden>
-      <button class="ghost" id="libMoreBtn" lang="et">Veel tekste <span class="ru" lang="ru">ещё тексты</span></button>
-    </div>
-    <div id="reader" hidden>
-      <div class="row reader-top">
-        <button class="ghost" id="backToLib" lang="et">Nimekirja <span class="ru" lang="ru">к списку</span></button>
-        <span class="hint" id="readerMeta"></span>
-      </div>
-      <h3 id="readerTitle" class="reader-title" lang="et"></h3>
-      <div id="readerAudio"></div>
-      <p class="hint" id="readerProfile"></p>
-      <p class="sr-only" id="readerKeys" lang="ru">Слова текста: стрелки влево и вправо
-        переходят между словами, Enter открывает карточку слова.</p>
-      <div id="readerBody" class="prose" lang="et" aria-describedby="readerKeys"></div>
-      <!-- Translation on request only: a reader handed Russian reads the Russian. -->
-      <div class="row">
-        <button class="ghost" id="xlBtn" lang="et">Tõlgi valitud lause <span class="ru" lang="ru">перевести предложение</span></button>
-        <span class="hint" id="xlHint">Выдели предложение в тексте.</span>
-      </div>
-      <div id="xlOut" class="gloss-late" hidden></div>
-      <div id="wordCard" hidden></div>
-      <!-- Did the text land? The questions are written by a model and keyed by
-           the text itself; the answers are graded here, never by a model. -->
-      <div id="readQuiz" class="quiz">
-        <div class="row">
-          <button class="ghost" id="quizBtn" lang="et">Küsimused
-            <span class="ru" lang="ru">вопросы по тексту</span></button>
-          <span class="hint" id="quizHint"></span>
-        </div>
-        <div id="quizList"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Listening ─────────────────────────────────────────────────── -->
-  <section class="panel" id="tab-listen" hidden>
-    <div class="page-head"><div>
-      <h2 class="page-title" lang="et">Kuulamine <i class="ru" lang="ru">аудирование</i></h2>
-    </div></div>
-    <!-- Two tools, each under its own heading: the graded dictation, then any text read aloud. -->
-    <h3 class="sec-head" lang="et">Etteütlus <i class="ru" lang="ru">диктант</i></h3>
-    <!-- Dictation first (graded), the text-to-speech box second. -->
-    <!-- Outside `#dictBox`, so the reason there is no dictation stays visible when the
-         box is hidden. -->
-    <div id="dictEmpty" hidden></div>
-
-    <div id="dictBox">
-      <div class="row">
-        <button class="go" id="dictPlay" lang="et">Kuula <span class="ru" lang="ru">слушать</span></button>
-        <button class="ghost" id="dictNext" lang="et">Järgmine <span class="ru" lang="ru">дальше</span></button>
-        <span class="hint" id="dictState">Прослушай и запиши услышанное.</span>
-      </div>
-      <textarea id="dictTyped" rows="2" lang="et" autocapitalize="off" autocorrect="off"
-        spellcheck="false" aria-label="Etteütlus — что ты услышал"
-        placeholder="Запиши, что услышал…"></textarea>
-      <div class="row">
-        <button class="go" id="dictCheck" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
-        <span class="hint" id="dictScore"></span>
-      </div>
-      <!-- The player and the result are separate containers, so replay survives grading. -->
-      <div id="dictAudio"></div>
-      <div id="dictOut"></div>
-      <p class="hint" id="dictCaveat"></p>
-    </div>
-
-    <!-- The harvested listening archive, by section. -->
-    <div id="listenLib"></div>
-
-    <h3 class="sec-head" lang="et">Teksti ettelugemine <i class="ru" lang="ru">озвучить любой текст</i></h3>
-    <p class="hint">Вставь текст — он прозвучит медленно (0.7×) или в обычном темпе.</p>
-    <label for="ttsText" lang="et">Tekst <span class="ru" lang="ru">текст для озвучивания</span></label>
-    <textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
-    <div class="row">
-      <label lang="et">Hääl <i class="ru" lang="ru">голос</i> <select id="voice"></select></label>
-      <label lang="et">Kiirus <i class="ru" lang="ru">скорость</i>
-        <select id="speed">
-          <option value="0.7" selected>0.7× (õppijale)</option>
-          <option value="0.85">0.85×</option>
-          <option value="1">1× (tavaline)</option>
-        </select>
-      </label>
-      <button class="ghost" id="speakBtn" lang="et">Loe ette <span class="ru" lang="ru">озвучить</span></button>
-    </div>
-    <div id="ttsOut"></div>
-  </section>
-  </main>
-
-  <!-- Desktop-only context rail: countdown, resume point, due count. -->
-  <aside class="rail" id="rail" aria-labelledby="railHead"><h2 class="sr-only" id="railHead" lang="et">Kokkuvõte <span lang="ru">— сводка</span></h2><div id="railCards"></div></aside>
-
 </div>
+<button class="go" id="workoutStart" lang="et" type="button">Alusta <span class="ru" lang="ru">начать</span></button>
+</div>
+<div class="stage" hidden="" id="workoutStage">
+<div class="stage-top">
+<div aria-hidden="true" class="beads" id="workoutBeads"></div>
+<span class="hint" id="workoutScore"></span>
+</div>
+<div id="workoutOut"></div>
+</div>
+</section>
 
+
+
+<details class="fold word-collection"><summary lang="et">Minu sõnad <span class="ru" lang="ru">посмотреть и выбрать слова</span></summary><div class="row filter">
+<label lang="et">Tase <i class="ru" lang="ru">уровень</i>
+<select id="vocLevel">
+<option value="">kõik</option>
+<option selected="" value="A1">A1</option>
+<option value="A2">A2</option>
+<option value="B1">B1</option>
+<option value="B2">B2</option>
+<option value="C1">C1</option>
+</select>
+<span class="field-recommendation" hidden="" id="vocRecommendation"></span>
+</label>
+<label lang="et">Sõnaliik <i class="ru" lang="ru">часть речи</i>
+<select id="vocPos">
+<option value="">kõik</option>
+<option value="s">nimisõna</option>
+<option value="v">tegusõna</option>
+<option value="adj">omadussõna</option>
+<option value="adv">määrsõna</option>
+</select>
+</label>
+<label lang="et">Olek <i class="ru" lang="ru">статус</i>
+<select id="vocStatus">
+<option value="">kõik</option>
+<option value="new">uued</option>
+<option value="learning">õpin</option>
+<option value="known">tean</option>
+<option value="well_known">teadsin ammu</option>
+<option value="ignored">eiran</option>
+</select>
+</label>
+<button class="primary" id="vocBtn" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
+</div><div aria-live="polite" id="vocOut"></div><div class="row" hidden="" id="vocMore">
+<button class="ghost" id="vocMoreBtn" lang="et">Veel sõnu <span class="ru" lang="ru">ещё слова</span></button>
+</div></details></section>
+<!-- ── Reading ───────────────────────────────────────────────────── -->
+<section class="panel" hidden="" id="tab-read">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Lugemine <i class="ru" lang="ru">чтение</i></h2>
+<p class="lede">Тексты по доле знакомых слов: сначала те, что уже по силам.</p>
+</div></div><div class="starter-text" hidden="" id="readingStarter"></div><details class="fold read-catalogue"><summary lang="et">Tekstide kogu <span class="ru" lang="ru">библиотека текстов</span></summary><div class="row filter">
+<label lang="et">Valik <i class="ru" lang="ru">подборка</i>
+<select id="readLevel">
+<!-- Default, because it is the only option that knows anything about
+               *this* reader. The rest rank texts against each other. -->
+<option value="soovitatud">soovitatud sulle</option>
+<option value="">kõik</option>
+<option value="kergem">kergem</option>
+<option value="keskmine">keskmine</option>
+<option value="raskem">raskem</option>
+</select>
+</label>
+<button class="primary" id="loadLib" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
+</div><p class="hint" id="libCount"></p><p class="hint" hidden="" id="libNote" lang="ru"></p><div id="libList"></div><div class="row" hidden="" id="libMore">
+<button class="ghost" id="libMoreBtn" lang="et">Veel tekste <span class="ru" lang="ru">ещё тексты</span></button>
+</div></details>
+
+<!-- The count sits outside the wrapping control row, so it does not move. -->
+
+<!-- Why the recommended list is in this order, in Russian (from the server). -->
+
+
+
+<div hidden="" id="reader">
+<div class="row reader-top">
+<button class="ghost" id="backToLib" lang="et">Nimekirja <span class="ru" lang="ru">к списку</span></button>
+<span class="hint" id="readerMeta"></span>
+</div>
+<h3 class="reader-title" id="readerTitle" lang="et"></h3>
+<div id="readerAudio"></div>
+<p class="hint" id="readerProfile"></p>
+<p class="sr-only" id="readerKeys" lang="ru">Слова текста: стрелки влево и вправо
+        переходят между словами, Enter открывает карточку слова.</p>
+<div aria-describedby="readerKeys" class="prose" id="readerBody" lang="et"></div>
+<!-- Translation on request only: a reader handed Russian reads the Russian. -->
+<div class="row">
+<button class="ghost" id="xlBtn" lang="et">Tõlgi valitud lause <span class="ru" lang="ru">перевести предложение</span></button>
+<span class="hint" id="xlHint">Выдели предложение в тексте.</span>
+</div>
+<div class="gloss-late" hidden="" id="xlOut"></div>
+<!-- Did the text land? The questions are written by a model and keyed by
+           the text itself; the answers are graded here, never by a model. -->
+<div class="quiz" id="readQuiz">
+<div class="row">
+<button class="ghost" id="quizBtn" lang="et">Küsimused
+            <span class="ru" lang="ru">вопросы по тексту</span></button>
+<span class="hint" id="quizHint"></span>
+</div>
+<div id="quizList"></div>
+</div>
+</div>
+<div hidden="" id="wordCard"></div></section>
+<!-- ── Listening ─────────────────────────────────────────────────── -->
+<section class="panel" hidden="" id="tab-listen">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Kuulamine <i class="ru" lang="ru">аудирование</i></h2>
+</div></div>
+<!-- Two tools, each under its own heading: the graded dictation, then any text read aloud. -->
+<h3 class="sec-head" lang="et">Etteütlus <i class="ru" lang="ru">диктант</i></h3>
+<!-- Dictation first (graded), the text-to-speech box second. -->
+<!-- Outside `#dictBox`, so the reason there is no dictation stays visible when the
+         box is hidden. -->
+<div hidden="" id="dictEmpty"></div>
+<div id="dictBox">
+<div class="row">
+<button class="go" id="dictPlay" lang="et">Kuula <span class="ru" lang="ru">слушать</span></button>
+<button class="ghost" id="dictNext" lang="et">Järgmine <span class="ru" lang="ru">дальше</span></button>
+<span class="hint" id="dictState">Прослушай и запиши услышанное.</span>
+</div>
+<textarea aria-label="Etteütlus — что ты услышал" autocapitalize="off" autocorrect="off" id="dictTyped" lang="et" placeholder="Запиши, что услышал…" rows="2" spellcheck="false"></textarea>
+<div class="row">
+<button class="go" id="dictCheck" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+<span class="hint" id="dictScore"></span>
+</div>
+<!-- The player and the result are separate containers, so replay survives grading. -->
+<div id="dictAudio"></div>
+<div id="dictOut"></div>
+<p class="hint" id="dictCaveat"></p>
+</div>
+<!-- The harvested listening archive, by section. -->
+<details class="fold listening-library"><summary lang="et">Kuula pikemalt <span class="ru" lang="ru">аудио и видео</span></summary><div id="listenLib"></div></details>
+
+
+<details class="fold listening-tts"><summary lang="et">Loe oma tekst ette <span class="ru" lang="ru">озвучить свой текст</span></summary><label for="ttsText" lang="et">Tekst <span class="ru" lang="ru">текст для озвучивания</span></label>
+<textarea id="ttsText" placeholder="Вставь текст из учебника или статьи…"></textarea>
+<div class="row">
+<label lang="et">Hääl <i class="ru" lang="ru">голос</i> <select id="voice"></select></label>
+<label lang="et">Kiirus <i class="ru" lang="ru">скорость</i>
+<select id="speed">
+<option selected="" value="0.7">0.7× (õppijale)</option>
+<option value="0.85">0.85×</option>
+<option value="1">1× (tavaline)</option>
+</select>
+</label>
+<button class="ghost" id="speakBtn" lang="et">Loe ette <span class="ru" lang="ru">озвучить</span></button>
+</div>
+<div id="ttsOut"></div><p class="hint">Вставь текст — он прозвучит медленно (0.7×) или в обычном темпе.</p></details>
+</section>
+<section class="panel" hidden="" id="tab-rule"><article class="lesson" id="lessonSheet"></article></section></main>
+<!-- Desktop-only context rail: countdown, resume point, due count. -->
+</div>
 <!-- Attribution. CC BY 4.0 requires naming the source and indicating changes wherever
      the material is presented, so it is on the page. Closed by default, loaded on
      first open. -->
 <footer class="sources">
-  <div class="brand-footer">
-    <p><strong lang="en">Grove</strong> <span lang="ru">— маленькая роща: место, где растёт твой эстонский.</span></p>
-    <p lang="et">© __BRAND_YEAR__ Grove</p>
-  </div>
-  <details id="sourceBox">
-    <summary lang="et">Allikad <i class="ru" lang="ru">источники</i></summary>
-    <p class="note" lang="ru">Здесь указаны источники учебного материала и изменения,
+<div class="brand-footer">
+<p><strong lang="en">Grove</strong> <span lang="ru">— маленькая роща: место, где растёт твой эстонский.</span></p>
+<p lang="et">© __BRAND_YEAR__ Grove</p>
+</div>
+<details id="sourceBox">
+<summary lang="et">Allikad <i class="ru" lang="ru">источники</i></summary>
+<p class="note" lang="ru">Здесь указаны источники учебного материала и изменения,
       которые мы внесли при подготовке упражнений.</p>
-    <div id="sourceList"></div>
-  </details>
+<div id="sourceList"></div>
+</details>
 </footer>
-
 <!-- The one polite announcer: moments worth saying aloud (a topic mastered). -->
-<div id="announce" class="sr-only" role="status" aria-live="polite"></div>
-
+<div aria-live="polite" class="sr-only" id="announce" role="status"></div>
 <!-- The Reegel page (js/lesson.js): a solid sheet over the page. -->
-<dialog id="lessonSheet" class="lesson" aria-label="Reegel — правило"></dialog>
 <!-- Two short, optional starting questions. The answer is a recommendation only,
      never a CEFR result or recorded mastery. -->
-<dialog id="onboardingSheet" class="onboarding" aria-label="Leia oma algus — выбрать начало"></dialog>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

@@ -5,19 +5,30 @@ paths:
 
 # The page
 
-- Open the page in a browser at desktop (1440×900), iPhone 17 (402×874 and 874×402, touch) and iPad mini 6 (744×1133, touch), every tab, and look at screenshots — geometry assertions miss what a picture shows.
-- Visibility is `checkVisibility()`; reachability is `elementFromPoint` at the element's centre. A non-zero bounding box proves neither.
-- Tabs live in the URL hash: `pushState` per change, `replaceState` for the landing tab, re-selecting the current tab does nothing.
-- `main.js` bootstraps last; loaders may touch anything declared.
-- Never set `textContent` on an element with decorated children (the Russian gloss); use `setLabel`.
-- Every `var(--token)` must be defined; spacing uses `--s1`…`--s7`; colours are tokens, never hex in rules.
-- Give each information role its own treatment; colour by role, not by language.
-- Glass is for the navigation layer and cards floating over content (the word card) only; content stays on solid sheets. A new floating bar takes the `.glass` class (fill, blur, `--glass-lift`, reduced-transparency, higher-contrast and saved `glass=off` fallbacks); never copy the recipe. See DESIGN.md "Adding a page or section".
-- Any choice between views is `role="tablist"` with `role="tab"` + `aria-selected`: `js/glide.js` then slides one capsule to the selection, also for lists added later. Keep a per-list selected look for the no-script case.
-- From 720px `.wrap` is a grid (spine, column, rail) with rows placed by number: place anything added at its top level deliberately.
-- Before making a container flex, check what its children relied on normal flow for.
-- `.panel > :first-child` owns the top-margin reset; do not copy inline resets.
-- A media query does not raise specificity: a rule inside `@media` loses to a later rule of equal depth. Measure in a browser; deliberate overrides sit at the end of `app.css`.
-- After a fix, re-run the whole browser pass — fixes create the next bug.
-- Estonian labels, Russian explanations (see AGENTS.md); `tests/test_ui_language.py` enforces it.
-- The service worker cache version is stamped by the server (`api/assets.py`); never hand-edit `VERSION` in `sw.js`, and never cache the API.
+- Inspect every page at desktop 1440×900, phone 402×874 and 874×402 (touch),
+  tablet 744×1133 (touch), and the user's reported viewport. Use screenshots as
+  well as geometry; follow the active design skill's bounded review workflow.
+- Visibility is `checkVisibility()`; reachability is `elementFromPoint` at the
+  element's centre. A non-zero bounding box proves neither.
+- Four skills stay reachable. Home, Course, Review, Exam and account use links.
+  The phone More menu closes even on a link to the current page.
+- Hash routes include session and rule topic IDs. Reload keeps the place,
+  re-selecting adds no history, and malformed routes recover.
+- `main.js` bootstraps last. Never set `textContent` on decorated label children;
+  use `setLabel` so the explanation-language gloss survives.
+- Define every CSS token. Use spacing `--s1`…`--s7` and semantic palette roles.
+  Practice rhythm has a pale blue/aqua ground, solid tasks, frosted navigation and blue
+  current state; DESIGN.md records the tokens and dark equivalent.
+- Use native links, buttons, details and labelled fields. View switches use
+  `role="tablist"`, roving focus and `aria-selected`. Long references use a page;
+  popovers are reserved for contextual word lookup.
+- The wrap has navigation and content columns on desktop, one content column
+  on phones. Check normal-flow assumptions before adding flex/grid.
+- `.panel > :first-child` owns the top-margin reset. Media queries do not raise
+  specificity; measure deliberate overrides in the browser.
+- Estonian labels, Russian MVP explanations; preserve source/progress identities
+  when preparing other explanation languages. See AGENTS.md.
+- After web changes run the whole browser journey suite and inspect both device
+  classes. Keep skips distinct from checked mastery and FSRS.
+- The server stamps the service worker version (`api/assets.py`). Never edit
+  `VERSION` by hand, leave deleted modules out of precache, and cache no API.

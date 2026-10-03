@@ -1,0 +1,408 @@
+{
+  "title": "Grove — learning made clear",
+  "question": "A fresh direction after reviewing 12 learning apps and the live Grove app. Every option replaces the crowded shell: three starting routes, one next lesson, four visible skills, reversible skips, and fewer duplicate pages. Choose the learning experience and visual character to build; code-first is saved.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Practice rhythm",
+      "kicker": "THE ROLL",
+      "lineage": "Baltic woven colour bands",
+      "thesis": "A clear course home leads to a focused session with a visible learn → practise → check sequence.",
+      "palette": [
+        "#10483f",
+        "#eaf5ef",
+        "#ffffff",
+        "#c55c40"
+      ],
+      "materials": [
+        "spruce navigation on a mint working ground",
+        "humanist sans and solid task surfaces"
+      ],
+      "viewport": "Desktop: compact navigation, the next lesson and one Start button, then optional review; no metrics rail. Phone: home and account in the header, four labelled skills below, and the same next lesson.",
+      "risk": "The step strip must stay simple; turning it into another progress dashboard would undo the benefit.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "Home + 4 skills",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 12,
+            "accent": true
+          },
+          {
+            "label": "Grove · course / account",
+            "x": 3,
+            "y": 0,
+            "w": 8,
+            "h": 1
+          },
+          {
+            "label": "Your next lesson",
+            "x": 3,
+            "y": 2,
+            "w": 8,
+            "h": 2
+          },
+          {
+            "label": "Learn → practise → check",
+            "x": 3,
+            "y": 5,
+            "w": 8,
+            "h": 2,
+            "accent": true
+          },
+          {
+            "label": "Start · choose another topic",
+            "x": 3,
+            "y": 8,
+            "w": 8,
+            "h": 2,
+            "accent": true
+          },
+          {
+            "label": "Review when useful",
+            "x": 3,
+            "y": 11,
+            "w": 8,
+            "h": 1
+          }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/round-1-practice-rhythm.webp",
+      "raised": [
+        {
+          "from": "Monochrome product proof",
+          "raise": "Feedback shows what was checked, rather than a decorative score."
+        },
+        {
+          "from": "Goldenrod timetable",
+          "raise": "Session controls keep their positions as task state changes."
+        },
+        {
+          "from": "Saville catalogue",
+          "raise": "One useful lesson title leads; repeated summaries disappear."
+        },
+        {
+          "from": "Midnight transit graphics",
+          "raise": "Return to the current course position is always visible."
+        },
+        {
+          "from": "Split-flap concourse",
+          "raise": "Reserved feedback space keeps the next action from jumping."
+        }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Everyday phrases",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Adult bilingual phrase-card graphics",
+      "thesis": "A welcoming home makes the next useful lesson obvious, with direct practice in any of the four skills.",
+      "palette": [
+        "#52378b",
+        "#f0edfa",
+        "#ffffff",
+        "#27303e"
+      ],
+      "materials": [
+        "plum navigation and a pale lilac ground",
+        "clear sans with phrase-sized lesson headings"
+      ],
+      "viewport": "Desktop: a slim top header, next lesson with Start and a quiet course-change link, then four skill choices. Phone: the next lesson sits above a compact 2×2 skill launcher; the persistent four-skill bar stays labelled.",
+      "risk": "This is a familiar guided-learning arrangement; its distinction comes from crisp teaching and interaction rather than unusual composition.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "Grove · Home / Course / Account",
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 1,
+            "accent": true
+          },
+          {
+            "label": "Next useful lesson",
+            "x": 1,
+            "y": 2,
+            "w": 10,
+            "h": 3
+          },
+          {
+            "label": "Start · change course",
+            "x": 1,
+            "y": 6,
+            "w": 10,
+            "h": 1,
+            "accent": true
+          },
+          {
+            "label": "Read / Speak",
+            "x": 1,
+            "y": 8,
+            "w": 5,
+            "h": 2
+          },
+          {
+            "label": "Listen / Write",
+            "x": 7,
+            "y": 8,
+            "w": 4,
+            "h": 2
+          },
+          {
+            "label": "Review / exam on request",
+            "x": 1,
+            "y": 11,
+            "w": 10,
+            "h": 1
+          }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/round-1-everyday-phrases.webp"
+    },
+    {
+      "id": "pop-culture-shelf-vertical-video-feed-surface",
+      "label": "Immersion stage",
+      "verdict": "competitive",
+      "lineage": "Focused caption and vertical-media design",
+      "thesis": "One activity owns the working area, with its text, audio and response kept together.",
+      "palette": [
+        "#121316",
+        "#ffffff",
+        "#5a6472",
+        "#e7ebee"
+      ],
+      "materials": [
+        "an ink navigation frame around a readable task",
+        "compact sans, captions and standard controls"
+      ],
+      "viewport": "Desktop: four skill tabs, a home/course return, then one large reading or listening task with source and response controls. Phone: one task fills the working area; labelled skills and Next remain explicit buttons.",
+      "case": "Familiar media focus makes short practice inviting; course orientation and long writing are less immediate than in the guided alternatives.",
+      "risk": "It needs a strong course return and a sensible starter sequence so learning never becomes an endless feed.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "Grove · home / course",
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 1
+          },
+          {
+            "label": "Read / Speak / Listen / Write",
+            "x": 0,
+            "y": 2,
+            "w": 12,
+            "h": 1,
+            "accent": true
+          },
+          {
+            "label": "One text or audio task",
+            "x": 1,
+            "y": 4,
+            "w": 10,
+            "h": 4,
+            "accent": true
+          },
+          {
+            "label": "Source · hint · response",
+            "x": 1,
+            "y": 9,
+            "w": 10,
+            "h": 1
+          },
+          {
+            "label": "Check / Next · skip",
+            "x": 1,
+            "y": 11,
+            "w": 10,
+            "h": 1,
+            "accent": true
+          }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/round-1-immersion-stage.webp",
+      "board": "https://impeccable.style/worlds/cards/pop-culture-shelf-vertical-video-feed-surface.webp",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-vertical-video-feed-surface-hero.webp"
+    },
+    {
+      "id": "digital-design-canon-monochrome-product-marketing",
+      "label": "Monochrome product proof",
+      "verdict": "declined",
+      "lineage": "Neutral claim-and-proof product design",
+      "thesis": "A neutral lesson and its checked answer are paired in a strict grid.",
+      "palette": [
+        "#f7f8fa",
+        "#17191d",
+        "#4b60c9"
+      ],
+      "materials": [
+        "neutral surfaces",
+        "tight sans with two weights"
+      ],
+      "viewport": "Standard skills surround a lesson with evidence beside it; the pair stacks on phones.",
+      "case": "Proof panels compete with the task and the marketing character has little connection to beginner study.",
+      "kept": "Show the checked evidence in feedback.",
+      "risk": "A lesson can become a product display instead of useful practice.",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-monochrome-product-marketing-hero.webp"
+    },
+    {
+      "id": "rw-timetable-slide-rack",
+      "label": "Goldenrod timetable",
+      "verdict": "declined",
+      "lineage": "Pocket timetable graphics",
+      "thesis": "Stable state cells and a single-size rhythm keep task changes legible.",
+      "palette": [
+        "#d7b83f",
+        "#33404c",
+        "#f7f6ec",
+        "#204b39"
+      ],
+      "materials": [
+        "goldenrod colour field",
+        "condensed labels and level baselines"
+      ],
+      "viewport": "Standard navigation leads a readable practice pane with stable state positions.",
+      "case": "Travel notation is remote from reflective study; raked surfaces complicate long Russian text.",
+      "kept": "Keep control positions stable between session states.",
+      "risk": "Timetable character can obscure the reading hierarchy.",
+      "hero": "https://impeccable.style/worlds/cards/rw-timetable-slide-rack-hero.webp"
+    },
+    {
+      "id": "brand-identity-canon-saville-catalog-sleeve",
+      "label": "Saville catalogue",
+      "verdict": "declined",
+      "lineage": "Factory Records catalogue identity",
+      "thesis": "One decisive lesson title leads a sparse ink surface.",
+      "palette": [
+        "#101214",
+        "#ffffff",
+        "#79aaa0"
+      ],
+      "materials": [
+        "matte ink ground",
+        "small precise labels"
+      ],
+      "viewport": "A conventional shell gives one lesson the visual lead, with every destination labelled.",
+      "case": "Coded catalogue graphics weaken novice identification and destination recognition.",
+      "kept": "Remove competing titles and repeated summaries.",
+      "risk": "Coded identity and hover decoding cannot replace clear controls.",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp"
+    },
+    {
+      "id": "wayfinding-cartography-signage-midnight-transit-diagram",
+      "label": "Midnight transit graphics",
+      "verdict": "declined",
+      "lineage": "Metropolitan transit wayfinding",
+      "thesis": "A visible course position makes returning to the next lesson easy.",
+      "palette": [
+        "#132640",
+        "#ffffff",
+        "#b8513f",
+        "#d4b044"
+      ],
+      "materials": [
+        "midnight navigation",
+        "humanist destination labels"
+      ],
+      "viewport": "Standard skills flank a lesson, with a compact course return rather than a network.",
+      "case": "A network adds information to a home whose main job is choosing one activity.",
+      "kept": "Always expose a return to the current course position.",
+      "risk": "Route graphics can recreate the clutter being removed.",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram-hero.webp"
+    },
+    {
+      "id": "signals-instruments-split-flap-concourse",
+      "label": "Split-flap concourse",
+      "verdict": "declined",
+      "lineage": "Rail-concourse departure boards",
+      "thesis": "Reserved state space makes feedback changes predictable.",
+      "palette": [
+        "#161a1e",
+        "#ffffff",
+        "#c7a04a",
+        "#a65353"
+      ],
+      "materials": [
+        "ink and white contrast",
+        "condensed state labels"
+      ],
+      "viewport": "A conventional session keeps action and feedback in stable positions.",
+      "case": "Departure-board density and cascading letters slow reading without helping the task.",
+      "kept": "Feedback never moves the next-action control.",
+      "risk": "Novelty animation can overpower a simple correction.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "steer": true,
+  "canon": true,
+  "canonCard": {
+    "label": "Familiar guided learning",
+    "thesis": "A straightforward course home and labelled practice destinations, executed to the quality of leading learning apps.",
+    "palette": [
+      "#ffffff",
+      "#222c3b",
+      "#4559b9",
+      "#edf0f8"
+    ],
+    "materials": [
+      "plain surfaces and standard controls",
+      "comfortable sans and a restrained course list"
+    ],
+    "viewport": "One Continue action, four skills, and a course/review menu; no competing dashboard. Phone navigation stays labelled.",
+    "risk": "Efficient and recognisable, with deliberately little individual visual character.",
+    "wireframe": {
+      "cols": 12,
+      "rows": 12,
+      "regions": [
+        {
+          "label": "Grove · navigation",
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 1
+        },
+        {
+          "label": "Continue learning",
+          "x": 1,
+          "y": 2,
+          "w": 10,
+          "h": 3,
+          "accent": true
+        },
+        {
+          "label": "Four labelled skills",
+          "x": 1,
+          "y": 6,
+          "w": 10,
+          "h": 2
+        },
+        {
+          "label": "Course / Review / Exam",
+          "x": 1,
+          "y": 9,
+          "w": 10,
+          "h": 2
+        }
+      ]
+    },
+    "comp": ".impeccable/mocks/decision/round-1-canon.webp"
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

@@ -74,6 +74,12 @@ recommendation rather than a CEFR level or a complete beginner course.
 Six topics remain reference-only; open speaking is practice evidence, not an
 acoustic score or exam result. See `docs/status.md` for the current boundaries.
 
+The product brief in `PRODUCT.md` confirms Russian for the MVP, English and
+Ukrainian next, a complete beginner path, and onboarding through a chosen start
+or an assessment. Shared lesson and progress identities must survive a change
+of explanation language. Linear DEV-5 tracks these requirements, including
+revisitable skips across lessons and text/audio/video skill practice.
+
 Keeleklikk/Keeletee are credible complete-course candidates for beginner/A2/B1
 and multilingual guidance, but free access is not permission to rehost their
 animations, video and exercises. EKI's English dictionary download is marked

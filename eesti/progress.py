@@ -6,8 +6,8 @@
 - **Mastery is not revoked.** `mastered_at` records passing the gate; later
   mistakes bring items back through review (FSRS) but do not re-lock the
   syllabus.
-- **Skipping and passing are one operation:** a test-out and practice differ
-  only in the `via` column, and `curriculum.py` reads `mastered()` either way.
+- **Skipping is navigation only:** `course.py` keeps reversible choices apart
+  from mastery. Test-out still requires five assessed correct answers.
 """
 
 from __future__ import annotations
@@ -52,6 +52,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    from .course import SCHEMA as COURSE_SCHEMA
+
+    conn.executescript(COURSE_SCHEMA)
     # `rule` arrived after the first snapshots; a restored database lacks it.
     columns = {r[1] for r in conn.execute("PRAGMA table_info(attempts)")}
     if "rule" not in columns:
@@ -225,11 +228,14 @@ class TopicProgress:
     blocked_by: tuple[str, ...]
 
     drillable: bool = True
+    skipped: bool = False
 
     @property
     def state(self) -> str:
         if self.mastered_at:
             return "mastered"
+        if self.skipped:
+            return "skipped"
         if not self.drillable:
             return "reference"
         if not self.available:
@@ -241,7 +247,10 @@ def report(conn: sqlite3.Connection) -> list[TopicProgress]:
     """Every topic in study order, with where the learner stands on it."""
     from .curriculum import TOPICS, blocked_by, order
 
-    done = unlocked(conn)
+    from .course import skipped
+
+    moved_past = skipped(conn)
+    done = unlocked(conn) | moved_past
     counts = {
         r[0]: r[1] for r in conn.execute(
             "SELECT topic, COUNT(*) FROM attempts GROUP BY topic"
@@ -268,6 +277,7 @@ def report(conn: sqlite3.Connection) -> list[TopicProgress]:
                 available=not missing,
                 blocked_by=missing,
                 drillable=topic.generator is not None,
+                skipped=topic.id in moved_past,
             )
         )
     return out
@@ -277,7 +287,9 @@ def resume(conn: sqlite3.Connection) -> str | None:
     """Where to pick up: the first unmastered topic whose prerequisites are met."""
     from .curriculum import available
 
-    ready = available(unlocked(conn))
+    from .course import skipped
+
+    ready = available(unlocked(conn) | skipped(conn))
     # Skip topics with no generator: resuming to one would show an empty screen.
     drillable = [t for t in ready if t.generator]
     if not drillable:

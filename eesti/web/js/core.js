@@ -155,7 +155,7 @@ export function addPracticeSupport(el, it, {offline = false} = {}) {
   const form = it.form_ru ? `${it.label} — ${it.form_ru}` : (it.label || "").split(", ").map(term =>
     FORM_RU[term] ? `${term} — ${FORM_RU[term]}` : term).join("; ");
   instruction.textContent = it.choices?.length
-    ? "Выбери подходящее предложение."
+    ? (it.prompt.includes("____") ? "Выбери подходящую форму." : "Выбери подходящее предложение.")
     : `Впиши форму${it.lemma ? ` слова ${it.lemma}` : " слова"}.${form ? ` ${form}${/[?.!]$/.test(form) ? "" : "."}` : ""}`;
   prompt.before(instruction);
   const support = document.createElement("div");

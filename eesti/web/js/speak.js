@@ -609,7 +609,8 @@ $("#recSaveEval").onclick = async () => {
     const saved = await saveEvalClip(candidate.task, candidate.blob, candidate);
     candidate.saved = saved.saved;
     btn.hidden = true;
-    $("#evalReview").scrollIntoView({block: "nearest"});
+    $("#evalReview").scrollIntoView({block: "nearest", behavior: "instant"});
+    $("#evalTranscript").focus({preventScroll: true});
   } catch (e) {
     $("#recState").textContent = `Не удалось сохранить запись: ${e.message}`;
   } finally { btn.disabled = false; }
