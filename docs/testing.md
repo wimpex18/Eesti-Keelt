@@ -60,6 +60,11 @@ npm install                           # axe-core, for the accessibility check
   - the snapshot never lets an empty export win (`test_api_path.py`,
     `test_state_coverage.py`).
 - **Offline:** `test_offline.py` blocks sockets and runs every generator.
+  Browser journeys verify signed-pack replay and the uncached-shell recovery
+  screen: readable device width, retry while offline, and return to the app
+  after connectivity resumes. The recovery test disconnects a dedicated proxy
+  origin rather than using Playwright's offline switch, which currently rejects
+  WebKit service-worker navigation ([upstream issue 42775](https://github.com/microsoft/playwright/issues/42775)).
 - **Language rule:**
   - user-facing sentences are Russian;
   - no Estonian term is transliterated;

@@ -22,6 +22,10 @@ import socket
 import subprocess
 import sys
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 from uuid import uuid4
 from urllib.parse import urlsplit
 from pathlib import Path
@@ -193,6 +197,54 @@ def live_server(tmp_path_factory) -> str:
         except subprocess.TimeoutExpired:
             proc.kill()
         handle.close()
+
+
+@pytest.fixture
+def navigation_outage(live_server):
+    """An isolated origin with a real connection outage and recovery.
+
+    WebKit's Playwright offline switch rejects service-worker navigations
+    (microsoft/playwright#42775), so disconnect the origin itself instead.
+    This exercises the production worker without skipping either engine.
+    """
+    connection = {"available": True}
+
+    class Proxy(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if not connection["available"]:
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            request = Request(live_server + self.path, headers={
+                "x-eesti-scope": self.headers.get("x-eesti-scope", "guest"),
+                "x-eesti-guest": self.headers.get("x-eesti-guest", ""),
+            })
+            try:
+                response = urlopen(request, timeout=10)
+            except HTTPError as error:
+                response = error
+            with response:
+                body = response.read()
+                self.send_response(response.status)
+                for name in ("Content-Type", "Cache-Control", "Service-Worker-Allowed"):
+                    if value := response.headers.get(name):
+                        self.send_header(name, value)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", connection
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 def _engines() -> list[str]:
@@ -548,6 +600,7 @@ class TestProfile:
         page.wait_for_selector("#tab-start:not([hidden])")
         page.locator("[data-start]").click()
         page.locator('[data-focus="path"]').click()
+        page.wait_for_url("**/#path")
         self._open(page)
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
@@ -1704,6 +1757,7 @@ class TestSpeakingEvaluation:
             page.wait_for_selector("#recSaveEval:visible")
             page.click("#recSaveEval")
             page.wait_for_selector("#evalReview:visible")
+            page.wait_for_function("() => document.activeElement?.id === 'evalTranscript'")
             assert page.locator("#evalTranscript").input_value() == ""
             page.fill("#evalTranscript", "Ma elan Tallinnas.")
             page.check("#evalListened")
@@ -1845,6 +1899,34 @@ class TestTheTimedMock:
 class TestPractisingOffline:
     """A set fetched in advance is answerable with the network cut, and what was
     answered reaches the server when it comes back."""
+
+    def test_uncached_offline_open_is_readable_and_retry_returns_to_the_app(self, page, navigation_outage):
+        """A missing cached shell must not shrink a phone page or strand its learner."""
+        origin, connection = navigation_outage
+        page.goto(origin + '/#course', wait_until='networkidle')
+        page.evaluate("async () => { await navigator.serviceWorker.ready; }")
+        page.wait_for_function("() => !!navigator.serviceWorker.controller")
+        page.evaluate("""async () => {
+          for (const name of await caches.keys())
+            if (name.startsWith('shell-')) await caches.delete(name);
+        }""")
+        connection['available'] = False
+        try:
+            response = page.goto(origin + '/?uncached-offline', wait_until='load')
+            assert response.status == 503 and response.from_service_worker
+            assert page.get_by_role('heading', name='Нет соединения', exact=True).is_visible()
+            assert 'не сохранено' in page.locator('main').inner_text()
+            assert page.evaluate('innerWidth') == page.viewport_size['width']
+            retry = page.get_by_role('link', name='Proovi uuesti повторить', exact=True)
+            with page.expect_navigation(wait_until='load'):
+                retry.click()
+            assert page.get_by_role('heading', name='Нет соединения', exact=True).is_visible()
+        finally:
+            connection['available'] = True
+        with page.expect_navigation(wait_until='networkidle'):
+            page.get_by_role('link', name='Proovi uuesti повторить', exact=True).click()
+        assert page.get_by_role('link', name='Grove — на главную', exact=True).is_visible()
+        assert page.locator('#nav-learn button').count() == 4
 
     @pytest.mark.usefixtures("corpus")
     def test_download_go_offline_answer_come_back(self, page, live_server):

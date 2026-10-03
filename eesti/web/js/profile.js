@@ -394,7 +394,7 @@ function bindReset({trigger, confirm, cancel, box, endpoint, message, guest = fa
       await loadProfile();
       const next = $(successFocus);
       if (next) {
-        next.scrollIntoView({block: "center"});
+        next.scrollIntoView({block: "center", behavior: "instant"});
         next.focus({preventScroll: true});
       }
     } catch (err) {

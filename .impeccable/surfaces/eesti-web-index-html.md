@@ -42,5 +42,5 @@ remains a separate content deliverable; never label unreviewed translations comp
 Material steer, 3 October 2026: user requests light blue, gradients, transparency,
 Liquid Glass and richer minimal icons, with Dropbox/Meetup/Airbnb/Bend research.
 Keep the approved Practice rhythm topology and seed; this explicit material
-revision does not reopen the concept choice. docs/visual-design-research.md is
+revision does not reopen the concept choice. docs/design-research.md is
 the evidence and scope. Frosted glass is functional navigation; lessons stay solid.

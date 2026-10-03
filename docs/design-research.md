@@ -1,27 +1,33 @@
-# Learning product research
+# Design research and decisions
 
-Market snapshot: **2–3 October 2026**. This is research and the rationale for the
-DEV-5 redesign under local verification, not evidence of production publication.
+Source snapshot: **3 October 2026**. Official product pages, support guides,
+publisher screenshots, releases and brand references inform the current design.
+Native competitor apps and subscription accounts were not tested. Dated releases
+and forecasts do not establish universal availability or learning effectiveness.
+This record explains the choices; current capabilities and gaps live in
+[status.md](status.md), structure in [app-structure.md](app-structure.md), and
+implemented tokens/components in [DESIGN.md](../DESIGN.md).
 
-## Evidence and limits
+## Applied to Grove
 
-The comparison uses current official product pages, support instructions,
-published screenshots and release notes. The Grove guest interface was also
-inspected in the owner's Chrome tab on desktop and at a 402 × 874 phone viewport.
-Repository behaviour was checked against the checkout and GitHub's current
-`docs/status.md`. Local preparation is not evidence of production publication.
+- One next lesson on Home, then learn → practise → check in a five-item session.
+- Beginning, chosen starting point and a bounded grammar check are separate entry
+  choices. Skips advance navigation without awarding mastery or review success.
+- Reading, listening, speaking and writing remain visible. Course, Review, Exam
+  and account own their supporting tools instead of duplicating dashboards.
+- Contextual dictionary lookup supports the lesson or text and the same review
+  queue. It does not become a second learning home or CEFR percentage.
+- Pale blue/aqua grounds, deep blue actions and a navy dark theme match the
+  selected Practice rhythm direction. Glass is limited to navigation; text,
+  exercises, correction and word cards stay solid.
+- Self-hosted Geologica distinguishes softer interface text from sharper
+  Estonian material. Its bundled glyphs cover Estonian, Russian and Ukrainian;
+  glyph coverage is distinct from complete translated instruction.
+- Original book, headphones, microphone and pencil pictograms identify the
+  skills by shape and colour. Phosphor supplies the small utility set; visible
+  labels and keyboard access carry meaning independently of colour.
 
-Competitor subscription accounts and installed native apps were not tested.
-Published release dates below establish current public evidence, not the latest
-binary version in every country or an independently verified learning outcome.
-Vendor claims about fluency, pronunciation accuracy and learning speed are not
-used as proof. No sources dated after this snapshot are included.
-
-## Relevant market patterns
-
-Sõnastik was added on 3 October at the user's request. Its App Store listing,
-release notes and the native screenshots on its public website were inspected;
-the installed application was not tested.
+## Language-learning references
 
 | Product | Verified public experience | Useful adaptation for Grove | Tradeoff to avoid |
 |---|---|---|---|
@@ -83,7 +89,7 @@ Useful adaptations fit that positioning:
   target word/topic identity; do not reset progress when language changes.
 
 There is no new exclusive source to acquire from Sõnastik. Grove already imports
-EVS examples and has authenticated Ekilex lookups alongside Vabamorf forms;
+EVS examples and supports optional authenticated Ekilex lookups alongside Vabamorf forms;
 see [sources.md](sources.md) and [source-integrations.md](source-integrations.md).
 Fetch reference data from its upstream and preserve its attribution. EKI itself
 [distinguishes current Sõnaveeb/Ekilex data from historical dictionary editions](https://arhiiv.eki.ee/dict/).
@@ -94,87 +100,72 @@ establish CEFR proficiency across four skills. Grove retains named word-level
 sources, bounded grammar assessment and a separate exam-readiness view. The
 vendor's word-percentage presentation is not adopted as a proficiency score.
 
-## Observed Grove problems
+## Colour, hierarchy and materials
 
-| Evidence in the live guest UI | Consequence | Proposed response |
+| Source | Finding | Application |
 |---|---|---|
-| The home starts a pronoun drill before an entry choice and places topic position, mastery marks, today's checklist, a time plan and an exam rail around it. | A new learner must interpret the app before choosing how to learn. | Entry first; a calm home with one start/resume action; a separate session screen. |
-| Switching modes replaces the skill navigation. At phone width speaking and writing sit outside the initial horizontal skill row. | The four main skills are not consistently visible. | Permanent four-skill navigation; a labelled home return; course, review, exam and account utilities in predictable places. |
-| Reading reports zero texts, then explains a long recommendation policy and says the library will be added. | A prominent destination provides no learning action. | A source-labelled starter activity, then the library when available; one recovery/continue action. |
-| Speaking selects read-aloud sentences when none are available and still displays playback/recording controls. | The default task is unusable even though other speaking modes exist. | Select a usable task; disable unavailable actions with a recovery option; support mic denial and ASR/provider failure. |
-| Listening has an empty broadcast archive alongside dictation and a complete TTS utility form. | A learner must distinguish tools from lessons. | Lead with a usable listening session; put custom-text playback and archive browsing behind labelled choices. Audio playback/recognition itself was not tested in this inspection. |
-| Writing opens an unprompted blank checker; the right rail discusses exam contact counts. | Beginners receive little help deciding what to write. | Prompt, example and optional hint first; keep open-text checking available as a secondary action. |
-| The exam overview repeats readiness, part contacts and milestones and links its next step to general grammar. | Exam preparation and everyday learning compete for attention. | One exam workspace reached when wanted; task practice first, requirements and readiness detail on request. |
-| Progress evidence appears in the rail, exam overview, progress page and profile. | Several views explain the same state with different visual emphasis. | One progress destination; a small relevant completion summary after a session. |
+| [Shopify: color psychology](https://www.shopify.com/blog/color-psychology) | Published 27 January 2023. Colour associations vary with context, culture and audience; the article recommends testing. Its ecommerce conversion percentages are not evidence for educational outcomes. | Blue is a visual preference, not a promise of trust or better learning. Contrast, consistent roles and learner feedback determine whether it works. |
+| [Figma: colour combinations](https://www.figma.com/resource-library/color-combinations/) | Harmony, lightness and contrast matter alongside hue. Analogous and complementary relationships serve different hierarchies. | Blue/aqua carry the ground; deep blue identifies actions. Warm peach and distinct skill colours have limited named roles. Semantic success/error colours retain text and shape cues. |
+| [Figma: pricing-page best practices](https://www.figma.com/resource-library/pricing-page-best-practices/) | Simple choices, benefit-oriented labels, clear hierarchy, progressive disclosure, obvious CTAs and mobile usability reduce decision friction. | Apply these principles to starting choices and exam entry. Grove stays free; pricing tiers, decoys, urgency and conversion tactics do not enter the learning flow. |
+| [Figma: web-design trends for 2026](https://www.figma.com/resource-library/web-design-trends/) | A broad trend guide covers depth, vivid colour, variable type, motion, dark mode, accessibility and lean delivery, alongside experimental navigation and maximalism. The page still contains forecast wording. | Use controlled depth, colour and theme support. Keep familiar navigation and the settled density; decorative motion and complex navigation would conflict with the learner's task. |
 
-These are present-state observations, not claims about when defects were
-introduced. Empty content can involve publication or access scope, not only UI
-code. Confirm its upstream-to-production route during implementation. Guest
-findings do not imply that owner-imported material is absent from owner accounts.
+## Product and brand references
 
-## Proposed product structure
+**Dropbox.** Its live [colour guide](https://brand.dropbox.com/color) separates
+core, accents and greys. Its [icon guide](https://brand.dropbox.com/iconography)
+separates 24px UI icons, 64px pictograms and larger spot artwork, and relates
+their geometry to the typeface. [Typography](https://brand.dropbox.com/typography)
+uses a flexible custom variable family. Adopt consistent roles and a distinction
+between small utility marks and expressive skill marks; retain Grove's own
+lettering, logo, colours and artwork.
 
-The home answers **what should I do next?** It offers the saved session or next
-lesson, a change-course control and a secondary review action only when useful.
-It does not embed an active answer field or display an exam dashboard by default.
+**Meetup.** The [2025 redesign account](https://www.meetup.com/blog/new-design-2025/)
+describes stronger colour, new icons and type, clearer spacing and contrast,
+with familiar core navigation. Its [2026 roadmap](https://www.meetup.com/blog/2026-meetup-roadmap/)
+states that mobile launched in December 2025 and proposes a unified member and
+organizer app. These are dated publisher accounts, not verification of every
+roadmap item. Grove adopts coherence across skills and devices, with less
+duplicated navigation, rather than collecting more separate tools.
 
-The four skills remain reachable throughout normal navigation. On phones they
-fit as four labelled destinations; home and account/more live in the header.
-On desktop one compact navigation area replaces the mode-switch-plus-tab shell.
-An active exercise focuses on its task and retains an obvious return route.
+**Airbnb and Bend.** Airbnb's [2025 release screens](https://news.airbnb.com/product-releases/airbnb-2025-summer-release)
+use expressive object imagery to distinguish major destinations. [Bend's live
+site](https://bend.com/) shows restrained illustrated routines, a clear current
+step and short instructions. Borrow recognizable silhouettes, restrained
+colour and a focused task. Grove's small navigation pictograms are original
+vector geometry; they are not copied competitor artwork or photorealistic 3D.
 
-Course browsing, review/vocabulary, exam preparation and account/progress are
-secondary destinations. Fewer entry points must not require deep menu nesting:
-each ordinary task should be reachable from home or the persistent skill links.
+**Apple.** Current [material guidance](https://developer.apple.com/design/human-interface-guidelines/materials)
+places Liquid Glass in the functional navigation/control layer and advises
+sparing use, distinct from ordinary content surfaces. Grove is a web app, so
+its frosted effect uses CSS blur and transparency, not Apple's native optical
+rendering. Navigation has a high-opacity tint, opaque fallbacks, reduced
+transparency and forced-colour support; learning content remains solid.
 
-| Current feature | Proposed destination |
-|---|---|
-| Rada, today's plan, daily steps | Learning home and a separate guided session; one next-action decision |
-| Kogu rada, level/start preferences, topic test-out | Course picker and onboarding; skip, restore or demonstrate knowledge |
-| Vaba harjutus | Choose a topic from Course or Practice; retain the explicit unrecorded mode |
-| Reading library, word lookup, comprehension | Reading lesson with vocabulary and questions in context |
-| Dictation, radio, custom TTS | Listening; tools and media selected within that skill |
-| Read-aloud, spoken questions, conversation | Speaking; labelled exercise choices with usable defaults |
-| Text checker, back-translation | Writing; a guided prompt first, open text checking on request |
-| Järjekord, Sõnavara, shared word cards | One Review/Vocabulary area; preserve scheduling and known/ignored states |
-| Töövihikud, official tasks, mocks | Exam materials/practice, while general learning can surface relevant material |
-| Rail, Edenemine, profile evidence, milestones | One progress view; small contextual summaries only where needed |
-| Auth, explanation language, reminders, data export/reset | Account/settings, with progress and data identities preserved |
+## Design and icon references
 
-## Required flows and acceptance criteria
+- [Nielsen Norman Group](https://www.nngroup.com/articles/ten-usability-heuristics/):
+  usability principles, status visibility, recognition, recovery and user control.
+- [Mobbin](https://mobbin.com/): published real-app screens and flows for comparing
+  onboarding and navigation; screenshots do not prove a pattern's effectiveness.
+- [Awwwards](https://www.awwwards.com/): expressive brand, typography and motion
+  inspiration; marketing-site experiments require judgment before use in lessons.
+- [Figma Resource Library](https://www.figma.com/resource-library/): practical
+  colour, hierarchy and design-system references.
+- [Lucide](https://lucide.dev/), [Tabler](https://tabler.io/icons) and
+  [Phosphor](https://phosphoricons.com/?size=64&weight=duotone): current scalable
+  icon systems compared. Grove keeps its small cached Phosphor subset and adds
+  four dedicated skill pictograms, avoiding a second full icon dependency.
 
-1. **First visit:** choose beginning, self-assessed starting point or a bounded
-   assessment. Optional exam goal and account setup must not block a first lesson.
-   Offer English/Ukrainian only when instructional coverage is reviewed; prepare
-   the content model now without pretending those full courses have shipped.
-2. **Lesson:** show a source-backed explanation or example, practise one task,
-   give useful feedback, then continue. The controls distinguish skip this
-   activity, skip this topic and checked test-out. Undo/revisit is easy. A skip
-   never creates mastery, review success or exam readiness.
-3. **Existing learner:** resume the correct topic/material and retain all stored
-   progress. Changing course position or explanation language does not reset it.
-4. **Four skills:** every default route has a working starter activity or a clear
-   recovery path. Prompts and useful examples replace empty generic forms.
-5. **Failures:** missing content, microphone denial, loading, offline, failed
-   playback and delayed model responses each explain what happened and expose
-   one useful next action. Avoid presenting unavailable controls as runnable.
-6. **Hierarchy:** one primary action per task state; labels state what happens;
-   progress is relevant to the current task. Remove duplicate summaries and
-   ornamental data visualisations where they do not aid a decision.
-7. **Devices:** check portrait/landscape phone, tablet and desktop. Preserve
-   keyboard focus, browser back/deep links, touch targets, contrast, long Russian
-   wording, future localisation space and reduced-motion support.
-8. **Learning truth:** linguistic forms/rules and attribution retain their sources;
-   model feedback stays labelled and advisory. Source rights and access facts,
-   learner evidence, account isolation and offline replay remain accurate.
+## Acceptance and remaining release work
 
-## Implementation sequence
+Readable copy in both themes, working keyboard/touch controls, clear recovery
+and no horizontal overflow are the acceptance bar. Familiar navigation and one
+obvious next action matter more than following every visual trend. A colour or
+visual style is not evidence of improved learning.
 
-Research and live review feed a fresh direction chooser. Once a direction is
-selected, record its surface contract, consolidate navigation and entry flows,
-connect existing skip/placement/starter APIs, then repair and simplify each skill
-and utility flow. Verify real journeys and the viewport matrix, run the independent
-Impeccable finish review, document the built system and prepare a reviewable PR.
-The user merges; production checks follow publication. Code-first remains the
-standing workflow. Current backend preparation and outstanding UI work are in
-`HANDOFF.md` and `docs/status.md`.
+The current app supports Russian explanations. Expanded beginner sequencing and
+reviewed English/Ukrainian instruction remain release work; the onboarding
+recommendation is not a certified CEFR result. Source access, attribution and
+integration details belong in [sources.md](sources.md) and
+[source-integrations.md](source-integrations.md). Verification is described in
+[testing.md](testing.md); product commitments are in [PRODUCT.md](../PRODUCT.md).

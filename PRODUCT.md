@@ -93,16 +93,15 @@ feedback. The app says plainly what was checked and by what.
 - **Structure:** keep onboarding short, expose the current lesson and next
   action first, and reveal detail when needed. Exam preparation remains an
   optional learner goal; no exam sitting is assumed.
-- **Full redesign authority:** replace the existing page structure, navigation,
-  layouts, buttons, interaction logic, colours, fonts and visual identity where
-  that improves learning. The incumbent glass shell, boardwalk, three-mode
-  arrangement and blue palette are not requirements for the replacement.
+- **Design authority:** simplify page structure, navigation, controls and
+  interaction logic where that improves learning. The current visual system is
+  Practice rhythm; its blue materials and component rules are in `DESIGN.md`.
 - **Market-informed learning:** use current guided-course, targeted-practice,
   authentic-media and supported-speaking patterns as references. Prefer one
   recommended session with freedom to explore, change entry point and revisit
   material. Resolve duplicated entry points and broken or empty default flows
-  before adding new tools. The research and proposed consolidation are in
-  `docs/learning-product-research.md`; implemented local behaviour is described in `docs/app-structure.md`.
+  before adding new tools. The research and applied decisions are in
+  `docs/design-research.md`; implemented local behaviour is described in `docs/app-structure.md`.
 
 These are product requirements. Current gaps and implemented behaviour are
 recorded in `docs/status.md`; implementation is tracked in Linear DEV-5.
@@ -153,9 +152,12 @@ answers are only available there.
 
 - Name: **Grove**, an English word for a small wood, connected to Estonia’s forests, with **Eesti keel · A2/B1** identifying the subject.
   The A2/B1 descriptor is current artwork and metadata, not the full product scope.
-  The existing boardwalk artwork is replaceable in the authorised redesign.
   Russian is supported today; English and Ukrainian are planned explanation
   languages.
+- Visual system: **Practice rhythm**, with pale blue/aqua grounds, deep blue
+  actions, frosted navigation, solid learning surfaces, Geologica and four
+  original colourful skill pictograms. Sources and applications are recorded
+  in `docs/design-research.md`.
 - The interface is itself language exposure: Estonian labels with a gloss in
   the learner's supported explanation language where needed; Russian in the MVP.
 - Honest about limits: a caveat the learner cannot read is not a caveat.
@@ -189,11 +191,3 @@ answers are only available there.
 
 No specific needs beyond a baseline: WCAG AA contrast in light and dark
 themes and full keyboard use.
-
-### Visual material update — 3 October 2026
-
-The user requests a light blue direction, gradients, restrained transparency/
-Liquid Glass and more expressive minimal icons, informed by Dropbox, Meetup,
-Airbnb and Bend. Practice rhythm's composition and learning flow stay approved.
-Use frosted navigation with opaque learning content; preserve Geologica and
-add four original skill pictograms. Research: docs/visual-design-research.md.

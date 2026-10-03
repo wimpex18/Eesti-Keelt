@@ -35,4 +35,4 @@ remains a separate content deliverable; never label unreviewed translations comp
 Material revision, 3 October 2026: the user explicitly requests blue, gradients,
 transparency, Liquid Glass and more expressive minimal icons. The approved
 composition/seed remains; this material steer is documented in
-docs/visual-design-research.md. Lessons and corrections retain solid surfaces.
+docs/design-research.md. Lessons and corrections retain solid surfaces.

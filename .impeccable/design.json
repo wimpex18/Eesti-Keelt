@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-03T13:32:20.365247Z",
+  "generatedAt": "2026-10-03T14:47:06.085224Z",
   "title": "Design System: Grove",
   "extensions": {
     "colorMeta": {
@@ -1073,9 +1073,10 @@
     ],
     "notes": [
       "Tonal ramps are synthesized OKLCH panel previews, not additional shipped colour tokens.",
-      "Source record updated for the approved 3 October 2026 blue material revision. Review evidence and post-fix verdict are separate from this token extraction.",
+      "Source record covers the current approved blue material revision and standalone offline recovery. Main-app review and the exact-source closeout matrix remain separate evidence.",
       "Navigation preview combines the frosted shell and labelled skill group; fixed/sticky positioning is omitted inside the panel.",
-      "Bundled font glyph coverage includes required Estonian, Russian and Ukrainian special letters; instructional localisation remains a separate deliverable."
+      "Bundled font glyph coverage includes required Estonian, Russian and Ukrainian special letters; instructional localisation remains a separate deliverable.",
+      "Offline recovery uses literal matching palette roles and system typography because the shell assets are unavailable. Its panel preview omits full-viewport minimum height; the worker centres the page over at least 100vh. Hover and pressed styles use the native link defaults, as in the source."
     ],
     "materials": [
       {
@@ -1165,6 +1166,13 @@
       "description": "Neutral track and opaque selected choice, with immediate selection.",
       "html": "<div class=\"ds-segmented\" role=\"tablist\" aria-label=\"Harjutamine — режим\"><button role=\"tab\" aria-selected=\"true\" lang=\"et\">Minu rada <span lang=\"ru\">по порядку</span></button><button role=\"tab\" aria-selected=\"false\" lang=\"et\">Vaba harjutus <span lang=\"ru\">без записи</span></button></div>",
       "css": ".ds-segmented{font-family:var(--f-ui,Geologica,ui-sans-serif,system-ui,sans-serif);display:inline-flex;gap:3px;padding:var(--s1,4px);background:var(--tint,#e6effb);border-radius:var(--r-sm,12px)}.ds-segmented button{font-family:inherit;min-height:44px;min-width:44px;padding:6px 16px;border:0;border-radius:var(--r-xs,8px);background:transparent;color:var(--muted,#506681);font-size:var(--fs-note,14px);font-weight:700;cursor:pointer;transition:background-color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1)),color var(--quick,140ms) var(--ease,cubic-bezier(.16,1,.3,1))}.ds-segmented span{font-size:12px;font-weight:400}.ds-segmented button[aria-selected=true]{background:var(--panel,#fff);color:var(--ink,#172f4b)}.ds-segmented button:hover:not([aria-selected=true]){color:var(--ink,#172f4b);background:color-mix(in srgb,var(--ink,#172f4b) 5%,transparent)}.ds-segmented button:focus-visible{outline:3px solid var(--accent,#2359c4);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-segmented button{transition:none}}"
+    },
+    {
+      "name": "Offline recovery",
+      "kind": "custom",
+      "description": "Self-contained recovery when navigation fails and no cached shell exists; follows system theme preference.",
+      "html": "<section class=\"ds-offline\" lang=\"ru\"><main class=\"ds-offline-copy\"><h1>Нет соединения</h1><p>Приложение ещё не сохранено для работы без сети. Подключись к интернету и попробуй снова.</p><a href=\"/\" lang=\"et\">Proovi uuesti <span class=\"ds-offline-gloss\" lang=\"ru\">повторить</span></a></main></section>",
+      "css": ".ds-offline{font:16px/1.6 system-ui,sans-serif;margin:0;display:grid;place-items:center;background:#f0f6fd;color:#172f4b;padding:24px}.ds-offline-copy{width:100%;max-width:36ch}.ds-offline h1{font-size:24px;line-height:1.3;margin:0 0 12px}.ds-offline p{margin:0 0 24px;color:#506681}.ds-offline a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:12px 16px;border-radius:12px;background:#2359c4;color:#fff;font-weight:600;text-decoration:none}.ds-offline a:focus-visible{outline:3px solid #2359c4;outline-offset:4px}.ds-offline-gloss{font-size:14px;font-weight:400}@media(prefers-color-scheme:dark){.ds-offline{background:#152236;color:#edf4ff}.ds-offline p{color:#b3c5de}.ds-offline a{background:#aac9ff;color:#16345e}.ds-offline a:focus-visible{outline-color:#aac9ff}}"
     }
   ],
   "narrative": {

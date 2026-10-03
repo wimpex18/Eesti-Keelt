@@ -1,6 +1,6 @@
 /* Sõnatrenn: from the meaning back to the Estonian word.
 
-   Ten of the words the learner is learning (`õpin`), topped up with the
+   Five of the words the learner is learning (`õpin`), topped up with the
    commonest new words that have a Russian meaning. The Russian is shown; the
    learner types the Estonian; the answer is compared with the word list's own
    spelling, so the code decides and nothing is invented. Like Vaba harjutus it

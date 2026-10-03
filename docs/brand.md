@@ -34,8 +34,7 @@ their original files.
 The generator also updates `eesti/web/icon.png`. `/brand/{name}`, `/icon.svg`,
 `/icon.png`, `/favicon.ico` and `/apple-touch-icon.png` serve these assets.
 Social URLs use the public front-door origin supplied by the trusted Worker.
-The footer explains Grove in Russian, shows the current UTC copyright year,
-and offers **Allikad** source credits. App metadata and the manifest use Grove.
+The footer offers **Allikad** source credits. App metadata and the manifest use Grove.
 The Worker service name and public URL remain stable to preserve stored state.
 
 ## Opening and theme
@@ -44,4 +43,6 @@ The app opens directly into the learner's current task. Saved light/dark
 appearance is restored before paint. There is no branded cover or timed delay.
 The lesson's labelled three-step strip changes through learn → practise → check;
 reduced motion keeps the same usable, already-visible controls. Platform chrome
-and the offline fallback share the pale blue working ground. APIs remain uncached.
+and the offline fallback share the pale blue working ground and navy dark theme.
+The fallback uses system fonts without requesting assets and offers an explicit
+retry when the shell is unavailable. APIs remain uncached.

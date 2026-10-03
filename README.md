@@ -15,9 +15,11 @@ not set mastery or FSRS ratings.
 
 ## Features
 
-- **Rada** — the A1→B1 grammar path: prerequisite-ordered, mastery-gated, with
-  placement, test-out and checkpoints; **Vaba harjutus** runs the same drills on
-  any topic, unrecorded.
+- **Kodu** — one next lesson or current session, with beginning, chosen-start
+  and bounded grammar-check entry routes.
+- **Kursus** — ordered grammar topics, source-backed rules, five-item guided
+  sessions, checkpoints and checked test-out. Familiar topics can be skipped
+  and restored without changing mastery; **Vaba harjutus** is unrecorded.
 - **Lugemine** — simplified Estonian texts ranked by how many of their words
   you know; click any word for its forms, meaning and level.
 - **Kuulamine** — graded dictation, TTS on any text, radio episodes.
@@ -26,10 +28,15 @@ not set mastery or FSRS ratings.
 - **Kirjutamine** — grammar check with explanations in Russian, back-translation,
   and a queue to the Notion error log.
 - **Kordamine** — FSRS review of mistakes and mined words, with EKI's
-  Estonian–Russian example phrases built from tiles; **Sõnavara** lists words by
-  CEFR level and frequency.
-- **Eksam** — readiness per exam part and timed practice; the owner’s library
-  supports HARNO material and reviewed native reading exercises.
+  Estonian–Russian example phrases built from tiles. **Sõnavara** leads with
+  five-word practice; the collection supports known/ignored choices and lookup.
+- **Eksam** — optional timed practice, official materials and per-part readiness;
+  the owner’s library supports HARNO tasks and reviewed native reading exercises.
+
+Reading, listening, speaking and writing stay reachable throughout the app.
+Russian instructional support is current; the A0 starting recommendation is not
+yet a complete beginner course. Equivalent English/Ukrainian content remains
+release work, as recorded in `docs/status.md`.
 
 ## Quick start
 
@@ -57,6 +64,7 @@ Workers AI. See [`docs/deploy.md`](docs/deploy.md) for setup and cost limits.
 
 ## Documentation
 
+- [`PRODUCT.md`](PRODUCT.md) · [`DESIGN.md`](DESIGN.md) · [`docs/design-research.md`](docs/design-research.md)
 - [`docs/status.md`](docs/status.md) — what works, what is missing, known issues
 - [`docs/architecture.md`](docs/architecture.md) · [`docs/app-structure.md`](docs/app-structure.md)
 - [`docs/curriculum.md`](docs/curriculum.md) · [`docs/sources.md`](docs/sources.md)

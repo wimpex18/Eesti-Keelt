@@ -24,8 +24,8 @@ Supporting destinations
 ├── Töövihikud    official HARNO materials and in-app downloaded PDF pages
 ├── Eksam         optional A2/B1 practice, mock exam and official tasks;
 │                 readiness, format, sitting and grammar checks open on request
-├── Edenemine     recorded progress; history and forecast remain available in folds
-└── Profiil       identity, starting point, data export, recovery and appearance
+├── Edenemine     recorded progress, history, forecast, reminders and data export
+└── Profiil       identity, starting point and reset/restore recovery
 ```
 
 Context pages have no extra permanent navigation item: `#start` is onboarding,
@@ -45,6 +45,13 @@ adds no history. Deep lesson and rule links survive a reload, unknown routes
 recover to Home, and `#drill` opens Course's free practice. Desktop uses a left
 navigation column; phones use a compact header, native More menu and permanent
 four-skill bottom row.
+Appearance is changed from the shared header; Profile links to Progress instead
+of duplicating its evidence or data export.
+
+The cached shell can open offline, and a previously downloaded five-item pack
+can be answered there. When no shell copy exists, the service worker presents a
+small Russian explanation and **Proovi uuesti** link. Retrying while offline
+keeps that recovery screen; after connectivity returns it opens the app.
 
 ## What grades each activity
 

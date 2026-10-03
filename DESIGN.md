@@ -209,12 +209,13 @@ indicator. Navigation, fields and disclosures use familiar web controls. Grove's
 leaf and name remain the identity; the interface opens directly into the app.
 
 This record comes from [the stylesheet](eesti/web/app.css),
-[the shell](eesti/web/index.html), [icons](eesti/web/js/icons.js) and current
-modules. The [direction contract](.impeccable/decisions/practice-rhythm-contract.md)
+[the shell](eesti/web/index.html), [icons](eesti/web/js/icons.js), current
+modules and [the offline fallback](eesti/web/sw.js). The
+[direction contract](.impeccable/decisions/practice-rhythm-contract.md)
 retains Practice rhythm, seed `6ecca7d2`, round 1, code-first and Operate. The
-user's 3 October 2026 material steer supersedes its former green palette;
-[visual research](docs/visual-design-research.md) records the references and their
-limits. The old chooser remains a critique reference; no comp image is a build
+approved blue material direction is informed by
+[design research](docs/design-research.md), which records the references and their
+limits. The chooser remains a critique reference; no comp image is a build
 specification. The implementation is the authority for values and behaviour.
 
 **Key Characteristics:**
@@ -469,6 +470,23 @@ without a timed cover. State changes use 140ms response, 240ms feedback and
 clip/opacity change. Reduced motion collapses animation, transition and smooth
 scrolling while retaining the same controls.
 
+### Offline recovery
+
+If navigation fails and no cached shell exists, [the service worker](eesti/web/sw.js)
+renders a self-contained recovery page. Its solid background, text and retry
+action use the matching light or system-preferred dark roles; it requires no
+stylesheet, font file, icon or module download. System text (16px, 1.6 line
+height) and a compact heading (24px, 1.3 line height) are dependency fallbacks
+for this surface, not a replacement for Geologica in the app.
+
+The reason is explicit in Russian: the app has not yet been saved for offline
+use. The native link is labelled Proovi uuesti with a Russian gloss and opens
+the app root. The centred copy is bounded at 36ch with 24px page padding. The
+retry has 12px corners, 12px × 16px padding and at least a 44px target. Keyboard
+focus uses a 3px outline in the matching action colour, offset by 4px against
+the page ground. This standalone page follows system theme preference because
+the saved app-theme code is unavailable.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -494,6 +512,9 @@ scrolling while retaining the same controls.
 
 Not canonized or repaired: retired boardwalk/glass/serif/capsule descriptions
 remain in source comments; the current cascade and explicit navigation material
-rule govern extensions. This source-based record does not certify fresh render
-checks or complete English/Ukrainian instructional support. Current visual review
-and fixes are recorded in [.impeccable/review/blue-finish-review.md](.impeccable/review/blue-finish-review.md).
+rule govern extensions. System typography on the uncached-shell recovery page
+is scoped to that dependency fallback. This source-based record does not certify
+complete English/Ukrainian instructional support. Main-app review and fixes are
+recorded in [.impeccable/review/blue-finish-review.md](.impeccable/review/blue-finish-review.md);
+the exact-source offline recovery variants and computed keyboard focus are in
+[the closeout matrix](.impeccable/review/closeout/matrix.json).
