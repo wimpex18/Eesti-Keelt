@@ -10,7 +10,7 @@ a 40px leaf with the name in self-hosted Geologica.
 
 `eesti/web/brand/mark.svg` is the original 64×64 vector master: a curved leaf
 with a short stem. The header uses its navigation foreground. Platform tiles pair a white leaf
-with spruce; social artwork has a mint ground and the learning loop in Geologica.
+with deep blue; social artwork has a pale blue ground and the learning loop in Geologica.
 Practice rhythm replaces the boardwalk and readiness-flower presentation.
 
 Run `.venv/bin/python deploy/build-brand.py` to rebuild all assets. Tooling
@@ -44,4 +44,4 @@ The app opens directly into the learner's current task. Saved light/dark
 appearance is restored before paint. There is no branded cover or timed delay.
 The lesson's labelled three-step strip changes through learn → practise → check;
 reduced motion keeps the same usable, already-visible controls. Platform chrome
-and the offline fallback share the mint working ground. APIs remain uncached.
+and the offline fallback share the pale blue working ground. APIs remain uncached.

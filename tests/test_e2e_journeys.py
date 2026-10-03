@@ -309,7 +309,11 @@ def mode_of(page, tab: str) -> str:
 
 def open_tab(page, mode: str, tab: str) -> None:
     skill = page.locator(f'#nav-learn button[data-tab="{tab}"]')
-    if skill.count(): skill.click()
+    if tab == "profile":
+        # Account is in both headers. After auth reloads, let click await its
+        # actionability instead of sampling visibility during the first paint.
+        page.locator("#accountBtn").click()
+    elif skill.count(): skill.click()
     else:
         link = page.locator(f'.primary-nav a[href="#{tab}"], #accountBtn[href="#{tab}"]')
         if link.count() and link.first.is_visible(): link.first.click()

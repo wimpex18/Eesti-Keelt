@@ -5,7 +5,7 @@ Audience: Russian-speaking beginners and returning Estonian learners; prepare
 English/Ukrainian explanations. Code-first; Practice rhythm approved by the user.
 Keep existing learner identities, evidence, source attribution and checked grading.
 The learner practises on a phone in ordinary daylight, then reads and writes at a
-desk; use a light mint working ground with a spruce navigation area and a dark
+desk; use a pale blue working ground with frosted blue navigation and a dark
 equivalent for evening use. Use the existing self-hosted humanist Geologica face.
 
 ## Direction contract
@@ -13,8 +13,8 @@ equivalent for evening use. Use the existing self-hosted humanist Geologica face
 THESIS: One suitable next lesson leads to learn → practise → check. Course and
 exam details appear when requested; remove the competing dashboard and mode dock.
 
-OWN-WORLD: Spruce navigation, mint ground, solid white task surfaces, coral current
-step and comfortable humanist text. Plain labelled controls use one consistent shape.
+OWN-WORLD: Pale blue/aqua ground, frosted navigation, solid white tasks, deep blue actions
+and four colourful rounded skill pictograms. Geologica remains. Plain labelled controls use one consistent shape.
 
 STORY: Choose beginning, a starting point or assessment; see the next task; study,
 answer, understand feedback and continue. Familiar work can be skipped and restored.
@@ -31,3 +31,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 No unresolved direction decisions. English/Ukrainian full instructional coverage
 remains a separate content deliverable; never label unreviewed translations complete.
+
+Material revision, 3 October 2026: the user explicitly requests blue, gradients,
+transparency, Liquid Glass and more expressive minimal icons. The approved
+composition/seed remains; this material steer is documented in
+docs/visual-design-research.md. Lessons and corrections retain solid surfaces.

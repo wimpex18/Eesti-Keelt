@@ -189,3 +189,11 @@ answers are only available there.
 
 No specific needs beyond a baseline: WCAG AA contrast in light and dark
 themes and full keyboard use.
+
+### Visual material update — 3 October 2026
+
+The user requests a light blue direction, gradients, restrained transparency/
+Liquid Glass and more expressive minimal icons, informed by Dropbox, Meetup,
+Airbnb and Bend. Practice rhythm's composition and learning flow stay approved.
+Use frosted navigation with opaque learning content; preserve Geologica and
+add four original skill pictograms. Research: docs/visual-design-research.md.

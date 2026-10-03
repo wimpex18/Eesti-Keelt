@@ -21,7 +21,7 @@ from fontTools.pens.transformPen import TransformPen
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "eesti/web"
 BRAND = WEB / "brand"
-SPRUCE, WHITE, PAGE, INK, MUTED = "#173e2f", "#ffffff", "#edf5f0", "#17382c", "#4d665a"
+BLUE, WHITE, PAGE, INK, MUTED = "#2359c4", "#ffffff", "#f0f6fd", "#172f4b", "#506681"
 PATHS = [p.attrib["d"] for p in ET.parse(BRAND / "mark.svg").iter()
          if p.tag.endswith("}path")]
 
@@ -48,7 +48,7 @@ def icon(size: int, *, full_bleed: bool = False, mono: bool = False) -> Image.Im
     """Rasterize the same curved leaf used by every vector surface."""
     color = "#000000" if mono else WHITE
     background = "" if mono else (
-        f'<rect width="64" height="64" rx="{0 if full_bleed else 16}" fill="{SPRUCE}"/>')
+        f'<rect width="64" height="64" rx="{0 if full_bleed else 16}" fill="{BLUE}"/>')
     artwork = svg(background + glyph(color, .88 if full_bleed else 1))
     data = cairosvg.svg2png(bytestring=artwork.encode(), output_width=size*4, output_height=size*4)
     return Image.open(io.BytesIO(data)).convert("RGBA").resize((size,size), Image.Resampling.LANCZOS)
@@ -74,12 +74,12 @@ def lettering(text: str, x: int, y: int, size: int, weight: int, color: str) -> 
 
 
 def main() -> None:
-    tile = f'<rect width="64" height="64" rx="16" fill="{SPRUCE}"/>' + glyph(WHITE)
+    tile = f'<rect width="64" height="64" rx="16" fill="{BLUE}"/>' + glyph(WHITE)
     (BRAND / "tile.svg").write_text(svg(tile))
     (BRAND / "favicon.svg").write_text(svg(tile))
     (BRAND / "safari-pinned-tab.svg").write_text(svg(glyph("#000000")))
     (BRAND / "icon-maskable.svg").write_text(svg(
-        f'<rect width="64" height="64" fill="{SPRUCE}"/>' + glyph(WHITE, .88)))
+        f'<rect width="64" height="64" fill="{BLUE}"/>' + glyph(WHITE, .88)))
     (BRAND / "icon-mono.svg").write_text(svg(glyph("#000000")))
     for size in (16, 32, 48):
         png(icon(size), BRAND / f"favicon-{size}.png")
@@ -104,7 +104,7 @@ def main() -> None:
         body = f'<rect width="{width}" height="{height}" fill="{PAGE}"/>'
         body += f'<g transform="translate(80 80) scale(1.5)">{tile}</g>'
         lines = [("Grove", 210, 153, 68, 650, INK),
-                 ("Eesti keel", 80, 336, 88, 650, SPRUCE),
+                 ("Eesti keel", 80, 336, 88, 650, BLUE),
                  ("Õppimine · A2 / B1", 80, 401, 38, 450, INK),
                  ("Õpi. Harjuta. Kontrolli.", 80, height - 80, 30, 450, MUTED)]
         image = Image.new("RGB", (width, height), PAGE)

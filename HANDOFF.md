@@ -1,25 +1,25 @@
 # Handoff
 
-Current task: DEV-5 full Practice rhythm redesign implemented on
-codex/dev-5-learning-redesign; draft PR https://github.com/wimpex18/Eesti-Keelt/pull/109.
-Approved first chooser direction and code-first apply across all learner pages.
-Home/Course, permanent four skills, Review/Exam, account/Progress are reorganized.
-Onboarding: beginning, chosen start, bounded grammar assessment; no CEFR claim.
-Guided five-item work keeps one task, reserved feedback and explicit Edasi.
-Topic skips are reversible; item/word skips never grant mastery, attempts or FSRS.
-Sõnastik listing/public-screen research informs contextual lookup; guided learning
-and exam preparation remain primary. Native competitor binary was not tested.
-Russian MVP; beginner sequencing and full en/uk content remain DEV-5 follow-up.
-Next: user reviews/merges PR 109; then deployment workflows and deep smoke.
-No merge or production deployment performed. Local implementation is complete.
-Checks: 2532 Python passed/1 skipped; 191 browser passed/23 skipped/174 deselected;
-4 focused history/feedback checks passed; typecheck and diff check clean.
-Five viewport classes inspected. Reviewer ship covers eight fixes plus archive
-regression, all resolved. Documenter final recheck requires no changes.
-DESIGN.md and .impeccable/design.json describe the implemented world.
-Hooks enabled, no ignores; side stripes/bounce/layout animations fixed. Hints
-ceased automatically on heavily edited paths; no manual suppression. 11 rasters clear.
-Implementation committed in 6677f99; this note is the only handoff commit update.
-Preserved untracked skill/hook installations and local state; review captures ignored.
-No learner databases, data/exam or data/eval committed. No implementation blockers.
-Own guest preview :8000, exec 45078; /tmp/grove-preview.log; IAB tab 2 is deliverable.
+Current task: DEV-5 Practice rhythm redesign, user-requested blue/glass revision.
+Branch codex/dev-5-learning-redesign; draft PR https://github.com/wimpex18/Eesti-Keelt/pull/109.
+User approved code-first, first direction; 3 October material steer keeps topology.
+This revision commits app materials/icons/PWA assets, design records, research
+and the auth journey helper. Preserve untracked skill/hook installations.
+Blue/aqua grounds, deep blue actions, Geologica, four original colourful skill SVGs.
+Navigation is frosted; content solid. Dark, reduced-transparency/forced-colour support.
+Research: docs/visual-design-research.md (public pages checked 3 October 2026).
+Next: user reviews/merges PR 109; then deployment and deep smoke per docs/deploy.md.
+Check the PR's exact-head CI before merge. No merge or deployment performed.
+Review evidence: .impeccable/review/blue-material-round2 (105 viewport/full pairs).
+Five viewport classes plus dark phone/desktop inspected; no horizontal overflow.
+Checks: 2532 Python passed/1 skipped; 191 browser passed/23 skipped;
+typecheck, 26 Worker tests and diff check passed. Four auth cases rechecked.
+Reviewer verdict: ship, all three listed material/documentation fixes resolved.
+Fresh documenter updated DESIGN.md/sidecar; reviewer verified all 70 colour roles.
+Hook active; one index.html low-contrast value ignore for confirmed theme mixing.
+Real placeholder/bootstrap issues fixed. 11 rasters scanned, 0 missing provenance.
+Existing grading, learner evidence, source attribution and backend lanes preserved.
+Russian MVP; beginner sequencing/reviewed full en/uk content remain DEV-5 follow-up.
+Do not close DEV-5 based on visual completion. Review captures ignored.
+Never stage learner databases, data/exam or data/eval. No implementation blockers.
+Preview :8000, exec 52508; /tmp/grove-preview.log; user IAB tab 1 preserved.

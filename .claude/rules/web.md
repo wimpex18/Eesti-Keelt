@@ -17,7 +17,7 @@ paths:
 - `main.js` bootstraps last. Never set `textContent` on decorated label children;
   use `setLabel` so the explanation-language gloss survives.
 - Define every CSS token. Use spacing `--s1`…`--s7` and semantic palette roles.
-  Practice rhythm has a mint ground, solid tasks, spruce navigation and coral
+  Practice rhythm has a pale blue/aqua ground, solid tasks, frosted navigation and blue
   current state; DESIGN.md records the tokens and dark equivalent.
 - Use native links, buttons, details and labelled fields. View switches use
   `role="tablist"`, roving focus and `aria-selected`. Long references use a page;

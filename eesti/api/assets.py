@@ -194,8 +194,8 @@ def manifest() -> Response:
             "scope": "/",
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#edf5f0",
-            "theme_color": "#edf5f0",
+            "background_color": "#f0f6fd",
+            "theme_color": "#f0f6fd",
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.
             "lang": "ru",

@@ -4,7 +4,7 @@
    `progress.TopicProgress.state` can emit. */
 
 import {$, esc, gloss, ruCount} from "./core.js";
-import {BOLD, DUOTONE, icon} from "./icons.js";
+import {BOLD, DUOTONE, icon, skillIcon} from "./icons.js";
 
 
 // ── health ──────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ export function paintIcons() {
   document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
     const d = NAV_ICON[b.dataset.tab];
     const slot = b.querySelector(".ico");
-    if (d && slot) slot.innerHTML = navIcon(d);
+    if (d && slot) slot.innerHTML = skillIcon(b.dataset.tab) || navIcon(d);
     /* A name that does not depend on the label being painted.
 
        Between 720 and 1079px the skills are a rail of marks and `.lbl` is
