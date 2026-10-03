@@ -12,6 +12,24 @@
         ],
         "createdAt": "2026-10-03T13:31:37.800Z",
         "reason": "Agent: the hook flattens light and dark CSS scopes, pairing dark text #edf4ff/#b3c5de with light #ffffff. Actual theme-specific backgrounds and all route captures are verified in blue-material-round1/2; opaque light/dark placeholders are verified from computed styles. Suppress this static HTML pairing only; keep browser contrast review."
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-10-03T14:07:45.197Z",
+        "reason": "Agent: the reported 1.25 belongs to the established compact button-label and badge typography recorded in DESIGN.md, not paragraphs. Body text uses 1.6, practice text 1.5, and feedback 1.55; these layouts were inspected in the blue-material-round2 captures. Keep compact controls and suppress this HTML classification only."
+      },
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "eesti/web/index.html"
+        ],
+        "createdAt": "2026-10-03T14:07:45.254Z",
+        "reason": "Agent: the only pulsing dot is .rec .dot. speak.js inserts it after MediaRecorder.start() with the text Записываю…, and onstop replaces the indicator with playback instructions. It denotes actual microphone recording, not decorative liveness; preserve this domain-appropriate recording signal. Reduced-motion preferences disable repeated animation."
       }
     ]
   }

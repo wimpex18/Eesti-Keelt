@@ -17,7 +17,8 @@ typecheck, 26 Worker tests and diff check passed. Four auth cases rechecked.
 Auth journeys explicitly await login/logout reloads; prior CI exposed that race.
 Reviewer verdict: ship, all three listed material/documentation fixes resolved.
 Fresh documenter updated DESIGN.md/sidecar; reviewer verified all 70 colour roles.
-Hook active; one index.html low-contrast value ignore for confirmed theme mixing.
+Hook active; index.html value exceptions: theme mixing, compact label leading,
+and actual MediaRecorder recording pulse. No global rule/file suppression.
 Real placeholder/bootstrap issues fixed. 11 rasters scanned, 0 missing provenance.
 Existing grading, learner evidence, source attribution and backend lanes preserved.
 Russian MVP; beginner sequencing/reviewed full en/uk content remain DEV-5 follow-up.
