@@ -29,8 +29,13 @@ runtimes; other tests exercise behavior instead of checking CSS or doc counts.
   Use it before a release that restyles the page.
 - The journeys' server writes its log to a file in its own working directory
   so verbose API logging cannot block the browser run.
+- CI builds the compressed web assets with `npm run build:web` and runs the
+  journeys with `EESTI_WEB_BUILD=1`, matching the container's bundle. Locally,
+  run `npm ci && npm run build:web` followed by
+  `EESTI_WEB_BUILD=1 python -m pytest tests/test_e2e_journeys.py --browser -q`.
+  Rebuild after web edits. Ordinary `cli serve` continues serving editable modules.
 
-Every screen is also run through **axe** (WCAG 2.1 A and AA) at both
+Every screen is also run through **axe** (WCAG 2.2 A and AA tags) at both
 viewports, because the interface leans on markup to say which language a
 string is in, and a screen reader is the one reader that cannot guess. It
 skips when `axe-core` is not installed.

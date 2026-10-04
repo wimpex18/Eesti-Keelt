@@ -1,9 +1,11 @@
+/* Fonts use optional display: the initial face stays stable on slow connections;
+   preloads still select Geologica when it is ready for the first paint. */
 /* Practice rhythm: a calm working surface, clear actions and four persistent skills. */
-@font-face{font-family:"Geologica";font-style:normal;font-weight:300 800;font-display:swap;
+@font-face{font-family:"Geologica";font-style:normal;font-weight:300 800;font-display:optional;
   src:url("/fonts/geologica-cyrillic.woff2") format("woff2");unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
-@font-face{font-family:"Geologica";font-style:normal;font-weight:300 800;font-display:swap;
+@font-face{font-family:"Geologica";font-style:normal;font-weight:300 800;font-display:optional;
   src:url("/fonts/geologica-latin-ext.woff2") format("woff2");unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
-@font-face{font-family:"Geologica";font-style:normal;font-weight:300 800;font-display:swap;
+@font-face{font-family:"Geologica";font-style:normal;font-weight:300 800;font-display:optional;
   src:url("/fonts/geologica-latin.woff2") format("woff2");unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 
 :root{--bg:#f0f6fd;--bg-2:#e7f1fb;--panel:#ffffff;--raised:#ffffff;--field:#f5f8fd;--ink:#172f4b;--ink-2:#34506f;--muted:#506681;--line:#c8d8eb;--line-soft:#e0e9f4;--tint:#e6effb;--accent:#2359c4;--accent-2:#2359c4;--accent-deep:#17469e;--accent-soft:#e3edff;--on-accent:#ffffff;--btn:#2359c4;--btn-2:#1c4cae;--on-btn:#ffffff;--coral:#bd6540;--good:#226647;--good-soft:#e5f3ea;--bad:#aa3247;--bad-soft:#fce9ee;--warn:#835100;--warn-soft:#fff1d8;--warn-fill:#c58a27;--gloss:#176b76;--nav:#e5efff;--on-nav:#172f4b;--nav-muted:#435f80;--nav-active:#cfe0fa;--night-a:#e5efff;--night-b:#e5efff;--night-c:#cfe0fa;--on-night:#172f4b;--night-muted:#435f80;--night-line:#b8cde8;--night-accent:#2359c4;--night-glass:#d8e7fa;--night-good:#226647;--night-bad:#aa3247;--hero-bg:var(--panel);--hero-rim:none;--hero-ink:var(--ink);--hero-muted:var(--muted);--hero-accent:var(--accent);--hero-line:var(--line);--hero-glass:var(--panel);--hero-good:var(--good);--hero-bad:var(--bad);--hero-now:var(--accent);--hero-node:var(--panel);--hero-tick:var(--panel);--hero-plank:var(--tint);--hero-node-rim:var(--line);--hero-bird:var(--tint);--hero-bird-line:var(--line);--hero-btn:var(--btn);--hero-btn-ink:var(--on-btn);--sky:#7cabeb;--sand:#ffc09f;--pale:#c9e1fa;--glass:rgba(242,248,255,.92);--glass-strong:rgba(242,248,255,.98);--glass-rim:var(--line);--glass-sheen:transparent;--glass-edge:transparent;--glass-line:var(--line);--glass-shadow:0 12px 32px -18px rgba(28,59,105,.25);--glass-lift:var(--glass-shadow);--f-ui:"Geologica",ui-sans-serif,system-ui,sans-serif;--f-read:var(--f-ui);--soft:"SHRP" 0;--cut:"SHRP" 40;--fs-gloss:12px;--fs-meta:12px;--fs-note:14px;--fs-ui:15px;--fs-body:16px;--fs-input:18px;--fs-read:19px;--fs-lead:20px;--fs-prompt:24px;--fs-title:32px;--fs-hero:42px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;--r-xs:8px;--r-sm:12px;--r:16px;--r-lg:16px;--r-xl:16px;--gutter:24px;--spine-w:236px;--rail-w:0px;--dock-h:calc(100px + env(safe-area-inset-bottom));--shadow:0 0 0 1px var(--line);--lift:0 0 0 1px var(--ink-2);--ctl:var(--tint);--ctl-hover:var(--bg-2);--ease:cubic-bezier(.16,1,.3,1);--spring:var(--ease);--quick:140ms;--t:240ms;--slow:420ms;--page-wash:linear-gradient(145deg,#eaf3ff 0%,#f3f8ff 58%,#eef8f8 100%);--nav-wash:linear-gradient(155deg,rgba(218,233,255,.94),rgba(244,249,255,.90));--skill-blue:#2359a8;--skill-blue-soft:#a9cdfa;--skill-teal:#09646b;--skill-teal-soft:#9ddade;--skill-violet:#6946a3;--skill-violet-soft:#d1b9f5;--skill-amber:#865214;--skill-amber-soft:#f9d49b;color-scheme:light;accent-color:var(--accent)}
@@ -27,7 +29,7 @@ p{max-width:72ch}h2{font-size:var(--fs-title)}h3{font-size:var(--fs-lead)}h4{fon
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .wrap{max-width:1440px;margin:auto;display:grid;grid-template-columns:var(--spine-w) minmax(0,1fr);gap:var(--s7);padding:var(--s5) var(--s6);min-height:calc(100vh - 110px)}
 .spine{grid-column:1;grid-row:1;align-self:start;position:sticky;top:var(--s5);background:transparent;background-image:var(--nav-wash);color:var(--on-nav);border:1px solid var(--line);backdrop-filter:blur(22px) saturate(125%);-webkit-backdrop-filter:blur(22px) saturate(125%);border-radius:var(--r);padding:var(--s5) var(--s4);display:flex;flex-direction:column;gap:var(--s5);min-height:calc(100vh - 2 * var(--s5))}
-.brand{display:flex;align-items:center;gap:var(--s2);color:var(--on-nav);text-decoration:none}
+.brand{display:flex;align-items:center;gap:var(--s2);min-height:44px;color:var(--on-nav);text-decoration:none}
 .brand-mark{width:40px;height:40px;flex:none;fill:currentColor}.brand h1{margin:0;font-size:26px}.brand-word{display:block}
 .primary-nav{display:flex;flex-direction:column;gap:var(--s1)}
 .primary-nav a{padding:var(--s3);border-radius:var(--r-xs);color:var(--on-nav);text-decoration:none;font-weight:500}
@@ -1125,7 +1127,7 @@ button.quiet .ru{display:inline;margin-left:4px;font-style:normal;font-weight:40
 .next-copy #pathOf{color:var(--muted);font-size:var(--fs-note);margin-bottom:var(--s5)}
 .lesson-purpose{margin-bottom:0}.next-action{display:flex;flex-direction:column;align-items:stretch;gap:var(--s4);max-width:220px;text-align:center}
 .home-links{display:flex;gap:var(--s5);padding:var(--s4) 0;border-bottom:1px solid var(--line);margin-bottom:var(--s5)}
-.home-links a{text-decoration:none;font-weight:500}.home-links .ru{display:block;color:var(--muted);font-weight:400}
+.home-links a{min-height:44px;text-decoration:none;font-weight:500}.home-links .ru{display:block;color:var(--muted);font-weight:400}
 .home-note{color:var(--muted);font-size:var(--fs-note);max-width:64ch}
 .start-content{max-width:700px}.start-content>p{color:var(--muted);margin:var(--s4) 0 var(--s5)}
 .start-routes{display:flex;flex-direction:column;border-top:1px solid var(--line);margin:var(--s6) 0 var(--s5)}
@@ -1181,11 +1183,12 @@ button.quiet .ru{display:inline;margin-left:4px;font-style:normal;font-weight:40
 .go:hover,button.primary:hover{background:color-mix(in srgb,var(--btn) 90%,var(--ink));transform:none;box-shadow:none}
 .go .ru,button.primary .ru{color:inherit;opacity:.85}.ghost,.quiet{background:transparent;box-shadow:none;border:0;border-radius:var(--r-xs);color:var(--ink-2);min-height:44px;text-decoration:none}
 .ghost:hover,.quiet:hover{background:var(--tint);transform:none;box-shadow:none}.ghost .ru,.quiet .ru{color:var(--muted)}
+a.quiet{display:inline-flex;align-items:center;gap:var(--s1);flex-wrap:wrap}
 button{transition:background-color var(--quick) var(--ease),color var(--quick) var(--ease)}
 .fold{margin-top:var(--s5);border-top:1px solid var(--line);padding-top:var(--s4)}.fold>summary{font-size:var(--fs-body);font-weight:500;cursor:pointer;padding:var(--s2) 0}
 .writing-prompt{margin-bottom:var(--s5);max-width:64ch}.writing-prompt h3{margin-bottom:var(--s2)}.writing-prompt p{font-size:var(--fs-note);color:var(--muted)}
 .starter-text{background:var(--panel);padding:var(--s5);border-radius:var(--r);margin:var(--s5) 0}.starter-text .prose{font-size:var(--fs-read)}
-.starter-text .prose button{border:0;background:transparent;padding:var(--s1);font:inherit;cursor:pointer}.starter-text .prose button:hover{background:var(--tint)}
+.starter-text .prose button{border:0;background:transparent;min-width:44px;min-height:44px;padding:var(--s1);font:inherit;cursor:pointer}.starter-text .prose button:hover{background:var(--tint)}
 .status-out{display:block}.status-out .stat-card{border:0;border-radius:0;padding:var(--s4) 0;background:transparent;box-shadow:none;border-bottom:1px solid var(--line)}
 .status-out .stat-big{font-size:var(--fs-lead)}.status-out .meter,.status-out .bands,.status-out .band-labels{display:none}
 .progress-details{margin-top:var(--s5)}.review-tools{display:flex;gap:var(--s4);margin-top:var(--s5);flex-wrap:wrap}

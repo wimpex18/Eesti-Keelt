@@ -3,6 +3,7 @@
   "private": true,
   "description": "Cloudflare Worker that fronts the Eesti-Keelt app on Cloud Run. The app itself is Python; this is only the doorman.",
   "scripts": {
+    "build:web": "node deploy/build-web.mjs",
     "typecheck": "tsc --noEmit",
     "test:worker": "node --import ./tests/worker-runtime.mjs --test tests/worker*.test.mjs",
     "deploy": "wrangler deploy"
@@ -10,6 +11,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261001.1",
     "axe-core": "^4.13.0",
+    "esbuild": "0.28.2",
     "typescript": "^7.0.2",
     "wrangler": "^4.146.0"
   }

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 import json
 import os
+import re
 from html import escape
 from urllib.parse import urlsplit
 
@@ -83,22 +84,48 @@ def _asset_headers() -> dict:
     return {"Cache-Control": "no-cache"} if build_version() == "dev" else {}
 
 
+def compiled_web() -> bool:
+    """Source checkouts remain editable. Explicit opt-in previews the image build."""
+    return ((build_version() != "dev" or os.environ.get("EESTI_WEB_BUILD") == "1")
+            and (WEB / ".build/main.js").is_file())
+
+
+def _web_asset(request: Request, name: str, source, media_type: str) -> FileResponse:
+    path = WEB / ".build" / name if compiled_web() else source
+    headers = {"Cache-Control": "no-cache", "Vary": "Accept-Encoding"}
+    # Unhashed URLs always revalidate; the service worker supplies offline copies.
+    for encoding in request.headers.get("accept-encoding", "").split(","):
+        parts = encoding.strip().split(";")
+        if parts[0] != "gzip":
+            continue
+        try:
+            accepted = all(float(p.strip().removeprefix("q=")) > 0 for p in parts[1:])
+        except ValueError:
+            accepted = False
+        zipped = path.with_suffix(path.suffix + ".gz")
+        if accepted and compiled_web() and zipped.is_file():
+            path = zipped
+            headers["Content-Encoding"] = "gzip"
+        break
+    return FileResponse(path, media_type=media_type, headers=headers)
+
+
 @router.get("/app.css")
-def stylesheet() -> FileResponse:
+def stylesheet(request: Request) -> FileResponse:
     """The stylesheet."""
-    return FileResponse(WEB / "app.css", media_type="text/css",
-                        headers=_asset_headers())
+    return _web_asset(request, "app.css", WEB / "app.css", "text/css")
 
 
 @router.get("/js/{name}")
-def script(name: str) -> FileResponse:
+def script(name: str, request: Request) -> FileResponse:
     """One ES module of the app; the resolved path is checked against its directory."""
     path = (WEB / "js" / name).resolve()
     if (path.parent != (WEB / "js").resolve() or not path.is_file()
             or path.suffix not in STATIC_TYPES):
         raise HTTPException(status_code=404, detail="not found")
-    return FileResponse(path, media_type=STATIC_TYPES[path.suffix],
-                        headers=_asset_headers())
+    if name == "main.js":
+        return _web_asset(request, "main.js", path, "text/javascript")
+    return FileResponse(path, media_type=STATIC_TYPES[path.suffix], headers=_asset_headers())
 
 
 @router.get("/vendor/{name}")
@@ -165,7 +192,12 @@ def worker_source() -> str:
             f"would silently stop being stamped and old shells would never "
             f"be retired")
     version = build_version()
-    return source.replace(_VERSION_LINE, f'const VERSION = "{version}";', 1)
+    source = source.replace(_VERSION_LINE, f'const VERSION = "{version}";', 1)
+    if compiled_web():
+        # The complete graph is in main.js: do not download source modules again
+        # during installation or compete with the learner's first API requests.
+        source = re.sub(r'"/js/(?!main\.js")[^"\n]+",?\s*', "", source)
+    return source
 
 
 @router.get("/sw.js")

@@ -11,9 +11,12 @@ import {icon} from "./icons.js";
 const canRecord = window.isSecureContext &&
   navigator.mediaDevices && typeof MediaRecorder !== "undefined";
 
-const ready = canRecord
-  ? api("/api/asr", null, "GET").then(r => r.json()).then(a => Boolean(a.ready)).catch(() => false)
-  : Promise.resolve(false);
+let readiness;
+function ready() {
+  if (!canRecord) return Promise.resolve(false);
+  return readiness ||= api("/api/asr", null, "GET").then(r => r.json())
+    .then(a => Boolean(a.ready)).catch(() => { readiness = null; return false; });
+}
 
 const clean = w => w.toLowerCase().replace(/[.,!?;:«»"()]/g, "");
 
@@ -28,7 +31,7 @@ export function answerFrom(heard, prompt) {
 
 
 export async function addMic(row, input, prompt) {
-  if (!input || !(await ready)) return;
+  if (!input || !(await ready())) return;
   const btn = document.createElement("button");
   btn.className = "iconbtn mic";
   btn.type = "button";

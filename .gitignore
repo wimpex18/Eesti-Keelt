@@ -25,6 +25,7 @@ deploy/ca-bundle.crt
 
 # Worker toolchain — installed, not committed.
 node_modules/
+eesti/web/.build/
 .wrangler/
 
 # EKI downloads: only the files the image imports are committed (gzipped).

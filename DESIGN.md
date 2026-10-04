@@ -286,6 +286,9 @@ snippets use live root properties.
 
 Geologica is self-hosted in Latin, Latin extended and Cyrillic subsets under
 [the font directory](eesti/web/fonts/), with [SIL OFL](eesti/web/fonts/OFL-Geologica.txt).
+Latin and Cyrillic are preloaded. Optional font display keeps the first face
+stable: a slow cold connection may use the system fallback for that page load,
+then use cached Geologica on the next load, without a late layout jump.
 Available weights are 300–800. Interface and Russian text use the soft sharpness
 setting (`SHRP` 0); Estonian sentences, answers, words and rule titles use the
 sharper setting (`SHRP` 40). The bundled subsets were checked for Estonian,

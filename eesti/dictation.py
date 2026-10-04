@@ -152,12 +152,19 @@ def choose(
     count: int = 1,
     seed: int | None = None,
     source_id: str = "selges-keeles",
+    public_only: bool = False,
 ) -> list[Passage]:
     """Sentences to dictate, easiest first for this learner by known-word coverage;
     random among workable lengths when there is no vocabulary history.
     """
     from .cloze import sentences
 
+    if public_only:
+        public = content.execute(
+            "SELECT redistributable FROM sources WHERE id = ?", (source_id,)
+        ).fetchone()
+        if not public or not public[0]:
+            return []
     pool = [s for s in sentences(content, source_id=source_id,
                                  min_words=MIN_WORDS, max_words=MAX_WORDS)
             if _writable(s)]
@@ -219,7 +226,7 @@ def grade(passage: Passage, typed: str) -> Result:
     )
 
 
-def record(progress: sqlite3.Connection, result: Result) -> None:
+def record(progress: sqlite3.Connection, result: Result, *, issued: dict | None = None) -> None:
     """Record the attempt; the readiness verdict counts dictations as listening
     evidence.
     """
@@ -228,6 +235,8 @@ def record(progress: sqlite3.Connection, result: Result) -> None:
     payload = {"key": result.passage.key, "text": result.passage.text,
                "typed": result.typed, "matched": result.matched,
                "total": result.total, "correct": bool(result.correct)}
+    if issued is not None:
+        payload["issued"] = issued
     ev = evidence.record("dictation", payload)
     _record(progress, payload, ev.ts)
 

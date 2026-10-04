@@ -41,6 +41,45 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 
 
+@pytest.mark.parametrize("service_workers", ["block"])
+def test_start_paints_requested_content_before_scripts_arrive(page, live_server):
+    pending = []
+    page.route("**/js/main.js", lambda route: pending.append(route))
+    page.goto(live_server + "/?qa-start-render=1#start", wait_until="commit")
+    heading = page.locator("#tab-start h2")
+    heading.wait_for(state="visible")
+    assert "Kust alustame?" in heading.inner_text()
+    assert not page.locator("#tab-path").is_visible()
+    start = page.locator("#tab-start [data-start]")
+    assert not start.is_enabled()
+    page.wait_for_function("document.readyState !== 'loading'")
+    assert pending
+    for request in pending:
+        request.continue_()
+    page.wait_for_function("!document.querySelector('#tab-start [data-start]').disabled")
+    start.click()
+    assert "Milleks õpid?" in page.locator("#tab-start h2").inner_text()
+
+
+@pytest.mark.parametrize("service_workers", ["block"])
+def test_dictation_retry_keeps_answer_and_submits_issued_passage(page):
+    with page.expect_response("**/api/dictation/next?count=1") as issued:
+        page.locator("#nav-learn [data-tab=listen]").click()
+    passage = issued.value.json()["passages"][0]
+    page.locator("#dictTyped").fill(passage["text"])
+    page.route("**/api/dictation/answer", lambda route: route.fulfill(
+        status=503, json={"detail": "Связь прервалась. Попробуй снова."}))
+    page.locator("#dictCheck").click()
+    page.wait_for_function("document.querySelector('#dictScore').textContent.includes('Связь')")
+    assert page.locator("#dictTyped").input_value() == passage["text"]
+    page.unroute("**/api/dictation/answer")
+    with page.expect_request("**/api/dictation/answer") as submitted:
+        page.locator("#dictCheck").click()
+    assert submitted.value.post_data_json["token"] == passage["token"]
+    assert "text" not in submitted.value.post_data_json
+    page.wait_for_function("document.querySelector('#dictScore').textContent.includes('пройдено')")
+
+
 # WebKit service workers bypass page.route; this test needs its mocked engine.
 @pytest.mark.parametrize("service_workers", ["block"])
 def test_exercise_translation_is_requested_and_does_not_submit_an_answer(page):
@@ -955,6 +994,26 @@ class TestReading:
 
 
 class TestWriting:
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_repeated_shortcut_does_not_submit_twice_and_timeout_keeps_text(self, page):
+        """An unanswered check must release the button without losing a draft."""
+        open_tab(page, "learn", "write")
+        page.clock.install()
+        pending = []
+        page.route("**/api/check", lambda route: pending.append(route))
+        text = page.locator("#text")
+        text.fill("Ma elan Tallinnas.")
+        text.press("Control+Enter")
+        page.wait_for_function("document.querySelector('#checkBtn').disabled")
+        text.press("Control+Enter")
+        assert len(pending) == 1
+        page.clock.run_for(30001)
+        page.wait_for_function("!document.querySelector('#checkBtn').disabled")
+        assert "не ответил вовремя" in page.locator("#checkOut").inner_text()
+        assert text.input_value() == "Ma elan Tallinnas."
+        for route in pending:
+            route.abort()
+
     """The writing check must answer with no provider key at all -- offline
     degradation is a feature here, not a failure."""
 
@@ -1636,6 +1695,34 @@ class TestChoosingTheSitting:
 
 
 class TestTheConversationPartner:
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_failed_turn_preserves_text_and_repeated_enter_sends_once(self, page):
+        """A failed partner request must leave a learner's answer ready to retry."""
+        def begin(route):
+            route.fulfill(json={"reply_et": "Kus sa õpid?", "turns": 1,
+                                "engine": "test", "unknown": [], "hint_ru": ""})
+        page.route("**/api/tutor", begin)
+        page.route("**/api/speak", lambda route: route.fulfill(
+            status=503, json={"detail": "Озвучивание недоступно."}))
+        open_tab(page, "learn", "speak")
+        page.locator("#vestlus > summary").click()
+        page.locator("#vestlusStart").click()
+        page.wait_for_selector("#vestlusRow:visible")
+        page.wait_for_function("!document.querySelector('#vestlusSend').disabled")
+        page.unroute("**/api/tutor", begin)
+        pending = []
+        page.route("**/api/tutor", lambda route: pending.append(route))
+        field = page.locator("#vestlusSay")
+        field.fill("Ma õpin kodus.")
+        field.press("Enter")
+        page.wait_for_function("document.querySelector('#vestlusSend').disabled")
+        field.press("Enter")
+        assert len(pending) == 1
+        pending[0].fulfill(status=503, json={"detail": "Собеседник временно недоступен."})
+        page.wait_for_function("!document.querySelector('#vestlusSend').disabled")
+        assert field.input_value() == "Ma õpin kodus."
+        assert "Не отправилось" in page.locator("#vestlusLog").inner_text()
+
     """Vestlus renders and says what it is, even with no engine configured —
     which is the state the journeys run in."""
 
@@ -1969,6 +2056,33 @@ class TestPractisingOffline:
 
 
 class TestOnboarding:
+    def test_back_from_goal_returns_to_starting_point_and_focuses_heading(self, page):
+        """Back must let a learner revise their band without restarting onboarding."""
+        page.goto(page.url.split("#")[0] + "#start")
+        page.locator("[data-choose]").click()
+        page.locator('[data-band="a2"]').click()
+        page.locator("[data-back]").click()
+        assert page.locator('[data-band="a2"]').is_visible()
+        assert page.locator("#onboardingContent h2").evaluate(
+            "el => el === document.activeElement")
+        page.locator("[data-back]").click()
+        assert page.locator("[data-start]").is_visible()
+
+    @pytest.mark.parametrize("service_workers", ["block"], indirect=True)
+    def test_start_does_not_probe_speech_or_private_evaluation(self, page):
+        """A guest should not wait for speech requests or get an owner-only 403 on boot."""
+        requests = []
+        page.on("request", lambda req: requests.append(urlsplit(req.url).path))
+        page.goto(page.url.split("#")[0] + "#start", wait_until="networkidle")
+        assert page.locator("[data-start]").is_visible()
+        assert "/api/asr" not in requests
+        assert "/api/speaking/check" not in requests
+        assert "/api/eval/available" not in requests
+        assert "/api/notion/pending" not in requests
+        open_tab(page, "learn", "speak")
+        page.wait_for_function("document.querySelector('#recPrivacy').textContent.length > 0")
+        assert "/api/asr" in requests
+
     def test_guest_chooses_a_start_and_can_change_it(self, page):
         page.goto(page.url.split("#")[0] + "#start")
         page.locator("[data-choose]").click()
@@ -2067,7 +2181,7 @@ AXE = ROOT / "node_modules" / "axe-core" / "axe.min.js"
 class TestEveryScreenIsReadableByAScreenReader:
     """The interface is Estonian and its explanations are Russian, which only
     works if the markup says which is which — and a learner using VoiceOver on
-    the installed PWA meets every screen, not a chosen one. WCAG 2.1 A and AA,
+    the installed PWA meets every screen, not a chosen one. WCAG 2.2 A and AA,
     checked by axe on each tab."""
 
     def test_no_screen_has_an_accessibility_violation(self, page, live_server):
@@ -2082,7 +2196,7 @@ class TestEveryScreenIsReadableByAScreenReader:
                   const run = await axe.run(document, {
                     resultTypes: ["violations"],
                     runOnly: {type: "tag",
-                              values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]},
+                              values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]},
                   });
                   return run.violations.map(v => ({
                     id: v.id, impact: v.impact, help: v.help,

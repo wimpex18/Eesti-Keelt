@@ -11,7 +11,7 @@ import {maybeShowOnboarding} from "./onboarding.js";
 
 /* Imported for their wiring, not for a name.
 
-   `reading.js` and `write.js` export nothing; they attach their handlers when
+   `reading.js` and `write.js` attach their handlers when
    they evaluate. A module nobody imports never runs, and the panel would open
    with every button silently dead. `tests/test_ui_contract.py` fails on a module
    the entry point cannot reach. */

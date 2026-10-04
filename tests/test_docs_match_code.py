@@ -184,8 +184,8 @@ class TestTheModeStructure:
     @staticmethod
     def _page_tabs() -> set[str]:
         html = markup_and_script()
-        skills = set(re.findall(r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)',
-                                html, re.S))
+        skills = {label.strip() for label in re.findall(
+            r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)', html, re.S)}
         header = html[html.index('<header class="spine">'):]
         header = header[:header.index('</header>')]
         destinations = {label.strip() for label in re.findall(

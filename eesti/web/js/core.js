@@ -92,12 +92,20 @@ async function responseError(response) {
    JSON, but deserve the same offline and HTTP-error behaviour as every other call. */
 export async function rawApi(path, init = {}) {
   let response;
+  const controller = new AbortController();
+  // Home speech can take 25 seconds before falling back to hosted ASR.
+  const timeout = setTimeout(() => controller.abort(),
+    path.startsWith("/api/transcribe") ? 60000 : 30000);
   try {
-    response = await fetch(path, init);
+    response = await fetch(path, {...init, signal: init.signal || controller.signal});
   } catch (err) {
+    if (controller.signal.aborted)
+      throw new Error("Сервер не ответил вовремя. Попробуй ещё раз.");
     throw new Error(
       "Нет соединения с сервером. Упражнения создаются на сервере, "
       + "поэтому без интернета их не открыть.");
+  } finally {
+    clearTimeout(timeout);
   }
   if (!response.ok) throw await responseError(response);
   return response;

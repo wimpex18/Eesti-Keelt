@@ -22,20 +22,20 @@ function error(message, retry) {
     b.onclick = retry; box.appendChild(b);
   }
 }
-function frame(body) {
+function frame(body, back = renderStart) {
   out().innerHTML = body + '<p class="start-error banner" role="alert" hidden></p>';
-  out().querySelector("[data-back]")?.addEventListener("click", renderStart);
+  out().querySelector("[data-back]")?.addEventListener("click", back);
+  const heading = out().querySelector("h2");
+  if (heading && !$("#tab-start").hidden) {
+    heading.tabIndex = -1;
+    heading.focus({preventScroll: true});
+  }
 }
+const START_MARKUP = $("#onboardingContent").innerHTML;
+
 export function renderStart() {
-  frame(`<h2 class="page-title" lang="et">Kust alustame? <i class="ru" lang="ru">с чего начнём?</i></h2>
-    <p lang="ru">Выбери удобный старт. Позже можно вернуться и изменить маршрут.</p>
-    <div class="start-routes">
-      <button class="start-route" data-start="a0" lang="et"><strong>Alustan algusest</strong><span lang="ru">С начала: правила, примеры и первые упражнения.</span></button>
-      <button class="start-route" data-choose lang="et"><strong>Valin alguse</strong><span lang="ru">Что-то уже знаю: выберу точку входа сам.</span></button>
-      <button class="start-route" data-assess lang="et"><strong>Proovin ennast</strong><span lang="ru">Не уверен: короткая проверка грамматики, до 3 тем.</span></button>
-    </div>
-    <p class="hint" lang="ru">Объяснения сейчас на русском. Это учебный маршрут, не подтверждение уровня CEFR.</p>
-    <a class="quiet" href="#path" lang="et">Vaata esmalt ringi <span class="ru" lang="ru">сначала осмотреться</span></a>`);
+  frame(START_MARKUP);
+  out().querySelectorAll("button").forEach(b => b.disabled = false);
   out().querySelector("[data-start]").onclick = () => chooseGoal("a0");
   out().querySelector("[data-choose]").onclick = renderLevels;
   out().querySelector("[data-assess]").onclick = () => {seen = []; failed = []; nextProbe();};
@@ -52,7 +52,8 @@ function chooseGoal(band) {
     <p lang="ru">Оба направления доступны всегда. Сейчас выберем первый шаг.</p>
     <div class="start-routes"><button class="start-route" data-focus="path" lang="et"><strong>Igapäevane eesti keel</strong><span lang="ru">Учиться для жизни: темы курса и четыре навыка.</span></button>
     <button class="start-route" data-focus="exam" lang="et"><strong>Valmistun eksamiks</strong><span lang="ru">Подготовка A2/B1: задания и пробный экзамен.</span></button></div>
-    <button class="ghost" data-back lang="et">Tagasi <span class="ru" lang="ru">назад</span></button>`);
+    <button class="ghost" data-back lang="et">Tagasi <span class="ru" lang="ru">назад</span></button>`,
+    band === "a0" ? renderStart : renderLevels);
   out().querySelectorAll("[data-focus]").forEach(b => b.onclick = () => save(band, b.dataset.focus, true));
 }
 async function save(band, focus = "path", navigate = false) {

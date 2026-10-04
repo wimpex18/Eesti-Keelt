@@ -102,7 +102,7 @@ def speaking_bank(kind: str | None = None) -> dict:
 
 
 class DictationAnswer(BaseModel):
-    text: str = Field(min_length=1, max_length=400)
+    token: str = Field(min_length=1, max_length=4000)
     typed: str = Field(default="", max_length=800)
 
 
@@ -137,6 +137,8 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
     200 with an empty list.
     """
     from ..dictation import CAVEAT, MAX_WORDS, MIN_WORDS, choose
+    from .. import identity
+    from ..itemref import sign_dictation
 
     try:
         content = content_db()
@@ -146,6 +148,7 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
     if not passages:
         passages = choose(
             content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
+            public_only=identity.current().kind != identity.OWNER,
         ) if content is not None else []
     if not passages:
         from ..dictation import Passage, key_of
@@ -157,7 +160,7 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         passages = [Passage(text, key_of(text), len(text.split()), source_id="generated")
                     for text in sentences]
     return {
-        "passages": [p.to_dict() for p in passages],
+        "passages": [{**p.to_dict(), "token": sign_dictation(p)} for p in passages],
         "words": [MIN_WORDS, MAX_WORDS],
         "caveat": CAVEAT,
         "starter": any(p.source_id == "generated" for p in passages),
@@ -176,11 +179,23 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
 @router.post("/api/dictation/answer")
 def dictation_answer(req: DictationAnswer) -> dict:
     """Grade a submission server-side and record it in the same call."""
-    from ..dictation import Passage, grade, key_of, record
+    from .. import identity
+    from ..dictation import Passage, grade, record
+    from ..itemref import verify_dictation
 
-    passage = Passage(req.text, key_of(req.text), len(req.text.split()))
+    try:
+        issued = verify_dictation(req.token)
+        ref = issued["ref"]
+        if (ref.get("kind") != "dictation" or ref.get("v") != 1
+                or ref.get("learner") != identity.current().learner):
+            raise ValueError("wrong task or recipient")
+        passage = Passage(**issued["passage"])
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise HTTPException(status_code=400, detail=(
+            "Диктант устарел или выдан другой сессии. Открой новое предложение. "
+            "Твой ответ остаётся в поле.")) from exc
     result = grade(passage, req.typed)
-    record(progress_db(), result)
+    record(progress_db(), result, issued=issued)
     return result.to_dict()
 
 

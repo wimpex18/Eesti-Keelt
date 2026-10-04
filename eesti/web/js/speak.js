@@ -34,7 +34,13 @@ function homeRecogniser() {
 
 // Ask once what this deployment can do, and say so rather than offering a
 // feature that silently does nothing.
-api("/api/asr", null, "GET").then(r => r.json()).then(a => {
+let capabilitiesLoaded = false;
+export function loadSpeechCapabilities() {
+  if (capabilitiesLoaded) return;
+  capabilitiesLoaded = true;
+  loadEvalAvailability();
+  api("/api/speaking/check", null, "GET").then(r => r.json()).then(paintAsrReport).catch(() => {});
+  api("/api/asr", null, "GET").then(r => r.json()).then(a => {
   asrReady = Boolean(a.ready);
   const destination = a.cloudflare ? "в Cloudflare"
     : a.openrouter ? "в OpenRouter"
@@ -71,11 +77,13 @@ api("/api/asr", null, "GET").then(r => r.json()).then(a => {
       : "Аудиофайл разговора приложение не сохраняет.";
   homeRecogniser();
 }).catch(() => {
+  capabilitiesLoaded = false;
   $("#recPrivacy").textContent = "Не удалось узнать, куда отправится запись. Попробуй обновить страницу перед записью.";
   $("#evalPrivacy").textContent = "Распознавание недоступно; запись сохранится только на этом компьютере.";
   $("#vestlusMic").disabled = true;
   $("#vestlusMicState").textContent = "Не удалось проверить распознавание; можно отвечать текстом.";
 });
+}
 
 
 let readAloud = [], readIdx = 0;
@@ -392,8 +400,6 @@ function paintAsrReport(r) {
 }
 
 
-api("/api/speaking/check", null, "GET").then(r => r.json()).then(paintAsrReport).catch(() => {});
-
 
 /* Vestlus: the partner the paired exam has and a solo learner does not.
 
@@ -427,6 +433,7 @@ function paintVestlus(reply) {
 
 async function vestlusTurn(said) {
   const send = $("#vestlusSend"), start = $("#vestlusStart"), mic = $("#vestlusMic");
+  if (send.disabled) return;
   const epoch = vestlusEpoch;
   send.disabled = start.disabled = mic.disabled = true;
   $("#vestlusVoice").pause();
@@ -435,6 +442,8 @@ async function vestlusTurn(said) {
       intent: "converse", task: vestlus.task, said,
       history: vestlus.turns.map(t => ({who: t.who, text: t.text})),
     })).json();
+    if (epoch !== vestlusEpoch) return;
+    if (said && $("#vestlusSay").value.trim() === said) $("#vestlusSay").value = "";
     if (said) vestlus.turns.push({who: "learner", text: said});
     if (reply.reply_et) vestlus.turns.push({who: "partner", text: reply.reply_et});
     paintVestlus(reply);
@@ -529,7 +538,6 @@ $("#vestlusMic").onclick = async () => {
 $("#vestlusSend").onclick = () => {
   const said = $("#vestlusSay").value.trim();
   if (!said) return;
-  $("#vestlusSay").value = "";
   vestlusTurn(said);
 };
 
@@ -548,14 +556,16 @@ let evalNow = null, evalRecorder = null, evalChunks = [];
 let evalQuestions = [], evalQuestionIdx = -1;
 let reviewStem = "";
 
-(async () => {
+async function loadEvalAvailability() {
   try {
+    const me = await api("/api/me", null, "GET").then(r => r.json());
+    if (me.scope !== "owner") return;
     await api("/api/eval/available", null, "GET");
     evalAvailable = true;
     $("#evalSet").hidden = false;
     if (practiceClip) $("#recSaveEval").hidden = false;
   } catch { /* Deployed, or the local server is unreachable. */ }
-})();
+}
 
 function reviewReady() {
   $("#evalVerify").disabled = !reviewStem || !$("#evalListened").checked ||

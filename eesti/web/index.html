@@ -68,10 +68,10 @@
 <a href="#exam" lang="et">Eksam <span class="ru" lang="ru">подготовка</span></a>
 </nav>
 <nav aria-label="Õpioskused — навыки" data-mode-nav="learn" id="nav-learn" role="tablist">
-<button aria-selected="false" data-tab="read" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Lugemine</span></button>
-<button aria-selected="false" data-tab="listen" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kuulamine</span></button>
-<button aria-selected="false" data-tab="speak" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Rääkimine</span></button>
-<button aria-selected="false" data-tab="write" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kirjutamine</span></button>
+<button aria-selected="false" data-tab="read" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Lugemine <span class="ru" lang="ru">чтение</span></span></button>
+<button aria-selected="false" data-tab="listen" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kuulamine <span class="ru" lang="ru">аудирование</span></span></button>
+<button aria-selected="false" data-tab="speak" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Rääkimine <span class="ru" lang="ru">говорение</span></span></button>
+<button aria-selected="false" data-tab="write" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kirjutamine <span class="ru" lang="ru">письмо</span></span></button>
 </nav>
 <details class="more-nav"><summary lang="et">Veel <span class="ru" lang="ru">разделы</span></summary>
 <nav aria-label="Muud lehed — другие разделы">
@@ -176,7 +176,15 @@
 <div id="practiceOut"></div>
 </div></div>
 </section>
-<section class="panel" hidden="" id="tab-start"><div class="start-content" id="onboardingContent"></div></section>
+<section class="panel" hidden="" id="tab-start"><div class="start-content" id="onboardingContent"><h2 class="page-title" lang="et">Kust alustame? <i class="ru" lang="ru">с чего начнём?</i></h2>
+    <p lang="ru">Выбери удобный старт. Позже можно вернуться и изменить маршрут.</p>
+    <div class="start-routes">
+      <button disabled="" class="start-route" data-start="a0" lang="et"><strong>Alustan algusest</strong><span lang="ru">С начала: правила, примеры и первые упражнения.</span></button>
+      <button disabled="" class="start-route" data-choose lang="et"><strong>Valin alguse</strong><span lang="ru">Что-то уже знаю: выберу точку входа сам.</span></button>
+      <button disabled="" class="start-route" data-assess lang="et"><strong>Proovin ennast</strong><span lang="ru">Не уверен: короткая проверка грамматики, до 3 тем.</span></button>
+    </div>
+    <p class="hint" lang="ru">Объяснения сейчас на русском. Это учебный маршрут, не подтверждение уровня CEFR.</p>
+    <a class="quiet" href="#path" lang="et">Vaata esmalt ringi <span class="ru" lang="ru">сначала осмотреться</span></a></div></section>
 <!-- ── Speaking ──────────────────────────────────────────────────
        The B1 speaking exam is paired, so this voices the other side and lets the
        learner hear themselves; it does not score speech. -->
@@ -621,6 +629,16 @@
 <!-- The Reegel page (js/lesson.js): a solid sheet over the page. -->
 <!-- Two short, optional starting questions. The answer is a recommendation only,
      never a CEFR result or recorded mastery. -->
+<script>
+/* Paint the requested panel before the module graph arrives. The URL contains
+   no learner state; loaders and history remain the router's responsibility. */
+(() => {
+  const page = location.hash.slice(1).split("/")[0];
+  const panel = document.getElementById("tab-" + page);
+  if (!panel?.matches("section.panel")) return;
+  document.querySelectorAll("section.panel").forEach(s => { s.hidden = s !== panel; });
+})();
+</script>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>

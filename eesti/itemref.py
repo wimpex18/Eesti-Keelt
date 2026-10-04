@@ -22,6 +22,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 
 #: Bumped when a generator's output for the same inputs changes, so an old ref
 #: is known not to regenerate the item it named.
@@ -48,7 +49,21 @@ def _unb64(text: str) -> bytes:
 def sign(item, ref: dict) -> str:
     """A token for one issued item."""
     fields = {name: getattr(item, name, "") or "" for name in FIELDS}
-    body = json.dumps({"ref": ref, "item": fields}, ensure_ascii=False,
+    return _sign({"ref": ref, "item": fields})
+
+
+def sign_dictation(passage) -> str:
+    """Bind the issued text and attribution to the recipient, across restarts."""
+    from dataclasses import asdict
+    from . import identity
+
+    return _sign({"ref": {"kind": "dictation", "v": 1,
+                          "learner": identity.current().learner},
+                  "passage": asdict(passage)})
+
+
+def _sign(payload: dict) -> str:
+    body = json.dumps(payload, ensure_ascii=False,
                       sort_keys=True, separators=(",", ":")).encode()
     mac = hmac.new(_key(), body, hashlib.sha256).hexdigest()[:32]
     return f"{_b64(body)}.{mac}"
@@ -56,15 +71,35 @@ def sign(item, ref: dict) -> str:
 
 def verify(token: str) -> dict:
     """`{"ref": ..., "item": ...}` from a token, or ValueError if it was not ours."""
+    payload = _verify(token)
+    if not isinstance(payload, dict) or not isinstance(payload.get("item"), dict):
+        raise ValueError("not a graded item token")
+    return payload
+
+
+def verify_dictation(token: str) -> dict:
+    """A dictation token cannot be used at practice/checkpoint/mock boundaries."""
+    payload = _verify(token)
+    if not isinstance(payload, dict) or not isinstance(payload.get("passage"), dict):
+        raise ValueError("not a dictation token")
+    return payload
+
+
+def _verify(token: str) -> dict:
     try:
         body_b64, mac = token.rsplit(".", 1)
+        if not re.fullmatch(r"[0-9a-f]{32}", mac):
+            raise ValueError("malformed item signature")
         body = _unb64(body_b64)
     except (ValueError, TypeError) as exc:
         raise ValueError("malformed item token") from exc
     expected = hmac.new(_key(), body, hashlib.sha256).hexdigest()[:32]
     if not hmac.compare_digest(mac, expected):
         raise ValueError("item token signature does not match")
-    return json.loads(body)
+    try:
+        return json.loads(body)
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError("malformed item payload") from exc
 
 
 def practice_ref(topic: str, *, seed: int, count: int, levels, theme, rules,

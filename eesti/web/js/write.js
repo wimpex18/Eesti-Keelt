@@ -6,6 +6,7 @@ import {loadRail} from "./review.js";
 
 
 async function runCheck() {
+  if ($("#checkBtn").disabled) return;
   const text = $("#text").value.trim();
   /* An empty box gets a message, in the language explanations are written in,
      rather than a button that appears dead. */
@@ -131,7 +132,7 @@ async function loadQueue() {
   } catch { $("#queueBox").hidden = true; }
 }
 
-loadQueue();
+export function loadWriting() { loadQueue(); }
 
 
 $("#queueSend").onclick = async () => {
