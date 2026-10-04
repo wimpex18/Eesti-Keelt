@@ -4,6 +4,14 @@
 # ---------------------------------------------------------------------------
 # Builder: produce the derived databases, then throw the toolchain away.
 # ---------------------------------------------------------------------------
+FROM node:24-slim AS web-builder
+WORKDIR /web
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY deploy/build-web.mjs ./deploy/build-web.mjs
+COPY eesti/web/ ./eesti/web/
+RUN npm run build:web
+
 # The latest 3.14 patch: the image, CI, the eval and local `.venv` run the same
 # minor version.
 FROM python:3.14-slim AS builder
@@ -68,6 +76,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY eesti/ ./eesti/
 COPY --from=builder /build/data/ ./data/
+COPY --from=web-builder /web/eesti/web/.build/ ./eesti/web/.build/
 COPY --from=builder /build/REFERENCE_INPUTS.json ./REFERENCE_INPUTS.json
 # The hand-written glossary is tracked, not built, so copy it explicitly.
 COPY data/seed_glossary.tsv ./data/seed_glossary.tsv

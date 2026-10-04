@@ -4,8 +4,14 @@ What the app does today, what it does not, and the known issues. Counts marked
 as checked are asserted by `tests/test_docs_match_code.py`; update this file in
 the same change that makes it untrue.
 
-The redesign below is implemented on `codex/dev-5-learning-redesign` (PR 109);
-production still runs the previous interface until the PR is merged and deployed.
+The Practice rhythm interface below is implemented in this checkout and visible
+on the public app. The public health stamp has no Git revision, so it does not
+establish exact parity with the checkout. Local QA findings and unverified
+release gates are in `qa/results.md`.
+The local fixes now bind dictation grading to a signed passage and its recipient.
+Container builds serve one compressed JavaScript bundle and compressed CSS;
+the requested start screen and skill glosses appear before module initialization.
+These changes have not been deployed by the QA session.
 
 ## What works
 

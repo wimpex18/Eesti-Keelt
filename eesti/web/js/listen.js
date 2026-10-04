@@ -71,11 +71,11 @@ $("#dictNext").onclick = () => loadDictation();
 
 
 $("#dictCheck").onclick = async () => {
-  if (!dictNow) return;
+  if (!dictNow || $("#dictCheck").disabled) return;
   const btn = $("#dictCheck"); btn.disabled = true;
   try {
     const r = await (await api("/api/dictation/answer", {
-      text: dictNow.text, typed: $("#dictTyped").value
+      token: dictNow.token, typed: $("#dictTyped").value
     })).json();
     // Word by word, so a miss is visible as a miss rather than as a number.
     $("#dictOut").innerHTML =

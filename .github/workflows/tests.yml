@@ -75,6 +75,12 @@ jobs:
     name: browser journeys
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Build production web assets
+        run: npm ci && npm run build:web
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
@@ -101,5 +107,6 @@ jobs:
       # that read a text skip and the rest run.
       - name: Journeys
         env:
+          EESTI_WEB_BUILD: "1"
           EESTI_E2E_NO_CORPUS: "1"
         run: python -m pytest tests/test_e2e_journeys.py --browser -q -n auto -rs

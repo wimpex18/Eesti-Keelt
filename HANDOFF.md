@@ -1,28 +1,31 @@
 # Handoff
 
-Current task: DEV-5 Practice rhythm redesign closeout and documentation cleanup.
-Branch: codex/dev-5-learning-redesign; draft PR: https://github.com/wimpex18/Eesti-Keelt/pull/109.
-Next: check the PR's exact-head CI, then user review/merge; deploy and run deep smoke per docs/deploy.md.
-No merge or deployment performed. Production retains the previous interface.
-Approved system: blue/aqua grounds, deep blue actions, frosted navigation,
-solid tasks, Geologica and four original skill pictograms; code-first.
-Uncached offline recovery uses the same light/navy grounds and an accessible retry.
-Reset/restore and saved-recording review use immediate scroll/focus handoffs.
-Current structure, capabilities and gaps: docs/app-structure.md and docs/status.md.
-Research consolidated in docs/design-research.md; superseded research/brief removed.
-DESIGN.md and .impeccable/design.json describe the finished source; doctor is clear.
-Main-app visual evidence: .impeccable/review/blue-material-round2.
-Recovery evidence: .impeccable/review/closeout; prescribed five viewport classes,
-plus dark phone/desktop; retry is visible, reachable and keyboard focused.
-Reviewer disposition: ship at the scored recovery-focus fix scope.
-Checks: 2531 Python passed/1 skipped; 346 browser passed/46 skipped across
-Chromium/WebKit at desktop/phone; typecheck and 26 Worker tests passed.
-Hook active; three existing index.html scoped value exceptions remain:
-static theme mixing, compact control leading and actual live-recording pulse.
-No new suppressions. Shipping rasters retain provenance; captures are ignored.
-Learner evidence, source attribution, checked grading and provider lanes preserved.
-Russian MVP; expanded beginner sequencing/reviewed en/uk content remain DEV-5.
-Do not close DEV-5 based on visual completion.
-Uncommitted task paths: none after this commit; preserve unrelated untracked tools.
-Never stage learner databases, data/exam or data/eval. No implementation blockers.
-Preview: http://127.0.0.1:8000/?sandbox=impeccable-redesign#path; user tab preserved.
+Current task: DEV-17/DEV-18 QA fixes complete locally; prepare review PR.
+Branch: codex/dev-17-dev-18-qa-fixes; base origin/main eba54af.
+Next: commit named task paths, push and open PR; user reviews and merges.
+After deployment: deep smoke and public cold-load/account verification.
+Fixed: signed recipient-bound dictation with issued evidence/source rights;
+compressed startup bundle/CSS, immediate start content, stable font rendering;
+onboarding Back/focus, request deadlines, draft/duplicate recovery, lazy probes,
+and 44px navigation/word targets. Provider lanes and linguistic rules unchanged.
+Checks: 2544 Python passed/1 skipped; compiled browser 205 passed/23 skipped;
+62 focused passed; typecheck and 26 Worker tests passed.
+Chrome: prior 15-route/five-viewport audit plus follow-up desktop/phone checks.
+Matched local FCP 2.1–2.2→0.8 s; initialization 3.0→1.1 s; JS requests 24→1.
+Final mobile Lighthouse CLS 0.003; cursor-extension LCP excluded.
+Reports: qa/test-plan.md, inventory.md, results.md, performance.md.
+Evidence: .impeccable/review/qa (ignored); synthetic guest state only.
+Uncommitted task paths: .github/workflows/tests.yml, .gitignore, Dockerfile,
+DESIGN.md, HANDOFF.md, docs/status.md, docs/testing.md, deploy/build-web.mjs,
+package.json, package-lock.json, eesti/api/{assets,speech}.py,
+eesti/{dictation,itemref}.py, eesti/web/{app.css,index.html},
+eesti/web/js/{core,listen,main,onboarding,router,speak,voice,write}.js,
+tests/test_{dictation,docs_match_code,e2e_journeys,ui_contract,web_build}.py,
+qa/{test-plan,inventory,results,performance}.md.
+Preserve unrelated untracked agent/editor tooling. No learner databases or
+private exam/evaluation material in the diff; no merge or deployment performed.
+Remaining external gates: real Worker account/cross-device durability,
+human-verified physical-device ASR/fallback, screen-reader and private materials.
+Chrome preview: http://127.0.0.1:8000/?sandbox=qa-final#start.
+Preview: /tmp/eesti-qa/run.py, scratch guest state, blank provider keys,
+EESTI_WEB_BUILD=1. DEV-5 beginner/en/uk scope remains separate.

@@ -12,6 +12,73 @@ from eesti.progress import connect as progress_connect
 from pagesrc import markup_and_script
 
 
+class TestIssuedPassages:
+    def test_client_text_is_not_an_answer_key(self, client):
+        p = client.get("/api/dictation/next?seed=2").json()["passages"][0]
+        r = client.post("/api/dictation/answer", json={
+            "token": p["token"], "text": "forged target", "typed": "forged target"})
+        assert r.status_code == 200
+        assert r.json()["text"] == p["text"]
+        assert r.json()["key"] == p["key"]
+        assert not r.json()["correct"]
+
+    @pytest.mark.parametrize("attack", ["missing", "tampered", "malformed", "practice", "other-session"])
+    def test_invalid_issuance_records_no_evidence(self, client, attack):
+        from eesti.api.deps import progress_db
+        from eesti import evidence
+        p = client.get("/api/dictation/next?seed=2").json()["passages"][0]
+        payload = {"token": p["token"], "typed": p["text"], "text": p["text"]}
+        headers = {}
+        if attack == "missing":
+            del payload["token"]
+        elif attack == "tampered":
+            payload["token"] = p["token"][:-1] + ("0" if p["token"][-1] != "0" else "1")
+        elif attack == "malformed":
+            payload["token"] = "bad.signature-õ"
+        elif attack == "practice":
+            payload["token"] = client.post("/api/practice", json={
+                "topic": "olevik", "count": 1, "seed": 1}).json()["items"][0]["token"]
+        else:
+            headers = {"x-eesti-scope": "guest", "x-eesti-guest": "dictation-other"}
+        r = client.post("/api/dictation/answer", json=payload, headers=headers)
+        assert r.status_code in (400, 422)
+        assert dictation.stats(progress_db())["attempts"] == 0
+        assert not any(ev.type == "dictation" for ev in evidence.events(evidence.connect()))
+
+    def test_starter_grading_and_replay_keep_issued_identity(self, client, monkeypatch):
+        from eesti.api import speech
+        from eesti.api.deps import progress_db
+        from eesti import evidence, itemref
+        monkeypatch.setattr(speech, "_human_passages", lambda *args: [])
+        monkeypatch.setattr(dictation, "choose", lambda *args, **kwargs: [])
+        p = client.get("/api/dictation/next?seed=1").json()["passages"][0]
+        assert p["source"] == "generated"
+        result = client.post("/api/dictation/answer", json={
+            "token": p["token"], "typed": p["text"]})
+        assert result.status_code == 200 and result.json()["correct"]
+        ev = next(ev for ev in evidence.events(evidence.connect()) if ev.type == "dictation")
+        assert ev.payload["issued"] == itemref.verify_dictation(p["token"])
+        conn = progress_db()
+        before = [tuple(row)[1:] for row in conn.execute("SELECT * FROM dictation")]
+        conn.execute("DELETE FROM dictation")
+        dictation._apply_dictation({"progress": conn}, ev)
+        assert [tuple(row)[1:] for row in conn.execute("SELECT * FROM dictation")] == before
+
+    def test_dictation_cannot_be_used_as_a_grammar_answer_key(self, client):
+        from eesti.itemref import verify
+        p = client.get("/api/dictation/next?seed=1").json()["passages"][0]
+        with pytest.raises(ValueError, match="not a graded item"):
+            verify(p["token"])
+
+    def test_private_corpus_is_not_issued_to_guests(self, content):
+        content.execute("CREATE TABLE sources (id TEXT, redistributable INTEGER)")
+        content.execute("INSERT INTO sources VALUES ('selges-keeles', 0)")
+        assert dictation.choose(content, public_only=True) == []
+        assert dictation.choose(content)
+        content.execute("UPDATE sources SET redistributable=1")
+        assert dictation.choose(content, public_only=True)
+
+
 @pytest.fixture
 def content(tmp_path):
     """Real Estonian, built from scratch — not the developer's harvest, which

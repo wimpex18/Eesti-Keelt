@@ -196,10 +196,12 @@ class TestTheListeningTabHasAnExercise:
             assert path in page
 
     def test_they_answer(self, client):
-        assert client.get("/api/dictation/next").status_code == 200
+        response = client.get("/api/dictation/next")
+        assert response.status_code == 200
+        passage = response.json()["passages"][0]
         assert client.post("/api/dictation/answer",
-                           json={"text": "Ma elan siin.",
-                                 "typed": "Ma elan siin."}).status_code == 200
+                           json={"token": passage["token"],
+                                 "typed": passage["text"]}).status_code == 200
 
     def test_the_sentence_is_not_rendered_before_it_is_answered(self, page):
         """The dictation sentence is not rendered before it is answered (scoped to the

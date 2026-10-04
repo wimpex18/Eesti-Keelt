@@ -12,7 +12,8 @@ import {loadLibrary} from "./reading.js";
 import {loadPath, loadStatus, setPathMode, ensureSession} from "./path.js";
 import {ensureRule} from "./lesson.js";
 import {refreshDueBadge} from "./review.js";
-import {loadReadAloud, loadSpeakQuestions} from "./speak.js";
+import {loadReadAloud, loadSpeakQuestions, loadSpeechCapabilities} from "./speak.js";
+import {loadWriting} from "./write.js";
 import {loadVocab} from "./vocab.js";
 import {loadProfile} from "./profile.js";
 
@@ -31,8 +32,13 @@ const ON_OPEN = {
   // Like Sõnavara: the list is there when the tab opens; `Näita` re-filters.
   read: once(() => loadLibrary(false)),
   listen: once(() => { loadDictation(); loadListenLibrary(); }),
-  speak: once(() => loadSpeakQuestions().then(() => loadReadAloud("lause"))),
+  speak: () => {
+    loadSpeechCapabilities();
+    openSpeaking();
+  },
+  write: () => loadWriting(),
 };
+const openSpeaking = once(() => loadSpeakQuestions().then(() => loadReadAloud("lause")));
 
 document.querySelectorAll("nav[data-mode-nav] button[data-tab]").forEach(b => {
   const panel = document.getElementById("tab-" + b.dataset.tab);
