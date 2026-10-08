@@ -479,3 +479,190 @@ test("a warm-origin corpus update is archived and restored on the next boot", as
   assert.equal(await app.owner.ensureRestored(), true);
   assert.equal(replayed, 2);
 });
+
+/** Run `body` with the clock moved forward, as a minute passing would. */
+async function later(ms, body) {
+  const now = Date.now;
+  const offset = ms;
+  Date.now = () => now() + offset;
+  try { return await body(); } finally { Date.now = now; }
+}
+
+test("guest traffic never rewrites the owner's stored identity", async () => {
+  const app = setup();
+  await app.owner.bindWho({ scope: "owner", id: "owner", email: "owner@example.test" });
+  app.owner.ensureRestored = async () => true;
+  const { storage } = app.objects.get("singleton");
+  const put = storage.put;
+  const written = [];
+  storage.put = async (key, value) => {
+    written.push(typeof key === "object" ? Object.keys(key) : [key]);
+    return put(key, value);
+  };
+  globalThis.fetch = async () => Response.json({ total: 1 });
+  for (let i = 0; i < 3; i++) {
+    const response = await worker.fetch(new Request("https://learn.test/api/library", {
+      headers: { "x-eesti-guest": "materials-audit" },
+    }), app.env, app.ctx);
+    assert.equal(response.status, 200);
+  }
+  assert.deepEqual(written.flat().filter(key => key === "who"), [],
+    "each request must not spend a Durable Object write rebinding the owner");
+  assert.equal((await storage.get("who")).email, "owner@example.test",
+    "back-channel calls keep the owner's email");
+});
+
+test("a fresh singleton is still restored as the owner before guest requests", async () => {
+  const app = setup();
+  globalThis.fetch = async request => {
+    const url = new URL(request instanceof Request ? request.url : String(request));
+    if (url.pathname === "/api/health") return Response.json({ boot: "boot-A" });
+    if (url.pathname === "/api/content/export") return Response.json({ present: false });
+    if (url.pathname === "/api/events/import") return Response.json({ ingested_seq: 0 });
+    return Response.json({ total: 1 });
+  };
+  const response = await worker.fetch(new Request("https://learn.test/api/library", {
+    headers: { "x-eesti-guest": "materials-audit" },
+  }), app.env, app.ctx);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await app.objects.get("singleton").storage.get("who"),
+    { scope: "owner", id: "owner", email: "" });
+});
+
+test("the corpus is archived once: not again after eviction or a cold restore", async () => {
+  const app = setup();
+  await app.owner.bindWho({ scope: "owner", id: "owner", email: "owner@example.test" });
+  const { storage } = app.objects.get("singleton");
+  const corpus = JSON.stringify({ database: "private-corpus".repeat(9000) });
+  let boot = "warm-boot", present = true, fullExports = 0, imports = 0;
+  const probes = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/api/health") {
+      probes.push(url.searchParams.get("live"));
+      return Response.json({ boot, corpus_revision: present ? "rev-1" : null });
+    }
+    if (url.pathname === "/api/content/export") {
+      if (!url.searchParams.has("full")) return Response.json({ present });
+      fullExports++;
+      return new Response(corpus);
+    }
+    if (url.pathname === "/api/content/import") {
+      assert.equal(init.body, corpus);
+      imports++;
+      present = true;
+      return Response.json({ bytes: 1, items: 1 });
+    }
+    if (url.pathname === "/api/events/import") return Response.json({ ingested_seq: 0 });
+    throw new Error(`Unexpected origin request: ${url.pathname}`);
+  };
+  assert.equal(await app.owner.ensureRestored(), true);
+  assert.equal(fullExports, 1);
+
+  // Evicted from memory while the same origin instance keeps serving.
+  const revived = new LearnerState({ storage }, app.env);
+  assert.equal(await revived.ensureRestored(), true);
+  assert.equal(fullExports, 1, "eviction must not re-export and re-archive the corpus");
+
+  // A cold start: the archive goes back in, and the next liveness check finds
+  // the container holding exactly what was archived.
+  boot = "cold-boot";
+  present = false;
+  await later(61_000, () => revived.ensureRestored());
+  assert.equal(imports, 1);
+  await later(122_000, () => revived.ensureRestored());
+  assert.equal(fullExports, 1, "a restored corpus must not be archived back");
+  assert.ok(probes.length >= 3);
+  assert.ok(probes.every(live => live === "1"), "restore uses the cheap liveness probe");
+});
+
+/** A subscribed learner whose origin answers `/api/reminders` with `answer`. */
+async function subscribed(app, answer) {
+  const vapid = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const jwk = await crypto.subtle.exportKey("jwk", vapid.privateKey);
+  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", vapid.publicKey));
+  app.env.VAPID_PRIVATE_KEY = jwk.d;
+  app.env.VAPID_PUBLIC_KEY = Buffer.from(raw).toString("base64url");
+  app.env.VAPID_SUBJECT = "mailto:owner@example.test";
+  const ua = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const uaPublic = new Uint8Array(await crypto.subtle.exportKey("raw", ua.publicKey));
+  const learner = app.env.LEARNER_STATE.get("learner:l-0123456789abcdef");
+  await learner.bindWho({ scope: "learner", id: "l-0123456789abcdef", email: "l@example.test" });
+  await learner.subscribe({ endpoint: "https://push.example.test/sub", keys: {
+    p256dh: Buffer.from(uaPublic).toString("base64url"),
+    auth: Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64url"),
+  } });
+  const calls = { reminders: 0, origin: 0, pushes: 0, pushStatus: 201 };
+  globalThis.fetch = async input => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.hostname === "push.example.test") {
+      calls.pushes++;
+      return new Response(null, { status: calls.pushStatus });
+    }
+    calls.origin++;
+    if (url.pathname === "/api/health") return Response.json({ boot: calls.boot ?? "boot-A" });
+    if (url.pathname === "/api/events/import") return Response.json({ ingested_seq: 0 });
+    if (url.pathname === "/api/reminders") {
+      calls.reminders++;
+      return Response.json(answer());
+    }
+    throw new Error(`Unexpected origin request: ${url.pathname}`);
+  };
+  return { learner, calls, db: app.objects.get("learner:l-0123456789abcdef").db };
+}
+
+const HOUR = 3600_000;
+
+test("the reminder cron leaves a sleeping origin alone until something can be due", async () => {
+  const app = setup();
+  let next = new Date(Date.now() + 3 * HOUR).toISOString();
+  const { learner, calls, db } = await subscribed(app, () => ({ reminders: [], next_check: next }));
+  await learner.remind();
+  assert.equal(calls.reminders, 1);
+  const contacted = calls.origin;
+
+  // An hour later the instance has gone cold; nothing can be due yet.
+  calls.boot = "boot-B";
+  await later(HOUR, () => learner.remind());
+  assert.equal(calls.origin, contacted, "no wake-up or restore before next_check");
+
+  // New evidence (a settings change, a review) can change the answer.
+  db.prepare("INSERT INTO events (id, body) VALUES ('settings-1', '{}')").run();
+  await later(HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 2, "new evidence asks again");
+
+  // The moment the app named.
+  next = null;
+  await later(4 * HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 3);
+  // `null` (off, or quiet all day) still looks again within the safety cap.
+  await later(5 * HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 3);
+  await later(11 * HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 4, "a stale answer is re-checked at least every six hours");
+});
+
+test("an origin that does not name a next check is asked every hour", async () => {
+  const app = setup();
+  const { learner, calls } = await subscribed(app, () => ({ reminders: [] }));
+  await learner.remind();
+  await later(HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 2);
+});
+
+test("a reminder the push service refused is retried the next hour", async () => {
+  const app = setup();
+  const reminder = { tag: "kordamine-2026-10-08", title: "Kordamine", body: "12", url: "/#review" };
+  const { learner, calls } = await subscribed(app, () => ({
+    reminders: [reminder], next_check: new Date(Date.now() + 10 * HOUR).toISOString() }));
+  calls.pushStatus = 503;
+  await learner.remind();
+  calls.pushStatus = 201;
+  const second = await later(HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 2);
+  assert.deepEqual([second.sent, calls.pushes], [1, 2]);
+  await later(2 * HOUR, () => learner.remind());
+  assert.equal(calls.reminders, 2, "delivered: sleep until the named moment");
+});

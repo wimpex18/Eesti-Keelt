@@ -93,7 +93,14 @@ matters for the caches it carries (stored glosses, the provider breaker).
 | any successful response whose `x-events-seq` is ahead | Worker copies the new events (`GET /api/events?after=`) and returns success only after the Durable Object reaches that sequence for the response's boot id |
 | every 5 min, and ≤1/min after writes | Worker pulls a snapshot (`GET /api/state/export`) |
 
-Events are keyed by id, so copying one twice changes nothing. On Cloud Run
+Events are keyed by id, so copying one twice changes nothing. Outside the
+minute-long liveness window the Worker asks `/api/health?live=1`, which answers
+the boot id and corpus revision without counting the word list or recordings.
+The owner object records the revision of the corpus it archived with the
+archive, so a container that already holds it, after an eviction or a cold
+restore, is neither exported nor archived again. Guest and learner requests
+restore that shared corpus through the owner object without rebinding its
+identity. On Cloud Run
 (`EESTI_WORKER_RESTORES=1`, set in the Dockerfile) only that restore may start
 the log: a write reaching an instance first, such as a speech transcript or
 `reset-progress.sh`, gets 503 and records nothing. After a restore the Worker
@@ -143,7 +150,9 @@ bash deploy/push-audio.sh --check    # what is there now
 The service then reads it at `EESTI_AUDIO_DB`, and the Worker's edge cache keeps
 whatever is actually played, so a word is fetched from the bucket once. Without
 it `/api/pronounce` answers 404 and everything falls back to synthesis;
-`/api/health` reports `recordings`.
+`/api/health` reports `recordings`, counted once per version of the file. The
+Worker's liveness probe, `/api/health?live=1`, reads only the boot id and the
+corpus revision.
 
 ## Reminders
 
@@ -162,6 +171,14 @@ is a count and a fixed phrase — never a sentence the learner wrote — encrypt
 to the subscription (RFC 8291) and signed with VAPID (RFC 8292). A tag keeps
 one fact from arriving twice; a 404 or 410 from the push service drops the
 subscription.
+
+The answer also names `next_check`, the earliest moment anything new could be
+due (`reminders.next_check`): a new local day, the learner's chosen hour, the
+moment the review queue reaches its threshold, each moved past quiet hours.
+Until then, and while no new event has reached its Durable Object, a
+subscribed account's cron pass neither wakes nor restores the origin. It asks
+again after at most six hours, after any new evidence, and in the next hour
+when a push service refused a reminder.
 
 The Worker has all three VAPID bindings and its hourly cron configured. The
 same pair is stored in repository secrets for the deploy workflow and privately

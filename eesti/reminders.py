@@ -167,6 +167,58 @@ def due(log: sqlite3.Connection, review: sqlite3.Connection,
     return out
 
 
+def next_check(log: sqlite3.Connection, review: sqlite3.Connection,
+               progress: sqlite3.Connection,
+               now: datetime | None = None) -> datetime | None:
+    """The earliest moment `due` could name a reminder it does not name now.
+
+    Assumes no new evidence: the Worker asks again whenever new events reach
+    it. Early is harmless (one more look); late would lose a reminder, so every
+    reason is reduced to the moments its answer can change, which are a new
+    local day (every tag carries one), the chosen hour, and the moment the
+    queue reaches `DUE_ENOUGH`. `None` means not until the evidence changes:
+    reminders are off, or quiet all day.
+    """
+    from datetime import time, timedelta
+
+    prefs = settings(log)
+    if not prefs["on"] or prefs["quiet_from"] == prefs["quiet_to"]:
+        return None
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    here = _local(now)
+    zone = here.tzinfo
+
+    def local(day: date, hour: int) -> datetime:
+        return datetime.combine(day, time(hour), tzinfo=zone)
+
+    moments = [local(here.date() + timedelta(days=1), 0)]
+    if here.hour < prefs["hour"]:
+        moments.append(local(here.date(), prefs["hour"]))
+    row = review.execute(
+        "SELECT due FROM review_items ORDER BY due LIMIT 1 OFFSET ?",
+        (DUE_ENOUGH - 1,)).fetchone()
+    if row is not None:
+        enough = datetime.fromisoformat(row[0])
+        enough = enough if enough.tzinfo else enough.replace(tzinfo=timezone.utc)
+        if enough > now:
+            moments.append(enough)
+    if quiet(prefs, now):
+        # Whatever is due now is said when the quiet hours end.
+        moments.append(now)
+
+    def audible(moment: datetime) -> datetime:
+        """The moment itself, or the end of the quiet hours it falls in."""
+        if not quiet(prefs, moment):
+            return moment
+        end = local(_local(moment).date(), prefs["quiet_to"])
+        return end if end > moment else local(end.date() + timedelta(days=1),
+                                              prefs["quiet_to"])
+
+    return min(audible(m) for m in moments).astimezone(timezone.utc)
+
+
 def _registration(progress: sqlite3.Connection, today: date) -> list[Reminder]:
     """The deadline that cannot be repeated: registration closes once."""
     from .exam import goal

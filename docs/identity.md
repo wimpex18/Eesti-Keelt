@@ -152,11 +152,14 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
    snapshots, event pulls and reminders touch that learner's files only.
    `syncCorpus` runs in `singleton` only.
 4. **Guests.** No personal object, snapshots or event pulls. Restore the shared
-   corpus through the singleton before forwarding guest requests;
+   corpus through the singleton (`restoreShared`, which never rebinds the
+   owner's identity) before forwarding guest requests;
    `/api/push/*` → 403 with a Russian message.
 5. **Speech.** `transcribe` forwards the caller's scope headers to
    `/api/transcribe/text` and pulls into the caller's object.
-6. **Cron.** `scheduled` reminds `singleton` and every learner account.
+6. **Cron.** `scheduled` reminds `singleton` and every learner account; an
+   account restores only when its `next_check` has passed or it has new events
+   (`docs/deploy.md` → Reminders).
 7. **Back channel.** Every origin route guarded by `STATE_TOKEN` returns 404
    through the public Worker path.
 
