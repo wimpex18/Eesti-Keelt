@@ -18,15 +18,22 @@ from __future__ import annotations
 import sqlite3
 
 
-def _gloss_line(vocabulary) -> dict:
-    """Glossed-word counts, or nothing at all if the store is not there yet."""
+def _gloss_line(vocabulary, words, top: int) -> dict:
+    """How many of the `top` commonest words have Russian from any source the
+    app reads (`meaning.py`: seed, live store, EKI EVS, EKI HAR), and the live
+    dictionary's budget left today; nothing if the store is not there yet.
+    """
     from . import gloss
+    from .meaning import russian_many
 
     try:
         info = gloss.stats(vocabulary)
     except Exception:  # noqa: BLE001 - an older vocab.db predates the table
         return {}
-    return {"glossed": info["with_russian"],
+    lemmas = [r[0] for r in words.execute(
+        "SELECT word FROM words WHERE freq_rank BETWEEN 1 AND ?", (top,))]
+    return {"glossed": len(russian_many(words, vocabulary, lemmas)),
+            "glossed_of": len(lemmas),
             "gloss_budget_left": info["budget_left"]}
 
 
@@ -78,8 +85,8 @@ def overview(
             "bands": bands,
             "known_in_top": sum(b["known"] for b in bands),
             "top": bands[-1]["to"] if bands else 0,
-            # How many words the learner can now see a translation for (`gloss.stats`).
-            **_gloss_line(vocabulary),
+            # How many of those words the learner can see a translation for.
+            **_gloss_line(vocabulary, words, bands[-1]["to"] if bands else 0),
         }
 
     if reviews is not None:
