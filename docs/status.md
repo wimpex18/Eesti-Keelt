@@ -107,7 +107,21 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   tiles are noun phrases only, since clause order has
   more than one correct answer; stacked adjectives can still allow a second
   order. Licensable texts and permission requests are tracked in DEV-36.
-
+- **Some Russian meanings are wrong.** The EVS import merges homographs and
+  phrase translations into one list: `siin` lists «шина», `miks` «микс»,
+  `küll` «обилие», `hästi` «не очень» (`eesti/evs.py`; DEV-49).
+- **Deterministic writing checks miss partitive objects.** They do not flag
+  *loen raamat* or *jõin kohv*, can treat an illative such as *poodi* as an
+  object, and can suggest a wrong spelling (*Tallinas* → *Tallina*; DEV-50).
+- **Answer keys follow EKK, not ÕS 2025.** ÕS 2025 is the normative basis and
+  accepts more parallel forms; rection drills and checks use the EKK handbook
+  aligned to ÕS 2006 (DEV-52).
+- **Every model call passes one process-wide 3.5 s throttle.** It was written
+  for evaluation rate limits and also serialises learners' tutor calls
+  (`eesti/providers/llm.py`; DEV-38).
+- **Official interactive tasks are not solvable in the app.** Matching tasks
+  render without their options and listening tasks without answer choices;
+  a sitting whose registration has closed is offered without a warning (DEV-53).
 - **Password recovery remains owner-managed.** There is no self-service reset
   screen. The owner can reset a password using the procedure in
   `docs/deploy.md`; account removal is available to the owner and clears that

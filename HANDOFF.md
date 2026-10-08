@@ -1,23 +1,29 @@
 # Handoff
 
-Current task: DEV-54 — EKI EVS example phrases as public practice pools.
-Branch: claude/dev-54-evs-public-pools; base origin/main faa477d. PR open for
-owner review; the owner merges. No deployment performed.
-What changed: outside the owner's scope (corpus hidden) drills, dictation,
-read-aloud and mock reading/listening draw on `evs.phrases`; owner keeps the
-corpus first, EVS only tops up. `sonajark` gets EVS noun-phrase tiles (fixed
-order only: nominative/genitive attributes before a nominative noun head).
-Every EVS item shows "EKI eesti-vene sõnaraamat · CC BY 4.0".
-`itemref.GENERATOR_VERSION` 2→3 (owner sets the corpus cannot fill now differ).
-Measured on real data, guest scope: 37 of 37 generator topics yield items
-(was 30); tile pool 690, comma items 157, cloze/dictation pool 17 383.
-Checks: 2550 passed/14 skipped (real data present); browser journeys
-205+2 passed; typecheck clean; preview checked desktop and phone.
-Next: owner reviews; after merge, deploy and run `smoke` with `deep: true`,
-then confirm a guest gets `gen-stem` items on production.
-Rebase notes: S1/DEV-51 may touch `eesti/cloze.py` (this PR adds only the
-`listed` parameter). Planning PR 111 adds a status.md Known issue on the same
-problem; keep this PR's narrower wording (reading texts still owner-only).
-Uncommitted paths: none after the commit. Worktree `data/*.db` are ignored
-copies used for journeys.
-Blockers: none. Reading texts for public learners remain DEV-36 (C2/C6).
+Current task: architecture, content and market review → implementation programme.
+Branch: claude/ek-review-plan (planning PR: review snapshot, permission drafts,
+verified known issues). Base: main faa477d.
+Review: `qa/architecture-review.md` (illustrated version: Claude artifact
+https://claude.ai/artifact/9x35tYbYJDvTy5sAqHf1hg). Backlog: Linear DEV-35..DEV-56.
+
+Start now, one fresh worktree session each, small PRs, branch names carry the ID:
+- S1 correctness: DEV-35 (DEV-49 EVS glosses, DEV-50 writing object case,
+  DEV-51 items, DEV-52 ÕS 2025 audit, DEV-53 exam screens).
+- S2 public material: DEV-54 EVS phrase pools (DEV-36 epic).
+- S3 Claude Haiku 5.5 lane and eval: DEV-38 (eval spends a little money: ask first).
+- S4 data safety and dependencies: DEV-37, DEV-39.
+Owner sends `qa/source-permission-requests.md` (DEV-55); answers go to
+`eesti/licences.py` and `docs/sources.md` before any source is opened.
+
+Next-session prompts: `qa/session-briefs.md` (A: DEV-40 spec, B: DEV-38 when
+the key is in .env, C: DEV-41). Merge #111 first; S1/S2/S4 PRs rebase on it.
+Order after that: DEV-40 course-structure spec (interview → SPEC.md → ADR) before
+DEV-41 exam fidelity, DEV-42 languages and DEV-45 patterns; DEV-43 Litestream only
+after the 7–8 Nov 2026 sittings; DEV-47 pilot after DEV-35/36; redesign last.
+Owner decisions: full A0→B1 path alongside Keeleklikk; no embedding model;
+private sources stay owner-only until written permission.
+
+Uncommitted task paths before this commit: `HANDOFF.md`, `qa/session-briefs.md`,
+`.claude/rules/docs.md`.
+Preserve unrelated untracked agent/editor tooling. No learner data in the diff.
+Blockers: none for S1–S4; ERR/HARNO/Selges keeles content waits for permission.
