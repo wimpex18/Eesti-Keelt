@@ -1,29 +1,23 @@
 # Handoff
 
-Current task: architecture, content and market review → implementation programme.
-Branch: claude/ek-review-plan (planning PR: review snapshot, permission drafts,
-verified known issues). Base: main faa477d.
-Review: `qa/architecture-review.md` (illustrated version: Claude artifact
-https://claude.ai/artifact/9x35tYbYJDvTy5sAqHf1hg). Backlog: Linear DEV-35..DEV-56.
+Programme: October 2026 review → Linear DEV-35..DEV-56 (`qa/architecture-review.md`,
+next-session prompts in `qa/session-briefs.md`). Sessions run in parallel
+worktrees: S1 correctness (DEV-35), S2 public material (DEV-54), S4 data safety
+and dependencies (DEV-37, DEV-39). Each PR edits this file; on conflict keep the
+newest present-state note. The A2/B1 sittings are 7–8 Nov 2026: low-risk changes.
 
-Start now, one fresh worktree session each, small PRs, branch names carry the ID:
-- S1 correctness: DEV-35 (DEV-49 EVS glosses, DEV-50 writing object case,
-  DEV-51 items, DEV-52 ÕS 2025 audit, DEV-53 exam screens).
-- S2 public material: DEV-54 EVS phrase pools (DEV-36 epic).
-- S3 Claude Haiku 5.5 lane and eval: DEV-38 (eval spends a little money: ask first).
-- S4 data safety and dependencies: DEV-37, DEV-39.
-Owner sends `qa/source-permission-requests.md` (DEV-55); answers go to
-`eesti/licences.py` and `docs/sources.md` before any source is opened.
+S1 open PRs: DEV-49 EVS glosses (#114, claude/dev-49-evs-glosses);
+DEV-50 writing object case (claude/dev-50-writing-checks).
+- DEV-50: `grammar.nominative_objects` flags a nimetav object after a 1st/2nd-
+  person or negated verb that EKI says takes an object (`evs_object_verb`,
+  filled by `cli import-evs`; PSV mida/keda). Places (*poodi*) are object
+  evidence only after such a verb; spelling suggestions keep the written form.
+  Precision: 1 flag in 22,613 corpus sentences (a real learner error), 1 in
+  60,000 EVS phrases (bracket notation).
+Next for S1: DEV-51 items (located: `forms.py` AGREEING_CASES sg in label;
+pohivormid nimetav self-answers; JS/lesson blank capitals; cloze naive
+distractors; placement cues and per-item results; rection label), then DEV-53
+exam screens, then DEV-52 ÕS 2025 audit. DEV-51 bumps `itemref.GENERATOR_VERSION`.
 
-Next-session prompts: `qa/session-briefs.md` (A: DEV-40 spec, B: DEV-38 when
-the key is in .env, C: DEV-41). Merge #111 first; S1/S2/S4 PRs rebase on it.
-Order after that: DEV-40 course-structure spec (interview → SPEC.md → ADR) before
-DEV-41 exam fidelity, DEV-42 languages and DEV-45 patterns; DEV-43 Litestream only
-after the 7–8 Nov 2026 sittings; DEV-47 pilot after DEV-35/36; redesign last.
-Owner decisions: full A0→B1 path alongside Keeleklikk; no embedding model;
-private sources stay owner-only until written permission.
-
-Uncommitted task paths before this commit: `HANDOFF.md`, `qa/session-briefs.md`,
-`.claude/rules/docs.md`.
-Preserve unrelated untracked agent/editor tooling. No learner data in the diff.
-Blockers: none for S1–S4; ERR/HARNO/Selges keeles content waits for permission.
+Uncommitted: none after this commit. Blockers: none. S2 also edits
+`eesti/evs.py`, `eesti/morph.py`, `eesti/mock.py`; the later PR rebases.

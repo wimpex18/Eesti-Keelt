@@ -110,9 +110,10 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 - **Some Russian meanings are wrong.** The EVS import merges homographs and
   phrase translations into one list: `siin` lists «шина», `miks` «микс»,
   `küll` «обилие», `hästi` «не очень» (`eesti/evs.py`; DEV-49).
-- **Deterministic writing checks miss partitive objects.** They do not flag
-  *loen raamat* or *jõin kohv*, can treat an illative such as *poodi* as an
-  object, and can suggest a wrong spelling (*Tallinas* → *Tallina*; DEV-50).
+- **The object-case writing check is narrow on purpose.** It flags a nimetav
+  object only after a 1st/2nd-person or negated verb with the phrase right
+  after it; *Ta loeb raamat* and objects before the verb pass unflagged, and
+  a vocative without its comma (*Tead sõber, …*) can be flagged.
 - **Answer keys follow EKK, not ÕS 2025.** ÕS 2025 is the normative basis and
   accepts more parallel forms; rection drills and checks use the EKK handbook
   aligned to ÕS 2006 (DEV-52).
