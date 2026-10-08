@@ -2,7 +2,8 @@
 
 import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml,
   stateIcon, uiIcon} from "./chrome.js";
-import {$, addPracticeSupport, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import {$, addPracticeSupport, api, blankForm, esc, glide, md, ruCount, setLabel, taskLine,
+  wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
 import {onLessonPractice} from "./lesson.js";
@@ -487,7 +488,7 @@ function finishSet(tally, res) {
      of a set is where a learner looks back, so the misses are there to look at. */
   const missed = tally.missed.length ? `<ul class="set-missed" lang="et">${
     tally.missed.map(({it}) => `<li>${esc(it.prompt).replace("____",
-      `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
+      `<b>${esc(blankForm(it.prompt, it.answer.split(" ~ ")[0]))}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
     ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">повторить ошибки</span></button>` : "";
   if (tally === pathTally) sessionStep("check");
@@ -697,7 +698,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // With parallel forms ("tube ~ tubasid") the sentence takes the one typed, if right.
     const said = res.correct && input ? submittedGiven.trim() : it.answer.split(" ~ ")[0];
     if (blank) {
-      blank.textContent = said;
+      blank.textContent = blankForm(it.prompt, said);
       blank.classList.add("filled", res.correct ? "ok" : "no");
     }
     // A miss goes on the set's list, to be looked at and redone at its end.
@@ -715,7 +716,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       ? ((choices.length || tiles) && !blank
           ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
-          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", said))}</strong>`
+          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", blankForm(it.prompt, said)))}</strong>`
             // A choice topic hid its form until now; the rule is the lesson either way.
             + (it.form_after ? `<br><span class="why">${md(it.why_ru || "")}</span>` : ""))
       : wrongVerdict(submittedGiven, it.answer, it.why_ru);
@@ -1025,7 +1026,7 @@ function renderOfflineItem(it, i, glosses) {
       : wrongVerdict(input.value, it.answer, it.why_ru);
     const blank = el.querySelector(".prompt .blank");
     if (blank) {
-      blank.textContent = ok ? input.value.trim() : it.answer.split(" ~ ")[0];
+      blank.textContent = blankForm(it.prompt, ok ? input.value.trim() : it.answer.split(" ~ ")[0]);
       blank.classList.add("filled", ok ? "ok" : "no");
     }
     el.classList.add("done");
