@@ -49,6 +49,21 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _FRAME_RE = re.compile(r"\b([a-zõäöüA-ZÕÄÖÜ]+)\b")
 
 
+#: SÜ 65 contrasts whose starred frame EKI now records, so it is not an error.
+#: Checked in EKI's ühendsõnastik 2026 through Ekilex on 2026-10-08. EKI does
+#: not norm rection ("Rektsioone keelekorralduses ei normita", EKI's ÕS 2025
+#: briefing, 2025). The first five carry a recommendation EKI publishes with
+#: ÕS naming both frames (ÕS 2025: *Järeldused põhinevad vaatlusel v
+#: vaatlusele*); the other four list the starred frame among the word's
+#: rections. Neither frame of these is drilled or flagged.
+EKI_ACCEPTS: dict[str, str] = {
+    "põhinema": "millele", "rajanema": "millele", "baseeruma": "millele",
+    "tuginema": "millel", "sarnanema": "millele",
+    "analoog(ili)ne": "millele", "kaasuma": "millega", "osundama": "millele",
+    "panustama": "millele",
+}
+
+
 @dataclass(frozen=True)
 class Rection:
     """One verb (or adjective), the case it governs, and the case people use instead."""
@@ -61,7 +76,10 @@ class Rection:
 
     @property
     def drillable(self) -> bool:
-        return self.correct_case != self.wrong_case
+        """A real contrast EKI still upholds: two different cases, and a starred
+        frame EKI does not now record (`EKI_ACCEPTS`)."""
+        return (self.correct_case != self.wrong_case
+                and EKI_ACCEPTS.get(self.headword) != self.wrong_frame)
 
 
 def _clean(fragment: str) -> str:

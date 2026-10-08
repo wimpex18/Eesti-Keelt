@@ -611,10 +611,11 @@ LESSONS.update({
         points_ru=(
             "Глагол требует своего падежа или инфинитива — это **управление** "
             "(rektsioon).",
-            "Эстонское управление часто не совпадает с русским: *mõtlema millele?* "
-            "(alaleütlev), а не «о чём».",
+            "Эстонское управление часто не совпадает с русским: *kohanema millega?* "
+            "(kaasaütlev), а не «к чему».",
             "EKK перечисляет управления, в которых чаще всего ошибаются; на них "
-            "построены задания.",
+            "построены задания. Где EKI сегодня признаёт оба варианта (*põhinema "
+            "millel ~ millele*), задания их не проверяют.",
             "Управление указано в словаре: в карточке слова (*kuhu? mida tegema?*).",
         ),
         sources=(ekk("SÜ 65"),),
@@ -738,7 +739,7 @@ TIPS: dict[str, Tip] = {
     "umbisikuline": Tip("Деятель не назван: *-takse*, прошедшее *-ti*.",
                         "Siin räägivad eesti keelt.", "Siin räägitakse eesti keelt."),
     "rektsioon": Tip("Падеж задаёт глагол, а не русский перевод.",
-                     "mõtlen sellest", "mõtlen sellele"),
+                     "kohanen kliimale", "kohanen kliimaga"),
     "sonajark": Tip("Глагол — вторым, даже если первым стоит не подлежащее.",
                     "Täna ma sõidan maale.", "Täna sõidan ma maale."),
     "kirjavahemargid": Tip("Запятая — перед каждым придаточным и перед *aga, kuid, vaid*.",
