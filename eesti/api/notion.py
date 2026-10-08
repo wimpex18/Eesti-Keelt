@@ -36,8 +36,12 @@ def notion_queue(row: QueueError) -> dict:
     The `Vead` log is hand-curated (three rows sharing a tag set the week's focus),
     so nothing is sent without the learner choosing it.
     """
+    from ..identity import OWNER, current
     from ..notion import Row, queue
 
+    if current().kind != OWNER:
+        raise HTTPException(status_code=403,
+                            detail="Журнал ошибок в Notion ведёт только владелец.")
     if row.source not in LOGGABLE:
         raise HTTPException(status_code=400, detail=(
             "Это предложение модели, которое код проверить не может "
@@ -54,10 +58,14 @@ def notion_queue(row: QueueError) -> dict:
 
 @router.get("/api/notion/pending")
 def notion_pending() -> dict:
+    """The owner's queue for the `Vead` log; another learner has none."""
+    from ..identity import OWNER, current
     from ..notion import pending
 
+    owner = current().kind == OWNER
     return {
-        "items": [dict(r) for r in pending(notion_db())],
+        "owner": owner,
+        "items": [dict(r) for r in pending(notion_db())] if owner else [],
         # Whether pressing "send" can possibly work, said before it is pressed
         # rather than as a failure afterwards.
         "can_push": bool(os.environ.get("NOTION_TOKEN")),

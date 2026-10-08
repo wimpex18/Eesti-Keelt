@@ -106,9 +106,13 @@ class Session:
     sitting: date
     registration_closes: date
 
-    def to_dict(self) -> dict:
+    def to_dict(self, today: date | None = None) -> dict:
+        today = today or date.today()
         return {"level": self.level, "sitting": self.sitting.isoformat(),
-                "registration_closes": self.registration_closes.isoformat()}
+                "registration_closes": self.registration_closes.isoformat(),
+                # A sitting still ahead can have closed its registration: only
+                # someone already registered in EIS can sit it.
+                "registration_open": today <= self.registration_closes}
 
 
 #: Published sittings. Registration is in EIS (`eis.ekk.edu.ee`); the exam is

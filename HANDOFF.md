@@ -1,26 +1,25 @@
 # Handoff
 
-Current task: DEV-54 — EKI EVS example phrases as public practice pools (S2).
-Branch: claude/dev-54-evs-public-pools, merged with origin/main 82dc9d1 (#111).
-PR: https://github.com/wimpex18/Eesti-Keelt/pull/115 — owner reviews and merges.
-No deployment performed.
-State: outside the owner's scope, drills, dictation, read-aloud and mock
-reading/listening draw on `evs.phrases`; the owner's corpus comes first.
-`sonajark` tiles are EVS noun phrases whose order EKK fixes (SÜ 98, 104:
-genitive chains, a determiner with one adjective); the lesson gained that
-point. Clause (verb-second) tiles were rejected: EKK SÜ 92 allows inversion,
-so grading against EKI's order would mark correct Estonian wrong.
-`itemref.GENERATOR_VERSION` is 3.
-Next: owner merges #115; deploy; run `smoke` with `deep: true`; confirm a
-guest gets `gen-stem` and `sonajark` items on production.
-Rebase notes: open #113 (DEV-37) touches `eesti/itemref.py`; open #114
-(DEV-49) touches `eesti/evs.py`. DEV-51 (S1) may touch `eesti/cloze.py`;
-this branch adds only the `listed` parameter there.
-Gap for public learners: verb-second word-order practice and reading texts
-(DEV-36: reviewed material pipeline, permissions DEV-55).
-Repo note: two invalid refs `claude/ek-review-plan 2` (heads and
-origin) blocked every fetch; moved to this session's scratchpad. Their commit
-4654975 is on main.
-Uncommitted task paths: none after this commit. Worktree `data/*.db` are
-ignored copies used for browser journeys.
-Blockers: none.
+Programme: October 2026 review → Linear DEV-35..DEV-57 (`qa/architecture-review.md`,
+next-session prompts in `qa/session-briefs.md`). Parallel worktree sessions:
+S1 correctness (DEV-35), S2 public material (DEV-54, merged #115), S4 data
+safety and dependencies (DEV-37, DEV-39). Each PR edits this file; on conflict
+keep the newest present-state note. A2/B1 sittings 7–8 Nov 2026: low-risk changes.
+
+S1 open PRs (owner merges; the later ones merge main in):
+- DEV-49 EVS glosses #114 · DEV-50 writing object case #117 ·
+  DEV-51 practice items #120 (`itemref.GENERATOR_VERSION` 4).
+- DEV-53 exam screens: claude/dev-53-exam-screens. Closed registration shown
+  in picker, banner and countdown; EIS tasks labelled as solved on EIS;
+  HARNO file names get "Lugemine · ülesanne 2"; mock reading/listening list
+  each item; the Notion queue and log button are owner-only; Home stops
+  promising checked practice for reference topics. After #120 merges, swap the
+  inline sentence fill in `eesti/api/exam.py` mock_result for `item.fill`.
+Next for S1: DEV-52 ÕS 2025 audit. Found: EKI's ÕS-published recommendations
+(Ekilex `wordEkiRecommendations`, `wwOs`) accept two rections for põhinema,
+rajanema, baseeruma, tuginema and sarnanema, so EKK SÜ 65's starred frames for
+them are not errors; rection drills and the writing check must stop marking
+them wrong. Parallel case forms and spelling still to compare.
+
+Uncommitted: none after this commit. Worktree `data/*.db` are ignored
+reference copies. Blockers: none.

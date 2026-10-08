@@ -209,6 +209,14 @@ async function finish(ranOut, seconds) {
       ${spent} мин из ${r.minutes}.
       <span class="hint">Это не оценка экзамена: здесь задания приложения,
       а не HARNO.</span>`;
+    // Item by item: what was asked, what was written, and the answer.
+    if ((section.kind === "cloze" || section.kind === "dictation") && (r.items || []).length) {
+      verdict.insertAdjacentHTML("beforeend", `<ol class="mock-review">${r.items.map(row =>
+        `<li lang="et">${row.correct ? "✓" : "✗"} ${esc(row.solution || row.text)}${row.correct
+          ? "" : `<br><span class="hint">${row.given
+            ? `<del>${esc(row.given)}</del>` : '<span lang="ru">нет ответа</span>'}${row.answer
+            ? ` → <ins>${esc(row.answer.split(" ~ ")[0])}</ins>` : ""}</span>`}</li>`).join("")}</ol>`);
+    }
     if (section.kind === "writing" && (r.detail.findings || []).length) {
       verdict.insertAdjacentHTML("beforeend",
         `<div class="hint">` + r.detail.findings.map(f =>

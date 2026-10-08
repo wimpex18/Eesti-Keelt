@@ -17,6 +17,7 @@ Personal material remains in the authenticated owner's library.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -367,6 +368,27 @@ def _file_here(stored: str | None) -> bool:
 #: The exam boards' sources: their tasks open from a downloaded file or read-in text.
 OFFICIAL_SOURCES = ("harno", "eis")
 
+#: HARNO's file names abbreviate the part (`B1_Lu2…`) or spell the task's
+#: number (`Teine_ülesanne`).
+_PART_NAMES = {"lugemine": "Lugemine", "kuulamine": "Kuulamine",
+               "kirjutamine": "Kirjutamine", "raakimine": "Rääkimine"}
+_ABBREVIATED = re.compile(r"\b(?:Lu|Ku|Ki|R)(\d)", re.IGNORECASE)
+_ORDINALS = {"esimene": 1, "teine": 2, "kolmas": 3, "neljas": 4, "viies": 5}
+_ORDINAL = re.compile(r"\b(" + "|".join(_ORDINALS) + r")\b", re.IGNORECASE)
+
+
+def task_label(title: str, skill: str | None) -> str:
+    """A task's name as a learner reads it: "Lugemine · ülesanne 2" where HARNO's
+    file name only encodes the part and number (*B1 Lu2Avariant-1 2*); any other
+    title as published."""
+    part = _PART_NAMES.get(skill or "")
+    found = _ABBREVIATED.search(title) or _ORDINAL.search(title)
+    if not part or not found:
+        return title
+    number = found.group(1)
+    number = _ORDINALS.get(number.casefold(), number)
+    return f"{part} · ülesanne {number}"
+
 
 def official_availability(meta: dict, level: str | None, source_id: str,
                           has_body: bool) -> dict:
@@ -441,6 +463,9 @@ def exam_material(content: sqlite3.Connection, level: str,
             "id": row["id"], "title": row["title"], "skill": row["skill"],
             "url": meta.get("url"), "format": meta.get("format"),
             "audio_url": row["audio_url"], "source": row["source_name"],
+            "label": task_label(row["title"] or "", row["skill"]),
+            # EIS's interactive tasks are read here but answered on EIS.
+            "solved_on": "eis" if row["source_id"] == "eis" and not here["file"] else None,
             # In the app already — a downloaded file, or a task whose text was
             # read in (`cli harvest-exam --download`) — so it opens here rather
             # than sending the learner to the exam board's site. The file is
