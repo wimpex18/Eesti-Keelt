@@ -52,8 +52,9 @@ EVENTS_DB = "data/events.db"
 # owner keeps the paths above.
 LEARNERS_DIR = os.environ.get("EESTI_LEARNERS_DIR", "data/learners")
 
-# Guest sandboxes (ADR-0006): one directory per sandbox, plus `shared.db` for
-# the guest allowances. On Cloud Run this is ephemeral disk, never snapshotted.
+# Guest sandboxes (ADR-0006): one directory per sandbox. Their allowance is
+# counted in the owner's `progress.db` (`providers/budget.py`). On Cloud Run
+# this is ephemeral disk, never snapshotted.
 GUEST_DIR = os.environ.get("EESTI_GUEST_DIR", "data/guest")
 
 _LEARNER_FILES = {
@@ -81,12 +82,6 @@ def learner_db(name: str) -> str:
     target = Path(root) / scope.id / _LEARNER_FILES[name]
     target.parent.mkdir(parents=True, exist_ok=True)
     return str(target)
-
-
-def guest_shared_db() -> str:
-    """The one store all guest sandboxes count their allowances in."""
-    Path(GUEST_DIR).mkdir(parents=True, exist_ok=True)
-    return str(Path(GUEST_DIR) / "shared.db")
 
 
 # The exam board's own task files (`eesti/harvest/harno.py`): PDFs and listening

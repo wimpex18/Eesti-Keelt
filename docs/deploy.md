@@ -264,6 +264,7 @@ Smoke warns on any zero.
 | Name | Cloud Run env | GitHub Actions | Purpose |
 |---|---|---|---|
 | `PROXY_TOKEN`, `STATE_TOKEN` | ✅ | ✅ | origin guard, snapshot endpoints (set by `setup.sh`) |
+| `ITEM_SECRET` (`ITEM_SECRET_PREVIOUS` while rotating) | ✅ | — | signs drill item tokens, so rotating `PROXY_TOKEN` keeps answers queued offline gradable (set by `set-item-secret.sh`) |
 | `SESSION_SECRET` | — | Worker secret ✅ | signs account sessions; generate 32 random bytes or more |
 | `CLOUD_RUN_URL` | — | ✅ | where the Worker forwards |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Workers AI token ✅ | deploy token ✅ | Worker deploy (Actions); grammar lane (Cloud Run) |
@@ -278,6 +279,13 @@ Smoke warns on any zero.
 A key read by the container must be on Cloud Run; one stored only as a Worker
 secret is invisible to the app and fails silently.
 
+Item tokens are signed with `ITEM_SECRET`, or with `PROXY_TOKEN` where it is
+unset. Verification accepts `ITEM_SECRET`, `ITEM_SECRET_PREVIOUS`,
+`PROXY_TOKEN` and `STATE_TOKEN`, so setting the secret invalidates no queued
+answer; once it is set, rotating `PROXY_TOKEN` only invalidates tokens issued
+before it. Rotate `ITEM_SECRET` again only after queued answers have had time
+to arrive: the value before `ITEM_SECRET_PREVIOUS` is dropped.
+
 ## Operator scripts (Google Cloud Shell)
 
 Always start from a fresh clone — the scripts read allowed key names from
@@ -291,6 +299,7 @@ cd ~ && (git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || tr
 |---|---|
 | `deploy/setup.sh` | one-time wiring: generates tokens, sets them on Cloud Run and in Actions, verifies 403/200. Re-running rotates tokens — then run `gh workflow run deploy.yml` or every request 403s |
 | `deploy/set-llm-key.sh NAME` | sets any `KNOWN_KEYS` variable on Cloud Run with hidden input, and verifies it landed |
+| `deploy/set-item-secret.sh [--rotate]` | generates `ITEM_SECRET` once; `--rotate` replaces it and keeps the previous value as `ITEM_SECRET_PREVIOUS`. Values are never printed |
 | `deploy/check-service.sh` | lists variable names on each service (never values), flags missing ones and traffic on an old revision |
 | `deploy/push-content.sh FILE` | uploads the harvested corpus to the origin |
 | `deploy/reset-progress.sh <topic> \| --everything` | forgets one topic's practice history, or all of it, on the deployment |

@@ -46,6 +46,7 @@ for LINE in "${SERVICES[@]}"; do
   # The things whose absence is silent, and what each one costs.
   for pair in \
     "PROXY_TOKEN|the run.app URL answers the whole internet" \
+    "ITEM_SECRET|item tokens are signed with PROXY_TOKEN; rotating it refuses queued offline answers (deploy/set-item-secret.sh)" \
     "CLOUDFLARE_API_TOKEN|production grammar/tutor lane is not configured" \
     "CLOUDFLARE_ACCOUNT_ID|Workers AI cannot resolve the account" \
     "NOTION_TOKEN|confirmed errors queue locally and never push" \

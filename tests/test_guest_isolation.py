@@ -230,27 +230,75 @@ def test_progress_reset_refuses_guests_without_changing_their_sandbox(client):
     assert client.get("/api/me", headers=GUEST).json()["totals"]["attempts"] == 1
 
 
+def _sandboxes(root, ages):
+    """Sandbox folders whose `last-used` is `ages[name]` seconds old."""
+    import os
+
+    now = time.time()
+    for name, age in ages.items():
+        folder = root / name
+        folder.mkdir()
+        (folder / "last-used").touch()
+        os.utime(folder / "last-used", (now - age, now - age))
+
+
 def test_idle_and_surplus_sandboxes_are_swept(tmp_path, monkeypatch):
+    """Over the soft limit, only a sandbox idle for an hour may go: a burst of
+    new visitors must not erase a guest who is mid-session."""
     root = tmp_path / "guest"
     root.mkdir()
     monkeypatch.setattr(config, "GUEST_DIR", str(root))
-    old_time = time.time() - 25 * 60 * 60
-    (root / "idle").mkdir()
-    (root / "idle" / "last-used").touch()
-    import os
-    os.utime(root / "idle" / "last-used", (old_time, old_time))
-    now = time.time()
-    for index in range(guest.MAX_SANDBOXES + 1):
-        folder = root / f"s{index:02d}"
-        folder.mkdir()
-        marker = folder / "last-used"
-        marker.touch()
-        stamp = now - (guest.MAX_SANDBOXES + 1 - index)
-        os.utime(marker, (stamp, stamp))
-    shared = root / "shared.db"
-    shared.write_bytes(b"shared allowance")
+    surplus = 3
+    ages = {"idle": 25 * 60 * 60}
+    ages |= {f"quiet{i}": 2 * 60 * 60 + i for i in range(surplus)}
+    ages |= {f"busy{i:02d}": i for i in range(guest.MAX_SANDBOXES)}
+    _sandboxes(root, ages)
     removed = guest.sweep()
-    assert "idle" in removed
-    assert not (root / "s00").exists()
-    assert (root / "s01").exists() and (root / "s50").exists()
-    assert shared.read_bytes() == b"shared allowance"
+    assert sorted(removed) == ["idle", *(f"quiet{i}" for i in range(surplus))]
+    assert all((root / f"busy{i:02d}").exists() for i in range(guest.MAX_SANDBOXES))
+
+
+def test_a_burst_of_active_guests_keeps_every_sandbox(tmp_path, monkeypatch):
+    root = tmp_path / "guest"
+    root.mkdir()
+    monkeypatch.setattr(config, "GUEST_DIR", str(root))
+    _sandboxes(root, {f"s{i:03d}": i for i in range(guest.MAX_SANDBOXES + 20)})
+    assert guest.sweep() == []
+
+
+def test_the_hard_limit_still_bounds_the_disk(tmp_path, monkeypatch):
+    """Cloud Run's disk is memory: past the hard limit the longest-idle goes."""
+    root = tmp_path / "guest"
+    root.mkdir()
+    monkeypatch.setattr(config, "GUEST_DIR", str(root))
+    _sandboxes(root, {f"s{i:03d}": i for i in range(guest.HARD_MAX_SANDBOXES + 2)})
+    removed = guest.sweep()
+    oldest = [f"s{i:03d}" for i in (guest.HARD_MAX_SANDBOXES + 1, guest.HARD_MAX_SANDBOXES)]
+    assert sorted(removed) == sorted(oldest)
+
+
+def test_guest_allowances_survive_a_cold_start(client, monkeypatch):
+    """A cold start empties the guest directory; if it also emptied the guest
+    allowance, every restart would hand guests a fresh day of the account's
+    shared Workers AI neurons. The count travels in the owner's snapshot."""
+    import base64
+    import shutil
+    import sqlite3
+
+    from eesti.providers import budget
+
+    with identity.use(identity.Scope(kind="guest", id="a")):
+        budget.spend("llm:workers-ai", 7)
+    shutil.rmtree(config.GUEST_DIR, ignore_errors=True)
+    with identity.use(identity.Scope(kind="guest", id="b")):
+        assert budget.spent("llm:workers-ai") == 7
+    with identity.use(identity.OWNER_SCOPE):
+        assert budget.spent("llm:workers-ai") == 0
+
+    monkeypatch.setenv("STATE_TOKEN", "state-secret")
+    snapshot = client.get("/api/state/export", headers={"x-state-token": "state-secret"}
+                          ).json()["databases"]["progress"]
+    with sqlite3.connect(":memory:") as conn:
+        conn.deserialize(base64.b64decode(snapshot))
+        rows = dict(conn.execute("SELECT lane, calls FROM budget"))
+    assert rows.get("guest:llm:workers-ai") == 7

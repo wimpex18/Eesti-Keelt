@@ -56,7 +56,8 @@ browser / agent ─► Worker (public entry)
    `learner` scope whose log has none. `_register_all` includes `profile`.
 5. **Allowances** (`eesti/providers/budget.py`, `breaker.py`): permanent scopes
    bind to the owner's `progress.db` (one household allowance, today's caps);
-   guest scope binds to `config.guest_shared_db()` with `GUEST_CAPS` =
+   guest scope counts in the same store under `guest:` lane names, so the
+   owner's snapshot carries it across cold starts, with `GUEST_CAPS` =
    `llm:workers-ai` 100, `tartunlp` 200, `tartunlp-mt` 200, `asr:workers-ai` 50,
    every other lane its normal cap. `/api/engines` reports the caller's
    allowance.
@@ -99,8 +100,9 @@ owner-only account-removal routes are outside this FastAPI inventory.
 `eesti/guest.py`. A sandbox is `GUEST_DIR/<name>/` with the five learner files
 and a `last-used` file whose mtime is the idle clock. `ensure` makes it and
 writes the log's `backfill` marker; `sweep` (at most once a minute) drops
-sandboxes idle over 24 h, then the oldest beyond 50; `reset` removes one.
-`shared.db` holds the guest allowances and is never swept. Names come only from
+sandboxes idle over 24 h; beyond 50, the longest idle of those unused for an
+hour, so a burst of new visitors never erases a guest mid-session; beyond 200,
+the longest idle of any; `reset` removes one. Names come only from
 `identity.sandbox_name`, so a name is always a safe single directory.
 
 Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:

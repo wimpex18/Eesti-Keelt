@@ -53,7 +53,8 @@ Grove opens publicly. Accounts live in the app and are optional.
 8. **Owner only:** the Notion `Vead` push and private speech eval set. Reminders
    belong to each permanent account; guests cannot subscribe.
 9. **One shared allowance** for provider calls (the owner's `progress.db`);
-   guests count in `data/guest/shared.db` with smaller `GUEST_CAPS`.
+   guests count in the same store under `guest:` lane names with smaller
+   `GUEST_CAPS`, so a cold start does not reset them.
 10. **Profile from the log.** Name (`profile-set`, editable), optional starting
     recommendation (`onboarding-set`, self-assessment only), email (from the
     account), registration (`joined`), activity, level, milestones and rhythm.
