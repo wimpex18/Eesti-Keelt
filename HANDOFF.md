@@ -1,27 +1,29 @@
 # Handoff
 
-Current task: DEV-17/DEV-18 fixes ready for user review in PR 110.
-Branch: codex/dev-17-dev-18-qa-fixes; base origin/main eba54af.
-PR: https://github.com/wimpex18/Eesti-Keelt/pull/110
-Next: user reviews/merges; after deployment run deep smoke and public
-cold-load/account verification. No merge or deployment performed here.
-Fixed: signed recipient-bound dictation with issued evidence/source rights;
-compressed startup bundle/CSS, immediate start content, stable font rendering;
-onboarding Back/focus, request deadlines, draft/duplicate recovery, lazy probes,
-and 44px navigation/word targets. Provider lanes and linguistic rules unchanged.
-Checks: 2544 Python passed/1 skipped; compiled browser 205 passed/23 skipped;
-62 focused passed; typecheck and 26 Worker tests passed. Docker not built locally.
-Chrome: initial 15-route/five-viewport audit plus follow-up desktop/phone checks.
-Matched local FCP 2.1–2.2→0.8 s; initialization 3.0→1.1 s; JS requests 24→1.
-Final mobile Lighthouse CLS 0.003; cursor-extension LCP excluded.
-Reports: qa/test-plan.md, inventory.md, results.md, performance.md.
-Evidence: .impeccable/review/qa (ignored); synthetic guest state only.
-Uncommitted task path before this handoff commit: HANDOFF.md only.
-After this handoff commit: no uncommitted task paths. Preserve unrelated
-untracked agent/editor tooling. No learner databases or private exam/evaluation
-material in the diff.
-Remaining external gates: real Worker account/cross-device durability,
-human-verified physical-device ASR/fallback, screen-reader and private materials.
-Chrome preview: http://127.0.0.1:8000/?sandbox=qa-final#start.
-Preview: /tmp/eesti-qa/run.py, scratch guest state, blank provider keys,
-EESTI_WEB_BUILD=1. DEV-5 beginner/en/uk scope remains separate.
+Current task: architecture, content and market review → implementation programme.
+Branch: claude/ek-review-plan (planning PR: review snapshot, permission drafts,
+verified known issues). Base: main faa477d.
+Review: `qa/architecture-review.md` (illustrated version: Claude artifact
+https://claude.ai/artifact/9x35tYbYJDvTy5sAqHf1hg). Backlog: Linear DEV-35..DEV-56.
+
+Start now, one fresh worktree session each, small PRs, branch names carry the ID:
+- S1 correctness: DEV-35 (DEV-49 EVS glosses, DEV-50 writing object case,
+  DEV-51 items, DEV-52 ÕS 2025 audit, DEV-53 exam screens).
+- S2 public material: DEV-54 EVS phrase pools (DEV-36 epic).
+- S3 Claude Haiku 5.5 lane and eval: DEV-38 (eval spends a little money: ask first).
+- S4 data safety and dependencies: DEV-37, DEV-39.
+Owner sends `qa/source-permission-requests.md` (DEV-55); answers go to
+`eesti/licences.py` and `docs/sources.md` before any source is opened.
+
+Next-session prompts: `qa/session-briefs.md` (A: DEV-40 spec, B: DEV-38 when
+the key is in .env, C: DEV-41). Merge #111 first; S1/S2/S4 PRs rebase on it.
+Order after that: DEV-40 course-structure spec (interview → SPEC.md → ADR) before
+DEV-41 exam fidelity, DEV-42 languages and DEV-45 patterns; DEV-43 Litestream only
+after the 7–8 Nov 2026 sittings; DEV-47 pilot after DEV-35/36; redesign last.
+Owner decisions: full A0→B1 path alongside Keeleklikk; no embedding model;
+private sources stay owner-only until written permission.
+
+Uncommitted task paths before this commit: `HANDOFF.md`, `qa/session-briefs.md`,
+`.claude/rules/docs.md`.
+Preserve unrelated untracked agent/editor tooling. No learner data in the diff.
+Blockers: none for S1–S4; ERR/HARNO/Selges keeles content waits for permission.

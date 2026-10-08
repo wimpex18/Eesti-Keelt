@@ -18,7 +18,7 @@ These changes have not been deployed by the QA session.
 | Area | State |
 |---|---|
 | **Identity** | Grove keeps its curved leaf and self-hosted Geologica; platform and social artwork use deep blue on pale blue. The app opens straight into learning with no cover (`docs/brand.md`). |
-| **Drills** | 37 of 43 curriculum topics generate items: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. |
+| **Drills** | 37 of 43 curriculum topics generate items in the owner's scope; the corpus-based ones return nothing for other learners (Known issues): object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. |
 | **Exercise guidance** | Practice states the action in Russian and explains common case/person labels (`alaleütlev`, `nemad`) beside the Estonian term. The A1 personal-pronoun exercise includes an editorial whole-sentence Russian translation and pronoun meaning for each known frame (`eesti/scaffolding.py`); new or unknown frames receive no guessed translation. Other online exercises offer **Tõlge**, requested only on a click and labelled with the translation engine. Reading support does not grade or record an answer; offline practice keeps available local support without requesting translation. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Home offers one next lesson or current session. The planning API remains available for existing clients, while the web removes the competing time-budget dashboard. Guided sessions use learn → five checked exercises → result; completed topics offer the next topic. |
@@ -98,6 +98,30 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 
 ## Known issues
 
+- **Learners other than the owner get no corpus material.** Every harvested
+  source (Selges keeles, ERR, HARNO, EIS) is marked not redistributable in
+  `eesti/licences.py`, and `eesti/sources.py` hides them outside the owner's
+  scope. Guests and signed-up learners see no reading texts, empty mock reading
+  and listening sections, and dictation from generated sentences read by TTS.
+  The corpus-based topics (`gen-stem`, `osastav`, `mitmus`, `kohakaanded`,
+  `harvad-kaanded`, `sonajark`, `kirjavahemargid`) return no items for them, so
+  `gen-stem` stops their path. Licensable replacements and permission requests
+  are tracked in DEV-36.
+- **Some Russian meanings are wrong.** The EVS import merges homographs and
+  phrase translations into one list: `siin` lists «шина», `miks` «микс»,
+  `küll` «обилие», `hästi` «не очень» (`eesti/evs.py`; DEV-49).
+- **Deterministic writing checks miss partitive objects.** They do not flag
+  *loen raamat* or *jõin kohv*, can treat an illative such as *poodi* as an
+  object, and can suggest a wrong spelling (*Tallinas* → *Tallina*; DEV-50).
+- **Answer keys follow EKK, not ÕS 2025.** ÕS 2025 is the normative basis and
+  accepts more parallel forms; rection drills and checks use the EKK handbook
+  aligned to ÕS 2006 (DEV-52).
+- **Every model call passes one process-wide 3.5 s throttle.** It was written
+  for evaluation rate limits and also serialises learners' tutor calls
+  (`eesti/providers/llm.py`; DEV-38).
+- **Official interactive tasks are not solvable in the app.** Matching tasks
+  render without their options and listening tasks without answer choices;
+  a sitting whose registration has closed is offered without a warning (DEV-53).
 - **Password recovery remains owner-managed.** There is no self-service reset
   screen. The owner can reset a password using the procedure in
   `docs/deploy.md`; account removal is available to the owner and clears that
