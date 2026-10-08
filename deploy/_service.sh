@@ -1,6 +1,7 @@
 # Find the Cloud Run service, and say what went wrong when it cannot be found.
 #
-# Sourced by set-llm-key.sh, push-content.sh and reset-progress.sh.
+# Sourced by set-llm-key.sh, set-item-secret.sh, push-content.sh and
+# reset-progress.sh.
 #
 # Under `set -euo pipefail` a guard written as
 #

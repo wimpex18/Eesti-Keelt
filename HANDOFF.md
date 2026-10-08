@@ -1,27 +1,18 @@
 # Handoff
 
-Current task: DEV-17/DEV-18 fixes ready for user review in PR 110.
-Branch: codex/dev-17-dev-18-qa-fixes; base origin/main eba54af.
-PR: https://github.com/wimpex18/Eesti-Keelt/pull/110
-Next: user reviews/merges; after deployment run deep smoke and public
-cold-load/account verification. No merge or deployment performed here.
-Fixed: signed recipient-bound dictation with issued evidence/source rights;
-compressed startup bundle/CSS, immediate start content, stable font rendering;
-onboarding Back/focus, request deadlines, draft/duplicate recovery, lazy probes,
-and 44px navigation/word targets. Provider lanes and linguistic rules unchanged.
-Checks: 2544 Python passed/1 skipped; compiled browser 205 passed/23 skipped;
-62 focused passed; typecheck and 26 Worker tests passed. Docker not built locally.
-Chrome: initial 15-route/five-viewport audit plus follow-up desktop/phone checks.
-Matched local FCP 2.1–2.2→0.8 s; initialization 3.0→1.1 s; JS requests 24→1.
-Final mobile Lighthouse CLS 0.003; cursor-extension LCP excluded.
-Reports: qa/test-plan.md, inventory.md, results.md, performance.md.
-Evidence: .impeccable/review/qa (ignored); synthetic guest state only.
-Uncommitted task path before this handoff commit: HANDOFF.md only.
-After this handoff commit: no uncommitted task paths. Preserve unrelated
-untracked agent/editor tooling. No learner databases or private exam/evaluation
-material in the diff.
-Remaining external gates: real Worker account/cross-device durability,
-human-verified physical-device ASR/fallback, screen-reader and private materials.
-Chrome preview: http://127.0.0.1:8000/?sandbox=qa-final#start.
-Preview: /tmp/eesti-qa/run.py, scratch guest state, blank provider keys,
-EESTI_WEB_BUILD=1. DEV-5 beginner/en/uk scope remains separate.
+Current task: review workstream S4 (data safety and dependencies), Linear
+DEV-37 and DEV-39. Litestream (DEV-43) waits until after the 7–8 Nov sittings.
+Branch: claude/dev-37-item-secret, from origin/main faa477d (DEV-37 item 6).
+In this branch: item tokens verify against `ITEM_SECRET`,
+`ITEM_SECRET_PREVIOUS`, `PROXY_TOKEN` and `STATE_TOKEN` and sign with the
+first set of `ITEM_SECRET`/`PROXY_TOKEN`/`STATE_TOKEN`;
+`deploy/set-item-secret.sh` sets or rotates it without printing values;
+`check-service.sh` flags it missing.
+Checks: Python 2528 passed/25 skipped (no local data).
+Next: owner merges, waits for the image, then runs
+`bash deploy/set-item-secret.sh` once in Cloud Shell (no Worker change).
+Other S4 PRs: wimpex18/Eesti-Keelt#112 (DEV-37 items 2–5); dependency lock
+(DEV-39) and nightly off-Cloudflare export (DEV-37 item 1, destination
+awaits owner choice) follow.
+Uncommitted task paths: none after this commit.
+Blockers: none for this PR.
