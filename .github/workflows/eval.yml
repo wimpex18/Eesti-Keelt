@@ -58,7 +58,7 @@ jobs:
       - name: Install morphology (evidence mode only)
         if: inputs.evidence
         run: |
-          pip install -r requirements.txt
+          pip install --require-hashes -r requirements.lock
           python -m eesti.cli fetch-data
           python -m eesti.cli build
 

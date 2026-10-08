@@ -59,7 +59,7 @@ readable. The procedure is in `docs/deploy.md`.
 | TalTech inflection benchmark, TalTech grammar dataset | Morphology and grammar evaluation | `eesti/evals/morphology.py`, `eesti/evals/external.py`; no learner material redistribution |
 | EstGEC-L2, GiellaLT | Attested word-order corrections and analysed agreement exceptions | GPL/LGPL boundaries in the licence ledger; GiellaLT code/data are not shipped |
 | EVKK taxonomy | Error-frequency weighting | Cached taxonomy/counts only; learner essays are not fetched. Legacy taxonomy is not the full current corpus |
-| Python, FastAPI, Uvicorn, FSRS | Origin and review runtime | Latest stable dependencies requested by `requirements.txt`; health reports actual installed versions |
+| Python, FastAPI, Uvicorn, FSRS | Origin and review runtime | `requirements.txt` requests latest stable; `requirements.lock` fixes what is installed, refreshed by upgrade PRs; health reports installed versions |
 | pypdf, PDFium, pdfplumber, Pillow | In-app official PDF extraction/rendering | Row/file presence alone does not establish visual readability or a reviewed key |
 | Wrangler, Workers types, TypeScript, axe-core, pytest, Playwright | Worker build, contracts and browser checks | Lockfile/test runtime identify installed versions; build tools are not services served to learners |
 | HLS.js | Native browser playback of ERR HLS | Pinned vendored light build; upstream Apache licence/notices accompany it |

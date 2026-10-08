@@ -41,7 +41,7 @@ release work, as recorded in `docs/status.md`.
 ## Quick start
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
 .venv/bin/python -m eesti.cli fetch-data && .venv/bin/python -m eesti.cli build
 .venv/bin/python -m eesti.cli export
 .venv/bin/python -m eesti.cli serve          # http://127.0.0.1:8000
