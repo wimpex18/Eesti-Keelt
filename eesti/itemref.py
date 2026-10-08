@@ -29,7 +29,7 @@ import re
 
 #: Bumped when a generator's output for the same inputs changes, so an old ref
 #: is known not to regenerate the item it named.
-GENERATOR_VERSION = 2
+GENERATOR_VERSION = 3
 
 #: Item fields the answer endpoint grades and records from.
 FIELDS = ("topic", "prompt", "answer", "distractor", "lemma", "hint", "rule", "why_ru")
