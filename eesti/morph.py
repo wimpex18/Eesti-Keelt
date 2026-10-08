@@ -151,6 +151,17 @@ def _readings(word: str) -> set[tuple[str, str]]:
     return out
 
 
+def parts_of_speech(word: str) -> set[str]:
+    """Every part of speech a surface form can be, without disambiguation (`viis`
+    is a numeral and a verb); empty when Vabamorf does not know the word.
+    """
+    out: set[str] = set()
+    for item in _vm().analyze([word], disambiguate=False, guess=False, propername=False):
+        for opt in item.get("analysis") or []:
+            out.add(opt.get("partofspeech", ""))
+    return out - {""}
+
+
 @lru_cache(maxsize=4096)
 def case_forms(lemma: str) -> dict[str, str]:
     """Genitive and partitive singular for a lemma, or {} if either is unknown.

@@ -7,8 +7,8 @@ says plainly what it is:
 
 | Part | The mock's task | Graded |
 |---|---|---|
-| `lugemine` | gap-fill in real corpus sentences | code |
-| `kuulamine` | dictation of corpus sentences | code, word by word |
+| `lugemine` | gap-fill in real corpus sentences (EKI EVS's phrases outside the owner's scope) | code |
+| `kuulamine` | dictation of corpus sentences (EKI EVS's phrases outside the owner's scope) | code, word by word |
 | `kirjutamine` | one longer text and a practice length threshold | by code: length, and the deterministic checks (spelling, agreement, rection) |
 | `raakimine` | the paired-exam question bank, recorded | not scored — the exam is paired |
 
@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
+
+from .config import LEVELS
 from .exam import SPECS
 
 #: How many gradable tasks a section asks for. Short enough to sit in one go.
@@ -39,6 +41,17 @@ NOTE = {
                     "(rektsioon). Объяснения — во вкладке Kirjutamine."),
     "raakimine": ("Экзамен сдаётся в паре, поэтому оценки здесь нет. Запиши "
                   "ответ и послушай себя: засчитывается сам факт практики."),
+}
+
+#: The same, where the tasks are EKI EVS's example phrases (outside the owner's
+#: scope the corpus is hidden). The credit is EKI's licence condition.
+NOTE_EVS = {
+    "lugemine": ("На экзамене это вопросы к тексту. Здесь — пропуски во "
+                 "фразах-примерах из словаря EKI (eesti-vene sõnaraamat, "
+                 "CC BY 4.0): проверяются формы, а не экзаменационные вопросы."),
+    "kuulamine": ("На экзамене это записи с вопросами. Здесь — диктант "
+                  "(etteütlus) по фразам-примерам из словаря EKI "
+                  "(eesti-vene sõnaraamat, CC BY 4.0): слышишь и записываешь."),
 }
 
 SCHEMA = """
@@ -100,17 +113,31 @@ def _reading(level: str, minutes: int, seed: int, content, words) -> Section:
 
     pool = sentences(content) if content is not None else []
     items = case_clozes(pool, words=words, count=TASKS["lugemine"], seed=seed) if pool else []
-    return Section(level, "lugemine", minutes, "cloze", list(items),
-                   note=NOTE["lugemine"])
+    note = NOTE["lugemine"]
+    if not items and words is not None:
+        # Outside the owner's scope the corpus is hidden: EKI's phrases are public.
+        from .practice import public_clozes
+
+        items = public_clozes(words, None, TASKS["lugemine"], seed)
+        note = NOTE_EVS["lugemine"]
+    return Section(level, "lugemine", minutes, "cloze", list(items), note=note)
 
 
 def _listening(level: str, minutes: int, seed: int, content, words, vocabulary) -> Section:
-    from .dictation import choose
+    from .dictation import MAX_WORDS, MIN_WORDS, choose, from_phrases
 
     passages = choose(content, vocabulary=vocabulary, words=words,
                       count=TASKS["kuulamine"], seed=seed) if content is not None else []
+    note = NOTE["kuulamine"]
+    if not passages and words is not None:
+        from .evs import phrases
+
+        passages = from_phrases(phrases(words, MIN_WORDS, MAX_WORDS, LEVELS),
+                                vocabulary=vocabulary, count=TASKS["kuulamine"],
+                                seed=seed)
+        note = NOTE_EVS["kuulamine"]
     return Section(level, "kuulamine", minutes, "dictation",
-                   [p.to_dict() for p in passages], note=NOTE["kuulamine"])
+                   [p.to_dict() for p in passages], note=note)
 
 
 def _writing(level: str, minutes: int) -> Section:
