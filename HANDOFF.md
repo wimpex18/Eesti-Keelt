@@ -1,27 +1,23 @@
 # Handoff
 
-Current task: DEV-17/DEV-18 fixes ready for user review in PR 110.
-Branch: codex/dev-17-dev-18-qa-fixes; base origin/main eba54af.
-PR: https://github.com/wimpex18/Eesti-Keelt/pull/110
-Next: user reviews/merges; after deployment run deep smoke and public
-cold-load/account verification. No merge or deployment performed here.
-Fixed: signed recipient-bound dictation with issued evidence/source rights;
-compressed startup bundle/CSS, immediate start content, stable font rendering;
-onboarding Back/focus, request deadlines, draft/duplicate recovery, lazy probes,
-and 44px navigation/word targets. Provider lanes and linguistic rules unchanged.
-Checks: 2544 Python passed/1 skipped; compiled browser 205 passed/23 skipped;
-62 focused passed; typecheck and 26 Worker tests passed. Docker not built locally.
-Chrome: initial 15-route/five-viewport audit plus follow-up desktop/phone checks.
-Matched local FCP 2.1–2.2→0.8 s; initialization 3.0→1.1 s; JS requests 24→1.
-Final mobile Lighthouse CLS 0.003; cursor-extension LCP excluded.
-Reports: qa/test-plan.md, inventory.md, results.md, performance.md.
-Evidence: .impeccable/review/qa (ignored); synthetic guest state only.
-Uncommitted task path before this handoff commit: HANDOFF.md only.
-After this handoff commit: no uncommitted task paths. Preserve unrelated
-untracked agent/editor tooling. No learner databases or private exam/evaluation
-material in the diff.
-Remaining external gates: real Worker account/cross-device durability,
-human-verified physical-device ASR/fallback, screen-reader and private materials.
-Chrome preview: http://127.0.0.1:8000/?sandbox=qa-final#start.
-Preview: /tmp/eesti-qa/run.py, scratch guest state, blank provider keys,
-EESTI_WEB_BUILD=1. DEV-5 beginner/en/uk scope remains separate.
+Current task: DEV-54 — EKI EVS example phrases as public practice pools.
+Branch: claude/dev-54-evs-public-pools; base origin/main faa477d. PR open for
+owner review; the owner merges. No deployment performed.
+What changed: outside the owner's scope (corpus hidden) drills, dictation,
+read-aloud and mock reading/listening draw on `evs.phrases`; owner keeps the
+corpus first, EVS only tops up. `sonajark` gets EVS noun-phrase tiles (fixed
+order only: nominative/genitive attributes before a nominative noun head).
+Every EVS item shows "EKI eesti-vene sõnaraamat · CC BY 4.0".
+`itemref.GENERATOR_VERSION` 2→3 (owner sets the corpus cannot fill now differ).
+Measured on real data, guest scope: 37 of 37 generator topics yield items
+(was 30); tile pool 690, comma items 157, cloze/dictation pool 17 383.
+Checks: 2550 passed/14 skipped (real data present); browser journeys
+205+2 passed; typecheck clean; preview checked desktop and phone.
+Next: owner reviews; after merge, deploy and run `smoke` with `deep: true`,
+then confirm a guest gets `gen-stem` items on production.
+Rebase notes: S1/DEV-51 may touch `eesti/cloze.py` (this PR adds only the
+`listed` parameter). Planning PR 111 adds a status.md Known issue on the same
+problem; keep this PR's narrower wording (reading texts still owner-only).
+Uncommitted paths: none after the commit. Worktree `data/*.db` are ignored
+copies used for journeys.
+Blockers: none. Reading texts for public learners remain DEV-36 (C2/C6).

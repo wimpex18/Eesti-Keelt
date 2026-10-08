@@ -165,20 +165,49 @@ def sentences_to_say(
     `count` qualify, the rest are filled with the most within reach, shorter first.
     Without a word list nothing can qualify and the fill is the whole list.
     """
-    import random
-
     from .cloze import sentences
     from .dictation import _writable
+
+    texts = [s for s in sentences(content, min_words=min_words, max_words=max_words)
+             if _writable(s)]
+    return _easiest(texts, "selges-keeles", count, seed, words, known)
+
+
+#: How many EVS phrases are checked against the learner's words for one list:
+#: every check lemmatises, and the pool has thousands.
+PHRASE_SAMPLE = 400
+
+
+def phrases_to_say(
+    phrases,
+    count: int = 10,
+    seed: int | None = None,
+    words: sqlite3.Connection | None = None,
+    known: set[str] | frozenset[str] = frozenset(),
+) -> list[ReadAloud]:
+    """EKI EVS's example phrases to read aloud (`evs.phrases`), public where the
+    corpus is not; a seeded sample, then the same easiest-first order.
+    """
+    import random
+
+    from .evs import SOURCE_ID
+
+    texts = [p.estonian for p in phrases]
+    random.Random(seed).shuffle(texts)
+    return _easiest(texts[:PHRASE_SAMPLE], SOURCE_ID, count, seed, words, known)
+
+
+def _easiest(texts: list[str], source: str, count: int, seed: int | None,
+             words: sqlite3.Connection | None, known) -> list[ReadAloud]:
+    import random
+
     from .difficulty import reach_lemmas, within_reach
 
     reach = reach_lemmas(words)
     scored: list[ReadAloud] = []
-    for s in sentences(content, min_words=min_words, max_words=max_words):
-        if not _writable(s):
-            continue
+    for s in texts:
         fit = within_reach(s, known, reach, strict=True)
-        scored.append(ReadAloud(s, "lause", None, "selges-keeles",
-                                coverage=fit["coverage"]))
+        scored.append(ReadAloud(s, "lause", None, source, coverage=fit["coverage"]))
 
     ready = [item for item in scored if item.coverage == 1.0]
     random.Random(seed).shuffle(ready)

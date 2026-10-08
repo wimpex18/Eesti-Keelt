@@ -95,11 +95,11 @@ Two sources weight what to practise:
 |---|---|
 | object case, locative cases, principal forms | Vabamorf synthesis, round-trip validated; nouns whose genitive = partitive are excluded |
 | verb forms, conjugation | Vabamorf; drilled where the naive form differs from the real one |
-| cloze | real harvested sentences, only where the case is named or forced (negation) |
+| cloze | real harvested sentences, only where the case is named or forced (negation); outside the owner's scope, EKI EVS's example phrases whose target word the word list puts at the learner's levels (`evs.phrases`) |
 | comparison, numerals, question words | closed-class tables; a question word's Russian cue is EKI EVS's (below) |
-| word order | attested learner corrections (EstGEC-L2), not generated swaps |
+| word order | attested learner corrections (EstGEC-L2), not generated swaps; outside the owner's scope, EKI EVS noun phrases rebuilt from tiles, only those whose order the Russian fixes (`wordorder.phrase_tiles`) |
 | rection | EKK SÜ 65's list of attested confusions |
-| punctuation | comma before a subordinate clause |
+| punctuation | comma before a subordinate clause, in corpus sentences or EKI EVS's phrases |
 
 An item ships only when its answer is unambiguous; a distractor that is
 sometimes correct Estonian is never generated.
