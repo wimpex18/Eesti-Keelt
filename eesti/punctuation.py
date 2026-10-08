@@ -56,6 +56,8 @@ class CommaItem(GradedItem):
     conjunction: str = "et"
     why_ru: str = WHY
     choices: tuple[str, ...] = ()
+    #: Where the sentence comes from, for its credit (`api/render.py`).
+    source_id: str = ""
 
     @property
     def label(self) -> str:
@@ -81,7 +83,7 @@ def _spans(sentence: str) -> list[tuple[int, str]]:
 
 
 def from_sentences(sentences: list[str], count: int = 10,
-                   seed: int | None = None) -> list[CommaItem]:
+                   seed: int | None = None, source_id: str = "") -> list[CommaItem]:
     """Items from native sentences that already punctuate correctly; the learner's
     version deletes the comma.
     """
@@ -108,6 +110,7 @@ def from_sentences(sentences: list[str], count: int = 10,
             distractor=wrong,
             conjunction=word,
             choices=tuple(choices),
+            source_id=source_id,
         ))
         if len(out) >= count:
             break
@@ -124,4 +127,4 @@ def generate(count: int = 10, seed: int | None = None,
     # Long enough to hold a subordinate clause, short enough to read at a
     # glance in a two-way choice.
     pool = sentences(content, min_words=6, max_words=22)
-    return from_sentences(pool, count=count, seed=seed)
+    return from_sentences(pool, count=count, seed=seed, source_id="selges-keeles")

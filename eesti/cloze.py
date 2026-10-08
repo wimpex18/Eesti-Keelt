@@ -328,10 +328,13 @@ def case_clozes(
     require_contrast: bool = True,
     only: frozenset[str] | None = None,
     levels: tuple[str, ...] = LEVELS,
+    listed: bool = False,
 ) -> list[Cloze]:
     """Case-production items: the sentence is real, the case is named, produce the form.
 
     `levels` gates the target word, and candidates are ordered easiest first.
+    `listed` keeps only words the word list puts at one of `levels`: a dictionary's
+    phrases (`evs.phrases`) name rarer words than graded prose does.
     """
     wanted: set[str] = set()
     for topic in topics or tuple(TOPIC_CASES):
@@ -360,7 +363,7 @@ def case_clozes(
             if only is not None and token.lemma not in only:
                 continue
             level = _level_of(words, token.lemma)
-            if _above_level(level, levels):
+            if _above_level(level, levels) or (listed and level not in levels):
                 continue
             if (token.lemma, token.form) in seen:
                 continue

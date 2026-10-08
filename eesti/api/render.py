@@ -21,6 +21,11 @@ def item_for_page(item) -> dict:
     `label` (shown under the blank) to `form_after` (shown with the verdict); `hint`,
     which the page sends back as the item's identity, is untouched."""
     shown = item.to_dict()
+    from ..evs import ATTRIBUTION, SOURCE_ID
+
+    # EKI's licence asks for the credit wherever its material is presented.
+    if shown.get("source_id") == SOURCE_ID:
+        shown["attribution"] = ATTRIBUTION
     if shown.get("topic") in CHOICE_TOPICS:
         shown["form_after"], shown["label"] = shown["label"], ""
     from ..scaffolding import pronoun_support

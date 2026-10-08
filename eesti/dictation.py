@@ -1,7 +1,8 @@
 """Listening practice that can be got wrong: dictation.
 
 - Sentences come from the harvested corpus, so the answer is correct because a
-  native wrote it.
+  native wrote it; outside the owner's scope, where the corpus is hidden, from
+  EKI EVS's example phrases (`from_phrases`).
 - Grading is deterministic: the submission is aligned against the sentence
   word by word, with no model and no recogniser caveat.
 - Writing down what you hear trains decoding; nothing can be skipped.
@@ -168,6 +169,24 @@ def choose(
     pool = [s for s in sentences(content, source_id=source_id,
                                  min_words=MIN_WORDS, max_words=MAX_WORDS)
             if _writable(s)]
+    return _pick(pool, vocabulary, count, seed, source_id)
+
+
+def from_phrases(phrases, *, vocabulary: sqlite3.Connection | None = None,
+                 count: int = 1, seed: int | None = None) -> list[Passage]:
+    """Dictation from EKI EVS's example phrases (`evs.phrases`), public where the
+    corpus is not. EKI writes them in lower case without a full stop; the check
+    compares words, so they are dictated as written.
+    """
+    from .evs import SOURCE_ID
+
+    pool = [p.estonian for p in phrases
+            if MIN_WORDS <= len(p.estonian.split()) <= MAX_WORDS]
+    return _pick(pool, vocabulary, count, seed, SOURCE_ID)
+
+
+def _pick(pool: list[str], vocabulary, count: int, seed: int | None,
+          source_id: str) -> list[Passage]:
     if not pool:
         return []
 

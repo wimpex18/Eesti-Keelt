@@ -576,10 +576,22 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   const pos = tally.size ? `<div class="drill-pos">${i + 1} / ${tally.size}</div>` : "";
   /* Word order is the one topic whose unit is the whole sequence, so it is answered
      by choosing a sentence rather than typing a word. The chosen sentence is
-     submitted as the answer and graded by the same comparison as everything else. */
+     submitted as the answer and graded by the same comparison as everything else.
+     Outside the owner's corpus it is EKI's phrase rebuilt from its words: the
+     built phrase is the answer, graded the same way (`wordorder.phrase_tiles`). */
+  const tiles = it.tiles?.length ? it.tiles : null;
   el.innerHTML = `${pos}
-    <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
-    ${it.choices && it.choices.length ? `
+    ${tiles ? `
+    <div class="prompt tile-build" lang="et">
+      <div class="fc-line" aria-label="Fraas — фраза" aria-live="polite"></div>
+      <div class="fc-bank"></div>
+    </div>
+    <div class="row">
+      <button class="ghost" lang="et" disabled aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
+      ${taskLine(it, ru)}
+    </div>` : `
+    <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>`}
+    ${tiles ? "" : it.choices && it.choices.length ? `
     <div class="choices">
       ${it.choices.map(c =>
         `<button class="choice" lang="et" data-choice="${esc(c)}">${esc(c)}</button>`).join("")}
@@ -593,6 +605,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       <button class="ghost" lang="et" aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
       ${taskLine(it, ru)}
     </div>`}
+    ${it.attribution ? `<div class="attrib" lang="et">${esc(it.attribution)}</div>` : ""}
     <div class="verdict" role="status"></div>`;
   addPracticeSupport(el, it);
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
@@ -609,11 +622,13 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
   let submittedLatency = null;
   let inFlight = false;
   const check = el.querySelector(".row > button.ghost");
+  const tileButtons = () => [...el.querySelectorAll(".fc-tile")];
   const lock = () => {
     inFlight = true;
     if (input) input.disabled = true;
     if (check) check.disabled = true;
     choices.forEach(b => b.disabled = true);
+    tileButtons().forEach(b => b.disabled = true);
   };
   const unlockRetry = () => {
     inFlight = false;
@@ -623,6 +638,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       b.disabled = tally.record && b.dataset.choice !== submittedGiven;
       if (!tally.record) b.classList.remove("picked");
     });
+    tileButtons().forEach(b => b.disabled = tally.record);
     if (!tally.record) {
       submittedGiven = null;
       submittedLatency = null;
@@ -698,7 +714,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // shown instead. The rule is shown either way: on a right answer it says why,
     // which for word order is the lesson.
     verdict.innerHTML = res.correct
-      ? (choices.length && !blank
+      ? ((choices.length || tiles) && !blank
           ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
           : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", blankForm(it.prompt, said)))}</strong>`
@@ -743,6 +759,22 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       b.classList.add("picked");
       grade();
     });
+  } else if (tiles) {
+    // A tap moves a word between the bank and the phrase; the check opens once
+    // every word is placed, and the phrase as built is what is graded.
+    const line = el.querySelector(".fc-line"), bank = el.querySelector(".fc-bank");
+    tiles.forEach(word => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ghost fc-tile"; b.lang = "et"; b.textContent = word;
+      b.onclick = () => {
+        if (locked() || el.classList.contains("done")) return;
+        (b.parentElement === bank ? line : bank).appendChild(b);
+        picked = [...line.children].map(x => x.textContent).join(" ");
+        check.disabled = line.children.length !== tiles.length;
+      };
+      bank.appendChild(b);
+    });
+    check.onclick = grade;
   } else {
     check.onclick = grade;
     input.addEventListener("keydown", e => { if (e.key === "Enter") grade(); });
@@ -757,6 +789,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     tally.marks[i] = "skipped"; paintBeads(tally);
     input && (input.disabled = true); if (check) check.disabled = true;
     choices.forEach(b => b.disabled = true);
+    tileButtons().forEach(b => b.disabled = true);
     verdict.textContent = "Пропущено — ответ не проверен и не засчитан. Можно попробовать в следующем наборе.";
     skip.hidden = true;
     awaitForward({});
@@ -785,7 +818,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       }
       const entry = document.createElement("li");
       const sentence = document.createElement("p"); sentence.lang = "et";
-      sentence.textContent = el.querySelector(".prompt").textContent;
+      sentence.textContent = tiles ? it.answer : el.querySelector(".prompt").textContent;
       const result = verdict.cloneNode(true);
       result.removeAttribute("role");
       result.querySelectorAll("button").forEach(button => button.remove());
@@ -796,7 +829,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       else {
         const next = box.querySelector(".drill:not(.done)");
         next?.scrollIntoView({block: "nearest"});
-        next?.querySelector("input, .choice")?.focus({preventScroll: true});
+        next?.querySelector("input, .choice, .fc-tile")?.focus({preventScroll: true});
       }
     };
   }
