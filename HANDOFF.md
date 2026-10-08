@@ -15,13 +15,15 @@ Start now, one fresh worktree session each, small PRs, branch names carry the ID
 Owner sends `qa/source-permission-requests.md` (DEV-55); answers go to
 `eesti/licences.py` and `docs/sources.md` before any source is opened.
 
+Next-session prompts: `qa/session-briefs.md` (A: DEV-40 spec, B: DEV-38 when
+the key is in .env, C: DEV-41). Merge #111 first; S1/S2/S4 PRs rebase on it.
 Order after that: DEV-40 course-structure spec (interview → SPEC.md → ADR) before
 DEV-41 exam fidelity, DEV-42 languages and DEV-45 patterns; DEV-43 Litestream only
 after the 7–8 Nov 2026 sittings; DEV-47 pilot after DEV-35/36; redesign last.
 Owner decisions: full A0→B1 path alongside Keeleklikk; no embedding model;
 private sources stay owner-only until written permission.
 
-Uncommitted task paths before this commit: `HANDOFF.md`, `docs/status.md`,
-`qa/architecture-review.md`, `qa/source-permission-requests.md`.
+Uncommitted task paths before this commit: `HANDOFF.md`, `qa/session-briefs.md`,
+`.claude/rules/docs.md`.
 Preserve unrelated untracked agent/editor tooling. No learner data in the diff.
 Blockers: none for S1–S4; ERR/HARNO/Selges keeles content waits for permission.
