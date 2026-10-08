@@ -13,8 +13,13 @@ import shutil
 import time
 from pathlib import Path
 
-#: More than this many sandboxes and the one idle longest is dropped.
+#: More than this many sandboxes and those idle at least `RESTING_MINUTES`
+#: are dropped, longest idle first.
 MAX_SANDBOXES = 50
+#: A sandbox used more recently is mid-session and is kept over the soft limit.
+RESTING_MINUTES = 60
+#: Cloud Run's disk is memory: past this many, the longest idle goes regardless.
+HARD_MAX_SANDBOXES = 200
 #: A sandbox untouched this long is dropped at the next sweep.
 IDLE_HOURS = 24
 _last_sweep = 0.0
@@ -54,9 +59,11 @@ def ensure(sandbox: str) -> Path:
 
 
 def sweep() -> list[str]:
-    """Drop sandboxes idle past `IDLE_HOURS`, then the oldest past `MAX_SANDBOXES`.
+    """Drop sandboxes idle past `IDLE_HOURS`; past `MAX_SANDBOXES`, the longest
+    idle of those resting `RESTING_MINUTES`; past `HARD_MAX_SANDBOXES`, the
+    longest idle of any.
 
-    Returns the names dropped. Never touches `shared.db` or anything outside
+    Returns the names dropped. Never touches files or anything outside
     `config.GUEST_DIR`.
     """
     from . import config
@@ -88,7 +95,12 @@ def sweep() -> list[str]:
             active.append((last, directory))
 
     active.sort(key=lambda item: (item[0], item[1].name))
-    for _, directory in active[:max(0, len(active) - MAX_SANDBOXES)]:
+    resting = [item for item in active if now - item[0] >= RESTING_MINUTES * 60]
+    surplus = len(active) - MAX_SANDBOXES
+    dropped = resting[:max(0, surplus)]
+    kept = [item for item in active if item not in dropped]
+    dropped += kept[:max(0, len(kept) - HARD_MAX_SANDBOXES)]
+    for _, directory in dropped:
         shutil.rmtree(directory)
         removed.append(directory.name)
     return removed
