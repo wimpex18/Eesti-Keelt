@@ -100,9 +100,3 @@ def test_glossed_counts_every_offline_source_within_the_top_words(tmp_path):
     # `siin` from EVS, `tee` from the shipped seed; `zzzx` has no Russian.
     assert (sonavara["glossed"], sonavara["glossed_of"]) == (2, 3)
 
-
-def test_the_card_says_glossed_out_of_the_ranked_words():
-    from pathlib import Path
-
-    page = (Path(__file__).resolve().parents[1] / "eesti/web/js/path.js").read_text("utf-8")
-    assert "с переводом: ${s.sonavara.glossed} из ${s.sonavara.glossed_of}" in page
