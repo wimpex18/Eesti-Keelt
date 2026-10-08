@@ -403,6 +403,61 @@ def question_cues(conn: sqlite3.Connection | None) -> dict[str, tuple[str, ...]]
     return {r[0]: tuple(x for x in r[1].split(SEP) if x) for r in rows}
 
 
+# ---------------------------------------------------------------------------
+# Verbs that take an object
+# ---------------------------------------------------------------------------
+
+#: EVS's government (`vrek`) of a Russian translation that takes a direct
+#: object: `jooma` «пить что», `ootama` «ждать кого-что».
+OBJECT_GOVERNMENT = frozenset({"что", "кого", "кого-что"})
+
+OBJECT_SCHEMA = """
+-- Verbs whose main sense EVS translates with a Russian verb taking a direct
+-- object: the writing check's evidence that a verb has an object at all.
+CREATE TABLE IF NOT EXISTS evs_object_verb (lemma TEXT PRIMARY KEY);
+"""
+
+
+def object_verbs(path: Path | str) -> list[str]:
+    """Verbs whose first sense EVS renders with a Russian verb governing a direct
+    object (`OBJECT_GOVERNMENT`), in file order. `elama` «жить где» is not one.
+    """
+    out: dict[str, None] = {}
+    for article in ekixml.articles(path):
+        if ekixml.text(article.find("P/mg/sl")) != "v":
+            continue
+        tg = article.find("S/tp/tg")
+        if tg is None:
+            continue
+        governs = {ekixml.text(v) for v in tg.findall("xp/xg/vrek")}
+        if governs & OBJECT_GOVERNMENT:
+            out.update(dict.fromkeys(ekixml.headwords(article)))
+    return list(out)
+
+
+def store_object_verbs(conn: sqlite3.Connection, lemmas) -> int:
+    """Replace `evs_object_verb` with `lemmas`. Idempotent."""
+    conn.executescript(OBJECT_SCHEMA)
+    with conn:
+        conn.execute("DELETE FROM evs_object_verb")
+        conn.executemany("INSERT OR IGNORE INTO evs_object_verb (lemma) VALUES (?)",
+                         [(l,) for l in lemmas])
+    return conn.execute("SELECT COUNT(*) FROM evs_object_verb").fetchone()[0]
+
+
+def object_verbs_among(conn: sqlite3.Connection, lemmas: list[str]) -> set[str]:
+    """Those of `lemmas` stored as taking an object; empty before an import."""
+    if not lemmas:
+        return set()
+    try:
+        rows = conn.execute(
+            f"SELECT lemma FROM evs_object_verb WHERE lemma IN "
+            f"({','.join('?' * len(lemmas))})", lemmas).fetchall()
+    except sqlite3.Error:
+        return set()
+    return {r[0] for r in rows}
+
+
 def imported(conn: sqlite3.Connection) -> int:
     try:
         return conn.execute("SELECT COUNT(*) FROM evs_gloss").fetchone()[0]

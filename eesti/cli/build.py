@@ -237,6 +237,7 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
     conn = connect()
     stats = evs.store(conn, entries)
     evs.store_questions(conn, cues)
+    verbs = evs.store_object_verbs(conn, evs.object_verbs(path))
     evs.store_examples(conn, phrases)
     print(f"  {stats['entries']:,} lemmas with Russian stored")
     idioms = sum(p.kind == evs.IDIOM for p in phrases)
@@ -244,6 +245,7 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
           "(väljendid) with Russian stored")
     print(f"  {len(cues)} of {len(asked)} question words with a Russian cue "
           "(küsisõnad)")
+    print(f"  {verbs:,} verbs that take an object (writing check)")
     print("  Source: Eesti-vene sõnaraamat, EKI, CC BY 4.0.")
     print("  Word cards now show EKI's Russian first and Sõnaveeb's second.")
     return 0
