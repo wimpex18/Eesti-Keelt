@@ -30,6 +30,11 @@ runtimes; other tests exercise behavior instead of checking CSS or doc counts.
   `--engine webkit` runs one engine's journeys; CI runs the two in parallel.
   More than four workers on one machine starves the journeys' servers and
   their waits time out; CI's runners have four.
+- One journey is quarantined (skipped with its reason):
+  `TestSpeakingEvaluation::test_normal_answer_can_be_saved_and_reviewed_in_the_page`.
+  Saving a practice answer to the owner's eval set does not complete when it
+  runs alone or in a WebKit-only run; whether the page or the harness is at
+  fault is open.
 - `pytest.ini` makes misspelt markers and ini keys errors and strict-xfails.
   CI installs with `uv` from `requirements.lock`, caches the Playwright
   browser and the built word list, and cancels a run a newer push supersedes.
