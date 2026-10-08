@@ -343,3 +343,162 @@ class TestTheCommand:
         assert evs.imported(wordlist.connect()) == 0
         assert main(["import-evs", str(xml)]) == 0
         assert evs.imported(wordlist.connect()) == 3
+
+
+# Real-shaped homographs (DEV-49): the word a learner meets is EKI's listed one.
+def _art(m, pos, *senses, i=None):
+    """One EVS article: `senses` are lists of Russian, or (condition, Russian)
+    where the condition is the sense's `gki`."""
+    tps = []
+    for n, sense in enumerate(senses, 1):
+        gki, words = sense if isinstance(sense, tuple) else (None, sense)
+        xg = "".join(f"<x:xg><x:x>{w}</x:x></x:xg>" for w in words)
+        tps.append(f'<x:tp x:tnr="{n}">' + (f"<x:gki>{gki}</x:gki>" if gki else "")
+                   + f'<x:tg><x:xp xml:lang="ru">{xg}</x:xp></x:tg></x:tp>')
+    number = f' x:i="{i}"' if i else ""
+    return (f'<x:A x:KF="ev21"><x:P><x:mg><x:m{number}>{m}</x:m><x:sl>{pos}</x:sl>'
+            f'</x:mg></x:P><x:S>{"".join(tps)}</x:S></x:A>\n')
+
+
+HOMOGRAPHS = (
+    _art("siin", "adv", ["здесь", "тут"], ["вот", "это"], i=1)
+    + _art("siin", "s", ["шина", "рельс"], i=2)
+    + _art("miks", "s", ["микс"])
+    + _art("miks", "adv", ["почему", "отчего", "зачем"], ["по какой причине"], i=1)
+    + _art("miks", "s", ["почему", "отчего"], i=2)
+    + _art("küll", "adv", ["да [же]", "ведь"], ["да"], ["действительно"], i=1)
+    + _art("küll", "s", ["обилие", "изобилие"], ["избыток"], i=2)
+    + _art("hästi", "adv", ["хорошо", "неплохо"], ("eitusega", ["не очень", "не совсем"]),
+           ["очень", "весьма"])
+    + _art("iga", "s", ["возраст", "век"], ["стадия"], ["годы"], i=1)
+    + _art("iga", "pron", ["каждый", "всякий"], i=2)
+    + _art("keegi", "pron", ("jaatavas lauses", ["кто-то"]), ("eitavas lauses", ["никто"]))
+    + _art("sugugi", "adv", ("eitusega", ["совсем не", "нисколько не"]))
+    + _art("tee", "s", ["дорога", "путь"], ["маршрут"], i=1)
+    + _art("tee", "s", ["чай"], i=2)
+    # Unlisted: a first sense used with a negation keeps every sense.
+    + _art("eales", "adv", ("eitusega", ["никогда", "вовек"]), ["только"])
+    # Two nouns and a listed adverb: the adverb is not pushed off the card.
+    + _art("vara", "s", ["имущество", "достояние"], ["состояние"], ["добро"], i=1)
+    + _art("vara", "s", ["отволока"], ["паз"], i=2)
+    + _art("vara", "adv", ["рано"], i=3)
+    # Listed as an adjective, but the noun is the word.
+    + _art("osaline", "adj", ["-частный", "-составный"])
+    + _art("osaline", "s", ["участник", "участница"], ["доля"], ["пайщик"])
+    # A definition's lead, not `gki`, says the sense is negated (`kuhugi`).
+    + ('<x:A x:KF="ev21"><x:P><x:mg><x:m>kuhugi</x:m><x:sl>adv</x:sl></x:mg></x:P><x:S>'
+       '<x:tp x:tnr="1"><x:tg><x:dg><x:d>kuhugi kohta</x:d></x:dg><x:xp xml:lang="ru">'
+       '<x:xg><x:x>куда-нибудь</x:x></x:xg></x:xp></x:tg></x:tp><x:tp x:tnr="2"><x:tg>'
+       '<x:dg><x:d>eitusega: mitte mingisse kohta</x:d></x:dg><x:xp xml:lang="ru">'
+       '<x:xg><x:x>никуда не</x:x></x:xg></x:xp></x:tg></x:tp></x:S></x:A>\n')
+)
+
+#: EKI's level list as it is: one row per listed homograph, with its corpus count.
+LEVELS = ("LEMMA\tPOS\tSAGEDUS\tTASE\n"
+          "siin\tD\t1045852\tA1\nmiks\tD\t691903\tA1\nküll\tD\t1246453\tA1\n"
+          "hästi\tD\t580361\tA1\niga\tP\t1445039\tA1\niga\tS\t52111\tA2\n"
+          "keegi\tP\t700000\tA1\ntee\tS\t695325\tA1\n"
+          "vara\tS\t90000\tA2\nvara\tD\t80000\tA1\nosaline\tA\t5000\tB1\n")
+
+
+class TestHomographs:
+    """`siin` showed «шина», `miks` «микс», `küll` «обилие»: a homograph of
+    another part of speech merged into the word the learner met."""
+
+    @pytest.fixture
+    def glossed(self, tmp_path):
+        xml = tmp_path / "evs_EKI_CCBY40.xml"
+        xml.write_text(HOMOGRAPHS, encoding="utf-8")
+        levels = tmp_path / "A1A2B1.txt"
+        levels.write_text(LEVELS, encoding="utf-8")
+        listed = evs.listed_pos(wordlist.read_official_levels(levels))
+        return {e.lemma: e for e in evs.parse(xml, listed)}
+
+    @pytest.mark.parametrize("lemma, wrong", [
+        ("siin", "шина"), ("miks", "микс"), ("küll", "обилие"), ("küll", "избыток")])
+    def test_another_part_of_speech_is_another_word(self, glossed, lemma, wrong):
+        assert wrong not in glossed[lemma].russian
+
+    def test_the_listed_homograph_keeps_its_own_senses(self, glossed):
+        assert glossed["siin"].russian == ("здесь", "тут", "вот", "это")
+        assert glossed["miks"].russian[:3] == ("почему", "отчего", "по какой причине")
+        assert glossed["küll"].russian[:3] == ("да [же]", "ведь", "да")
+
+    def test_the_stored_part_of_speech_is_the_listed_one(self, glossed):
+        assert glossed["miks"].pos == "adv"
+
+    def test_two_listed_homographs_in_ekis_frequency_order(self, glossed):
+        """EKI lists *iga* "every" (P, 1.4M) before *iga* "age" (S, 52k)."""
+        assert glossed["iga"].russian[:3] == ("каждый", "всякий", "возраст")
+        assert glossed["iga"].pos == "pron"
+
+    def test_homographs_of_one_part_of_speech_still_share_the_card(self, glossed):
+        """*tee* is a road and tea; a reading cannot tell them apart."""
+        assert glossed["tee"].russian[:3] == ("дорога", "путь", "чай")
+
+    def test_a_sense_used_only_with_negation_is_not_the_meaning(self, glossed):
+        """*hästi* is «хорошо»; «не очень» is *ei … hästi*."""
+        assert glossed["hästi"].russian == ("хорошо", "неплохо", "очень", "весьма")
+
+    def test_a_negated_sense_named_in_the_definition_goes_too(self, glossed):
+        assert glossed["kuhugi"].russian == ("куда-нибудь",)
+
+    def test_a_later_negated_sense_goes_after_an_affirmative_one(self, glossed):
+        """*keegi* «кто-то» (in affirmative clauses), not «никто»."""
+        assert glossed["keegi"].russian == ("кто-то",)
+
+    @pytest.mark.parametrize("lemma, russian", [
+        ("sugugi", ("совсем не", "нисколько не")),
+        ("eales", ("никогда", "вовек", "только")),   # not on the list
+    ])
+    def test_a_word_whose_first_sense_is_negated_keeps_it(self, glossed, lemma, russian):
+        assert glossed[lemma].russian == russian
+
+    def test_each_listed_part_of_speech_leads_before_a_second_homograph(self, glossed):
+        assert glossed["vara"].russian[:3] == ("имущество", "достояние", "рано")
+
+    def test_a_homograph_richer_than_the_listed_one_stays_last(self, glossed):
+        assert glossed["osaline"].russian[:3] == ("-частный", "-составный", "участник")
+
+    def test_an_unlisted_lemma_is_read_as_before(self, tmp_path):
+        xml = tmp_path / "evs.xml"
+        xml.write_text(HOMOGRAPHS, encoding="utf-8")
+        assert evs.parse(xml)[0].russian[:3] == ("здесь", "тут", "шина")
+
+    def test_the_command_reads_the_level_list_beside_the_dictionary(
+            self, tmp_path, monkeypatch, capsys):
+        from eesti import config
+        from eesti.cli import main
+
+        xml = tmp_path / "evs_EKI_CCBY40.xml"
+        xml.write_text(HOMOGRAPHS, encoding="utf-8")
+        (tmp_path / "A1A2B1.txt").write_text(LEVELS, encoding="utf-8")
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "own.db")
+        assert main(["import-evs", str(xml)]) == 0
+        assert "шина" not in evs.russian(wordlist.connect(), "siin")
+        assert "EKI level list" in capsys.readouterr().out
+
+    def test_a_named_level_list_that_is_missing_stops_the_import(self, tmp_path, monkeypatch):
+        from eesti import config
+        from eesti.cli import main
+
+        xml = tmp_path / "evs_EKI_CCBY40.xml"
+        xml.write_text(HOMOGRAPHS, encoding="utf-8")
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "own.db")
+        assert main(["import-evs", str(xml), "--levels", str(tmp_path / "none.txt")]) == 1
+        assert evs.imported(wordlist.connect()) == 0
+
+    def test_a_malformed_level_list_still_imports_the_russian(
+            self, tmp_path, monkeypatch, capsys):
+        """The image build runs `import-evs … || echo`: a bad list must not cost
+        every word its Russian."""
+        from eesti import config
+        from eesti.cli import main
+
+        xml = tmp_path / "evs_EKI_CCBY40.xml"
+        xml.write_text(HOMOGRAPHS, encoding="utf-8")
+        (tmp_path / "A1A2B1.txt").write_text("not\ta list\n", encoding="utf-8")
+        monkeypatch.setattr(config, "DB_PATH", tmp_path / "own.db")
+        assert main(["import-evs", str(xml)]) == 0
+        assert "every homograph kept" in capsys.readouterr().out.lower()
+        assert evs.imported(wordlist.connect()) > 0

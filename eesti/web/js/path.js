@@ -207,12 +207,11 @@ export async function loadStatus() {
           `${b.from}–${b.to}: ${b.known} из ${b.size}`).join("; "))}">${bands.map((b, i) =>
           `<div class="band"><span style="height:${pct(b.known, b.size)}%;animation-delay:${i * 60}ms"></span></div>`).join("")}</div>
         <div class="band-labels" aria-hidden="true">${bands.map(b => `<span>${b.to}</span>`).join("")}</div>
-        ${s.sonavara.glossed != null ? `<p class="gloss-late">${ruCount(s.sonavara.glossed,
-          ["слово", "слова", "слов"])} с переводом <span class="hint">(пополняется само ·
-          сегодня осталось ${s.sonavara.gloss_budget_left})</span></p>` : ""}</section>`;
+        ${s.sonavara.glossed_of ? `<p class="gloss-late">с переводом: ${s.sonavara.glossed} из ${s.sonavara.glossed_of} частотных слов <span class="hint">(словари EKI;
+          онлайн-словарь дополняет, сегодня ещё ${s.sonavara.gloss_budget_left} запросов)</span></p>` : ""}</section>`;
       // Two facts, kept apart: "known" is what the learner declared; the glossed count
-      // is what the app can translate. The second grows on its own, so it is not
-      // presented as an achievement.
+      // is what the app can translate (EKI's dictionaries, topped up by the live
+      // one), so it is not presented as an achievement.
     }
     if (s.raamatukogu) html += `<section class="stat-card">
       <h3 lang="et">Lugemine · Kuulamine <i class="ru" lang="ru">чтение и аудирование</i></h3>

@@ -84,3 +84,25 @@ def test_the_resume_topic_is_named_not_just_keyed(dbs):
     assert rada["next"]
     assert rada["next_et"] and rada["next_et"] != rada["next"]
     assert any("Ѐ" <= ch <= "ӿ" for ch in rada["next_ru"])
+
+
+def test_glossed_counts_every_offline_source_within_the_top_words(tmp_path):
+    """"315 слов с переводом" counted only the seed and live store, while EKI's
+    Estonian–Russian dictionary covers most of the list (DEV-49)."""
+    from eesti import evs
+
+    words = wordlist_connect(tmp_path / "w.db")
+    words.executemany("INSERT INTO words(word, freq_rank, proficiency, pos) VALUES (?,?,?,?)",
+                      [("siin", 1, "A1", "adv"), ("zzzx", 2, "A1", "s"), ("tee", 3, "A1", "s")])
+    evs.store(words, [evs.Entry("siin", "adv", ("здесь",))])
+    got = overview(vocabulary=vocab_connect(tmp_path / "v.db"), words=words)
+    sonavara = got["sections"]["sonavara"]
+    # `siin` from EVS, `tee` from the shipped seed; `zzzx` has no Russian.
+    assert (sonavara["glossed"], sonavara["glossed_of"]) == (2, 3)
+
+
+def test_the_card_says_glossed_out_of_the_ranked_words():
+    from pathlib import Path
+
+    page = (Path(__file__).resolve().parents[1] / "eesti/web/js/path.js").read_text("utf-8")
+    assert "с переводом: ${s.sonavara.glossed} из ${s.sonavara.glossed_of}" in page
