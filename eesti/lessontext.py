@@ -626,8 +626,13 @@ LESSONS.update({
             "Если первым стоит не подлежащее, подлежащее идёт после глагола: *Täna "
             "sõidan ma maale*.",
             "В начале — тема, в конце — самое важное и новое.",
+            "В именной группе (**nimisõnafraas**) определение в omastav и "
+            "согласованное прилагательное стоят перед главным словом: *kolme "
+            "lapse isa*, *minu tulevane töö*. Указательное слово и число — "
+            "дальше от главного слова, прилагательное — ближе: *need kaks "
+            "väikest poissi*.",
         ),
-        sources=(ekk("SÜ 91"), ekk("SÜ 92")),
+        sources=(ekk("SÜ 91"), ekk("SÜ 92"), ekk("SÜ 98"), ekk("SÜ 104")),
     ),
     "kirjavahemargid": LessonText(
         points_ru=(

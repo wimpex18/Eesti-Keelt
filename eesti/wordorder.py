@@ -362,3 +362,148 @@ def generate(count: int = 10, seed: int | None = None,
             choices=tuple(choices),
         ))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Public tiles: EKI's phrases, rebuilt in order
+# ---------------------------------------------------------------------------
+#
+# The attested corrections above are not redistributable, so a learner outside
+# the owner's scope gets none. EVS's example phrases are (CC BY 4.0): the
+# learner is given the Russian and the Estonian words out of order and rebuilds
+# EKI's phrase. Nothing is generated but the shuffle, so no distractor can be
+# accidentally correct Estonian. The risk is the other way round: an order
+# EKI did not print would be marked wrong, and clause order is flexible (`sa
+# pead tema ees vabandama` ~ `sa pead vabandama tema ees`; EKK SÜ 92 calls
+# inversion a means of emphasis, not an error). So only the order EKK fixes is
+# built: the noun phrase, whose adjective and genitive attributes stand before
+# their head (EKK SÜ 98, 99). Within it EKK SÜ 104 names two free orders, an
+# adjective beside a genitive (`luksuslikud Fazeri ~ Fazeri luksuslikud
+# šokolaadikarbid`) and a cardinal beside an ordinal (`viis viimast ~ viimased
+# viis`), and two descriptive adjectives can swap too; none of those is built.
+# What remains is mostly the genitive chain (`laulja populaarsuse saladus`,
+# `kolme lapse isa`) and a determiner with one adjective (`minu kunagine
+# klassiõde`).
+
+#: Words and a final question or exclamation mark: anything else inside the
+#: phrase (a comma, a quotation mark, `3.`) would be lost from the tiles.
+_TILEABLE = re.compile(r"[\w'-]+(?: [\w'-]+)*[?!]?", re.UNICODE)
+
+#: Vabamorf's parts of speech that can move within a clause: verb, adverb,
+#: conjunction, interjection, and the unanalysable (abbreviation, foreign, symbol).
+_FREE = frozenset({"V", "D", "J", "I", "X", "Y", "Z"})
+
+#: Descriptive attributes: adjective, comparative, superlative, ordinal.
+_DESCRIPTIVE = frozenset({"A", "C", "U", "O"})
+
+_GENITIVE = frozenset({"sg g", "pl g"})
+_NOMINATIVE = frozenset({"sg n", "pl n"})
+
+
+def _fixed_order(phrase: str) -> bool:
+    """Whether EKK fixes this phrase's word order (see above): a noun in the
+    nominative last; before it, genitive attributes (a noun, name or pronoun
+    with a genitive reading, or an indeclinable `G` such as *eesti*), numerals,
+    and at most one descriptive attribute, which then stands with no genitive
+    noun and no cardinal beside an ordinal. No word may have a reading whose
+    place is free (`viis` is also *viima*); an unknown word counts as free.
+    """
+    from .morph import _readings, parts_of_speech
+
+    words = phrase.rstrip("?!").split()
+    pos = [parts_of_speech(w) for w in words]
+    forms = [{form for _, form in _readings(w)} for w in words]
+    if any(not p or p & _FREE for p in pos):
+        return False
+    if "S" not in pos[-1] or not forms[-1] & _NOMINATIVE:
+        return False
+    descriptive = genitives = 0
+    for p, f in zip(pos[:-1], forms[:-1]):
+        if p & _DESCRIPTIVE:
+            descriptive += 1
+            if not f & (_NOMINATIVE | _GENITIVE):
+                return False
+        elif "N" in p:
+            if not f & (_NOMINATIVE | _GENITIVE):
+                return False
+        elif "G" in p:
+            genitives += 1
+        elif p & {"S", "H", "P"} and f & _GENITIVE:
+            genitives += "P" not in p
+        else:
+            return False
+    attributes = set().union(*pos[:-1])
+    return descriptive <= 1 and not (descriptive and genitives) and not (
+        "N" in attributes and "O" in attributes)
+
+
+@dataclass(frozen=True)
+class PhraseTiles(GradedItem):
+    """One EVS phrase to rebuild from its words. `prompt` lists the tiles, so a
+    review card or a test-out that shows only the prompt can still be answered.
+    """
+
+    prompt: str
+    answer: str          # EKI's phrase, words only
+    ru: str              # EKI's Russian for it
+    tiles: tuple[str, ...]
+    lemma: str = ""      # the EVS headword the phrase illustrates
+    distractor: str = ""
+    topic: str = "sonajark"
+    rule: str = "evs-order"
+    why_ru: str = ""
+    source_id: str = "eki-evs"
+    choices: tuple[str, ...] = ()
+
+    @property
+    def label(self) -> str:
+        return "sõnajärg: fraas"
+
+    @property
+    def hint(self) -> str:
+        return self.label
+
+
+def _tiles_why(estonian: str, russian: str) -> str:
+    return ("**Порядок слов (sõnajärg)** в именной группе: определение в "
+            "omastav и согласованное прилагательное стоят перед главным "
+            f"словом (EKK SÜ 98). Пример EKI: «{estonian}» — «{russian}».")
+
+
+def phrase_tiles(phrases, count: int = 10, seed: int | None = None) -> list[PhraseTiles]:
+    """Tile items for `sonajark` from `evs.phrases`: the Russian is given, EKI's
+    Estonian is rebuilt from its shuffled words. Only phrases of fixed order
+    (`_fixed_order`); one whose words have no other order (all the same word)
+    is skipped.
+    """
+    import random
+
+    from .evs import SOURCE_ID, buildable
+
+    rng = random.Random(seed)
+    pool = [p for p in phrases if buildable(p.estonian) and _TILEABLE.fullmatch(p.estonian)]
+    rng.shuffle(pool)
+    out: list[PhraseTiles] = []
+    for phrase in pool:
+        if len(out) >= count:
+            break
+        if not _fixed_order(phrase.estonian):
+            continue
+        words = phrase.estonian.rstrip("?!").split()
+        tiles = list(words)
+        for _ in range(6):
+            rng.shuffle(tiles)
+            if tiles != words:
+                break
+        if tiles == words:
+            continue
+        out.append(PhraseTiles(
+            prompt=" / ".join(tiles),
+            answer=" ".join(words),
+            ru=phrase.russian,
+            tiles=tuple(tiles),
+            lemma=phrase.lemma,
+            why_ru=_tiles_why(phrase.estonian, phrase.russian),
+            source_id=SOURCE_ID,
+        ))
+    return out
