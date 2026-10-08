@@ -581,6 +581,49 @@ def buildable(estonian: str) -> bool:
     return len(estonian.split()) in TILES
 
 
+#: The registry id practice items carry when their sentence is an EVS phrase.
+SOURCE_ID = "eki-evs"
+
+#: The credit shown with every such item, as the word card shows it.
+ATTRIBUTION = "EKI eesti-vene sõnaraamat · CC BY 4.0"
+
+#: Not one spelled-out phrase: an open slot, alternatives, an ellipsis, brackets.
+_UNSPELLED = ("{", "/", "...", "…", "(", "[")
+
+
+def phrases(conn: sqlite3.Connection, min_words: int = 3, max_words: int = 20,
+            levels: tuple[str, ...] | None = None) -> list[Example]:
+    """EVS's example phrases as public practice sentences (DEV-54), in EKI's order.
+
+    The harvested corpus is owner-only; these are CC BY 4.0. Only examples, not
+    idioms, and only phrases spelled out once (`_UNSPELLED`). `levels` keeps the
+    phrases EKI gives for a headword the word list puts at one of those levels.
+    Domain terms and archaic renderings were left out at import (`_example`).
+    A phrase shared by two headwords comes once. `[]` without the import.
+    """
+    where = ["e.kind = ?"] + ["instr(e.estonian, ?) = 0"] * len(_UNSPELLED)
+    params: list = [EXAMPLE, *_UNSPELLED]
+    join = ""
+    if levels:
+        join = "JOIN words w ON w.word = e.lemma"
+        where.append(f"w.proficiency IN ({','.join('?' * len(levels))})")
+        params += list(levels)
+    try:
+        rows = conn.execute(
+            f"SELECT e.lemma, e.estonian, e.russian FROM evs_example e {join} "
+            f"WHERE {' AND '.join(where)} ORDER BY e.lemma, e.seq", params).fetchall()
+    except sqlite3.Error:
+        return []
+    out: list[Example] = []
+    seen: set[str] = set()
+    for lemma, estonian, russian in rows:
+        if estonian in seen or not min_words <= len(estonian.split()) <= max_words:
+            continue
+        seen.add(estonian)
+        out.append(Example(lemma, estonian, russian))
+    return out
+
+
 def practice_phrase(conn: sqlite3.Connection, lemma: str, turn: int) -> dict | None:
     """The phrase a review of `lemma` shows, a different one each `turn` (the
     card's repetitions): `{"et", "ru", "build"}`, `build` saying whether it can

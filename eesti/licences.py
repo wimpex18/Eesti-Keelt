@@ -316,6 +316,10 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "for the drill's blank, and `evs_example`: EVS's example phrases and idioms, "
         "each with EKI's Russian, shown under *Näited* on the word card and "
         "on meaning cards in Järjekord, where one can be built from tiles. "
+        "Outside the owner's scope, where the harvested corpus is hidden, the "
+        "same phrases are the practice pool (`evs.phrases`): case gap-fill, "
+        "the comma drill, word-order tiles, dictation, read-aloud and the "
+        "mock's reading and listening sections, each item credited. "
         "Same terms as EKI's other downloads: "
         "process and present it any way needed, with the attribution kept "
         "and the changes described.",
@@ -328,7 +332,11 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
                 "употребления взяты с русским переводом (не более двух "
                 "вариантов), без помет ударения и вида; устаревшие переводы "
                 "и специальные термины с пометой области отброшены, "
-                "свободное место в примере выделено курсивом.",
+                "свободное место в примере выделено курсивом. В упражнениях "
+                "фразы-примеры используются без изменений, кроме самого "
+                "задания: в слове оставлен пропуск, удалена запятая или слова "
+                "перемешаны для сборки; знаки препинания при сборке "
+                "отброшены.",
     ),
     Source(
         "eki-har", "Haridussõnastik (EKI)", "file", "CC-BY-4.0", True,

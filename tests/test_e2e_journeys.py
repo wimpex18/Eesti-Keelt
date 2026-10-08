@@ -887,6 +887,37 @@ class TestTheGrammarDrill:
             assert visible, "a shown item's cue is hidden"
         assert not browser_errors(page), browser_errors(page)
 
+    def test_a_guest_rebuilds_an_eki_phrase_from_tiles(self, page):
+        """Outside the owner's corpus, sõnajärg is EKI's phrase rebuilt from its
+        words: credited, checkable only when built, graded as built (DEV-54)."""
+        with sqlite3.connect(ROOT / "data" / "eesti.db") as conn:
+            try:
+                phrases = conn.execute("SELECT COUNT(*) FROM evs_example").fetchone()[0]
+            except sqlite3.Error:
+                phrases = 0
+        if not phrases:
+            pytest.skip("no `evs_example` rows — run `cli import-evs`")
+        open_tab(page, "learn", "course")
+        page.click('#pathModes button[data-pm="vaba"]')
+        page.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
+        page.select_option("#freeTopic", "sonajark")
+        with page.expect_response("**/api/practice") as issued:
+            page.click("#freeBtn")
+        answer = issued.value.json()["items"][0]["answer"]
+        item = page.locator("#freeOut .drill").first
+        item.locator(".fc-tile").first.wait_for(timeout=15000)
+        assert "EKI eesti-vene sõnaraamat" in item.locator(".attrib").inner_text()
+        check = item.get_by_role("button", name="Kontrolli", exact=False)
+        assert check.is_disabled(), "a phrase can be checked before it is built"
+        for word in answer.split():
+            item.locator(".fc-bank").get_by_role("button", name=word, exact=True).first.click()
+        assert item.locator(".fc-line .fc-tile").count() == len(answer.split())
+        check.click()
+        verdict = item.locator(".verdict.ok")
+        verdict.wait_for(state="visible", timeout=5000)
+        assert answer in verdict.inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
     def test_the_score_counts_only_answered_items(self, page):
         self._start(page)
         item = page.locator("#freeOut .drill").first
