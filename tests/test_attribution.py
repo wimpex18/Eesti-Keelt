@@ -174,3 +174,13 @@ class TestTheChangeDescriptionsAreReadable:
         for s in REGISTRY:
             assert "`" not in s.changes, f"{s.id} shows code punctuation"
             assert "level_source" not in s.changes, s.id
+
+
+def test_the_handbook_is_credited_to_its_authors_and_edition():
+    """EKK's online copy is the 2007 third edition, © Erelt, Erelt, Ross — not EKI
+    and not "2009" (DEV-52)."""
+    from eesti.licences import REGISTRY
+
+    ekk = next(s for s in REGISTRY if s.id == "ekk")
+    assert "2007" in ekk.name
+    assert all(author in ekk.licence for author in ("Mati Erelt", "Tiiu Erelt", "Kristiina Ross"))

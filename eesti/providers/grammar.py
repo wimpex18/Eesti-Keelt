@@ -713,15 +713,11 @@ def agreement(text: str) -> list[Correction]:
 
 
 #: Russian, keeping EKK's own frame words (`millega`, not "the comitative").
-#: "рекомендует", not "требует": for 7 of the 23 contrasts EKI's current
-#: dictionary also records the starred form, so the handbook's choice is taught as
-#: a recommendation, which is what the exam marks.
+#: Only contrasts EKI still upholds reach here (`rection.EKI_ACCEPTS`).
 RECTION_WHY = (
-    "**Rektsioon.** «{headword}» — EKI рекомендует **{correct}** "
-    "({correct_frame}), а не **{wrong}** ({wrong_frame}). Это одна из ошибок, "
-    "которые EKK перечисляет отдельно (SÜ 65): русский предлог и эстонский "
-    "падеж здесь не совпадают, и форму на **-le** носители тоже иногда "
-    "пишут — но на экзамене оценивают по рекомендации."
+    "**Rektsioon.** «{headword}» — **{correct}** ({correct_frame}), а не "
+    "**{wrong}** ({wrong_frame}). Это одна из ошибок, которые EKK перечисляет "
+    "отдельно (SÜ 65): русский предлог и эстонский падеж здесь не совпадают."
 )
 
 

@@ -114,9 +114,12 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 - **Deterministic writing checks miss partitive objects.** They do not flag
   *loen raamat* or *jõin kohv*, can treat an illative such as *poodi* as an
   object, and can suggest a wrong spelling (*Tallinas* → *Tallina*; DEV-50).
-- **Answer keys follow EKK, not ÕS 2025.** ÕS 2025 is the normative basis and
-  accepts more parallel forms; rection drills and checks use the EKK handbook
-  aligned to ÕS 2006 (DEV-52).
+- **Parallel inflected forms beyond Vabamorf are not accepted.** EKI's
+  ühendsõnastik gives some words two paradigms (*rikas*: *rikast* and
+  *rikkat*), while drills key Vabamorf's forms; Ekilex does not say which of
+  them ÕS 2025 itself lists. The spelling check knows only Vabamorf's lexicon.
+  Rection follows EKK 2007 except where EKI now records the starred frame
+  (`eesti/rection.py`).
 - **Every model call passes one process-wide 3.5 s throttle.** It was written
   for evaluation rate limits and also serialises learners' tutor calls
   (`eesti/providers/llm.py`; DEV-38).

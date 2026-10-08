@@ -26,8 +26,10 @@ RULES = [
 class TestItCatchesTheAttestedConfusion:
     @pytest.mark.parametrize(("text", "wrong", "correct"), [
         ("See süsteem põhineb faktidel.", None, None),
-        ("See süsteem põhineb faktidele.", "faktidele", "faktidel"),
-        ("See raamat sarnaneb teisele raamatule.", "raamatule", "raamatuga"),
+        # EKI records both frames of põhinema and sarnanema (DEV-52).
+        ("See süsteem põhineb faktidele.", None, None),
+        ("See raamat sarnaneb teisele raamatule.", None, None),
+        ("Ta kohaneb uuele kliimale.", "kliimale", "kliimaga"),
     ])
     def test_it_names_the_case_that_belongs(self, text, wrong, correct):
         found = rection.errors(text, RULES)
@@ -38,7 +40,7 @@ class TestItCatchesTheAttestedConfusion:
 
     def test_the_number_the_learner_used_is_kept(self):
         """Plural complements are checked too: the case is compared, not the number."""
-        assert rection.errors("See põhineb faktidele.", RULES)[0].correct == "faktidel"
+        assert rection.errors("Nad kohanevad oludele.", RULES)[0].correct == "oludega"
 
     def test_an_agreeing_modifier_is_part_of_the_complement_not_a_rival(self):
         """`uuele olukorrale` is one noun phrase. Counting the adjective as a

@@ -141,24 +141,29 @@ class TestRectionDrills:
 
 
 class TestTheExplanationClaimsWhatEkiClaims:
-    """Explanations say "рекомендует", not "требует": for some contrasts EKI's current
-    dictionary also records the starred form, so the handbook's choice is a
-    recommendation (as the exam marks it).
-    """
+    """EKI does not norm rection, and now records some of SÜ 65's starred frames
+    (ÕS 2025: *Järeldused põhinevad vaatlusel v vaatlusele*). Those contrasts are
+    neither drilled nor flagged (DEV-52)."""
 
-    def test_it_recommends_rather_than_requires(self):
-        from eesti.providers.grammar import RECTION_WHY
+    @pytest.mark.parametrize("headword, right, wrong, right_case, wrong_case", [
+        ("põhinema", "millel", "millele", "sg ad", "sg all"),
+        ("tuginema", "millele", "millel", "sg all", "sg ad"),
+        ("sarnanema", "millega", "millele", "sg kom", "sg all"),
+    ])
+    def test_a_frame_eki_records_is_no_contrast(self, headword, right, wrong,
+                                                 right_case, wrong_case):
+        assert not rection.Rection(headword, right, wrong, right_case,
+                                   wrong_case).drillable
 
-        assert "рекомендует" in RECTION_WHY
-        assert "требует" not in RECTION_WHY
+    def test_a_contrast_eki_upholds_still_is(self):
+        assert rection.Rection("kohanema", "millega", "millele", "sg kom",
+                               "sg all").drillable
 
-    def test_it_still_says_which_form_the_exam_wants(self):
-        """Hedging must not cost the learner the answer: this is exam prep,
-        and the recommendation is what is marked."""
-        from eesti.providers.grammar import RECTION_WHY
+    def test_no_drill_is_built_on_a_frame_eki_records(self):
+        from eesti.cloze import rection_clozes
 
-        assert "{correct}" in RECTION_WHY
-        assert "экзамен" in RECTION_WHY
+        rules = [rection.Rection("põhinema", "millel", "millele", "sg ad", "sg all")]
+        assert rection_clozes(rules, count=5, seed=1) == []
 
     def test_it_still_cites_the_handbook(self):
         from eesti.providers.grammar import RECTION_WHY

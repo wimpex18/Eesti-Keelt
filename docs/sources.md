@@ -34,7 +34,7 @@ restricted just because they were first imported by the owner.
 | Sõnaveeb via `api.sonapi.ee` | live word card without a key |
 | EKI *Eesti keele grammatika tabelid* (PSV) | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
 | EKI teatmik, *Asesõnade käänamine* | pronoun paradigms (`eesti/pronouns.py`) |
-| *Eesti keele käsiraamat* (EKK) | own Russian explanations and short attributed examples link to their sections; SÜ 65 rection facts |
+| *Eesti keele käsiraamat* 2007 (EKK; Erelt, Erelt, Ross) | own Russian explanations and short attributed examples link to their sections; SÜ 65 rection facts, except contrasts whose starred frame EKI's ühendsõnastik now records (`eesti/rection.py`) |
 | EKI teatmik | pronoun declension facts with stress/stem marks removed; source linked in each lesson |
 | EKI *põhisõnavara hääldused* | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
 | EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |

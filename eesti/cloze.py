@@ -520,6 +520,9 @@ def rection_clozes(
     for rection in rng.sample(list(rections), k=len(rections)):
         if len(out) >= count:
             break
+        # A frame EKI now records is no error to drill (`rection.EKI_ACCEPTS`).
+        if not rection.drillable:
+            continue
         person = rection.correct_frame.startswith(("kelle", "keda"))
         noun = rng.choice(_PEOPLE if person else _THINGS)
 
