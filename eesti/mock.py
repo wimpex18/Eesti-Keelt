@@ -207,15 +207,15 @@ def counts(progress: sqlite3.Connection, level: str) -> dict[str, int]:
 def check_writing(text: str, level: str) -> dict:
     """Grade a mock's writing by what code can decide, and nothing else.
 
-    Length against the practice threshold, and the three deterministic checks the
+    Length against the practice threshold, and the deterministic checks the
     writing tab already merges into every answer: spelling, subject-verb
-    agreement and EKK's rection list. No model here — a model's judgement of a
+    agreement, EKK's rection list and an object in nimetav. No model here — a model's judgement of a
     text is advisory evidence, and Kirjutamine is where it explains itself.
     """
-    from .providers.grammar import agreement, rection, spelling
+    from .providers.grammar import agreement, nominative_objects, rection, spelling
 
     words = len(text.split())
-    found = spelling(text) + agreement(text) + rection(text)
+    found = spelling(text) + agreement(text) + rection(text) + nominative_objects(text)
     return {
         "words": words,
         "min_words": MIN_WORDS[level],
