@@ -86,7 +86,7 @@ owner-only account-removal routes are outside this FastAPI inventory.
 
 | Class | owner | learner | guest | Routes |
 |---|---|---|---|---|
-| Back channel (`STATE_TOKEN`; 404 at Worker) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/reminders` |
+| Back channel (`STATE_TOKEN`; 404 at Worker) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/state/backup`, `/api/reminders` |
 | Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset`, `/api/state/remove-account` |
 | Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
@@ -157,7 +157,8 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
    `/api/push/*` → 403 with a Russian message.
 5. **Speech.** `transcribe` forwards the caller's scope headers to
    `/api/transcribe/text` and pulls into the caller's object.
-6. **Cron.** `scheduled` reminds `singleton` and every learner account; an
+6. **Cron.** The nightly `BACKUP_CRON` copies each account's own log with its
+   own scope headers. Otherwise `scheduled` reminds `singleton` and every learner account; an
    account restores only when its `next_check` has passed or it has new events
    (`docs/deploy.md` → Reminders).
 7. **Back channel.** Every origin route guarded by `STATE_TOKEN` returns 404

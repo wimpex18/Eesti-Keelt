@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, test } from "node:test";
 import worker, { LearnerState } from "../deploy/worker.ts";
+import { BACKUP_CRON } from "../deploy/schedule.ts";
+import { readFileSync } from "node:fs";
 import { signSession } from "../deploy/accounts.ts";
 
 const originalFetch = globalThis.fetch;
@@ -665,4 +667,80 @@ test("a reminder the push service refused is retried the next hour", async () =>
   assert.deepEqual([second.sent, calls.pushes], [1, 2]);
   await later(2 * HOUR, () => learner.remind());
   assert.equal(calls.reminders, 2, "delivered: sleep until the named moment");
+});
+
+async function gunzip(body) {
+  const stream = new Response(body).body.pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).text();
+}
+
+test("the nightly cron sends every account's own log off Cloudflare", async () => {
+  const app = setup();
+  await app.owner.createOwnerAccount("owner@example.test", "test-password");
+  const learner = await app.owner.createAccount("learner@example.test", "test-password");
+  const logs = { singleton: [event("owner-1"), event("owner-2")],
+                 [`learner:${learner.id}`]: [{ ...event("learner-1"), learner: learner.id }] };
+  for (const [name, events] of Object.entries(logs)) {
+    app.env.LEARNER_STATE.get(name);
+    for (const ev of events) app.objects.get(name).db
+      .prepare("INSERT INTO events (id, body) VALUES (?, ?)").run(ev.id, JSON.stringify(ev));
+  }
+  const sent = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname !== "/api/state/backup") throw new Error(`Unexpected: ${url.pathname}`);
+    assert.equal(init.headers["x-state-token"], "test-state");
+    assert.equal(init.headers["content-type"], "application/gzip");
+    sent.push({ scope: init.headers["x-eesti-scope"], learner: init.headers["x-eesti-learner"],
+                body: await gunzip(init.body) });
+    return Response.json({ verified: true, events: 1, object: "events/x" });
+  };
+  await worker.scheduled({ cron: BACKUP_CRON }, app.env, app.ctx);
+  await Promise.all(app.pending);
+  assert.equal(sent.length, 2);
+  const owner = sent.find(s => s.scope === "owner");
+  assert.deepEqual(owner.body.trim().split("\n").map(line => JSON.parse(line).id),
+    ["owner-1", "owner-2"], "the log travels whole and in replay order");
+  const other = sent.find(s => s.scope === "learner");
+  assert.equal(other.learner, learner.id);
+  assert.deepEqual(other.body.trim().split("\n").map(line => JSON.parse(line).id), ["learner-1"]);
+  assert.equal((await app.objects.get("singleton").storage.get("backup-last")).ok, true);
+});
+
+test("the hourly cron reminds and the nightly one only backs up", async () => {
+  const app = setup();
+  await app.owner.createOwnerAccount("owner@example.test", "test-password");
+  const called = [];
+  app.owner.remind = async () => { called.push("remind"); return { sent: 0, skipped: 0 }; };
+  app.owner.backup = async () => { called.push("backup"); return { ok: true, events: 0 }; };
+  await worker.scheduled({ cron: "7 * * * *" }, app.env, app.ctx);
+  await worker.scheduled({ cron: BACKUP_CRON }, app.env, app.ctx);
+  await Promise.all(app.pending);
+  assert.deepEqual(called, ["remind", "backup"]);
+  assert.ok(readFileSync("wrangler.jsonc", "utf8").includes(`"${BACKUP_CRON}"`),
+    "the nightly schedule is configured");
+});
+
+test("a refused backup is recorded and an empty log sends nothing", async () => {
+  const app = setup();
+  await app.owner.bindWho({ scope: "owner", id: "owner", email: "owner@example.test" });
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests++;
+    return Response.json({ detail: "not stored: cannot replay" }, { status: 422 });
+  };
+  const errors = [];
+  const error = console.error;
+  console.error = message => errors.push(message);
+  try {
+    assert.deepEqual(await app.owner.backup(), { ok: true, events: 0 });
+    assert.equal(requests, 0);
+    app.objects.get("singleton").db
+      .prepare("INSERT INTO events (id, body) VALUES ('e', ?)").run(JSON.stringify(event("e")));
+    const result = await app.owner.backup();
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 422);
+  } finally { console.error = error; }
+  assert.equal((await app.objects.get("singleton").storage.get("backup-last")).ok, false);
+  assert.ok(errors.some(line => String(line).includes("backup")), "a failure reaches the logs");
 });

@@ -136,9 +136,9 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 - **Speech quality depends on the owner's Mac mini being awake.** When it is
   off, the Worker falls back to Workers AI after up to 25 s
   (`deploy/home-asr/README.md`).
-- **Live replication is not an independent backup.** Permanent-account API
-  responses wait for acknowledgement of the event sequence and origin boot,
-  but a hosting-account loss can still remove the live copies. Scheduled
-  independent backups and self-service erasure are deferred. Private exports
-  can be replay-checked with `cli verify-backup`; see `docs/deploy.md` and
-  ADR-0005.
+- **Backups are nightly, and restore is manual.** Permanent-account API
+  responses wait for acknowledgement in the Durable Object; each night every
+  account's log is strictly verified and copied to a private Cloud Storage
+  bucket outside Cloudflare, so up to a day of history depends on Cloudflare
+  alone. Restoring from a copy and self-service erasure are operator
+  procedures; see `docs/deploy.md` and ADR-0005.

@@ -78,6 +78,10 @@ To remove a learner account and permanently delete its progress:
    files and Durable Object data (events, snapshots and subscriptions), then
    removes the account row. This cannot be undone. If cleanup returns 503, the
    account remains available; retry with the same id.
+3. Delete the learner's nightly copies in Cloud Shell:
+   `gcloud storage rm -r gs://<bucket>/events/l-…/`. The origin can only add
+   objects there, so it cannot do this itself; deleted objects stay
+   recoverable for the bucket's soft-delete window.
 
 ## Learner state across cold starts
 
@@ -287,6 +291,7 @@ cd ~ && (git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || tr
 |---|---|
 | `deploy/setup.sh` | one-time wiring: generates tokens, sets them on Cloud Run and in Actions, verifies 403/200. Re-running rotates tokens — then run `gh workflow run deploy.yml` or every request 403s |
 | `deploy/set-llm-key.sh NAME` | sets any `KNOWN_KEYS` variable on Cloud Run with hidden input, and verifies it landed |
+| `deploy/setup-backup.sh` | creates the private backup bucket, deletes copies after `RETAIN_DAYS` (180), grants the service account object-create only, sets `EESTI_BACKUP_BUCKET`; safe to re-run |
 | `deploy/check-service.sh` | lists variable names on each service (never values), flags missing ones and traffic on an old revision |
 | `deploy/push-content.sh FILE` | uploads the harvested corpus to the origin |
 | `deploy/reset-progress.sh <topic> \| --everything` | forgets one topic's practice history, or all of it, on the deployment |
@@ -361,14 +366,32 @@ responses wait until the event log reaches the Durable Object; snapshots remain
 asynchronous because they hold projections and caches, not the replay authority.
 Keep one writable revision/instance; do not scale this design horizontally.
 
-Independent scheduled backups are deferred. The app has no backup job on the
-Mac mini and no machine export or disaster-restore endpoint. A hosting-account
-loss can remove the live Durable Objects; keep a private export outside that
-account before migrations and periodically during study.
+Every night (`BACKUP_CRON`, 01:37 UTC) each permanent account's Durable
+Object sends its whole event log, gzipped and in replay order, to the
+back-channel route `POST /api/state/backup`. The origin replays it strictly in
+temporary stores, in a separate process (`cli verify-backup`), and only a log
+that replays is written to the private bucket named by `EESTI_BACKUP_BUCKET`
+as `events/<account>/YYYY/MM/DD/<time>-<sha256>.jsonl.gz` (`eesti/backup.py`).
+The upload uses the Cloud Run service account's own identity and never
+replaces an existing object. A refused or failed copy is logged by the Worker
+("learner backup not stored") and recorded in the object's `backup-last`;
+the next night tries again. Set it up once in Cloud Shell:
 
-Download `Minu andmed` (`/api/me/export`)
-while signed in and save the JSONL privately. It contains learner writing and
-transcripts, never raw production audio. Verify:
+```bash
+bash deploy/setup-backup.sh      # bucket, 180-day lifecycle, object-create grant, env
+```
+
+The service account receives object-create on the bucket and nothing else
+there; project-wide roles it already holds still apply, and the script lists
+them. Storage is Google's at-rest encryption on a private bucket: anyone with
+read access to the bucket can read learner writing and transcripts. To check
+a copy yourself, download it into a private folder and run `verify-backup` on
+the `.jsonl.gz` as it is. There is no disaster-restore endpoint; a restore
+from a copy is a coordinated operator procedure (below).
+
+A learner can also download `Minu andmed` (`/api/me/export`) while signed in
+and save the JSONL privately. Exports and nightly copies contain learner
+writing and transcripts, never raw production audio. Verify either:
 
 ```bash
 python -m eesti.cli verify-backup /private/path/eesti-keelt-events.jsonl
@@ -389,8 +412,10 @@ so the next request cannot overwrite the restored history.
 data**. For owner-requested erasure, take the app offline, stop cron and revoke
 push subscriptions, purge the singleton DO's log/snapshot/push state, replace
 the origin's learner databases, clear browser IndexedDB and service-worker
-storage on every used device, and delete private exports/eval audio separately.
-Remove any chosen Notion exports in Notion and address provider-retained data
+storage on every used device, delete the account's nightly copies
+(`gcloud storage rm -r gs://<bucket>/events/<account>/`), and delete private
+exports/eval audio separately. Remove any chosen Notion exports in Notion and
+address provider-retained data
 under each provider's terms. Do not reopen until both restore authority and
 origin are empty; otherwise restore can resurrect the history. This is an
 operator procedure, not an implemented `DELETE /api/me` promise. That endpoint

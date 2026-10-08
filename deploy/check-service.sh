@@ -49,7 +49,8 @@ for LINE in "${SERVICES[@]}"; do
     "CLOUDFLARE_API_TOKEN|production grammar/tutor lane is not configured" \
     "CLOUDFLARE_ACCOUNT_ID|Workers AI cannot resolve the account" \
     "NOTION_TOKEN|confirmed errors queue locally and never push" \
-    "EKILEX_API_KEY|the word card reads the third-party Sõnaveeb mirror instead of EKI's Ekilex API"
+    "EKILEX_API_KEY|the word card reads the third-party Sõnaveeb mirror instead of EKI's Ekilex API" \
+    "EESTI_BACKUP_BUCKET|nightly learner backups are refused; run deploy/setup-backup.sh"
   do
     want="${pair%%|*}"; cost="${pair#*|}"
     found=""

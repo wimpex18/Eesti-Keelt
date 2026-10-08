@@ -1,6 +1,7 @@
 """Verify a private JSONL export in isolated temporary databases, CLI only."""
 from __future__ import annotations
 
+import gzip
 import json
 import tempfile
 from pathlib import Path
@@ -15,7 +16,10 @@ def verify_export(path: Path) -> dict:
     exports private; the event payloads include writing and speech transcripts.
     No production restore or erasure is performed by this diagnostic.
     """
-    incoming = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+    raw = path.read_bytes()
+    if path.suffix == ".gz":
+        raw = gzip.decompress(raw)  # the nightly copy, as `eesti/backup.py` stores it
+    incoming = [json.loads(line) for line in raw.decode("utf-8").splitlines()
                 if line.strip()]
     if any(row.get("v", evidence.VERSION) not in (0, evidence.VERSION) for row in incoming):
         raise ValueError("unsupported event version in export")

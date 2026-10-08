@@ -18,6 +18,7 @@ import {
   type Who,
 } from "./accounts";
 import { type PushSubscription, sendPush } from "./push";
+import { BACKUP_CRON } from "./schedule";
 
 interface Env {
   LEARNER_STATE: DurableObjectNamespace<LearnerState>;
@@ -364,6 +365,46 @@ export class LearnerState extends DurableObject<Env> {
       "DELETE FROM push_sent WHERE at < ?",
       new Date(Date.now() - 30 * 86400_000).toISOString());
     return { sent, skipped };
+  }
+
+  /**
+   * The nightly copy outside Cloudflare (`eesti/backup.py`): this account's
+   * whole log, in replay order, gzipped. The origin stores it only when it
+   * replays strictly. It needs no restore: the copy is taken from here, the
+   * acknowledged log, not from whatever the origin holds.
+   */
+  async backup(): Promise<{ ok: boolean; events: number; status?: number; object?: string }> {
+    await this.hydrateWho();
+    const rows = this.ctx.storage.sql
+      .exec<{ body: string }>("SELECT body FROM events ORDER BY dseq").toArray();
+    if (!rows.length) return { ok: true, events: 0 };
+    const log = rows.map((row) => row.body).join("\n") + "\n";
+    const gzipped = await new Response(
+      new Blob([log]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+    let result: { ok: boolean; events: number; status: number; object?: string };
+    let detail = "";
+    try {
+      const res = await fetch(this.origin("/api/state/backup"), {
+        method: "POST",
+        headers: this.headers({ "content-type": "application/gzip" }),
+        body: gzipped,
+      });
+      const out = (await res.json().catch(() => ({}))) as { object?: string; detail?: string };
+      result = { ok: res.ok, events: rows.length, status: res.status,
+                 ...(res.ok && out.object ? { object: out.object } : {}) };
+      detail = String(out.detail ?? "").slice(0, 200);
+    } catch (error) {
+      result = { ok: false, events: rows.length, status: 0 };
+      detail = error instanceof Error ? error.message.slice(0, 200) : String(error);
+    }
+    await this.ctx.storage.put("backup-last", { ...result, at: Date.now() });
+    if (!result.ok) {
+      console.error(JSON.stringify({
+        message: "learner backup not stored", scope: this.who?.scope,
+        events: rows.length, status: result.status, detail,
+      }));
+    }
+    return result;
   }
 
   /** Grows exactly when new evidence is copied in (`pullEvents`). */
@@ -1227,17 +1268,26 @@ export default {
    * `eesti/reminders.py`, where the evidence is. Waking the origin a few times
    * a day is what a scale-to-zero service costs to be reminded by.
    */
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
     if (!env.CLOUD_RUN_URL) return;
     const singleton = singletonStub(env);
     const accounts = await singleton.accountList();
+    const learners: DurableObjectStub<LearnerState>[] = [];
     for (const account of accounts) {
       const who: Who = account.id === "owner"
         ? { scope: "owner", id: "owner", email: account.email }
         : { scope: "learner", id: account.id, email: account.email };
       const learner = await stubFor(env, who);
-      if (learner) ctx.waitUntil(learner.remind());
+      if (learner) learners.push(learner);
     }
+    if (event.cron === BACKUP_CRON) {
+      // One at a time: each is replayed strictly on the single origin instance.
+      ctx.waitUntil((async () => {
+        for (const learner of learners) await learner.backup();
+      })());
+      return;
+    }
+    for (const learner of learners) ctx.waitUntil(learner.remind());
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -1272,6 +1322,7 @@ export default {
       "/api/state/export",
       "/api/state/import",
       "/api/state/remove-account",
+      "/api/state/backup",
       "/api/content/export",
       "/api/content/import",
       "/api/progress/reset",
