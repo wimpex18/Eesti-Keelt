@@ -162,6 +162,12 @@ export function addPracticeSupport(el, it, {offline = false} = {}) {
   instruction.lang = "ru";
   const form = it.form_ru ? `${it.label} — ${it.form_ru}` : (it.label || "").split(", ").map(term =>
     FORM_RU[term] ? `${term} — ${FORM_RU[term]}` : term).join("; ");
+  // A tile item's task is EKI's Russian; there is no sentence left to translate.
+  if (it.tiles?.length) {
+    instruction.textContent = `Собери фразу из слов: «${it.ru}».`;
+    prompt.before(instruction);
+    return;
+  }
   instruction.textContent = it.choices?.length
     ? (it.prompt.includes("____") ? "Выбери подходящую форму." : "Выбери подходящее предложение.")
     : `Впиши форму${it.lemma ? ` слова ${it.lemma}` : " слова"}.${form ? ` ${form}${/[?.!]$/.test(form) ? "" : "."}` : ""}`;

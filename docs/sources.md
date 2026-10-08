@@ -27,7 +27,7 @@ restricted just because they were first imported by the owner.
 | Enriched Ekilex word list (KristjanPikhof) | 160 000+ lemmas, estimated CEFR, frequency rank |
 | EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | official A1/A2/B1 levels, outranks the estimate |
 | EKI *põhisõnavara sõnastik* (PSV) | learner-level definitions, examples, rection |
-| EKI *Eesti-vene sõnaraamat* (EVS) | offline Russian, inflection type, question-word cues, example phrases with Russian |
+| EKI *Eesti-vene sõnaraamat* (EVS) | offline Russian, inflection type, question-word cues, example phrases with Russian, public practice sentences |
 | EKI *Võõrsõnade leksikon* (VSL), *seletav sõnaraamat* (EKSS) | fallback Estonian definitions |
 | EKI *Haridussõnastik* (HAR) | fallback Russian for education terms |
 | Ekilex API (EKI) | live word card with `EKILEX_API_KEY` |
@@ -76,6 +76,15 @@ seletus* when PSV answers. **Rektsioon, muuttüüp:** live, else PSV and EVS.
 phrase in EKI's order, three shown and the rest folded; the same phrases on
 meaning cards in Järjekord (`evs.practice_phrase`); domain terms
 (*zool*, *aj*…) and archaic renderings are left out.
+**Public practice sentences** (DEV-54): the harvested corpus is owner-only, so
+outside the owner's scope EVS's example phrases are the pool (`evs.phrases`):
+examples only, never idioms, spelled out once (no slot, alternatives, ellipsis
+or brackets), headword at the learner's levels on the word list. They feed
+case gap-fill (`gen-stem`, `osastav`, `mitmus`, `kohakaanded`,
+`harvad-kaanded`; the target word must itself be listed at those levels),
+the comma drill, `sonajark` tiles (noun phrases whose order EKK fixes), dictation, read-aloud and the mock's
+reading and listening sections. The owner's corpus comes first; EVS fills
+what it cannot. Every such item shows *EKI eesti-vene sõnaraamat · CC BY 4.0*.
 **Question-word cue** (`küsisõnad`): EVS only, the sense EVS illustrates with
 a direct question (`docs/curriculum.md`). No other source in the repo has
 Russian for question words: the seed has none, PSV, VSL and EKSS have no

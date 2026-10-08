@@ -138,6 +138,7 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
     """
     from ..dictation import CAVEAT, MAX_WORDS, MIN_WORDS, choose
     from .. import identity
+    from ..evs import ATTRIBUTION as EVS_CREDIT, SOURCE_ID as EVS_SOURCE
     from ..itemref import sign_dictation
 
     try:
@@ -150,6 +151,15 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
             content, vocabulary=vocab_db(), count=max(1, min(count, 10)), seed=seed,
             public_only=identity.current().kind != identity.OWNER,
         ) if content is not None else []
+    if not passages:
+        # Outside the owner's scope the corpus is hidden: EKI's phrases are public.
+        from ..config import LEVELS
+        from ..dictation import from_phrases
+        from ..evs import phrases
+
+        passages = from_phrases(phrases(db(), MIN_WORDS, MAX_WORDS, LEVELS),
+                                vocabulary=vocab_db(), count=max(1, min(count, 10)),
+                                seed=seed)
     if not passages:
         from ..dictation import Passage, key_of
         from ..lessons import examples
@@ -169,6 +179,9 @@ def dictation_next(count: int = 1, seed: int | None = None) -> dict:
         "note": ("Учебные предложения приложения: формы из Vabamorf/EKI. "
                  "Прослушай и запиши услышанное."
                  if any(p.source_id == "generated" for p in passages) else
+                 f"Фразы-примеры из словаря: {EVS_CREDIT}. "
+                 "Прослушай и запиши услышанное."
+                 if any(p.source_id == EVS_SOURCE for p in passages) else
                  "Прослушай и запиши услышанное."
                  if passages else
                  "Диктанты (etteütlus) берутся из корпуса текстов, а его ещё "
@@ -299,8 +312,17 @@ def read_aloud(kind: str = "lause", n: int = 8, levels: str = "A1,A2,B1",
     elif kind == "lause":
         from ..difficulty import known_lemmas
 
+        known = known_lemmas(vocab_db())
         items = sentences_to_say(content_db(), count=n, seed=seed, words=db(),
-                                 known=known_lemmas(vocab_db()))
+                                 known=known)
+        if not items:
+            # Outside the owner's scope the corpus is hidden: EKI's phrases are public.
+            from ..config import LEVELS
+            from ..evs import phrases
+            from ..pronunciation import SAY_MAX_WORDS, SAY_MIN_WORDS, phrases_to_say
+
+            items = phrases_to_say(phrases(db(), SAY_MIN_WORDS, SAY_MAX_WORDS, LEVELS),
+                                   count=n, seed=seed, words=db(), known=known)
         if not items:
             from ..lessons import examples
             from ..pronunciation import ReadAloud
