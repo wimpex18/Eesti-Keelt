@@ -921,6 +921,10 @@ body:has(#tab-status:not([hidden])) .rail-card:is([data-for="status"], [data-als
 .fc-phrase .gloss{color:var(--gloss)}
 .fc-say-phrase{width:44px;height:44px;flex:none}
 .flashcard .attrib{margin-top:var(--s1);color:var(--muted);font-size:var(--fs-gloss)}
+/* A practice item on EKI's phrases carries EKI's credit; the tile build reuses
+   Koosta fraas's line and bank at drill width. */
+.drill .attrib{margin-top:var(--s1);color:var(--muted);font-size:var(--fs-gloss)}
+.prompt.tile-build{font-size:var(--fs-body)}
 /* The three ratings are one control: equal thirds, in the same place on every card. */
 .row:has(> button[data-r]){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2);align-items:stretch}
 .row:has(> button[data-r]) > button[data-r]{width:100%;min-height:52px;font-size:var(--fs-ui);padding:8px 6px}

@@ -172,25 +172,44 @@ def items_for(
     if generator == "punctuation":
         from .punctuation import generate as comma_items
 
-        return comma_items(count=count, seed=seed, content=_content(content_db))
+        items = comma_items(count=count, seed=seed, content=_content(content_db))
+        if len(items) < count:
+            from .evs import SOURCE_ID, phrases
+            from .punctuation import from_sentences
+
+            items += from_sentences(
+                [p.estonian for p in phrases(words, 6, 22, levels)],
+                count=count - len(items), seed=seed, source_id=SOURCE_ID)
+        return items
 
     if generator == "wordorder":
         from .wordorder import generate as wordorder_items
 
         # Reads the content store, where the pairs are ingested, so the items
         # reach a deployment the same way the reading library does.
-        return wordorder_items(count=count, seed=seed,
-                               content=_content(content_db))
+        items = wordorder_items(count=count, seed=seed,
+                                content=_content(content_db))
+        if len(items) < count:
+            from .evs import TILES, phrases
+            from .wordorder import phrase_tiles
+
+            items += phrase_tiles(phrases(words, TILES.start, TILES.stop - 1, levels),
+                                  count=count - len(items), seed=seed)
+        return items
 
     if generator == "corpus_cloze":
         from .cloze import case_clozes, sentences
 
         sents = sentences(_content(content_db))
         # Pass `levels` to the generator so corpus topics drill level-appropriate words.
-        return case_clozes(
+        items = case_clozes(
             sents, topics=(topic,), words=words, count=count, seed=seed,
             only=only, levels=levels,
         )
+        if len(items) < count:
+            items += public_clozes(words, (topic,), count - len(items), seed,
+                                   only=only, levels=levels)
+        return items
 
     if generator == "ekk_rection":
         from .cloze import rection_clozes
@@ -215,6 +234,24 @@ def items_for(
         return generate_verb_drills(words, count=count, levels=levels, seed=seed)
 
     raise ValueError(f"unknown generator {generator!r} for topic {topic!r}")
+
+
+def public_clozes(words: sqlite3.Connection, topics: tuple[str, ...] | None,
+                  count: int, seed: int | None, *, only: frozenset[str] | None = None,
+                  levels: tuple[str, ...] = LEVELS) -> list:
+    """Case clozes in EKI EVS's example phrases (CC BY 4.0), after the corpus.
+
+    Outside the owner's scope the harvested corpus is hidden (`sources.connect`),
+    so these are what other learners practise on (and the mock's reading part);
+    the owner gets them only to fill a set the corpus could not.
+    """
+    from .cloze import case_clozes
+    from .evs import SOURCE_ID, phrases
+
+    return case_clozes(
+        [p.estonian for p in phrases(words, 4, 20, levels)], topics=topics,
+        words=words, count=count, seed=seed, only=only, levels=levels,
+        source_id=SOURCE_ID, listed=True)
 
 
 #: Share of an object-case set taken from real Estonian (negation clozes).
