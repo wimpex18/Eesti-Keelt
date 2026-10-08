@@ -291,10 +291,10 @@ cd ~ && (git clone https://github.com/wimpex18/Eesti-Keelt.git 2>/dev/null || tr
 |---|---|
 | `deploy/setup.sh` | one-time wiring: generates tokens, sets them on Cloud Run and in Actions, verifies 403/200. Re-running rotates tokens — then run `gh workflow run deploy.yml` or every request 403s |
 | `deploy/set-llm-key.sh NAME` | sets any `KNOWN_KEYS` variable on Cloud Run with hidden input, and verifies it landed |
-| `deploy/setup-backup.sh` | creates the private backup bucket, deletes copies after `RETAIN_DAYS` (180), grants the service account object-create only, sets `EESTI_BACKUP_BUCKET`; safe to re-run |
 | `deploy/check-service.sh` | lists variable names on each service (never values), flags missing ones and traffic on an old revision |
 | `deploy/push-content.sh FILE` | uploads the harvested corpus to the origin |
 | `deploy/reset-progress.sh <topic> \| --everything` | forgets one topic's practice history, or all of it, on the deployment |
+| `deploy/setup-backup.sh` | creates the private backup bucket, deletes copies after `RETAIN_DAYS` (180), grants the service account object-create only, sets `EESTI_BACKUP_BUCKET`; safe to re-run |
 
 If `gcloud` has no project: `gcloud config set project <id>`.
 
