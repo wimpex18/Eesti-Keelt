@@ -1265,3 +1265,4 @@ button.ghost,a.ghost,button.quiet,a.quiet{border-radius:var(--r-xs);box-shadow:n
  .skill-icon{color:ButtonText}.skill-icon .skill-fill{fill:Canvas}
  #nav-learn button[aria-selected="true"],.primary-nav a[aria-current]{outline:2px solid Highlight}
 }
+.mock-review{margin:var(--s3) 0;padding-left:var(--s5)}.mock-review li{margin-bottom:var(--s2)}

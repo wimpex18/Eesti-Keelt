@@ -79,7 +79,7 @@ async function runCheck() {
           <span class="hint ${cls}">${esc(label)}</span>
           <div class="fix" lang="et">${fix}</div>
           <div class="why">${md(c.why)}</div>
-          ${c.correct && c.source !== "model-only" ? `<button class="logbtn" type="button"
+          ${owner && c.correct && c.source !== "model-only" ? `<button class="logbtn" type="button"
             data-wrong="${esc(c.wrong)}" data-correct="${esc(c.correct)}"
             data-why="${esc(c.why || "")}" data-tag="${esc(c.tag)}"
             data-source="${esc(c.source || "deterministic")}"
@@ -113,6 +113,9 @@ async function queueError(btn) {
   }
 }
 
+/* The `Vead` log in Notion is the owner's; nobody else gets its button or queue. */
+let owner = false;
+
 async function loadQueue() {
   try {
     const d = await (await api("/api/notion/pending", null, "GET")).json();
@@ -125,6 +128,7 @@ async function loadQueue() {
         <span lang="et"><b>${esc(r.wrong)}</b> → <b>${esc(r.correct)}</b>
           <span class="hint">${esc(r.tag)}</span></span>
       </label>`).join("");
+    owner = !!d.owner;
     $("#queueSend").disabled = !d.can_push;
     $("#queueNote").textContent = d.can_push
       ? "Отправляются только отмеченные строки."

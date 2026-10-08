@@ -118,6 +118,10 @@ export async function loadPath() {
     if (!sessionTopic) pathTopic = p.resume;
     const next = p.topics.find(t => t.id === (sessionTopic || p.resume));
     $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
+    // A reference topic has no checked exercises: promise only what it gives.
+    $("#tab-path .lesson-purpose").textContent = next && next.drillable === false
+      ? "Разбери правило на примерах. Упражнений с проверкой по этой теме пока нет."
+      : "Разбери правило на примерах, попробуй сам и получи проверку.";
     const tried = next && next.attempts
       ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
         (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
