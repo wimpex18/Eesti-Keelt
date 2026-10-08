@@ -4,14 +4,9 @@ What the app does today, what it does not, and the known issues. Counts marked
 as checked are asserted by `tests/test_docs_match_code.py`; update this file in
 the same change that makes it untrue.
 
-The Practice rhythm interface below is implemented in this checkout and visible
-on the public app. The public health stamp has no Git revision, so it does not
-establish exact parity with the checkout. Local QA findings and unverified
-release gates are in `qa/results.md`.
-The local fixes now bind dictation grading to a signed passage and its recipient.
-Container builds serve one compressed JavaScript bundle and compressed CSS;
-the requested start screen and skill glosses appear before module initialization.
-These changes have not been deployed by the QA session.
+The Practice rhythm interface below is what `main` builds. The public health
+stamp has no Git revision, so it does not establish exact parity with `main`;
+the `smoke` workflow checks the deployment (`docs/deploy.md`).
 
 ## What works
 
@@ -98,6 +93,18 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 
 ## Known issues
 
+- **The public URL is behind a Cloudflare Access login.** Anonymous requests to
+  the Worker's `workers.dev` hostname redirect to a `cloudflareaccess.com` login,
+  so visitors cannot reach Grove, the `deploy` workflow's public-access step
+  fails and the daily `smoke` fails. `deploy/open-public-access.py` removes only
+  an Access application dedicated to this hostname; a wildcard application or the
+  Worker's `workers.dev` Access setting must be removed in the Cloudflare
+  dashboard, then the `deploy` workflow rerun.
+- **Release gates not yet verified on real devices.** A disposable real account
+  (sign-up, logout, expired session, cold-origin restore, cross-device progress),
+  learner audio through the Mac mini and its fallback on physical phones, and
+  screen-reader, zoom and touch passes remain unchecked; Worker tests cover the
+  protocol, not the deployed journey.
 - **Learners other than the owner get no reading texts.** Every harvested
   source (Selges keeles, ERR, HARNO, EIS) is marked not redistributable in
   `eesti/licences.py`, and `eesti/sources.py` hides them outside the owner's
@@ -106,8 +113,9 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   phrases instead: dictionary phrases, often fragments in lower case. Their
   word-order practice is noun-phrase order only (attributes before the head);
   verb-second clause order has more than one correct answer in EVS's phrases,
-  so it waits for attested or reviewed material. Licensable texts and
-  permission requests are tracked in DEV-36.
+  so it waits for attested or reviewed material, and few phrases qualify
+  (tens at A1), so they repeat. Licensable texts and permission requests are
+  tracked in DEV-36.
 - **The object-case writing check is narrow on purpose.** It flags a nimetav
   object only after a 1st/2nd-person or negated verb with the phrase right
   after it; *Ta loeb raamat* and objects before the verb pass unflagged, and
@@ -124,6 +132,12 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 - **EIS's interactive tasks are answered on EIS.** The app shows their text
   and recordings and labels them "решается на сайте EIS"; their answer
   options are not read in, so they are not solvable here.
+- **EKI's credit is missing on some public items.** Drills, mock reading,
+  dictation and read-aloud credit EKI EVS; offline packs, test-out, placement
+  and review cards built from EVS phrases do not show it yet.
+- **Conjugation and imperative drills repeat their sentence frames.** Each
+  topic has one to three frames (every imperative item is "____ palun kohe!"),
+  so a set feels templated although its verbs vary.
 - **Password recovery remains owner-managed.** There is no self-service reset
   screen. The owner can reset a password using the procedure in
   `docs/deploy.md`; account removal is available to the owner and clears that
@@ -168,8 +182,10 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   bucket outside Cloudflare, so up to a day of history depends on Cloudflare
   alone. Restoring from a copy and self-service erasure are operator
   procedures; see `docs/deploy.md` and ADR-0005.
-- **A few EVS glosses follow the rarer homograph.** Where EKI's level list
-  tags a word by its rarer reading, the card follows the list (*väär* is
-  listed as a noun, so EVS's «хоры» shows rather than «неправильный»), and
-  homographs of one part of speech are ordered by sense count (*kord* puts
-  «раз» fourth). The live dictionary outranks EVS on the card when it answers.
+- **A few EVS glosses follow the rarer homograph or a phrase.** Where EKI's
+  level list tags a word by its rarer reading, the card follows the list
+  (*väär* is listed as a noun, so EVS's «хоры» shows rather than
+  «неправильный»), and homographs of one part of speech are ordered by sense
+  count (*kord* puts «раз» fifth). Translations that belong to a phrase or a
+  combining form can still reach the three shown (*läbi* «кончаться», *järele*
+  «при-, по-, за»). The live dictionary outranks EVS on the card when it answers.

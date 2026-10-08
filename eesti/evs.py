@@ -164,10 +164,12 @@ def _merge(ranked: list[list[str]]) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class _Homograph:
-    """One article: its part of speech, how many senses, and their Russian."""
+    """One article: its part of speech, how many senses, their Russian, and
+    its own inflection type."""
     pos: str
     senses: int
     words: list[str]
+    inflection_type: str | None = None
 
 
 #: EKI's level list codes (Vabamorf's) as EVS writes the part of speech. EVS
@@ -220,7 +222,6 @@ def parse(path: Path | str, listed: dict[str, list[str]] | None = None) -> list[
     one translation. `listed` is EKI's level list (`listed_pos`).
     """
     articles: dict[str, list[_Homograph]] = {}
-    types: dict[str, str | None] = {}
     for article in ekixml.articles(path):
         lemmas = ekixml.headwords(article)
         if not lemmas:
@@ -228,16 +229,18 @@ def parse(path: Path | str, listed: dict[str, list[str]] | None = None) -> list[
         senses, words = _article(article)
         if not words:
             continue
-        homograph = _Homograph(ekixml.text(article.find("P/mg/sl")), senses, words)
+        homograph = _Homograph(ekixml.text(article.find("P/mg/sl")), senses, words,
+                               _inflection_type(ekixml.text(article.find("P/mg/grg/mt"))))
         for lemma in lemmas:
             articles.setdefault(lemma, []).append(homograph)
-            if lemma not in types:
-                types[lemma] = _inflection_type(ekixml.text(article.find("P/mg/grg/mt")))
     out = []
     for lemma, found in articles.items():
         chosen = _choose(found, (listed or {}).get(lemma))
-        out.append(Entry(lemma, chosen[0].pos or None, _merge([h.words for h in chosen]),
-                         types[lemma]))
+        # The type belongs to the word the card speaks for: the leading
+        # homograph's, or another article of that part of speech that has one.
+        kind = next((h.inflection_type for h in chosen
+                     if h.pos == chosen[0].pos and h.inflection_type), None)
+        out.append(Entry(lemma, chosen[0].pos or None, _merge([h.words for h in chosen]), kind))
     return out
 
 

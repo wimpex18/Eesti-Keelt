@@ -98,6 +98,9 @@ def _reference(conn) -> dict:
         "eki_definitions": psv.imported(conn),
         # EKI's Estonian-Russian dictionary -- the Russian on a word card.
         "eki_russian": evs.imported(conn),
+        # Verbs EVS shows with an object, from the same import: without them the
+        # writing check flags no object written in nimetav (*jõin kohv*).
+        "eki_object_verbs": count("SELECT COUNT(*) FROM evs_object_verb"),
         # Last fallbacks: education-term Russian, loanword definitions.
         "eki_terms": har.imported(conn),
         "eki_loanwords": ekidefs.imported(conn, "eki-vsl"),

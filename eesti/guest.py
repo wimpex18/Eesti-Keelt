@@ -63,8 +63,7 @@ def sweep() -> list[str]:
     idle of those resting `RESTING_MINUTES`; past `HARD_MAX_SANDBOXES`, the
     longest idle of any.
 
-    Returns the names dropped. Never touches files or anything outside
-    `config.GUEST_DIR`.
+    Returns the names dropped. Removes nothing outside `config.GUEST_DIR`.
     """
     from . import config
 

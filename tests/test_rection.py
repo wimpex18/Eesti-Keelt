@@ -176,6 +176,11 @@ class TestTheExplanationClaimsWhatEkiClaims:
         review.add(conn, kind="rektsioon", lemma="kliima", prompt="Ta kohaneb ____.",
                    answer="kliimaga", distractor="kliimale")
         assert [i.lemma for i in review.due(conn)] == ["kliima"]
+        assert [i.lemma for i in review.due(conn, kind="rektsioon")] == ["kliima"]
+        # Never asked, so never counted as due either (stats, forecast, reminders).
+        assert review.due_count(conn) == 1
+        assert review.stats(conn)["due"] == 1
+        assert review.forecast(conn, days=1) == [1]
 
     def test_every_accepted_frame_names_a_real_sz65_contrast(self):
         """A typo in `EKI_ACCEPTS` would silently keep the contrast."""

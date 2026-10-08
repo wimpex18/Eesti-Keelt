@@ -82,7 +82,7 @@ jobs:
           #
           #     Each import may fail without failing the image build, costing one feature
           #     silently — so the deployment is asked. Warnings, not failures.
-          for f in rections eki_levels eki_definitions eki_russian eki_terms eki_loanwords eki_explanatory; do
+          for f in rections eki_levels eki_definitions eki_russian eki_object_verbs eki_terms eki_loanwords eki_explanatory; do
             n="$(jq -r --arg k "$f" '.reference[$k] // 0' <<<"$body")"
             if [ "${n:-0}" -gt 0 ]; then
               printf 'reference %-16s %s rows\n' "$f" "$n"

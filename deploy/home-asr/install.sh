@@ -69,9 +69,11 @@ else
 fi
 
 # The secret the Worker sends with every recording; made once, kept here.
+NEW_TOKEN=0
 if [[ ! -s "$STATE/token" ]]; then
   "$PY" -c "import secrets; print(secrets.token_urlsafe(32))" > "$STATE/token"
   chmod 600 "$STATE/token"
+  NEW_TOKEN=1
 fi
 print -r -- "$TUNNEL_TOKEN" > "$STATE/tunnel-token"; chmod 600 "$STATE/tunnel-token"
 
@@ -116,5 +118,9 @@ for i in {1..90}; do
 done
 curl -s http://127.0.0.1:8790/health; echo
 echo
-echo "Service secret (for the Worker's HOME_ASR_TOKEN): $(cat "$STATE/token")"
+if (( NEW_TOKEN )); then
+  echo "Service secret (for the Worker's HOME_ASR_TOKEN): $(cat "$STATE/token")"
+else
+  echo "Service secret unchanged (kept in $STATE/token; not printed)."
+fi
 echo "Keep this Mac awake: System Settings > Energy > Prevent automatic sleeping."

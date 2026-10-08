@@ -346,7 +346,7 @@ class TestTheCommand:
 
 
 # Real-shaped homographs (DEV-49): the word a learner meets is EKI's listed one.
-def _art(m, pos, *senses, i=None):
+def _art(m, pos, *senses, i=None, mt=None):
     """One EVS article: `senses` are lists of Russian, or (condition, Russian)
     where the condition is the sense's `gki`."""
     tps = []
@@ -356,8 +356,9 @@ def _art(m, pos, *senses, i=None):
         tps.append(f'<x:tp x:tnr="{n}">' + (f"<x:gki>{gki}</x:gki>" if gki else "")
                    + f'<x:tg><x:xp xml:lang="ru">{xg}</x:xp></x:tg></x:tp>')
     number = f' x:i="{i}"' if i else ""
+    grg = f"<x:grg><x:mt>{mt}</x:mt></x:grg>" if mt else ""
     return (f'<x:A x:KF="ev21"><x:P><x:mg><x:m{number}>{m}</x:m><x:sl>{pos}</x:sl>'
-            f'</x:mg></x:P><x:S>{"".join(tps)}</x:S></x:A>\n')
+            f'{grg}</x:mg></x:P><x:S>{"".join(tps)}</x:S></x:A>\n')
 
 
 HOMOGRAPHS = (
@@ -385,6 +386,9 @@ HOMOGRAPHS = (
     # Listed as an adjective, but the noun is the word.
     + _art("osaline", "adj", ["-частный", "-составный"])
     + _art("osaline", "s", ["участник", "участница"], ["доля"], ["пайщик"])
+    # The card's muuttüüp is the chosen homograph's, not the first article's.
+    + _art("tahe", "adj", ["твёрдый"], i=1, mt="02")
+    + _art("tahe", "s", ["воля"], ["сила воли"], i=2, mt="06")
     # A definition's lead, not `gki`, says the sense is negated (`kuhugi`).
     + ('<x:A x:KF="ev21"><x:P><x:mg><x:m>kuhugi</x:m><x:sl>adv</x:sl></x:mg></x:P><x:S>'
        '<x:tp x:tnr="1"><x:tg><x:dg><x:d>kuhugi kohta</x:d></x:dg><x:xp xml:lang="ru">'
@@ -398,7 +402,8 @@ LEVELS = ("LEMMA\tPOS\tSAGEDUS\tTASE\n"
           "siin\tD\t1045852\tA1\nmiks\tD\t691903\tA1\nküll\tD\t1246453\tA1\n"
           "hästi\tD\t580361\tA1\niga\tP\t1445039\tA1\niga\tS\t52111\tA2\n"
           "keegi\tP\t700000\tA1\ntee\tS\t695325\tA1\n"
-          "vara\tS\t90000\tA2\nvara\tD\t80000\tA1\nosaline\tA\t5000\tB1\n")
+          "vara\tS\t90000\tA2\nvara\tD\t80000\tA1\nosaline\tA\t5000\tB1\n"
+          "tahe\tS\t20000\tB1\n")
 
 
 class TestHomographs:
@@ -418,6 +423,11 @@ class TestHomographs:
         ("siin", "шина"), ("miks", "микс"), ("küll", "обилие"), ("küll", "избыток")])
     def test_another_part_of_speech_is_another_word(self, glossed, lemma, wrong):
         assert wrong not in glossed[lemma].russian
+
+    def test_the_inflection_type_is_the_chosen_homographs(self, glossed):
+        """*tahe* «воля» showed the adjective's type 2 instead of its own 6."""
+        assert glossed["tahe"].pos == "s"
+        assert glossed["tahe"].inflection_type == "6"
 
     def test_the_listed_homograph_keeps_its_own_senses(self, glossed):
         assert glossed["siin"].russian == ("здесь", "тут", "вот", "это")

@@ -236,3 +236,64 @@ class TestListeningAndSpeaking:
         got = client.get(f"/api/mock/A2/{part}?seed=1", headers=HEADERS).json()
         assert got["tasks"] and "detail" not in got
         assert "EKI" in got["note"]
+
+
+class TestShortPhrasesNeverMislabel:
+    """*laps pani kommi põske* was labelled osastav: *põske* is also aditiiv, and
+    a dictionary phrase is too short for Vabamorf's context to decide."""
+
+    @pytest.mark.parametrize("surface, lemma, tag", [
+        ("põske", "põsk", "sg p"), ("usku", "usk", "sg p"), ("viga", "viga", "sg p")])
+    def test_a_form_with_another_case_of_its_word_is_not_a_target(self, surface, lemma, tag):
+        from eesti.cloze import _unambiguous_lemma
+
+        assert not _unambiguous_lemma(surface, lemma, tag, one_case=True)
+
+    def test_a_form_with_one_reading_still_is(self):
+        from eesti.cloze import _unambiguous_lemma
+
+        assert _unambiguous_lemma("lapsele", "laps", "sg all", one_case=True)
+
+
+def test_a_theme_analyses_only_phrases_that_can_hold_its_words(monkeypatch):
+    """Themed practice ran Vabamorf over all 17k phrases: seconds per request."""
+    from eesti import cloze
+
+    seen = []
+    real = cloze.analyze
+    monkeypatch.setattr(cloze, "analyze", lambda s: seen.append(s) or real(s))
+    pool = ["ta läks majja", "ilus ilm täna", "vana auto seisis", "nad elavad majas"]
+    cloze.case_clozes(pool, topics=("kohakaanded",), count=5, seed=1,
+                      only=frozenset({"maja"}), require_contrast=False)
+    assert set(seen) <= {"ta läks majja", "nad elavad majas"}
+
+
+def test_read_aloud_credits_ekis_phrases():
+    from eesti.evs import ATTRIBUTION, SOURCE_ID
+    from eesti.pronunciation import ReadAloud
+
+    assert ReadAloud("ilus ilm", "lause", None, SOURCE_ID).to_dict()["attribution"] == ATTRIBUTION
+    assert "attribution" not in ReadAloud("Ilus ilm.", "lause", None, "generated").to_dict()
+
+
+def test_tile_phrases_leave_out_proper_names():
+    from eesti.evs import Example
+    from eesti.wordorder import phrase_tiles
+
+    names = [Example("auhind", "Nobeli preemia laureaat", "лауреат Нобелевской премии")]
+    assert phrase_tiles(names, count=5, seed=1) == []
+
+
+def test_an_a2_mock_draws_no_b1_words():
+    from eesti.mock import _up_to
+
+    assert _up_to("A2") == ("A1", "A2")
+    assert _up_to("B1") == ("A1", "A2", "B1")
+
+
+def test_a_head_word_is_a_nominative_noun_in_one_reading():
+    """*null koma kuus* was explained by the genitive-attribute rule: *kuus* is a
+    noun only as *kuu* in the inessive."""
+    from eesti.wordorder import _fixed_order
+
+    assert not _fixed_order("null koma kuus")

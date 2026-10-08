@@ -10,6 +10,7 @@ Scheduling uses FSRS-6 via `py-fsrs` (MIT).
 from __future__ import annotations
 
 import json
+import functools
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -104,6 +105,39 @@ def repair_explanations(conn: sqlite3.Connection) -> int:
     if total:
         conn.commit()
     return total
+
+
+def _retired(prompt: str) -> int:
+    from .rection import retired
+
+    return int(retired(prompt or ""))
+
+
+_retired_cached = functools.lru_cache(maxsize=4096)(_retired)
+
+
+def askable(conn: sqlite3.Connection) -> str:
+    """The cards the queue can ask: every card except a rection card on a
+    contrast EKI now accepts both ways (`rection.retired`), which stays in the
+    log but is never asked or counted as due. Returns the view's name."""
+    conn.create_function("rection_retired", 1, _retired_cached, deterministic=True)
+    conn.execute("CREATE TEMP VIEW IF NOT EXISTS askable_items AS SELECT * FROM review_items"
+                 " WHERE kind != 'rektsioon' OR NOT rection_retired(prompt)")
+    return "askable_items"
+
+
+def due_count(conn: sqlite3.Connection, now: datetime | None = None) -> int:
+    """How many askable cards are due now."""
+    when = (now or datetime.now(timezone.utc)).isoformat()
+    return conn.execute(f"SELECT COUNT(*) FROM {askable(conn)} WHERE due <= ?",
+                        (when,)).fetchone()[0]
+
+
+def nth_due(conn: sqlite3.Connection, n: int) -> str | None:
+    """The due time of the n-th askable card (1-based), soonest first."""
+    row = conn.execute(f"SELECT due FROM {askable(conn)} ORDER BY due LIMIT 1 OFFSET ?",
+                       (n - 1,)).fetchone()
+    return row[0] if row else None
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
@@ -248,7 +282,7 @@ def interleave(items: list[ReviewItem]) -> list[ReviewItem]:
 def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> list[ReviewItem]:
     """Items ready for review: the most overdue, dealt out across topics."""
     now = datetime.now(timezone.utc).isoformat()
-    sql = "SELECT * FROM review_items WHERE due <= ?"
+    sql = f"SELECT * FROM {askable(conn)} WHERE due <= ?"
     params: list = [now]
     if kind:
         sql += " AND kind = ?"
@@ -267,12 +301,6 @@ def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> l
         )
         for r in conn.execute(sql, params)
     ]
-    # A rection card on a contrast EKI now accepts both ways is not asked again
-    # (`rection.retired`); the card stays in the log.
-    if any(i.kind == "rektsioon" for i in items):
-        from .rection import retired
-
-        items = [i for i in items if i.kind != "rektsioon" or not retired(i.prompt)]
     # A single-topic request is a deliberate drill-down, so leave it alone.
     return items if kind else interleave(items)[:limit]
 
@@ -401,9 +429,7 @@ def _grade(
 def stats(conn: sqlite3.Connection) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     total = conn.execute("SELECT COUNT(*) FROM review_items").fetchone()[0]
-    ready = conn.execute(
-        "SELECT COUNT(*) FROM review_items WHERE due <= ?", (now,)
-    ).fetchone()[0]
+    ready = due_count(conn)
     by_kind = dict(
         conn.execute("SELECT kind, COUNT(*) FROM review_items GROUP BY kind")
     )
@@ -424,15 +450,16 @@ def forecast(conn: sqlite3.Connection, days: int = 7,
     Days are counted in 24-hour steps from now, so the forecast needs no zone.
     """
     now = now or datetime.now(timezone.utc)
+    cards = askable(conn)
     out = []
     for i in range(days):
         end = (now + timedelta(days=i + 1)).isoformat()
         if i == 0:
-            n = conn.execute("SELECT COUNT(*) FROM review_items WHERE due < ?",
+            n = conn.execute(f"SELECT COUNT(*) FROM {cards} WHERE due < ?",
                              (end,)).fetchone()[0]
         else:
             begin = (now + timedelta(days=i)).isoformat()
-            n = conn.execute("SELECT COUNT(*) FROM review_items WHERE due >= ? AND due < ?",
+            n = conn.execute(f"SELECT COUNT(*) FROM {cards} WHERE due >= ? AND due < ?",
                              (begin, end)).fetchone()[0]
         out.append(n)
     return out

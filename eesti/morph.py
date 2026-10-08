@@ -151,6 +151,18 @@ def _readings(word: str) -> set[tuple[str, str]]:
     return out
 
 
+def pos_readings(word: str) -> set[tuple[str, str]]:
+    """Every (part of speech, form) reading of a surface form, without
+    disambiguation: *kuus* is a noun only as *kuu* in the inessive, and a
+    nominative only as the numeral, so the two must be read together.
+    """
+    out: set[tuple[str, str]] = set()
+    for item in _vm().analyze([word], disambiguate=False, guess=False, propername=False):
+        for opt in item.get("analysis") or []:
+            out.add((opt.get("partofspeech", ""), opt.get("form", "")))
+    return out
+
+
 def parts_of_speech(word: str) -> set[str]:
     """Every part of speech a surface form can be, without disambiguation (`viis`
     is a numeral and a verb); empty when Vabamorf does not know the word.

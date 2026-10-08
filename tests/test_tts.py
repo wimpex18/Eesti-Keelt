@@ -141,8 +141,10 @@ class TestAgainstTheLiveService:
         assert path.read_bytes()[:4] == b"RIFF"
 
     def test_it_is_fast_enough_to_wait_for(self, spoken):
+        """Well inside the app's 30 s request timeout; CI runners add network
+        variance, so a 5 s bound failed on a healthy service."""
         _, elapsed, _ = spoken
-        assert elapsed < 5.0
+        assert elapsed < 10.0
 
     def test_the_second_call_never_touches_the_network(self, spoken):
         """A cached sentence plays without the network."""

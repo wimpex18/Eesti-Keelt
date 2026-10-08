@@ -21,6 +21,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -31,12 +32,17 @@ METADATA_TOKEN = ("http://metadata.google.internal/computeMetadata/v1/"
                   "instance/service-accounts/default/token")
 UPLOAD = "https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o"
 
-#: A replay of the owner's log takes tens of seconds; past this, something is wrong.
-VERIFY_TIMEOUT = 600
+#: A replay of the owner's log takes tens of seconds; past this, something is
+#: wrong. Kept inside Cloud Run's default 300 s request timeout.
+VERIFY_TIMEOUT = 240
 
 
 class NotConfigured(RuntimeError):
     """No bucket named on this deployment."""
+
+
+class UploadFailed(RuntimeError):
+    """The bucket or the metadata server refused or did not answer."""
 
 
 def bucket() -> str:
@@ -97,11 +103,17 @@ def store(account: str, compressed: bytes, now: datetime | None = None) -> dict:
     name = f"events/{account}/{now:%Y/%m/%d}/{now:%Y%m%dT%H%M%S%fZ}-{digest[:16]}.jsonl.gz"
     query = urllib.parse.urlencode({"uploadType": "media", "name": name,
                                     "ifGenerationMatch": "0"})
-    request = urllib.request.Request(
-        UPLOAD.format(bucket=urllib.parse.quote(target, safe="")) + "?" + query,
-        data=compressed, method="POST",
-        headers={"Authorization": f"Bearer {_token()}",
-                 "Content-Type": "application/gzip"})
-    _http(request, timeout=120)
+    try:
+        request = urllib.request.Request(
+            UPLOAD.format(bucket=urllib.parse.quote(target, safe="")) + "?" + query,
+            data=compressed, method="POST",
+            headers={"Authorization": f"Bearer {_token()}",
+                     "Content-Type": "application/gzip"})
+        _http(request, timeout=120)
+    except urllib.error.HTTPError as exc:
+        # 403 is usually a missing bucket grant for the runtime service account.
+        raise UploadFailed(f"storage answered HTTP {exc.code}") from None
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise UploadFailed(f"storage unreachable: {type(exc).__name__}") from None
     return {"verified": True, "events": report.get("events", 0), "object": name,
             "bytes": len(compressed), "sha256": digest}

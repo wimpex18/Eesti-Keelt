@@ -111,8 +111,9 @@ class Cloze(GradedItem):
         """What the learner is told: which word, and which case to put it in."""
         if self.governor:
             # For rection the case is the *question*, so naming it would give
-            # the answer away. The governing word is the whole prompt.
-            return f"{self.lemma} — {self.governor}?"
+            # the answer away. The governing word is the whole prompt; a bare
+            # "teavitama?" read as a question, so it is labelled like `label`.
+            return f"{self.lemma} — rektsioon: {self.governor}"
         return f"{self.lemma}, {self.case_et}"
 
     @property
@@ -214,10 +215,29 @@ def _why(
     )
 
 
-def _unambiguous_lemma(surface: str, lemma: str, tag: str) -> bool:
-    """The surface form must read back as this lemma in this case, and no other lemma."""
+def _surface_forms(lemmas: frozenset[str], tags: set[str]) -> set[str]:
+    """Every written form of `lemmas` in `tags`, case-folded."""
+    out: set[str] = set()
+    for lemma in lemmas:
+        for tag in tags:
+            try:
+                out.update(f.casefold() for f in synthesize(lemma, tag) or [])
+            except Exception:  # noqa: BLE001 - a tag Vabamorf cannot build adds nothing
+                continue
+    return out
+
+
+def _unambiguous_lemma(surface: str, lemma: str, tag: str, one_case: bool = False) -> bool:
+    """The surface form must read back as this lemma in this case, and no other lemma.
+
+    `one_case`: no other case of the same lemma either. A dictionary phrase is too
+    short for Vabamorf's context to choose between *põske* osastav and aditiiv, so
+    a label the phrase cannot settle is never shown.
+    """
     readings = _readings(surface)
     if (lemma, tag) not in readings:
+        return False
+    if one_case and {t for lm, t in readings if lm == lemma} != {tag}:
         return False
     return len({lm for lm, _ in readings}) == 1
 
@@ -343,6 +363,11 @@ def case_clozes(
 
     rng = random.Random(seed)
     pool = list(sents)
+    if only is not None:
+        # A theme names a few words: analyse only sentences holding one of
+        # their forms in a wanted case, not the whole pool (17k EVS phrases).
+        forms = _surface_forms(only, wanted)
+        pool = [s for s in pool if forms & set(re.findall(r"\w+", s.casefold()))]
     rng.shuffle(pool)
 
     out: list[tuple[float, Cloze]] = []
@@ -375,7 +400,7 @@ def case_clozes(
             forms = case_forms(token.lemma)
             if not forms:
                 continue
-            if not _unambiguous_lemma(token.text, token.lemma, token.form):
+            if not _unambiguous_lemma(token.text, token.lemma, token.form, one_case=listed):
                 continue
             if not _synthesises_back(token.lemma, token.form, token.text):
                 continue

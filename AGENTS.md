@@ -63,7 +63,7 @@ person's own progress; sandboxes for agents and tests):
 python -m eesti.cli serve                    # http://127.0.0.1:8000
 python -m eesti.cli eval --provider workers-ai
 python -m pytest tests/ -q -n auto
-python -m pytest tests/test_e2e_journeys.py --browser -q
+python -m pytest tests/test_e2e_journeys.py --browser -q -n 4
 npm run typecheck
 ```
 
@@ -82,8 +82,11 @@ suite after upgrades and the morphology eval before trusting a new `estnltk`.
   completed history. Keep it within 30 lines.
 - Keep `AGENTS.md` concise and model-agnostic as the single repository-wide
   agent instruction file.
-- Stage named paths, never `git commit -a`. One open PR per session: add later
-  work to it, even for another issue, not a new PR. The user merges.
+- Stage named paths, never `git commit -a`. One branch and one PR per session:
+  add later work to it, even for another issue; never a PR per issue, and no
+  sub-branches merged into each other. One implementation session at a time;
+  run parallel sessions only when the owner asks, on files no other session
+  edits. If the owner says "no PR", commit to `main`. The user merges.
   Docs describe current behavior. Path rules are in `.claude/rules/`; design
   context is in `PRODUCT.md` and `DESIGN.md`. Architecture constraints are in
   `docs/adr/0005-architecture-contracts.md`.

@@ -112,3 +112,18 @@ def test_without_a_bucket_it_says_so(client, storage, monkeypatch):
 def test_the_platform_only(client, storage):
     response = client.post("/api/state/backup", content=gzip.compress(_log()))
     assert response.status_code == 403
+
+
+def test_a_refused_upload_names_the_reason(client, storage, monkeypatch):
+    """The operator sees why a night's copy was not stored, not an empty 500."""
+    import urllib.error
+
+    def refused(request, timeout):
+        if request.full_url.startswith(backup.METADATA_TOKEN):
+            return json.dumps({"access_token": "metadata-token", "expires_in": 3599}).encode()
+        raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(backup, "_http", refused)
+    response = _send(client, _log())
+    assert response.status_code == 502
+    assert "HTTP 403" in response.json()["detail"]

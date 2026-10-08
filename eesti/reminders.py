@@ -27,6 +27,8 @@ import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
 
+from .review import due_count, nth_due
+
 #: Fewer than this is not worth a notification: the queue will still be there.
 DUE_ENOUGH = 10
 
@@ -138,9 +140,7 @@ def due(log: sqlite3.Connection, review: sqlite3.Connection,
     studied = last_studied(log)
     out: list[Reminder] = []
 
-    cards = review.execute(
-        "SELECT COUNT(*) FROM review_items WHERE due <= ?",
-        ((now or datetime.now(timezone.utc)).isoformat(),)).fetchone()[0]
+    cards = due_count(review, now)
     if cards >= DUE_ENOUGH:
         out.append(Reminder(
             f"kordamine-{today}", "Kordamine",
@@ -196,11 +196,9 @@ def next_check(log: sqlite3.Connection, review: sqlite3.Connection,
     moments = [local(here.date() + timedelta(days=1), 0)]
     if here.hour < prefs["hour"]:
         moments.append(local(here.date(), prefs["hour"]))
-    row = review.execute(
-        "SELECT due FROM review_items ORDER BY due LIMIT 1 OFFSET ?",
-        (DUE_ENOUGH - 1,)).fetchone()
-    if row is not None:
-        enough = datetime.fromisoformat(row[0])
+    nth = nth_due(review, DUE_ENOUGH)
+    if nth is not None:
+        enough = datetime.fromisoformat(nth)
         enough = enough if enough.tzinfo else enough.replace(tzinfo=timezone.utc)
         if enough > now:
             moments.append(enough)

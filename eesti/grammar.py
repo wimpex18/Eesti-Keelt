@@ -100,7 +100,8 @@ REFERENCES: dict[str, Reference] = {
         ekk_section="SÜ 65", chapter=SUNTAKS, subsection=2,
         summary_ru=(
             "Глагол требует определённого падежа, и он часто не совпадает с "
-            "русским: *mõtlema **millele*** (alaleütlev), не «о чём»."
+            "русским: *nautima **mida*** (osastav), а не *millest*, хотя "
+            "по-русски «наслаждаться чем»."
         ),
     ),
     "word-order": Reference(

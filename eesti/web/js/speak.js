@@ -141,7 +141,8 @@ function showReadAloud() {
        Прочитай <b>ровно как написано</b>, вместе с выделенным словом. Его форма
        здесь намеренно неверная: так видно, не «исправит» ли распознавание ошибку за тебя.</div>`
     : `${esc(it.text)}<div class="why instr" lang="ru">Прочитай вслух.
-     ${it.level ? esc(it.level) : ""}</div>`;
+     ${it.level ? esc(it.level) : ""}</div>
+     ${it.attribution ? `<div class="attrib" lang="et">${esc(it.attribution)}</div>` : ""}`;
   $("#speakModel").hidden = true;
   $("#recPlayback").hidden = true;
   $("#recHeard").hidden = true;

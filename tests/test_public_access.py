@@ -142,3 +142,21 @@ def test_migration_failure_is_visible_and_repeat_deploy_is_idempotent(monkeypatc
         return {"public_access": True, "origin_guarded": True, "scope": "guest"}
     monkeypatch.setattr(module, "request_json", already_public)
     module.open_public(ENV)
+
+
+def test_migration_matches_destinations_and_names_a_remaining_gate(monkeypatch):
+    module = migration()
+    assert module.matching_apps([
+        {"id": "new", "destinations": [{"type": "public", "uri": "grove.example.workers.dev/*"}]},
+        {"id": "wild", "destinations": [{"type": "public", "uri": "*.example.workers.dev"}]},
+    ], "grove.example.workers.dev") == [
+        {"id": "new", "destinations": [{"type": "public", "uri": "grove.example.workers.dev/*"}]}]
+    def gated(url, **kwargs):
+        if "origin.test" in url:
+            return {"public_access": True, "origin_guarded": True}
+        if "access/apps?" in url:
+            return {"success": True, "result": [{"id": "wild", "domain": "*.example.workers.dev"}]}
+        raise module.HTTPError(url, 403, "Forbidden", {}, None)
+    monkeypatch.setattr(module, "request_json", gated)
+    with pytest.raises(RuntimeError, match="still behind a login gate"):
+        module.open_public(ENV)

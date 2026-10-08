@@ -160,9 +160,9 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
 5. **Speech.** `transcribe` forwards the caller's scope headers to
    `/api/transcribe/text` and pulls into the caller's object.
 6. **Cron.** The nightly `BACKUP_CRON` copies each account's own log with its
-   own scope headers. Otherwise `scheduled` reminds `singleton` and every learner account; an
-   account restores only when its `next_check` has passed or it has new events
-   (`docs/deploy.md` → Reminders).
+   own scope headers. Otherwise `scheduled` reminds `singleton` and every
+   learner account; an account restores only when its `next_check` has passed
+   or it has new events (`docs/deploy.md` → Reminders).
 7. **Back channel.** Every origin route guarded by `STATE_TOKEN` returns 404
    through the public Worker path.
 

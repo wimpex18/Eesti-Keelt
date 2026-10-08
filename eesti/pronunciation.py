@@ -118,7 +118,12 @@ class ReadAloud:
     coverage: float | None = None
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        from .evs import ATTRIBUTION, SOURCE_ID
+
+        out = asdict(self)
+        if self.source == SOURCE_ID:
+            out["attribution"] = ATTRIBUTION
+        return out
 
 
 def words_to_say(

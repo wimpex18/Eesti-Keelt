@@ -112,9 +112,8 @@ The owner object records the revision of the corpus it archived with the
 archive, so a container that already holds it, after an eviction or a cold
 restore, is neither exported nor archived again. Guest and learner requests
 restore that shared corpus through the owner object without rebinding its
-identity. On Cloud Run
-(`EESTI_WORKER_RESTORES=1`, set in the Dockerfile) only that restore may start
-the log: a write reaching an instance first, such as a speech transcript or
+identity. On Cloud Run (`EESTI_WORKER_RESTORES=1`, set in the Dockerfile)
+only that restore may start the log: a write reaching an instance first, such as a speech transcript or
 `reset-progress.sh`, gets 503 and records nothing. After a restore the Worker
 resumes pulling from where the pushed log ended, so events the settle appended
 (the first backfill) are copied too. The Durable Object
@@ -263,7 +262,7 @@ replaces whole files):
 |---|---|---|
 | `cli rections` | EKK SÜ 65 rections | `rections` |
 | `cli import-levels deploy/eki/A1A2B1.txt` | official levels | `eki_levels` |
-| `cli import-psv` / `import-evs` / `import-vsl` / `import-har` / `import-ekss` | EKI dictionaries | `eki_definitions`, `eki_russian`, `eki_loanwords`, `eki_terms`, `eki_explanatory` |
+| `cli import-psv` / `import-evs` / `import-vsl` / `import-har` / `import-ekss` | EKI dictionaries | `eki_definitions`, `eki_russian`, `eki_object_verbs`, `eki_loanwords`, `eki_terms`, `eki_explanatory` |
 
 Smoke warns on any zero.
 
@@ -388,7 +387,7 @@ Object sends its whole event log, gzipped and in replay order, to the
 back-channel route `POST /api/state/backup`. The origin replays it strictly in
 temporary stores, in a separate process (`cli verify-backup`), and only a log
 that replays is written to the private bucket named by `EESTI_BACKUP_BUCKET`
-as `events/<account>/YYYY/MM/DD/<time>-<sha256>.jsonl.gz` (`eesti/backup.py`).
+as `events/<account>/YYYY/MM/DD/<time>-<first 16 hex of the log's SHA-256>.jsonl.gz` (`eesti/backup.py`).
 The upload uses the Cloud Run service account's own identity and never
 replaces an existing object. A refused or failed copy is logged by the Worker
 ("learner backup not stored") and recorded in the object's `backup-last`;

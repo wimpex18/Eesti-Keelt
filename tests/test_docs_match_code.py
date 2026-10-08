@@ -8,6 +8,7 @@ file paths; prose is not verified.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -231,12 +232,20 @@ class TestEveryFileTheDocsPointAtExists:
         assert len(self._citations()) > 40
 
     def test_every_cited_file_exists(self):
+        # One walk of the repository, without dependencies, data and other
+        # checkouts: `ROOT.glob("**/name")` per citation took 16 s.
+        skip = {".git", "node_modules", ".venv", "data", "worktrees", "__pycache__"}
+        files = set()
+        for here, dirs, names in os.walk(ROOT):
+            dirs[:] = [d for d in dirs if d not in skip]
+            files.update(Path(here, n).relative_to(ROOT).as_posix() for n in names)
         missing = {
             name: sorted(where)
             for name, where in self._citations().items()
             if name not in self.NOT_A_FILE
             and not (ROOT / name).exists()
-            and not list(ROOT.glob(f"**/{name}"))
+            and not any(path == name.lstrip("/") or path.endswith("/" + name.lstrip("/"))
+                        for path in files)
         }
         assert not missing, (
             f"the docs point at files that are not there: {missing}. Fix the "

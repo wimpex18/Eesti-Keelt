@@ -353,6 +353,8 @@ async def state_backup(request: Request) -> dict:
         return await run_in_threadpool(backup.store, account, body)
     except backup.NotConfigured as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except backup.UploadFailed as exc:
+        raise HTTPException(status_code=502, detail=f"not stored: {exc}") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"not stored: {exc}") from exc
 

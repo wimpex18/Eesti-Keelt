@@ -10,9 +10,9 @@ runtimes; other tests exercise behavior instead of checking CSS or doc counts.
 
 | Suite | Command | Time | Runs in CI |
 |---|---|---|---|
-| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~20–25 s | yes — `tests.yml` |
+| **Fast** (default) | `python -m pytest tests/ -q -n auto` | ~10 s | yes — `test` job |
 | **Worker** | `npm run test:worker` | ~2 s | yes — `worker` job |
-| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser` | ~5 min | yes — `journeys` job; reading journeys skip without the corpus |
+| **Browser** | `python -m pytest tests/test_e2e_journeys.py -q --browser -n 4` | ~2 min | yes — one `journeys` job per engine, skipped when only Markdown under `qa/`, `docs/`, `.claude/` or the root changed; reading journeys skip without the corpus |
 | **Browser, full matrix** | same, with `--all-browsers` | longer than the default pairings | no |
 | Model eval (grammar) | `cli eval --provider <lane>`, `eval.yml` | per lane | weekly (Workers AI), manual |
 | Speech eval | `cli eval --suite asr [--engine A --engine B]` | your own recordings | no — the set is personal and not in git |
@@ -26,7 +26,13 @@ runtimes; other tests exercise behavior instead of checking CSS or doc counts.
   at phone size (the installed PWA on an iPhone is WebKit). Run it after any
   change to `eesti/web/` and look at both sizes.
 - **Full matrix** also runs Chromium at phone size and WebKit at desktop size.
-  Use it before a release that restyles the page.
+  Use it before a release that restyles the page. `--engine chromium` or
+  `--engine webkit` runs one engine's journeys; CI runs the two in parallel.
+  More than four workers on one machine starves the journeys' servers and
+  their waits time out; CI's runners have four.
+- `pytest.ini` makes misspelt markers and ini keys errors and strict-xfails.
+  CI installs with `uv` from `requirements.lock`, caches the Playwright
+  browser and the built word list, and cancels a run a newer push supersedes.
 - The journeys' server writes its log to a file in its own working directory
   so verbose API logging cannot block the browser run.
 - CI builds the compressed web assets with `npm run build:web` and runs the

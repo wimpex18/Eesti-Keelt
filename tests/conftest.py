@@ -438,6 +438,9 @@ def pytest_addoption(parser):
                           "Chromium at desktop size and WebKit at phone size")
     parser.addoption("--all-browsers", action="store_true",
                      help="the browser journeys in every engine x viewport pairing")
+    parser.addoption("--engine", choices=("chromium", "webkit"), default=None,
+                     help="only this engine's journeys (CI runs one job per engine); "
+                          "journeys that need no browser pairing run with chromium")
 
 
 #: The pairings the owner actually uses: a desktop browser, and the installed PWA
@@ -460,6 +463,10 @@ def pytest_collection_modifyitems(config, items):
             continue
         params = getattr(getattr(item, "callspec", None), "params", {})
         pair = (params.get("_pw"), params.get("page"))
+        engine = config.getoption("--engine")
+        if engine and pair[0] not in (engine, None if engine == "chromium" else engine):
+            drop.append(item)
+            continue
         if everything or None in pair or pair in pairs:
             keep.append(item)
         else:

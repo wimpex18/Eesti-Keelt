@@ -200,8 +200,7 @@ def gather(now: datetime | None = None) -> PlanInputs:
                  "answer": last[0].answer, "solution": last[0].solution}
                 if last else None))
         activity = learner.skill_activity(log, now=now)
-    due = rev.execute("SELECT COUNT(*) FROM review_items WHERE due <= ?",
-                      (now.isoformat(),)).fetchone()[0]
+    due = review.due_count(rev, now)
     refresh = tuple((t, by_id(t).et) for t in learner.needs_refresh(prog, found, now))
     resume = progress.resume(prog)
     return PlanInputs(

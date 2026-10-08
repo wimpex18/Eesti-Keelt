@@ -21,9 +21,22 @@ def request_json(url, *, headers=None, method="GET"):
         return json.load(response)
 
 
+def _host(value):
+    """The hostname of an Access domain or destination ("host", "host/*", URI)."""
+    value = (value or "").strip()
+    return (urlsplit(value).hostname if "://" in value else value.split("/", 1)[0]).lower()
+
+
+def app_hosts(app):
+    """Every hostname an Access application covers, in old and new API shapes."""
+    hosts = {_host(app.get("domain"))} | {_host(d) for d in app.get("self_hosted_domains") or []}
+    hosts |= {_host(d.get("uri")) for d in app.get("destinations") or []
+              if isinstance(d, dict) and d.get("type", "public") == "public"}
+    return hosts - {""}
+
+
 def matching_apps(apps, hostname):
-    return [app for app in apps if app.get("domain") == hostname
-            or hostname in app.get("self_hosted_domains", [])]
+    return [app for app in apps if hostname in app_hosts(app)]
 
 
 def open_public(env):
@@ -66,8 +79,7 @@ def open_public(env):
             break
         page += 1
     for app in matching_apps(apps, hostname):
-        domains = set(app.get("self_hosted_domains") or [app.get("domain")])
-        if domains != {hostname}:
+        if app_hosts(app) != {hostname}:
             raise RuntimeError("Hostname shares an access application with other domains; split it before retrying")
         result = access_json(endpoint + "/" + app["id"], headers=headers, method="DELETE")
         if result.get("success") is not True:
@@ -76,7 +88,15 @@ def open_public(env):
     # An HTTP 200 login page is not enough: verify the Worker's own anonymous
     # identity response as well as its shell and health.
     public = env["WORKER_URL"].rstrip("/")
-    me = request_json(public + "/api/auth/me")
+    try:
+        me = request_json(public + "/api/auth/me")
+    except (HTTPError, ValueError):
+        # A login page (a redirect to cloudflareaccess.com) instead of JSON.
+        raise RuntimeError(
+            f"{hostname} is still behind a login gate. Remove the Cloudflare Access "
+            "application or the Worker's workers.dev Access setting that covers it "
+            "(wildcard and shared applications are left for the owner), then rerun "
+            "the deploy workflow") from None
     if me.get("scope") != "guest":
         raise RuntimeError("Anonymous identity must be guest")
     health = request_json(public + "/api/health")

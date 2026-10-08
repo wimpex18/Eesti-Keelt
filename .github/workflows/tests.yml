@@ -8,7 +8,36 @@ on:
   # opened with the workflow token starts no pull_request run of its own.
   workflow_dispatch:
 
+# A newer push to the same pull request or branch supersedes a running check.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Whether anything but Markdown under qa/, docs/ or .claude/ changed. The unit
+  # job always runs (it checks the docs); the browser journeys need code.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git diff --name-only "$BASE" "$GITHUB_SHA" \
+               | grep -qvE '^(qa|docs|\.claude)/.*\.md$|^[^/]+\.md$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   worker:
     runs-on: ubuntu-latest
     name: Worker durability
@@ -35,12 +64,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: requirements.lock
 
       - name: Install
         run: |
-          pip install --require-hashes -r requirements.lock
-          pip install pytest pytest-xdist
+          uv pip install --system --require-hashes -r requirements.lock
+          uv pip install --system pytest pytest-xdist
 
       # Third-party data from HuggingFace. A failure here must not fail the build:
       # the fetcher retries 5xx with backoff, and if it still cannot get the data the
@@ -50,7 +82,8 @@ jobs:
       # requests (and risk a 429) on data this job never opens.
       - name: Fetch benchmark data
         id: bench
-        continue-on-error: true
+        # Fatal where the gate is the point: manual runs and lock-upgrade PRs.
+        continue-on-error: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.head_ref, 'deps/') }}
         run: python -m eesti.cli fetch-bench --required-only
 
       # Checks Vabamorf against TalTech's native-curated gold forms. Everything
@@ -72,12 +105,18 @@ jobs:
       - name: Tests
         run: python -m pytest tests/ -q -n auto
 
-  # The learner's journeys in a real browser (tests/test_e2e_journeys.py), at
-  # desktop and phone sizes. They need the built word list; if the download
-  # fails, the journeys skip themselves loudly instead of failing the build.
+  # The learner's journeys in a real browser (tests/test_e2e_journeys.py): one job
+  # per engine, in parallel — Chromium at desktop size, WebKit at phone size. They
+  # need the built word list; if the download fails, they skip themselves loudly.
   journeys:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    name: browser journeys
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, webkit]
+    name: browser journeys (${{ matrix.engine }})
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -89,16 +128,43 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-          cache: pip
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: requirements.lock
 
       - name: Install
         run: |
-          pip install --require-hashes -r requirements.lock
-          pip install pytest pytest-xdist playwright==1.63.0
-          python -m playwright install --with-deps chromium webkit
+          uv pip install --system --require-hashes -r requirements.lock
+          uv pip install --system pytest pytest-xdist playwright==1.63.0
+
+      - name: Cache the browser
+        id: browser
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-1.63.0-${{ matrix.engine }}-${{ runner.os }}
+      - name: Install the browser
+        run: |
+          if [ "${{ steps.browser.outputs.cache-hit }}" = "true" ]; then
+            python -m playwright install-deps ${{ matrix.engine }}
+          else
+            python -m playwright install --with-deps ${{ matrix.engine }}
+          fi
+
+      # The word list depends only on the pinned upstream file and these modules.
+      - name: Cache the word list
+        id: words
+        uses: actions/cache@v6
+        with:
+          path: |
+            data/eesti.db
+            data/edge.db
+          key: wordlist-${{ hashFiles('requirements.lock', 'eesti/reference.py', 'eesti/cli/build.py', 'eesti/wordlist.py', 'eesti/export.py', 'eesti/lookup.py', 'eesti/morph.py') }}
 
       - name: Build the word list
         id: data
+        if: steps.words.outputs.cache-hit != 'true'
         continue-on-error: true
         run: |
           python -m eesti.cli fetch-data
@@ -106,7 +172,7 @@ jobs:
           python -m eesti.cli export
 
       - name: Warn that the journeys have no data
-        if: steps.data.outcome != 'success'
+        if: steps.words.outputs.cache-hit != 'true' && steps.data.outcome != 'success'
         run: echo "::warning title=Journeys skipped::The word list did not build, so the browser journeys skip."
 
       # No reading corpus here (its sources are owner-only), so the journeys
@@ -115,4 +181,4 @@ jobs:
         env:
           EESTI_WEB_BUILD: "1"
           EESTI_E2E_NO_CORPUS: "1"
-        run: python -m pytest tests/test_e2e_journeys.py --browser -q -n auto -rs
+        run: python -m pytest tests/test_e2e_journeys.py --browser --engine ${{ matrix.engine }} -q -n auto -rs

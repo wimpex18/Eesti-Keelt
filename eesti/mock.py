@@ -108,6 +108,11 @@ def build(level: str, part: str, *, seed: int, content: sqlite3.Connection | Non
     raise ValueError(f"no such exam part: {part!r}")
 
 
+def _up_to(level: str) -> tuple[str, ...]:
+    """The word levels a mock at `level` draws on: an A2 mock uses no B1 words."""
+    return LEVELS[:LEVELS.index(level) + 1] if level in LEVELS else LEVELS
+
+
 def _reading(level: str, minutes: int, seed: int, content, words) -> Section:
     from .cloze import case_clozes, sentences
 
@@ -118,7 +123,7 @@ def _reading(level: str, minutes: int, seed: int, content, words) -> Section:
         # Outside the owner's scope the corpus is hidden: EKI's phrases are public.
         from .practice import public_clozes
 
-        items = public_clozes(words, None, TASKS["lugemine"], seed)
+        items = public_clozes(words, None, TASKS["lugemine"], seed, levels=_up_to(level))
         note = NOTE_EVS["lugemine"]
     return Section(level, "lugemine", minutes, "cloze", list(items), note=note)
 
@@ -132,7 +137,7 @@ def _listening(level: str, minutes: int, seed: int, content, words, vocabulary) 
     if not passages and words is not None:
         from .evs import phrases
 
-        passages = from_phrases(phrases(words, MIN_WORDS, MAX_WORDS, LEVELS),
+        passages = from_phrases(phrases(words, MIN_WORDS, MAX_WORDS, _up_to(level)),
                                 vocabulary=vocabulary, count=TASKS["kuulamine"],
                                 seed=seed)
         note = NOTE_EVS["kuulamine"]

@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 FIELDS = ("rections", "eki_levels", "eki_definitions", "eki_russian",
-          "eki_terms", "eki_loanwords", "eki_explanatory")
+          "eki_object_verbs", "eki_terms", "eki_loanwords", "eki_explanatory")
 
 
 class TestHealthReportsThem:

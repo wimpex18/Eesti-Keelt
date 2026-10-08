@@ -454,25 +454,16 @@ class VabamorfFallback:
         return True
 
     def check(self, text: str) -> GrammarResult:
-        from contextlib import closing
-
         from ..morph import object_case_candidates
-        from ..wordlist import available, connect
 
         # Located spelling corrections from `spelling()`, so the page can highlight
         # them, and an object written in nimetav, which code can decide.
         corrections = spelling(text) + nominative_objects(text)
         # A word that may be a place or direction is evidence only after a verb
         # that takes an object; without the word list, never.
-        none = lambda lemmas: set()  # noqa: E731
-        try:
-            if available():
-                with closing(connect()) as conn:
-                    candidates = object_case_candidates(text, _takes_object(conn))
-            else:
-                candidates = object_case_candidates(text, none)
-        except Exception:  # noqa: BLE001 - reference data is optional here
-            candidates = object_case_candidates(text, none)
+        candidates = _with_object_verbs(lambda takes: object_case_candidates(text, takes))
+        if candidates is None:
+            candidates = object_case_candidates(text, lambda lemmas: set())
 
         flagged = [
             Correction(
@@ -822,6 +813,23 @@ def _phrase(words, key: str) -> str | None:
     return " ".join(out)
 
 
+def _with_object_verbs(use):
+    """`use(takes_object)` with EKI's record of which verbs take an object
+    (`_takes_object`), or None without the word list: missing reference data
+    is not a failed check."""
+    from contextlib import closing
+
+    from ..wordlist import available, connect
+
+    try:
+        if not available():
+            return None
+        with closing(connect()) as conn:
+            return use(_takes_object(conn))
+    except Exception:  # noqa: BLE001 - reference data is optional here
+        return None
+
+
 def nominative_objects(text: str) -> list[Correction]:
     """An object written in nimetav (*jõin kohv*), decided by morphology and EKI's
     word of which verbs take an object (`morph.nominative_objects`). After a
@@ -829,18 +837,9 @@ def nominative_objects(text: str) -> list[Correction]:
     a single form is offered only where they coincide (*kohvi*). Nothing without
     the word list.
     """
-    from contextlib import closing
-
     from ..morph import nominative_objects as found_in
-    from ..wordlist import available, connect
 
-    try:
-        if not available():
-            return []
-        with closing(connect()) as conn:
-            found = found_in(text, _takes_object(conn))
-    except Exception:  # noqa: BLE001 - missing reference data is not a failed check
-        return []
+    found = _with_object_verbs(lambda takes: found_in(text, takes)) or []
     out = []
     for item in found:
         partitive, genitive = _phrase(item.words, "partitive"), _phrase(item.words, "genitive")

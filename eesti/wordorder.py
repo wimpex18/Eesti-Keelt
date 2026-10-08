@@ -408,27 +408,33 @@ def _fixed_order(phrase: str) -> bool:
     noun and no cardinal beside an ordinal. No word may have a reading whose
     place is free (`viis` is also *viima*); an unknown word counts as free.
     """
-    from .morph import _readings, parts_of_speech
+    from .morph import pos_readings
 
     words = phrase.rstrip("?!").split()
-    pos = [parts_of_speech(w) for w in words]
-    forms = [{form for _, form in _readings(w)} for w in words]
+    # Part of speech and case come from the same reading: *null koma kuus* is
+    # not a noun phrase because *kuus* is a noun (*kuu*) and a nominative (*kuus*).
+    readings = [pos_readings(w) for w in words]
+    pos = [{p for p, _ in r} - {""} for r in readings]
     if any(not p or p & _FREE for p in pos):
         return False
-    if "S" not in pos[-1] or not forms[-1] & _NOMINATIVE:
+
+    def has(r, kinds, cases):
+        return any(p in kinds and f in cases for p, f in r)
+
+    if not has(readings[-1], {"S"}, _NOMINATIVE):
         return False
     descriptive = genitives = 0
-    for p, f in zip(pos[:-1], forms[:-1]):
+    for p, r in zip(pos[:-1], readings[:-1]):
         if p & _DESCRIPTIVE:
             descriptive += 1
-            if not f & (_NOMINATIVE | _GENITIVE):
+            if not has(r, _DESCRIPTIVE, _NOMINATIVE | _GENITIVE):
                 return False
         elif "N" in p:
-            if not f & (_NOMINATIVE | _GENITIVE):
+            if not has(r, {"N"}, _NOMINATIVE | _GENITIVE):
                 return False
         elif "G" in p:
             genitives += 1
-        elif p & {"S", "H", "P"} and f & _GENITIVE:
+        elif has(r, {"S", "H", "P"}, _GENITIVE):
             genitives += "P" not in p
         else:
             return False
@@ -481,7 +487,10 @@ def phrase_tiles(phrases, count: int = 10, seed: int | None = None) -> list[Phra
     from .evs import SOURCE_ID, buildable
 
     rng = random.Random(seed)
-    pool = [p for p in phrases if buildable(p.estonian) and _TILEABLE.fullmatch(p.estonian)]
+    # EKI writes phrases in lower case; a capital is a proper name (*Nobeli*),
+    # which is not the order being practised.
+    pool = [p for p in phrases if buildable(p.estonian) and _TILEABLE.fullmatch(p.estonian)
+            and not any(w[:1].isupper() for w in p.estonian.split())]
     rng.shuffle(pool)
     out: list[PhraseTiles] = []
     for phrase in pool:
