@@ -1,0 +1,62 @@
+name: Python upgrade
+
+# "Latest stable" stays the policy, but it reaches the image through a reviewed
+# pull request instead of whatever a Cloud Build installs that day: Vabamorf
+# (via estnltk) is the answer key, so a new release must pass the morphology
+# gate and the suite in `tests.yml` before it ships.
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # The same command as the header of requirements.lock, plus --upgrade.
+      - name: Re-resolve to the latest stable releases
+        run: |
+          pip install uv==0.12.18
+          uv pip compile requirements.txt --universal --python-version 3.14 \
+            --generate-hashes --upgrade -o requirements.lock
+
+      # A pull request opened with the workflow token starts no pull_request
+      # run, so the tests are dispatched on the branch; their checks appear on
+      # the pull request's head commit. Requires Settings -> Actions -> General
+      # -> "Allow GitHub Actions to create and approve pull requests".
+      - name: Open a pull request when anything moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- requirements.lock; then
+            echo "requirements.lock is already current."
+            exit 0
+          fi
+          branch="deps/python-$(date -u +%Y-%m-%d)"
+          moved="$(git diff -U0 -- requirements.lock \
+            | grep -E '^[-+][A-Za-z0-9_.-]+==' | sed -E 's/ .*//' || true)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add requirements.lock
+          git commit -m "DEV-39 upgrade locked Python dependencies"
+          git push --force origin "$branch"
+          if ! gh pr view "$branch" >/dev/null 2>&1; then
+            gh pr create --base main --head "$branch" \
+              --title "DEV-39 Upgrade locked Python dependencies ($(date -u +%Y-%m-%d))" \
+              --body "$(printf '%s\n\n```diff\n%s\n```\n\n%s\n' \
+                'Weekly re-resolution of `requirements.txt` to the latest stable releases.' \
+                "$moved" \
+                'Merge only when the dispatched Tests run is green, including **Validate morphology against native gold data**; a skipped gate is not a pass. A new estnltk also needs a look at the validation output.')"
+          fi
+          gh workflow run tests.yml --ref "$branch"

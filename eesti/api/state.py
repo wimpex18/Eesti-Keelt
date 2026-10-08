@@ -8,6 +8,7 @@ at call time.
 from __future__ import annotations
 
 import base64
+import hashlib
 import hmac
 import os
 import shutil
@@ -242,7 +243,11 @@ def content_export(request: Request) -> dict:
         "bytes": path.stat().st_size if path.exists() else 0,
     }
     if present and request.query_params.get("full"):
-        out["database"] = base64.b64encode(path.read_bytes()).decode("ascii")
+        raw = path.read_bytes()
+        out["database"] = base64.b64encode(raw).decode("ascii")
+        # The `corpus_revision` of exactly these bytes, which the Worker keeps
+        # with its archive (`deploy/worker.ts` → `syncCorpus`).
+        out["revision"] = hashlib.sha256(raw).hexdigest()
     return out
 
 
@@ -330,6 +335,28 @@ def events_import(body: EventsImport, request: Request) -> dict:
                 "last_seq": evidence.last_seq(conn), "settled": settled}
 
 
+@router.post("/api/state/backup")
+async def state_backup(request: Request) -> dict:
+    """The nightly off-Cloudflare copy (`eesti/backup.py`). The Worker's cron
+    sends each permanent account's log from its Durable Object, gzipped; only a
+    log that replays strictly is stored. Back-channel: `STATE_TOKEN` only."""
+    _require_state_token(request)
+    from starlette.concurrency import run_in_threadpool
+
+    from .. import backup
+    from ..identity import LEARNER, current
+
+    scope = current()
+    account = scope.id if scope.kind == LEARNER else "owner"
+    body = await request.body()
+    try:
+        return await run_in_threadpool(backup.store, account, body)
+    except backup.NotConfigured as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"not stored: {exc}") from exc
+
+
 @router.get("/api/me/export")
 def my_export() -> PlainTextResponse:
     """Everything the app has recorded about the learner, one event per line."""
@@ -371,8 +398,13 @@ def reminders_due(request: Request) -> dict:
     with evidence.connect() as log:
         prefs = reminders.settings(log)
         with review.connect(config.learner_db("REVIEW_DB")) as cards:
-            found = reminders.due(log, cards, progress_db())
+            progress = progress_db()
+            found = reminders.due(log, cards, progress)
+            # When the cron may next find something new, so it can leave a
+            # sleeping origin alone until then (`deploy/worker.ts` → `remind`).
+            after = reminders.next_check(log, cards, progress)
     return {"on": prefs["on"], "quiet": reminders.quiet(prefs),
+            "next_check": after.isoformat() if after else None,
             "reminders": [r.to_dict() for r in found]}
 
 

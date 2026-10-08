@@ -35,8 +35,8 @@ Whisper stays the fallback, and more verified clips can still reverse it.
 | Quotas/breakers | Keep persistent per-lane counters and exponential cooldown. Breaker connections open on each request thread; tutor failures share the breaker. Interactive calls make one attempt per lane. Counts are best-effort call allowances, not exact account/token/Neuron billing caps; snapshot lag and concurrency can lose counts. Worker ASR uses Cloudflare's quota and does not traverse Python's budget. No automatic paid upgrade or retry storm. |
 | Speech | The home service or, failing it, Cloudflare receives production audio; no app audio archive. Transcripts/practice signals enter evidence; feedback stays advisory. Recognition is not pronunciation assessment. Local CT2 reference dependencies stay outside the deployment image. |
 | Offline/sync | Keep cached shell and explicit IndexedDB drill packs; never cache API responses. Re-grade signed items server-side and deduplicate queued event IDs. Preserve pending answers across UI upgrades. There is no general offline tutor, exam or multi-device conflict resolver. |
-| Reminders | Keep opt-in, evidence-driven facts, quiet hours, deduplication and encrypted Web Push. Deployed VAPID bindings and cron are verified; browser delivery remains unmeasured. Cron restores state before deciding. No motivational scoring, email service or retained conversation transcript is needed. |
-| Privacy/recovery | Exported events contain writing and speech transcripts. Strict replay verification runs in temporary stores and leaves live state untouched. Live replication is not an independent backup; scheduled off-account backups are deferred. See `docs/deploy.md`. |
+| Reminders | Keep opt-in, evidence-driven facts, quiet hours, deduplication and encrypted Web Push. Deployed VAPID bindings and cron are verified; browser delivery remains unmeasured. Cron restores state before deciding, and only once the app's `next_check` has passed or new evidence has arrived. No motivational scoring, email service or retained conversation transcript is needed. |
+| Privacy/recovery | Exported events contain writing and speech transcripts. Strict replay verification runs in temporary stores and leaves live state untouched. Live replication is not an independent backup; a nightly strictly verified copy of each permanent account's log goes to a private Cloud Storage bucket the origin can only add to. Disaster restore remains an operator procedure. See `docs/deploy.md`. |
 | Deployment | Keep one Cloud Run instance and one process, no traffic splitting between independent writable revisions. The Worker returns a successful permanent-account API response only after that account's Durable Object has copied through the event sequence for that response's origin boot; a failed confirmation is an explicit retriable 503. Snapshots remain asynchronous because the event log, not the projections or caches they carry, is the source of truth. Scale-out still requires moving the write authority, not increasing the instance limit. |
 | Testing | Offline domain tests and replay tests, separate live provider evals, and browser journeys in CI and locally for both viewports. Morphology gold validation remains the dependency-upgrade gate. UI changes must exercise journeys, offline replay and restored state. |
 
@@ -47,11 +47,11 @@ Whisper stays the fallback, and more verified clips can still reverse it.
   Durable Object; self-service erasure would also have to cover the browser
   queue, exports and externally sent Notion rows. The current operator
   procedure is in `docs/deploy.md`.
-- **Independent backup:** scheduled off-account backup and disaster restore
-  are deferred. Private exports can be strictly replay-checked with
-  `cli verify-backup`. Keep them outside the hosting account and never put
-  plaintext learner data in CI artifacts. The Mac mini is a speech service,
-  with Workers AI fallback, and has no backup job.
+- **Disaster restore:** the nightly copy outside Cloudflare is implemented
+  (`eesti/backup.py`); an automated restore from it is deferred. Copies and
+  private exports are strictly replay-checked with `cli verify-backup`. Never
+  put plaintext learner data in CI artifacts. The Mac mini is a speech
+  service, with Workers AI fallback, and has no backup job.
 - **FSRS optimiser:** implemented; running it is deferred until enough history
   exists. A forced small-data fit is an experiment, not evidence of improvement.
 - **Recorded ASR corpus:** remains necessary. Start with 20 manually verified

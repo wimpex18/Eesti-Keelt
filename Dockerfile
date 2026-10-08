@@ -12,16 +12,20 @@ COPY deploy/build-web.mjs ./deploy/build-web.mjs
 COPY eesti/web/ ./eesti/web/
 RUN npm run build:web
 
-# The latest 3.14 patch: the image, CI, the eval and local `.venv` run the same
-# minor version.
-FROM python:3.14-slim AS builder
+# A pinned 3.14 patch: the image, CI, the eval and local `.venv` run the same
+# minor version. Python 3.15 waits for estnltk, python-crfsuite, pyahocorasick
+# and httptools wheels.
+FROM python:3.14.8-slim AS builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# The lock, not the request list: every transitive version and hash is fixed,
+# so Vabamorf's answers change only through an upgrade PR that ran the
+# morphology gate (`.github/workflows/python-upgrade.yml`).
+COPY requirements.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY eesti/ ./eesti/
 
@@ -64,15 +68,18 @@ RUN python -m eesti.reference > REFERENCE_INPUTS.json && rm -rf data/raw
 # ---------------------------------------------------------------------------
 # Runtime
 # ---------------------------------------------------------------------------
-FROM python:3.14-slim
+FROM python:3.14.8-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# The lock, not the request list: every transitive version and hash is fixed,
+# so Vabamorf's answers change only through an upgrade PR that ran the
+# morphology gate (`.github/workflows/python-upgrade.yml`).
+COPY requirements.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY eesti/ ./eesti/
 COPY --from=builder /build/data/ ./data/

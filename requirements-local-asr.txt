@@ -1,7 +1,9 @@
 # Optional, owner's machine only: TalTech's Voxtral Realtime Estonian as the first
 # speech lane of `cli serve` (eesti/evals/asr_voxtral.py). Never in the image.
 # Also set VOXTRAL_RT_MODEL to the downloaded model directory (8.9 GB).
-torch
-transformers>=5.2
-mistral-common[audio]
-av
+# Pinned: move a version only after re-running the ASR bench and the owner's
+# clips (docs/asr-evaluation.md); `deploy/home-asr/install.sh` installs these.
+torch==2.14.1
+transformers==5.19.0
+mistral-common[audio]==1.12.0
+av==19.0.1

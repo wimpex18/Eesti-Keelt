@@ -1,7 +1,8 @@
 #!/bin/zsh
-# One-time setup of the home speech service on an always-on Mac.
+# Setup, and update, of the home speech service on an always-on Mac.
 #
-#   zsh deploy/home-asr/install.sh <cloudflare-tunnel-token>
+#   zsh deploy/home-asr/install.sh <cloudflare-tunnel-token>   # first time
+#   zsh deploy/home-asr/install.sh                             # update
 #
 # Run from the app's folder (a git clone, or GitHub's "Download ZIP" unpacked).
 # No Homebrew needed. It picks the engine by processor:
@@ -9,17 +10,22 @@
 #   Intel         -> TalTech Whisper et-verbatim on the CPU (1.6 GB)
 # and registers two launchd services that start at login and restart if they
 # stop: the speech service (127.0.0.1:8790) and the Cloudflare Tunnel that lets
-# the Worker reach it. Re-running it is safe. See deploy/home-asr/README.md.
+# the Worker reach it. Re-running it updates the packages (to the pins in
+# requirements-local-asr.txt), the model and cloudflared, and reuses the stored
+# tunnel token. See deploy/home-asr/README.md.
 set -euo pipefail
 
+STATE="$HOME/.eesti-home-asr"
 TUNNEL_TOKEN="${1:-}"
+if [[ -z "$TUNNEL_TOKEN" && -s "$STATE/tunnel-token" ]]; then
+  TUNNEL_TOKEN="$(<"$STATE/tunnel-token")"
+fi
 if [[ -z "$TUNNEL_TOKEN" ]]; then
   echo "Usage: zsh deploy/home-asr/install.sh <cloudflare-tunnel-token>" >&2
   echo "The token is shown when you create the tunnel (README.md, step A)." >&2
   exit 1
 fi
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-STATE="$HOME/.eesti-home-asr"
 AGENTS="$HOME/Library/LaunchAgents"
 mkdir -p "$STATE/bin" "$AGENTS"
 cd "$REPO"
@@ -31,23 +37,23 @@ if ! command -v uv >/dev/null && [[ ! -x "$HOME/.local/bin/uv" ]]; then
 fi
 UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
 
-# cloudflared from Cloudflare's own GitHub release for this processor.
-if [[ ! -x "$STATE/bin/cloudflared" ]]; then
-  kind=$([[ "$ARCH" == arm64 ]] && echo arm64 || echo amd64)
-  curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-$kind.tgz" \
-    | tar -xz -C "$STATE/bin"
-  chmod +x "$STATE/bin/cloudflared"
-fi
+# cloudflared from Cloudflare's own GitHub release for this processor, the
+# latest on every run: it runs with --no-autoupdate.
+kind=$([[ "$ARCH" == arm64 ]] && echo arm64 || echo amd64)
+curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-$kind.tgz" \
+  | tar -xz -C "$STATE/bin"
+chmod +x "$STATE/bin/cloudflared"
 
 echo "Installing the speech service's Python environment ..."
 "$UV" venv -q --allow-existing --python 3.12 "$STATE/venv"
 PY="$STATE/venv/bin/python"
 if [[ "$ARCH" == arm64 ]]; then
-  "$UV" pip install -q --python "$PY" fastapi uvicorn certifi huggingface_hub \
+  "$UV" pip install -q --upgrade --python "$PY" fastapi uvicorn certifi huggingface_hub \
     -r requirements-local-asr.txt
   REPO_ID="TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609"; PATTERN="model.safetensors *.json"
 else
-  "$UV" pip install -q --python "$PY" fastapi uvicorn certifi faster-whisper "tokenizers>=0.22"
+  "$UV" pip install -q --upgrade --python "$PY" fastapi uvicorn certifi faster-whisper \
+    "tokenizers>=0.22"
   REPO_ID="TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"; PATTERN="ct2/*"
 fi
 

@@ -9,6 +9,7 @@ archive back. The operator push uses `PROXY_TOKEN` and `STATE_TOKEN`.
 from __future__ import annotations
 
 import base64
+import hashlib
 from pathlib import Path
 
 import argparse
@@ -91,7 +92,6 @@ class TestReceivingAHarvest:
         assert deployment.get("/api/health").json()["library"] is True
 
     def test_health_identifies_a_second_upload_without_changing_the_origin_boot(self, deployment, harvest, tmp_path):
-        import hashlib
         from eesti.sources import Item, add_items, connect
 
         before = deployment.get("/api/health").json()
@@ -170,6 +170,17 @@ class TestHandingItBack:
         )
         assert restored.status_code == 200, restored.text
         assert restored.json()["items"] == 1
+
+    def test_the_full_answer_names_the_revision_it_carries(self, deployment, harvest):
+        """The Worker records it with the archive, so a container that already
+        holds exactly that corpus is not exported and archived again."""
+        deployment.post("/api/content/import", json={"database": harvest},
+                        headers={"x-state-token": TOKEN})
+        exported = deployment.get("/api/content/export?full=1",
+                                  headers={"x-state-token": TOKEN}).json()
+        revision = hashlib.sha256(base64.b64decode(exported["database"])).hexdigest()
+        assert exported["revision"] == revision
+        assert deployment.get("/api/health?live=1").json()["corpus_revision"] == revision
 
     def test_export_needs_the_token_too(self, deployment):
         assert deployment.get("/api/content/export").status_code == 403

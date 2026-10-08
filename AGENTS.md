@@ -68,9 +68,9 @@ npm run typecheck
 ```
 
 After a change to `eesti/web/`, run browser journeys and inspect both
-viewports. Keep Python, tools and dependencies on current stable releases;
-run the suite after upgrades and the morphology eval before trusting a new
-`estnltk`.
+viewports. Keep Python, tools and dependencies on current stable releases,
+reached through `requirements.lock` upgrade PRs (`docs/deploy.md`); run the
+suite after upgrades and the morphology eval before trusting a new `estnltk`.
 
 ## Working in this repository
 
@@ -82,18 +82,18 @@ run the suite after upgrades and the morphology eval before trusting a new
   completed history. Keep it within 30 lines.
 - Keep `AGENTS.md` concise and model-agnostic as the single repository-wide
   agent instruction file.
-- Stage named paths, never `git commit -a`. Open small PRs; the user merges.
+- Stage named paths, never `git commit -a`. One open PR per session: add later
+  work to it, even for another issue, not a new PR. The user merges.
   Docs describe current behavior. Path rules are in `.claude/rules/`; design
   context is in `PRODUCT.md` and `DESIGN.md`. Architecture constraints are in
   `docs/adr/0005-architecture-contracts.md`.
 
 ## Linear tracking
 
-Use Linear team **Development (DEV)** and project **Eesti-Keelt**; never create
-Eesti-Keelt issues under PM. New issue titles start with **EK**.
-
-Linear is the durable backlog for bugs, feature ideas, improvements and deferred
-follow-up. Create or update an issue only when the work should survive the current
-session; do not mirror implementation history. If work starts from a Linear
-issue, keep its issue ID in the branch or PR. Keep implementation details in
-Git/PRs and durable product and technical truth in repository docs.
+Linear team **Development (DEV)**, project **Eesti-Keelt**. **Do not create
+Linear issues**, including child issues: the owner tracks the existing set.
+Record follow-up, deferred work and new findings as a comment, or a checklist
+in a comment, on the existing issue the work belongs to; if none fits, list it
+in `HANDOFF.md` and ask the owner. If work starts from a Linear issue, keep its
+issue ID in the branch or PR. Keep implementation details in Git/PRs and
+durable product and technical truth in repository docs.

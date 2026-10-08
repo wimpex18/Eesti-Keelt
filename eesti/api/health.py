@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter
 
@@ -31,7 +33,12 @@ from .deps import (
 router = APIRouter()
 
 @router.get("/api/health")
-def health() -> dict:
+def health(live: bool = False) -> dict:
+    if live:
+        # The Worker's liveness probe (`deploy/worker.ts` → `restore`): which
+        # instance is answering and which corpus it holds, and nothing that
+        # reads the word list or the mounted recordings.
+        return {"boot": BOOT_ID, "corpus_revision": content_revision()}
     from .. import reference
     conn = db()
     words = conn.execute("SELECT COUNT(*) FROM words").fetchone()[0]
@@ -99,22 +106,32 @@ def _reference(conn) -> dict:
 
 
 def _recordings() -> dict:
-    """How many word forms and sentences a person actually read, or zeros."""
-    from pathlib import Path as _Path
+    """How many word forms and sentences a person actually read, or zeros.
 
+    Counted once per version of the file: the store is a network mount and
+    every page load asks for this report.
+    """
     from .. import config
 
-    if not _Path(config.AUDIO_DB).exists():
-        return {"forms": 0, "sentences": 0}
     try:
-        from .. import haaldus
-
-        conn = haaldus.connect(config.AUDIO_DB)
-        return {"forms": haaldus.counts(conn)["forms"],
-                "sentences": conn.execute(
-                    "SELECT COUNT(*) FROM sentence_audio").fetchone()[0]}
+        stat = Path(config.AUDIO_DB).stat()
+        forms, sentences = _counted_recordings(
+            str(Path(config.AUDIO_DB).resolve()), stat.st_mtime_ns, stat.st_size)
     except Exception:  # noqa: BLE001 - a missing store is a state, not an error
         return {"forms": 0, "sentences": 0}
+    return {"forms": forms, "sentences": sentences}
+
+
+@lru_cache(maxsize=4)
+def _counted_recordings(path: str, mtime: int, size: int) -> tuple[int, int]:
+    from .. import haaldus
+
+    conn = haaldus.connect(path)
+    try:
+        return (conn.execute("SELECT COUNT(*) FROM pronunciation").fetchone()[0],
+                conn.execute("SELECT COUNT(*) FROM sentence_audio").fetchone()[0])
+    finally:
+        conn.close()
 
 
 @router.get("/api/status")

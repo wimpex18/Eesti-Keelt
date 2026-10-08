@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "eesti-keelt",
   "main": "deploy/worker.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
 
   // The Worker is a doorman, not the app. The FastAPI process runs on Google
@@ -32,8 +32,10 @@
 
   // Reminders (`LearnerState.remind`). Hourly is enough: the app answers with
   // what is worth saying at this hour in Europe/Tallinn, and a tag keeps one
-  // fact from arriving twice. Cron is free-plan.
-  "triggers": { "crons": ["7 * * * *"] },
+  // fact from arriving twice. The second is the nightly backup of every
+  // permanent account's log outside Cloudflare (`BACKUP_CRON`,
+  // `LearnerState.backup`). Cron is free-plan.
+  "triggers": { "crons": ["7 * * * *", "37 1 * * *"] },
 
   "observability": { "enabled": true }
 

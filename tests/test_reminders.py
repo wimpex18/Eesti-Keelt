@@ -145,3 +145,76 @@ class TestNothingPrivateTravels:
         for reminder in said:
             assert "raamatut" not in reminder.body
             assert "eksisin" not in reminder.body
+
+
+class TestTheCronKnowsWhenToLookAgain:
+    """The Worker's hourly cron restores a sleeping origin before it can ask, so
+    `next_check` lets it sleep until something could be due. It may be early;
+    a reminder that would have been sent before it is one the learner loses."""
+
+    def _tags(self, cards, progress, when):
+        with evidence.connect() as fresh:
+            return {r.tag for r in reminders.due(fresh, cards, progress, when)}
+
+    def _never_late(self, cards, progress, start, days=4):
+        """Walk quarter-hours: nothing new may appear before `next_check`."""
+        when, end, checks = start, start + timedelta(days=days), 0
+        while when < end:
+            with evidence.connect() as fresh:
+                after = reminders.next_check(fresh, cards, progress, when)
+            assert after is None or after > when
+            now = self._tags(cards, progress, when)
+            probe = when + timedelta(minutes=15)
+            while probe < min(after or end, end):
+                assert self._tags(cards, progress, probe) <= now, (when, probe, after)
+                probe += timedelta(minutes=15)
+            when, checks = (after or end), checks + 1
+        return checks
+
+    def test_off_means_no_look_until_new_evidence(self, log, cards, progress):
+        due_cards(cards, 40, at(19))
+        assert reminders.next_check(log, cards, progress, at(19)) is None
+
+    def test_the_whole_queue_and_plan_are_never_seen_late(self, log, cards, progress):
+        from eesti import exam
+        from eesti.review import add
+
+        reminders.choose(on=True, hour=19, quiet_from=22, quiet_to=8)
+        # Registration for this sitting closes on 1 October: a warning falls
+        # on 17 September, inside the walk, as does the third idle day.
+        exam.set_goal(progress, "B1", date(2026, 11, 8))
+        evidence.record("attempt", {"topic": "obj-case", "correct": 1},
+                        ts=at(9, "2026-09-15").isoformat())
+        for i in range(reminders.DUE_ENOUGH + 2):
+            add(cards, "obj-case", f"sõna{i}", f"küsimus {i}", "vastus", tag="obj-case")
+            cards.execute("UPDATE review_items SET due = ? WHERE lemma = ?",
+                          ((at(3, "2026-09-17") + timedelta(hours=7 * i)).isoformat(),
+                           f"sõna{i}"))
+        cards.commit()
+        checks = self._never_late(cards, progress, at(23, "2026-09-16"))
+        assert checks < 4 * 24 / 2, "the cron should sleep through most hours"
+
+    @pytest.mark.parametrize("quiet_from, quiet_to, start", [
+        (12, 11, 1),    # audible one hour a day
+        (13, 15, 13),   # an afternoon break: the queue is said when it ends
+    ])
+    def test_what_quiet_hours_held_back_is_seen_when_they_end(
+            self, log, cards, progress, quiet_from, quiet_to, start):
+        reminders.choose(on=True, hour=6, quiet_from=quiet_from, quiet_to=quiet_to)
+        due_cards(cards, 20, at(1))
+        self._never_late(cards, progress, at(start), days=3)
+
+    def test_silence_all_day_never_needs_a_look(self, log, cards, progress):
+        reminders.choose(on=True, quiet_from=22, quiet_to=22)
+        assert reminders.next_check(log, cards, progress, at(19)) is None
+
+    def test_the_cron_route_reports_it(self, log, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from eesti.app import app
+
+        reminders.choose(on=True, hour=19)
+        monkeypatch.setenv("STATE_TOKEN", "test-state-token")
+        body = TestClient(app).get(
+            "/api/reminders", headers={"x-state-token": "test-state-token"}).json()
+        assert datetime.fromisoformat(body["next_check"]) > datetime.now(timezone.utc)

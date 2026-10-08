@@ -89,3 +89,34 @@ class TestASentence:
         monkeypatch.setattr(config, "AUDIO_DB", str(tmp_path / "absent.db"))
         body = client.get("/api/dictation/next?count=1&seed=1").json()
         assert body["passages"] and body["passages"][0]["text"]
+
+
+class TestHealthReadsTheStoreSparingly:
+    """The mounted store is hundreds of megabytes on a network file system: a
+    count of it must not sit on the path every learner request waits behind."""
+
+    def test_liveness_never_opens_the_recordings(self, client, recorded, monkeypatch):
+        def refuse(*_args, **_kwargs):
+            raise AssertionError("liveness opened the recordings store")
+
+        monkeypatch.setattr(haaldus, "connect", refuse)
+        body = client.get("/api/health?live=1").json()
+        assert body["boot"]
+        assert "corpus_revision" in body
+        assert "recordings" not in body
+
+    def test_the_full_report_counts_once_per_version_of_the_file(
+            self, client, recorded, monkeypatch):
+        opened = []
+        real = haaldus.connect
+        monkeypatch.setattr(haaldus, "connect",
+                            lambda *a, **k: opened.append(a) or real(*a, **k))
+        assert client.get("/api/health").json()["recordings"] == {"forms": 1, "sentences": 1}
+        assert client.get("/api/health").json()["recordings"] == {"forms": 1, "sentences": 1}
+        assert len(opened) == 1
+        with recorded:
+            recorded.execute("INSERT INTO pronunciation"
+                             " (form, tag, spoken, lemma, mime, audio, source)"
+                             " VALUES ('koerale','sg all','koerale','koer','audio/wav',?,'psv')",
+                             (_wav(),))
+        assert client.get("/api/health").json()["recordings"]["forms"] == 2

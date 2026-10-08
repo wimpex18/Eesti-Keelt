@@ -18,6 +18,7 @@ import {
   type Who,
 } from "./accounts";
 import { type PushSubscription, sendPush } from "./push";
+import { BACKUP_CRON } from "./schedule";
 
 interface Env {
   LEARNER_STATE: DurableObjectNamespace<LearnerState>;
@@ -61,6 +62,12 @@ const SNAPSHOT_EVERY_MS = 5 * 60 * 1000;
  * spent to find out whether the instance is still the one holding the state.
  */
 const LIVENESS_TTL_MS = 60 * 1000;
+/**
+ * The longest the reminder cron trusts the app's `next_check` without asking
+ * again. Shorter than the audible part of a day, so an answer from older code
+ * or data still leaves every day a look.
+ */
+const REMIND_RECHECK_MAX_MS = 6 * 60 * 60 * 1000;
 /** Floor on how often a write triggers a snapshot. See `snapshot`. */
 const SNAPSHOT_MIN_GAP_MS = 60 * 1000;
 /** A just-answered origin is normally immediately readable; retry brief edge or
@@ -90,6 +97,12 @@ interface Origin {
   cursor: number;
 }
 
+/** When the reminder cron next needs the origin, and the log it was decided on. */
+interface RemindNext {
+  at: number;
+  dseq: number;
+}
+
 interface BlobMeta {
   chunks: number;
   bytes: number;
@@ -99,6 +112,10 @@ interface BlobMeta {
   /** Learner rows in a `snap` export (see `/api/state/export`); absent before
    *  the origin reported them. */
   rows?: number;
+  /** The origin's `corpus_revision` of an archived corpus, so a container
+   *  already holding it is recognised after this object is evicted. Absent on
+   *  archives made before it was recorded. */
+  revision?: string | null;
 }
 
 /**
@@ -154,13 +171,32 @@ export class LearnerState extends DurableObject<Env> {
   }
 
   async bindWho(who: Who): Promise<void> {
-    const saved = await this.ctx.storage.get<Who>("who");
+    const saved = this.who ?? (await this.ctx.storage.get<Who>("who")) ?? null;
     if (saved && (saved.scope !== who.scope ||
         (saved.scope !== "guest" && who.scope !== "guest" && saved.id !== who.id))) {
       throw new Error("Durable Object identity does not match its account");
     }
-    await this.ctx.storage.put<Who>("who", who);
-    this.who = who;
+    // A caller that does not know the email (the cron, a guest's corpus restore)
+    // must not erase the one an account request stored; the origin reads it.
+    const next: Who = saved && saved.scope !== "guest" && who.scope !== "guest" && !who.email
+      ? { ...who, email: saved.email }
+      : who;
+    // Most requests bind the identity that is already stored: spend no write.
+    if (!saved || JSON.stringify(saved) !== JSON.stringify(next)) {
+      await this.ctx.storage.put<Who>("who", next);
+    }
+    this.who = next;
+  }
+
+  /**
+   * Guests and learners read the corpus this object archives, so a cold origin
+   * must be restored first. Binds the owner only on a never-bound object, so
+   * public traffic neither rewrites nor blanks the owner's identity.
+   */
+  async restoreShared(): Promise<boolean> {
+    await this.hydrateWho();
+    if (!this.who) await this.bindWho({ scope: "owner", id: "owner", email: "" });
+    return this.ensureRestored();
   }
 
   private async hydrateWho(): Promise<void> {
@@ -247,13 +283,25 @@ export class LearnerState extends DurableObject<Env> {
     const subs = this.subscriptions();
     if (!subs.length) return { sent: 0, skipped: 0 };
 
+    /* The app named the earliest moment anything new could be due. Before it,
+       and with no new evidence copied since, there is nothing to ask: leave a
+       sleeping origin asleep rather than wake and restore it every hour. */
+    const next = await this.ctx.storage.get<RemindNext>("remind-next");
+    if (next && Date.now() < next.at && next.dseq === this.lastEventDseq()) {
+      return { sent: 0, skipped: 0 };
+    }
+
     /* The cron wakes a container that scaled to zero, and a fresh one holds no
        history: its evidence log is empty, so the app would answer that
        reminders are switched off and that nothing is due. Restore it first —
        this is the same wait every proxied request does. */
     if (!(await this.ensureRestored())) return { sent: 0, skipped: 0 };
 
-    let due: { reminders: { tag: string; title: string; body: string; url: string }[] };
+    const asked = this.lastEventDseq();
+    let due: {
+      reminders: { tag: string; title: string; body: string; url: string }[];
+      next_check?: string | null;
+    };
     try {
       const res = await fetch(this.origin("/api/reminders"), { headers: this.headers() });
       if (!res.ok) return { sent: 0, skipped: 0 };
@@ -264,6 +312,7 @@ export class LearnerState extends DurableObject<Env> {
 
     let sent = 0;
     let skipped = 0;
+    let undelivered = 0;
     for (const reminder of due.reminders ?? []) {
       const seen = [...this.ctx.storage.sql.exec(
         "SELECT tag FROM push_sent WHERE tag = ?", reminder.tag)];
@@ -296,13 +345,73 @@ export class LearnerState extends DurableObject<Env> {
         this.ctx.storage.sql.exec(
           "INSERT OR REPLACE INTO push_sent (tag, at) VALUES (?, ?)",
           reminder.tag, new Date().toISOString());
+      } else {
+        undelivered += 1;
       }
+    }
+    // Sleep only on a complete answer: an origin that names no next check is
+    // asked every hour, and an undelivered reminder is retried next hour.
+    const named = due.next_check === null ? Infinity
+      : typeof due.next_check === "string" ? Date.parse(due.next_check) : NaN;
+    if (!undelivered && !Number.isNaN(named)) {
+      await this.ctx.storage.put<RemindNext>("remind-next", {
+        at: Math.min(named, Date.now() + REMIND_RECHECK_MAX_MS), dseq: asked,
+      });
+    } else {
+      await this.ctx.storage.delete("remind-next");
     }
     // Yesterday's tags can never come round again: the day is in the tag.
     this.ctx.storage.sql.exec(
       "DELETE FROM push_sent WHERE at < ?",
       new Date(Date.now() - 30 * 86400_000).toISOString());
     return { sent, skipped };
+  }
+
+  /**
+   * The nightly copy outside Cloudflare (`eesti/backup.py`): this account's
+   * whole log, in replay order, gzipped. The origin stores it only when it
+   * replays strictly. It needs no restore: the copy is taken from here, the
+   * acknowledged log, not from whatever the origin holds.
+   */
+  async backup(): Promise<{ ok: boolean; events: number; status?: number; object?: string }> {
+    await this.hydrateWho();
+    const rows = this.ctx.storage.sql
+      .exec<{ body: string }>("SELECT body FROM events ORDER BY dseq").toArray();
+    if (!rows.length) return { ok: true, events: 0 };
+    const log = rows.map((row) => row.body).join("\n") + "\n";
+    const gzipped = await new Response(
+      new Blob([log]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+    let result: { ok: boolean; events: number; status: number; object?: string };
+    let detail = "";
+    try {
+      const res = await fetch(this.origin("/api/state/backup"), {
+        method: "POST",
+        headers: this.headers({ "content-type": "application/gzip" }),
+        body: gzipped,
+      });
+      const out = (await res.json().catch(() => ({}))) as { object?: string; detail?: string };
+      result = { ok: res.ok, events: rows.length, status: res.status,
+                 ...(res.ok && out.object ? { object: out.object } : {}) };
+      detail = String(out.detail ?? "").slice(0, 200);
+    } catch (error) {
+      result = { ok: false, events: rows.length, status: 0 };
+      detail = error instanceof Error ? error.message.slice(0, 200) : String(error);
+    }
+    await this.ctx.storage.put("backup-last", { ...result, at: Date.now() });
+    if (!result.ok) {
+      console.error(JSON.stringify({
+        message: "learner backup not stored", scope: this.who?.scope,
+        events: rows.length, status: result.status, detail,
+      }));
+    }
+    return result;
+  }
+
+  /** Grows exactly when new evidence is copied in (`pullEvents`). */
+  private lastEventDseq(): number {
+    return this.ctx.storage.sql
+      .exec<{ n: number }>("SELECT COALESCE(MAX(dseq), 0) AS n FROM events")
+      .toArray()[0]?.n ?? 0;
   }
 
   private origin(path: string): string {
@@ -340,7 +449,8 @@ export class LearnerState extends DurableObject<Env> {
     return out.length === meta.bytes ? out : null;
   }
 
-  private async save(blob: Blob, body: string, rows?: number): Promise<void> {
+  private async save(blob: Blob, body: string, rows?: number,
+                     revision?: string | null): Promise<void> {
     if (blob === "corpus") {
       const prefix = `corpus/${crypto.randomUUID()}`;
       const chunks = Object.fromEntries(Array.from(
@@ -352,7 +462,7 @@ export class LearnerState extends DurableObject<Env> {
       // The pointer changes only after every new chunk is durable. A failure
       // before this line leaves the old generation available for restoration.
       await this.ctx.storage.put<BlobMeta>("corpus-meta", {
-        prefix, chunks: entries.length, bytes: body.length, at: Date.now(),
+        prefix, chunks: entries.length, bytes: body.length, at: Date.now(), revision,
       });
       try {
         const stale = [...(await this.ctx.storage.list<string>({ prefix: "corpus/" }))]
@@ -405,8 +515,16 @@ export class LearnerState extends DurableObject<Env> {
        is every cold start after that
 
      Both are no-ops once they agree, so this runs on every boot change without
-     costing anything in the ordinary case. */
-  private async syncCorpus(): Promise<boolean> {
+     costing anything in the ordinary case. `revision` is the container's own
+     `corpus_revision`; the archive records the one it holds, which persists
+     across eviction where `lastCorpusRevision` does not. */
+  private async syncCorpus(revision: string | null): Promise<boolean> {
+    const stored = await this.ctx.storage.get<BlobMeta>("corpus-meta");
+    if (revision !== null && stored?.revision === revision) {
+      this.lastCorpusRevision = revision;
+      return true;
+    }
+
     let onContainer = false;
     try {
       const res = await fetch(this.origin("/api/content/export"), {
@@ -418,22 +536,26 @@ export class LearnerState extends DurableObject<Env> {
       return false;
     }
 
-    const stored = await this.ctx.storage.get<BlobMeta>("corpus-meta");
-
     if (onContainer) {
       const res = await fetch(this.origin("/api/content/export?full=1"), {
         headers: this.headers(),
       });
       if (!res.ok) return false;
       const body = await res.text();
+      let exported: string | null = revision;
       try {
-        const database = (JSON.parse(body) as { database?: unknown }).database;
-        if (typeof database !== "string" || !database) return false;
+        const envelope = JSON.parse(body) as { database?: unknown; revision?: unknown };
+        if (typeof envelope.database !== "string" || !envelope.database) return false;
+        // The export's own checksum, where the origin reports it, is exact; the
+        // health value can predate an upload that lands mid-sync, and then the
+        // next check archives once more rather than never.
+        if (typeof envelope.revision === "string") exported = envelope.revision;
       } catch { return false; }
       try {
-        await this.save("corpus", body);
-        return true;
+        await this.save("corpus", body, undefined, exported);
       } catch { return false; }
+      this.lastCorpusRevision = exported;
+      return true;
     }
 
     if (!onContainer && stored) {
@@ -447,11 +569,16 @@ export class LearnerState extends DurableObject<Env> {
           headers: this.headers({ "content-type": "application/json" }),
           body: corpus,
         });
-        return res.ok;
+        if (!res.ok) return false;
+        // The import writes the archived bytes, so the container now reports the
+        // archive's revision, and the next liveness check finds them agreeing.
+        this.lastCorpusRevision = stored.revision ?? null;
+        return true;
       } catch {
         return false;
       }
     }
+    this.lastCorpusRevision = revision;
     return true;
   }
 
@@ -500,7 +627,9 @@ export class LearnerState extends DurableObject<Env> {
     let boot: string;
     let corpusRevision: string | null;
     try {
-      const res = await fetch(this.origin("/api/health"), {
+      // The liveness form: boot and corpus revision only, without the counts
+      // the full report reads from the mounted recordings.
+      const res = await fetch(this.origin("/api/health?live=1"), {
         headers: this.headers(),
       });
       if (!res.ok) return false;
@@ -516,8 +645,7 @@ export class LearnerState extends DurableObject<Env> {
 
     if (this.who?.scope === "owner" &&
         (boot !== this.lastBoot || corpusRevision !== this.lastCorpusRevision)) {
-      if (!(await this.syncCorpus())) return false;
-      this.lastCorpusRevision = corpusRevision;
+      if (!(await this.syncCorpus(corpusRevision))) return false;
     }
 
     if (boot === this.lastBoot) {
@@ -1140,17 +1268,26 @@ export default {
    * `eesti/reminders.py`, where the evidence is. Waking the origin a few times
    * a day is what a scale-to-zero service costs to be reminded by.
    */
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
     if (!env.CLOUD_RUN_URL) return;
     const singleton = singletonStub(env);
     const accounts = await singleton.accountList();
+    const learners: DurableObjectStub<LearnerState>[] = [];
     for (const account of accounts) {
       const who: Who = account.id === "owner"
         ? { scope: "owner", id: "owner", email: account.email }
         : { scope: "learner", id: account.id, email: account.email };
       const learner = await stubFor(env, who);
-      if (learner) ctx.waitUntil(learner.remind());
+      if (learner) learners.push(learner);
     }
+    if (event.cron === BACKUP_CRON) {
+      // One at a time: each is replayed strictly on the single origin instance.
+      ctx.waitUntil((async () => {
+        for (const learner of learners) await learner.backup();
+      })());
+      return;
+    }
+    for (const learner of learners) ctx.waitUntil(learner.remind());
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -1185,6 +1322,7 @@ export default {
       "/api/state/export",
       "/api/state/import",
       "/api/state/remove-account",
+      "/api/state/backup",
       "/api/content/export",
       "/api/content/import",
       "/api/progress/reset",
@@ -1234,8 +1372,7 @@ export default {
       // The reading corpus is shared, but only the singleton archives and
       // restores it. Guests can be the first visitors after a cold start too;
       // restore shared material before forwarding their isolated requests.
-      const owner = await stubFor(env, { scope: "owner", id: "owner", email: "" });
-      if (owner) await owner.ensureRestored();
+      await singletonStub(env).restoreShared();
     }
     const prepared = learner
       ? await learner.prepareOrigin(who.scope === "owner" && url.pathname === "/api/health")

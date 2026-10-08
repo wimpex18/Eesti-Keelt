@@ -56,7 +56,8 @@ browser / agent ─► Worker (public entry)
    `learner` scope whose log has none. `_register_all` includes `profile`.
 5. **Allowances** (`eesti/providers/budget.py`, `breaker.py`): permanent scopes
    bind to the owner's `progress.db` (one household allowance, today's caps);
-   guest scope binds to `config.guest_shared_db()` with `GUEST_CAPS` =
+   guest scope counts in the same store under `guest:` lane names, so the
+   owner's snapshot carries it across cold starts, with `GUEST_CAPS` =
    `llm:workers-ai` 100, `tartunlp` 200, `tartunlp-mt` 200, `asr:workers-ai` 50,
    every other lane its normal cap. `/api/engines` reports the caller's
    allowance.
@@ -86,7 +87,7 @@ owner-only account-removal routes are outside this FastAPI inventory.
 
 | Class | owner | learner | guest | Routes |
 |---|---|---|---|---|
-| Back channel (`STATE_TOKEN`; 404 at Worker) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/reminders` |
+| Back channel (`STATE_TOKEN`; 404 at Worker) | own files | own files | 403 | `/api/events`, `/api/events/import`, `/api/state/export`, `/api/state/import`, `/api/state/backup`, `/api/reminders` |
 | Back channel, owner only | yes | 403 | 403 | `/api/content/export`, `/api/content/import`, `/api/progress/reset`, `/api/state/remove-account` |
 | Answered by Worker from caller's object | yes | yes | 403 | `/api/push/key`, `/api/push/subscribe`, `/api/push/unsubscribe` |
 | Owner only | yes | 403 | 403 | `/api/notion/push`, `/api/eval/available`, `/api/eval/clip`, `/api/eval/draft/{stem}`, `/api/eval/prompt`, `/api/eval/review/{stem}` |
@@ -99,8 +100,9 @@ owner-only account-removal routes are outside this FastAPI inventory.
 `eesti/guest.py`. A sandbox is `GUEST_DIR/<name>/` with the five learner files
 and a `last-used` file whose mtime is the idle clock. `ensure` makes it and
 writes the log's `backfill` marker; `sweep` (at most once a minute) drops
-sandboxes idle over 24 h, then the oldest beyond 50; `reset` removes one.
-`shared.db` holds the guest allowances and is never swept. Names come only from
+sandboxes idle over 24 h; beyond 50, the longest idle of those unused for an
+hour, so a burst of new visitors never erases a guest mid-session; beyond 200,
+the longest idle of any; `reset` removes one. Names come only from
 `identity.sandbox_name`, so a name is always a safe single directory.
 
 Agents and tests choose a sandbox with `x-eesti-guest: <name>` (Playwright:
@@ -152,11 +154,15 @@ names are refused before forwarding. A browser without it gets a cookie. Start a
    snapshots, event pulls and reminders touch that learner's files only.
    `syncCorpus` runs in `singleton` only.
 4. **Guests.** No personal object, snapshots or event pulls. Restore the shared
-   corpus through the singleton before forwarding guest requests;
+   corpus through the singleton (`restoreShared`, which never rebinds the
+   owner's identity) before forwarding guest requests;
    `/api/push/*` → 403 with a Russian message.
 5. **Speech.** `transcribe` forwards the caller's scope headers to
    `/api/transcribe/text` and pulls into the caller's object.
-6. **Cron.** `scheduled` reminds `singleton` and every learner account.
+6. **Cron.** The nightly `BACKUP_CRON` copies each account's own log with its
+   own scope headers. Otherwise `scheduled` reminds `singleton` and every learner account; an
+   account restores only when its `next_check` has passed or it has new events
+   (`docs/deploy.md` → Reminders).
 7. **Back channel.** Every origin route guarded by `STATE_TOKEN` returns 404
    through the public Worker path.
 

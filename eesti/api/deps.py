@@ -111,16 +111,12 @@ def owner_scope() -> None:
 
 
 def allowance_db() -> sqlite3.Connection:
-    """Open the allowance store for the current request scope.
-
-    Permanent accounts share the owner's snapshotted store. Guest sandboxes
-    share a smaller, ephemeral store that is never copied to a Durable Object.
-    """
+    """Open the allowance store: the owner's snapshotted `progress.db` for every
+    scope, so counts survive a cold start. Guests count under their own lane
+    names with smaller caps (`providers/budget.py`)."""
     from .. import config
-    from ..identity import current
 
-    path = config.guest_shared_db() if current().is_guest else config.PROGRESS_DB
-    return sqlite3.connect(path)
+    return sqlite3.connect(config.PROGRESS_DB)
 
 
 def _bind_breaker() -> None:

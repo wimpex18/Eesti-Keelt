@@ -58,3 +58,16 @@ def test_export_envelope_failures_do_not_touch_live_state(tmp_path, problem):
     with pytest.raises(ValueError):
         recovery.verify_export(backup)
     assert Path(config.EVENTS_DB).read_bytes() == before
+
+
+def test_a_nightly_copy_is_checked_as_downloaded(tmp_path):
+    """The bucket keeps gzipped JSONL; checking it needs no unpacking step."""
+    import gzip
+
+    with vocab.connect(config.VOCAB_DB) as words:
+        vocab.set_status(words, 'raamat', 99)
+    plain = tmp_path / 'backup.jsonl'
+    export_to(plain)
+    packed = tmp_path / 'backup.jsonl.gz'
+    packed.write_bytes(gzip.compress(plain.read_bytes()))
+    assert recovery.verify_export(packed) == recovery.verify_export(plain)

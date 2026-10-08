@@ -2105,7 +2105,8 @@ class TestOnboarding:
         requests = []
         page.on("request", lambda req: requests.append(urlsplit(req.url).path))
         page.goto(page.url.split("#")[0] + "#start", wait_until="networkidle")
-        assert page.locator("[data-start]").is_visible()
+        # Waits: WebKit can paint the start screen just after the network settles.
+        page.wait_for_selector("[data-start]", state="visible")
         assert "/api/asr" not in requests
         assert "/api/speaking/check" not in requests
         assert "/api/eval/available" not in requests

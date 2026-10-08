@@ -25,7 +25,10 @@ from .config import CACHE
 
 SOURCE_ID = "estgec-l2"
 
-RAW = "https://raw.githubusercontent.com/tlu-dt-nlp/EstGEC-L2-Corpus/main"
+#: A commit, not a branch: the same five files on every fetch, so the items a
+#: drill offers change only when this line does. Move it in its own change.
+COMMIT = "c13d04adb6bc9f031a13163c2d1b87a297ca73e9"
+RAW = f"https://raw.githubusercontent.com/tlu-dt-nlp/EstGEC-L2-Corpus/{COMMIT}"
 
 #: Which file carries which level. The test split is per level; the dev split is
 #: one combined file, so those items have level `None`. Five requests, once.

@@ -10,9 +10,12 @@ fields, HMAC-signed. The answer comes back with the token, so the server grades
 against what it issued, not against an answer key the page sends back. A
 tampered token is refused.
 
-The key comes from `ITEM_SECRET`, else `PROXY_TOKEN` or `STATE_TOKEN` (both
-secrets the deployment already has), else a fixed development key under
-`cli serve`.
+Tokens are signed with `ITEM_SECRET`, else `PROXY_TOKEN` or `STATE_TOKEN`,
+else a fixed development key under `cli serve`. An answer queued offline can
+come back weeks later, so verification also accepts `ITEM_SECRET_PREVIOUS`
+(set while rotating `ITEM_SECRET`) and the two tokens that signed before a
+dedicated secret existed. Rotating `PROXY_TOKEN` then invalidates only tokens
+issued before `ITEM_SECRET` was set (`docs/deploy.md` → Secrets).
 """
 
 from __future__ import annotations
@@ -32,10 +35,28 @@ GENERATOR_VERSION = 3
 FIELDS = ("topic", "prompt", "answer", "distractor", "lemma", "hint", "rule", "why_ru")
 
 
-def _key() -> bytes:
-    secret = (os.environ.get("ITEM_SECRET") or os.environ.get("PROXY_TOKEN")
-              or os.environ.get("STATE_TOKEN") or "eesti-keelt-local-development")
+#: Signing order: the first one set signs; every one set verifies.
+_SIGNERS = ("ITEM_SECRET", "PROXY_TOKEN", "STATE_TOKEN")
+_DEVELOPMENT = "eesti-keelt-local-development"
+
+
+def _derive(secret: str) -> bytes:
     return hashlib.sha256(b"eesti-item:" + secret.encode()).digest()
+
+
+def _key() -> bytes:
+    secret = next((os.environ[n] for n in _SIGNERS if os.environ.get(n)), _DEVELOPMENT)
+    return _derive(secret)
+
+
+def _verifying_keys() -> list[bytes]:
+    """The signing key first, then each key an outstanding token may carry."""
+    keys = [_key()]
+    for name in ("ITEM_SECRET_PREVIOUS", *_SIGNERS):
+        secret = os.environ.get(name)
+        if secret and _derive(secret) not in keys:
+            keys.append(_derive(secret))
+    return keys
 
 
 def _b64(raw: bytes) -> str:
@@ -93,8 +114,8 @@ def _verify(token: str) -> dict:
         body = _unb64(body_b64)
     except (ValueError, TypeError) as exc:
         raise ValueError("malformed item token") from exc
-    expected = hmac.new(_key(), body, hashlib.sha256).hexdigest()[:32]
-    if not hmac.compare_digest(mac, expected):
+    if not any(hmac.compare_digest(mac, hmac.new(key, body, hashlib.sha256).hexdigest()[:32])
+               for key in _verifying_keys()):
         raise ValueError("item token signature does not match")
     try:
         return json.loads(body)

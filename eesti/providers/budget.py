@@ -28,6 +28,8 @@ CAPS: dict[str, int | None] = {
 }
 
 # Sandboxes share this smaller allowance; unknown lanes keep their normal cap.
+# Guests count in the same snapshotted store under `guest:` lane names, so a
+# cold start, which empties every sandbox, does not give them a fresh day.
 GUEST_CAPS: dict[str, int | None] = {
     **CAPS,
     "llm:workers-ai": 100,
@@ -102,7 +104,7 @@ def spent(lane: str) -> int:
     """Calls made on this lane today."""
     def read(conn: sqlite3.Connection) -> int:
         row = conn.execute("SELECT calls FROM budget WHERE day = ? AND lane = ?",
-                           (_today(), lane)).fetchone()
+                           (_today(), _key(lane))).fetchone()
         return row[0] if row else 0
 
     return _use(read, 0)
@@ -126,7 +128,7 @@ def spend(lane: str, calls: int = 1) -> None:
             conn.execute(
                 "INSERT INTO budget (day, lane, calls) VALUES (?,?,?)"
                 " ON CONFLICT(day, lane) DO UPDATE SET calls = calls + excluded.calls",
-                (_today(), lane, calls))
+                (_today(), _key(lane), calls))
 
     _use(write)
 
@@ -135,6 +137,13 @@ def report() -> dict[str, dict]:
     """What each capped lane has spent today, for `/api/status`."""
     return {lane: {"cap": cap, "spent": spent(lane), "left": left(lane)}
             for lane, cap in _caps().items() if cap is not None}
+
+
+def _key(lane: str) -> str:
+    """The stored name of a lane's count: guests keep their own."""
+    from ..identity import current
+
+    return f"guest:{lane}" if current().is_guest else lane
 
 
 def _caps() -> dict[str, int | None]:

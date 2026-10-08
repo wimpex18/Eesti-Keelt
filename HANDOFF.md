@@ -1,26 +1,20 @@
 # Handoff
 
-Current task: DEV-54 — EKI EVS example phrases as public practice pools (S2).
-Branch: claude/dev-54-evs-public-pools, merged with origin/main 82dc9d1 (#111).
-PR: https://github.com/wimpex18/Eesti-Keelt/pull/115 — owner reviews and merges.
-No deployment performed.
-State: outside the owner's scope, drills, dictation, read-aloud and mock
-reading/listening draw on `evs.phrases`; the owner's corpus comes first.
-`sonajark` tiles are EVS noun phrases whose order EKK fixes (SÜ 98, 104:
-genitive chains, a determiner with one adjective); the lesson gained that
-point. Clause (verb-second) tiles were rejected: EKK SÜ 92 allows inversion,
-so grading against EKI's order would mark correct Estonian wrong.
-`itemref.GENERATOR_VERSION` is 3.
-Next: owner merges #115; deploy; run `smoke` with `deep: true`; confirm a
-guest gets `gen-stem` and `sonajark` items on production.
-Rebase notes: open #113 (DEV-37) touches `eesti/itemref.py`; open #114
-(DEV-49) touches `eesti/evs.py`. DEV-51 (S1) may touch `eesti/cloze.py`;
-this branch adds only the `listed` parameter there.
-Gap for public learners: verb-second word-order practice and reading texts
-(DEV-36: reviewed material pipeline, permissions DEV-55).
-Repo note: two invalid refs `claude/ek-review-plan 2` (heads and
-origin) blocked every fetch; moved to this session's scratchpad. Their commit
-4654975 is on main.
-Uncommitted task paths: none after this commit. Worktree `data/*.db` are
-ignored copies used for browser journeys.
+Current task: review workstream S4 (data safety, dependencies), Linear DEV-37
+and DEV-39, as one PR; Litestream (DEV-43) waits until after 7–8 Nov.
+Branch: claude/dev-37-dev-39-data-safety, merged with origin/main 4d6bf01.
+Contains: DEV-37 items 1–7 (owner rebind, corpus revision, liveness, reminder
+cron, ITEM_SECRET, guest allowances and sandboxes, nightly verified GCS copy);
+DEV-39 (requirements.lock, python:3.14.8, weekly upgrade workflow, npm and
+wrangler, compatibility_date 2026-10-01, pinned local ASR, install.sh as
+updater); AGENTS.md: no new Linear issues, one open PR per session.
+Checks: see the PR; local Docker build of the merged tree passed.
+Next (owner): enable Settings → Actions → General → "Allow GitHub Actions to
+create and approve pull requests"; merge; after the image is live, in Cloud
+Shell run `bash deploy/set-item-secret.sh` and `bash deploy/setup-backup.sh`;
+next morning verify one copy with `cli verify-backup`; on the Mac mini unpack
+the new ZIP and run `zsh deploy/home-asr/install.sh`; deep smoke.
+Waiting: Node 26 after 28 Oct 2026 (JS checks pass on 26.11.1); Python 3.15
+until estnltk, python-crfsuite, pyahocorasick and httptools ship cp315 wheels.
+Uncommitted task paths: none after this commit.
 Blockers: none.
