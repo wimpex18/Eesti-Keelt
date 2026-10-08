@@ -1,5 +1,5 @@
 /* The app's icons: Phosphor Icons (MIT, `eesti/web/vendor/phosphor-icons.LICENSE`),
-   inlined as paths so the shell draws them offline with no request.
+   paths from `@phosphor-icons/core` 2.1.1, inlined as paths so the shell draws them offline with no request.
 
    Duotone for navigation and marks: a translucent fill (`.duo`) under the line,
    which reads as a material rather than a wire. Bold for the small glyphs inside

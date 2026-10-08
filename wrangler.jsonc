@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "eesti-keelt",
   "main": "deploy/worker.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
 
   // The Worker is a doorman, not the app. The FastAPI process runs on Google

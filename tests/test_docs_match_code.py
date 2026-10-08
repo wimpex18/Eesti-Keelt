@@ -263,7 +263,7 @@ class TestTheCiMatrixKnowsWhatShips:
     @staticmethod
     def _shipped() -> set[str]:
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        return set(re.findall(r"^FROM python:(\d+\.\d+)-slim", dockerfile, re.M))
+        return set(re.findall(r"^FROM python:(\d+\.\d+)(?:\.\d+)?-slim", dockerfile, re.M))
 
     def test_both_stages_use_one_minor_version(self):
         assert len(self._shipped()) == 1, self._shipped()

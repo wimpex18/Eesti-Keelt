@@ -27,6 +27,14 @@ Cloud Run requires `PROXY_TOKEN` on every request. Without it the origin answers
   typechecks, pushes Worker secrets and runs `wrangler deploy`.
 - Build steps that reach third parties or optional files end in `||` so a
   missing file or a 403 costs one feature, not the image.
+- **Dependencies:** the image, CI and the eval install `requirements.lock`
+  (`--require-hashes`, Python 3.14.8 base image); `requirements.txt` only names
+  what is requested. The weekly `python-upgrade` workflow re-resolves it to the
+  latest stable releases, opens a pull request and dispatches `tests.yml`,
+  which runs the morphology gate and the suite. It needs **Settings → Actions →
+  General → Allow GitHub Actions to create and approve pull requests**. npm
+  versions are locked by `package-lock.json`; `overrides` keeps the
+  development-only `sharp` on a patched release.
 
 ## In-app accounts
 

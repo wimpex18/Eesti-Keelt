@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The Python upgrade workflow dispatches this on its branch: a pull request
+  # opened with the workflow token starts no pull_request run of its own.
+  workflow_dispatch:
 
 jobs:
   worker:
@@ -35,7 +38,9 @@ jobs:
           cache: pip
 
       - name: Install
-        run: pip install -r requirements.txt pytest pytest-xdist
+        run: |
+          pip install --require-hashes -r requirements.lock
+          pip install pytest pytest-xdist
 
       # Third-party data from HuggingFace. A failure here must not fail the build:
       # the fetcher retries 5xx with backoff, and if it still cannot get the data the
@@ -88,7 +93,8 @@ jobs:
 
       - name: Install
         run: |
-          pip install -r requirements.txt pytest pytest-xdist playwright==1.63.0
+          pip install --require-hashes -r requirements.lock
+          pip install pytest pytest-xdist playwright==1.63.0
           python -m playwright install --with-deps chromium webkit
 
       - name: Build the word list

@@ -68,9 +68,9 @@ npm run typecheck
 ```
 
 After a change to `eesti/web/`, run browser journeys and inspect both
-viewports. Keep Python, tools and dependencies on current stable releases;
-run the suite after upgrades and the morphology eval before trusting a new
-`estnltk`.
+viewports. Keep Python, tools and dependencies on current stable releases,
+reached through `requirements.lock` upgrade PRs (`docs/deploy.md`); run the
+suite after upgrades and the morphology eval before trusting a new `estnltk`.
 
 ## Working in this repository
 

@@ -144,7 +144,7 @@ promise third-party uptime.
 | Source | Used for |
 |---|---|
 | EVKK learner corpus (TLU) | ranking error tags |
-| EstGEC-L2 (TLU) | attested word-order corrections |
+| EstGEC-L2 (TLU), commit `c13d04a` (`eesti/estgec.py` `COMMIT`) | attested word-order corrections |
 | GiellaLT `lang-est-x-utee` | agreement exceptions |
 | TalTech `inflection_et` | validating Vabamorf (`cli validate`) |
 | TalTech `grammar_et` | second eval track (`evals/external.py`) |
@@ -160,7 +160,7 @@ providers in `docs/ai-providers.md`.
 |---|---|
 | Geologica (Monokrom) | `eesti/web/fonts/`, notices beside the files |
 | HLS.js light player | `eesti/web/vendor/hls.light.min.js`, upstream notices alongside |
-| Phosphor Icons | inlined in `eesti/web/js/icons.js`; notices beside the source |
+| Phosphor Icons, `@phosphor-icons/core` 2.1.1 (duotone and bold; `sign-in` and `user-circle` regular) | inlined in `eesti/web/js/icons.js`; notices beside the source |
 
 These assets are served from this origin; the page asks no font or icon host for anything.
 
