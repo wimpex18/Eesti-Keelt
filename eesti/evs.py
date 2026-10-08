@@ -10,7 +10,15 @@ The example phrases, each with EKI's Russian, are kept apart in `evs_example`
 (`examples()`): the word in use, not what it means.
 
 **Order:** EKI's order within an article, neutral before labelled; across
-homonyms, the word with the most senses leads (`_merge`).
+homonyms, see `_choose`, then `_merge`.
+
+**Which homonyms:** EKI's level list (`A1A2B1.txt`) names each listed
+homograph by part of speech with its corpus count, so a listed lemma keeps the
+homographs of a listed part of speech, commonest first: *siin* "here", not
+*siin* "rail" (`_choose`). Unlisted lemmas keep every homograph, the one with
+the most senses leading. A sense EVS restricts to negated clauses (*hästi*
+"не очень", used as *ei … hästi*) is left out when the word's first sense is
+an ordinary one (`_negation_only`).
 
 **Storage:** `evs_gloss` in the words database (reference data; `vocab.db` is
 learner state). Precedence is in `meaning.py`: seed, live dictionary, EVS, HAR.
@@ -62,6 +70,22 @@ def _labels(node) -> set[str]:
 STRONG = {"hlv", "vulg", "madalk", "släng", "murd", "hrv", "iroon", "nlj", "luulek"}
 
 
+#: A sense whose condition is only this (`gki`, or a definition's lead before
+#: `:`) is used with a negation: *hästi* «не очень» is *ei … hästi*. "Usually"
+#: (`hrl eitusega`) is not enough to set a sense aside.
+_NEGATION = re.compile(r"(?:ainult |koos )?(?:eitusega|eituse puhul|eitavas lauses"
+                       r"|eitavates väljendites)(?: adverbiaalselt)?")
+
+
+def _negation_only(tp, tg) -> bool:
+    """Whether EVS says this sense occurs only with a negation."""
+    gki = tp.find("gki")
+    if gki is not None and _NEGATION.fullmatch(ekixml.text(gki)):
+        return True
+    lead = ekixml.text(tg.find("dg/d")).lstrip("[ ")
+    return bool(_NEGATION.fullmatch(lead.split(":")[0].strip("[] ")))
+
+
 def _article(article) -> tuple[int, list[str]]:
     """(number of senses, translations) in the order a learner needs them.
 
@@ -73,8 +97,15 @@ def _article(article) -> tuple[int, list[str]]:
     """
     main, main_labelled, rest_plain, rest_labelled, strong = [], [], [], [], []
     senses = 0
-    for index, tp in enumerate(article.findall("S/tp") or [article]):
+    tps = article.findall("S/tp") or [article]
+    # Negation-only senses go when the word's first sense is ordinary (*hästi*);
+    # `eales`, whose first sense is «никогда» with a negation, keeps them.
+    first = next(tps[0].iter("tg"), None)
+    ordinary = first is not None and not _negation_only(tps[0], first)
+    for index, tp in enumerate(tps):
         for tg in tp.iter("tg"):
+            if ordinary and _negation_only(tp, tg):
+                continue
             found = False
             sense_labels = set().union(*(_labels(dg) for dg in tg.findall("dg")))
             if ARCHAIC in sense_labels:
@@ -118,12 +149,12 @@ def _inflection_type(raw: str) -> str | None:
     return " / ".join(parts) if all(p.isdigit() for p in parts) else None
 
 
-def _merge(articles: list[tuple[int, list[str]]]) -> tuple[str, ...]:
-    """One list for a lemma with several homonym articles: the article with the most
-    senses supplies the first two translations (`suu` the mouth), then each other
-    homonym gets its first (`iga` still shows "каждый").
+def _merge(ranked: list[list[str]]) -> tuple[str, ...]:
+    """One list for a lemma with several homonym articles, leading article first:
+    it supplies the first two translations (`suu` the mouth), then each other
+    homonym gets its first (`tee` still shows "чай").
     """
-    ranked = [words for _, words in sorted(articles, key=lambda a: -a[0]) if words]
+    ranked = [words for words in ranked if words]
     if not ranked:
         return ()
     order = ranked[0][:2] + [w[0] for w in ranked[1:]] + ranked[0][2:] \
@@ -131,10 +162,64 @@ def _merge(articles: list[tuple[int, list[str]]]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(order))[:MAX_RUSSIAN]
 
 
-def parse(path: Path | str) -> list[Entry]:
-    """One entry per lemma, homonyms merged, with at least one translation."""
-    articles: dict[str, list[tuple[int, list[str]]]] = {}
-    pos: dict[str, str | None] = {}
+@dataclass(frozen=True)
+class _Homograph:
+    """One article: its part of speech, how many senses, and their Russian."""
+    pos: str
+    senses: int
+    words: list[str]
+
+
+#: EKI's level list codes (Vabamorf's) as EVS writes the part of speech. EVS
+#: leaves adpositions and abbreviations without one.
+LIST_POS = {"S": "s", "A": "adj", "V": "v", "D": "adv", "P": "pron", "N": "num",
+            "O": "num", "G": "adjg", "J": "konj", "I": "interj", "K": "", "Y": ""}
+
+
+def listed_pos(rows) -> dict[str, list[str]]:
+    """`{lemma: EVS parts of speech}` from EKI's level list rows
+    (`wordlist.read_official_levels`), commonest homograph first.
+    """
+    found: dict[str, list[tuple[int, str]]] = {}
+    for word, _level, code, freq in rows:
+        if (code or "") in LIST_POS:
+            found.setdefault(word, []).append((freq or 0, LIST_POS[code]))
+    return {w: list(dict.fromkeys(p for _, p in sorted(f, key=lambda x: -x[0])))
+            for w, f in found.items()}
+
+
+def _choose(homographs: list[_Homograph], listed: list[str] | None) -> list[_Homograph]:
+    """The homographs a lemma's card speaks for, leading one first.
+
+    A lemma on EKI's level list keeps the homographs of a listed part of speech:
+    *siin* adv, not the noun «шина». The leading homograph of each listed part
+    of speech comes first, in the list's frequency order (*iga* "every" before
+    *iga* "age"), then the other homographs of those parts of speech, so a
+    second noun cannot push a listed adverb off the card (*vara* «рано»). A
+    homograph of an unlisted part of speech with more senses than any kept one
+    stays last: the list's tag can be the rarer reading (*osaline* is listed
+    as an adjective, «-частный»; the noun is «участник»).
+
+    Without the list, or when no article has a listed part of speech, every
+    homograph stays and the one with most senses leads.
+    """
+    by_senses = sorted(homographs, key=lambda h: -h.senses)
+    if listed:
+        rank = {p: n for n, p in reversed(list(enumerate(listed)))}
+        kept = sorted((h for h in by_senses if h.pos in rank), key=lambda h: rank[h.pos])
+        if kept:
+            leaders = [h for n, h in enumerate(kept) if h.pos not in {k.pos for k in kept[:n]}]
+            most = max(h.senses for h in kept)
+            return (leaders + [h for h in kept if h not in leaders]
+                    + [h for h in by_senses if h.pos not in rank and h.senses > most])
+    return by_senses
+
+
+def parse(path: Path | str, listed: dict[str, list[str]] | None = None) -> list[Entry]:
+    """One entry per lemma, homonyms chosen (`_choose`) and merged, with at least
+    one translation. `listed` is EKI's level list (`listed_pos`).
+    """
+    articles: dict[str, list[_Homograph]] = {}
     types: dict[str, str | None] = {}
     for article in ekixml.articles(path):
         lemmas = ekixml.headwords(article)
@@ -143,13 +228,17 @@ def parse(path: Path | str) -> list[Entry]:
         senses, words = _article(article)
         if not words:
             continue
+        homograph = _Homograph(ekixml.text(article.find("P/mg/sl")), senses, words)
         for lemma in lemmas:
-            articles.setdefault(lemma, []).append((senses, words))
-            if lemma not in pos:
-                first = article.find("P/mg/sl")
-                pos[lemma] = ekixml.text(first) or None
+            articles.setdefault(lemma, []).append(homograph)
+            if lemma not in types:
                 types[lemma] = _inflection_type(ekixml.text(article.find("P/mg/grg/mt")))
-    return [Entry(lemma, pos[lemma], _merge(a), types[lemma]) for lemma, a in articles.items()]
+    out = []
+    for lemma, found in articles.items():
+        chosen = _choose(found, (listed or {}).get(lemma))
+        out.append(Entry(lemma, chosen[0].pos or None, _merge([h.words for h in chosen]),
+                         types[lemma]))
+    return out
 
 
 SCHEMA = """
@@ -312,6 +401,61 @@ def question_cues(conn: sqlite3.Connection | None) -> dict[str, tuple[str, ...]]
     except sqlite3.Error:
         return {}
     return {r[0]: tuple(x for x in r[1].split(SEP) if x) for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# Verbs that take an object
+# ---------------------------------------------------------------------------
+
+#: EVS's government (`vrek`) of a Russian translation that takes a direct
+#: object: `jooma` «пить что», `ootama` «ждать кого-что».
+OBJECT_GOVERNMENT = frozenset({"что", "кого", "кого-что"})
+
+OBJECT_SCHEMA = """
+-- Verbs whose main sense EVS translates with a Russian verb taking a direct
+-- object: the writing check's evidence that a verb has an object at all.
+CREATE TABLE IF NOT EXISTS evs_object_verb (lemma TEXT PRIMARY KEY);
+"""
+
+
+def object_verbs(path: Path | str) -> list[str]:
+    """Verbs whose first sense EVS renders with a Russian verb governing a direct
+    object (`OBJECT_GOVERNMENT`), in file order. `elama` «жить где» is not one.
+    """
+    out: dict[str, None] = {}
+    for article in ekixml.articles(path):
+        if ekixml.text(article.find("P/mg/sl")) != "v":
+            continue
+        tg = article.find("S/tp/tg")
+        if tg is None:
+            continue
+        governs = {ekixml.text(v) for v in tg.findall("xp/xg/vrek")}
+        if governs & OBJECT_GOVERNMENT:
+            out.update(dict.fromkeys(ekixml.headwords(article)))
+    return list(out)
+
+
+def store_object_verbs(conn: sqlite3.Connection, lemmas) -> int:
+    """Replace `evs_object_verb` with `lemmas`. Idempotent."""
+    conn.executescript(OBJECT_SCHEMA)
+    with conn:
+        conn.execute("DELETE FROM evs_object_verb")
+        conn.executemany("INSERT OR IGNORE INTO evs_object_verb (lemma) VALUES (?)",
+                         [(l,) for l in lemmas])
+    return conn.execute("SELECT COUNT(*) FROM evs_object_verb").fetchone()[0]
+
+
+def object_verbs_among(conn: sqlite3.Connection, lemmas: list[str]) -> set[str]:
+    """Those of `lemmas` stored as taking an object; empty before an import."""
+    if not lemmas:
+        return set()
+    try:
+        rows = conn.execute(
+            f"SELECT lemma FROM evs_object_verb WHERE lemma IN "
+            f"({','.join('?' * len(lemmas))})", lemmas).fetchall()
+    except sqlite3.Error:
+        return set()
+    return {r[0] for r in rows}
 
 
 def imported(conn: sqlite3.Connection) -> int:

@@ -26,8 +26,10 @@ RULES = [
 class TestItCatchesTheAttestedConfusion:
     @pytest.mark.parametrize(("text", "wrong", "correct"), [
         ("See süsteem põhineb faktidel.", None, None),
-        ("See süsteem põhineb faktidele.", "faktidele", "faktidel"),
-        ("See raamat sarnaneb teisele raamatule.", "raamatule", "raamatuga"),
+        # EKI records both frames of põhinema and sarnanema (DEV-52).
+        ("See süsteem põhineb faktidele.", None, None),
+        ("See raamat sarnaneb teisele raamatule.", None, None),
+        ("Ta kohaneb uuele kliimale.", "kliimale", "kliimaga"),
     ])
     def test_it_names_the_case_that_belongs(self, text, wrong, correct):
         found = rection.errors(text, RULES)
@@ -38,7 +40,7 @@ class TestItCatchesTheAttestedConfusion:
 
     def test_the_number_the_learner_used_is_kept(self):
         """Plural complements are checked too: the case is compared, not the number."""
-        assert rection.errors("See põhineb faktidele.", RULES)[0].correct == "faktidel"
+        assert rection.errors("Nad kohanevad oludele.", RULES)[0].correct == "oludega"
 
     def test_an_agreeing_modifier_is_part_of_the_complement_not_a_rival(self):
         """`uuele olukorrale` is one noun phrase. Counting the adjective as a
@@ -62,10 +64,11 @@ class TestItDoesNotInventErrors:
 
     def test_a_clause_boundary_stops_the_search(self):
         """Estonian marks subordinate clauses with a comma reliably. Without
-        this, `sõbrale` — allative, `põhinema`'s starred case — is flagged from
+        this, `sõbrale` — allative, `kohanema`'s starred case — is flagged from
         the other side of a comma while the real complement sits by the verb."""
         assert rection.errors(
-            "Ma kirjutasin sõbrale, et süsteem põhineb loogikal.", RULES) == []
+            "Ma kirjutasin sõbrale, et ta kohaneb kliimaga.", RULES) == []
+        assert rection.errors("Ma kirjutasin sõbrale, et ta kohaneb.", RULES) == []
 
     def test_two_rival_noun_phrases_are_left_alone(self):
         """More than one noun in the starred case and there is no telling which
@@ -117,4 +120,12 @@ class TestItReachesTheLearner:
         """The contrasts live in the word list, and a fresh checkout has none.
         An enrichment is never worth an error."""
         monkeypatch.setattr("eesti.wordlist.available", lambda *a, **k: False)
-        assert grammar.rection("See süsteem põhineb faktidele.") == []
+        assert grammar.rection("Ta kohaneb uuele kliimale.") == []
+
+
+def test_an_adjectives_case_in_running_text_is_left_to_the_verb():
+    """*anda adekvaatset tagasisidet kandideerijatele*: the allative is
+    *anda*'s, not *adekvaatne*'s (EKI's own example)."""
+    rules = [rection.Rection("adekvaatne", "millega", "millele", "sg kom", "sg all")]
+    assert rection.errors(
+        "Kandideerijatele tuleb anda adekvaatset tagasisidet.", rules) == []

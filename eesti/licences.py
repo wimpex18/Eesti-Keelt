@@ -448,21 +448,22 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "what learners actually get wrong. The learner texts are not fetched.",
     ),
     Source(
-        "ekk", "Eesti keele käsiraamat (EKI)", "file",
-        "© Eesti Keele Instituut — attributed rules and brief examples", False,
+        "ekk", "Eesti keele käsiraamat 2007 (3rd ed.)", "file",
+        "© Mati Erelt, Tiiu Erelt, Kristiina Ross — attributed rules and brief "
+        "examples", False,
         "https://arhiiv.eki.ee/books/ekk09/index.php",
         "Own Russian explanations paraphrase the cited rules; brief Estonian "
         "examples are attributed through each lesson's section links. Complete "
         "chapters are not imported. SÜ 65's rection facts (headword, correct "
         "frame, marked wrong frame) are fetched for deterministic practice; "
         "its full example sentences are not imported into that table.\n\n"
-        "EKK 2009 is the handbook linked to, but **ÕS 2025 is the basis of the "
-        "written-language norm from 2026-01-01**, and EKI route current rection "
-        "and usage decisions through the ühendsõnastik in Sõnaveeb (`EKI "
-        "selgitab`). SÜ 65's 23 contrasts are asserted *normatively* — the "
-        "`rektsioon` drill marks an answer wrong and `rection.errors` corrects "
-        "free writing — so a contrast ÕS has revised would be taught stale. "
-        "Checked as prose, not as code: see docs/sources.md.",
+        "The handbook is the 2007 third edition, online at EKI's archive. **ÕS "
+        "2025 is the basis of the written-language norm from 2026-01-01**; EKI "
+        "does not norm rection and records current usage in the ühendsõnastik "
+        "(Sõnaveeb). SÜ 65's contrasts whose starred frame EKI now records are "
+        "neither drilled nor flagged (`rection.EKI_ACCEPTS`, checked through "
+        "Ekilex on 2026-10-08); the rest still mark an answer wrong in the "
+        "`rektsioon` drill and in `rection.errors`.",
     ),
     Source(
         "eki-teatmik", "EKI teatmik", "file",

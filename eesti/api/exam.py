@@ -235,7 +235,11 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
         raise HTTPException(status_code=404, detail="unknown level or part")
 
     asked, correct, detail = len(res.answers), None, {}
+    # Item by item, for the learner to look back at; not stored with the section.
+    items: list[dict] = []
     if part == "lugemine":
+        from ..item import fill
+
         correct = 0
         for answer in res.answers:
             try:
@@ -243,7 +247,11 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=(
                     "Задание не удалось проверить: оно выдано не этим сервером.")) from exc
-            correct += int(accepts(issued["answer"], answer.given))
+            ok = accepts(issued["answer"], answer.given)
+            correct += int(ok)
+            items.append({"given": answer.given, "answer": issued["answer"],
+                          "solution": fill(issued["prompt"], issued["answer"]),
+                          "correct": ok})
     elif part == "kuulamine":
         from ..dictation import Passage, grade, key_of
 
@@ -254,6 +262,8 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
             got = grade(Passage(answer.text, key_of(answer.text),
                                 len(answer.text.split())), answer.given)
             correct += int(got.correct)
+            items.append({"text": answer.text, "given": answer.given,
+                          "correct": got.correct, "missed": got.missed})
     elif part == "kirjutamine":
         from ..mock import check_writing
 
@@ -266,7 +276,7 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
 
     saved = record(progress_db(), level, part, res.seconds, asked, correct,
                    detail=detail)
-    return saved | {"minutes": SPECS[level].part(part).minutes}
+    return saved | {"minutes": SPECS[level].part(part).minutes, "items": items}
 
 
 @router.get("/api/mock-run/{level}")

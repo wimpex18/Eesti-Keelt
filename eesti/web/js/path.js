@@ -2,7 +2,8 @@
 
 import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml,
   stateIcon, uiIcon} from "./chrome.js";
-import {$, addPracticeSupport, api, esc, glide, md, ruCount, setLabel, taskLine, wrongVerdict} from "./core.js";
+import {$, addPracticeSupport, api, blankForm, esc, glide, md, ruCount, setLabel, taskLine,
+  wrongVerdict} from "./core.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
 import {onLessonPractice} from "./lesson.js";
@@ -117,6 +118,10 @@ export async function loadPath() {
     if (!sessionTopic) pathTopic = p.resume;
     const next = p.topics.find(t => t.id === (sessionTopic || p.resume));
     $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
+    // A reference topic has no checked exercises: promise only what it gives.
+    $("#tab-path .lesson-purpose").textContent = next && next.drillable === false
+      ? "Разбери правило на примерах. Упражнений с проверкой по этой теме пока нет."
+      : "Разбери правило на примерах, попробуй сам и получи проверку.";
     const tried = next && next.attempts
       ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
         (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
@@ -207,12 +212,11 @@ export async function loadStatus() {
           `${b.from}–${b.to}: ${b.known} из ${b.size}`).join("; "))}">${bands.map((b, i) =>
           `<div class="band"><span style="height:${pct(b.known, b.size)}%;animation-delay:${i * 60}ms"></span></div>`).join("")}</div>
         <div class="band-labels" aria-hidden="true">${bands.map(b => `<span>${b.to}</span>`).join("")}</div>
-        ${s.sonavara.glossed != null ? `<p class="gloss-late">${ruCount(s.sonavara.glossed,
-          ["слово", "слова", "слов"])} с переводом <span class="hint">(пополняется само ·
-          сегодня осталось ${s.sonavara.gloss_budget_left})</span></p>` : ""}</section>`;
+        ${s.sonavara.glossed_of ? `<p class="gloss-late">с переводом: ${s.sonavara.glossed} из ${s.sonavara.glossed_of} частотных слов <span class="hint">(словари EKI;
+          онлайн-словарь дополняет, сегодня ещё ${s.sonavara.gloss_budget_left} запросов)</span></p>` : ""}</section>`;
       // Two facts, kept apart: "known" is what the learner declared; the glossed count
-      // is what the app can translate. The second grows on its own, so it is not
-      // presented as an achievement.
+      // is what the app can translate (EKI's dictionaries, topped up by the live
+      // one), so it is not presented as an achievement.
     }
     if (s.raamatukogu) html += `<section class="stat-card">
       <h3 lang="et">Lugemine · Kuulamine <i class="ru" lang="ru">чтение и аудирование</i></h3>
@@ -488,7 +492,7 @@ function finishSet(tally, res) {
      of a set is where a learner looks back, so the misses are there to look at. */
   const missed = tally.missed.length ? `<ul class="set-missed" lang="et">${
     tally.missed.map(({it}) => `<li>${esc(it.prompt).replace("____",
-      `<b>${esc(it.answer)}</b>`)}</li>`).join("")}</ul>` : "";
+      `<b>${esc(blankForm(it.prompt, it.answer.split(" ~ ")[0]))}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
     ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">повторить ошибки</span></button>` : "";
   if (tally === pathTally) sessionStep("check");
@@ -698,7 +702,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     // With parallel forms ("tube ~ tubasid") the sentence takes the one typed, if right.
     const said = res.correct && input ? submittedGiven.trim() : it.answer.split(" ~ ")[0];
     if (blank) {
-      blank.textContent = said;
+      blank.textContent = blankForm(it.prompt, said);
       blank.classList.add("filled", res.correct ? "ok" : "no");
     }
     // A miss goes on the set's list, to be looked at and redone at its end.
@@ -716,7 +720,7 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       ? ((choices.length || tiles) && !blank
           ? `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.answer)}</strong><br>
              <span class="why">${md(it.why_ru || "")}</span>`
-          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", said))}</strong>`
+          : `<span lang="et">✓ õige <i class="ru" lang="ru">верно</i></span> — <strong lang="et">${esc(it.prompt.replace("____", blankForm(it.prompt, said)))}</strong>`
             // A choice topic hid its form until now; the rule is the lesson either way.
             + (it.form_after ? `<br><span class="why">${md(it.why_ru || "")}</span>` : ""))
       : wrongVerdict(submittedGiven, it.answer, it.why_ru);
@@ -1026,7 +1030,7 @@ function renderOfflineItem(it, i, glosses) {
       : wrongVerdict(input.value, it.answer, it.why_ru);
     const blank = el.querySelector(".prompt .blank");
     if (blank) {
-      blank.textContent = ok ? input.value.trim() : it.answer.split(" ~ ")[0];
+      blank.textContent = blankForm(it.prompt, ok ? input.value.trim() : it.answer.split(" ~ ")[0]);
       blank.classList.add("filled", ok ? "ok" : "no");
     }
     el.classList.add("done");

@@ -105,8 +105,10 @@ class Readiness:
             return "экзамен ещё не выбран"
         if self.days_to_decide > 0:
             return f"до регистрации {self.days_to_decide} дн."
+        if self.days_to_decide == 0:
+            return "регистрация закрывается сегодня"
         if self.days_to_sitting > 0:
-            return f"до экзамена {self.days_to_sitting} дн."
+            return f"до экзамена {self.days_to_sitting} дн. · регистрация закрыта"
         return "дата прошла"
 
     def _deadline(self) -> dict | None:
@@ -119,6 +121,20 @@ class Readiness:
                 "note": (
                     "Сессия пока не выбрана. Выбери её в «Eksam» — и здесь "
                     "появится обратный отсчёт и напоминание о регистрации."
+                ),
+            }
+        # Closed: the closing day itself is still open (`exam.Session`).
+        if (self.days_to_decide is not None and self.days_to_decide < 0
+                and (self.days_to_sitting or 0) > 0):
+            from .exam import NEXT_YEAR
+
+            return {
+                "registration": decide.isoformat(),
+                "sitting": sitting.isoformat(),
+                "note": (
+                    f"Регистрация на эту сессию закрыта {decide:%d.%m.%Y}. "
+                    f"Сдать экзамен {sitting:%d.%m.%Y} можно, только если ты уже "
+                    f"зарегистрирован(а) на эту сессию. {NEXT_YEAR}"
                 ),
             }
         return {

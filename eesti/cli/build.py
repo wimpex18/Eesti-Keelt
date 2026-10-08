@@ -191,7 +191,22 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
               "(Eesti-vene sõnaraamat, CC BY 4.0) and pass its path.")
         return 1
 
-    entries = evs.parse(path)
+    # EKI's level list, beside the dictionary in `deploy/eki/`, says which
+    # homograph a listed word is (`evs._choose`).
+    from ..wordlist import read_official_levels
+
+    levels = Path(args.levels) if args.levels else path.with_name("A1A2B1.txt")
+    if args.levels and not levels.exists():
+        print(f"{levels} not found.")
+        return 1
+    listed = None
+    if levels.exists():
+        try:
+            listed = evs.listed_pos(read_official_levels(levels))
+        except ValueError as exc:
+            # Russian without the list beats no Russian at all.
+            print(f"  {exc} Every homograph kept.")
+    entries = evs.parse(path, listed)
     if not entries:
         print(f"{path} held no article with a Russian translation — is this "
               "the right file?")
@@ -205,6 +220,8 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
     cues = evs.question_senses(path, asked)
     phrases = evs.parse_examples(path)
 
+    print(f"  Homographs chosen by the EKI level list ({levels})" if listed else
+          f"  No EKI level list at {levels}: every homograph kept")
     if args.check:
         sample = {e.lemma: e for e in entries}
         print(f"  {len(entries):,} lemmas with Russian")
@@ -220,6 +237,7 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
     conn = connect()
     stats = evs.store(conn, entries)
     evs.store_questions(conn, cues)
+    verbs = evs.store_object_verbs(conn, evs.object_verbs(path))
     evs.store_examples(conn, phrases)
     print(f"  {stats['entries']:,} lemmas with Russian stored")
     idioms = sum(p.kind == evs.IDIOM for p in phrases)
@@ -227,6 +245,7 @@ def cmd_import_evs(args: argparse.Namespace) -> int:
           "(väljendid) with Russian stored")
     print(f"  {len(cues)} of {len(asked)} question words with a Russian cue "
           "(küsisõnad)")
+    print(f"  {verbs:,} verbs that take an object (writing check)")
     print("  Source: Eesti-vene sõnaraamat, EKI, CC BY 4.0.")
     print("  Word cards now show EKI's Russian first and Sõnaveeb's second.")
     return 0
@@ -594,6 +613,7 @@ def register(sub) -> None:
         help="import EKI's Estonian-Russian dictionary (a file you downloaded)",
     )
     p.add_argument("file", help="evs_EKI_CCBY40.xml from arhiiv.eki.ee/litsents")
+    p.add_argument("--levels", help="EKI's A1A2B1.txt (default: beside the file)")
     p.add_argument("--check", action="store_true",
                    help="report what the file holds and write nothing")
     p.set_defaults(func=cmd_import_evs)

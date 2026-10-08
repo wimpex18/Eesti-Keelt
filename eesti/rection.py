@@ -1,7 +1,7 @@
 """Verb government (rektsioon), from EKK SÜ 65: "Rektsioone, milles sageli eksitakse".
 
 Rection is a large learner error class, and a natural one for a Russian speaker
-(*mõtlema millele* vs *думать о чём*). EKK's table lists the headword, the
+(*kohanema millega* vs *приспосабливаться к чему*). EKK's table lists the headword, the
 correct case frame and, starred, the frame people write instead — so both the
 answer and the distractor come from the handbook.
 
@@ -49,6 +49,24 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _FRAME_RE = re.compile(r"\b([a-zõäöüA-ZÕÄÖÜ]+)\b")
 
 
+#: SÜ 65 contrasts whose starred frame EKI now records, so it is not an error.
+#: Checked in EKI's ühendsõnastik 2026 through Ekilex on 2026-10-08. EKI does
+#: not norm rection ("Rektsioone keelekorralduses ei normita", EKI's ÕS 2025
+#: briefing, 2025). The first five carry a recommendation EKI publishes with
+#: ÕS naming both frames (ÕS 2025: *Järeldused põhinevad vaatlusel v
+#: vaatlusele*); the other four list the starred frame among the word's
+#: rections (*osundama*'s in its second sense, 'viitama', which the drill
+#: cannot tell apart). Neither frame of these is drilled or flagged. EKI adds
+#: that unnormed rection still has norms ("aga see ei tähenda, et norme üldse
+#: pole"): the other contrasts, whose starred frame EKI records nowhere, stay.
+EKI_ACCEPTS: dict[str, str] = {
+    "põhinema": "millele", "rajanema": "millele", "baseeruma": "millele",
+    "tuginema": "millel", "sarnanema": "millele",
+    "analoog(ili)ne": "millele", "kaasuma": "millega", "osundama": "millele",
+    "panustama": "millele",
+}
+
+
 @dataclass(frozen=True)
 class Rection:
     """One verb (or adjective), the case it governs, and the case people use instead."""
@@ -61,7 +79,10 @@ class Rection:
 
     @property
     def drillable(self) -> bool:
-        return self.correct_case != self.wrong_case
+        """A real contrast EKI still upholds: two different cases, and a starred
+        frame EKI does not now record (`EKI_ACCEPTS`)."""
+        return (self.correct_case != self.wrong_case
+                and EKI_ACCEPTS.get(self.headword) != self.wrong_frame)
 
 
 def _clean(fragment: str) -> str:
@@ -157,6 +178,23 @@ CREATE TABLE IF NOT EXISTS rections (
     wrong_case    TEXT NOT NULL
 );
 """
+
+
+#: Lemmas of the headwords in `EKI_ACCEPTS`, with EKK's bracketed variants
+#: spelled out (*analoog(ili)ne* is *analoogne* and *analoogiline*).
+_ACCEPTED_LEMMAS = frozenset(
+    w for head in EKI_ACCEPTS
+    for w in ([head.replace("(ili)", ""), head.replace("(ili)", "ili")]
+              if "(ili)" in head else [head]))
+
+
+def retired(prompt: str) -> bool:
+    """Whether a stored rection exercise is built on a contrast EKI no longer
+    upholds: its sentence uses one of `EKI_ACCEPTS`'s headwords. A review card
+    from before the change is then not asked again."""
+    from .morph import analyze
+
+    return any(t.lemma in _ACCEPTED_LEMMAS for t in analyze(prompt.replace("____", " ")))
 
 
 def load(conn) -> list[Rection]:
@@ -273,7 +311,11 @@ def errors(text: str, rections: list[Rection]) -> list[Misgovernment]:
     """
     from .morph import analyze, split_sentences
 
-    by_head = {r.headword: r for r in rections if r.drillable}
+    # Verbs only: an adjective's case in running text often belongs to the verb
+    # (*anda adekvaatset tagasisidet kandideerijatele*), and EKI defines
+    # *lähedane* with *kellegagi*. The drill names the headword, so it keeps them.
+    by_head = {r.headword: r for r in rections
+               if r.drillable and r.headword.endswith("ma")}
     if not by_head:
         return []
 

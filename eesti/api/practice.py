@@ -494,7 +494,9 @@ def testout_result(topic: str, req: TestOut) -> dict:
     answers = iter(req.given)
     result = probe(progress_db(), topic, lambda item: next(answers), seed=req.seed)
     return {"topic": result.topic, "asked": result.asked, "correct": result.correct,
-            "passed": result.passed, "skipped": result.skipped}
+            "passed": result.passed, "skipped": result.skipped,
+            # What was wrong and what was expected, item by item.
+            "items": list(result.items)}
 
 
 @router.get("/api/pack")

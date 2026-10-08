@@ -102,15 +102,42 @@ def analyze(text: str) -> list[Token]:
     return tokens
 
 
-def object_case_candidates(text: str) -> list[Token]:
+#: Local (place and direction) cases. A word that may be one of them is not
+#: offered as an object: *poodi* is the partitive and the short illative of
+#: *pood*, and in *Ma pean minema poodi* it is "to the shop".
+_LOCAL = frozenset({"adt", "ill", "in", "el", "all", "ad", "abl"})
+
+
+def _may_be_local(token: Token) -> bool:
+    return any(form.split()[-1] in _LOCAL
+               for lemma, form in _readings(token.text) if lemma == token.lemma and form)
+
+
+def object_case_candidates(text: str, takes_object=None) -> list[Token]:
     """Tokens that sit in a possible object slot and carry genitive/partitive; both
     directions of the error are flagged for the provider to adjudicate.
+
+    With `takes_object` (`lemmas → those that take an object`), a word that may
+    also be a place or direction (`_LOCAL`) is kept only when the nearest verb
+    before it in its clause takes an object: *Ma söön leiba ära* keeps *leiba*,
+    *Ma pean minema poodi* drops *poodi*.
     """
-    return [
-        t
-        for t in analyze(text)
-        if t.could_be_object and (t.is_partitive or t.is_genitive_sg)
-    ]
+    tokens = analyze(text)
+    if takes_object is not None:
+        objects = set(takes_object(sorted({t.lemma for t in tokens if t.pos == "V"})))
+    out, verb = [], None
+    for t in tokens:
+        if t.pos == "Z" or t.text.casefold() in _JOINS:
+            verb = None
+        elif t.pos == "V":
+            verb = t
+        if not (t.could_be_object and (t.is_partitive or t.is_genitive_sg)):
+            continue
+        if takes_object is not None and _may_be_local(t) and (
+                verb is None or verb.lemma not in objects):
+            continue
+        out.append(t)
+    return out
 
 
 def _readings(word: str) -> set[tuple[str, str]]:
@@ -163,12 +190,184 @@ def has_distinct_object_cases(lemma: str) -> bool:
     return bool(forms) and forms["genitive"] != forms["partitive"]
 
 
+def _guessed_forms(word: str) -> set[str]:
+    """The forms Vabamorf's guesser reads in an unknown word, without its
+    fallback of the whole word as a lemma (`Tallinas` → `sg in`)."""
+    out: set[str] = set()
+    for item in _vm().analyze([word], disambiguate=False, guess=True, propername=True):
+        for opt in item.get("analysis") or []:
+            if opt.get("lemma", "").casefold() != word.casefold() and opt.get("form"):
+                out.add(opt["form"])
+    return out
+
+
+def _rank_suggestions(word: str, suggestions: list[str]) -> list[str]:
+    """Vabamorf's suggestions, those that read back in a form the misspelling
+    has first: *Tallinas* (an inessive) → *Tallinnas*, not *Tallina* (the
+    essive of *tall*). Otherwise Vabamorf's own order is kept.
+    """
+    forms = _guessed_forms(word)
+    if not forms or not suggestions:
+        return list(suggestions)
+    # Never promote an odd compound over Vabamorf's own first choice
+    # (*jaksaama* → *jaks_jaama*).
+    joins = _joins(suggestions[0])
+    keeps = [s for s in suggestions
+             if forms & {f for _, f in _readings(s)} and _joins(s) <= joins]
+    return keeps + [s for s in suggestions if s not in keeps]
+
+
+def _joins(word: str) -> int:
+    """How many compound joins Vabamorf's simplest reading of a word has."""
+    roots = [o.get("root", "") for item in _vm().analyze(
+        [word], disambiguate=False, guess=False, propername=False)
+        for o in item.get("analysis") or []]
+    return min((r.count("_") for r in roots), default=0)
+
+
 def misspellings(text: str) -> list[dict]:
     """Offline spellcheck with suggestions. Free signal, no network."""
     words = [w for w in tokenize(text) if w.isalpha()]
     if not words:
         return []
-    return [r for r in spellcheck(words, suggestions=True) if not r["spelling"]]
+    return [{**r, "suggestions": _rank_suggestions(r["text"], r["suggestions"] or [])}
+            for r in spellcheck(words, suggestions=True) if not r["spelling"]]
+
+
+# ---------------------------------------------------------------------------
+# An object written in the nominative
+# ---------------------------------------------------------------------------
+#
+# The object (sihitis) is osastav or omastav; a nimetav total object needs an
+# imperative, an impersonal or an infinitive construction (EKK). After a
+# 1st/2nd-person indicative verb, or a negated verb with a 1st/2nd-person
+# subject, none of those applies, and the subject cannot be a singular noun.
+
+#: 1st/2nd-person indicative forms. `sid` is left out: it is also 3rd plural.
+_PERSONAL = frozenset({"n", "d", "me", "te", "sin", "sime", "site"})
+_SUBJECT_PRONOUNS = frozenset({"ma", "mina", "sa", "sina", "me", "meie", "te", "teie"})
+#: Verbs whose nimetav complement is a predicative, not an object.
+_PREDICATIVE = frozenset({"olema", "saama", "jääma", "hakkama"})
+#: Nouns of time make a nimetav adverbial (*ootasin terve päev*), not an object.
+_TIME = frozenset({"päev", "öö", "hommik", "õhtu", "nädal", "kuu", "aasta", "tund",
+                   "minut", "sekund", "aeg", "kord", "talv", "suvi", "kevad", "sügis",
+                   "lõuna", "pärastlõuna", "nädalavahetus"})
+#: Verb forms that are not finite: a finite verb after the phrase means the
+#: phrase is the next clause's subject (*arvan eesti keel on raske*).
+_NONFINITE = frozenset({"ma", "mas", "mast", "mata", "maks", "da", "des", "nud", "tud",
+                        "v", "tav", "tuv", "mine"})
+#: Where a clause ends: punctuation or a clause-joining word.
+_JOINS = frozenset({"ja", "ning", "aga", "kuid", "vaid", "et", "sest", "kui", "kes",
+                    "mis", "või"})
+
+
+@dataclass(frozen=True)
+class NominativeObject:
+    """A nimetav phrase where the verb's object stands: `words` are
+    (surface, lemma, part of speech), `negated` when an `ei`/`ära` governs it."""
+    text: str
+    words: tuple[tuple[str, str, str], ...]
+    verb: str
+    negated: bool
+    start: int
+    end: int
+
+
+def _verb_only(token: Token) -> bool:
+    """Every reading of the word is a verb: *teate* is also the genitive of
+    *teade* (*Teate pikkus*), and *palun* is also the word "please"."""
+    if token.text.casefold() == "palun":
+        return False
+    found = _vm().analyze([token.text], disambiguate=False, guess=False, propername=False)
+    readings = [o for item in found for o in item.get("analysis") or []]
+    return bool(readings) and all(o.get("partofspeech") == "V" for o in readings)
+
+
+def _nominative_only(token: Token) -> bool:
+    """Every reading of this word as this lemma is the nominative singular."""
+    forms = {f for lemma, f in _readings(token.text) if lemma == token.lemma}
+    return forms == {"sg n"}
+
+
+def _clauses_of(tokens: list[Token]) -> list[list[Token]]:
+    out: list[list[Token]] = [[]]
+    for t in tokens:
+        if t.pos == "Z" or t.text.casefold() in _JOINS:
+            out.append([])
+        else:
+            out[-1].append(t)
+    return [c for c in out if c]
+
+
+def _negated(clause: list[Token], at: int) -> bool | None:
+    """True when the verb at `at` is negated with a 1st/2nd-person subject (`ma
+    ei joo`, `ära joo`); False when not negated; None when negated otherwise."""
+    before = clause[at - 1] if at else None
+    if before is None or before.pos != "V" or not before.form.startswith("neg"):
+        return False
+    if before.lemma == "ära":
+        return True
+    return True if any(t.text.casefold() in _SUBJECT_PRONOUNS
+                       for t in clause[:at - 1]) else None
+
+
+def _not_an_object(tokens: list[Token], at: int, clause: list[Token]) -> bool:
+    """What follows the noun shows it is no object: a quantity before a partitive
+    (*raasike juttu*), a title before a name (*professor Tamme*), a subject
+    coordinated with a pronoun (*vaatasime vend ja mina filmi*), or a finite verb
+    in the same clause (*arvan eesti keel on raske*, a comma left out).
+    """
+    after = tokens[at + 1:at + 3]
+    # A capital mid-sentence is a name, whatever Vabamorf reads (*Kaske*: *kask*).
+    if after and (after[0].is_partitive or after[0].pos == "H"
+                  or after[0].text[:1].isupper()):
+        return True
+    if (len(after) == 2 and after[0].text.casefold() in ("ja", "ning")
+            and after[1].text.casefold() in _SUBJECT_PRONOUNS):
+        return True
+    rest = clause[clause.index(tokens[at]) + 1:]
+    return any(t.pos == "V" and t.form not in _NONFINITE for t in rest)
+
+
+def nominative_objects(text: str, takes_object) -> list[NominativeObject]:
+    """Nimetav singular phrases standing as the object of a verb that takes one.
+
+    `takes_object(lemmas)` returns the verbs, of those given, that EKI's
+    dictionaries say take an object. Claimed only where the morphology settles
+    it: the phrase follows the verb directly, every word reads only as a
+    nimetav singular, its head is a common noun and not a noun of time, and the
+    verb is a 1st/2nd-person indicative (`loen raamat`) or negated with a
+    1st/2nd-person subject (`ma ei joo kohv`, `ära joo kohv`), and nothing
+    after the noun shows it to be something else (`_not_an_object`).
+    """
+    tokens = analyze(text)
+    position = {id(t): n for n, t in enumerate(tokens)}
+    verbs = {t.lemma for t in tokens if t.pos == "V"}
+    allowed = set(takes_object(sorted(verbs))) - _PREDICATIVE if verbs else set()
+    found: list[NominativeObject] = []
+    for clause in _clauses_of(tokens):
+        for at, verb in enumerate(clause):
+            if verb.pos != "V" or verb.lemma not in allowed:
+                continue
+            # After `ei`/`ära` the word is the verb (*loe* is also a noun).
+            negated = _negated(clause, at)
+            if negated is None or (not negated and (verb.form not in _PERSONAL
+                                                    or not _verb_only(verb))):
+                continue
+            phrase: list[Token] = []
+            for t in clause[at + 1:]:
+                if t.pos == "G" or (t.pos == "A" and _nominative_only(t)):
+                    phrase.append(t)
+                    continue
+                if (t.pos == "S" and _nominative_only(t) and t.lemma not in _TIME
+                        and not _not_an_object(tokens, position[id(t)], clause)):
+                    phrase.append(t)
+                    found.append(NominativeObject(
+                        text[phrase[0].start:t.end],
+                        tuple((w.text, w.lemma, w.pos) for w in phrase),
+                        verb.text, bool(negated), phrase[0].start, t.end))
+                break
+    return found
 
 # ---------------------------------------------------------------------------
 # Subject-verb agreement

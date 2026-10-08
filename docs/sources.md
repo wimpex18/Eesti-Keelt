@@ -34,7 +34,7 @@ restricted just because they were first imported by the owner.
 | Sõnaveeb via `api.sonapi.ee` | live word card without a key |
 | EKI *Eesti keele grammatika tabelid* (PSV) | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
 | EKI teatmik, *Asesõnade käänamine* | pronoun paradigms (`eesti/pronouns.py`) |
-| *Eesti keele käsiraamat* (EKK) | own Russian explanations and short attributed examples link to their sections; SÜ 65 rection facts |
+| *Eesti keele käsiraamat* 2007 (EKK; Erelt, Erelt, Ross) | own Russian explanations and short attributed examples link to their sections; SÜ 65 rection facts, except contrasts whose starred frame EKI's ühendsõnastik now records (`eesti/rection.py`) |
 | EKI teatmik | pronoun declension facts with stress/stem marks removed; source linked in each lesson |
 | EKI *põhisõnavara hääldused* | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
 | EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
@@ -63,7 +63,7 @@ the EKK rection page use separate request paths.
 |---|---|---|
 | `A1A2B1.txt` | `cli import-levels` | 4 340 distinct lemmas with official level |
 | `psv_EKI_CCBY40.xml.gz` | `cli import-psv` | 4 849 learner definitions |
-| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 8 question-word cues (`evs_question`); 137 316 example phrases and 1 912 idioms with Russian (`evs_example`) |
+| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 8 question-word cues (`evs_question`); 137 316 example phrases and 1 912 idioms with Russian (`evs_example`); verbs whose main sense EVS translates with a Russian verb taking a direct object (`evs_object_verb`, the writing check's object evidence) |
 | `vsl_EKI_CCBY40.xml.gz` | `cli import-vsl` | 30 095 definitions |
 | `har_EKI_CCBY40.xml.gz` | `cli import-har` | 5 905 terms with Russian |
 | `ekss_EKI_CCBY40.xml.gz` | `cli import-ekss` | 117 937 definitions |

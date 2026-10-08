@@ -52,6 +52,8 @@ class ProbeResult:
     correct: int
     passed: bool
     skipped: str = ""      # why no probe ran, if none did
+    #: Per item: prompt, what was given, the key, the solved sentence, right or not.
+    items: tuple[dict, ...] = ()
 
     @property
     def ran(self) -> bool:
@@ -83,16 +85,19 @@ def probe(
         return ProbeResult(topic, 0, 0, False, skipped="generator produced nothing")
 
     correct = 0
+    marked: list[dict] = []
     for item in items:
         given = ask(item)
         ok = item.check(given)
         correct += ok
         record(progress, item, ok, answer=given)
+        marked.append({"prompt": item.prompt, "given": given, "answer": item.answer,
+                       "solution": item.solution, "correct": ok})
 
     passed = correct >= required and len(items) >= required
     if passed:
         mark_mastered(progress, topic, via="placement")
-    return ProbeResult(topic, len(items), correct, passed)
+    return ProbeResult(topic, len(items), correct, passed, items=tuple(marked))
 
 
 def candidates(

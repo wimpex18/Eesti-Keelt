@@ -52,7 +52,8 @@ def principal_forms(
     seed: int | None = None,
     only: frozenset[str] | None = None,
 ) -> list[FormDrill]:
-    """Ask for one of the three principal forms, given the other two.
+    """Ask for omastav or osastav, given the other two principal forms. Never the
+    nimetav: the instruction names the word, which is its nimetav.
 
     Only nouns whose genitive and partitive differ (`object_cases.distinct_`);
     homographs such as `kool` and `reis` have no forms (`morph.case_forms`).
@@ -98,12 +99,13 @@ def principal_forms(
         if len(out) == count:
             break
         # Which form to ask for: never one already shown, since the nominative often
-        # equals the genitive or partitive (`linnapea, linnapea, linnapead`).
+        # equals the genitive or partitive (`linnapea, linnapea, linnapead`), and
+        # never the nimetav, which the instruction names as the word.
         forms = {"nimetav": word, "omastav": gen, "osastav": par}
         choices = [
             which for which, hidden in forms.items()
-            if all(hidden != other for name, other in forms.items()
-                   if name != which)
+            if which != "nimetav"
+            and all(hidden != other for name, other in forms.items() if name != which)
         ]
         if not choices:
             continue
@@ -112,15 +114,11 @@ def principal_forms(
             prompt, answer, distractor = f"{word}, {BLANK}, {par}", gen, par
             why = ("Родительный падеж (omastav) — вторая основная форма, "
                    "на ней строится большинство падежей.")
-        elif which == "osastav":
+        else:
             prompt, answer, distractor = f"{word}, {gen}, {BLANK}", par, gen
             why = ("Частичный падеж (osastav) — третья основная форма; "
                    "именно она нужна после отрицания и при незавершённом "
                    "действии.")
-        else:
-            prompt, answer, distractor = f"{BLANK}, {gen}, {par}", word, gen
-            why = ("Именительный падеж (nimetav) — словарная форма, "
-                   "с которой слово ищут в словаре.")
         out.append(FormDrill(
             prompt=prompt, answer=answer, distractor=distractor, lemma=word,
             label_et=which, why_ru=why, topic="pohivormid", level=level))
@@ -237,7 +235,7 @@ def negation_drills(
 #: form.
 AGREEING_CASES = (
     ("sg n", "ainsuse nimetav"), ("sg g", "ainsuse omastav"),
-    ("sg p", "ainsuse osastav"), ("sg in", "sisseütlev"),
+    ("sg p", "ainsuse osastav"), ("sg in", "seesütlev"),
     ("sg ill", "sisseütlev"), ("sg el", "seestütlev"),
     ("sg all", "alaleütlev"), ("sg ad", "alalütlev"),
     ("sg abl", "alaltütlev"), ("sg tr", "saav"),
@@ -286,7 +284,7 @@ def agreement_drills(
     rnd.shuffle(adj_pool)
     rnd.shuffle(noun_pool)
 
-    from .morph import synthesize
+    from .morph import _readings, synthesize
 
     out: list[FormDrill] = []
     seen: set[tuple[str, str, str]] = set()
@@ -307,6 +305,9 @@ def agreement_drills(
         except Exception:  # noqa: BLE001 - an unanalysable word is skipped
             continue
         if not adj_form or not noun_form or not base:
+            continue
+        # The noun form must be that noun only: *peal* is also a postposition.
+        if {lemma for lemma, _ in _readings(noun_form[0])} != {noun}:
             continue
         # Nothing is being asked if the agreeing form is the citation form.
         if adj_form[0] == base[0]:

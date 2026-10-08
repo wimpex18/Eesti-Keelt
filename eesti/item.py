@@ -23,6 +23,15 @@ def accepts(answer: str, given: str) -> bool:
         return True
     return any(said == variant.strip().casefold() for variant in answer.split(" ~ "))
 
+def fill(prompt: str, answer: str) -> str:
+    """The sentence with its blank filled by the first form of `answer`,
+    capitalised where the blank opens it (`____ palun kohe!`)."""
+    form = answer.split(" ~ ")[0]
+    if prompt.startswith(BLANK):
+        form = form[:1].upper() + form[1:]
+    return prompt.replace(BLANK, form)
+
+
 class GradedItem:
     """Mixin for exercise dataclasses.
 
@@ -54,10 +63,7 @@ class GradedItem:
     @property
     def solution(self) -> str:
         """The completed sentence, capitalised if the blank opens it."""
-        answer = self.answer.split(" ~ ")[0]
-        if self.prompt.startswith(BLANK):
-            answer = answer[:1].upper() + answer[1:]
-        return self.prompt.replace(BLANK, answer)
+        return fill(self.prompt, self.answer)
 
     @property
     def reference(self) -> dict | None:

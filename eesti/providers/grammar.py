@@ -454,10 +454,25 @@ class VabamorfFallback:
         return True
 
     def check(self, text: str) -> GrammarResult:
-        from ..morph import object_case_candidates
+        from contextlib import closing
 
-        # Located spelling corrections from `spelling()`, so the page can highlight them.
-        corrections = spelling(text)
+        from ..morph import object_case_candidates
+        from ..wordlist import available, connect
+
+        # Located spelling corrections from `spelling()`, so the page can highlight
+        # them, and an object written in nimetav, which code can decide.
+        corrections = spelling(text) + nominative_objects(text)
+        # A word that may be a place or direction is evidence only after a verb
+        # that takes an object; without the word list, never.
+        none = lambda lemmas: set()  # noqa: E731
+        try:
+            if available():
+                with closing(connect()) as conn:
+                    candidates = object_case_candidates(text, _takes_object(conn))
+            else:
+                candidates = object_case_candidates(text, none)
+        except Exception:  # noqa: BLE001 - reference data is optional here
+            candidates = object_case_candidates(text, none)
 
         flagged = [
             Correction(
@@ -476,7 +491,7 @@ class VabamorfFallback:
                 start=t.start,
                 end=t.end,
             )
-            for t in object_case_candidates(text)
+            for t in candidates
         ]
 
         return GrammarResult(
@@ -713,15 +728,11 @@ def agreement(text: str) -> list[Correction]:
 
 
 #: Russian, keeping EKK's own frame words (`millega`, not "the comitative").
-#: "рекомендует", not "требует": for 7 of the 23 contrasts EKI's current
-#: dictionary also records the starred form, so the handbook's choice is taught as
-#: a recommendation, which is what the exam marks.
+#: Only contrasts EKI still upholds reach here (`rection.EKI_ACCEPTS`).
 RECTION_WHY = (
-    "**Rektsioon.** «{headword}» — EKI рекомендует **{correct}** "
-    "({correct_frame}), а не **{wrong}** ({wrong_frame}). Это одна из ошибок, "
-    "которые EKK перечисляет отдельно (SÜ 65): русский предлог и эстонский "
-    "падеж здесь не совпадают, и форму на **-le** носители тоже иногда "
-    "пишут — но на экзамене оценивают по рекомендации."
+    "**Rektsioon.** «{headword}» — **{correct}** ({correct_frame}), а не "
+    "**{wrong}** ({wrong_frame}). Это одна из ошибок, которые EKK перечисляет "
+    "отдельно (SÜ 65): русский предлог и эстонский падеж здесь не совпадают."
 )
 
 
@@ -756,6 +767,97 @@ def rection(text: str) -> list[Correction]:
         )
         for item in ekk.errors(text, stored)
     ]
+
+
+#: Russian, keeping the Estonian case names (AGENTS.md). Code knows the object
+#: is not nimetav; which of the two cases fits is aspect, which it does not know.
+OBJECT_WHY = (
+    "**Sihitis** (дополнение) после «{verb}» не стоит в nimetav: «{wrong}» — "
+    "это nimetav. Нужен osastav **{partitive}** (процесс, часть, повтор) — или "
+    "omastav **{genitive}**, но только если действие завершено и объект взят "
+    "целиком."
+)
+OBJECT_WHY_SAME = (
+    "**Sihitis** (дополнение) после «{verb}» не стоит в nimetav: «{wrong}» — "
+    "это nimetav. Здесь osastav и omastav совпадают: **{partitive}**."
+)
+OBJECT_WHY_NEGATED = (
+    "**Eitus → osastav.** При отрицании дополнение (sihitis) всегда в osastav: "
+    "**{partitive}**, а не nimetav «{wrong}» (EKK)."
+)
+
+#: PSV's rection frames that name an object (`ootama` keda-mida).
+_OBJECT_FRAMES = frozenset({"mida", "keda", "keda-mida"})
+
+
+def _takes_object(conn):
+    """`lemmas → those that take an object`, from EKI: EVS's Russian government
+    (`evs_object_verb`) or PSV's rection naming *mida*/*keda*."""
+    from .. import evs, psv
+
+    def among(lemmas: list[str]) -> set[str]:
+        found = evs.object_verbs_among(conn, lemmas)
+        for lemma in set(lemmas) - found:
+            gloss = psv.lookup(conn, lemma)
+            if gloss is not None and _OBJECT_FRAMES & set(gloss.rection):
+                found.add(lemma)
+        return found
+    return among
+
+
+def _phrase(words, key: str) -> str | None:
+    """The phrase with each declinable word in `key` case (`case_forms`), or None
+    when Vabamorf cannot give one form for a word."""
+    from ..morph import case_forms
+
+    out = []
+    for surface, lemma, pos in words:
+        if pos == "G":
+            out.append(surface)
+            continue
+        forms = case_forms(lemma)
+        if not forms:
+            return None
+        out.append(forms[key])
+    return " ".join(out)
+
+
+def nominative_objects(text: str) -> list[Correction]:
+    """An object written in nimetav (*jõin kohv*), decided by morphology and EKI's
+    word of which verbs take an object (`morph.nominative_objects`). After a
+    negation the partitive is the correction; otherwise both cases are named, and
+    a single form is offered only where they coincide (*kohvi*). Nothing without
+    the word list.
+    """
+    from contextlib import closing
+
+    from ..morph import nominative_objects as found_in
+    from ..wordlist import available, connect
+
+    try:
+        if not available():
+            return []
+        with closing(connect()) as conn:
+            found = found_in(text, _takes_object(conn))
+    except Exception:  # noqa: BLE001 - missing reference data is not a failed check
+        return []
+    out = []
+    for item in found:
+        partitive, genitive = _phrase(item.words, "partitive"), _phrase(item.words, "genitive")
+        if not partitive or not genitive:
+            continue
+        if item.negated:
+            correct, why = partitive, OBJECT_WHY_NEGATED
+        elif partitive == genitive:
+            correct, why = partitive, OBJECT_WHY_SAME
+        else:
+            correct, why = "", OBJECT_WHY
+        out.append(Correction(
+            wrong=item.text, correct=correct,
+            why=why.format(verb=item.verb, wrong=item.text, partitive=partitive,
+                           genitive=genitive),
+            tag="obj-case", source="deterministic", start=item.start, end=item.end))
+    return out
 
 
 def verify(text: str, corrections: list[Correction]) -> list[Correction]:
@@ -841,13 +943,15 @@ def _merge_spelling(text: str, result: GrammarResult) -> GrammarResult:
         # dressing a spellcheck up as a working grammar service.
         return result
 
-    extra = spelling(text) + agreement(text) + rection(text)
+    extra = spelling(text) + agreement(text) + rection(text) + nominative_objects(text)
     if not extra:
         return result
+    # Words a finding covers: a phrase (*uus film*) replaces a model's edit of
+    # any of its words.
+    covered = {w for e in extra for w in [e.wrong.casefold(), *e.wrong.casefold().split()]}
     return GrammarResult(
         result.engine,
-        [c for c in result.corrections
-         if c.wrong.casefold() not in {e.wrong.casefold() for e in extra}] + extra,
+        [c for c in result.corrections if c.wrong.casefold() not in covered] + extra,
         degraded=result.degraded,
         note=result.note,
         diagnostics=result.diagnostics,

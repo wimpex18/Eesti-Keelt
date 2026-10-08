@@ -243,9 +243,9 @@ class Mistake:
 
     @property
     def solution(self) -> str:
-        from .item import BLANK
+        from .item import fill
 
-        return self.prompt.replace(BLANK, self.expected)
+        return fill(self.prompt, self.expected)
 
 
 def recent_mistakes(log: sqlite3.Connection, topic: str | None = None,

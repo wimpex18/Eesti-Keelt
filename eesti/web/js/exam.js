@@ -46,7 +46,18 @@ function paintSpec(spec, goal) {
   const options = [`<option value="" lang="ru">без даты</option>`].concat(
     (spec.sessions || []).map(s =>
       `<option value="${esc(s.sitting)}" lang="ru"${chosen && chosen.sitting === s.sitting
-        ? " selected" : ""}>${esc(s.sitting)} · регистрация до ${esc(s.registration_closes)}</option>`));
+        ? " selected" : ""}>${esc(s.sitting)} · ${s.registration_open === false
+          ? `регистрация закрыта (${esc(s.registration_closes)})`
+          : `регистрация до ${esc(s.registration_closes)}`}</option>`));
+  /* A sitting still ahead can have closed its registration: say so, and when
+     the next registration opens, rather than count down to it in silence. */
+  const sessions = spec.sessions || [];
+  const chosenSession = sessions.find(s => chosen && s.sitting === chosen.sitting);
+  const day = iso => iso.split("-").reverse().join(".");
+  const closedNote = chosenSession && chosenSession.registration_open === false
+    ? `Регистрация на ${day(chosenSession.sitting)} закрыта ${day(chosenSession.registration_closes)}: сдать в этот день можно, только если ты уже зарегистрирован(а) на эту сессию.`
+    : sessions.length && sessions.every(s => s.registration_open === false)
+      ? "На опубликованные сессии регистрация уже закрыта." : "";
   picker.innerHTML = `
     <label lang="et">Sessioon <i class="ru" lang="ru">когда сдаю</i>
       <select id="goalSitting">${options.join("")}</select>
@@ -54,6 +65,7 @@ function paintSpec(spec, goal) {
     <button class="ghost" id="goalSet" lang="et">Vali <span class="ru" lang="ru">выбрать</span></button>
     ${chosen && chosen.sitting
       ? `<a class="hint" href="/api/goal.ics" download>в календарь (.ics)</a>` : ""}
+    ${closedNote ? `<p class="banner" lang="ru">${esc(closedNote)}</p>` : ""}
     <span class="hint">${esc(spec.next_year)}</span>`;
   $("#goalSet").onclick = async () => {
     $("#goalSet").disabled = true;
@@ -200,9 +212,12 @@ const linkRow = it => youTube(it.url || "")
   : it.local
   ? `<div class="lib-item">
        <button class="linky" data-task="${esc(it.id)}" data-fmt="${esc(it.format || "")}"
-               data-file="${it.file ? 1 : 0}"
-               lang="${langOf(it.title)}">${esc(it.title)}</button>
-       <span class="lib-meta">${esc(it.format || "интерактивное")} · в приложении</span></div>`
+               data-file="${it.file ? 1 : 0}" data-eis="${it.solved_on === "eis" ? 1 : 0}"
+               lang="${langOf(it.title)}">${esc(it.label || it.title)}</button>
+       <span class="lib-meta">${it.solved_on === "eis"
+         ? "текст здесь · решается на сайте EIS"
+         : `${esc(it.format || "интерактивное")} · в приложении`}${it.label && it.label !== it.title
+         ? ` · <span lang="et">${esc(it.title)}</span>` : ""}</span></div>`
   : `<div class="lib-item">
        <a href="${esc(it.url || "#")}" target="_blank" rel="noopener" lang="${langOf(it.title)}">${esc(it.title)}</a>
        <span class="lib-meta">${esc(it.format || "")}${
@@ -211,7 +226,7 @@ const linkRow = it => youTube(it.url || "")
 
 /* The task itself, opened where it was clicked: its text where the PDF gave
    any, the recording where the exam plays one, and the file itself always. */
-async function openTask(row, id, format, hasFile) {
+async function openTask(row, id, format, hasFile, eis = false) {
   const box = document.createElement("div");
   box.className = "exam-task";
   box.innerHTML = `<p class="hint">Загружаю…</p>`;
@@ -247,8 +262,8 @@ async function openTask(row, id, format, hasFile) {
     <div class="exam-task-head">
       ${hasFile && !pdf ? `<a class="ghost" href="${file}" target="_blank"
                       rel="noopener">открыть файл</a>` : ""}
-      ${text?.url && !pdf ? `<a class="ghost" href="${esc(text.url)}" target="_blank"
-                       rel="noopener">решить на сайте</a>` : ""}
+      ${text?.url && !pdf ? `<a class="${eis ? "go" : "ghost"}" href="${esc(text.url)}" target="_blank"
+                       rel="noopener">решить на сайте${eis ? " EIS" : ""}</a>` : ""}
       <button class="ghost" data-close lang="et">Sulge
         <span class="ru" lang="ru">закрыть</span></button>
     </div>
@@ -304,8 +319,11 @@ async function openTask(row, id, format, hasFile) {
             : p.method !== "pdf-text" ? `<details><summary lang="et">OCR tekst <span class="ru" lang="ru">черновик текста</span></summary>
                  <pre class="exam-text" lang="et">${esc(p.text)}</pre></details>` : ""}
         </section>`).join("")
-      : text ? `<p class="hint">${esc(text.note)}</p>
-              <pre class="exam-text" lang="et">${esc(text.text)}</pre>`
+      : text ? `<p class="hint">${esc(eis
+                ? "Ответить и проверить себя можно только на сайте EIS; здесь — текст задания и записи. © Haridus- ja Noorteamet."
+                : text.note)}</p>
+              <pre class="exam-text" lang="et">${esc(eis
+                ? text.text.replace(/\s*-- Vali --\s*/g, " ") : text.text)}</pre>`
            : `<p class="hint">${own
                 ? "Официальная запись — © Haridus- ja Noorteamet."
                 : pdf ? "Текст не удалось извлечь; оригинал показан выше."
@@ -374,7 +392,8 @@ document.addEventListener("click", e => {
     row.after(box);
     mountVideo(box.querySelector("[data-player]"), b.dataset.video);
     box.querySelector("button").onclick = () => { box.remove(); b.focus(); };
-  } else openTask(row, b.dataset.task, b.dataset.fmt || "", b.dataset.file === "1");
+  } else openTask(row, b.dataset.task, b.dataset.fmt || "", b.dataset.file === "1",
+                  b.dataset.eis === "1");
 });
 
 

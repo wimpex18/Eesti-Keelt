@@ -267,6 +267,12 @@ def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> l
         )
         for r in conn.execute(sql, params)
     ]
+    # A rection card on a contrast EKI now accepts both ways is not asked again
+    # (`rection.retired`); the card stays in the log.
+    if any(i.kind == "rektsioon" for i in items):
+        from .rection import retired
+
+        items = [i for i in items if i.kind != "rektsioon" or not retired(i.prompt)]
     # A single-topic request is a deliberate drill-down, so leave it alone.
     return items if kind else interleave(items)[:limit]
 
