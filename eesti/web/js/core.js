@@ -52,6 +52,13 @@ export function ruCount(n, [one, few, many]) {
 }
 
 
+/* A form put into its sentence's blank: capitalised where the blank opens the
+   sentence (`____ palun kohe!`), as `item.fill` does on the server. */
+export function blankForm(prompt, form) {
+  return (prompt || "").startsWith("____") ? form.charAt(0).toUpperCase() + form.slice(1) : form;
+}
+
+
 /* A wrong answer, shown as what was written and what is right.
 
    The learner's own attempt is struck through, then the right form. The drill's
@@ -190,7 +197,7 @@ export function addPracticeSupport(el, it, {offline = false} = {}) {
     result.textContent = "Перевожу…";
     try {
       const text = it.choices?.length ? it.answer
-        : it.prompt.replace("____", (it.answer || "").split(" ~ ")[0]);
+        : it.prompt.replace("____", blankForm(it.prompt, (it.answer || "").split(" ~ ")[0]));
       const translated = await (await api("/api/translate", {text, target: "rus"})).json();
       result.textContent = translated.ok
         ? `${translated.text} · автоматический перевод (${translated.engine})`

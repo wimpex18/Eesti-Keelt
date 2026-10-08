@@ -163,7 +163,7 @@ def cmd_cloze(args: argparse.Namespace) -> int:
         print(f"\n{i}. {item.prompt}")
         print(f"   ({item.hint}){level}")
         if args.answers:
-            print(f"   -> {item.answer}   (не *{item.distractor}*)")
+            print(f"   -> {item.answer}" + (f"   (не *{item.distractor}*)" if item.distractor else ""))
             print(f"   {item.why_ru}")
             ref = item.reference
             if ref and ref.get("known"):
@@ -202,7 +202,7 @@ def cmd_conjugate(args: argparse.Namespace) -> int:
         print(f"\n{i}. {item.prompt}")
         print(f"   ({item.hint}){level}")
         if args.answers:
-            print(f"   -> {item.answer}   (не *{item.distractor}*)")
+            print(f"   -> {item.answer}" + (f"   (не *{item.distractor}*)" if item.distractor else ""))
             print(f"   {item.why_ru}")
     print(f"\n{len(items)} items across {len(set(i.topic for i in items))} topics.")
     return 0
@@ -239,7 +239,7 @@ def cmd_patterns(args: argparse.Namespace) -> int:
         cue = ", ".join(getattr(item, "answer_ru", ()))
         print(f"   ({item.hint}{' — ' + cue if cue else ''})")
         if args.answers:
-            print(f"   -> {item.answer}   (не *{item.distractor}*)")
+            print(f"   -> {item.answer}" + (f"   (не *{item.distractor}*)" if item.distractor else ""))
             print(f"   {item.why_ru}")
     print(f"\n{len(items)} items across {len(wanted)} topics.")
     return 0
@@ -298,7 +298,7 @@ def cmd_practice(args: argparse.Namespace) -> int:
         if ok:
             print("     ✓")
         else:
-            print(f"     ✗  {item.answer}   (не *{item.distractor}*)")
+            print(f"     ✗  {item.answer}" + (f"   (не *{item.distractor}*)" if item.distractor else ""))
             print(f"        {item.why_ru}")
             # Into the queue already marked missed, so it comes back soon
             # rather than being scheduled as fresh material.

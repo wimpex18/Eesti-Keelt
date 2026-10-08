@@ -59,10 +59,12 @@ class TestPrincipalForms:
                for i in principal_forms(words, count=10, seed=seed)}
         assert "maja" not in got
 
-    def test_all_three_forms_get_asked(self, words):
+    def test_both_forms_built_on_the_word_get_asked(self, words):
+        """Never the nimetav: the instruction names the word, which is its
+        nimetav, so the item would answer itself (DEV-51)."""
         asked = {i.label for seed in range(30)
                  for i in principal_forms(words, count=10, seed=seed)}
-        assert asked == {"nimetav", "omastav", "osastav"}
+        assert asked == {"omastav", "osastav"}
 
     def test_grading_is_exact_and_needs_no_network(self, words, monkeypatch):
         import urllib.request

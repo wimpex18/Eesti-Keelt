@@ -1133,7 +1133,7 @@ button.quiet .ru{display:inline;margin-left:4px;font-style:normal;font-weight:40
 .start-routes{display:flex;flex-direction:column;border-top:1px solid var(--line);margin:var(--s6) 0 var(--s5)}
 .start-route{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2);text-align:left;padding:var(--s5) var(--s3);background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0}
 .start-route strong{font-size:var(--fs-lead);font-weight:600}.start-route>span{color:var(--muted);font-size:var(--fs-body);font-weight:400}
-.start-route:hover{background:var(--panel)}.placement-task{display:block;margin-bottom:var(--s5);max-width:60ch}.placement-task input{display:block;margin-top:var(--s2)}
+.start-route:hover{background:var(--panel)}.placement-task{display:block;margin-bottom:var(--s5);max-width:60ch}.placement-task input{display:block;margin-top:var(--s2)}.placement-task .hint{display:block;margin-top:var(--s1)}.placement-review{margin:var(--s3) 0;padding-left:var(--s5)}.placement-review li{margin-bottom:var(--s2)}
 .lesson-steps{list-style:none;display:flex;gap:var(--s5);padding:0;margin:var(--s5) 0 var(--s6);border-bottom:1px solid var(--line)}
 .lesson-steps li{padding:0 0 var(--s3);color:var(--muted);font-size:var(--fs-body);flex:1}.lesson-steps li>span{display:block;font-size:var(--fs-gloss)}
 .lesson-steps li[aria-current]{color:var(--accent);box-shadow:0 2px var(--coral);font-weight:600}

@@ -1,5 +1,5 @@
 /* Starting choices are navigation. Only server-checked probes award mastery. */
-import {$, api, esc, setLabel} from "./core.js";
+import {$, api, esc, setLabel, wrongVerdict} from "./core.js";
 import {goToPlace} from "./router.js";
 const LEVELS = [
   ["a1", "Tean mõnda sõna", "Знаю отдельные слова — начальные темы"],
@@ -75,7 +75,9 @@ async function nextProbe() {
     if (result.done) { showResult(); return; }
     probe = result.next;
     frame(`<h2 class="page-title" lang="et">${esc(probe.et)}</h2><p lang="ru">Тема ${seen.length + 1} из максимум 3. Проверяются только эти задания; это не экзамен CEFR.</p>
-      <form id="placementForm">${probe.items.map((it, i) => `<label class="placement-task" lang="et">${esc(it.prompt)}<input name="answer${i}" aria-label="Vastus ${i + 1} — ответ" lang="et" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>`).join("")}
+      <form id="placementForm">${probe.items.map((it, i) => `<label class="placement-task" lang="et">${esc(it.prompt)}
+        <span class="hint">${esc([it.lemma, it.label].filter(Boolean).join(", "))}${(probe.glosses || {})[it.lemma]?.length
+          ? ` <i lang="ru">${esc(probe.glosses[it.lemma].join(", "))}</i>` : ""}</span><input name="answer${i}" aria-label="Vastus ${i + 1} — ответ" lang="et" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>`).join("")}
       <button class="go" type="submit" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button></form>
       <button class="quiet" data-stop lang="et">Lõpeta siin <span class="ru" lang="ru">закончить здесь</span></button>`);
     out().querySelector("[data-stop]").onclick = showResult;
@@ -86,7 +88,10 @@ async function nextProbe() {
         const r = await api(`/api/testout/${encodeURIComponent(probe.topic)}`, {seed: probe.seed,
           given: [...form.querySelectorAll("input")].map(input => input.value)}).then(response => response.json());
         seen.push(probe.topic); if (!r.passed) failed.push(probe.topic);
-        frame(`<h2 class="page-title" lang="et">${esc(probe.et)}</h2><p class="verdict ${r.passed ? "ok" : "no"}" lang="ru">${r.correct} из ${r.asked} верно. ${r.passed ? "Тема засчитана по проверенным ответам." : "Тема остаётся для изучения."}</p><button class="go" data-next lang="et">Edasi <span class="ru" lang="ru">дальше</span></button>`);
+        // Each answer, with the right form where it was wrong.
+        const review = (r.items || []).map(row => `<li lang="et">${esc(row.solution)}
+          ${row.correct ? "✓" : `<span class="verdict no">${wrongVerdict(row.given, row.answer, "")}</span>`}</li>`).join("");
+        frame(`<h2 class="page-title" lang="et">${esc(probe.et)}</h2><p class="verdict ${r.passed ? "ok" : "no"}" lang="ru">${r.correct} из ${r.asked} верно. ${r.passed ? "Тема засчитана по проверенным ответам." : "Тема остаётся для изучения."}</p>${review ? `<ul class="placement-review">${review}</ul>` : ""}<button class="go" data-next lang="et">Edasi <span class="ru" lang="ru">дальше</span></button>`);
         out().querySelector("[data-next]").onclick = nextProbe;
       } catch (e) { error(e.message); b.disabled = false; setLabel(b, "Kontrolli"); }
       finally { busy = false; }

@@ -154,7 +154,9 @@ def explain_attempt(event_id: str) -> Answer:
     reference = describe(topic.tag or topic.id)
     reference = reference if reference.get("known") else None
 
-    solution = p["prompt"].replace("____", p["expected"])
+    from .item import fill
+
+    solution = fill(p["prompt"], p["expected"])
     readings = {t.text.casefold(): f"{t.lemma} · {t.form}" for t in analyze(solution)}
     given = " ".join([p["expected"], p.get("answer") or "", p.get("lemma") or ""])
     allowed = set(readings) | {w.casefold() for w in given.split()}

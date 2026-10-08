@@ -117,8 +117,9 @@ class Cloze(GradedItem):
 
     @property
     def label(self) -> str:
-        """The half of `hint` that is not the word — what to produce."""
-        return f"{self.governor}?" if self.governor else self.case_et
+        """The half of `hint` that is not the word — what to produce. For rection,
+        the governing word (a bare "teavitama?" read as a question)."""
+        return f"rektsioon: {self.governor}" if self.governor else self.case_et
 
 
 def sentences(
@@ -181,7 +182,15 @@ def _distractor(
         return lemma if lemma != correct else forms.get("partitive")
     if tag == "sg p":
         return forms.get("genitive")
-    return naive_case_form(lemma, forms["genitive"], correct)
+    # Built on the nominative, the form is usually no word at all (*metss*,
+    # *protsentl*): offered as a choice it gives the answer away, so it is
+    # kept only when Vabamorf knows it, and the item is typed otherwise.
+    naive = naive_case_form(lemma, forms["genitive"], correct)
+    if naive is None:
+        # Not built on the singular genitive (*töid*, *lapsi*): the stem rule
+        # in `_why` would be false, so there is no item.
+        return None
+    return naive if _readings(naive) else ""
 
 
 def _why(
@@ -200,8 +209,8 @@ def _why(
         )
     return (
         f"**{case_et}** — {case_ru}. Падеж строится от основы генитива — **omastav** "
-        f"(*{forms['genitive']}*), а не от словарной формы: *{correct}*, "
-        f"не *{wrong}*."
+        f"(*{forms['genitive']}*), а не от словарной формы: *{correct}*"
+        + (f", не *{wrong}*." if wrong else ".")
     )
 
 
@@ -339,6 +348,11 @@ def case_clozes(
         if len(out) >= count * OVERSAMPLE:
             break
         tokens = analyze(sentence)
+        # A word Vabamorf does not know mid-sentence is usually a word broken by
+        # the source's layout (*ametikoh ta*); the sentence would teach it.
+        if any(t.text.isalpha() and t.text.islower() and not _readings(t.text)
+               for t in tokens):
+            continue
         ease = _ease(words, tokens)
         for token in tokens:
             if token.pos != "S" or token.form not in wanted:
@@ -416,6 +430,11 @@ def negation_clozes(
         if len(out) >= count * OVERSAMPLE:
             break
         tokens = analyze(sentence)
+        # A word Vabamorf does not know mid-sentence is usually a word broken by
+        # the source's layout (*ametikoh ta*); the sentence would teach it.
+        if any(t.text.isalpha() and t.text.islower() and not _readings(t.text)
+               for t in tokens):
+            continue
         ease = _ease(words, tokens)
         negators = [
             t for t in tokens

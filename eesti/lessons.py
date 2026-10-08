@@ -218,7 +218,7 @@ def _table(topic: str, words: sqlite3.Connection | None) -> dict | None:
 
 def examples(topic: str, count: int = 5, seed: int = 0) -> list[dict]:
     """The topic's own drill sentences with the answer in place, shortest first."""
-    from .item import BLANK
+    from .item import BLANK, fill
     from .practice import items_for
 
     try:
@@ -230,8 +230,11 @@ def examples(topic: str, count: int = 5, seed: int = 0) -> list[dict]:
         prompt, answer = getattr(it, "prompt", ""), getattr(it, "answer", "")
         if prompt and answer and prompt.count(BLANK) == 1:
             before, after = prompt.split(BLANK)
+            # One form, capitalised where it opens the sentence (`item.fill`).
+            full = fill(prompt, answer)
+            shown = full[len(before):len(full) - len(after)]
             if not any(e["before"] == before for e in out):
-                out.append({"before": before, "answer": answer, "after": after})
+                out.append({"before": before, "answer": shown, "after": after})
     out.sort(key=lambda e: len(e["before"]) + len(e["after"]))
     return out[:count]
 
