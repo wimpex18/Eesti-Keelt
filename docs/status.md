@@ -104,7 +104,7 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   scope, so `Lugemine` is empty for guests and signed-up learners. Their drills,
   dictation, read-aloud and mock reading and listening use EKI EVS's example
   phrases instead: dictionary phrases, often fragments in lower case. Word-order
-  tiles are noun phrases only (690 in the A1–B1 pool), since clause order has
+  tiles are noun phrases only, since clause order has
   more than one correct answer; stacked adjectives can still allow a second
   order. Licensable texts and permission requests are tracked in DEV-36.
 
