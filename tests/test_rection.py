@@ -125,9 +125,9 @@ class TestRectionDrills:
             assert item.reference["ekk_section"] == "SÜ 65"
 
     def test_impersonal_verbs_do_not_get_a_personal_subject(self, words):
-        rows = [rection.Rection("põhinema", "millel", "millele", "sg ad", "sg all")]
-        for item in cloze.rection_clozes(rows, words=words, seed=1):
-            assert item.prompt.startswith("See ")
+        rows = [rection.Rection("kaasnema", "millega", "millele", "sg kom", "sg all")]
+        items = cloze.rection_clozes(rows, words=words, seed=1)
+        assert items and all(item.prompt.startswith("See ") for item in items)
 
     def test_a_person_frame_selects_a_person_noun(self, words):
         rows = [rection.Rection("teavitama", "keda", "kellele", "sg p", "sg all")]
@@ -162,8 +162,27 @@ class TestTheExplanationClaimsWhatEkiClaims:
     def test_no_drill_is_built_on_a_frame_eki_records(self):
         from eesti.cloze import rection_clozes
 
-        rules = [rection.Rection("põhinema", "millel", "millele", "sg ad", "sg all")]
-        assert rection_clozes(rules, count=5, seed=1) == []
+        rules = [rection.Rection("põhinema", "millel", "millele", "sg ad", "sg all"),
+                 rection.Rection("kaasnema", "millega", "millele", "sg kom", "sg all")]
+        items = rection_clozes(rules, count=5, seed=1)
+        assert items and {i.governor for i in items} == {"kaasnema"}
+
+    def test_a_review_card_on_such_a_contrast_is_not_asked_again(self, tmp_path):
+        from eesti import review
+
+        conn = review.connect(tmp_path / "review.db")
+        review.add(conn, kind="rektsioon", lemma="fakt", prompt="See põhineb ____.",
+                   answer="faktidel", distractor="faktidele")
+        review.add(conn, kind="rektsioon", lemma="kliima", prompt="Ta kohaneb ____.",
+                   answer="kliimaga", distractor="kliimale")
+        assert [i.lemma for i in review.due(conn)] == ["kliima"]
+
+    def test_every_accepted_frame_names_a_real_sz65_contrast(self):
+        """A typo in `EKI_ACCEPTS` would silently keep the contrast."""
+        frames = set(rection.FRAME_CASES)
+        for head, frame in rection.EKI_ACCEPTS.items():
+            assert frame in frames, head
+            assert head.endswith(("ma", "ne")), head
 
     def test_it_still_cites_the_handbook(self):
         from eesti.providers.grammar import RECTION_WHY

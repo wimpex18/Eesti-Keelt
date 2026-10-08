@@ -572,9 +572,9 @@ def rection_clozes(
                 case_et=case_et,
                 rule="rection",
                 why_ru=(
-                    f"**{head}** требует падежа *{rection.correct_frame}* "
-                    f"({case_et}), а не *{rection.wrong_frame}* ({wrong_et}). "
-                    f"EKK отмечает это как частую ошибку."
+                    f"**{head}** — *{rection.correct_frame}* ({case_et}), а не "
+                    f"*{rection.wrong_frame}* ({wrong_et}): EKK (SÜ 65) отмечает "
+                    f"это как частую ошибку."
                 ),
                 topic="rektsioon",
                 level=_level_of(words, noun),

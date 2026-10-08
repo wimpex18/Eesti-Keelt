@@ -90,7 +90,7 @@ def _reference(conn) -> dict:
     return {
         # EKK SÜ 65, via `cli rections` -- powers the rektsioon drill and the
         # &err-gov check in free writing.
-        "rections": len(rection.load(conn)),
+        "rections": sum(r.drillable for r in rection.load(conn)),
         # EKI's A1/A2/B1 vocabulary -- where a word's CEFR level is EKI's own
         # answer rather than an estimate off a 6.2 %-tagged list.
         "eki_levels": count("SELECT COUNT(*) FROM official_levels"),

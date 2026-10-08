@@ -238,7 +238,7 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
     # Item by item, for the learner to look back at; not stored with the section.
     items: list[dict] = []
     if part == "lugemine":
-        from ..item import BLANK
+        from ..item import fill
 
         correct = 0
         for answer in res.answers:
@@ -249,11 +249,8 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
                     "Задание не удалось проверить: оно выдано не этим сервером.")) from exc
             ok = accepts(issued["answer"], answer.given)
             correct += int(ok)
-            form = issued["answer"].split(" ~ ")[0]
-            if issued["prompt"].startswith(BLANK):
-                form = form[:1].upper() + form[1:]
             items.append({"given": answer.given, "answer": issued["answer"],
-                          "solution": issued["prompt"].replace(BLANK, form),
+                          "solution": fill(issued["prompt"], issued["answer"]),
                           "correct": ok})
     elif part == "kuulamine":
         from ..dictation import Passage, grade, key_of
