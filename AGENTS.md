@@ -82,7 +82,8 @@ suite after upgrades and the morphology eval before trusting a new `estnltk`.
   completed history. Keep it within 30 lines.
 - Keep `AGENTS.md` concise and model-agnostic as the single repository-wide
   agent instruction file.
-- Stage named paths, never `git commit -a`. Open small PRs; the user merges.
+- Stage named paths, never `git commit -a`. One open PR per session: add later
+  work to it, even for another issue, not a new PR. The user merges.
   Docs describe current behavior. Path rules are in `.claude/rules/`; design
   context is in `PRODUCT.md` and `DESIGN.md`. Architecture constraints are in
   `docs/adr/0005-architecture-contracts.md`.

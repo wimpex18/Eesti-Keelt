@@ -1,22 +1,20 @@
 # Handoff
 
 Current task: review workstream S4 (data safety, dependencies), Linear DEV-37
-and DEV-39; Litestream (DEV-43) waits until after the 7–8 Nov sittings.
-This note is identical on every S4 branch, so the PRs merge in any order.
-Open PRs (owner merges; then deep smoke):
-- #112 DEV-37 items 2–5: owner rebind, corpus revision, liveness, reminder cron.
-- #113 DEV-37 items 6–7: ITEM_SECRET; guest allowances in the owner's
-  snapshotted store; active sandboxes kept past the soft limit (hard 200).
-- #116 DEV-39: requirements.lock, python:3.14.8, upgrade workflow, npm/wrangler,
-  pinned local ASR (Voxtral transcripts identical), install.sh as updater.
-- #118 DEV-37 item 1: nightly verified copy to GCS (stacked on #112).
-- #119 AGENTS.md: no new Linear issues; follow-up goes in comments.
-After merge (owner): enable Actions "create and approve pull requests" (before
-#116); Cloud Shell `bash deploy/set-item-secret.sh` (#113) and
-`bash deploy/setup-backup.sh` (#118), then verify a copy the next morning; on
-the Mac mini, unpack the new ZIP and run `zsh deploy/home-asr/install.sh`.
-Waiting: Node 26 after 28 Oct 2026 (suite already passes on 26.11.1);
-Python 3.15 until estnltk, python-crfsuite, pyahocorasick and httptools ship
-cp315 wheels.
-Uncommitted task paths: none after each branch's commit.
+and DEV-39, as one PR; Litestream (DEV-43) waits until after 7–8 Nov.
+Branch: claude/dev-37-dev-39-data-safety, merged with origin/main 4d6bf01.
+Contains: DEV-37 items 1–7 (owner rebind, corpus revision, liveness, reminder
+cron, ITEM_SECRET, guest allowances and sandboxes, nightly verified GCS copy);
+DEV-39 (requirements.lock, python:3.14.8, weekly upgrade workflow, npm and
+wrangler, compatibility_date 2026-10-01, pinned local ASR, install.sh as
+updater); AGENTS.md: no new Linear issues, one open PR per session.
+Checks: see the PR; local Docker build of the merged tree passed.
+Next (owner): enable Settings → Actions → General → "Allow GitHub Actions to
+create and approve pull requests"; merge; after the image is live, in Cloud
+Shell run `bash deploy/set-item-secret.sh` and `bash deploy/setup-backup.sh`;
+next morning verify one copy with `cli verify-backup`; on the Mac mini unpack
+the new ZIP and run `zsh deploy/home-asr/install.sh`; deep smoke.
+Waiting: Node 26 after 28 Oct 2026 (JS checks pass on 26.11.1); Python 3.15
+until estnltk, python-crfsuite, pyahocorasick and httptools ship cp315 wheels.
+Uncommitted task paths: none after this commit.
 Blockers: none.
