@@ -1,19 +1,22 @@
 # Handoff
 
-Current task: review workstream S4 (data safety and dependencies), Linear
-DEV-37 and DEV-39. Litestream (DEV-43) waits until after the 7–8 Nov sittings.
-Branch: claude/dev-37-durable-object-defects, from origin/main faa477d.
-In this branch (DEV-37 items 2–5): guests no longer rebind the owner object;
-the archived corpus records its revision, so eviction or a cold restore does
-not re-archive it; `/api/health?live=1` is the Worker's liveness probe and the
-full report counts recordings once per file version; `/api/reminders` names
-`next_check`, and the cron skips cold restores until then or new evidence.
-Checks: Python 2529 passed/25 skipped (no local data), Worker 32 passed,
-typecheck clean.
-Rollout: the Worker and origin deploy independently; each side accepts the
-other's old form (missing `live`, `revision` or `next_check` keeps old behaviour).
-Next: owner reviews and merges; after deployment run smoke with `deep: true`.
-Separate PRs follow: ITEM_SECRET (DEV-37 item 6), dependency lock (DEV-39),
-nightly off-Cloudflare export (DEV-37 item 1, destination awaits owner choice).
-Uncommitted task paths: none after this commit.
-Blockers: none for this PR.
+Current task: review workstream S4 (data safety, dependencies), Linear DEV-37
+and DEV-39; Litestream (DEV-43) waits until after the 7–8 Nov sittings.
+This note is identical on every S4 branch, so the PRs merge in any order.
+Open PRs (owner merges; then deep smoke):
+- #112 DEV-37 items 2–5: owner rebind, corpus revision, liveness, reminder cron.
+- #113 DEV-37 items 6–7: ITEM_SECRET; guest allowances in the owner's
+  snapshotted store; active sandboxes kept past the soft limit (hard 200).
+- #116 DEV-39: requirements.lock, python:3.14.8, upgrade workflow, npm/wrangler,
+  pinned local ASR (Voxtral transcripts identical), install.sh as updater.
+- #118 DEV-37 item 1: nightly verified copy to GCS (stacked on #112).
+- #119 AGENTS.md: no new Linear issues; follow-up goes in comments.
+After merge (owner): enable Actions "create and approve pull requests" (before
+#116); Cloud Shell `bash deploy/set-item-secret.sh` (#113) and
+`bash deploy/setup-backup.sh` (#118), then verify a copy the next morning; on
+the Mac mini, unpack the new ZIP and run `zsh deploy/home-asr/install.sh`.
+Waiting: Node 26 after 28 Oct 2026 (suite already passes on 26.11.1);
+Python 3.15 until estnltk, python-crfsuite, pyahocorasick and httptools ship
+cp315 wheels.
+Uncommitted task paths: none after each branch's commit.
+Blockers: none.
