@@ -56,7 +56,7 @@ Deliver:
    topic ID maps into units (stable topic/rule IDs, ADR-0005); which units need
    new generators or material; what the redesign sessions inherit.
 3. A draft ADR for the course structure.
-4. Linear: child issues under DEV-40 for each build step, titles starting "EK".
+4. Linear: the build steps as a checklist in one comment on DEV-40; no new issues.
 Small PR, branch with the issue ID, stage named paths only, I merge.
 ```
 

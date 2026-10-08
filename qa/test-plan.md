@@ -109,4 +109,5 @@ Fail release on data leakage/loss, wrong deterministic grading, blocked core
 journey, unhandled browser exception or a verified WCAG A/AA failure.
 After the user merges and deployment completes, run deep production smoke.
 Record current findings, tap counts, measured results and unexecuted gates in
-`qa/results.md`; durable deferred product work belongs in Linear DEV/Eesti-Keelt.
+`qa/results.md`; durable deferred product work goes in a comment on the existing
+Linear issue it belongs to (no new issues; `AGENTS.md`).

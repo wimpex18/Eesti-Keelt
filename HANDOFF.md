@@ -1,29 +1,21 @@
 # Handoff
 
-Current task: architecture, content and market review → implementation programme.
-Branch: claude/ek-review-plan (planning PR: review snapshot, permission drafts,
-verified known issues). Base: main faa477d.
-Review: `qa/architecture-review.md` (illustrated version: Claude artifact
-https://claude.ai/artifact/9x35tYbYJDvTy5sAqHf1hg). Backlog: Linear DEV-35..DEV-56.
-
-Start now, one fresh worktree session each, small PRs, branch names carry the ID:
-- S1 correctness: DEV-35 (DEV-49 EVS glosses, DEV-50 writing object case,
-  DEV-51 items, DEV-52 ÕS 2025 audit, DEV-53 exam screens).
-- S2 public material: DEV-54 EVS phrase pools (DEV-36 epic).
-- S3 Claude Haiku 5.5 lane and eval: DEV-38 (eval spends a little money: ask first).
-- S4 data safety and dependencies: DEV-37, DEV-39.
-Owner sends `qa/source-permission-requests.md` (DEV-55); answers go to
-`eesti/licences.py` and `docs/sources.md` before any source is opened.
-
-Next-session prompts: `qa/session-briefs.md` (A: DEV-40 spec, B: DEV-38 when
-the key is in .env, C: DEV-41). Merge #111 first; S1/S2/S4 PRs rebase on it.
-Order after that: DEV-40 course-structure spec (interview → SPEC.md → ADR) before
-DEV-41 exam fidelity, DEV-42 languages and DEV-45 patterns; DEV-43 Litestream only
-after the 7–8 Nov 2026 sittings; DEV-47 pilot after DEV-35/36; redesign last.
-Owner decisions: full A0→B1 path alongside Keeleklikk; no embedding model;
-private sources stay owner-only until written permission.
-
-Uncommitted task paths before this commit: `HANDOFF.md`, `qa/session-briefs.md`,
-`.claude/rules/docs.md`.
-Preserve unrelated untracked agent/editor tooling. No learner data in the diff.
-Blockers: none for S1–S4; ERR/HARNO/Selges keeles content waits for permission.
+Current task: review workstream S4 (data safety and dependencies), Linear
+DEV-37 and DEV-39. Litestream (DEV-43) waits until after the 7–8 Nov sittings.
+Branch: claude/dev-39-dependency-lock, from origin/main faa477d (DEV-39).
+In this branch: `requirements.lock` (uv, universal, hashed) installed by the
+image, CI and eval; base image python:3.14.8-slim; weekly `python-upgrade`
+workflow opens a lock PR and dispatches `tests.yml`; wrangler 4.148.0,
+workers-types 5.20261008.1, axe-core 4.14.0, `overrides` sharp 0.35.5
+(npm audit 0); compatibility_date 2026-10-01; EstGEC-L2 pinned to c13d04a;
+Phosphor recorded as @phosphor-icons/core 2.1.1.
+Checks: Python 2533 passed/14 skipped (gold data fetched); morphology gate
+98.1%, identical to the unlocked env; Worker 26 passed; typecheck clean;
+`wrangler deploy --dry-run` builds; lock installs wheels-only for linux x86_64.
+Next: owner enables Settings → Actions → General → "Allow GitHub Actions to
+create and approve pull requests", merges, then deep smoke. Not done here:
+local ASR (torch/transformers/av) bump needs the ASR bench on the Mac; Node 26
+waits until after 28 Oct 2026; Python 3.15 waits for estnltk wheels.
+Other S4 PRs: wimpex18/Eesti-Keelt#112, #113; nightly off-Cloudflare export
+(DEV-37 item 1) awaits the owner's destination choice.
+Uncommitted task paths: none after this commit.

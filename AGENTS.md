@@ -89,11 +89,10 @@ run the suite after upgrades and the morphology eval before trusting a new
 
 ## Linear tracking
 
-Use Linear team **Development (DEV)** and project **Eesti-Keelt**; never create
-Eesti-Keelt issues under PM. New issue titles start with **EK**.
-
-Linear is the durable backlog for bugs, feature ideas, improvements and deferred
-follow-up. Create or update an issue only when the work should survive the current
-session; do not mirror implementation history. If work starts from a Linear
-issue, keep its issue ID in the branch or PR. Keep implementation details in
-Git/PRs and durable product and technical truth in repository docs.
+Linear team **Development (DEV)**, project **Eesti-Keelt**. **Do not create
+Linear issues**, including child issues: the owner tracks the existing set.
+Record follow-up, deferred work and new findings as a comment, or a checklist
+in a comment, on the existing issue the work belongs to; if none fits, list it
+in `HANDOFF.md` and ask the owner. If work starts from a Linear issue, keep its
+issue ID in the branch or PR. Keep implementation details in Git/PRs and
+durable product and technical truth in repository docs.
