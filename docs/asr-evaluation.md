@@ -15,6 +15,12 @@ first when installed.
 | TalTech Whisper et-verbatim (`faster-whisper`, CPU int8, beam 5) | 5.7% | 0.7% | 7.3% | 2 of 15 | 4.4 s on 4 Apple M5 threads |
 | TalTech Voxtral Realtime (`voxtral-rt`, Apple M5 GPU, BF16) | 6.5% | 1.0% | 7.3% | 1 of 15 | 5.4 s bench, 13 s owner |
 
+The Voxtral row holds for model snapshot `e50b2a5` (TalTech's newest
+Realtime release) with the pins in `requirements-local-asr.txt`: torch 2.14.1,
+transformers 5.19.0 and av 19.0.1 return transcripts identical, clip for clip,
+to those of torch 2.14.0, transformers 5.17.0 and av 18.1.0 on all 36
+benchmark and 8 owner clips.
+
 The owner's set is 8 verified read-aloud clips with 3 planted errors, below the
 20-clip pilot floor: a strong signal, not proof. Both TalTech engines heard the
 owner's accent (*õpin*, *piima*, *Tallinnas*) where Workers AI wrote *ipin*,

@@ -71,7 +71,10 @@ when the Mac is off.
 
 ## Updating and checking
 
-- Update: download the ZIP again, unpack it in the same place, re-run `install.sh`.
+- Update: download the ZIP again, unpack it in the same place, and run
+  `zsh deploy/home-asr/install.sh` with no token: it reuses the stored one and
+  upgrades the packages, the model snapshot and cloudflared, then restarts both
+  services.
 - Health on the Mac mini: `curl http://127.0.0.1:8790/health`.
 - Logs: `~/.eesti-home-asr/asr.log` and `tunnel.log`.
 - Stop: `launchctl bootout gui/$(id -u)/ee.eesti-keelt.home-asr` (and `home-tunnel`).

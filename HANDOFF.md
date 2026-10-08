@@ -1,21 +1,22 @@
 # Handoff
 
-Current task: review workstream S4 (data safety and dependencies), Linear
-DEV-37 and DEV-39. Litestream (DEV-43) waits until after the 7–8 Nov sittings.
-Branch: claude/dev-39-dependency-lock, from origin/main faa477d (DEV-39).
-In this branch: `requirements.lock` (uv, universal, hashed) installed by the
-image, CI and eval; base image python:3.14.8-slim; weekly `python-upgrade`
-workflow opens a lock PR and dispatches `tests.yml`; wrangler 4.148.0,
-workers-types 5.20261008.1, axe-core 4.14.0, `overrides` sharp 0.35.5
-(npm audit 0); compatibility_date 2026-10-01; EstGEC-L2 pinned to c13d04a;
-Phosphor recorded as @phosphor-icons/core 2.1.1.
-Checks: Python 2533 passed/14 skipped (gold data fetched); morphology gate
-98.1%, identical to the unlocked env; Worker 26 passed; typecheck clean;
-`wrangler deploy --dry-run` builds; lock installs wheels-only for linux x86_64.
-Next: owner enables Settings → Actions → General → "Allow GitHub Actions to
-create and approve pull requests", merges, then deep smoke. Not done here:
-local ASR (torch/transformers/av) bump needs the ASR bench on the Mac; Node 26
-waits until after 28 Oct 2026; Python 3.15 waits for estnltk wheels.
-Other S4 PRs: wimpex18/Eesti-Keelt#112, #113; nightly off-Cloudflare export
-(DEV-37 item 1) awaits the owner's destination choice.
-Uncommitted task paths: none after this commit.
+Current task: review workstream S4 (data safety, dependencies), Linear DEV-37
+and DEV-39; Litestream (DEV-43) waits until after the 7–8 Nov sittings.
+This note is identical on every S4 branch, so the PRs merge in any order.
+Open PRs (owner merges; then deep smoke):
+- #112 DEV-37 items 2–5: owner rebind, corpus revision, liveness, reminder cron.
+- #113 DEV-37 items 6–7: ITEM_SECRET; guest allowances in the owner's
+  snapshotted store; active sandboxes kept past the soft limit (hard 200).
+- #116 DEV-39: requirements.lock, python:3.14.8, upgrade workflow, npm/wrangler,
+  pinned local ASR (Voxtral transcripts identical), install.sh as updater.
+- #118 DEV-37 item 1: nightly verified copy to GCS (stacked on #112).
+- #119 AGENTS.md: no new Linear issues; follow-up goes in comments.
+After merge (owner): enable Actions "create and approve pull requests" (before
+#116); Cloud Shell `bash deploy/set-item-secret.sh` (#113) and
+`bash deploy/setup-backup.sh` (#118), then verify a copy the next morning; on
+the Mac mini, unpack the new ZIP and run `zsh deploy/home-asr/install.sh`.
+Waiting: Node 26 after 28 Oct 2026 (suite already passes on 26.11.1);
+Python 3.15 until estnltk, python-crfsuite, pyahocorasick and httptools ship
+cp315 wheels.
+Uncommitted task paths: none after each branch's commit.
+Blockers: none.
