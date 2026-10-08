@@ -167,6 +167,33 @@ class TestPhraseTiles:
             assert not accepts(item.answer, " ".join(item.tiles))
             assert 3 <= len(words) <= 7
 
+    @pytest.mark.parametrize("phrase, fixed", [
+        # Genitive chains and a determiner with one adjective: EKK SÜ 98, 104.
+        ("kolme lapse isa", True),
+        ("laulja populaarsuse saladus", True),
+        ("minu kunagine klassiõde", True),
+        # EKK SÜ 104's free orders: an adjective beside a genitive, a cardinal
+        # beside an ordinal; and two descriptive adjectives.
+        ("dollari ametlik kurss", False),
+        ("viis viimast lehekülge", False),
+        ("kenad sirged jalad", False),
+        # An attribute in another case can follow its head (EKK SÜ 102).
+        ("kolme rattaga jalgratas", False),
+        # Not an attribute before a head: coordination, address, a label.
+        ("palk pluss preemia", False),
+        ("sa vana nõid", False),
+        ("buss number kuus", False),
+        # A clause: verb-second is usual, not obligatory (EKK SÜ 92).
+        ("ostsin kolm piletit teatrisse", False),
+    ])
+    def test_only_an_order_ekk_fixes_is_built(self, phrase, fixed):
+        """Every phrase here is EVS's. A tile item whose other order is also
+        Estonian would mark the learner wrong for correct Estonian."""
+        from eesti.wordorder import phrase_tiles
+
+        built = phrase_tiles([evs.Example("x", phrase, "—")], count=1, seed=1)
+        assert bool(built) is fixed
+
     def test_the_server_grades_the_built_phrase(self, client, evs_words):
         got = client.post("/api/practice", json={"topic": "sonajark", "count": 3},
                           headers=HEADERS).json()

@@ -372,16 +372,18 @@ def generate(count: int = 10, seed: int | None = None,
 # the owner's scope gets none. EVS's example phrases are (CC BY 4.0): the
 # learner is given the Russian and the Estonian words out of order and rebuilds
 # EKI's phrase. Nothing is generated but the shuffle, so no distractor can be
-# accidentally correct Estonian. The risk is the other way round: clause order
-# is flexible (`sa pead tema ees vabandama` ~ `sa pead vabandama tema ees`), and
-# an order EKI did not print would be marked wrong. So only phrases without a
-# word whose place is free are built: a noun in the nominative last, and
-# before it only attributes in the nominative or genitive (`kolme lapse isa`,
-# `dollari ametlik kurss`), which precede their head. An attribute in another
-# case may also follow it (`kolme rattaga jalgratas` ~ `jalgratas kolme
-# rattaga`), and `kell üks päeval` (~ `päeval kell üks`) does not end on its
-# head: neither is built. No word may have a verb, adverb, conjunction or
-# interjection reading.
+# accidentally correct Estonian. The risk is the other way round: an order
+# EKI did not print would be marked wrong, and clause order is flexible (`sa
+# pead tema ees vabandama` ~ `sa pead vabandama tema ees`; EKK SÜ 92 calls
+# inversion a means of emphasis, not an error). So only the order EKK fixes is
+# built: the noun phrase, whose adjective and genitive attributes stand before
+# their head (EKK SÜ 98, 99). Within it EKK SÜ 104 names two free orders, an
+# adjective beside a genitive (`luksuslikud Fazeri ~ Fazeri luksuslikud
+# šokolaadikarbid`) and a cardinal beside an ordinal (`viis viimast ~ viimased
+# viis`), and two descriptive adjectives can swap too; none of those is built.
+# What remains is mostly the genitive chain (`laulja populaarsuse saladus`,
+# `kolme lapse isa`) and a determiner with one adjective (`minu kunagine
+# klassiõde`).
 
 #: Words and a final question or exclamation mark: anything else inside the
 #: phrase (a comma, a quotation mark, `3.`) would be lost from the tiles.
@@ -391,30 +393,48 @@ _TILEABLE = re.compile(r"[\w'-]+(?: [\w'-]+)*[?!]?", re.UNICODE)
 #: conjunction, interjection, and the unanalysable (abbreviation, foreign, symbol).
 _FREE = frozenset({"V", "D", "J", "I", "X", "Y", "Z"})
 
+#: Descriptive attributes: adjective, comparative, superlative, ordinal.
+_DESCRIPTIVE = frozenset({"A", "C", "U", "O"})
 
-#: Cases whose attribute stands before its head: agreeing (nominative) and
-#: genitive.
-_BEFORE_HEAD = frozenset({"sg n", "pl n", "sg g", "pl g"})
+_GENITIVE = frozenset({"sg g", "pl g"})
+_NOMINATIVE = frozenset({"sg n", "pl n"})
 
 
 def _fixed_order(phrase: str) -> bool:
-    """A noun in the nominative last, every word before it an attribute in the
-    nominative or genitive (`G`, an indeclinable genitive attribute, as in
-    `eesti keele`), and no word that could be one whose place is free, in any
-    reading (`viis` is also *viima*). An unknown word counts as free.
+    """Whether EKK fixes this phrase's word order (see above): a noun in the
+    nominative last; before it, genitive attributes (a noun, name or pronoun
+    with a genitive reading, or an indeclinable `G` such as *eesti*), numerals,
+    and at most one descriptive attribute, which then stands with no genitive
+    noun and no cardinal beside an ordinal. No word may have a reading whose
+    place is free (`viis` is also *viima*); an unknown word counts as free.
     """
     from .morph import _readings, parts_of_speech
 
     words = phrase.rstrip("?!").split()
-    for word in words:
-        pos = parts_of_speech(word)
-        if not pos or pos & _FREE:
+    pos = [parts_of_speech(w) for w in words]
+    forms = [{form for _, form in _readings(w)} for w in words]
+    if any(not p or p & _FREE for p in pos):
+        return False
+    if "S" not in pos[-1] or not forms[-1] & _NOMINATIVE:
+        return False
+    descriptive = genitives = 0
+    for p, f in zip(pos[:-1], forms[:-1]):
+        if p & _DESCRIPTIVE:
+            descriptive += 1
+            if not f & (_NOMINATIVE | _GENITIVE):
+                return False
+        elif "N" in p:
+            if not f & (_NOMINATIVE | _GENITIVE):
+                return False
+        elif "G" in p:
+            genitives += 1
+        elif p & {"S", "H", "P"} and f & _GENITIVE:
+            genitives += "P" not in p
+        else:
             return False
-        if word is not words[-1] and "G" not in pos and not any(
-                form in _BEFORE_HEAD for _, form in _readings(word)):
-            return False
-    return ("S" in parts_of_speech(words[-1])
-            and any(form in ("sg n", "pl n") for _, form in _readings(words[-1])))
+    attributes = set().union(*pos[:-1])
+    return descriptive <= 1 and not (descriptive and genitives) and not (
+        "N" in attributes and "O" in attributes)
 
 
 @dataclass(frozen=True)
@@ -445,8 +465,9 @@ class PhraseTiles(GradedItem):
 
 
 def _tiles_why(estonian: str, russian: str) -> str:
-    return (f"**Порядок слов (sõnajärg)** — как в примере EKI: «{estonian}» — "
-            f"«{russian}».")
+    return ("**Порядок слов (sõnajärg)** в именной группе: определение в "
+            "omastav и согласованное прилагательное стоят перед главным "
+            f"словом (EKK SÜ 98). Пример EKI: «{estonian}» — «{russian}».")
 
 
 def phrase_tiles(phrases, count: int = 10, seed: int | None = None) -> list[PhraseTiles]:

@@ -82,7 +82,7 @@ examples only, never idioms, spelled out once (no slot, alternatives, ellipsis
 or brackets), headword at the learner's levels on the word list. They feed
 case gap-fill (`gen-stem`, `osastav`, `mitmus`, `kohakaanded`,
 `harvad-kaanded`; the target word must itself be listed at those levels),
-the comma drill, `sonajark` tiles, dictation, read-aloud and the mock's
+the comma drill, `sonajark` tiles (noun phrases whose order EKK fixes), dictation, read-aloud and the mock's
 reading and listening sections. The owner's corpus comes first; EVS fills
 what it cannot. Every such item shows *EKI eesti-vene sõnaraamat · CC BY 4.0*.
 **Question-word cue** (`küsisõnad`): EVS only, the sense EVS illustrates with

@@ -18,7 +18,7 @@ These changes have not been deployed by the QA session.
 | Area | State |
 |---|---|
 | **Identity** | Grove keeps its curved leaf and self-hosted Geologica; platform and social artwork use deep blue on pale blue. The app opens straight into learning with no cover (`docs/brand.md`). |
-| **Drills** | 37 of 43 curriculum topics generate items for every learner. Outside the owner's scope, where the harvested corpus is hidden, the corpus-based topics draw on EKI EVS's example phrases, credited per item (`evs.phrases`; `docs/sources.md`): case gap-fill, the comma drill, and `sonajark` as EVS noun phrases rebuilt from tiles. Topics: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. |
+| **Drills** | 37 of 43 curriculum topics generate items for every learner. Outside the owner's scope, where the harvested corpus is hidden, the corpus-based topics draw on EKI EVS's example phrases, credited per item (`evs.phrases`; `docs/sources.md`): case gap-fill, the comma drill, and `sonajark` as EVS noun phrases rebuilt from tiles, only where EKK fixes the order (SÜ 98, 104). Topics: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. |
 | **Exercise guidance** | Practice states the action in Russian and explains common case/person labels (`alaleütlev`, `nemad`) beside the Estonian term. The A1 personal-pronoun exercise includes an editorial whole-sentence Russian translation and pronoun meaning for each known frame (`eesti/scaffolding.py`); new or unknown frames receive no guessed translation. Other online exercises offer **Tõlge**, requested only on a click and labelled with the translation engine. Reading support does not grade or record an answer; offline practice keeps available local support without requesting translation. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Home offers one next lesson or current session. The planning API remains available for existing clients, while the web removes the competing time-budget dashboard. Guided sessions use learn → five checked exercises → result; completed topics offer the next topic. |
@@ -103,10 +103,11 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   `eesti/licences.py`, and `eesti/sources.py` hides them outside the owner's
   scope, so `Lugemine` is empty for guests and signed-up learners. Their drills,
   dictation, read-aloud and mock reading and listening use EKI EVS's example
-  phrases instead: dictionary phrases, often fragments in lower case. Word-order
-  tiles are noun phrases only, since clause order has
-  more than one correct answer; stacked adjectives can still allow a second
-  order. Licensable texts and permission requests are tracked in DEV-36.
+  phrases instead: dictionary phrases, often fragments in lower case. Their
+  word-order practice is noun-phrase order only (attributes before the head);
+  verb-second clause order has more than one correct answer in EVS's phrases,
+  so it waits for attested or reviewed material. Licensable texts and
+  permission requests are tracked in DEV-36.
 - **Some Russian meanings are wrong.** The EVS import merges homographs and
   phrase translations into one list: `siin` lists «шина», `miks` «микс»,
   `küll` «обилие», `hästi` «не очень» (`eesti/evs.py`; DEV-49).
