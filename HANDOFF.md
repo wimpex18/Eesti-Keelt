@@ -1,29 +1,26 @@
 # Handoff
 
-Current task: architecture, content and market review → implementation programme.
-Branch: claude/ek-review-plan (planning PR: review snapshot, permission drafts,
-verified known issues). Base: main faa477d.
-Review: `qa/architecture-review.md` (illustrated version: Claude artifact
-https://claude.ai/artifact/9x35tYbYJDvTy5sAqHf1hg). Backlog: Linear DEV-35..DEV-56.
-
-Start now, one fresh worktree session each, small PRs, branch names carry the ID:
-- S1 correctness: DEV-35 (DEV-49 EVS glosses, DEV-50 writing object case,
-  DEV-51 items, DEV-52 ÕS 2025 audit, DEV-53 exam screens).
-- S2 public material: DEV-54 EVS phrase pools (DEV-36 epic).
-- S3 Claude Haiku 5.5 lane and eval: DEV-38 (eval spends a little money: ask first).
-- S4 data safety and dependencies: DEV-37, DEV-39.
-Owner sends `qa/source-permission-requests.md` (DEV-55); answers go to
-`eesti/licences.py` and `docs/sources.md` before any source is opened.
-
-Next-session prompts: `qa/session-briefs.md` (A: DEV-40 spec, B: DEV-38 when
-the key is in .env, C: DEV-41). Merge #111 first; S1/S2/S4 PRs rebase on it.
-Order after that: DEV-40 course-structure spec (interview → SPEC.md → ADR) before
-DEV-41 exam fidelity, DEV-42 languages and DEV-45 patterns; DEV-43 Litestream only
-after the 7–8 Nov 2026 sittings; DEV-47 pilot after DEV-35/36; redesign last.
-Owner decisions: full A0→B1 path alongside Keeleklikk; no embedding model;
-private sources stay owner-only until written permission.
-
-Uncommitted task paths before this commit: `HANDOFF.md`, `qa/session-briefs.md`,
-`.claude/rules/docs.md`.
-Preserve unrelated untracked agent/editor tooling. No learner data in the diff.
-Blockers: none for S1–S4; ERR/HARNO/Selges keeles content waits for permission.
+Current task: DEV-54 — EKI EVS example phrases as public practice pools (S2).
+Branch: claude/dev-54-evs-public-pools, merged with origin/main 82dc9d1 (#111).
+PR: https://github.com/wimpex18/Eesti-Keelt/pull/115 — owner reviews and merges.
+No deployment performed.
+State: outside the owner's scope, drills, dictation, read-aloud and mock
+reading/listening draw on `evs.phrases`; the owner's corpus comes first.
+`sonajark` tiles are EVS noun phrases whose order EKK fixes (SÜ 98, 104:
+genitive chains, a determiner with one adjective); the lesson gained that
+point. Clause (verb-second) tiles were rejected: EKK SÜ 92 allows inversion,
+so grading against EKI's order would mark correct Estonian wrong.
+`itemref.GENERATOR_VERSION` is 3.
+Next: owner merges #115; deploy; run `smoke` with `deep: true`; confirm a
+guest gets `gen-stem` and `sonajark` items on production.
+Rebase notes: open #113 (DEV-37) touches `eesti/itemref.py`; open #114
+(DEV-49) touches `eesti/evs.py`. DEV-51 (S1) may touch `eesti/cloze.py`;
+this branch adds only the `listed` parameter there.
+Gap for public learners: verb-second word-order practice and reading texts
+(DEV-36: reviewed material pipeline, permissions DEV-55).
+Repo note: two invalid refs `claude/ek-review-plan 2` (heads and
+origin) blocked every fetch; moved to this session's scratchpad. Their commit
+4654975 is on main.
+Uncommitted task paths: none after this commit. Worktree `data/*.db` are
+ignored copies used for browser journeys.
+Blockers: none.
