@@ -2,8 +2,9 @@
 
 import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml,
   stateIcon, uiIcon} from "./chrome.js";
-import {$, addPracticeSupport, api, blankForm, esc, glide, md, ruCount, setLabel, taskLine,
-  wrongVerdict} from "./core.js";
+import {$, addPracticeSupport, api, attribHtml, blankForm, esc, glide, md, ruCount,
+  setLabel, taskLine, wrongVerdict} from "./core.js";
+import {sayHtml, wireSay} from "./media.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
 import {onLessonPractice} from "./lesson.js";
@@ -14,9 +15,9 @@ import {icon} from "./icons.js";
 
 // ── the path ────────────────────────────────────────────────────────
 let pathTopic = null;
-/* Sub-rules for the next Rada set only: set by a plan block (object case, one
-   rule), dropped after that set is fetched. */
-let pathRules = null;
+/* Sub-rules for one topic's sets: a unit's revisit practises only the rules
+   its stage unlocks, for as long as that topic's session runs. */
+let pathRules = null;   // {topic, rules}
 
 /* A running score for one set. Rada's is recorded by the server and shows the
    mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
@@ -126,8 +127,11 @@ export async function loadPath() {
       ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
         (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
       : "";
+    // Where the topic sits in the course: its unit, else (an older payload) its level.
+    const unit = p.units?.find(u => u.topics.includes(next?.id));
     $("#pathOf").innerHTML = next
-      ? `${next.ru ? `<span lang="ru">${esc(next.ru)}</span> · ` : ""}${esc(next.level)}${tried}`
+      ? `${next.ru ? `<span lang="ru">${esc(next.ru)}</span> · ` : ""}${unit
+        ? `<span lang="et">${unit.n}. ${esc(unit.et)}</span>` : esc(next.level)}${tried}`
       : `${p.mastered}/${p.total} тем`;
     p.topics.forEach(t => { pathMeta[t.id] = t; });
     paintTheme();
@@ -135,33 +139,56 @@ export async function loadPath() {
     $("#practiceBtn .ru").textContent = sessionTopic ? "продолжить урок" : "начать урок";
     $("#practiceBtn").disabled = !next && !sessionTopic;
     $("#practiceBtn").hidden = false;
-    /* The whole path, level by level, as one boardwalk per level. */
-    const levels = [...new Set(p.topics.map(t => t.level))];
-    $("#pathList").innerHTML = levels.map(lv => {
+    /* One topic's row: state, name, gloss, and its actions. */
+    const topicRow = t => {
+      /* Names, not ids — the API resolves them. Tolerant of an older payload so a
+         stale cached page never prints "undefined". */
+      const needs = t.blocked_by || [];
+      const meta = [
+        t.ru ? `<span lang="ru">${esc(t.ru)}</span>` : "",
+        needs.length ? `<span lang="ru">после:</span> <span lang="et">${esc(needs.join(", "))}</span>` : "",
+        t.accuracy === null || t.accuracy === undefined ? "" : `${Math.round(t.accuracy * 100)}%`,
+      ].filter(Boolean).join(" · ");
+      const rule = `<button class="quiet" data-lesson="${esc(t.id)}" lang="et">reegel <i class="ru" lang="ru">правило</i></button>`;
+      const acts = `<span class="acts"><button class="ghost" data-topic="${esc(t.id)}" lang="et">Õpi <i class="ru" lang="ru">изучить</i></button>
+        <details class="topic-options"><summary lang="et">Veel <span class="ru" lang="ru">действия</span></summary>
+        ${rule}${t.state !== "reference" ? `<button class="quiet" data-testout="${esc(t.id)}" lang="et">Kontrolli teadmisi <span class="ru" lang="ru">проверить знания</span></button>` : ""}
+        ${t.state === "mastered" ? "" : `<button class="quiet" data-skip="${esc(t.id)}" data-skipped="${t.state === "skipped"}" lang="et">${t.state === "skipped" ? "Too tagasi" : "Jäta vahele"}<span class="ru" lang="ru">${t.state === "skipped" ? "вернуть в маршрут" : "пропустить тему"}</span></button>`}</details></span>`;
+      return `<div class="topic ${t.state.replace(" ", "-")}${t.id === p.resume ? " now" : ""}">
+        <span class="st" title="${esc(RU[t.state] || t.state)}">${stateIcon(t.state)}<span class="st-word" lang="ru">${esc(RU[t.state] || t.state)}</span></span>
+        <span class="name" lang="et">${esc(t.et)}</span>
+        ${meta ? `<span class="meta">${meta}</span>` : ""}
+        ${acts}</div>`;
+    };
+    const fold = (open, head, hint, body) => `<details class="path-level"${open ? " open" : ""}><summary>${head}
+        <span class="hint">${hint}</span>${icon("caret-down", {cls: "fold-chevron"})}</summary>${body}</details>`;
+    const byId = Object.fromEntries(p.topics.map(t => [t.id, t]));
+    /* The course, unit by unit (`docs/course-structure.md`); an older payload
+       without units keeps the level-by-level path. */
+    $("#pathList").innerHTML = p.units ? p.units.map(u => {
+      const here = u.topics.map(id => byId[id]).filter(Boolean);
+      const stage = u.stage === "algus" ? "Algus" : `sihttase ${u.stage}`;
+      const revisits = u.revisits.map(r => `<p class="hint"><button class="quiet" data-topic="${esc(r.topic)}"
+          data-rules="${esc(r.rules.join(","))}" lang="et">Kordus: ${esc(byId[r.topic]?.et || r.topic)}
+          <span class="ru" lang="ru">повторить с новым правилом</span></button>${r.note_ru ? ` <span lang="ru">${esc(r.note_ru)}</span>` : ""}</p>`).join("");
+      const words = u.words.length ? `<details class="topic-options"><summary lang="et">Esimesed sõnad <span class="ru" lang="ru">первые слова</span></summary>
+          <p>${u.words.map(w => `<span lang="et">${esc(w.et)}</span>${w.ru.length ? ` <i lang="ru">${esc(w.ru[0])}</i>` : ""}`).join(" · ")}</p>
+          <p class="hint"><a href="${esc(u.pictures_url)}" target="_blank" rel="noopener" lang="et">EKI piltsõnastik</a>
+          <span lang="ru">— слова с картинками на Sõnaveeb</span></p></details>` : "";
+      const course = u.course_url ? `<p class="hint"><a href="${esc(u.course_url)}" target="_blank" rel="noopener" lang="et">${esc(u.course)}</a>
+          <span lang="ru">— бесплатный курс с видео, на внешнем сайте</span></p>` : "";
+      const counted = u.skipped ? " · пропущено"
+        : u.topics.length ? ` · ${u.mastered} из ${u.topics.length} пройдено` : " · повторение";
+      const exam = `<p class="hint"><span lang="et">HARNO: ${esc(u.harno.join("; "))}</span>${u.checkpoint
+        ? ` · <span lang="et">Kontrolltöö ${esc(u.checkpoint)}</span> <span lang="ru">— контрольная уровня в конце</span>` : ""}</p>`;
+      return fold(u.current, `<span class="lv" data-level="${esc(u.stage)}">${u.n}</span> <span lang="et">${esc(u.et)}</span>`,
+        `<span lang="et">${esc(stage)}</span>${counted}`,
+        `<p class="why" lang="ru">${esc(u.goal_ru)}</p>${here.map(topicRow).join("")}${revisits}${words}${exam}${course}`);
+    }).join("") : [...new Set(p.topics.map(t => t.level))].map(lv => {
       const here = p.topics.filter(t => t.level === lv);
       const done = here.filter(t => t.state === "mastered").length;
-      const rows = here.map(t => {
-        /* Names, not ids — the API resolves them. Tolerant of an older payload so a
-           stale cached page never prints "undefined". */
-        const needs = t.blocked_by || [];
-        const meta = [
-          t.ru ? `<span lang="ru">${esc(t.ru)}</span>` : "",
-          needs.length ? `<span lang="ru">после:</span> <span lang="et">${esc(needs.join(", "))}</span>` : "",
-          t.accuracy === null || t.accuracy === undefined ? "" : `${Math.round(t.accuracy * 100)}%`,
-        ].filter(Boolean).join(" · ");
-        const rule = `<button class="quiet" data-lesson="${esc(t.id)}" lang="et">reegel <i class="ru" lang="ru">правило</i></button>`;
-        const acts = `<span class="acts"><button class="ghost" data-topic="${esc(t.id)}" lang="et">Õpi <i class="ru" lang="ru">изучить</i></button>
-          <details class="topic-options"><summary lang="et">Veel <span class="ru" lang="ru">действия</span></summary>
-          ${rule}${t.state !== "reference" ? `<button class="quiet" data-testout="${esc(t.id)}" lang="et">Kontrolli teadmisi <span class="ru" lang="ru">проверить знания</span></button>` : ""}
-          ${t.state === "mastered" ? "" : `<button class="quiet" data-skip="${esc(t.id)}" data-skipped="${t.state === "skipped"}" lang="et">${t.state === "skipped" ? "Too tagasi" : "Jäta vahele"}<span class="ru" lang="ru">${t.state === "skipped" ? "вернуть в маршрут" : "пропустить тему"}</span></button>`}</details></span>`;
-        return `<div class="topic ${t.state.replace(" ", "-")}${t.id === p.resume ? " now" : ""}">
-          <span class="st" title="${esc(RU[t.state] || t.state)}">${stateIcon(t.state)}<span class="st-word" lang="ru">${esc(RU[t.state] || t.state)}</span></span>
-          <span class="name" lang="et">${esc(t.et)}</span>
-          ${meta ? `<span class="meta">${meta}</span>` : ""}
-          ${acts}</div>`;
-      }).join("");
-      return `<details class="path-level"${lv === next?.level ? " open" : ""}><summary><span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>
-        <span class="hint">${done} из ${here.length} пройдено</span>${icon("caret-down", {cls: "fold-chevron"})}</summary>${rows}</details>`;
+      return fold(lv === next?.level, `<span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>`,
+        `${done} из ${here.length} пройдено`, here.map(topicRow).join(""));
     }).join("");
   } catch (e) {
     if (mine !== pathLoad) return;
@@ -249,7 +276,11 @@ $("#pathList").addEventListener("click", async e => {
   const test = e.target.closest("button[data-testout]");
   if (test) { startTestOut(test.dataset.testout); return; }
   const b = e.target.closest("button[data-topic]");
-  if (b) beginLesson(b.dataset.topic);
+  // A unit's revisit practises only the rules its stage unlocks.
+  if (b) {
+    pathRules = b.dataset.rules ? {topic: b.dataset.topic, rules: b.dataset.rules.split(",")} : null;
+    beginLesson(b.dataset.topic);
+  }
 });
 
 function sessionStep(step) {
@@ -349,17 +380,23 @@ async function startTestOut(topic) {
       <div class="mock-task" data-i="${i}">
         <div class="prompt" lang="et">${esc(it.prompt).replace("____",
           '<span class="blank">____</span>')}</div>
+        ${sayHtml(it)}
         <div class="row"><span class="hint" lang="et">${esc(it.hint || "")}</span>
-          <input type="text" size="16" lang="et" aria-label="Vastus — ответ"
-            ${ANSWER_FIELD}></div>
+          ${it.choices && it.choices.length
+            ? `<select lang="et" aria-label="Vastus — ответ"><option value=""></option>${it.choices.map(c =>
+                `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>`
+            : `<input type="text" size="16" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>`}</div>
+        ${attribHtml(it)}
       </div>`).join("")}</div>
     <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
       <span class="ru" lang="ru">проверить</span></button></div>
     <div class="verdict" id="testoutVerdict" role="status"></div>`;
-  out.querySelector("input")?.focus();
+  out.querySelector("input, select")?.focus();
+  wireSay(out, message => { $("#testoutVerdict").textContent = message; });
   $("#testoutDone").onclick = async () => {
     $("#testoutDone").disabled = true;
-    const given = [...out.querySelectorAll("#testoutTasks input")].map(x => x.value);
+    const given = [...out.querySelectorAll("#testoutTasks .mock-task")]
+      .map(task => task.querySelector("input, select").value);
     const verdict = $("#testoutVerdict");
     try {
       const r = await (await api(`/api/testout/${encodeURIComponent(topic)}`,
@@ -404,7 +441,7 @@ async function startPractice({focus = true} = {}) {
   try {
     const body = {count: 5};
     if (pathTopic) body.topic = pathTopic;
-    if (pathRules) { body.rules = pathRules; pathRules = null; }
+    if (pathRules && pathRules.topic === pathTopic) body.rules = pathRules.rules;
     const theme = themeApplies() ? $("#wordTheme").value : "";
     if (theme) body.theme = theme;
     const res = await (await api("/api/practice", body)).json();
@@ -593,7 +630,8 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       <button class="ghost" lang="et" disabled aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
       ${taskLine(it, ru)}
     </div>` : `
-    <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>`}
+    <div class="prompt" lang="et">${esc(it.prompt).replace("____", '<span class="blank">____</span>')}</div>
+    ${sayHtml(it)}`}
     ${tiles ? "" : it.choices && it.choices.length ? `
     <div class="choices">
       ${it.choices.map(c =>
@@ -608,10 +646,11 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
       <button class="ghost" lang="et" aria-label="Kontrolli ${place} — проверить">Kontrolli</button>
       ${taskLine(it, ru)}
     </div>`}
-    ${it.attribution ? `<div class="attrib" lang="et">${esc(it.attribution)}</div>` : ""}
+    ${attribHtml(it)}
     <div class="verdict" role="status"></div>`;
   addPracticeSupport(el, it);
   const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  wireSay(el, message => { verdict.className = "verdict no"; verdict.textContent = message; });
   // One answer keeps one identity while the learner retries a durability 503.
   // The origin already deduplicates event_id, so a confirmed-but-interrupted
   // first response cannot count the same drill twice.
@@ -1008,14 +1047,18 @@ function renderOfflineItem(it, i, glosses) {
     <div class="prompt" lang="et">${esc(it.prompt).replace("____",
       '<span class="blank">____</span>')}</div>
     <div class="row">
-      <input type="text" size="18" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>
+      ${it.choices && it.choices.length
+        ? `<select lang="et" aria-label="Vastus — ответ"><option value=""></option>${it.choices.map(c =>
+            `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>`
+        : `<input type="text" size="18" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>`}
       <button class="go" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
       ${taskLine({lemma: it.lemma, lemma_ru: it.lemma_ru, label: it.hint || "", level: it.level || ""},
                  ru, {quiet: true})}
     </div>
+    ${attribHtml(it)}
     <div class="verdict" role="status"></div>`;
   addPracticeSupport(el, it, {offline: true});
-  const input = el.querySelector("input"), verdict = el.querySelector(".verdict");
+  const input = el.querySelector("input, select"), verdict = el.querySelector(".verdict");
   const started = performance.now();
   const check = async () => {
     if (!input.value.trim()) return;

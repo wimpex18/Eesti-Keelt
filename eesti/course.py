@@ -48,22 +48,30 @@ def _apply_skip(stores, ev) -> None:
     _skip(stores["progress"], ev.payload["topic"], ev.payload["skip"], ev.ts)
 
 
+#: The unit stages a chosen start moves past (`eesti/units.py`).
+EARLIER_STAGES = {"a1": {"algus"}, "a1-a2": {"algus"}, "a2": {"algus", "A1"},
+                  "a2-b1": {"algus", "A1", "A2"}}
+
+
 def apply_start(conn: sqlite3.Connection, payload: dict, at: str) -> None:
-    """A selected starting level moves navigation past earlier course chapters.
+    """A selected starting point moves navigation past the units of earlier stages.
 
     Old onboarding events remain recommendations. Only events explicitly carrying
     `navigate` change the course. Manual skips survive changing the starting point.
+    Replay re-applies the start, so a unit added later before the learner's stage
+    is moved past too.
     """
     if not payload.get("navigate"):
         return
     from .curriculum import TOPICS
+    from .units import stage_of
 
-    earlier = {"a2": {"A1"}, "a2-b1": {"A1", "A2"}}.get(
-        payload["start_band"], set())
+    earlier = EARLIER_STAGES.get(payload["start_band"], set())
     with conn:
         conn.execute("DELETE FROM course_choices WHERE source='start'")
         if not payload.get("skipped"):
             conn.executemany(
                 "INSERT OR IGNORE INTO course_choices(topic,source,at) VALUES (?,?,?)",
-                [(topic.id, "start", at) for topic in TOPICS if topic.level in earlier],
+                [(topic.id, "start", at) for topic in TOPICS
+                 if stage_of(topic.id) in earlier],
             )

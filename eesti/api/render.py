@@ -13,7 +13,7 @@ from .deps import content_db, db, gloss_db
 
 #: Topics whose drill is the *choice* of form. Printing the form before the answer
 #: would make that choice for the learner: `obj-case` asks omastav or osastav.
-CHOICE_TOPICS = frozenset({"obj-case"})
+CHOICE_TOPICS = frozenset({"obj-case", "osaalus"})
 
 
 def item_for_page(item) -> dict:
@@ -21,11 +21,11 @@ def item_for_page(item) -> dict:
     `label` (shown under the blank) to `form_after` (shown with the verdict); `hint`,
     which the page sends back as the item's identity, is untouched."""
     shown = item.to_dict()
-    from ..evs import ATTRIBUTION, SOURCE_ID
+    from ..licences import credit
 
     # EKI's licence asks for the credit wherever its material is presented.
-    if shown.get("source_id") == SOURCE_ID:
-        shown["attribution"] = ATTRIBUTION
+    if said := credit(shown.get("source_id")):
+        shown["attribution"] = said
     if shown.get("topic") in CHOICE_TOPICS:
         shown["form_after"], shown["label"] = shown["label"], ""
     from ..scaffolding import pronoun_support

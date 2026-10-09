@@ -78,6 +78,8 @@ class _Answered:
             self.label = issued["hint"]
             self.rule = issued["rule"]
             self.why_ru = issued["why_ru"]
+            self.source_id = issued.get("source_id", "")
+            self.say = issued.get("say", "")
             return
         self.topic = req.topic
         self.prompt = req.prompt
@@ -87,11 +89,47 @@ class _Answered:
         self.label = req.label
         self.rule = req.rule
         self.why_ru = req.why_ru
+        self.source_id = ""
+        self.say = ""
 
     def check(self, given: str) -> bool:
         from ..item import accepts
 
         return accepts(self.answer, given)
+
+
+def _units(rows, now_topic: str | None) -> list[dict]:
+    """The course's units over the learner's topic states (`eesti/units.py`).
+
+    A unit reports how many of its core topics are mastered; it is not called
+    complete, because its unit check is not built (`docs/course-structure.md`).
+    """
+    from .. import units
+    from ..meaning import russian_many
+
+    state = {r.topic: r.state for r in rows}
+    current = units.home(now_topic).id if now_topic else None
+    out = []
+    for u in units.UNITS:
+        lemmas = units.words_for(u) if u.words == "algus" else ()
+        meanings = russian_many(db(), gloss_db(), list(lemmas)) if lemmas else {}
+        out.append({
+            "id": u.id, "n": u.n, "et": u.et, "stage": u.stage, "goal_ru": u.goal_ru,
+            "topics": list(u.topics),
+            "mastered": sum(state.get(t) == "mastered" for t in u.topics),
+            "skipped": bool(u.topics) and all(state.get(t) == "skipped" for t in u.topics),
+            "revisits": [{"topic": r.topic, "rules": list(r.rules), "note_ru": r.note_ru}
+                         for r in u.revisits],
+            "harno": list(u.harno),
+            "course": f"{'Keeleklikk' if u.course[0] == 'KK' else 'Keeletee'} {u.course[1]}"
+                      if u.course else None,
+            "course_url": units.course_link(u, "ru"),
+            "checkpoint": u.checkpoint,
+            "words": [{"et": w, "ru": meanings.get(w, [])[:2]} for w in lemmas],
+            "pictures_url": units.PICTURES_URL if lemmas else None,
+            "current": u.id == current,
+        })
+    return out
 
 
 @router.get("/api/curriculum")
@@ -138,6 +176,7 @@ def curriculum_path() -> dict:
             }
             for r in rows
         ],
+        "units": _units(rows, now_topic),
     }
 
 
@@ -518,17 +557,29 @@ def offline_pack(count: int = 24) -> dict:
     from ..progress import resume
     from ..review import connect as review_connect
 
+    from ..curriculum import by_id
+    from ..practice import HEARD
+    from ..progress import report
+
     count = max(4, min(count, 60))
     progress = progress_db()
+
+    def written(topic: str) -> bool:
+        """Answerable without a recording: heard items need a connection."""
+        return by_id(topic).generator not in HEARD
+
     topics: list[str] = []
     here = resume(progress)
-    if here:
+    if here and written(here):
         topics.append(here)
     weak = weak_rules(rule_evidence(
         progress, review_connect(config.learner_db("REVIEW_DB"))))
-    topics += [e.topic for e in weak if e.topic not in topics][:2]
+    topics += [e.topic for e in weak if e.topic not in topics and written(e.topic)][:2]
     if not topics:
-        topics = ["kusisonad"]
+        # The next topic that can be answered in writing.
+        topics = [r.topic for r in report(progress)
+                  if r.state in ("ready", "in progress") and r.drillable
+                  and written(r.topic)][:1] or ["kusisonad"]
 
     per = max(2, count // len(topics))
     items, glosses = [], {}
@@ -539,6 +590,10 @@ def offline_pack(count: int = 24) -> dict:
         except (ValueError, RuntimeError, KeyError):
             continue
         for n, item in enumerate(made):
+            # An item that is heard needs the recording, and offline there is
+            # nobody to fetch it from.
+            if getattr(item, "say", ""):
+                continue
             items.append(item_for_page(item) | {
                 "topic": topic,
                 "token": sign(item, practice_ref(

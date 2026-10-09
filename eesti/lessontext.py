@@ -45,10 +45,46 @@ LESSONS: dict[str, LessonText] = {
             "*seda palli* (III välde, osastav).",
             "Произношение естественно варьирует; EKI не считает это ошибкой. "
             "Важно различать то, от чего зависит смысл или форма.",
+            "Упражнения здесь — на слух, в записях EKI: II или III долгота "
+            "(*selle salli* — *seda salli*), одна буква (*kapp* — *käpp*), "
+            "краткий или долгий звук (*kana* — *kanna*). Произносить вслух — в "
+            "упражнениях EKI *e-hääldusharjutused* на Sõnaveeb.",
         ),
         sources=(Source("EKK O 1: kiri ja tähestik", f"{EKK}?p=2&p1=1"),
+                 ekk("O 8"),
                  Source("EKI teatmik: häälduse sissejuhatus",
-                        "https://teatmik.eki.ee/teatmik/haalduse-sissejuhatus/")),
+                        "https://teatmik.eki.ee/teatmik/haalduse-sissejuhatus/"),
+                 Source("EKI e-hääldusharjutused (Sõnaveeb)",
+                        "https://sonaveeb.ee/pronunciation-exercises/")),
+    ),
+    "fraasid": LessonText(
+        points_ru=(
+            "Фразы для первых встреч из сборника EKI: приветствие (*Tere!*, "
+            "*Tere hommikust!*), знакомство (*Mina olen …*), прощание (*Head "
+            "aega!*, *Nägemist!*), извинение (*Vabandust!*), благодарность "
+            "(*Aitäh!*), пожелания (*Head isu!*).",
+            "На некоторые фразы есть привычный ответ: *Aitäh! – Palun!*, "
+            "*Vabandust! – Ei ole midagi.*, *Kuidas läheb? – Hästi! Aga sul?*",
+            "Русский перевод фраз — из эстонско-русского словаря EKI (EVS), где "
+            "он там есть; где нет, перевод не показывается.",
+        ),
+        sources=(Source("EKI: Kasulikke väljendeid A1-tasemel eesti keele õppijale",
+                        "https://sonaveeb.ee/learn#v-pills-kasulikke-valjendeid-a1"),),
+    ),
+    "arvud": LessonText(
+        points_ru=(
+            "0–10: *null, üks, kaks, kolm, neli, viis, kuus, seitse, kaheksa, "
+            "üheksa, kümme*.",
+            "11–19 — с *-teist*: *üksteist, kaksteist … üheksateist*. Можно и "
+            "полностью: *seitseteistkümmend*.",
+            "Десятки — с *-kümmend*: *kakskümmend, kolmkümmend … "
+            "üheksakümmend*; 100 — *sada*.",
+            "*-teist(kümmend)* и *-kümmend* пишутся слитно, остальное — "
+            "раздельно: *nelikümmend kolm*, *sada kaheksa*.",
+        ),
+        sources=(ekk("O 42"),
+                 Source("EKI teatmik: arvukirjutus",
+                        "https://teatmik.eki.ee/teatmik/arvukirjutus/")),
     ),
     "lauseehitus": LessonText(
         points_ru=(
@@ -464,8 +500,10 @@ LESSONS.update({
             "Во множественном числе, при приказе и в безличном предложении "
             "täissihitis стоит в nimetav (именительный падеж): *Isa viis "
             "lapsed lasteaeda*; *Vii laps lasteaeda!*; *Laps viiakse lasteaeda*.",
-            "Дополнение при da-инфинитиве тоже может быть в nimetav: *Isa "
-            "ülesandeks jäi laps lasteaeda viia*.",
+            "Дополнение при da-инфинитиве тоже стоит в nimetav: *Isa "
+            "ülesandeks jäi laps lasteaeda viia*; *Mul on vaja leib ära osta*. "
+            "Исключение — когда сам инфинитив служит дополнением глагола: "
+            "*pere otsustas kutsika võtta*, *Ma tahan leiva ära osta* (omastav).",
             "При обычном отрицании — osastav: *Ma ei ostnud leiba*. Даже "
             "указание результата не отменяет отрицания. Противопоставление "
             "*mitte … vaid* сохраняет полное дополнение: *Ta ei ostnud mitte "
@@ -473,7 +511,26 @@ LESSONS.update({
             "Некоторые глаголы допускают только osasihitis, независимо от "
             "того, целый ли объект: *Leena armastab lapsi*.",
         ),
-        sources=(ekk("SÜ 38"), ekk("SÜ 40")),
+        sources=(ekk("SÜ 38"), ekk("SÜ 40"),
+                 Source("EKI teatmik: täissihitise kääne",
+                        "https://teatmik.eki.ee/teatmik/taissihitise-kaane/")),
+    ),
+    "osaalus": LessonText(
+        points_ru=(
+            "Подлежащее (**alus**) в предложении о наличии чего-то где-то "
+            "обычно стоит после места и глагола: *Laual on raamat*.",
+            "При отрицании подлежащее всегда в **osastav** (частичный падеж): "
+            "*Laual pole raamatut*, *Poes ei ole leiba*. Это частичное "
+            "подлежащее, **osaalus**.",
+            "Вещество или неопределённое количество может стоять в osastav и "
+            "в утвердительном предложении: *Klaasis on vett*, *Poes on leiba*. "
+            "Здесь возможны оба падежа: *Vaadis on bensiin/bensiini*.",
+            "Частичное подлежащее не согласуется с глаголом: глагол остаётся в "
+            "3-м лице ед. ч. — *Tänavanurgal seisis inimesi*. Полное "
+            "подлежащее согласуется: *Külas elavad ukrainlased*, но *Külas elab "
+            "ukrainlasi*.",
+        ),
+        sources=(ekk("SÜ 35"),),
     ),
     "arvsonad": LessonText(
         points_ru=(
@@ -663,6 +720,10 @@ class Tip:
 TIPS: dict[str, Tip] = {
     "tahestik": Tip("27 букв; *õ, ä, ö, ü* — отдельные звуки, долгота меняет смысл.",
                     "palli = palli", "selle palli (II) ≠ seda palli (III)"),
+    "fraasid": Tip("Здороваются — *Tere!*, прощаются — *Head aega!* или *Nägemist!*",
+                   "Tere! (прощаясь)", "Head aega! (прощаясь)"),
+    "arvud": Tip("*-teist* — 11–19, *-kümmend* — десятки; составное — раздельно.",
+                 "13 = kolmkümmend", "13 = kolmteist"),
     "lauseehitus": Tip("Глагол — вторым, и он согласуется с подлежащим.",
                        "Ma täna sõidan maale.", "Ma sõidan täna maale."),
     "asesonad": Tip("У местоимений две формы: длинная — с ударением, короткая — без.",
@@ -694,6 +755,8 @@ TIPS: dict[str, Tip] = {
     "obj-case": Tip("Täissihitis (полное дополнение) — omastav или nimetav; "
                     "при приказе — nimetav (именительный падеж).",
                     "Vii lapse lasteaeda!", "Vii laps lasteaeda!"),
+    "osaalus": Tip("Чего нет — в osastav; частичное подлежащее не меняет глагол.",
+                   "Poes ei ole leib.", "Poes ei ole leiba."),
     "arvsonad": Tip("После числа больше одного — osastav ед. ч.",
                     "kaks raamatud", "kaks raamatut"),
     "kellaaeg": Tip("Половина, четверть — к **следующему** часу, как «половина десятого».",

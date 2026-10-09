@@ -108,6 +108,19 @@ export async function speakWord(word, onError, tag = "") {
 }
 
 
+/* A heard item (`say`): its Kuula button, and the wiring that plays EKI's
+   recording of exactly that form and tag (`salli` is two recordings). */
+export const sayHtml = it => it && it.say
+  ? `<button class="ghost say" type="button" data-say="${esc(it.say)}" data-say-tag="${esc(it.say_tag || "")}" lang="et">${icon("speaker-high", {cls: "btn-ico"})}Kuula <span class="ru" lang="ru">послушать</span></button>`
+  : "";
+
+export function wireSay(root, onError) {
+  root.querySelectorAll("button[data-say]").forEach(b => {
+    b.onclick = () => speakWord(b.dataset.say, onError, b.dataset.sayTag || "");
+  });
+}
+
+
 /* ── Mängija: one player for every sound ─────────────────────────────
    Every `<audio>` the app shows — dictation, reading, radio lessons, exam
    recordings, the read-aloud model, the conversation partner — gets the same

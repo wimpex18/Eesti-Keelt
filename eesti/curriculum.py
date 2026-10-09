@@ -68,7 +68,16 @@ class Topic:
 # --------------------------------------------------------------------------
 _A1: tuple[Topic, ...] = (
     Topic("tahestik", "A1", "tähestik ja hääldamine", "алфавит и произношение",
-          note="Reference only — EKI publishes free pronunciation exercises."),
+          generator="sounds",
+          note="Listening in EKI's own recordings (`eesti/sounds.py`): quantity, "
+               "vowels, short against long; EKI's exercises are linked for "
+               "saying them aloud."),
+    Topic("fraasid", "A1", "tervitused ja viisakusväljendid",
+          "приветствия и вежливые фразы", generator="phrases",
+          note="EKI's A1 phrase collection (`eesti/phrases.py`). A phrase list, "
+               "not a rule: no handbook section covers it."),
+    Topic("arvud", "A1", "arvud 0–100", "числа", generator="numbers",
+          note="Number words written as EKK O 42 writes them (`eesti/numbers.py`)."),
     Topic("lauseehitus", "A1", "lauseehitus", "строение предложения"),
     Topic("asesonad", "A1", "asesõnad", "местоимения", generator="patterns",
           note="Forms from the EKI teatmik's tables (`eesti/pronouns.py`): "
@@ -105,6 +114,11 @@ _A1: tuple[Topic, ...] = (
                "first priority here anyway — the log outranks the average. "
                "Templates supply the aspect contrast; the corpus supplies the "
                "negation rule, which is the half it can settle on its own."),
+    Topic("osaalus", "A1", "osaalus", "частичное подлежащее",
+          requires=("osastav", "eitus", "mitmus"), generator="existential",
+          note="EKK SÜ 35: a negated subject is partitive, and a partial subject "
+               "leaves the verb in the singular. An affirmative subject of "
+               "substance may be either case, so nothing grades one."),
     Topic("arvsonad", "A1", "põhiarvsõnad", "количественные числительные",
           requires=("pohivormid",), generator="patterns"),
     Topic("kellaaeg", "A1", "kellaaeg ja nädalapäevad", "время и дни недели",
@@ -337,7 +351,6 @@ CROSS: dict[str, str] = {
 #: Topics with nothing yet, and why. Filling one removes its line; a test holds
 #: this list and the derived one together.
 REPRESENTATION_GAPS: dict[str, str] = {
-    "tahestik": "alphabet and sounds: needs audio exercises; EKI publishes them",
     "tulevik": "no EKK section linked yet; a generator is possible (Vabamorf)",
     "uhendverbid": "too few marked corpus examples; needs EKI usage examples",
     "liitsonad": "too few marked corpus examples",

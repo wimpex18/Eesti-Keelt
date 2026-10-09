@@ -1,12 +1,14 @@
 # Curriculum
 
-The A1→B1 grammar syllabus as data, and the learning model around it.
+The syllabus as data, from the first sounds to B1, and the learning model around
+it. The course arranges these topics into thirty one-week units
+(`docs/course-structure.md`, `eesti/units.py`); this file is the topic layer.
 
 ## Where it lives
 
-`eesti/curriculum.py` — `TOPICS`, 43 topics taken from Estonian course
-curricula that track the state standard (Keeltekeskus Kaja A1/B1, Dialoog,
-B-Lingua). Each `Topic` has `id`, `level`, Estonian and Russian names,
+`eesti/curriculum.py` — `TOPICS`, 46 topics: the grammar taken from Estonian
+course curricula that track the state standard (Keeltekeskus Kaja A1/B1,
+Dialoog, B-Lingua), and the first week's sounds, phrases and numbers. Each `Topic` has `id`, `level`, Estonian and Russian names,
 `requires` (prerequisites), an optional error-log `tag` and an optional
 `generator`. `curriculum.validate()` rejects cycles and unknown prerequisites;
 `order()` derives the study path. Which topics have no generator is in
@@ -28,8 +30,13 @@ exactly: `obj-case`, `loc-case`, `gen-stem`, `gradation`, `verb-form`,
   everything due.
 - **Placement and test-out** use the same mastery check: topics are probed in
   path order, five of five each (`placement.py`). Any available topic can be
-  tested out from `Kogu rada`; the sweep over the whole syllabus is CLI-only.
-- **Checkpoints** are mixed end-of-level quizzes (`checkpoint.py`).
+  tested out from Kursus; the sweep over the whole syllabus is CLI-only. The
+  first week (unit 1) is not probed: the assessment starts at A1.
+- **Checkpoints** are mixed end-of-level quizzes (`checkpoint.py`); the A1
+  checkpoint leaves out the first week.
+- **Course order** is the units': the next topic is the first available one in
+  unit order, and the units follow the graph (a test holds them to it). The
+  first week leads only until the learner has mastered something beyond it.
 - **Themes** pair a grammar rule with a themed word set (`themes.py`), so a
   drill teaches the rule and the vocabulary together.
 - **Reference topics** (no generator) show in the path and never block.
@@ -93,7 +100,11 @@ Two sources weight what to practise:
 
 | Generator | Source of truth |
 |---|---|
-| object case, locative cases, principal forms | Vabamorf synthesis, round-trip validated; nouns whose genitive = partitive are excluded |
+| object case, locative cases, principal forms | Vabamorf synthesis, round-trip validated; nouns whose genitive = partitive are excluded. The nominative total object (imperative, impersonal, *da*-infinitive, plural) uses `morph.unique_form` for nominative and plural forms, and is drawn only by rule name (`drills.BASE_RULES`) |
+| partitive subject (`osaalus`) | EKK SÜ 35: a negated subject is partitive; a plural partial subject leaves the verb singular, so the verb's number keys the case. Vabamorf forms; no affirmative substance is asked, since either case is right there |
+| sounds (`tahestik`) | EKI's PSV recordings and their marks: II against III quantity in one spelling, one vowel letter, short against long (`eesti/sounds.py`) |
+| phrases (`fraasid`) | EKI's *Kasulikke väljendeid A1*, keyed by its grouping and two-part exchanges; the pairs of functions whose phrases serve each other (`phrases.APART`) never share a choice (`eesti/phrases.py`) |
+| numbers (`arvud`) | a table of number words written as EKK O 42 writes them, each a numeral to Vabamorf (`eesti/numbers.py`) |
 | verb forms, conjugation | Vabamorf; drilled where the naive form differs from the real one |
 | cloze | real harvested sentences, only where the case is named or forced (negation); outside the owner's scope, EKI EVS's example phrases whose target word the word list puts at the learner's levels (`evs.phrases`) |
 | comparison, numerals, question words | closed-class tables; a question word's Russian cue is EKI EVS's (below) |
@@ -120,4 +131,6 @@ words) have none. Grading does not read the cue.
 - Hand-written lesson prose — EKK is the reference, linked per topic
   (`grammar.py`).
 - Half-life regression — FSRS-6 is in use.
-- A fixed linear course, gamification or streaks.
+- A fixed linear course: units order the path, and any topic can still be
+  opened, tested out or skipped.
+- Gamification or streaks.

@@ -13,17 +13,17 @@ the `smoke` workflow checks the deployment (`docs/deploy.md`).
 | Area | State |
 |---|---|
 | **Identity** | Grove keeps its curved leaf and self-hosted Geologica; platform and social artwork use deep blue on pale blue. The app opens straight into learning with no cover (`docs/brand.md`). |
-| **Drills** | 37 of 43 curriculum topics generate items for every learner. Outside the owner's scope, where the harvested corpus is hidden, the corpus-based topics draw on EKI EVS's example phrases, credited per item (`evs.phrases`; `docs/sources.md`): case gap-fill, the comma drill, and `sonajark` as EVS noun phrases rebuilt from tiles, only where EKK fixes the order (SÜ 98, 104). Topics: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. |
+| **Drills** | 41 of 46 curriculum topics generate items for every learner. Outside the owner's scope, where the harvested corpus is hidden, the corpus-based topics draw on EKI EVS's example phrases, credited per item (`evs.phrases`; `docs/sources.md`): case gap-fill, the comma drill, and `sonajark` as EVS noun phrases rebuilt from tiles, only where EKK fixes the order (SÜ 98, 104). Topics: object case, verb forms, conjugation, locative cases, comparison, numerals, telling the time and dates (`eesti/timedate.py`), the ma- and des-forms (`eesti/verbforms.py`), pronouns from the EKI teatmik tables (`eesti/pronouns.py`), pre- and postpositions (`eesti/postpositions.py`), käima against minema (`eesti/motion.py`), -mine and -ja nouns (`eesti/wordbuilding.py`), the indirect mood (`eesti/moods.py`), *mul on* / *mulle meeldib* / *mul on vaja* (`eesti/possession.py`), conjunctions and adverbs of place (`eesti/particles.py`), question words, word order, punctuation, rection. Object case also drills the nominative total object by name (imperative, impersonal, *tuleb*/*on vaja* + *da*-infinitive against *tahan* + *da*, plural object; EKK SÜ 40 and the EKI Teatmik), and `osaalus` the partitive subject (negated existential; the plural partial subject by the verb's agreement, EKK SÜ 35). Unit 1's topics: `tahestik` plays EKI's own recordings and keys quantity, vowel and length pairs by EKI's form and mark (`eesti/sounds.py`); `fraasid` is EKI's A1 phrase collection, keyed by its grouping and exchanges (`eesti/phrases.py`); `arvud` writes and hears numbers to 100 as EKK O 42 spells them (`eesti/numbers.py`). |
 | **Exercise guidance** | A distractor offered as a choice is a word Vabamorf knows; corpus case items whose stem-error form is no word are typed instead. Principal-forms items never ask for the nimetav the instruction names. Practice states the action in Russian and explains common case/person labels (`alaleütlev`, `nemad`) beside the Estonian term. The A1 personal-pronoun exercise includes an editorial whole-sentence Russian translation and pronoun meaning for each known frame (`eesti/scaffolding.py`); new or unknown frames receive no guessed translation. Other online exercises offer **Tõlge**, requested only on a click and labelled with the translation engine. Reading support does not grade or record an answer; offline practice keeps available local support without requesting translation. |
 | **Grading** | Drills: code. Free writing: model chain plus deterministic checks. Meaning and conversation scoring by a model: authorised, not built; conversation practice is available. |
 | **Plan** | Home offers one next lesson or current session. The planning API remains available for existing clients, while the web removes the competing time-budget dashboard. Guided sessions use learn → five checked exercises → result; completed topics offer the next topic. |
-| **Course** | Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), and interleaved practice when the next topic needs preparation. Test-out runs from `Kursus` or the CLI (five of five, graded server-side); the separate placement sweep is CLI-only (`cli assess`). Reversible navigation skips leave assessed mastery unchanged. |
-| **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
+| **Course** | Thirty one-week units in four stages, Algus to B1, over the topics (`eesti/units.py`, `docs/course-structure.md`): Kursus folds by unit with its goal, revisits of newly unlocked rules, first words and the companion Keeleklikk or Keeletee unit; resume follows the units, and unit 1 leads only for a learner who has mastered nothing beyond it; a chosen start moves past the units of earlier stages. Prerequisite-ordered topics, mastery gate, end-of-level checkpoints (web and CLI), and interleaved practice when the next topic needs preparation. Test-out runs from `Kursus` or the CLI (five of five, graded server-side); the separate placement sweep is CLI-only (`cli assess`). Reversible navigation skips leave assessed mastery unchanged. |
+| **Review** | FSRS-6 over items answered wrong, cards seeded on mastery, and words mined from reading. A card queued from 9 Oct 2026 keeps the credit of the material it was built from. Grammar cards are answered and rated by code (again / hard when slow / good); vocabulary cards are self-rated. A correct drill answer on a due card counts as its review. |
 | **Reading** | Selges keeles texts, the weekly ERR *Lihtsad uudised* feed and the Raadio 4 language archives; click-to-look-up; recommended by the share of running words within reach (known, or A1–A2 on the word list), at least 80 %, shorter first (`docs/curriculum.md`). |
 | **Vocabulary** | `Sõnavara` leads with five-word practice; the optional collection filters by CEFR level and part of speech, commonest first. The word card sets a status. *Sõnatrenn* checks the typed Estonian against the word list; a miss can be queued for Kordamine. Exercise skips and answers create no graded attempts or mastery. |
 | **Meaning** | **315 Russian glosses ship with the app** (`data/seed_glossary.tsv`). Russian order: seed → live dictionary → EKI EVS → EKI HAR (`eesti/meaning.py`). EVS homographs are chosen by EKI's level list, part of speech and corpus frequency (*siin* «здесь», not the noun «шина»); a sense EVS restricts to negation is left out when the first sense is ordinary (*hästi*, not «не очень») (`eesti/evs.py`). Homographs of one part of speech still share the card, ordered by sense count. Definitions: EKI PSV → live → VSL → EKSS. |
 | **Live dictionary** | EKI's Ekilex API when `EKILEX_API_KEY` is set, otherwise the Sõnaveeb mirror; answers stored once per word. |
-| **Rules** | 36 of 37 drillable topics link to the handbook. `kusisonad` has no drill link, deliberately: no EKK section is written for its mistakes. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kursus, a running set and free practice: the EKK summary, a one-line gist with the typical mistake, written points in Russian for every topic (`eesti/lessontext.py`, each citing EKK, the EKI teatmik or EKI's learner grammar tables); object-case points distinguish completion from tense, omastav from nimetav, and ordinary negation from contrastive negation, a form table built by Vabamorf with each case's question and ending, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
+| **Rules** | 39 of 41 drillable topics link to the handbook. `kusisonad` and `fraasid` have no drill link, deliberately: no EKK section is written for question words or for greetings. Every topic has a **Reegel** page (`eesti/lessons.py`), opened from Kursus, a running set and free practice: the EKK summary, a one-line gist with the typical mistake, written points in Russian for every topic (`eesti/lessontext.py`, each citing EKK, the EKI teatmik or EKI's learner grammar tables); object-case points distinguish completion from tense, omastav from nimetav, and ordinary negation from contrastive negation, a form table built by Vabamorf with each case's question and ending, the topic's own drill sentences, the learner's recent mistakes and linked texts. |
 | **Word readings** | The form index (`edge.db`) keeps only forms Vabamorf reads back to the same lemma and tag; a word with nothing to inflect (`kus`, `aga`) is listed once and named by its part of speech. A word tapped in a text is looked up with its sentence: Vabamorf's disambiguator marks the reading it uses (*selles lauses*), puts it first, and **Kordamisse** queues that word (`mulle` in *Anna mulle* is `mina`). TartuNLP's neural tagger (`est-roberta-vm-morph-tagging`, CC BY-SA 4.0) was measured on 2 000 genuinely ambiguous words in EVS phrases, where EKI's headword says which word is meant: Vabamorf 66% right, 24% left open, 10% wrong; the tagger 75% right, 5% left open, 16% wrong. Where Vabamorf leaves a word open, the tagger agrees with EKI about half the time even at 99% confidence, so it is not used: a confidently wrong reading on the card is worse than two honest ones, and it would put PyTorch in the image. |
 | **Example phrases** | The word card's *Näited*: EKI EVS's example phrases, each with its Russian, offline — 137 316 phrases for 34 802 lemmas (`evs.examples`). Three show, the rest fold, each with a play button; the word's 1 912 EVS idioms fold under *Väljendid*. A word's meaning card in Järjekord shows one (a different one each review) and, from the second review, asks for it to be built from tiles (*Koosta fraas*); code compares the order with EKI's and says so neutrally, and the learner still rates the card. |
 | **Question-word cues** | A `kusisonad` item shows the Russian for the question word its blank wants, from EKI EVS (`docs/curriculum.md`): 8 of 12 answer words. |
@@ -40,7 +40,7 @@ the `smoke` workflow checks the deployment (`docs/deploy.md`).
 | **Milestones** | Four level-specific markers derive from recorded practice, topic mastery, a passed checkpoint and completion of all four mock parts. They award no points, streaks or mastery (`eesti/milestones.py`). |
 | **Reading questions** | Under any text long enough to ask about (`Lugemine → Küsimused`): five questions in Estonian, written by a model and keyed by the text itself — an answer that is not the text's own words, verbatim and once, never becomes a question (ADR-0004). Answers are graded by code against the stored span and recorded as `comprehension`, the one event that counts as practice for the `lugemine` part. The questions are learner state (a `questions-made` event), not library data, so they survive a cold start and an attempt can still be replayed against the question it was asked about. |
 | **Reminders** | Off until switched on in `Edenemine → Meeldetuletused`. Four facts, each decided by code from the evidence (`eesti/reminders.py`): a review queue past 10 cards, a day with nothing done after the hour the learner picked, registration closing in 14 and in 3 days, and a silence of 3 days — said once, not daily. Quiet hours by default 22:00–08:00, Europe/Tallinn. A notification carries a count and a fixed phrase, never anything the learner wrote; the Worker's hourly cron sends it (VAPID, encrypted per subscription). On iPhone it needs the app on the Home Screen (iOS 16.4+). |
-| **Offline** | Installable PWA. A five-item pack can be fetched in Course → Offline. The page grades locally and queues answers in IndexedDB; the server re-grades signed tokens on reconnect, idempotently. APIs are never cached. If no cached shell is available, a readable light/dark fallback explains the missing copy and offers a retry that returns to the app when connectivity resumes. |
+| **Offline** | Installable PWA. A five-item pack can be fetched in Course → Offline; items that are heard need their recording and are left out. The page grades locally and queues answers in IndexedDB; the server re-grades signed tokens on reconnect, idempotently. APIs are never cached. If no cached shell is available, a readable light/dark fallback explains the missing copy and offers a retry that returns to the app when connectivity resumes. |
 | **Review schedule** | FSRS-6 with the published parameters until there are about 1 000 reviews; `cli optimise-review` then fits this learner's own and records them as a `fsrs-parameters` event, so they travel with the log. The optimiser's dependencies (torch, pandas) stay off the deployment: it is run locally, once in a while. |
 | **Evidence** | Every learner-state change is an event in an append-only log (`eesti/evidence.py`); the learner databases are rebuilt from it. Attempts carry the item, its signed ref (regenerable) and the answer time; reviews carry the FSRS rating and who chose it. `Minu andmed` downloads the log. |
 | **Operations** | One JSON line per API call on stdout (`eesti/logs.py`), carrying route, status and duration and never what was written or said. Each provider lane has a daily allowance (`providers/budget.py`), reported by `/api/engines`. |
@@ -49,10 +49,10 @@ the `smoke` workflow checks the deployment (`docs/deploy.md`).
 
 ## What is missing
 
-### 6 curriculum topics have no generator
+### 5 curriculum topics have no generator
 
 ```
-tahestik  lauseehitus  astmevaheldus  tulevik  uhendverbid  liitsonad
+lauseehitus  astmevaheldus  tulevik  uhendverbid  liitsonad
 ```
 
 They appear in the syllabus as reference topics and do not gate the path. The
@@ -68,8 +68,10 @@ source of truth is `[t.id for t in TOPICS if not t.generator]`.
 ### Instructional coverage
 
 Explanations and word meanings currently support Russian speakers. English and
-Ukrainian speakers do not have equivalent instructional support. The A0 starting
-recommendation does not constitute a complete beginner course. Candidate courses
+Ukrainian speakers do not have equivalent instructional support. Unit 1 gives a
+complete beginner a first week (sounds in EKI's voices, greetings, numbers, first
+words); no unit yet has a dialogue, a reading text every learner may see, a unit
+check, homework or a weekly plan (`docs/course-structure.md`). Candidate courses
 and dictionary exports still need rights and quality review
 (`docs/source-integrations.md`).
 
@@ -80,8 +82,9 @@ The course API supports reversible topic skips and explicit starting-level
 navigation, and guest onboarding preferences are scoped to the guest sandbox.
 The web exposes all three onboarding routes, reversible topic skips and individual
 exercise/word skips. Listening and read-aloud use EKI EVS's example phrases
-when imported content is hidden or empty, then generated starter sentences. Complete beginner sequencing and
-English/Ukrainian instructional coverage remain content gaps, tracked in DEV-5.
+when imported content is hidden or empty, then generated starter sentences. The units'
+remaining material is tracked in DEV-40 and DEV-36, English/Ukrainian instructional
+coverage in DEV-42.
 The grammar assessment never claims to measure all four skills or certify CEFR.
 
 ### Not built, by decision
@@ -129,9 +132,15 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 - **EIS's interactive tasks are answered on EIS.** The app shows their text
   and recordings and labels them "решается на сайте EIS"; their answer
   options are not read in, so they are not solvable here.
-- **EKI's credit is missing on some public items.** Drills, mock reading,
-  dictation and read-aloud credit EKI EVS; offline packs, test-out, placement
-  and review cards built from EVS phrases do not show it yet.
+- **Older review cards carry no credit.** Cards queued before 9 Oct 2026 were
+  stored without their material's source, so an EVS-built one among them shows
+  no EKI credit until it is queued again.
+- **Heard items have no review card.** A missed sound item or heard number
+  makes no card, because a card cannot replay the recording; offline packs
+  leave them out for the same reason.
+- **EKI's pronunciation exercise audio and picture-dictionary pictures are not
+  shown.** Their terms are not stated (DEV-55); the app plays EKI's PSV
+  recordings and links to both.
 - **Conjugation and imperative drills repeat their sentence frames.** Each
   topic has one to three frames (every imperative item is "____ palun kohe!"),
   so a set feels templated although its verbs vary.

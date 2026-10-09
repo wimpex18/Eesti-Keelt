@@ -129,6 +129,11 @@ export async function api(path, body, method) {
   return rawApi(path, init);
 }
 
+/* The source's credit under an item built from it (EKI's licence asks for it
+   wherever its material is shown); nothing for an item that carries none. */
+export const attribHtml = it =>
+  it && it.attribution ? `<div class="attrib" lang="et">${esc(it.attribution)}</div>` : "";
+
 export function taskLine(it, ru, opts) {
   const bits = [];
   if (it.lemma) bits.push(`<span class="word" lang="et">${esc(it.lemma)}</span>`);
@@ -148,13 +153,22 @@ export function taskLine(it, ru, opts) {
   return `<span class="task">${bits.join("")}</span>`;
 }
 
+/* The task of an item that is not a form to produce (unit 1). */
+const TASK_RU = {
+  "sõnadega": "Напиши число словами.",
+  "numbritega": "Послушай и напиши число цифрами.",
+  "kuula": "Послушай и выбери, что прозвучало.",
+  "fraas": "Выбери фразу для этой ситуации.",
+  "vastus": "Выбери ответ.",
+};
+
 // Plain-language readings of the EKI case questions and personal pronouns.
 // A choice exercise keeps its empty label: guidance must not choose its answer.
 const FORM_RU = {
   alaleütlev: "кому? на что? куда?", alalütlev: "у кого? на чём? где?",
   alaltütlev: "от кого? с чего? откуда?", sisseütlev: "в кого? во что? куда?",
   seesütlev: "в ком? в чём? где?", seestütlev: "из кого? из чего? откуда?",
-  omastav: "родительный падеж", osastav: "частичный падеж",
+  omastav: "родительный падеж", osastav: "частичный падеж", nimetav: "именительный падеж",
   kaasaütlev: "с кем? с чем?", ilmaütlev: "без кого? без чего?",
   olevik: "настоящее время", lihtminevik: "простое прошедшее время",
   mina: "я", ma: "я", sina: "ты", sa: "ты", tema: "он / она", ta: "он / она",
@@ -175,9 +189,9 @@ export function addPracticeSupport(el, it, {offline = false} = {}) {
     prompt.before(instruction);
     return;
   }
-  instruction.textContent = it.choices?.length
+  instruction.textContent = TASK_RU[it.label] || (it.choices?.length
     ? (it.prompt.includes("____") ? "Выбери подходящую форму." : "Выбери подходящее предложение.")
-    : `Впиши форму${it.lemma ? ` слова ${it.lemma}` : " слова"}.${form ? ` ${form}${/[?.!]$/.test(form) ? "" : "."}` : ""}`;
+    : `Впиши форму${it.lemma ? ` слова ${it.lemma}` : " слова"}.${form ? ` ${form}${/[?.!]$/.test(form) ? "" : "."}` : ""}`);
   prompt.before(instruction);
   const support = document.createElement("div");
   support.className = "practice-meaning";
@@ -187,8 +201,9 @@ export function addPracticeSupport(el, it, {offline = false} = {}) {
     support.textContent = it.sentence_ru;
     return;
   }
-  // Offline packs never make a network request for an optional crutch.
-  if (offline) return;
+  // Offline packs never make a network request for an optional crutch, and an
+  // item whose answer is its meaning (a phrase, a heard sound) offers none.
+  if (offline || it.translate === false) return;
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ghost";

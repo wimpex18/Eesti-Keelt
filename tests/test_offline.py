@@ -34,9 +34,9 @@ def test_there_are_enough_generators_to_make_this_meaningful():
 
 
 @pytest.mark.parametrize("topic", DRILLABLE)
-def test_every_generator_runs_offline(no_network, topic):
+def test_every_generator_runs_offline(no_network, topic, eki_recordings):
     """No generator may open a socket (an empty result from the small fixture corpus is
-    fine).
+    fine). Sound items read EKI's recordings from the local store.
     """
     items = items_for(topic, count=2, seed=1)
     for item in items:

@@ -104,7 +104,8 @@ feedback. The app says plainly what was checked and by what.
   `docs/design-research.md`; implemented local behaviour is described in `docs/app-structure.md`.
 
 These are product requirements. Current gaps and implemented behaviour are
-recorded in `docs/status.md`; implementation is tracked in Linear DEV-5.
+recorded in `docs/status.md`; the course is specified in `docs/course-structure.md`
+and tracked in Linear DEV-40, the explanation languages in DEV-42.
 
 ## Current Capabilities
 

@@ -4,51 +4,42 @@ Paste the prompt below as the first message of a fresh session (local or
 cloud). Keep this file current: replace the prompt when its work is done.
 
 ```text
-Grove (Eesti-Keelt): implement the next part of the architecture review —
-the A0→B1 course structure (Linear DEV-40), starting from the current state.
+Grove (Eesti-Keelt): continue the A0→B1 course (Linear DEV-40) from the units
+layer: the unit check, unit completion, Home's session within a unit, homework
+and the weekly pace check towards a sitting.
 
-Read first, in this order: AGENTS.md, HANDOFF.md, docs/status.md,
-qa/architecture-review.md, PRODUCT.md, docs/curriculum.md, docs/app-structure.md,
-then Linear DEV-40, DEV-36, DEV-41, DEV-42, DEV-45 (team Development, project
-Eesti-Keelt). Run `git log --oneline -20`, the fast suite
-(`python -m pytest tests/ -q -n auto`) and confirm the state those documents
-describe before planning; correct any document that is out of date in the same
-change.
+Read first: AGENTS.md, HANDOFF.md, docs/status.md, docs/course-structure.md,
+docs/adr/0007-course-units.md, docs/curriculum.md, docs/app-structure.md,
+qa/architecture-review.md, then Linear DEV-40 and its latest comment. Run
+`git log --oneline -20` and the fast suite (`python -m pytest tests/ -q -n auto`)
+and confirm the state the documents describe; correct any that is out of date in
+the same change.
 
-Working rules for this session:
-- One branch (claude/dev-40-course-structure) and one PR for everything in this
-  session; never a PR per issue, no parallel sessions, no sub-branches.
-- Do not create Linear issues; record follow-up as comments on existing ones.
-- Design is out of scope (a redesign follows later): keep UI changes functional
-  and minimal, in the existing components.
+Working rules:
+- One branch (claude/dev-40-unit-check) and one PR for the session; no new
+  Linear issues — follow-up goes in a comment on the existing issue.
+- Design is out of scope (a redesign follows): functional, minimal UI changes in
+  the existing components; inspect both viewports after web changes.
 - Code grades against Vabamorf/EKI forms; never invent a linguistic fact; label
-  model-written material; `level` means CEFR only for official material.
-- Effort high. Use subagents for research and review, not for parallel edits.
+  model-written material; a stage is a target, `level` is CEFR only for
+  official material.
+- Effort high. Subagents for research and review, not for parallel edits.
 
-Steps:
-1. Interview me (a few questions at a time) on: unit size and cadence; what a
-   unit contains (goal, words, dialogue, grammar, reading, listening, speaking,
-   writing, check); how blocks, topics and modes map to Home, Course, Review,
-   Exam and the four skills; placement into units; homework and a weekly plan
-   towards the sitting; how a unit links to the matching Keeleklikk unit.
-2. Write the spec (`docs/course-structure.md` once agreed, current-state
-   wording) and an ADR: the A0 unit in full; units A0→B1 mapped to HARNO's
-   topics and EKI's grammar-competence profiles; how each of the 43 topic IDs
-   maps into units (IDs stay stable, ADR-0005); which units need new generators
-   or material; what the redesign inherits.
-3. Build the first slice on the same branch:
-   - the A0 unit: sounds and quantity with EKI's pronunciation exercises and
-     recordings (check terms first), greetings and survival phrases, numbers,
-     first words (EKI picture dictionary, credited);
-   - the nominative total object in `obj-case` (imperative, impersonal,
-     *tuleb/vaja* + da-infinitive, plural total object), keyed by Vabamorf;
-   - partitive subject and existential sentences (*Poes on leiba*);
-   - EKI's credit on every item built from EVS phrases (offline packs,
-     test-out, placement, review cards — `docs/status.md`).
-   Tests first for each; full suite and browser journeys
-   (`python -m pytest tests/test_e2e_journeys.py --browser -q -n 4`) green.
-4. Update docs/status.md, qa/architecture-review.md (decision states),
-   HANDOFF.md and this file's prompt for the session after; comment on DEV-40.
+Build, tests first:
+1. The unit check: five server-graded items per core topic and per revisited
+   rule (`eesti/units.py`), recorded as a `unit-checked` event and replayed; a
+   unit is complete when its core topics are mastered and its check passed.
+   Revision units (19, 27, 29, 30) check their stage's topics and carry the
+   checkpoint where `checkpoint` is set.
+2. Kursus and Home: a unit's complete state; Home names the session within the
+   current unit (*Ühik 3 · 2/5*) beside the due-review count.
+3. Placement into a unit: the assessment's entry becomes the first unit with a
+   core topic it did not pass; earlier units are navigation skips.
+4. Homework set at the end of a session (due cards plus one short skill task)
+   and the weekly pace check when a sitting is chosen, both pure functions of
+   the evidence like `eesti/planning.py`.
+Then update docs/status.md, docs/course-structure.md ("Built today"),
+qa/architecture-review.md, HANDOFF.md and this prompt; comment on DEV-40.
 ```
 
 ## When the Claude API key is in `.env`

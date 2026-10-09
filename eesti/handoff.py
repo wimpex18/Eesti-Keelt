@@ -38,8 +38,16 @@ def _identity(item) -> tuple[str, str]:
     return lemma, tag
 
 
-def queue_failed(conn: sqlite3.Connection, item) -> str:
-    """Put a missed item into the queue, already marked missed, so it returns soon."""
+def _heard(item) -> bool:
+    """An item answered by listening: a card cannot replay its recording."""
+    return bool(getattr(item, "say", ""))
+
+
+def queue_failed(conn: sqlite3.Connection, item) -> str | None:
+    """Put a missed item into the queue, already marked missed, so it returns soon.
+    A heard item is not queued (`_heard`)."""
+    if _heard(item):
+        return None
     key = review.add(
         conn,
         kind=item.topic,
@@ -50,6 +58,7 @@ def queue_failed(conn: sqlite3.Connection, item) -> str:
         distractor=getattr(item, "distractor", None),
         why_ru=getattr(item, "why_ru", None),
         source="practice",
+        source_id=getattr(item, "source_id", None) or None,
     )
     review.grade(conn, key, "again")
     return key
@@ -100,8 +109,9 @@ def seed_mastered(
             distractor=getattr(item, "distractor", None),
             why_ru=getattr(item, "why_ru", None),
             source="mastery",
+            source_id=getattr(item, "source_id", None) or None,
         )
-        for item in items
+        for item in items if not _heard(item)
     ]
 
 

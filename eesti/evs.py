@@ -608,6 +608,31 @@ def store_examples(conn: sqlite3.Connection, examples: list[Example]) -> int:
     return len(examples)
 
 
+def phrase_russian(conn: sqlite3.Connection, text: str) -> str:
+    """EKI's Russian for a whole phrase (*Tere hommikust!* → «доброе утро!; с
+    добрым утром!»), or `""`.
+
+    An example phrase spelled the same way first, then a one-word phrase's own
+    headword (*Aitäh!* → «спасибо»). Punctuation at the end and case are ignored;
+    nothing is translated that EVS does not give.
+    """
+    said = text.strip().rstrip("!?.").strip().casefold()
+    if not said:
+        return ""
+    try:
+        row = conn.execute(
+            "SELECT russian FROM evs_example WHERE lower(rtrim(estonian, ' !?.')) = ?"
+            " ORDER BY seq LIMIT 1", (said,)).fetchone()
+    except sqlite3.Error:
+        return ""
+    if row:
+        return row[0]
+    if " " in said:
+        return ""
+    senses = russian(conn, said)
+    return "; ".join(senses[:2])
+
+
 #: The most phrases one card receives. EVS's longest list (`käima`) is 144.
 MAX_EXAMPLES = 200
 

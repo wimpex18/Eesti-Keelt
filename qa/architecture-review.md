@@ -24,14 +24,14 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 
 | # | Decision | Linear | State |
 |---|---|---|---|
-| D0 | Licensable material for every learner | DEV-36 | Partly done: EKI EVS phrases now feed every corpus topic, dictation, read-aloud and mock reading/listening for public learners (DEV-54). Open: reading texts (none public), Settle in Estonia A1/A2 import once confirmed (DEV-56), permissions (DEV-55), the material pipeline below |
+| D0 | Licensable material for every learner | DEV-36 | Partly done: EKI EVS phrases feed every corpus topic, dictation, read-aloud and mock reading/listening for public learners (DEV-54), and EKI's credit now shows on every item built from them, offline packs, test-out and placement included, and on review cards queued from 9 Oct 2026. Open: reading texts (none public), Settle in Estonia A1/A2 import once confirmed (DEV-56), permissions (DEV-55), the material pipeline below |
 | D1 | Correctness | DEV-35, DEV-49..53 | Done: EVS homographs and inflection types, nimetav-object writing check, item labels and capitals, exam screens, rection norms EKI now accepts, retired rection cards out of due counts, one-reading case labels on short phrases. Open limits are in `docs/status.md` (parallel forms beyond Vabamorf, templated frames, narrow object check) |
 | D1b | Data safety | DEV-37 | Done in code: nightly off-Cloudflare backup, Durable Object fixes, `ITEM_SECRET`, durable guest allowances. Owner setup pending (below) |
 | D2 | Litestream-replicated SQLite instead of Durable Object replication | DEV-43 | Open; after the 7–8 Nov 2026 sittings |
 | D3 | Claude Haiku 5.5 tutor lane and eval | DEV-38 | Open; needs the owner's API key in `.env` |
 | D4 | Long-context grounding in EKI rule text | DEV-44 | Open; after D3 |
 | D5 | Ukrainian, then English explanations | DEV-42 | Open; after the D6 spec |
-| D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Open; next, spec first |
+| D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Spec (`docs/course-structure.md`) and ADR-0007 agreed with the owner on 9 Oct 2026; first slice built: thirty units in `eesti/units.py`, Kursus by unit, unit 1 (sounds in EKI's recordings, EKI's A1 phrases, numbers, first words), the nominative total object, `osaalus`. Open: unit check, homework, weekly plan, dialogues and texts, unit pages in the redesign |
 | D7 | HARNO task formats in practice and mocks | DEV-41 | Open; after the D6 spec |
 | D8 | Lemma search, passkeys, account recovery, ASR heartbeat | DEV-48 | Open; later |
 | D9 | Practice patterns (edit-then-explain, hint-first, mistakes session) | DEV-45 | Open |
@@ -41,34 +41,31 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 
 ## Owner actions outstanding
 
-1. Remove the Cloudflare Access login on the Worker's `workers.dev` hostname
-   (`docs/status.md`), rerun `deploy`, then `smoke` with `deep: true`.
-2. In Cloud Shell: `bash deploy/set-item-secret.sh`, then
-   `bash deploy/setup-backup.sh`, then `bash deploy/check-service.sh`.
-   Check the first nightly copy (`docs/deploy.md`).
-3. GitHub → Settings → Actions → General: allow GitHub Actions to create pull
+1. Verify a nightly backup copy with `cli verify-backup` (`docs/deploy.md`):
+   the bucket and trigger are set up, but no object had appeared by 9 Oct 2026.
+2. GitHub → Settings → Actions → General: allow GitHub Actions to create pull
    requests (the weekly `python-upgrade` workflow needs it).
-4. Mac mini: unpack the new ZIP and run `zsh deploy/home-asr/install.sh`.
-5. Send the permission requests from the project's own address.
-6. Put `ANTHROPIC_API_KEY` in `.env` before D3.
-7. After 28 Oct 2026: Node 26 in the Dockerfile and workflows.
+3. Mac mini: unpack the new ZIP and run `zsh deploy/home-asr/install.sh`.
+4. Send the permission requests from the project's own address; EKI's now also
+   asks about the pronunciation exercises' audio and the etLex licence.
+5. Put `ANTHROPIC_API_KEY` in `.env` before D3.
+6. After 28 Oct 2026: Node 26 in the Dockerfile and workflows.
 
 ## What the next steps build
 
-### Course structure (DEV-40, spec first)
+### Course structure (DEV-40)
 
-Inputs: EKI's grammar-competence profiles (etLex: 546 can-do statements, 84 A1,
-136 A2, 171 B1), HARNO's 15 A2 topics, the 43 topics in `eesti/curriculum.py`.
-Missing grammar: nominative total object (A2 in EKI; `obj-case` contrasts only
-genitive and partitive), partitive subject and existential sentences, plural
-partitive and plural cases, modal verbs with infinitives, indefinite pronouns,
-word formation, relative clauses, negation outside present and past. Missing
-themes: personal data and forms, daily routine, free time, relationships,
-shopping and money, services, directions. An A0 unit (sounds with EKI's
-pronunciation exercises, greetings, numbers, first words from EKI's picture
-dictionary) before any case. Each unit: a communicative goal, words and dialogue,
-grammar, texts, listening, speaking and writing tasks, a check; homework and a
-weekly plan towards the sitting.
+Specified in `docs/course-structure.md`, decided in ADR-0007: thirty one-week
+units in four stages (Algus, A1, A2, B1) over the 46 topics, mapped to HARNO's
+A2 and B1 topics and EKI's etLex grammar profile (546 statements, 84 A1, 136 A2,
+171 B1, cited by id). Built: the units, Kursus by unit, unit 1, the nominative
+total object and the partitive subject. Next: the unit check (code-graded, five
+items per core topic and revisit), homework and the weekly pace check, then
+the grammar the units still lack (plural partitive and plural cases, modal
+verbs with infinitives, indefinite pronouns, relative clauses, negation outside
+present and past) and word sets for the HARNO topics `themes.py` lacks
+(personal data, daily routine, free time, relationships, shopping and money,
+services, directions).
 
 ### Material pipeline (DEV-36)
 

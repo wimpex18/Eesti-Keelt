@@ -104,14 +104,19 @@ def candidates(
     progress: sqlite3.Connection,
     levels: tuple[str, ...] = LEVELS,
 ) -> list:
-    """Topics worth probing right now, in study order — recomputed as passes unlock more."""
+    """Topics worth probing right now, in study order — recomputed as passes unlock more.
+
+    The first week (`algus`: sounds, greetings, numbers) is not probed: the
+    assessment is for learners who know some Estonian, and starts at A1.
+    """
     from .curriculum import available
     from .progress import unlocked
+    from .units import stage_of
 
     return [
         topic
         for topic in available(unlocked(progress))
-        if topic.generator and topic.level in levels
+        if topic.generator and topic.level in levels and stage_of(topic.id) != "algus"
     ]
 
 

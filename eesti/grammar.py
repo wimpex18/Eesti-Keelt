@@ -393,6 +393,39 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "*suureni majani*."
         ),
     ),
+    "osaalus": Reference(
+        tag="osaalus", et_term="täis- ja osaalus", ru_term="полное и частичное подлежащее",
+        ekk_section="SÜ 35", chapter=SUNTAKS, subsection=2,
+        summary_ru=(
+            "В предложении о наличии подлежащее (**alus**) может стоять в "
+            "**osastav**: это частичное подлежащее (**osaalus**). При отрицании "
+            "оно всегда частичное: *Laual pole raamatut*. Частичное подлежащее "
+            "не согласуется с глаголом — глагол остаётся в 3-м лице ед. ч.: "
+            "*Külas elab ukrainlasi*, но *Külas elavad ukrainlased*."
+        ),
+    ),
+    "tahestik": Reference(
+        tag="tahestik", et_term="häälikute pikkus ja sõnavälde",
+        ru_term="долгота звуков и долгота слова",
+        ekk_section="O 8", chapter=ORTOGRAAFIA, subsection=5,
+        summary_ru=(
+            "В эстонском три долготы слова (**välde**). Короткий и долгий звук "
+            "различает написание (*kana* — *kanna*), а II и III долготу письмо "
+            "часто не различает: *selle salli* (omastav, II välde) и *seda "
+            "salli* (osastav, III välde) отличаются только произношением."
+        ),
+    ),
+    "arvud": Reference(
+        tag="arvud", et_term="arvsõnade kokku- ja lahkukirjutamine",
+        ru_term="как пишутся числительные",
+        ekk_section="O 42", chapter=ORTOGRAAFIA, subsection=8,
+        summary_ru=(
+            "*-teist(kümmend)*, *-kümmend* и *-sada* пишутся слитно с "
+            "предыдущим числительным: *kolmteist*, *viiskümmend*, *kakssada*. "
+            "Остальные числительные — раздельно: *nelikümmend kolm*, "
+            "*sada kaheksa*."
+        ),
+    ),
 }
 
 

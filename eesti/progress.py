@@ -248,9 +248,13 @@ def report(conn: sqlite3.Connection) -> list[TopicProgress]:
     from .curriculum import TOPICS, blocked_by, order
 
     from .course import skipped
+    from .practice import missing_here
 
     moved_past = skipped(conn)
     done = unlocked(conn) | moved_past
+    # A topic whose material is not on this server reads as reference here:
+    # nothing can be drilled or tested out.
+    absent = missing_here()
     counts = {
         r[0]: r[1] for r in conn.execute(
             "SELECT topic, COUNT(*) FROM attempts GROUP BY topic"
@@ -276,7 +280,7 @@ def report(conn: sqlite3.Connection) -> list[TopicProgress]:
                 via=row["via"] if row else None,
                 available=not missing,
                 blocked_by=missing,
-                drillable=topic.generator is not None,
+                drillable=topic.generator is not None and topic.id not in absent,
                 skipped=topic.id in moved_past,
             )
         )
@@ -289,9 +293,22 @@ def resume(conn: sqlite3.Connection) -> str | None:
 
     from .course import skipped
 
+    from .practice import missing_here
+
     ready = available(unlocked(conn) | skipped(conn))
-    # Skip topics with no generator: resuming to one would show an empty screen.
-    drillable = [t for t in ready if t.generator]
+    # Skip topics with no generator, or whose material is not on this server:
+    # resuming to one would show an empty screen.
+    from .units import position, stage_of
+
+    absent = missing_here()
+    # In course order: the units', which follows the graph (`units.validate`).
+    drillable = sorted((t for t in ready if t.generator and t.id not in absent),
+                       key=lambda t: position(t.id))
+    # The first week (`algus`) leads only for a learner who has mastered nothing
+    # beyond it: someone already past it is not sent back to greetings. Nothing is
+    # skipped; the unit stays open in Kursus.
+    if any(stage_of(t) != "algus" for t in mastered(conn)):
+        drillable = [t for t in drillable if stage_of(t.id) != "algus"] or drillable
     if not drillable:
         return None
 

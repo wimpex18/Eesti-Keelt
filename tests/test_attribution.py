@@ -124,7 +124,9 @@ class TestTheLedgerHasAReader:
             "eki-tasemesonavara", "eki-psv", "eki-evs", "eki-har", "eki-vsl",
             "eki-ekss", "ekilex", "ekilex-wordlist",
             # EKI's recordings: CC-BY-4.0, and this app downsamples them.
-            "psv-haaldused", "eki-konekorpus"}
+            "psv-haaldused", "eki-konekorpus",
+            # Unit 1's phrases and first words, from Sõnaveeb's learner pages.
+            "eki-valjendid", "eki-piltsonastik"}
 
     def test_it_answers_without_a_corpus(self, client, monkeypatch, tmp_path):
         """Read from REGISTRY in code, not from the `sources` table. An

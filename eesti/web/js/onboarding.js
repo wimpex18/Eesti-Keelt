@@ -1,5 +1,5 @@
 /* Starting choices are navigation. Only server-checked probes award mastery. */
-import {$, api, esc, setLabel, wrongVerdict} from "./core.js";
+import {$, api, attribHtml, esc, setLabel, wrongVerdict} from "./core.js";
 import {goToPlace} from "./router.js";
 const LEVELS = [
   ["a1", "Tean mõnda sõna", "Знаю отдельные слова — начальные темы"],
@@ -77,7 +77,7 @@ async function nextProbe() {
     frame(`<h2 class="page-title" lang="et">${esc(probe.et)}</h2><p lang="ru">Тема ${seen.length + 1} из максимум 3. Проверяются только эти задания; это не экзамен CEFR.</p>
       <form id="placementForm">${probe.items.map((it, i) => `<label class="placement-task" lang="et">${esc(it.prompt)}
         <span class="hint">${esc([it.lemma, it.label].filter(Boolean).join(", "))}${(probe.glosses || {})[it.lemma]?.length
-          ? ` <i lang="ru">${esc(probe.glosses[it.lemma].join(", "))}</i>` : ""}</span><input name="answer${i}" aria-label="Vastus ${i + 1} — ответ" lang="et" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>`).join("")}
+          ? ` <i lang="ru">${esc(probe.glosses[it.lemma].join(", "))}</i>` : ""}</span><input name="answer${i}" aria-label="Vastus ${i + 1} — ответ" lang="et" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">${attribHtml(it)}</label>`).join("")}
       <button class="go" type="submit" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button></form>
       <button class="quiet" data-stop lang="et">Lõpeta siin <span class="ru" lang="ru">закончить здесь</span></button>`);
     out().querySelector("[data-stop]").onclick = showResult;

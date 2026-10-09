@@ -1983,14 +1983,15 @@ class TestTestingOutOfATopic:
         button.wait_for(timeout=10000)
         topic = button.get_attribute("data-testout")
         button.click()
-        page.wait_for_selector("#testoutTasks input", timeout=20000)
+        # A typed answer, or a choice where the item is one (unit 1's phrases).
+        page.wait_for_selector("#testoutTasks input, #testoutTasks select", timeout=20000)
 
         # The answers come from the API, as a learner who knows them would type.
         answers = page.evaluate("""async ([base, topic]) => {
             const r = await fetch(`${base}/api/testout/${topic}`);
             return await r.json();
         }""", [live_server, topic])
-        inputs = page.locator("#testoutTasks input")
+        inputs = page.locator("#testoutTasks input, #testoutTasks select")
         assert inputs.count() == len(answers["items"])
         page.click("#testoutDone")
         page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
