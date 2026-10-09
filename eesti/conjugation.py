@@ -12,18 +12,26 @@ neighbouring form the learner confuses it with:
 Both forms come from Vabamorf; identical pairs are dropped. The `ma`/`da` choice
 is decided by the governing verb, so its frames come in pairs (*pean* + ma,
 *tahan* + da).
+
+**Where the sentence comes from** (`RULES`, `drills`): `vorm` is the bleached
+frames below (`generate`); `fraas` blanks a verb in one of EKI EVS's example
+phrases (`phrase_drills`), credited per item, where Vabamorf has exactly one
+reading for the word; `eitus` is the negated form (`negation.py`, EKK M 99);
+`modaal` the infinitive a modal verb takes in EVS's phrases (`modals.py`).
 """
 
 from __future__ import annotations
 
 import random
+import re
 import sqlite3
 from dataclasses import dataclass
+from functools import lru_cache
 
 from estnltk.vabamorf.morf import synthesize
 
 from .config import LEVELS
-from .item import GradedItem
+from .item import BLANK, GradedItem
 
 
 @dataclass(frozen=True)
@@ -116,6 +124,9 @@ class VerbDrill(GradedItem):
     why_ru: str
     topic: str
     level: str | None
+    #: The registry id of the material the sentence is from (`evs.SOURCE_ID` for
+    #: an EKI EVS phrase), credited on the page; empty for a frame.
+    source_id: str = ""
 
     @property
     def label(self) -> str:
@@ -203,4 +214,231 @@ def generate(
                 level=level,
             )
         )
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Verbs in EKI EVS's phrases: shared by `negation`, `modals` and `future`
+# ---------------------------------------------------------------------------
+
+#: A word of a phrase; a hyphenated compound (`võib-olla`) is one word.
+_WORD = re.compile(r"\w+(?:-\w+)*")
+
+#: Phrase length for a verb gap: enough to place the form, short enough to
+#: read at a glance.
+PHRASE_WORDS = (3, 10)
+
+
+def words_in(text: str) -> list[tuple[str, int, int]]:
+    """`(word, start, end)` for every word of a phrase."""
+    return [(m.group(), m.start(), m.end()) for m in _WORD.finditer(text)]
+
+
+def adjacent(text: str, left: tuple[str, int, int], right: tuple[str, int, int]) -> bool:
+    """Whether only spaces separate two words; a comma between them is a clause
+    boundary."""
+    return not text[left[2]:right[1]].strip()
+
+
+def blank(text: str, start: int, end: int) -> str:
+    return text[:start] + BLANK + text[end:]
+
+
+@lru_cache(maxsize=16384)
+def forms(lemma: str, tag: str) -> tuple[str, ...]:
+    """Every form Vabamorf synthesises for `lemma` in `tag` that reads back as
+    that lemma in that form, in Vabamorf's order."""
+    from .morph import _readings
+
+    out: list[str] = []
+    for form in synthesize(lemma, tag) or []:
+        if (lemma, tag) in _readings(form) and form not in out:
+            out.append(form)
+    return tuple(out)
+
+
+@lru_cache(maxsize=65536)
+def reading(word: str) -> tuple[str, str] | None:
+    """The one `(lemma, form)` Vabamorf gives a word out of context, or None
+    when it gives several or none: *tule* is *tulema* and *tuli*, so a phrase
+    cannot say which one EKI meant, and no item is built on it."""
+    from .morph import _readings
+
+    found = _readings(word.casefold())
+    return next(iter(found)) if len(found) == 1 else None
+
+
+def answer_for(lemma: str, tag: str, attested: str) -> str:
+    """The phrase's own form first, then the tag's other forms (`~`), so a
+    parallel form the learner knows is not marked wrong."""
+    seen = {attested.casefold()}
+    out = [attested]
+    for form in forms(lemma, tag):
+        if form.casefold() not in seen:
+            seen.add(form.casefold())
+            out.append(form)
+    return " ~ ".join(out)
+
+
+def verb_levels(conn: sqlite3.Connection, levels: tuple[str, ...] = LEVELS,
+                only: frozenset[str] | None = None) -> dict[str, str]:
+    """`{verb: level}` for the word list's verbs at `levels` (a theme's, with
+    `only`): EVS's phrases name rarer verbs than a learner at the level needs."""
+    return {lemma: level for lemma, level in verbs_at_levels(conn, levels, limit=5000)
+            if only is None or lemma in only}
+
+
+def phrase_pool(conn: sqlite3.Connection) -> list:
+    """EVS's example phrases of `PHRASE_WORDS` words, `[]` before the import."""
+    from .evs import phrases
+
+    return phrases(conn, *PHRASE_WORDS)
+
+
+#: The forms a phrase gap asks, per topic: `(tag, against, name)`. The past's
+#: `sid` is left out: *läksid* is both "you went" and "they went", so the label
+#: could not name one person.
+PHRASE_FORMS: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "olevik": (("n", "sin", "olevik, mina"), ("d", "sid", "olevik, sina"),
+               ("b", "s", "olevik, tema"), ("me", "sime", "olevik, meie"),
+               ("te", "site", "olevik, teie"), ("vad", "sid", "olevik, nemad")),
+    "lihtminevik": (("sin", "n", "lihtminevik, mina"), ("s", "b", "lihtminevik, tema"),
+                    ("sime", "me", "lihtminevik, meie"),
+                    ("site", "te", "lihtminevik, teie")),
+    "kaskiv": (("o", "d", "käskiv kõneviis, sina"), ("ge", "te", "käskiv kõneviis, teie")),
+}
+
+#: Vabamorf reads the connegative as the imperative (`o`): *ma ei tea* has the
+#: *tea* of *tea seda!*. A phrase with one of these is never asked for an `o`.
+_NEGATORS = frozenset({"ei", "ega", "pole", "polnud", "poleks"})
+
+
+def phrase_drills(
+    conn: sqlite3.Connection,
+    topics: tuple[str, ...],
+    levels: tuple[str, ...] = LEVELS,
+    count: int = 10,
+    seed: int | None = None,
+    only: frozenset[str] | None = None,
+) -> list[VerbDrill]:
+    """Conjugation and imperative gaps in EKI EVS's example phrases, credited.
+
+    A word is blanked only when it occurs once in the phrase, Vabamorf reads it
+    one way out of context (`reading`), that reading is a verb at `levels` in a
+    form `PHRASE_FORMS` asks, and the neighbouring form differs. One item per
+    phrase and per verb form.
+    """
+    from collections import Counter
+
+    from .evs import SOURCE_ID
+
+    wanted = {(topic, tag): (against, name) for topic in topics
+              for tag, against, name in PHRASE_FORMS.get(topic, ())}
+    if not wanted or count <= 0:
+        return []
+    verbs = verb_levels(conn, levels, only)
+    surfaces: dict[str, list[tuple[str, str, str]]] = {}
+    for lemma in verbs:
+        for topic, tag in wanted:
+            for form in forms(lemma, tag):
+                surfaces.setdefault(form.casefold(), []).append((topic, lemma, tag))
+    pool = [p for p in phrase_pool(conn)
+            if any(w.casefold() in surfaces for w, _, _ in words_in(p.estonian))]
+    rng = random.Random(seed)
+    rng.shuffle(pool)
+
+    out: list[VerbDrill] = []
+    seen: set[tuple[str, str]] = set()
+    for phrase in pool:
+        if len(out) >= count:
+            break
+        text = phrase.estonian
+        spans = words_in(text)
+        times = Counter(w.casefold() for w, _, _ in spans)
+        for word, start, end in spans:
+            key = word.casefold()
+            if key not in surfaces or times[key] > 1:
+                continue
+            found = reading(key)
+            match = next(((t, l, g) for t, l, g in surfaces[key] if found == (l, g)), None)
+            if match is None or match[1:] in seen:
+                continue
+            topic, lemma, tag = match
+            if tag == "o" and _NEGATORS & set(times):
+                continue
+            against, name = wanted[(topic, tag)]
+            answer = answer_for(lemma, tag, word)
+            wrong = _one(lemma, against)
+            if not wrong or wrong.casefold() in answer.casefold().split(" ~ "):
+                continue
+            why = next((f.why_ru for f in FRAMES[topic] if f.tag == tag),
+                       FRAMES[topic][0].why_ru)
+            out.append(VerbDrill(
+                prompt=blank(text, start, end), answer=answer, distractor=wrong,
+                lemma=lemma, tag=tag, form_et=name, rule="fraas",
+                why_ru=f"{why} *{lemma}* → **{word}**, не *{wrong}*.",
+                topic=topic, level=verbs[lemma], source_id=SOURCE_ID))
+            seen.add((lemma, tag))
+            break
+    return out
+
+
+#: Where a topic's items come from, by rule id (`drills`). `vorm` is the
+#: bleached frames, and fills whatever the others could not.
+RULES: dict[str, tuple[str, ...]] = {
+    "olevik": ("vorm", "fraas"),
+    "lihtminevik": ("vorm", "fraas"),
+    "kaskiv": ("vorm", "fraas", "eitus"),
+    "tingiv": ("vorm", "eitus"),
+    "umbisikuline": ("vorm", "eitus"),
+    "taisminevik": ("vorm", "eitus"),
+    "ma-da-inf": ("vorm", "modaal"),
+}
+
+
+def _source(rule: str):
+    if rule == "fraas":
+        return lambda conn, topic, levels, count, seed, only: phrase_drills(
+            conn, (topic,), levels, count, seed, only)
+    if rule == "eitus":
+        from .negation import drills as negated
+
+        return negated
+    if rule == "modaal":
+        from .modals import drills as modal
+
+        return lambda conn, topic, levels, count, seed, only: modal(
+            conn, levels, count, seed, only)
+    raise ValueError(f"unknown rule {rule!r}")
+
+
+def drills(
+    conn: sqlite3.Connection,
+    topic: str,
+    levels: tuple[str, ...] = LEVELS,
+    count: int = 10,
+    seed: int | None = None,
+    only: frozenset[str] | None = None,
+    rules: tuple[str, ...] | None = None,
+) -> list[VerbDrill]:
+    """A practice set for one verb topic, from each of its sources (`RULES`).
+
+    `rules` narrows the set to some of them; none it names leaves all. With the
+    frames among them, each other source gives an equal share and the frames
+    fill the rest (EVS absent, a theme with few verbs); without them, each
+    source fills what the one before could not. Interleaved, reproducibly.
+    """
+    own = RULES.get(topic, ("vorm",))
+    chosen = [r for r in own if not rules or r in rules] or list(own)
+    out: list[VerbDrill] = []
+    for rule in chosen:
+        if rule == "vorm":
+            continue
+        want = count // len(chosen) if "vorm" in chosen else count - len(out)
+        if want > 0:
+            out += _source(rule)(conn, topic, levels, want, seed, only)[:want]
+    if "vorm" in chosen and len(out) < count:
+        out += generate(conn, topics=(topic,), levels=levels, count=count - len(out),
+                        seed=seed, only=only)
+    random.Random(seed).shuffle(out)
     return out

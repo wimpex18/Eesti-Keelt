@@ -208,6 +208,16 @@ TOPIC_REFERENCES: dict[str, Reference] = {
             "Действие, завершившееся раньше другого прошедшего."
         ),
     ),
+    "tulevik": Reference(
+        tag="tulevik", et_term="tuleviku väljendamine", ru_term="выражение будущего",
+        ekk_section="SÜ 27", chapter=SUNTAKS, subsection=2,
+        summary_ru=(
+            "Формы будущего времени нет: глагол остаётся в **olevik** (настоящем), "
+            "а на будущее указывает слово времени (*Ma sõidan homme koju*) или "
+            "глагол вроде *hakkama* (*hakkavad elama*). *saama* + ma-инфинитив "
+            "для действий EKK (SÜ 28) не советует."
+        ),
+    ),
     "tingiv": Reference(
         tag="tingiv", et_term="tingiv kõneviis", ru_term="условное наклонение",
         ekk_section="M 93", chapter=MORFOLOOGIA, subsection=4,

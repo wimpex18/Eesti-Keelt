@@ -67,7 +67,7 @@ the EKK rection page use separate request paths.
 |---|---|---|
 | `A1A2B1.txt` | `cli import-levels` | 4 340 distinct lemmas with official level |
 | `psv_EKI_CCBY40.xml.gz` | `cli import-psv` | 4 849 learner definitions |
-| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 8 question-word cues (`evs_question`); 137 316 example phrases and 1 912 idioms with Russian (`evs_example`); verbs whose main sense EVS translates with a Russian verb taking a direct object (`evs_object_verb`, the writing check's object evidence) |
+| `evs_EKI_CCBY40.xml.gz` | `cli import-evs` | 60 672 lemmas with Russian; 11 question-word cues (`evs_question`); 137 316 example phrases and 1 912 idioms with Russian (`evs_example`); verbs whose main sense EVS translates with a Russian verb taking a direct object (`evs_object_verb`, the writing check's object evidence) |
 | `vsl_EKI_CCBY40.xml.gz` | `cli import-vsl` | 30 095 definitions |
 | `har_EKI_CCBY40.xml.gz` | `cli import-har` | 5 905 terms with Russian |
 | `ekss_EKI_CCBY40.xml.gz` | `cli import-ekss` | 117 937 definitions |

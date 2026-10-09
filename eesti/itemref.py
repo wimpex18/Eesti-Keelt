@@ -29,7 +29,7 @@ import re
 
 #: Bumped when a generator's output for the same inputs changes, so an old ref
 #: is known not to regenerate the item it named.
-GENERATOR_VERSION = 5
+GENERATOR_VERSION = 6
 
 #: Item fields the answer endpoint grades and records from. `source_id` keeps the
 #: material's credit on the card a miss becomes; `say` marks an item that is
