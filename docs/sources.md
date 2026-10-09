@@ -36,7 +36,11 @@ restricted just because they were first imported by the owner.
 | EKI teatmik, *Asesõnade käänamine* | pronoun paradigms (`eesti/pronouns.py`) |
 | *Eesti keele käsiraamat* 2007 (EKK; Erelt, Erelt, Ross) | own Russian explanations and short attributed examples link to their sections; SÜ 65 rection facts, except contrasts whose starred frame EKI's ühendsõnastik now records (`eesti/rection.py`) |
 | EKI teatmik | pronoun declension facts with stress/stem marks removed; source linked in each lesson |
-| EKI *põhisõnavara hääldused* | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`) |
+| EKI *põhisõnavara hääldused* | a native voice for word forms, with quantity and palatalisation (`cli import-haaldused`), played to every learner; the key of unit 1's sound items (`eesti/sounds.py`) |
+| EKI *Kasulikke väljendeid A1* (Sõrmus, Pool, Kallas, Kiisla 2025, Sõnaveeb) | unit 1's greetings and survival phrases, keyed by EKI's grouping and exchanges (`eesti/phrases.py`) |
+| EKI *piltsõnastik* (Sõnaveeb) | which words the first week teaches (two themes, A1–A2), as text; pictures and audio stay on Sõnaveeb, and the Russian comes from EVS because the picture captions name the picture (`eesti/units.py`) |
+| EKI *e-hääldusharjutused* (Sõnaveeb) | the contrasts unit 1's sound items follow; linked for saying words aloud, its audio not played (no stated licence) |
+| EKI etLex grammar profile | the stage each unit's grammar serves, cited by statement id in `docs/course-structure.md`; no statement is copied |
 | EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
 | `data/seed_glossary.tsv` | 315 hand-written glosses for drill words |
 

@@ -277,6 +277,7 @@ Smoke warns on any zero.
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Workers AI token ✅ | deploy token ✅ | Worker deploy (Actions); grammar lane (Cloud Run) |
 | `CLOUDFLARE_WORKERS_AI_TOKEN` | — | ✅ | Workers AI Read token for `eval.yml` |
 | `WORKER_URL` | — | ✅ | public-entry verification and anonymous smoke |
+| `ANTHROPIC_API_KEY` | ✅ (`set-llm-key.sh ANTHROPIC_API_KEY`) | ✅ | Claude Haiku 5.5, the first grammar and tutor lane; Actions copy for the eval |
 | `MISTRAL_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY` | ✅ | ✅ | grammar lanes; Actions copies for the eval |
 | `HOME_ASR_TOKEN` | — | Worker secret (dashboard) | proves a recording came from the Worker to the Mac mini home service |
 | `HF_TOKEN` | optional | — | hosted Whisper fallback for speech |

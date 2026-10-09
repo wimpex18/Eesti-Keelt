@@ -41,6 +41,8 @@ class ReviewGrade(BaseModel):
 @router.get("/api/review")
 def review_queue(limit: int = 20, kind: str | None = None) -> dict:
     """Items due for review, most overdue first."""
+    from ..licences import credit
+
     items = review.due(review_db(), limit=limit, kind=kind)
     # One words-database connection for the queue's meaning cards, none without them.
     words = db() if any(i.kind == "vocab" for i in items) else None
@@ -52,6 +54,8 @@ def review_queue(limit: int = 20, kind: str | None = None) -> dict:
                 "prompt": i.prompt, "answer": i.answer,
                 "distractor": i.distractor, "why_ru": i.why_ru,
                 "context": i.context, "reps": i.reps, "lapses": i.lapses,
+                # The credit the item carried when it was missed (CC BY 4.0).
+                "attribution": credit(i.source_id),
                 # A meaning card shows the word in use: an EVS phrase with its
                 # Russian, a different one each time it comes back.
                 "phrase": (evs.practice_phrase(words, i.lemma, i.reps)

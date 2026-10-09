@@ -1,4 +1,5 @@
-"""One client for every OpenAI-compatible LLM lane.
+"""One client for every LLM lane: the OpenAI-compatible ones over HTTP, and the
+Claude lane through Anthropic's SDK (`providers/claude.py`).
 
 Rules:
 
@@ -20,8 +21,10 @@ from dataclasses import dataclass
 DEFAULT_TIMEOUT = 60.0
 
 # OpenRouter's free tier caps at 20 requests/minute, and the eval fires 18 in a
-# row — a real run lost two cases to HTTP 429. Pace requests and retry the
-# transient failures, or the score measures our impatience rather than the model.
+# row — a real run lost two cases to HTTP 429. An evaluation paces its requests
+# (`pace=True`) and retries the transient failures, or the score measures our
+# impatience rather than the model. A learner's request is never paced: one
+# learner's explanation must not wait behind another's (DEV-38).
 MIN_INTERVAL = 3.5
 
 RETRIES = 3
@@ -116,6 +119,17 @@ PROVIDERS: dict[str, Provider] = {
         "50 req/day free; 1000/day after a one-time $10 credit purchase "
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
+    # Anthropic's Messages API, not OpenAI-compatible: `complete` hands it to
+    # `providers/claude.py`. First hosted lane since ADR-0008's eval passed.
+    "anthropic": Provider(
+        "anthropic",
+        "https://api.anthropic.com/v1",
+        "ANTHROPIC_API_KEY",
+        "claude-haiku-5-5",
+        "Paid: $0.10 / $0.50 per million input / output tokens up to a "
+        "100K-token prompt. About $0.0003 a tutor call.",
+        json_mode=False,
+    ),
     # EstLLM (Estonian-adapted Llama 3.1 8B) on your own OpenAI-compatible
     # server (Ollama, LM Studio, llama.cpp). Keyless; on when LOCAL_LLM_URL is set.
     "local": Provider(
@@ -160,6 +174,10 @@ def _user_agent() -> str:
 def list_models(provider_name: str, timeout: float = 30.0) -> list[dict]:
     """Fetch the provider's live catalogue."""
     provider = PROVIDERS[provider_name]
+    if provider.name == "anthropic":
+        from .claude import list_models as claude_models
+
+        return claude_models(timeout)
     url = f"{_base_url(provider)}/models"
     if provider.name == "workers-ai":
         # The OpenAI-compatible base has no catalogue; use `/ai/models/search`.
@@ -220,14 +238,28 @@ def complete(
     max_tokens: int = 2000,
     json_mode: bool = True,
     attempts: int = RETRIES,
+    schema: dict | None = None,
+    pace: bool = False,
 ) -> str:
-    """One chat completion. Returns the assistant's text."""
+    """One chat completion. Returns the assistant's text.
+
+    `schema` holds a lane that supports it (Claude) to that JSON shape; the
+    others are asked for JSON in the prompt. `pace` spaces requests for an
+    evaluation run; learners' requests are not paced.
+    """
     provider = PROVIDERS[provider_name]
     if not provider.available:
         raise RuntimeError(
             f"{provider.key_env} is not set" if provider.key_env
             else f"{provider.name}: LOCAL_LLM_URL is not set"
         )
+    if provider.name == "anthropic":
+        from .claude import complete as claude_complete
+
+        if pace:
+            _throttle()
+        return claude_complete(system, user, model=model or provider.model,
+                               max_tokens=max_tokens, schema=schema, timeout=timeout)
 
     payload: dict = {
         "model": model or provider.model,
@@ -258,7 +290,8 @@ def complete(
     )
 
     for attempt in range(attempts):
-        _throttle()
+        if pace:
+            _throttle()
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read())
@@ -290,6 +323,14 @@ def complete(
             time.sleep(2 ** attempt)
 
     raise RuntimeError("unreachable")
+
+
+def is_fault(exc: BaseException) -> bool:
+    """Whether a lane's failure should count against its circuit breaker
+    (`claude.is_fault`): a refusal or a spend limit does not."""
+    from .claude import is_fault as claude_fault
+
+    return claude_fault(exc)
 
 
 def parse_json(raw: str) -> dict:

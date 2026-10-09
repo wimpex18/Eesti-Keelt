@@ -10,7 +10,7 @@ classifies source material; it does not determine the navigation shell.
 ```
 Learning and practice
 ├── Kodu          one next lesson or the current session, with a starting-point link
-├── Kursus        ordered topics, rules, checked test-out and reversible skips;
+├── Kursus        units and their topics, rules, checked test-out and reversible skips;
 │                 Vaba harjutus and a five-item offline pack live here
 ├── Lugemine      source texts and word lookup; five source-backed starter
 │                 sentences when the imported library is empty
@@ -57,12 +57,14 @@ keeps that recovery screen; after connectivity returns it opens the app.
 
 | Activity | Graded by | Writes |
 |---|---|---|
-| Guided five-item practice | code against issued forms | attempts, mastery and review queue |
+| Guided five-item practice | code against issued forms | attempts, mastery and review queue (a heard item makes no card) |
+| Unit 1 sound items | code against EKI's own form and quantity mark for the recording played | attempts and mastery; no card |
 | Free practice | same code, `record: false` | nothing |
 | Topic test-out / onboarding grammar check | server checks all five answers | checked mastery only on a pass |
+| Unit check | server rebuilds the set from its seed and checks every answer | attempts; a passed unit check; mastery for a part answered 5 of 5 |
 | Topic skip / selected start | navigation choice | `course_choices`, never attempts or mastery |
 | Exercise or word skip | no grade | current session only; no mastery or FSRS |
-| Offline pack | local verdict, then server re-grades the signed item | attempts at the original answer time |
+| Offline pack | local verdict, then server re-grades the signed item; heard items are left out | attempts at the original answer time |
 | Kordamine | code and FSRS | review card state |
 | Sõnavara collection | no grade | explicit word status |
 | Reading and word lookup | no grade | encounters and explicit mining choices |
@@ -84,6 +86,15 @@ Review schedules them. Reading and vocabulary share one word card. Exam owns
 timed practice and exam evidence; ordinary skills need no exam goal. Progress
 owns history, so Profile and Home do not repeat readiness flowers, totals, rhythm
 grids or competing time plans.
+
+Kursus lists the course unit by unit (`docs/course-structure.md`): each unit
+folds open to its goal in Russian, its topics, a *Kordus* button that practises
+only the rules its stage unlocks in an earlier topic, the first week's words with
+their meaning, and its companion Keeleklikk or Keeletee unit, marked as an
+external course. The current unit is open. A unit shows how many of its topics
+are mastered, and offers its check (*Ühiku kontroll*), which runs in the same
+frame as a test-out; a unit is called complete once its check is passed and
+its core topics are mastered.
 
 Topic states are locked, ready, in progress, mastered, reference-only and skipped.
 Every state has a textual label and icon. Prerequisites come from

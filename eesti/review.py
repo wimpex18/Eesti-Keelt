@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS review_items (
     why_ru      TEXT,
     source      TEXT,               -- where it came from: drill | reading | error-log
     context     TEXT,               -- the sentence it was met in, if any
+    source_id   TEXT,               -- the material's registry id, for its credit
     card        TEXT NOT NULL,      -- FSRS card state, JSON
     due         TEXT NOT NULL,      -- ISO-8601, denormalised so the queue is one query
     reps        INTEGER NOT NULL DEFAULT 0,
@@ -71,6 +72,7 @@ class ReviewItem:
     due: datetime
     reps: int
     lapses: int
+    source_id: str | None = None
 
 
 # One-time repair: stored explanations that transliterated `omastav` as
@@ -144,6 +146,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    # A queue made before cards carried their material's credit.
+    from .ekixml import ensure_column
+
+    ensure_column(conn, "review_items", "source_id")
     try:
         repair_explanations(conn)
     except sqlite3.OperationalError:
@@ -211,6 +217,7 @@ def add(
     why_ru: str | None = None,
     source: str = "drill",
     context: str | None = None,
+    source_id: str | None = None,
 ) -> str:
     """Queue an item for review. Re-adding an existing one keeps its schedule.
 
@@ -221,6 +228,8 @@ def add(
     payload = {"kind": kind, "lemma": lemma, "tag": tag, "prompt": prompt,
                "answer": answer, "distractor": distractor, "why_ru": why_ru,
                "source": source, "context": context}
+    if source_id:
+        payload["source_id"] = source_id
     ev = evidence.record("card-added", payload)
     return _add(conn, payload, ev.ts)
 
@@ -229,6 +238,8 @@ def _add(conn: sqlite3.Connection, p: dict, at: str) -> str:
     kind, lemma, tag = p["kind"], p["lemma"], p["tag"]
     prompt, answer, distractor = p["prompt"], p["answer"], p["distractor"]
     why_ru, source, context = p["why_ru"], p["source"], p["context"]
+    # Events written before cards carried a credit have no `source_id`.
+    source_id = p.get("source_id")
     key = item_id(kind, lemma, tag)
     existing = conn.execute(
         "SELECT context FROM review_items WHERE id = ?", (key,)
@@ -238,9 +249,9 @@ def _add(conn: sqlite3.Connection, p: dict, at: str) -> str:
             conn.execute(
                 """UPDATE review_items
                       SET prompt = ?, answer = ?, distractor = ?, why_ru = ?,
-                          context = COALESCE(context, ?)
+                          context = COALESCE(context, ?), source_id = ?
                     WHERE id = ?""",
-                (prompt, answer, distractor, why_ru, context, key),
+                (prompt, answer, distractor, why_ru, context, source_id, key),
             )
         return key
 
@@ -251,11 +262,11 @@ def _add(conn: sqlite3.Connection, p: dict, at: str) -> str:
         conn.execute(
             """INSERT INTO review_items
                (id, kind, lemma, tag, prompt, answer, distractor, why_ru,
-                source, context, card, due, reps, lapses)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,0)""",
+                source, context, card, due, reps, lapses, source_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,0,?)""",
             (key, kind, lemma, tag, prompt, answer, distractor, why_ru,
              source, context, json.dumps(card.to_dict()),
-             card.due.isoformat()),
+             card.due.isoformat(), source_id),
         )
     return key
 
@@ -297,7 +308,7 @@ def due(conn: sqlite3.Connection, limit: int = 20, kind: str | None = None) -> l
             id=r["id"], kind=r["kind"], lemma=r["lemma"], prompt=r["prompt"],
             answer=r["answer"], distractor=r["distractor"], why_ru=r["why_ru"],
             context=r["context"], due=datetime.fromisoformat(r["due"]),
-            reps=r["reps"], lapses=r["lapses"],
+            reps=r["reps"], lapses=r["lapses"], source_id=r["source_id"],
         )
         for r in conn.execute(sql, params)
     ]

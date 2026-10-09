@@ -5,17 +5,18 @@ every learner only after a written answer: record each reply in
 `eesti/licences.py` and `docs/sources.md`, then set `redistributable` for what was
 granted, with the stated conditions. Fill in the bracketed fields before sending.
 
-Addresses marked *verify* were not confirmed; check the organisation's contact page.
+The Selges keeles author is still to be found; the other addresses are the organisations' published ones.
 
 | To | Address | Asks for |
 |---|---|---|
 | ERR | portaalid@err.ee | Lihtsad uudised texts and read-aloud audio; Raadio 4 "Как это по-эстонски?" lessons |
-| HARNO | *verify* on harno.ee | Sample tasks, consultation workbooks, listening audio, commented sample performances |
+| HARNO | info@harno.ee (general; read 9 Oct 2026) | Sample tasks, consultation workbooks, listening audio, commented sample performances |
 | Integration Foundation (Settle in Estonia, Keeleklikk) | info@settleinestonia.ee; keeleklikk@tugi.edu.ee | Confirm CC BY-SA 3.0 for the A1/A2 files; TestEst reuse; deep links to course units |
-| EKI | *verify* on eki.ee | etLex terms; Estonian–Ukrainian dictionary export; picture dictionary images and audio; Combined Dictionary bulk |
+| EKI | eki@eki.ee (general; read 9 Oct 2026) | etLex terms; Estonian–Ukrainian dictionary export; picture dictionary images and audio; pronunciation exercises' audio and pictures; Combined Dictionary bulk; Sõnaveeb's *Õpime eesti keelt* A2/B1 phrases and model letters |
 | Selges keeles authors | *find the author* via selgeskeeles.wordpress.com | The 349 archived posts |
 
-Common facts to keep identical in every message: Grove is free and non-commercial,
+Every message also asks that the permission cover the web app and the coming
+iOS app. Common facts to keep identical in every message: Grove is free and non-commercial,
 has no advertising or paid tier, shows the source, author and a link beside every
 item, does not alter the text, and serves Russian-, Ukrainian- and English-speaking
 learners from beginner level to the A2/B1 exams.
@@ -29,6 +30,7 @@ learners from beginner level to the A2/B1 exams.
 Tere!
 
 Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
+Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Grove aitab vene, ukraina ja inglise keelt kõnelevatel inimestel õppida eesti keelt
 algtasemest kuni B1-tasemeni ning valmistuda A2- ja B1-taseme eksamiks. Rakenduses ei
 ole reklaami ega tasulisi teenuseid ning me ei teeni sellest tulu.
@@ -63,6 +65,7 @@ conditions.
 Tere!
 
 Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
+Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Rakendus aitab vene, ukraina ja inglise keelt kõnelevatel õppijatel valmistuda A2- ja
 B1-taseme eksamiks.
 
@@ -95,6 +98,7 @@ link; answer keys only if allowed, otherwise learners are sent to EIS to self-ch
 Tere!
 
 Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
+Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Grove pakub vene, ukraina ja inglise keelt kõnelevatele õppijatele harjutusi
 algtasemest B1-tasemeni ning sobib kasutamiseks koos Keeleklikiga.
 
@@ -127,6 +131,7 @@ linked; whether Grove may deep-link Keeleklikk/Keeletee units.
 Tere!
 
 Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
+Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Rakendus kasutab juba EKI sõnastikke (PSV, EVS, EKSS, VSL, HAR, tasemesõnavara) ja
 Ekilexi API-t CC BY 4.0 tingimustel ning viitab neile igal pool, kus EKI materjali
 näidatakse.
@@ -134,11 +139,21 @@ näidatakse.
 Sooviksime täpsustada järgmist:
 
 1. etLexi API (grammatikaprofiilid, tasemesõnavara loendid): millistel tingimustel
-   võib neid andmeid rakenduses kasutada?
+   võib neid andmeid rakenduses kasutada? Õpetaja tööriistade kasutusteade nimetab
+   CC BY 4.0, META-SHARE'i kirje aga piiratud kasutust.
 2. Eesti-ukraina sõnastik: kas seda on võimalik saada failina ja millise litsentsiga?
 3. Sõnaveebi pildisõnastik: kas CC BY 4.0 kehtib ka illustratsioonidele ja
    helisalvestistele?
 4. EKI ühendsõnastik 2023: kas terviklik fail on õppeotstarbeks kättesaadav?
+5. E-hääldusharjutused (Sõnaveeb): kas CC BY 4.0 kehtib harjutuste
+   helisalvestistele ja piltidele ning kas neid võib rakenduses esitada?
+   Praegu kasutame harjutuste häälikuvastandusi ja mängime põhisõnavara
+   sõnastiku (2014) salvestisi.
+6. Sõnaveebi „Õpime eesti keelt“ materjalid: kasutame juba A1-taseme
+   „Kasulikke väljendeid“ (Sõrmus, Pool, Kallas, Kiisla 2025) fraase ja
+   sooviksime samamoodi kasutada A2- ja B1-taseme väljendeid ning kirjutamise
+   näidistekste. Kas Sõnaveebi CC BY 4.0 kehtib ka neile ning kas nende põhjal
+   võib koostada harjutusi, kui autorid ja EKI on alati nimetatud?
 
 Täname!
 
@@ -146,9 +161,12 @@ Lugupidamisega
 [nimi]
 [e-post]
 
-*English summary:* asks for etLex terms, an export and licence for the
-Estonian–Ukrainian dictionary, whether CC BY 4.0 covers the picture dictionary's
-images and audio, and access to the 2023 Combined Dictionary file.
+*English summary:* asks for etLex terms (the teacher tools say CC BY 4.0,
+META-SHARE says restricted), an export and licence for the Estonian–Ukrainian
+dictionary, whether CC BY 4.0 covers the picture dictionary's images and audio
+and the pronunciation exercises' audio and pictures, access to the 2023
+Combined Dictionary file, and whether CC BY 4.0 covers the *Õpime eesti keelt*
+A2/B1 phrases and model letters, with exercises built from them.
 
 ---
 
@@ -159,6 +177,7 @@ images and audio, and access to the 2023 Combined Dictionary file.
 Tere!
 
 Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
+Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Teie blogi „Selges keeles“ lihtsas eesti keeles kirjutatud uudised on algajatele väga
 sobiv lugemismaterjal. Palume luba näidata neid tekste rakenduse sees kõigile
 õppijatele muutmata kujul, koos autori nime ja lingiga algsele postitusele, ning

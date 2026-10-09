@@ -101,6 +101,20 @@ ENGINES: tuple[Source, ...] = (
         verified="2026-09-19",
     ),
     Source(
+        "anthropic", "Anthropic Claude", "engine", "Anthropic Commercial Terms", True,
+        "https://platform.claude.com/docs/",
+        "Claude Haiku 5.5 for explanations, tutoring and advisory feedback "
+        "(`eesti/providers/claude.py`): the first grammar and tutor lane since "
+        "its eval passed (ADR-0008); it never decides a drill, mastery or FSRS.",
+        version="claude-haiku-5-5",
+        quota="paid: $0.10 / $0.50 per million input / output tokens up to a "
+              "100K-token prompt; this app caps it at 2 000 calls a day",
+        data_leaves="text",
+        retention="inputs and outputs deleted within 30 days; not used for "
+                  "training by default (Anthropic privacy center, 2026)",
+        verified="2026-10-09",
+    ),
+    Source(
         "nvidia", "NVIDIA NIM", "engine", "NVIDIA developer terms", True,
         "https://build.nvidia.com/", "Evaluation lane; its free endpoint timed out in current probes, excluded from automatic routing.",
         version="deepseek-ai/deepseek-v4.1-flash", quota="40 requests/min",
@@ -156,16 +170,20 @@ ENGINES: tuple[Source, ...] = (
 
 
 #: EKI's recordings. CC BY 4.0, downloaded once from the archive and imported
-#: into `data/audio.db`; the audio is not served to anyone but the owner, and
-#: the novels behind the speech corpora are still in copyright.
+#: into `data/audio.db`. The word recordings are played to every learner, with
+#: the credit; the sentence corpora stay with the owner, because the novels
+#: behind them are still in copyright.
 AUDIO: tuple[Source, ...] = (
     Source(
         "psv-haaldused", "Eesti keele põhisõnavara sõnastik 2014 — hääldused",
-        "audio", "CC-BY-4.0 (EKI)", False,
+        "audio", "CC-BY-4.0 (EKI)", True,
         "https://arhiiv.eki.ee/litsents/idkaart/dl.cgi?D=psv%2Fhaaldused",
         "About 6 000 base word forms read by Eva Klemets and Marju Avamere, "
         "indexed by form. The index keeps EKI's quantity and palatalisation "
-        "marks, which the spelling does not carry and synthesis guesses.",
+        "marks, which the spelling does not carry and synthesis guesses. "
+        "Played for any word form a learner taps (`/api/pronounce`) and in "
+        "unit 1's sound items (`eesti/sounds.py`), whose answer key is EKI's "
+        "own form and quantity mark for the recording played.",
         changes="Записи пережаты в 16 кГц моно и обрезаны по краям; оставлены "
                 "только те формы слов, которые приложение учит.",
         verified="2026-09-20",
@@ -508,4 +526,65 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "own work", True, None,
         "Drills built from Vabamorf forms. Unlimited, deterministic.",
     ),
+    Source(
+        "eki-valjendid",
+        "Kasulikke väljendeid A1-tasemel eesti keele õppijale (EKI)", "file",
+        "CC-BY-4.0 (Sõnaveeb terms)", True,
+        "https://sonaveeb.ee/learn#v-pills-kasulikke-valjendeid-a1",
+        "Sõrmus, Pool, Kallas, Kiisla (2025), EKI: A1 phrases grouped by "
+        "communicative function and situation, in Estonian only. Unit 1's "
+        "`fraasid` items are built from them (`eesti/phrases.py`), keyed by "
+        "EKI's grouping and its two-part exchanges. The page states no licence "
+        "of its own; Sõnaveeb's terms put its information under CC BY 4.0.",
+        changes="Перенесены фразы разделов 1.1–1.8 и диалоги из 2.3, 2.5, 2.6; "
+                "из вариантов через косую черту взят первый (*Mina olen Maria*, "
+                "*sularahas*). *Tervist!*, *Tšau!* и *Head ööd!* не "
+                "спрашиваются: каждая служит и другой цели. Русский перевод — "
+                "из EKI EVS, где он есть.",
+        verified="2026-10-09",
+    ),
+    Source(
+        "eki-piltsonastik", "EKI piltsõnastik (Sõnaveeb)", "file",
+        "CC-BY-4.0 (Sõnaveeb terms; text only)", True,
+        "https://sonaveeb.ee/wordgame",
+        "J. Kallas, K. Koppel; illustrations K. Karp, A. Piits-Jamnik; "
+        "translations O. Kiisla, E. Dovgan and others. About 1 000 pictured words "
+        "in 52 themes, with Russian, Ukrainian, English and German. The unit "
+        "spec draws first words from its themes as text; the pictures and the "
+        "audio carry no stated licence, so they stay on Sõnaveeb behind a link "
+        "until EKI confirms (DEV-55).",
+        changes="Взят только выбор слов: из тем *Värvid* и *Toit ja jook* — "
+                "слова с пометой A1–A2, для первой недели курса. "
+                "Картинки, звук и русские подписи не используются: подпись "
+                "называет картинку (*kala* — «окунь»), поэтому перевод — из "
+                "словарей EKI. Не взяты *tee* и *või*: у каждого есть омоним.",
+        verified="2026-10-09",
+    ),
+    Source(
+        "eki-haaldusharjutused", "EKI e-hääldusharjutused (Sõnaveeb)", "link",
+        "not stated", False,
+        "https://sonaveeb.ee/pronunciation-exercises/",
+        "Six topics, 37 exercises: vowels, diphthongs, stops, palatalisation "
+        "and quantity. Unit 1's sound items follow their contrasts and link "
+        "here for saying the words aloud; their audio and pictures state no "
+        "licence, so none is copied or played (DEV-55 asks EKI).",
+        verified="2026-10-09",
+    ),
 )
+
+
+#: The credit shown with an item built from a source, as its licence asks.
+CREDITS: dict[str, str] = {
+    "psv-haaldused": "Salvestis: EKI põhisõnavara sõnastik 2014 · CC BY 4.0",
+    "eki-valjendid": ("Sõrmus, Pool, Kallas, Kiisla · Kasulikke väljendeid A1 · "
+                      "EKI · CC BY 4.0"),
+}
+
+
+def credit(source_id: str | None) -> str:
+    """The attribution an item built from `source_id` carries, or `""`."""
+    if not source_id:
+        return ""
+    from .evs import ATTRIBUTION, SOURCE_ID
+
+    return ATTRIBUTION if source_id == SOURCE_ID else CREDITS.get(source_id, "")

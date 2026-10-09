@@ -1,7 +1,7 @@
 /* Kordamine: the queue, the due badge, grading a card, and the desktop rail. */
 
 import {emptyState, flowerSvg, forecastHtml, navIcon, sealsHtml} from "./chrome.js";
-import {$, api, esc, md, ruCount, taskLine} from "./core.js";
+import {$, api, attribHtml, esc, md, ruCount, taskLine} from "./core.js";
 import {sayable, speakWord, withSlots} from "./media.js";
 import {examLevel} from "./state.js";
 
@@ -365,6 +365,7 @@ function renderReview(it, glosses) {
                  ru, {quiet: true})}${
         it.lapses ? `<span class="hint">ошибок: ${it.lapses}</span>` : ""}
     </div>
+    ${attribHtml(it)}
     <div class="verdict" role="status"></div>`;
   wireAnswer(el, it);
   return el;

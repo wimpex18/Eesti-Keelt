@@ -11,7 +11,7 @@ on:
         type: choice
         # Must equal `llm.PROVIDERS` minus `local` (no runner has a local model
         # server), plus `evals.gec.NON_LLM`; a test checks both directions.
-        options: [openrouter, mistral, nvidia, workers-ai, tartunlp, tartunlp-mt]
+        options: [anthropic, openrouter, mistral, nvidia, workers-ai, tartunlp, tartunlp-mt]
       model:
         description: Model to score
         default: "(provider default)"
@@ -25,6 +25,22 @@ on:
           - "@cf/openai/gpt-oss-120b"
           - deepseek-ai/deepseek-v4.1-flash
           - mistral-large-latest
+      track:
+        description: >-
+          hand = the 18 targeted sentences; external = TalTech grammar_et (attested
+          learner errors, plus a clean half for precision).
+        default: hand
+        type: choice
+        options: [hand, external]
+      sample:
+        description: External track only — error sentences scored (clean = half).
+        default: "40"
+        type: string
+      effort:
+        description: Anthropic lane only — Haiku 5.5's effort level (ADR-0008).
+        default: low
+        type: choice
+        options: [low, medium, high]
       evidence:
         description: >-
           Attach Vabamorf's case analysis (the app does not send it yet). Tests whether
@@ -43,6 +59,10 @@ jobs:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      # Paid lane (ADR-0008): every run costs a few cents.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_EFFORT: ${{ inputs.effort || 'low' }}
+      TRACK: ${{ inputs.track || 'hand' }}
       # The deploy token cannot read Workers AI; a separate Read token can.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_AI_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -55,12 +75,24 @@ jobs:
 
       # Evidence mode is the only thing here that needs Vabamorf; the plain eval
       # path stays stdlib-only so a normal run costs seconds.
+      # The external track classifies each attested error with Vabamorf.
+      - name: Install morphology and the TalTech set (external track)
+        if: env.TRACK == 'external' && !inputs.evidence
+        run: |
+          pip install --require-hashes -r requirements.lock
+          python -m eesti.cli fetch-bench --required-only
+
       - name: Install morphology (evidence mode only)
         if: inputs.evidence
         run: |
           pip install --require-hashes -r requirements.lock
           python -m eesti.cli fetch-data
           python -m eesti.cli build
+
+      # The Claude lane needs Anthropic's SDK; the other lanes stay stdlib-only.
+      - name: Install the Anthropic SDK (anthropic lane only)
+        if: env.PROVIDER == 'anthropic' && !inputs.evidence && env.TRACK != 'external'
+        run: pip install "anthropic==$(sed -n 's/^anthropic==\([0-9.]*\).*/\1/p' requirements.lock)"
 
       # Informative, never a gate: a catalogue error must not stop the scoring.
       - name: Check the pinned model id still exists
@@ -102,6 +134,7 @@ jobs:
           python -m eesti.cli eval --provider "$PROVIDER" \
             ${MODEL:+--model "$MODEL"} \
             ${{ inputs.evidence && '--evidence' || '' }} \
+            --track "$TRACK" ${{ inputs.track == 'external' && format('--sample {0}', inputs.sample) || '' }} \
             | tee eval.txt || rc=$?
           echo "RC=$rc" >> "$GITHUB_OUTPUT"
 

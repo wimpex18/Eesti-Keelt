@@ -55,10 +55,17 @@ class TestTheChain:
     def test_the_chain_ends_somewhere_that_always_answers(self):
         assert [p.name for p in grammar.build_chain()][-1] == "vabamorf-offline"
 
-    def test_every_lane_is_free(self):
+    def test_every_paid_lane_has_a_ceiling(self):
+        """ADR-0008: a paid lane is allowed only with a daily cap the chain
+        enforces, and its price written where `/api/engines` reads it."""
+        from eesti.providers.budget import CAPS, GUEST_CAPS
+
         for name, provider in llm.PROVIDERS.items():
             assert provider.free_note, name
-            assert not provider.free_note.lower().startswith("paid"), name
+            if provider.free_note.lower().startswith("paid"):
+                assert CAPS.get(f"llm:{name}"), name
+                assert GUEST_CAPS.get(f"llm:{name}"), name
+                assert "$" in provider.free_note, name
 
     def test_the_estonian_local_lane_is_tried_first(self):
         assert grammar.LLM_PREFERENCE[0] == "local"
@@ -145,9 +152,9 @@ class TestTheRequest:
         assert "response_format" not in without
 
     def test_without_json_mode_the_prompt_and_parser_still_cope(self):
-        from eesti.evals.gec import SYSTEM
-
-        assert "ONLY valid JSON" in SYSTEM
+        # A lane without JSON mode is asked for JSON in its prompt (Claude's
+        # shape is held by a schema instead).
+        assert "ONLY valid JSON" in grammar.system_prompt("openrouter")
         assert llm.parse_json('```json\n{"corrections": []}\n```') == {"corrections": []}
 
     def test_an_empty_reply_is_named(self, monkeypatch):

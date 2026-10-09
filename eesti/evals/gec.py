@@ -16,13 +16,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from ..providers.grammar import SYSTEM_PROMPT as SYSTEM
-from ..providers.grammar import why_failed
+from ..providers.grammar import system_prompt
+from ..providers.grammar import CORRECTIONS_SCHEMA, why_failed
 from ..providers.llm import complete, parse_json
 
-# The prompt under test is the one the app ships (`providers/grammar.py`), so the
-# score describes what learners get. `_flagged` reads only `wrong`; the extra
-# Russian `why` field costs nothing.
+# The prompt under test is the one the app ships for that lane
+# (`grammar.system_prompt`), so the score describes what learners get.
+# `_flagged` reads only `wrong`; the extra Russian `why` field costs nothing.
 
 #: Lanes of the grammar chain that are not LLMs, scored through their own
 #: client. Public GEC and translation normalization are evaluation-only.
@@ -39,7 +39,8 @@ def _ask(provider: str, sentence: str, model: str | None, evidence: bool) -> dic
         result = lane.check(sentence)
         return {"corrections": [c.to_dict() for c in result.corrections]}
     prompt = with_evidence(sentence) if evidence else sentence
-    return parse_json(complete(provider, SYSTEM, prompt, model=model))
+    return parse_json(complete(provider, system_prompt(provider), prompt, model=model,
+                              pace=True, schema=CORRECTIONS_SCHEMA))
 
 
 def with_evidence(sentence: str) -> str:

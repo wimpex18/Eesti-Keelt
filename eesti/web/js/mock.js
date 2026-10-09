@@ -151,15 +151,37 @@ function renderTasks(section) {
     return;
   }
   if (section.kind === "writing") {
-    const task = section.tasks[0];
-    box.innerHTML = `
-      <p class="hint">${esc(task.about)} Минимум ${task.min_words} слов.</p>
-      <textarea id="mockWritten" lang="et" rows="8" autocapitalize="sentences"
-        autocorrect="off" spellcheck="false" aria-label="Tekst — твой текст"></textarea>
-      <p class="hint" id="mockWords">0 слов</p>`;
-    $("#mockWritten").addEventListener("input", e => {
-      $("#mockWords").textContent =
-        ruCount(e.target.value.split(/\s+/).filter(Boolean).length, WORDS);
+    /* Both of HARNO's tasks, each in its variants; the learner picks one per
+       task. No spellcheck or autocorrect: the exam is written by hand. */
+    const field = v => v.kind === "kusimustik"
+      ? v.questions.map((q, n) => `<label class="placement-task" lang="et">${esc(q)}
+          <input data-q="${n}" lang="et" autocomplete="off" autocapitalize="sentences"
+            autocorrect="off" spellcheck="false" aria-label="Vastus ${n + 1} — ответ"></label>`).join("")
+      : `${v.card.length ? `<pre class="mock-card" lang="et">${esc(v.card.join("\n"))}</pre>` : ""}
+         <textarea lang="et" rows="7" autocapitalize="sentences" autocorrect="off"
+           spellcheck="false" aria-label="Tekst — твой текст"></textarea>
+         <p class="hint mock-words">0 слов</p>`;
+    const variant = v => `<div class="mock-variant" data-id="${esc(v.id)}" data-kind="${esc(v.kind)}">
+        <p class="prompt" lang="et">${esc(v.prompt_et)}</p>
+        <p class="hint" lang="ru">${esc(v.prompt_ru)}</p>${field(v)}</div>`;
+    box.innerHTML = section.tasks.map(t => `
+      <div class="mock-task mock-writing" data-no="${t.no}">
+        <p lang="et"><b>${t.no}. ülesanne</b>${t.points ? ` · ${t.points} toorpunkti` : ""}</p>
+        <label lang="et">Variant <i class="ru" lang="ru">вариант</i>
+          <select data-pick="${t.no}">${t.variants.map(v =>
+            `<option value="${esc(v.id)}">${esc(v.kind_et)}</option>`).join("")}</select></label>
+        ${t.variants.map(variant).join("")}
+      </div>`).join("");
+    box.querySelectorAll(".mock-writing").forEach(task => {
+      const pick = task.querySelector("select");
+      const show = () => task.querySelectorAll(".mock-variant").forEach(v =>
+        v.hidden = v.dataset.id !== pick.value);
+      pick.addEventListener("change", show);
+      show();
+      task.querySelectorAll("textarea").forEach(area => area.addEventListener("input", () => {
+        area.parentElement.querySelector(".mock-words").textContent =
+          ruCount(area.value.split(/\s+/).filter(Boolean).length, WORDS);
+      }));
     });
     return;
   }
@@ -187,7 +209,12 @@ async function finish(ranOut, seconds) {
     body.answers = tasks.map((el, i) => ({
       text: section.tasks[i].text, given: el.querySelector("input").value}));
   } else if (section.kind === "writing") {
-    body.written = $("#mockWritten").value;
+    body.tasks = [...document.querySelectorAll("#mockTasks .mock-writing")].map(task => {
+      const v = task.querySelector(`.mock-variant[data-id="${task.querySelector("select").value}"]`);
+      return v.dataset.kind === "kusimustik"
+        ? {id: v.dataset.id, answers: [...v.querySelectorAll("input[data-q]")].map(x => x.value)}
+        : {id: v.dataset.id, text: v.querySelector("textarea").value};
+    });
   } else {
     body.answers = section.tasks.map(() => ({given: ""}));
   }
@@ -201,8 +228,7 @@ async function finish(ranOut, seconds) {
     const score = r.correct === null
       ? "без оценки — на экзамене эта часть сдаётся в паре"
       : section.kind === "writing"
-        ? `${ruCount(d.words, WORDS)} (нужно от ${d.min_words})` +
-          (d.errors ? `, найдено ошибок: ${d.errors}` : ", ошибок код не нашёл")
+        ? `список выполнен в ${r.correct} из ${r.asked} заданий`
         : `${r.correct} из ${r.asked}`;
     verdict.className = "verdict ok";
     verdict.innerHTML = `${ranOut ? "Время вышло. " : ""}${esc(score)} ·
@@ -217,12 +243,28 @@ async function finish(ranOut, seconds) {
             ? `<del>${esc(row.given)}</del>` : '<span lang="ru">нет ответа</span>'}${row.answer
             ? ` → <ins>${esc(row.answer.split(" ~ ")[0])}</ins>` : ""}</span>`}</li>`).join("")}</ol>`);
     }
-    if (section.kind === "writing" && (r.detail.findings || []).length) {
-      verdict.insertAdjacentHTML("beforeend",
-        `<div class="hint">` + r.detail.findings.map(f =>
-          `<div>✗ <del lang="et">${esc(f.wrong)}</del>${f.correct
-            ? ` → <ins lang="et">${esc(f.correct)}</ins>` : ""} — ${esc(f.why || "")}</div>`
-        ).join("") + `</div>`);
+    // The topics behind the misses: review leads straight to practice.
+    if ((r.practise || []).length) {
+      verdict.insertAdjacentHTML("beforeend", `<p class="hint"><span lang="et">Harjuta neid</span>
+        <span lang="ru">— потренируй правила, где были ошибки:</span> ${r.practise.map(t =>
+          `<a href="#session/${encodeURIComponent(t)}" lang="et">${esc(t)}</a>`).join(" · ")}</p>`);
+    }
+    // Writing: each task's checklist — what code found, never a mark.
+    if (section.kind === "writing") {
+      const mark = ok => ok ? "✓" : "✗";
+      verdict.insertAdjacentHTML("beforeend", (r.detail.tasks || []).map(t => `
+        <div class="hint"><b lang="et">${esc(t.kind_et)}</b>:
+          ${t.answered !== null ? `ответов ${t.answered} из 10` : `${ruCount(t.words, WORDS)}
+            (${t.at_least ? "нужно не меньше" : "около"} ${t.target_words})`} ${mark(t.long_enough)}
+          ${t.points.map(p => `<div>${mark(p.found)} <span lang="et">${esc(p.et)}</span>
+            <span lang="ru">— ${esc(p.ru)}</span></div>`).join("")}
+          ${t.opening !== null ? `<div>${mark(t.opening)} <span lang="ru">приветствие</span>
+            · ${mark(t.closing)} <span lang="ru">прощание и подпись</span></div>` : ""}
+          ${t.findings.map(f => `<div>✗ <del lang="et">${esc(f.wrong)}</del>${f.correct
+            ? ` → <ins lang="et">${esc(f.correct)}</ins>` : ""} — ${esc(f.why || "")}</div>`).join("")}
+        </div>`).join("") + `<p class="hint">Список проверяет код: есть ли в тексте
+          признаки каждого пункта. Это подсказка, а не оценка экзамена.
+          Авторство заданий: ${esc(r.detail.prompts_by || "")}.</p>`);
     }
     document.querySelectorAll("#mockTasks input, #mockTasks textarea")
       .forEach(x => x.disabled = true);

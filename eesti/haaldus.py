@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from dataclasses import dataclass
+from functools import lru_cache as _lru_cache
 from pathlib import Path
 
 #: EKI's form tags, mapped to the tags this app uses (`morph.case_forms`).
@@ -241,6 +242,33 @@ def spoken(conn: sqlite3.Connection, form: str,
             if row["tag"] == tag:
                 return row
     return rows[0]
+
+
+def counted(path: Path | str | None = None) -> dict | None:
+    """How many word forms and sentences a person read, or None without a store.
+
+    Counted once per version of the file (path, mtime, size): in production the
+    store is a network mount, and every course load and health report asks.
+    """
+    from . import config
+
+    target = Path(path or config.AUDIO_DB)
+    try:
+        stat = target.stat()
+    except OSError:
+        return None
+    forms, sentences = _counted(str(target.resolve()), stat.st_mtime_ns, stat.st_size)
+    return {"forms": forms, "sentences": sentences}
+
+
+@_lru_cache(maxsize=4)
+def _counted(path: str, mtime: int, size: int) -> tuple[int, int]:
+    conn = connect(path)
+    try:
+        return (conn.execute("SELECT COUNT(*) FROM pronunciation").fetchone()[0],
+                conn.execute("SELECT COUNT(*) FROM sentence_audio").fetchone()[0])
+    finally:
+        conn.close()
 
 
 def counts(conn: sqlite3.Connection) -> dict:

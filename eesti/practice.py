@@ -50,6 +50,28 @@ def theme_slot(topic: str) -> str | None:
     return None
 
 
+#: Generators whose items are heard, so they need EKI's recordings on this
+#: server and a connection: an offline pack leaves them out.
+HEARD = frozenset({"sounds"})
+
+
+def missing_here() -> set[str]:
+    """Topics whose material is not on this server, so nothing can be drilled.
+
+    Resuming to one would show an empty screen, the way a topic with no
+    generator would (`progress.resume`).
+    """
+    from . import haaldus
+    from .curriculum import TOPICS
+
+    heard = {t.id for t in TOPICS if t.generator in HEARD}
+    try:
+        found = haaldus.counted()   # once per file version: the store is a mount
+    except sqlite3.Error:
+        return heard
+    return set() if found and found["forms"] else heard
+
+
 def items_for(
     topic: str,
     count: int = 10,
@@ -61,8 +83,9 @@ def items_for(
 ) -> list:
     """Practice items for one curriculum topic, from whichever generator owns it.
 
-    `rules` narrows `obj-case` to some of its sub-rules (`negation`, `completed`,
-    `ongoing`); no other generator has sub-rules, so it is ignored elsewhere.
+    `rules` narrows a topic with sub-rules to some of them (`obj-case`:
+    `negation`, `completed`, `imperative`…; `osaalus`: `eitus`, `mitmus`); other
+    generators ignore it.
 
     Raises when a topic has no generator, so "nothing to practise" is not mistaken
     for "the generator produced nothing".
@@ -227,6 +250,26 @@ def items_for(
 
     if generator == "object_case":
         return _object_case(words, count, levels, seed, content_db, rules)
+
+    if generator == "existential":
+        from .existential import drills as existential_drills
+
+        return existential_drills(count, seed, rules)
+
+    if generator == "sounds":
+        from .sounds import drills as sound_drills
+
+        return sound_drills(count, seed, rules, words)
+
+    if generator == "phrases":
+        from .phrases import drills as phrase_drills
+
+        return phrase_drills(count, seed, rules, words)
+
+    if generator == "numbers":
+        from .numbers import drills as number_drills
+
+        return number_drills(count, seed, rules)
 
     if generator == "verb_stems":
         from .drills import generate_verb_drills

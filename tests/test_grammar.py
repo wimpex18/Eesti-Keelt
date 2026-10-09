@@ -109,8 +109,9 @@ class TestEveryDrillableTopicLinksToTheHandbook:
             if by_tag.get("known") or describe(topic.id).get("known"):
                 continue
             missing.append(topic.id)
-        # `kusisonad` has no reference: no handbook section covers question words.
-        assert missing == ["kusisonad"], f"unexpected topics without a rule: {missing}"
+        # No handbook section covers question words (`kusisonad`) or greetings
+        # (`fraasid`, a phrase collection, not a rule).
+        assert missing == ["fraasid", "kusisonad"], f"unexpected topics without a rule: {missing}"
 
     def test_no_reference_invents_a_chapter(self):
         """Every entry points at a chapter the handbook actually has."""

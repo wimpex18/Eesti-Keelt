@@ -40,6 +40,20 @@ class PatternDrill(GradedItem):
     #: only): EKI's EVS for the answer word (`cue_for`). Never the Estonian
     #: answer; never read by `check`.
     answer_ru: tuple[str, ...] = ()
+    #: A word form to play before answering (EKI's recording where there is one,
+    #: synthesis otherwise) and the tag of the recording meant: *salli* is two
+    #: recordings. Empty for items read, not heard. Offline packs leave these out.
+    say: str = ""
+    say_tag: str = ""
+    #: The options when the item is always a choice (sounds, phrases); the page
+    #: otherwise offers answer and distractor on first sight only.
+    choices: tuple[str, ...] = ()
+    #: The registry id of the material the item is built from, credited on the
+    #: page (`licences.credit`).
+    source_id: str = ""
+    #: False where a translation would give the answer away: the phrase is the
+    #: answer, or the item is heard.
+    translate: bool = True
 
     @property
     def label(self) -> str:

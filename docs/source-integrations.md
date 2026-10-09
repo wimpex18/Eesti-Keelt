@@ -27,7 +27,8 @@ learner state have separate lifecycles.
 | Selges keeles WordPress archive | `eesti/harvest/selges.py`; v1.1 API pages, advertised-total validation, markup cleaning and relative difficulty | `data/content.db` items → Lugemine, cloze and topic links | Closed archive, 349 readable posts; publication ends in 2018. This is reading practice, not current news or an official CEFR corpus |
 | ERR Lihtsad uudised | `eesti/harvest/lihtsad.py`; live feed and article prose | Same private corpus → Lugemine and comprehension questions | Manual harvest; no scheduled news refresh. Parser currently supplies text without a listening recording |
 | ERR Raadio 4 archives | `eesti/harvest/err.py`; three seed series, cached page graph, episode text and media URLs | Same private corpus → Saated with section pagination; `eesti/web/js/media.js` plays MP3/HLS inside the app | Reachable archive pages define the crawl, not a promised full historical catalogue. HTML cache has no expiry; audio streams remain dependent on ERR |
-| EKI PSV pronunciation | `cli import-haaldused`, `eesti/haaldus.py`; licensed local archive | Private `data/audio.db` → GCS read-only mount → word-form playback; TTS fallback | Presence is reported as recording counts. Licensing of each speech corpus still matters; pronunciation scoring is not provided |
+| EKI PSV pronunciation | `cli import-haaldused`, `eesti/haaldus.py`; licensed local archive | `data/audio.db` → GCS read-only mount → word-form playback for every learner and unit 1's sound items (`eesti/sounds.py`); TTS fallback for word forms only | Presence is reported as recording counts; without them the sound topic says so and resume passes it. Licensing of each speech corpus still matters; pronunciation scoring is not provided |
+| EKI Sõnaveeb learner pages (*Kasulikke väljendeid A1*, piltsõnastik, e-hääldusharjutused) | Transcribed as text in code: phrases in `eesti/phrases.py`, the first week's word selection in `eesti/units.py` | Unit 1's phrase items and first words; the exercises are linked | Sõnaveeb's terms put its information under CC BY 4.0; the pictures and exercise audio state no licence and are not copied (DEV-55) |
 | EKI read-speech corpora | `cli import-konekorpus`; selected licensed sentence recordings | Same audio store → human-voiced dictation | Selected recording coverage is not the whole upstream corpus; audio and underlying read works have distinct rights |
 | TartuNLP TTS and translation | Public v2 APIs, `eesti/providers/tts.py` and `eesti/providers/translate.py`; documented request/response formats | Cached WAV/MP3 synthesis and advisory translations; text playback, dictation and conversation voice | Service availability and model identity are separate from configuration. Machine translation is not an authoritative lexical source |
 | Home speech service and Workers AI Whisper | Worker routes audio to `deploy/home-asr/` through the existing VPC binding; Whisper fallback | Tentative transcript stays editable in the app; ordinary practice audio is unsaved | Recogniser engine is named. Quality needs human-verified learner audio; current evidence is below the pilot floor (`docs/asr-evaluation.md`) |
@@ -69,19 +70,20 @@ readable. The procedure is in `docs/deploy.md`.
 
 The current production explanations and word meanings are Russian, with
 Estonian labels and examples. English/Ukrainian speakers can use Estonian
-material but do not have equivalent instructional support. A0 is a starting
-recommendation rather than a CEFR level or a complete beginner course.
-Six topics remain reference-only; open speaking is practice evidence, not an
+material but do not have equivalent instructional support. The course's first
+unit, *Algus*, is a stage, not a CEFR level (`docs/course-structure.md`).
+Five topics remain reference-only; open speaking is practice evidence, not an
 acoustic score or exam result. See `docs/status.md` for the current boundaries.
 
 The product brief in `PRODUCT.md` confirms Russian for the MVP, English and
 Ukrainian next, a complete beginner path, and onboarding through a chosen start
 or an assessment. Shared lesson and progress identities must survive a change
-of explanation language. Linear DEV-5 tracks these requirements, including
-revisitable skips across lessons and text/audio/video skill practice.
+of explanation language. Linear DEV-40 tracks the course, DEV-42 the explanation
+languages.
 
-Keeleklikk/Keeletee are credible complete-course candidates for beginner/A2/B1
-and multilingual guidance, but free access is not permission to rehost their
+Keeleklikk/Keeletee are the state's free courses for beginner/A2/B1 with
+multilingual guidance; each Grove unit links to its companion unit's public
+course map (`eesti/units.py`), but free access is not permission to rehost their
 animations, video and exercises. EKI's English dictionary download is marked
 public domain; its reversed Estonian-English file explicitly warns about use
 and needs a sense/quality review before adopting it as learner translations.

@@ -93,7 +93,7 @@ class TestCurriculumCounts:
                 f"{doc.relative_to(ROOT)}:{line} says {value}; "
                 f"the code has {len(have)} of {len(drillable)}.\n  {text}")
 
-    def test_the_one_topic_with_no_handbook_link_is_named(self):
+    def test_the_topics_with_no_handbook_link_are_named(self):
         """A wrong link is worse than none, so the exception is deliberate and
         the document names it. If a second one ever appears, the sentence stops
         being true in a way no count would show."""
@@ -103,9 +103,9 @@ class TestCurriculumCounts:
         missing = [t.id for t in TOPICS if t.generator
                    and not (t.tag and describe(t.tag).get("known"))
                    and not describe(t.id).get("known")]
-        assert missing == ["kusisonad"], (
-            f"status.md names `kusisonad` as the only topic with no handbook "
-            f"link; the code has {missing}")
+        assert missing == ["fraasid", "kusisonad"], (
+            f"status.md names `kusisonad` and `fraasid` as the topics with no "
+            f"handbook link; the code has {missing}")
 
     def test_the_shipped_glossary_count(self):
         """294 is a row count in a file, and a file people add rows to."""

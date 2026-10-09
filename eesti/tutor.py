@@ -107,8 +107,11 @@ def _completion(name: str, system: str, prompt: str) -> dict:
                        for key in ("explanation_ru", "reply_et", "hint_ru"))
                 or ("questions" in reply and not isinstance(reply["questions"], list))):
             raise ValueError("invalid tutor response schema")
-    except Exception:
-        breaker.record_failure(f"llm:{name}")
+    except Exception as exc:
+        from .providers.llm import is_fault
+
+        if is_fault(exc):
+            breaker.record_failure(f"llm:{name}")
         raise
     breaker.record_success(f"llm:{name}")
     return reply

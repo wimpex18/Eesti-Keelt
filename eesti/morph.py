@@ -185,15 +185,26 @@ def case_forms(lemma: str) -> dict[str, str]:
     """
     out: dict[str, str] = {}
     for key, tag in (("genitive", GENITIVE_SG), ("partitive", PARTITIVE_SG)):
-        candidates = {
-            c for c in (synthesize(lemma, tag) or []) if (lemma, tag) in _readings(c)
-        }
-        # No tie-breaking: homographs (`reis` the journey vs the thigh) and free variants
-        # (`kaht`/`kahte`) cannot be separated by morphology, so they are refused.
-        if len(candidates) != 1:
+        form = unique_form(lemma, tag)
+        if form is None:
             return {}
-        out[key] = candidates.pop()
+        out[key] = form
     return out
+
+
+@lru_cache(maxsize=8192)
+def unique_form(lemma: str, tag: str) -> str | None:
+    """The one form of `lemma` in `tag` (`sg n`, `pl g`...), or None.
+
+    A synthesised candidate counts only if it reads back as this lemma in this
+    form. No tie-breaking: homographs (`reis` the journey vs the thigh) and free
+    variants (`kaht`/`kahte`) cannot be separated by morphology, so they are
+    refused, because a wrong answer key is worse than no item.
+    """
+    candidates = {
+        c for c in (synthesize(lemma, tag) or []) if (lemma, tag) in _readings(c)
+    }
+    return candidates.pop() if len(candidates) == 1 else None
 
 
 def has_distinct_object_cases(lemma: str) -> bool:

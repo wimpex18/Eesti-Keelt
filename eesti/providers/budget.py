@@ -22,6 +22,7 @@ CAPS: dict[str, int | None] = {
     "llm:mistral": 400,
     "llm:workers-ai": 300,       # 10 000 neurons/day, shared with speech
     "llm:local": None,           # your machine
+    "llm:anthropic": 2000,       # paid: about $0.0003 a call, so at most ~$0.60 a day
     "tartunlp": 500,
     "tartunlp-mt": 500,
     "asr:workers-ai": 200,       # audio minutes cost neurons too
@@ -33,6 +34,7 @@ CAPS: dict[str, int | None] = {
 GUEST_CAPS: dict[str, int | None] = {
     **CAPS,
     "llm:workers-ai": 100,
+    "llm:anthropic": 300,
     "tartunlp": 200,
     "tartunlp-mt": 200,
     "asr:workers-ai": 50,

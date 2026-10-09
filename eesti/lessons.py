@@ -269,6 +269,12 @@ def _rule(ref) -> dict | None:
             "ekk_section": ref.ekk_section, "url": ref.url}
 
 
+def _missing_here() -> set[str]:
+    from .practice import missing_here
+
+    return missing_here()
+
+
 def lesson(topic: str, *, log: sqlite3.Connection | None = None,
            content: sqlite3.Connection | None = None,
            words: sqlite3.Connection | None = None) -> dict | None:
@@ -290,7 +296,7 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
             related = []
     return {
         "id": t.id, "level": t.level, "et": t.et, "ru": t.ru,
-        "drillable": bool(t.generator),
+        "drillable": bool(t.generator) and t.id not in _missing_here(),
         "rule": _rule(t.reference),
         "tip": ({"gist_ru": TIPS[topic].gist_ru, "wrong": TIPS[topic].wrong,
                  "right": TIPS[topic].right} if topic in TIPS else None),

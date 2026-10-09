@@ -389,6 +389,10 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     monkeypatch.setattr(config, "GUEST_DIR", str(scratch / "guest"))
     monkeypatch.setattr(config, "LEARNERS_DIR", str(scratch / "learners"))
 
+    # EKI's recordings: absent unless a test builds them (as CI has none), so a
+    # test never plays, or depends on, the developer's own `data/audio.db`.
+    monkeypatch.setattr(config, "AUDIO_DB", str(tmp_path / "audio" / "audio.db"))
+
     # The downloaded exam material: empty unless a test puts a file there, so a
     # test never serves the learner's own copy of HARNO's PDFs.
     exam_dir = tmp_path / "exam"
@@ -409,6 +413,41 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
     lookup._open.cache_clear()
     yield
     lookup._open.cache_clear()
+
+
+#: EKI's own index rows, as `cli import-haaldused` stores them: the plain form,
+#: the tag, and the form with EKI's marks (` before a third-quantity syllable).
+RECORDED = [
+    ("salli", "sg g", "salli"), ("salli", "sg p", "s`alli"),
+    ("palli", "sg g", "palli"), ("palli", "sg p", "p`alli"),
+    ("kassi", "sg g", "kassi"), ("kassi", "sg p", "k`assi"),
+    ("kana", "", "kana"), ("kanna", "", "k`anna"),
+    ("kapp", "", "k`app"), ("käpp", "", "k`äpp"),
+    ("koht", "", "k`oht"), ("kõht", "", "k`õht"),
+    ("aja+kirja", "sg g", "aja+kirja"),
+    # No contrast: both unmarked, so neither may become a quantity item.
+    ("lina", "sg g", "lina"), ("lina", "sg p", "lina"),
+    # A doubled stop is II against III quantity, not short against long.
+    ("kapi", "sg g", "kapi"), ("kappi", "sg p", "k`appi"),
+]
+
+
+@pytest.fixture
+def eki_recordings(tmp_path, monkeypatch):
+    """A few of EKI's recordings, stored by the app's own opener, for tests that
+    need heard items (CI has no `data/audio.db`)."""
+    from eesti import config, haaldus
+
+    path = tmp_path / "audio.db"
+    conn = haaldus.connect(path)
+    with conn:
+        conn.executemany(
+            "INSERT INTO pronunciation (form, tag, spoken, lemma, mime, audio, source)"
+            " VALUES (?,?,?,?,?,?,?)",
+            [(haaldus.plain(s), tag, s, "", "audio/mpeg", b"\x00", "psv-haaldused")
+             for _form, tag, s in RECORDED])
+    monkeypatch.setattr(config, "AUDIO_DB", str(path))
+    return path
 
 
 @pytest.fixture(scope="session")

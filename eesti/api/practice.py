@@ -78,6 +78,8 @@ class _Answered:
             self.label = issued["hint"]
             self.rule = issued["rule"]
             self.why_ru = issued["why_ru"]
+            self.source_id = issued.get("source_id", "")
+            self.say = issued.get("say", "")
             return
         self.topic = req.topic
         self.prompt = req.prompt
@@ -87,11 +89,118 @@ class _Answered:
         self.label = req.label
         self.rule = req.rule
         self.why_ru = req.why_ru
+        self.source_id = ""
+        self.say = ""
 
     def check(self, given: str) -> bool:
         from ..item import accepts
 
         return accepts(self.answer, given)
+
+
+def _units(rows, now_topic: str | None) -> list[dict]:
+    """The course's units over the learner's topic states (`eesti/units.py`).
+
+    A unit reports how many of its core topics are mastered; it is not called
+    complete, because its unit check is not built (`docs/course-structure.md`).
+    """
+    from .. import units
+    from ..meaning import russian_many
+
+    from ..unitcheck import parts, passed_units
+
+    state = {r.topic: r.state for r in rows}
+    current = units.home(now_topic).id if now_topic else None
+    checked = passed_units(progress_db())
+    out = []
+    for u in units.UNITS:
+        lemmas = units.words_for(u) if u.words == "algus" else ()
+        meanings = russian_many(db(), gloss_db(), list(lemmas)) if lemmas else {}
+        out.append({
+            "id": u.id, "n": u.n, "et": u.et, "stage": u.stage, "goal_ru": u.goal_ru,
+            "topics": list(u.topics),
+            "mastered": sum(state.get(t) == "mastered" for t in u.topics),
+            # Moved past: something skipped and nothing left to learn.
+            "skipped": any(state.get(t) == "skipped" for t in u.topics) and all(
+                state.get(t) in ("skipped", "mastered", "reference") for t in u.topics),
+            "revisits": [{"topic": r.topic, "rules": list(r.rules), "note_ru": r.note_ru}
+                         for r in u.revisits],
+            "harno": list(u.harno),
+            "course": f"{'Keeleklikk' if u.course[0] == 'KK' else 'Keeletee'} {u.course[1]}"
+                      if u.course else None,
+            "course_url": units.course_link(u, "ru"),
+            "checkpoint": u.checkpoint,
+            # The checked half of completion (`eesti/unitcheck.py`); a unit with
+            # nothing drillable has no check and is never called complete.
+            "checkable": bool(parts(u)),
+            "checked": u.id in checked,
+            "complete": u.id in checked and all(
+                state.get(t) in ("mastered", "reference") for t in u.topics),
+            "words": [{"et": w, "ru": meanings.get(w, [])[:2]} for w in lemmas],
+            "pictures_url": units.PICTURES_URL if lemmas else None,
+            "current": u.id == current,
+        })
+    return out
+
+
+class UnitCheckAnswers(BaseModel):
+    seed: int
+    given: list[str] = Field(min_length=1, max_length=60)
+
+
+def _unit(unit_id: str):
+    from ..units import by_id
+
+    try:
+        return by_id(unit_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"no such unit: {unit_id}") from exc
+
+
+@router.get("/api/units/{unit_id}/check")
+def unit_check_items(unit_id: str, seed: int | None = None) -> dict:
+    """A unit's check: five items per core topic and per revisited rule, or the
+    stage checkpoint for a revision unit (`eesti/unitcheck.py`)."""
+    import secrets
+
+    from ..curriculum import by_id as topic
+    from ..unitcheck import PART_PASS, PER_PART, build, parts
+
+    unit = _unit(unit_id)
+    asked = parts(unit)
+    if not asked:
+        raise HTTPException(status_code=400, detail=(
+            "В этом блоке пока нечего проверять: у его тем нет заданий."))
+    seed = seed if seed is not None else secrets.randbelow(2**31)
+    try:
+        items = build(unit, seed)
+    except (ValueError, RuntimeError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "unit": unit.id, "et": unit.et, "seed": seed,
+        "parts": [{"topic": t, "rules": list(r) if r else None,
+                   "et": (topic(t).et if not t.startswith("checkpoint:")
+                          else f"Kontrolltöö {t.split(':', 1)[1]}")} for t, r in asked],
+        "items": [item_for_page(i) for _, i in items],
+        "glosses": _glosses_for([i.lemma for _, i in items]),
+        "note": (f"По {PER_PART} заданий на каждую тему блока; нужно не меньше "
+                 f"{PART_PASS} из {PER_PART} в каждой. Ошибка ничего не отнимает."),
+    }
+
+
+@router.post("/api/units/{unit_id}/check")
+def unit_check_result(unit_id: str, req: UnitCheckAnswers) -> dict:
+    """Grade a unit check: the server rebuilds the set from the seed."""
+    from .. import config
+    from ..review import connect as review_connect
+    from ..unitcheck import grade
+
+    unit = _unit(unit_id)
+    try:
+        return grade(progress_db(), unit, req.seed, req.given,
+                     reviews=review_connect(config.learner_db("REVIEW_DB")))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/api/curriculum")
@@ -138,6 +247,7 @@ def curriculum_path() -> dict:
             }
             for r in rows
         ],
+        "units": _units(rows, now_topic),
     }
 
 
@@ -154,6 +264,24 @@ def skip_topic(topic: str, req: TopicSkip) -> dict:
         set_skip(progress_db(), topic, req.skip)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Такой темы нет.") from exc
+    return curriculum_path()
+
+
+class UnitsSkip(BaseModel):
+    units: list[str]
+    skip: bool = True
+
+
+@router.post("/api/course/units/skip")
+def skip_units(req: UnitsSkip) -> dict:
+    """Move past units — one, a run before a chosen unit, a stage — or put them
+    back, without asserting knowledge."""
+    from ..course import set_units_skip
+
+    try:
+        set_units_skip(progress_db(), req.units, req.skip)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Такого блока нет.") from exc
     return curriculum_path()
 
 
@@ -518,17 +646,29 @@ def offline_pack(count: int = 24) -> dict:
     from ..progress import resume
     from ..review import connect as review_connect
 
+    from ..curriculum import by_id
+    from ..practice import HEARD
+    from ..progress import report
+
     count = max(4, min(count, 60))
     progress = progress_db()
+
+    def written(topic: str) -> bool:
+        """Answerable without a recording: heard items need a connection."""
+        return by_id(topic).generator not in HEARD
+
     topics: list[str] = []
     here = resume(progress)
-    if here:
+    if here and written(here):
         topics.append(here)
     weak = weak_rules(rule_evidence(
         progress, review_connect(config.learner_db("REVIEW_DB"))))
-    topics += [e.topic for e in weak if e.topic not in topics][:2]
+    topics += [e.topic for e in weak if e.topic not in topics and written(e.topic)][:2]
     if not topics:
-        topics = ["kusisonad"]
+        # The next topic that can be answered in writing.
+        topics = [r.topic for r in report(progress)
+                  if r.state in ("ready", "in progress") and r.drillable
+                  and written(r.topic)][:1] or ["kusisonad"]
 
     per = max(2, count // len(topics))
     items, glosses = [], {}
@@ -539,6 +679,10 @@ def offline_pack(count: int = 24) -> dict:
         except (ValueError, RuntimeError, KeyError):
             continue
         for n, item in enumerate(made):
+            # An item that is heard needs the recording, and offline there is
+            # nobody to fetch it from.
+            if getattr(item, "say", ""):
+                continue
             items.append(item_for_page(item) | {
                 "topic": topic,
                 "token": sign(item, practice_ref(

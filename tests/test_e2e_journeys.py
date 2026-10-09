@@ -45,6 +45,9 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_start_paints_requested_content_before_scripts_arrive(page, live_server):
     pending = []
     page.route("**/js/main.js", lambda route: pending.append(route))
+    # The profile answers after the learner's first click, as on a slow phone.
+    profile = []
+    page.route("**/api/me", lambda route: profile.append(route))
     page.goto(live_server + "/?qa-start-render=1#start", wait_until="commit")
     heading = page.locator("#tab-start h2")
     heading.wait_for(state="visible")
@@ -58,6 +61,14 @@ def test_start_paints_requested_content_before_scripts_arrive(page, live_server)
         request.continue_()
     page.wait_for_function("!document.querySelector('#tab-start [data-start]').disabled")
     start.click()
+    assert "Milleks õpid?" in page.locator("#tab-start h2").inner_text()
+    assert profile
+    with page.expect_response("**/api/me") as answered:
+        for request in profile:
+            request.continue_()
+    answered.value.finished()
+    page.evaluate("() => new Promise(r => setTimeout(r, 50))")
+    # The late profile must not take the learner back to the first screen.
     assert "Milleks õpid?" in page.locator("#tab-start h2").inner_text()
 
 
@@ -1959,12 +1970,18 @@ class TestTheWholeSitting:
         page.wait_for_selector("#mockWhole", state="attached", timeout=15000)
         page.click("#mock > summary")
         page.click("#mockWhole")
-        # Writing comes first in the exam's order.
-        page.wait_for_selector("#mockWritten", timeout=20000)
-        page.fill("#mockWritten", " ".join(["sõna"] * 35))
+        # Writing comes first in the exam's order: both tasks, each in a variant.
+        page.wait_for_selector("#mockTasks .mock-writing textarea", timeout=20000)
+        tasks = page.locator("#mockTasks .mock-writing")
+        assert tasks.count() == 2
+        for n in range(2):
+            visible = tasks.nth(n).locator(".mock-variant:not([hidden]) textarea")
+            if visible.count():
+                visible.fill(" ".join(["sõna"] * 35))
         page.click("#mockDone")
         page.wait_for_selector("#mockNext button", timeout=20000)
-        assert "слов" in page.locator("#mockVerdict").inner_text()
+        verdict = page.locator("#mockVerdict").inner_text()
+        assert "список" in verdict and "не оценка" in verdict
 
         page.click("#mockNext button")           # kuulamine
         page.wait_for_selector("#mockTasks .mock-task", timeout=20000)
@@ -1983,18 +2000,65 @@ class TestTestingOutOfATopic:
         button.wait_for(timeout=10000)
         topic = button.get_attribute("data-testout")
         button.click()
-        page.wait_for_selector("#testoutTasks input", timeout=20000)
+        # A typed answer, or a choice where the item is one (unit 1's phrases).
+        page.wait_for_selector("#testoutTasks input, #testoutTasks select", timeout=20000)
 
         # The answers come from the API, as a learner who knows them would type.
         answers = page.evaluate("""async ([base, topic]) => {
             const r = await fetch(`${base}/api/testout/${topic}`);
             return await r.json();
         }""", [live_server, topic])
-        inputs = page.locator("#testoutTasks input")
+        inputs = page.locator("#testoutTasks input, #testoutTasks select")
         assert inputs.count() == len(answers["items"])
         page.click("#testoutDone")
         page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
         assert "из" in page.locator("#testoutVerdict").inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
+
+class TestCheckingAUnit:
+    """Kursus offers a unit's check; the server grades the whole set."""
+
+    def test_a_unit_check_runs_and_reports_each_part(self, page, live_server):
+        open_tab(page, "learn", "course")
+        page.wait_for_selector("#pathList button[data-unitcheck]", state="attached",
+                               timeout=20000)
+        # Unit 3 (Minu pere): two typed topics, so the journey types its answers.
+        fold = page.locator("#pathList details.path-level:has(button[data-unitcheck='pere'])")
+        fold.locator(":scope > summary").click()
+        fold.locator("button[data-unitcheck='pere']").click()
+        page.wait_for_selector("#testoutTasks input, #testoutTasks select", timeout=20000)
+        seed = page.evaluate("""async base => {
+            const r = await fetch(`${base}/api/units/pere/check?seed=5`);
+            return (await r.json()).items.length;
+        }""", live_server)
+        tasks = page.locator("#testoutTasks .mock-task")
+        assert tasks.count() == seed
+        page.click("#testoutDone")
+        page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
+        assert "из" in page.locator("#testoutVerdict").inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_learner_starts_from_a_later_unit_and_puts_one_back(self, page):
+        """'Alusta siit' moves past every earlier unit at once; one can come back."""
+        open_tab(page, "learn", "course")
+        page.wait_for_selector("#pathList button[data-unitcheck='pere']", state="attached",
+                               timeout=20000)
+        fold = page.locator("#pathList details.path-level:has(button[data-unitcheck='pere'])")
+        fold.locator(":scope > summary").click()
+        fold.locator("button[data-unitmove='skip']:has-text('Alusta siit')").click()
+        first = page.locator("#pathList details.path-level").first
+        first.locator(":scope > summary").filter(has_text="пропущено").wait_for(timeout=20000)
+        second = page.locator("#pathList details.path-level").nth(1)
+        assert "пропущено" in second.locator(":scope > summary").inner_text()
+        second.locator(":scope > summary").click()
+        second.locator("button[data-unitmove='back']").click()
+        page.wait_for_function("""() => {
+            const s = document.querySelectorAll('#pathList details.path-level > summary')[1];
+            return s && !s.textContent.includes('пропущено');
+        }""", timeout=20000)
+        assert "пропущено" in page.locator(
+            "#pathList details.path-level > summary").first.inner_text()
         assert not browser_errors(page), browser_errors(page)
 
 

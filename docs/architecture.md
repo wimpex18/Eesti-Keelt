@@ -46,10 +46,10 @@ browser ─► Cloudflare Worker (public entry, account sessions, PROXY_TOKEN, s
 | Concern | Modules |
 |---|---|
 | Morphology | `morph.py` (Vabamorf), `wordlist.py` (word list, `declines`), `export.py` + `lookup.py` (form index `edge.db`) |
-| Generators | `drills.py`, `cloze.py`, `conjugation.py`, `patterns.py`, `forms.py`, `verbs.py`, `punctuation.py`, `rection.py`, `wordorder.py`, `dictation.py`, `speaking.py`, `pronunciation.py`; shared shape in `item.py` |
+| Generators | `drills.py`, `cloze.py`, `conjugation.py`, `patterns.py`, `forms.py`, `verbs.py`, `punctuation.py`, `rection.py`, `wordorder.py`, `dictation.py`, `speaking.py`, `pronunciation.py`, `existential.py`, `sounds.py`, `phrases.py`, `numbers.py`; shared shape in `item.py` |
 | Planning | `learner.py` (rule evidence, weak rules, refresh, skill balance, mistakes), `planning.py` (today's plan) |
 | Exam | `exam.py` (HARNO's spec and sittings, the chosen goal, `.ics`), `mock.py` (a timed section per part), `readiness.py`, `checkpoint.py` |
-| Curriculum | `curriculum.py` (topics, prerequisites, generators, representations), `practice.py` (dispatch), `progress.py`, `placement.py`, `checkpoint.py`, `handoff.py`, `themes.py`, `overview.py`, `readiness.py` |
+| Curriculum | `curriculum.py` (topics, prerequisites, generators, representations), `units.py` (the course's units over the topics), `practice.py` (dispatch), `progress.py`, `placement.py`, `checkpoint.py`, `handoff.py`, `themes.py`, `overview.py`, `readiness.py` |
 | Evidence | `evidence.py` (event log, replay, backfill), `itemref.py` (signed, regenerable item refs) |
 | Review and vocabulary | `review.py` (FSRS), `mining.py`, `vocab.py`, `gloss.py` (stored dictionary answers), `meaning.py` (which Russian a word gets) |
 | EKI data | `ekixml.py` (file reader), `psv.py`, `evs.py`, `har.py`, `ekidefs.py` (VSL, EKSS), `haaldus.py` (recorded word forms and sentences) |

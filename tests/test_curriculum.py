@@ -139,8 +139,8 @@ def test_a_topic_reference_falls_back_to_the_topic_map():
         expected = (reference_for(t.tag) if t.tag else None) or reference_for(t.id)
         assert t.reference == expected, t.id
     drillable_without = [t.id for t in c.TOPICS if t.generator and t.reference is None]
-    # `kusisonad` has none, deliberately: no EKK section covers question words.
-    assert drillable_without == ["kusisonad"]
+    # Deliberately none: no EKK section covers question words or greetings.
+    assert drillable_without == ["fraasid", "kusisonad"]
 
 
 def test_every_topic_is_represented_or_says_why_not():

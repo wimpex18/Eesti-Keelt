@@ -65,10 +65,14 @@ class CheckpointResult:
 
 
 def topics_at(level: str) -> list[str]:
-    """Drillable topics at a level, in study order."""
+    """Drillable topics at a level, in study order. The first week (`algus`:
+    sounds, greetings, numbers) is not part of the A1 checkpoint: it is not
+    grammar, and a learner who starts at A1 moves past it (`eesti/units.py`)."""
     from .curriculum import order
+    from .units import stage_of
 
-    return [t.id for t in order() if t.level == level and t.generator]
+    return [t.id for t in order()
+            if t.level == level and t.generator and stage_of(t.id) != "algus"]
 
 
 def ready(progress: sqlite3.Connection, level: str) -> bool:

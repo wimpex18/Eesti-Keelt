@@ -36,13 +36,21 @@ class TestQueueFailed:
 
     def test_it_works_for_every_generator(self, reviews):
         from eesti.curriculum import TOPICS
+        from eesti.practice import missing_here
 
-        drillable = [t.id for t in TOPICS if t.generator]
+        drillable = [t.id for t in TOPICS if t.generator and t.id not in missing_here()]
         assert len(drillable) > 15
         for topic in drillable:
             item = items_for(topic, count=1, seed=1)
-            if item:
+            if item and not getattr(item[0], "say", ""):
                 assert handoff.queue_failed(reviews, item[0])
+
+    def test_a_heard_item_is_not_queued(self, reviews):
+        """A card cannot replay a recording, so a missed sound item makes none."""
+        from eesti.numbers import drills
+
+        heard = drills(count=2, seed=1, rules=("kuula",))[0]
+        assert heard.say and handoff.queue_failed(reviews, heard) is None
 
     def test_requeueing_does_not_reset_the_schedule(self, reviews):
         item = items_for("tingiv", count=1, seed=1)[0]

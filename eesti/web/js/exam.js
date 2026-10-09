@@ -38,7 +38,13 @@ function paintSpec(spec, goal) {
       <ul class="hint">${spec.parts.map(p => `<li><b lang="et">${esc(p.et)}</b>
         <i lang="ru">${esc(p.ru)}</i> — ${esc(p.about)}
         ${p.note ? `<span class="hint">${esc(p.note)}</span>` : ""}</li>`).join("")}</ul>
-    </details>`;
+    </details>
+    ${spec.exam_day ? `<details class="exam-parts more"><summary lang="et">Eksamipäev
+      <i class="ru" lang="ru">день экзамена</i></summary>
+      <ul class="hint" lang="ru">${spec.exam_day.rules.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+      <p class="hint"><a href="${esc(spec.exam_day.source)}" target="_blank" rel="noopener"
+        lang="et">${esc(spec.exam_day.source_name)}</a></p>
+    </details>` : ""}`;
 
   const chosen = goal && goal.level === spec.level ? goal : null;
   // The options say when, in Russian, under an Estonian label: each carries its

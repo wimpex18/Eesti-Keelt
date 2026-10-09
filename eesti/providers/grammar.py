@@ -51,6 +51,70 @@ Rules:
 - If the text is already correct, return {"corrections":[]}. Do not invent errors.
 """ % ", ".join(TAGS)
 
+# The Claude lane's prompt, written to Anthropic's guidance for Haiku 5.5 (the
+# reason behind each instruction, sections in XML tags, calm wording, worked
+# examples) and long enough to be cached. Same rules and output as above; its
+# examples are not eval sentences (`evals/gec.py`), and every form in them is
+# one Vabamorf gives. The rules are EKK SÜ 38–40 and EKI's Teatmik.
+CLAUDE_PROMPT = """\
+You check short Estonian texts written by a Russian-speaking adult who is \
+preparing for the B1 tasemeeksam. The learner sees each correction with your \
+explanation, and the app records it as evidence of what the learner still gets \
+wrong. A correction on text that was already right teaches a wrong rule and \
+makes a false record, so report only errors you are confident about. Most texts \
+contain no error, or one or two.
+
+The learner's most frequent error is the case of the object (sihitis). Judge it \
+by these rules from EKI's handbook (Eesti keele käsiraamat, SÜ 38–40):
+
+<object_case_rules>
+- An ongoing, repeated or unfinished action, or an indefinite amount of a \
+substance: osastav. "Isa parandas jalgratast kaua." "Ma jõin vett."
+- An affirmative clause whose action is completed and whose object is whole: \
+the total object (täissihitis). In the singular it is omastav: "Ema küpsetas \
+koogi valmis."
+- The total object is nimetav in the plural ("Ma ostsin raamatud."), in a \
+command ("Paranda jalgratas ära!"), in the impersonal ("Jalgratas parandati \
+ära.") and after tuleb or on vaja with a da-infinitive ("Tuleb osta leib.").
+- In a negated clause the object is osastav: "Ma ei kirjutanud luuletust."
+- Words such as ära, läbi, valmis and üles usually mark a completed action; a \
+length of time such as kaua usually marks an ongoing one.
+</object_case_rules>
+
+Correct other errors too (verb forms, agreement, spelling, other cases) when you \
+are confident, but never rewrite a correct sentence for style.
+
+<output_fields>
+Give one item in "corrections" for each error:
+- "wrong": the exact words from the learner's text, copied character for \
+character, so the app can find and highlight them.
+- "correct": what those words should be.
+- "why": one or two sentences in Russian. Keep Estonian grammar terms in \
+Estonian, never transliterated into Cyrillic, and gloss each once: omastav \
+(родительный падеж), osastav (частичный падеж), nimetav (именительный падеж), \
+täissihitis (полное дополнение).
+- "tag": exactly one of: %s. Use "obj-case" for every error in an object's case.
+If the text has no error, return {"corrections": []}.
+</output_fields>
+
+<example>
+Learner's text: Ema küpsetas kooki valmis.
+Answer: {"corrections": [{"wrong": "kooki", "correct": "koogi", "why": "«valmis» \
+показывает, что действие завершено и объект целый: нужно täissihitis (полное \
+дополнение), в единственном числе это omastav (родительный падеж).", "tag": \
+"obj-case"}]}
+</example>
+
+<example>
+Learner's text: Isa parandas jalgratast kaua.
+Answer: {"corrections": []}
+</example>""" % ", ".join(TAGS)
+
+
+def system_prompt(lane: str) -> str:
+    """The prompt a lane is asked with; the eval asks with the same one."""
+    return CLAUDE_PROMPT if lane == "anthropic" else SYSTEM_PROMPT
+
 
 @dataclass(frozen=True)
 class Correction:
@@ -396,6 +460,30 @@ class NeurotolgeCorrection:
                  "говорит почему. Правило смотри по ссылке.")
 
 
+#: The shape `LLMGrammar.check` reads, given to lanes that hold output to a schema.
+CORRECTIONS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "corrections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "wrong": {"type": "string"},
+                    "correct": {"type": "string"},
+                    "why": {"type": "string"},
+                    "tag": {"type": "string", "enum": list(TAGS)},
+                },
+                "required": ["wrong", "correct", "why", "tag"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["corrections"],
+    "additionalProperties": False,
+}
+
+
 class LLMGrammar:
     """LLM checker, prompted for this learner's gap and the fixed Notion tags.
 
@@ -419,7 +507,9 @@ class LLMGrammar:
         from .llm import complete, parse_json
 
         payload = parse_json(
-            complete(self.provider_name, SYSTEM_PROMPT, text, model=self.model, attempts=1)
+            complete(self.provider_name, system_prompt(self.provider_name), text,
+                     model=self.model, attempts=1,
+                     schema=CORRECTIONS_SCHEMA)
         )
         if (not isinstance(payload, dict) or not isinstance(payload.get("corrections"), list)
                 or any(not isinstance(c, dict)
@@ -559,7 +649,10 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 #: `local` runs an Estonian-adapted model and is off unless LOCAL_LLM_URL is set.
 #: Only evaluated, operational lanes belong in automatic grammar/tutor routing.
 #: Other hosted lanes remain CLI candidates until quality and health justify them.
-LLM_PREFERENCE = ("local", "workers-ai")
+#: Claude Haiku 5.5 passed ADR-0008's bar at effort high (9 Oct 2026: 10/10 with
+#: 8/8 clean, 13/40 attested errors with 19/20 clean); Workers AI's GPT-OSS-120B
+#: (8/10, 2/40) answers whenever Haiku cannot.
+LLM_PREFERENCE = ("local", "anthropic", "workers-ai")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
@@ -987,7 +1080,10 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")
         except Exception as exc:  # bad JSON, SDK errors — never fatal
-            _record_failure(provider.name)
+            from .llm import is_fault
+
+            if is_fault(exc):
+                _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")
 
     return GrammarResult(

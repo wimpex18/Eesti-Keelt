@@ -262,3 +262,52 @@ class TestTheOfflineShellTracksDeploys:
     def test_it_still_only_stores_a_clean_answer(self, source):
         branch = source[source.index('request.mode === "navigate"'):][:800]
         assert "res.ok && !res.redirected && res.type === \"basic\"" in branch
+
+
+_NODE = r"""
+const fs = require("fs"), vm = require("vm");
+const listeners = {}, shown = [], opened = [];
+const self = {
+  addEventListener: (type, fn) => { listeners[type] = fn; },
+  registration: {showNotification: (title, opts) => { shown.push({title, opts}); return Promise.resolve(); }},
+  clients: {matchAll: async () => [], openWindow: async url => { opened.push(url); }},
+  location: {origin: "https://grove.example"},
+  skipWaiting: () => {},
+};
+vm.runInNewContext(fs.readFileSync(process.argv[2], "utf8"),
+  {self, caches: {}, fetch: () => {}, URL, Response: function () {}, console});
+(async () => {
+  let pending = [];
+  const waitUntil = p => pending.push(p);
+  listeners.push({data: {json: () => ({title: "Kordamine", body: "12 kaarti", tag: "due", url: "/#review"})}, waitUntil});
+  await Promise.all(pending); pending = [];
+  listeners.notificationclick({notification: {close() {}, data: {url: "/#review"}}, waitUntil});
+  await Promise.all(pending);
+  console.log(JSON.stringify({kinds: Object.keys(listeners), shown, opened}));
+})();
+"""
+
+
+class TestRemindersReachTheScreen:
+    """A reminder the Worker pushes is shown, and a tap opens the app there.
+
+    A push that shows nothing breaks the `userVisibleOnly` promise every
+    subscription makes, and WebKit then revokes the subscription."""
+
+    def test_a_push_is_shown_and_a_tap_opens_the_app(self, tmp_path):
+        import json
+        import shutil
+        import subprocess
+
+        node = shutil.which("node")
+        if not node:
+            pytest.skip("node is not installed")
+        script = tmp_path / "run.js"
+        script.write_text(_NODE, encoding="utf-8")
+        out = subprocess.run([node, str(script), str(SW)], capture_output=True,
+                             text=True, timeout=30, check=True).stdout
+        got = json.loads(out)
+        assert {"push", "notificationclick"} <= set(got["kinds"])
+        assert got["shown"] and got["shown"][0]["title"] == "Kordamine"
+        assert got["shown"][0]["opts"]["body"] == "12 kaarti"
+        assert got["opened"] == ["/#review"]

@@ -29,10 +29,14 @@ import re
 
 #: Bumped when a generator's output for the same inputs changes, so an old ref
 #: is known not to regenerate the item it named.
-GENERATOR_VERSION = 4
+GENERATOR_VERSION = 5
 
-#: Item fields the answer endpoint grades and records from.
-FIELDS = ("topic", "prompt", "answer", "distractor", "lemma", "hint", "rule", "why_ru")
+#: Item fields the answer endpoint grades and records from. `source_id` keeps the
+#: material's credit on the card a miss becomes; `say` marks an item that is
+#: heard, which no card can replay. Tokens signed before either was added lack
+#: them, and readers take them with `.get`.
+FIELDS = ("topic", "prompt", "answer", "distractor", "lemma", "hint", "rule", "why_ru",
+          "source_id", "say")
 
 
 #: Signing order: the first one set signs; every one set verifies.

@@ -99,7 +99,7 @@ class TestThePool:
 
 
 class TestGuestPractice:
-    def test_every_topic_with_a_generator_has_items(self, evs_words):
+    def test_every_topic_with_a_generator_has_items(self, evs_words, eki_recordings):
         """Wherever the owner gets items, so does a guest. (`tuletus` needs derived
         words the fixture list does not have, in every scope.)"""
         from eesti.curriculum import TOPICS
