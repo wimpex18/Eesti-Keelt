@@ -75,6 +75,10 @@ when the Mac is off.
   `zsh deploy/home-asr/install.sh` with no token: it reuses the stored one and
   upgrades the packages, the model snapshot and cloudflared, then restarts both
   services.
+- Intel installs keep PyAV at 18.1.0: faster-whisper 1.2.1 uses the
+  `metadata_errors` argument removed in PyAV 19. Apple silicon continues to use
+  `requirements-local-asr.txt`. Revisit the Intel pin when its decoder supports
+  PyAV 19, then verify speech routing again.
 - Health on the Mac mini: `curl http://127.0.0.1:8790/health`.
 - Logs: `~/.eesti-home-asr/asr.log` and `tunnel.log`.
 - Stop: `launchctl bootout gui/$(id -u)/ee.eesti-keelt.home-asr` (and `home-tunnel`).
