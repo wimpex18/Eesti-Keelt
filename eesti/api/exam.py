@@ -118,9 +118,13 @@ def exam_spec(level: str) -> dict:
 
     if level not in SPECS:
         raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    from ..examday import for_level
+
     return SPECS[level].to_dict() | {
         "sessions": [s.to_dict() for s in upcoming(level)],
         "next_year": NEXT_YEAR,
+        # Eksamipäev: the day's rules from HARNO's information sheet.
+        "exam_day": for_level(level),
     }
 
 
@@ -216,10 +220,20 @@ class MockAnswer(BaseModel):
     text: str = ""
 
 
+class WrittenTask(BaseModel):
+    #: The prompt answered (`eesti/writingtasks.py`), and what was written: a text,
+    #: or a questionnaire's answers.
+    id: str
+    text: str = ""
+    answers: list[str] = Field(default_factory=list, max_length=20)
+
+
 class MockResult(BaseModel):
     seconds: float = Field(ge=0)
     answers: list[MockAnswer] = Field(default_factory=list)
-    #: Writing: the text produced. Speaking: nothing — the exam is paired.
+    #: Writing: both tasks. `written` is a single text from a page cached
+    #: before both tasks were set. Speaking: nothing — the exam is paired.
+    tasks: list[WrittenTask] = Field(default_factory=list, max_length=2)
     written: str = ""
 
 
@@ -251,7 +265,7 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
             correct += int(ok)
             items.append({"given": answer.given, "answer": issued["answer"],
                           "solution": fill(issued["prompt"], issued["answer"]),
-                          "correct": ok})
+                          "correct": ok, "topic": issued["topic"]})
     elif part == "kuulamine":
         from ..dictation import Passage, grade, key_of
 
@@ -264,19 +278,37 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
             correct += int(got.correct)
             items.append({"text": answer.text, "given": answer.given,
                           "correct": got.correct, "missed": got.missed})
+    elif part == "kirjutamine" and res.tasks:
+        from .. import writingtasks
+
+        checked = []
+        for written in res.tasks:
+            try:
+                task = writingtasks.by_id(written.id)
+            except KeyError as exc:
+                raise HTTPException(status_code=400, detail="unknown writing task") from exc
+            if task.level != level:
+                raise HTTPException(status_code=400, detail="task from another level")
+            checked.append(writingtasks.check(task, written.text, written.answers))
+        detail = {"tasks": checked, "prompts_by": writingtasks.PROMPTS_BY}
+        # A task counts when its checklist is complete; a model's reading of the
+        # text, where there is one, is labelled advisory and never counts.
+        asked, correct = len(checked), sum(writingtasks.met(r) for r in checked)
     elif part == "kirjutamine":
         from ..mock import check_writing
 
         detail = check_writing(res.written, level)
-        # Long enough and clean by the deterministic checks. What a model would
-        # say about it belongs in Kirjutamine, labelled, never in a mock's score.
         asked, correct = 1, int(detail["long_enough"] and detail["errors"] == 0)
     else:                                   # raakimine: practised, never scored
         asked, correct = len(res.answers) or 1, None
 
     saved = record(progress_db(), level, part, res.seconds, asked, correct,
                    detail=detail)
-    return saved | {"minutes": SPECS[level].part(part).minutes, "items": items}
+    # The topics behind the misses, to practise next (ADR-0009: review → practice).
+    practise = list(dict.fromkeys(i["topic"] for i in items
+                                  if not i.get("correct") and i.get("topic")))
+    return saved | {"minutes": SPECS[level].part(part).minutes, "items": items,
+                    "practise": practise}
 
 
 @router.get("/api/mock-run/{level}")

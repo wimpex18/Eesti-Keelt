@@ -4,42 +4,24 @@ Paste the prompt below as the first message of a fresh session (local or
 cloud). Keep this file current: replace the prompt when its work is done.
 
 ```text
-Grove (Eesti-Keelt): continue the A0→B1 course (Linear DEV-40) from the units
-layer: the unit check, unit completion, Home's session within a unit, homework
-and the weekly pace check towards a sitting.
+Grove (Eesti-Keelt): continue ADR-0009's order — the B1 exam loop before the
+7–8 Nov 2026 sittings. First the material pipeline (`qa/opus-sessions.md`,
+brief 1), then HARNO B1 reading and listening task types on checked material
+(brief 6), then the session and Home (brief 8).
 
-Read first: AGENTS.md, HANDOFF.md, docs/status.md, docs/course-structure.md,
-docs/adr/0007-course-units.md, docs/curriculum.md, docs/app-structure.md,
-qa/architecture-review.md, then Linear DEV-40 and its latest comment. Run
-`git log --oneline -20` and the fast suite (`python -m pytest tests/ -q -n auto`)
-and confirm the state the documents describe; correct any that is out of date in
-the same change.
+Read first: AGENTS.md, HANDOFF.md, docs/status.md, docs/adr/0007, 0008 and
+0009, docs/course-structure.md, qa/architecture-review.md, qa/opus-sessions.md,
+then Linear DEV-36, DEV-41 and their latest comments. Run `git log --oneline -20`
+and the fast suite, and correct any document that is out of date.
 
-Working rules:
-- One branch (claude/dev-40-unit-check) and one PR for the session; no new
-  Linear issues — follow-up goes in a comment on the existing issue.
-- Design is out of scope (a redesign follows): functional, minimal UI changes in
-  the existing components; inspect both viewports after web changes.
-- Code grades against Vabamorf/EKI forms; never invent a linguistic fact; label
-  model-written material; a stage is a target, `level` is CEFR only for
-  official material.
-- Effort high. Subagents for research and review, not for parallel edits.
-
-Build, tests first:
-1. The unit check: five server-graded items per core topic and per revisited
-   rule (`eesti/units.py`), recorded as a `unit-checked` event and replayed; a
-   unit is complete when its core topics are mastered and its check passed.
-   Revision units (19, 27, 29, 30) check their stage's topics and carry the
-   checkpoint where `checkpoint` is set.
-2. Kursus and Home: a unit's complete state; Home names the session within the
-   current unit (*Ühik 3 · 2/5*) beside the due-review count.
-3. Placement into a unit: the assessment's entry becomes the first unit with a
-   core topic it did not pass; earlier units are navigation skips.
-4. Homework set at the end of a session (due cards plus one short skill task)
-   and the weekly pace check when a sitting is chosen, both pure functions of
-   the evidence like `eesti/planning.py`.
-Then update docs/status.md, docs/course-structure.md ("Built today"),
-qa/architecture-review.md, HANDOFF.md and this prompt; comment on DEV-40.
+Working rules: one branch and one PR; no new Linear issues; design out of scope
+(functional, minimal UI in existing components, both viewports inspected); code
+grades against Vabamorf/EKI; never invent a linguistic fact; there is no human
+reviewer, so model-written material passes ADR-0009's automatic checks and is
+labelled; effort high; subagents for research and review, not parallel edits.
+If ANTHROPIC_API_KEY is now in `.env`, ask the owner before running the paid
+eval (`cli eval --provider anthropic`, hand and external, effort low and medium)
+against ADR-0008's bar, and promote the lane only if it passes.
 ```
 
 ## When the Claude API key is in `.env`

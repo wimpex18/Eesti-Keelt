@@ -9,7 +9,7 @@ says plainly what it is:
 |---|---|---|
 | `lugemine` | gap-fill in real corpus sentences (EKI EVS's phrases outside the owner's scope) | code |
 | `kuulamine` | dictation of corpus sentences (EKI EVS's phrases outside the owner's scope) | code, word by word |
-| `kirjutamine` | one longer text and a practice length threshold | by code: length, and the deterministic checks (spelling, agreement, rection) |
+| `kirjutamine` | both of HARNO's writing tasks, each in its variants (`eesti/writingtasks.py`) | by code: a checklist — length against HARNO's figure, each point the prompt asks for, a letter's frame, the deterministic checks |
 | `raakimine` | the paired-exam question bank, recorded | not scored — the exam is paired |
 
 Each finished section records an `exam-section` event, which readiness counts.
@@ -34,11 +34,12 @@ NOTE = {
                  "понимание фразы, а не экзаменационные вопросы."),
     "kuulamine": ("На экзамене это записи с вопросами. Здесь — диктант "
                   "(etteütlus) по корпусу: слышишь и записываешь."),
-    "kirjutamine": ("На экзамене два задания. Здесь — тренировка одного "
-                    "длинного текста в течение всего времени части. "
-                    "Код считает слова и находит то, что решается без модели: "
-                    "орфографию, согласование (ühildumine) и рекцию "
-                    "(rektsioon). Объяснения — во вкладке Kirjutamine."),
+    "kirjutamine": ("Два задания, как на экзамене, за время всей части; в "
+                    "каждом выбери вариант. Задания написаны моделью (Claude Opus "
+                    "5.5) по формату HARNO. Код проверяет список: длину, есть ли "
+                    "каждый пункт задания, приветствие и подпись в письме, "
+                    "орфографию, согласование (ühildumine) и рекцию (rektsioon). "
+                    "Это не оценка экзамена."),
     "raakimine": ("Экзамен сдаётся в паре, поэтому оценки здесь нет. Запиши "
                   "ответ и послушай себя: засчитывается сам факт практики."),
 }
@@ -102,7 +103,7 @@ def build(level: str, part: str, *, seed: int, content: sqlite3.Connection | Non
     if part == "kuulamine":
         return _listening(level, minutes, seed, content, words, vocabulary)
     if part == "kirjutamine":
-        return _writing(level, minutes)
+        return _writing(level, minutes, seed)
     if part == "raakimine":
         return _speaking(level, minutes, seed)
     raise ValueError(f"no such exam part: {part!r}")
@@ -145,20 +146,15 @@ def _listening(level: str, minutes: int, seed: int, content, words, vocabulary) 
                    [p.to_dict() for p in passages], note=note)
 
 
-def _writing(level: str, minutes: int) -> Section:
-    return Section(level, "kirjutamine", minutes, "writing",
-                   [{"about": WRITING_ABOUT[level], "min_words": MIN_WORDS[level]}],
+def _writing(level: str, minutes: int, seed: int) -> Section:
+    from .writingtasks import for_section
+
+    return Section(level, "kirjutamine", minutes, "writing", for_section(level, seed),
                    note=NOTE["kirjutamine"])
 
 
-#: This practice asks only the longer task, not both official writing tasks.
-WRITING_ABOUT = {
-    "A2": "Напиши сообщение, приглашение или описание.",
-    "B1": "Напиши рассказ или личное письмо.",
-}
-
-#: Practice thresholds: HARNO's A2 minimum and B1 approximate length target.
-#: These are not HARNO's writing scores.
+#: Practice thresholds for a single text sent by a page cached before both tasks
+#: (HARNO's A2 minimum, B1's approximate length). Not HARNO's writing scores.
 MIN_WORDS = {"A2": 30, "B1": 100}
 
 

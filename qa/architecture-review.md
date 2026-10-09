@@ -18,7 +18,10 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 - No embedding model: long-context grounding on the Claude lane replaces
   retrieval. EmbeddingGemma 2 is revisited only for cross-lingual phrase search.
 - One implementation session at a time, one branch and one PR per session
-  (`AGENTS.md`).
+  (`AGENTS.md`); separate Opus 5.5 sessions on their own files when the owner
+  asks (`qa/opus-sessions.md`).
+- No human reviewer: material and explanations pass deterministic and blind
+  automatic checks and are labelled (ADR-0009).
 
 ## Decisions and their state
 
@@ -28,14 +31,15 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 | D1 | Correctness | DEV-35, DEV-49..53 | Done: EVS homographs and inflection types, nimetav-object writing check, item labels and capitals, exam screens, rection norms EKI now accepts, retired rection cards out of due counts, one-reading case labels on short phrases. Open limits are in `docs/status.md` (parallel forms beyond Vabamorf, templated frames, narrow object check) |
 | D1b | Data safety | DEV-37 | Done in code: nightly off-Cloudflare backup, Durable Object fixes, `ITEM_SECRET`, durable guest allowances. Owner setup pending (below) |
 | D2 | Litestream-replicated SQLite instead of Durable Object replication | DEV-43 | Open; after the 7–8 Nov 2026 sittings |
-| D3 | Claude Haiku 5.5 tutor lane and eval | DEV-38 | Open; needs the owner's API key in `.env` |
+| D3 | Claude Haiku 5.5 tutor lane and eval | DEV-38 | Lane built and evaluation-only (ADR-0008); promotion bar agreed (hand ≥ 8/10 with 8/8 clean, external ≥ 12/40 with ≥ 16/20 clean). Open: the owner's `ANTHROPIC_API_KEY` in `.env` and as a GitHub secret, then the eval |
 | D4 | Long-context grounding in EKI rule text | DEV-44 | Open; after D3 |
 | D5 | Ukrainian, then English explanations | DEV-42 | Open; after the D6 spec |
 | D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Spec (`docs/course-structure.md`) and ADR-0007 agreed with the owner on 9 Oct 2026; first slice built: thirty units in `eesti/units.py`, Kursus by unit, unit 1 (sounds in EKI's recordings, EKI's A1 phrases, numbers, first words), the nominative total object, `osaalus`. Open: unit check, homework, weekly plan, dialogues and texts, unit pages in the redesign |
-| D7 | HARNO task formats in practice and mocks | DEV-41 | Open; after the D6 spec |
+| D7 | HARNO task formats in practice and mocks | DEV-41 | Started (ADR-0009, B1 first): both writing tasks per level with a code checklist, *Eksamipäev*, practice from reading misses. Open: HARNO reading and listening task types on checked material (`qa/opus-sessions.md` 6), Haiku writing feedback once its eval passes |
 | D8 | Lemma search, passkeys, account recovery, ASR heartbeat | DEV-48 | Open; later |
 | D9 | Practice patterns (edit-then-explain, hint-first, mistakes session) | DEV-45 | Open |
 | D10 | Locked dependencies and current versions | DEV-39 | Done |
+| D11 | The learning loop: onboarding, session, next task, exam loops, material without a human reviewer | DEV-40, DEV-41, DEV-45 | Decided (ADR-0009, 9 Oct 2026). Order: B1 exam loop before the 7–8 Nov sittings, then the session and next task, then onboarding |
 | — | Scheduled harvests, corrected source notes | DEV-46 | Open |
 | — | Four-week pilot with Russian, Ukrainian and English learners | DEV-47 | Open; after the sittings |
 
@@ -69,12 +73,16 @@ services, directions).
 
 ### Material pipeline (DEV-36)
 
-Model drafts → Vabamorf verifies every form → every lemma within the band's EKI
-level → coverage by code → a person reviews → code keys: graded texts and
-dialogues by HARNO topic (Batch API: about $0.25 per 1,500 drafts on Haiku 5.5),
-HARNO item types keyed to text spans, multi-voice TTS listening from the same
-scripts, at least 20 writing prompts and 30 speaking cards per level. Label it
-"written with a model, checked by Vabamorf and a person".
+Sources first (EKI's A1–B1 phrase collections and model letters on Sõnaveeb,
+EVS examples, Vabamorf forms), then Opus 5.5 drafts through the Batch API →
+schema → Vabamorf verifies every form → every lemma within the stage's EKI level
+→ one right answer (all other forms of the gap word tried) → reading answers
+verbatim once → a second model answers blind, without the key and without the
+text → code keys. No person reviews (ADR-0009); learners' *Teata veast* reports
+and answer statistics retire bad items. Graded texts and dialogues by HARNO
+topic, HARNO item types keyed to text spans, multi-voice TTS listening from the
+same scripts, at least 20 writing prompts and 30 speaking cards per level.
+Labelled "written with a model, checked by Vabamorf and automatic checks".
 
 ### Exam fidelity (DEV-41)
 

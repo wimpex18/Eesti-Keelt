@@ -103,6 +103,19 @@ feedback. The app says plainly what was checked and by what.
   before adding new tools. The research and applied decisions are in
   `docs/design-research.md`; implemented local behaviour is described in `docs/app-structure.md`.
 
+- **One learning loop (ADR-0009):** a 20–30-minute session from the current unit
+  — review, a rule learned by doing, guided practice, words, listening, speaking,
+  an exit check — then the next task chosen by code with its reason, one
+  *Jätka* and two alternatives. Every part also stands alone.
+- **Exam preparation as loops:** each part simulated on the real clock, every
+  item reviewed with its evidence, then practice on that task type and the
+  grammar behind each miss. B1 first. Model feedback on writing and speaking is
+  labelled and advisory; nothing is scored by a model.
+- **Model lane:** Claude Haiku 5.5 for explanations and feedback once its eval
+  passes, Opus 5.5 for drafting material (ADR-0008).
+- **No human reviewer:** material is built from sources and model drafts that
+  pass deterministic and blind automatic checks, and says so (ADR-0009).
+
 These are product requirements. Current gaps and implemented behaviour are
 recorded in `docs/status.md`; the course is specified in `docs/course-structure.md`
 and tracked in Linear DEV-40, the explanation languages in DEV-42.

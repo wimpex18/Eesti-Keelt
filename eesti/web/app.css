@@ -762,6 +762,7 @@ audio.enhanced{display:none !important}
 .mock-clock{font-variant-numeric:tabular-nums;font-size:var(--fs-lead);font-weight:700;color:var(--accent)}
 .mock-clock.low{color:var(--bad)}
 .mock-task{padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+.mock-card{font:inherit;white-space:pre-line;max-width:32ch;margin:var(--s2) 0;padding:var(--s3);border:1px solid var(--line);border-radius:var(--r-xs)}
 .mock-task .prompt{font-size:var(--fs-lead);margin-bottom:var(--s2)}
 .mock-task .row{margin-top:0}
 .mock-task:first-child{border-top:0}
