@@ -527,6 +527,15 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "Drills built from Vabamorf forms. Unlimited, deterministic.",
     ),
     Source(
+        "grove-material", "Grove: dialoogid ja tekstid", "generated",
+        "own work", True, None,
+        "Unit dialogues and reading texts written with a model, checked by "
+        "Vabamorf and automatic checks (ADR-0009, `docs/material.md`): every "
+        "form known to Vabamorf, every content lemma on EKI's level list, "
+        "answers verbatim in the text, a second model's blind check. Each "
+        "item names its engine and prompt version.",
+    ),
+    Source(
         "eki-valjendid",
         "Kasulikke väljendeid A1-tasemel eesti keele õppijale (EKI)", "file",
         "CC-BY-4.0 (Sõnaveeb terms)", True,
