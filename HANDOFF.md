@@ -1,26 +1,23 @@
 # Handoff
 
-Current state: `main` holds the October 2026 review work — correctness fixes
-(DEV-35), public EVS practice pools (DEV-54), data safety and locked
-dependencies (DEV-37, DEV-39) — plus a follow-up on `main`: EVS inflection
-types per homograph, retired rection cards out of due counts, one-reading case
-labels and fast themed pools for public learners, EKI credit on read-aloud,
-level-aware mocks, faster tests and CI (`docs/testing.md`), clearer backup and
-public-access errors.
-Roadmap and decisions: `qa/architecture-review.md`. Known issues:
-`docs/status.md`. Next session: paste the prompt in `qa/next-session.md`
-(DEV-40 course structure). One session at a time, one branch and one PR.
+Current task: operator maintenance PR on codex/operator-maintenance; owner review/merge pending.
+Changes: Intel home-ASR installer pins PyAV 18.1.0; public-access checks use
+Grove-deploy/1.0 for JSON and shell requests. Regression tests cover both
+processor branches, package-install failure and credential-free public checks.
+Docs describe the dependency constraint and remove the resolved Access issue.
+Validation: 39 focused tests passed in both working and clean checkouts;
+typecheck, zsh syntax and diff checks passed. Prior code fails both regressions.
+Isolated faster-whisper 1.2.1 / PyAV 18.1.0 decoded a synthetic WAV successfully.
+Next: owner reviews/merges the PR; merge runs the Worker deployment workflow.
+Production: public access restored; deep smoke passed with repaired Intel ASR.
+Backup bucket/configuration set up; nightly trigger ran, but no object was found.
+Owner stopped backup checks; recovery verification remains pending.
+Runtime SA retains project Editor permission, which permits backup deletion;
+no IAM changes made. Mac mini was off overnight; home speech needs it awake.
 
-Owner actions before anything else (details in `qa/architecture-review.md`):
-1. Remove the Cloudflare Access login on the `workers.dev` hostname; rerun
-   `deploy`; run `smoke` with `deep: true`.
-2. Cloud Shell: `deploy/set-item-secret.sh`, `deploy/setup-backup.sh`,
-   `deploy/check-service.sh`.
-3. Allow GitHub Actions to create pull requests (weekly lock upgrade).
-4. Mac mini: rerun `deploy/home-asr/install.sh` from the new ZIP.
-5. Send `qa/source-permission-requests.md` from the project's address.
-6. `ANTHROPIC_API_KEY` in `.env` before DEV-38.
-
-Uncommitted task paths: none after this commit. Preserve unrelated untracked
-agent/editor tooling. No learner data in the diff. Blockers: the Access login
-(1) keeps the public app unreachable and `deploy`/`smoke` red.
+Task changes committed: installer, public-access checker, regression tests and docs.
+Uncommitted task paths: none.
+Preserve unrelated package.json and untracked .agents/, .claude/agents/,
+.claude/settings.local.json, .claude/skills/, .codex/, .github/agents/,
+.github/hooks/, .github/skills/, .impeccable/decisions/learning-redesign.json,
+.impeccable/live/. No secrets revealed. Mac mini already has the compatible PyAV version.

@@ -93,13 +93,10 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 
 ## Known issues
 
-- **The public URL is behind a Cloudflare Access login.** Anonymous requests to
-  the Worker's `workers.dev` hostname redirect to a `cloudflareaccess.com` login,
-  so visitors cannot reach Grove, the `deploy` workflow's public-access step
-  fails and the daily `smoke` fails. `deploy/open-public-access.py` removes only
-  an Access application dedicated to this hostname; a wildcard application or the
-  Worker's `workers.dev` Access setting must be removed in the Cloudflare
-  dashboard, then the `deploy` workflow rerun.
+- **Backup recovery verification is pending.** The backup bucket and origin
+  configuration were set up on 2026-10-08. The nightly Cloudflare trigger ran
+  on 2026-10-09, but no backup object was found; the owner stopped further
+  checks. A saved copy has not yet been verified with `cli verify-backup`.
 - **Release gates not yet verified on real devices.** A disposable real account
   (sign-up, logout, expired session, cold-origin restore, cross-device progress),
   learner audio through the Mac mini and its fallback on physical phones, and

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 import sqlite3
 from pathlib import Path
 
@@ -76,6 +78,38 @@ class Shell:
     def __enter__(self): return self
     def __exit__(self, *args): pass
     def read(self): return b"<title>Grove</title>"
+
+
+def test_public_checks_identify_the_deployer_without_forwarding_credentials(monkeypatch):
+    """An already public Worker must not fail deployment on a Python-UA block."""
+    module = migration()
+    public_requests = []
+
+    def urlopen(request, **kwargs):
+        url = request.full_url
+        headers = {name.lower(): value for name, value in request.header_items()}
+        if headers.get("user-agent") != "Grove-deploy/1.0":
+            raise module.HTTPError(url, 403, "Forbidden", {}, None)
+        if url.startswith(ENV["CLOUD_RUN_URL"]):
+            assert headers["x-proxy-token"] == ENV["PROXY_TOKEN"]
+            assert headers["x-eesti-scope"] == "guest"
+            return io.BytesIO(json.dumps({"public_access": True, "origin_guarded": True}).encode())
+        if url.startswith(module.API):
+            assert headers["authorization"] == "Bearer " + ENV["CLOUDFLARE_API_TOKEN"]
+            return io.BytesIO(b'{"success": true, "result": []}')
+        public_requests.append(url)
+        assert set(headers) == {"user-agent"}
+        if url.endswith("/api/auth/me"):
+            return io.BytesIO(b'{"scope": "guest"}')
+        if url.endswith("/api/health"):
+            return io.BytesIO(b'{"public_access": true}')
+        return Shell()
+
+    monkeypatch.setattr(module, "urlopen", urlopen)
+    monkeypatch.setattr(module.time, "sleep", lambda _: None)
+    module.open_public(ENV)
+    assert public_requests == [ENV["WORKER_URL"] + path
+                               for path in ("/api/auth/me", "/api/health", "/")]
 
 
 def test_migration_waits_for_safe_origin_and_deletes_only_exact_hostname(monkeypatch):

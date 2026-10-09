@@ -361,7 +361,9 @@ deploy → Run workflow**. Check it from the speaking page ("Сейчас теб
   `public_access: true` health marker before removing the login gate for this
   exact hostname. It leaves unrelated and wildcard applications untouched,
   refuses applications shared with other domains, then verifies anonymous
-  shell, health and guest identity. A failed migration fails the deploy workflow;
+  shell, health and guest identity. Requests identify themselves as
+  `Grove-deploy/1.0`, including the shell check, to avoid Cloudflare's rejection
+  of the default Python User-Agent. A failed migration fails the deploy workflow;
   correct the reported configuration and rerun it. Smoke requires only
   `WORKER_URL`, with no external login credentials.
 

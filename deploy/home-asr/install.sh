@@ -52,8 +52,10 @@ if [[ "$ARCH" == arm64 ]]; then
     -r requirements-local-asr.txt
   REPO_ID="TalTechNLP/Voxtral-Mini-4B-Realtime-estonian-2609"; PATTERN="model.safetensors *.json"
 else
+  # faster-whisper 1.2.1 passes metadata_errors to av.open; PyAV 19 removed it.
+  # Keep the decoder version verified on the Intel Mac mini, including updates.
   "$UV" pip install -q --upgrade --python "$PY" fastapi uvicorn certifi faster-whisper \
-    "tokenizers>=0.22"
+    "tokenizers>=0.22" "av==18.1.0"
   REPO_ID="TalTechNLP/whisper-large-v3-turbo-et-verbatim-2604"; PATTERN="ct2/*"
 fi
 

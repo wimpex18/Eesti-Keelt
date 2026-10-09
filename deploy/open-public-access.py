@@ -14,10 +14,12 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 API = "https://api.cloudflare.com/client/v4"
+USER_AGENT = "Grove-deploy/1.0"
 
 
 def request_json(url, *, headers=None, method="GET"):
-    with urlopen(Request(url, headers=headers or {}, method=method), timeout=30) as response:
+    headers = {"User-Agent": USER_AGENT, **(headers or {})}
+    with urlopen(Request(url, headers=headers, method=method), timeout=30) as response:
         return json.load(response)
 
 
@@ -102,7 +104,7 @@ def open_public(env):
     health = request_json(public + "/api/health")
     if not health.get("public_access"):
         raise RuntimeError("Public URL is not serving the public-safe origin")
-    with urlopen(public + "/", timeout=30) as response:
+    with urlopen(Request(public + "/", headers={"User-Agent": USER_AGENT}), timeout=30) as response:
         if response.status != 200 or b"Grove" not in response.read():
             raise RuntimeError("Public shell is not serving Grove")
     print("Public shell, health and anonymous guest identity verified", flush=True)
