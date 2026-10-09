@@ -12,8 +12,10 @@ Fast suite and browser journeys (both engines) green.
 Next: the owner reviews and merges PR #125; merge rebuilds the origin, then run
 `smoke` with `deep: true`. Then `qa/next-session.md` (material pipeline → HARNO
 B1 task types → session and Home).
-Owner: put ANTHROPIC_API_KEY in `.env` and as a GitHub secret, then agree to the
-paid eval; set a spend limit on the Anthropic account; re-subscribe to reminders
+In progress (9 Oct): Haiku 5.5 lane with prompt caching, a byte bound under
+100K tokens and its own prompt (`grammar.CLAUDE_PROMPT`); the paid eval runs on
+GitHub (the key is a GitHub secret only), then unit skipping and the Opus plan.
+Owner: set a spend limit on the Anthropic account; re-subscribe to reminders
 on each device (the push handler was missing 24 Sep–9 Oct); send the EKI
 permission draft; verify a nightly backup copy with `cli verify-backup`.
 Decision taken by default, for the owner to confirm: unit 1 leads the next step

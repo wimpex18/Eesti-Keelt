@@ -3,7 +3,8 @@
 What a learner would notice if these broke: a refused or empty answer shown as
 an explanation; a request rejected for a sampling setting Haiku 5.5 does not
 take; one learner's explanation waiting behind another's for 3.5 seconds; a
-prompt long enough to double the price; the lane answering before its eval.
+prompt long enough to cost five times as much; every call paying full price for
+the same system prompt; the lane answering before its eval.
 """
 
 from __future__ import annotations
@@ -79,10 +80,49 @@ def test_an_empty_reply_is_a_failure(lane):
 
 
 def test_a_prompt_past_the_price_threshold_is_refused_before_sending(lane):
+    """Above 100K tokens every rate is five times higher. Russian takes two
+    bytes a letter, so 50,000 letters is already past the bound."""
     sent = lane(_reply(_text("{}")))
     with pytest.raises(ValueError, match="long"):
-        claude.complete("s", "x" * (claude.MAX_PROMPT_CHARS + 1))
+        claude.complete("s", "я" * 50_000)
     assert sent == []
+    claude.complete("s", "x" * 80_000)
+    assert len(sent) == 1
+
+
+def test_the_system_prompt_is_the_cached_prefix(lane):
+    """A cache read costs a tenth of fresh input; the learner's text varies, the
+    instructions do not, so only the instructions carry the breakpoint."""
+    sent = lane(_reply(_text("{}")))
+    claude.complete("juhised", "Ma ostsin leib.")
+    (block,) = sent[0]["system"]
+    assert block["text"] == "juhised"
+    assert block["cache_control"] == {"type": "ephemeral"}
+    assert isinstance(sent[0]["messages"][0]["content"], str)
+
+
+def test_an_eval_reports_what_its_tokens_cost(lane, monkeypatch):
+    monkeypatch.setattr(claude, "_USAGE", dict.fromkeys(claude._USAGE, 0))
+    reply = _reply(_text("{}"))
+    reply.usage = SimpleNamespace(input_tokens=1000, output_tokens=2000,
+                                  cache_creation_input_tokens=0,
+                                  cache_read_input_tokens=1_000_000)
+    lane(reply)
+    claude.complete("s", "u")
+    totals = claude.usage_totals()
+    assert totals["calls"] == 1 and totals["cache_read"] == 1_000_000
+    # 1M cached at $0.01, 1K fresh at $0.10, 2K out at $0.50 per million.
+    assert totals["dollars"] == pytest.approx(0.01 + 0.0001 + 0.001)
+
+
+def test_effort_is_read_when_the_call_is_made(lane, monkeypatch):
+    """The eval sets the level per run; a value bound at import would ignore it."""
+    sent = lane(_reply(_text("{}")))
+    monkeypatch.setenv("ANTHROPIC_EFFORT", "medium")
+    claude.complete("s", "u")
+    monkeypatch.delenv("ANTHROPIC_EFFORT")
+    claude.complete("s", "u")
+    assert [p["output_config"]["effort"] for p in sent] == ["medium", "low"]
 
 
 def test_the_chain_reaches_it_through_complete(lane):
@@ -161,3 +201,14 @@ def test_one_client_serves_every_call(monkeypatch):
         with_options=lambda **opts: SimpleNamespace(timeout=opts["timeout"])))
     timeouts = [claude._client(t).timeout for t in (5.0, 10.0, 5.0)]
     assert len(made) == 1 and timeouts == [5.0, 10.0, 5.0]
+
+
+def test_the_haiku_prompt_does_not_hold_the_eval_s_answers():
+    """A prompt that lists an eval sentence as correct inflates that lane's clean
+    pass rate, and the lane is promoted on a score it did not earn."""
+    from eesti.evals.gec import CASES
+    from eesti.providers.grammar import CLAUDE_PROMPT
+
+    prompt = CLAUDE_PROMPT.casefold()
+    leaked = [c.sentence for c in CASES if c.sentence.casefold().rstrip(".") in prompt]
+    assert not leaked

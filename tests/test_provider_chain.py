@@ -422,11 +422,27 @@ class TestTheEvalScoresThePromptTheAppShips:
     keeping a copy.
     """
 
-    def test_the_eval_imports_it_rather_than_restating_it(self):
+    @pytest.mark.parametrize("lane", ["anthropic", "workers-ai"])
+    def test_the_eval_asks_each_lane_what_the_app_asks_it(self, lane, monkeypatch):
+        """Haiku 5.5 has its own prompt (Anthropic's guidance); the eval must
+        score that one for Haiku and the shared one for the others."""
         from eesti.evals import gec
-        from eesti.providers import grammar
+        from eesti.providers import grammar, llm
 
-        assert gec.SYSTEM is grammar.SYSTEM_PROMPT
+        asked = []
+
+        def record(provider, system, user, **kwargs):
+            asked.append(system)
+            return '{"corrections": []}'
+
+        monkeypatch.setattr(gec, "complete", record)
+        monkeypatch.setattr(llm, "complete", record)
+        monkeypatch.setitem(llm.PROVIDERS, lane, type(
+            "Lane", (), {"available": True})())
+        gec._ask(lane, "Ma ostsin leiba.", None, False)
+        grammar.LLMGrammar(lane).check("Ma ostsin leiba.")
+        assert asked[0] == asked[1] == grammar.system_prompt(lane)
+        assert (asked[0] == grammar.CLAUDE_PROMPT) == (lane == "anthropic")
 
     def test_no_second_prompt_is_defined_alongside_it(self):
         """The failure this replaces: a copy appears, nobody notices, and the

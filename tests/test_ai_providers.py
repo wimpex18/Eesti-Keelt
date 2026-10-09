@@ -152,9 +152,9 @@ class TestTheRequest:
         assert "response_format" not in without
 
     def test_without_json_mode_the_prompt_and_parser_still_cope(self):
-        from eesti.evals.gec import SYSTEM
-
-        assert "ONLY valid JSON" in SYSTEM
+        # A lane without JSON mode is asked for JSON in its prompt (Claude's
+        # shape is held by a schema instead).
+        assert "ONLY valid JSON" in grammar.system_prompt("openrouter")
         assert llm.parse_json('```json\n{"corrections": []}\n```') == {"corrections": []}
 
     def test_an_empty_reply_is_named(self, monkeypatch):

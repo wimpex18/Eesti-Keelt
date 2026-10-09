@@ -470,6 +470,16 @@ def cmd_asr_bench(args: argparse.Namespace) -> int:
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
+    """Score an engine; a run on the paid Claude lane also says what it cost."""
+    code = _eval(args)
+    if getattr(args, "provider", None) == "anthropic" and args.suite != "asr":
+        from ..providers.claude import usage_totals
+
+        print(f"anthropic usage (tokens, dollars): {usage_totals()}")
+    return code
+
+
+def _eval(args: argparse.Namespace) -> int:
     """Score an engine.
 
     Grammar has two tracks: the default 18 hand-written sentences (half already
