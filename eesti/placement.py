@@ -111,13 +111,14 @@ def candidates(
     """
     from .curriculum import available
     from .progress import unlocked
-    from .units import stage_of
+    from .units import position, stage_of
 
-    return [
-        topic
-        for topic in available(unlocked(progress))
-        if topic.generator and topic.level in levels and stage_of(topic.id) != "algus"
-    ]
+    # In the course's order (the units'), as resume follows it: the entry the
+    # assessment reports is then the unit it places into.
+    return sorted(
+        (topic for topic in available(unlocked(progress))
+         if topic.generator and topic.level in levels and stage_of(topic.id) != "algus"),
+        key=lambda topic: position(topic.id))
 
 
 def sweep(

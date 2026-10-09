@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import random
 import sqlite3
+from functools import lru_cache
 from pathlib import Path
 
 from .item import BLANK
@@ -59,19 +60,35 @@ _WHY = {
 }
 
 
-def _rows() -> list[sqlite3.Row]:
-    from . import config, haaldus
+def _recorded_pairs() -> dict[str, list[tuple]]:
+    """This server's pairs, read once per version of the recordings file: in
+    production it is a network mount, and every sound set would scan it."""
+    from . import config
 
     # Opening creates a file, so look first: no recordings is a state to report.
-    if not Path(config.AUDIO_DB).exists():
+    path = Path(config.AUDIO_DB)
+    if not path.exists():
         raise ValueError("EKI's recordings are not on this server — no sound items")
-    rows = haaldus.connect(config.AUDIO_DB).execute(
-        "SELECT form, tag, spoken FROM pronunciation WHERE source = ?",
-        (SOURCE_ID,)).fetchall()
-    if not rows:
+    stat = path.stat()
+    pairs = _pairs_of(str(path.resolve()), stat.st_mtime_ns, stat.st_size)
+    if not any(pairs.values()):
         raise ValueError("EKI's recordings are not on this server — no sound items")
-    return [r for r in rows if "+" not in r["spoken"] and " " not in r["form"]
-            and "-" not in r["form"] and len(r["form"]) <= _LONGEST]
+    return pairs
+
+
+@lru_cache(maxsize=2)
+def _pairs_of(path: str, mtime: int, size: int) -> dict[str, list[tuple]]:
+    from . import haaldus
+
+    conn = haaldus.connect(path)
+    try:
+        rows = conn.execute(
+            "SELECT form, tag, spoken FROM pronunciation WHERE source = ?",
+            (SOURCE_ID,)).fetchall()
+    finally:
+        conn.close()
+    return _pairs([r for r in rows if "+" not in r["spoken"] and " " not in r["form"]
+                   and "-" not in r["form"] and len(r["form"]) <= _LONGEST])
 
 
 def _pairs(rows) -> dict[str, list[tuple]]:
@@ -135,7 +152,7 @@ def drills(count: int = 10, seed: int | None = None,
            rules: tuple[str, ...] | None = None,
            words: sqlite3.Connection | None = None) -> list[PatternDrill]:
     wanted = [r for r in (rules or BASE_RULES) if r in BASE_RULES]
-    pairs = _everyday(words, _pairs(_rows()))
+    pairs = _everyday(words, _recorded_pairs())
     pool = [(rule, p) for rule in wanted for p in pairs[rule]]
     if not pool:
         return []

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -114,27 +113,13 @@ def _recordings() -> dict:
     Counted once per version of the file: the store is a network mount and
     every page load asks for this report.
     """
-    from .. import config
-
-    try:
-        stat = Path(config.AUDIO_DB).stat()
-        forms, sentences = _counted_recordings(
-            str(Path(config.AUDIO_DB).resolve()), stat.st_mtime_ns, stat.st_size)
-    except Exception:  # noqa: BLE001 - a missing store is a state, not an error
-        return {"forms": 0, "sentences": 0}
-    return {"forms": forms, "sentences": sentences}
-
-
-@lru_cache(maxsize=4)
-def _counted_recordings(path: str, mtime: int, size: int) -> tuple[int, int]:
     from .. import haaldus
 
-    conn = haaldus.connect(path)
     try:
-        return (conn.execute("SELECT COUNT(*) FROM pronunciation").fetchone()[0],
-                conn.execute("SELECT COUNT(*) FROM sentence_audio").fetchone()[0])
-    finally:
-        conn.close()
+        found = haaldus.counted()
+    except Exception:  # noqa: BLE001 - a broken store is a state, not an error
+        found = None
+    return found or {"forms": 0, "sentences": 0}
 
 
 @router.get("/api/status")

@@ -61,20 +61,15 @@ def missing_here() -> set[str]:
     Resuming to one would show an empty screen, the way a topic with no
     generator would (`progress.resume`).
     """
-    from . import config
+    from . import haaldus
     from .curriculum import TOPICS
 
     heard = {t.id for t in TOPICS if t.generator in HEARD}
-    path = Path(config.AUDIO_DB)
-    if not path.exists():
-        return heard
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-        has = conn.execute("SELECT COUNT(*) FROM pronunciation").fetchone()[0]
-        conn.close()
+        found = haaldus.counted()   # once per file version: the store is a mount
     except sqlite3.Error:
         return heard
-    return set() if has else heard
+    return set() if found and found["forms"] else heard
 
 
 def items_for(

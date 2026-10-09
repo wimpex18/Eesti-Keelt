@@ -190,3 +190,31 @@ def test_a_beginner_starts_with_the_first_week(tmp_path):
     from eesti.progress import connect, resume
 
     assert units.stage_of(resume(connect(tmp_path / "p.db"))) == "algus"
+
+
+def test_placement_follows_the_course_order(tmp_path):
+    """After *asesõnad* and *küsisõnad*, the assessment asks *olevik* (unit 2)
+    before *põhivormid* (unit 3), as resume would."""
+    from eesti.placement import candidates
+    from eesti.progress import connect
+
+    conn = connect(tmp_path / "p.db")
+    _master(conn, "asesonad", "kusisonad")
+    order = [t.id for t in candidates(conn)]
+    assert order.index("olevik") < order.index("pohivormid")
+    assert [units.position(t) for t in order] == sorted(units.position(t) for t in order)
+
+
+def test_the_recordings_are_counted_once_per_file_version(tmp_path, monkeypatch, eki_recordings):
+    """The store is a network mount in production: every course load asks
+    whether it is there, and must not count its rows each time."""
+    from eesti import haaldus
+    from eesti.practice import missing_here
+
+    opened: list[str] = []
+    real = haaldus.connect
+    monkeypatch.setattr(haaldus, "connect", lambda path=None: opened.append(str(path)) or real(path))
+    haaldus._counted.cache_clear()
+    for _ in range(5):
+        assert missing_here() == set()
+    assert len(opened) <= 1
