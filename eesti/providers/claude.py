@@ -2,8 +2,8 @@
 
 Claude Haiku 5.5 (`claude-haiku-5-5`) explains, tutors and gives advisory
 feedback, like every model lane here: code owns drill keys, mastery and FSRS
-(ADR-0001), and the lane answers learners only after its own grammar eval
-passes (ADR-0008). Until then it is an evaluation lane.
+(ADR-0001). It is the first hosted lane since its grammar eval passed
+(ADR-0008); Workers AI answers when it cannot.
 
 What Haiku 5.5 requires, and this module therefore does:
 
@@ -37,9 +37,9 @@ import os
 
 MODEL = "claude-haiku-5-5"
 
-#: Short explanation and correction tasks: the eval measures `low` against
-#: `medium` before the lane is promoted (ADR-0008). `ANTHROPIC_EFFORT` overrides.
-EFFORT = "low"
+#: The level that passed ADR-0008's bar (9 Oct 2026): `low` and `medium` missed
+#: it, `high` met it at about $0.0003 a check. `ANTHROPIC_EFFORT` overrides.
+EFFORT = "high"
 
 #: Room for adaptive thinking on top of the answer the caller asked for.
 THINKING_ROOM = 4000

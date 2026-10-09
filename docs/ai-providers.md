@@ -4,18 +4,18 @@
 
 | Task | Engine | Boundary |
 |---|---|---|
-| Grammar explanations and tutor | Cloudflare Workers AI GPT-OSS-120B, then deterministic Vabamorf evidence | Models explain and assess open writing; code owns drill keys, mastery and FSRS (`docs/ai-boundaries.md`). |
+| Grammar explanations and tutor | Claude Haiku 5.5 at effort `high`, then Cloudflare Workers AI GPT-OSS-120B, then deterministic Vabamorf evidence | Models explain and assess open writing; code owns drill keys, mastery and FSRS (`docs/ai-boundaries.md`). |
 | Speech recognition | TalTech's Estonian recogniser on the owner's Mac mini (home service), Cloudflare Workers AI Whisper as fallback, both through the Worker | Transcript and feedback are advisory. The learner reviews recorded audio in `Hindamiskomplekt` before it can become ASR evaluation data (`docs/asr-evaluation.md`). |
 | Estonian speech synthesis | TartuNLP Neurokõne | Valid complete WAV files are cached atomically; an uncached failure is visible. |
 | Sentence translation | TartuNLP Neurotõlge | Translation supports reading and writing; it never grades an answer. |
 | Word lookup | Ekilex with `EKILEX_API_KEY`, then the Sõnaveeb mirror | Dictionary answers retain their source. |
 
 `providers/grammar.py` orders an **explicitly configured local trial** before
-Workers AI and the deterministic fallback. The **Claude lane**
-(`eesti/providers/claude.py`, Claude Haiku 5.5 through Anthropic's SDK) is
-built and evaluated but does not answer learners until its eval passes the
-margin ADR-0008 sets. The tutor uses the same qualified
-LLM list. Deterministic spelling, agreement and rection findings take
+the **Claude lane** (`eesti/providers/claude.py`, Claude Haiku 5.5 through
+Anthropic's SDK), then Workers AI and the deterministic fallback. Haiku passed
+ADR-0008's bar on 9 Oct 2026 (below); without `ANTHROPIC_API_KEY` on Cloud Run,
+or when it refuses, is spent or is down, Workers AI answers. The tutor uses the
+same qualified LLM list. Deterministic spelling, agreement and rection findings take
 precedence on conflicting spans. Mistral, NVIDIA, OpenRouter, public GEC and
 Estonian-to-Estonian normalization are evaluation-only; they are not automatic
 hosted fallbacks. Responses name the engine that answered. A malformed or empty
@@ -73,12 +73,31 @@ python -m eesti.cli models --provider nvidia --limit 10
 ```
 
 **The Claude lane.** Haiku 5.5 takes no `temperature` and no prefill, so the
-lane sends neither; it sets `effort` explicitly (`ANTHROPIC_EFFORT`, default
-`low`) and holds the grammar check's output to `grammar.CORRECTIONS_SCHEMA`.
-A refusal is a failed lane, as is an empty reply; Haiku 5.5 has no server-side
-fallback. Prompts above 200 000 characters are refused before sending, well
-below the 100K-token threshold where the price rises. The SDK's own retries
-are off: the chain decides what follows a failure.
+lane sends neither; it sets `effort` explicitly (`ANTHROPIC_EFFORT`, pinned
+`high`) and holds the grammar check's output to `grammar.CORRECTIONS_SCHEMA`.
+Its grammar prompt is its own (`grammar.CLAUDE_PROMPT`, written to Anthropic's
+Haiku 5.5 guidance, with examples that are not eval sentences); the other lanes
+keep `SYSTEM_PROMPT`, and the eval asks each lane with the prompt the app sends
+it. The system prompt is the cached prefix (Haiku 5.5 caches from 512 tokens; a
+cache read costs a tenth of fresh input). A prompt over 90 000 UTF-8 bytes is
+refused before sending: a token covers at least one byte, so nothing sent can
+reach the 100K-token step where every rate is five times higher. A refusal is
+a failed lane, as is an empty or cut-off reply; Haiku 5.5 has no server-side
+fallback. The SDK's own retries are off: the chain decides what follows.
+
+Haiku 5.5 on 9 Oct 2026 (`eval.yml`, external sample 40 with 20 clean):
+
+| Effort | Hand set | External | Cost per check |
+|---|---|---|---|
+| `low` | 9/10, 7/8 clean | 8/40, 20/20 clean | $0.0001 |
+| `medium` | 10/10, 8/8 clean | 11/40, 19/20 clean | $0.0002 |
+| `high` (pinned) | 10/10, 8/8 clean | 13/40, 19/20 clean | $0.0003 |
+
+ADR-0008's bar is 8/10 with 8/8 clean and 12/40 with 16/20 clean; `high`
+passes it by one sentence, `medium` misses it by one. About 95% of input
+tokens were cache reads. Four of the shipped `SYSTEM_PROMPT`'s examples are
+also clean sentences of the hand set, which flatters a lane using it on that
+set's clean half; Haiku's prompt avoids them (a test checks).
 
 **Newer candidates.** Of the newest models, only Qwen3.8-27B runs on the Workers Free plan; GLM-5.3,
 GLM-5.3 Flash and DeepSeek V4 answer "not available on the Workers Free plan".

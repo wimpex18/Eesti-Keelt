@@ -149,9 +149,10 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   screen. The owner can reset a password using the procedure in
   `docs/deploy.md`; account removal is available to the owner and clears that
   learner's origin files and Durable Object data before disabling the login.
-- **Grammar is qualified, not provider-count driven.** Workers AI GPT-OSS-120B
-  is the only automatic hosted grammar/tutor lane, with deterministic offline
-  degradation. Other LLMs, public GEC and est→est normalization remain explicit
+- **Grammar is qualified, not provider-count driven.** Claude Haiku 5.5 is the
+  first automatic hosted grammar/tutor lane (ADR-0008), Workers AI GPT-OSS-120B
+  answers when Haiku cannot, and deterministic offline evidence follows. Haiku
+  answers in production once `ANTHROPIC_API_KEY` is on Cloud Run. Other LLMs, public GEC and est→est normalization remain explicit
   evaluation candidates; see `docs/ai-providers.md`.
 - **Public GEC is not a production dependency.** It is excluded from automatic
   traffic; run its diagnostic and quality eval before considering it again.

@@ -104,8 +104,8 @@ ENGINES: tuple[Source, ...] = (
         "anthropic", "Anthropic Claude", "engine", "Anthropic Commercial Terms", True,
         "https://platform.claude.com/docs/",
         "Claude Haiku 5.5 for explanations, tutoring and advisory feedback "
-        "(`eesti/providers/claude.py`). An evaluation lane until its grammar "
-        "eval passes (ADR-0008); it never decides a drill, mastery or FSRS.",
+        "(`eesti/providers/claude.py`): the first grammar and tutor lane since "
+        "its eval passed (ADR-0008); it never decides a drill, mastery or FSRS.",
         version="claude-haiku-5-5",
         quota="paid: $0.10 / $0.50 per million input / output tokens up to a "
               "100K-token prompt; this app caps it at 2 000 calls a day",

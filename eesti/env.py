@@ -27,7 +27,7 @@ KNOWN_KEYS = {
     "HF_TOKEN": "Hugging Face — hosted Whisper fallback for speech recognition.",
     "NOTION_TOKEN": "Notion — push confirmed errors to the Vead database.",
     "EKILEX_API_KEY": "Ekilex — EKI's own dictionary API, the database behind Sõnaveeb.",
-    "ANTHROPIC_API_KEY": "Anthropic — Claude Haiku 5.5 lane (paid; evaluation until ADR-0008's eval passes).",
+    "ANTHROPIC_API_KEY": "Anthropic — Claude Haiku 5.5, the first grammar and tutor lane (paid; ADR-0008).",
 }
 
 

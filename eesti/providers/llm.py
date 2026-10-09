@@ -120,7 +120,7 @@ PROVIDERS: dict[str, Provider] = {
         "(an account threshold, not consumption). 20 req/min either way.",
     ),
     # Anthropic's Messages API, not OpenAI-compatible: `complete` hands it to
-    # `providers/claude.py`. Evaluation lane until ADR-0008's eval passes.
+    # `providers/claude.py`. First hosted lane since ADR-0008's eval passed.
     "anthropic": Provider(
         "anthropic",
         "https://api.anthropic.com/v1",

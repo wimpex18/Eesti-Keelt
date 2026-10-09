@@ -1,25 +1,22 @@
 # Handoff
 
 Current task: DEV-40/41/38 on branch `claude/dev-40-course-structure`, PR #125 (one PR).
-Done: course units (ADR-0007, `eesti/units.py`), unit 1, nominative object, osaalus,
-EKI credit everywhere, unit check (`eesti/unitcheck.py`), Claude Haiku 5.5 lane
-(evaluation-only, ADR-0008), restored reminder push handler, and the start of the
-B1 exam loop (ADR-0009): both writing tasks with a code checklist
-(`eesti/writingtasks.py`), *Eksamipäev* (`eesti/examday.py`), practice from reading
-misses; a late profile no longer redraws the start screen over the learner's
-next step. Research and decisions: ADR-0009, `qa/opus-sessions.md` (8 Opus briefs).
+Done: course units (ADR-0007), unit 1, nominative object, osaalus, EKI credit,
+unit check, skipping a unit or every unit before a chosen one, the start of the
+B1 exam loop (writing tasks with a code checklist, *Eksamipäev*), restored
+reminder push handler. Claude Haiku 5.5 passed ADR-0008's bar at effort high
+(9 Oct) and leads the grammar/tutor chain, Workers AI behind it; prompt caching
+and a byte bound under 100K tokens; its own prompt (`grammar.CLAUDE_PROMPT`).
+Parallel Opus sessions: `qa/opus-sessions.md` (waves, file ownership, merging);
+`cli worktree-data` gives a worktree reference data, never learner data.
 Fast suite and browser journeys (both engines) green.
-Next: the owner reviews and merges PR #125; merge rebuilds the origin, then run
-`smoke` with `deep: true`. Then `qa/next-session.md` (material pipeline → HARNO
-B1 task types → session and Home).
-In progress (9 Oct): Haiku 5.5 lane with prompt caching, a byte bound under
-100K tokens and its own prompt (`grammar.CLAUDE_PROMPT`); the paid eval runs on
-GitHub (the key is a GitHub secret only), then unit skipping and the Opus plan.
-Owner: set a spend limit on the Anthropic account; re-subscribe to reminders
-on each device (the push handler was missing 24 Sep–9 Oct); send the EKI
-permission draft; verify a nightly backup copy with `cli verify-backup`.
-Owner confirmed (9 Oct): unit 1 leads only for a learner with nothing mastered
-beyond it; learners skip a unit or every unit before a chosen one in Kursus.
+Next: the owner merges PR #125, runs `bash deploy/set-llm-key.sh
+ANTHROPIC_API_KEY` in Cloud Shell, then `smoke` with `deep: true`; then wave 1
+of `qa/opus-sessions.md` (S1, S5, S6, S7), per `qa/next-session.md`.
+Owner: set a spend limit on the Anthropic account; send the permission requests
+in `qa/source-permission-requests.md` (Monday); re-subscribe to reminders on each
+device; verify a backup with `cli verify-backup`.
+Linear is paused (owner, 9 Oct): follow-ups live here and in PRs.
 Uncommitted task paths: none after the commit.
 Preserve unrelated package.json and untracked .agents/, .claude/agents/,
 .claude/settings.local.json, .claude/skills/, .codex/, .github/agents/,

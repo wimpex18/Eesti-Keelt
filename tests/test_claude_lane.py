@@ -122,7 +122,7 @@ def test_effort_is_read_when_the_call_is_made(lane, monkeypatch):
     claude.complete("s", "u")
     monkeypatch.delenv("ANTHROPIC_EFFORT")
     claude.complete("s", "u")
-    assert [p["output_config"]["effort"] for p in sent] == ["medium", "low"]
+    assert [p["output_config"]["effort"] for p in sent] == ["medium", claude.EFFORT]
 
 
 def test_the_chain_reaches_it_through_complete(lane):
@@ -148,11 +148,49 @@ def test_learners_are_not_paced_only_evaluations_are(lane, monkeypatch):
     assert slept == []
 
 
-def test_it_does_not_answer_learners_before_its_eval():
-    """ADR-0008: the lane joins the chain only after the agreed eval passes."""
-    from eesti.providers.grammar import LLM_PREFERENCE
+@pytest.fixture
+def both_lanes(monkeypatch):
+    """Haiku and Workers AI configured; each lane's reply chosen by the test."""
+    from eesti.providers import breaker
 
-    assert "anthropic" not in LLM_PREFERENCE
+    for key in ("ANTHROPIC_API_KEY", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"):
+        monkeypatch.setenv(key, "test-value-not-real")
+    monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
+    breaker.reset()
+    replies: dict = {}
+
+    def answer(provider, system, user, **kwargs):
+        reply = replies[provider]
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    monkeypatch.setattr(llm, "complete", answer)
+    return replies
+
+
+def test_haiku_answers_learners_first(both_lanes):
+    """ADR-0008's eval passed at effort high (9 Oct 2026): Haiku is the lane."""
+    from eesti.providers.grammar import check
+
+    both_lanes.update({"anthropic": '{"corrections": []}',
+                       "workers-ai": '{"corrections": []}'})
+    assert check("Ma ostsin leiba.").engine == "llm:anthropic"
+
+
+def test_workers_ai_answers_when_haiku_cannot(both_lanes):
+    """A refusal, a spent account or an outage must not leave the learner with
+    only the offline check while the free lane is up."""
+    from eesti.providers.grammar import check
+
+    both_lanes.update({"anthropic": claude.Refused("general_harms"),
+                       "workers-ai": '{"corrections": []}'})
+    assert check("Ma ostsin leiba.").engine == "llm:workers-ai"
+
+
+def test_the_pinned_effort_is_the_one_that_passed():
+    """`high` passed the bar; `low` and `medium` did not (docs/ai-providers.md)."""
+    assert claude.EFFORT == "high"
 
 
 def test_the_grammar_check_asks_for_its_own_shape(lane):

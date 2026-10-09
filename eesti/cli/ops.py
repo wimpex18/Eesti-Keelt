@@ -22,6 +22,44 @@ def cmd_verify_backup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_worktree_data(args: argparse.Namespace) -> int:
+    """Give this checkout (a parallel session's worktree) another checkout's
+    reference data: word lists, corpora, recordings of EKI, exam files.
+
+    Never the learner's own history (`config._LEARNER_FILES`, other learners'
+    and guests' folders) and never the owner's voice recordings (`data/eval`).
+    Copies are clones on macOS (copy-on-write: instant, no extra space), and a
+    file already here is kept.
+    """
+    import shutil
+    import subprocess
+
+    from .. import config
+
+    source, target = Path(args.source).resolve() / "data", Path("data").resolve()
+    if source == target:
+        print("that is this checkout: run it from the new worktree")
+        return 1
+    private = {*config._LEARNER_FILES.values(), Path(config.LEARNERS_DIR).name,
+               Path(config.GUEST_DIR).name, "eval"}
+    target.mkdir(exist_ok=True)
+    copied = []
+    for item in sorted(source.iterdir()):
+        dest = target / item.name
+        if item.name in private or item.name.startswith(".") or dest.exists():
+            continue
+        if sys.platform == "darwin":
+            subprocess.run(["cp", "-cR", str(item), str(dest)], check=True)
+        elif item.is_dir():
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
+        copied.append(item.name)
+    print(f"copied: {', '.join(copied) or 'nothing new'}; "
+          f"left out: {', '.join(sorted(private))}")
+    return 0
+
+
 def cmd_notion(args: argparse.Namespace) -> int:
     """Review queued errors and, only with `--push`, send them to the `Vead` log.
 
@@ -217,6 +255,10 @@ def cmd_asr_serve(args: argparse.Namespace) -> int:
 
 def register(sub) -> None:
     """Register this group's commands beside their handlers."""
+    p = sub.add_parser("worktree-data",
+                       help="copy reference data from another checkout, never learner data")
+    p.add_argument("source", help="the main checkout, e.g. ~/Projects/Eesti Keelt")
+    p.set_defaults(func=cmd_worktree_data)
     p = sub.add_parser("verify-backup", help="replay a private event export in temporary stores")
     p.add_argument("file")
     p.set_defaults(func=cmd_verify_backup)

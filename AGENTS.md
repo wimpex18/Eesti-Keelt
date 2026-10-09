@@ -10,8 +10,9 @@ The app uses learn → practise → check. Known weakness: `obj-case` (completed
   explain and assess open writing or conversation, with the engine named; model
   scores are advisory readiness evidence, never mastery or FSRS. See
   `docs/ai-boundaries.md`.
-- Workers AI GPT-OSS-120B is the automatic hosted grammar/tutor lane, followed
-  by deterministic offline evidence. Other grammar models are evaluation-only.
+- Claude Haiku 5.5 is the automatic hosted grammar/tutor lane (ADR-0008), then
+  Workers AI GPT-OSS-120B, then deterministic offline evidence. Other grammar
+  models are evaluation-only.
   Speech goes to the owner's Mac mini home service (`deploy/home-asr/`), with
   Workers AI Whisper as fallback. Change a lane only after its own
   task-specific evaluation; ASR needs human-verified learner audio, not prompts
@@ -77,26 +78,23 @@ suite after upgrades and the morphology eval before trusting a new `estnltk`.
 - Start with `HANDOFF.md`, `git status` and recent commits. Read
   `docs/status.md` for feature or operational work; follow contextual links
   instead of loading every document for a small edit.
-- Before each commit and at handoff, make `HANDOFF.md` a short present-state
-  note: current task, exact next step, uncommitted paths and blockers. Remove
-  completed history. Keep it within 30 lines.
+- Before each commit and at handoff, make `HANDOFF.md` (in a parallel session,
+  `qa/sessions/<branch>.md`) a short present-state note: current task, exact
+  next step, uncommitted paths and blockers; no completed history, ≤30 lines.
 - Keep `AGENTS.md` concise and model-agnostic as the single repository-wide
   agent instruction file.
 - Stage named paths, never `git commit -a`. One branch and one PR per session:
   add later work to it, even for another issue; never a PR per issue, and no
   sub-branches merged into each other. One implementation session at a time;
-  run parallel sessions only when the owner asks, on files no other session
-  edits. If the owner says "no PR", commit to `main`. The user merges.
+  parallel sessions only when the owner asks, each in its own worktree on the
+  files its brief owns (`qa/opus-sessions.md`). If the owner says "no PR", commit to `main`. The user merges.
   Docs describe current behavior. Path rules are in `.claude/rules/`; design
   context is in `PRODUCT.md` and `DESIGN.md`. Architecture constraints are in
   `docs/adr/0005-architecture-contracts.md`.
 
 ## Linear tracking
 
-Linear team **Development (DEV)**, project **Eesti-Keelt**. **Do not create
-Linear issues**, including child issues: the owner tracks the existing set.
-Record follow-up, deferred work and new findings as a comment, or a checklist
-in a comment, on the existing issue the work belongs to; if none fits, list it
-in `HANDOFF.md` and ask the owner. If work starts from a Linear issue, keep its
-issue ID in the branch or PR. Keep implementation details in Git/PRs and
-durable product and technical truth in repository docs.
+Linear team **Development (DEV)**, project **Eesti-Keelt**, is paused by the
+owner (9 Oct 2026). **Never create issues**; record follow-up, deferred work and
+findings in the PR and the handoff note. Keep an issue ID in the branch or PR
+when work starts from one; durable truth goes in repository docs.

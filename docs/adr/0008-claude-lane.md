@@ -23,9 +23,10 @@ through the Batch API.
 2. **The lane answers learners only after its own eval passes:** on the hand set
    at least 8 of 10 errors caught with 8 of 8 clean; on the external track at
    least 12 of 40 attested learner errors caught with at least 16 of 20 clean.
-   Effort `low` and `medium` are both run; the cheaper level that passes is
-   pinned. Until then the lane is evaluation-only (`cli eval --provider
-   anthropic`, `eval.yml`), outside `grammar.LLM_PREFERENCE`.
+   The cheapest effort level that passes is pinned. On 9 Oct 2026 `low` and
+   `medium` missed the bar and `high` passed it (10/10 with 8/8 clean; 13/40
+   with 19/20 clean; `docs/ai-providers.md`), so Haiku leads
+   `grammar.LLM_PREFERENCE` at effort `high`, with Workers AI behind it.
 3. **A ceiling, enforced twice:** the app's daily cap (2 000 calls, 300 for
    guests; `providers/budget.py`) and a spend limit set on the Anthropic
    account. A test requires every paid lane to carry a cap. Reaching the
@@ -39,12 +40,17 @@ through the Batch API.
    by default (`eesti/licences.py`, `/api/sources`). Audio never goes to Claude,
    which takes none: speech is recognised first, and the learner confirms the
    transcript (ADR-0003).
+6. **Prompts stay under 100K tokens and are cached.** A request over 90 000
+   UTF-8 bytes is refused before sending; the system prompt carries the cache
+   breakpoint. Haiku has its own grammar prompt, written to Anthropic's Haiku
+   5.5 guidance, and the eval scores the prompt the app sends.
 
 ## Consequences
 
-- Workers AI stays the automatic lane until the eval passes; the switch is one
-  line in `grammar.LLM_PREFERENCE` and its docs.
+- Haiku answers learners once `ANTHROPIC_API_KEY` is on Cloud Run
+  (`deploy/set-llm-key.sh`); until then, and whenever Haiku cannot answer,
+  Workers AI does. Reverting is one line in `grammar.LLM_PREFERENCE`.
 - Inference runs outside the EU (`inference_geo` is `global` or `us`); the
   privacy notes say so.
-- A paid run of the eval needs the owner's `ANTHROPIC_API_KEY` in `.env` and as
-  a GitHub secret; a full run costs about $0.10.
+- A paid run of the eval uses the GitHub secret through `eval.yml` (track,
+  sample and effort are inputs); all six runs of 9 Oct cost about $0.06.

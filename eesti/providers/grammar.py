@@ -649,7 +649,10 @@ def from_transcript(result: "GrammarResult", text: str = "") -> "GrammarResult":
 #: `local` runs an Estonian-adapted model and is off unless LOCAL_LLM_URL is set.
 #: Only evaluated, operational lanes belong in automatic grammar/tutor routing.
 #: Other hosted lanes remain CLI candidates until quality and health justify them.
-LLM_PREFERENCE = ("local", "workers-ai")
+#: Claude Haiku 5.5 passed ADR-0008's bar at effort high (9 Oct 2026: 10/10 with
+#: 8/8 clean, 13/40 attested errors with 19/20 clean); Workers AI's GPT-OSS-120B
+#: (8/10, 2/40) answers whenever Haiku cannot.
+LLM_PREFERENCE = ("local", "anthropic", "workers-ai")
 
 
 def build_chain(providers: list[GrammarProvider] | None = None) -> list[GrammarProvider]:
