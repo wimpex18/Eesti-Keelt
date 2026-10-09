@@ -51,10 +51,35 @@ class Refused(RuntimeError):
         self.category = category
 
 
+class SpendLimit(RuntimeError):
+    """The account's spend limit is reached: the lane is spent, not broken."""
+
+
+_CLIENT = None
+
+
 def _client(timeout: float):
+    """One SDK client for the process (one connection pool), per-call timeout."""
+    global _CLIENT
     import anthropic
 
-    return anthropic.Anthropic(timeout=timeout, max_retries=0)
+    if _CLIENT is None:
+        _CLIENT = anthropic.Anthropic(max_retries=0)
+    return _CLIENT.with_options(timeout=timeout)
+
+
+def is_fault(exc: BaseException) -> bool:
+    """Whether a failure counts against the lane's circuit breaker.
+
+    A refusal is about one request, and a spend limit about the month: neither
+    says the lane is broken, and the breaker's cooldown grows to days.
+    """
+    return not isinstance(exc, (Refused, SpendLimit))
+
+
+def _spend_limit(exc: BaseException) -> bool:
+    text = str(getattr(exc, "body", "") or "") + " " + str(exc)
+    return "spend_limit" in text or "usage limits" in text
 
 
 def complete(system: str, user: str, *, model: str | None = None,
@@ -66,19 +91,30 @@ def complete(system: str, user: str, *, model: str | None = None,
 
     if len(system) + len(user) > MAX_PROMPT_CHARS:
         raise ValueError("prompt too long for the Claude lane's price threshold")
+    import anthropic
+
     output_config: dict = {"effort": effort or EFFORT}
     if schema is not None:
         output_config["format"] = {"type": "json_schema", "schema": schema}
-    reply = _client(timeout).messages.create(
-        model=model or os.environ.get("ANTHROPIC_MODEL") or MODEL,
-        max_tokens=max_tokens + THINKING_ROOM,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-        output_config=output_config,
-    )
+    try:
+        reply = _client(timeout).messages.create(
+            model=model or os.environ.get("ANTHROPIC_MODEL") or MODEL,
+            max_tokens=max_tokens + THINKING_ROOM,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            output_config=output_config,
+        )
+    except (anthropic.RateLimitError, anthropic.BadRequestError,
+            anthropic.PermissionDeniedError) as exc:
+        if _spend_limit(exc):
+            raise SpendLimit(str(exc)) from None
+        raise
     if reply.stop_reason == "refusal":
         details = getattr(reply, "stop_details", None)
         raise Refused(getattr(details, "category", None))
+    # A reply cut off by `max_tokens` is not an answer: its JSON is unfinished.
+    if reply.stop_reason == "max_tokens":
+        raise EmptyReply("max_tokens")
     text = "".join(block.text for block in reply.content if block.type == "text")
     if not text.strip():
         raise EmptyReply(reply.stop_reason or "unknown")

@@ -130,3 +130,34 @@ def test_the_ledger_says_what_leaves_and_how_long_it_stays():
     entry = next(s for s in ENGINES if s.id == "anthropic")
     assert entry.data_leaves == "text"
     assert "30" in entry.retention
+
+
+def test_a_reply_cut_off_by_max_tokens_is_not_an_answer(lane):
+    lane(_reply(_text('{"corrections": [{"wrong": "le'), stop="max_tokens"))
+    with pytest.raises(llm.EmptyReply):
+        claude.complete("s", "u")
+
+
+def test_a_refusal_does_not_trip_the_breaker(lane):
+    """One declined request says nothing about the lane; the breaker's cooldown
+    grows to days."""
+    from eesti.providers import breaker
+    from eesti.providers.grammar import LLMGrammar, check
+
+    lane(_reply(stop="refusal", category="general_harms"))
+    breaker.reset()
+    result = check("Ma ostsin leib.", providers=[LLMGrammar("anthropic")])
+    assert result.degraded and "Refused" in result.diagnostics
+    assert not breaker.is_open("llm:anthropic")
+
+
+def test_one_client_serves_every_call(monkeypatch):
+    """A new client per call is a new TLS connection per learner request."""
+    import anthropic
+
+    made = []
+    monkeypatch.setattr(claude, "_CLIENT", None)
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kw: made.append(kw) or SimpleNamespace(
+        with_options=lambda **opts: SimpleNamespace(timeout=opts["timeout"])))
+    timeouts = [claude._client(t).timeout for t in (5.0, 10.0, 5.0)]
+    assert len(made) == 1 and timeouts == [5.0, 10.0, 5.0]

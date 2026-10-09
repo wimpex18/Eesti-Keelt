@@ -325,6 +325,14 @@ def complete(
     raise RuntimeError("unreachable")
 
 
+def is_fault(exc: BaseException) -> bool:
+    """Whether a lane's failure should count against its circuit breaker
+    (`claude.is_fault`): a refusal or a spend limit does not."""
+    from .claude import is_fault as claude_fault
+
+    return claude_fault(exc)
+
+
 def parse_json(raw: str) -> dict:
     """Parse a model's JSON reply, tolerating a fenced code block around it."""
     text = raw.strip()

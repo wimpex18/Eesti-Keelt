@@ -166,8 +166,10 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   checks and hashes, without claiming a publication date for unversioned files.
   Upload rebuilds topic links and requires a built word list.
 - **Reminder delivery remains unverified.** VAPID bindings and hourly cron are
-  deployed, and Chrome on the owner's Mac is subscribed; actual delivery has
-  not been confirmed.
+  deployed, and Chrome on the owner's Mac is subscribed. The service worker had
+  no `push` handler from 24 Sep to 9 Oct 2026, so nothing could be shown in that
+  time and WebKit may have revoked subscriptions; re-subscribe on each device
+  and confirm one delivered reminder.
 - **Browser journeys in CI run without the reading corpus.** The `journeys`
   job builds the word list; reading journeys still skip there (`docs/testing.md`).
 - **4 of 12 question words have no Russian cue.** `kelle`, `kellele`,

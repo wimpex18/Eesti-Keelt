@@ -1012,7 +1012,10 @@ def check(text: str, providers: list[GrammarProvider] | None = None) -> GrammarR
             _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")
         except Exception as exc:  # bad JSON, SDK errors — never fatal
-            _record_failure(provider.name)
+            from .llm import is_fault
+
+            if is_fault(exc):
+                _record_failure(provider.name)
             tried.append(f"{provider.name}: {why_failed(exc)}")
 
     return GrammarResult(
