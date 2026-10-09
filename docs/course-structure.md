@@ -181,7 +181,6 @@ words.
 | HARNO-format reading and listening tasks, writing tasks on the real clock | 11–30 | DEV-41 |
 | Explanations in Ukrainian and English | all | DEV-42 |
 | Verb-second word order on licensable material (`lauseehitus` is drilled only through `sonajark`) | 2, 20 | DEV-36 |
-| A generator for `tulevik` (possible with Vabamorf; no EKK section linked yet) | 17 | DEV-40 |
 | Material for `uhendverbid` and `liitsonad` (too few marked examples) | 24, 28 | DEV-40 |
 | Word sets for HARNO topics `themes.py` lacks (personal data, daily routine, free time, relationships, shopping and money, services, directions) | 2, 6, 8, 18 | DEV-40 |
 | Speaking and listening tasks per HARNO topic | all | DEV-41, DEV-45 |
@@ -222,9 +221,10 @@ words.
   five items per core topic and per revisited rule, every part at least 4 of 5;
   a part answered 5 of 5 counts its topic as mastered, as a test-out would.
   Revision units with a checkpoint (19, 30) run it; unit 27 checks its stage's
-  recent topics. Units 17 and 28 have nothing drillable and no check yet. A unit
-  is *complete* when its check is passed and its core topics are mastered;
-  Kursus says so.
+  recent topics, and so does unit 28, whose `liitsonad` has no drill yet; unit 17
+  checks `tulevik` (EKK SÜ 27: the present after a future adverbial, *hakkama* +
+  ma). A unit is *complete* when its check is passed and its core topics are
+  mastered; Kursus says so.
 - Not built yet: homework, the weekly plan, placement into a unit from the
   assessment, Home naming the session within a unit, skill pages led by the
   unit, dialogues and texts.

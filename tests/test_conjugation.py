@@ -151,3 +151,76 @@ class TestOneAnswerAboutWhichVerbsAreReady:
         assert pool, "no verbs at all — this check would prove nothing"
         assert {lemma for lemma, _ in verbs_at_levels(words)} == pool
         assert {form.lemma for form in irregular_verbs(words)} <= pool
+
+
+class TestEvsPhraseFrames:
+    """Conjugation and imperative gaps in EKI EVS's phrases (`phrase_drills`):
+    a word is asked only where Vabamorf reads it one way, and the item is
+    credited to EVS."""
+
+    #: Phrases from EKI EVS (CC BY 4.0).
+    PHRASES = (
+        ("tulema", "tulen homme jälle"),
+        ("sõitma", "millal sa siis sõidad?"),
+        ("olema", "isa oli suur teatriskäija"),
+        ("mõtlema", "ära mõtle surma peale"),
+        ("teadma", "ma neid ploomisorte nimeliselt ei tea"),   # connegative, not käskiv
+        ("tulema", "tule siia!"),                              # *tule* is also *tuli*
+    )
+    VERBS = ("tulema", "sõitma", "olema", "mõtlema", "teadma")
+
+    @pytest.fixture
+    def evs_conn(self, tmp_path):
+        from test_modals import evs_words
+
+        conn = evs_words(tmp_path / "evs.db", self.PHRASES, (), self.VERBS, "A1")
+        yield conn
+        conn.close()
+
+    def _items(self, conn, *topics):
+        return {i.prompt: i for i in conjugation.phrase_drills(
+            conn, topics, count=20, seed=1)}
+
+    def test_each_form_is_keyed_by_vabamorf(self, evs_conn):
+        items = self._items(evs_conn, "olevik", "lihtminevik", "kaskiv")
+        assert (items["____ homme jälle"].answer,
+                items["____ homme jälle"].distractor) == ("tulen", "tulin")
+        assert items["____ homme jälle"].label == "olevik, mina"
+        assert items["millal sa siis ____?"].label == "olevik, sina"
+        assert items["isa ____ suur teatriskäija"].answer == "oli"
+        assert items["ära ____ surma peale"].label == "käskiv kõneviis, sina"
+
+    def test_a_connegative_is_never_asked_as_the_imperative(self, evs_conn):
+        items = self._items(evs_conn, "kaskiv")
+        assert not [p for p in items if "ploomisorte" in p]
+
+    def test_an_ambiguous_word_is_not_blanked(self, evs_conn):
+        assert not [p for p in self._items(evs_conn, "kaskiv") if "siia" in p]
+
+    def test_items_are_credited_to_evs(self, evs_conn):
+        for item in self._items(evs_conn, "olevik", "lihtminevik", "kaskiv").values():
+            assert item.source_id == "eki-evs" and item.rule == "fraas"
+
+    def test_only_verbs_at_the_level(self, evs_conn):
+        assert conjugation.phrase_drills(evs_conn, ("olevik",), levels=("B1",),
+                                         count=5, seed=1) == []
+
+
+class TestTheMixedSet:
+    def test_each_topic_draws_on_its_rules(self, words):
+        for topic, rules in conjugation.RULES.items():
+            items = conjugation.drills(words, topic, count=8, seed=1)
+            assert len(items) == 8, topic
+            assert {i.topic for i in items} == {topic}
+
+    def test_rules_narrow_the_set(self, words):
+        items = conjugation.drills(words, "tingiv", count=4, seed=2, rules=("eitus",))
+        assert {i.rule for i in items} == {"eitus"}
+
+    def test_an_unknown_rule_leaves_all(self, words):
+        assert conjugation.drills(words, "tingiv", count=4, seed=2, rules=("nonesuch",))
+
+    def test_the_same_seed_gives_the_same_set(self, words):
+        a = [i.to_dict() for i in conjugation.drills(words, "kaskiv", count=6, seed=3)]
+        assert a == [i.to_dict() for i in conjugation.drills(words, "kaskiv", count=6,
+                                                               seed=3)]

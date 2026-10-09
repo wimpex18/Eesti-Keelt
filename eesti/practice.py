@@ -37,7 +37,7 @@ def theme_slot(topic: str) -> str | None:
     from .curriculum import by_id
 
     generator = by_id(topic).generator
-    if generator == "conjugation":
+    if generator in ("conjugation", "future"):
         return "verbs"
     if generator == "forms":
         return "verbs" if topic == "eitus" else "nouns"
@@ -84,8 +84,9 @@ def items_for(
     """Practice items for one curriculum topic, from whichever generator owns it.
 
     `rules` narrows a topic with sub-rules to some of them (`obj-case`:
-    `negation`, `completed`, `imperative`…; `osaalus`: `eitus`, `mitmus`); other
-    generators ignore it.
+    `negation`, `completed`, `imperative`…; `osaalus`: `eitus`, `mitmus`; a verb
+    topic: `vorm`, `fraas`, `eitus`, `modaal`; `tulevik`: `olevik`, `hakkama`);
+    other generators ignore it.
 
     Raises when a topic has no generator, so "nothing to practise" is not mistaken
     for "the generator produced nothing".
@@ -126,10 +127,16 @@ def items_for(
                 words, theme, levels, pos="v" if slot == "verbs" else "s"))
 
     if generator == "conjugation":
-        from .conjugation import generate
+        from .conjugation import drills as verb_drills
 
-        return generate(words, topics=(topic,), levels=levels, count=count,
-                        seed=seed, only=only)
+        return verb_drills(words, topic, levels=levels, count=count, seed=seed,
+                           only=only, rules=rules)
+
+    if generator == "future":
+        from .future import drills as future_drills
+
+        return future_drills(words, levels=levels, count=count, seed=seed,
+                             only=only, rules=rules)
 
     if generator == "patterns":
         from .patterns import comparison_drills, numeral_drills, question_drills

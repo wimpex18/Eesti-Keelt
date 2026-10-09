@@ -163,8 +163,10 @@ _A2: tuple[Topic, ...] = (
           "транслатив, терминатив, эссив, абессив, комитатив",
           requires=("gen-stem",), generator="corpus_cloze"),
     Topic("tulevik", "A2", "tuleviku väljendamine", "выражение будущего",
-          requires=("olevik",),
-          note="Estonian has no future tense; it is expressed by other means."),
+          requires=("olevik",), generator="future",
+          note="Estonian has no future tense; it is expressed by other means "
+               "(EKK SÜ 27): the present after a future adverbial, and "
+               "hakkama + ma (`eesti/future.py`). The saama-future is never graded."),
 )
 
 # --------------------------------------------------------------------------
@@ -351,7 +353,6 @@ CROSS: dict[str, str] = {
 #: Topics with nothing yet, and why. Filling one removes its line; a test holds
 #: this list and the derived one together.
 REPRESENTATION_GAPS: dict[str, str] = {
-    "tulevik": "no EKK section linked yet; a generator is possible (Vabamorf)",
     "uhendverbid": "too few marked corpus examples; needs EKI usage examples",
     "liitsonad": "too few marked corpus examples",
 }

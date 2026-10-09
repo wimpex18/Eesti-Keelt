@@ -360,20 +360,75 @@ def _question_sense(article, word: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(out))
 
 
+def _opens_question(estonian: str, word: str) -> bool:
+    """Whether a phrase is a direct question with `word` as its whole question
+    word: `kellega sa rääkisid?`, but not `kelle käest sa seda kuulsid?`, where
+    the question word is *kelle käest* (Vabamorf reads `käest` as an adposition).
+    """
+    from .morph import parts_of_speech
+
+    said = estonian.casefold()
+    found = re.match(rf"{re.escape(word)}\s+(\w+)", said)
+    return bool(said.endswith("?") and found
+                and "K" not in parts_of_speech(found.group(1)))
+
+
+#: The most Russian words a cue read off EVS's question phrases keeps:
+#: `с кем` needs its preposition.
+PHRASE_CUE_WORDS = 2
+
+
+def _phrase_cue(renderings: list[str]) -> str:
+    """The opening EKI's Russian shares across EVS's questions with one question
+    word, or `""`.
+
+    Each phrase's first rendering counts once. The cue is the longest opening of
+    one or two words that more than half of at least two phrases start with:
+    *kellele* → «кому» (4 of 5: *для кого* is the fifth), *kellega* → «с кем».
+    No majority, no cue: EVS renders *kelle* as чью, чей / чья / чьё, чья,
+    чьим, кто…, so it gets none.
+    """
+    openings = [re.findall(r"[^\W\d_]+(?:-[^\W\d_]+)*", r.casefold())
+                for r in renderings]
+    if len(openings) < 2:
+        return ""
+    for n in range(PHRASE_CUE_WORDS, 0, -1):
+        counted: dict[str, int] = {}
+        for words in openings:
+            if len(words) >= n:
+                key = " ".join(words[:n])
+                counted[key] = counted.get(key, 0) + 1
+        best = max(counted.items(), key=lambda kv: kv[1], default=("", 0))
+        if best[1] * 2 > len(openings):
+            return best[0]
+    return ""
+
+
 def question_senses(path: Path | str, words) -> dict[str, tuple[str, ...]]:
     """`{word: Russian}` for the question words EVS answers unambiguously.
 
-    A word gets a cue only when EVS has **exactly one** article for it with a
+    A word gets a cue when EVS has **exactly one** article for it with a
     question word's part of speech (`QUESTION_POS`), and that article has a
-    question sense with a neutral translation (`_question_sense`). Anything
-    else — no article (`kelle`
-    is a form of `kes`, not a headword; `kui palju` is two words), two
-    candidate homonyms, a labelled sense — is left out: no cue rather than a
+    question sense with a neutral translation (`_question_sense`). Two
+    candidate homonyms or a labelled sense give no cue.
+
+    A word with no article at all — `kelle` is a form of `kes`, not a headword;
+    `kui palju` is two words — is read off EVS's own questions instead: every
+    example phrase, in any article, that asks with it (`_opens_question`), and
+    the opening their Russian shares (`_phrase_cue`). No cue rather than a
     guess. Case-insensitive on `words`; keys are lower-case.
     """
     wanted = {w.casefold() for w in words}
     found: dict[str, list[tuple[str, ...]]] = {}
+    asked: dict[str, list[str]] = {w: [] for w in wanted}
     for article in ekixml.articles(path):
+        for ng in article.findall("S/tp/np/ng"):
+            opening = ekixml.text(ng.find("n")).casefold()
+            starts = [w for w in wanted if opening.startswith(w)]
+            phrase = _example(ng) if starts else None
+            for word in starts if phrase else ():
+                if _opens_question(phrase[0], word):
+                    asked[word].append(phrase[1].split("; ")[0])
         lemmas = [l for l in ekixml.headwords(article) if l in wanted]
         if not lemmas:
             continue
@@ -381,8 +436,13 @@ def question_senses(path: Path | str, words) -> dict[str, tuple[str, ...]]:
             continue
         for lemma in lemmas:
             found.setdefault(lemma, []).append(_question_sense(article, lemma))
-    return {w: senses[0] for w, senses in found.items()
-            if len(senses) == 1 and senses[0]}
+    out = {w: senses[0] for w, senses in found.items()
+           if len(senses) == 1 and senses[0]}
+    for word in wanted - set(found):
+        cue = _phrase_cue(asked[word])
+        if cue:
+            out[word] = (cue,)
+    return out
 
 
 def store_questions(conn: sqlite3.Connection, cues: dict[str, tuple[str, ...]]) -> int:
@@ -705,6 +765,21 @@ def phrases(conn: sqlite3.Connection, min_words: int = 3, max_words: int = 20,
         seen.add(estonian)
         out.append(Example(lemma, estonian, russian))
     return out
+
+
+def idioms(conn: sqlite3.Connection) -> frozenset[str]:
+    """EVS's idioms and multi-word headwords, lower-case: `hakkama saama`,
+    `kokku andma`. A verb pair listed here is one unit, so `saan hakkama` is not
+    *saama* governing a *ma*-infinitive. Empty without the import.
+    """
+    out: set[str] = set()
+    for query, params in (("SELECT estonian FROM evs_example WHERE kind = ?", (IDIOM,)),
+                          ("SELECT lemma FROM evs_gloss WHERE instr(lemma, ' ') > 0", ())):
+        try:
+            out.update(r[0].casefold() for r in conn.execute(query, params))
+        except sqlite3.Error:
+            continue
+    return frozenset(out)
 
 
 def practice_phrase(conn: sqlite3.Connection, lemma: str, turn: int) -> dict | None:

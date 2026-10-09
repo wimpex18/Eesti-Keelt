@@ -31,11 +31,15 @@ EXPECTED = {
     "mis": ("что",),
     "miks": ("почему", "отчего", "зачем"),
     "kuidas": ("как",),
+    # No headword (forms of `kes`, two words): read off EVS's own questions.
+    "kellega": ("с кем",),
+    "kellele": ("кому",),
+    "kui palju": ("сколько",),
 }
 
-#: Deliberately cue-less, each for a reason the source states: EVS has no
-#: headword for an inflected form of `kes` or for a two-word phrase.
-CUELESS = {"kelle", "kellele", "kellega", "kui palju"}
+#: Deliberately cue-less: EVS has no headword for it, and its questions render
+#: it seven ways (чью, чей / чья / чьё, чья, чьим, кто…), none in a majority.
+CUELESS = {"kelle"}
 
 
 def _article(word: str, pos: str, *senses: str) -> str:
@@ -90,7 +94,7 @@ class TestTheRule:
             "kus", "adv", _sense(["где"], ["kus sa elad?"], label="kõnek")), ["kus"])
         assert got == {}
 
-    def test_a_word_that_is_not_a_headword_gets_nothing(self, tmp_path):
+    def test_a_word_with_no_question_phrase_and_no_headword_gets_nothing(self, tmp_path):
         got = _senses(tmp_path, _article("kes", "pron", _sense(["кто"], ["kes seal on?"])),
                       ["kellega", "kes"])
         assert got == {"kes": ("кто",)}
@@ -99,6 +103,69 @@ class TestTheRule:
         q = Question("Kus", "Kuhu", "", "{} x?", "")
         assert cue_for(q, {"kus": ("где",), "kuhu": ("где",)}) == ()
         assert cue_for(q, {"kus": ("где",), "kuhu": ("куда",)}) == ("где",)
+
+
+def _asking(word: str, phrases: list[tuple[str, str]]) -> str:
+    """An article (any headword) whose examples are `(Estonian, Russian)` pairs."""
+    ngs = "".join(f'<x:ng><x:n>{et}</x:n><x:qnp><x:qng xml:lang="ru"><x:qn>{ru}</x:qn>'
+                  f'</x:qng></x:qnp></x:ng>' for et, ru in phrases)
+    return (f'<x:A><x:P><x:mg><x:m>{word}</x:m><x:sl>s</x:sl></x:mg></x:P><x:S><x:tp>'
+            f'<x:tg><x:xp xml:lang="ru"><x:xg><x:x>—</x:x></x:xg></x:xp></x:tg>'
+            f'<x:np>{ngs}</x:np></x:tp></x:S></x:A>\n')
+
+
+class TestThePhraseRule:
+    """A question word with no headword is read off EVS's questions that open
+    with it (`evs._phrase_cue`)."""
+
+    def test_the_opening_most_renderings_share(self, tmp_path):
+        got = _senses(tmp_path, _asking("kuuluma", [
+            ("kellele kuulub see maa?", "ком\"у принадлеж\"ит эта земл\"я?"),
+            ("kellele liisk langes?", "ком\"у в\"ыпал ж\"ребий?"),
+            ("kellele need kohad on reserveeritud?", "для ког\"о зарезерв\"ированы?"),
+        ]), ["kellele"])
+        assert got == {"kellele": ("кому",)}
+
+    def test_two_words_when_both_are_shared(self, tmp_path):
+        got = _senses(tmp_path, _asking("kes", [
+            ("kellega sa rääkisid?", "с кем ты говор\"ил?"),
+            ("kellega on mul au?", "с кем [я] им\"ею честь?"),
+        ]), ["kellega"])
+        assert got == {"kellega": ("с кем",)}
+
+    def test_no_majority_no_cue(self, tmp_path):
+        got = _senses(tmp_path, _asking("jagu", [
+            ("kelle jagu see on?", "это чей?"),
+            ("kelle tegu see on?", "кто это сделал?"),
+        ]), ["kelle"])
+        assert got == {}
+
+    def test_one_phrase_is_not_enough(self, tmp_path):
+        got = _senses(tmp_path, _asking("kes", [("kellega sa rääkisid?", "с кем ты?")]),
+                      ["kellega"])
+        assert got == {}
+
+    def test_a_question_word_with_an_adposition_is_another_question(self, tmp_path):
+        """*kelle käest* asks «от кого»: not evidence for *kelle*."""
+        got = _senses(tmp_path, _asking("käest", [
+            ("kelle käest sa seda kuulsid?", "от ког\"о ты это усл\"ышал?"),
+            ("kelle käest saaks nõu?", "от ког\"о получ\"ить сов\"ет?"),
+        ]), ["kelle"])
+        assert got == {}
+
+    def test_a_statement_is_not_a_question(self, tmp_path):
+        got = _senses(tmp_path, _asking("kes", [
+            ("kellega koos ta elab", "с кем он живёт"),
+            ("kellega iganes", "с кем угодно"),
+        ]), ["kellega"])
+        assert got == {}
+
+    def test_a_headword_article_comes_first(self, tmp_path):
+        """`kes` has its article; its question phrases change nothing."""
+        got = _senses(tmp_path, _article("kes", "pron", _sense(["кто"], ["kes seal on?"]))
+                      + _asking("tegu", [("kes see on?", "это кто?"),
+                                         ("kes tuli?", "это пришёл кто?")]), ["kes"])
+        assert got == {"kes": ("кто",)}
 
 
 @pytest.fixture(scope="module")

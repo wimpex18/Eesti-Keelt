@@ -15,7 +15,8 @@ never gate it.
   and misses join the review queue.
 - **Revision units** with a stage checkpoint (19, 30) run that checkpoint; one
   without (27) checks the topics its stage has introduced so far, the most recent
-  first. A unit with nothing drillable has no check (`NO_CHECK`).
+  first. So does a unit whose core topics have no drill (28: `liitsonad`), so
+  every unit has a check; one that could have none would say why (`NO_CHECK`).
 """
 
 from __future__ import annotations
@@ -31,11 +32,9 @@ PART_PASS = 4
 #: The most topics a revision unit without a checkpoint asks.
 REVISION_PARTS = 4
 
-#: Units whose core topics have no drill yet, so nothing can be checked.
-NO_CHECK: dict[str, str] = {
-    "plaanid": "`tulevik` has no generator yet (docs/course-structure.md)",
-    "too-elu": "`liitsonad` has no generator yet (docs/course-structure.md)",
-}
+#: Units with nothing to check, and why. None today: a unit whose core topics
+#: have no drill checks its stage's earlier topics instead.
+NO_CHECK: dict[str, str] = {}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS unit_checks (
@@ -66,7 +65,7 @@ def parts(unit) -> list[Part]:
         return [(f"checkpoint:{unit.checkpoint}", None)]
     out: list[Part] = [(t, None) for t in unit.topics if _drillable(t)]
     out += [(r.topic, tuple(r.rules)) for r in unit.revisits if _drillable(r.topic)]
-    if out or unit.topics:
+    if out:
         return out
     from .units import UNITS
 

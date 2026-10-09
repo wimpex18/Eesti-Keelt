@@ -36,6 +36,21 @@ def test_a_revision_unit_without_one_checks_its_stage_so_far():
     assert asked and asked <= b1_before
 
 
+def test_plaanid_checks_tulevik():
+    assert unitcheck.parts(units.by_id("plaanid")) == [("tulevik", None)]
+    items = unitcheck.build(units.by_id("plaanid"), seed=2)
+    assert len(items) == unitcheck.PER_PART
+    assert {item.topic for _, item in items} == {"tulevik"}
+
+
+def test_a_unit_whose_topics_have_no_drill_checks_its_stage_so_far():
+    """Unit 28's `liitsonad` has no drill: its check is the B1 topics before it."""
+    asked = [t for t, _ in unitcheck.parts(units.by_id("too-elu"))]
+    b1_before = {t for u in units.UNITS if u.stage == "B1" and u.n < 28 for t in u.topics}
+    assert asked and set(asked) <= b1_before and "liitsonad" not in asked
+    assert len(asked) <= unitcheck.REVISION_PARTS
+
+
 def test_the_same_seed_gives_the_same_items():
     """The server grades by rebuilding the set from its seed."""
     a = unitcheck.build(units.by_id("pere"), seed=7)
@@ -109,3 +124,8 @@ def test_every_unit_either_has_a_check_or_says_why_not(unit_id):
     unit = units.by_id(unit_id)
     parts = unitcheck.parts(unit)
     assert parts or unit.id in unitcheck.NO_CHECK, unit_id
+
+
+def test_every_unit_has_a_check():
+    assert not unitcheck.NO_CHECK
+    assert all(unitcheck.parts(u) for u in units.UNITS)

@@ -106,6 +106,10 @@ Two sources weight what to practise:
 | phrases (`fraasid`) | EKI's *Kasulikke väljendeid A1*, keyed by its grouping and two-part exchanges; the pairs of functions whose phrases serve each other (`phrases.APART`) never share a choice (`eesti/phrases.py`) |
 | numbers (`arvud`) | a table of number words written as EKK O 42 writes them, each a numeral to Vabamorf (`eesti/numbers.py`) |
 | verb forms, conjugation | Vabamorf; drilled where the naive form differs from the real one |
+| conjugation and imperative in phrases | EKI EVS's example phrases, credited: a verb is blanked only where Vabamorf reads it one way out of context, never an `o` form in a phrase with *ei* (the connegative reads the same) (`conjugation.phrase_drills`) |
+| negation beyond present and past | the forms EKK M 99 names — *ei elaks*, *ärge elage*, *ei elata*, *ei ole ~ pole elanud* — under the topic whose form each is (`tingiv`, `kaskiv`, `umbisikuline`, `taisminevik`); EVS phrases where the negation stands right before the gap, frames otherwise; no negated conditional with a first- or second-person subject (`eesti/negation.py`) |
+| modal + infinitive (`ma-da-inf`) | which infinitive *võima*, *saama*, *tohtima* (da) and *pidama* (ma) take, read off EVS's phrases — idioms (*hakkama saama*), infinitive chains and *saab olema* left out, a modal shown with both dropped (`eesti/modals.py`) |
+| future (`tulevik`) | EKK SÜ 27: the present after a future adverbial EVS translates as such (*homme* «завтра»), against the past; *hakkama* in the present + ma, against da. The *saama*-future (SÜ 28) is never graded, and a phrase holding *saama* + a ma-infinitive is not used (`eesti/future.py`) |
 | cloze | real harvested sentences, only where the case is named or forced (negation); outside the owner's scope, EKI EVS's example phrases whose target word the word list puts at the learner's levels (`evs.phrases`) |
 | comparison, numerals, question words | closed-class tables; a question word's Russian cue is EKI EVS's (below) |
 | word order | attested learner corrections (EstGEC-L2), not generated swaps; outside the owner's scope, EKI EVS noun phrases rebuilt from tiles, only those whose order EKK fixes: genitive and agreeing attributes before the head, none of SÜ 104's free orders (`wordorder.phrase_tiles`) |
@@ -121,10 +125,14 @@ knows what to ask without seeing the Estonian. The Russian is EVS's
 (`eesti/evs.py`, `question_senses`), chosen by rule: the one EVS article with
 an adverb or pronoun headword equal to the answer; in it, the first sense EVS
 illustrates with a direct question opening with the word; that sense's first
-group, neutral translations only. No such article, two of them, or a cue the
-distractor shares — no cue. 8 of 12 answer words have one; `kelle`,
-`kellele`, `kellega` (forms of `kes`, not headwords) and `kui palju` (two
-words) have none. Grading does not read the cue.
+group, neutral translations only. A word with no article — `kellele`,
+`kellega` (forms of `kes`) and `kui palju` (two words) — is read off EVS's own
+questions that open with it (the next word not an adposition): the opening of
+one or two words that more than half of their Russian renderings share
+(«кому», «с кем», «сколько»). Two articles, no majority, or a cue the
+distractor shares — no cue. 11 of 12 answer words have one; `kelle` has none,
+because EVS renders it seven ways (чью, чей / чья / чьё, чья, чьим, кто…).
+Grading does not read the cue.
 
 ## Not doing
 
