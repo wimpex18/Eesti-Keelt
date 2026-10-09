@@ -120,7 +120,9 @@ def _units(rows, now_topic: str | None) -> list[dict]:
             "id": u.id, "n": u.n, "et": u.et, "stage": u.stage, "goal_ru": u.goal_ru,
             "topics": list(u.topics),
             "mastered": sum(state.get(t) == "mastered" for t in u.topics),
-            "skipped": bool(u.topics) and all(state.get(t) == "skipped" for t in u.topics),
+            # Moved past: something skipped and nothing left to learn.
+            "skipped": any(state.get(t) == "skipped" for t in u.topics) and all(
+                state.get(t) in ("skipped", "mastered", "reference") for t in u.topics),
             "revisits": [{"topic": r.topic, "rules": list(r.rules), "note_ru": r.note_ru}
                          for r in u.revisits],
             "harno": list(u.harno),
@@ -262,6 +264,24 @@ def skip_topic(topic: str, req: TopicSkip) -> dict:
         set_skip(progress_db(), topic, req.skip)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Такой темы нет.") from exc
+    return curriculum_path()
+
+
+class UnitsSkip(BaseModel):
+    units: list[str]
+    skip: bool = True
+
+
+@router.post("/api/course/units/skip")
+def skip_units(req: UnitsSkip) -> dict:
+    """Move past units — one, a run before a chosen unit, a stage — or put them
+    back, without asserting knowledge."""
+    from ..course import set_units_skip
+
+    try:
+        set_units_skip(progress_db(), req.units, req.skip)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Такого блока нет.") from exc
     return curriculum_path()
 
 

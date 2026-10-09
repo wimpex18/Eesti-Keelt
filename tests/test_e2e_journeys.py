@@ -2039,6 +2039,28 @@ class TestCheckingAUnit:
         assert "из" in page.locator("#testoutVerdict").inner_text()
         assert not browser_errors(page), browser_errors(page)
 
+    def test_a_learner_starts_from_a_later_unit_and_puts_one_back(self, page):
+        """'Alusta siit' moves past every earlier unit at once; one can come back."""
+        open_tab(page, "learn", "course")
+        page.wait_for_selector("#pathList button[data-unitcheck='pere']", state="attached",
+                               timeout=20000)
+        fold = page.locator("#pathList details.path-level:has(button[data-unitcheck='pere'])")
+        fold.locator(":scope > summary").click()
+        fold.locator("button[data-unitmove='skip']:has-text('Alusta siit')").click()
+        first = page.locator("#pathList details.path-level").first
+        first.locator(":scope > summary").filter(has_text="пропущено").wait_for(timeout=20000)
+        second = page.locator("#pathList details.path-level").nth(1)
+        assert "пропущено" in second.locator(":scope > summary").inner_text()
+        second.locator(":scope > summary").click()
+        second.locator("button[data-unitmove='back']").click()
+        page.wait_for_function("""() => {
+            const s = document.querySelectorAll('#pathList details.path-level > summary')[1];
+            return s && !s.textContent.includes('пропущено');
+        }""", timeout=20000)
+        assert "пропущено" in page.locator(
+            "#pathList details.path-level > summary").first.inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
 
 class TestTheTimedMock:
     """Proovieksam: one part, on the exam's clock, graded by the server."""

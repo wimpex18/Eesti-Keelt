@@ -89,3 +89,33 @@ def test_local_account_capability_does_not_advertise_worker_signup(client):
     result = client.get("/api/auth/me")
     assert result.status_code == 200
     assert result.json() == {"scope": "owner", "signup_open": False, "local": True}
+
+
+def test_a_run_of_units_is_skipped_and_restored_without_assessed_evidence(client):
+    """'Start from unit 3': the learner moves past units 1–2 in one step, and can
+    put either back. Nothing is mastered, and replay keeps the choice."""
+    first = client.get("/api/curriculum").json()
+    before = [u["id"] for u in first["units"][:2]]
+    moved = client.post("/api/course/units/skip", json={"units": before, "skip": True})
+    assert moved.status_code == 200
+    route = moved.json()
+    units = {u["id"]: u for u in route["units"]}
+    assert all(units[u]["skipped"] for u in before)
+    skipped_topics = {t for u in before for t in units[u]["topics"]}
+    states = {row["id"]: row["state"] for row in route["topics"]}
+    assert {states[t] for t in skipped_topics} == {"skipped"}
+    assert route["resume"] not in skipped_topics
+    assert client.get("/api/me").json()["totals"]["mastered"] == 0
+    with evidence.connect() as log:
+        evidence.rebuild(log, strict=True)
+    assert client.get("/api/curriculum").json()["resume"] == route["resume"]
+
+    back = client.post("/api/course/units/skip", json={"units": before[1:], "skip": False}).json()
+    units = {u["id"]: u for u in back["units"]}
+    assert units[before[0]]["skipped"] and not units[before[1]]["skipped"]
+
+
+def test_an_unknown_unit_is_refused_and_records_nothing(client):
+    r = client.post("/api/course/units/skip", json={"units": ["no-such-unit"], "skip": True})
+    assert r.status_code == 404
+    assert not any(row["skipped"] for row in client.get("/api/curriculum").json()["topics"])

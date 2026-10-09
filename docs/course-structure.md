@@ -42,7 +42,11 @@ remain as described in `docs/curriculum.md`.
 A unit is **complete** when each core topic is mastered (practice or test-out)
 and the unit check is passed. A unit with no core topic (a revision week) is
 complete when its check is passed. Any unit or part can be skipped and
-revisited; a skip is navigation, never mastery or readiness (PRODUCT.md).
+revisited; a skip is navigation, never mastery or readiness (PRODUCT.md). In
+Kursus a learner skips one unit (*Jäta ühik vahele*), puts it back (*Too ühik
+tagasi*), or starts from a chosen unit (*Alusta siit*), which moves past every
+earlier unit not yet complete — a run of units or whole stages in one step
+(`/api/course/units/skip`). A topic mastered inside a skipped unit stays mastered.
 
 ## Where units appear
 

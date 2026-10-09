@@ -18,8 +18,8 @@ GitHub (the key is a GitHub secret only), then unit skipping and the Opus plan.
 Owner: set a spend limit on the Anthropic account; re-subscribe to reminders
 on each device (the push handler was missing 24 Sep–9 Oct); send the EKI
 permission draft; verify a nightly backup copy with `cli verify-backup`.
-Decision taken by default, for the owner to confirm: unit 1 leads the next step
-only for a learner who has mastered nothing beyond it; nothing is skipped.
+Owner confirmed (9 Oct): unit 1 leads only for a learner with nothing mastered
+beyond it; learners skip a unit or every unit before a chosen one in Kursus.
 Uncommitted task paths: none after the commit.
 Preserve unrelated package.json and untracked .agents/, .claude/agents/,
 .claude/settings.local.json, .claude/skills/, .codex/, .github/agents/,

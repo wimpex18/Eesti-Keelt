@@ -48,6 +48,37 @@ def _apply_skip(stores, ev) -> None:
     _skip(stores["progress"], ev.payload["topic"], ev.payload["skip"], ev.ts)
 
 
+def set_units_skip(conn: sqlite3.Connection, unit_ids: list[str], skip: bool) -> None:
+    """Move past a set of units (one, a run, a stage), or put them back.
+
+    The event names the units, and replay expands them to their core topics, so
+    the choice reads as the learner made it. A mastered topic stays mastered.
+    """
+    from .units import by_id
+
+    for unit in unit_ids:
+        by_id(unit)  # Unknown identities must never enter a learner's log.
+    ev = evidence.record("course-units-skipped", {"units": list(unit_ids), "skip": skip})
+    _skip_units(conn, ev.payload["units"], skip, ev.ts)
+
+
+def _skip_units(conn: sqlite3.Connection, unit_ids: list[str], skip: bool, at: str) -> None:
+    from .units import by_id
+
+    for unit in unit_ids:
+        try:
+            topics = by_id(unit).topics
+        except KeyError:
+            continue  # a unit the course no longer has: nothing to move past
+        for topic in topics:
+            _skip(conn, topic, skip, at)
+
+
+@evidence.applies("course-units-skipped")
+def _apply_units_skip(stores, ev) -> None:
+    _skip_units(stores["progress"], ev.payload["units"], ev.payload["skip"], ev.ts)
+
+
 #: The unit stages a chosen start moves past (`eesti/units.py`).
 EARLIER_STAGES = {"a1": {"algus"}, "a1-a2": {"algus"}, "a2": {"algus", "A1"},
                   "a2-b1": {"algus", "A1", "A2"}}

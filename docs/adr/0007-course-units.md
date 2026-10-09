@@ -56,7 +56,8 @@ courses are organised in units, and HARNO examines by topic.
   back. Replaying the onboarding event re-applies a chosen start by stage, so
   the first week is skipped for learners who started at A1 or above; and the
   first week leads the next step only for a learner who has mastered nothing
-  beyond it, without recording a skip.
+  beyond it, without recording a skip (owner, 9 Oct 2026). The learner can
+  also skip any unit, or every unit before a chosen one, and put them back.
 - Two sub-rules sit above their stage in EKI's profile and are labelled so:
   the *da*-infinitive object (EKI B2; taught from EKK SÜ 40 and the Teatmik)
   and the plural partitive subject (EKI B2). Their units say so.

@@ -183,11 +183,21 @@ export async function loadPath() {
       const check = u.checkable ? `<p class="hint"><button class="ghost" data-unitcheck="${esc(u.id)}"
           data-title="${esc(u.et)}" data-first="${esc(u.topics[0] || "")}" lang="et">Ühiku kontroll <span class="ru" lang="ru">${u.checked
           ? "проверка пройдена, можно ещё раз" : "проверить блок"}</span></button></p>` : "";
+      /* Navigation only (ADR-0009): a skipped unit's topics are not mastered,
+         and every skip can be undone. "Alusta siit" moves past all earlier units. */
+      const earlier = p.units.slice(0, p.units.indexOf(u))
+        .filter(e => e.topics.length && !e.skipped && !e.complete).map(e => e.id);
+      const moves = u.complete || !u.topics.length && !earlier.length ? "" : `<p class="hint unit-moves">${u.topics.length && !u.complete
+        ? `<button class="quiet" data-unitskip="${esc(u.id)}" data-unitmove="${u.skipped ? "back" : "skip"}" lang="et">${u.skipped
+          ? `<span lang="et">Too ühik tagasi <span class="ru" lang="ru">вернуть блок в маршрут</span></span>`
+          : `<span lang="et">Jäta ühik vahele <span class="ru" lang="ru">пропустить блок</span></span>`}</button>` : ""}${earlier.length
+        ? ` <button class="quiet" data-unitskip="${esc(earlier.join(","))}" data-unitmove="skip" lang="et">Alusta siit
+          <span class="ru" lang="ru">начать с этого блока: пропустить ${earlier.length === 1 ? "предыдущий блок" : `предыдущие блоки (${earlier.length})`}</span></button>` : ""}</p>`;
       const exam = `<p class="hint"><span lang="et">HARNO: ${esc(u.harno.join("; "))}</span>${u.checkpoint
         ? ` · <span lang="et">Kontrolltöö ${esc(u.checkpoint)}</span> <span lang="ru">— контрольная уровня в конце</span>` : ""}</p>`;
       return fold(u.current, `<span class="lv" data-level="${esc(u.stage)}">${u.n}</span> <span lang="et">${esc(u.et)}</span>`,
         `<span lang="et">${esc(stage)}</span>${counted}`,
-        `<p class="why" lang="ru">${esc(u.goal_ru)}</p>${here.map(topicRow).join("")}${revisits}${check}${words}${exam}${course}`);
+        `<p class="why" lang="ru">${esc(u.goal_ru)}</p>${here.map(topicRow).join("")}${revisits}${check}${words}${exam}${course}${moves}`);
     }).join("") : [...new Set(p.topics.map(t => t.level))].map(lv => {
       const here = p.topics.filter(t => t.level === lv);
       const done = here.filter(t => t.state === "mastered").length;
@@ -267,6 +277,16 @@ export async function loadStatus() {
 
 
 $("#pathList").addEventListener("click", async e => {
+  const units = e.target.closest("button[data-unitskip]");
+  if (units) {
+    units.disabled = true;
+    try {
+      await api("/api/course/units/skip",
+        {units: units.dataset.unitskip.split(","), skip: units.dataset.unitmove === "skip"});
+      await loadPath();
+    } catch (error) { units.disabled = false; units.parentElement.insertAdjacentHTML("beforeend", `<p role="alert">${esc(error.message)}</p>`); }
+    return;
+  }
   const skip = e.target.closest("button[data-skip]");
   if (skip) {
     skip.disabled = true;
