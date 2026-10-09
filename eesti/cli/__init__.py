@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import argparse
 
-from . import assess, build, harvest, ops, report, study
+from . import assess, build, harvest, material, ops, report, study
 from ._helpers import (  # noqa: F401  -- part of `eesti.cli`'s surface
     content_db,
     content_path,
@@ -27,7 +27,7 @@ from ._helpers import (  # noqa: F401  -- part of `eesti.cli`'s surface
 #: Registration order, which is the order `--help` lists the commands in.
 #: Build what the app runs on, fill the library, practise, be measured, look at
 #: where you stand, operate the deployment.
-GROUPS = (build, harvest, study, assess, report, ops)
+GROUPS = (build, harvest, material, study, assess, report, ops)
 
 # Re-export every handler, derived from the groups.
 for _group in GROUPS:

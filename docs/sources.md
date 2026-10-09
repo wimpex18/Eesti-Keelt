@@ -107,6 +107,7 @@ matching import with `--check`, commit.
 | ERR Raadio 4 language archives | grammar-lesson episodes: audio, transcripts filed as `grammatika` |
 | HARNO exam material | past tasks and listening audio, downloaded by `cli harvest-exam --download` into `data/exam/` for private study, read in `Eksam`; never committed, always shown with the board's name |
 | EIS public tasks | the task's own text and its recordings, read in `Eksam` (`cli harvest-exam --download`); scoring stays at EIS, which is the only place the answers exist |
+| Grove material (`grove-material`) | unit dialogues and reading texts written with a model, checked by Vabamorf and automatic checks, public; each names its engine and prompt version (`docs/material.md`) |
 | Own material (`cli ingest`) | owner-only |
 
 Personal imported items are available only to the signed-in owner. Public

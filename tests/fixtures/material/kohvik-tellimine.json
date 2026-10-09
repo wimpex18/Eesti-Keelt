@@ -1,0 +1,32 @@
+{
+  "kind": "dialoog",
+  "unit": "kohvik",
+  "slug": "tellimine",
+  "title": "Kohvikus",
+  "harno": "söök ja jook",
+  "speakers": [
+    {"id": "a", "name": "Mari", "role_ru": "официантка"},
+    {"id": "b", "name": "Juhan", "role_ru": "посетитель"}
+  ],
+  "turns": [
+    {"speaker": "a", "text": "Tere! Mida te soovite?"},
+    {"speaker": "b", "text": "Tere! Üks kohv ja kaks saia, palun."},
+    {"speaker": "a", "text": "Kas soovite ka kooki?"},
+    {"speaker": "b", "text": "Ei, aitäh. Ma ei söö täna kooki. Ma joon musta kohvi."},
+    {"speaker": "a", "text": "Kas veel midagi?"},
+    {"speaker": "b", "text": "Ei, see on kõik. Mis see maksab?"},
+    {"speaker": "a", "text": "Kokku neli eurot."},
+    {"speaker": "b", "text": "Aitäh!"}
+  ],
+  "off_list": [{"lemma": "kook", "gloss_ru": "пирог"}],
+  "questions": [
+    {"id": "q1", "question": "Mitu saia Juhan soovib?", "answer": "kaks saia"},
+    {"id": "q2", "question": "Mis maksab kokku?", "answer": "neli eurot"},
+    {"id": "q3", "question": "Mida Mari küsib?", "answer": "Mida te soovite"},
+    {"id": "q4", "question": "Missugust kohvi Juhan joob?", "answer": "musta kohvi"}
+  ],
+  "gaps": [
+    {"id": "g1", "at": 1, "word": "saia", "lemma": "sai", "form": "sg p"}
+  ],
+  "authoring": {"engine": "hand-written test fixture", "prompt_version": "none"}
+}
