@@ -133,7 +133,7 @@ def corpusless(request, tmp_path, monkeypatch):
 PATH_VALUES = {"word": "maja", "topic": "osastav", "item_id": "x", "lemma": "maja",
                "part": "lugemine", "page": "1", "index": "1",
                "source_id": "selges-keeles", "name": "x", "theme": "kodu", "code": "x",
-               "level": "A2"}
+               "level": "A2", "unit_id": "pere"}
 
 
 class TestNothingReturns500WithoutACorpus:

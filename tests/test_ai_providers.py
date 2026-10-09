@@ -55,10 +55,17 @@ class TestTheChain:
     def test_the_chain_ends_somewhere_that_always_answers(self):
         assert [p.name for p in grammar.build_chain()][-1] == "vabamorf-offline"
 
-    def test_every_lane_is_free(self):
+    def test_every_paid_lane_has_a_ceiling(self):
+        """ADR-0008: a paid lane is allowed only with a daily cap the chain
+        enforces, and its price written where `/api/engines` reads it."""
+        from eesti.providers.budget import CAPS, GUEST_CAPS
+
         for name, provider in llm.PROVIDERS.items():
             assert provider.free_note, name
-            assert not provider.free_note.lower().startswith("paid"), name
+            if provider.free_note.lower().startswith("paid"):
+                assert CAPS.get(f"llm:{name}"), name
+                assert GUEST_CAPS.get(f"llm:{name}"), name
+                assert "$" in provider.free_note, name
 
     def test_the_estonian_local_lane_is_tried_first(self):
         assert grammar.LLM_PREFERENCE[0] == "local"

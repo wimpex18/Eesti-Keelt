@@ -11,7 +11,10 @@
 | Word lookup | Ekilex with `EKILEX_API_KEY`, then the Sõnaveeb mirror | Dictionary answers retain their source. |
 
 `providers/grammar.py` orders an **explicitly configured local trial** before
-Workers AI and the deterministic fallback. The tutor uses the same qualified
+Workers AI and the deterministic fallback. The **Claude lane**
+(`eesti/providers/claude.py`, Claude Haiku 5.5 through Anthropic's SDK) is
+built and evaluated but does not answer learners until its eval passes the
+margin ADR-0008 sets. The tutor uses the same qualified
 LLM list. Deterministic spelling, agreement and rection findings take
 precedence on conflicting spans. Mistral, NVIDIA, OpenRouter, public GEC and
 Estonian-to-Estonian normalization are evaluation-only; they are not automatic
@@ -28,7 +31,13 @@ Origin-side lanes have best-effort daily call allowances in snapshotted
 `progress.db` (`providers/budget.py`). `/api/engines` reports these counts.
 They are not hard billing caps: token and audio cost vary, account usage is
 shared, concurrent checks can overlap, and recent snapshots can be lost. Worker
-ASR uses Cloudflare's account quota instead of the Python budget.
+ASR uses Cloudflare's account quota instead of the Python budget. The paid
+Claude lane is capped at 2 000 calls a day (300 for guests), about $0.60 at
+Haiku 5.5's price for this app's short prompts; a test requires every paid lane
+to carry such a cap.
+
+Interactive calls are never paced. Evaluations pace their requests (3.5 s
+apart) so a free tier's per-minute limit does not decide the score.
 
 The grammar and origin-side ASR chains share a persistent circuit breaker
 (`providers/breaker.py`): skip a lane after two failures for 15 minutes, then
@@ -59,8 +68,17 @@ A green run with no measured cases is not a pass.
 ```bash
 python -m eesti.cli eval --provider workers-ai
 python -m eesti.cli eval --provider workers-ai --track external
+python -m eesti.cli eval --provider anthropic     # paid: needs ANTHROPIC_API_KEY
 python -m eesti.cli models --provider nvidia --limit 10
 ```
+
+**The Claude lane.** Haiku 5.5 takes no `temperature` and no prefill, so the
+lane sends neither; it sets `effort` explicitly (`ANTHROPIC_EFFORT`, default
+`low`) and holds the grammar check's output to `grammar.CORRECTIONS_SCHEMA`.
+A refusal is a failed lane, as is an empty reply; Haiku 5.5 has no server-side
+fallback. Prompts above 200 000 characters are refused before sending, well
+below the 100K-token threshold where the price rises. The SDK's own retries
+are off: the chain decides what follows a failure.
 
 **Newer candidates.** Of the newest models, only Qwen3.8-27B runs on the Workers Free plan; GLM-5.3,
 GLM-5.3 Flash and DeepSeek V4 answer "not available on the Workers Free plan".

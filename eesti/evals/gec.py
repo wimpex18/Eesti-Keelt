@@ -39,7 +39,7 @@ def _ask(provider: str, sentence: str, model: str | None, evidence: bool) -> dic
         result = lane.check(sentence)
         return {"corrections": [c.to_dict() for c in result.corrections]}
     prompt = with_evidence(sentence) if evidence else sentence
-    return parse_json(complete(provider, SYSTEM, prompt, model=model))
+    return parse_json(complete(provider, SYSTEM, prompt, model=model, pace=True))
 
 
 def with_evidence(sentence: str) -> str:

@@ -101,6 +101,20 @@ ENGINES: tuple[Source, ...] = (
         verified="2026-09-19",
     ),
     Source(
+        "anthropic", "Anthropic Claude", "engine", "Anthropic Commercial Terms", True,
+        "https://platform.claude.com/docs/",
+        "Claude Haiku 5.5 for explanations, tutoring and advisory feedback "
+        "(`eesti/providers/claude.py`). An evaluation lane until its grammar "
+        "eval passes (ADR-0008); it never decides a drill, mastery or FSRS.",
+        version="claude-haiku-5-5",
+        quota="paid: $0.10 / $0.50 per million input / output tokens up to a "
+              "100K-token prompt; this app caps it at 2 000 calls a day",
+        data_leaves="text",
+        retention="inputs and outputs deleted within 30 days; not used for "
+                  "training by default (Anthropic privacy center, 2026)",
+        verified="2026-10-09",
+    ),
+    Source(
         "nvidia", "NVIDIA NIM", "engine", "NVIDIA developer terms", True,
         "https://build.nvidia.com/", "Evaluation lane; its free endpoint timed out in current probes, excluded from automatic routing.",
         version="deepseek-ai/deepseek-v4.1-flash", quota="40 requests/min",

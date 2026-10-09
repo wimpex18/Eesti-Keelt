@@ -177,13 +177,17 @@ export async function loadPath() {
           <span lang="ru">— слова с картинками на Sõnaveeb</span></p></details>` : "";
       const course = u.course_url ? `<p class="hint"><a href="${esc(u.course_url)}" target="_blank" rel="noopener" lang="et">${esc(u.course)}</a>
           <span lang="ru">— бесплатный курс с видео, на внешнем сайте</span></p>` : "";
-      const counted = u.skipped ? " · пропущено"
+      const counted = u.complete ? " · блок пройден"
+        : u.skipped ? " · пропущено"
         : u.topics.length ? ` · ${u.mastered} из ${u.topics.length} пройдено` : " · повторение";
+      const check = u.checkable ? `<p class="hint"><button class="ghost" data-unitcheck="${esc(u.id)}"
+          data-title="${esc(u.et)}" data-first="${esc(u.topics[0] || "")}" lang="et">Ühiku kontroll <span class="ru" lang="ru">${u.checked
+          ? "проверка пройдена, можно ещё раз" : "проверить блок"}</span></button></p>` : "";
       const exam = `<p class="hint"><span lang="et">HARNO: ${esc(u.harno.join("; "))}</span>${u.checkpoint
         ? ` · <span lang="et">Kontrolltöö ${esc(u.checkpoint)}</span> <span lang="ru">— контрольная уровня в конце</span>` : ""}</p>`;
       return fold(u.current, `<span class="lv" data-level="${esc(u.stage)}">${u.n}</span> <span lang="et">${esc(u.et)}</span>`,
         `<span lang="et">${esc(stage)}</span>${counted}`,
-        `<p class="why" lang="ru">${esc(u.goal_ru)}</p>${here.map(topicRow).join("")}${revisits}${words}${exam}${course}`);
+        `<p class="why" lang="ru">${esc(u.goal_ru)}</p>${here.map(topicRow).join("")}${revisits}${check}${words}${exam}${course}`);
     }).join("") : [...new Set(p.topics.map(t => t.level))].map(lv => {
       const here = p.topics.filter(t => t.level === lv);
       const done = here.filter(t => t.state === "mastered").length;
@@ -275,6 +279,11 @@ $("#pathList").addEventListener("click", async e => {
   }
   const test = e.target.closest("button[data-testout]");
   if (test) { startTestOut(test.dataset.testout); return; }
+  const unitCheck = e.target.closest("button[data-unitcheck]");
+  if (unitCheck) {
+    startUnitCheck(unitCheck.dataset.unitcheck, unitCheck.dataset.title, unitCheck.dataset.first);
+    return;
+  }
   const b = e.target.closest("button[data-topic]");
   // A unit's revisit practises only the rules its stage unlocks.
   if (b) {
@@ -282,6 +291,53 @@ $("#pathList").addEventListener("click", async e => {
     beginLesson(b.dataset.topic);
   }
 });
+
+/* A unit's check: five items per core topic and per revisited rule; every part
+   4 of 5 passes it, and a part answered 5 of 5 counts its topic as mastered
+   (`eesti/unitcheck.py`). */
+async function startUnitCheck(unitId, title, topic) {
+  // The session route names a topic; holding one keeps the router from opening
+  // that topic's lesson over the check.
+  sessionTopic = topic || pathTopic;
+  showSession(); sessionStep("check");
+  $("#lessonIntro").hidden = true; $("#pathRada").hidden = false;
+  setLabel($("#sessionTitle"), title || "Ühiku kontroll");
+  const out = $("#practiceOut");
+  out.innerHTML = `<p class="hint">Загружаю…</p>`;
+  let set;
+  try {
+    set = await (await api(`/api/units/${encodeURIComponent(unitId)}/check`, null, "GET")).json();
+  } catch (e) {
+    out.innerHTML = `<div class="banner">${esc(e.message)}</div>`;
+    return;
+  }
+  out.innerHTML = `
+    <div class="banner info"><b lang="et">Ühiku kontroll · ${esc(set.et)}</b> · ${esc(set.note)}</div>
+    ${checkTasksHtml(set.items)}
+    <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
+      <span class="ru" lang="ru">проверить</span></button></div>
+    <div class="verdict" id="testoutVerdict" role="status"></div>`;
+  out.querySelector("input, select")?.focus();
+  wireSay(out, message => { $("#testoutVerdict").textContent = message; });
+  $("#testoutDone").onclick = async () => {
+    $("#testoutDone").disabled = true;
+    const verdict = $("#testoutVerdict");
+    try {
+      const r = await (await api(`/api/units/${encodeURIComponent(unitId)}/check`,
+                                 {seed: set.seed, given: checkAnswers(out)})).json();
+      const names = Object.fromEntries(set.parts.map(p => [p.topic, p.et]));
+      verdict.className = r.passed ? "verdict ok" : "verdict no";
+      verdict.innerHTML = `${r.passed ? "Блок проверен." : "Пока не сдан — ничего не потеряно."}
+        <ul>${r.parts.map(p => `<li><span lang="et">${esc(names[p.topic] || p.topic)}</span>:
+          ${p.correct} из ${p.asked}${p.passed ? " ✓" : ""}</li>`).join("")}</ul>`;
+      loadPath(); loadRail();
+    } catch (e) {
+      $("#testoutDone").disabled = false;
+      verdict.className = "verdict no";
+      verdict.innerHTML = `Не проверено: ${esc(e.message)}`;
+    }
+  };
+}
 
 function sessionStep(step) {
   document.querySelectorAll(".lesson-steps li").forEach(li => {
@@ -358,6 +414,23 @@ function offerExplanation(verdict, eventId) {
 }
 
 
+/* A checked set's tasks: typed, or chosen where the item is a choice, with its
+   recording to play and its source credited. The server grades the whole set. */
+const checkTasksHtml = items => `<div id="testoutTasks">${items.map((it, i) => `
+      <div class="mock-task" data-i="${i}">
+        <div class="prompt" lang="et">${esc(it.prompt).replace("____",
+          '<span class="blank">____</span>')}</div>
+        ${sayHtml(it)}
+        <div class="row"><span class="hint" lang="et">${esc(it.hint || "")}</span>
+          ${it.choices && it.choices.length
+            ? `<select lang="et" aria-label="Vastus — ответ"><option value=""></option>${it.choices.map(c =>
+                `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>`
+            : `<input type="text" size="16" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>`}</div>
+        ${attribHtml(it)}
+      </div>`).join("")}</div>`;
+const checkAnswers = out => [...out.querySelectorAll("#testoutTasks .mock-task")]
+  .map(task => task.querySelector("input, select").value);
+
 /* Test-out: five items, all five right marks the topic known (`placement.py`).
    Answered as one set, graded by the server, so the page never decides. */
 async function startTestOut(topic) {
@@ -376,18 +449,7 @@ async function startTestOut(topic) {
   }
   out.innerHTML = `
     <div class="banner info"><b lang="et">${esc(set.et)}</b> · ${esc(set.note)}</div>
-    <div id="testoutTasks">${set.items.map((it, i) => `
-      <div class="mock-task" data-i="${i}">
-        <div class="prompt" lang="et">${esc(it.prompt).replace("____",
-          '<span class="blank">____</span>')}</div>
-        ${sayHtml(it)}
-        <div class="row"><span class="hint" lang="et">${esc(it.hint || "")}</span>
-          ${it.choices && it.choices.length
-            ? `<select lang="et" aria-label="Vastus — ответ"><option value=""></option>${it.choices.map(c =>
-                `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>`
-            : `<input type="text" size="16" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>`}</div>
-        ${attribHtml(it)}
-      </div>`).join("")}</div>
+    ${checkTasksHtml(set.items)}
     <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
       <span class="ru" lang="ru">проверить</span></button></div>
     <div class="verdict" id="testoutVerdict" role="status"></div>`;
@@ -395,8 +457,7 @@ async function startTestOut(topic) {
   wireSay(out, message => { $("#testoutVerdict").textContent = message; });
   $("#testoutDone").onclick = async () => {
     $("#testoutDone").disabled = true;
-    const given = [...out.querySelectorAll("#testoutTasks .mock-task")]
-      .map(task => task.querySelector("input, select").value);
+    const given = checkAnswers(out);
     const verdict = $("#testoutVerdict");
     try {
       const r = await (await api(`/api/testout/${encodeURIComponent(topic)}`,

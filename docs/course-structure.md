@@ -214,6 +214,13 @@ words.
   object by rule name, and `osaalus` drills the partitive subject.
 - EKI's credit shows on every item built from its material, offline packs,
   test-out and placement included, and on review cards queued from 9 Oct 2026.
-- Not built yet: the unit check and a unit's *complete* state, homework, the
-  weekly plan, placement into a unit from the assessment, Home naming the
-  session within a unit, skill pages led by the unit, dialogues and texts.
+- The unit check (`eesti/unitcheck.py`, `GET`/`POST /api/units/{id}/check`):
+  five items per core topic and per revisited rule, every part at least 4 of 5;
+  a part answered 5 of 5 counts its topic as mastered, as a test-out would.
+  Revision units with a checkpoint (19, 30) run it; unit 27 checks its stage's
+  recent topics. Units 17 and 28 have nothing drillable and no check yet. A unit
+  is *complete* when its check is passed and its core topics are mastered;
+  Kursus says so.
+- Not built yet: homework, the weekly plan, placement into a unit from the
+  assessment, Home naming the session within a unit, skill pages led by the
+  unit, dialogues and texts.

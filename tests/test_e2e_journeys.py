@@ -1999,6 +1999,30 @@ class TestTestingOutOfATopic:
         assert not browser_errors(page), browser_errors(page)
 
 
+class TestCheckingAUnit:
+    """Kursus offers a unit's check; the server grades the whole set."""
+
+    def test_a_unit_check_runs_and_reports_each_part(self, page, live_server):
+        open_tab(page, "learn", "course")
+        page.wait_for_selector("#pathList button[data-unitcheck]", state="attached",
+                               timeout=20000)
+        # Unit 3 (Minu pere): two typed topics, so the journey types its answers.
+        fold = page.locator("#pathList details.path-level:has(button[data-unitcheck='pere'])")
+        fold.locator(":scope > summary").click()
+        fold.locator("button[data-unitcheck='pere']").click()
+        page.wait_for_selector("#testoutTasks input, #testoutTasks select", timeout=20000)
+        seed = page.evaluate("""async base => {
+            const r = await fetch(`${base}/api/units/pere/check?seed=5`);
+            return (await r.json()).items.length;
+        }""", live_server)
+        tasks = page.locator("#testoutTasks .mock-task")
+        assert tasks.count() == seed
+        page.click("#testoutDone")
+        page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
+        assert "из" in page.locator("#testoutVerdict").inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
+
 class TestTheTimedMock:
     """Proovieksam: one part, on the exam's clock, graded by the server."""
 

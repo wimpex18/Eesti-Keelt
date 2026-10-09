@@ -396,6 +396,30 @@ class NeurotolgeCorrection:
                  "говорит почему. Правило смотри по ссылке.")
 
 
+#: The shape `LLMGrammar.check` reads, given to lanes that hold output to a schema.
+CORRECTIONS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "corrections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "wrong": {"type": "string"},
+                    "correct": {"type": "string"},
+                    "why": {"type": "string"},
+                    "tag": {"type": "string", "enum": list(TAGS)},
+                },
+                "required": ["wrong", "correct", "why", "tag"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["corrections"],
+    "additionalProperties": False,
+}
+
+
 class LLMGrammar:
     """LLM checker, prompted for this learner's gap and the fixed Notion tags.
 
@@ -419,7 +443,8 @@ class LLMGrammar:
         from .llm import complete, parse_json
 
         payload = parse_json(
-            complete(self.provider_name, SYSTEM_PROMPT, text, model=self.model, attempts=1)
+            complete(self.provider_name, SYSTEM_PROMPT, text, model=self.model, attempts=1,
+                     schema=CORRECTIONS_SCHEMA)
         )
         if (not isinstance(payload, dict) or not isinstance(payload.get("corrections"), list)
                 or any(not isinstance(c, dict)
