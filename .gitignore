@@ -47,6 +47,3 @@ deploy/eki/*
 # Per-machine editor and preview configuration.
 .claude/launch.json
 
-# Local visual review captures.
-.impeccable/review/
-.impeccable/questions/
