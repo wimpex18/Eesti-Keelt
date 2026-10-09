@@ -180,16 +180,24 @@ def goal_calendar() -> PlainTextResponse:
 # --------------------------------------------------------------------------
 
 @router.get("/api/mock/{level}/{part}")
-def mock_section(level: str, part: str, seed: int | None = None) -> dict:
-    """A section to sit: its minutes, its tasks, and what it is (`eesti/mock.py`)."""
+def mock_section(level: str, part: str, seed: int | None = None, format: str = "",
+                 task: int | None = None) -> dict:
+    """A section to sit: its minutes, its tasks, and what it is (`eesti/mock.py`).
+    `format=harno` gives reading or listening in HARNO's task types, and `task`
+    one of them alone (`_harno_section`)."""
     import secrets
 
+    if format == "harno":
+        return _harno_section(level, part, task, seed)
     from ..exam import SPECS
     from ..itemref import mock_ref, sign
     from ..mock import build
 
     if level not in SPECS:
         raise HTTPException(status_code=404, detail=f"unknown level {level!r}")
+    if ":" in part:
+        # HARNO's task types are issued with `format=harno`, signed, never by name.
+        raise HTTPException(status_code=404, detail=f"no such exam part: {part!r}")
     seed = seed if seed is not None else secrets.randbelow(2**31)
     try:
         section = build(level, part, seed=seed,
@@ -230,11 +238,14 @@ class WrittenTask(BaseModel):
 
 class MockResult(BaseModel):
     seconds: float = Field(ge=0)
-    answers: list[MockAnswer] = Field(default_factory=list)
+    answers: list[MockAnswer] = Field(default_factory=list, max_length=60)
     #: Writing: both tasks. `written` is a single text from a page cached
     #: before both tasks were set. Speaking: nothing — the exam is paired.
     tasks: list[WrittenTask] = Field(default_factory=list, max_length=2)
     written: str = ""
+    #: `harno`: a part in HARNO's task types; `task` the one practised alone.
+    format: str = ""
+    task: int | None = None
 
 
 @router.post("/api/mock/{level}/{part}")
@@ -247,6 +258,8 @@ def mock_result(level: str, part: str, res: MockResult) -> dict:
 
     if level not in SPECS or part not in {p.id for p in SPECS[level].parts}:
         raise HTTPException(status_code=404, detail="unknown level or part")
+    if res.format == "harno":
+        return _harno_result(level, part, res)
 
     asked, correct, detail = len(res.answers), None, {}
     # Item by item, for the learner to look back at; not stored with the section.
@@ -334,11 +347,127 @@ def mock_run(level: str) -> dict:
 
 @router.get("/api/mock/{level}")
 def mock_history(level: str) -> dict:
-    """Sections sat at this level, newest first, and how many of each part."""
-    from ..mock import counts, history
+    """Sections sat at this level, newest first, how many of each part, and the
+    HARNO task types due for a re-test (`mock.retests`)."""
+    from datetime import date
+
+    from ..mock import counts, history, retests
 
     return {"level": level, "sections": history(progress_db(), level),
-            "counts": counts(progress_db(), level)}
+            "counts": counts(progress_db(), level),
+            "retests": retests(progress_db(), level), "today": date.today().isoformat()}
+
+
+# --------------------------------------------------------------------------
+# HARNO's task types (`/api/mock/...?format=harno`): a part in HARNO's format,
+# its review, and its re-tests
+# --------------------------------------------------------------------------
+
+def _harno_part(level: str, part: str, task: int | None) -> str:
+    """The section `mock.build` makes for this request: `lugemine:harno` or `lugemine:3`."""
+    from ..exam import SPECS
+    from ..harnotasks import by_number
+
+    if level not in SPECS or part not in ("lugemine", "kuulamine"):
+        raise HTTPException(status_code=404, detail="unknown level or part")
+    if task is not None:
+        try:
+            by_number(level, part, task)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="unknown task") from exc
+    return f"{part}:{task if task is not None else 'harno'}"
+
+
+def _harno_section(level: str, part: str, task: int | None, seed: int | None) -> dict:
+    """A reading or listening part in HARNO's task types (`eesti/harnotasks.py`),
+    or one type alone (`task`, HARNO's number) to practise it. Each question
+    comes with a signed token and without its key; an empty `tasks` means no
+    type could be built here and the page uses `/api/mock` instead."""
+    import secrets
+
+    from ..itemref import mock_ref, sign
+    from ..mock import build
+
+    which = _harno_part(level, part, task)
+    seed = seed if seed is not None else secrets.randbelow(2**31)
+    section = build(level, which, seed=seed,
+                    content=content_db() if content_available() else None, words=db())
+    body = section.to_dict() | {"seed": seed, "task": task}
+    body["tasks"] = [
+        q.to_page() | {"token": sign(q, mock_ref(level, which, seed=seed, index=n)
+                                     | {"code": q.code, "no": q.no})}
+        for n, q in enumerate(section.tasks)]
+    return body
+
+
+def _harno_result(level: str, part: str, res: MockResult) -> dict:
+    """Grade a HARNO-format part by code and record it as exam evidence. The
+    review lists every question with the answer, the key, the evidence and the
+    topic behind a miss; a task type with a miss is re-tested (`mock.retests`)."""
+    from ..curriculum import by_id
+    from ..exam import SPECS
+    from ..harnotasks import LETTERS, TYPES, check, chosen
+    from ..item import fill
+    from ..itemref import verify
+    from ..mock import record, retests
+
+    which = _harno_part(level, part, res.task)
+    items: list[dict] = []
+    seen: set[tuple] = set()
+    for answer in res.answers:
+        try:
+            payload = verify(answer.token)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=(
+                "Задание не удалось проверить: оно выдано не этим сервером.")) from exc
+        ref, issued = payload["ref"], payload["item"]
+        if (ref.get("kind"), ref.get("level"), ref.get("part")) != ("mock", level, which):
+            raise HTTPException(status_code=400, detail="Задание из другой части.")
+        if (key := (ref.get("seed"), ref.get("index"))) in seen:
+            continue
+        seen.add(key)
+        ok = check(issued, answer.given)
+        options = [o for o in (issued.get("distractor") or "").split(" | ") if o]
+        topic = issued.get("topic") or ""
+        try:
+            topic_et = by_id(topic).et if topic else ""
+        except KeyError:
+            topic_et = topic
+        items.append({
+            "code": ref.get("code", ""), "no": ref.get("no"),
+            "given": answer.given.strip(),
+            "chosen": chosen(issued, answer.given) if options else "",
+            "answer": issued["answer"],
+            "letter": LETTERS[options.index(issued["answer"])] if issued["answer"] in options else "",
+            "correct": ok,
+            # The evidence: the sentence with its key, or what was heard.
+            "evidence": issued.get("say") or fill(issued["prompt"], issued["answer"]),
+            "mark": issued.get("hint") or "",
+            "topic": topic, "topic_et": topic_et, "why_ru": issued.get("why_ru") or "",
+        })
+    items.sort(key=lambda i: (i["no"] is None, i["no"] or 0))
+
+    blocks: dict[str, dict] = {}
+    for i in items:
+        b = blocks.setdefault(i["code"], {"code": i["code"], "asked": 0, "correct": 0,
+                                          "topics": []})
+        b["asked"] += 1
+        b["correct"] += int(i["correct"])
+        if not i["correct"] and i["topic"] and i["topic"] not in b["topics"]:
+            b["topics"].append(i["topic"])
+    for b in blocks.values():
+        if b["code"] in TYPES:
+            b |= {"no": TYPES[b["code"]].no, "et": TYPES[b["code"]].et}
+    detail = {"format": "harno", "blocks": list(blocks.values())}
+    if res.task is not None:
+        detail["practice"] = next(iter(blocks), f"{level}-{part}{res.task}")
+    saved = record(progress_db(), level, part, res.seconds, len(items),
+                   sum(i["correct"] for i in items), detail=detail)
+    practise = list(dict.fromkeys(i["topic"] for i in items
+                                  if not i["correct"] and i["topic"]))
+    return saved | {"minutes": SPECS[level].part(part).minutes, "items": items,
+                    "practise": practise, "blocks": list(blocks.values()),
+                    "retests": retests(progress_db(), level)}
 
 
 def _exam_path(item_id: str):

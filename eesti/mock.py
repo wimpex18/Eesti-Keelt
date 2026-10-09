@@ -12,7 +12,14 @@ says plainly what it is:
 | `kirjutamine` | both of HARNO's writing tasks, each in its variants (`eesti/writingtasks.py`) | by code: a checklist — length against HARNO's figure, each point the prompt asks for, a letter's frame, the deterministic checks |
 | `raakimine` | the paired-exam question bank, recorded | not scored — the exam is paired |
 
-Each finished section records an `exam-section` event, which readiness counts.
+Reading and listening also come in HARNO's own task types (`eesti/harnotasks.py`):
+part `lugemine:harno` is every type the part has, `lugemine:3` one of them,
+practised on its own. A HARNO-format part is reviewed item by item (answer, key,
+the evidence in the text or transcript, the topic behind a miss), and each task
+type with a miss is re-tested one, then three, then six days later (`retests`).
+
+Each finished section records an `exam-section` event, which readiness counts;
+a single task type practised on its own is recorded but not counted as a part.
 """
 
 from __future__ import annotations
@@ -70,16 +77,26 @@ CREATE INDEX IF NOT EXISTS idx_exam_sections ON exam_sections(level, part, id);
 """
 
 
+#: What a HARNO-format part is, in Russian: the task types, not HARNO's paper.
+NOTE_HARNO = ("Задания в формате HARNO: та же инструкция, тот же вид вопросов и "
+              "их номера, но материал приложения, а ключ задаёт код. Время — "
+              "доля времени всей части по числу вопросов.")
+
+
 @dataclass(frozen=True)
 class Section:
     level: str
     part: str
     minutes: int
-    #: `cloze` | `dictation` | `writing` | `speaking`: how the page renders it.
+    #: `cloze` | `dictation` | `writing` | `speaking` | `harno`: how the page renders it.
     kind: str
     tasks: list = field(default_factory=list)
     graded: bool = True
     note: str = ""
+    #: `harno`: the tasks of the part, each with its questions' place in `tasks`.
+    blocks: list = field(default_factory=list)
+    #: `harno`: HARNO's task types this section could not build, by number.
+    missing: list = field(default_factory=list)
 
     @property
     def et(self) -> str:
@@ -87,15 +104,25 @@ class Section:
         return SPECS[self.level].part(self.part).et
 
     def to_dict(self) -> dict:
-        return {"level": self.level, "part": self.part, "et": self.et,
-                "minutes": self.minutes, "kind": self.kind, "tasks": self.tasks,
-                "graded": self.graded, "note": self.note}
+        out = {"level": self.level, "part": self.part, "et": self.et,
+               "minutes": self.minutes, "kind": self.kind, "tasks": self.tasks,
+               "graded": self.graded, "note": self.note}
+        if self.kind == "harno":
+            out |= {"blocks": self.blocks, "missing": self.missing}
+        return out
 
 
 def build(level: str, part: str, *, seed: int, content: sqlite3.Connection | None,
           words: sqlite3.Connection | None = None,
           vocabulary: sqlite3.Connection | None = None) -> Section:
-    """One section, seeded so it can be rebuilt exactly (`eesti/itemref.py`)."""
+    """One section, seeded so it can be rebuilt exactly (`eesti/itemref.py`).
+
+    `part` may name HARNO's task types: `lugemine:harno` for all of the part's,
+    `lugemine:3` for one (`harno`)."""
+    if ":" in part:
+        part, _, which = part.partition(":")
+        return harno(level, part, seed=seed, content=content, words=words,
+                     only=None if which == "harno" else int(which))
     spec = SPECS[level]
     minutes = spec.part(part).minutes   # ValueError for an unknown part
     if part == "lugemine":
@@ -107,6 +134,33 @@ def build(level: str, part: str, *, seed: int, content: sqlite3.Connection | Non
     if part == "raakimine":
         return _speaking(level, minutes, seed)
     raise ValueError(f"no such exam part: {part!r}")
+
+
+def harno(level: str, part: str, *, seed: int, content: sqlite3.Connection | None,
+          words: sqlite3.Connection | None, only: int | None = None) -> Section:
+    """HARNO's task types for a reading or listening part (`eesti/harnotasks.py`).
+
+    `tasks` is every question in order; each block names its type, what is read
+    or heard, and where its questions start in `tasks`. `minutes` is the share of
+    the part's time its questions are. An empty section means no type could be
+    built, and the page falls back to the app's own section."""
+    from . import harnotasks
+
+    spec = SPECS[level]
+    spec.part(part)                         # ValueError for an unknown part
+    if part not in ("lugemine", "kuulamine"):
+        raise ValueError(f"no HARNO task types for {part!r}")
+    if only is not None:
+        harnotasks.by_number(level, part, only)     # KeyError for an unknown task
+    built = harnotasks.section(level, part, seed=seed, content=content, words=words,
+                               only=only)
+    blocks, first = [], 0
+    for block in built.blocks:
+        blocks.append(block.to_page(first))
+        first += len(block.questions)
+    return Section(level, part, built.minutes, "harno", built.questions,
+                   note=NOTE_HARNO, blocks=blocks,
+                   missing=[t.to_dict() for t in built.missing])
 
 
 def _up_to(level: str) -> tuple[str, ...]:
@@ -225,11 +279,66 @@ def history(progress: sqlite3.Connection, level: str | None = None) -> list[dict
 
 
 def counts(progress: sqlite3.Connection, level: str) -> dict[str, int]:
-    """How many sections of each part were sat at this level."""
+    """How many sections of each part were sat at this level. A task type
+    practised on its own (`detail.practice`) is not a sitting of the part."""
     progress.executescript(SCHEMA)
     return {r[0]: r[1] for r in progress.execute(
-        "SELECT part, COUNT(*) FROM exam_sections WHERE level = ? GROUP BY part",
-        (level,))}
+        "SELECT part, COUNT(*) FROM exam_sections WHERE level = ?"
+        " AND json_extract(COALESCE(NULLIF(detail, ''), '{}'), '$.practice') IS NULL"
+        " GROUP BY part", (level,))}
+
+
+#: Days to the next re-test of a task type after a miss, then after each clean
+#: result: ADR-0009's "re-tested one to six days later". Three clean results in
+#: a row close it.
+RETEST_DAYS = (1, 3, 6)
+
+
+def schedule(results: list[tuple[str, bool, list[str]]]) -> tuple[str, int, list[str]] | None:
+    """When a task type is next re-tested, from its results oldest first, each
+    `(date, clean, topics missed)`: `(due date, clean results since the miss, the
+    miss's topics)`, or None when it has no miss or the miss is closed."""
+    from datetime import date, timedelta
+
+    misses = [n for n, (_, clean, _) in enumerate(results) if not clean]
+    if not misses:
+        return None
+    since = len(results) - 1 - misses[-1]
+    if since >= len(RETEST_DAYS):
+        return None
+    last = date.fromisoformat(results[-1][0][:10])
+    return ((last + timedelta(days=RETEST_DAYS[since])).isoformat(), since,
+            results[misses[-1]][2])
+
+
+def retests(progress: sqlite3.Connection, level: str) -> list[dict]:
+    """The HARNO task types to re-test at this level, soonest first: every type
+    with a miss in a mock or a practice, until three clean results follow it."""
+    import json
+
+    from . import harnotasks
+
+    progress.executescript(SCHEMA)
+    by_code: dict[str, list[tuple[str, bool, list[str]]]] = {}
+    for row in progress.execute(
+            "SELECT at, detail FROM exam_sections WHERE level = ? ORDER BY id", (level,)):
+        try:
+            detail = json.loads(row["detail"] or "{}")
+        except ValueError:
+            continue
+        for block in detail.get("blocks") or []:
+            by_code.setdefault(block.get("code", ""), []).append(
+                (row["at"], block.get("correct") == block.get("asked"),
+                 list(block.get("topics") or [])))
+    out = []
+    for code, results in by_code.items():
+        due = schedule(results)
+        if due is None or code not in harnotasks.TYPES:
+            continue
+        task = harnotasks.TYPES[code]
+        out.append({"code": code, "part": task.part, "no": task.no, "et": task.et,
+                    "due": due[0], "clean": due[1], "topics": due[2]})
+    return sorted(out, key=lambda r: (r["due"], r["code"]))
 
 
 def check_writing(text: str, level: str) -> dict:
