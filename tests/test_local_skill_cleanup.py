@@ -11,9 +11,9 @@ def test_cleanup_targets_codex_and_claude_copies_but_preserves_other_skills(tmp_
     folders = [(home / ".codex/skills/product-qa", "product-qa"),
                (home / ".claude/skills/qa-product", "QA product"),
                (home / ".agents/skills/wanderalt", "WanderAlt"),
-               (home / ".codex/skills/impeccable", "impeccable"),
+               (home / ".codex/skills/design", "design"),
                (home / ".claude/skills/python", "python"),
-               (project / ".claude/skills/impeccable", "impeccable")]
+               (project / ".claude/skills/qa-product", "QA product")]
     for folder, name in folders:
         folder.mkdir(parents=True)
         (folder / "SKILL.md").write_text(f"---\nname: {name}\n---\n")

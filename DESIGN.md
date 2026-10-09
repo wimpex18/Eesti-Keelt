@@ -211,8 +211,6 @@ leaf and name remain the identity; the interface opens directly into the app.
 This record comes from [the stylesheet](eesti/web/app.css),
 [the shell](eesti/web/index.html), [icons](eesti/web/js/icons.js), current
 modules and [the offline fallback](eesti/web/sw.js). The
-[direction contract](.impeccable/decisions/practice-rhythm-contract.md)
-retains Practice rhythm, seed `6ecca7d2`, round 1, code-first and Operate. The
 approved blue material direction is informed by
 [design research](docs/design-research.md), which records the references and their
 limits. The chooser remains a critique reference; no comp image is a build
@@ -517,7 +515,4 @@ Not canonized or repaired: retired boardwalk/glass/serif/capsule descriptions
 remain in source comments; the current cascade and explicit navigation material
 rule govern extensions. System typography on the uncached-shell recovery page
 is scoped to that dependency fallback. This source-based record does not certify
-complete English/Ukrainian instructional support. Main-app review and fixes are
-recorded in [.impeccable/review/blue-finish-review.md](.impeccable/review/blue-finish-review.md);
-the exact-source offline recovery variants and computed keyboard focus are in
-[the closeout matrix](.impeccable/review/closeout/matrix.json).
+complete English/Ukrainian instructional support.
