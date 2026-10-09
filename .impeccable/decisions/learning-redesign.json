@@ -1,0 +1,353 @@
+{
+  "title": "Grove — a clearer place to learn",
+  "question": "Choose a direction for the simpler learning app. Each keeps a direct route to all four skills and a single next lesson.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Study desk",
+      "kicker": "THE ROLL",
+      "lineage": "Estonian adult-learning workbooks",
+      "thesis": "One lesson in focus, with a quiet blue chapter spine and a clear next step.",
+      "palette": [
+        "#0030de",
+        "#f5f7fb",
+        "#ffffff",
+        "#192b45"
+      ],
+      "materials": [
+        "plain reading surfaces",
+        "blue chapter markers"
+      ],
+      "viewport": "A compact navigation rail, your next lesson, then four skill entry points; progress stays on its own screen.",
+      "risk": "The restrained layout needs strong type and precise spacing to avoid feeling bare.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {
+            "label": "Grove / skills",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 10,
+            "accent": true
+          },
+          {
+            "label": "You are here · next lesson",
+            "x": 3,
+            "y": 1,
+            "w": 8,
+            "h": 5,
+            "accent": true
+          },
+          {
+            "label": "Reading",
+            "x": 3,
+            "y": 7,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Speaking",
+            "x": 5,
+            "y": 7,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Listening",
+            "x": 7,
+            "y": 7,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Writing",
+            "x": 9,
+            "y": 7,
+            "w": 2,
+            "h": 2
+          }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/study-desk.webp",
+      "raised": [
+        {
+          "from": "Cassette tracklist",
+          "raise": "Session position and remaining steps stay visible without opening the full course."
+        },
+        {
+          "from": "Graphite work surface",
+          "raise": "Utility and destructive actions live away from the learning action."
+        },
+        {
+          "from": "Streaming catalogue",
+          "raise": "Each activity reveals detail only when chosen."
+        },
+        {
+          "from": "Crouwel specimen",
+          "raise": "One consistent grid and a decisive lesson title replace competing widgets."
+        },
+        {
+          "from": "Calibrated rail",
+          "raise": "Progress remains readable by position and labels, with no dependence on colour."
+        }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Learning library",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Estonian public-library reading rooms",
+      "thesis": "A welcoming lesson space with direct skill navigation and a small, purposeful course shelf.",
+      "palette": [
+        "#0030de",
+        "#edf3fb",
+        "#ffffff",
+        "#18322d"
+      ],
+      "materials": [
+        "open white reading area",
+        "blue navigation band"
+      ],
+      "viewport": "The learning path leads a broad working column, with a compact row of skill destinations and a folded course library.",
+      "risk": "Its familiar learning-app structure may feel less distinctive.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {
+            "label": "Grove / main skills",
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 1,
+            "accent": true
+          },
+          {
+            "label": "Continue learning",
+            "x": 1,
+            "y": 2,
+            "w": 7,
+            "h": 5,
+            "accent": true
+          },
+          {
+            "label": "Course / review",
+            "x": 9,
+            "y": 2,
+            "w": 2,
+            "h": 5
+          },
+          {
+            "label": "Four skills",
+            "x": 1,
+            "y": 8,
+            "w": 10,
+            "h": 1
+          }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/library.webp"
+    },
+    {
+      "id": "challenger-manual",
+      "label": "Chapter tabs",
+      "verdict": "competitive",
+      "lineage": "Tabbed reference manuals",
+      "thesis": "Large chapter markers give every learning area a distinct position and a readable working sheet.",
+      "palette": [
+        "#0030de",
+        "#e5f0ee",
+        "#ffffff",
+        "#16252d"
+      ],
+      "materials": [
+        "solid section colours",
+        "plain lesson sheets"
+      ],
+      "viewport": "Permanent left chapter tabs for the path and skills; the lesson fills one reading surface.",
+      "case": "Strong fit with learning and navigation; a more prominent chapter system risks adding visual noise.",
+      "risk": "Section colours and tabs must stay secondary to the current task.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          {
+            "label": "Chapter tabs",
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 10,
+            "accent": true
+          },
+          {
+            "label": "Lesson sheet",
+            "x": 4,
+            "y": 1,
+            "w": 7,
+            "h": 7
+          },
+          {
+            "label": "Next / skip",
+            "x": 4,
+            "y": 9,
+            "w": 7,
+            "h": 1,
+            "accent": true
+          }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/chapters.webp",
+      "hero": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board.webp"
+    },
+    {
+      "id": "challenger-cassette",
+      "label": "Cassette tracklist",
+      "verdict": "declined",
+      "lineage": "Cassette inlay cards",
+      "thesis": "Blue tracklists make session position explicit.",
+      "palette": [
+        "#1639be",
+        "#ffffff"
+      ],
+      "materials": [
+        "flat working surfaces"
+      ],
+      "viewport": "Standard skill navigation surrounds a focused lesson, borrowing this direction's type and state discipline.",
+      "case": "Sound practice fits, but the format identifies more with music than learning.",
+      "kept": "Visible session position.",
+      "risk": "The source character can dominate a beginner's task."
+    },
+    {
+      "id": "challenger-console",
+      "label": "Graphite work surface",
+      "verdict": "declined",
+      "lineage": "Dark working interfaces",
+      "thesis": "Graphite panels separate task and utility actions.",
+      "palette": [
+        "#18202d",
+        "#eaf2ff"
+      ],
+      "materials": [
+        "flat working surfaces"
+      ],
+      "viewport": "Standard skill navigation surrounds a focused lesson, borrowing this direction's type and state discipline.",
+      "case": "Useful discipline, but persistent panels work against the requested uncluttered lesson.",
+      "kept": "Isolated utility actions.",
+      "risk": "The source character can dominate a beginner's task."
+    },
+    {
+      "id": "challenger-streaming",
+      "label": "Activity catalogue",
+      "verdict": "declined",
+      "lineage": "Streaming catalogue walls",
+      "thesis": "Focused activity tiles reveal information on demand.",
+      "palette": [
+        "#122233",
+        "#ffffff"
+      ],
+      "materials": [
+        "flat working surfaces"
+      ],
+      "viewport": "Standard skill navigation surrounds a focused lesson, borrowing this direction's type and state discipline.",
+      "case": "Good for browsing video, weaker for deciding the next lesson.",
+      "kept": "Progressive activity detail.",
+      "risk": "The source character can dominate a beginner's task."
+    },
+    {
+      "id": "challenger-crouwel",
+      "label": "Measured type",
+      "verdict": "declined",
+      "lineage": "Wim Crouwel grid specimens",
+      "thesis": "A disciplined grid gives the lesson title a clear visual lead.",
+      "palette": [
+        "#0030de",
+        "#ffffff"
+      ],
+      "materials": [
+        "flat working surfaces"
+      ],
+      "viewport": "Standard skill navigation surrounds a focused lesson, borrowing this direction's type and state discipline.",
+      "case": "Strong hierarchy, but oversized specimen type would distract from practice.",
+      "kept": "Consistent grid and type hierarchy.",
+      "risk": "The source character can dominate a beginner's task."
+    },
+    {
+      "id": "challenger-rail",
+      "label": "Progress rail",
+      "verdict": "declined",
+      "lineage": "Calibrated graphic rails",
+      "thesis": "A marked line makes session progress legible by position.",
+      "palette": [
+        "#263040",
+        "#e7f0f9"
+      ],
+      "materials": [
+        "flat working surfaces"
+      ],
+      "viewport": "Standard skill navigation surrounds a focused lesson, borrowing this direction's type and state discipline.",
+      "case": "Precise progress language, but the instrument character is remote from beginner learning.",
+      "kept": "Position and labels before colour.",
+      "risk": "The source character can dominate a beginner's task."
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "steer": true,
+  "canon": true,
+  "canonCard": {
+    "label": "The familiar learning app",
+    "thesis": "A conventional course home and labelled skill tabs, executed with a clear hierarchy.",
+    "palette": [
+      "#0030de",
+      "#ffffff",
+      "#1b2b42"
+    ],
+    "materials": [
+      "flat surfaces",
+      "standard course rows"
+    ],
+    "viewport": "A continue-learning panel above course rows, with always-visible skill navigation.",
+    "risk": "Familiar and efficient, with less individual character.",
+    "comp": ".impeccable/mocks/decision/canon.webp",
+    "wireframe": {
+      "cols": 12,
+      "rows": 10,
+      "regions": [
+        {
+          "label": "Skill tabs",
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 1,
+          "accent": true
+        },
+        {
+          "label": "Continue",
+          "x": 1,
+          "y": 2,
+          "w": 10,
+          "h": 3,
+          "accent": true
+        },
+        {
+          "label": "Course rows",
+          "x": 1,
+          "y": 6,
+          "w": 10,
+          "h": 4
+        }
+      ]
+    }
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

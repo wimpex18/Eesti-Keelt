@@ -50,3 +50,14 @@ deploy/eki/*
 # Local visual review captures.
 .impeccable/review/
 .impeccable/questions/
+
+# Impeccable design tool, installed per machine for each agent (binaries included).
+.agents/
+.codex/
+.claude/skills/impeccable/
+.claude/agents/impeccable-*
+.github/skills/impeccable/
+.github/agents/impeccable-*
+.github/hooks/impeccable.json
+.impeccable/live/
+.claude/settings.local.json
