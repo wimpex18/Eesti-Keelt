@@ -45,6 +45,9 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_start_paints_requested_content_before_scripts_arrive(page, live_server):
     pending = []
     page.route("**/js/main.js", lambda route: pending.append(route))
+    # The profile answers after the learner's first click, as on a slow phone.
+    profile = []
+    page.route("**/api/me", lambda route: profile.append(route))
     page.goto(live_server + "/?qa-start-render=1#start", wait_until="commit")
     heading = page.locator("#tab-start h2")
     heading.wait_for(state="visible")
@@ -58,6 +61,14 @@ def test_start_paints_requested_content_before_scripts_arrive(page, live_server)
         request.continue_()
     page.wait_for_function("!document.querySelector('#tab-start [data-start]').disabled")
     start.click()
+    assert "Milleks õpid?" in page.locator("#tab-start h2").inner_text()
+    assert profile
+    with page.expect_response("**/api/me") as answered:
+        for request in profile:
+            request.continue_()
+    answered.value.finished()
+    page.evaluate("() => new Promise(r => setTimeout(r, 50))")
+    # The late profile must not take the learner back to the first screen.
     assert "Milleks õpid?" in page.locator("#tab-start h2").inner_text()
 
 

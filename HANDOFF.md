@@ -6,7 +6,8 @@ EKI credit everywhere, unit check (`eesti/unitcheck.py`), Claude Haiku 5.5 lane
 (evaluation-only, ADR-0008), restored reminder push handler, and the start of the
 B1 exam loop (ADR-0009): both writing tasks with a code checklist
 (`eesti/writingtasks.py`), *Eksamipäev* (`eesti/examday.py`), practice from reading
-misses. Research and decisions: ADR-0009, `qa/opus-sessions.md` (8 Opus briefs).
+misses; a late profile no longer redraws the start screen over the learner's
+next step. Research and decisions: ADR-0009, `qa/opus-sessions.md` (8 Opus briefs).
 Fast suite and browser journeys (both engines) green.
 Next: the owner reviews and merges PR #125; merge rebuilds the origin, then run
 `smoke` with `deep: true`. Then `qa/next-session.md` (material pipeline → HARNO

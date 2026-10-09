@@ -109,6 +109,8 @@ function showResult() {
 export async function maybeShowOnboarding({force = false} = {}) {
   try {
     const me = await api("/api/me", null, "GET").then(r => r.json());
+    // The router already drew the start screen; redrawing would undo a step taken meanwhile.
+    if (!force && !$("#tab-start").hidden) return;
     if (location.hash === "#start" || force || !me.onboarding && location.hash === "#path") {
       renderStart(); route("start");
     }
