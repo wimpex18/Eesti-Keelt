@@ -15,18 +15,16 @@ that loses its main sense.
 **Exact next step.** The owner merges #137 (after #136, sync with main: the
 status rows sit side by side in `qa/opus-sessions.md`).
 
-**Owner operations.** None: the image imports the glosses. Optional: more
-words with `cli dictionary glosses` (extend `dictionary_glosses.wanted`).
+**Owner operations.** None (the image imports the glosses); optional: more words
+with `cli dictionary glosses` (extend `dictionary_glosses.wanted`).
 
 **Follow-ups.**
 - R2: `official_levels` keeps the last line per word (*mina*, *hea* read B1);
   keeping the lower level needs S2's `minu-pere` re-checked (*vana*).
 - S8: the session's items could open the word card on a tapped word.
-- S4: the entry's meanings follow the explanation language (English or
-  Ukrainian first; `LANG_RU` names languages in Russian today).
+- S4: meanings follow the explanation language (`LANG_RU` is Russian today).
 - Offline English/Ukrainian: EKI's downloads (`docs/source-integrations.md`)
   need the owner's download and a sense review before they outrank the drafts.
-- S10/R2: iOS Safari with the keyboard up: the compact dock band leaves about
-  one result row visible on Sõnastik's search.
+- S10/R2: iOS Safari, keyboard up: the dock band leaves one result row.
 
 **Uncommitted paths.** None. **Blockers.** None.
