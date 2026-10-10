@@ -40,7 +40,7 @@
   --rise:4px;--press:.98;--sheet-rise:16px;--sheet-dur:var(--dur-4);
   /* The shell. chrome.js measures the phone's dock and the keyboard and writes
      these on <html>; the values here hold until it does. */
-  --spine-w:248px;--gutter:var(--s4);--hdr-h:0px;--tabs-h:0px;--dock-h:0px;--kb:0px;--band:100dvh;
+  --spine-w:248px;--gutter:var(--s4);--hdr-h:0px;--tabs-h:0px;--dock-h:0px;--kb:0px;--search-room:0px;--band:100dvh;
   color-scheme:light;accent-color:var(--jarv)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --ground:#141F19;--sheet:#1B2A22;--sunk:#24362C;--ink:#E8EFEA;--ink-2:#C2CDC6;--muted:#A1AEA6;
@@ -203,7 +203,7 @@ footer.sources{max-width:760px;margin:var(--s6) auto 0;padding:0 var(--gutter) 9
    safe-area inset, so nothing sits under a rounded corner or the sensor housing. */
 @media (max-width:719px), (hover:none) and (max-height:559px){
   :root{--hdr-h:calc(56px + env(safe-area-inset-top));--dock-h:calc(68px + env(safe-area-inset-bottom))}
-  body{padding-bottom:calc(var(--dock-h) + var(--kb))}
+  body{padding-bottom:calc(var(--dock-h) + var(--kb) + var(--search-room))}
   .wrap{display:block}
   .spine{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:var(--s1);min-height:var(--hdr-h);
     padding:env(safe-area-inset-top) max(var(--s4),env(safe-area-inset-right)) 0 max(var(--s4),env(safe-area-inset-left));
@@ -257,7 +257,14 @@ footer.sources{max-width:760px;margin:var(--s6) auto 0;padding:0 var(--gutter) 9
   body.dock-task .dock-primary{bottom:calc(var(--kb) + var(--s3));left:calc(max(var(--s4),env(safe-area-inset-left)) + 52px + var(--s2))}
   /* Little height left (a phone on its side with the keyboard up): the header
      scrolls away and the row tightens to 44px controls. */
-  body.kb-compact .spine,body.kb-search .spine{position:relative}
+  body.kb-compact .spine{position:relative}
+  /* Searching with the keyboard up: the header and whatever precedes the search
+     form step aside, so the form starts the page and its results get the band
+     (Safari on iOS will not scroll a page further than its own pan while the
+     keyboard is up, which left an iPhone one row). */
+  body.kb-search .spine,body.kb-search :has(> form[role=search]) > :has(~ form[role=search]){display:none}
+  html:has(body.kb-search){scroll-padding-top:0}
+  body.kb-search form[role=search]{scroll-margin-top:var(--s2)}
   body.kb-compact .actbar{min-height:60px;padding-block:var(--s2)}
   body.kb-compact .skills-key{width:44px;height:44px}
   body.kb-compact .dock-primary{min-height:44px;bottom:calc(var(--kb) + var(--s2));

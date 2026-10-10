@@ -966,7 +966,11 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
   one topic (its rule, practice and a short check), opened by Kursus' *Õpi*, a
   remediation, the weakest rule or a rule page's *Harjuta*, which starts it at
   practice. Kursus' test-out and unit check run in the same screen as a set
-  answered whole.
+  answered whole, at `#session/check/<unit|testout>/<id>/<seed>`: the seed makes
+  the same set again, so a reload resumes it after the answers already given.
+  A reload resumes a session at the step the learner was in, and an item keeps
+  its event id and attempt until it is advanced, so a reload never records a
+  second first attempt.
 - **Session line:** a segment per step of today's session, grouped under the
   three phase labels: **Õpi** (Kordamine, Reegel), **Harjuta** (Harjutamine,
   Sõnad, Kuulamine or Lugemine, Rääkimine or Kirjutamine), **Kontrolli**
@@ -1423,8 +1427,13 @@ keyboard.
    task state and sits on the keyboard. Both engines are read the same way:
    Safari keeps a full-height layout viewport, and Chromium has done the same
    by default since version 108, so the keyboard's height is
-   `innerHeight − visualViewport.height − visualViewport.offsetTop`, read on
-   the visual viewport's `resize` and `scroll` events and on focus. Whether a
+   `H − visualViewport.height − visualViewport.offsetTop`, read on the visual
+   viewport's `resize` and `scroll` events and on focus. `H` is the layout
+   viewport's height, the root's `clientHeight`: on iOS 26 `innerHeight` shrinks
+   to what is left of a short page once Safari has panned to its end. Where the
+   visual viewport's top lies differs by engine: Chromium measures an element's
+   box from the layout viewport (the top is `offsetTop`), Safari on iOS from the
+   visual viewport itself (its `scrollY` is `pageTop`, the top is 0). Whether a
    keyboard is up is read from how much the visual viewport shrank (over
    120px), not from where it sits: as the keyboard slides in, Safari pans the
    visual viewport to the bottom of the layout viewport, and the formula above
@@ -1444,6 +1453,16 @@ keyboard.
    prompt line with its form line (24px at 2.6, about 62px). Without this
    state it would be 402 − 200 − 56 − 76 − 16 = 54px, less than one prompt
    line.
+
+   **Search state.** While a search field (Sõnastik's *Otsi sõna*) has the
+   keyboard, the header and whatever precedes the search form step aside
+   (`kb-search`) and the form goes to the top of the visual viewport, so its
+   results fill the band down to the task row. Safari on iOS does not scroll the
+   page beyond its own pan while the keyboard is up, so moving the form by
+   scrolling alone left an iPhone one result row; with the heading out of the
+   way an iPhone 18 Pro (iOS 26 simulator, its own keyboard) shows three whole
+   rows. A page too short for the move is lengthened while the search has the
+   keyboard (`--search-room`).
 4. The tab row is part of the header in document order, because one element is
    both the desktop sidebar and the phone's dock; the four skills are a
    tablist, so they cost one Tab stop. A skip link, *Sisu juurde*, comes first.

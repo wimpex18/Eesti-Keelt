@@ -15,10 +15,14 @@ const ACCOUNT_NOTICE = "eesti-profile-account-notice";
 let accountNotice = "";
 
 const LEVELS = ["A1", "A2", "B1"];
+// The course's stages (`eesti/units.py`): A0 is no CEFR level, and a2-b1
+// starts at the B1 stage.
 const START_BAND_NAMES = {
-  a0: "A0", a1: "A1", "a1-a2": "A1–A2", a2: "A2", "a2-b1": "A2–B1",
+  a0: "Algus", a1: "A1", "a1-a2": "A1–A2", a2: "A2", "a2-b1": "B1",
   unsure: "pole valitud",
 };
+// Explanation languages, each named in itself.
+const EXPLANATION = [["ru", "Русский"], ["uk", "Українська"], ["en", "English"]];
 const FOCUS_NAMES = {
   path: "Rada", words: "Sõnavara", speaking: "Rääkimine", exam: "Eksam",
 };
@@ -96,6 +100,10 @@ function profileRows(me) {
     <div class="profile-row"><dt lang="et">Konto <span class="ru" lang="ru">аккаунт</span></dt><dd><span lang="et">${scopeName(me.scope)}</span><span class="profile-sub profile-scope-description" lang="ru">${scopeDescription(me.scope)}</span>${controls}</dd></div>
     <div class="profile-row"><dt lang="et">Algus <span class="ru" lang="ru">старт</span></dt><dd>${startValue}${startControl}
       <span class="profile-sub" lang="ru">Точка входа в курс; можно изменить. Уровень CEFR не подтверждён.</span></dd></div>
+    ${start && !start.skipped ? `<div class="profile-row"><dt lang="et"><label for="explainLang">Selgituste keel <span class="ru" lang="ru">язык объяснений</span></label></dt>
+      <dd><select id="explainLang">${EXPLANATION.map(([id, name]) =>
+        `<option value="${id}" lang="${id}"${(start.explanation_language || "ru") === id ? " selected" : ""}>${name}</option>`).join("")}</select>
+      <span class="profile-sub" id="explainLangNote" role="status"></span></dd></div>` : ""}
     <div class="profile-row"><dt lang="et">Õpib alates <span class="ru" lang="ru">учится с</span></dt><dd>${date(me.since)}</dd></div>
     <div class="profile-row"><dt lang="et">Viimati <span class="ru" lang="ru">последнее занятие</span></dt><dd>${date(me.last_active)}</dd></div>
     <div class="profile-row"><dt lang="et">Raja tase <span class="ru" lang="ru">уровень пути</span></dt>
@@ -238,7 +246,29 @@ export async function loadProfile() {
   }
 }
 
+/* The explanation language: saved with the learner's start, which keeps every
+   other choice; what it means today is said in the language chosen. */
+async function chooseLanguage(select) {
+  const start = currentMe?.onboarding;
+  const note = $("#explainLangNote");
+  if (!start) return;
+  select.disabled = true;
+  try {
+    currentMe = await (await api("/api/me/onboarding", {
+      start_band: start.start_band, focus: start.focus, skipped: false,
+      navigate: !!start.navigate, explanation_language: select.value})).json();
+    window.dispatchEvent(new CustomEvent("eesti:language", {detail: select.value}));
+    const {languages} = await (await api("/api/session/languages", null, "GET")).json();
+    note.lang = select.value;
+    note.textContent = languages.find(l => l.id === select.value)?.note || "";
+  } catch (e) {
+    note.lang = "ru";
+    note.textContent = e.message;
+  } finally { select.disabled = false; }
+}
+
 function bindProfile(out) {
+  $("#explainLang")?.addEventListener("change", e => chooseLanguage(e.currentTarget));
   out.querySelectorAll('.profile-levels, .profile-auth-tabs').forEach(list => {
     const tabs = [...list.querySelectorAll('[role="tab"]')];
     const select = selected => tabs.forEach(tab => {

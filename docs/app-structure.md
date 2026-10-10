@@ -34,13 +34,14 @@ Supporting destinations
 Context pages have no extra permanent navigation item: `#start` is onboarding,
 `#session` is today's session and `#session/<topic>` a session on one topic
 (its rule, practice and a short check; Kursus' test-out and unit check run
-there too), and `#rule/<topic>` is the full reference. Rules use a page rather than a modal. Word lookup opens the word card,
+there too, at `#session/check/<unit|testout>/<id>/<seed>`, so a reload resumes
+the same set), and `#rule/<topic>` is the full reference. Rules use a page rather than a modal. Word lookup opens the word card,
 a sheet over the text (`#sonastik/<lemma>` is the same entry as a page). Source
 text, audio, video and PDFs stay in their in-app viewers when available;
 attribution links remain visible.
 
 Onboarding asks four questions — the explanation language (preselected from
-the browser's languages), the goal, the starting point and sessions a week —
+the browser's languages; Profiil changes it later), the goal, the starting point and sessions a week —
 and then opens today's session. The starting point is the beginning, a chosen
 stage, or a placement of at most twelve code-graded items (three a unit) that
 places by unit. This is a course recommendation, not certified CEFR. Guests can
@@ -70,7 +71,7 @@ keeps that recovery screen; after connectivity returns it opens the app.
 | Today's session and a topic session | code against issued forms; the key stays on the server until the attempt | the first attempt only: attempts, mastery and review queue (a heard item makes no card); a retry after a hint is graded and not recorded |
 | A unit word in the session | code against the form in EKI's phrase | the first correct recall queues a meaning card |
 | Placement in onboarding | code against each item's key, from its token | nothing but navigation: the units before the start are moved past |
-| The session's writing and speaking | code's checklist, then the model's comments against HARNO's descriptors | writing and speech practice; the comments are never recorded or scored |
+| Writing and speaking in a session, the mock exam's writing and Rääkimine's open answers | code's checklist, then the model's comments against HARNO's descriptors | writing and speech practice; the comments are never recorded or scored |
 | Unit 1 sound items | code against EKI's own form and quantity mark for the recording played | attempts and mastery; no card |
 | Free practice | same code, `record: false` | nothing |
 | Topic test-out / onboarding grammar check | server checks all five answers | checked mastery only on a pass |

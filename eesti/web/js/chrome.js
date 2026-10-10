@@ -331,11 +331,28 @@ function screenPrimary() {
    keyboard is up; how much of the layout viewport lies below it says where the
    keyboard starts (0 while Safari has panned to the bottom, which it does as the
    keyboard slides in). Pinch zoom also shrinks it, and is no keyboard. Read
-   afresh each time, so a replaced `visualViewport` is honoured. */
+   afresh each time, so a replaced `visualViewport` is honoured.
+   The layout viewport's height is the root's `clientHeight`: on iOS 26
+   `innerHeight` shrinks to what is left of a short page once Safari has panned
+   to its end, which read as no keyboard (an empty Sõnastik). */
+const layoutHeight = () => Math.max(innerHeight, docEl.clientHeight);
 function keyboardGap() {
   const v = window.visualViewport;
   if (!v || Math.abs((v.scale ?? 1) - 1) > .01) return {shrunk: 0, below: 0};
-  return {shrunk: innerHeight - v.height, below: Math.max(0, Math.round(innerHeight - v.height - v.offsetTop))};
+  const full = layoutHeight();
+  return {shrunk: full - v.height, below: Math.max(0, Math.round(full - v.height - v.offsetTop))};
+}
+
+/* Where the visual viewport's top edge lies in the coordinates an element's
+   box is measured in. Chrome measures from the layout viewport, so it is the
+   visual viewport's offset; Safari on iOS measures from the visual viewport
+   itself (its `scrollY` is the visual viewport's `pageTop`), so it is 0 even
+   while Safari has panned. Subtracting the offset there put a field Safari had
+   panned 116px further down than it was. */
+function visualTop() {
+  const v = window.visualViewport;
+  if (!v) return 0;
+  return Number.isFinite(v.pageTop) ? v.pageTop - scrollY : v.offsetTop;
 }
 
 let frame = 0, watched = null, keyboardWas = false, settling = 0;
@@ -367,11 +384,22 @@ function syncShell() {
   body.classList.toggle("dock-task", keyboard || task);
   body.classList.toggle("kb", keyboard);
   body.classList.toggle("kb-compact", keyboard && height < 320);
-  /* A search is read below its field: with the keyboard up the header scrolls
-     away and the field goes to the top of what is visible, so the results get
-     the band (Sõnastik on an iPhone left room for one row). */
+  /* A phone raises its keyboard after the field takes focus, and then scrolls the
+     page its own way while the keyboard slides in: the task row lands on the
+     keyboard and can cover the field. For a moment after the keyboard arrives,
+     each change of the visual viewport puts the field back in sight; after that
+     the learner's own scrolling is left alone. */
+  if (keyboard && !keyboardWas) settling = performance.now() + 1000;
+  keyboardWas = keyboard;
+  const settle = keyboard && performance.now() < settling;
+  /* A search is read below its field: with the keyboard up the header and what
+     precedes the search form step aside (`kb-search` in app.css) and the form
+     goes to the top of what is visible, so the results get the band (Sõnastik
+     on an iPhone left room for one row). Safari's own pan to the field ends
+     after the keyboard has arrived, so the move is repeated while it settles. */
   const searching = keyboard && !!document.activeElement?.matches?.("input[type=search]");
-  if (searching && !body.classList.contains("kb-search")) searchToTop(document.activeElement);
+  if (searching && (settle || !body.classList.contains("kb-search"))) searchToTop(document.activeElement);
+  if (!searching && searchRoom) docEl.style.setProperty("--search-room", `${searchRoom = 0}px`);
   body.classList.toggle("kb-search", searching);
   docEl.style.setProperty("--kb", `${keyboard ? gap.below : 0}px`);
   const tabs = phone && !(keyboard || task) ? Math.round($(".dock-tabs").getBoundingClientRect().height) : 0;
@@ -382,19 +410,15 @@ function syncShell() {
   // caps a multi-line field at.
   const header = getComputedStyle($(".spine")).position === "sticky" ? $(".spine").offsetHeight : 0;
   docEl.style.setProperty("--band", `${Math.max(0, Math.round(height - header - bar - 16))}px`);
-  /* A phone raises its keyboard after the field takes focus, and then scrolls the
-     page its own way while the keyboard slides in: the task row lands on the
-     keyboard and can cover the field. For a moment after the keyboard arrives,
-     each change of the visual viewport puts the field back in sight; after that
-     the learner's own scrolling is left alone. */
-  if (keyboard && !keyboardWas) settling = performance.now() + 1000;
-  keyboardWas = keyboard;
-  if (keyboard && performance.now() < settling) keepInSightWhenStill();
+  if (settle) keepInSightWhenStill();
 }
 
 /* The search field's form at the top of the visual viewport, once the page has
-   stopped moving (Safari pans as the keyboard slides in). */
-let searchRun = 0;
+   stopped moving (Safari pans as the keyboard slides in). A search page is
+   short before its results arrive, too short to scroll its field that far, so
+   it is lengthened for as long as the search has the keyboard (`--search-room`;
+   on an iPhone the empty Sõnastik left the results 15px). */
+let searchRun = 0, searchRoom = 0;
 function searchToTop(field) {
   const run = ++searchRun;
   let last = "", still = 0, frames = 0;
@@ -405,8 +429,15 @@ function searchToTop(field) {
     still = now === last ? still + 1 : 0;
     last = now;
     if (still < 3 && ++frames <= 90) { requestAnimationFrame(tick); return; }
-    const top = (field.form || field).getBoundingClientRect().top - (v ? v.offsetTop : 0) - 8;
-    if (Math.abs(top) > 1) window.scrollBy({top, behavior: "instant"});
+    const form = field.form || field;
+    const top = form.getBoundingClientRect().top - visualTop() - 8;
+    // Where the page ends (not `scrollHeight`, never less than the viewport).
+    const end = document.body.getBoundingClientRect().bottom + scrollY;
+    const short = Math.ceil(scrollY + top + layoutHeight() - end);
+    if (short > 0) docEl.style.setProperty("--search-room", `${searchRoom += short}px`);
+    // Safari on iOS ignores a window scroll while the keyboard is up; a scroll
+    // into view moves its visual viewport (the form's scroll margin is the 8px).
+    if (Math.abs(top) > 1) form.scrollIntoView({block: "start", behavior: "instant"});
   };
   requestAnimationFrame(tick);
 }
@@ -416,7 +447,7 @@ function searchToTop(field) {
    bottom (tab row, action bar, primary) or the keyboard. */
 function clearBand() {
   const v = window.visualViewport;
-  let top = v ? v.offsetTop : 0, bottom = v ? v.offsetTop + v.height : innerHeight;
+  let top = visualTop(), bottom = v ? top + v.height : innerHeight;
   const header = $(".spine");
   if (getComputedStyle(header).position === "sticky") top = Math.max(top, header.getBoundingClientRect().bottom);
   for (const el of [$(".dock-tabs"), $("#actbar"), $(".dock-primary")]) {

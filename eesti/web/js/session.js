@@ -25,6 +25,7 @@ import {icon} from "./icons.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 import {keepLinesInside, onLessonPractice} from "./lesson.js";
 import {addMic} from "./voice.js";
+import {commentsSlot, descriptorComments, explanationLanguage, modelBlock} from "./modeltext.js";
 
 /* Count words for the plan, as Estonian says them: the singular after one, the
    singular partitive after more (Vabamorf's forms of each noun, `sg p`). */
@@ -150,13 +151,6 @@ function paintBeads() {
 
 
 // ── Loading a session ──────────────────────────────────────────────
-async function language() {
-  try {
-    const me = await (await api("/api/me", null, "GET")).json();
-    return me.onboarding?.explanation_language || "ru";
-  } catch { return "ru"; }
-}
-
 function title(et, ru) {
   const h = $("#sessionTitle");
   h.innerHTML = glossed(et, ru);
@@ -190,14 +184,26 @@ function failed(message, retry) {
 
 let started = "";   // the route this runner last started, so re-selecting does not restart it
 
-/* Opened by the router for `#session` and `#session/<topic>`. */
-export async function ensureSession(topic) {
-  const route = topic ? `topic:${topic}` : "today";
-  if (S.check && S.check.pending) {
-    S.check.pending = false;
-    started = route;
-    return runCheck();
+/* Opened by the router for `#session`, `#session/<topic>` and a check set,
+   `#session/check/<unit|testout>/<id>/<seed>`: the seed makes the set again, so
+   a reload resumes the same check. A malformed check route opens today's session. */
+export async function ensureSession(topic, rest = []) {
+  if (topic === "check") {
+    const [kind, id, seed] = rest;
+    if (!["unit", "testout"].includes(kind) || !id || !/^\d{1,10}$/.test(seed || "")) {
+      topic = null;
+    } else {
+      const route = `check:${kind}:${id}:${seed}`;
+      if (started === route && S.check) return;
+      started = route;
+      const same = S.check?.seed === Number(seed);
+      S.check = {kind, [kind === "unit" ? "unit" : "topic"]: id, seed: Number(seed),
+                 et: same ? S.check.et : ""};
+      S.mode = "check";
+      return runCheck();
+    }
   }
+  const route = topic ? `topic:${topic}` : "today";
   if (started === route && S.session) return;
   started = route;
   if (topic) {
@@ -220,15 +226,16 @@ export function openTopic(topic, {rules = null, from = null} = {}) {
 }
 
 /* Kursus' test-out and unit check: a set answered whole and graded by the server
-   from its seed (`placement.probe`, `unitcheck.grade`). */
+   from its seed (`placement.probe`, `unitcheck.grade`). The seed is chosen here
+   and named in the route. */
 export function startCheckSet(check) {
-  S.check = {...check, pending: true};
-  S.mode = "check";
+  const seed = crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
+  S.check = {...check, seed};
   started = "";
-  const hash = "#session/" + encodeURIComponent(check.topic || "");
-  if (location.hash === hash) { S.check.pending = false; runCheck(); }
-  else location.hash = hash;
+  const id = check.kind === "unit" ? check.unit : check.topic;
+  location.hash = `#session/check/${check.kind}/${encodeURIComponent(id)}/${seed}`;
 }
+const checkKey = check => `klint.check.${check.kind}.${check.unit || check.topic}.${check.seed}`;
 
 onLessonPractice(topic => openTopic(topic, {from: "rule"}));
 
@@ -244,7 +251,7 @@ async function load() {
   loading();
   $("#sessLine").innerHTML = ""; $("#sessBeads").innerHTML = ""; $("#sessStep").textContent = "";
   try {
-    S.lang = await language();
+    S.lang = await explanationLanguage();
     let made;
     if (S.mode === "topic") {
       const r = await (await api(`/api/session/topic/${encodeURIComponent(S.topic)}?${query()}`, null, "GET")).json();
@@ -259,7 +266,11 @@ async function load() {
     // session's place in it.
     if (S.mode === "topic" && made.topic) title(made.topic.et, made.topic.ru);
     else title(`${made.unit.n}. ${made.unit.et}`, `занятие ${made.n} из ${made.of}`);
-    let first = made.steps.find(st => st.state !== "done");
+    // The step the learner was in, after a reload or a pause; else the first
+    // not done.
+    const was = store.get(atKey());
+    let first = made.steps.find(st => st.id === was && st.state !== "done")
+      || made.steps.find(st => st.state !== "done");
     // The rule page's Harjuta: the rule was just read there.
     if (S.from === "rule" && first?.id === "reegel")
       first = made.steps.find(st => st.id === "harjutamine") || first;
@@ -274,9 +285,23 @@ async function load() {
 
 // ── Steps ──────────────────────────────────────────────────────────
 const keyOf = step => `klint.session.${S.session.id}.${step.id}${S.rules ? "." + S.rules.join("+") : ""}`;
+const atKey = () => `klint.session.${S.session.id}${S.rules ? "." + S.rules.join("+") : ""}.at`;
+
+/* An answer's identity outlives a reload: the item on the bench keeps its event
+   id and attempt until it is advanced, so the server's deduplication sees one
+   first attempt (a reload after an accepted answer or after the hint would
+   otherwise record another). Kept for the same item at the same place only:
+   another item never inherits an id, which would drop its own first attempt. */
+const itemKey = () => `${keyOf(S.step)}.item`;
+function keptAnswer(ident) {
+  const kept = S.session ? store.get(itemKey()) : null;
+  return kept && kept.pos === S.pos && kept.ident === ident ? kept : null;
+}
+function keepAnswer(answer) { if (S.session) store.set(itemKey(), {pos: S.pos, ...answer}); }
 
 async function openStep(step, run = S.run) {
   S.step = step;
+  if (S.session) store.set(atKey(), step.id);
   loading();
   paintLine();
   const h = $("#sessStep");
@@ -303,6 +328,7 @@ async function openStep(step, run = S.run) {
 async function nextStep(run = S.run) {
   const step = S.step;
   S.summary.push({id: step.id, et: step.et, ru: step.ru, ...S.tally});
+  store.drop(itemKey());
   store.drop(keyOf(step));
   let after;
   try {
@@ -327,7 +353,13 @@ function advance(run = S.run) {
   if (run !== S.run) return;
   S.pos += 1;
   // A set answered whole has no session to come back to: nothing to keep.
-  if (S.session) store.set(keyOf(S.step), {pos: S.pos, marks: S.marks, tally: S.tally});
+  if (S.session) {
+    store.set(keyOf(S.step), {pos: S.pos, marks: S.marks, tally: S.tally});
+    store.drop(itemKey());
+  } else if (S.check && !S.check.done) {
+    // A check set's answers so far, so a reload resumes it (the route has its seed).
+    store.set(checkKey(S.check), {pos: S.pos, marks: S.marks, answers: answers.slice()});
+  }
   if (S.pos >= S.units.length) return nextStep(run);
   show(run);
 }
@@ -505,7 +537,11 @@ function itemUnit(root, it, {kind = "item", glosses = {}, noHints = false, mixed
   const choices = [...el.querySelectorAll(".sess-choice")];
   const sentence = el.querySelector(".sess-sentence");
   fitInterlinear(sentence);
-  let given = "", attempt = 1, eventId = crypto.randomUUID(), firstEvent = null;
+  const ident = it.token || (it.id != null ? `card:${it.id}` : it.prompt || "");
+  const kept = keptAnswer(ident);
+  let given = "", attempt = kept?.attempt || 1, eventId = kept?.event || crypto.randomUUID(),
+      firstEvent = kept?.first || null;
+  keepAnswer({ident, event: eventId, attempt, first: firstEvent, hint: kept?.hint || ""});
   const shownAt = performance.now();
   let startedAt = null;
   el.addEventListener("focusin", () => { startedAt ??= performance.now(); });
@@ -613,11 +649,8 @@ function itemUnit(root, it, {kind = "item", glosses = {}, noHints = false, mixed
     if (res.retry || (kind === "word" && !res.correct && attempt === 1 && !noHints)) {
       // A first miss: the hint from code, the answer kept and selected, one retry.
       attempt = 2;
-      el.dataset.state = "hint";
-      mark("wrong");
-      S.marks[S.pos] = "wrong";
-      corr.innerHTML = `<p class="sess-verdict sess-hint" lang="et">${glossed("Proovi veel", "попробуй ещё раз")}</p>
-        <p class="sess-hint-text" lang="ru">${md(res.hint_ru || "")}</p>`;
+      keepAnswer({ident, event: eventId, attempt, first: firstEvent, hint: res.hint_ru || ""});
+      hinted(res.hint_ru || "");
       lock(false);
       setPrimary("Kontrolli", "проверить", ready());
       if (input) { input.focus({preventScroll: true}); input.select(); }
@@ -626,6 +659,16 @@ function itemUnit(root, it, {kind = "item", glosses = {}, noHints = false, mixed
     const counted = attempt === 1;
     if (counted) mark(res.correct ? "right" : "wrong");
     verdict(res);
+  }
+
+  // The first miss counted and its hint shown: once when it happens, and again
+  // when a reload brings the item back mid-retry (the step's tally is kept only
+  // as items are advanced, so the miss is counted once either way).
+  function hinted(text) {
+    el.dataset.state = "hint";
+    mark("wrong");
+    corr.innerHTML = `<p class="sess-verdict sess-hint" lang="et">${glossed("Proovi veel", "попробуй ещё раз")}</p>
+      <p class="sess-hint-text" lang="ru">${md(text)}</p>`;
   }
 
   function verdict(res) {
@@ -692,6 +735,7 @@ function itemUnit(root, it, {kind = "item", glosses = {}, noHints = false, mixed
     },
   };
   setSkip(!set);
+  if (attempt === 2) hinted(kept?.hint || "");
   paintPrimary();
 }
 
@@ -711,20 +755,6 @@ async function miks(btn, eventId) {
     btn.insertAdjacentHTML("afterend", `<p class="hint">${esc(e.message)}</p>`);
   }
 }
-
-/* A model's words: a dashed outline, the engine named first, never a result
-   colour or a score (DESIGN.md, Model output). */
-function modelBlock({engine, text = "", note = "", lang = "ru", source = "", body = ""}) {
-  const by = engine && engine !== "none" ? engine.replace(/^llm:/, "") : "";
-  return `<div class="model-out">
-    <p class="model-by" lang="et">Selgitab mudel, ei hinda <span class="ru" lang="ru">объясняет модель, не оценивает${by ? `: ${esc(by)}` : ""}</span></p>
-    ${text ? `<p class="model-text" lang="${esc(lang)}">${md(text)}</p>` : ""}
-    ${body}
-    ${note ? `<p class="hint" lang="${esc(lang)}">${esc(note)}</p>` : ""}
-    ${source ? `<p class="model-src">${source}</p>` : ""}
-  </div>`;
-}
-
 
 // ── The rule step: notice, choose, then the rule ───────────────────
 function noticeUnit(root, notice, run) {
@@ -1018,30 +1048,17 @@ function speakTask(root, task, level, run) {
     corr.innerHTML = `<p class="sess-verdict" lang="et">${glossed("Kood loendas", "что посчитал код")}</p>
       <p lang="ru">${ruCount(code.words, ["слово", "слова", "слов"])}${code.signals && "unknown_share" in code.signals
         ? `; слов, которых Vabamorf не знает: ${unknown}%` : ""}. Говорение не оценивается.</p>
-      <div class="sess-model" aria-busy="true"><p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">загружаю комментарий модели</span></p></div>
+      ${commentsSlot()}
       <p class="hint"><a href="#speak" lang="et">Vestlus <span class="ru" lang="ru">поговорить дальше с моделью-собеседником</span></a></p>`;
     setPrimary("Edasi", "дальше");
     S.unit = {primary: () => advance(run)};
     primary().focus({preventScroll: true});
-    feedback(corr.querySelector(".sess-model"), "raakimine", text.value, level, task.question);
+    descriptorComments(corr.querySelector(".model-slot"), {kind: "raakimine", text: text.value, level,
+                                                          task: task.question});
   };
   setPrimary("Kinnita", "это мой ответ", false);
   S.unit = {primary: confirm, nudge: () => text.focus()};
   requestAnimationFrame(() => text.focus({preventScroll: true}));
-}
-
-/* The model's comments against HARNO's descriptors, after code's checklist. */
-async function feedback(box, kind, text, level, task) {
-  try {
-    const f = await (await api("/api/session/feedback", {kind, text, level, task, lang: S.lang})).json();
-    const points = f.points.map(p => `<li><span class="model-crit" lang="et">${esc(p.et)}</span>
-      ${p.quote ? `<q lang="et">${esc(p.quote)}</q>` : ""} <span lang="${esc(f.lang)}">${md(p.comment)}</span></li>`).join("");
-    box.outerHTML = modelBlock({engine: f.engine, lang: f.lang, note: f.note || "",
-      body: points ? `<ul class="model-points">${points}</ul>` : "",
-      source: `<span lang="ru">Критерии HARNO:</span> <a href="${esc(f.source.url)}" target="_blank" rel="noopener" lang="et">${esc(f.source.label)}</a>`});
-  } catch (e) {
-    box.outerHTML = `<p class="hint" role="alert">${esc(e.message)}</p>`;
-  }
 }
 
 function writingUnit(root, c, run) {
@@ -1085,11 +1102,12 @@ function writingUnit(root, c, run) {
       </ul>
       ${r.findings?.length ? `<ul class="sess-findings">${r.findings.map(f => `<li lang="ru"><del lang="et">${esc(f.wrong || "")}</del>${f.correct
         ? ` <span lang="et">${esc(f.correct)}</span>` : ""} ${md(f.why || "")}</li>`).join("")}</ul>` : ""}
-      <div class="sess-model" aria-busy="true"><p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">загружаю комментарий модели</span></p></div>`;
+      ${commentsSlot()}`;
     setChecked(`<span lang="et">Kontrollis kood <span class="ru" lang="ru">длина, пункты задания, Vabamorf и EKK</span></span>`);
     setPrimary("Edasi", "дальше");
     S.unit = {primary: () => advance(run)};
-    feedback(corr.querySelector(".sess-model"), "kirjutamine", text.value, c.level, t.prompt_et);
+    descriptorComments(corr.querySelector(".model-slot"), {kind: "kirjutamine", text: text.value,
+                                                          level: c.level, task: t.prompt_et});
   };
   setPrimary("Kontrolli", "проверить", false);
   S.unit = {primary: check, nudge: () => text.focus()};
@@ -1118,6 +1136,8 @@ async function setResult(root, set, run) {
     return;
   }
   if (run !== S.run) return;
+  S.check.done = true;
+  store.drop(checkKey(S.check));
   const items = r.items || [];
   items.forEach((row, k) => {
     const at = S.units.findIndex((u, n) => u.bead && S.units.slice(0, n + 1).filter(x => x.bead).length === k + 1);
@@ -1157,20 +1177,26 @@ async function runCheck() {
   try {
     const url = check.kind === "unit" ? `/api/units/${encodeURIComponent(check.unit)}/check`
       : `/api/testout/${encodeURIComponent(check.topic)}`;
-    set = await (await api(url, null, "GET")).json();
+    set = await (await api(`${url}?seed=${check.seed}`, null, "GET")).json();
   } catch (e) {
     if (run !== S.run) return;
     return failed(e.message, runCheck);
   }
   if (run !== S.run) return;
+  if (!check.et && set.et) title(set.et, check.kind === "unit" ? "проверка блока" : "проверить знания");
   S.content = {glosses: set.glosses || {}};
   S.units = set.items.map((it, i) => ({bead: true, render: (root, r) => itemUnit(root, it,
     {kind: "item", glosses: set.glosses || {}, set: {index: i, size: set.items.length}}, r)}));
   S.units.push({render: (root, r) => setResult(root, {kind: check.kind, unit: check.unit, topic: check.topic,
                                                        seed: set.seed, parts: set.parts}, r)});
   S.units.push({render: (root, r) => { location.hash = "#course"; }});
-  S.pos = 0; S.marks = []; S.tally = {asked: 0, correct: 0, skipped: 0};
+  const kept = store.get(checkKey(check));
+  const resumed = kept && kept.pos <= set.items.length;
+  S.pos = resumed ? kept.pos : 0;
+  S.marks = resumed ? kept.marks || [] : [];
+  S.tally = {asked: 0, correct: 0, skipped: 0};
   answers.length = 0;
+  if (resumed) answers.push(...(kept.answers || []));
   show(run);
 }
 

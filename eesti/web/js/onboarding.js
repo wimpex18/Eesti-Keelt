@@ -266,6 +266,8 @@ async function save() {
     const lane = exam ? "exam" : "path";
     await api("/api/me/onboarding", {start_band: choice.band || "a0", focus: lane,
       navigate: choice.band !== "unsure", explanation_language: choice.lang, skipped: false});
+    // Every model call answers in it from now on (`modeltext.explanationLanguage`).
+    window.dispatchEvent(new CustomEvent("eesti:language", {detail: choice.lang}));
     await api("/api/session/goal", {goal: choice.goal, per_week: choice.perWeek});
     if (choice.placed) await api("/api/session/placement", {answers: placementAnswers, apply: true});
     if (exam) {

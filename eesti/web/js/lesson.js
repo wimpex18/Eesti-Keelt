@@ -18,6 +18,7 @@ import {$, api, esc, md, interlinear} from "./core.js";
 import {icon} from "./icons.js";
 import {showItem} from "./reading.js";
 import {retryableError, skeleton} from "./chrome.js";
+import {explanationLanguage as language} from "./modeltext.js";
 
 const sheet = $("#lessonSheet");
 let previous = "#course";
@@ -216,16 +217,6 @@ function questionBoxHtml(L) {
     </form>
     <div class="rule-ask-out" aria-live="polite"></div>
   </section>`;
-}
-
-let explanationLanguage = null;
-async function language() {
-  if (explanationLanguage) return explanationLanguage;
-  try {
-    const me = await (await api("/api/me", null, "GET")).json();
-    explanationLanguage = me.onboarding?.explanation_language || "ru";
-  } catch { explanationLanguage = "ru"; }
-  return explanationLanguage;
 }
 
 function wireAskBox(L) {

@@ -14,6 +14,7 @@
 import {$, api, esc, md, ruCount} from "./core.js";
 import {mountAudio} from "./media.js";
 import {examLevel} from "./state.js";
+import {commentsSlot, descriptorComments} from "./modeltext.js";
 
 const WORDS = ["слово", "слова", "слов"];
 
@@ -425,6 +426,17 @@ async function finish(ranOut, seconds) {
         </div>`).join("") + `<p class="hint">Список проверяет код: есть ли в тексте
           признаки каждого пункта. Это подсказка, а не оценка экзамена.
           Авторство заданий: ${esc(r.detail.prompts_by || "")}.</p>`);
+      /* After code's checklist, the model's comments against HARNO's
+         descriptors on each text written: labelled, quoting it, never a mark. */
+      body.tasks.forEach((written, n) => {
+        const text = (written.text ?? (written.answers || []).join("\n")).trim();
+        if (!text) return;
+        const prompt = document.querySelector(`#mockTasks .mock-variant[data-id="${written.id}"] .prompt`);
+        verdict.insertAdjacentHTML("beforeend", `<p class="hint" lang="et">${n + 1}. ülesanne
+          <span class="ru" lang="ru">комментарий модели по критериям HARNO</span></p>${commentsSlot()}`);
+        descriptorComments(verdict.querySelector(".model-slot"), {kind: "kirjutamine", text, level,
+                                                                  task: prompt?.textContent || ""});
+      });
     }
     document.querySelectorAll("#mockTasks input, #mockTasks textarea, #mockTasks button[data-pick]")
       .forEach(x => x.disabled = true);

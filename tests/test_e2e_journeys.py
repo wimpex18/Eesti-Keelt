@@ -2210,6 +2210,43 @@ class TestCheckingAUnit:
         assert "Veel mitte" in page.locator("#sessBody .sess-result").inner_text()
         assert not browser_errors(page), browser_errors(page)
 
+    def test_a_reload_resumes_the_same_check(self, page):
+        """The route names the check and its seed: a reload makes the same set
+        again and goes on after the answers already given."""
+        open_tab(page, "learn", "course")
+        page.wait_for_selector("#pathList button[data-unitcheck='pere']", state="attached",
+                               timeout=20000)
+        fold = page.locator("#pathList details.path-level:has(button[data-unitcheck='pere'])")
+        fold.locator(":scope > summary").click()
+        fold.locator("button[data-unitcheck='pere']").click()
+        page.wait_for_selector("#tab-session:not([hidden]) .sess-item", timeout=20000)
+        assert re.search(r"#session/check/unit/pere/\d+$", page.url), page.url
+        beads = page.locator("#sessBeads li").count()
+        at = page.evaluate(_UNIT)
+        item = page.locator("#sessBody .sess-item")
+        if item.locator(".gap-field").count():
+            item.locator(".gap-field").fill("vale")
+        else:
+            item.locator(".sess-choice").first.click()
+        page.locator("#sessPrimary").click()
+        page.wait_for_function(f"u => {_UNIT} !== u", arg=at)
+        second = page.evaluate(_UNIT)
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector("#tab-session:not([hidden]) .sess-item", timeout=20000)
+        assert page.evaluate(_UNIT) == second
+        assert page.locator("#sessBeads li").count() == beads
+        _answer_the_set(page)
+        assert page.locator("#sessBody .sess-parts li").count() == 2
+        assert page.locator("#sessBody .sess-review li").count() == beads
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_malformed_check_route_opens_todays_session(self, page, live_server):
+        page.goto(live_server + "/#session/check/nothing/pere/x", wait_until="networkidle")
+        page.wait_for_selector("#tab-session:not([hidden])")
+        page.wait_for_function("document.querySelector('#sessStep').textContent.trim() !== ''")
+        assert "Ühiku kontroll" not in page.locator("#sessStep").inner_text()
+        assert not browser_errors(page), browser_errors(page)
+
     def test_a_learner_starts_from_a_later_unit_and_puts_one_back(self, page):
         """'Alusta siit' moves past every earlier unit at once; one can come back."""
         open_tab(page, "learn", "course")
@@ -2251,6 +2288,57 @@ class TestTheTimedMock:
         page.wait_for_selector("#mockVerdict.ok", timeout=20000)
         verdict = page.locator("#mockVerdict").inner_text()
         assert "из" in verdict and "не оценка экзамена" in verdict
+        assert not browser_errors(page), browser_errors(page)
+
+
+class TestTheModelCommentsOnWriting:
+    """After code's checklist, the model's comments against HARNO's
+    descriptors: labelled with the engine, quoting the learner, never a mark."""
+
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_a_written_mock_task_gets_labelled_comments(self, page):
+        asked = []
+
+        def comments(route):
+            asked.append(route.request.post_data_json)
+            route.fulfill(json={"points": [{"criterion": "laused", "et": "lühikesed laused",
+                                            "quote": "Ma ei saa tulla", "comment": "Короткие предложения."}],
+                                "dropped": 0, "engine": "llm:anthropic", "lang": "ru",
+                                "source": {"label": "Algaja keelekasutaja, lisa 1, lk 135",
+                                           "url": "https://harno.ee/x.pdf"},
+                                "degraded": False, "graded": False})
+
+        page.route("**/api/session/feedback", comments)
+        open_tab(page, "exam", "exam")
+        page.wait_for_selector("#mockParts button[data-part]", state="attached", timeout=15000)
+        page.click('#mockParts button[data-part="kirjutamine"]')
+        page.wait_for_selector("#mockTasks .mock-writing", timeout=20000)
+        area = page.locator("#mockTasks .mock-writing .mock-variant:not([hidden]) textarea").first
+        area.fill("Tere! Ma ei saa tulla, sest ma olen haige.")
+        page.click("#mockDone")
+        page.wait_for_selector("#mockVerdict .model-out", timeout=20000)
+        block = page.locator("#mockVerdict .model-out").first
+        assert "Selgitab mudel, ei hinda" in block.inner_text()
+        assert "anthropic" in block.inner_text()
+        assert block.locator("q").inner_text() == "Ma ei saa tulla"
+        assert asked and asked[0]["kind"] == "kirjutamine" and asked[0]["text"].startswith("Tere!")
+        assert not browser_errors(page), browser_errors(page)
+
+
+class TestTheExplanationLanguage:
+    def test_profile_changes_it_and_keeps_the_start(self, page, live_server):
+        page.goto(live_server + "/#start", wait_until="networkidle")
+        _answer_onboarding(page, start="choose", band="a2")
+        _finish_onboarding(page)
+        open_tab(page, "exam", "profile")
+        page.wait_for_selector("#explainLang")
+        assert page.locator("#explainLang").input_value() == "ru"
+        page.locator("#explainLang").select_option("en")
+        page.wait_for_function("document.querySelector('#explainLangNote').textContent.length > 20")
+        assert page.locator("#explainLangNote").get_attribute("lang") == "en"
+        saved = page.request.get(live_server + "/api/me").json()["onboarding"]
+        assert saved["explanation_language"] == "en"
+        assert saved["start_band"] == "a2" and saved["navigate"] is True
         assert not browser_errors(page), browser_errors(page)
 
 
@@ -2509,6 +2597,28 @@ class TestTheSession:
         assert page.locator('#sessBeads [data-mark="wrong"]').count() == 1
         assert primary.evaluate(where) == placed
         assert "Edasi" in primary.inner_text()
+        me = page.request.get(live_server + "/api/me").json()
+        assert me["totals"]["attempts"] == 1
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_reload_mid_retry_keeps_the_first_attempt_the_only_one(self, page, live_server):
+        """A reload after the hint brings the same item back in its retry: the
+        answer's event id and attempt outlive the reload, so the retry is never
+        recorded as a second first attempt."""
+        item = self._practice(page, live_server)
+        prompt = item.locator(".sess-sentence").inner_text()
+        item.locator(".gap-field").fill("kindlasti-vale")
+        page.locator("#sessPrimary").click()
+        page.wait_for_selector('.sess-item[data-state="hint"]')
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector('#tab-session:not([hidden]) .sess-item[data-state="hint"]')
+        item = page.locator(".sess-item")
+        assert item.locator(".sess-sentence").inner_text() == prompt
+        assert "Proovi veel" in item.locator(".sess-corr").inner_text()
+        assert page.locator('#sessBeads [data-mark="wrong"]').count() == 1
+        item.locator(".gap-field").fill("ikka-vale")
+        page.locator("#sessPrimary").click()
+        page.wait_for_selector('.sess-item[data-state="revealed"]')
         me = page.request.get(live_server + "/api/me").json()
         assert me["totals"]["attempts"] == 1
         assert not browser_errors(page), browser_errors(page)
@@ -3015,6 +3125,33 @@ class TestTheDictionaryKeepsFocusInSight:
         }""")
         assert shown >= 3, f"{shown} result rows above the task row"
         assert field.evaluate(OBSCURED) is None
+
+    def test_an_empty_search_page_still_lifts_its_field(self, shell):
+        """A learner focuses the empty field first and types after: the page,
+        too short then to scroll its field to the top, is lengthened while the
+        search has the keyboard (on an iPhone the results got 15px)."""
+        if shell.size != "390x844":
+            pytest.skip("an upright phone's keyboard")
+        TestFocusIsNeverUnderTheDock._open(shell, "#sonastik")
+        field = shell.locator("#dictQ")
+        shell.evaluate(KEYBOARD_STUB, KEYBOARD[shell.size])
+        field.focus()
+        shell.evaluate(SETTLE)
+        shell.wait_for_timeout(400)
+        top = field.evaluate("f => (f.form || f).getBoundingClientRect().top")
+        assert top < 24, f"the search form stopped {top}px down"
+        field.press_sequentially("ma")
+        shell.wait_for_selector("#dictResults .dict-row", timeout=10000)
+        shell.evaluate(SETTLE)
+        shown = shell.evaluate("""() => {
+          const bar = document.querySelector('#actbar').getBoundingClientRect().top;
+          return [...document.querySelectorAll('#dictResults .dict-row')].filter(r => {
+            const b = r.getBoundingClientRect(); return b.top >= 0 && b.bottom <= bar; }).length;
+        }""")
+        assert shown >= 3, f"{shown} result rows above the task row"
+        field.blur()
+        shell.evaluate(SETTLE)
+        assert shell.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--search-room')").strip() == "0px"
 
 
 class TestTheShellSheets:
