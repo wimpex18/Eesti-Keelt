@@ -222,8 +222,11 @@ function before it is accepted.
 
 ```text
 Klint S7R: review the redesign spec as an independent reviewer; read and judge,
-change nothing. Follow steps 1 and 2 of "Every session first" in
-qa/opus-sessions.md. Read DESIGN.md in full, docs/design-research.md,
+change nothing. The spec is on the S7 branch until it is merged, so work in a
+detached worktree of it: `git fetch origin && git worktree add --detach
+"../Eesti Keelt-s7r" origin/claude/s7-design-spec` (or `origin/main` once
+merged), then `python -m eesti.cli worktree-data "<main checkout>"`. Read
+AGENTS.md, qa/opus-sessions.md, DESIGN.md in full, docs/design-research.md,
 PRODUCT.md (languages, brand), docs/brand.md, ADR-0009 and the S7 pull request.
 Run the app (python -m eesti.cli serve) and look at Täna, Kursus, #session and
 #rule at 390 and 1280 px, light and dark, to see what the spec replaces.
