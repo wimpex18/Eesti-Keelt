@@ -10,11 +10,13 @@ analysis and opinion, not a decision: nothing here changes `DESIGN.md` or
 
 Nineteen screenshots, a seven-minute desktop walkthrough recorded by the
 author on a development build, her post asking for ideas, and replies under
-it. They are third-party images, so they stay outside git, in the main
+it. They are third-party material, so they stay outside git, in the main
 checkout's research/competitors/sonarada folder, with an index of the
-recording by second. The voice-over was not transcribed; everything below
-comes from the picture. No phone layout, prices or native app were seen, and
-the correctness of the content was not assessed.
+recording by second and a transcript of its Russian voice-over (Workers AI
+Whisper large-v3-turbo; not checked by ear, but clear apart from a few names).
+The home speech service on the Mac mini could not do it: both its engines are
+Estonian-only. No phone layout, prices or native app were seen, and the
+correctness of the content was not assessed.
 
 ## What it is
 
@@ -23,6 +25,38 @@ learning Estonian: group online lessons, and self-paced "marathons" at A1, A2
 and B1 (B1 is being moved over). The dictionary and the grammar trainer come
 with a course's price. Five top-level areas: *Марафоны*, *Словарь*,
 *Грамматика*, *Заметки*, *Профиль*. The author says she built it with AI tools.
+
+## What the author stresses
+
+In the voice-over she sets it against the course platforms she has used, in
+this order:
+
+1. **Asking the teacher inside the lesson**: a comment on a task goes to her,
+   and the answer comes back to the same place, marked so it is not missed.
+2. **Starting a task again on the learner's own decision**: a reset button,
+   offered when more than half of the answers are wrong. Her reason: the
+   other platforms did not let learners redo work, and the goal is that the
+   learner understands.
+3. **Her own recordings of the words**; automatic ones for the rest.
+4. **The dictionary from anywhere**: select a word in any text for its forms,
+   base form and translation, open Sõnaveeb, add it; a side panel holds
+   everything added, searchable; typing a word fills its forms and
+   translation from Sõnaveeb. She ends on this: quick access to the
+   dictionary anywhere is what she finds best.
+5. **Notes, "invented by me"**: a personal summary of rules and anything to
+   remember, linked to a lesson, part or video and searchable, or free of any
+   course.
+6. **A word trainer in five stages** (picture, audio, write the word, build it
+   from letters, write the forms), plus pairs, on chosen or random words; she
+   compares it with a system her learners already know.
+7. **Grammar tests** on one rule or all mixed, by difficulty and length;
+   translation and forms only when wanted; the rule after a miss; statistics
+   per rule, red for "practise more", green for "familiar". She calls this
+   the most outstanding part.
+
+She asks her audience what they miss. Her priorities are a teacher's: contact
+with her, freedom to redo, a place to keep things (words, notes) and a score
+per rule. None is about how an exercise teaches.
 
 ## The product, area by area
 
@@ -81,8 +115,10 @@ with a course's price. Five top-level areas: *Марафоны*, *Словарь
   dragging all show the answer among the options; with four close forms,
   elimination often finds it. The exam's writing and speaking ask the learner
   to produce the form.
-- A miss costs little. Matching ends "when every pair is green", so trying
-  pairs finishes it; per-topic percentages come from a handful of answers.
+- A miss costs little, by design. A task can be reset and redone, and the
+  reset is offered when most answers are wrong; matching ends "when every
+  pair is green", so trying pairs finishes it; per-rule percentages come from
+  a handful of answers, so red and green swing with each test.
 - Feedback says what, not why: the right form and a cheat sheet, but not which
   case, why this sentence wants it, or what the learner's form would have
   meant.
@@ -159,14 +195,21 @@ Directions for the S11 discussion, not decisions.
    should feel like reading Estonian, not like filling a form.
 9. **Show the depth early.** The sitting, readiness per part, words and forms
    gained: the first screens can show what Klint knows about the learner that
-   a course page cannot.
+   a course page cannot. Her favourite feature is a red or green mark per
+   rule; Klint can give the same glance from mastery and review, which do
+   not swing with one test.
+10. **Redo freely, count once.** Learners want to try again, and she built a
+    reset for it. Klint can let them redo anything while the first attempt
+    stays the evidence, so practice is never punished and the record never
+    lies.
 
 **Not worth copying:** the leaderboard, a "learned" button, drop-down gaps,
 the 2×2 grid of forms, lookups in another window, colour formatting in
 writing, generated imagery.
 **Worth adopting in Klint's own form:** several encounters before review,
-meaning on a tap, "add every word of this text", notes, and the rule at the
-miss.
+meaning on a tap, "add every word of this text", the learner's words within
+reach on every screen, notes, a per-rule state at a glance, redoing on the
+learner's own decision, and the rule at the miss.
 
 ## Questions for the owner
 
