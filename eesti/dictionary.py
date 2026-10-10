@@ -227,11 +227,18 @@ def _hint(words: sqlite3.Connection, lemma: str, pos: str) -> str:
 EXTRA_NAMES = {"adt": ("lühike sisseütlev", "ед. ч., краткий иллатив (куда)")}
 
 
+#: Two abbreviations that read as one (`ед. ч.`, `наст. вр.`).
+_ABBREVIATED = re.compile(r"(?<!\w)(\w{2,4}\.) (\w{1,2}\.)")
+
+
 def tag_name(tag: str) -> tuple[str, str]:
-    """A Vabamorf tag's Estonian name and its Russian gloss."""
+    """A Vabamorf tag's Estonian name and its Russian gloss, whose paired
+    abbreviations never break across lines (`ед.` and `ч.` on one)."""
     if tag in EXTRA_NAMES:
-        return EXTRA_NAMES[tag]
-    return TAG_NAMES.get(tag, tag), TAG_RU.get(tag, "")
+        name, ru = EXTRA_NAMES[tag]
+    else:
+        name, ru = TAG_NAMES.get(tag, tag), TAG_RU.get(tag, "")
+    return name, _ABBREVIATED.sub("\\1\u00a0\\2", ru)
 
 
 def _tag_row(tag: str, forms: list[str]) -> dict:

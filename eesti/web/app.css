@@ -797,6 +797,7 @@ dialog.word-sheet[open]{display:flex;flex-direction:column}
 .dict-form input{width:100%;min-width:0;font-size:var(--t-reading)}
 .dict-count{margin:var(--s3) 0 0;min-height:1.5em}
 .dict-hint{margin:var(--s3) 0 0;font-size:var(--t-note);color:var(--ink-2)}
+.dict-hint + .dict-sec{margin-top:var(--s6)}
 .dict-results{list-style:none;margin:var(--s3) 0 0;padding:0;border-top:1px solid var(--line)}
 .dict-row{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:60px;
   padding:var(--s2) 44px var(--s2) 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}
