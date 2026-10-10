@@ -263,6 +263,44 @@ uses this record; a screen not yet rebuilt keeps the stylesheet. Learning rules
 are unchanged: code grades, models are labelled, sources stay attributed
 (`docs/adr/0009-learning-loop.md`, `PRODUCT.md`).
 
+## Fixed and open
+
+This record was written and independently reviewed on 10 October 2026. The
+session that builds a screen may see further: a newer model, a front-end
+design skill, or simply the real screen in front of it. So the record separates
+what every screen must keep from what is a reviewed starting point.
+
+**Fixed.** Whatever a screen looks like, it keeps:
+
+- the learning rules: code grades answers and names every form (the data
+  contract of the interlinear word); a model's words carry its engine and never
+  a result colour; sources show near the top; a skip stays distinct from
+  mastery; only the first attempt counts;
+- the direction the owner committed to in `PRODUCT.md`: the name and mark, the
+  interlinear word as the signature (a form named under the word, from code,
+  after the learner has tried), Estonian labels with a gloss in the explanation
+  language, and no score the app cannot stand behind;
+- one primary action per screen, in a place that does not move between states;
+- accessibility: WCAG 2.2 AA contrast with every ratio computed, no result
+  carried by colour alone, focus never under the dock, header, action bar or
+  keyboard, targets of 44px, complete keyboard and screen-reader use, and
+  reduced motion, forced colours and `prefers-contrast` honoured;
+- languages: Russian, Ukrainian and English without truncation, `lang` on
+  every element, and the default-language rule;
+- none of the forbidden defaults below.
+
+**Open.** Colour values, type sizes, spacing, radii, wireframes, component
+looks, motion timings, the dock's exact form and the iOS mapping are this
+record's proposal. A builder who finds something simpler, more useful or more
+beautiful builds it, provided every fixed rule holds and the result is checked
+as this record was: screenshots at phone and desktop sizes in both themes,
+contrast computed with the WCAG formula, and the focus journey. The same pull
+request updates this record and gives the reason in
+[design research](docs/design-research.md), so the record keeps describing the
+target. A change to something `PRODUCT.md` commits to (spruce ink on a birch
+ground, Geologica, the four pictograms) is proposed to the owner in the pull
+request rather than made.
+
 ## Overview
 
 **Creative North Star: "Interlinear"**
@@ -306,7 +344,7 @@ ink, the most legible colour the page has.
 | Pale blue wash, frosted navigation, deep blue buttons | Replaced | Generic 2021–23 SaaS material, unrelated to the name; glass imitates what iOS renders natively. |
 | White cards on a tinted page | Replaced | Content chopped into identical cards; only the item bench and reading sheets keep a surface. |
 | Primary action placement | Changed: fixed bar on phones, sticky row on desktop | Two primary-looking buttons and an off-screen Edasi were the commonest defects. |
-| Phone skill tray | Becomes a dock with three states | Four skills stay one tap away; focus and the keyboard are never covered. |
+| Phone skill tray | Becomes a dock with three states | The four skills are one tap away while browsing and acting, and behind the skills key during a task; focus and the keyboard are never covered. |
 | Home | Becomes Täna, the session (ADR-0009) | One Jätka and two alternatives with reasons. |
 
 ## Principles
@@ -370,8 +408,9 @@ The ground is birch bark and the pale limestone of the klint's face; the ink
 is the spruce forest that grows along its top. Both are deliberately cool and
 slightly green, tying the screen to the place the name comes from without a
 picture of it. Lake blue
-(järv) is the only blue: links, focus and selection. Frontmatter values are
-normative.
+(järv) is the only blue: links, focus and selection. The frontmatter is the
+single source of the token values; a change to one follows **Fixed and open**
+and updates the contrast table.
 
 ### Roles
 
@@ -400,9 +439,10 @@ current tab are ink. Skipped work uses `muted` and the word *vahele jäetud*,
 never a result colour.
 
 **The State Has Words Rule.** Colour supports a label, icon or shape; it never
-carries a result alone. Right is a check mark and *Õige*; wrong is a cross,
-*Pole õige* and the learner's answer struck through; skipped is an outlined
-bead and *vahele jäetud*.
+carries a result alone. Right is a check mark, *Õige* and a filled bead; wrong
+is a cross, *Pole õige*, the learner's answer struck through and a slashed
+bead; skipped is a dash bead and *vahele jäetud*. Each bead's accessible text
+names its result (see **Beads** under the session).
 
 ### Contrast (WCAG 2.2 AA)
 
@@ -417,37 +457,37 @@ fall to 3:1.
 
 | Foreground on background | Kind | Light | Dark | Needed |
 |---|---|---|---|---|
-| `ink` on `ground` | text | 15.12 | 14.49 | 4.5 |
+| `ink` on `ground` | text | 15.11 | 14.49 | 4.5 |
 | `ink` on `sheet` | text | 16.75 | 12.82 | 4.5 |
 | `ink` on `sunk` | text | 13.72 | 10.96 | 4.5 |
-| `ink-2` on `ground` | text | 8.79 | 10.36 | 4.5 |
-| `ink-2` on `sheet` | text | 9.74 | 9.17 | 4.5 |
+| `ink-2` on `ground` | text | 8.79 | 10.35 | 4.5 |
+| `ink-2` on `sheet` | text | 9.74 | 9.16 | 4.5 |
 | `ink-2` on `sunk` | text | 7.98 | 7.83 | 4.5 |
-| `muted` on `ground` | text | 5.69 | 7.36 | 4.5 |
+| `muted` on `ground` | text | 5.68 | 7.35 | 4.5 |
 | `muted` on `sheet` | text | 6.30 | 6.51 | 4.5 |
 | `muted` on `sunk` | text | 5.16 | 5.56 | 4.5 |
 | `on-act` on `act` | text | 16.75 | 14.49 | 4.5 |
 | `on-act` on `act-hover` | text | 11.97 | 11.79 | 4.5 |
-| Gloss in a primary button (`on-act` at 80 % over `act`) | text | 11.03 | 8.02 | 4.5 |
-| `jarv` on `ground` | text | 7.29 | 9.13 | 4.5 |
+| Gloss in a primary button (`on-act` at 80 % over `act`) | text | 11.02 | 8.02 | 4.5 |
+| `jarv` on `ground` | text | 7.28 | 9.13 | 4.5 |
 | `jarv` on `sheet` | text | 8.07 | 8.08 | 4.5 |
-| `jarv` on `jarv-soft` | text | 6.60 | 6.58 | 4.5 |
-| `gloss` on `ground` | text | 6.13 | 10.23 | 4.5 |
+| `jarv` on `jarv-soft` | text | 6.59 | 6.57 | 4.5 |
+| `gloss` on `ground` | text | 6.12 | 10.22 | 4.5 |
 | `gloss` on `sheet` | text | 6.79 | 9.05 | 4.5 |
 | `good` on `sheet` | text | 6.93 | 9.01 | 4.5 |
 | `good` on `good-soft` | text | 5.82 | 7.28 | 4.5 |
-| `bad` on `sheet` | text | 6.94 | 8.80 | 4.5 |
+| `bad` on `sheet` | text | 6.93 | 8.80 | 4.5 |
 | `bad` on `bad-soft` | text | 5.74 | 7.94 | 4.5 |
-| `warn` on `sheet` | text | 7.02 | 9.65 | 4.5 |
-| `warn` on `warn-soft` | text | 6.06 | 8.04 | 4.5 |
-| `edge` on `sheet` (field, key border) | UI | 3.96 | 4.41 | 3 |
+| `warn` on `sheet` | text | 7.01 | 9.65 | 4.5 |
+| `warn` on `warn-soft` | text | 6.05 | 8.03 | 4.5 |
+| `edge` on `sheet` (field, key border, selected tab outline) | UI | 3.96 | 4.41 | 3 |
 | `edge` on `ground` | UI | 3.57 | 4.98 | 3 |
 | `edge` on `sunk` (selected segment) | UI | 3.24 | 3.77 | 3 |
-| `focus` on `ground` | UI | 7.29 | 9.13 | 3 |
+| `focus` on `ground` | UI | 7.28 | 9.13 | 3 |
 | `focus` on `sheet` | UI | 8.07 | 8.08 | 3 |
-| `act` on `ground` (button shape) | UI | 15.12 | 14.49 | 3 |
-| Skill strokes on `ground` (lowest of four) | graphic | 5.87 | 10.38 | 3 |
-| `line` on `sheet` | decorative | 1.43 | 1.44 | none: never the only boundary |
+| `act` on `ground` (button shape) | UI | 15.11 | 14.49 | 3 |
+| Skill strokes on `ground` (lowest of four) | graphic | 5.86 | 10.37 | 3 |
+| `line` on `sheet` | decorative | 1.42 | 1.43 | none: never the only boundary |
 
 `line` is decorative by rule: wherever a boundary carries meaning (a field, a
 key, a selected option, the end of the bench on a ground of nearly the same
@@ -470,7 +510,7 @@ meaning by shape.
 | Selected tab, segment, navigation item, choice | `Highlight` / `HighlightText` |
 | Links | `LinkText` |
 | Focus ring | 3px `Highlight` outline |
-| Right / wrong / skipped | `CanvasText`, carried by the icon, the word and the strike-through |
+| Right / wrong / skipped | `CanvasText`, carried by the icon, the word, the strike-through and the bead's shape |
 | Disabled | `GrayText` |
 | Skill pictograms | `ButtonText` strokes, `Canvas` fills |
 
@@ -507,7 +547,8 @@ Rules: tabular figures for every count and time; `text-wrap: balance` on
 headings, `pretty` on paragraphs; Estonian elements carry `lang="et"` so
 hyphenation and screen-reader voices are right; glosses never take
 the sharp cut. Fields stay at 16px or more so iOS Safari does not zoom.
-Bringhurst's 45–75 character measure (66 ideal) bounds every paragraph.
+Bringhurst's 45–75 character measure (66 ideal) is the longest a paragraph's
+line may be; a phone column is narrower and sets its own.
 
 ## Layout
 
@@ -521,6 +562,13 @@ Bringhurst's 45–75 character measure (66 ideal) bounds every paragraph.
   (88px); columns as desktop.
 - **Phone (<720px, or touch and under 560px high):** one column, 16px side
   gutters, a 56px header and the dock at the bottom.
+- **Safe areas.** The page reaches under the iPhone's rounded corners and
+  sensor housing (`viewport-fit=cover`), which in landscape covers about 60px
+  at the left or right edge. Every side gutter is therefore the larger of its
+  own width and the inset: `padding-inline: max(16px,
+  env(safe-area-inset-left)) max(16px, env(safe-area-inset-right))` on the
+  header, the content, the action bar and the dock (whose tab row uses 8px in
+  place of 16px), and the bottom inset under the dock.
 - Everything is left-aligned, including the end of a set. Nothing is centred
   except a pictogram inside its tab.
 - Spacing uses `s1`–`s7` only. Between sections 48px; between a heading and its
@@ -528,8 +576,10 @@ Bringhurst's 45–75 character measure (66 ideal) bounds every paragraph.
 
 ### The phone dock and the action bar
 
-The bottom of a phone screen is one component with three states. It maps
-directly to an iOS 26 tab bar with a bottom accessory (see **iOS**).
+The bottom of a phone screen is one component with three states. It follows
+the iOS 26 model of a tab bar with the current screen's action above it; on
+iOS the act state is a per-screen inset and the task state a full-screen flow
+with its own bar, not the app-wide bottom accessory (see **iOS**).
 
 | State | When | Shows | Height |
 |---|---|---|---|
@@ -547,9 +597,23 @@ Browse                         Act                            Task
 ```
 
 - Tabs show the pictogram (24px), the Estonian label (12px) and its gloss in
-  the explanation language (12px; the owner's rule that both phone labels stay 12px holds). The
-  selected tab has an ink label at weight 700 and a 44×28 `sunk` rectangle
-  behind its pictogram (radius 10px, not a capsule).
+  the explanation language (12px; the owner's rule that both phone labels stay
+  12px holds).
+- Tab columns take the width of their content (`grid-template-columns:
+  repeat(5, auto)`, spread with `justify-content: space-between`), not five
+  equal fifths. Measured in Geologica at 12px on 10 October 2026,
+  *Kirjutamine* is 70px at weight 600 and *аудирование* 78px at 400, while an
+  equal fifth of 390px leaves about 70px for text. A gloss wider than its
+  column wraps to a second line with `hyphens: auto` in its own language, and
+  the row grows by that line (16px). Nothing is truncated or abbreviated.
+  The row is checked at 390 and 320px in Russian, Ukrainian and English.
+- The selected tab keeps the label's weight (600, so its width does not
+  change); its label turns `ink`, and a 44×28 `sunk` rectangle with a 1px
+  `edge` outline sits behind its pictogram (radius 10px, not a capsule). The
+  outline carries the state at 3.96:1 light and 4.41:1 dark; the fill alone
+  would be 1.22:1 and 1.17:1, below the 3:1 a state indicator needs.
+- The wireframes abbreviate tab labels to fit their character grid; the app
+  never does.
 - The skills key opens the four skills as a sheet. In the task state the four
   skills are therefore one tap further away, never unreachable.
 - The dock is opaque `sheet` with a `line` top rule; no blur, no shadow.
@@ -563,9 +627,12 @@ Browse                         Act                            Task
 The primary action sits at the right end of an action row at the bottom of the
 content column: `position: sticky; bottom: 0` on the `sheet` (inside the bench)
 or the `ground` (elsewhere). It rests directly after short content and sticks
-to the viewport bottom when content is longer. A secondary action (Jäta
-vahele, the "checked by" line) sits at the left end. Enter in an answer field
-triggers the primary.
+to the viewport bottom when content is longer. The row is a direct child of
+the bench or the content column, never wrapped in an element of its own: a
+sticky element moves only within its containing block, so a wrapper as short
+as the row would leave it below the fold on a long page. A secondary action
+(Jäta vahele, the "checked by" line) sits at the left end. Enter in an answer
+field triggers the primary.
 
 ### Header
 
@@ -663,10 +730,10 @@ counts for mastery and FSRS.
 |---|---|---|---|
 | Awaiting | **Kontrolli** "проверить", disabled until there is an answer | Empty, reserved | Disabled primary keeps the ink fill at 40 % opacity with its label; it never looks like a second button. |
 | Checking | **Kontrollin…** after 300ms | Unchanged | Field and choices locked; no spinner. |
-| Right | **Edasi** "дальше" | *Õige* "верно", the reason if the topic hides its form until now | Bead fills moss. |
+| Right | **Edasi** "дальше" | *Õige* "верно", the reason if the topic hides its form until now | The bead becomes a filled moss disc. |
 | Hint (first miss) | **Kontrolli** | *Proovi veel* "попробуй ещё раз" and the hint from code | Field keeps the value, selected for editing. Exit check and review skip this state. |
-| Revealed | **Edasi** | *Pole õige* "неверно", *Sinu vastus* with the learner's answer struck through, the reason, **Miks?** and **Reegel** | The sentence shows the key with its form line. |
-| Skipped | **Edasi** | *Vahele jäetud* "пропущено, без оценки" | Outlined bead; no grade, no mastery. |
+| Revealed | **Edasi** | *Pole õige* "неверно", *Sinu vastus* with the learner's answer struck through, the reason, **Miks?** and **Reegel** | The sentence shows the key with its form line; the bead becomes a slashed cranberry ring. |
+| Skipped | **Edasi** | *Vahele jäetud* "пропущено, без оценки" | A dash bead; no grade, no mastery. |
 
 The correction region is reserved at 150px under the sentence (it scrolls
 inside itself when longer) so the primary action and the sentence never move
@@ -741,7 +808,7 @@ Phone 390                                   Desktop 1280
 ```
 Phone 390                                   Desktop 1280 (880px list)
 ┌──────────────────────────────────┐        ┌────────┬───────────────────────────────────────────────┐
-│ ◆ Kursus                    Veel │        │        │ Kursus  курс                       [Jätka 1.] │
+│ ◆ Kursus                    Veel │        │        │ Kursus  курс                                  │
 │   курс                           │        │        │ [Minu rada | Vaba harjutus]                   │
 │ [ Minu rada | Vaba harjutus ]    │        │        │ Algus                                         │
 │ Algus                            │        │        │  1  Tere!                         ■□□  1/3    │
@@ -755,9 +822,9 @@ Phone 390                                   Desktop 1280 (880px list)
 │  │ Ühiku kontroll             │  │        │        │ A1                                            │
 │  └────────────────────────────┘  │        │        │  2  Tutvume                       □□□□  0/4   │
 │ A1                               │        │        │  3  Minu pere                     □□    0/2   │
-│  2  Tutvume              □□□□    │        └────────┴───────────────────────────────────────────────┘
-│  3  Minu pere            □□      │
-├──────────────────────────────────┤
+│  2  Tutvume              □□□□    │        │        │ ───────────────────────────────────────────── │
+│  3  Minu pere            □□      │        │        │                            [ Jätka: 1. ühik ] │
+├──────────────────────────────────┤        └────────┴───────────────────────────────────────────────┘
 │ [ Jätka: 1. ühik  продолжить   ] │
 │ Täna Lugem. Kuulam. Rääkim. Kirj.│
 └──────────────────────────────────┘
@@ -786,9 +853,9 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
 ┌────────────────────────────────┐   ┌────────────────────────────────┐ ┌────────┬────────────────────────────────────┐
 │ ‹ Peata  täissihitis ja osas…  │   │ ‹ Peata  täissihitis ja osas…  │ │        │ ‹ Peata          täissihitis ja … │
 │ Õpi  Harjuta          Kontrolli│   │ Õpi  Harjuta          Kontrolli│ │        │ ┌────────────────────────────────┐ │
-│ ▬▬  ▬▬▭▭▭               ▭      │   │ ▬▬  ▬▬▭▭▭               ▭      │ │        │ │ Õpi Harjuta          Kontrolli │ │
-│ ●●○○○○○○○○                     │   │ ●●●○○○○○○○                     │ │        │ │ ▬▬ ▬▬▭▭▭               ▭       │ │
-│ Впиши нужную форму.            │   │ Впиши нужную форму.            │ │        │ │ ●●●○○○○○○○                     │ │
+│ ▂▂  ▬▭▭▭                ▭      │   │ ▂▂  ▬▭▭▭                ▭      │ │        │ │ Õpi Harjuta          Kontrolli │ │
+│ ●●◎○○○○○○○                     │   │ ●●⊘○○○○○○○                     │ │        │ │ ▂▂ ▬▭▭▭                ▭       │ │
+│ Впиши нужную форму.            │   │ Впиши нужную форму.            │ │        │ │ ●●⊘○○○○○○○                     │ │
 │                                │   │                                │ │        │ │ Впиши нужную форму.            │ │
 │ Ta ei leidnud [        ].      │   │ Ta ei leidnud rahakotti.       │ │        │ │ Ta ei leidnud rahakotti.       │ │
 │               rahakott кошелёк │   │               ‾‾‾‾‾‾‾‾‾        │ │        │ │               ‾‾‾‾‾‾‾‾‾        │ │
@@ -807,14 +874,29 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
 
 - **Session line:** seven segments for ADR-0009's steps, grouped under the
   three phase labels: **Õpi** (Kordamine, Reegel), **Harjuta** (Harjutamine,
-  Sõnad, Kuulamine, Rääkimine), **Kontrolli** (Kontroll). Segments 6px high,
-  3px apart within a phase, 8px between phases; done `ink-2`, current `ink`,
-  to come `sunk`. The current segment has `aria-current="step"` and the line's
-  accessible name says "Samm 3/7: Harjutamine". When a step begins, its name
-  appears once as the bench's heading; it is not repeated on every item.
-- **Beads:** one 8px dot per item of the current step: moss right, cranberry
-  wrong, outlined current, outlined `muted` skipped, `sunk` to come. Their
-  accessible text is "Ülesanne 3/10".
+  Sõnad, Kuulamine, Rääkimine), **Kontrolli** (Kontroll). Segments are 3px
+  apart within a phase and 8px between phases. Done segments are `ink-2` and
+  2px high on the line's baseline; the current segment is `ink` at the full
+  6px; segments to come are `sunk` at 6px. The current step is the only tall
+  dark segment, so shape tells it apart as well as tone (`ink` against `ink-2`
+  alone is about 1.7:1). The current segment has `aria-current="step"` and the
+  line's accessible name says "Samm 3/7: Harjutamine". When a step begins, its
+  name appears once as the bench's heading; it is not repeated on every item.
+- **Beads:** one bead per item of the current step, each in a 12px cell so a
+  change of shape moves nothing. Every state has its own shape, which also
+  survives forced colours:
+
+  | Bead | Shape |
+  |---|---|
+  | Right | Filled 8px disc, `good` |
+  | Wrong | 8px ring (2px) with a diagonal stroke, `bad` |
+  | Skipped | 8×2px dash, `muted` |
+  | Current | 10px ring (2px), `ink` |
+  | To come | 8px ring (1px), `edge` |
+
+  The beads are a list; each item's accessible text gives its position and
+  result ("Ülesanne 2/10, pole õige"; "Ülesanne 4/10, vahele jäetud"), and the
+  current one carries `aria-current="step"`.
 - **Instruction:** one Russian sentence (body, `ink-2`). The lemma is not
   repeated in it: it is under the gap.
 - **The gap is the field.** The answer is typed in the sentence: an inline
@@ -854,10 +936,10 @@ Phone 390                                   Desktop 1280 (720px sheet)
 │ полное и частичное дополнение    │        │        │ │ полное и частичное дополнение           │ │
 │ Allikas: EKK SÜ 38, SÜ 40,       │        │        │ │ Allikas: EKK SÜ 38, EKK SÜ 40, EKI …    │ │
 │ EKI teatmik                      │        │        │ │                                         │ │
-│                                  │        │        │ │ Täissihitis — omastav или nimetav;      │ │
-│ Täissihitis — omastav или        │        │        │ │ при приказе — nimetav.                  │ │
-│ nimetav; при приказе — nimetav.  │        │        │ │                                         │ │
-│                                  │        │        │ │ [lõpetatud|kestev|eitus|mitmus|käskiv]  │ │
+│                                  │        │        │ │ Täissihitis (полное дополнение) — целый │ │
+│ Täissihitis (полное дополнение)  │        │        │ │ объект и действие, которое достигло или │ │
+│ — целый объект и действие,       │        │        │ │ достигнет результата; форма — omastav…  │ │
+│ которое достигло или достигнет…  │        │        │ │ [lõpetatud|kestev|eitus|mitmus|käskiv]  │ │
 │ [lõpetatud|eitus|mitmus|käskiv]  │        │        │ │ Ma sõin jäätise ära.                    │ │
 │ Ma sõin jäätise ära.             │        │        │ │         ‾‾‾‾‾‾‾                         │ │
 │         ‾‾‾‾‾‾‾                  │        │        │ │         omastav родительный падеж       │ │
@@ -876,7 +958,11 @@ Phone 390                                   Desktop 1280 (720px sheet)
 - **Head:** title (Title role, sharp cut), Russian name, and the sources line
   directly under it — attribution is visible before the content, not after
   2,000 pixels.
-- **Gist:** one sentence, lead role, at most 34 characters a line.
+- **Gist:** one sentence, lead role: the first sentence of the topic's
+  sourced summary (`summary_ru` in `eesti/grammar.py`, here EKK SÜ 38), which
+  glosses each Estonian term once. It is never a tip from `TIPS` in
+  `eesti/lessontext.py`, the unsourced kind retired below. Its measure is the
+  sheet's, within the 45–75 characters of **Typography**.
 - **Form switch** (S3): a segmented control of conditions; the example
   sentence changes and the object word's interlinear line shows the form that
   follows. Every form from Vabamorf; a condition with no Vabamorf form for the
@@ -939,9 +1025,11 @@ its headword uses the interlinear treatment for the tapped form in context
 
 ### Banners and empty states
 
-A banner is a left 3px rule in its state colour with text in `ink`; no tinted
-box. An empty state is one sentence saying what will appear and one action to
-make it appear, left-aligned, no illustration.
+A banner is a left 3px rule in its state colour, the state's icon from the
+app's set (`warning-circle` for caution, `x-circle` for an error, `info` for
+information) and text in `ink`; no tinted box. The icon, not the hue, says
+which kind it is. An empty state is one sentence saying what will appear and
+one action to make it appear, left-aligned, no illustration.
 
 ### Loading and errors
 
@@ -979,7 +1067,7 @@ No springs, no overshoot, no oscillation.
 |---|---|---|---|---|---|---|
 | Press | Pointer or key down on a button | Confirms the press registered | Fill to hover tone; primary scales to .98 | `dur-1`, standard | Fill change only, no scale | No change; system button colours |
 | Select | A choice, segment, tab or nav item chosen | Shows what is selected now | Fill and border | `dur-2`, standard | Instant | `Highlight` fill appears |
-| Checking | Kontrolli pending over 300ms | Shows the answer is being checked | Label becomes *Kontrollin…* | `dur-2` crossfade | Instant swap | Text only |
+| Checking | Kontrolli pending over 300ms | Shows the answer is being checked | Label crossfades to *Kontrollin…* | `dur-2`, standard | Instant swap | Text only |
 | Verdict | Result arrives | Puts the result where the learner is looking | Bar colour; form line fades in rising 4px; correction content fades in; bead fills | `dur-3`, enter | Opacity only, no rise | Icon, words and strike-through carry it |
 | Relabel | Kontrolli becomes Edasi | Names the next action without moving it | Label crossfade; button fixed | `dur-2`, standard | Instant | None |
 | Hint | First miss | Invites self-correction | Hint fades in; field value stays selected | `dur-3`, enter | Opacity only | Text |
@@ -989,7 +1077,7 @@ No springs, no overshoot, no oscillation.
 | Sheet | Veel, Oskused, word card | Shows the sheet comes from the dock and the page waits behind it | Sheet slides up; scrim fades | open `dur-4` enter, close `dur-2` exit | Fade only, `dur-2` | Sheet border `CanvasText`; no scrim |
 | Dock change | Task starts, field focused, task ends | Makes room for the primary and the keyboard | Tab row collapses, skills key appears | `dur-4`, standard | Instant | None |
 | Disclosure | `details` toggled | Shows the content opened | Chevron rotates; content appears without height animation | `dur-2`, standard | Instant | Chevron in `CanvasText` |
-| Recording | Microphone on | A state that must stay visible while it lasts | Static `bad` dot, elapsed seconds tick | Ticks each second | Same | Word *Salvestan* and border |
+| Recording | Microphone on | A state that must stay visible while it lasts | Static `bad` dot, elapsed seconds tick | No transition: a discrete tick each second, so no duration or easing | Same | Word *Salvestan* and border |
 | Focus | Any focus | Shows where the keyboard is | Ring appears | Instant, never transitioned | Same | `Highlight` |
 
 **Removed** from the current app: the pulsing current bead, the shimmer
@@ -1020,6 +1108,17 @@ keyboard.
    keeps a full-height layout viewport, gets the offset from `visualViewport`
    (`innerHeight − visualViewport.height − visualViewport.offsetTop`) on its
    `resize` and `scroll` events.
+
+   **Compact keyboard state.** When the visual viewport is under 320px high
+   with a text field focused (a phone in landscape), the header stops being
+   sticky and scrolls away with the content (`scroll-padding-top: 0`), the
+   task row drops to 60px with 44px keys and a 44px primary, and a multi-line
+   field is capped at the band that remains (`max-height`, scrolling inside).
+   At 874×402 with a keyboard of about 200px (Apple does not publish its
+   height), the band is then 402 − 200 − 60 − 16 = 126px, which holds the
+   prompt line with its form line (24px at 2.6, about 62px). Without this
+   state it would be 402 − 200 − 56 − 76 − 16 = 54px, less than one prompt
+   line.
 4. In document order the dock comes after the content, so Tab reaches the
    answer, the correction's actions and then the primary. Enter in the gap
    submits; a skip link "Tegevuse juurde" reaches the primary from the top.
@@ -1032,8 +1131,13 @@ keyboard.
 through every focusable element on Täna, Kursus, `#session` (awaiting and
 revealed) and `#rule`, and for each asserts that `elementFromPoint` at the
 element's centre is the element or inside it and that its rectangle does not
-intersect the dock's, the header's or the action row's. It belongs with the
-existing journeys in `tests/test_e2e_journeys.py`.
+intersect the dock's, the header's or the action row's. Playwright opens no
+on-screen keyboard, so the keyboard cases run through a stub: the journey
+replaces `visualViewport` with one whose height is the viewport less an
+assumed keyboard (340px at 390×844, 200px at 874×402), fires its `resize`
+event, focuses each field and asserts the same conditions inside the stubbed
+band. One field per screen is also checked by hand in the iOS simulator. The
+journey belongs with the existing ones in `tests/test_e2e_journeys.py`.
 
 ## Accessibility checklist (WCAG 2.2 AA)
 
@@ -1079,7 +1183,7 @@ labels keep the gloss on one line and truncate nothing (the gloss wraps under
 the label in the action bar before it is clipped); tab glosses use the shortest
 established term per language from the term catalogue; the correction region
 scrolls inside itself rather than growing. Every screen is checked in all three
-languages at 390px.
+languages at 390px, and the phone tab row also at 320px.
 
 **Missing translations.** Where reviewed text is missing in the chosen
 language, the slot says so in that language and offers the Russian text as an
@@ -1118,7 +1222,7 @@ variation attributes; each type role scales with Dynamic Type through
 | `#session` | The full-screen flow; the step container switches views; same state machine |
 | `#rule` | A pushed detail view; the form switch as `Picker` (segmented); the table as `Grid` |
 | Word card | `.sheet` at the medium detent |
-| Interlinear word | A custom view: `Text` with the form line overlaid on an alignment guide; one accessibility element ("rahakotti, osastav") |
+| Interlinear word | A lone word: `Text` with the form line overlaid on an alignment guide. A sentence with a gap field: a custom `Layout` (iOS 16+) that flows one view per word, so the field and each form line sit at their word and wrap with the line. A read-only sentence: `Text` with a custom `TextAttribute` on the glossed run and a `TextRenderer` (iOS 18+) that draws the bar and the form line under it. Each glossed word is one accessibility element ("rahakotti, osastav") |
 | Motion tokens | `Animation.timingCurve(0.2, 0, 0, 1, duration: 0.16)` and peers; `accessibilityReduceMotion` swaps movement for opacity |
 | Verdict feedback | `sensoryFeedback(.success)` on right; a light impact on a miss; nothing on skip |
 | Materials | Liquid Glass only where the system draws it (tab bar, toolbars); content stays solid, as on the web |
@@ -1133,16 +1237,45 @@ system follows the same split, so the two apps read as one product.
 The redesign lands screen by screen. Each step keeps the browser journeys
 green on both engines and both viewports.
 
-1. **Tokens.** Replace the root custom properties in `eesti/web/app.css` with
-   this record's roles, keeping old names as aliases for one release so
-   unconverted modules still render: `bg` → `ground`; `bg-2`, `tint`, `ctl` →
-   `sunk`; `panel`, `raised`, `field` → `sheet`; `accent`, `accent-2` → `jarv`;
-   `accent-soft` → `jarv-soft`; `btn`, `btn-2`, `on-btn` → `act`, `act-hover`,
-   `on-act`; `line-soft` → `line`; `coral` → `ink`; `quick`, `t`, `slow` →
-   `dur-2`, `dur-3`, `dur-4`; `ease` → `ease-standard`; `r-xs`, `r-sm`, `r` →
-   `r-1`, `r-2`, `r-3`; `fs-*` → the scale above. Retire `glass*`, `night*`,
-   `hero*`, `sky`, `sand`, `pale`, `page-wash`, `nav-wash` and `nav*`. Set
-   `--cut` to `SHRP` 100 and add `--cut-text` at 60.
+1. **Tokens.** Define this record's roles as the root custom properties in
+   `eesti/web/app.css`, light and dark. Every old name that a rule still
+   references stays defined as an alias of its nearest role, so unconverted
+   screens keep rendering; an alias is deleted in the change that rebuilds the
+   last screen using it. The map covers every old name a rule referenced on
+   10 October 2026:
+
+   | Old names | Alias of |
+   |---|---|
+   | `bg`, `nav` | `ground` |
+   | `tint`, `ctl` | `sunk` |
+   | `panel`, `raised`, `nav-active` | `sheet` |
+   | `coral`, `on-nav`, `on-night` | `ink` |
+   | `nav-muted`, `night-muted` | `muted` |
+   | `line-soft`, `night-line`, `ctl-hover` | `line` |
+   | `accent`, `accent-deep`, `night-accent` | `jarv` |
+   | `accent-soft` | `jarv-soft` |
+   | `btn`, `on-btn`, `on-accent` | `act`, `on-act`, `on-act` |
+   | `night-good`, `night-bad`, `warn-fill` | `good`, `bad`, `warn` |
+   | `page-wash`, `nav-wash` (background images), `glass-shadow` (a shadow) | `none` |
+   | `quick`, `t`, `slow` | `dur-2`, `dur-3`, `dur-4` |
+   | `ease` | `ease-standard` |
+   | `r-xs`, `r-sm`, `r`, `r-lg`, `r-xl` | `r-1`, `r-2`, `r-3`, `r-3`, `r-3` |
+   | `fs-gloss`, `fs-meta` | 12px (0.75rem) |
+   | `fs-note` | 14px (0.875rem) |
+   | `fs-ui`, `fs-body` | 16px (1rem) |
+   | `fs-input`, `fs-read` | 18px (1.125rem) |
+   | `fs-lead` | 21px (1.3125rem) |
+   | `fs-prompt` | 24px (1.5rem) |
+   | `fs-title` | 36px (2.25rem) |
+
+   Names no rule references are removed now: `accent-2`, `bg-2`, `btn-2`,
+   `field`, every `glass*` but `glass-shadow`, every `hero-*`, `night-a`,
+   `night-b`, `night-c`, `night-glass`, `sky`, `sand`, `pale`, `spring`,
+   `rail-w`, `shadow` and `fs-hero`. Names that already match a role keep it
+   (`ink`, `ink-2`, `muted`, `line`, `good`, `bad`, `warn` and their `-soft`
+   fills, `gloss`, `s1`–`s7`, `skill-*`); shell values stay and take this
+   record's values in step 2 (`f-ui`, `f-read`, `soft`, `lift`, `gutter`,
+   `spine-w`, `dock-h`). Set `--cut` to `SHRP` 100 and add `--cut-text` at 60.
 2. **Shell.** Header, sidebar, dock states, Veel sheet, focus rules
    (`eesti/web/index.html`, `eesti/web/js/chrome.js`, `eesti/web/js/router.js`).
 3. **Session and Täna** with S8's session (`eesti/web/js/path.js`), including
@@ -1164,12 +1297,13 @@ system line in `PRODUCT.md` and the Practice rhythm sentence in
 
 - Do show a form's name under the word, from code, at the moment it helps.
 - Do keep one primary action per screen in the action bar or the action row.
-- Do pair every result colour with an icon and a word.
+- Do pair every result colour with a shape and a word.
 - Do set Estonian in the sharp cut with `lang="et"`, the explanation language
   in the soft cut with its own `lang`.
 - Do keep sources visible near the top of any rule or text.
 - Do label every model's words with the engine, outside the result colours.
-- Do keep all four skills one tap away on every screen.
+- Do keep the four skills one tap away in the browse and act states, and
+  behind the skills key (one tap more) during a task.
 - Do test focus against the dock at phone sizes in both orientations.
 
 ### Don't

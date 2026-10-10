@@ -27,19 +27,20 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 
 | # | Decision | Linear | State |
 |---|---|---|---|
-| D0 | Licensable material for every learner | DEV-36 | Partly done: EKI EVS phrases feed every corpus topic, dictation, read-aloud and mock reading/listening for public learners (DEV-54), and EKI's credit now shows on every item built from them, offline packs, test-out and placement included, and on review cards queued from 9 Oct 2026. Open: reading texts (none public), Settle in Estonia A1/A2 import once confirmed (DEV-56), permissions (DEV-55), the material pipeline below |
+| D0 | Licensable material for every learner | DEV-36 | Partly done: EKI EVS phrases feed every corpus topic, dictation, read-aloud and mock reading/listening for public learners (DEV-54), and EKI's credit now shows on every item built from them, offline packs, test-out and placement included, and on review cards queued from 9 Oct 2026. Open: reading texts (none public), Settle in Estonia A1/A2 import once confirmed (DEV-56), permissions (DEV-55), checked unit dialogues and texts from the material pipeline below (S2) |
 | D1 | Correctness | DEV-35, DEV-49..53 | Done: EVS homographs and inflection types, nimetav-object writing check, item labels and capitals, exam screens, rection norms EKI now accepts, retired rection cards out of due counts, one-reading case labels on short phrases. Open limits are in `docs/status.md` (parallel forms beyond Vabamorf, templated frames, narrow object check) |
 | D1b | Data safety | DEV-37 | Done in code: nightly off-Cloudflare backup, Durable Object fixes, `ITEM_SECRET`, durable guest allowances. Owner setup pending (below) |
 | D2 | Litestream-replicated SQLite instead of Durable Object replication | DEV-43 | Open; after the 7–8 Nov 2026 sittings |
-| D3 | Claude Haiku 5.5 tutor lane and eval | DEV-38 | Lane built and evaluation-only (ADR-0008); promotion bar agreed (hand ≥ 8/10 with 8/8 clean, external ≥ 12/40 with ≥ 16/20 clean). Open: the owner's `ANTHROPIC_API_KEY` in `.env` and as a GitHub secret, then the eval |
+| D3 | Claude Haiku 5.5 tutor lane and eval | DEV-38 | Done: at effort high Haiku passed ADR-0008's bar on 9 Oct 2026 (10/10 with 8/8 clean; 13/40 with 19/20 clean) and leads the grammar and tutor chain, Workers AI behind it. Open: the key on Cloud Run and a spend limit on the account (owner, below) |
 | D4 | Long-context grounding in EKI rule text | DEV-44 | Open; after D3 |
 | D5 | Ukrainian, then English explanations | DEV-42 | Open; after the D6 spec |
-| D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Spec (`docs/course-structure.md`) and ADR-0007 agreed with the owner on 9 Oct 2026; first slice built: thirty units in `eesti/units.py`, Kursus by unit, unit 1 (sounds in EKI's recordings, EKI's A1 phrases, numbers, first words), the nominative total object, `osaalus`. Open: unit check, homework, weekly plan, dialogues and texts, unit pages in the redesign |
-| D7 | HARNO task formats in practice and mocks | DEV-41 | Started (ADR-0009, B1 first): both writing tasks per level with a code checklist, *Eksamipäev*, practice from reading misses. Open: HARNO reading and listening task types on checked material (`qa/opus-sessions.md` 6), Haiku writing feedback once its eval passes |
+| D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Spec (`docs/course-structure.md`) and ADR-0007 agreed with the owner on 9 Oct 2026; first slice built: thirty units in `eesti/units.py`, Kursus by unit, unit 1 (sounds in EKI's recordings, EKI's A1 phrases, numbers, first words), the nominative total object, `osaalus`. Since built: the unit check, and generators for negation beyond present and past, modal verbs with the infinitive and the future (S5). Open: homework, weekly plan, dialogues and texts (S2), unit pages in the redesign (S8) |
+| D7 | HARNO task formats in practice and mocks | DEV-41 | Started (ADR-0009, B1 first): both writing tasks per level with a code checklist, *Eksamipäev*, practice from reading misses, and HARNO reading and listening task types keyed by code in practice and mocks (`eesti/harnotasks.py`). Open: reading 1–2 and listening 2 and 4, which need checked material; readiness by task type; Haiku's writing feedback in the app (S8) |
 | D8 | Lemma search, passkeys, account recovery, ASR heartbeat | DEV-48 | Open; later |
 | D9 | Practice patterns (edit-then-explain, hint-first, mistakes session) | DEV-45 | Open |
 | D10 | Locked dependencies and current versions | DEV-39 | Done |
 | D11 | The learning loop: onboarding, session, next task, exam loops, material without a human reviewer | DEV-40, DEV-41, DEV-45 | Decided (ADR-0009, 9 Oct 2026). Order: B1 exam loop before the 7–8 Nov sittings, then the session and next task, then onboarding |
+| D12 | The Interlinear redesign and the name Klint | — | Spec in `DESIGN.md`, reviewed (S7R) and revised (S7F) on 10 Oct 2026. Next: tokens and shell (S10), then Reegel (S3), Sõnastik (S9), and the session with Täna (S8), in the order of `qa/opus-sessions.md` |
 | — | Scheduled harvests, corrected source notes | DEV-46 | Open |
 | — | Four-week pilot with Russian, Ukrainian and English learners | DEV-47 | Open; after the sittings |
 
@@ -52,8 +53,14 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 3. Mac mini: unpack the new ZIP and run `zsh deploy/home-asr/install.sh`.
 4. Send the permission requests from the project's own address; EKI's now also
    asks about the pronunciation exercises' audio and the etLex licence.
-5. Put `ANTHROPIC_API_KEY` in `.env` before D3.
+5. Put Haiku in production: `bash deploy/set-llm-key.sh ANTHROPIC_API_KEY` in
+   Cloud Shell, then the `smoke` workflow with `deep: true`; set a spend limit
+   on the Anthropic account (ADR-0008).
 6. After 28 Oct 2026: Node 26 in the Dockerfile and workflows.
+7. Klint: a Business Register and trademark search, then buy `klint.ee`.
+8. Run `python -m eesti.cli import-evs` once in any checkout used for local
+   serving, so the question-word cues for *kellega*, *kellele* and *kui palju*
+   load (the Docker build already runs it).
 
 ## What the next steps build
 
@@ -63,13 +70,15 @@ Specified in `docs/course-structure.md`, decided in ADR-0007: thirty one-week
 units in four stages (Algus, A1, A2, B1) over the 46 topics, mapped to HARNO's
 A2 and B1 topics and EKI's etLex grammar profile (546 statements, 84 A1, 136 A2,
 171 B1, cited by id). Built: the units, Kursus by unit, unit 1, the nominative
-total object and the partitive subject. Next: the unit check (code-graded, five
-items per core topic and revisit), homework and the weekly pace check, then
-the grammar the units still lack (plural partitive and plural cases, modal
-verbs with infinitives, indefinite pronouns, relative clauses, negation outside
-present and past) and word sets for the HARNO topics `themes.py` lacks
-(personal data, daily routine, free time, relationships, shopping and money,
-services, directions).
+total object, the partitive subject, the unit check (code-graded, five items
+per core topic and revisit), and generators for negation beyond present and
+past, modal verbs with the infinitive and the future. Next: homework and the
+weekly pace check, then the grammar the units still lack (plural partitive and
+plural cases, indefinite pronouns, relative clauses, compound words for unit
+28 and particle verbs, neither of which has a generator; the negated past
+impersonal *ei tehtud*; the EVS phrase gaps of `tingiv` and `umbisikuline`)
+and word sets for the HARNO topics `themes.py` lacks (personal data, daily
+routine, free time, relationships, shopping and money, services, directions).
 
 ### Material pipeline (DEV-36)
 
@@ -83,6 +92,13 @@ and answer statistics retire bad items. Graded texts and dialogues by HARNO
 topic, HARNO item types keyed to text spans, multi-voice TTS listening from the
 same scripts, at least 20 writing prompts and 30 speaking cards per level.
 Labelled "written with a model, checked by Vabamorf and automatic checks".
+Built: the schema, the gates, the blind check, the build into `content.db` and
+*Teata veast* (`docs/material.md`). Next: S2 drafts units 2–10. Open:
+`cli push-content` does not run `cli material build`, so a pushed `content.db`
+lacks the checked material; `/api/read/questions/{item_id}`
+(`eesti/api/library.py`) offers model-written questions for `mat:` items
+instead of their checked ones; context-only gaps (the object's case after
+negation) need a code trigger.
 
 ### Exam fidelity (DEV-41)
 
@@ -90,12 +106,14 @@ HARNO's A2 exam has 13 tasks (14 counting writing task 2's two variants) and
 B1 12 (15 counting both writing tasks' variants; harno.ee, read 9 Oct 2026).
 Klint reproduces two reading tasks (owner-only, from printed keys), sets both
 writing tasks per level in their variants with a code checklist, and
-approximates reading and listening with gap-fill and dictation; it has no HARNO
-listening task type yet. Build:
-HARNO item types keyed by code,
-HARNO criteria and rated samples beside the learner's text with a content-point
+generates HARNO's reading and listening task types keyed by code for B1
+listening 1 and 3 and reading 3 and 4 (reading 4 waits for checked texts) and
+for A2 listening 1 and 3 and reading 5, in practice and in mocks, with re-tests
+after one, three and six days (`eesti/harnotasks.py`). Build next: reading 1–2
+and listening 2 and 4 on checked material, readiness that shows the task types
+covered per part, HARNO criteria and rated samples beside the learner's text with a content-point
 checklist (HARNO's passing B1 samples contain many errors), per-part results
-with evidence volume, an *Eksamipäev* page (paper and pen, no dictionaries).
+with evidence volume.
 Speaking is never scored.
 
 ### Claude lane (DEV-38, DEV-44)

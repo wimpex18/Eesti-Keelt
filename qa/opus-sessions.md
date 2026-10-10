@@ -14,12 +14,11 @@ needs pasting.
 
 A session told to run `<ID>` reads, in this order: "Who does what", "Every
 session first", the `<ID>` row of "Progress and order" (and checks that
-everything in its "Starts after" column is done: merged on `origin/main`, or for
-S7R its verdict comment on PR #131; if not, it stops and says so), its row in "File ownership", and the `<ID>`
-brief at the end of this file. It does not need the other briefs. In its own PR
-it sets its own row's status to "done in PR #<n>", touching no other row; the
-row reads done on `main` once the owner merges. S7R makes no commits: S7F (or
-the next refresh) records its row.
+everything in its "Starts after" column is done: merged on `origin/main`; if
+not, it stops and says so), its row in "File ownership", and the `<ID>` brief
+at the end of this file. It does not need the other briefs. In its own PR it
+sets its own row's status to "done in PR #<n>", touching no other row; the row
+reads done on `main` once the owner merges.
 
 ## Progress and order
 
@@ -32,11 +31,11 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 0 | S5 | Generators the units lack | — | done in PR #129 |
 | 0 | S6 | HARNO B1 task types | — | done in PR #130 |
 | 0 | S7 | Design and motion spec, rename to Klint | — | done in PR #131 |
-| 1 | S7R | Independent review of the design spec (read only) | S7 | ready |
+| 1 | S7R | Independent review of the design spec (read only) | S7 | done, review on PR #131 |
 | 1 | S2 | Unit dialogues and texts | S1 | ready |
-| 1 | R1 | Refresh after step 0 | S7 | ready |
-| 2 | S7F | Apply the S7R review (only if it asks for changes) | S7R | waits |
-| 3 | S10 | Redesign: tokens and shell | S7R's verdict on PR #131, and S7F if it asked for changes | waits |
+| 1 | R1 | Refresh after step 0 | S7 | done in PR #132 |
+| 2 | S7F | Apply the S7R review | S7R | done in PR #132 |
+| 3 | S10 | Redesign: tokens and shell | S7F | ready |
 | 4 | S3 | Interactive rules (Reegel) | S10 | waits |
 | 4 | S9 | Dictionary (Sõnastik) | S10 | waits |
 | 5 | R2 | Refresh after steps 1–4 | S2, S3, S9, S10 | waits |
@@ -75,6 +74,8 @@ Before anything else, in this order:
 1. Work in your own git worktree on a new branch from the latest origin/main,
    never in a checkout another session uses: the app's worktree, or
    `git fetch origin && git worktree add "../Eesti Keelt-<brief>" -b claude/<brief-slug> origin/main`.
+   The worktree sits beside the main checkout, never inside it; do not move
+   it, or git loses track of it. The next refresh removes it once merged.
    In it run `python -m eesti.cli worktree-data "<path of the main checkout>"`
    (reference data only, never the owner's learning history or recordings).
 2. Read AGENTS.md, docs/status.md, the ADRs your brief names, and
@@ -96,18 +97,30 @@ There is no human reviewer: material passes the automatic checks of ADR-0009
 and is labelled; a contrast claim needs a published source.
 ```
 
+## Redesign sessions
+
+S10, S3, S9 and S8 build screens to `DESIGN.md`. Its **Fixed and open**
+section says what every screen must keep and what is a reviewed starting
+point. Bring the best design judgment the session has: your own, and a
+front-end design skill if one is available. Where you see a simpler, more
+useful or more beautiful solution than the spec's values, wireframes or
+component looks, build it; keep every fixed rule; check it as the spec was
+checked (screenshots at 390 and 1280 px in both themes, contrast computed with
+the WCAG formula, the focus journey); and in the same PR update the spec's
+section for your screen, with the reason in `docs/design-research.md`. A change
+to a `PRODUCT.md` commitment is proposed in the PR, not made. The briefs below
+name outcomes; where they quote a value, it is the spec's proposal.
+
 ## File ownership
 
 | ID | Owns | Shared, add only |
 |---|---|---|
-| S7R | — (read only; posts one PR comment) | — |
 | S2 | `content/material/` | — |
 | R<n> | `HANDOFF.md`, `qa/sessions/`, the status cells of "Progress and order" | `docs/status.md`, `qa/architecture-review.md` |
-| S7F | `DESIGN.md`, `docs/design-research.md` | — |
-| S10 | `eesti/web/app.css`, `eesti/web/js/chrome.js`, `eesti/web/js/core.js` (the interlinear helper), `eesti/web/sw.js` (offline page), `eesti/api/assets.py` (manifest colours), `tests/test_shell.py` | `eesti/web/index.html`, `eesti/web/js/router.js`, `tests/test_e2e_journeys.py`, `docs/app-structure.md` |
-| S3 | `eesti/rulewalk.py`, `eesti/web/js/lesson.js`, `tests/test_rulewalk.py` | `eesti/lessontext.py` (walk data) |
-| S9 | `eesti/dictionary.py`, `eesti/api/dictionary.py`, `eesti/web/js/dictionary.js`, `eesti/web/js/words.js`, `tests/test_dictionary*.py` | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/identity.md` |
-| S8 | `eesti/session.py`, `eesti/api/session.py`, `eesti/web/js/path.js`, `eesti/web/js/review.js`, `eesti/web/js/onboarding.js`, `eesti/tutor.py`, tests | `eesti/web/index.html`, `eesti/web/js/router.js` |
+| S10 | `eesti/web/app.css`, `eesti/web/js/chrome.js`, `eesti/web/js/core.js` (the interlinear helper), `eesti/web/sw.js` (offline page), `eesti/api/assets.py` (manifest colours), `tests/test_shell.py`; in `DESIGN.md` the frontmatter and the sections for tokens and shell (Colors to Layout, Elevation and shape, The signature, Components, Motion, Focus and the dock, iOS, Migration) | `eesti/web/index.html`, `eesti/web/js/router.js`, `tests/test_e2e_journeys.py`, `docs/app-structure.md`, `docs/design-research.md` |
+| S3 | `eesti/rulewalk.py`, `eesti/web/js/lesson.js`, `tests/test_rulewalk.py`; in `DESIGN.md` the Reegel section | `eesti/lessontext.py` (walk data), `docs/design-research.md` |
+| S9 | `eesti/dictionary.py`, `eesti/api/dictionary.py`, `eesti/web/js/dictionary.js`, `eesti/web/js/words.js`, `tests/test_dictionary*.py`; in `DESIGN.md` the Word card section | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/identity.md`, `docs/design-research.md` |
+| S8 | `eesti/session.py`, `eesti/api/session.py`, `eesti/web/js/path.js`, `eesti/web/js/review.js`, `eesti/web/js/onboarding.js`, `eesti/tutor.py`, tests; in `DESIGN.md` the Practice rhythm, Täna and session sections | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/design-research.md` |
 | S4 | `eesti/i18n/`, the call sites that read `why_ru`, `points_ru`, `summary_ru`, `tests/test_ui_language.py` | — (no other session open) |
 
 Every session may add its row to `docs/status.md`, set its own status cell
@@ -125,31 +138,6 @@ above, and write its own `qa/sessions/<branch>.md`.
    keep both sides.
 3. After each refresh step (R1–R4) is merged, the next step's sessions start
    from an up-to-date `main`.
-
-## S7R. Review of the design spec (step 1)
-
-```text
-Klint S7R: review the redesign spec as an independent reviewer; read and judge,
-change nothing. Work in a detached worktree of main: `git fetch origin && git
-worktree add --detach "../Eesti Keelt-s7r" origin/main`, then
-`python -m eesti.cli worktree-data "<main checkout>"`. Read
-AGENTS.md, qa/opus-sessions.md, DESIGN.md in full, docs/design-research.md,
-PRODUCT.md (languages, brand), docs/brand.md, ADR-0009 and the S7 pull request.
-Run the app (python -m eesti.cli serve) and look at Täna, Kursus, #session and
-#rule at 390 and 1280 px, light and dark, to see what the spec replaces.
-Score design quality, originality, craft and function from 1 to 5, each with
-evidence. Then check, and report every failure with the line it is on: no
-forbidden default in the spec's own examples; one primary action per screen;
-every result carried by a word and a shape as well as colour; three contrast
-pairs per theme recomputed with the WCAG 2.2 formula; every motion row has
-purpose, duration, easing, reduced-motion and forced-colours; focus never under
-the dock at 390x844 and 874x402; the iOS mapping buildable on iOS 26; every
-Estonian example is the app's own (no invented linguistic fact); Russian,
-English and Ukrainian and the default-language rule covered. Verdict: accept,
-or numbered changes required. Post it as one comment on the S7 pull request,
-PR #131 (gh pr comment 131); make no commits and do not edit DESIGN.md. Tell
-the owner the verdict and whether S7F is needed.
-```
 
 ## S2. Lessons: unit dialogues and texts (step 1)
 
@@ -176,47 +164,42 @@ present state (≤30 lines), bring docs/status.md and qa/architecture-review.md 
 to date with what merged, move each session's open follow-ups (and any owner
 operations they list, such as a one-off import) into HANDOFF.md or the relevant
 doc, delete the merged qa/sessions/ notes, set the rows of merged sessions in
-"Progress and order" to done with their PR numbers (S7R: "done, review on PR
-#131"; S7F: "not needed" if the review accepted), remove the briefs of done
-sessions from this file, and mark the next step "ready". Fast suite green. One
+"Progress and order" to done with their PR numbers, remove the briefs of done
+sessions from this file, remove the worktrees of merged sessions (after `git -C
+<worktree> status` shows nothing to keep: `git worktree remove`, then `git
+worktree prune`), and mark the next step "ready". Fast suite green. One
 branch and one PR titled "[R<n>] Refresh after step <n>"; Linear is paused.
-```
-
-## S7F. Apply the design review (step 2)
-
-```text
-Klint S7F: apply the S7R review of the design spec. Follow "Every session first"
-in qa/opus-sessions.md; you own DESIGN.md and docs/design-research.md. Read the
-review (`gh pr view 131 --comments`, the S7R comment), then make each numbered
-change it requires, and only those; where a change touches a file you do not
-own, list it in your PR instead. Keep the spec's own rules: no forbidden
-default in its examples, every Estonian example the app's own, a contrast claim
-with its WCAG source. Set the S7R row to "done, review on PR #131" and your own
-row to done. If the verdict was "accept" with no changes, skip this session;
-the next refresh marks it "not needed".
 ```
 
 ## S10. Redesign: tokens and shell (step 3)
 
 ```text
-Klint S10: build steps 1 and 2 of DESIGN.md's Migration — the Interlinear
-tokens and the app shell. Follow "Every session first" in qa/opus-sessions.md;
-your files are listed there under S10. Read DESIGN.md in full,
-docs/design-research.md, docs/brand.md, .claude/rules/web.md, PRODUCT.md.
-Tokens: DESIGN.md's roles in eesti/web/app.css, light and dark, old names kept
-as aliases for one release; Geologica cuts (SHRP 100 display and prompt, 60
-running Estonian, 0 Russian); rem type on the 12–48 scale; remove glass,
-washes, pill radii, uppercase labels, italics and the decorative motion the
-spec lists; the motion tokens with reduced-motion, reduced-transparency,
-forced-colours and prefers-contrast rules; manifest and theme-color on the new
-ground; the offline page in sw.js. Shell: desktop sidebar, phone header with
-Veel as a sheet, the dock with its browse, act and task states, the action bar
-and the desktop action row, scroll padding tied to the dock's measured height,
-the keyboard rule (visualViewport; interactive-widget), the interlinear word as
-a CSS component with a core.js helper whose form name comes only from the
-item's data. Tests: a focus-versus-dock journey at 390x844, 874x402 and
-1280x800 on both engines; the whole journey suite on both engines. Every
-screen keeps working on the aliases; S3, S8 and S9 rebuild their own screens.
+Klint S10: build steps 1 and 2 of DESIGN.md's Migration, the Interlinear
+tokens and the app shell. Follow "Every session first" and "Redesign sessions"
+in qa/opus-sessions.md; your files are listed there under S10. Read DESIGN.md in
+full, docs/design-research.md, docs/brand.md, .claude/rules/web.md, PRODUCT.md,
+and look at the current app at 390 and 1280 px, light and dark, before you
+decide anything.
+Outcomes. Tokens: the spec's roles in eesti/web/app.css for both themes, with
+every old name a rule uses kept as an alias (Migration step 1 has the map), so
+every unconverted screen still renders; type in rem; Estonian material and the
+explanation language told apart by Geologica's two cuts; the decoration the
+spec forbids gone (glass, washes, pill radii, uppercase labels, italics,
+decorative motion); motion that answers the learner, with reduced-motion,
+reduced-transparency, forced-colours and prefers-contrast fallbacks; the
+manifest, theme-color and the offline page in sw.js on the new ground. Shell:
+desktop navigation; a phone header with Veel; a phone bottom area that keeps
+the four skills reachable, gives each screen one primary action in a place that
+does not move, and never covers focus or the keyboard, in portrait and
+landscape and inside the safe areas; the interlinear word as a CSS component
+with a core.js helper whose form name comes only from the item's data. The
+spec's dock states, sizes and wireframes are its proposal, reviewed by S7R;
+improve on them where you can.
+Tests: a focus-versus-dock journey at 390x844, 874x402 and 1280x800 on both
+engines, with the keyboard cases through a visualViewport stub; the bottom
+area's labels at 390 and 320 px in Russian, Ukrainian and English; the whole
+journey suite on both engines. Every screen keeps working on the aliases; S3,
+S8 and S9 rebuild their own screens.
 ```
 
 ## S3. Interactive rules (step 4)
@@ -234,9 +217,11 @@ On #rule/obj-case the learner toggles completed/ongoing, negation, plural,
 imperative, impersonal and watches the object form change, every form from
 Vabamorf. Model-written prose is labelled; any Estonian string not from code or
 the cited source is rejected (tutor._grounded as a second gate). Keyboard and
-screen reader complete; a reduced-motion version. Build the page to DESIGN.md
-(Reegel): a page with a back control, sources under the title, the form switch
-with the interlinear word, Harjuta as the one primary action.
+screen reader complete; a reduced-motion version. The page keeps DESIGN.md's
+fixed rules: sources visible near the top, the gist from the topic's sourced
+summary (never an entry of TIPS), one primary action (Harjuta). Its Reegel
+section (a page with a back control, the form switch with the interlinear word)
+is the reviewed proposal; improve on it where you can ("Redesign sessions").
 ```
 
 ## S9. Dictionary (step 4)
@@ -255,7 +240,9 @@ has a translation, a gloss drafted by a model is labelled as such and kept only
 when a second model's blind back-translation agrees; never shown as a source's.
 "Lisa kordamisse" uses the existing vocabulary and review path. Every entry
 names its sources. Search, the entry and the card work at phone width. The
-card follows DESIGN.md (sheet on phones, the tapped form as an interlinear word).
+card keeps DESIGN.md's fixed rules; its Word card section (a sheet on phones,
+the tapped form as an interlinear word) is the reviewed proposal; improve on it
+where you can ("Redesign sessions").
 ```
 
 ## S8. The session, Täna and Haiku in the app (step 6)
@@ -276,9 +263,12 @@ question box on the rule page; advisory feedback on writing and speaking after
 the code checklist, against HARNO's descriptors; the conversation partner.
 Journeys for a new beginner, a chosen start and an assessed start, both
 viewports. Onboarding's first question, the explanation language, is preselected
-from the system or browser language (PRODUCT.md). Build Täna and the session to
-DESIGN.md: the interlinear word, the item state machine, one fixed primary
-action, the seven-step session line.
+from the system or browser language (PRODUCT.md). Täna and the session keep
+DESIGN.md's fixed rules: the item state machine, one primary action that does
+not move between states, every result carried by a shape and a word as well as
+colour, and the form named under the word only after an attempt. Its Täna and
+session sections (the seven-step session line, beads, wireframes) are the
+reviewed proposal; improve on them where you can ("Redesign sessions").
 ```
 
 ## S4. Explanation languages (step 8, alone)

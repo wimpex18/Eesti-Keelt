@@ -189,8 +189,18 @@ proficiency score.
 
 ## Acceptance
 
-A separate reviewer session scores the redesign on design quality,
-originality, craft and function before it is accepted. The bar it checks:
+An independent reviewer session (S7R, 10 October 2026; its comment on PR #131)
+scored the spec 4/5 for design quality, 4/5 for originality, 3/5 for craft and
+4/5 for function, and required eleven changes, all now in DESIGN.md: skills
+reachability stated per dock state; the Kursus primary in the action row; a
+shape for every bead state and for the current session segment; an outlined
+selected tab and content-width tab columns (labels measured in Geologica:
+*аудирование* 78px against about 70px in an equal fifth of 390px); the Reegel
+gist from the sourced summary rather than a tip; a complete token alias map;
+a compact keyboard state for landscape phones; horizontal safe areas; easing
+named in every motion row; the iOS mapping corrected; contrast values rounded
+down as stated; the sticky row's containing block; and icons on banners. The
+bar it checked:
 every forbidden default absent; one primary per screen in its fixed place;
 every result carried by a word and a shape as well as colour; the contrast
 table holding in both themes; focus never under the dock at phone sizes in
