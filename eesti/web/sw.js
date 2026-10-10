@@ -173,21 +173,28 @@ self.addEventListener("notificationclick", event => {
 
 /* Shown only if the shell itself was never cached -- a first run with no
    connection. In Russian, because it is the one thing on screen and it has to
-   be read. */
+   be read. On the app's own ground and ink (DESIGN.md), in system fonts so it
+   asks for nothing; it follows a saved appearance as the shell does. */
 const OFFLINE_PAGE = `<!doctype html><html lang="ru"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F1F4F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141F19" media="(prefers-color-scheme: dark)">
 <title>Нет соединения</title>
-<style>*{box-sizing:border-box}body{font:16px/1.6 system-ui,sans-serif;margin:0;
-min-height:100vh;display:grid;place-items:center;background:#f0f6fd;color:#172f4b;padding:24px}
-main{width:100%;max-width:36ch}h1{font-size:24px;line-height:1.3;margin:0 0 12px}
-p{margin:0 0 24px;color:#506681}
-a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:12px 16px;
-border-radius:12px;background:#2359c4;color:#fff;font-weight:600;text-decoration:none}
-a:focus-visible{outline:3px solid #2359c4;outline-offset:4px}
-.ru{font-size:14px;font-weight:400}
-@media (prefers-color-scheme:dark){body{background:#152236;color:#edf4ff}
-p{color:#b3c5de}a{background:#aac9ff;color:#16345e}
-a:focus-visible{outline-color:#aac9ff}}</style>
+<script>try{const t=localStorage.getItem("theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>:root{--ground:#F1F4F1;--ink:#15201A;--muted:#56635B;--act:#15201A;--on-act:#FFFFFF;--on-act-gloss:#D0D2D1;--focus:#2645B5;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#141F19;--ink:#E8EFEA;--muted:#A1AEA6;
+--act:#E8EFEA;--on-act:#141F19;--on-act-gloss:#3E4943;--focus:#A9BCFF;color-scheme:dark}}
+:root[data-theme="dark"]{--ground:#141F19;--ink:#E8EFEA;--muted:#A1AEA6;--act:#E8EFEA;--on-act:#141F19;
+--on-act-gloss:#3E4943;--focus:#A9BCFF;color-scheme:dark}
+*{box-sizing:border-box}body{font:1rem/1.5 system-ui,sans-serif;margin:0;min-height:100vh;
+display:grid;place-items:center;background:var(--ground);color:var(--ink);
+padding:24px max(16px,env(safe-area-inset-right)) 24px max(16px,env(safe-area-inset-left))}
+main{width:100%;max-width:36ch}h1{font-size:1.5rem;line-height:1.25;font-weight:600;margin:0 0 12px}
+p{margin:0 0 24px;color:var(--muted)}
+a{display:inline-flex;align-items:baseline;gap:6px;min-height:48px;padding:12px 24px;
+border-radius:14px;background:var(--act);color:var(--on-act);font-weight:600;text-decoration:none}
+a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.ru{font-size:.75rem;font-weight:400;color:var(--on-act-gloss)}</style>
 <main><h1>Нет соединения</h1>
 <p>Приложение ещё не сохранено для работы без сети.
 Подключись к интернету и попробуй снова.</p>

@@ -52,9 +52,9 @@ service name and its public URL.
 The app opens directly into the learner's current task. Saved light/dark
 appearance is restored before paint. There is no branded cover or timed delay.
 The lesson's labelled three-step strip changes through learn → practise → check;
-reduced motion keeps the same usable, already-visible controls. Until the
-redesign's token step lands (`DESIGN.md`, Migration), platform chrome, the
-manifest colours and the offline fallback keep the pale blue working ground and
-navy dark theme of the shipped interface; the brand tiles already use spruce
-and birch. The fallback uses system fonts without requesting assets and offers
-an explicit retry when the shell is unavailable. APIs remain uncached.
+reduced motion keeps the same usable, already-visible controls. Platform chrome
+(`theme-color`), the manifest (which takes the page's `theme-color`) and the
+offline fallback stand on the birch ground in light and the spruce ground in
+dark, like the page and the brand tiles. The fallback follows a saved
+appearance, uses system fonts without requesting assets and offers an explicit
+retry when the shell is unavailable. APIs remain uncached.

@@ -214,6 +214,19 @@ def service_worker() -> Response:
     )
 
 
+#: The page's light `theme-color`, which the manifest repeats: the splash and the
+#: status bar of an installed app meet the ground of the page they open on.
+_THEME_COLOR = re.compile(
+    r'<meta content="(#[0-9A-Fa-f]{6})" media="\(prefers-color-scheme: light\)" name="theme-color"/>')
+
+
+def light_ground() -> str:
+    found = _THEME_COLOR.search((WEB / "index.html").read_text(encoding="utf-8"))
+    if not found:
+        raise RuntimeError("index.html no longer declares its light theme-color")
+    return found.group(1)
+
+
 @router.get("/manifest.webmanifest")
 def manifest() -> Response:
     """Enough for "Add to Home Screen" to produce an app-like window."""
@@ -226,8 +239,8 @@ def manifest() -> Response:
             "scope": "/",
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#f0f6fd",
-            "theme_color": "#f0f6fd",
+            "background_color": light_ground(),
+            "theme_color": light_ground(),
             # Russian: the install prompt and the page it opens are written
             # in the language the learner reads, not the one being learned.
             "lang": "ru",

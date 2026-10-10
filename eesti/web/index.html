@@ -15,8 +15,8 @@
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Klint" name="apple-mobile-web-app-title"/>
 <meta content="yes" name="mobile-web-app-capable"/>
-<meta content="#f0f6fd" media="(prefers-color-scheme: light)" name="theme-color"/>
-<meta content="#152236" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="#F1F4F1" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#141F19" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <link href="/manifest.webmanifest" rel="manifest"/>
 <link href="/favicon.ico" rel="icon" sizes="any"/>
 <link href="/brand/favicon-32.png" rel="icon" sizes="32x32" type="image/png"/>
@@ -42,7 +42,6 @@
   try {
     const theme = localStorage.getItem("theme");
     if (theme === "dark" || theme === "light") document.documentElement.dataset.theme = theme;
-    if (localStorage.getItem("glass") === "off") document.documentElement.dataset.glass = "off";
   } catch (_) {}
 })();
 </script>
@@ -52,42 +51,60 @@
 <link href="/app.css" rel="stylesheet"/>
 </head>
 <body>
+<a class="skip" href="#main" lang="et">Sisu juurde <span class="ru" lang="ru">к содержанию</span></a>
 <div class="wrap">
-<!-- Permanent skills and supporting destinations; header and bottom skills on phones. -->
+<!-- The shell (DESIGN.md): the sidebar on a desktop; on a phone the header, with
+     its tab row (Täna and the four skills) as the dock along the bottom. -->
 <header class="spine"><a aria-label="Klint — на главную" class="brand" href="#path">
 <!-- brand:header:start -->
       <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path class="brand-k" fill-rule="evenodd" d="M18.44 42V12H25.16V25.23L35.71 12H44.09L33.01 25.75L45.56 42H36.92L28.58 30.85L25.16 34.77V42Z"/><path class="brand-bar" fill-rule="evenodd" d="M20.11 47.0H43.89A1.67 1.67 0 0 1 45.56 48.67V50.33A1.67 1.67 0 0 1 43.89 52.0H20.11A1.67 1.67 0 0 1 18.44 50.33V48.67A1.67 1.67 0 0 1 20.11 47.0Z"/></svg>
       <!-- brand:header:end -->
 <div class="brand-word"><h1 lang="et">Klint</h1></div>
 </a>
-<a class="mobile-course" href="#course" lang="et">Kursus <span class="ru" lang="ru">темы курса</span></a>
 <nav aria-label="Peamised lehed — основные разделы" class="primary-nav">
 <a href="#path" lang="et">Täna <span class="ru" lang="ru">сегодня</span></a>
 <a href="#course" lang="et">Kursus <span class="ru" lang="ru">темы курса</span></a>
 <a href="#review" lang="et">Kordamine <span class="ru" lang="ru">повторение</span><span class="badge" hidden="" id="dueBadge"></span></a>
 <a href="#exam" lang="et">Eksam <span class="ru" lang="ru">подготовка</span></a>
 </nav>
+<div class="dock-tabs">
+<a class="dock-home" href="#path" lang="et"><span aria-hidden="true" class="ico"></span><span class="lbl">Täna <span class="ru" lang="ru">сегодня</span></span></a>
+<p class="nav-heading" lang="et">Oskused <span class="ru" lang="ru">навыки</span></p>
 <nav aria-label="Õpioskused — навыки" data-mode-nav="learn" id="nav-learn" role="tablist">
 <button aria-selected="false" data-tab="read" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Lugemine <span class="ru" lang="ru">чтение</span></span></button>
 <button aria-selected="false" data-tab="listen" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kuulamine <span class="ru" lang="ru">аудирование</span></span></button>
 <button aria-selected="false" data-tab="speak" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Rääkimine <span class="ru" lang="ru">говорение</span></span></button>
 <button aria-selected="false" data-tab="write" role="tab"><span aria-hidden="true" class="ico"></span><span class="lbl" lang="et">Kirjutamine <span class="ru" lang="ru">письмо</span></span></button>
 </nav>
+</div>
+<div class="hdr-actions">
 <details class="more-nav"><summary lang="et">Veel <span class="ru" lang="ru">разделы</span></summary>
-<nav aria-label="Muud lehed — другие разделы">
-<a href="#path" lang="et">Täna <span lang="ru">сегодня</span></a>
-<a href="#course" lang="et">Kursus <span lang="ru">темы курса</span></a>
-<a href="#review" lang="et">Kordamine <span lang="ru">повторение</span></a>
-<a href="#exam" lang="et">Eksam <span lang="ru">подготовка</span></a>
-<a href="#sonad" lang="et">Sõnavara <span lang="ru">слова</span></a>
-<a href="#vihikud" lang="et">Töövihikud <span lang="ru">официальные материалы</span></a>
-<a href="#status" lang="et">Edenemine <span lang="ru">прогресс</span></a>
+<!-- Opened as a modal sheet by chrome.js: focus stays inside and returns to Veel. -->
+<dialog aria-labelledby="veelTitle" class="sheet veel-sheet" id="veelSheet">
+<div class="sheet-head"><h2 id="veelTitle" lang="et">Veel <span class="ru" lang="ru">разделы</span></h2>
+<button aria-label="Sulge — закрыть" class="iconbtn sheet-close" type="button"></button></div>
+<nav aria-label="Muud lehed — другие разделы" class="sheet-nav">
+<a class="in-sidebar" href="#path" lang="et">Täna <span class="ru" lang="ru">сегодня</span></a>
+<a class="in-sidebar" href="#course" lang="et">Kursus <span class="ru" lang="ru">темы курса</span></a>
+<a class="in-sidebar" href="#review" lang="et">Kordamine <span class="ru" lang="ru">повторение</span></a>
+<a class="in-sidebar" href="#exam" lang="et">Eksam <span class="ru" lang="ru">подготовка</span></a>
+<a href="#sonad" lang="et">Sõnavara <span class="ru" lang="ru">слова</span></a>
+<a href="#vihikud" lang="et">Töövihikud <span class="ru" lang="ru">официальные материалы</span></a>
+<a href="#status" lang="et">Edenemine <span class="ru" lang="ru">прогресс</span></a>
+<a class="in-sidebar" href="#profile" lang="et">Profiil <span class="ru" lang="ru">профиль</span></a>
 </nav>
-</details><div class="hdr-actions">
+<div class="appearance"><span lang="et">Välimus <span class="ru" lang="ru">оформление</span></span>
+<div aria-label="Välimus — оформление" class="levels" role="group">
+<button aria-pressed="false" data-theme-choice="system" lang="et" type="button">Süsteem <span class="ru" lang="ru">как в системе</span></button>
+<button aria-pressed="false" data-theme-choice="light" lang="et" type="button">Hele <span class="ru" lang="ru">светлая</span></button>
+<button aria-pressed="false" data-theme-choice="dark" lang="et" type="button">Tume <span class="ru" lang="ru">тёмная</span></button>
+</div></div>
+</dialog>
+</details>
 <a aria-label="Profiil — профиль" class="iconbtn" href="#profile" id="accountBtn" title="Profiil — профиль"></a>
 <button class="iconbtn" id="themeBtn" type="button"></button>
 </div></header>
-<main class="stage-col">
+<main class="stage-col" id="main">
 
 <!-- ── The path ──────────────────────────────────────────────────
        Two ways through the same drills. `Rada`: ordered, gated, recorded; the
@@ -98,7 +115,7 @@
 <section aria-labelledby="pathNow" class="next-lesson">
 <div class="next-copy"><h3 id="pathNow" lang="et">Laadin…</h3><p id="pathOf"></p>
 <p class="lesson-purpose" lang="ru">Разбери правило на примерах, попробуй сам и получи проверку.</p></div>
-<div class="next-action"><button class="go" id="practiceBtn" lang="et">Alusta <span class="ru" lang="ru">начать урок</span></button><a class="quiet" href="#course" lang="et">Vali teine teema <span class="ru" lang="ru">выбрать другую тему</span></a></div>
+<div class="next-action"><button class="go" data-primary="" id="practiceBtn" lang="et">Alusta <span class="ru" lang="ru">начать урок</span></button><a class="quiet" href="#course" lang="et">Vali teine teema <span class="ru" lang="ru">выбрать другую тему</span></a></div>
 </section>
 <div class="home-links"><a href="#review" lang="et">Korda õpitut <span class="ru" lang="ru">повтори изученное</span></a><a href="#start" lang="et">Muuda algust <span class="ru" lang="ru">выбери точку старта</span></a></div>
 <p class="home-note" lang="ru">Чтение, слух, речь и письмо всегда доступны в навигации. Можно учиться с начала или двигаться сразу к знакомым темам.</p></section><section class="panel" hidden="" id="tab-course">
@@ -351,7 +368,7 @@
 <div class="stage write-stage">
 <div class="writing-prompt"><h3 lang="et">Minu päev <span class="ru" lang="ru">мой день</span></h3><p lang="ru">Напиши 2–3 предложения о своём дне: что ты делаешь, куда идёшь, что читаешь. Затем проверь текст. Можно заменить тему своей.</p></div><textarea aria-label="Tekst — текст для проверки" autocapitalize="sentences" autocorrect="off" id="text" lang="et" placeholder="Напиши или вставь эстонский текст…" spellcheck="false"></textarea>
 <div class="row write-foot">
-<button class="go" id="checkBtn" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+<button class="go" data-primary="" id="checkBtn" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
 <span class="hint kbd-hint">Ctrl+Enter</span>
 <span class="hint word-count" id="textCount"></span>
 </div>
@@ -584,7 +601,7 @@
 </div>
 <textarea aria-label="Etteütlus — что ты услышал" autocapitalize="off" autocorrect="off" id="dictTyped" lang="et" placeholder="Запиши, что услышал…" rows="2" spellcheck="false"></textarea>
 <div class="row">
-<button class="go" id="dictCheck" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
+<button class="go" data-primary="" id="dictCheck" lang="et">Kontrolli <span class="ru" lang="ru">проверить</span></button>
 <span class="hint" id="dictScore"></span>
 </div>
 <!-- The player and the result are separate containers, so replay survives grading. -->
@@ -629,6 +646,23 @@
 <div id="sourceList"></div>
 </details>
 </footer>
+<!-- The phone's action bar. The open screen's one primary (`data-primary`) keeps
+     its place in the screen's markup and is set over this bar; in the task state
+     (an item awaiting its answer, or the keyboard up) the skills key beside it
+     opens the four skills as a sheet. -->
+<div class="actbar" id="actbar">
+<button aria-controls="skillsSheet" aria-haspopup="dialog" aria-label="Oskused — навыки" class="skills-key" id="skillsKey" type="button"></button>
+</div>
+<dialog aria-labelledby="skillsTitle" class="sheet skills-sheet" id="skillsSheet">
+<div class="sheet-head"><h2 id="skillsTitle" lang="et">Oskused <span class="ru" lang="ru">навыки</span></h2>
+<button aria-label="Sulge — закрыть" class="iconbtn sheet-close" type="button"></button></div>
+<nav aria-label="Õpioskused — навыки" class="sheet-nav">
+<a data-skill="read" href="#read" lang="et">Lugemine <span class="ru" lang="ru">чтение</span></a>
+<a data-skill="listen" href="#listen" lang="et">Kuulamine <span class="ru" lang="ru">аудирование</span></a>
+<a data-skill="speak" href="#speak" lang="et">Rääkimine <span class="ru" lang="ru">говорение</span></a>
+<a data-skill="write" href="#write" lang="et">Kirjutamine <span class="ru" lang="ru">письмо</span></a>
+</nav>
+</dialog>
 <!-- The one polite announcer: moments worth saying aloud (a topic mastered). -->
 <div aria-live="polite" class="sr-only" id="announce" role="status"></div>
 <!-- The Reegel page (js/lesson.js): a solid sheet over the page. -->

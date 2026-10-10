@@ -181,9 +181,9 @@ answers are only available there.
 - Visual system: **Interlinear** (`DESIGN.md`): the Estonian form with its form
   name beneath it from code, spruce ink on a birch ground, solid surfaces,
   Geologica in two cuts, one fixed primary action per screen and the four
-  original skill pictograms. The mark is an underlined K. Practice rhythm (pale
-  blue, frosted navigation) ships until each screen is rebuilt. Research and
-  reasons are in `docs/design-research.md`.
+  original skill pictograms. The mark is an underlined K. Its tokens and
+  shell ship; each screen keeps its earlier layout until it is rebuilt.
+  Research and reasons are in `docs/design-research.md`.
 - The interface is itself language exposure: Estonian labels with a gloss in
   the learner's supported explanation language where needed; Russian in the MVP.
 - Honest about limits: a caveat the learner cannot read is not a caveat.

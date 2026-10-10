@@ -19,9 +19,9 @@ paths:
 - Define every CSS token. Use spacing `--s1`…`--s7` and semantic palette roles.
   A screen rebuilt from now on keeps every fixed rule of `DESIGN.md` and starts
   from its reviewed proposal, which the builder may improve and then records
-  there (its "Fixed and open" section); screens not yet rebuilt keep the
-  shipped Practice rhythm tokens until the token step of its Migration section
-  lands.
+  there (its "Fixed and open" section); screens not yet rebuilt keep their
+  layouts on its tokens. A screen's primary button carries `data-primary` (the
+  phone's action bar), and an item awaiting its answer `data-dock-task`.
 - Use native links, buttons, details and labelled fields. View switches use
   `role="tablist"`, roving focus and `aria-selected`. Long references use a page;
   popovers are reserved for contextual word lookup.
