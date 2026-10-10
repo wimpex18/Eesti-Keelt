@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "paev",
+  "slug": "minu-paev",
+  "title": "Olga päev",
+  "harno": "igapäevaelu",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Olga elab Tartus, kus ta töötab kohvikus. Hommikul tõuseb ta kell kuus. Ta joob alati kohvi, aga ta ei söö midagi. Kell seitse ootab ta peatuses bussi. Töö algab kell kaheksa ja lõppeb kell neli. Lõunal sööb Olga tihti suppi ja salatit.",
+    "Kell viis on Olga kodus. Tema kass ootab teda. Õhtul teeb ta süüa. Ta loeb tihti raamatut, aga ta vaatab harva televiisorit. Kell kümme läheb Olga magama.",
+    "Laupäeval Olga ei tööta. Ta tahab puhata. Ta läheb parki, kus ta istub ja loeb. Õhtul läheb ta kinno, kus ta vaatab filmi. Pühapäeval helistab ta emale, kes elab Narvas."
+  ],
+  "names": [
+    "Olga",
+    "Tartu",
+    "Narva"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus Olga töötab?",
+      "answer": "kohvikus"
+    },
+    {
+      "id": "q2",
+      "question": "Millal Olga hommikul tõuseb?",
+      "answer": "kell kuus"
+    },
+    {
+      "id": "q3",
+      "question": "Millal Olga peatuses bussi ootab?",
+      "answer": "kell seitse"
+    },
+    {
+      "id": "q4",
+      "question": "Millal töö lõppeb?",
+      "answer": "kell neli"
+    },
+    {
+      "id": "q5",
+      "question": "Millal on Olga kodus?",
+      "answer": "kell viis"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "süüa",
+      "lemma": "sööma",
+      "form": "da"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "magama",
+      "lemma": "magama",
+      "form": "ma"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "e4f454cf"
+  }
+}

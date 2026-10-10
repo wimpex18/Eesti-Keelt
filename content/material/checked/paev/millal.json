@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "paev",
+  "slug": "millal",
+  "title": "Homme õhtul",
+  "harno": "igapäevaelu",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "студентка"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "друг"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere, Igor! Kas sa oled homme vaba?"
+    },
+    {
+      "speaker": "b",
+      "text": "Homme ma töötan. Töö algab kell kaheksa ja lõpeb kell neli."
+    },
+    {
+      "speaker": "a",
+      "text": "Mina olen homme koolis. Kool lõpeb kell kolm."
+    },
+    {
+      "speaker": "b",
+      "text": "Kas sa tahad õhtul kohvikusse minna?"
+    },
+    {
+      "speaker": "a",
+      "text": "Jah, tahan küll. Mis kell?"
+    },
+    {
+      "speaker": "b",
+      "text": "Kell pool viis. Ma pean kell seitse koju minema."
+    },
+    {
+      "speaker": "a",
+      "text": "Hästi. Ma tahan mahla juua."
+    },
+    {
+      "speaker": "b",
+      "text": "Mina tahan suppi süüa."
+    },
+    {
+      "speaker": "a",
+      "text": "Ma ootan sind pargis."
+    },
+    {
+      "speaker": "b",
+      "text": "Okei. Nägemist!"
+    }
+  ],
+  "paragraphs": [],
+  "names": [],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Millal algab Igori töö?",
+      "answer": "kell kaheksa"
+    },
+    {
+      "id": "q2",
+      "question": "Millal lõpeb Mari kool?",
+      "answer": "kell kolm"
+    },
+    {
+      "id": "q3",
+      "question": "Kuhu Igor tahab õhtul minna?",
+      "answer": "kohvikusse"
+    },
+    {
+      "id": "q4",
+      "question": "Mis kell nad kohtuvad?",
+      "answer": "pool viis"
+    },
+    {
+      "id": "q5",
+      "question": "Millal peab Igor koju minema?",
+      "answer": "kell seitse"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 3,
+      "word": "kohvikusse",
+      "lemma": "kohvik",
+      "form": "sg ill"
+    },
+    {
+      "id": "g3",
+      "at": 7,
+      "word": "süüa",
+      "lemma": "sööma",
+      "form": "da"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "e7248315"
+  }
+}

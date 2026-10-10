@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "kodu",
+  "slug": "minu-kodu",
+  "title": "Minu kodu",
+  "harno": "maja ja kodu",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Minu nimi on Olga. Ma elan Tartus. Minu maja on suur ja valge. Minu korteri number on 12. Korteris on kaks tuba, köök ja vannituba. Vannitoas on vann ja dušš.",
+    "Köögis on laud ja neli tooli. Laual on lill. Ma söön köögis. Suures toas on diivan ja televiisor. Ma istun diivanil ja vaatan televiisorit. Väikeses toas on voodi ja kapp. See on minu magamistuba. Ma magan seal. Laupäeval koristan ma korterit.",
+    "Hommikul lähen ma tööle. Ma töötan kohvikus. Õhtul tulen ma töölt. Ma lähen poodi ja ostan leiba ja piima. Poest lähen ma koju."
+  ],
+  "names": [
+    "Olga",
+    "Tartu"
+  ],
+  "off_list": [
+    {
+      "lemma": "vannituba",
+      "gloss_ru": "ванная комната"
+    },
+    {
+      "lemma": "magamistuba",
+      "gloss_ru": "спальня"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus linnas Olga elab?",
+      "answer": "Tartus"
+    },
+    {
+      "id": "q2",
+      "question": "Mis on Olga korteri number?",
+      "answer": "12"
+    },
+    {
+      "id": "q3",
+      "question": "Mitu tuba on korteris?",
+      "answer": "kaks tuba"
+    },
+    {
+      "id": "q4",
+      "question": "Mitu tooli on köögis?",
+      "answer": "neli tooli"
+    },
+    {
+      "id": "q5",
+      "question": "Kus on voodi ja kapp?",
+      "answer": "Väikeses toas"
+    },
+    {
+      "id": "q6",
+      "question": "Kus Olga töötab?",
+      "answer": "kohvikus"
+    },
+    {
+      "id": "q7",
+      "question": "Kust Olga koju läheb?",
+      "answer": "Poest"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "diivanil",
+      "lemma": "diivan",
+      "form": "sg ad"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "tööle",
+      "lemma": "töö",
+      "form": "sg all"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "kohvikus",
+      "lemma": "kohvik",
+      "form": "sg in"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

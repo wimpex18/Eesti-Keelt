@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "tutvume",
+  "slug": "kursusel",
+  "title": "Uus õpilane",
+  "harno": "isikuandmed",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Kadri",
+      "role_ru": "преподавательница"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "новый ученик"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere hommikust! Mina olen Kadri. Ma olen õpetaja."
+    },
+    {
+      "speaker": "b",
+      "text": "Tere! Mina olen Igor."
+    },
+    {
+      "speaker": "a",
+      "text": "Kuidas läheb, Igor?"
+    },
+    {
+      "speaker": "b",
+      "text": "Väga hästi. Aga sinul?"
+    },
+    {
+      "speaker": "a",
+      "text": "Hästi. Mis on sinu perekonnanimi?"
+    },
+    {
+      "speaker": "b",
+      "text": "Minu perekonnanimi on Ivanov. Ma olen venelane."
+    },
+    {
+      "speaker": "a",
+      "text": "Mis on sinu töö?"
+    },
+    {
+      "speaker": "b",
+      "text": "Ma olen müüja. Minu naine Olga on arst."
+    },
+    {
+      "speaker": "a",
+      "text": "Mis on sinu mobiilinumber?"
+    },
+    {
+      "speaker": "b",
+      "text": "Minu mobiilinumber on 5123 4567."
+    }
+  ],
+  "paragraphs": [],
+  "names": [
+    "Ivanov",
+    "Olga"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kes on Kadri?",
+      "answer": "õpetaja"
+    },
+    {
+      "id": "q2",
+      "question": "Kuidas tal läheb?",
+      "answer": "Väga hästi"
+    },
+    {
+      "id": "q3",
+      "question": "Mis on tema perekonnanimi?",
+      "answer": "Ivanov"
+    },
+    {
+      "id": "q4",
+      "question": "Mis on tema töö?",
+      "answer": "müüja"
+    },
+    {
+      "id": "q5",
+      "question": "Kes on tema naine?",
+      "answer": "Olga"
+    },
+    {
+      "id": "q6",
+      "question": "Kes on Olga?",
+      "answer": "arst"
+    },
+    {
+      "id": "q7",
+      "question": "Mis on tema mobiilinumber?",
+      "answer": "5123 4567"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "olen",
+      "lemma": "olema",
+      "form": "n"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "läheb",
+      "lemma": "minema",
+      "form": "b"
+    },
+    {
+      "id": "g3",
+      "at": 9,
+      "word": "on",
+      "lemma": "olema",
+      "form": "b"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

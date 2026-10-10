@@ -78,6 +78,29 @@ class TestGradingIsCodeAlone:
         assert not comprehension.grade(self.question(), long)["correct"]
 
 
+class TestNumbersAreWordsToo:
+    """A price, a time or a count written in digits is part of the answer: were
+    digits ignored, *6 eurot* would grade *5 eurot* as right."""
+
+    PRICES = "Supp maksis 6 eurot. Kohv maksis 2 eurot. Rong läks kell 16."
+
+    def test_another_number_is_a_wrong_answer(self):
+        question = comprehension.Question(0, "Kui palju supp maksis?", "6 eurot", "llm:test")
+        assert comprehension.grade(question, "6 eurot")["correct"]
+        assert not comprehension.grade(question, "5 eurot")["correct"]
+
+    def test_a_number_alone_can_be_the_key(self):
+        assert comprehension.verify(self.PRICES, "Mis kell rong läks?", "16") == "16"
+
+    def test_a_number_inside_another_is_not_found(self):
+        assert comprehension.occurrences(self.PRICES, "6") == 1
+        assert comprehension.occurrences("Kell 16 ja kell 6.", "kell 6") == 1
+
+    def test_a_key_whose_words_repeat_is_still_refused(self):
+        """*eurot* occurs twice, so a key without its number is no key."""
+        assert comprehension.verify(self.PRICES, "Kui palju supp maksis?", "eurot") is None
+
+
 class TestTheAnswerNeverTravelsToThePage:
     def test_the_page_is_sent_questions_without_answers(self, client, text_item):
         with evidence.connect() as log:

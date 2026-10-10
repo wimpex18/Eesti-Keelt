@@ -225,6 +225,9 @@ words.
   checks `tulevik` (EKK SÜ 27: the present after a future adverbial, *hakkama* +
   ma). A unit is *complete* when its check is passed and its core topics are
   mastered; Kursus says so.
+- Units 2–10 have a checked dialogue and reading text each
+  (`content/material/`), served by `/api/material/units/{id}` and used by the
+  HARNO-format exam tasks; no unit page shows them yet.
 - Not built yet: homework, the weekly plan, placement into a unit from the
   assessment, Home naming the session within a unit, skill pages led by the
-  unit, dialogues and texts.
+  unit, dialogues and texts for units 1 and 11–30.

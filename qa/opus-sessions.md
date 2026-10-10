@@ -32,7 +32,7 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 0 | S6 | HARNO B1 task types | — | done in PR #130 |
 | 0 | S7 | Design and motion spec, rename to Klint | — | done in PR #131 |
 | 1 | S7R | Independent review of the design spec (read only) | S7 | done, review on PR #131 |
-| 1 | S2 | Unit dialogues and texts | S1 | ready |
+| 1 | S2 | Unit dialogues and texts | S1 | done in PR #133 |
 | 1 | R1 | Refresh after step 0 | S7 | done in PR #132 |
 | 2 | S7F | Apply the S7R review | S7R | done in PR #132 |
 | 3 | S10 | Redesign: tokens and shell | S7F | ready |

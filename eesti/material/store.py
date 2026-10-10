@@ -1,20 +1,28 @@
-"""Where checked material lives: committed files, then `content.db` (ADR-0009, step 4).
+"""Where checked material lives: committed files, then `material.db` (ADR-0009, step 4).
 
 A draft that passed the gates and the blind check is written to
 `content/material/checked/<unit>/<slug>.json` with the pipeline's stamp in
 `checks`: the gate version, the blind check's engine and batch, and the hash of
 the content it vouches for. The file is committed; it is the record.
 
-`build` puts every checked file into `content.db`, and trusts none of them: it
-re-runs the deterministic gates and compares the stamp's hash with the file's
-own. A file edited after its blind check, or one a newer gate refuses, is not
-built. What is built:
+`build` puts every checked file into `data/material.db` (`config.MATERIAL_DB`)
+and trusts none of them: it re-runs the deterministic gates and compares the
+stamp's hash with the file's own. A file edited after its blind check, or one a
+newer gate refuses, is not built. What is built:
 
 - an `items` row with id `mat:<unit>:<slug>@<sha8>` under the public source
   `grove-material`, so the text is a library item every learner may read, with
   the label, engine and prompt version in its `meta` and no answer key;
 - a `material` row with the same id holding the checked document, keys
   included, which only the server reads (`eesti/api/reports.py`).
+
+Not into `content.db`: on the deployment that is the owner's harvested corpus,
+which the Worker restores over each container and archives by the hash of its
+bytes, so material built into it would vanish at a restore and writing it at
+runtime would change the corpus under its archive. The material is public
+repository data, so the image builds it, as it builds EKI's dictionaries into
+`data/eesti.db`, and the routes and the exam tasks open it with `connect`. The
+database has the library's schema, so each item is a library row as well.
 
 A changed word is a changed hash and so a new id: an attempt recorded against
 the old id keeps its question and key in the evidence log and replays as it was.
@@ -44,6 +52,14 @@ CREATE TABLE IF NOT EXISTS material (
 );
 CREATE INDEX IF NOT EXISTS idx_material_unit ON material(unit);
 """
+
+
+def connect(path: Path | str | None = None) -> sqlite3.Connection:
+    """The built material (`config.MATERIAL_DB`), empty where none is built."""
+    from .. import config
+    from ..sources import connect as library
+
+    return library(path or config.MATERIAL_DB)
 
 
 def checked_dir(root: Path | None = None) -> Path:

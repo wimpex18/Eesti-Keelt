@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "poes",
+  "slug": "turul",
+  "title": "Turul",
+  "harno": "sisseostude tegemine",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "продавщица"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "покупатель"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere päevast!"
+    },
+    {
+      "speaker": "b",
+      "text": "Tere! Kas teil on täna tomateid?"
+    },
+    {
+      "speaker": "a",
+      "text": "Ei, täna ei ole. Mul on kartuleid, kilo maksab kaks eurot."
+    },
+    {
+      "speaker": "b",
+      "text": "Palun kolm kilo kartuleid. Ma võtan ka ühe kapsa."
+    },
+    {
+      "speaker": "a",
+      "text": "Kapsas maksab üks euro. Kas veel midagi?"
+    },
+    {
+      "speaker": "b",
+      "text": "Jah, palun pool kilo juustu."
+    },
+    {
+      "speaker": "a",
+      "text": "Täna ei ole juustu. Kokku on seitse eurot."
+    },
+    {
+      "speaker": "b",
+      "text": "Siin on kümme eurot."
+    },
+    {
+      "speaker": "a",
+      "text": "Kolm eurot tagasi. Kas kotti on vaja?"
+    },
+    {
+      "speaker": "b",
+      "text": "Ei, aitäh. Nägemist!"
+    }
+  ],
+  "paragraphs": [],
+  "names": [],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q2",
+      "question": "Kui palju maksab kilo kartuleid?",
+      "answer": "kaks eurot"
+    },
+    {
+      "id": "q3",
+      "question": "Mitu kilo kartuleid Igor võtab?",
+      "answer": "kolm kilo"
+    },
+    {
+      "id": "q4",
+      "question": "Mida Igor ka võtab?",
+      "answer": "ühe kapsa"
+    },
+    {
+      "id": "q5",
+      "question": "Kui palju kapsas maksab?",
+      "answer": "üks euro"
+    },
+    {
+      "id": "q6",
+      "question": "Mida Igor palub veel?",
+      "answer": "pool kilo juustu"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 3,
+      "word": "kapsa",
+      "lemma": "kapsas",
+      "form": "sg g"
+    },
+    {
+      "id": "g2",
+      "at": 6,
+      "word": "juustu",
+      "lemma": "juust",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 3,
+      "word": "kartuleid",
+      "lemma": "kartul",
+      "form": "pl p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01KmKgTktET2JWeSP2tvZmUQ",
+      "on": "2026-10-10"
+    },
+    "sha8": "d167e6fa"
+  }
+}

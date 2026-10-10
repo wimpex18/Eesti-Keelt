@@ -195,7 +195,11 @@ def library_item(item_id: str, minutes: float = 0.0) -> dict:
 
     Encounters are not knowledge: they bump a met-count and never mark a word known.
     """
-    conn = content_db()
+    from ..material import store
+
+    # Checked unit material (`mat:<unit>:<slug>@<sha8>`, `Material.ident`) is
+    # built into the image's own library, never into the owner's corpus.
+    conn = store.connect() if item_id.startswith("mat:") else content_db()
     row = conn.execute(
         """SELECT i.*, s.name AS source_name, s.licence
            FROM items i JOIN sources s ON s.id = i.source_id

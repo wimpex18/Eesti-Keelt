@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "meeldib",
+  "slug": "vaba-aeg",
+  "title": "Olga vaba aeg",
+  "harno": "vaba aeg ja meelelahutus",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Olga elab Tartus ja töötab koolis. Ta on õpetaja. Pärast tööd on tal vaba aeg. Olgale meeldib väga lugeda. Õhtul loeb ta raamatuid, kui tal on aega.",
+    "Hommikul kell seitse läheb Olga parki jooksma. Talle meeldib joosta, sest park on ilus ja seal on palju puid. Suvel ujub ta tihti järves.",
+    "Olgale ei meeldi televiisorit vaadata. Jalgpall talle ka ei meeldi. Laupäeval tahab ta minna poodi, sest tal on vaja uut jalgratast. Tema jalgratas on väga väike. Uus jalgratas maksab kolmsada eurot.",
+    "Pühapäeval mängib Olga kitarri. Talle meeldib ka laulda, aga ta laulab ainult kodus. Õhtul läheb ta kinno, sest talle meeldivad filmid. Kino on Olga maja kõrval. Pilet maksab kaheksa eurot."
+  ],
+  "names": [
+    "Olga",
+    "Tartu"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus Olga elab?",
+      "answer": "Tartus"
+    },
+    {
+      "id": "q4",
+      "question": "Kus Olga suvel ujub?",
+      "answer": "järves"
+    },
+    {
+      "id": "q5",
+      "question": "Mida on Olgal laupäeval vaja?",
+      "answer": "uut jalgratast"
+    },
+    {
+      "id": "q6",
+      "question": "Kui palju maksab uus jalgratas?",
+      "answer": "kolmsada eurot"
+    },
+    {
+      "id": "q7",
+      "question": "Kus on kino?",
+      "answer": "Olga maja kõrval"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "lugeda",
+      "lemma": "lugema",
+      "form": "da"
+    },
+    {
+      "id": "g2",
+      "at": 3,
+      "word": "laulda",
+      "lemma": "laulma",
+      "form": "da"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "vaadata",
+      "lemma": "vaatama",
+      "form": "da"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "674bebe8"
+  }
+}

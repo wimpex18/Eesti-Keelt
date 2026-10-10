@@ -9,6 +9,10 @@ RAW = DATA / "raw"
 CACHE = DATA / "cache"
 DB_PATH = Path(os.environ.get("EESTI_DB", DATA / "eesti.db"))
 CONTENT_DB = Path(os.environ.get("EESTI_CONTENT_DB", DATA / "content.db"))
+# Checked unit dialogues and texts (ADR-0009), built from `content/material/checked/`.
+# Public repository data, so the image builds it, apart from the owner's corpus
+# above, which the Worker restores over `content.db` (`eesti/material/store.py`).
+MATERIAL_DB = Path(os.environ.get("EESTI_MATERIAL_DB", DATA / "material.db"))
 
 # The levels this tool targets. The exam is planned for 2027 — A2 then B1, or
 # B1 alone — so both stay first-class and no date is hardcoded.

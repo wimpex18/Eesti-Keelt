@@ -8,7 +8,7 @@ human reviewer"; ADR-0004). This is the pipeline, `eesti/material/`.
 python -m eesti.cli material schema                  # the JSON Schema a draft must meet
 python -m eesti.cli material check DRAFT.json...     # the deterministic gates
 python -m eesti.cli material blind DRAFT.json...     # Haiku 5.5, blind, via the Batches API
-python -m eesti.cli material build                   # content/material/checked/ → content.db
+python -m eesti.cli material build                   # content/material/checked/ → data/material.db
 python -m eesti.cli material stats                   # answers, reports, retired items
 ```
 
@@ -118,7 +118,7 @@ content. A batch that has not ended within `--wait` is collected later with
 The checked files are committed; the record is the file. `cli material build`
 re-runs the gates on each, compares its hash with the stamp, and refuses a file
 edited after its checks or one a newer gate refuses — it never trims one. Each
-file becomes, in `content.db`:
+file becomes, in `data/material.db` (`config.MATERIAL_DB`, `EESTI_MATERIAL_DB`):
 
 - an `items` row with id `mat:<unit>:<slug>@<sha8>` under the public source
   `grove-material` (`eesti/licences.py`), skill `lugemine`, labelled
@@ -130,6 +130,14 @@ file becomes, in `content.db`:
 Material whose file is gone is removed. A changed word is a new hash and so a
 new id; an attempt recorded against the old one keeps its question and key in
 the evidence log.
+
+The image builds it (the `Dockerfile`, after EKI's levels are imported), as it
+builds EKI's dictionaries into `data/eesti.db`; a refused file costs its
+material, not the image. It is not `content.db`: on the deployment that is the
+owner's corpus, which the Worker restores over each container and archives by
+the hash of its bytes, so material built into it would vanish at a restore. The
+unit routes, a library item whose id starts `mat:`, and the HARNO-format exam
+tasks read `data/material.db`.
 
 ## 5. In the app
 
@@ -158,4 +166,5 @@ name anyone can choose. A report on the whole text withdraws the material.
   needs a code-known trigger and is not built yet.
 - The forms gate trusts Vabamorf's disambiguator and so refuses some correct
   sentences; the level gate trusts any reading and so accepts a homograph.
-- The unit page does not show the material yet; the routes are ready for it.
+- The unit page does not show the material yet; the routes are ready for it,
+  and the HARNO-format exam tasks use it (B1 reading 4 is built from its texts).
