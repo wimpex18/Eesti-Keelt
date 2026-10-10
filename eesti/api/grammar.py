@@ -208,6 +208,11 @@ def enrich_word(word: str) -> dict:
         # a word card is a reminder, not an entry. Whose Russian wins is
         # `meaning.py`'s call.
         **russian,
+        # The live dictionary's English and Ukrainian for the word (EKI's
+        # combined dictionary, sense by sense), for the dictionary entry.
+        "english": list(live.english or ()) if live else [],
+        "ukrainian": list(live.ukrainian or ()) if live else [],
+        "translations_source": live.source if live and (live.english or live.ukrainian) else None,
         "phrases": phrases,
         "phrases_source": "eki-evs" if phrases else None,
         # EVS's idioms for the word (*väljendid*), with their Russian.

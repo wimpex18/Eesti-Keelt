@@ -643,7 +643,7 @@ Browse                         Act                            Task
   focused text field with the keyboard up does the same. With no primary, the
   task row holds the skills key alone, so the four skills stay one tap away.
 - The dock is opaque `sheet` with a `line` top rule; no blur, no shadow.
-- Kursus, Kordamine, Eksam, Sõnavara, Töövihikud, Edenemine, Profiil and the
+- Kursus, Kordamine, Eksam, Sõnavara, Sõnastik, Töövihikud, Edenemine, Profiil and the
   appearance switch (*Süsteem*, *Hele*, *Tume*) live in **Veel**, a sheet
   opened from the header. On a desktop the sheet opens beside the sidebar and
   lists only what the sidebar does not.
@@ -1147,11 +1147,104 @@ Escape, its close key or a tap on the scrim, and gives focus back to what
 opened it. Veel keeps its `<details>` summary as the opener, so the sheet and
 the summary's open state follow each other.
 
-### Word card
+### Word card and Sõnastik
 
-Unchanged in content (meaning first, EVS examples, forms on request, sources);
-its headword uses the interlinear treatment for the tapped form in context
-(*mulle*, form line "mina, alaleütlev"). Owned by S9.
+One entry per lemma, assembled from sources and naming each one
+(`eesti/dictionary.py`), shown two ways: the **word card**, a sheet over the
+text or list it was opened from, and **Sõnastik** (`#sonastik`), the learner's
+dictionary, where `#sonastik/<lemma>` is the same entry as a page. Built by S9
+(`eesti/web/js/dictionary.js`); the reasons are in
+[design research](docs/design-research.md), "Word card and Sõnastik as built".
+
+```
+Phone 390, card at half height            Desktop 1280, card beside the word
+┌──────────────────────────────────┐      ┌────────┬───────────────────────────────┐
+│ Anna mulle see raamat.  (scrim)  │      │        │ Anna ▓mulle▓ see raamat.       │
+├──────────────────────────────────┤      │        │  ┌─────────────────────────┐   │
+│              ▬▬▬               ✕ │      │        │  │ mulle            🔈 EKI ✕│   │
+│ mulle                   🔈 EKI   │      │        │  │ ‾‾‾‾‾                    │   │
+│ ‾‾‾‾‾                            │      │        │  │ ainsuse alaleütlev ед. ч.│   │
+│ ainsuse alaleütlev ед. ч., аллат.│      │        │  │ mina asesõna  A1         │   │
+│ mina  asesõna местоим.  A1       │      │        │  │ я                        │   │
+│ я                                │      │        │  │ по-украински я           │   │
+│ по-украински  я                  │      │        │  │ ┆Mudeli mustand Claude…┆ │   │
+│ allikas: Sõnaveeb (EKI)          │      │        │  │ Vormid, Näited, …        │   │
+│ ┆ Mudeli mustand  Claude Opus 5.5┆│      │        │  └─────────────────────────┘   │
+│ ┆ по-английски  I                ┆│      └────────┴───────────────────────────────┘
+└──────────────────────────────────┘
+```
+
+**The head.** From a text, the tapped form is the interlinear word: its form
+line is Vabamorf's reading of it in its sentence (`/api/lookup` with the
+sentence), written by `interlinear()` from that reading alone. A reading
+Vabamorf leaves open (several lemmas, or one lemma with several forms, and no
+sentence to settle it) shows the lemma and its meaning and no form name; the
+other readings follow as text actions (*Другие разборы: mull mitmuse osastav*),
+and choosing one names its form only when Vabamorf reads it one way as that
+lemma. Under the head: the lemma when the form is not it, the part of speech
+with its gloss, and the level as a chip (the EKI list's level for this part of
+speech, `official_level_pos`; an estimate says *оценка* and names Ekilex). The
+voice key sits beside the word: EKI's PSV recording where PSV has one
+(*запись EKI*), synthesis otherwise, and it says which.
+
+**Meaning first.** The explanation language's words in the meaning colour
+(`gloss`, lead size), then English and Ukrainian as a two-column list with the
+language named in the explanation language, then one *allikas* line naming
+every source shown. Russian follows `meaning.py`; English and Ukrainian are the
+live dictionary's, sense by sense, and replace a model's draft the moment the
+card's second request (`/api/enrich`) brings them. A draft (where no source
+answered) sits in the model block of **Model output**: a dashed `edge` outline,
+*Mudeli mustand* "черновик модели" and the drafting engine first, then the
+draft, then one sentence saying it is not from a dictionary and what the
+second model named when it translated the draft back blind. A draft keeps its
+main sense first: a Ukrainian word shared with Russian (*зуб*, *сад*) stays, the
+second model flags any word that is not standard Ukrainian, and code drops a
+flagged word or, when the flagged word is the first, the whole draft, so a
+secondary sense never stands alone as the meaning. It never uses a result
+colour and never sits in the sourced list.
+
+**Then** the forms (*Vormid*): a noun's singular and plural nimetav, omastav and
+osastav as a table with ainsus and mitmus columns; a verb's ma, da, b, s, nud,
+tud and takse as rows, each named and glossed; pronouns from the EKI teatmik's
+tables; parallel forms joined by ~ as EKI writes them; a form PSV recorded has
+its own voice key; the tapped form carries the interlinear bar in the table.
+The table scrolls inside itself with its row labels held. Then EKI's learner
+definition (*Seletus*), EVS's example phrases with their Russian (three shown,
+the rest and the idioms folded), and what the live dictionary adds (rektsioon,
+muuttüüp, the fuller wording folded, a link to Sõnaveeb for the rest).
+
+**Actions.** *Lisa kordamisse* "в повторение" is the card's one filled button and
+goes through `/api/mine`, the existing review path, with the tapped form and
+its sentence; queued, it reads *Kordamises* and is `aria-disabled`. *Tean seda
+sõna* and *Pole vaja* are text actions setting the word status; the learner's
+status is said under them. The card links to its entry in Sõnastik
+(*Ava sõnastikus*); the entry lists every source, with what it gave and its
+licence, in a fold (*Allikad*).
+
+**The sheet.** A native modal `dialog`: on a phone a bottom sheet that opens at
+half height (56% of the screen, at most 34rem) and rises to full when its body
+is scrolled or its grabber (a 44px key, *Laienda*) is pressed; on a desktop a
+dialog of 28rem beside the word, on whichever side of it has more room and
+never over it, with no scrim, so the sentence stays readable and the word stays
+marked (`jarv` on `jarv-soft`). Focus goes to the close key, stays in the sheet
+(Tab past the last control wraps to the first: a modal dialog alone would let
+it leave for the browser), and returns to the word on Escape, the close key or
+a click outside; a link out of the card closes it.
+
+**Sõnastik.** A labelled search field (*Otsi sõna* "найти слово"), searched as
+the learner types: any form finds its lemma (the form index, then Vabamorf),
+a beginning finds the words it begins, a Russian word finds the words EVS
+translates with it. Results are rows of 60px on hairlines: the lemma and its
+level, then the form the query was (named) and the meaning; a chevron, no
+card. When the query is one form Vabamorf reads one way, it heads the results
+as the interlinear word (*majja* over *lühike sisseütlev*). Nothing found:
+Vabamorf's spelling suggestions as keys, never a guessed word. Before a search:
+one sentence and the words opened in this session. The entry page has a back
+link, the entry, and its one primary, *Lisa kordamisse* (`data-primary`): in
+the action bar on a phone and at the right of a sticky action row on a desktop,
+which the page's focus scrolling stops clear of. An unknown or broken entry
+route shows the empty state or falls back to Täna. Sõnastik is in Veel, beside
+Sõnavara.
 
 ### Banners and empty states
 

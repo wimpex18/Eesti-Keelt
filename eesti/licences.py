@@ -422,22 +422,26 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "shows — through its API with the learner's key (`EKILEX_API_KEY`). "
         "The live dictionary whenever the key is set, ahead of the third-party "
         "`sonapi` mirror: the learner-level definition (`wwLite`), the native "
-        "one, the Russian translations of each sense, rection, muuttüüp and "
+        "one, the Russian, English and Ukrainian translations of each sense "
+        "(English and Ukrainian for the dictionary entry), rection, muuttüüp and "
         "CEFR level. Single lookups, one request a second, each word asked "
         "once and kept in `vocab.db` within `gloss.DAILY_BUDGET`. Terms "
         "(ekilex.ee, 2022): CC BY 4.0, commercial use not restricted, EKI and "
         "Ekilex to be credited and the changes described.",
         changes="Из ответа Ekilex взяты определение для изучающих язык и "
-                "полное определение, русские переводы (не более пяти: сначала "
-                "основного значения), управление, тип словоизменения и уровень "
-                "CEFR; устаревшие значения, переводы родственных значений и "
+                "полное определение, переводы на русский, английский и "
+                "украинский (не более пяти на язык: сначала основного "
+                "значения), управление, тип словоизменения и уровень CEFR; "
+                "устаревшие значения, переводы родственных значений и "
                 "остальные поля отброшены.",
     ),
     Source(
         "sonapi", "Sõnaveeb via api.sonapi.ee", "api",
         "Ekilex data CC-BY-4.0; third-party endpoint", True,
         "https://api.sonapi.ee/v2/",
-        "Inflection type, rection, Russian glosses, definitions. Single lookups "
+        "Inflection type, rection, Russian glosses (and each meaning's own English "
+        "and Ukrainian, for the dictionary entry; the mirror's top-level English "
+        "list names no source and is not stored as EKI's), definitions. Single lookups "
         "only — never batch, the upstream asks not to be crawled. Answers are "
         "kept in vocab.db (eesti/gloss.py) so a word is asked about once ever, "
         "capped per day, and the store is private to its signed-in account "
@@ -534,6 +538,18 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "form known to Vabamorf, every content lemma on EKI's level list, "
         "answers verbatim in the text, a second model's blind check. Each "
         "item names its engine and prompt version.",
+    ),
+    Source(
+        "klint-glosses", "Klint: mudeli koostatud tõlked", "generated",
+        "own work", True, None,
+        "Sõnastik's English and Ukrainian for words no source here translates: "
+        "Claude Opus 5.5 drafts them from EKI EVS's Russian, code gates them, "
+        "and Claude Haiku 5.5, shown only the draft, translates it back (and, "
+        "for Ukrainian, names any word that is not standard Ukrainian); code "
+        "drops flagged words, refuses a draft that loses its main sense, and "
+        "keeps a draft only when the back-translation names the word again "
+        "(`eesti/dictionary_glosses.py`). Shown in the model block with both "
+        "engines, never as a dictionary's, and only until a source answers.",
     ),
     Source(
         "eki-valjendid",

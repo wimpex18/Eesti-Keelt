@@ -177,11 +177,15 @@ class TestTheCardPrefersEki:
 
         assert _glosses_for(["iga"])["iga"] == ["возраст", "век", "каждый"]
 
-    def test_the_card_credits_eki_only_when_eki_answered(self):
-        card = (ROOT / "eesti" / "web" / "js" / "vocab.js").read_text(encoding="utf-8")
-        guard = card.index('russian_source === "eki-evs"')
-        credit = card.index("EKI eesti-vene sõnaraamat", guard)
-        assert 0 < credit - guard < 200
+    def test_the_card_credits_eki_only_when_eki_answered(self, tmp_path):
+        """The card names the source each meaning came from (`dictionary.entry`)."""
+        from eesti import dictionary
+
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        evs.store(conn, [evs.Entry("iga", "pron", ("каждый",))])
+        assert dictionary.entry(conn, "iga")["meanings"]["ru"]["source"] == "eki-evs"
+        assert dictionary.entry(conn, "palk") is None or \
+            dictionary.entry(conn, "palk")["meanings"]["ru"]["source"] != "eki-evs"
 
 
 EXAMPLES = (
@@ -274,8 +278,6 @@ class TestExamplePhrases:
         assert got["found"] is True
         assert got["phrases"] == [{"et": "küps iga", "ru": "зрелый возраст"}]
         assert got["phrases_source"] == "eki-evs"
-        card = (ROOT / "eesti" / "web" / "js" / "vocab.js").read_text(encoding="utf-8")
-        assert "näited: EKI eesti-vene sõnaraamat · CC BY 4.0" in card
 
 
 class TestPhrasePractice:

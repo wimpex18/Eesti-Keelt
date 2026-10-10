@@ -258,7 +258,7 @@ class TestSettlingAWord:
 
         page = markup_and_script()
         assert '"ignore"' in page, "the page cannot reach `eiran`"
-        assert "#skipBtn" in page and "#knowBtn" in page
+        assert 'data-act="ignore"' in page and 'data-act="know"' in page
 
 
 class TestTheBrowseRouteItself:

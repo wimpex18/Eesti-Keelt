@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS official_levels (
 );
 CREATE INDEX IF NOT EXISTS idx_official_level ON official_levels(level);
 
+-- Every line of the same list, one per lemma and part of speech: *mina* is the
+-- pronoun at A1 and the noun "ego" at B1, and `official_levels` keeps one row per
+-- word. The dictionary names the level of the word an entry is about.
+CREATE TABLE IF NOT EXISTS official_level_pos (
+    word  TEXT NOT NULL,
+    pos   TEXT NOT NULL DEFAULT '',   -- EKI's one-letter code, unmapped
+    level TEXT NOT NULL,
+    PRIMARY KEY (word, pos)
+);
+
 -- Cached Vabamorf synthesis. Populated lazily; 'distinct' records whether the
 -- genitive/partitive contrast is actually testable for this word.
 CREATE TABLE IF NOT EXISTS object_cases (
@@ -293,6 +303,12 @@ def import_official_levels(
     """
     rows = read_official_levels(path)
     with conn:
+        conn.execute("DELETE FROM official_level_pos")
+        # A lemma listed twice for one part of speech keeps its lower level.
+        conn.executemany(
+            "INSERT INTO official_level_pos(word, pos, level) VALUES (?,?,?)"
+            " ON CONFLICT(word, pos) DO UPDATE SET level = min(level, excluded.level)",
+            [(word, pos or "", level) for word, level, pos, _ in rows])
         conn.execute("DELETE FROM official_levels")
         conn.executemany(
             "INSERT OR REPLACE INTO official_levels(word, level, pos, freq)"

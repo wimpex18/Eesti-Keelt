@@ -22,6 +22,8 @@ Learning and practice
 Supporting destinations
 ├── Kordamine     FSRS queue, with vocabulary and progress links
 ├── Sõnavara      five-word practice; the full word collection is an optional fold
+├── Sõnastik      the dictionary: any form or a Russian word finds its entry;
+│                 the word card opened from a text is the same entry
 ├── Töövihikud    official HARNO materials and in-app downloaded PDF pages
 ├── Eksam         optional A2/B1 practice, mock exam and official tasks;
 │                 readiness, format, sitting and grammar checks open on request
@@ -31,9 +33,10 @@ Supporting destinations
 
 Context pages have no extra permanent navigation item: `#start` is onboarding,
 `#session/<topic>` is learn → practise → check, and `#rule/<topic>` is the full
-reference. Rules use a page rather than a modal. Word lookup keeps its contextual
-popover. Source text, audio, video and PDFs stay in their in-app viewers when
-available; attribution links remain visible.
+reference. Rules use a page rather than a modal. Word lookup opens the word card,
+a sheet over the text (`#sonastik/<lemma>` is the same entry as a page). Source
+text, audio, video and PDFs stay in their in-app viewers when available;
+attribution links remain visible.
 
 Onboarding offers beginning, a selected starting point, or a bounded grammar
 assessment of up to three existing five-item topic checks. This is a course

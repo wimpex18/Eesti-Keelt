@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from . import (
     assets,
+    dictionary,
     exam,
     grammar,
     health,
@@ -31,6 +32,7 @@ ROUTERS = (
     assets.router,
     health.router,
     grammar.router,
+    dictionary.router,
     notion.router,
     practice.router,
     library.router,

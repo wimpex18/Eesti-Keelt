@@ -6,6 +6,7 @@
    somewhere the learner did not choose. */
 
 import {$, once} from "./core.js";
+import {ensureDictionary} from "./dictionary.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
 import {loadLibrary} from "./reading.js";
@@ -169,6 +170,7 @@ export function goToPlace(tab) {
   ON_OPEN[tab]?.();
   if (tab === "session") ensureSession(topic);
   if (tab === "rule") ensureRule(topic);
+  if (tab === "sonastik") ensureDictionary(topic);
   window.dispatchEvent(new CustomEvent("eesti:place", {detail: tab}));
   return true;
 }

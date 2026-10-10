@@ -89,6 +89,7 @@
 <a class="in-sidebar" href="#review" lang="et">Kordamine <span class="ru" lang="ru">повторение</span></a>
 <a class="in-sidebar" href="#exam" lang="et">Eksam <span class="ru" lang="ru">подготовка</span></a>
 <a href="#sonad" lang="et">Sõnavara <span class="ru" lang="ru">слова</span></a>
+<a href="#sonastik" lang="et">Sõnastik <span class="ru" lang="ru">словарь</span></a>
 <a href="#vihikud" lang="et">Töövihikud <span class="ru" lang="ru">официальные материалы</span></a>
 <a href="#status" lang="et">Edenemine <span class="ru" lang="ru">прогресс</span></a>
 <a class="in-sidebar" href="#profile" lang="et">Profiil <span class="ru" lang="ru">профиль</span></a>
@@ -466,7 +467,7 @@
        minority, which is the A1–B1 exam vocabulary. -->
 <section class="panel" hidden="" id="tab-sonad">
 <div class="page-head"><div>
-<h2 class="page-title" lang="et">Sõnavara <i class="ru" lang="ru">словарь</i></h2>
+<h2 class="page-title" lang="et">Sõnavara <i class="ru" lang="ru">слова</i></h2>
 <p class="lede">Список слов, сначала самые частотные. Нажми на слово, чтобы открыть карточку.</p>
 </div></div>
 <!-- Sõnatrenn: the Russian meaning, the Estonian word typed back (`js/words.js`). -->
@@ -525,6 +526,24 @@
 </div><div aria-live="polite" id="vocOut"></div><div class="row" hidden="" id="vocMore">
 <button class="ghost" id="vocMoreBtn" lang="et">Veel sõnu <span class="ru" lang="ru">ещё слова</span></button>
 </div></details></section>
+<!-- ── Sõnastik: the dictionary (`js/dictionary.js`) ──────────────────
+       A word in any form, or a Russian word, finds its entry; `#sonastik/<lemma>`
+       is one entry, every part with its source. -->
+<section class="panel" hidden="" id="tab-sonastik">
+<div id="dictSearch">
+<div class="page-head"><div>
+<h2 class="page-title" lang="et">Sõnastik <i class="ru" lang="ru">словарь</i></h2>
+<p class="lede">Слово в любой форме или по-русски: значение, формы, произношение и примеры из словарей EKI.</p>
+</div></div>
+<form class="dict-form" id="dictForm" role="search">
+<label for="dictQ" lang="et">Otsi sõna <span class="ru" lang="ru">найти слово</span></label>
+<input autocapitalize="off" autocomplete="off" autocorrect="off" enterkeyhint="search" id="dictQ" lang="et" maxlength="60" placeholder="maja, majja, дом" spellcheck="false" type="search"/>
+</form>
+<p class="hint dict-count" id="dictCount" role="status"></p>
+<div id="dictResults"></div>
+</div>
+<div hidden="" id="dictEntry"></div>
+</section>
 <!-- ── Reading ───────────────────────────────────────────────────── -->
 <section class="panel" hidden="" id="tab-read">
 <div class="page-head"><div>
@@ -581,7 +600,7 @@
 <div id="quizList"></div>
 </div>
 </div>
-<div hidden="" id="wordCard"></div></section>
+</section>
 <!-- ── Listening ─────────────────────────────────────────────────── -->
 <section class="panel" hidden="" id="tab-listen">
 <div class="page-head"><div>
@@ -662,6 +681,13 @@
 <a data-skill="speak" href="#speak" lang="et">Rääkimine <span class="ru" lang="ru">говорение</span></a>
 <a data-skill="write" href="#write" lang="et">Kirjutamine <span class="ru" lang="ru">письмо</span></a>
 </nav>
+</dialog>
+<!-- The word card (`js/dictionary.js`): a bottom sheet on a phone, at half height
+     until scrolled or raised; beside the word on a desktop. -->
+<dialog class="sheet word-sheet" id="wordCard">
+<div class="sheet-head"><button aria-expanded="false" aria-label="Laienda — развернуть" class="word-grab" type="button"></button>
+<button aria-label="Sulge — закрыть" class="iconbtn sheet-close" type="button"></button></div>
+<div class="word-body"></div>
 </dialog>
 <!-- The one polite announcer: moments worth saying aloud (a topic mastered). -->
 <div aria-live="polite" class="sr-only" id="announce" role="status"></div>
