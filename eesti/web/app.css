@@ -675,7 +675,7 @@ a.lib-item{text-decoration:none;color:inherit}
 #wordCard,#vocCard{position:sticky;bottom:var(--s3);z-index:5;margin-top:var(--s4);
   padding:16px 56px 16px 18px;border:1px solid var(--line);border-radius:var(--r-3);background:var(--sheet);
   box-shadow:var(--sheet-shadow);animation:rise-in var(--dur-4) var(--ease-enter)}
-.card-content{max-height:calc(100dvh - var(--dock-h) - var(--hdr-h) - 160px);overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
+.card-content{max-height:calc(100dvh - var(--dock-h) - var(--kb) - var(--hdr-h) - 220px);overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
 @media (max-width:719px), (hover:none) and (max-height:559px){
   #wordCard,#vocCard{bottom:calc(var(--dock-h) + var(--kb) + 12px)}
 }
