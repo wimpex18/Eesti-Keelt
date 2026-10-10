@@ -14,10 +14,12 @@ the mark is an underlined K and the brand assets are rebuilt in spruce and
 birch (`deploy/build-brand.py`). Identifiers keep "grove" (`grove-material`,
 the Worker). Home's label is Täna. `PRODUCT.md` states the language default
 (first of uk, ru, en from the system; else en; a saved choice wins).
-`qa/opus-sessions.md` adds S7R (the spec review) and S10 (tokens and shell,
-owns `app.css`); S3, S4, S8, S9 briefs point at DESIGN.md and the language rule.
+`qa/opus-sessions.md` now holds the run order with a progress table, how a
+session starts from one line, and briefs S7R, S7F, R, S10, S3, S9, S8, S4.
 
-Next step: run S7R in a new session; then the owner merges; then S10.
+Next step: the owner merges PR #131; then step 1 of qa/opus-sessions.md
+(S7R, S2 and R1 side by side), each started with "Run <ID> from
+qa/opus-sessions.md."
 
 Follow-ups:
 - Owner: Business Register and trademark search for "Klint", then buy klint.ee.
