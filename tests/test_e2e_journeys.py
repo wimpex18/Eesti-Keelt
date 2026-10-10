@@ -1083,10 +1083,16 @@ class TestTheDictionary:
         # *mulle* in *Anna mulle see raamat*: Vabamorf reads *mina*, allative.
         assert card.locator(".dict-head .il-name").inner_text() == "ainsuse alaleütlev"
         assert card.locator(".dict-lemma").inner_text() == "mina"
-        # Focus stays in the card as Tab goes round, and Escape gives it back.
-        for _ in range(12):
+        # Focus stays in the card as Tab goes round past its last stop (fewer
+        # stops when EVS has no examples, as in CI), and Escape gives it back.
+        stops = card.evaluate("""d => [...d.querySelectorAll(
+            'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
+            .filter(x => x.checkVisibility()).length""")
+        for _ in range(stops + 2):
             page.keyboard.press("Alt+Tab" if page.engine_name == "webkit" else "Tab")
             assert card.evaluate("d => d.contains(document.activeElement)")
+        page.keyboard.press("Alt+Shift+Tab" if page.engine_name == "webkit" else "Shift+Tab")
+        assert card.evaluate("d => d.contains(document.activeElement)")
         page.keyboard.press("Escape")
         page.wait_for_function("!document.querySelector('#wordCard').open")
         assert word.evaluate("el => el === document.activeElement")

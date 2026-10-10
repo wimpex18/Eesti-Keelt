@@ -368,6 +368,8 @@ async function fetchEntry(lemma) {
 
 const DESKTOP = matchMedia("(min-width:720px) and (hover:hover), (min-width:720px) and (min-height:560px)");
 let cardToken = 0;
+const TABBABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), '
+  + 'textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 /* The sheet. The shell closes it (its close key, Escape, the scrim) and gives
    focus back to the word that opened it (`chrome.js`, Sheets); this adds the
@@ -385,6 +387,19 @@ function sheet() {
       cardToken++;
       setFull(el, false);
       document.querySelectorAll(".looked-up").forEach(w => w.classList.remove("looked-up"));
+    });
+    // Tab goes round inside the card. A modal dialog makes the page behind it
+    // inert but lets Tab leave its last control for the browser (in the
+    // installed app, for nowhere), so the card wraps it itself.
+    el.addEventListener("keydown", e => {
+      if (e.key !== "Tab") return;
+      const stops = [...el.querySelectorAll(TABBABLE)].filter(x => x.checkVisibility());
+      if (!stops.length) return;
+      const first = stops[0], last = stops[stops.length - 1], at = document.activeElement;
+      if (e.shiftKey ? at === first || !el.contains(at) : at === last) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
     });
     // Scrolling the half-height sheet raises it, as a phone's sheets do.
     el.querySelector(".word-body").addEventListener("scroll", ev => {

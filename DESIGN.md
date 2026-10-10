@@ -1147,9 +1147,10 @@ half height (56% of the screen, at most 34rem) and rises to full when its body
 is scrolled or its grabber (a 44px key, *Laienda*) is pressed; on a desktop a
 dialog of 28rem beside the word, on whichever side of it has more room and
 never over it, with no scrim, so the sentence stays readable and the word stays
-marked (`jarv` on `jarv-soft`). Focus goes to the close key, stays in the sheet,
-and returns to the word on Escape, the close key or a click outside; a link out
-of the card closes it.
+marked (`jarv` on `jarv-soft`). Focus goes to the close key, stays in the sheet
+(Tab past the last control wraps to the first: a modal dialog alone would let
+it leave for the browser), and returns to the word on Escape, the close key or
+a click outside; a link out of the card closes it.
 
 **Sõnastik.** A labelled search field (*Otsi sõna* "найти слово"), searched as
 the learner types: any form finds its lemma (the form index, then Vabamorf),
