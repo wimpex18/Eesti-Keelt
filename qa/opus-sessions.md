@@ -75,10 +75,13 @@ because the exam reading task 4 waits for its checked texts (sittings 7–8 Nov
 ```text
 Before anything else, in this order:
 1. Work in your own git worktree on a new branch from the latest origin/main,
-   never in a checkout another session uses: the app's worktree, or
-   `git fetch origin && git worktree add "../Eesti Keelt-<brief>" -b claude/<brief-slug> origin/main`.
-   The worktree sits beside the main checkout, never inside it; do not move
-   it, or git loses track of it. The next refresh removes it once merged.
+   never in a checkout another session uses: the app's worktree, or, from the
+   main checkout,
+   `git fetch origin && git worktree add ".claude/worktrees/<brief>" -b claude/<brief-slug> origin/main`.
+   Every worktree lives inside the project in `.claude/worktrees/`, which git
+   ignores; never create one beside the project folder, and never move or
+   rename one by hand (git loses track of it; use `git worktree move`). The
+   next refresh removes it once merged.
    In it run `python -m eesti.cli worktree-data "<path of the main checkout>"`
    (reference data only, never the owner's learning history or recordings).
 2. Read AGENTS.md, docs/status.md, the ADRs your brief names, and
@@ -142,6 +145,10 @@ above, and write its own `qa/sessions/<branch>.md`.
    keep both sides.
 3. After each refresh step (R1–R4) is merged, the next step's sessions start
    from an up-to-date `main`.
+4. Session worktrees live in `.claude/worktrees/` inside the project (hidden in
+   Finder; Cmd+Shift+. shows it). Leave them where they are: dragging one breaks
+   git's link to it. The refresh removes merged ones; to remove one yourself,
+   from the project folder: `git worktree remove ".claude/worktrees/<name>"`.
 
 ## S2. Lessons: unit dialogues and texts (step 1)
 
@@ -169,9 +176,12 @@ to date with what merged, move each session's open follow-ups (and any owner
 operations they list, such as a one-off import) into HANDOFF.md or the relevant
 doc, delete the merged qa/sessions/ notes, set the rows of merged sessions in
 "Progress and order" to done with their PR numbers, remove the briefs of done
-sessions from this file, remove the worktrees of merged sessions (after `git -C
-<worktree> status` shows nothing to keep: `git worktree remove`, then `git
-worktree prune`), and mark the next step "ready". Fast suite green. One
+sessions from this file, remove the worktrees of merged sessions (each one in
+`.claude/worktrees/` whose branch is merged into origin/main and whose `git -C
+<worktree> status` is empty: `git worktree remove`, then `git branch -d` its
+branch; if `git worktree list` marks one "prunable", find the folder and run
+`git worktree repair <folder>` instead of pruning), and mark the next step
+"ready". Fast suite green. One
 branch and one PR titled "[R<n>] Refresh after step <n>"; Linear is paused.
 ```
 
