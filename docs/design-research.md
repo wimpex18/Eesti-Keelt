@@ -230,6 +230,28 @@ optional Ekilex lookups beside Vabamorf forms ([sources](sources.md),
 needed. A vendor's word-percentage presentation is not adopted as a
 proficiency score.
 
+## Open: the exercise itself
+
+The owner, on 10 October 2026, set our free-practice item on an iPhone (a
+sentence with a drawn blank, a field whose placeholder is "?", an inline
+*Kontrolli*, the lemma with its gloss and level) beside a lesson from a
+competitor, Sõnarada (sõnarada; Russian-speaking learners of Estonian, also
+built with AI tools): matching halves dragged into pairs, a paragraph whose
+gaps are drop-downs coloured right or wrong, a check button under each block,
+a glossary under the text, "ask the teacher", floating *Dictionary* and
+*Notes* buttons. The exercises follow the same logic — a blank, a "?", a gap
+to fill — and both look like generic AI-made apps.
+
+Direction: the exercise forms and their look are to be rethought from the
+best product design and apps of October 2026, not polished. Take what works
+from competitors, and avoid both their exercise types and the look we share
+with them. `DESIGN.md`'s session ("the gap is the field") is still a
+gap-fill, so it is a starting point here, not the answer. The owner will add
+screenshots, comments and a video of the competitor; the redesign of the
+exercise is discussed once the S sessions are done. The learning rules stay
+fixed whatever the exercise looks like: code grades, only the first attempt
+counts, a form is named only after the learner has tried.
+
 ## Acceptance
 
 An independent reviewer session (S7R, 10 October 2026; its comment on PR #131)

@@ -269,6 +269,10 @@ not move between states, every result carried by a shape and a word as well as
 colour, and the form named under the word only after an attempt. Its Täna and
 session sections (the seven-step session line, beads, wireframes) are the
 reviewed proposal; improve on them where you can ("Redesign sessions").
+The owner finds the current exercise — a blank, a "?", a gap to fill — as
+generic as a competitor's (docs/design-research.md, "Open: the exercise
+itself"); its forms are redesigned after the S sessions. Build the state
+machine and the rhythm on it, and keep the item's look easy to replace.
 ```
 
 ## S4. Explanation languages (step 8, alone)
