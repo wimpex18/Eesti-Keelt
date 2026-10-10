@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "meeldib",
+  "slug": "vaba-aeg",
+  "title": "Olga vaba aeg",
+  "harno": "vaba aeg ja meelelahutus",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Olga elab Tartus ja töötab koolis. Ta on õpetaja. Pärast tööd on tal vaba aeg. Olgale meeldib väga lugeda. Õhtul loeb ta raamatuid.",
+    "Hommikul kell 7 läheb Olga parki jooksma. Talle meeldib joosta, sest park on ilus ja seal on palju puid. Suvel ujub ta tihti järves.",
+    "Olgale ei meeldi televiisorit vaadata. Jalgpall talle ka ei meeldi. Laupäeval tahab ta minna poodi, sest tal on vaja uut jalgratast. Tema jalgratas on väga väike. Uus jalgratas maksab 300 eurot.",
+    "Pühapäeval mängib Olga kitarri ja laulab. Õhtul läheb ta kinno, sest talle meeldivad filmid. Kino on Olga maja kõrval. Pilet maksab 8 eurot."
+  ],
+  "names": [
+    "Olga",
+    "Tartu"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus Olga elab?",
+      "answer": "Tartus"
+    },
+    {
+      "id": "q2",
+      "question": "Mis on Olga töö?",
+      "answer": "õpetaja"
+    },
+    {
+      "id": "q3",
+      "question": "Millal läheb Olga hommikul jooksma?",
+      "answer": "kell 7"
+    },
+    {
+      "id": "q4",
+      "question": "Kus Olga suvel ujub?",
+      "answer": "järves"
+    },
+    {
+      "id": "q5",
+      "question": "Mida on Olgal laupäeval vaja?",
+      "answer": "uut jalgratast"
+    },
+    {
+      "id": "q6",
+      "question": "Kui palju maksab uus jalgratas?",
+      "answer": "300 eurot"
+    },
+    {
+      "id": "q7",
+      "question": "Kus on kino?",
+      "answer": "Olga maja kõrval"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "lugeda",
+      "lemma": "lugema",
+      "form": "da"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "joosta",
+      "lemma": "jooksma",
+      "form": "da"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "vaadata",
+      "lemma": "vaatama",
+      "form": "da"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "paev",
+  "slug": "minu-paev",
+  "title": "Olga päev",
+  "harno": "igapäevaelu",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Olga elab Tartus. Ta töötab kohvikus. Hommikul tõuseb ta kell 6. Ta joob alati kohvi ja sööb leiba. Kell 7 ootab ta peatuses bussi. Töö algab kell 8 ja lõppeb kell 16. Töö kestab 8 tundi. Lõunal sööb Olga tihti suppi.",
+    "Kell 17 on Olga kodus. Tema kass ootab teda. Õhtul teeb ta süüa. Ta loeb tihti raamatut või kuulab muusikat. Ta vaatab harva televiisorit. Kell 22 läheb Olga magama.",
+    "Laupäeval Olga ei tööta. Ta tahab puhata. Ta läheb parki või kinno. Pühapäeval helistab ta emale. Ema elab Narvas."
+  ],
+  "names": [
+    "Olga",
+    "Tartu",
+    "Narva"
+  ],
+  "off_list": [
+    {
+      "lemma": "kestma",
+      "gloss_ru": "длиться"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus Olga töötab?",
+      "answer": "kohvikus"
+    },
+    {
+      "id": "q2",
+      "question": "Millal Olga hommikul tõuseb?",
+      "answer": "kell 6"
+    },
+    {
+      "id": "q3",
+      "question": "Millal töö lõppeb?",
+      "answer": "kell 16"
+    },
+    {
+      "id": "q4",
+      "question": "Mida Olga lõunal sööb?",
+      "answer": "suppi"
+    },
+    {
+      "id": "q5",
+      "question": "Millal on Olga kodus?",
+      "answer": "kell 17"
+    },
+    {
+      "id": "q6",
+      "question": "Mida Olga harva vaatab?",
+      "answer": "televiisorit"
+    },
+    {
+      "id": "q7",
+      "question": "Kus elab Olga ema?",
+      "answer": "Narvas"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "süüa",
+      "lemma": "sööma",
+      "form": "da"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "magama",
+      "lemma": "magama",
+      "form": "ma"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "puhata",
+      "lemma": "puhkama",
+      "form": "da"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

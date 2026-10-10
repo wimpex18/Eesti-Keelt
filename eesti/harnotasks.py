@@ -426,9 +426,19 @@ def _stage_fits(unit_id: str, level: str) -> bool:
     return STAGES.index(stage) <= STAGES.index(level) if level in STAGES else True
 
 
+def _checked(level: str, kinds: tuple[str, ...] = ("dialoog", "tekst")) -> list[Text]:
+    """The checked material the image built (`config.MATERIAL_DB`), never the corpus."""
+    from contextlib import closing
+
+    from .material import store
+
+    with closing(store.connect()) as conn:
+        return material_texts(conn, level, kinds)
+
+
 def material_texts(content: sqlite3.Connection | None, level: str,
                    kinds: tuple[str, ...] = ("dialoog", "tekst")) -> list[Text]:
-    """S1's checked material (`eesti/material/store.py`), at or below `level`."""
+    """Checked material (`eesti/material/store.py`) in `content`, at or below `level`."""
     from .material import LABEL, SOURCE_ID
     from .material.schema import Material
     from .morph import split_sentences
@@ -1086,14 +1096,14 @@ def build(task: TaskType, *, seed: int, content: sqlite3.Connection | None,
     if task.code.endswith("ku1"):
         return listening_numbers(task, seed)
     if task.part == "kuulamine":
-        texts = (material_texts(content, task.level, ("dialoog",))
+        texts = (_checked(task.level, ("dialoog",))
                  + corpus_texts(content, rng, words, task.level))
         rng.shuffle(texts)
         return (listening_gaps(task, seed, texts, words)
                 or listening_gaps(task, seed, _evs_texts(words, task.level, seed), words))
     if task.no == 4 and task.level == "B1":
-        return phrase_bank(task, seed, material_texts(content, task.level, ("tekst",)))
-    texts = material_texts(content, task.level) + corpus_texts(content, rng, words, task.level)
+        return phrase_bank(task, seed, _checked(task.level, ("tekst",)))
+    texts = _checked(task.level) + corpus_texts(content, rng, words, task.level)
     rng.shuffle(texts)
     return reading_gaps(task, seed, texts, words)
 

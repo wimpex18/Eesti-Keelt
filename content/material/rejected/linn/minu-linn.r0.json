@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "linn",
+  "slug": "minu-linn",
+  "title": "Minu linn",
+  "harno": "ümbruskond",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Minu nimi on Kati. Ma elan väikeses linnas. Meie linnas on üks pikk tänav. Sellel tänaval on 4 poodi ja 2 kohvikut. Kohvikud on kiriku kõrval. Kirik on suur ja ilus.",
+    "Kiriku taga on park. Pargis on palju puid. Turg on pargi ees. Laupäeval ma käin turul, sest seal on odavad kartulid ja õunad. Turu kõrval on apteek.",
+    "Meie linnas ei ole teatrit, aga meil on kino. Kino on raamatukogu kõrval. Kui ma tahan lugeda, siis ma lähen raamatukogusse. Raamatukogu on väike, kuid seal on palju raamatuid.",
+    "Pärast tööd ma lähen kohvikusse. Seal ma ootan oma sõpra Marit. Me joome kohvi ja räägime. Siis me läheme parki."
+  ],
+  "names": [
+    "Kati",
+    "Mari"
+  ],
+  "off_list": [
+    {
+      "lemma": "apteek",
+      "gloss_ru": "аптека"
+    },
+    {
+      "lemma": "raamatukogu",
+      "gloss_ru": "библиотека"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mitu poodi on sellel tänaval?",
+      "answer": "4"
+    },
+    {
+      "id": "q2",
+      "question": "Kus on kohvikud?",
+      "answer": "kiriku kõrval"
+    },
+    {
+      "id": "q3",
+      "question": "Mis on kiriku taga?",
+      "answer": "park"
+    },
+    {
+      "id": "q4",
+      "question": "Millal ta käib turul?",
+      "answer": "Laupäeval"
+    },
+    {
+      "id": "q5",
+      "question": "Mis on turu kõrval?",
+      "answer": "apteek"
+    },
+    {
+      "id": "q6",
+      "question": "Mida tema linnas ei ole?",
+      "answer": "teatrit"
+    },
+    {
+      "id": "q7",
+      "question": "Keda ta ootab kohvikus?",
+      "answer": "Marit"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "kiriku",
+      "lemma": "kirik",
+      "form": "sg g"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "pargi",
+      "lemma": "park",
+      "form": "sg g"
+    },
+    {
+      "id": "g3",
+      "at": 1,
+      "word": "kartulid",
+      "lemma": "kartul",
+      "form": "pl n"
+    },
+    {
+      "id": "g4",
+      "at": 2,
+      "word": "raamatuid",
+      "lemma": "raamat",
+      "form": "pl p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

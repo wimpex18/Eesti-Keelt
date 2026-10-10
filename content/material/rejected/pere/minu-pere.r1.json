@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "pere",
+  "slug": "minu-pere",
+  "title": "Minu pere",
+  "harno": "suhted teiste inimestega",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Mina olen Maria. Minu perekond on suur. Minu isa nimi on Igor, aga ema nimi on Olga. Isa on arst, aga ema on õpetaja. Ma armastan oma isa ja ema.",
+    "Mul on üks vend ja üks õde. Minu vend on Andrei, kes on kakskümmend aastat vana. Ta on müüja. Minu õe nimi on Kati. Kati mees on Peeter, kes on direktor. Neil on kaks last, poeg ja tütar. Poja nimi on Mart. Tütar on viis aastat vana.",
+    "Minu vanaema ja vanaisa elavad koos. Minu vanaema on Aino, kes on seitsekümmend aastat vana. Vanaema aitab Kati last. Ma tunnen oma perekonda hästi. Ma armastan oma perekonda."
+  ],
+  "names": [
+    "Maria",
+    "Igor",
+    "Olga",
+    "Andrei",
+    "Kati",
+    "Peeter",
+    "Mart",
+    "Aino"
+  ],
+  "off_list": [
+    {
+      "lemma": "vana",
+      "gloss_ru": "старый; (о возрасте) ... лет"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mis on Maria isa nimi?",
+      "answer": "Igor"
+    },
+    {
+      "id": "q2",
+      "question": "Mis on Maria ema töö?",
+      "answer": "õpetaja"
+    },
+    {
+      "id": "q3",
+      "question": "Mitu aastat on Andrei vana?",
+      "answer": "kakskümmend"
+    },
+    {
+      "id": "q4",
+      "question": "Kes on Kati mees?",
+      "answer": "Peeter"
+    },
+    {
+      "id": "q5",
+      "question": "Mis on Peetri töö?",
+      "answer": "direktor"
+    },
+    {
+      "id": "q6",
+      "question": "Mis on poja nimi?",
+      "answer": "Mart"
+    },
+    {
+      "id": "q7",
+      "question": "Mis on vanaema nimi?",
+      "answer": "Aino"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "õe",
+      "lemma": "õde",
+      "form": "sg g"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "last",
+      "lemma": "laps",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "aastat",
+      "lemma": "aasta",
+      "form": "sg p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  }
+}

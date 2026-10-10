@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "eile",
+  "slug": "puhkepaev",
+  "title": "Mida sa eile tegid?",
+  "harno": "ilm",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "коллега"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "коллега"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere hommikust! Kuidas läheb?"
+    },
+    {
+      "speaker": "b",
+      "text": "Väga hästi. Mida sa eile tegid?"
+    },
+    {
+      "speaker": "a",
+      "text": "Eile käisin Pärnus. Seal oli ilus ilm ja päike paistis."
+    },
+    {
+      "speaker": "b",
+      "text": "Kas sa ujusid meres?"
+    },
+    {
+      "speaker": "a",
+      "text": "Jah, ma ujusin. Vee temperatuur oli 18. Aga kus sina nädalavahetusel olid?"
+    },
+    {
+      "speaker": "b",
+      "text": "Ma läksin laupäeval Tartusse, sest mu vend elab seal."
+    },
+    {
+      "speaker": "a",
+      "text": "Kas Tartus oli ka ilus ilm?"
+    },
+    {
+      "speaker": "b",
+      "text": "Ei olnud. Seal sadas vihma ja tuul oli tugev."
+    },
+    {
+      "speaker": "a",
+      "text": "Mida te siis tegite?"
+    },
+    {
+      "speaker": "b",
+      "text": "Me olime kodus ja vaatasime filmi. Pühapäeval käisime kinos."
+    }
+  ],
+  "paragraphs": [],
+  "names": [
+    "Pärnu",
+    "Tartu"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus Mari eile käis?",
+      "answer": "Pärnus"
+    },
+    {
+      "id": "q3",
+      "question": "Kuhu Igor laupäeval läks?",
+      "answer": "Tartusse"
+    },
+    {
+      "id": "q4",
+      "question": "Kes elab Tartus?",
+      "answer": "mu vend"
+    },
+    {
+      "id": "q6",
+      "question": "Mida nad kodus vaatasid?",
+      "answer": "filmi"
+    },
+    {
+      "id": "q7",
+      "question": "Kus nad pühapäeval käisid?",
+      "answer": "kinos"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 2,
+      "word": "käisin",
+      "lemma": "käima",
+      "form": "sin"
+    },
+    {
+      "id": "g2",
+      "at": 5,
+      "word": "läksin",
+      "lemma": "minema",
+      "form": "sin"
+    },
+    {
+      "id": "g3",
+      "at": 7,
+      "word": "sadas",
+      "lemma": "sadama",
+      "form": "s"
+    },
+    {
+      "id": "g4",
+      "at": 9,
+      "word": "olime",
+      "lemma": "olema",
+      "form": "sime"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "92bff7a1"
+  }
+}

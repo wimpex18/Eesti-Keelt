@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "pere",
+  "slug": "pilt",
+  "title": "Pere pilt",
+  "harno": "suhted teiste inimestega",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "коллега"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "коллега"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Igor, see on minu pere pilt."
+    },
+    {
+      "speaker": "b",
+      "text": "Ilus pilt! Kes see mees on?"
+    },
+    {
+      "speaker": "a",
+      "text": "See on minu vend Juhan. Ta on arst."
+    },
+    {
+      "speaker": "b",
+      "text": "Ja kes see naine on?"
+    },
+    {
+      "speaker": "a",
+      "text": "See on Juhani naine Kadri. Tal on kaks poega ja üks tütar."
+    },
+    {
+      "speaker": "b",
+      "text": "Kes see väike tüdruk on?"
+    },
+    {
+      "speaker": "a",
+      "text": "See on Juhani tütar Kertu. Ja see on minu ema Aino."
+    },
+    {
+      "speaker": "b",
+      "text": "Mul on ka suur perekond. Mul on kolm venda ja üks õde."
+    },
+    {
+      "speaker": "a",
+      "text": "Kolm venda! Mis su õe nimi on?"
+    },
+    {
+      "speaker": "b",
+      "text": "Tema nimi on Olga. Ta on Sergei naine."
+    }
+  ],
+  "paragraphs": [],
+  "names": [
+    "Juhan",
+    "Kadri",
+    "Kertu",
+    "Aino",
+    "Olga",
+    "Sergei"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mis on Mari venna nimi?",
+      "answer": "Juhan"
+    },
+    {
+      "id": "q2",
+      "question": "Mis on Juhani töö?",
+      "answer": "arst"
+    },
+    {
+      "id": "q3",
+      "question": "Kes on Kadri?",
+      "answer": "Juhani naine"
+    },
+    {
+      "id": "q4",
+      "question": "Kes on Kertu?",
+      "answer": "Juhani tütar"
+    },
+    {
+      "id": "q5",
+      "question": "Mis on Mari ema nimi?",
+      "answer": "Aino"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 4,
+      "word": "poega",
+      "lemma": "poeg",
+      "form": "sg p"
+    },
+    {
+      "id": "g2",
+      "at": 7,
+      "word": "venda",
+      "lemma": "vend",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 8,
+      "word": "õe",
+      "lemma": "õde",
+      "form": "sg g"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "f00010a2"
+  }
+}

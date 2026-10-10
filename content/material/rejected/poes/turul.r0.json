@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "poes",
+  "slug": "turul",
+  "title": "Turul",
+  "harno": "sisseostude tegemine",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "продавщица"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "покупатель"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere päevast!"
+    },
+    {
+      "speaker": "b",
+      "text": "Tere! Kas teil on täna tomateid?"
+    },
+    {
+      "speaker": "a",
+      "text": "Ei, täna ei ole. Mul on kurke ja kartuleid."
+    },
+    {
+      "speaker": "b",
+      "text": "Mis kilo kartuleid maksab?"
+    },
+    {
+      "speaker": "a",
+      "text": "Kilo maksab 2 eurot."
+    },
+    {
+      "speaker": "b",
+      "text": "Palun 3 kilo kartuleid. Ma võtan ka ühe kapsa."
+    },
+    {
+      "speaker": "a",
+      "text": "Kapsas maksab 1 euro. Kas veel midagi?"
+    },
+    {
+      "speaker": "b",
+      "text": "Jah, palun pool kilo juustu."
+    },
+    {
+      "speaker": "a",
+      "text": "Täna ei ole juustu. Kokku on 7 eurot."
+    },
+    {
+      "speaker": "b",
+      "text": "Siin on 10 eurot. Nägemist!"
+    }
+  ],
+  "paragraphs": [],
+  "names": [],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mida Igor tahab alguses osta?",
+      "answer": "tomateid"
+    },
+    {
+      "id": "q2",
+      "question": "Kui palju maksab kilo kartuleid?",
+      "answer": "2 eurot"
+    },
+    {
+      "id": "q3",
+      "question": "Mitu kilo kartuleid Igor võtab?",
+      "answer": "3 kilo"
+    },
+    {
+      "id": "q4",
+      "question": "Mida Igor võtab ka peale kartulite?",
+      "answer": "ühe kapsa"
+    },
+    {
+      "id": "q5",
+      "question": "Mis kapsas maksab?",
+      "answer": "1 euro"
+    },
+    {
+      "id": "q6",
+      "question": "Mida Igor palub veel?",
+      "answer": "pool kilo juustu"
+    },
+    {
+      "id": "q7",
+      "question": "Kui palju Igor maksab kokku?",
+      "answer": "7 eurot"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 5,
+      "word": "kapsa",
+      "lemma": "kapsas",
+      "form": "sg g"
+    },
+    {
+      "id": "g2",
+      "at": 8,
+      "word": "juustu",
+      "lemma": "juust",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 5,
+      "word": "kartuleid",
+      "lemma": "kartul",
+      "form": "pl p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

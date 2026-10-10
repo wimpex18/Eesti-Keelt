@@ -62,6 +62,14 @@ RUN python -m eesti.cli import-har deploy/eki/har_EKI_CCBY40.xml.gz || \
 RUN python -m eesti.cli import-ekss deploy/eki/ekss_EKI_CCBY40.xml.gz || \
     echo "NOTE: EKI explanatory dictionary not in the build context. See docs/sources.md."
 
+# Checked unit dialogues and texts (ADR-0009): public repository data, built into
+# `data/material.db` and re-checked by the gates on the way, which need EKI's
+# levels imported above. Never into `content.db`, the owner's corpus that the
+# Worker restores. A refused file costs its material, not the image.
+COPY content/material/checked/ ./content/material/checked/
+RUN python -m eesti.cli material build || \
+    echo "WARNING: checked material refused or missing; units have no dialogues. See docs/material.md."
+
 # Actual input bytes, independently of whether an optional import succeeded.
 RUN python -m eesti.reference > REFERENCE_INPUTS.json && rm -rf data/raw
 

@@ -266,6 +266,10 @@ replaces whole files):
 
 Smoke warns on any zero.
 
+The checked unit dialogues and texts (`content/material/checked/`) are built at
+the same stage into `data/material.db`, apart from the owner's corpus
+(`docs/material.md`).
+
 ## Secrets
 
 | Name | Cloud Run env | GitHub Actions | Purpose |

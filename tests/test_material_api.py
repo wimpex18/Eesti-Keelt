@@ -12,19 +12,18 @@ from test_material import material, words  # noqa: F401  (fixture)
 
 @pytest.fixture
 def built(words, tmp_path, monkeypatch):  # noqa: F811
-    """The fixture dialogue, stamped, checked and built into a scratch content.db."""
+    """The fixture dialogue, stamped, checked and built into a scratch material.db."""
     from eesti import config
     from eesti.material import store
-    from eesti.sources import connect
 
     root = tmp_path / "material"
     store.write_checked(store.stamp(material(), engine="claude-haiku-5-5", batch="b"), root)
-    path = tmp_path / "content.db"
-    conn = connect(path)
+    path = tmp_path / "material.db"
+    monkeypatch.setattr(config, "MATERIAL_DB", path)
+    conn = store.connect()
     ids, refused = store.build(conn, words, root)
     conn.close()
     assert not refused and len(ids) == 1
-    monkeypatch.setattr(config, "CONTENT_DB", path)
     return ids[0]
 
 

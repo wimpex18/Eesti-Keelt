@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "eile",
+  "slug": "reis",
+  "title": "Reis Tartusse",
+  "harno": "ilm",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Mari elab Tallinnas. Eile oli laupäev ja Mari käis Tartus. Rong läks Tallinnast kell kaheksa hommikul. Mari istus rongis ja luges raamatut, sest reis oli pikk. Kell kümme oli ta Tartus.",
+    "Hommikul oli ilm ilus. Päike paistis, aga tuult ei olnud. Temperatuur oli viisteist kraadi. Mari käis pargis ja vaatas jõge. Siis läks ta kirikusse, sest kirik oli suur ja ilus.",
+    "Lõunal sadas vihma. Mari läks kohvikusse, kus ta sõi suppi. Supp maksis viis eurot. Pärast lõunat käis ta poes, kus ta ostis emale raamatu.",
+    "Õhtul puhus tugev tuul. Rong läks Tartust kell seitse. Mari oli kodus kell üheksa õhtul. Päev oli tore, aga Mari jalad valutasid."
+  ],
+  "names": [
+    "Mari",
+    "Tallinn",
+    "Tartu"
+  ],
+  "off_list": [
+    {
+      "lemma": "kraad",
+      "gloss_ru": "градус"
+    },
+    {
+      "lemma": "puhuma",
+      "gloss_ru": "дуть"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mis päev oli eile?",
+      "answer": "laupäev"
+    },
+    {
+      "id": "q3",
+      "question": "Mis temperatuur oli hommikul?",
+      "answer": "viisteist kraadi"
+    },
+    {
+      "id": "q4",
+      "question": "Mida Mari kohvikus sõi?",
+      "answer": "suppi"
+    },
+    {
+      "id": "q5",
+      "question": "Kui palju supp maksis?",
+      "answer": "viis eurot"
+    },
+    {
+      "id": "q7",
+      "question": "Mis kell läks rong Tartust?",
+      "answer": "kell seitse"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "käis",
+      "lemma": "käima",
+      "form": "s"
+    },
+    {
+      "id": "g2",
+      "at": 0,
+      "word": "luges",
+      "lemma": "lugema",
+      "form": "s"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "sadas",
+      "lemma": "sadama",
+      "form": "s"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "1f047c06"
+  }
+}

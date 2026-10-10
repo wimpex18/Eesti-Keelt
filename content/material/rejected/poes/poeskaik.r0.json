@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "poes",
+  "slug": "poeskaik",
+  "title": "Olga käis poes",
+  "harno": "sisseostude tegemine",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Laupäeva hommikul käis Olga poes. Pood on tema maja kõrval. Olga ostis leiva ja kaks saia. Ta ostis ka piima ja juustu. Olga joob alati hommikul kohvi.",
+    "Õhtul tahtis Olga teha suppi. Aga poes ei olnud kala. Siis ostis Olga kana. Ta ostis ka kilo kartuleid ja kolm tomatit. Ta ei ostnud mahla, sest kodus oli mahl.",
+    "Olga maksis poes 14 eurot. Siis läks ta koju. Õhtul tegi Olga supi. Tema tütar Kati sõi suppi ja jõi mahla. Supp meeldis Katile väga. Olga ise jõi teed."
+  ],
+  "names": [
+    "Olga",
+    "Kati"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus on Olga pood?",
+      "answer": "tema maja kõrval"
+    },
+    {
+      "id": "q2",
+      "question": "Mitu saia Olga ostis?",
+      "answer": "kaks"
+    },
+    {
+      "id": "q3",
+      "question": "Mida poes ei olnud?",
+      "answer": "kala"
+    },
+    {
+      "id": "q4",
+      "question": "Mitu tomatit Olga ostis?",
+      "answer": "kolm"
+    },
+    {
+      "id": "q5",
+      "question": "Miks Olga ei ostnud mahla?",
+      "answer": "kodus oli mahl"
+    },
+    {
+      "id": "q6",
+      "question": "Mitu eurot Olga maksis?",
+      "answer": "14"
+    },
+    {
+      "id": "q7",
+      "question": "Kes on Kati?",
+      "answer": "tema tütar"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "leiva",
+      "lemma": "leib",
+      "form": "sg g"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "kala",
+      "lemma": "kala",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "supi",
+      "lemma": "supp",
+      "form": "sg g"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

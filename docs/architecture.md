@@ -70,6 +70,7 @@ Paths resolve at call time from `eesti/config.py`; tests redirect them.
 | `data/eesti.db` | words, object cases, EKI levels and dictionaries, rections | built into the image (`cli build`, imports) |
 | `data/edge.db` | form index (`forms`, `object_cases`) | built into the image (`cli export`) |
 | `data/content.db` | library items, sources, topic links | harvested locally, pushed with `push-content.sh` |
+| `data/material.db` | checked unit dialogues and texts, as library items and keyed documents | built into the image from `content/material/checked/` (`cli material build`) |
 | `data/audio.db` | EKI's recordings: word forms and read sentences (`cli import-haaldused`, `cli import-konekorpus`) | imported from the EKI archive; local, never snapshotted |
 | `data/events.db`, `data/progress.db`, `review.db`, `vocab.db`, `notion.db` | the owner's evidence log and projections (mastery, FSRS cards, word statuses, error queue), stored glosses and provider breaker | created at runtime; rebuilt from the log on restore; snapshotted by `singleton` |
 | `data/learners/<id>/*.db` | each permanent learner's log and projections | restored by that learner's `learner:<id>` object |

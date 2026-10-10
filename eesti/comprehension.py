@@ -47,7 +47,11 @@ WANTED = 5
 #: Texts shorter than this have nothing to ask about.
 MIN_TEXT_WORDS = 40
 
-_WORDS = re.compile(r"[A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+")
+#: A word is letters or digits: a price, a time or a count in digits is part
+#: of the answer, so *6 eurot* is not *5 eurot*. Question sets stored before
+#: digits counted stay valid (a key that occurred once without its digits
+#: still occurs once with them), so `VERSION` did not change.
+_WORDS = re.compile(r"[0-9A-Za-zÀ-ÿŠŽšžÕÄÖÜõäöü]+")
 
 
 @dataclass(frozen=True)

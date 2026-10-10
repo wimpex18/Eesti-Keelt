@@ -4,7 +4,7 @@
     cli material check DRAFT...         # the deterministic gates, in order
     cli material blind DRAFT...         # Haiku 5.5 answers blind (Batches API);
                                         # what passes goes to content/material/checked/
-    cli material build                  # checked/ → content.db, re-checked
+    cli material build                  # checked/ → data/material.db, re-checked
     cli material stats                  # answers, reports and retired items
 """
 
@@ -112,20 +112,19 @@ def cmd_material_blind(args: argparse.Namespace) -> int:
 
 
 def cmd_material_build(args: argparse.Namespace) -> int:
-    """Build every checked file into content.db, re-checking each."""
-    from .. import config
+    """Build every checked file into `data/material.db`, re-checking each."""
     from ..material import store
-    from ..sources import connect as open_content
 
     words = _words(args)
     if words is None:
         return 1
-    conn = open_content(Path(args.content_db or config.CONTENT_DB))
+    conn = store.connect(Path(args.database) if args.database else None)
     built, refused = store.build(conn, words, _root(args))
+    target = conn.execute("PRAGMA database_list").fetchone()[2] or "memory"
     conn.close()
     for path, why in refused:
         print(f"refused {path}: {why}", file=sys.stderr)
-    print(f"{len(built)} built into content.db" + (f", {len(refused)} refused" if refused else ""))
+    print(f"{len(built)} built into {target}" + (f", {len(refused)} refused" if refused else ""))
     for ident in built:
         print(f"  {ident}")
     return 1 if refused else 0
@@ -183,9 +182,9 @@ def register(sub) -> None:
     a.add_argument("--words-db", default=None)
     a.set_defaults(material_func=cmd_material_blind)
 
-    a = actions.add_parser("build", help="build content/material/checked/ into content.db")
-    a.add_argument("--content-db", default=None,
-                   help="defaults to EESTI_CONTENT_DB, then data/content.db")
+    a = actions.add_parser("build", help="build content/material/checked/ into data/material.db")
+    a.add_argument("--database", "--content-db", dest="database", default=None,
+                   help="defaults to EESTI_MATERIAL_DB, then data/material.db")
     a.add_argument("--root", default=None, help="defaults to content/material")
     a.add_argument("--words-db", default=None)
     a.set_defaults(material_func=cmd_material_build)

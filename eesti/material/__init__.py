@@ -11,13 +11,13 @@ the order a draft meets it:
    item without the key, and each question again without the text; an item it
    gets wrong, or gets right without the text, is dropped (`cli material blind`).
 4. `store` — what passes is written to `content/material/checked/<unit>/<slug>.json`
-   with the pipeline's stamp, and built into `content.db` as
+   with the pipeline's stamp, and built into `data/material.db` as
    `mat:<unit>:<slug>@<sha8>` under the public source `grove-material`
    (`cli material build`), labelled `LABEL`.
 5. `stats` — after release, *Teata veast* reports and answer statistics retire
    items whose answers split or never vary.
 
-No answer key reaches `checked/` or `content.db` without passing 2 and 3, and
+No answer key reaches `checked/` or `material.db` without passing 2 and 3, and
 `build` re-runs 2 and verifies 3's stamp against the file's own hash.
 Specification: `docs/material.md`.
 """
