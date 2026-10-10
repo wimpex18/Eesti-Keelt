@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "kohvik",
+  "slug": "kohvikus",
+  "title": "Kohv ja sai",
+  "harno": "söök ja jook",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "продавщица"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "покупатель"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere! Mida te soovite?"
+    },
+    {
+      "speaker": "b",
+      "text": "Tere! Palun üks mahl ja kaks saia."
+    },
+    {
+      "speaker": "a",
+      "text": "Vabandust, täna ei ole mahla. Kas te võtate kohvi või piima?"
+    },
+    {
+      "speaker": "b",
+      "text": "Ma võtan kohvi. Üks must kohv, palun."
+    },
+    {
+      "speaker": "a",
+      "text": "Kas siin või kaasa?"
+    },
+    {
+      "speaker": "b",
+      "text": "Siin."
+    },
+    {
+      "speaker": "a",
+      "text": "Meil on täna ka kook. Kook maksab kuus eurot."
+    },
+    {
+      "speaker": "b",
+      "text": "Ei, aitäh. Ma ei taha kooki."
+    },
+    {
+      "speaker": "a",
+      "text": "Kohv maksab kolm eurot. Kokku viis eurot."
+    },
+    {
+      "speaker": "b",
+      "text": "Palun. Aitäh! Nägemist!"
+    }
+  ],
+  "paragraphs": [],
+  "names": [],
+  "off_list": [
+    {
+      "lemma": "kook",
+      "gloss_ru": "пирог, торт"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q2",
+      "question": "Mida täna ei ole?",
+      "answer": "mahla"
+    },
+    {
+      "id": "q3",
+      "question": "Missugust kohvi Igor võtab?",
+      "answer": "must"
+    },
+    {
+      "id": "q4",
+      "question": "Palju kook maksab?",
+      "answer": "kuus eurot"
+    },
+    {
+      "id": "q5",
+      "question": "Mida Igor ei taha?",
+      "answer": "kooki"
+    },
+    {
+      "id": "q6",
+      "question": "Palju kohv maksab?",
+      "answer": "kolm eurot"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 3,
+      "word": "kohvi",
+      "lemma": "kohv",
+      "form": "sg p"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "mahla",
+      "lemma": "mahl",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 1,
+      "word": "saia",
+      "lemma": "sai",
+      "form": "sg p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "4e89964e"
+  }
+}

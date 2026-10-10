@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "paev",
+  "slug": "millal",
+  "title": "Homme õhtul",
+  "harno": "igapäevaelu",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Mari",
+      "role_ru": "студентка"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "друг"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere, Igor! Kas sa oled homme vaba?"
+    },
+    {
+      "speaker": "b",
+      "text": "Homme ma töötan. Töö algab kell 8 ja lõpeb kell 4."
+    },
+    {
+      "speaker": "a",
+      "text": "Mina olen homme koolis. Kool lõpeb kell 3."
+    },
+    {
+      "speaker": "b",
+      "text": "Kas sa tahad õhtul kohvikusse minna?"
+    },
+    {
+      "speaker": "a",
+      "text": "Jah, tahan küll. Mis kell?"
+    },
+    {
+      "speaker": "b",
+      "text": "Kell pool kuus. Ma pean kell 5 koju minema."
+    },
+    {
+      "speaker": "a",
+      "text": "Hästi. Ma söön õhtul harva. Ma joon tihti mahla."
+    },
+    {
+      "speaker": "b",
+      "text": "Mina tahan suppi süüa."
+    },
+    {
+      "speaker": "a",
+      "text": "Ma ootan sind pargis."
+    },
+    {
+      "speaker": "b",
+      "text": "Okei. Nägemist!"
+    }
+  ],
+  "paragraphs": [],
+  "names": [],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Millal algab Igori töö?",
+      "answer": "kell 8"
+    },
+    {
+      "id": "q2",
+      "question": "Millal lõpeb Mari kool?",
+      "answer": "kell 3"
+    },
+    {
+      "id": "q3",
+      "question": "Kuhu Igor tahab õhtul minna?",
+      "answer": "kohvikusse"
+    },
+    {
+      "id": "q4",
+      "question": "Mis kell nad kohtuvad?",
+      "answer": "pool kuus"
+    },
+    {
+      "id": "q5",
+      "question": "Millal peab Igor koju minema?",
+      "answer": "kell 5"
+    },
+    {
+      "id": "q6",
+      "question": "Mida Igor tahab süüa?",
+      "answer": "suppi"
+    },
+    {
+      "id": "q7",
+      "question": "Kus Mari Igorit ootab?",
+      "answer": "pargis"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 3,
+      "word": "kohvikusse",
+      "lemma": "kohvik",
+      "form": "sg ill"
+    },
+    {
+      "id": "g2",
+      "at": 5,
+      "word": "minema",
+      "lemma": "minema",
+      "form": "ma"
+    },
+    {
+      "id": "g3",
+      "at": 7,
+      "word": "süüa",
+      "lemma": "sööma",
+      "form": "da"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "tutvume",
+  "slug": "uus-oppija",
+  "title": "Mina olen Igor",
+  "harno": "isikuandmed",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Tere! Mina olen Igor. Ma olen venelane. Minu linn on Narva, kus ma elan ja töötan. Ma olen direktor. Minu töö on huvitav, aga raske.",
+    "Minu naine on Olga, kes on arst. Ta on ka venelane. Mul on poeg ja tütar. Poeg Andrei on õpilane. Ta õpib hästi. Tütar Maria on väike. Ta magab palju.",
+    "Minu ema elab ka siin. Tema nimi on Svetlana. Ta laulab hästi. Minu sõber Peeter on eestlane. Ta on müüja. Ta aitab mind. Uus keel on raske, aga ilus. Ma õpin nüüd palju. Nägemist!"
+  ],
+  "names": [
+    "Igor",
+    "Narva",
+    "Olga",
+    "Andrei",
+    "Maria",
+    "Svetlana",
+    "Peeter"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mis on tema linn?",
+      "answer": "Narva"
+    },
+    {
+      "id": "q2",
+      "question": "Mis on tema töö?",
+      "answer": "direktor"
+    },
+    {
+      "id": "q3",
+      "question": "Kes on arst?",
+      "answer": "Olga"
+    },
+    {
+      "id": "q4",
+      "question": "Kes on õpilane?",
+      "answer": "Andrei"
+    },
+    {
+      "id": "q5",
+      "question": "Kes on väike?",
+      "answer": "Maria"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "magab",
+      "lemma": "magama",
+      "form": "b"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "laulab",
+      "lemma": "laulma",
+      "form": "b"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "õpin",
+      "lemma": "õppima",
+      "form": "n"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01GyknuibsZwBKRHWU5XTHfH",
+      "on": "2026-10-10"
+    },
+    "sha8": "a8a4f364"
+  }
+}

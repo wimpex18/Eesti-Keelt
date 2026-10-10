@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "tutvume",
+  "slug": "kursusel",
+  "title": "Uus õpilane",
+  "harno": "isikuandmed",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Kadri",
+      "role_ru": "преподавательница"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "новый ученик"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere hommikust! Mina olen Kadri. Ma olen õpetaja."
+    },
+    {
+      "speaker": "b",
+      "text": "Tere! Mina olen Igor. Minu perekonnanimi on Ivanov."
+    },
+    {
+      "speaker": "a",
+      "text": "Kuidas läheb, Igor?"
+    },
+    {
+      "speaker": "b",
+      "text": "Väga hästi. Aga sinul?"
+    },
+    {
+      "speaker": "a",
+      "text": "Hästi. Mis on sinu töö?"
+    },
+    {
+      "speaker": "b",
+      "text": "Ma olen müüja."
+    },
+    {
+      "speaker": "a",
+      "text": "Ja sinu pere?"
+    },
+    {
+      "speaker": "b",
+      "text": "Minu naine on Olga. Minu tütar on Kertu."
+    },
+    {
+      "speaker": "a",
+      "text": "Mis on sinu mobiilinumber?"
+    },
+    {
+      "speaker": "b",
+      "text": "Minu mobiilinumber on kaks kolm neli üheksa kaheksa null seitse üks."
+    }
+  ],
+  "paragraphs": [],
+  "names": [
+    "Ivanov",
+    "Olga",
+    "Kertu"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q3",
+      "question": "Mis on tema perekonnanimi?",
+      "answer": "Ivanov"
+    },
+    {
+      "id": "q2",
+      "question": "Kuidas tal läheb?",
+      "answer": "Väga hästi"
+    },
+    {
+      "id": "q4",
+      "question": "Kes on Igor?",
+      "answer": "müüja"
+    },
+    {
+      "id": "q5",
+      "question": "Kes on tema naine?",
+      "answer": "Olga"
+    },
+    {
+      "id": "q6",
+      "question": "Kes on tema tütar?",
+      "answer": "Kertu"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "olen",
+      "lemma": "olema",
+      "form": "n"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "läheb",
+      "lemma": "minema",
+      "form": "b"
+    },
+    {
+      "id": "g3",
+      "at": 9,
+      "word": "on",
+      "lemma": "olema",
+      "form": "b"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UjXghCZGeCxgX2ZgzLWBx4",
+      "on": "2026-10-10"
+    },
+    "sha8": "a37e83c6"
+  }
+}

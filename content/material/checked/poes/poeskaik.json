@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "poes",
+  "slug": "poeskaik",
+  "title": "Olga käis poes",
+  "harno": "sisseostude tegemine",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Laupäeva hommikul käis Olga poes. Pood on tema maja kõrval. Olga ostis leiva ja kaks saia, sest kodus ei olnud leiba. Ta ostis ka piima ja juustu.",
+    "Õhtul tahtis Olga teha suppi. Ta tahtis osta kala, aga poes seda ei olnud. Siis ostis Olga kana. Ta ostis ka kilo kartuleid ja kolm tomatit. Ta ei ostnud mahla, sest kodus oli mahl.",
+    "Olga maksis poes neliteist eurot. Siis läks ta koju, kus oli Olga tütar Kati. Õhtul tegi Olga supi. Kati sõi suppi ja jõi mahla. Supp meeldis Katile väga, nagu alati. Olga ise jõi teed, sest ta ei tahtnud süüa."
+  ],
+  "names": [
+    "Olga",
+    "Kati"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Kus on Olga pood?",
+      "answer": "tema maja kõrval"
+    },
+    {
+      "id": "q4",
+      "question": "Miks Olga ostis leiva?",
+      "answer": "kodus ei olnud leiba"
+    },
+    {
+      "id": "q3",
+      "question": "Mida Olga tahtis osta?",
+      "answer": "kala"
+    },
+    {
+      "id": "q5",
+      "question": "Miks Olga ei ostnud mahla?",
+      "answer": "kodus oli mahl"
+    },
+    {
+      "id": "q6",
+      "question": "Mitu eurot Olga maksis?",
+      "answer": "neliteist"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "saia",
+      "lemma": "sai",
+      "form": "sg p"
+    },
+    {
+      "id": "g2",
+      "at": 1,
+      "word": "kartuleid",
+      "lemma": "kartul",
+      "form": "pl p"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "eurot",
+      "lemma": "euro",
+      "form": "sg p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_014HT583QQbCjyqvHLW5ZBbK",
+      "on": "2026-10-10"
+    },
+    "sha8": "ed0765a8"
+  }
+}

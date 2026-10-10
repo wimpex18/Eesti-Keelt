@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "eile",
+  "slug": "reis",
+  "title": "Reis Tartusse",
+  "harno": "ilm",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Mari elab Tallinnas. Eile oli laupäev ja Mari käis Tartus. Rong läks Tallinnast kell 8 hommikul. Mari istus rongis ja luges raamatut. Kell 10 oli ta Tartus.",
+    "Hommikul oli ilm ilus. Päike paistis ja tuult ei olnud. Temperatuur oli 15 kraadi. Mari käis pargis ja vaatas jõge. Siis läks ta kirikusse. Kirik oli suur ja ilus.",
+    "Lõunal sadas vihma. Mari läks kohvikusse ja sõi suppi. Supp maksis 6 eurot. Pärast lõunat käis ta poes ja ostis emale raamatu.",
+    "Õhtul puhus tugev tuul. Rong läks Tartust kell 18. Mari oli kodus kell 20 õhtul. Päev oli tore, aga Mari jalad valutasid."
+  ],
+  "names": [
+    "Mari",
+    "Tallinn",
+    "Tartu"
+  ],
+  "off_list": [
+    {
+      "lemma": "kraad",
+      "gloss_ru": "градус"
+    },
+    {
+      "lemma": "puhuma",
+      "gloss_ru": "дуть"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mis päev oli eile?",
+      "answer": "laupäev"
+    },
+    {
+      "id": "q2",
+      "question": "Mida Mari rongis luges?",
+      "answer": "raamatut"
+    },
+    {
+      "id": "q3",
+      "question": "Mitu kraadi oli temperatuur?",
+      "answer": "15 kraadi"
+    },
+    {
+      "id": "q4",
+      "question": "Mida Mari kohvikus sõi?",
+      "answer": "suppi"
+    },
+    {
+      "id": "q5",
+      "question": "Kui palju supp maksis?",
+      "answer": "6 eurot"
+    },
+    {
+      "id": "q6",
+      "question": "Kellele Mari raamatu ostis?",
+      "answer": "emale"
+    },
+    {
+      "id": "q7",
+      "question": "Mis kell läks rong Tartust?",
+      "answer": "kell 18"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 0,
+      "word": "käis",
+      "lemma": "käima",
+      "form": "s"
+    },
+    {
+      "id": "g2",
+      "at": 0,
+      "word": "luges",
+      "lemma": "lugema",
+      "form": "s"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "sadas",
+      "lemma": "sadama",
+      "form": "s"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1"
+  }
+}

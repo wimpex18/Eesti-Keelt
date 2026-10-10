@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "kind": "dialoog",
+  "unit": "meeldib",
+  "slug": "nadalavahetus",
+  "title": "Nädalavahetuse plaan",
+  "harno": "vaba aeg ja meelelahutus",
+  "speakers": [
+    {
+      "id": "a",
+      "name": "Kati",
+      "role_ru": "подруга"
+    },
+    {
+      "id": "b",
+      "name": "Igor",
+      "role_ru": "друг"
+    }
+  ],
+  "turns": [
+    {
+      "speaker": "a",
+      "text": "Tere, Igor! Mida sa nädalavahetusel teha tahad?"
+    },
+    {
+      "speaker": "b",
+      "text": "Laupäeval pean ma korterit koristama. Mulle ei meeldi koristada."
+    },
+    {
+      "speaker": "a",
+      "text": "Mulle meeldib ujuda. Laupäeval kell kümme lähen ma ujuma."
+    },
+    {
+      "speaker": "b",
+      "text": "Mulle meeldib kinos käia. Kas sul on pühapäeval aega?"
+    },
+    {
+      "speaker": "a",
+      "text": "Pühapäeva hommikul pean ma ema aitama. Aga õhtul on mul aega."
+    },
+    {
+      "speaker": "b",
+      "text": "Tore! Kinos on pühapäeval uus film. See algab õhtul kell seitse."
+    },
+    {
+      "speaker": "a",
+      "text": "Ma tahan seda filmi näha. Kas meil on vaja pileteid osta?"
+    },
+    {
+      "speaker": "b",
+      "text": "Jah, pilet maksab kaheksa eurot. Ma ostan homme kaks piletit."
+    },
+    {
+      "speaker": "a",
+      "text": "Aitäh! Siis kohtume kell 18.30 kino kõrval kohvikus."
+    },
+    {
+      "speaker": "b",
+      "text": "Okei! Nägemist!"
+    }
+  ],
+  "paragraphs": [],
+  "names": [],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mida Igor peab laupäeval tegema?",
+      "answer": "korterit koristama"
+    },
+    {
+      "id": "q2",
+      "question": "Mida Katile meeldib teha?",
+      "answer": "ujuda"
+    },
+    {
+      "id": "q4",
+      "question": "Mida peab Kati pühapäeva hommikul tegema?",
+      "answer": "ema aitama"
+    },
+    {
+      "id": "q5",
+      "question": "Mis kell film algab?",
+      "answer": "kell seitse"
+    },
+    {
+      "id": "q6",
+      "question": "Kui palju pilet maksab?",
+      "answer": "kaheksa eurot"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "koristama",
+      "lemma": "koristama",
+      "form": "ma"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "ujuda",
+      "lemma": "ujuma",
+      "form": "da"
+    },
+    {
+      "id": "g3",
+      "at": 4,
+      "word": "aitama",
+      "lemma": "aitama",
+      "form": "ma"
+    },
+    {
+      "id": "g4",
+      "at": 6,
+      "word": "näha",
+      "lemma": "nägema",
+      "form": "da"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  },
+  "checks": {
+    "gates": 1,
+    "blind": {
+      "engine": "claude-haiku-5-5",
+      "batch": "msgbatch_01UD8qyA1Y4QwXkiz24B6gQV",
+      "on": "2026-10-10"
+    },
+    "sha8": "8dfc99d6"
+  }
+}

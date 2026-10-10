@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "kind": "tekst",
+  "unit": "kohvik",
+  "slug": "lounapaus",
+  "title": "Igori lõuna",
+  "harno": "söök ja jook",
+  "speakers": [],
+  "turns": [],
+  "paragraphs": [
+    "Kell on kaks. Igor sööb lõunat. Kohvik on väike, aga väga ilus. Kohviku nimi on Õun. Müüja on Kati, kes on Igori sõber.",
+    "Igor võtab supi ja saia. Supi hind on seitse eurot. Saia hind on viiskümmend senti. Igor ei söö liha. Liha on kallis. Täna ei ole salatit, mida Igor tahab.",
+    "Igor joob vett. Vee hind on üks euro. Ta ei joo kohvi. Kohv ei meeldi talle. Ta ei võta ka piima, mida Kati pakub.",
+    "Igor maksab kokku kaheksa eurot ja viiskümmend senti. Supp meeldib talle väga, aga sai ei meeldi. Kati küsib: „Kas veel midagi?” Igor ütleb: „Ei, see on kõik. Aitäh!”"
+  ],
+  "names": [
+    "Igor",
+    "Kati"
+  ],
+  "off_list": [],
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Mis kell Igor sööb lõunat?",
+      "answer": "kaks"
+    },
+    {
+      "id": "q2",
+      "question": "Mis on kohviku nimi?",
+      "answer": "Õun"
+    },
+    {
+      "id": "q3",
+      "question": "Mis on supi hind?",
+      "answer": "seitse eurot"
+    },
+    {
+      "id": "q4",
+      "question": "Miks Igor ei söö liha?",
+      "answer": "Liha on kallis"
+    },
+    {
+      "id": "q5",
+      "question": "Mida täna ei ole?",
+      "answer": "salatit"
+    },
+    {
+      "id": "q6",
+      "question": "Miks Igor ei joo kohvi?",
+      "answer": "Kohv ei meeldi talle"
+    },
+    {
+      "id": "q7",
+      "question": "Kui palju Igor maksab kokku?",
+      "answer": "kaheksa eurot ja viiskümmend senti"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g1",
+      "at": 1,
+      "word": "salatit",
+      "lemma": "salat",
+      "form": "sg p"
+    },
+    {
+      "id": "g2",
+      "at": 2,
+      "word": "vett",
+      "lemma": "vesi",
+      "form": "sg p"
+    },
+    {
+      "id": "g3",
+      "at": 2,
+      "word": "kohvi",
+      "lemma": "kohv",
+      "form": "sg p"
+    }
+  ],
+  "authoring": {
+    "engine": "claude-opus-5-5",
+    "prompt_version": "s2-draft-1+s2-revise-1"
+  }
+}
