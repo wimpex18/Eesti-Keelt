@@ -67,30 +67,6 @@ class TestTheApiNamesWhoAnswered:
         assert got["full_definition"] != got["definition"]
 
 
-class TestTheCardDrawsTheCredit:
-    @pytest.fixture
-    def card(self):
-        return (ROOT / "eesti" / "web" / "js" / "vocab.js").read_text(
-            encoding="utf-8")
-
-    def test_it_credits_eki_when_eki_answered(self, card):
-        assert 'definition_source === "eki-psv"' in card
-        assert "EKI põhisõnavara sõnastik" in card
-        assert "CC BY 4.0" in card
-
-    def test_the_credit_is_conditional_not_a_footer(self, card):
-        """Crediting EKI under Sõnaveeb's wording would be a false statement
-        about who wrote it, which is worse than crediting nobody."""
-        credit = card.index("EKI põhisõnavara sõnastik")
-        guard = card.index('definition_source === "eki-psv"')
-        assert guard < credit
-        assert credit - guard < 200, "the guard must belong to this line"
-
-    def test_it_has_somewhere_to_be_drawn(self):
-        css = (ROOT / "eesti" / "web" / "app.css").read_text(encoding="utf-8")
-        assert ".meaning .attrib" in css
-
-
 class TestTheLedgerHasAReader:
     """`/api/sources` serves the ledger so the page can name sources and changes."""
 

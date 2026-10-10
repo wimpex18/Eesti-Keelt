@@ -18,7 +18,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..config import CACHE
@@ -52,6 +52,10 @@ class WordInfo:
     definition: str | None
     examples: tuple[str, ...]
     translations: dict[str, tuple[str, ...]]
+    #: The meaning's own lists only: EKI's combined dictionary, sense by sense.
+    #: `translations` also takes the mirror's top-level English, whose source
+    #: is not named, so a dictionary entry crediting EKI reads this instead.
+    sense_translations: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     @property
     def russian(self) -> tuple[str, ...]:
@@ -140,6 +144,7 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
         ))
         if words:
             translations[_LANG.get(code, code)] = words
+    senses = dict(translations)
     for entry in payload.get("translations") or []:
         target = _LANG.get(entry.get("to") or "", entry.get("to"))
         if target and target not in translations:
@@ -152,6 +157,7 @@ def lookup(word: str, cache_dir: Path | None = None) -> WordInfo | None:
         definition=(meaning.get("definition") or None),
         examples=tuple(meaning.get("examples") or ()),
         translations=translations,
+        sense_translations=senses,
     )
 
 

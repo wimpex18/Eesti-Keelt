@@ -173,15 +173,15 @@ class TestTheSeedIsNotOverruled:
 
 
 class TestTheCard:
-    def test_each_eki_source_is_credited_under_its_own_guard(self):
-        from pathlib import Path
+    def test_each_eki_source_is_credited_under_its_own_name(self, tmp_path):
+        """The card names whoever gave each part (`dictionary.entry`)."""
+        from eesti import dictionary, har
 
-        card = (Path(__file__).resolve().parents[1] / "eesti" / "web" / "js"
-                / "vocab.js").read_text(encoding="utf-8")
-        for guard, credit in (('russian_source === "eki-har"', "EKI haridussõnastik"),
-                              ('definition_source === "eki-vsl"', "EKI võõrsõnade leksikon"),
-                              ('definition_source === "eki-ekss"', "EKI eesti keele seletav")):
-            assert 0 < card.index(credit) - card.index(guard) < 200, guard
+        conn = wordlist.connect(tmp_path / "eesti.db")
+        har.store(conn, {"õpetajakoolitus": ("подготовка учителей",)})
+        got = dictionary.entry(conn, "õpetajakoolitus")
+        assert got["meanings"]["ru"]["source"] == "eki-har"
+        assert "Haridussõnastik" in {s["id"]: s["name"] for s in got["sources"]}["eki-har"]
 
 
 class TestTheOrderLivesInOnePlace:
@@ -191,7 +191,9 @@ class TestTheOrderLivesInOnePlace:
         from pathlib import Path
 
         pkg = Path(__file__).resolve().parents[1] / "eesti"
-        allowed = {"meaning.py", "evs.py", "har.py"}
+        # The gloss pipeline translates EVS's own Russian, the source it names,
+        # not whichever Russian the app shows.
+        allowed = {"meaning.py", "evs.py", "har.py", "dictionary_glosses.py"}
         offenders = [
             str(p.relative_to(pkg)) for p in pkg.rglob("*.py")
             if p.name not in allowed
@@ -290,7 +292,7 @@ class TestTheCardDrawsTheFullerWording:
         from pathlib import Path
 
         card = (Path(__file__).resolve().parents[1] / "eesti" / "web" / "js"
-                / "vocab.js").read_text(encoding="utf-8")
+                / "dictionary.js").read_text(encoding="utf-8")
         assert "x.full_definition" in card
         assert "täpsem seletus" in card and "full_definition_source" in card
 

@@ -673,42 +673,160 @@ a.lib-item{text-decoration:none;color:inherit}
 .prose w:focus-visible{outline:2px solid var(--focus);outline-offset:2px;background:var(--jarv-soft)}
 .prose w.hard{background:var(--warn-soft);box-shadow:0 2px 0 -0.5px var(--warn)}
 .prose ::selection{background:color-mix(in srgb,var(--jarv) 22%,transparent)}
-/* The word card: a sheet, the one surface besides sheets that casts a shadow. */
-#wordCard,#vocCard{position:sticky;bottom:var(--s3);z-index:5;margin-top:var(--s4);
-  padding:16px 56px 16px 18px;border:1px solid var(--line);border-radius:var(--r-3);background:var(--sheet);
-  box-shadow:var(--sheet-shadow);animation:rise-in var(--dur-4) var(--ease-enter)}
-.card-content{max-height:calc(100dvh - var(--dock-h) - var(--kb) - var(--hdr-h) - 220px);overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
+/* ── The word card (DESIGN.md, Word card) ───────────────────────────
+   One sheet for every word the learner looks up: a bottom sheet on a phone,
+   at half height until it is scrolled or raised (`.full`), and a dialog
+   beside the word on a desktop, with no scrim, so the sentence stays readable.
+   The shell gives it the sheet's ground, edge, scrim and motion. */
+dialog.word-sheet{padding:0;overflow:hidden;color:var(--ink)}
+dialog.word-sheet[open]{display:flex;flex-direction:column}
+.word-sheet .sheet-head{position:relative;justify-content:flex-end;margin:0;padding:var(--s2) var(--s3) 0}
+.word-sheet .sheet-head .iconbtn{margin:0}
+.word-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere;
+  padding:0 var(--s5) var(--s5)}
+/* The grabber: the one way to raise or lower the sheet without scrolling it. */
+.word-grab{position:absolute;left:50%;top:0;width:88px;height:44px;margin-left:-44px;padding:0;border:0;background:none;cursor:pointer}
+.word-grab::before{content:"";position:absolute;left:26px;right:26px;top:12px;height:5px;border-radius:3px;background:var(--edge)}
 @media (max-width:719px), (hover:none) and (max-height:559px){
-  #wordCard,#vocCard{bottom:calc(var(--dock-h) + var(--kb) + 12px)}
+  dialog.word-sheet{max-height:min(56dvh,34rem);transition:max-height var(--dur-4) var(--ease-standard)}
+  dialog.word-sheet.full{max-height:calc(100dvh - env(safe-area-inset-top) - var(--s5))}
+  .word-body{padding:0 max(var(--s5),env(safe-area-inset-right)) calc(var(--s5) + env(safe-area-inset-bottom)) max(var(--s5),env(safe-area-inset-left))}
 }
-.card-close{position:absolute;top:10px;right:10px;width:44px;height:44px}
-.card-close svg{width:16px;height:16px}
-#wordCard .lemma{font-family:var(--f-read);font-size:var(--t-prompt);font-weight:600}
-#wordCard .tags{font-size:var(--t-note);color:var(--muted);margin-top:3px}
-#wordCard .tags b{color:var(--ink);font-weight:600}
-#wordCard .in-context{margin-top:2px;font-size:var(--t-gloss);font-weight:600;color:var(--jarv)}
-#wordCard .other-readings{margin-top:var(--s1)}
-#wordCard .pair{margin-top:7px;font-size:var(--t-body)}
-#wordCard .pair b{color:var(--jarv)}
-.meaning .def{color:var(--ink);font-size:var(--t-body);line-height:1.5}
-.meaning .examples{margin:var(--s2) 0 0;padding-left:18px;color:var(--ink);font-size:var(--t-note);line-height:1.6}
-.meaning .examples li{margin-bottom:2px}
-/* Attribution: quiet, legible, never a gesture at one. */
-.meaning .attrib{margin-top:var(--s2);color:var(--muted);font-size:var(--t-gloss)}
-.meaning .fuller{margin-top:var(--s2)}
-.meaning .fuller summary{cursor:pointer;color:var(--muted);font-size:var(--t-gloss)}
-.meaning .fuller .def{margin-top:var(--s1);color:var(--gloss)}
+@media (min-width:720px) and (hover:hover), (min-width:720px) and (min-height:560px){
+  dialog.word-sheet{position:fixed;inset:auto;margin:0;top:15vh;left:calc(50% - 14rem);width:min(28rem,calc(100vw - 2 * var(--s4)));
+    max-height:min(78vh,42rem);border-color:var(--edge)}
+  dialog.word-sheet::backdrop{background:transparent}
+  .word-grab{display:none}
+}
+/* The word the card is about, marked in its text while the card is open. */
+.looked-up{background:var(--jarv-soft);color:var(--jarv);border-radius:3px}
+
+/* An entry, in the card or on its page. */
+.dict-head{margin:0;font-size:var(--t-prompt);font-weight:600;line-height:1.15;letter-spacing:-.01em}
+.dict-head:focus{outline:none}
+/* A lone word needs no band kept for its form line: the line sits under it
+   and wraps in a narrow card rather than running out of it. */
+.dict-head .il{display:inline-flex;flex-direction:column;align-items:flex-start;white-space:normal}
+.dict-head .il-f{position:static;margin-top:var(--s1);white-space:normal;line-height:1.35}
+.dict-meta{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s3);margin-top:var(--s2);font-size:var(--t-note);color:var(--ink-2)}
+.dict-meta .ru{display:inline;margin-left:4px}
+.dict-lemma{font-size:var(--t-body);font-weight:600;color:var(--ink)}
+.dict-level{padding:0 6px;border:1px solid var(--edge);border-radius:var(--r-1);font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.dict-level .ru{font-weight:400}
+/* The word and its voice: EKI's recording where PSV has one, said so. */
+.dict-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s2) var(--s3)}
+.dict-say{display:inline-flex;align-items:center;flex:none;gap:2px;margin-top:-6px}
+.dict-voice{font-size:var(--t-gloss);color:var(--muted)}
+.dict-others{margin:var(--s2) 0 0;font-size:var(--t-note);color:var(--ink-2)}
+.dict-others button.quiet{margin-right:var(--s3)}
+.dict-other-form{margin-left:4px;font-weight:400;color:var(--muted)}
+.dict-part{margin-top:var(--s5)}
+.dict-means{margin-top:var(--s4)}
+.dict-sec{margin:0 0 var(--s2);font-size:var(--t-body);font-weight:600;letter-spacing:0}
+.dict-sec .ru{display:inline;margin-left:6px}
+/* The meaning: the word in the explanation language, in the meaning colour. */
+.dict-ru{margin:0;font-size:var(--t-lead);line-height:1.35;color:var(--gloss)}
+.dict-langs{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px var(--s3);margin:var(--s2) 0 0;font-size:var(--t-body)}
+.dict-langs > div{display:contents}
+.dict-langs dt{color:var(--muted);font-size:var(--t-note);line-height:1.5}
+.dict-langs dd{margin:0;color:var(--ink)}
+.dict-src{margin:var(--s2) 0 0;font-size:var(--t-gloss);color:var(--muted)}
+.dict-none{margin:var(--s2) 0 0;font-size:var(--t-note);color:var(--ink-2)}
+/* A model's words: a dashed edge and the engine first (DESIGN.md, Model output). */
+.model-out{margin-top:var(--s3);padding:var(--s3) var(--s4);border:1px dashed var(--edge);border-radius:var(--r-2)}
+.model-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--s2);margin:0;font-size:var(--t-note);font-weight:600}
+.model-head .ru{display:inline;margin-left:4px;font-weight:400}
+.model-engine{color:var(--ink)}
+.model-out .dict-langs{margin-top:var(--s1)}
+.model-note{margin:var(--s2) 0 0;font-size:var(--t-note);color:var(--ink-2);line-height:1.45}
+/* Forms: a table that scrolls inside itself, its row labels held. */
+.dict-scroll{overflow-x:auto;overscroll-behavior-x:contain}
+.dict-forms{border-collapse:collapse;font-size:var(--t-body)}
+.dict-forms th,.dict-forms td{padding:var(--s1) var(--s3) var(--s1) 0;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.dict-forms thead th{font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.dict-forms th[scope="row"]{position:sticky;left:0;z-index:1;background:var(--sheet);font-size:var(--t-note);font-weight:600;color:var(--ink-2);
+  min-width:8.5rem;padding-right:var(--s4);overflow-wrap:normal}
+.dict-forms .ru{display:block;font-weight:400}
+.dict-forms td{min-height:44px;white-space:nowrap;overflow-wrap:normal;padding-right:var(--s5)}
+.dict-forms .form{display:inline-flex;align-items:center;gap:2px;font-weight:500}
+/* The form the learner tapped carries the interlinear bar in its table. */
+.dict-forms .form.here{box-shadow:inset 0 -2px 0 var(--ink)}
+.dict-forms tr.here th{color:var(--ink)}
+.form-alt{color:var(--muted)}
+.form-say{width:44px;height:44px;margin:-6px -8px -6px -4px}
+.form-say svg,.dict-say svg,.phrase-say svg{width:18px;height:18px}
+.dict-all{margin-top:var(--s3)}
+.dict-def{margin:0;font-size:var(--t-body);line-height:1.5}
+.dict-uses{margin:var(--s2) 0 0;padding-left:var(--s5);font-size:var(--t-note);line-height:1.6}
+.dict-facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px var(--s3);margin:0;font-size:var(--t-note)}
+.dict-facts > div{display:contents}
+.dict-facts dt{color:var(--ink-2);font-weight:600}
+.dict-facts dt .ru{display:inline;margin-left:4px;font-weight:400}
+.dict-facts dd{margin:0}
+.dict-out{margin:var(--s2) 0 0;font-size:var(--t-note)}
+.dict-out a{display:inline-flex;align-items:center;gap:var(--s1);min-height:44px}
+.dict-out .ru{display:inline;margin-left:4px}
 /* EVS's example phrases: Estonian over its Russian, a hairline between pairs. */
-.phrases{margin-top:var(--s3)}
-.phrases h4{font-size:var(--t-gloss);font-weight:600;color:var(--muted);margin:0}
-.phrases .phrase-list{list-style:none;margin:var(--s1) 0 0;padding:0}
+.phrases .phrase-list{list-style:none;margin:0;padding:0}
 .phrases .phrase-list li{padding:var(--s1) 0;border-top:1px solid var(--line);font-size:var(--t-note);line-height:1.45}
 .phrases .phrase-list li:first-child{border-top:0}
 .phrases .phrase-list .gloss{display:block;color:var(--gloss)}
 .phrases .phrase-list li:has(.phrase-say){padding-left:52px;position:relative;min-height:52px}
 .phrases .phrase-say{position:absolute;left:0;top:var(--s1);width:44px;height:44px}
 .phrase-slot{color:var(--muted)}
-.phrases .fuller .phrase-list{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
+.dict-more{margin-top:var(--s2)}
+.dict-more .phrase-list{max-height:40vh;overflow-y:auto;overscroll-behavior:contain}
+/* The learner's three actions: one primary, two text actions. */
+.dict-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--s2) var(--s4);
+  margin-top:var(--s5);padding-top:var(--s3);border-top:1px solid var(--line)}
+.dict-quiet{display:flex;flex-wrap:wrap;gap:0 var(--s4)}
+.dict-actions [aria-disabled="true"]{opacity:.4;cursor:default}
+.dict-status,.dict-note{margin:var(--s2) 0 0;font-size:var(--t-note);color:var(--ink-2)}
+.dict-status .ru{display:inline;margin-left:4px}
+.dict-note:empty{display:none}
+.dict-open{margin-top:var(--s3)}
+.dict-sources{margin-top:var(--s4)}
+.dict-sources ul{margin:var(--s2) 0 0;padding:0;list-style:none;font-size:var(--t-note)}
+.dict-sources li{padding:var(--s1) 0;border-bottom:1px solid var(--line)}
+.dict-src-what{display:block;font-size:var(--t-gloss);color:var(--muted)}
+
+/* ── Sõnastik: search, results, an entry's page ──────────────────── */
+.dict-form{display:grid;gap:var(--s2);max-width:32rem}
+.dict-form label{font-weight:600;color:var(--ink-2);font-size:var(--t-body)}
+.dict-form label .ru{display:inline;margin-left:6px}
+.dict-form input{width:100%;min-width:0;font-size:var(--t-reading)}
+.dict-count{margin:var(--s3) 0 0;min-height:1.5em}
+.dict-hint{margin:var(--s3) 0 0;font-size:var(--t-note);color:var(--ink-2)}
+.dict-results{list-style:none;margin:var(--s3) 0 0;padding:0;border-top:1px solid var(--line)}
+.dict-row{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:60px;
+  padding:var(--s2) 44px var(--s2) 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}
+.dict-row::after{content:"";position:absolute;right:var(--s4);top:50%;width:8px;height:8px;margin-top:-4px;
+  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg)}
+.dict-row:hover{background:var(--sheet)}
+.dict-row-head{display:flex;align-items:baseline;gap:var(--s2)}
+.dict-row-word{font-size:var(--t-reading);font-weight:600}
+.dict-row-level{font-size:var(--t-gloss);font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.dict-row-sub{display:flex;flex-wrap:wrap;gap:0 var(--s2);font-size:var(--t-note)}
+.dict-tag{color:var(--ink-2);font-weight:600}
+.dict-row-gloss{color:var(--gloss)}
+/* The one form the query was, at the word: *majja* over its name. */
+.dict-form-of{display:flex;flex-wrap:wrap;align-items:flex-start;gap:var(--s2) var(--s4);margin:var(--s4) 0 0;font-size:var(--t-prompt)}
+.dict-form-of .il{display:inline-flex;flex-direction:column;align-items:flex-start;white-space:normal;font-weight:500}
+.dict-form-of .il-f{position:static;margin-top:var(--s1);white-space:normal}
+.dict-form-lemma{align-self:center;font-size:var(--t-note);color:var(--ink-2)}
+.dict-back{margin-bottom:var(--s4)}
+.dict-back::before{content:"";width:8px;height:8px;margin-right:var(--s1);border-left:2px solid currentColor;
+  border-bottom:2px solid currentColor;transform:rotate(45deg)}
+.dict-entry .dict-head{font-size:var(--t-title)}
+.dict-entry .dict-forms th[scope="row"]{background:var(--ground)}
+.dict-entry{max-width:720px}
+/* The entry's action row stays at the foot of a long entry on a desktop; on a
+   phone its primary rides in the action bar and the row keeps its place. */
+@media (min-width:720px) and (hover:hover), (min-width:720px) and (min-height:560px){
+  .dict-actions.sticky{position:sticky;bottom:0;z-index:2;background:var(--ground);padding-bottom:var(--s3)}
+  /* Focus scrolling stops clear of the row, as it does of the phone's dock. */
+  html:has(#tab-sonastik:not([hidden]) .dict-actions.sticky){scroll-padding-bottom:calc(var(--s7) + var(--s7))}
+}
 .quiz{margin-top:var(--s5)}
 .quiz-item{padding:var(--s3) 0;border-top:1px solid var(--line)}
 .quiz-item p{margin:0 0 var(--s2);font-family:var(--f-read);font-size:var(--t-body)}

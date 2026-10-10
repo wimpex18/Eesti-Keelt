@@ -1,0 +1,8 @@
+{"on": "2026-10-10T13:30:49+00:00", "batch": "msgbatch_01KVFCLR56VQue3iX5Honuxv", "kind": "draft", "model": "claude-opus-5-5", "words": 40, "requests": 2}
+{"on": "2026-10-10T13:32:51+00:00", "batch": "msgbatch_01KVFCLR56VQue3iX5Honuxv", "kind": "draft-result", "model": "claude-opus-5-5", "gated": 67, "refused": 13, "usage": {"input": 3088, "output": 1914, "cache_write": 860, "cache_read": 860}, "dollars": 0.0276}
+{"on": "2026-10-10T13:32:52+00:00", "batch": "msgbatch_01Bz22a1UTkw2UJaq4okrSLN", "kind": "check", "model": "claude-haiku-5-5", "items": 67, "requests": 3}
+{"on": "2026-10-10T13:34:55+00:00", "batch": "msgbatch_01Bz22a1UTkw2UJaq4okrSLN", "kind": "check-result", "model": "claude-haiku-5-5", "kept": 67, "refused": 0, "usage": {"input": 3033, "output": 1819, "cache_write": 0, "cache_read": 0}, "dollars": 0.0006}
+{"on": "2026-10-10T13:35:56+00:00", "batch": "msgbatch_01HDeLeuQjRNkkd8qfrNpdtc", "kind": "draft", "model": "claude-opus-5-5", "words": 732, "requests": 37}
+{"on": "2026-10-10T13:40:32+00:00", "batch": "msgbatch_01HDeLeuQjRNkkd8qfrNpdtc", "kind": "draft-result", "model": "claude-opus-5-5", "gated": 1365, "refused": 86, "usage": {"input": 56653, "output": 26929, "cache_write": 860, "cache_read": 30960}, "dollars": 0.3909}
+{"on": "2026-10-10T13:40:33+00:00", "batch": "msgbatch_01F7iEwtErYxxgdnWNBPj4jA", "kind": "check", "model": "claude-haiku-5-5", "items": 1365, "requests": 46}
+{"on": "2026-10-10T13:42:37+00:00", "batch": "msgbatch_01F7iEwtErYxxgdnWNBPj4jA", "kind": "check-result", "model": "claude-haiku-5-5", "kept": 1301, "refused": 64, "usage": {"input": 56152, "output": 44391, "cache_write": 0, "cache_read": 0}, "dollars": 0.0139}

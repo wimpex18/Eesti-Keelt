@@ -25,12 +25,12 @@ restricted just because they were first imported by the owner.
 |---|---|
 | Vabamorf via EstNLTK | all forms, analysis, spelling — the answer key |
 | Enriched Ekilex word list (KristjanPikhof) | 160 000+ lemmas, estimated CEFR, frequency rank |
-| EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | official A1/A2/B1 levels, outranks the estimate |
+| EKI *Eesti keele tasemete sõnavara* (`A1A2B1.txt`) | official A1/A2/B1 levels, outranks the estimate; Sõnastik reads the level of the entry's own part of speech |
 | EKI *põhisõnavara sõnastik* (PSV) | learner-level definitions, examples, rection |
 | EKI *Eesti-vene sõnaraamat* (EVS) | offline Russian, inflection type, question-word cues, example phrases with Russian, public practice sentences |
 | EKI *Võõrsõnade leksikon* (VSL), *seletav sõnaraamat* (EKSS) | fallback Estonian definitions |
 | EKI *Haridussõnastik* (HAR) | fallback Russian for education terms |
-| Ekilex API (EKI) | live word card with `EKILEX_API_KEY` |
+| Ekilex API (EKI) | live word card with `EKILEX_API_KEY`; each sense's English and Ukrainian for Sõnastik |
 | Sõnaveeb via `api.sonapi.ee` | live word card without a key |
 | EKI *Eesti keele grammatika tabelid* (PSV) | case questions and endings, how forms derive from the principal forms, mood tables; restated in Russian on Reegel pages (`eesti/lessons.py`, `eesti/lessontext.py`) |
 | EKI teatmik, *Asesõnade käänamine* | pronoun paradigms (`eesti/pronouns.py`) |
@@ -43,6 +43,7 @@ restricted just because they were first imported by the owner.
 | EKI etLex grammar profile | the stage each unit's grammar serves, cited by statement id in `docs/course-structure.md`; no statement is copied |
 | EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
 | `data/seed_glossary.tsv` | 315 hand-written glosses for drill words |
+| Klint model glosses (`klint-glosses`, `content/dictionary/glosses.jsonl`) | Sõnastik's English and Ukrainian where no source answers: drafted by Claude Opus 5.5 from EVS's Russian, kept only when Claude Haiku 5.5's blind back-translation names the word, shown as the model's (`eesti/dictionary_glosses.py`) |
 
 Keep EKI attribution wherever EKI text is shown (`eesti.sources.REGISTRY`).
 
@@ -73,7 +74,10 @@ the EKK rection page use separate request paths.
 | `ekss_EKI_CCBY40.xml.gz` | `cli import-ekss` | 117 937 definitions |
 
 Lookup order — **Russian:** seed → live dictionary → EVS → HAR
-(`eesti/meaning.py`). **Definition:** PSV → live → VSL → EKSS
+(`eesti/meaning.py`). **English, Ukrainian** (Sõnastik): the live dictionary's,
+sense by sense (Ekilex, or the Sõnaveeb mirror's per-meaning lists; its
+top-level English names no source and is not used) → a checked model draft,
+labelled (`eesti/dictionary.py`). **Definition:** PSV → live → VSL → EKSS
 (`eesti/api/grammar.py`), with native-level wording folded under *täpsem
 seletus* when PSV answers. **Rektsioon, muuttüüp:** live, else PSV and EVS.
 **Example phrases with Russian** (*Näited* on the word card): EVS only, every

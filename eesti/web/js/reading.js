@@ -3,7 +3,7 @@
 import {actsAsButton, emptyState, retryableError, skeleton, uiIcon} from "./chrome.js";
 import {$, api, esc, langOf, ruCount} from "./core.js";
 import {YT, mountAudio, mountVideo} from "./media.js";
-import {showWordCard} from "./vocab.js";
+import {showWordCard} from "./dictionary.js";
 
 let libShown = 0, libRequest = 0;
 const WORDS = ["слово", "слова", "слов"], TEXTS = ["текст", "текста", "текстов"];

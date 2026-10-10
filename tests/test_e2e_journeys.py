@@ -409,7 +409,7 @@ def browser_errors(page):
 MODES = ("learn", "revise", "exam")
 
 def mode_of(page, tab: str) -> str:
-    return "learn" if tab in {"path", "course", "read", "listen", "speak", "write"} else "revise" if tab in {"review", "sonad", "vihikud"} else "exam"
+    return "learn" if tab in {"path", "course", "read", "listen", "speak", "write"} else "revise" if tab in {"review", "sonad", "sonastik", "vihikud"} else "exam"
 
 def open_tab(page, mode: str, tab: str) -> None:
     skill = page.locator(f'#nav-learn button[data-tab="{tab}"]')
@@ -428,7 +428,7 @@ def open_tab(page, mode: str, tab: str) -> None:
     page.wait_for_timeout(300)
 
 def advertised_tabs(page, mode: str) -> list[str]:
-    return {"learn": ["path", "course", "read", "listen", "speak", "write"], "revise": ["review", "sonad", "vihikud"], "exam": ["exam", "status", "profile"]}[mode]
+    return {"learn": ["path", "course", "read", "listen", "speak", "write"], "revise": ["review", "sonad", "sonastik", "vihikud"], "exam": ["exam", "status", "profile"]}[mode]
 
 
 class TestNavigation:
@@ -976,6 +976,152 @@ class TestTheWordWorkout:
         assert page.locator("#workoutScore").inner_text().strip() == ""
 
 
+#: Two sentences the starter reading serves, so the card's reading is known.
+STARTER = {"sentences": ["Anna mulle see raamat.", "Ma loen raamatut."], "note": "",
+           "reference": None, "topic": "obj-case"}
+
+
+class TestTheDictionary:
+    """Sõnastik and the word card (DESIGN.md, Word card): a word in any form finds
+    its entry, the entry names its sources and survives a reload, the card from a
+    text names the tapped form from Vabamorf's reading, and both hold focus as
+    every screen must."""
+
+    def _search(self, page, query):
+        open_tab(page, mode_of(page, "sonastik"), "sonastik")
+        page.fill("#dictQ", query)
+        page.wait_for_selector("#dictResults .dict-row", timeout=10000)
+
+    # WebKit's service worker bypasses page.route; these answers are mocked.
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_a_form_finds_its_entry_and_the_entry_survives_a_reload(self, page, live_server):
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={"found": False}))
+        self._search(page, "majja")
+        # The one form the query was, named at the word by Vabamorf.
+        assert page.locator("#dictResults .dict-form-of .il-name").inner_text() == "lühike sisseütlev"
+        first = page.locator("#dictResults .dict-row").first
+        assert first.locator(".dict-row-word").inner_text() == "maja"
+        first.click()
+        page.wait_for_selector("#dictEntry .dict-head")
+        assert page.evaluate("location.hash") == "#sonastik/maja"
+        entry = page.locator("#dictEntry")
+        assert entry.locator(".dict-head").inner_text() == "maja"
+        assert "maju" in entry.locator(".dict-forms.noun").inner_text()
+        entry.locator(".dict-sources > summary").click()
+        assert "Vabamorf" in entry.locator(".dict-sources").inner_text()
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector("#dictEntry .dict-head")
+        assert page.locator("#dictEntry .dict-head").inner_text() == "maja"
+        page.locator("#dictEntry .dict-back").click()
+        page.wait_for_selector("#dictSearch:not([hidden])")
+        assert page.input_value("#dictQ") == "majja"
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_broken_or_unknown_entry_route_recovers(self, page, live_server):
+        page.goto(live_server + "/#sonastik/%E0%A4%A", wait_until="networkidle")
+        page.wait_for_selector("#tab-path:not([hidden])")
+        page.goto(live_server + "/#sonastik/xqzzyqq", wait_until="networkidle")
+        page.wait_for_selector("#dictEntry .empty-state")
+        assert "нет в словарях" in page.locator("#dictEntry").inner_text()
+        page.locator("#dictEntry .empty-state a").click()
+        page.wait_for_selector("#dictSearch:not([hidden])")
+        # A misspelling gets Vabamorf's suggestions, never a guessed word.
+        page.fill("#dictQ", "raamatux")
+        page.wait_for_selector("#dictResults [data-suggest]")
+
+    # WebKit's service worker bypasses page.route; these answers are mocked.
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_adding_a_word_puts_it_in_the_review_queue(self, page, live_server):
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={"found": False}))
+        page.goto(live_server + "/#sonastik/raamat", wait_until="networkidle")
+        add = page.locator('#dictEntry [data-act="mine"]')
+        add.wait_for(state="visible")
+        with page.expect_request("**/api/mine") as mined:
+            add.click()
+        assert mined.value.post_data_json["word"] == "raamat"
+        page.wait_for_function("document.querySelector('#dictEntry [data-act=mine]').textContent.includes('Kordamises')")
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector("#dictEntry .dict-head")
+        assert page.locator('#dictEntry [data-act="mine"]').get_attribute("aria-disabled") == "true"
+        assert not browser_errors(page), browser_errors(page)
+
+    # WebKit's service worker bypasses page.route; these answers are mocked.
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_a_models_draft_is_shown_as_the_models(self, page, live_server):
+        """A gloss a model drafted sits in the model block, with its engine and
+        the checker's back-translation, and never as a dictionary's."""
+        real = page.request.get(live_server + "/api/dictionary/entry/raamat",
+                                headers={"x-eesti-scope": "guest", "x-eesti-guest": "e2e-model"}).json()
+        real["meanings"]["en"] = {"words": ["book"], "source": None, "model": {
+            "engine": "claude-opus-5-5", "prompt": "s9-gloss-1", "checker": "claude-haiku-5-5",
+            "check_prompt": "s9-back-1", "back": ["raamat"]}}
+        page.route("**/api/dictionary/entry/raamat", lambda r: r.fulfill(json=real))
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={"found": False}))
+        page.goto(live_server + "/#sonastik/raamat", wait_until="networkidle")
+        model = page.locator("#dictEntry .model-out")
+        model.wait_for(state="visible")
+        text = model.inner_text()
+        assert "Claude Opus 5.5" in text and "book" in text and "Claude Haiku 5.5" in text
+        assert model.locator("dd[lang=en]").inner_text() == "book"
+        assert "book" not in page.locator("#dictEntry .dict-means > .dict-langs").all_inner_texts()
+
+    # WebKit's service worker bypasses page.route; these answers are mocked.
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_the_card_names_the_tapped_form_and_gives_focus_back(self, page, live_server):
+        page.route("**/api/learning/sentences", lambda r: r.fulfill(json=STARTER))
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={"found": False}))
+        open_tab(page, "learn", "read")
+        word = page.locator('#readingStarter [data-word="mulle"]')
+        word.wait_for(state="visible", timeout=10000)
+        with page.expect_request("**/api/enrich/*") as live:
+            word.click()
+        # The live dictionary is asked about the lemma, never the form it met.
+        assert live.value.url.endswith("/api/enrich/mina")
+        card = page.locator("#wordCard")
+        card.locator(".dict-head .il").wait_for()
+        assert card.evaluate("d => d.open && d.matches(':modal')")
+        # *mulle* in *Anna mulle see raamat*: Vabamorf reads *mina*, allative.
+        assert card.locator(".dict-head .il-name").inner_text() == "ainsuse alaleütlev"
+        assert card.locator(".dict-lemma").inner_text() == "mina"
+        # Focus stays in the card as Tab goes round, and Escape gives it back.
+        for _ in range(12):
+            page.keyboard.press("Alt+Tab" if page.engine_name == "webkit" else "Tab")
+            assert card.evaluate("d => d.contains(document.activeElement)")
+        page.keyboard.press("Escape")
+        page.wait_for_function("!document.querySelector('#wordCard').open")
+        assert word.evaluate("el => el === document.activeElement")
+        if page.viewport_name == "phone":
+            # A bottom sheet, at half height until the learner scrolls it.
+            word.click()
+            card.locator(".dict-head").wait_for()
+            card.evaluate("d => Promise.all(d.getAnimations().map(a => a.finished))")
+            box = card.bounding_box()
+            assert abs(box["y"] + box["height"] - page.viewport_size["height"]) <= 2
+            assert box["height"] <= page.viewport_size["height"] * 0.6
+            card.locator(".word-grab").click()
+            page.wait_for_function("document.querySelector('#wordCard').classList.contains('full')")
+            page.keyboard.press("Escape")
+        assert not browser_errors(page), browser_errors(page)
+
+    # WebKit's service worker bypasses page.route; these answers are mocked.
+    @pytest.mark.parametrize("service_workers", ["block"])
+    def test_an_ambiguous_word_names_no_form(self, page, live_server):
+        """Without a sentence, *kooli* is three forms of *kool*: the line shows
+        the lemma and its meaning, and no form name."""
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={"found": False}))
+        page.route("**/api/learning/sentences", lambda r: r.fulfill(json=STARTER))
+        open_tab(page, "learn", "read")
+        page.evaluate("""async () => {
+          const {showWordCard} = await import('/js/dictionary.js');
+          showWordCard('kooli', null, null, document.querySelector('#readingStarter [data-word]'));
+        }""")
+        head = page.locator("#wordCard .dict-head .il")
+        head.wait_for()
+        assert page.locator("#wordCard .dict-head .il-name").count() == 1
+        assert page.locator("#wordCard .dict-head .il-name").inner_text() == "kool"
+        page.keyboard.press("Escape")
+
+
 @pytest.mark.usefixtures("corpus")
 class TestReading:
     """List, open, read, come back. The journey that had 82 unopenable items."""
@@ -1026,14 +1172,12 @@ class TestReading:
         page.locator("#libList .lib-item").first.click()
         page.wait_for_selector("#readerBody w", timeout=15000)
         page.locator("#readerBody w").first.click()
-        page.wait_for_selector("#wordCard:not([hidden])", timeout=10000)
-        # The card unhides with a skeleton and fills when `/api/lookup` answers: wait for
-        # the answer, then check it is an analysis rather than a refusal.
-        page.wait_for_function(
-            "document.querySelector('#wordCard').innerText.trim().length > 0",
-            timeout=10000)
+        page.wait_for_selector("#wordCard[open]", timeout=10000)
+        # The sheet opens with "Laadin…" and fills when the lookup and the entry
+        # answer: wait for the entry, then check it is one rather than a refusal.
+        page.wait_for_selector("#wordCard .dict-head", timeout=10000)
         text = page.locator("#wordCard").inner_text().strip()
-        assert "разбор недоступен" not in text, text
+        assert "недоступен" not in text, text
 
 
 class TestWriting:
@@ -1397,30 +1541,35 @@ class TestDiscoveredDefects:
         assert len(set(rows.evaluate_all("els => els.map(e => e.dataset.id)"))) == 73
         assert not browser_errors(page), browser_errors(page)
 
+    # WebKit's service worker bypasses page.route; these answers are mocked.
+    @pytest.mark.parametrize("service_workers", ["block"])
     def test_long_word_card_keeps_close_and_actions_reachable(self, page):
         """A long EKI entry must scroll inside its card above the phone dock."""
-        page.route("**/api/enrich/*", lambda r: r.fulfill(json={
-            "found": True, "definition": "Näide", "examples": ["See on raamat."] * 40,
-        }))
+        page.route("**/api/enrich/*", lambda r: r.fulfill(json={"found": False}))
         open_tab(page, "revise", "sonad")
         page.locator(".word-collection > summary").click()
         word = page.locator("#vocOut button[data-word]").first
         word.wait_for(state="visible")
         word.click()
-        page.wait_for_selector("#vocCard .examples li")
-        page.locator("#vocCard #skipBtn").focus()
-        assert page.locator("#vocCard #skipBtn").evaluate("""el => {
+        card = page.locator("#wordCard")
+        card.locator(".dict-actions").wait_for(state="attached")
+        last = card.locator('[data-act="ignore"]')
+        last.focus()
+        # Focus raises the half-height sheet; measure once it has risen.
+        page.wait_for_timeout(500)
+        assert last.evaluate("""el => {
             const r = el.getBoundingClientRect();
             return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
         }""")
-        close = page.locator("#vocCard .card-close")
+        close = card.locator(".sheet-close")
         assert close.evaluate("""el => {
             const r = el.getBoundingClientRect();
             return r.width >= 44 && r.height >= 44 &&
               el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
         }""")
         close.click()
-        assert page.locator("#vocCard").is_hidden()
+        assert not card.evaluate("d => d.open")
+        assert word.evaluate("el => el === document.activeElement")
         assert not browser_errors(page), browser_errors(page)
 
     def test_exam_video_opens_in_the_app(self, page, live_server):
@@ -1464,15 +1613,16 @@ class TestDiscoveredDefects:
         word = page.locator("#vocOut button[data-word]").first
         word.wait_for(state="visible")
         word.click()
-        close = page.get_by_role("button", name="Sulge — закрыть", exact=True)
+        card = page.locator("#wordCard")
+        close = card.locator(".sheet-close")
         close.wait_for(state="visible")
         assert pending
         close.press("Escape")
-        assert page.locator("#vocCard").is_hidden()
-        assert word.evaluate("el => el === document.activeElement")
+        page.wait_for_function("!document.querySelector('#wordCard').open")
+        page.wait_for_function("document.activeElement === document.querySelector('#vocOut button[data-word]')")
         pending[0].fulfill(json={"found": False, "word": "test"})
         page.wait_for_load_state("networkidle")
-        assert page.locator("#vocCard").is_hidden()
+        assert not card.evaluate("d => d.open")
         assert not browser_errors(page), browser_errors(page)
 
     def test_downloaded_workbook_opens_here_and_undownloaded_links_out(self, page):
@@ -2590,6 +2740,65 @@ class TestFocusIsNeverUnderTheDock:
         shell.wait_for_selector("#tab-read:not([hidden])")
         assert not sheet.evaluate("d => d.open")
         assert not shell.errors, shell.errors
+
+
+class TestTheDictionaryKeepsFocusInSight:
+    """Sõnastik's search and an entry, tabbed through at a phone's two
+    orientations and a desktop, and the search field with the keyboard up: no
+    focused element under the header, the dock, the action bar or the keyboard
+    (DESIGN.md, Focus and the dock)."""
+
+    @pytest.fixture(params=list(SHELL_SIZES))
+    def shell(self, request, _pw, live_server):
+        """`TestFocusIsNeverUnderTheDock`'s page, with the service worker blocked:
+        WebKit's bypasses page.route, and the live dictionary is mocked here."""
+        context = _pw.new_context(
+            service_workers="block",
+            extra_http_headers={"x-eesti-scope": "guest",
+                                "x-eesti-guest": f"e2e-{uuid4().hex[:12]}"},
+            **SHELL_SIZES[request.param])
+        pg = context.new_page()
+        pg.errors = []
+        pg.on("pageerror", lambda e: pg.errors.append(str(e)[:300]))
+        pg.route("**/api/auth/me", lambda route: route.fulfill(
+            json={"scope": "guest", "signup_open": True}))
+        pg.size, pg.base = request.param, live_server
+        pg.engine = getattr(_pw, "engine_name", "chromium")
+        yield pg
+        context.close()
+
+    #: The live dictionary's answer, so the entry has its links and folds.
+    LIVE = {"found": True, "definition": "hoone, kus inimesed elavad", "definition_source": "sonapi",
+            "full_definition": "hoone inimestele elamiseks", "full_definition_source": "sonapi",
+            "governs": [], "inflection_type": "17", "russian": ["дом"], "russian_source": "sonapi",
+            "english": ["house"], "ukrainian": ["будинок"], "translations_source": "sonapi",
+            "sonaveeb": "https://sonaveeb.ee/search/unif/dlall/dsall/maja"}
+
+    def test_tabbing_the_dictionary_never_lands_under_the_chrome(self, shell):
+        shell.route("**/api/enrich/*", lambda r: r.fulfill(json=self.LIVE))
+        found = []
+        TestFocusIsNeverUnderTheDock._open(shell, "#sonastik")
+        shell.fill("#dictQ", "maj")
+        shell.wait_for_selector("#dictResults .dict-row", timeout=10000)
+        found += TestFocusIsNeverUnderTheDock._tab_through(shell, "#sonastik results")
+        TestFocusIsNeverUnderTheDock._open(shell, "#sonastik/maja")
+        shell.wait_for_selector("#dictEntry .dict-actions")
+        found += TestFocusIsNeverUnderTheDock._tab_through(shell, "#sonastik/maja")
+        assert not found, "focus under the chrome:\n  " + "\n  ".join(found)
+        assert not shell.errors, shell.errors
+
+    def test_the_search_field_stays_above_the_keyboard(self, shell):
+        if shell.size not in KEYBOARD:
+            pytest.skip("a desktop has no on-screen keyboard")
+        TestFocusIsNeverUnderTheDock._open(shell, "#sonastik")
+        field = shell.locator("#dictQ")
+        shell.evaluate(KEYBOARD_STUB, KEYBOARD[shell.size])
+        field.focus()
+        shell.evaluate(SETTLE)
+        shell.wait_for_timeout(300)
+        assert field.evaluate(OBSCURED) is None
+        assert not TestFocusIsNeverUnderTheDock._sideways(shell, "#sonastik")
+        assert shell.locator("#skillsKey").is_visible()
 
 
 class TestTheShellSheets:

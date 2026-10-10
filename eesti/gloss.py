@@ -53,9 +53,11 @@ CREATE TABLE IF NOT EXISTS gloss_budget (
 
 #: Columns added for Ekilex (learner-level definition `wwLite`, sense CEFR level,
 #: which live dictionary answered, and the sense's usage examples — the live
-#: dictionary returns them and the card had been dropping them). `migrate` adds
-#: them to a restored `vocab.db`.
-LATER_COLUMNS = ("learner_definition", "level", "source", "examples")
+#: dictionary returns them and the card had been dropping them), then for the
+#: dictionary's English and Ukrainian (each sense's own, `sense_translations`).
+#: `migrate` adds them to a restored `vocab.db`; a NULL there means the answer
+#: predates the column, `''` that the dictionary had none.
+LATER_COLUMNS = ("learner_definition", "level", "source", "examples", "english", "ukrainian")
 
 
 def migrate(conn: sqlite3.Connection) -> None:
@@ -89,6 +91,10 @@ class Gloss:
     #: The sense's own usage examples (Ekilex `usages`, Sõnaveeb `examples`):
     #: the word in a sentence, which is what a learner reads it for.
     examples: tuple[str, ...] = ()
+    #: EKI's English and Ukrainian for the word (`None`: stored before they were
+    #: kept, so the word is asked once more; `()`: the dictionary has none).
+    english: tuple[str, ...] | None = None
+    ukrainian: tuple[str, ...] | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -147,7 +153,16 @@ def _row_to_gloss(row: sqlite3.Row) -> Gloss:
         examples=tuple(
             e for e in ((row["examples"] if "examples" in row.keys() else "") or "").split("\x1f")
             if e),
+        english=_listed(row, "english"),
+        ukrainian=_listed(row, "ukrainian"),
     )
+
+
+def _listed(row: sqlite3.Row, column: str) -> tuple[str, ...] | None:
+    """A stored list, or None where the row predates the column."""
+    if column not in row.keys() or row[column] is None:
+        return None
+    return tuple(w for w in row[column].split("\x1f") if w)
 
 
 def stored(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
@@ -174,6 +189,7 @@ def stored_many(
 
 def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
     """Record one lookup. `info` is a `sonapi.WordInfo`, or None for a miss."""
+    senses = getattr(info, "sense_translations", None) or {}
     gloss = Gloss(
         lemma=lemma,
         russian=tuple(info.russian[:4]) if info else (),
@@ -185,14 +201,17 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
         level=getattr(info, "level", None),
         source=getattr(info, "source", "sonapi"),
         examples=tuple(getattr(info, "examples", ()) or ())[:4],
+        english=tuple(senses.get("en", ()))[:4],
+        ukrainian=tuple(senses.get("uk", ()))[:4],
     )
     migrate(conn)
     with conn:
         conn.execute(
             """INSERT INTO word_gloss
                  (lemma, russian, definition, rection, inflection_type,
-                  found, fetched, learner_definition, level, source, examples)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  found, fetched, learner_definition, level, source, examples,
+                  english, ukrainian)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(lemma) DO UPDATE SET
                  russian = excluded.russian,
                  definition = excluded.definition,
@@ -203,13 +222,16 @@ def save(conn: sqlite3.Connection, lemma: str, info) -> Gloss:
                  learner_definition = excluded.learner_definition,
                  level = excluded.level,
                  source = excluded.source,
-                 examples = excluded.examples""",
+                 examples = excluded.examples,
+                 english = excluded.english,
+                 ukrainian = excluded.ukrainian""",
             # EKI's learner definitions are reference data beside the word list, not in this
             # table; `/api/enrich` reads both (see `eesti/psv.py`).
             (lemma, "\x1f".join(gloss.russian), gloss.definition,
              gloss.rection, gloss.inflection_type, int(gloss.found), _now(),
              gloss.learner_definition, gloss.level, gloss.source,
-             "\x1f".join(gloss.examples)),
+             "\x1f".join(gloss.examples), "\x1f".join(gloss.english or ()),
+             "\x1f".join(gloss.ukrainian or ())),
         )
     # Read back, so the caller gets what the store now holds.
     return stored(conn, lemma) or gloss
@@ -248,6 +270,11 @@ def _is_baseline(conn: sqlite3.Connection, lemma: str) -> bool:
     return bool(row) and row[0] in BASELINES
 
 
+def _predates_languages(hit: Gloss) -> bool:
+    """A found word stored before the English and Ukrainian columns existed."""
+    return hit.found and hit.english is None and hit.ukrainian is None
+
+
 def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
     """The one place a live lookup may happen: a word in front of the learner.
 
@@ -261,8 +288,9 @@ def remember(conn: sqlite3.Connection, lemma: str) -> Gloss | None:
 
     hit = stored(conn, lemma)
     # A seeded row carries only Russian; ask anyway (budget permitting) and keep the
-    # seed as the fallback.
-    if hit is not None and not _is_baseline(conn, lemma):
+    # seed as the fallback. So does an answer stored before English and Ukrainian
+    # were kept: the word is asked once more, under the same budget.
+    if hit is not None and not _is_baseline(conn, lemma) and not _predates_languages(hit):
         return hit
     if budget_left(conn) <= 0:
         return hit

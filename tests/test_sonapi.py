@@ -97,13 +97,8 @@ class TestTheEndpointNeverBreaksTheWordCard:
 
 
 class TestThePageAsksAboutTheLemma:
-    """The lookup sends the lemma, not the surface form (`jätkuma`, not `jätkuvad`)."""
-
-    def test_the_page_sends_the_lemma(self):
-
-        page = markup_and_script()
-        block = page.split("/api/enrich/")[0][-400:]
-        assert "analyses[0]?.lemma" in block
+    """The lookup sends the lemma, not the surface form (`jätkuma`, not `jätkuvad`):
+    the word card's journey checks the request (`TestTheDictionary`)."""
 
     def test_it_is_fetched_separately_from_the_card(self):
         """The card must be usable before a third party answers, so this

@@ -12,8 +12,8 @@ with `cli ekilex-probe`). From `/word/details/{id}/eki`, `lexemes` in EKI's orde
 
 * **learner definition** — flagged `wwLite` (Keeleõppija Sõnaveeb wording);
 * **native definition** — flagged `wwUnif`;
-* **Russian** — `synonymLangGroups` with `lang: rus`, `MEANING_WORD` only
-  (`MEANING_REL` are related meanings);
+* **Russian, English, Ukrainian** — `synonymLangGroups` with `lang` `rus`,
+  `eng`, `ukr`, `MEANING_WORD` only (`MEANING_REL` are related meanings);
 * **rection** — `governments`;
 * **muuttüüp** — the first paradigm's `inflectionType` (parenthesised = secondary);
 * **CEFR level** — `lexemeProficiencyLevelCode`;
@@ -142,11 +142,19 @@ def _definitions(lexeme: dict, flag: str) -> list[str]:
             if d.get("lang") == "est" and d.get(flag) and d.get("value")]
 
 
-def _russian(lexeme: dict) -> list[str]:
+def _equivalents(lexeme: dict, lang: str = "rus") -> list[str]:
     return [w["wordValue"]
-            for g in lexeme.get("synonymLangGroups") or [] if g.get("lang") == "rus"
+            for g in lexeme.get("synonymLangGroups") or [] if g.get("lang") == lang
             for s in g.get("synonyms") or [] if s.get("type") == "MEANING_WORD"
             for w in s.get("words") or [] if w.get("wordValue")]
+
+
+def _ordered(senses: list[dict], lang: str) -> tuple[str, ...]:
+    """One language's equivalents: the main sense's own lead (poiss: мальчик,
+    мальчишка, мальчуган), then each other sense's first."""
+    main = list(dict.fromkeys(_equivalents(senses[0], lang)))
+    others = [w[0] for w in (_equivalents(l, lang) for l in senses[1:]) if w]
+    return tuple(dict.fromkeys(main[:3] + others + main[3:]))[:MAX_RUSSIAN]
 
 
 def parse(details: dict) -> Info | None:
@@ -156,11 +164,12 @@ def parse(details: dict) -> Info | None:
     if not senses:
         return None
 
-    # Russian: the main sense's own translations lead (poiss: мальчик,
-    # мальчишка, мальчуган), then each other sense's first.
-    main = list(dict.fromkeys(_russian(senses[0])))
-    others = [ru[0] for ru in (_russian(l) for l in senses[1:]) if ru]
-    russian = tuple(dict.fromkeys(main[:3] + others + main[3:]))[:MAX_RUSSIAN]
+    # Each language: the main sense's own translations lead, then each other
+    # sense's first. English and Ukrainian are kept for the dictionary entry.
+    russian = _ordered(senses, "rus")
+    translations = {code: words for code, words in (
+        ("ru", russian), ("en", _ordered(senses, "eng")), ("uk", _ordered(senses, "ukr")))
+        if words}
 
     learner = next((d for l in senses for d in _definitions(l, "wwLite")), None)
     native = next((d for l in senses for d in _definitions(l, "wwUnif")), None)
@@ -181,7 +190,8 @@ def parse(details: dict) -> Info | None:
         inflection_type=paradigm["inflectionType"] if paradigm else None,
         definition=native,
         examples=examples,
-        translations={"ru": russian} if russian else {},
+        translations=translations,
+        sense_translations=translations,
         learner_definition=learner,
         level=level,
     )

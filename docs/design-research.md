@@ -170,6 +170,39 @@ are gone (a still ring, the live region's announcement, *Laadin…* after
 400ms). Phosphor's duotone fills had no style and drew solid; they are a 20 %
 tint now, as the set intends.
 
+## Word card and Sõnastik as built
+
+S9 (10 October 2026) built the word card and Sõnastik on the proposal of
+DESIGN.md's **Word card** ("unchanged in content; the tapped form as an
+interlinear word; a sheet on phones"), and checked them as the spec was
+checked: screenshots of the search, entries (a noun, a verb, a word with EKI's
+recording, a word with a model-drafted gloss) and the card from a text at 390,
+320 and 1280px in both themes, Chromium and WebKit; every colour pairing is one
+the contrast table already holds (meaning `gloss` on `sheet` 6.79 / 9.05 and on
+`ground` 6.12 / 10.22, `muted` on `sheet` 6.30 / 6.51, the marked word `jarv` on
+`jarv-soft` 6.59 / 6.57, the dashed model outline and the level chip `edge` on
+`sheet` 3.96 / 4.41 and on `ground` 3.57 / 4.98, light / dark); and the focus
+journey (the card holds focus and returns it to the word; Sõnastik tabbed
+through at 390×844, 874×402 and 1280×800 with nothing under the chrome; the
+search field above a stubbed keyboard). Where the build differs:
+
+| Proposal | Built | Why |
+|---|---|---|
+| The card unchanged in content: definition, then Russian, rektsioon and muuttüüp in one line | Meaning first in the meaning colour, English and Ukrainian beside it, every source named under it; then forms, the learner definition, EVS's phrases, the live additions | The old card put the Estonian definition first and the Russian last, in a middle-dot string; a learner looks a word up for what it means. |
+| Forms on request | The forms a learner needs always shown (six for a noun, seven for a verb); every case in a fold on the entry page | They are short, and the principal forms are what the course teaches; the full table is reference. |
+| A sheet on phones, its detents half and full | Half height on opening; it rises when its body is scrolled or its grabber is pressed | Scrolling a half sheet to raise it is the gesture iOS sheets teach; the grabber is a 44px key so it works without a gesture and for a screen reader. |
+| An anchored popover or a centred dialog on desktop | A modal dialog beside the word, on the side with more room, with no scrim, and the word marked | A centred dialog covered the sentence the word was tapped in; a scrim dimmed it. Modal keeps focus held and Escape and outside clicks closing, as the shell's sheets do. |
+| Form line "mina, alaleütlev" | The tapped form's form line is Vabamorf's name and gloss (`interlinear()` from the reading alone); the lemma is the next line | `interlinear()` takes the name only from the item, so the head is built from Vabamorf's reading like any item; the lemma as its own line keeps the form line one fact. |
+| (none) | A model's English or Ukrainian draft in the model block, with the second model's back-translation said in one sentence | ADR-0009 lets a model draft where no source answers; the learner should see that it is a draft and how it was checked, and a source's answer replaces it. |
+| (none) | The voice key says what it plays: *запись EKI* or *синтез* | EKI's recordings carry quantity a synthesiser guesses; the learner should know which they hear. |
+| (none) | Sõnastik in Veel, beside Sõnavara | The sidebar holds the screens of the course; the dictionary is a tool like Sõnavara. A word met in a text already opens the card in place. |
+| Sõnavara's page glossed «словарь» | Sõnavara «слова», Sõnastik «словарь» | Two screens with one gloss could not be told apart; Veel already glossed Sõnavara «слова». |
+
+Considered and set aside: a separate list of senses with English, Ukrainian
+and Russian side by side per sense. The sources answer per word (EVS) or for
+the main sense (Ekilex's lists), not per sense in every language, so a per-sense
+grid would have invented alignments.
+
 ## Platform and standards references
 
 | Source | Finding | Application |

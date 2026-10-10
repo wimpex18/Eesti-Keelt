@@ -70,6 +70,14 @@ COPY content/material/checked/ ./content/material/checked/
 RUN python -m eesti.cli material build || \
     echo "WARNING: checked material refused or missing; units have no dialogues. See docs/material.md."
 
+# Sõnastik's English and Ukrainian where no source has them: drafted by a model,
+# kept only after a second model's blind back-translation named the word again
+# (`eesti/dictionary_glosses.py`). Re-checked line by line into `data/eesti.db`;
+# a refused or missing file costs the drafts, never the sourced meanings.
+COPY content/dictionary/glosses.jsonl ./content/dictionary/glosses.jsonl
+RUN python -m eesti.cli dictionary import || \
+    echo "WARNING: model-drafted glosses refused or missing; Sõnastik shows sourced meanings only."
+
 # Actual input bytes, independently of whether an optional import succeeded.
 RUN python -m eesti.reference > REFERENCE_INPUTS.json && rm -rf data/raw
 
