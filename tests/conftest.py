@@ -375,6 +375,9 @@ def _redirect_data(monkeypatch, tmp_path, fixture_data):
 
     monkeypatch.setattr(config, "DB_PATH", fixture_data["words"])
     monkeypatch.setattr(config, "CONTENT_DB", fixture_data["content"])
+    # Checked unit material: none unless a test builds some, so a test never
+    # reads the `data/material.db` a local `cli material build` wrote.
+    monkeypatch.setattr(config, "MATERIAL_DB", tmp_path / "material.db")
     monkeypatch.setattr(config, "CACHE", fixture_data["cache"])
     monkeypatch.setattr(lookup, "EDGE_DB", fixture_data["edge"])
 

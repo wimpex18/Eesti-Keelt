@@ -22,6 +22,9 @@ EXCLUDED = {
     "DB_PATH",
     # The harvested corpus is pushed and archived separately.
     "CONTENT_DB",
+    # Checked unit material: built into the image from `content/material/checked/`,
+    # so every container already has it; no learner writes to it.
+    "MATERIAL_DB",
     # The evidence log travels event by event (`/api/events`, pulled into the
     # Worker's Durable Object), never as a file: see `test_the_log_travels_by_event`.
     "EVENTS_DB",

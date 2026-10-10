@@ -19,7 +19,6 @@ from contextlib import closing
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from .deps import content_db
 
 router = APIRouter()
 
@@ -34,7 +33,7 @@ def _shared() -> sqlite3.Connection:
 def _material(ident: str):
     from ..material import store
 
-    with closing(content_db()) as conn:
+    with closing(store.connect()) as conn:
         material = store.find(conn, ident)
     if material is None:
         raise HTTPException(status_code=404, detail="Этот материал не найден.")
@@ -82,7 +81,7 @@ def unit_material(unit_id: str) -> dict:
         by_id(unit_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="Такого раздела нет.") from None
-    with closing(content_db()) as conn:
+    with closing(store.connect()) as conn:
         found = store.for_unit(conn, unit_id)
     out = []
     with closing(_shared()) as shared:

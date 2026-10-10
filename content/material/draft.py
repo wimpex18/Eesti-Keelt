@@ -48,7 +48,9 @@ MAX_TOKENS = 32000
 #: `s2-draft-1` was `s2-draft-2` without the reading-task-4 paragraph of a text's
 #: brief (`unit_brief(..., version=...)` reproduces either).
 DRAFT_PROMPT = "s2-draft-2"
-REVISE_PROMPT = "s2-revise-1"
+#: `s2-revise-1` also told the model that code ignores digits in answers, which
+#: was true until `comprehension` counted them; `revise_brief` reproduces either.
+REVISE_PROMPT = "s2-revise-2"
 
 #: Questions a checked file keeps (`qa/opus-sessions.md`, S2); drafts ask for
 #: more, because the gates and the blind check drop some.
@@ -507,8 +509,8 @@ def bank_endings(material) -> list[str]:
 def to_fix(material, report) -> list[str]:
     """What a draft must change before the blind check, or nothing.
 
-    Must: a gate's failure, fewer than `QUESTIONS` questions left, a digit in an
-    answer, too few endings for reading task 4. When anything must change, the
+    Must: a gate's failure, fewer than `QUESTIONS` questions left, too few
+    endings for reading task 4. When anything must change, the
     gates' drops are listed too, so the rewrite fixes them on the way; drops
     alone, with enough questions left, are what drafting seven was for.
     """
@@ -516,13 +518,6 @@ def to_fix(material, report) -> list[str]:
     if report.passed and len(report.questions) < QUESTIONS:
         must.append(f"[questions] only {len(report.questions)} questions pass the gates; "
                     f"{QUESTIONS} are needed, so write new ones in place of the dropped")
-    for q in report.questions:
-        if any(ch.isdigit() for ch in q.answer):
-            # `comprehension.normalise` keeps letters only: *6 eurot* would
-            # match *5 eurot*, and *12* matches nothing.
-            must.append(f"[answers] question {q.id}: *{q.answer}* has digits, which code "
-                        "does not compare; write that number in words in the text "
-                        "and in the answer, or ask about something else")
     if material.kind == "tekst":
         endings = bank_endings(material)
         if len(endings) < BANK_MINIMUM:
@@ -536,7 +531,15 @@ def to_fix(material, report) -> list[str]:
     return must + [str(f) for f in report.dropped] if must else []
 
 
-def revise_brief(draft: dict, findings: list[str], notes: list[str] = ()) -> str:
+#: What `s2-revise-1` said about numbers, while `comprehension` ignored digits.
+DIGITS = """Code compares answers on letters only and ignores digits, so an answer never
+contains a digit: where a question asks for a number, price or time, the text
+writes it in words (kaks eurot, kell kuus) and the answer copies those words.
+"""
+
+
+def revise_brief(draft: dict, findings: list[str], notes: list[str] = (),
+                 version: str = REVISE_PROMPT) -> str:
     editor = "" if not notes else (
         "\nNotes from the session that runs these checks (a reader, not code; "
         "follow them where they agree with the checks):\n"
@@ -548,10 +551,7 @@ text natural and coherent. Every finding below is from code; do not argue with
 it. Where a word is beyond the unit's grammar or level, rephrase around it
 rather than declaring it, unless declaring it is the only natural way.
 
-Code compares answers on letters only and ignores digits, so an answer never
-contains a digit: where a question asks for a number, price or time, the text
-writes it in words (kaks eurot, kell kuus) and the answer copies those words.
-A dropped question's id may be reused for its replacement.
+{DIGITS if version == "s2-revise-1" else ""}A dropped question's id may be reused for its replacement.
 
 Findings:
 {chr(10).join(f"- {f}" for f in findings)}
@@ -623,9 +623,7 @@ def _words():
 def _client():
     import anthropic
 
-    from eesti import env
-
-    env.load()
+    # `eesti/__init__.py` has loaded the key from `.env` already.
     return anthropic.Anthropic()
 
 

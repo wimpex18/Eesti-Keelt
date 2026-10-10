@@ -19,7 +19,7 @@ reading text on the unit's HARNO topic, five questions each:
 
 | Path | What it is |
 |---|---|
-| `checked/<unit>/<slug>.json` | Material that passed the gates and the blind check, stamped by `cli material blind`. The record: `cli material build` re-checks each file into `content.db`. |
+| `checked/<unit>/<slug>.json` | Material that passed the gates and the blind check, stamped by `cli material blind`. The record: `cli material build` re-checks each file into `data/material.db`, which the image builds. |
 | `draft.py` | How the drafts were asked for: the system prompt, each unit's brief, the Batches API calls. |
 | `log.md` | Every draft the gates or the blind check refused, and why. |
 | `rejected/<unit>/<slug>.r<n>.json` | Drafts the gates or `draft.py`'s own checks refused, round `n`. A draft the blind check left short was revised too; its drops are in `log.md`. |
@@ -52,10 +52,12 @@ reading text on the unit's HARNO topic, five questions each:
    with the pipeline's stamp. Every drop, in either run, is copied into
    `log.md`.
 
-`draft.py` also asks of every draft what the gates do not: no digits in an
-answer (`comprehension` compares letters only, so *6 eurot* would match
-*5 eurot*), and, for a text, at least five sentence endings that HARNO's B1
-reading task 4 can remove into its phrase bank (`harnotasks.phrase_bank`).
+`draft.py` also asks of every text what the gates do not: at least four
+sentence endings that HARNO's B1 reading task 4 can remove into its phrase bank
+(`harnotasks.phrase_bank`). While these files were made, `comprehension` compared
+answers on letters only (*6 eurot* would have matched *5 eurot*), so their
+answers carry no digits and a number they ask about is written in words; it now
+counts digits, and `s2-revise-2` no longer asks for that.
 
 Every file names its engine and prompt version (`authoring`); every Estonian
 form in it was accepted by Vabamorf, every content word is on EKI's A1 list or
