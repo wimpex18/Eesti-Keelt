@@ -334,8 +334,20 @@ def ask_rule(topic_id: str, question: str, lang: str = "ru") -> Answer:
     source_text = " ".join([topic.et, reference["summary_ru"] if reference else "",
                             reference["et_term"] if reference else "", *points])
     allowed = {w.casefold() for w in _WORD.findall(source_text)} | {"ekk"}
-    return _ask(prompt, allowed, "ask_rule", reference, system=_ask_system(lang), lang=lang)
+    answer = _ask(prompt, allowed, "ask_rule", reference, system=_ask_system(lang), lang=lang)
+    if answer.degraded and answer.engine == "none":
+        # On the rule page the sourced rule is above the question, not below.
+        from dataclasses import replace
 
+        answer = replace(answer, note=_ASK_UNAVAILABLE[lang])
+    return answer
+
+
+_ASK_UNAVAILABLE = {
+    "ru": "Ответ сейчас недоступен: ни один движок не ответил. Правило по источникам — выше на этой странице.",
+    "uk": "Відповідь зараз недоступна: жоден рушій не відповів. Правило за джерелами — вище на цій сторінці.",
+    "en": "No answer is available right now: no engine answered. The sourced rule is above on this page.",
+}
 
 _NO_SOURCE = {
     "ru": "Для этой темы нет раздела в источниках, поэтому ответ не на чём основывать.",

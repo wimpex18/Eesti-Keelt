@@ -1784,8 +1784,8 @@ button.go[aria-disabled="true"]:hover{background:var(--act)}
 
 /* ── The rule page's question box ─────────────────────────────────── */
 .rule-ask-form{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2)}
-.rule-ask-form label{font-weight:600}
-.rule-ask-form label .hint{display:block;font-weight:400}
+.rule-ask-form label{display:block;width:100%;font-weight:600}
+.rule-ask-form label .hint{display:block;margin-top:2px;font-weight:400}
 .rule-ask-form textarea{width:100%;min-height:4.5rem}
 .rule-ask-out:not(:empty){margin-top:var(--s3)}
 .rule-ask-q{margin:0 0 var(--s2);color:var(--ink-2)}

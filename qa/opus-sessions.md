@@ -214,7 +214,10 @@ speakers, never translated from the Russian. Unsourced tips in lessontext.py
 move into this shape or go. The default explanation language comes from the
 system or browser (PRODUCT.md): the first of `navigator.languages` (iOS:
 preferred languages) that is uk, ru or en, else en; preselected, changeable in
-Profile, a saved choice always wins, location never used. The page's `lang`
+Profile, a saved choice always wins, location never used. (S8's onboarding
+already preselects it and saves it; Profile has no switch yet.) Key every
+interface label and gloss by a stable id, so the names S11 settles with the
+owner (qa/naming.md) are a catalogue change. The page's `lang`
 and every gloss's `lang` follow the chosen language; a missing reviewed
 translation is shown as missing, never silently replaced by Russian.
 ```
@@ -239,4 +242,22 @@ by code with the first attempt counting; and the review's open questions.
 Prototype only what the owner chooses, at 390 and 1280 px in both themes.
 Record what is agreed in docs/design-research.md and the spec in DESIGN.md; a
 change to a PRODUCT.md commitment is proposed, not made.
+
+Since S8 the session (eesti/web/js/session.js) builds every item kind on one
+state machine, and they all still look like the competitor's: a typed gap, a
+choice between two forms, heard choices ("Kuula ja vali: ____"), a word
+recalled into an EKI phrase, questions on a heard dialogue, dictation, tiles,
+sentences to repeat, a spoken and a written task. On 11 October 2026 the
+owner set a competitor's lesson (matching sentence halves, a paragraph of
+drop-down gaps; qa/competitor-review.md) beside S8's screens and found the
+same structure and approach. Cover each kind, not obj-case alone; keep the
+state machine and the fixed rules, so a new look is a renderer in
+session.js, not a new flow.
+
+Names: the owner finds the app's names generic and close to competitors'
+(sections, modes, steps, exercise types: Sõnastik, Vaba harjutus, Märka…).
+qa/naming.md proposes names in Estonian, Russian and English from official
+courses (Keeleklikk, Keeletee), HARNO, EKI, the CEFR's Estonian translation,
+textbooks and learning apps. Bring it to the owner, record the chosen names
+in DESIGN.md, and rename by stable id through S4's catalogue.
 ```
