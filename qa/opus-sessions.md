@@ -38,21 +38,18 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 3 | S10 | Redesign: tokens and shell | S7F | done in PR #134 |
 | 4 | S3 | Interactive rules (Reegel) | S10 | done in PR #136 |
 | 4 | S9 | Dictionary (Sõnastik) | S10 | done in PR #137 |
-| 5 | R2 | Refresh after steps 1–4 | S2, S3, S9, S10 | waits |
-| 6 | S8 | Session, Täna and Haiku in the app | S3, S9, R2 | waits |
+| 5 | R2 | Refresh after steps 1–4 | S2, S3, S9, S10 | done in PR #TBD |
+| 6 | S8 | Session, Täna and Haiku in the app | S3, S9, R2 | ready |
 | 7 | R3 | Refresh after step 6 | S8 | waits |
 | 8 | S4 | Explanation languages (alone: no other session open) | R3 | waits |
 | 9 | R4 | Refresh after step 8 | S4 | waits |
 | 10 | S11 | Beyond the generic exercise: a discussion with the owner | R4 | waits |
 
-Why this order: S10 builds the tokens and the shell every redesigned screen
-stands on, so it follows the reviewed spec and precedes S3, S9 and S8; S8's
-session uses S3's rule walk for its "rule by doing" step; S4 rewrites call
-sites across the app, so it runs alone after the build sessions; S11 then
-discusses the exercise and the screens with the owner on the finished app. S2
-touches only `content/material/` and runs beside anything; start it early,
-because the exam reading task 4 waits for its checked texts (sittings 7–8 Nov
-2026).
+Why this order: the tokens and the shell (S10) came first because every
+redesigned screen stands on them; S8's session uses S3's rule walk for its
+"rule by doing" step; S4 rewrites call sites across the app, so it runs alone
+after the build sessions; S11 then discusses the exercise and the screens with
+the owner on the finished app.
 
 ## Who does what
 
@@ -105,27 +102,23 @@ and is labelled; a contrast claim needs a published source.
 
 ## Redesign sessions
 
-S10, S3, S9 and S8 build screens to `DESIGN.md`. Its **Fixed and open**
-section says what every screen must keep and what is a reviewed starting
-point. Bring the best design judgment the session has: your own, and a
-front-end design skill if one is available. Where you see a simpler, more
-useful or more beautiful solution than the spec's values, wireframes or
+Sessions that build screens (S8; earlier S10, S3 and S9) work to `DESIGN.md`.
+Its **Fixed and open** section says what every screen must keep and what is a
+reviewed starting point. Bring the best design judgment the session has: your
+own, and a front-end design skill if one is available. Where you see a simpler,
+more useful or more beautiful solution than the spec's values, wireframes or
 component looks, build it; keep every fixed rule; check it as the spec was
 checked (screenshots at 390 and 1280 px in both themes, contrast computed with
 the WCAG formula, the focus journey); and in the same PR update the spec's
 section for your screen, with the reason in `docs/design-research.md`. A change
-to a `PRODUCT.md` commitment is proposed in the PR, not made. The briefs below
-name outcomes; where they quote a value, it is the spec's proposal.
+to a `PRODUCT.md` commitment is proposed in the PR, not made. The briefs name
+outcomes; where they quote a value, it is the spec's proposal.
 
 ## File ownership
 
 | ID | Owns | Shared, add only |
 |---|---|---|
-| S2 | `content/material/` | — |
 | R<n> | `HANDOFF.md`, `qa/sessions/`, the status cells of "Progress and order" | `docs/status.md`, `qa/architecture-review.md` |
-| S10 | `eesti/web/app.css`, `eesti/web/js/chrome.js`, `eesti/web/js/core.js` (the interlinear helper), `eesti/web/sw.js` (offline page), `eesti/api/assets.py` (manifest colours), `tests/test_shell.py`; in `DESIGN.md` the frontmatter and the sections for tokens and shell (Colors to Layout, Elevation and shape, The signature, Components, Motion, Focus and the dock, iOS, Migration) | `eesti/web/index.html`, `eesti/web/js/router.js`, `tests/test_e2e_journeys.py`, `docs/app-structure.md`, `docs/design-research.md` |
-| S3 | `eesti/rulewalk.py`, `eesti/web/js/lesson.js`, `tests/test_rulewalk.py`; in `DESIGN.md` the Reegel section | `eesti/lessontext.py` (walk data), `docs/design-research.md` |
-| S9 | `eesti/dictionary.py`, `eesti/api/dictionary.py`, `eesti/web/js/dictionary.js`, `eesti/web/js/words.js`, `tests/test_dictionary*.py`; in `DESIGN.md` the Word card section | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/identity.md`, `docs/design-research.md` |
 | S8 | `eesti/session.py`, `eesti/api/session.py`, `eesti/web/js/path.js`, `eesti/web/js/review.js`, `eesti/web/js/onboarding.js`, `eesti/tutor.py`, tests; in `DESIGN.md` the Practice rhythm, Täna and session sections | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/design-research.md` |
 | S4 | `eesti/i18n/`, the call sites that read `why_ru`, `points_ru`, `summary_ru`, `tests/test_ui_language.py` | — (no other session open) |
 | S11 | `qa/competitor-review.md`; prototypes stay in its worktree until the owner picks one | `docs/design-research.md`; the `DESIGN.md` sections the owner agrees to change |
@@ -150,22 +143,6 @@ above, and write its own `qa/sessions/<branch>.md`.
    git's link to it. The refresh removes merged ones; to remove one yourself,
    from the project folder: `git worktree remove ".claude/worktrees/<name>"`.
 
-## S2. Lessons: unit dialogues and texts (step 1)
-
-```text
-Klint S2: draft dialogues and reading texts for units 2–10 with the material
-pipeline. Follow "Every session first" in qa/opus-sessions.md; you own
-content/material/ only. Read docs/course-structure.md, eesti/units.py,
-eesti/phrases.py (EKI's A1 exchanges), Sõnaveeb's A2/B1 phrase collections
-(credited), ADR-0009. Per unit: one dialogue of 6–10 turns and one text of
-80–150 words on its HARNO topic, built on EKI's exchanges for that situation,
-lemmas within the A1 list, grammar only from topics introduced so far, five
-questions each whose answers appear verbatim once. Use Opus 5.5 at effort high
-through the Batch API with a cached system prompt; run `cli material check` and
-`cli material blind` until they pass; keep a log of rejected drafts and why.
-Label every file with engine and prompt version.
-```
-
 ## R. Refresh after a step (R1–R4)
 
 ```text
@@ -185,87 +162,15 @@ branch; if `git worktree list` marks one "prunable", find the folder and run
 branch and one PR titled "[R<n>] Refresh after step <n>"; Linear is paused.
 ```
 
-## S10. Redesign: tokens and shell (step 3)
-
-```text
-Klint S10: build steps 1 and 2 of DESIGN.md's Migration, the Interlinear
-tokens and the app shell. Follow "Every session first" and "Redesign sessions"
-in qa/opus-sessions.md; your files are listed there under S10. Read DESIGN.md in
-full, docs/design-research.md, docs/brand.md, .claude/rules/web.md, PRODUCT.md,
-and look at the current app at 390 and 1280 px, light and dark, before you
-decide anything.
-Outcomes. Tokens: the spec's roles in eesti/web/app.css for both themes, with
-every old name a rule uses kept as an alias (Migration step 1 has the map), so
-every unconverted screen still renders; type in rem; Estonian material and the
-explanation language told apart by Geologica's two cuts; the decoration the
-spec forbids gone (glass, washes, pill radii, uppercase labels, italics,
-decorative motion); motion that answers the learner, with reduced-motion,
-reduced-transparency, forced-colours and prefers-contrast fallbacks; the
-manifest, theme-color and the offline page in sw.js on the new ground. Shell:
-desktop navigation; a phone header with Veel; a phone bottom area that keeps
-the four skills reachable, gives each screen one primary action in a place that
-does not move, and never covers focus or the keyboard, in portrait and
-landscape and inside the safe areas; the interlinear word as a CSS component
-with a core.js helper whose form name comes only from the item's data. The
-spec's dock states, sizes and wireframes are its proposal, reviewed by S7R;
-improve on them where you can.
-Tests: a focus-versus-dock journey at 390x844, 874x402 and 1280x800 on both
-engines, with the keyboard cases through a visualViewport stub; the bottom
-area's labels at 390 and 320 px in Russian, Ukrainian and English; the whole
-journey suite on both engines. Every screen keeps working on the aliases; S3,
-S8 and S9 rebuild their own screens.
-```
-
-## S3. Interactive rules (step 4)
-
-```text
-Klint S3: make the Reegel page teach by doing, starting with obj-case and
-osaalus (ADR-0009 step 2). Follow "Every session first" in
-qa/opus-sessions.md; your files are listed there under S3. Read
-eesti/lessons.py, eesti/drills.py, eesti/existential.py, eesti/grammar.py,
-EKK SÜ 35/38/40.
-Shape: a walk of steps — notice (2–4 examples from Vabamorf or a quoted EKK
-example), ask (a generator spec keyed by code at run time), explain (≤40 words in
-the explanation language, citing its section), contrast (the wrong/right pair).
-On #rule/obj-case the learner toggles completed/ongoing, negation, plural,
-imperative, impersonal and watches the object form change, every form from
-Vabamorf. Model-written prose is labelled; any Estonian string not from code or
-the cited source is rejected (tutor._grounded as a second gate). Keyboard and
-screen reader complete; a reduced-motion version. The page keeps DESIGN.md's
-fixed rules: sources visible near the top, the gist from the topic's sourced
-summary (never an entry of TIPS), one primary action (Harjuta). Its Reegel
-section (a page with a back control, the form switch with the interlinear word)
-is the reviewed proposal; improve on it where you can ("Redesign sessions").
-```
-
-## S9. Dictionary (step 4)
-
-```text
-Klint S9: build the learner's dictionary (Sõnastik) on the shared word card.
-Follow "Every session first" in qa/opus-sessions.md; your files are listed
-there under S9. Read eesti/lookup.py, eesti/evs.py, eesti/meaning.py,
-eesti/wordlist.py, eesti/haaldus.py, eesti/licences.py, docs/sources.md.
-An entry, found by any form (Vabamorf lemma): the headword with its EKI level
-(the A1/A2/B1 list or an identified Ekilex estimate), part of speech, the forms
-a learner needs from morph.case_forms (verbs: ma, da, b, s, nud, tud, takse),
-EKI's PSV recording where there is one, EVS example phrases with their Russian,
-and meanings in Russian, English and Ukrainian from EKI sources. Where no source
-has a translation, a gloss drafted by a model is labelled as such and kept only
-when a second model's blind back-translation agrees; never shown as a source's.
-"Lisa kordamisse" uses the existing vocabulary and review path. Every entry
-names its sources. Search, the entry and the card work at phone width. The
-card keeps DESIGN.md's fixed rules; its Word card section (a sheet on phones,
-the tapped form as an interlinear word) is the reviewed proposal; improve on it
-where you can ("Redesign sessions").
-```
-
 ## S8. The session, Täna and Haiku in the app (step 6)
 
 ```text
 Klint S8: build the session and the next task of ADR-0009, with Haiku 5.5 as
 the in-app helper. Follow "Every session first" in qa/opus-sessions.md; your
-files are listed there under S8. Read ADR-0008, ADR-0009, eesti/planning.py,
-eesti/units.py, eesti/unitcheck.py, eesti/tutor.py, eesti/providers/claude.py.
+files are listed there under S8. Read HANDOFF.md's "For S8" list first: it
+carries what S2, S3, S9 and S10 left for you. Read ADR-0008, ADR-0009,
+eesti/planning.py, eesti/units.py, eesti/unitcheck.py, eesti/tutor.py,
+eesti/providers/claude.py.
 Build: the seven steps composed by code from the current unit and the evidence,
 the weekly rotation, one Jätka with two alternatives and their reasons, the hint
 and one retry with only the first attempt counting, words entering review after

@@ -27,20 +27,20 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 
 | # | Decision | Linear | State |
 |---|---|---|---|
-| D0 | Licensable material for every learner | DEV-36 | Partly done: EKI EVS phrases feed every corpus topic, dictation, read-aloud and mock reading/listening for public learners (DEV-54), and EKI's credit now shows on every item built from them, offline packs, test-out and placement included, and on review cards queued from 9 Oct 2026. Open: reading texts (none public), Settle in Estonia A1/A2 import once confirmed (DEV-56), permissions (DEV-55), checked unit dialogues and texts from the material pipeline below (S2) |
+| D0 | Licensable material for every learner | DEV-36 | Partly done: EKI EVS phrases feed every corpus topic, dictation, read-aloud and mock reading/listening for public learners (DEV-54), and EKI's credit now shows on every item built from them, offline packs, test-out and placement included, and on review cards queued from 9 Oct 2026. Open: reading texts (none public), Settle in Estonia A1/A2 import once confirmed (DEV-56), permissions (DEV-55), dialogues and texts for units 11–30 (units 2–10 are checked and ship, S2) |
 | D1 | Correctness | DEV-35, DEV-49..53 | Done: EVS homographs and inflection types, nimetav-object writing check, item labels and capitals, exam screens, rection norms EKI now accepts, retired rection cards out of due counts, one-reading case labels on short phrases. Open limits are in `docs/status.md` (parallel forms beyond Vabamorf, templated frames, narrow object check) |
 | D1b | Data safety | DEV-37 | Done in code: nightly off-Cloudflare backup, Durable Object fixes, `ITEM_SECRET`, durable guest allowances. Owner setup pending (below) |
 | D2 | Litestream-replicated SQLite instead of Durable Object replication | DEV-43 | Open; after the 7–8 Nov 2026 sittings |
 | D3 | Claude Haiku 5.5 tutor lane and eval | DEV-38 | Done: at effort high Haiku passed ADR-0008's bar on 9 Oct 2026 (10/10 with 8/8 clean; 13/40 with 19/20 clean) and leads the grammar and tutor chain, Workers AI behind it. Open: the key on Cloud Run and a spend limit on the account (owner, below) |
 | D4 | Long-context grounding in EKI rule text | DEV-44 | Open; after D3 |
 | D5 | Ukrainian, then English explanations | DEV-42 | Open; after the D6 spec |
-| D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Spec (`docs/course-structure.md`) and ADR-0007 agreed with the owner on 9 Oct 2026; first slice built: thirty units in `eesti/units.py`, Kursus by unit, unit 1 (sounds in EKI's recordings, EKI's A1 phrases, numbers, first words), the nominative total object, `osaalus`. Since built: the unit check, and generators for negation beyond present and past, modal verbs with the infinitive and the future (S5). Open: homework, weekly plan, dialogues and texts (S2), unit pages in the redesign (S8) |
+| D6 | A0→B1 course structure: units, topics, modes | DEV-40 | Spec (`docs/course-structure.md`) and ADR-0007 agreed with the owner on 9 Oct 2026; first slice built: thirty units in `eesti/units.py`, Kursus by unit, unit 1 (sounds in EKI's recordings, EKI's A1 phrases, numbers, first words), the nominative total object, `osaalus`. Since built: the unit check, and generators for negation beyond present and past, modal verbs with the infinitive and the future (S5). Units 2–10 have checked dialogues and texts (S2). Open: homework, weekly plan, unit pages that show the material (S8), dialogues and texts for units 11–30 |
 | D7 | HARNO task formats in practice and mocks | DEV-41 | Started (ADR-0009, B1 first): both writing tasks per level with a code checklist, *Eksamipäev*, practice from reading misses, and HARNO reading and listening task types keyed by code in practice and mocks (`eesti/harnotasks.py`). Open: reading 1–2 and listening 2 and 4, which need checked material; readiness by task type; Haiku's writing feedback in the app (S8) |
 | D8 | Lemma search, passkeys, account recovery, ASR heartbeat | DEV-48 | Open; later |
 | D9 | Practice patterns (edit-then-explain, hint-first, mistakes session) | DEV-45 | Open |
 | D10 | Locked dependencies and current versions | DEV-39 | Done |
 | D11 | The learning loop: onboarding, session, next task, exam loops, material without a human reviewer | DEV-40, DEV-41, DEV-45 | Decided (ADR-0009, 9 Oct 2026). Order: B1 exam loop before the 7–8 Nov sittings, then the session and next task, then onboarding |
-| D12 | The Interlinear redesign and the name Klint | — | Spec in `DESIGN.md`, reviewed (S7R) and revised (S7F) on 10 Oct 2026. Next: tokens and shell (S10), then Reegel (S3), Sõnastik (S9), and the session with Täna (S8), in the order of `qa/opus-sessions.md` |
+| D12 | The Interlinear redesign and the name Klint | — | Spec in `DESIGN.md`, reviewed (S7R) and revised (S7F) on 10 Oct 2026. Built: tokens and shell (S10), Reegel with the rule walk (S3), Sõnastik and the word card (S9). Next: the session with Täna (S8), then S4, then S11, in the order of `qa/opus-sessions.md` |
 | — | Scheduled harvests, corrected source notes | DEV-46 | Open |
 | — | Four-week pilot with Russian, Ukrainian and English learners | DEV-47 | Open; after the sittings |
 
@@ -60,7 +60,9 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 7. Klint: a Business Register and trademark search, then buy `klint.ee`.
 8. Run `python -m eesti.cli import-evs` once in any checkout used for local
    serving, so the question-word cues for *kellega*, *kellele* and *kui palju*
-   load (the Docker build already runs it).
+   load (the Docker build already runs it). Also run `python -m eesti.cli
+   material build` once, so the units' checked dialogues and texts load (the
+   Docker build runs it too).
 
 ## What the next steps build
 
@@ -93,8 +95,9 @@ topic, HARNO item types keyed to text spans, multi-voice TTS listening from the
 same scripts, at least 20 writing prompts and 30 speaking cards per level.
 Labelled "written with a model, checked by Vabamorf and automatic checks".
 Built: the schema, the gates, the blind check, the build into `content.db` and
-*Teata veast* (`docs/material.md`). Next: S2 drafts units 2–10. Open:
-`cli push-content` does not run `cli material build`, so a pushed `content.db`
+*Teata veast* (`docs/material.md`), and S2's checked dialogues and texts for
+units 2–10 (18 files; `content/material/log.md` records what was refused).
+Next: units 11–30. Open: `cli push-content` does not run `cli material build`, so a pushed `content.db`
 lacks the checked material; `/api/read/questions/{item_id}`
 (`eesti/api/library.py`) offers model-written questions for `mat:` items
 instead of their checked ones; context-only gaps (the object's case after
@@ -132,7 +135,10 @@ ceiling, and the hand and external evals passing a margin agreed first.
 About 1,900–2,400 Cyrillic fragments in about 90 files, no catalogue; `why_ru`
 is signed into item tokens and stored in events; the tutor grounding treats any
 Latin word as Estonian (English explanations would be rejected);
-`explanation_language` is stored in the profile but unread. Shape: canonical
+`explanation_language` is stored in the profile but unread; the rule walk's
+Russian (`Explanation.text_ru`, condition glosses, `rulewalk.CASE_RU`) and
+Sõnastik's meaning language (`LANG_RU`) are two more places the catalogue must
+absorb. Shape: canonical
 layer with stable IDs; a catalogue per language with draft/reviewed status,
 CLDR plurals and per-language contrast notes; items and new events carry
 `rule_id` and parameters. Meanings: Ekilex/Sõnaveeb `ukr`/`eng` (already parsed
