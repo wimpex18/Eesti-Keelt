@@ -72,14 +72,18 @@ export async function loadToday() {
     $("#tanaHero").innerHTML = heroHtml(t);
     const unit = s.unit;
     $("#tanaUnit").innerHTML = `<span lang="et">${unit.n}. ${esc(unit.et)}
-      <span class="ru" lang="ru">блок ${unit.n}, занятие ${s.n} из ${s.of}: ${esc(s.emphasis.ru)}</span></span>`;
+      <span class="ru" lang="ru">занятие ${s.n} из ${s.of}: ${esc(s.emphasis.ru)}</span></span>`;
+    // Before the first session: what a session gives, in one sentence.
+    $("#tanaFirst").hidden = !t.first;
     $("#tanaSteps").innerHTML = s.steps.map(stepRow).join("");
     $("#tanaAlt").innerHTML = next.alternatives.map(altRow).join("");
     const primary = next.primary;
     const minutes = primary.minutes ? `, ${primary.minutes} мин` : "";
     if (primary.kind === "session") {
-      setLabel(btn, "Jätka");
-      btn.querySelector(".ru").textContent = `продолжить${minutes}`;
+      // Alusta until the day's session has begun; then Jätka.
+      const begun = t.started || s.steps.some(st => st.state === "done");
+      setLabel(btn, begun ? "Jätka" : "Alusta");
+      btn.querySelector(".ru").textContent = `${begun ? "продолжить" : "начать"}${minutes}`;
       $("#tanaWhy").textContent = "";
     } else {
       setLabel(btn, primary.et);

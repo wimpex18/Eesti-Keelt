@@ -431,9 +431,10 @@ def _least_practised(skills: dict) -> list[str]:
 
 def _skill_task(part: str, days: int | None) -> dict:
     href, et, ru = SKILLS[part]
-    why = (f"{ru.capitalize()}: ещё не было ни одного занятия." if days is None
-           else f"{ru.capitalize()}: {_count(days, 'день', 'дня', 'дней')} без практики."
-           if days else f"{ru.capitalize()}: меньше всего практики.")
+    # The link names the part; its reason says only why.
+    why = ("Ещё не было ни одного занятия." if days is None
+           else f"{_count(days, 'день', 'дня', 'дней').capitalize()} без практики."
+           if days else "Меньше всего практики за последнее время.")
     return _task("skill", et, ru, why, href)
 
 
@@ -499,7 +500,7 @@ def next_task(inputs: Inputs, session: Session) -> dict:
         topic, name, accuracy = inputs.weak
         pct = f"точность {round(accuracy * 100)}%" if accuracy is not None else "карточки забываются"
         candidates.append(_task("weak", name, "слабое место",
-                                f"Слабое место: {pct}.", f"#session/{topic}", 5))
+                                f"{pct.capitalize()}: стоит повторить правило.", f"#session/{topic}", 5))
     # A second part when nothing else has a reason: two alternatives always.
     candidates.append(_skill_task(parts[1], inputs.skills.get(parts[1])))
     seen = {primary["href"]}

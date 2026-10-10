@@ -275,6 +275,9 @@ differs from the reviewed proposal, the reason:
 | Session end, unspecified first-session prompts | *Järgmiseks* after the first session only: the sitting (exam goals) and where the reminders are | ADR-0009: asked after the first session, never before. |
 | Onboarding: one screen with three routes | Four screens, one question each, one *Edasi*; the language note in the chosen language comes from the server (`session.LANGUAGES`) | Each question has one primary in the same place; the language note must be in the language chosen, and the app's static text stays Russian until the catalogue (S4). |
 | Täna's plan counts | In Estonian, the singular after one and Vabamorf's singular partitive after more (*8 ülesannet*, *4 sõna*) | The interface is exposure; a count is Estonian a learner reads every day. |
+| *Jätka* always; the primary at the end of the hero's row | *Alusta* until today's session has begun, then *Jätka*; the primary left-aligned under the question | "Continue" before anything has begun misleads; left-aligned, the button sits where reading the question ends. |
+| The session titled *Tänane tund* with the unit as its gloss | The title is the unit and the session's place in it, or the topic; the step's name and its beads share a line; the step's purpose once, as it begins | A design review on 11 October found five lines of chrome above the first sentence on a phone; the title now says what is being learnt, the beads belong to the step they count, and the purpose answers "why am I doing this" once, not on every item. |
+| A wrong choice's answer under *Sinu vastus* | Struck through in its row only | The row and the line said the same thing twice. |
 
 The word theme moved from the session's settings fold to *Vaba harjutus*: a
 session's words are the unit's, and a theme chosen for free practice still

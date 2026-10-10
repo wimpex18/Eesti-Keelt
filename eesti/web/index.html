@@ -121,6 +121,7 @@
 <aside aria-labelledby="tanaPlanH" class="tana-plan">
 <h3 id="tanaPlanH" lang="et">Tänane tund <span class="ru" lang="ru">занятие на сегодня</span></h3>
 <p class="tana-unit" id="tanaUnit"></p>
+<p class="tana-first" hidden="" id="tanaFirst" lang="ru">Каждый день — одно занятие из того, что нужно сейчас. Ответы проверяет код; ошибки возвращаются в повторение.</p>
 <ol class="tana-steps" id="tanaSteps"></ol>
 <h3 class="tana-or" id="tanaOrH" lang="et">Või <span class="ru" lang="ru">или</span></h3>
 <ul aria-labelledby="tanaOrH" class="tana-alt" id="tanaAlt"></ul>
@@ -207,8 +208,9 @@
 <h2 class="page-title sess-title" id="sessionTitle" lang="et">Tund <span class="ru" lang="ru">занятие</span></h2></div>
 <div class="bench" id="sessBench">
 <div class="sess-line" id="sessLine"></div>
-<ol aria-label="Ülesanded — задания" class="sess-beads" id="sessBeads"></ol>
-<h3 class="sess-step" id="sessStep" tabindex="-1"></h3>
+<div class="sess-steprow"><h3 class="sess-step" id="sessStep" tabindex="-1"></h3>
+<ol aria-label="Ülesanded — задания" class="sess-beads" id="sessBeads"></ol></div>
+<p class="sess-why" hidden="" id="sessWhy" lang="ru"></p>
 <div class="sess-body" id="sessBody"></div>
 <div class="sess-actions" id="sessActions"><button class="quiet" hidden="" id="sessSkip" lang="et" type="button">Jäta vahele <span class="ru" lang="ru">пропустить</span></button><p class="sess-checked" id="sessChecked" lang="et"></p><button class="go" data-primary="" id="sessPrimary" lang="et" type="button">Alusta <span class="ru" lang="ru">начать</span></button></div>
 </div>

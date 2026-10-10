@@ -2703,9 +2703,12 @@ KEYBOARD = {"390x844": 340, "874x402": 200}
 #: then the shell's correction, which waits for three still frames itself.
 SETTLE = """() => new Promise(done => {
   let last = -1, still = 0, frames = 0;
+  // A view transition's overlay is the document's while it runs.
+  const moving = () => document.getAnimations().some(a =>
+    String(a.effect && a.effect.pseudoElement || "").includes("view-transition"));
   const tick = () => {
     const y = scrollY;
-    still = y === last ? still + 1 : 0;
+    still = y === last && !moving() ? still + 1 : 0;
     last = y;
     if (still >= 8 || ++frames > 120) done(); else requestAnimationFrame(tick);
   };
@@ -2988,6 +2991,30 @@ class TestTheDictionaryKeepsFocusInSight:
         assert field.evaluate(OBSCURED) is None
         assert not TestFocusIsNeverUnderTheDock._sideways(shell, "#sonastik")
         assert shell.locator("#skillsKey").is_visible()
+
+    def test_the_results_get_the_band_while_searching(self, shell):
+        """With the keyboard up the header scrolls away and the field goes to the
+        top, so several results show between it and the task row (on an iPhone
+        the sticky header left room for one)."""
+        if shell.size != "390x844":
+            pytest.skip("an upright phone's keyboard")
+        TestFocusIsNeverUnderTheDock._open(shell, "#sonastik")
+        field = shell.locator("#dictQ")
+        field.fill("ma")
+        shell.wait_for_selector("#dictResults .dict-row", timeout=10000)
+        shell.evaluate(KEYBOARD_STUB, KEYBOARD[shell.size])
+        field.focus()
+        shell.evaluate(SETTLE)
+        shell.wait_for_timeout(400)
+        shell.evaluate(SETTLE)
+        assert shell.evaluate("document.body.classList.contains('kb-search')")
+        shown = shell.evaluate("""() => {
+          const bar = document.querySelector('#actbar').getBoundingClientRect().top;
+          return [...document.querySelectorAll('#dictResults .dict-row')].filter(r => {
+            const b = r.getBoundingClientRect(); return b.top >= 0 && b.bottom <= bar; }).length;
+        }""")
+        assert shown >= 3, f"{shown} result rows above the task row"
+        assert field.evaluate(OBSCURED) is None
 
 
 class TestTheShellSheets:

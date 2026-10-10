@@ -59,7 +59,7 @@ const line = (s, state) => `${esc(s.before)}${interlinear(s.form, named(s), {sta
    moves left just enough to stay inside its sentence, still under the word;
    wider than the sentence itself (a 320px phone), it wraps at the sentence's
    width and the sentence makes room below for the extra line. */
-function keepLinesInside(root = sheet) {
+export function keepLinesInside(root = sheet) {
   root.querySelectorAll(".il-f").forEach(f => {
     const holder = f.closest(".rw-line") || f.closest("p, li") || sheet;
     f.style.left = f.style.width = f.style.whiteSpace = "";

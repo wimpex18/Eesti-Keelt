@@ -1,18 +1,23 @@
 # S8: the session, Täna and Haiku in the app
 
-Current task: ADR-0009's session and next task. Backend done and tested:
-`eesti/session.py` (seven steps, rotation, next task, hint, words, placement),
-`eesti/api/session.py` (step content with keys withheld, first-attempt-only
-answers, goal, placement, writing checklist, Miks?, rule question, HARNO
-descriptor feedback), `eesti/tutor.py` (explanation languages, `ask_rule`,
-`descriptor_feedback`), `tests/test_session.py`.
+Current task: PR [S8] waits for the owner's merge. Built: `eesti/session.py`,
+`eesti/api/session.py`, `eesti/web/js/session.js`, Täna (`path.js`),
+onboarding, Haiku's *Miks?*, *Küsi* and HARNO-descriptor comments
+(`eesti/tutor.py`), DESIGN.md's rhythm, Täna and session sections.
 
-Next step: the screens — Täna (`path.js`), the session (`session.js`),
-onboarding (`onboarding.js`), the rule page's question box (`lesson.js`);
-then the journeys at 390 and 1280 px, DESIGN.md and the docs.
+Follow-ups for R3 to fold in:
+- The owner (11 Oct) finds the item formats generic (gap, choice rows,
+  "Kuula ja vali: ____") and the names generic; both are in S11's brief, with
+  `qa/naming.md` as the naming proposal. S4 should key labels by stable id.
+- The model's HARNO-descriptor comments are in the session only; the mock
+  exam's writing review (`eesti/web/js/mock.js`) and Rääkimine could call the
+  same `/api/session/feedback`.
+- Explanation language is set in onboarding; Profile has no switch yet (S4).
+- Sõnastik with the real iOS keyboard: rows not confirmed (simulator text
+  injection drops focus); `docs/status.md` says so.
+- The session's words step uses EVS phrases (dictionary fragments, not
+  always level-checked); the unit's own checked material could supply them.
+- Peata keeps progress per step in `localStorage`; a cleared browser restarts
+  the step (attempts already recorded stay).
 
-Outside the S8 file table (say so in the PR): `eesti/api/__init__.py`
-(router), `eesti/evidence.py` (registers `session`), `docs/identity.md`
-(routes), `tests/test_missing_content.py` (sweep value).
-
-Uncommitted: none after this commit. Blockers: none.
+Owner operations: none new. Uncommitted: none after the commit. No secrets.

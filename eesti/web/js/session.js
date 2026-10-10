@@ -23,7 +23,7 @@ import {$, api, attribHtml, esc, fitInterlinear, formGloss, interlinear, md, ruC
 import {sayHtml, speakWord, wireSay} from "./media.js";
 import {icon} from "./icons.js";
 import {loadRail, refreshDueBadge} from "./review.js";
-import {onLessonPractice} from "./lesson.js";
+import {keepLinesInside, onLessonPractice} from "./lesson.js";
 import {addMic} from "./voice.js";
 
 /* Count words for the plan, as Estonian says them: the singular after one, the
@@ -62,7 +62,7 @@ const S = {
   topic: null, rules: null, from: null, check: null,
   session: null, step: null, content: null,
   units: [], pos: 0, marks: [], tally: null,
-  summary: [], missed: [], lang: "ru", next: null, first: false,
+  summary: [], missed: [], lang: "ru", next: null,
   unit: null,           // the controller of the unit on screen
 };
 
@@ -255,8 +255,10 @@ async function load() {
     if (run !== S.run) return;
     S.session = made;
     S.summary = []; S.missed = [];
-    title(made.topic && S.mode === "topic" ? made.topic.et : "Tänane tund",
-          made.topic && S.mode === "topic" ? made.topic.ru : `блок ${made.unit.n}: ${made.unit.et}`);
+    // The screen is named by what it teaches: the topic, or the unit and the
+    // session's place in it.
+    if (S.mode === "topic" && made.topic) title(made.topic.et, made.topic.ru);
+    else title(`${made.unit.n}. ${made.unit.et}`, `занятие ${made.n} из ${made.of}`);
     let first = made.steps.find(st => st.state !== "done");
     // The rule page's Harjuta: the rule was just read there.
     if (S.from === "rule" && first?.id === "reegel")
@@ -279,6 +281,7 @@ async function openStep(step, run = S.run) {
   paintLine();
   const h = $("#sessStep");
   h.innerHTML = glossed(step.et, step.ru);
+  $("#sessWhy").textContent = step.why_ru || "";
   try {
     S.content = await (await api(`/api/session/step/${step.id}?${query()}`, null, "GET")).json();
   } catch (e) {
@@ -335,12 +338,15 @@ function show(run = S.run) {
   const unit = S.units[S.pos];
   const paint = () => {
     S.unit = null;
+    // The step's purpose is said as it begins, not on every item.
+    $("#sessWhy").hidden = S.pos > 0;
     dropMic();
     setSkip(false); setChecked("");
     body("");
     // Which unit is on the bench: set once it is, never before.
     $("#sessBody").dataset.unit = `${S.step?.id || ""}:${S.pos}`;
     unit.render($("#sessBody"), run);
+    fitLines();
     paintBeads();
     paintLine();
   };
@@ -351,6 +357,21 @@ function show(run = S.run) {
     t.ready.catch(() => {}); t.finished.catch(() => {}); t.updateCallbackDone.catch(() => {});
   } else paint();
 }
+
+/* A form line hangs from its word's start and does not wrap: near the end of
+   a short line it moves left inside its sentence, and wider than the sentence
+   it wraps there (the rule page's own fitting, `keepLinesInside`). Measured
+   again whenever the bench changes width. */
+function fitLines() {
+  const out = $("#sessBody");
+  out.querySelectorAll(".prompt").forEach(fitInterlinear);
+  keepLinesInside(out);
+}
+let benchWidth = 0;
+new ResizeObserver(([entry]) => {
+  const width = Math.round(entry.contentRect.width);
+  if (width !== benchWidth) { benchWidth = width; fitLines(); }
+}).observe($("#sessBody"));
 
 function mark(result) {
   S.marks[S.pos] = result;
@@ -619,7 +640,7 @@ function itemUnit(root, it, {kind = "item", glosses = {}, noHints = false, mixed
     const il = el.querySelector(".sess-sentence .il");
     if (il && form) {
       il.outerHTML = interlinear(form, named, {state: right ? "right" : "revealed", glosses});
-      fitInterlinear(el.querySelector(".sess-sentence"));
+      fitLines();
     } else if (it.tiles?.length || (!il && res.solution)) {
       const line = el.querySelector(".sess-line") || el.querySelector(".sess-sentence");
       if (line) line.textContent = res.solution || res.answer || "";
@@ -632,7 +653,7 @@ function itemUnit(root, it, {kind = "item", glosses = {}, noHints = false, mixed
       ? `<p class="sess-verdict sess-ok">${markIcon("check")}${glossed("Õige", "верно")}</p>
          ${reason ? `<p class="sess-reason" lang="ru">${md(reason)}</p>` : ""}${queued}`
       : `<p class="sess-verdict sess-no">${markIcon("x")}${glossed("Pole õige", "неверно")}</p>
-         ${given ? `<p class="sess-yours" lang="et">Sinu vastus <span class="ru" lang="ru">твой ответ</span> <del>${esc(given)}</del></p>` : ""}
+         ${given && typed ? `<p class="sess-yours" lang="et">Sinu vastus <span class="ru" lang="ru">твой ответ</span> <del>${esc(given)}</del></p>` : ""}
          <div class="sess-help">${firstEvent ? `<button class="ghost sess-miks" type="button" lang="et">Miks? <span class="ru" lang="ru">объясни</span></button>` : ""}
            ${it.topic && it.topic !== "sonad" ? `<a class="ghost" href="#rule/${esc(it.topic)}" lang="et">Reegel <span class="ru" lang="ru">правило</span></a>` : ""}</div>
          ${reason ? `<p class="sess-reason" lang="ru">${md(reason)}</p>` : ""}`;
@@ -693,7 +714,7 @@ async function miks(btn, eventId) {
 
 /* A model's words: a dashed outline, the engine named first, never a result
    colour or a score (DESIGN.md, Model output). */
-export function modelBlock({engine, text = "", note = "", lang = "ru", source = "", body = ""}) {
+function modelBlock({engine, text = "", note = "", lang = "ru", source = "", body = ""}) {
   const by = engine && engine !== "none" ? engine.replace(/^llm:/, "") : "";
   return `<div class="model-out">
     <p class="model-by" lang="et">Selgitab mudel, ei hinda <span class="ru" lang="ru">объясняет модель, не оценивает${by ? `: ${esc(by)}` : ""}</span></p>
@@ -708,7 +729,7 @@ export function modelBlock({engine, text = "", note = "", lang = "ru", source = 
 // ── The rule step: notice, choose, then the rule ───────────────────
 function noticeUnit(root, notice, run) {
   root.innerHTML = `<div class="sess-notice">
-    <p class="sess-instr" lang="ru">Посмотри на подчёркнутые слова. Форму назовём после того, как выберешь сам.</p>
+    <p class="sess-instr" lang="ru">Посмотри на подчёркнутые слова.</p>
     ${notice.examples.map(e => `<p class="prompt sess-sentence" lang="et">${esc(e.before)}${interlinear(e.form, {}, {state: "notice"})}${esc(e.after)}</p>`).join("")}
     <p class="sess-question" lang="ru">${md(notice.question_ru)}</p></div>`;
   setPrimary("Proovi", "выбери форму сам");
@@ -733,7 +754,7 @@ function ruleAfter(root, c, run) {
     <p class="sess-sources" lang="et">Allikad <span class="ru" lang="ru">источники</span> ${sources}
       <a href="#rule/${esc(c.topic)}" lang="et">Reegel tervikuna <span class="ru" lang="ru">всё правило</span></a></p>
   </div>`;
-  root.querySelectorAll(".prompt").forEach(fitInterlinear);
+  fitLines();
   setPrimary("Edasi", "к упражнениям");
   S.unit = {primary: () => advance(run)};
   root.querySelector("h4").setAttribute("tabindex", "-1");
@@ -997,7 +1018,8 @@ function speakTask(root, task, level, run) {
     corr.innerHTML = `<p class="sess-verdict" lang="et">${glossed("Kood loendas", "что посчитал код")}</p>
       <p lang="ru">${ruCount(code.words, ["слово", "слова", "слов"])}${code.signals && "unknown_share" in code.signals
         ? `; слов, которых Vabamorf не знает: ${unknown}%` : ""}. Говорение не оценивается.</p>
-      <div class="sess-model" aria-busy="true"><p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">загружаю комментарий модели</span></p></div>`;
+      <div class="sess-model" aria-busy="true"><p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">загружаю комментарий модели</span></p></div>
+      <p class="hint"><a href="#speak" lang="et">Vestlus <span class="ru" lang="ru">поговорить дальше с моделью-собеседником</span></a></p>`;
     setPrimary("Edasi", "дальше");
     S.unit = {primary: () => advance(run)};
     primary().focus({preventScroll: true});
@@ -1061,7 +1083,8 @@ function writingUnit(root, c, run) {
         ${r.closing === null ? "" : item(r.closing, "Lõpetus", "завершение")}
         ${item(!r.errors, r.errors ? `${r.errors} kohta` : "Vigu ei leitud", r.errors ? "места, к которым у проверки есть вопросы" : "проверка Vabamorf и EKK")}
       </ul>
-      ${r.findings?.length ? `<ul class="sess-findings">${r.findings.map(f => `<li lang="ru"><del lang="et">${esc(f.original || "")}</del> ${f.suggestion ? `→ <span lang="et">${esc(f.suggestion)}</span>` : ""} ${esc(f.explanation_ru || f.message || "")}</li>`).join("")}</ul>` : ""}
+      ${r.findings?.length ? `<ul class="sess-findings">${r.findings.map(f => `<li lang="ru"><del lang="et">${esc(f.wrong || "")}</del>${f.correct
+        ? ` <span lang="et">${esc(f.correct)}</span>` : ""} ${md(f.why || "")}</li>`).join("")}</ul>` : ""}
       <div class="sess-model" aria-busy="true"><p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">загружаю комментарий модели</span></p></div>`;
     setChecked(`<span lang="et">Kontrollis kood <span class="ru" lang="ru">длина, пункты задания, Vabamorf и EKK</span></span>`);
     setPrimary("Edasi", "дальше");
@@ -1158,6 +1181,7 @@ async function finish(run) {
   S.step = null;
   paintLine();
   $("#sessBeads").innerHTML = "";
+  $("#sessWhy").hidden = true;
   $("#sessStep").innerHTML = glossed(S.mode === "topic" ? "Tehtud" : "Tänane tund on tehtud",
                                      S.mode === "topic" ? "готово" : "занятие на сегодня пройдено");
   let next = S.next, done = 0, goal = null;
@@ -1176,12 +1200,14 @@ async function finish(run) {
   body(`<div class="sess-end">
     ${rows ? `<ul class="sess-sum">${rows}</ul>` : ""}
     ${S.missed.length ? `<h4 lang="et">${glossed("Vead", "ошибки — правильная форма под словом")}</h4>
-      <ul class="sess-missed">${S.missed.map(m => `<li class="prompt" lang="et">${m}</li>`).join("")}</ul>` : ""}
+      <ul class="sess-missed">${S.missed.slice(0, 5).map(m => `<li class="prompt" lang="et">${m}</li>`).join("")}</ul>
+      ${S.missed.length > 5 ? `<details class="rule-more"><summary lang="et">Veel <span class="ru" lang="ru">ещё ${S.missed.length - 5}</span></summary>
+        <ul class="sess-missed">${S.missed.slice(5).map(m => `<li class="prompt" lang="et">${m}</li>`).join("")}</ul></details>` : ""}` : ""}
     ${next ? `<p class="sess-next-why" lang="ru">${esc(next.primary.why_ru)}</p>` : ""}
     ${alt ? `<h4 lang="et">${glossed("Või", "или")}</h4><ul class="tana-alt">${alt}</ul>` : ""}
     ${isFirst ? afterFirstHtml(goal) : ""}
   </div>`);
-  $("#sessBody").querySelectorAll(".prompt").forEach(fitInterlinear);
+  fitLines();
   if (isFirst) wireAfterFirst(goal);
   setChecked(""); setSkip(false);
   if (next) {

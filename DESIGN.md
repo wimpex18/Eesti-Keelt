@@ -861,8 +861,10 @@ Phone 390                                   Desktop 1280
   states no rule. Without a walk, or once the rule step is done, the hero is
   the unit's title and goal. Built from `session.notice`, without generating
   the walk's items, so Täna stays light.
-- **Plan:** *Tänane tund* with the unit, the session's place in the unit's
-  five and its emphasis (*блок 10, занятие 1 из 5: правило*), then the steps in
+- **Plan:** *Tänane tund* with the unit and, under it, the session's place in
+  the unit's five and its emphasis (*10. Poes*, *занятие 1 из 5: правило*);
+  before the learner's first session one sentence says what a session gives
+  (*Каждый день — одно занятие из того, что нужно сейчас…*); then the steps in
   order, each with its name, gloss and a count in Estonian (*8 ülesannet*,
   *4 sõna*: the singular after one, Vabamorf's singular partitive after more).
   The current step is an ink dot, a step done today a muted tick, a step to
@@ -871,9 +873,13 @@ Phone 390                                   Desktop 1280
   from code on the line below (`session.next_task`): review when cards wait, a
   remediation after a failed unit check, an exam task with a sitting near, the
   exam part practised least recently, the weakest rule. There are always two.
-- **Primary:** **Jätka** "продолжить, 26 мин". When today's session is done,
-  the hero says so and what was done, and the primary becomes the next task
-  code chose, with its reason under the hero.
+  A reason says only why; the link already names what (*Ещё не было ни одного
+  занятия*, not *Аудирование: ещё не было…*).
+- **Primary:** **Alusta** "начать, 26 мин" until today's session has begun,
+  then **Jätka** "продолжить"; left-aligned under the hero's question, where
+  the eye ends. When today's session is done, the hero says so and what was
+  done, and the primary becomes the next task code chose, with its reason
+  under the hero.
 - Removed from today's screen: the generic page title "Õpime eesti keelt", the
   starting-point link (moved to Kursus and Profiil), the note restating that
   skills exist.
@@ -970,9 +976,13 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
   `ink-2` and 2px high on the line's baseline; the current segment is `ink` at
   the full 6px and fills from the left when its step begins; segments to come
   are `sunk` at 6px. The current segment has `aria-current="step"` and the
-  line's accessible name says "Samm 3/7: Harjutamine". A step's name appears
-  once as the bench's heading when it begins.
-- **Beads:** one bead per item of the current step, each in a 12px cell so a
+  line's accessible name says "Samm 3/7: Harjutamine". Each phase label is the
+  name over its gloss, on every size.
+- **Title and step:** the screen's title is what it teaches: the unit and the
+  session's place in it (*10. Poes*, *занятие 1 из 5*) or a topic. The step's
+  name and its items' beads share a line; under it, as the step begins and
+  only then, one sentence of its purpose from code.
+- **Beads:** one bead per item of the current step, beside its name, each in a 12px cell so a
   change of shape moves nothing. Every state has its own shape, which also
   survives forced colours:
 

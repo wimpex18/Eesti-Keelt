@@ -142,6 +142,7 @@ class TestTheNextTask:
         task = S.next_task(i, S.compose(i))
         assert task["primary"]["href"] == "#speak"
         assert "6 дней" in task["primary"]["why_ru"]
+        assert "говорение" not in task["primary"]["why_ru"].casefold()
 
     def test_a_near_sitting_brings_exam_tasks_and_leads_in_the_last_two_weeks(self):
         far = inputs(sitting_days=40, exam_level="B1")

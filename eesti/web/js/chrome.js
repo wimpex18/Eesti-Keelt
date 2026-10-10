@@ -367,6 +367,12 @@ function syncShell() {
   body.classList.toggle("dock-task", keyboard || task);
   body.classList.toggle("kb", keyboard);
   body.classList.toggle("kb-compact", keyboard && height < 320);
+  /* A search is read below its field: with the keyboard up the header scrolls
+     away and the field goes to the top of what is visible, so the results get
+     the band (Sõnastik on an iPhone left room for one row). */
+  const searching = keyboard && !!document.activeElement?.matches?.("input[type=search]");
+  if (searching && !body.classList.contains("kb-search")) searchToTop(document.activeElement);
+  body.classList.toggle("kb-search", searching);
   docEl.style.setProperty("--kb", `${keyboard ? gap.below : 0}px`);
   const tabs = phone && !(keyboard || task) ? Math.round($(".dock-tabs").getBoundingClientRect().height) : 0;
   const bar = phone && (primary || keyboard || task) ? Math.round($("#actbar").getBoundingClientRect().height) : 0;
@@ -384,6 +390,25 @@ function syncShell() {
   if (keyboard && !keyboardWas) settling = performance.now() + 1000;
   keyboardWas = keyboard;
   if (keyboard && performance.now() < settling) keepInSightWhenStill();
+}
+
+/* The search field's form at the top of the visual viewport, once the page has
+   stopped moving (Safari pans as the keyboard slides in). */
+let searchRun = 0;
+function searchToTop(field) {
+  const run = ++searchRun;
+  let last = "", still = 0, frames = 0;
+  const tick = () => {
+    if (run !== searchRun || document.activeElement !== field) return;
+    const v = window.visualViewport;
+    const now = `${scrollY}|${v ? `${v.offsetTop}|${v.height}` : ""}`;
+    still = now === last ? still + 1 : 0;
+    last = now;
+    if (still < 3 && ++frames <= 90) { requestAnimationFrame(tick); return; }
+    const top = (field.form || field).getBoundingClientRect().top - (v ? v.offsetTop : 0) - 8;
+    if (Math.abs(top) > 1) window.scrollBy({top, behavior: "instant"});
+  };
+  requestAnimationFrame(tick);
 }
 
 /* The band a focused element must sit in: below the visible top (the sticky

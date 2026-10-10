@@ -257,7 +257,7 @@ footer.sources{max-width:760px;margin:var(--s6) auto 0;padding:0 var(--gutter) 9
   body.dock-task .dock-primary{bottom:calc(var(--kb) + var(--s3));left:calc(max(var(--s4),env(safe-area-inset-left)) + 52px + var(--s2))}
   /* Little height left (a phone on its side with the keyboard up): the header
      scrolls away and the row tightens to 44px controls. */
-  body.kb-compact .spine{position:relative}
+  body.kb-compact .spine,body.kb-search .spine{position:relative}
   body.kb-compact .actbar{min-height:60px;padding-block:var(--s2)}
   body.kb-compact .skills-key{width:44px;height:44px}
   body.kb-compact .dock-primary{min-height:44px;bottom:calc(var(--kb) + var(--s2));
@@ -1531,7 +1531,8 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .tana-lead em[lang="et"]{font-weight:600}
 .tana-why{margin:var(--s4) 0 0;color:var(--ink-2)}
 .tana-why:empty{display:none}
-.tana-act{display:flex;justify-content:flex-end;margin-top:var(--s6)}
+.tana-act{display:flex;justify-content:flex-start;margin-top:var(--s5)}
+.tana-first{margin:0 0 var(--s3);font-size:var(--t-note);color:var(--ink-2)}
 .tana-plan h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--s2);margin:0;font-size:var(--t-body);font-weight:600;letter-spacing:0}
 .tana-plan h3 .ru{margin:0}
 .tana-unit{margin:var(--s1) 0 var(--s3);font-size:var(--t-note);color:var(--ink-2)}
@@ -1588,15 +1589,19 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
    label: nothing is cut. */
 .sess-phase{display:flex;flex-direction:column;gap:var(--s1);flex:var(--n,1) 1 0;min-width:min-content}
 .sess-phase-name{font-size:var(--t-gloss);font-weight:600;line-height:1.25;color:var(--ink-2)}
-.sess-phase-name .ru{display:inline;margin-left:var(--s1);white-space:nowrap}
-@media (max-width:719px){.sess-phase-name .ru{display:block;margin:0}}
+.sess-phase-name .ru{display:block;margin:0;white-space:nowrap}
 .sess-segs{display:flex;gap:3px;align-items:flex-end;height:6px}
 .sess-seg{flex:1;height:6px;border-radius:3px;background:var(--sunk);transform-origin:left}
 .sess-seg[data-state="done"]{height:2px;background:var(--ink-2)}
 .sess-seg[data-state="current"]{background:var(--ink);animation:seg-fill var(--dur-4) var(--ease-standard)}
 @keyframes seg-fill{from{transform:scaleX(0)}}
 /* Beads: one 12px cell each, a shape per state, so a change moves nothing. */
-.sess-beads{display:flex;flex-wrap:wrap;gap:0;list-style:none;margin:var(--s3) 0 0;padding:0;min-height:12px}
+/* The step's heading and its items' beads share a line: the beads are the step's. */
+.sess-steprow{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--s1) var(--s4);margin-top:var(--s5)}
+.sess-steprow .sess-step{margin:0}
+.sess-beads{display:flex;flex-wrap:wrap;gap:0;list-style:none;margin:0;padding:0;min-height:12px}
+.sess-why{margin:var(--s2) 0 0;font-size:var(--t-note);color:var(--ink-2)}
+.sess-why:empty{display:none}
 .sess-bead{position:relative;width:12px;height:12px;margin-right:var(--s1)}
 .sess-bead::before{content:"";position:absolute;inset:2px;border-radius:50%;border:1px solid var(--edge)}
 .sess-bead[data-mark="current"]::before{inset:1px;border:2px solid var(--ink)}
@@ -1606,7 +1611,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .sess-bead[data-mark="wrong"]::after{content:"";position:absolute;left:1px;right:1px;top:50%;height:2px;margin-top:-1px;
   background:var(--bad);transform:rotate(-45deg)}
 .sess-bead[data-mark="skipped"]::before{inset:5px 2px;border:0;border-radius:1px;background:var(--muted)}
-.sess-step{margin:var(--s5) 0 0;font-size:var(--t-reading);font-weight:600;letter-spacing:0}
+.sess-step{font-size:var(--t-reading);font-weight:600;letter-spacing:0}
 .sess-step .ru{display:inline;margin-left:var(--s2)}
 .sess-step:empty{display:none}
 .sess-body{min-height:12rem;padding:var(--s4) 0 var(--s5)}
@@ -1616,6 +1621,8 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .sess-sentence,.sess-line,.sess-say-line,.sess-task-et,.sess-question-et,.sess-word{margin:var(--s2) 0 0;font-size:var(--t-title);font-weight:500;
   line-height:1.4;letter-spacing:-.005em;max-width:none}
 .sess-sentence:has(.il){line-height:2.5}
+/* Words to notice carry no form line: no band to reserve under them. */
+.sess-notice .sess-sentence{line-height:1.4;margin-top:var(--s3)}
 .sess-sentence .il-f{animation:none}
 .sess-item:is([data-state="right"],[data-state="revealed"]) .sess-sentence .il-f{animation:rise-in var(--dur-3) var(--ease-enter)}
 /* The gap is the field: typed in the sentence, its form line hanging under it. */
@@ -1734,6 +1741,7 @@ button.go[aria-disabled="true"]:hover{background:var(--act)}
   body.in-session .brand{display:none}
   .sess-sentence,.sess-line,.sess-say-line,.sess-task-et,.sess-question-et,.sess-word{font-size:var(--t-prompt)}
   .sess-sentence:has(.il){line-height:2.6}
+  .sess-notice .sess-sentence{line-height:1.4}
   .sess-right{line-height:2.6}
   .sess-review li,.sess-missed li{font-size:var(--t-reading);line-height:2.6}
   .sess-actions{position:static;margin:0;padding:0;border:0;background:none;flex-wrap:wrap}

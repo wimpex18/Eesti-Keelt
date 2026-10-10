@@ -236,7 +236,7 @@ function showPlacement(r) {
 // ── 4. Sessions a week ─────────────────────────────────────────────
 function renderWeek() {
   frame(`<h2 class="page-title" lang="et">${glossed("Mitu korda nädalas?", "сколько занятий в неделю?")}</h2>
-    <p lang="ru">Занятие — 20–30 минут. Блок курса рассчитан на неделю, пять занятий.</p>
+    <p lang="ru">Одно занятие — 20–30 минут: повторение, правило, упражнения, слова, слух, речь и короткая проверка. Блок курса — неделя, пять занятий.</p>
     <div class="seg start-week" role="radiogroup" aria-label="Tunde nädalas — занятий в неделю">${WEEK.map(n =>
       `<button type="button" role="radio" aria-checked="${n === choice.perWeek}" tabindex="${n === choice.perWeek ? 0 : -1}" data-week="${n}">${n}</button>`).join("")}</div>
     ${nav("Alusta", "начать первое задание")}`);
