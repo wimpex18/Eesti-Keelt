@@ -1414,9 +1414,11 @@ class TestDiscoveredDefects:
             return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
         }""")
         close = page.locator("#vocCard .card-close")
+        # Whole pixels: a 44px key on a sticky card at a fractional offset
+        # measures 43.99998 in Chromium.
         assert close.evaluate("""el => {
             const r = el.getBoundingClientRect();
-            return r.width >= 44 && r.height >= 44 &&
+            return Math.round(r.width) >= 44 && Math.round(r.height) >= 44 &&
               el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
         }""")
         close.click()
