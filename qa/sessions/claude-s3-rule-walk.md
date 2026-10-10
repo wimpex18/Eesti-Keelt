@@ -4,12 +4,12 @@
 step 4): notice, ask, explain, contrast and the form switch on `#rule/obj-case`
 and `#rule/osaalus`; other topics get the rebuilt page without the walk.
 
-**State.** Committed on this branch, not pushed; fast suite and browser journeys
-(both engines) green. Logic `eesti/rulewalk.py`, data `lessontext.WALKS`, page
-`eesti/web/js/lesson.js`, tests `tests/test_rulewalk.py` and `TestTheRuleWalk`.
+**State.** PR #136; fast suite and browser journeys (both engines) green.
+Logic `eesti/rulewalk.py`, data `lessontext.WALKS`, page `eesti/web/js/lesson.js`,
+tests `tests/test_rulewalk.py` and `TestTheRuleWalk`.
 
-**Next step.** Orchestrator: push, open "[S3] Interactive rules (Reegel)", set
-S3's status cell.
+**Next step.** The owner merges #136 (S9's PR then syncs with main: its
+status row sits beside S3's in `qa/opus-sessions.md`).
 
 **Outside S3's list.** `eesti/lessons.py` (the lesson response gains `gist_ru`
 and `walk`); granted: `eesti/web/app.css` (Reegel block), rule-page journeys in
