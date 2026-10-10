@@ -127,6 +127,49 @@ sentence wraps at 390px (now in the correction region), and that repeating the
 step name beside the phase labels was noise (now shown once per step). The mock
 is not committed.
 
+## Tokens and shell as built
+
+S10 (10 October 2026) built Migration steps 1 and 2 of DESIGN.md and checked
+them as the spec was checked: screenshots at 390 and 1280px (also 320px,
+834px and 874×402) in both themes on Chromium and WebKit, every contrast pair
+recomputed from the frontmatter with the WCAG formula (the table's values hold
+to two decimals), axe on every tab at both viewports in both engines, and the
+focus journey below. Where the build differs from the reviewed proposal, the
+reason:
+
+| Proposal | Built | Why |
+|---|---|---|
+| Old token names kept as aliases until each screen is rebuilt | Every rule moved to the roles in place; no alias kept | The alias layer would have been a second vocabulary for later sessions to read and retire; the move was mechanical and the journeys and axe passed on it. |
+| Estonian elements listed for the sharp cut | The cut follows `lang`: `[lang="et"]` takes the context's cut (`--et-cut`, 60 or 100), the explanation languages and glosses 0 | The markup already says which text is Estonian (`tests/test_ui_language.py` holds it to that), so a new screen gets the right voice without joining a list. |
+| The page title in the phone header | The mark and *Klint* in the header; the title stays the content's first heading | It is the page's own heading for screen readers and journeys; copying it into the header reads it twice or hides the real one. S8 can still place *Peata* there for the session. |
+| Profiil inside Veel | Profiil also a key in the phone header | The account is the commonest destination outside the skills and was one tap away before; Veel lists it too. |
+| A 88px tablet rail | 96px | *аудирование* is 78px at 12px and needs its tab's padding; English and Ukrainian glosses get the same room. |
+| Tab columns sized by content | The same, with no `min-width` on a tab, a 4px least gap, and a narrow-phone rule under 360px | A `min-width` replaces a grid item's content minimum, so at 320px *Kirjutamine* ran into *Rääkimine*. The five Estonian labels need 281px; under 360px the gutters and tab padding give way first. Checked at 390 and 320px in Russian, Ukrainian and English. |
+| The dock after the content in document order | The tab row inside the header; the primary keeps its place in its screen's markup, set in the action bar by `data-primary` | One element is both the desktop sidebar and the phone's dock, and screens and journeys address their primary inside their own panel. The skills are one Tab stop (a tablist); a skip link comes first. |
+| `interactive-widget=resizes-content` for Chromium, `visualViewport` for Safari | `visualViewport` for both | Chromium resizes only the visual viewport by default since version 108, like Safari, so one formula serves both and a stub can test it. Over 120px counts as a keyboard; pinch zoom never does. |
+| (none) | `data-dock-task` declares the task state | S8's session item says it awaits an answer with one attribute; the keyboard sets the same state. |
+| Smooth page scrolling | None | The browser's smooth focus scroll raced the shell's correction in WebKit; focus is never animated, and modules ask for smooth scrolling where they want it (`glide()`). |
+| (none) | The skip link's target has no `tabindex` | With one, WebKit focused `main` on every button click inside it and scrolled the page away from the session's first item. |
+| Sheet close `dur-2` exit | Closes at once | A closing animation in WebKit needs `overlay` and discrete transitions it does not have; the open keeps its motion. |
+| Banner icons from the icon set | Marks drawn as CSS masks | Banners are written by many modules; the stylesheet gives every one its mark without new markup. |
+
+Checked by hand in Safari on the iOS 27 simulator (iPhone 18 Pro) with the
+software keyboard, the device check found three things the stubbed journeys
+had not, each now fixed and covered by the journey: iOS raises the keyboard
+*after* the field takes focus, so the first correction ran before the
+keyboard existed and the task row landed on the field (the journey now tries
+both orders); while the keyboard slides in Safari pans the visual viewport to
+the bottom, so the keyboard is read from how much the viewport shrank, not
+where it sits; and a screen focusing its field during its own smooth scroll
+was pushed past its target, so the correction waits until the page is still.
+A free-practice row that no longer wrapped made the page 22px wider than the
+screen, and Safari zoomed out on focus; the journey fails on that now.
+
+The audio player's spinner, the celebration overlay and the shimmer skeleton
+are gone (a still ring, the live region's announcement, *Laadin…* after
+400ms). Phosphor's duotone fills had no style and drew solid; they are a 20 %
+tint now, as the set intends.
+
 ## Platform and standards references
 
 | Source | Finding | Application |
@@ -186,6 +229,29 @@ optional Ekilex lookups beside Vabamorf forms ([sources](sources.md),
 [integrations](source-integrations.md)); Sõnastik's service and artwork are not
 needed. A vendor's word-percentage presentation is not adopted as a
 proficiency score.
+
+## Open: the exercise itself
+
+The owner, on 10 October 2026, set our free-practice item on an iPhone (a
+sentence with a drawn blank, a field whose placeholder is "?", an inline
+*Kontrolli*, the lemma with its gloss and level) beside a lesson from a
+competitor, Sõnarada (sõnarada; Russian-speaking learners of Estonian, also
+built with AI tools): matching halves dragged into pairs, a paragraph whose
+gaps are drop-downs coloured right or wrong, a check button under each block,
+a glossary under the text, "ask the teacher", floating *Dictionary* and
+*Notes* buttons. The exercises follow the same logic — a blank, a "?", a gap
+to fill — and both look like generic AI-made apps.
+
+Direction: the exercise forms and their look are to be rethought from the
+best product design and apps of October 2026, not polished. Take what works
+from competitors, and avoid both their exercise types and the look we share
+with them. `DESIGN.md`'s session ("the gap is the field") is still a
+gap-fill, so it is a starting point here, not the answer. The owner's
+screenshots and the competitor's walkthrough are reviewed in
+`qa/competitor-review.md`; the redesign is session S11, a discussion with the
+owner once the other sessions are done. The learning rules stay
+fixed whatever the exercise looks like: code grades, only the first attempt
+counts, a form is named only after the learner has tried.
 
 ## Acceptance
 

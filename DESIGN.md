@@ -223,7 +223,7 @@ components:
     backgroundColor: '{colors.sheet}'
     textColor: '{colors.ink-2}'
     borderColor: '{colors.line}'
-    height: 64px
+    height: 67px
   action-bar:
     backgroundColor: '{colors.sheet}'
     height: 76px
@@ -251,15 +251,16 @@ components:
 ## Status of this record
 
 This is the specification of the Klint redesign: the target for every screen
-rebuilt from now on. The stylesheet in `eesti/web/app.css` still ships the
-previous system, Practice rhythm (pale blue wash, frosted navigation, deep blue
-actions), until a screen is rebuilt to this record. The order of that work and
-the map from old tokens to new ones are under **Migration**. The audit of the
-current screens, the references and the reasons behind each decision are in
+rebuilt from now on. The tokens and the shell ship: `eesti/web/app.css` defines
+this record's roles for both themes and every rule reads them, and the header,
+sidebar, dock, action bar and sheets are built (steps 1 and 2 of
+**Migration**). The screens themselves keep their earlier layouts on the new
+ground until their own step rebuilds them. The audit of the screens, the
+references and the reasons behind each decision are in
 [design research](docs/design-research.md).
 
 Where a value here and the stylesheet disagree, a screen built to this record
-uses this record; a screen not yet rebuilt keeps the stylesheet. Learning rules
+uses this record; a screen not yet rebuilt keeps its layout. Learning rules
 are unchanged: code grades, models are labelled, sources stay attributed
 (`docs/adr/0009-learning-loop.md`, `PRODUCT.md`).
 
@@ -547,6 +548,13 @@ Rules: tabular figures for every count and time; `text-wrap: balance` on
 headings, `pretty` on paragraphs; Estonian elements carry `lang="et"` so
 hyphenation and screen-reader voices are right; glosses never take
 the sharp cut. Fields stay at 16px or more so iOS Safari does not zoom.
+The cut follows the markup: an element marked `lang="et"` takes the cut its
+context sets (60, or 100 inside a display, title or prompt), and the
+explanation languages and every gloss take 0, so no screen has to name its
+Estonian elements one by one. `font-synthesis: none` stops the browser faking
+an italic or a bold the face does not have; `em` is weight 600, and an
+Estonian form cited inside an explanation (`*rahakotti*` in the explanations'
+markup) is `lang="et"`, upright, weight 500.
 Bringhurst's 45–75 character measure (66 ideal) is the longest a paragraph's
 line may be; a phone column is narrower and sets its own.
 
@@ -558,10 +566,12 @@ line may be; a phone column is narrower and sets its own.
   `line` rule; a content column with 32px side padding. Task and reading
   columns are 720px wide; browse lists (Kursus, Kordamine) 880px. Täna uses
   two columns: the session (minmax(0,1fr)) and its plan (300px), 48px apart.
-- **Tablet (720–1023px):** the sidebar narrows to icons with labels below
-  (88px); columns as desktop.
+- **Tablet (720–1023px):** the sidebar narrows to a 96px rail of marks with
+  their label and gloss below; columns as desktop. 96px, not 88: *аудирование*
+  is 78px at 12px and needs its tab's padding beside it.
 - **Phone (<720px, or touch and under 560px high):** one column, 16px side
-  gutters, a 56px header and the dock at the bottom.
+  gutters, a 56px header (sticky upright, scrolling with the page on its side)
+  and the dock at the bottom.
 - **Safe areas.** The page reaches under the iPhone's rounded corners and
   sensor housing (`viewport-fit=cover`), which in landscape covers about 60px
   at the left or right edge. Every side gutter is therefore the larger of its
@@ -583,9 +593,9 @@ with its own bar, not the app-wide bottom accessory (see **iOS**).
 
 | State | When | Shows | Height |
 |---|---|---|---|
-| Browse | No primary action (a skill list, Veel pages) | Tab row: Täna and the four skills | 64px + safe area |
-| Act | A screen with a primary action that is not a task (Täna, Kursus, a rule) | The action bar above the tab row | 76px + 64px + safe area |
-| Task | An item awaits an answer or a correction is shown; or any text field is focused | One row: a skills key (52px square), optional microphone key, the primary action filling the rest | 76px + safe area |
+| Browse | No primary action (a skill list, Veel pages) | Tab row: Täna and the four skills | 67px + safe area (49px on a phone's side, each tab one line) |
+| Act | A screen with a primary action that is not a task (Täna, Kursus, a rule) | The action bar above the tab row | 76px + 67px + safe area |
+| Task | An item awaits an answer or a correction is shown; or a text field is focused with the keyboard up | One row: a skills key (52px square), optional microphone key, the primary action filling the rest | 76px + safe area, on the keyboard when it is up |
 
 ```
 Browse                         Act                            Task
@@ -600,13 +610,20 @@ Browse                         Act                            Task
   the explanation language (12px; the owner's rule that both phone labels stay
   12px holds).
 - Tab columns take the width of their content (`grid-template-columns:
-  repeat(5, auto)`, spread with `justify-content: space-between`), not five
-  equal fifths. Measured in Geologica at 12px on 10 October 2026,
-  *Kirjutamine* is 70px at weight 600 and *аудирование* 78px at 400, while an
-  equal fifth of 390px leaves about 70px for text. A gloss wider than its
-  column wraps to a second line with `hyphens: auto` in its own language, and
-  the row grows by that line (16px). Nothing is truncated or abbreviated.
-  The row is checked at 390 and 320px in Russian, Ukrainian and English.
+  repeat(5, auto)`, spread with `justify-content: space-between`, never closer
+  than 4px), not five equal fifths. Measured in Geologica at 12px on
+  10 October 2026, *Kirjutamine* is 70px at weight 600 and *аудирование* 78px
+  at 400, while an equal fifth of 390px leaves about 70px for text. A gloss
+  wider than its column wraps to a second line with `hyphens: auto` in its own
+  language (broken anywhere only where the browser has no dictionary), and the
+  row grows by that line. Nothing is truncated or abbreviated. The tabs carry
+  no `min-width`: a grid item's own minimum is then its content, which is what
+  keeps a tab from running into the next.
+- Under 360px the five Estonian labels need 281px of the row, so the gutters
+  narrow to 2px, the tabs lose their side padding and the selection mark
+  narrows to 40px before any word would. The row is checked at 390 and 320px
+  in Russian, Ukrainian and English on both engines
+  (`tests/test_e2e_journeys.py`).
 - The selected tab keeps the label's weight (600, so its width does not
   change); its label turns `ink`, and a 44×28 `sunk` rectangle with a 1px
   `edge` outline sits behind its pictogram (radius 10px, not a capsule). The
@@ -615,10 +632,20 @@ Browse                         Act                            Task
 - The wireframes abbreviate tab labels to fit their character grid; the app
   never does.
 - The skills key opens the four skills as a sheet. In the task state the four
-  skills are therefore one tap further away, never unreachable.
+  skills are therefore one tap further away, never unreachable. Its mark is
+  four small squares in the four skills' colours.
+- A screen names its primary by `data-primary` on the button, and the shell
+  sets that button in the action bar (it keeps its place in the screen's
+  markup and Tab order). Today Täna (*Alusta*), Kirjutamine and Kuulamine
+  (*Kontrolli*) do. A screen enters the task state by holding a rendered
+  `data-dock-task` element (S8's session item while it awaits an answer); a
+  focused text field with the keyboard up does the same. With no primary, the
+  task row holds the skills key alone, so the four skills stay one tap away.
 - The dock is opaque `sheet` with a `line` top rule; no blur, no shadow.
 - Kursus, Kordamine, Eksam, Sõnavara, Töövihikud, Edenemine, Profiil and the
-  appearance switch live in **Veel**, a sheet opened from the header.
+  appearance switch (*Süsteem*, *Hele*, *Tume*) live in **Veel**, a sheet
+  opened from the header. On a desktop the sheet opens beside the sidebar and
+  lists only what the sidebar does not.
 - With the on-screen keyboard open, the task row rides on top of the keyboard
   (see **Focus and the dock**).
 
@@ -636,15 +663,22 @@ field triggers the primary.
 
 ### Header
 
-- Phone: the mark (28px) or a back control, the page title as the `h1` (18px,
-  600, Russian gloss below at 12px), and **Veel** at the right. During a session
-  the left control is **Peata** ("пауза"; progress is kept) and the title is
-  the topic.
+- Phone: the mark (28px) with *Klint*, then **Veel** and the Profiil key at
+  the right. The page title stays the first heading of the content: it is the
+  page's own heading, which a screen reader and the screens' journeys find
+  there, and repeating it in the header would either read it twice or hide
+  the real one. During a session the left control is **Peata** ("пауза";
+  progress is kept), which S8 places.
 - Desktop: no header bar; the page title is the first element of the content
   column (Title role). The sidebar holds Klint, then Täna, Kursus, Kordamine
   (with its due count), Eksam; then *Oskused* and the four skills; then Veel,
-  Profiil and appearance at the bottom. Items are one line, 44px: label and
-  gloss on one baseline. Selected: `sheet` fill and a 3px ink bar at the left.
+  and the Profiil and appearance keys, at the bottom. Items are one line,
+  44px: label and gloss on one baseline (a gloss too long for the column wraps
+  whole to a second line). Selected: `sheet` fill and a 3px ink bar at the
+  left. The sidebar is the viewport's height and scrolls inside itself when it
+  is taller.
+- A skip link, *Sisu juurde* "к содержанию", is the first thing Tab reaches.
+  It moves focus to the open screen's heading and leaves the route as it is.
 
 ## Elevation and shape
 
@@ -652,8 +686,8 @@ field triggers the primary.
   light `0 -12px 32px -16px rgba(21,32,26,.28)` plus a `line` edge; dark
   theme uses `line` alone, because shadows vanish on dark grounds.
 - Corners: 14px for the bench, sheets and the primary button; 10px for
-  secondary buttons, fields and segments; 6px for chips. Tables and rows are
-  square.
+  secondary buttons, fields, segments and keys; 6px for chips and navigation
+  items. Tables and rows are square.
 - Hairlines (`line`, 1px) separate rows. A row list never sits inside a card
   unless it is an opened group (the current unit on Kursus).
 - No translucency: reduced-transparency needs no fallback because nothing is
@@ -703,6 +737,17 @@ it. If code has no single form name for the key (an ambiguous analysis), the
 form line shows the lemma and meaning and no form name. The Russian gloss of a
 form name comes from the same fixed term list as every other gloss (one gloss
 per Estonian term, `tests/test_ui_language.py`).
+
+**Built.** `interlinear(form, item, {state})` in `eesti/web/js/core.js` writes
+the word; its only source for the name is the item: `form_after` (a choice
+topic's form, which the server withholds from `label` until the attempt) or
+`label`. There is no parameter for a name, so nothing else can pass one in.
+The gloss is the item's `form_ru` when the server gave one, else each term's
+from the client's fixed list, the same one the instruction above an item uses.
+`fitInterlinear(sentence)` stacks a sentence whose form lines would collide.
+The word, the name and the gloss read as one unit ("rahakotti, osastav,
+частичный падеж"). The stylesheet's `.il` sets the bar, places the line under
+the word out of flow and gives a prompt that holds one the tall line height.
 
 **Accessibility.** The word and its form line form one accessible unit:
 "rahakotti, osastav, частичный падеж". The verdict region announces the result
@@ -982,14 +1027,17 @@ Phone 390                                   Desktop 1280 (720px sheet)
 
 | Kind | Look | Use |
 |---|---|---|
-| Primary | `act` fill, `on-act` label (action role) with its gloss at 80 %, 52px high, 14px corners | One per screen, in the action bar or row |
+| Primary | `act` fill, `on-act` label (action role) with its gloss at 80 %, 52px high in the action bar, 48px inline, 14px corners | One per screen, in the action bar or row |
 | Secondary | No fill, 1px `line` border (1px `edge` in high contrast), `ink` label, 44px, 10px corners | Miks?, Reegel, Tõlge, Jäta vahele |
+| Text action | No box, `ink-2` label underlined in `edge`, 44px target | Row actions, "Vali teine teema" |
 | Key | 52px square, 1px `edge` border, 24px pictogram | Skills key, microphone, play |
-| Link | `jarv`, underlined on hover and focus, 44px target | Alternatives, sources, "back to" links |
+| Link | `jarv`, underlined, 44px target where it stands alone | Alternatives, sources, "back to" links |
 
 Hover darkens the primary to `act-hover`; press scales it to .98. Disabled is
 40 % opacity with the label kept and `aria-disabled`, so the reason can still
 be announced. Every target is at least 44×44 (above WCAG 2.5.8's 24×24).
+Links keep their underline in running text: colour alone would not tell them
+apart (WCAG 1.4.1).
 
 ### Fields
 
@@ -1015,7 +1063,10 @@ element right (count, status, chevron for a row that opens). No row is a card.
 Veel, Oskused, the word card and confirmations are bottom sheets on phones
 (native `dialog`, modal, focus trapped and returned) and anchored popovers or
 centred dialogs on desktop. Detents: half and full on phones; the word card
-opens at half.
+opens at half. A sheet opens on the current entry (or its first), closes with
+Escape, its close key or a tap on the scrim, and gives focus back to what
+opened it. Veel keeps its `<details>` summary as the opener, so the sheet and
+the summary's open state follow each other.
 
 ### Word card
 
@@ -1025,16 +1076,18 @@ its headword uses the interlinear treatment for the tapped form in context
 
 ### Banners and empty states
 
-A banner is a left 3px rule in its state colour, the state's icon from the
-app's set (`warning-circle` for caution, `x-circle` for an error, `info` for
-information) and text in `ink`; no tinted box. The icon, not the hue, says
-which kind it is. An empty state is one sentence saying what will appear and
-one action to make it appear, left-aligned, no illustration.
+A banner is a left 3px rule in its state colour, the state's mark (a circled
+exclamation for caution, a circled cross for an error, a circled *i* for
+information, a circled tick for good news; drawn as CSS masks, so they need no
+markup) and text in `ink`; no tinted box. The mark, not the hue, says which
+kind it is. An empty state is one sentence saying what will appear and one
+action to make it appear, left-aligned, no illustration.
 
 ### Loading and errors
 
-Content that takes longer than 400ms shows *Laadin…* in its slot; nothing
-shimmers. An error says what failed and keeps the learner's input on screen,
+Content that takes longer than 400ms shows *Laadin…* "загружаю" in its slot
+(`skeleton()` in `eesti/web/js/chrome.js`; the note is there at once but shown
+only after 400ms); nothing shimmers. An error says what failed and keeps the learner's input on screen,
 with a retry as the slot's action (not a second primary).
 
 ### Model output
@@ -1074,15 +1127,21 @@ No springs, no overshoot, no oscillation.
 | Next item | Edasi | Old item done, new one here | Same-document View Transition: old fades out, new fades in rising 8px; focus moves to the new gap | out `dur-2` exit, in `dur-4` enter | Crossfade `dur-2`, no translation | None |
 | Step change | First item of a new step | Orients within the session | Segment fills from the left (`scaleX`); step heading fades in | `dur-4`, standard | Instant fill | Segment border fills with `CanvasText` |
 | Form switch | A rule condition toggled | Shows which form follows from which condition | The word and its form line crossfade; nothing else moves | `dur-3`, standard | Instant | Bar is a border; stays |
-| Sheet | Veel, Oskused, word card | Shows the sheet comes from the dock and the page waits behind it | Sheet slides up; scrim fades | open `dur-4` enter, close `dur-2` exit | Fade only, `dur-2` | Sheet border `CanvasText`; no scrim |
+| Sheet | Veel, Oskused, word card | Shows the sheet comes from the dock and the page waits behind it | Sheet slides up (beside the sidebar on a desktop, 16px); scrim fades | open `dur-4` enter; closes at once | Fade only, `dur-2` | Sheet border `CanvasText`; no scrim |
 | Dock change | Task starts, field focused, task ends | Makes room for the primary and the keyboard | Tab row collapses, skills key appears | `dur-4`, standard | Instant | None |
 | Disclosure | `details` toggled | Shows the content opened | Chevron rotates; content appears without height animation | `dur-2`, standard | Instant | Chevron in `CanvasText` |
 | Recording | Microphone on | A state that must stay visible while it lasts | Static `bad` dot, elapsed seconds tick | No transition: a discrete tick each second, so no duration or easing | Same | Word *Salvestan* and border |
 | Focus | Any focus | Shows where the keyboard is | Ring appears | Instant, never transitioned | Same | `Highlight` |
 
-**Removed** from the current app: the pulsing current bead, the shimmer
-skeleton, the celebration overlay with petals, grow-in animations on charts
-and meters, the readiness flower's petal animation, the pulsing recording dot.
+**Removed** from the app: the pulsing current bead, the shimmer skeleton, the
+celebration overlay with petals (mastery is announced through the polite live
+region only), grow-in animations on charts and meters, the readiness flower's
+petal animation, the pulsing recording dot, the audio player's spinning
+loader (a still dashed ring now) and the page-wide smooth scrolling.
+
+Reduced motion is one switch in the tokens: `--rise` and `--press` go to none,
+so every rise becomes a plain fade and a press changes colour only, and every
+transition takes no time.
 
 View Transitions are Baseline for same-document updates (Firefox 144, October
 2025); where unsupported, the new item simply replaces the old.
@@ -1096,48 +1155,76 @@ Klint holds the stricter bar of
 of a focused element is under the dock, the action bar, the header or the
 keyboard.
 
-1. The dock publishes its current height (`--dock-h`, from a `ResizeObserver`)
-   in every state. `html` has `scroll-padding-bottom: calc(var(--dock-h) + 16px)`
-   and `scroll-padding-top` equal to the header; every focusable element has
-   the matching `scroll-margin`.
-2. On `focusin`, if the element's rectangle meets the dock's, it is scrolled to
-   `block: "nearest"` (instantly), which the padding places above the dock.
-3. When a text field is focused on a touch device, the dock enters the task
-   state and is positioned on the keyboard: Chromium honours
-   `interactive-widget=resizes-content` in the viewport meta; Safari, which
-   keeps a full-height layout viewport, gets the offset from `visualViewport`
-   (`innerHeight − visualViewport.height − visualViewport.offsetTop`) on its
-   `resize` and `scroll` events.
+1. The dock publishes its current height (`--dock-h`, measured after every
+   change of state, size or screen) and the keyboard's (`--kb`). `html` has
+   `scroll-padding-bottom: calc(var(--dock-h) + var(--kb) + 16px)` and
+   `scroll-padding-top` equal to the sticky header, so the browser's own focus
+   scrolling stops clear of both; the page's bottom padding is the same sum, so
+   the last control can always be scrolled above them.
+2. On `focusin`, once the page has stopped moving (three still frames, so a
+   screen's own smooth scroll or Safari's scroll to the field has landed and
+   the dock has taken its new state), an element that meets the header, the
+   tab row, the action bar, the primary or the keyboard is scrolled instantly
+   into the band between them. While the keyboard is up, the same happens after
+   the screen changes (text arriving above the field moves it), and for a
+   second after the keyboard arrives at every change of the visual viewport:
+   iOS raises the keyboard after the field takes focus and pans the page while
+   it slides in. Focus scrolling is never smooth: the page sets no
+   `scroll-behavior`.
+3. When a text field is focused and the keyboard is up, the dock enters the
+   task state and sits on the keyboard. Both engines are read the same way:
+   Safari keeps a full-height layout viewport, and Chromium has done the same
+   by default since version 108, so the keyboard's height is
+   `innerHeight − visualViewport.height − visualViewport.offsetTop`, read on
+   the visual viewport's `resize` and `scroll` events and on focus. Whether a
+   keyboard is up is read from how much the visual viewport shrank (over
+   120px), not from where it sits: as the keyboard slides in, Safari pans the
+   visual viewport to the bottom of the layout viewport, and the formula above
+   is then 0. Pinch zoom (a scale other than 1) never counts, which is why no
+   page may be wider than the screen: Safari zooms such a page out when a field
+   takes focus. The viewport meta asks for no `interactive-widget`, which keeps
+   one path and lets the journeys stub it.
 
    **Compact keyboard state.** When the visual viewport is under 320px high
    with a text field focused (a phone in landscape), the header stops being
-   sticky and scrolls away with the content (`scroll-padding-top: 0`), the
-   task row drops to 60px with 44px keys and a 44px primary, and a multi-line
-   field is capped at the band that remains (`max-height`, scrolling inside).
+   sticky and scrolls away with the content (`scroll-padding-top: 0`; on its
+   side a phone's header always scrolls with the page), the task row drops to
+   60px with 44px keys and a 44px primary, and a multi-line field is set to the
+   band that remains (`--band`, scrolling inside).
    At 874×402 with a keyboard of about 200px (Apple does not publish its
    height), the band is then 402 − 200 − 60 − 16 = 126px, which holds the
    prompt line with its form line (24px at 2.6, about 62px). Without this
    state it would be 402 − 200 − 56 − 76 − 16 = 54px, less than one prompt
    line.
-4. In document order the dock comes after the content, so Tab reaches the
-   answer, the correction's actions and then the primary. Enter in the gap
-   submits; a skip link "Tegevuse juurde" reaches the primary from the top.
+4. The tab row is part of the header in document order, because one element is
+   both the desktop sidebar and the phone's dock; the four skills are a
+   tablist, so they cost one Tab stop. A skip link, *Sisu juurde*, comes first.
+   The primary keeps its place in its screen's markup, so Tab reaches the
+   answer and then the primary; the skills key comes after the content. Enter
+   in the gap submits.
 5. Sheets opened from the dock trap focus and return it to their opener.
 6. Focus ring: 3px `focus` outline, 2px offset, on every interactive element,
    on all grounds. A heading that receives programmatic focus after a route
    change (`tabindex="-1"`) shows no ring; interactive elements always do.
 
-**Test.** A browser journey at 390×844 and 874×402 (touch) and 1280×800 tabs
-through every focusable element on Täna, Kursus, `#session` (awaiting and
-revealed) and `#rule`, and for each asserts that `elementFromPoint` at the
-element's centre is the element or inside it and that its rectangle does not
-intersect the dock's, the header's or the action row's. Playwright opens no
-on-screen keyboard, so the keyboard cases run through a stub: the journey
-replaces `visualViewport` with one whose height is the viewport less an
-assumed keyboard (340px at 390×844, 200px at 874×402), fires its `resize`
-event, focuses each field and asserts the same conditions inside the stubbed
-band. One field per screen is also checked by hand in the iOS simulator. The
-journey belongs with the existing ones in `tests/test_e2e_journeys.py`.
+**Test.** A browser journey (`tests/test_e2e_journeys.py`) at 390×844 and
+874×402 (touch) and 1280×800, on Chromium and WebKit, tabs through every
+focusable element on Täna, Kursus, `#session` (awaiting and revealed) and
+`#rule`, and for each asserts that `elementFromPoint` at the element's centre
+(each line's, for a link that wraps) is the element or inside it and that its
+rectangle meets neither the header, the tab row, the action bar nor the
+primary. WebKit tabs with Option, since Safari's plain Tab skips links unless
+the learner turns that on. Playwright opens no on-screen keyboard, so the
+keyboard cases run through a stub: the journey replaces `visualViewport` with
+one whose height is the viewport less an assumed keyboard (340px at 390×844,
+200px at 874×402), fires its `resize` event, focuses each answer field (free
+practice, Kirjutamine, Kuulamine) in both orders — the keyboard arriving
+after focus, as on iOS, and focus moving with the keyboard already up — and
+asserts the same conditions inside the stubbed band, that the tab row has
+given way, that the primary sits above the keyboard, that the skills key opens
+the skills and that no page is wider than the screen. The same three fields
+were checked by hand with the software keyboard in Safari on the iOS 27
+simulator (iPhone 18 Pro) on 10 October 2026.
 
 ## Accessibility checklist (WCAG 2.2 AA)
 
@@ -1237,54 +1324,27 @@ system follows the same split, so the two apps read as one product.
 The redesign lands screen by screen. Each step keeps the browser journeys
 green on both engines and both viewports.
 
-1. **Tokens.** Define this record's roles as the root custom properties in
-   `eesti/web/app.css`, light and dark. Every old name that a rule still
-   references stays defined as an alias of its nearest role, so unconverted
-   screens keep rendering; an alias is deleted in the change that rebuilds the
-   last screen using it. The map covers every old name a rule referenced on
-   10 October 2026:
-
-   | Old names | Alias of |
-   |---|---|
-   | `bg`, `nav` | `ground` |
-   | `tint`, `ctl` | `sunk` |
-   | `panel`, `raised`, `nav-active` | `sheet` |
-   | `coral`, `on-nav`, `on-night` | `ink` |
-   | `nav-muted`, `night-muted` | `muted` |
-   | `line-soft`, `night-line`, `ctl-hover` | `line` |
-   | `accent`, `accent-deep`, `night-accent` | `jarv` |
-   | `accent-soft` | `jarv-soft` |
-   | `btn`, `on-btn`, `on-accent` | `act`, `on-act`, `on-act` |
-   | `night-good`, `night-bad`, `warn-fill` | `good`, `bad`, `warn` |
-   | `page-wash`, `nav-wash` (background images), `glass-shadow` (a shadow) | `none` |
-   | `quick`, `t`, `slow` | `dur-2`, `dur-3`, `dur-4` |
-   | `ease` | `ease-standard` |
-   | `r-xs`, `r-sm`, `r`, `r-lg`, `r-xl` | `r-1`, `r-2`, `r-3`, `r-3`, `r-3` |
-   | `fs-gloss`, `fs-meta` | 12px (0.75rem) |
-   | `fs-note` | 14px (0.875rem) |
-   | `fs-ui`, `fs-body` | 16px (1rem) |
-   | `fs-input`, `fs-read` | 18px (1.125rem) |
-   | `fs-lead` | 21px (1.3125rem) |
-   | `fs-prompt` | 24px (1.5rem) |
-   | `fs-title` | 36px (2.25rem) |
-
-   Names no rule references are removed now: `accent-2`, `bg-2`, `btn-2`,
-   `field`, every `glass*` but `glass-shadow`, every `hero-*`, `night-a`,
-   `night-b`, `night-c`, `night-glass`, `sky`, `sand`, `pale`, `spring`,
-   `rail-w`, `shadow` and `fs-hero`. Names that already match a role keep it
-   (`ink`, `ink-2`, `muted`, `line`, `good`, `bad`, `warn` and their `-soft`
-   fills, `gloss`, `s1`–`s7`, `skill-*`); shell values stay and take this
-   record's values in step 2 (`f-ui`, `f-read`, `soft`, `lift`, `gutter`,
-   `spine-w`, `dock-h`). Set `--cut` to `SHRP` 100 and add `--cut-text` at 60.
-2. **Shell.** Header, sidebar, dock states, Veel sheet, focus rules
-   (`eesti/web/index.html`, `eesti/web/js/chrome.js`, `eesti/web/js/router.js`).
+1. **Tokens.** Done (S10). This record's roles are the root custom
+   properties in `eesti/web/app.css`, light and dark, with the
+   `prefers-contrast`, reduced-motion and forced-colours rules above. Every
+   rule reads the roles, with type in `rem` on the scale; the shipped
+   interface's earlier token names are gone, so no alias is kept.
+   The two cuts follow the markup's languages: `[lang="et"]` takes `--et-cut`
+   (`SHRP` 60, or 100 inside a display or prompt), the explanation languages
+   and every `.ru` gloss take `SHRP` 0.
+2. **Shell.** Done (S10). Header, sidebar and rail, dock states, action bar,
+   Veel and skills sheets, focus rules (`eesti/web/index.html`,
+   `eesti/web/js/chrome.js`). The interlinear word is a component with its
+   helper (`interlinear()` in `eesti/web/js/core.js`) for the screens that
+   follow.
 3. **Session and Täna** with S8's session (`eesti/web/js/path.js`), including
    the interlinear word and the state machine.
 4. **Reegel** with S3's rule walk (`eesti/web/js/lesson.js`).
 5. **Kursus**, then the skills, Kordamine, Eksam and Profiil.
 6. **Brand.** Done with the rename: the underlined K, spruce tiles and birch
    social artwork ship, rebuilt by `deploy/build-brand.py` (`docs/brand.md`).
-   Manifest and `theme-color` follow the ground in step 1.
+   The manifest, `theme-color` and the offline page stand on the ground
+   (step 1); the manifest takes its colour from the page's `theme-color`.
 
 When a step lands, the same change updates the documents that describe the
 shipped interface: `docs/status.md` (Interface), `docs/brand.md`, the visual

@@ -24,12 +24,14 @@ export const esc = s => (s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt
    reads Russian words with Estonian phonology. */
 export const langOf = s => /[Ѐ-ӿ]/.test(s || "") ? "ru" : "et";
 
-// Explanations use **bold** for the grammar term and *italic* for the Estonian
-// form being cited. Bold must be replaced first, or its inner asterisks get
-// consumed by the italic rule and the markup comes out mangled.
+// Explanations use **bold** for the grammar term and *asterisks* for the
+// Estonian form being cited, set upright in the Estonian cut (the face has no
+// italic); its language is read off its script, as `langOf` does. Bold must be
+// replaced first, or its inner asterisks get consumed by the single-asterisk rule
+// and the markup comes out mangled.
 export const md = s => esc(s)
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-  .replace(/\*(.+?)\*/g, "<em>$1</em>");
+  .replace(/\*(.+?)\*/g, (_, cited) => `<em lang="${langOf(cited)}">${cited}</em>`);
 
 
 /* How to scroll: smoothly, unless the learner asked the system for less motion
@@ -175,6 +177,14 @@ const FORM_RU = {
   meie: "мы", me: "мы", teie: "вы", te: "вы", nemad: "они", nad: "они",
 };
 
+/* The Russian gloss of a form name: the item's own reading of it when the server
+   gave one (`form_ru`), else each term's from the fixed list above. One gloss per
+   term, the same in the instruction and under the word. */
+function formGloss(it, name) {
+  if (it.form_ru) return it.form_ru;
+  return name.split(", ").map(term => FORM_RU[term]).filter(Boolean).join(", ");
+}
+
 export function addPracticeSupport(el, it, {offline = false} = {}) {
   const prompt = el.querySelector(".prompt");
   if (!prompt) return;
@@ -230,6 +240,44 @@ export function addPracticeSupport(el, it, {offline = false} = {}) {
       button.disabled = false;
     }
   });
+}
+
+/* ── The interlinear word (DESIGN.md, The signature) ─────────────────
+   An Estonian form with a bar under it and, under the bar, what the form is: its
+   name and that name's gloss. The name comes only from the item, which code
+   built: `form_after` (a choice topic's form, withheld until the attempt) or
+   `label`. There is no parameter for it, so nothing else — a model's text
+   included — can supply one. Without a name the line falls back to the lemma
+   and its meaning; a notice (before the learner has tried) has no line at all.
+
+   `form` is the word shown: the learner's answer when it was right, the key when
+   it was revealed. States: "right", "revealed", "reference", "notice". */
+export function formNameOf(it) {
+  return ((it && (it.form_after || it.label)) || "").trim();
+}
+
+export function interlinear(form, it, {state = "reference", glosses = {}} = {}) {
+  const word = `<span class="il-w">${esc(form)}</span>`;
+  if (state === "notice")
+    return `<span class="il" data-state="notice" lang="et">${word}</span>`;
+  const name = formNameOf(it);
+  const meaning = it.lemma_ru || ((glosses || {})[it.lemma] || []).slice(0, 2).join(", ");
+  const [head, gloss] = name ? [name, formGloss(it, name)] : [it.lemma || "", meaning];
+  const line = head ? `<span class="il-f"><span class="sr-only">, </span><span class="il-name" lang="et">${esc(head)}</span>`
+    + (gloss ? `<span class="sr-only">, </span><span class="il-gloss" lang="ru">${esc(gloss)}</span>` : "")
+    + "</span>" : "";
+  return `<span class="il" data-state="${esc(state)}" lang="et">${word}${line}</span>`;
+}
+
+/* Two form lines in one sentence that would run into each other: the sentence
+   sets each glossed word as a column instead, as a printed interlinear text does. */
+export function fitInterlinear(sentence) {
+  if (!sentence) return;
+  sentence.classList.remove("il-stacked");
+  const lines = [...sentence.querySelectorAll(".il-f")].map(l => l.getBoundingClientRect());
+  const clash = lines.some((a, i) => lines.slice(i + 1).some(b =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
+  sentence.classList.toggle("il-stacked", clash);
 }
 
 const CYRILLIC = /[\u0400-\u04ff]/;

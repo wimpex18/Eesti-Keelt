@@ -1,4 +1,5 @@
-/* The frame around the panels: icons, the Russian glosses, the theme.
+/* The frame around the panels: the shell (sidebar, phone header, dock and
+   action bar, sheets), icons, the Russian glosses, the theme.
 
    `RU` is the one place a tab's gloss lives. It covers every state
    `progress.TopicProgress.state` can emit. */
@@ -105,16 +106,11 @@ export function uiIcon(name, cls = "btn-ico") {
 }
 
 
-/* A skeleton while a list loads: the same layout drawn empty, so the arrival
-   causes no layout shift. `rows` is what the request asked for. */
-export function skeleton(rows = 6, kind = "row") {
-  const one = kind === "tile"
-    ? `<div class="skel-tile"><span class="skel" style="width:52%"></span>
-         <span class="skel skel-sm" style="width:78%"></span></div>`
-    : `<div class="skel-row"><span class="skel" style="width:62%"></span>
-         <span class="skel skel-sm" style="width:34%"></span></div>`;
-  return `<div class="skel-wrap${kind === "tile" ? " skel-grid" : ""}"
-    aria-hidden="true">${one.repeat(rows)}</div>`;
+/* What a slot says while its content loads: one word, shown only once the wait
+   passes 400ms (the stylesheet's `.loading-note`), so a quick answer never
+   flashes it. Nothing shimmers (DESIGN.md, Loading and errors). */
+export function skeleton() {
+  return `<p class="loading-note" role="status" lang="et">Laadin… <span class="ru" lang="ru">загружаю</span></p>`;
 }
 
 
@@ -137,14 +133,13 @@ export function actsAsButton(el, open, handle = el) {
 }
 
 
-/* An empty view that says what it is, why, and what to do about it: a mark, a
-   statement and a next step.
+/* An empty view that says what will appear and how to make it appear: a
+   statement and a next step, left-aligned, no illustration.
 
    Russian throughout, including the heading: an empty view explains, and the
    learner has to be able to read it. */
-export function emptyState({icon, title, note, action}) {
+export function emptyState({title, note, action}) {
   return `<div class="empty-state">
-    <div class="empty-mark">${uiIcon(icon, "")}</div>
     <h3>${title}</h3>
     ${note ? `<p>${note}</p>` : ""}
     ${action ? `<div class="row">${action}</div>` : ""}
@@ -185,7 +180,29 @@ const BUTTON_ICON = {
 };
 
 
+/* The rail's marks for the main pages (on a wide desktop they show as words). */
+const PAGE_ICON = {path: "house-simple", course: "path", review: "cards", exam: "exam"};
+
+/* The skills key: the four skills' colours in one 2×2 mark, the way the sheet it
+   opens holds them. */
+const SKILLS_KEY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+  <rect class="skill-read" x="3" y="3" width="8" height="8" rx="2"/><rect class="skill-listen" x="13" y="3" width="8" height="8" rx="2"/>
+  <rect class="skill-speak" x="3" y="13" width="8" height="8" rx="2"/><rect class="skill-write" x="13" y="13" width="8" height="8" rx="2"/></svg>`;
+
 export function paintIcons() {
+  document.querySelectorAll(".primary-nav a[href^='#']").forEach(a => {
+    const name = PAGE_ICON[a.hash.slice(1)];
+    if (!name || a.querySelector(".ico")) return;
+    a.insertAdjacentHTML("afterbegin", `<span class="ico" aria-hidden="true">${navIcon(name)}</span>`);
+  });
+  const home = $(".dock-home .ico");
+  if (home && !home.firstChild) home.innerHTML = navIcon(PAGE_ICON.path);
+  document.querySelectorAll(".sheet-nav a[data-skill]").forEach(a => {
+    if (!a.querySelector("svg")) a.insertAdjacentHTML("afterbegin", skillIcon(a.dataset.skill));
+  });
+  document.querySelectorAll(".sheet-close").forEach(b => { if (!b.firstChild) b.innerHTML = icon("x", {weight: "bold"}); });
+  const key = $("#skillsKey");
+  if (key && !key.firstChild) key.innerHTML = SKILLS_KEY;
   for (const [id, name] of Object.entries(BUTTON_ICON)) {
     const b = document.getElementById(id);
     // `insertAdjacentHTML` rather than `innerHTML =`: these buttons carry a
@@ -239,6 +256,8 @@ function currentTheme() {
 
 
 function paintTheme() {
+  document.querySelectorAll("[data-theme-choice]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.themeChoice === currentTheme())));
   const btn = $("#themeBtn");
   if (!btn) return;
   const [, label, name] = THEMES.find(t => t[0] === currentTheme()) || THEMES[0];
@@ -257,9 +276,7 @@ function paintTheme() {
 }
 
 
-$("#themeBtn").onclick = () => {
-  const next = THEMES[(THEMES.findIndex(t => t[0] === currentTheme()) + 1)
-                      % THEMES.length][0];
+function setTheme(next) {
   if (next === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = next;
   try {
@@ -267,9 +284,238 @@ $("#themeBtn").onclick = () => {
     else localStorage.setItem("theme", next);
   } catch (e) {}
   paintTheme();
-};
+}
+
+/* The sidebar's one button steps through the three; Veel's switch names them. */
+$("#themeBtn").onclick = () => setTheme(
+  THEMES[(THEMES.findIndex(t => t[0] === currentTheme()) + 1) % THEMES.length][0]);
+document.querySelectorAll("[data-theme-choice]").forEach(b =>
+  b.addEventListener("click", () => setTheme(b.dataset.themeChoice)));
 
 paintTheme();
+
+/* ── The shell ───────────────────────────────────────────────────────
+   One header serves both devices (the stylesheet places it): the sidebar on a
+   desktop; on a phone the header, its tab row as the dock along the bottom, and
+   the action bar above it. This keeps three facts current and publishes them:
+
+   1. the open screen's primary: its first rendered `[data-primary]` button,
+      marked `.dock-primary` and set in the action bar (`body.has-primary`);
+   2. whether the dock is in its task state (`body.dock-task`): the screen holds
+      a rendered `[data-dock-task]` (an item awaiting its answer), or the
+      on-screen keyboard is up (`body.kb`, `--kb`) — a text field has focus and
+      the visual viewport has given way to something below it. The tab row then
+      steps aside, the skills wait behind the skills key, and the primary rides
+      on the keyboard;
+   3. how tall the dock is (`--tabs-h`, `--dock-h`), which the page's end and
+      every focus scroll keep clear of.
+
+   And it keeps focus in sight: a focused element is moved out from under the
+   header, the dock, the action bar and the keyboard (WCAG 2.4.12). */
+const PHONE = matchMedia("(max-width:719px), (hover:none) and (max-height:559px)");
+const TEXT_FIELD = "input:not([type]),input[type=text],input[type=search],input[type=email]," +
+  "input[type=password],input[type=number],input[type=tel],input[type=url],textarea,[contenteditable='true']";
+const docEl = document.documentElement;
+
+const rendered = el => el.checkVisibility ? el.checkVisibility() : el.getClientRects().length > 0;
+
+const openPanel = () => document.querySelector("main > section.panel:not([hidden])");
+
+function screenPrimary() {
+  const panel = openPanel();
+  return panel && [...panel.querySelectorAll("[data-primary]")].find(b => !b.hidden && rendered(b)) || null;
+}
+
+/* The keyboard, read off the visual viewport: Safari keeps a full-height layout
+   viewport and shrinks the visual one. How much it shrank says whether a
+   keyboard is up; how much of the layout viewport lies below it says where the
+   keyboard starts (0 while Safari has panned to the bottom, which it does as the
+   keyboard slides in). Pinch zoom also shrinks it, and is no keyboard. Read
+   afresh each time, so a replaced `visualViewport` is honoured. */
+function keyboardGap() {
+  const v = window.visualViewport;
+  if (!v || Math.abs((v.scale ?? 1) - 1) > .01) return {shrunk: 0, below: 0};
+  return {shrunk: innerHeight - v.height, below: Math.max(0, Math.round(innerHeight - v.height - v.offsetTop))};
+}
+
+let frame = 0, watched = null, keyboardWas = false, settling = 0;
+function soon() { if (!frame) frame = requestAnimationFrame(syncShell); }
+
+function watchViewport() {
+  const v = window.visualViewport;
+  if (!v || v === watched) return;
+  watched?.removeEventListener("resize", soon);
+  watched?.removeEventListener("scroll", soon);
+  watched = v;
+  v.addEventListener("resize", soon);
+  v.addEventListener("scroll", soon);
+}
+
+function syncShell() {
+  frame = 0;
+  watchViewport();
+  const phone = PHONE.matches, body = document.body;
+  const primary = phone ? screenPrimary() : null;
+  document.querySelectorAll(".dock-primary").forEach(b => b !== primary && b.classList.remove("dock-primary"));
+  primary?.classList.add("dock-primary");
+  const typing = phone && document.activeElement?.matches?.(TEXT_FIELD);
+  const gap = typing ? keyboardGap() : {shrunk: 0, below: 0};
+  const keyboard = gap.shrunk > 120;
+  const height = window.visualViewport?.height ?? innerHeight;
+  const task = phone && [...(openPanel()?.querySelectorAll("[data-dock-task]") || [])].some(rendered);
+  body.classList.toggle("has-primary", !!primary);
+  body.classList.toggle("dock-task", keyboard || task);
+  body.classList.toggle("kb", keyboard);
+  body.classList.toggle("kb-compact", keyboard && height < 320);
+  docEl.style.setProperty("--kb", `${keyboard ? gap.below : 0}px`);
+  const tabs = phone && !(keyboard || task) ? Math.round($(".dock-tabs").getBoundingClientRect().height) : 0;
+  const bar = phone && (primary || keyboard || task) ? Math.round($("#actbar").getBoundingClientRect().height) : 0;
+  docEl.style.setProperty("--tabs-h", `${tabs}px`);
+  docEl.style.setProperty("--dock-h", `${tabs + bar}px`);
+  // What is left for the field being typed in, which a compact keyboard state
+  // caps a multi-line field at.
+  const header = getComputedStyle($(".spine")).position === "sticky" ? $(".spine").offsetHeight : 0;
+  docEl.style.setProperty("--band", `${Math.max(0, Math.round(height - header - bar - 16))}px`);
+  /* A phone raises its keyboard after the field takes focus, and then scrolls the
+     page its own way while the keyboard slides in: the task row lands on the
+     keyboard and can cover the field. For a moment after the keyboard arrives,
+     each change of the visual viewport puts the field back in sight; after that
+     the learner's own scrolling is left alone. */
+  if (keyboard && !keyboardWas) settling = performance.now() + 1000;
+  keyboardWas = keyboard;
+  if (keyboard && performance.now() < settling) keepInSightWhenStill();
+}
+
+/* The band a focused element must sit in: below the visible top (the sticky
+   header, or the top of the visual viewport) and above whatever is fixed at the
+   bottom (tab row, action bar, primary) or the keyboard. */
+function clearBand() {
+  const v = window.visualViewport;
+  let top = v ? v.offsetTop : 0, bottom = v ? v.offsetTop + v.height : innerHeight;
+  const header = $(".spine");
+  if (getComputedStyle(header).position === "sticky") top = Math.max(top, header.getBoundingClientRect().bottom);
+  for (const el of [$(".dock-tabs"), $("#actbar"), $(".dock-primary")]) {
+    if (!el || !rendered(el) || getComputedStyle(el).position !== "fixed") continue;
+    bottom = Math.min(bottom, el.getBoundingClientRect().top);
+  }
+  return {top, bottom};
+}
+
+function keepInSight(el) {
+  if (el !== document.activeElement || !PHONE.matches) return;
+  // The chrome itself, and anything in an open sheet, is never under the chrome.
+  if (el.closest(".spine, #actbar, dialog, .dock-primary")) return;
+  const r = el.getBoundingClientRect(), {top, bottom} = clearBand(), gap = 8;
+  if (!r.height) return;
+  const below = r.bottom + gap - bottom, above = top + gap - r.top;
+  // Too tall for the band: its start matters more than its end.
+  const by = above > 0 ? -above : below > 0 ? Math.min(below, r.top - top - gap) : 0;
+  if (by) window.scrollBy({top: by, behavior: "instant"});
+}
+
+/* Measured only once the page has stopped moving: a screen often focuses its
+   field while its own smooth scroll is still travelling, and Safari scrolls to a
+   field it focuses; a correction added to a scroll in flight overshoots it. The
+   wait also lets the dock take its new state first. */
+let stillRun = 0;
+function keepInSightWhenStill() {
+  const run = ++stillRun;
+  let last = "", still = 0, frames = 0;
+  const tick = () => {
+    if (run !== stillRun) return;
+    const v = window.visualViewport;
+    const now = `${scrollY}|${v ? `${v.offsetTop}|${v.height}` : ""}`;
+    still = now === last ? still + 1 : 0;
+    last = now;
+    if (still >= 3 || ++frames > 90) keepInSight(document.activeElement);
+    else requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+addEventListener("focusin", () => {
+  soon();
+  keepInSightWhenStill();
+});
+addEventListener("focusout", soon);
+addEventListener("resize", soon);
+addEventListener("eesti:place", soon);
+PHONE.addEventListener("change", soon);
+new ResizeObserver(soon).observe($(".dock-tabs"));
+new ResizeObserver(soon).observe($("#actbar"));
+/* A screen shows, hides or replaces its primary as its state changes; and text
+   arriving above a field the learner is typing in (a status line, a hint) moves
+   the field, which goes back into sight. */
+new MutationObserver(() => {
+  soon();
+  if (document.body.classList.contains("kb")) keepInSightWhenStill();
+}).observe($("main"), {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["hidden"]});
+soon();
+
+/* Where the learner is, said by the dock's Täna and the skills sheet as well as
+   the sidebar (the router marks the sidebar and Veel). */
+addEventListener("eesti:place", e => {
+  const here = e.detail;
+  const home = $(".dock-home");
+  if (here === "path") home.setAttribute("aria-current", "page");
+  else home.removeAttribute("aria-current");
+  document.querySelectorAll("#skillsSheet a[data-skill]").forEach(a => {
+    if (a.dataset.skill === here) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+});
+
+
+/* ── Sheets ──────────────────────────────────────────────────────────
+   Veel and the skills open as modal sheets: focus is held inside, Escape, the
+   close button or a tap on the scrim closes, and focus returns to the opener.
+   Veel lives in a `<details>` so its summary is the opener the page already had;
+   the details' open state and the sheet's follow each other. */
+function openSheet(sheet, opener) {
+  if (sheet.open) return;
+  sheet.opener = opener;
+  sheet.showModal();
+  (sheet.querySelector(".sheet-nav a[aria-current]") || sheet.querySelector(".sheet-nav a:not(.in-sidebar)")
+    || sheet.querySelector(".sheet-nav a"))?.focus({preventScroll: true});
+}
+
+document.querySelectorAll("dialog.sheet").forEach(sheet => {
+  sheet.querySelector(".sheet-close")?.addEventListener("click", () => sheet.close());
+  sheet.addEventListener("click", e => {
+    if (e.target.closest(".sheet-nav a")) { sheet.close(); return; }
+    if (e.target !== sheet) return;
+    const r = sheet.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) sheet.close();
+  });
+  sheet.addEventListener("close", () => {
+    const opener = sheet.opener;
+    sheet.opener = null;
+    if (opener && rendered(opener)) opener.focus({preventScroll: true});
+  });
+});
+
+/* The skip link moves the keyboard's place to the open screen's heading without
+   touching the route: its `#main` would be read as a page that does not exist,
+   and the learner sent back to Täna. */
+$(".skip").addEventListener("click", e => {
+  e.preventDefault();
+  const panel = document.querySelector("main > section.panel:not([hidden])");
+  const target = panel?.querySelector("h1, h2, h3") || panel || $("main");
+  if (!target.hasAttribute("tabindex")) {
+    target.setAttribute("tabindex", "-1");
+    target.addEventListener("blur", () => target.removeAttribute("tabindex"), {once: true});
+  }
+  target.focus();
+});
+
+const veel = $(".more-nav"), veelSheet = $("#veelSheet");
+veel.addEventListener("toggle", () => {
+  if (veel.open) openSheet(veelSheet, veel.querySelector("summary"));
+  else if (veelSheet.open) veelSheet.close();
+});
+veelSheet.addEventListener("close", () => { veel.open = false; });
+$("#skillsKey").addEventListener("click", () => openSheet($("#skillsSheet"), $("#skillsKey")));
+
 
 export function glossChrome() {
   document.querySelectorAll("nav[data-mode-nav] button[data-tab] .lbl")
@@ -301,10 +547,8 @@ export function flowerSvg(parts, target = 3, {labels = true} = {}) {
       `<rect x="-30" y="${y1}" width="60" height="${y0 - y1}" class="petal-fill"/>`).join("");
     const seams = lit ? [-36, -60].map(y =>
       `<line x1="-30" x2="30" y1="${y}" y2="${y}" class="petal-seam"/>`).join("") : "";
-    // The rotation sits on its own group: the petal's grow-in animation sets a CSS
-    // transform, which would otherwise replace the SVG one.
     return `<g transform="rotate(${ANGLES[i]})"><g class="petal-group${unmeasured
-        ? " unmeasured" : ""}" style="animation-delay:${i * 80}ms">
+        ? " unmeasured" : ""}">
       <path d="${PETAL}" class="petal-shape"${unmeasured ? ` fill="url(#${hatch})"` : ""}/>
       <g clip-path="url(#${clip})">${fill}${seams}</g></g></g>`;
   }).join("");
@@ -312,7 +556,7 @@ export function flowerSvg(parts, target = 3, {labels = true} = {}) {
   // however small the flower is drawn; the grid places them at the four corners.
   const say = p => p.touched === null ? "не измеряется"
     : p.touched ? "есть контакт"
-    : `${Math.min(target, p.contact || 0)} из ${target} · не начато`;
+    : `${Math.min(target, p.contact || 0)} из ${target}, не начато`;
   const name = parts.map(p => `${p.et}: ${say(p)}`).join("; ");
   const svg = `<svg class="flower" viewBox="-96 -96 192 192"
       role="img" aria-label="${esc(name)}">
@@ -375,42 +619,11 @@ export function kindIcon(kind) {
 
 
 /* ── A topic laid into the path ──────────────────────────────────────
-   The one moment worth a ceremony: mastery, decided by code. A flower blooms,
-   the topic is named, and the overlay leaves by itself. Announced politely, and
-   instant under reduced motion (the stylesheet shortens every animation). */
+   Mastery, decided by code, is said once through the page's polite live region.
+   Nothing is drawn over the page: no overlay, no petals (DESIGN.md, Motion). */
 export function celebrate({title, name, note}) {
-  // Said through the page's one polite live region, which exists before the words
-  // arrive, so a screen reader hears it; the card itself is decoration.
   const say = $("#announce");
   if (say) say.textContent = [title, name, note].filter(Boolean).join(". ");
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  document.querySelector(".celebrate")?.remove();
-  const box = document.createElement("div");
-  box.className = "celebrate";
-  box.setAttribute("aria-hidden", "true");
-  box.innerHTML = `<div class="celebrate-card">
-    <svg viewBox="-100 -100 200 200">
-      ${ANGLES.map((a, i) => `<g transform="rotate(${a})"><path d="${PETAL}" class="petal"
-        style="animation-delay:${i * 90}ms"/></g>`).join("")}
-      <circle r="16" class="heart"/></svg>
-    <h4 lang="et">${esc(title)}</h4>
-    ${name ? `<div class="topic-name" lang="et">${esc(name)}</div>` : ""}
-    ${note ? `<p>${esc(note)}</p>` : ""}
-  </div>`;
-  document.body.append(box);
-  let gone = false;
-  const leave = () => {
-    if (gone) return;
-    gone = true;
-    removeEventListener("keydown", leave, true);
-    removeEventListener("pointerdown", leave, true);
-    box.classList.add("out");
-    setTimeout(() => box.remove(), 260);
-  };
-  // Any key or touch dismisses it without being swallowed: typing goes on.
-  addEventListener("keydown", leave, true);
-  addEventListener("pointerdown", leave, true);
-  setTimeout(leave, 3200);
 }
 
 
@@ -428,7 +641,7 @@ export function gateHtml(recent = [], gate = {correct: 8, window: 10}) {
   const right = recent.filter(Boolean).length;
   const say = !recent.length
     ? `тема засчитывается при ${gate.correct} верных из ${gate.window}`
-    : `${right} из ${recent.length} верно · нужно ${gate.correct} из ${gate.window}`;
+    : `${right} из ${recent.length} верно; нужно ${gate.correct} из ${gate.window}`;
   return `<div class="gate" role="img" aria-label="${esc(say)}">
     <div class="slots" aria-hidden="true">${slots}</div>
     <span class="gate-say" aria-hidden="true">${esc(say)}</span></div>`;
@@ -482,25 +695,4 @@ export function forecastHtml(counts = []) {
   const total = counts.reduce((a, b) => a + b, 0);
   return `<div class="forecast" style="grid-template-columns:repeat(${counts.length},minmax(0,1fr))"
     role="img" aria-label="${esc(`К повторению за ${counts.length} дней: ${total}; сегодня ${counts[0]}`)}">${bars}</div>`;
-}
-
-
-
-/* The dock steps back while reading. On a phone, scrolling down through a text or a
-   list folds the three modes to their marks; scrolling up, or reaching the top,
-   brings the words back — the way the system's own tab bars behave. */
-{
-  const phone = matchMedia("(max-width:719px), (hover:none) and (max-height:500px)");
-  let last = scrollY, ticking = false;
-  addEventListener("scroll", () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      const y = scrollY, down = y > last + 4, up = y < last - 4;
-      if (!phone.matches || y < 80 || up) document.body.classList.remove("dock-min");
-      else if (down) document.body.classList.add("dock-min");
-      last = y;
-      ticking = false;
-    });
-  }, {passive: true});
 }

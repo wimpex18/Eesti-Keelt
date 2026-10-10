@@ -35,7 +35,7 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 1 | S2 | Unit dialogues and texts | S1 | done in PR #133 |
 | 1 | R1 | Refresh after step 0 | S7 | done in PR #132 |
 | 2 | S7F | Apply the S7R review | S7R | done in PR #132 |
-| 3 | S10 | Redesign: tokens and shell | S7F | ready |
+| 3 | S10 | Redesign: tokens and shell | S7F | done in PR #134 |
 | 4 | S3 | Interactive rules (Reegel) | S10 | waits |
 | 4 | S9 | Dictionary (Sõnastik) | S10 | waits |
 | 5 | R2 | Refresh after steps 1–4 | S2, S3, S9, S10 | waits |
@@ -43,13 +43,16 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 7 | R3 | Refresh after step 6 | S8 | waits |
 | 8 | S4 | Explanation languages (alone: no other session open) | R3 | waits |
 | 9 | R4 | Refresh after step 8 | S4 | waits |
+| 10 | S11 | Beyond the generic exercise: a discussion with the owner | R4 | waits |
 
 Why this order: S10 builds the tokens and the shell every redesigned screen
 stands on, so it follows the reviewed spec and precedes S3, S9 and S8; S8's
 session uses S3's rule walk for its "rule by doing" step; S4 rewrites call
-sites across the app, so it runs alone and last. S2 touches only
-`content/material/` and runs beside anything; start it early, because the exam
-reading task 4 waits for its checked texts (sittings 7–8 Nov 2026).
+sites across the app, so it runs alone after the build sessions; S11 then
+discusses the exercise and the screens with the owner on the finished app. S2
+touches only `content/material/` and runs beside anything; start it early,
+because the exam reading task 4 waits for its checked texts (sittings 7–8 Nov
+2026).
 
 ## Who does what
 
@@ -122,6 +125,7 @@ name outcomes; where they quote a value, it is the spec's proposal.
 | S9 | `eesti/dictionary.py`, `eesti/api/dictionary.py`, `eesti/web/js/dictionary.js`, `eesti/web/js/words.js`, `tests/test_dictionary*.py`; in `DESIGN.md` the Word card section | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/identity.md`, `docs/design-research.md` |
 | S8 | `eesti/session.py`, `eesti/api/session.py`, `eesti/web/js/path.js`, `eesti/web/js/review.js`, `eesti/web/js/onboarding.js`, `eesti/tutor.py`, tests; in `DESIGN.md` the Practice rhythm, Täna and session sections | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/design-research.md` |
 | S4 | `eesti/i18n/`, the call sites that read `why_ru`, `points_ru`, `summary_ru`, `tests/test_ui_language.py` | — (no other session open) |
+| S11 | `qa/competitor-review.md`; prototypes stay in its worktree until the owner picks one | `docs/design-research.md`; the `DESIGN.md` sections the owner agrees to change |
 
 Every session may add its row to `docs/status.md`, set its own status cell
 above, and write its own `qa/sessions/<branch>.md`.
@@ -269,6 +273,10 @@ not move between states, every result carried by a shape and a word as well as
 colour, and the form named under the word only after an attempt. Its Täna and
 session sections (the seven-step session line, beads, wireframes) are the
 reviewed proposal; improve on them where you can ("Redesign sessions").
+The owner finds the current exercise — a blank, a "?", a gap to fill — as
+generic as a competitor's (docs/design-research.md, "Open: the exercise
+itself"); its forms are redesigned after the S sessions. Build the state
+machine and the rhythm on it, and keep the item's look easy to replace.
 ```
 
 ## S4. Explanation languages (step 8, alone)
@@ -294,4 +302,26 @@ preferred languages) that is uk, ru or en, else en; preselected, changeable in
 Profile, a saved choice always wins, location never used. The page's `lang`
 and every gloss's `lang` follow the chosen language; a missing reviewed
 translation is shown as missing, never silently replaced by Russian.
+```
+
+## S11. Beyond the generic exercise (step 10, a discussion)
+
+```text
+Klint S11: a discussion with the owner first, then a build only of what the
+owner picks. Klint's exercise (a sentence with a drawn blank and a "?") and
+much of its look follow the same defaults as competitors built with the same
+tools; the owner wants Klint clearly better in value, UX and UI, from the best
+product design of the day. Follow "Every session first" in
+qa/opus-sessions.md. Read qa/competitor-review.md and the screenshots and
+recording it points to, docs/design-research.md ("Open: the exercise itself",
+"Language-learning references"), DESIGN.md ("Fixed and open", Practice
+rhythm, the session), PRODUCT.md, and use the app as it then is on a phone.
+Bring to the owner: a short survey of the best learning and non-learning apps
+of the time, seen first-hand where possible; your own view of the review's
+directions, agreeing or not; three or four exercise concepts on real obj-case
+items that make the learner produce a form without a drawn blank, each graded
+by code with the first attempt counting; and the review's open questions.
+Prototype only what the owner chooses, at 390 and 1280 px in both themes.
+Record what is agreed in docs/design-research.md and the spec in DESIGN.md; a
+change to a PRODUCT.md commitment is proposed, not made.
 ```

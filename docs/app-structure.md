@@ -1,9 +1,10 @@
 # App structure
 
-The Practice rhythm interface leads with one next lesson. Four skills stay in
-navigation on every page. Course, review, exam and account are ordinary
-destinations rather than mutually exclusive mode bars. `library.MODES` still
-classifies source material; it does not determine the navigation shell.
+The interface (Interlinear, `DESIGN.md`) leads with one next lesson. Four
+skills stay in navigation on every page. Course, review, exam and account are
+ordinary destinations rather than mutually exclusive mode bars.
+`library.MODES` still classifies source material; it does not determine the
+navigation shell.
 
 ## The structure, as built
 
@@ -43,8 +44,9 @@ prepared in the profile data contract but are not advertised as complete courses
 Routes live in the hash. Skill changes push history; re-selecting the same skill
 adds no history. Deep lesson and rule links survive a reload, unknown routes
 recover to Home, and `#drill` opens Course's free practice. Desktop uses a left
-navigation column; phones use a compact header, native More menu and permanent
-four-skill bottom row.
+navigation column (a rail of marks on tablets); phones use a compact header
+with Veel and Profiil, and a permanent bottom dock of Täna and the four skills,
+which gives way to a task row when the keyboard is up.
 Appearance is changed from the shared header; Profile links to Progress instead
 of duplicating its evidence or data export.
 

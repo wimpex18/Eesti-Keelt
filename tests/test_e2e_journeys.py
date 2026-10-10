@@ -2354,6 +2354,402 @@ class TestPhoneInLandscape:
             "document.scrollingElement.scrollWidth <= innerWidth + 1")
 
 
+#: The shell's sizes (DESIGN.md, Focus and the dock): a phone upright and on its
+#: side, both touch, and a desktop.
+SHELL_SIZES = {
+    "390x844": {"viewport": {"width": 390, "height": 844}, "is_mobile": True, "has_touch": True},
+    "874x402": {"viewport": {"width": 874, "height": 402}, "has_touch": True},
+    "1280x800": {"viewport": {"width": 1280, "height": 800}},
+}
+
+#: The on-screen keyboard, which Playwright never opens. Apple publishes no
+#: height, so these are the assumptions DESIGN.md states.
+KEYBOARD = {"390x844": 340, "874x402": 200}
+
+#: Wait until the page has stopped scrolling: the browser's own focus scroll,
+#: then the shell's correction, which waits for three still frames itself.
+SETTLE = """() => new Promise(done => {
+  let last = -1, still = 0, frames = 0;
+  const tick = () => {
+    const y = scrollY;
+    still = y === last ? still + 1 : 0;
+    last = y;
+    if (still >= 8 || ++frames > 120) done(); else requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})"""
+
+#: What hides a focused element, or null. It must be what the browser hits at
+#: its centre (each line's, for a link that wraps), and it must not meet the
+#: sticky header, the dock, the action bar, the primary riding on them, or the
+#: keyboard. The chrome itself is exempt from the second test only.
+OBSCURED = """el => {
+  const lines = [...el.getClientRects()].filter(b => b.width && b.height);
+  if (!lines.length) return null;
+  const name = (el.getAttribute('aria-label') || el.textContent || el.id || el.tagName)
+    .trim().replace(/\\s+/g, ' ').slice(0, 40);
+  for (const b of lines) {
+    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    if (!hit || !(hit === el || el.contains(hit)))
+      return `${name}: covered by ${hit ? (hit.id || hit.className || hit.tagName) : 'nothing'}`;
+  }
+  if (el.closest('.spine, #actbar, .dock-primary, .skip, dialog')) return null;
+  const r = el.getBoundingClientRect();
+  const chrome = [...document.querySelectorAll('.spine, .dock-tabs, #actbar, .dock-primary')]
+    .filter(c => c.checkVisibility() && ['fixed', 'sticky'].includes(getComputedStyle(c).position))
+    .map(c => [c.id || c.className, c.getBoundingClientRect()]);
+  const v = window.visualViewport;
+  const keyboard = v ? innerHeight - v.height - v.offsetTop : 0;
+  if (keyboard > 0)
+    chrome.push(['keyboard', {left: 0, right: innerWidth, top: innerHeight - keyboard, bottom: innerHeight}]);
+  const under = chrome.find(([, c]) => r.left < c.right && c.left < r.right && r.top < c.bottom && c.top < r.bottom);
+  return under ? `${name}: under ${under[0]}` : null;
+}"""
+
+#: Replace the visual viewport with one a keyboard of `kb` pixels has shrunk, as
+#: Safari reports it, and say so; `kb` 0 puts the real one back. A browser never
+#: swaps the object, so the window is told as well, for the shell to notice the
+#: new one.
+KEYBOARD_STUB = """kb => {
+  window.realViewport = window.realViewport || window.visualViewport;
+  let viewport = window.realViewport;
+  if (kb) {
+    viewport = new EventTarget();
+    const now = () => ({width: innerWidth, height: innerHeight - kb, offsetTop: 0, offsetLeft: 0,
+                        pageTop: scrollY, pageLeft: scrollX, scale: 1});
+    for (const key of Object.keys(now()))
+      Object.defineProperty(viewport, key, {get: () => now()[key]});
+  }
+  Object.defineProperty(window, 'visualViewport', {configurable: true, get: () => viewport});
+  viewport.dispatchEvent(new Event('resize'));
+  window.dispatchEvent(new Event('resize'));
+}"""
+
+
+class TestFocusIsNeverUnderTheDock:
+    """WCAG 2.4.12, the bar DESIGN.md holds: no part of a focused element is
+    under the header, the dock, the action bar or the keyboard. Tabbing through
+    Täna, Kursus, a session (awaiting and revealed) and a rule at a phone's two
+    orientations and a desktop; then, with a keyboard stub, every answer field on
+    the screens that have one."""
+
+    @pytest.fixture(params=list(SHELL_SIZES))
+    def shell(self, request, _pw, live_server):
+        context = _pw.new_context(
+            extra_http_headers={"x-eesti-scope": "guest",
+                                "x-eesti-guest": f"e2e-{uuid4().hex[:12]}"},
+            **SHELL_SIZES[request.param])
+        pg = context.new_page()
+        pg.errors = []
+        pg.on("pageerror", lambda e: pg.errors.append(str(e)[:300]))
+        pg.route("**/api/auth/me", lambda route: route.fulfill(
+            json={"scope": "guest", "signup_open": True}))
+        pg.size = request.param
+        pg.base = live_server
+        pg.engine = getattr(_pw, "engine_name", "chromium")
+        yield pg
+        context.close()
+
+    @staticmethod
+    def _open(pg, route):
+        pg.goto(pg.base + "/#path", wait_until="networkidle")
+        pg.goto(pg.base + "/" + route, wait_until="networkidle")
+        pg.wait_for_selector("#nav-learn button[data-tab=read] .ico svg", state="attached")
+        pg.evaluate(SETTLE)
+
+    @staticmethod
+    def _tab_through(pg, where, limit=400):
+        """Every element Tab reaches, from the top of the page round to the start."""
+        pg.evaluate("() => { document.querySelectorAll('[data-focus-seen]').forEach("
+                    "e => delete e.dataset.focusSeen); document.querySelector('.skip').focus(); }")
+        found, reached = [], 0
+        for _ in range(limit):
+            pg.evaluate(SETTLE)
+            state = pg.evaluate("""() => {
+              const e = document.activeElement;
+              if (!e || e === document.body) return 'body';
+              if (e.dataset.focusSeen) return 'again';
+              e.dataset.focusSeen = '1';
+              return 'new';
+            }""")
+            if state != "new":
+                break
+            reached += 1
+            if verdict := pg.evaluate(f"({OBSCURED})(document.activeElement)"):
+                found.append(f"{pg.size} {where}: {verdict}")
+            # Safari's Tab reaches only form controls unless the learner turns on
+            # "Press Tab to highlight each item"; Option-Tab always reaches links.
+            pg.keyboard.press("Alt+Tab" if pg.engine == "webkit" else "Tab")
+        assert reached > 5, f"{pg.size} {where}: Tab reached only {reached} elements"
+        return found + TestFocusIsNeverUnderTheDock._sideways(pg, where)
+
+    @staticmethod
+    def _sideways(pg, where):
+        """A page wider than the screen makes Safari zoom out when a field takes
+        focus, and a zoomed viewport hides the keyboard from the shell."""
+        over = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        return [f"{pg.size} {where}: {over}px wider than the screen"] if over > 1 else []
+
+    def _session(self, pg):
+        self._open(pg, "#session/asesonad")
+        pg.wait_for_selector("#beginPractice", timeout=20000)
+        pg.click("#beginPractice")
+        pg.wait_for_selector("#practiceOut .drill", timeout=20000)
+
+    def test_tabbing_never_lands_under_the_chrome(self, shell):
+        found = []
+        for route in ("#path", "#course", "#rule/obj-case"):
+            self._open(shell, route)
+            found += self._tab_through(shell, route)
+        self._session(shell)
+        found += self._tab_through(shell, "session awaiting")
+        item = shell.locator("#practiceOut .drill").first
+        item.locator(".choice").first.click()
+        item.locator(".exercise-next").wait_for(timeout=10000)
+        found += self._tab_through(shell, "session revealed")
+        assert not found, "focus under the chrome:\n  " + "\n  ".join(found)
+        assert not shell.errors, shell.errors
+
+    def test_an_answer_field_and_its_primary_stay_above_the_keyboard(self, shell):
+        if shell.size not in KEYBOARD:
+            pytest.skip("a desktop has no on-screen keyboard")
+        keyboard, found = KEYBOARD[shell.size], []
+
+        def each_field(where):
+            fields = shell.locator("section.panel:not([hidden]) :is(input[type=text], textarea)")
+            checked = 0
+            for i in range(fields.count()):
+                field = fields.nth(i)
+                if not field.evaluate("e => e.checkVisibility()"):
+                    continue
+                checked += 1
+                # A tap: focus first, then the keyboard slides in (as on iOS); then
+                # moving to the field with the keyboard already up.
+                for order in ("tapped", "keyboard up"):
+                    shell.evaluate(KEYBOARD_STUB, 0 if order == "tapped" else keyboard)
+                    field.evaluate("e => e.blur()")
+                    shell.evaluate(SETTLE)
+                    field.focus()
+                    if order == "tapped":
+                        shell.evaluate(SETTLE)
+                        shell.evaluate(KEYBOARD_STUB, keyboard)
+                    # Text a screen is still fetching can land above the field;
+                    # the shell puts the field back in sight, and that is checked.
+                    shell.evaluate(SETTLE)
+                    shell.wait_for_timeout(300)
+                    shell.evaluate(SETTLE)
+                    check(field, f"{where} ({order})")
+            assert checked, f"{shell.size} {where}: no answer field to check"
+
+        def check(field, where):
+            found.extend(self._sideways(shell, where))
+            # The tab row has given way; the four skills stay one key away.
+            key = shell.locator("#skillsKey")
+            if not key.is_visible() or key.evaluate(OBSCURED):
+                found.append(f"{shell.size} {where}: the skills are out of reach while typing")
+            if verdict := field.evaluate(OBSCURED):
+                found.append(f"{shell.size} {where}: {verdict}")
+            # The tab row gives way; a screen's primary rides on the keyboard.
+            if shell.locator("#nav-learn").is_visible():
+                found.append(f"{shell.size} {where}: the tab row stayed up over the keyboard")
+            primary = shell.locator(".dock-primary")
+            if primary.count() and primary.evaluate(
+                    "(e, kb) => e.getBoundingClientRect().bottom > innerHeight - kb + 1", keyboard):
+                found.append(f"{shell.size} {where}: the primary is under the keyboard")
+
+        self._open(shell, "#course")
+        shell.click('#pathModes button[data-pm="vaba"]')
+        shell.wait_for_selector("#freeTopic option", state="attached", timeout=15000)
+        shell.locator("#freeTopic").select_option("olevik")
+        shell.click("#freeBtn")
+        shell.wait_for_selector("#freeOut .drill input", timeout=15000)
+        each_field("free practice")
+        for route in ("#write", "#listen"):
+            self._open(shell, route)
+            each_field(route)
+        assert not found, "\n  ".join(found)
+        assert not shell.errors, shell.errors
+
+
+    def test_the_skills_stay_one_tap_away_while_typing(self, shell):
+        """With the keyboard up the tab row gives way; the skills key in the task
+        row opens the four skills, and choosing one goes there."""
+        if shell.size not in KEYBOARD:
+            pytest.skip("a desktop has no on-screen keyboard")
+        self._open(shell, "#write")
+        shell.evaluate(KEYBOARD_STUB, KEYBOARD[shell.size])
+        shell.locator("#text").focus()
+        shell.evaluate(SETTLE)
+        key = shell.locator("#skillsKey")
+        assert key.is_visible() and not shell.locator("#nav-learn").is_visible()
+        assert key.evaluate(OBSCURED) is None
+        key.click()
+        sheet = shell.locator("#skillsSheet")
+        assert sheet.evaluate("d => d.open && d.matches(':modal')")
+        sheet.get_by_role("link", name=re.compile("^Lugemine")).click()
+        shell.wait_for_selector("#tab-read:not([hidden])")
+        assert not sheet.evaluate("d => d.open")
+        assert not shell.errors, shell.errors
+
+
+class TestTheShellSheets:
+    """Veel opens as a sheet that holds focus until it closes, and gives it back
+    to Veel; its appearance switch keeps the browser's own chrome on the page's
+    ground."""
+
+    def test_veel_holds_focus_and_returns_it(self, page):
+        summary = page.locator(".more-nav > summary")
+        summary.click()
+        sheet = page.locator("#veelSheet")
+        sheet.wait_for(state="visible")
+        assert sheet.evaluate("d => d.matches(':modal') && d.contains(document.activeElement)")
+        page.keyboard.press("Escape")
+        # Closed, folded back, and focus on Veel again.
+        page.wait_for_function("""() => !document.querySelector('#veelSheet').open
+          && !document.querySelector('.more-nav').open
+          && document.activeElement === document.querySelector('.more-nav > summary')""", timeout=3000)
+        summary.click()
+        sheet.get_by_role("link", name=re.compile("^Edenemine")).click()
+        page.wait_for_selector("#tab-status:not([hidden])")
+        assert not sheet.evaluate("d => d.open")
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_the_skip_link_keeps_the_screen(self, page):
+        """Skipping the navigation lands in the open screen, never on another."""
+        open_tab(page, "learn", "course")
+        page.locator(".skip").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.querySelector('main').contains(document.activeElement)")
+        assert page.evaluate("location.hash") == "#course"
+        assert page.is_visible("#tab-course")
+        page.keyboard.press("Alt+Tab" if page.engine_name == "webkit" else "Tab")
+        assert page.evaluate("document.querySelector('#tab-course').contains(document.activeElement)")
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_the_appearance_keeps_the_browser_on_the_ground(self, page):
+        if page.viewport_name == "phone":
+            page.locator(".more-nav > summary").click()
+            page.locator('[data-theme-choice="dark"]').click()
+            assert page.get_attribute('[data-theme-choice="dark"]', "aria-pressed") == "true"
+            page.keyboard.press("Escape")
+        else:
+            while page.evaluate("document.documentElement.dataset.theme") != "dark":
+                page.locator("#themeBtn").click()
+        page.wait_for_function("""() => {
+          const ground = getComputedStyle(document.body).backgroundColor;
+          return [...document.querySelectorAll('meta[name="theme-color"]')].every(m => m.content === ground);
+        }""")
+        assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(20, 31, 25)"
+
+
+class TestTheInterlinearWord:
+    """The signature (DESIGN.md): a form with its name beneath it. The name is the
+    one code gave the item; showing it moves nothing in the sentence; two lines
+    that would collide stack the sentence instead."""
+
+    RENDER = """async ([states, items]) => {
+      const {interlinear, fitInterlinear} = await import('/js/core.js');
+      let prompt = document.querySelector('#il-probe');
+      if (!prompt) {
+        prompt = document.createElement('div');
+        prompt.id = 'il-probe'; prompt.className = 'prompt'; prompt.lang = 'et';
+        document.querySelector('section.panel:not([hidden])').prepend(prompt);
+      }
+      prompt.innerHTML = 'Ta ei leidnud ' + items.map(([form, it], i) =>
+        interlinear(form, it, {state: states[i]})).join(' ') + ' täna.';
+      fitInterlinear(prompt);
+      const words = [...prompt.querySelectorAll('.il-w')].map(w => w.getBoundingClientRect());
+      const lines = [...prompt.querySelectorAll('.il-f')].map(l => l.getBoundingClientRect());
+      return {
+        height: prompt.getBoundingClientRect().height,
+        words: words.map(r => [r.left, r.top, r.width]),
+        under: lines.every((l, i) => l.top >= words[i].bottom - 1),
+        lines: [...prompt.querySelectorAll('.il-f')].map(l => l.textContent),
+        names: [...prompt.querySelectorAll('.il-name')].map(n => n.textContent),
+        glosses: [...prompt.querySelectorAll('.il-gloss')].map(g => [g.textContent, g.lang]),
+        read: [...prompt.querySelectorAll('.il')].map(w => w.textContent),
+        stacked: prompt.classList.contains('il-stacked'),
+        overlap: lines.some((a, i) => lines.slice(i + 1).some(b =>
+          a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom)),
+      };
+    }"""
+
+    #: A choice item as the page receives it: the form withheld from `label` and
+    #: carried in `form_after`; an explanation that names the other form.
+    ITEM = {"lemma": "rahakott", "label": "", "form_after": "osastav", "lemma_ru": "кошелёк",
+            "why_ru": "Не **omastav**: после «ei» объект в osastav."}
+
+    def test_the_form_line_names_the_items_form_and_moves_nothing(self, page):
+        before = page.evaluate(self.RENDER, [["notice"], [["rahakotti", self.ITEM]]])
+        after = page.evaluate(self.RENDER, [["revealed"], [["rahakotti", self.ITEM]]])
+        assert before["lines"] == []
+        assert after["names"] == ["osastav"]
+        assert after["glosses"] == [["частичный падеж", "ru"]]
+        assert after["read"] == ["rahakotti, osastav, частичный падеж"]
+        assert after["under"]
+        assert after["words"] == before["words"] and after["height"] == before["height"]
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_without_a_form_name_it_falls_back_to_the_lemma(self, page):
+        item = {"lemma": "rahakott", "label": "", "lemma_ru": "кошелёк"}
+        shown = page.evaluate(self.RENDER, [["right"], [["rahakotti", item]]])
+        assert shown["read"] == ["rahakotti, rahakott, кошелёк"]
+
+    def test_colliding_lines_stack_the_sentence(self, page):
+        both = [["rahakotti", self.ITEM], ["leiba", {**self.ITEM, "lemma": "leib", "lemma_ru": "хлеб"}]]
+        shown = page.evaluate(self.RENDER, [["revealed", "revealed"], both])
+        assert shown["stacked"] and not shown["overlap"]
+
+
+#: Each tab's gloss in the three explanation languages, as wide as a gloss is
+#: likely to be: the layout must not depend on Russian's lengths (DESIGN.md).
+TAB_GLOSSES = {
+    "ru": ["сегодня", "чтение", "аудирование", "говорение", "письмо"],
+    "uk": ["сьогодні", "читання", "аудіювання", "говоріння", "письмо"],
+    "en": ["today", "reading", "listening", "speaking", "writing"],
+}
+
+
+class TestTheTabRowFitsEveryLanguage:
+    """The phone's tab row keeps Täna and the four skills, each with its Estonian
+    label and its gloss at 12px, at 390 and 320px: no word cut, nothing running
+    into its neighbour, no sideways scroll."""
+
+    @pytest.mark.parametrize("width", [390, 320])
+    def test_every_label_and_gloss_is_whole(self, _pw, live_server, width):
+        context = _pw.new_context(viewport={"width": width, "height": 700},
+                                  is_mobile=True, has_touch=True)
+        page = context.new_page()
+        page.route("**/api/auth/me", lambda route: route.fulfill(
+            json={"scope": "guest", "signup_open": True}))
+        page.goto(live_server + "/#read", wait_until="networkidle")
+        page.wait_for_selector("#nav-learn button[data-tab=read] .ico svg", state="attached")
+        found = []
+        for lang, glosses in TAB_GLOSSES.items():
+            found += page.evaluate("""([lang, glosses]) => {
+              const tabs = [document.querySelector('.dock-home'), ...document.querySelectorAll('#nav-learn button')];
+              tabs.forEach((t, i) => { const g = t.querySelector('.ru'); g.textContent = glosses[i]; g.lang = lang; });
+              const bad = [];
+              const row = document.querySelector('.dock-tabs');
+              if (row.scrollWidth > row.clientWidth + 1) bad.push(`${lang}: the row scrolls`);
+              const boxes = tabs.map(t => t.getBoundingClientRect());
+              tabs.forEach((t, i) => {
+                const label = t.querySelector('.lbl'), gloss = t.querySelector('.ru');
+                const name = label.firstChild.textContent.trim();
+                if (!t.checkVisibility()) bad.push(`${lang} ${name}: not shown`);
+                for (const part of [label, gloss])
+                  if (part.scrollWidth > part.clientWidth + 1)
+                    bad.push(`${lang} ${name}: '${part.textContent.trim()}' is cut`);
+                if (parseFloat(getComputedStyle(gloss).fontSize) < 12) bad.push(`${lang} ${name}: gloss under 12px`);
+                if (boxes[i].left < 0 || boxes[i].right > innerWidth) bad.push(`${lang} ${name}: off screen`);
+                if (i && boxes[i].left < boxes[i - 1].right) bad.push(`${lang} ${name}: runs into its neighbour`);
+              });
+              return bad;
+            }""", [lang, glosses])
+        context.close()
+        assert not found, f"{width}px:\n  " + "\n  ".join(found)
+
+
 class TestLearningRedesign:
     """Starting and passing over familiar work must not invent checked progress."""
 
