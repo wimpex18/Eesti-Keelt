@@ -35,7 +35,7 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 1 | S2 | Unit dialogues and texts | S1 | ready |
 | 1 | R1 | Refresh after step 0 | S7 | done in PR #132 |
 | 2 | S7F | Apply the S7R review | S7R | done in PR #132 |
-| 3 | S10 | Redesign: tokens and shell | S7F | ready |
+| 3 | S10 | Redesign: tokens and shell | S7F | done in PR #134 |
 | 4 | S3 | Interactive rules (Reegel) | S10 | waits |
 | 4 | S9 | Dictionary (Sõnastik) | S10 | waits |
 | 5 | R2 | Refresh after steps 1–4 | S2, S3, S9, S10 | waits |

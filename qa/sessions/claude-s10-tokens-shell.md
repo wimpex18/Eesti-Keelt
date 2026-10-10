@@ -1,7 +1,7 @@
 # S10 — `claude/s10-tokens-shell`
 
 Task: Migration steps 1 and 2 of `DESIGN.md`: the Interlinear tokens and the
-app shell. PR: see "Progress and order" in `qa/opus-sessions.md`.
+app shell. PR #134.
 
 State: `eesti/web/app.css` reads only the roles (both themes, contrast,
 reduced motion, forced colours); forbidden decoration is gone. The shell has
