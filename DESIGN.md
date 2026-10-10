@@ -1117,8 +1117,12 @@ card's second request (`/api/enrich`) brings them. A draft (where no source
 answered) sits in the model block of **Model output**: a dashed `edge` outline,
 *Mudeli mustand* "черновик модели" and the drafting engine first, then the
 draft, then one sentence saying it is not from a dictionary and what the
-second model named when it translated the draft back blind. It never uses a
-result colour and never sits in the sourced list.
+second model named when it translated the draft back blind. A draft keeps its
+main sense first: a Ukrainian word shared with Russian (*зуб*, *сад*) stays, the
+second model flags any word that is not standard Ukrainian, and code drops a
+flagged word or, when the flagged word is the first, the whole draft, so a
+secondary sense never stands alone as the meaning. It never uses a result
+colour and never sits in the sourced list.
 
 **Then** the forms (*Vormid*): a noun's singular and plural nimetav, omastav and
 osastav as a table with ainsus and mitmus columns; a verb's ma, da, b, s, nud,

@@ -258,7 +258,7 @@ class TestTheLiveDictionaryKeepsEnglishAndUkrainian:
 class TestTheImportRechecksEveryLine:
     @pytest.mark.parametrize("bad,why", [
         ({"back": ["hoone"]}, "back-translation"),
-        ({"lang": "uk", "gloss": ["книга", "сыр"]}, "Russian letters"),
+        ({"lang": "uk", "gloss": ["сыр", "книга"]}, "Russian letters"),
         ({"checker": "claude-opus-5-5"}, "different model"),
         ({"gloss": ["a book about everything and nothing at all"]}, "too long"),
         ({"lang": "de"}, "unknown language"),

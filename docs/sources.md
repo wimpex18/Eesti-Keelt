@@ -43,7 +43,7 @@ restricted just because they were first imported by the owner.
 | EKI etLex grammar profile | the stage each unit's grammar serves, cited by statement id in `docs/course-structure.md`; no statement is copied |
 | EKI *kõnekorpused* | sentences read aloud: dictation with a person instead of a synthesiser (`cli import-konekorpus`) |
 | `data/seed_glossary.tsv` | 315 hand-written glosses for drill words |
-| Klint model glosses (`klint-glosses`, `content/dictionary/glosses.jsonl`) | Sõnastik's English and Ukrainian where no source answers: drafted by Claude Opus 5.5 from EVS's Russian, kept only when Claude Haiku 5.5's blind back-translation names the word, shown as the model's (`eesti/dictionary_glosses.py`) |
+| Klint model glosses (`klint-glosses`, `content/dictionary/glosses.jsonl`) | Sõnastik's English and Ukrainian where no source answers: drafted by Claude Opus 5.5 from EVS's Russian, kept only when Claude Haiku 5.5's blind back-translation names the word; for Ukrainian the same check flags words that are not standard Ukrainian, which are dropped, and a draft that loses its first (main-sense) word is refused whole; shown as the model's (`eesti/dictionary_glosses.py`) |
 
 Keep EKI attribution wherever EKI text is shown (`eesti.sources.REGISTRY`).
 

@@ -544,8 +544,10 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "own work", True, None,
         "Sõnastik's English and Ukrainian for words no source here translates: "
         "Claude Opus 5.5 drafts them from EKI EVS's Russian, code gates them, "
-        "and Claude Haiku 5.5, shown only the draft, translates it back; code "
-        "keeps a draft only when that names the word again "
+        "and Claude Haiku 5.5, shown only the draft, translates it back (and, "
+        "for Ukrainian, names any word that is not standard Ukrainian); code "
+        "drops flagged words, refuses a draft that loses its main sense, and "
+        "keeps a draft only when the back-translation names the word again "
         "(`eesti/dictionary_glosses.py`). Shown in the model block with both "
         "engines, never as a dictionary's, and only until a source answers.",
     ),

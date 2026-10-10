@@ -732,31 +732,43 @@ MAX_EQUIVALENTS = 3
 MAX_LENGTH = 40
 
 
+def _word_problem(lang: str, word: str) -> str | None:
+    """Why one equivalent may not be shown, or None."""
+    if len(word) > MAX_LENGTH:
+        return f"too long: {word[:20]}…"
+    if lang == "en" and not _LATIN.match(word):
+        return f"not English letters: {word}"
+    if lang == "uk":
+        if set(word) & RUSSIAN_ONLY:
+            return f"Russian letters: {word}"
+        if not _UKRAINIAN.match(word):
+            return f"not Ukrainian letters: {word}"
+    return None
+
+
 def gate(lang: str, equivalents: list) -> tuple[list[str], str | None]:
     """The equivalents a draft may keep, or why it may keep none.
 
     Code checks what code can: the script (English Latin, Ukrainian in its own
-    alphabet without Russian's letters), the count and the length. Whether the
-    meaning is right is the back-translation's question (`agrees`).
+    alphabet without Russian's letters ы, э, ъ, ё), the count and the length. A
+    word Ukrainian shares with Russian (*зуб*, *сад*) is Ukrainian and stays.
+    The first equivalent is the main sense: when it fails, the whole draft is
+    refused, so a secondary sense never stands alone as the word's meaning; a
+    later one that fails is dropped. Whether the meaning is right is the
+    back-translation's question (`agrees`).
     """
     if not isinstance(equivalents, list):
         return [], "not a list"
     kept: list[str] = []
-    for raw in equivalents:
+    for n, raw in enumerate(equivalents):
         if not isinstance(raw, str):
             return [], "not text"
         word = " ".join(raw.split())
-        if not word:
+        problem = _word_problem(lang, word) if word else "empty main sense"
+        if problem and n == 0:
+            return [], problem
+        if problem or not word:
             continue
-        if len(word) > MAX_LENGTH:
-            return [], f"too long: {word[:20]}…"
-        if lang == "en" and not _LATIN.match(word):
-            return [], f"not English letters: {word}"
-        if lang == "uk":
-            if set(word) & RUSSIAN_ONLY:
-                return [], f"Russian letters: {word}"
-            if not _UKRAINIAN.match(word):
-                return [], f"not Ukrainian letters: {word}"
         if word.casefold() not in {k.casefold() for k in kept}:
             kept.append(word)
     if not kept:
@@ -766,18 +778,13 @@ def gate(lang: str, equivalents: list) -> tuple[list[str], str | None]:
     return kept, None
 
 
-def copies_russian(lang: str, gloss: list[str], anchor: list[str] | tuple[str, ...]) -> list[str]:
-    """The Ukrainian equivalents spelt exactly as EKI's Russian.
-
-    Most Russian words use only letters Ukrainian has too (*кофе*, where
-    Ukrainian says *кава*), so the letter gate cannot tell them apart. A draft
-    keeps only what differs from the Russian it was given: *мати* for *ema*,
-    not *мама*. Where Ukrainian and Russian spell a word alike (*вода*), the
-    Russian meaning above already shows it."""
-    if lang != "uk":
-        return []
-    russian = {" ".join(a.split()).casefold() for a in anchor or ()}
-    return [w for w in gloss if w.casefold() in russian]
+def main_sense_kept(gloss: list[str], draft: list[str], flagged: list[str] = ()) -> str | None:
+    """Why a kept gloss has lost its main sense, or None: its first word must be
+    the draft's first, and no word the checker flagged may remain."""
+    if draft and (not gloss or gloss[0] != draft[0]):
+        return f"main sense dropped: {draft[0]}"
+    left = {w.casefold() for w in flagged or ()} & {w.casefold() for w in gloss}
+    return f"flagged word kept: {', '.join(sorted(left))}" if left else None
 
 
 def agrees(lemma: str, back: list[str]) -> bool:
@@ -816,9 +823,11 @@ def check_record(record: dict) -> str | None:
         return why
     if kept != list(record["gloss"]):
         return "gloss not in its gated form"
-    copied = copies_russian(record["lang"], kept, record.get("anchor") or ())
-    if copied:
-        return f"same as EKI's Russian: {', '.join(copied)}"
+    if "draft" in record:
+        draft, _ = gate(record["lang"], list(record["draft"]))
+        lost = main_sense_kept(kept, draft, record.get("flagged") or ())
+        if lost:
+            return lost
     if not agrees(record["lemma"], list(record["back"])):
         return "the back-translation does not name the word"
     return None

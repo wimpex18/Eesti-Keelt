@@ -12,18 +12,21 @@ reviewer"):
 2. **Claude Opus 5.5 drafts**, through the Message Batches API with one cached
    system prompt (`DRAFT_SYSTEM`, prompt `DRAFT_PROMPT`).
 3. **Code gates the draft** (`dictionary.gate`): English in Latin letters,
-   Ukrainian in its own alphabet with none of Russian's own letters, at most
-   three short equivalents; a Ukrainian equivalent spelt exactly as the Russian
-   it was given is dropped (`dictionary.copies_russian`), and a draft with
-   nothing else is refused.
-4. **Claude Haiku 5.5 translates it back, blind** (`BACK_SYSTEM`): it is shown
-   only the English or the Ukrainian and the part of speech, never the
-   Estonian word, its Russian or the other language, and names the Estonian
-   headword. **Code decides** whether it named the word again
-   (`dictionary.agrees`, Vabamorf reading each candidate); a draft whose
-   back-translation does not is refused.
+   Ukrainian in its own alphabet with none of Russian's own letters (ы, э, ъ,
+   ё), at most three short equivalents. A word Ukrainian shares with Russian
+   (*зуб*, *сад*) stays. The first equivalent is the main sense: if it fails,
+   the draft is refused whole; a later one that fails is dropped.
+4. **Claude Haiku 5.5 translates it back, blind** (`BACK_SYSTEM`,
+   `BACK_SYSTEM_UK`): it is shown only the English or the Ukrainian and the
+   part of speech, never the Estonian word, its Russian or the other
+   language, and names the Estonian headword; for Ukrainian it also lists the
+   given words that are not standard Ukrainian (Russian or surzhyk). **Code
+   decides**: a flagged word is dropped, a flagged main sense refuses the
+   draft whole, and a draft whose back-translation does not name the word
+   again (`dictionary.agrees`, Vabamorf reading each candidate) is refused.
 5. **Stored with its evidence**: engine, prompt version, checker, its prompt
-   version and its Estonian, in `content/dictionary/glosses.jsonl`; refusals
+   version, its Estonian, the gated draft and the words it flagged, in
+   `content/dictionary/glosses.jsonl`; refusals
    and why in `rejected.jsonl`; every batch and what it cost in
    `batches.jsonl`. The image imports the kept file into the words database
    (`dictionary.import_glosses`), re-checking every line.
@@ -53,6 +56,9 @@ DRAFT_PROMPT = "s9-gloss-1"
 CHECKER = "claude-haiku-5-5"
 CHECK_EFFORT = "medium"
 CHECK_PROMPT = "s9-back-1"
+#: Ukrainian's check also asks which words are not standard Ukrainian.
+CHECK_PROMPT_UK = "s9-back-2"
+CHECK_PROMPTS = {"en": CHECK_PROMPT, "uk": CHECK_PROMPT_UK}
 
 #: Words per drafting request, items per back-translation request.
 PER_DRAFT = 20
@@ -100,6 +106,14 @@ You are given dictionary equivalents of Estonian headwords in English or in Ukra
 
 Reply with JSON only: {"items": [{"id": "...", "et": ["...", "..."]}]}, one object for every id you were given."""
 
+BACK_SYSTEM_UK = """You name Estonian words, and you check Ukrainian.
+
+You are given dictionary equivalents of Estonian headwords in Ukrainian, each with its part of speech; one item's words are separated by semicolons. For each item give:
+- "et": the Estonian headword it translates: one to three candidates, the most likely first, each in the Estonian dictionary form (nouns and adjectives in the nominative singular, verbs in the ma-infinitive, such as lugema);
+- "not_ukrainian": every given word or phrase that is not standard Ukrainian, copied exactly as given: a Russian word, surzhyk, or a Russian spelling. A word Ukrainian shares with Russian (зуб, сад, вода) is standard Ukrainian and is not listed. An empty list when every word is standard Ukrainian.
+
+Reply with JSON only: {"items": [{"id": "...", "et": ["...", "..."], "not_ukrainian": []}]}, one object for every id you were given."""
+
 DRAFT_SCHEMA = {
     "type": "object",
     "properties": {"words": {"type": "array", "items": {
@@ -120,6 +134,21 @@ BACK_SCHEMA = {
         "required": ["id", "et"], "additionalProperties": False}}},
     "required": ["items"], "additionalProperties": False,
 }
+
+
+BACK_SCHEMA_UK = {
+    "type": "object",
+    "properties": {"items": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"id": {"type": "string"},
+                       "et": {"type": "array", "items": {"type": "string"}},
+                       "not_ukrainian": {"type": "array", "items": {"type": "string"}}},
+        "required": ["id", "et", "not_ukrainian"], "additionalProperties": False}}},
+    "required": ["items"], "additionalProperties": False,
+}
+
+#: Each language's checker prompt and answer shape.
+CHECKS = {"en": (BACK_SYSTEM, BACK_SCHEMA), "uk": (BACK_SYSTEM_UK, BACK_SCHEMA_UK)}
 
 
 @dataclass(frozen=True)
@@ -143,13 +172,19 @@ class Draft:
     pos: str
     batch: str = ""
     back: list[str] = field(default_factory=list)
+    #: The gated draft the checker was shown, and the words it flagged.
+    draft: list[str] = field(default_factory=list)
+    flagged: list[str] = field(default_factory=list)
 
     def record(self, **extra) -> dict:
-        return {"lemma": self.lemma, "lang": self.lang, "gloss": self.gloss,
-                "anchor": self.anchor, "pos": self.pos, "engine": MODEL,
-                "prompt": DRAFT_PROMPT, "effort": EFFORT, "checker": CHECKER,
-                "check_prompt": CHECK_PROMPT, "back": self.back, "batch": self.batch,
-                **extra}
+        found = {"lemma": self.lemma, "lang": self.lang, "gloss": self.gloss,
+                 "anchor": self.anchor, "pos": self.pos, "engine": MODEL,
+                 "prompt": DRAFT_PROMPT, "effort": EFFORT, "checker": CHECKER,
+                 "check_prompt": CHECK_PROMPTS[self.lang], "back": self.back,
+                 "batch": self.batch, "draft": self.draft or self.gloss}
+        if self.lang == "uk":
+            found["flagged"] = self.flagged
+        return {**found, **extra}
 
 
 # ---------------------------------------------------------------------------
@@ -263,8 +298,12 @@ def back_requests(drafts: list[Draft]) -> tuple[list[dict], dict[str, list[Draft
     for lang in dictionary.GLOSS_LANGS:
         for n, group in enumerate(_chunks([d for d in drafts if d.lang == lang], PER_CHECK)):
             groups[f"b{lang}{n}"] = group
-    return ([_request(cid, CHECKER, CHECK_EFFORT, BACK_SYSTEM, back_text(group), BACK_SCHEMA,
-                      CHECK_TOKENS) for cid, group in groups.items()], groups)
+    requests = []
+    for cid, group in groups.items():
+        system, schema = CHECKS[group[0].lang]
+        requests.append(_request(cid, CHECKER, CHECK_EFFORT, system, back_text(group), schema,
+                                 CHECK_TOKENS))
+    return requests, groups
 
 
 # ---------------------------------------------------------------------------
@@ -341,23 +380,21 @@ def gate_drafts(texts: dict[str, str | None], groups: dict[str, list[Word]],
                     refused.append(base.record(stage="draft", why="no draft came back"))
                     continue
                 kept, why = dictionary.gate(lang, item.get(lang))
-                copied = [] if why else dictionary.copies_russian(lang, kept, word.russian)
-                kept = [w for w in kept if w not in copied]
-                if not why and not kept:
-                    why = f"same as EKI's Russian: {', '.join(copied)}"
                 if why:
                     base.gloss = [str(x) for x in item.get(lang) or []][:5]
                     refused.append(base.record(stage="gate", why=why))
                     continue
-                base.gloss = kept
+                base.gloss, base.draft = kept, list(kept)
                 drafts.append(base)
     return drafts, refused
 
 
 def judge(texts: dict[str, str | None], groups: dict[str, list[Draft]],
           check_batch: str = "") -> tuple[list[dict], list[dict]]:
-    """Kept records and refusals: code decides whether the blind
-    back-translation named the word again."""
+    """Kept records and refusals, decided by code from the blind checker's
+    answer: a word it flags as not standard Ukrainian is dropped, a flagged
+    main sense refuses the draft whole, and the back-translation must name the
+    word again."""
     on = datetime.now(timezone.utc).date().isoformat()
     kept: list[dict] = []
     refused: list[dict] = []
@@ -368,16 +405,22 @@ def judge(texts: dict[str, str | None], groups: dict[str, list[Draft]],
         for n, draft in enumerate(group, 1):
             item = by_id.get(f"i{n}")
             back = [str(x) for x in (item or {}).get("et") or [] if isinstance(x, str)][:3]
-            draft.back = back
+            draft.back, draft.draft = back, list(draft.draft or draft.gloss)
+            said = {str(x).strip().casefold() for x in (item or {}).get("not_ukrainian") or []}
+            draft.flagged = [w for w in draft.draft if w.casefold() in said] \
+                if draft.lang == "uk" else []
+            draft.gloss = [w for w in draft.draft if w not in draft.flagged]
+            meta = {"check_batch": check_batch, "drafted": on}
             if item is None:
-                refused.append(draft.record(stage="back", why="no back-translation came back",
-                                            check_batch=check_batch, drafted=on))
-            elif dictionary.agrees(draft.lemma, back):
-                kept.append(draft.record(check_batch=check_batch, drafted=on))
-            else:
+                refused.append(draft.record(stage="back", why="no back-translation came back", **meta))
+            elif draft.draft[0] in draft.flagged:
                 refused.append(draft.record(
-                    stage="back", why=f"back-translated as {', '.join(back) or 'nothing'}",
-                    check_batch=check_batch, drafted=on))
+                    stage="back", why=f"main sense not standard Ukrainian: {draft.draft[0]}", **meta))
+            elif not dictionary.agrees(draft.lemma, back):
+                refused.append(draft.record(
+                    stage="back", why=f"back-translated as {', '.join(back) or 'nothing'}", **meta))
+            else:
+                kept.append(draft.record(**meta))
     return kept, refused
 
 

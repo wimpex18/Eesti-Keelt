@@ -198,6 +198,14 @@ search field above a stubbed keyboard). Where the build differs:
 | (none) | Sõnastik in Veel, beside Sõnavara | The sidebar holds the screens of the course; the dictionary is a tool like Sõnavara. A word met in a text already opens the card in place. |
 | Sõnavara's page glossed «словарь» | Sõnavara «слова», Sõnastik «словарь» | Two screens with one gloss could not be told apart; Veel already glossed Sõnavara «слова». |
 
+Considered and set aside: dropping every Ukrainian word spelt like EKI's Russian,
+to keep Russian out of the Ukrainian slot. Ukrainian shares many words with
+Russian, so the filter removed the main sense and left a secondary one as the
+meaning (*hammas* «зубець» without «зуб», *aed* «город» without «сад»). Instead
+the blind checker (prompt `s9-back-2`) names the words that are not standard
+Ukrainian, code drops them, and a draft whose first, main-sense word is dropped
+for any reason (letters or the checker's flag) is refused whole.
+
 Considered and set aside: a separate list of senses with English, Ukrainian
 and Russian side by side per sense. The sources answer per word (EVS) or for
 the main sense (Ekilex's lists), not per sense in every language, so a per-sense

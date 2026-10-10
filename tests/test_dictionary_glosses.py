@@ -64,9 +64,12 @@ class FakeBatches:
 
 
 DRAFTS = {"raamat": {"en": ["book"], "uk": ["книжка"]},
-          "kohv": {"en": ["coffee"], "uk": ["чёрный кофе"]}}   # Russian letters: refused
+          "kohv": {"en": ["coffee"], "uk": ["чёрный кофе"]}}   # Russian letters, first word: refused
 #: The checker's Estonian, by the gloss it was shown.
-BACK = {"book": ["raamat"], "книжка": ["raamat"], "coffee": ["tee"]}
+BACK = {"book": ["raamat"], "книжка": ["raamat"], "coffee": ["tee"],
+        "зуб; зубець": ["hammas"], "город; сад": ["aed"], "сад; город": ["aed"]}
+#: The words the checker says are not standard Ukrainian, by the gloss.
+FLAGGED = {"город; сад": ["город"], "сад; город": ["город"]}
 
 
 def answer(model, text):
@@ -74,7 +77,19 @@ def answer(model, text):
         found = re.findall(r"id: (w\d+)\nheadword: (\S+)", text)
         return {"words": [{"id": i, **DRAFTS[w]} for i, w in found if w in DRAFTS]}
     found = re.findall(r"id: (i\d+)\npart of speech: [^\n]*\n\w+: ([^\n]*)", text)
+    if "Ukrainian:" in text:
+        return {"items": [{"id": i, "et": BACK.get(g, ["midagi"]), "not_ukrainian": FLAGGED.get(g, [])}
+                          for i, g in found]}
     return {"items": [{"id": i, "et": BACK.get(g, ["midagi"])} for i, g in found]}
+
+
+def check(drafts):
+    """The blind back-translation of `drafts` on the fake checker, judged by code."""
+    client = SimpleNamespace(messages=SimpleNamespace(batches=FakeBatches(answer)))
+    asks, groups = glosses.back_requests(drafts)
+    batch = client.messages.batches.create(requests=asks).id
+    texts, _ = glosses.collect(client, batch)
+    return glosses.judge(texts, groups, batch)
 
 
 def run(tmp_path, words):
@@ -94,14 +109,46 @@ def run(tmp_path, words):
     return client, asks, kept, refused + dropped, usage
 
 
-def test_a_ukrainian_draft_that_repeats_ekis_russian_is_refused(words, tmp_path):
-    """*кофе* has no letter Ukrainian lacks; Ukrainian says *кава*."""
-    groups = {"d0": [glosses.Word("kohv", "s", ("кофе",)), glosses.Word("ema", "s", ("мать", "мама"))]}
-    texts = {"d0": json.dumps({"words": [{"id": "w1", "en": ["coffee"], "uk": ["кофе"]},
-                                         {"id": "w2", "en": ["mother"], "uk": ["мати", "мама"]}]})}
-    drafts, refused = glosses.gate_drafts(texts, groups)
-    assert {(d.lemma, d.lang): d.gloss for d in drafts if d.lang == "uk"} == {("ema", "uk"): ["мати"]}
-    assert "same as EKI's Russian" in refused[0]["why"]
+class TestTheMainSenseStaysFirst:
+    """Ukrainian shares many words with Russian (*зуб*, *сад*, *суп*): a word
+    spelt as EKI's Russian is no reason to drop it, and a secondary sense must
+    never stand alone as the word's meaning (*hammas* is not *зубець*)."""
+
+    def test_a_cognate_main_sense_is_kept(self):
+        groups = {"d0": [glosses.Word("hammas", "s", ("зуб", "зубец"))]}
+        texts = {"d0": json.dumps({"words": [{"id": "w1", "en": ["tooth"], "uk": ["зуб", "зубець"]}]})}
+        drafts, refused = glosses.gate_drafts(texts, groups)
+        assert {d.lang: d.gloss for d in drafts}["uk"] == ["зуб", "зубець"] and not refused
+        kept, dropped = check([d for d in drafts if d.lang == "uk"])
+        assert kept[0]["gloss"] == ["зуб", "зубець"] and kept[0]["check_prompt"] == "s9-back-2"
+
+    def test_a_draft_whose_first_word_the_checker_flags_is_refused_whole(self):
+        draft = glosses.Draft("aed", "uk", ["город", "сад"], ["сад", "огород"], "s")
+        kept, refused = check([draft])
+        assert kept == []
+        assert refused[0]["stage"] == "back" and "город" in refused[0]["why"]
+        assert refused[0]["flagged"] == ["город"]
+
+    def test_a_flagged_secondary_word_is_dropped_and_the_entry_stays(self):
+        draft = glosses.Draft("aed", "uk", ["сад", "город"], ["сад", "огород"], "s")
+        kept, refused = check([draft])
+        assert refused == []
+        assert kept[0]["gloss"] == ["сад"] and kept[0]["draft"] == ["сад", "город"]
+        assert kept[0]["flagged"] == ["город"]
+        assert dictionary.check_record(kept[0]) is None
+
+    def test_a_first_word_in_russian_letters_refuses_the_draft(self):
+        assert dictionary.gate("uk", ["сыр", "сир"]) == ([], "Russian letters: сыр")
+        assert dictionary.gate("uk", ["сир", "сыр"]) == (["сир"], None)
+        assert dictionary.gate("en", ["café", "cafe"])[0] == []
+        assert dictionary.gate("en", ["cafe", "café"]) == (["cafe"], None)
+
+    def test_the_import_refuses_a_gloss_whose_main_sense_was_dropped(self):
+        record = {"lemma": "aed", "lang": "uk", "gloss": ["город"], "draft": ["сад", "город"],
+                  "anchor": ["сад"], "pos": "s", "engine": glosses.MODEL, "prompt": "s9-gloss-1",
+                  "checker": glosses.CHECKER, "check_prompt": "s9-back-2", "back": ["aed"],
+                  "flagged": []}
+        assert "main sense" in dictionary.check_record(record)
 
 
 class TestWhichWords:
