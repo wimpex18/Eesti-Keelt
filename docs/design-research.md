@@ -170,6 +170,39 @@ are gone (a still ring, the live region's announcement, *Laadin…* after
 400ms). Phosphor's duotone fills had no style and drew solid; they are a 20 %
 tint now, as the set intends.
 
+## Reegel as built
+
+S3 (10 October 2026) rebuilt the rule page as Migration step 4 of DESIGN.md,
+with ADR-0009's rule by doing for `obj-case` and `osaalus`, and checked it as
+the spec was checked: screenshots of `#rule/obj-case` and `#rule/osaalus` at
+390 and 1280px in both themes, at 320px and 874×402, with forced colours and
+with more contrast; the two new contrast pairs computed with the WCAG formula;
+axe (WCAG 2.2 A and AA) on `obj-case`, `osaalus` and `olevik` at both sizes, in
+both themes and on both engines, with no violation; the focus journey at
+390×844, 874×402 and 1280×800 on both engines. Where the
+build differs from the reviewed proposal, the reason:
+
+| Proposal | Built | Why |
+|---|---|---|
+| The form switch right after the gist | After the walk | The switch names every form, and a form is named only after the learner has tried (Principles, ADR-0009): notice and ask come first. |
+| A one-row segmented control (four conditions on the phone wireframe) | A tablist of content-sized columns: one row at 720px, three per row on a phone, two under 360px | The brief's six conditions with their glosses need about 470px; wrapping keeps every label whole, as the tab row does, rather than dropping conditions on phones. |
+| A sentence per condition, unspecified | One generator frame per condition with one noun (*ostma* and *leib* on `obj-case`) | A minimal pair: only the condition changes, so the change of form belongs to it. The frames are the drills' own, so the page shows nothing the drills do not grade. |
+| (none) The ask step's record | Graded by the server from the signed item with `record: false` | A page opened to read a rule must not move mastery or fill the review queue; free practice set the precedent. S8's session can record the same items. |
+| (none) The ask step's choices | The key and the generator's other form, sorted; the page is not told which is the key | Choosing is ADR-0009's first move, and keeps one primary (no *Kontrolli* beside *Harjuta*); the server keeps the key, stricter than practice items, which carry it. |
+| The gist: the summary's first sentence | The first sentence, joined by the next while under six words | *Настоящее время.* and *Повелительное наклонение.* say nothing alone; the next sentence of the same sourced summary does. |
+| Examples (*Näited*) on every rule | Only where a topic has no walk | The notice step and the switch already show the topic's sentences; the drill examples repeated them. |
+| Sources in one line with separators | Links at least 44px tall, side by side | Every target is 44px; a separator would be the forbidden middle-dot string. |
+| (none) The forms table's height | It scrolls both ways inside itself, never taller than the band between header and dock, and takes focus only when it scrolls | The focus journey at 874×402: a focused table taller than that band cannot keep clear of the dock. |
+| Form lines never wrap | Near a short line's end the line moves left inside its sentence; wider than the sentence it wraps and the sentence makes room | At 320px *mitmuse nimetav именительный падеж, мн. ч.* widened the page by 19px; a page wider than the screen makes Safari zoom out. |
+
+Two things the proposal left to the session were decided on the real page.
+The walk's explanation is written by a model (Claude Opus 5.5, in this
+session) and is labelled as one; code refuses it unless every Estonian word in
+it is the walk's own or the cited section's and Vabamorf knows the rest, the
+two gates of `rulewalk.check_prose`. The rows of the forms table name a case
+and its number as *nimetav ainsus*, the number in a quieter voice, instead of
+the data's *nimetav · ainsus*.
+
 ## Platform and standards references
 
 | Source | Finding | Application |

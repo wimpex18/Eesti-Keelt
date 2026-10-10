@@ -254,8 +254,9 @@ This is the specification of the Klint redesign: the target for every screen
 rebuilt from now on. The tokens and the shell ship: `eesti/web/app.css` defines
 this record's roles for both themes and every rule reads them, and the header,
 sidebar, dock, action bar and sheets are built (steps 1 and 2 of
-**Migration**). The screens themselves keep their earlier layouts on the new
-ground until their own step rebuilds them. The audit of the screens, the
+**Migration**). The Reegel page is rebuilt to this record (step 4); the other
+screens keep their earlier layouts on the new ground until their own step
+rebuilds them. The audit of the screens, the
 references and the reasons behind each decision are in
 [design research](docs/design-research.md).
 
@@ -970,56 +971,134 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
 ### Reegel (`#rule/<topic>`)
 
 The rule page is a page with a back control, not a modal with a close cross.
-S3's rule walk (notice, ask, explain, contrast) leads when the topic has one.
+A topic with a rule walk (`eesti/rulewalk.py`, data in `eesti/lessontext.py`;
+`obj-case` and `osaalus` so far) teaches by doing: the learner notices, then
+chooses, and only then reads the rule. Every other topic shows the same page
+without the walk and the switch.
 
 ```
 Phone 390                                   Desktop 1280 (720px sheet)
 ┌──────────────────────────────────┐        ┌────────┬─────────────────────────────────────────────┐
-│ ‹ Tagasi                         │        │        │ ‹ Tagasi                                    │
-│ täissihitis ja                   │        │        │ ┌─────────────────────────────────────────┐ │
-│ osasihitis                       │        │        │ │ täissihitis ja osasihitis               │ │
-│ полное и частичное дополнение    │        │        │ │ полное и частичное дополнение           │ │
-│ Allikas: EKK SÜ 38, SÜ 40,       │        │        │ │ Allikas: EKK SÜ 38, EKK SÜ 40, EKI …    │ │
-│ EKI teatmik                      │        │        │ │                                         │ │
-│                                  │        │        │ │ Täissihitis (полное дополнение) — целый │ │
-│ Täissihitis (полное дополнение)  │        │        │ │ объект и действие, которое достигло или │ │
-│ — целый объект и действие,       │        │        │ │ достигнет результата; форма — omastav…  │ │
-│ которое достигло или достигнет…  │        │        │ │ [lõpetatud|kestev|eitus|mitmus|käskiv]  │ │
-│ [lõpetatud|eitus|mitmus|käskiv]  │        │        │ │ Ma sõin jäätise ära.                    │ │
-│ Ma sõin jäätise ära.             │        │        │ │         ‾‾‾‾‾‾‾                         │ │
-│         ‾‾‾‾‾‾‾                  │        │        │ │         omastav родительный падеж       │ │
-│         omastav родительный п.   │        │        │ │                                         │ │
-│                                  │        │        │ │ Vormid (table, labelled rows sticky)    │ │
-│ Vormid      (table)              │        │        │ │ Näited, Minu vead, Loe                  │ │
-│ Näited                           │        │        │ │ Lisaks: 5 punkti  (disclosure)          │ │
-│ Minu vead                        │        │        │ │ ───────────────────────────────────     │ │
-│ Lisaks  ▾                        │        │        │ │                            [ Harjuta ]  │ │
+│ ← Tagasi  назад                  │        │        │ ┌─────────────────────────────────────────┐ │
+│ täissihitis ja osasihitis        │        │        │ │ ← Tagasi  назад                         │ │
+│ полное и частичное дополнение    │        │        │ │ täissihitis ja osasihitis               │ │
+│ Allikad  EKK SÜ 38  EKK SÜ 40    │        │        │ │ полное и частичное дополнение           │ │
+│ EKI teatmik: täissihitise kääne  │        │        │ │ Allikad  EKK SÜ 38  EKK SÜ 40  EKI …    │ │
+│ Täissihitis (полное …) — целый … │        │        │ │ Täissihitis (полное дополнение) — …     │ │
+│                                  │        │        │ │                                         │ │
+│ Märka  заметь разницу            │        │        │ │ Märka  заметь разницу                   │ │
+│ Ma sõin leiva ära.               │        │        │ │ Ma sõin leiva ära.                      │ │
+│         ‾‾‾‾‾                    │        │        │ │ Ma ei söönud leiba.                     │ │
+│ Ma ei söönud leiba.              │        │        │ │ Почему leiva, но leiba?                 │ │
+│ Почему leiva, но leiba?          │        │        │ │ Proovi  выбери форму сам                │ │
+│ Proovi  выбери форму сам         │        │        │ │ Ma ostsin ______ ära.                   │ │
+│ Ma ostsin ______ ära.            │        │        │ │           pilet  билет                  │ │
+│           pilet  билет           │        │        │ │ [ pileti        ] [ piletit        ]    │ │
+│ [ pileti     ] [ piletit     ]   │        │        │ │ Miks nii, Vastanda: after the choices   │ │
+│ Miks nii, Vastanda: after them   │        │        │ │ Muuda tingimust                         │ │
+│ Muuda tingimust                  │        │        │ │ [lõpetatud|kestev|eitus|mitmus|käskiv|…]│ │
+│ [lõpetatud | kestev | eitus  ]   │        │        │ │ Ma ostsin leiva ära.                    │ │
+│ [mitmus    | käskiv | umbisik.]  │        │        │ │           ‾‾‾‾‾                         │ │
+│ Ma ostsin leiva ära.             │        │        │ │           omastav родительный падеж     │ │
+│           ‾‾‾‾‾                  │        │        │ │ Reegel, Vormid, Minu vead, Loe          │ │
+│           omastav родительный …  │        │        │ │ ───────────────────────────────────     │ │
+│ Reegel, Vormid, Minu vead, Loe   │        │        │ │                            [ Harjuta ]  │ │
 ├──────────────────────────────────┤        │        │ └─────────────────────────────────────────┘ │
 │ [ Harjuta  упражняться         ] │        └────────┴─────────────────────────────────────────────┘
 │ Täna Lugem. Kuulam. Rääkim. Kirj.│
 └──────────────────────────────────┘
 ```
 
-- **Head:** title (Title role, sharp cut), Russian name, and the sources line
-  directly under it — attribution is visible before the content, not after
-  2,000 pixels.
-- **Gist:** one sentence, lead role: the first sentence of the topic's
-  sourced summary (`summary_ru` in `eesti/grammar.py`, here EKK SÜ 38), which
-  glosses each Estonian term once. It is never a tip from `TIPS` in
-  `eesti/lessontext.py`, the unsourced kind retired below. Its measure is the
-  sheet's, within the 45–75 characters of **Typography**.
-- **Form switch** (S3): a segmented control of conditions; the example
-  sentence changes and the object word's interlinear line shows the form that
-  follows. Every form from Vabamorf; a condition with no Vabamorf form for the
-  sentence is not offered.
-- **Forms table:** full width of the sheet; row labels sticky when it scrolls
-  sideways; the scroll edge marked by an `edge` rule, not a gradient.
-- **Points:** the first three visible; the rest in a disclosure *Lisaks*
-  "подробнее". Estonian examples inside Russian points are upright, sharp cut,
-  weight 500 — not italic.
-- **Unsourced tips go.** The gist-and-typical-mistake card is shown only as a
-  sourced contrast note (ADR-0009); until then it is absent.
-- **Primary:** **Harjuta** "упражняться". The page's other actions are links.
+- **Surface:** a 720px `sheet` on a desktop; on a phone the screen itself (the
+  `ground`), with no box inside the gutters.
+- **Head:** *Tagasi* "назад", a link back to where the rule was opened from
+  (Kursus when opened by its address); the title (Title role, sharp cut; 24px
+  on phones) with its Russian name; then the sources, each a link at least
+  44px tall, side by side with no separators — attribution comes before the
+  content. The route keeps `#rule/<topic>`, and the title takes focus without
+  a ring when the page opens.
+- **Gist:** lead role (18px on phones): the first sentence of the topic's
+  sourced summary (`summary_ru` in `eesti/grammar.py`), joined by the next
+  while it is shorter than six words (*Настоящее время.* alone says nothing;
+  `rulewalk.gist`). Never a tip from `TIPS`; the tip card is gone from the
+  page.
+- **Märka** "заметь разницу" (notice): two to four sentences in the prompt
+  role, the word to notice as an interlinear word in its notice state (an ink
+  bar, no name), and one question from a template that names the forms and
+  states no rule (*Почему leiva, но leiba?*). Each sentence is a generator
+  frame with a Vabamorf form or a sentence quoted in the topic's sourced
+  points (*Laual on raamat*, EKK SÜ 35).
+- **Proovi** "выбери форму сам" (ask): one item per entry of the walk's
+  spec, generated at run time by the topic's own generator as a one-item set
+  the server can issue again from its signed ref. Each is a sentence with the
+  gap as an interlinear word awaiting its form (the lemma and its meaning
+  under a blank) and two choices: the key and the generator's other form,
+  sorted, so position gives nothing away; the page never receives which one is
+  the key. Items come one at a time. A choice is the one attempt: the server
+  grades it from the signed item with `record: false`, so nothing reaches
+  mastery, review or the log, and *Kontrollib kood* "ответ проверяет код… в
+  прогресс не записывается" says so. The verdict lands at the word (the key with
+  a moss bar, or a cranberry one when revealed, named from the item) and in one
+  line under the choices: a tick and *Õige*, or a cross, *Pole õige* and *Sinu
+  valik* with the choice struck through. Focus moves to the next item's first
+  choice, after the last to *Miks nii*. *Näita selgitust* "показать объяснение
+  сразу", a text action, opens the rest without answering.
+- **Miks nii** "почему так" (explain), after the choices: at most 40 words in
+  the explanation language, written by Claude Opus 5.5 from one cited section
+  and labelled as a model's text in the model-output block (dashed `edge`
+  outline; first line *Mudeli tekst* with the engine and the section), with a
+  link to the section. It takes no result colour. Code refuses it — the step is
+  then absent — unless every Estonian word in it comes from the walk's
+  sentences and forms, the cited source's text or the grammar terms, and
+  `tutor._grounded` finds every other word in Vabamorf (`rulewalk.problems`).
+  Its stable id (`obj-case.walk.explain`) is where other explanation languages
+  attach.
+- **Vastanda** "неверно и верно" (contrast), after the choices: per pair the
+  condition's name, the frame with the generator's other form struck through
+  (cross, `bad`), then the frame with the key as an interlinear word in its
+  reference state (tick, `good`).
+- **Muuda tingimust** "выбери условие — форма изменится" (the form switch): a
+  segmented control built as a tablist (roving focus; arrows, Home and End move
+  and select; `aria-selected`; one Tab stop) over a tab panel holding one
+  sentence. Each condition is one generator frame with the same noun, so only
+  the condition changes: on `obj-case` *lõpetatud*, *kestev*, *eitus*,
+  *mitmus*, *käskiv* and *umbisikuline*, all *ostma* with *leib* (*leiva*,
+  *leiba*, *leivad*, *leib*); on `osaalus` *jaatus* (EKK's *Laual on raamat*),
+  *eitus*, *verb mitmuses* and *verb ainsuses*. The word is an interlinear word
+  in its reference state, its name from its Vabamorf tag as the drills name
+  it. A condition with no Vabamorf form for its sentence is not offered. The
+  segments are content-sized columns: one row at 720px; three per row on
+  phones (two under 360px, two for four conditions). The sentence crossfades
+  (`dur-3`; instant with reduced motion), the panel keeps the height of its
+  tallest sentence so nothing below moves, and the changed sentence and form
+  are said once through the polite live region. A line under it says where the
+  sentences come from (*цитаты из EKK SÜ 35; предложения из заданий Klint,
+  формы — Vabamorf*).
+- **Reegel** "правило по источникам" (points): the first three of the topic's
+  sourced points; the rest in a disclosure *Lisaks* "подробнее, ещё N".
+  Estonian examples inside them are upright, sharp cut, weight 500.
+- **Vormid** (forms table): full width; row labels sticky when it scrolls
+  sideways, the number in a quieter voice rather than after a dot (*nimetav
+  ainsus*); the scroll edge an `edge` rule. It scrolls both ways inside itself
+  and is never taller than the band between the header and the dock, so when
+  it takes focus no part of it is under either; it takes focus (a region) only
+  when it scrolls.
+- **Näited** (the topic's drill sentences) only where there is no walk; **Minu
+  vead** (the learner's missed sentences with the key in place and *Sinu
+  vastus* struck through) and **Loe** (linked texts) as before.
+- **Primary:** **Harjuta** "упражняться", `data-primary`: in the action bar on
+  a phone, at the end of a sticky row at the sheet's foot on a desktop; every
+  focusable element on the page stops clear of that row. It does not move as
+  the walk is done. The page's other actions are links and text actions.
+- **Form lines at narrow widths.** A form line hangs from its word's start and
+  does not wrap; near the end of a short line it moves left just enough to stay
+  inside its sentence, and one wider than the sentence (*mitmuse nimetav
+  именительный падеж, мн. ч.* at 320px) wraps at the sentence's width while
+  the sentence makes room below.
+- **Contrast.** The page adds two pairings, computed with the WCAG formula and
+  rounded down: `good` on `ground` 6.25 light, 10.18 dark; `bad` on `ground`
+  6.26 light, 9.94 dark (the verdict words and marks on a phone). Every other
+  pairing is in the table above.
 
 ## Components
 
@@ -1339,7 +1418,8 @@ green on both engines and both viewports.
    follow.
 3. **Session and Täna** with S8's session (`eesti/web/js/path.js`), including
    the interlinear word and the state machine.
-4. **Reegel** with S3's rule walk (`eesti/web/js/lesson.js`).
+4. **Reegel**. Done (S3): the rule walk and the form switch
+   (`eesti/rulewalk.py`, `eesti/web/js/lesson.js`).
 5. **Kursus**, then the skills, Kordamine, Eksam and Profiil.
 6. **Brand.** Done with the rename: the underlined K, spruce tiles and birch
    social artwork ship, rebuilt by `deploy/build-brand.py` (`docs/brand.md`).
