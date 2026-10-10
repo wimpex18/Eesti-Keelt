@@ -36,7 +36,7 @@ own worktree. A step starts when everything in "Starts after" is done.
 | 1 | R1 | Refresh after step 0 | S7 | done in PR #132 |
 | 2 | S7F | Apply the S7R review | S7R | done in PR #132 |
 | 3 | S10 | Redesign: tokens and shell | S7F | done in PR #134 |
-| 4 | S3 | Interactive rules (Reegel) | S10 | waits |
+| 4 | S3 | Interactive rules (Reegel) | S10 | done in PR #136 |
 | 4 | S9 | Dictionary (Sõnastik) | S10 | done in PR #137 |
 | 5 | R2 | Refresh after steps 1–4 | S2, S3, S9, S10 | waits |
 | 6 | S8 | Session, Täna and Haiku in the app | S3, S9, R2 | waits |

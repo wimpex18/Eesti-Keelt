@@ -1240,41 +1240,144 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .row.filter > :is(button.primary,button.go) .ru{color:var(--muted)}
 
 /* ── The Reegel page (js/lesson.js): a page with a back control ────── */
-.lesson{position:static;width:100%;max-width:76ch;max-height:none;margin:0;padding:var(--s6);border:0;border-radius:var(--r-3);
+/* A sheet on a desktop (the rule is read there), the screen itself on a phone.
+   Sources sit under the title; the walk's sentences are the prompt role, with
+   the interlinear word's tall line where a form line hangs under a word. */
+.lesson{position:static;width:100%;max-width:720px;margin:0;padding:var(--s5) var(--s6) var(--s6);border:0;border-radius:var(--r-3);
   background:var(--sheet);color:var(--ink);box-shadow:none;overflow:visible}
-.lesson .iconbtn{background:var(--sunk);color:var(--ink)}
-.lesson-head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s3)}
-.lesson-head .lv{font-size:var(--t-gloss);font-weight:600;color:var(--muted)}
-.lesson-head h2{margin:var(--s1) 0 0;font-size:var(--t-title);font-weight:600;line-height:1.15;letter-spacing:-.02em}
-.lesson-head h2 .ru{display:block;margin:var(--s1) 0 0;font-size:var(--t-body);font-weight:400;letter-spacing:0}
-.lesson h3{display:flex;align-items:baseline;gap:var(--s2);margin:var(--s5) 0 var(--s2);font-size:var(--t-body);font-weight:600}
+.lesson:has(> .rule-actions){padding-bottom:0}
+.lesson section{margin-top:var(--s7)}
+.lesson h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--s2);margin:0 0 var(--s3);font-size:var(--t-body);
+  font-weight:600;line-height:1.3;letter-spacing:0}
 .lesson h3 .ru{display:inline;margin:0;font-size:var(--t-gloss)}
-.lesson-rule{margin:var(--s4) 0 0;line-height:1.6}
-.lesson-points{margin:var(--s3) 0 0;padding-left:var(--s5)}
-.lesson-points li,.lesson-examples li,.lesson-mistakes li{margin:var(--s2) 0;line-height:1.55}
-.lesson-examples,.lesson-mistakes,.lesson-reading{margin:0;padding-left:var(--s5)}
-.lesson-sources{margin-top:var(--s5)}
-.lesson .row{margin-top:var(--s5)}
-.lesson-tip{margin-top:var(--s4);padding:var(--s1) 0 var(--s1) var(--s4);border-left:1px solid var(--line);color:var(--ink)}
-.lesson-tip p{margin:0;font-size:var(--t-lead);font-weight:600;line-height:1.4}
-.lesson-tip .lesson-mistake{margin-top:var(--s2);font-size:var(--t-body);font-weight:400}
-.lesson del{color:var(--bad);text-decoration-thickness:1px}
-.lesson ins{color:var(--good);text-decoration:none;font-weight:600}
+.rule-back{display:inline-flex;align-items:center;gap:var(--s2);min-height:44px;margin:0 0 var(--s3) calc(-1 * var(--s2));
+  padding:0 var(--s2);border-radius:var(--r-2);color:var(--ink-2);font-weight:600;text-decoration:none}
+.rule-back:hover{background:var(--sunk);color:var(--ink)}
+.rule-back svg{width:18px;height:18px;flex:none}
+.rule-back .ru{display:inline;margin:0}
+.rule-head h2{margin:0;font-size:var(--t-title);line-height:1.15;letter-spacing:-.02em;--et-cut:var(--cut);font-variation-settings:var(--cut)}
+.rule-head h2 .ru{display:block;margin-top:var(--s1);font-size:var(--t-body);font-weight:400;letter-spacing:0;color:var(--muted)}
+.rule-sources{display:flex;flex-wrap:wrap;align-items:center;gap:0 var(--s3);max-width:none;margin:var(--s2) 0 0;
+  font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.rule-sources .ru{display:inline;margin:0 var(--s1) 0 calc(-1 * var(--s2));font-weight:400}
+.rule-sources a{display:inline-flex;align-items:center;min-height:44px;font-weight:400}
+.rule-gist{margin:var(--s4) 0 0;font-size:var(--t-lead);line-height:1.4;color:var(--ink)}
+.rule-gist strong{font-weight:600}
+
+/* The walk. Notice: forms underlined in ink and not yet named. */
+.rw-line{margin:0;color:var(--ink);overflow-wrap:normal}
+.rw-notice-list,.rw-items,.rw-pairs{list-style:none;margin:0;padding:0}
+.lesson .rw-notice-list .rw-line{line-height:1.6;margin-bottom:var(--s1)}
+.rw-q{margin:var(--s3) 0 0;font-size:var(--t-lead);line-height:1.4}
+.rw-from{margin:var(--s4) 0 0}
+/* Ask: one item at a time, two forms to choose from; the verdict lands at the
+   word and in one line under the choices. */
+.rw-item + .rw-item{margin-top:var(--s5);padding-top:var(--s5);border-top:1px solid var(--line)}
+.rw-item:not([hidden]){animation:rise-in var(--dur-3) var(--ease-enter)}
+.rw-item .rw-line{margin-bottom:var(--s3)}
+.rw-item:first-child{animation:none}
+.lesson .il[data-state="awaiting"] .il-w{min-width:4.5em;--il-bar:var(--ink-2)}
+.lesson .il-f{animation:none}
+.lesson .il:is([data-state="right"],[data-state="revealed"]) .il-f{animation:rise-in var(--dur-3) var(--ease-enter)}
+.rw-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2);max-width:28rem;margin-top:var(--s2)}
+.rw-choice{min-height:52px;padding:var(--s2) var(--s4);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--sheet);
+  color:var(--ink);font-size:var(--t-reading);font-weight:500;line-height:1.3;text-align:left;overflow-wrap:anywhere;
+  transition:border-color var(--dur-2) var(--ease-standard),box-shadow var(--dur-2) var(--ease-standard)}
+.rw-choice:hover:not(:disabled){border-color:var(--ink)}
+.rw-choice:disabled{cursor:default;color:var(--ink-2)}
+.rw-choice.picked{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);color:var(--ink)}
+.rw-verdict{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s1) var(--s4);max-width:none;min-height:24px;margin:var(--s3) 0 0;font-size:var(--t-body)}
+.rw-verdict:not(:empty){animation:rise-in var(--dur-3) var(--ease-enter)}
+.rw-verdict .ru,.rw-checked .ru,.rw-cond .ru{display:inline;margin-left:var(--s1)}
+.rw-ok{color:var(--good);font-weight:600}
+.rw-no{color:var(--bad);font-weight:600}
+.rw-yours{color:var(--ink-2)}
+.rw-yours del,.rw-wrong del,.rule-yours del{color:var(--bad);text-decoration-thickness:2px}
+.rw-mark{display:inline-block;width:18px;height:18px;margin-right:var(--s1);vertical-align:-3px;flex:none}
+.rw-checked{margin:var(--s4) 0 0;font-size:var(--t-note);color:var(--muted)}
+.rw-skip{margin-top:var(--s1)}
+/* Explain: a model's words, in the outline every model's text wears. */
+.rw-after.rw-shown{animation:rise-in var(--dur-3) var(--ease-enter)}
+.rw-model{padding:var(--s4);border:1px dashed var(--edge);border-radius:var(--r-2)}
+.rw-model-by{margin:0 0 var(--s2);font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.rw-model-by .ru{display:inline;margin-left:var(--s1);font-size:var(--t-note);font-weight:400}
+.rw-model-text{margin:0;line-height:1.55}
+.rw-model-src{display:flex;flex-wrap:wrap;align-items:center;gap:0 var(--s2);margin:var(--s1) 0 0;font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.rw-model-src .ru{display:inline;margin:0;font-weight:400}
+.rw-model-src a{display:inline-flex;align-items:center;min-height:44px;font-weight:400}
+/* Contrast: the wrong form struck through, then the sentence that holds. */
+.rw-pair + .rw-pair{margin-top:var(--s5)}
+.rw-cond{margin:0;font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.rw-wrong{margin:var(--s2) 0 0;font-size:var(--t-reading);line-height:1.5;color:var(--ink-2)}
+.rw-wrong .rw-mark{color:var(--bad)}
+.rw-right .rw-mark{color:var(--good)}
+/* The switch: conditions as a segmented control; one sentence, the word's form
+   named under it. The track stays put; only the sentence crossfades. */
+.rw-tabs.seg{display:grid;grid-template-columns:repeat(var(--n),auto);width:100%;gap:2px}
+.rw-tabs.seg button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:52px;
+  padding:var(--s2) var(--s3);font-size:var(--t-note);line-height:1.2;text-align:left;overflow-wrap:break-word}
+.rw-tabs.seg button .ru{display:block;margin:2px 0 0;font-size:var(--t-gloss);color:var(--muted)}
+.rw-panel{margin-top:var(--s4);border-radius:var(--r-2)}
+.rw-big{font-size:var(--t-title);letter-spacing:-.01em}
+.lesson .rw-big:has(.il){line-height:2.5}
+.rw-swap{animation:fade-in var(--dur-3) var(--ease-standard)}
+/* The rest of the page: sourced points (three, then Lisaks), the learner's own. */
+.rule-points ul,.rule-examples,.rule-mistakes,.rule-reading{margin:0;padding-left:var(--s5)}
+.rule-points li,.rule-examples li,.rule-mistakes li{margin:var(--s2) 0;line-height:1.55}
+.rule-more{margin-top:var(--s2)}
+.rule-more > summary{display:flex;align-items:center;gap:var(--s2);font-weight:600;color:var(--ink-2)}
+.rule-more > summary .ru{font-weight:400}
+.rule-more > summary::after{content:"";width:8px;height:8px;margin-left:var(--s1);border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:translateY(-2px) rotate(45deg);transition:transform var(--dur-2) var(--ease-standard)}
+.rule-more[open] > summary::after{transform:translateY(2px) rotate(-135deg)}
+.rule-examples{font-size:var(--t-reading)}
+.rule-solved,.rule-yours{display:block}
+.rule-solved{font-size:var(--t-reading)}
+.rule-yours{font-size:var(--t-note);color:var(--muted)}
+.rule-yours .ru{display:inline;margin:0 var(--s1)}
+/* The primary: the sticky row at the sheet's end on a desktop, the action bar on
+   a phone (the shell moves `[data-primary]` there). */
+.rule-actions{position:sticky;bottom:0;z-index:2;display:flex;justify-content:flex-end;align-items:center;gap:var(--s3);
+  margin:var(--s6) calc(-1 * var(--s6)) 0;padding:var(--s4) var(--s6);background:var(--sheet);border-top:1px solid var(--line);
+  border-radius:0 0 var(--r-3) var(--r-3)}
+.lesson :is(a,button,summary,[tabindex="0"]){scroll-margin-bottom:calc(48px + 3 * var(--s4))}
 /* Form tables. The row labels (cases, persons) stay put while the forms scroll
    under them; an edge rule, not a gradient, marks where they part. */
-.lesson-table{margin-top:var(--s4);overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* The box is never taller than the band between the header and the dock, so a
+   focused table is never partly under either: it scrolls both ways inside. */
+.lesson-table{margin-top:var(--s2);overflow:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r-1);
+  max-height:calc(100dvh - var(--hdr-h) - var(--dock-h) - 2 * var(--s5))}
 .lesson-table + .hint{margin-top:var(--s2)}
 .lesson-table table{border-collapse:separate;border-spacing:0;min-width:100%;font-size:var(--t-body);font-variant-numeric:tabular-nums}
 .lesson-table th,.lesson-table td{padding:var(--s2) var(--s3);text-align:left;vertical-align:top;border-bottom:1px solid var(--line);white-space:nowrap}
-.lesson-table thead th{font-size:var(--t-gloss);font-weight:600;color:var(--muted);border-bottom-color:var(--ink-2)}
+.lesson-table thead th{position:sticky;top:0;z-index:1;background:var(--sheet);font-size:var(--t-gloss);font-weight:600;color:var(--muted);border-bottom-color:var(--ink-2)}
 .lesson-table tbody tr:last-child > *{border-bottom:0}
 .lesson-table.labelled tbody th{position:sticky;left:0;z-index:1;background:var(--sheet);font-weight:500;color:var(--muted);box-shadow:inset -1px 0 var(--edge)}
-.lesson-table.labelled thead th:first-child{position:sticky;left:0;z-index:1;background:var(--sheet);box-shadow:inset -1px 0 var(--edge)}
-@media (max-width:719px){
-  .lesson{padding:var(--s4)}
-  .lesson-head h2{font-size:var(--t-prompt)}
+.lesson-table.labelled thead th:first-child{position:sticky;left:0;z-index:2;background:var(--sheet);box-shadow:inset -1px 0 var(--edge)}
+.lesson-table th .sub{font-size:var(--t-note);font-weight:400}
+@media (max-width:719px), (hover:none) and (max-height:559px){
+  .lesson{max-width:none;padding:0;background:transparent;border-radius:0}
+  .lesson section{margin-top:var(--s6)}
+  .rule-head h2{font-size:var(--t-prompt)}
+  .rule-gist{font-size:var(--t-reading);line-height:1.5}
+  .rw-q{font-size:var(--t-reading)}
+  .rw-tabs.seg{grid-template-columns:repeat(var(--n-phone),auto)}
+  .rw-big{font-size:var(--t-prompt)}
+  .lesson .rw-big:has(.il){line-height:2.6}
+  .rule-actions{position:static;margin:0;padding:0;border:0;background:none}
+  .lesson :is(a,button,summary,[tabindex="0"]){scroll-margin-bottom:0}
   .lesson-table th,.lesson-table td{padding:var(--s2) 10px}
   .lesson-table.labelled tbody th,.lesson-table.labelled thead th:first-child{padding-left:0}
+  .lesson-table thead th,.lesson-table.labelled tbody th,.lesson-table.labelled thead th:first-child{background:var(--ground)}
+}
+@media (max-width:359px){.rw-tabs.seg{grid-template-columns:repeat(2,auto)}}
+@media (prefers-reduced-motion:reduce){.rw-swap{animation:none}}
+@media (forced-colors:active){
+  .rw-choice{border:1px solid ButtonText}
+  .rw-choice.picked{border:2px solid ButtonText}
+  .rw-model{border-color:CanvasText}
+  .rule-actions{border-top:1px solid CanvasText}
+  .rw-tabs.seg button[aria-selected="true"] .ru{color:HighlightText}
 }
 /* The line over a running set: what it is, and the way to its rule. */
 .set-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin:var(--s3) 0 var(--s5);font-size:var(--t-note);color:var(--ink-2)}
