@@ -818,10 +818,10 @@ WALKS: dict[str, Walk] = {
             id="osaalus.walk.explain", section="SÜ 35", engine=OPUS,
             written="2026-10-10",
             text_ru=(
-                "В предложении о наличии при отрицании подлежащее (**alus**) "
-                "стоит в osastav (частичный падеж): *Laual pole raamatut*. Это "
-                "**osaalus** (частичное подлежащее). С ним глагол остаётся в "
-                "единственном числе: *Klassis istub õpilasi*, но *Klassis "
+                "В предложении о наличии подлежащее (**alus**) может стоять в "
+                "osastav (частичный падеж) — это **osaalus** (частичное "
+                "подлежащее); при отрицании всегда: *Laual pole raamatut*. "
+                "Глагол с ним в ед. ч.: *Klassis istub õpilasi*, но *Klassis "
                 "istuvad õpilased*."
             ),
         ),
