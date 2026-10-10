@@ -53,14 +53,15 @@ def test_start_paints_requested_content_before_scripts_arrive(page, live_server)
     heading.wait_for(state="visible")
     assert "Kust alustame?" in heading.inner_text()
     assert not page.locator("#tab-path").is_visible()
-    start = page.locator("#tab-start [data-start]")
-    assert not start.is_enabled()
+    russian = page.locator('#tab-start [data-lang="ru"]')
+    assert not russian.is_enabled()
     page.wait_for_function("document.readyState !== 'loading'")
     assert pending
     for request in pending:
         request.continue_()
-    page.wait_for_function("!document.querySelector('#tab-start [data-start]').disabled")
-    start.click()
+    page.wait_for_function("!document.querySelector('#tab-start [data-lang=ru]').disabled")
+    russian.click()
+    page.locator("#tab-start [data-next]").click()
     assert "Milleks õpid?" in page.locator("#tab-start h2").inner_text()
     assert profile
     with page.expect_response("**/api/me") as answered:
@@ -650,9 +651,8 @@ class TestProfile:
         before_auth = len(documents)
         page.locator('#authForm button[type="submit"]').click()
         page.wait_for_selector("#tab-start:not([hidden])")
-        page.locator("[data-start]").click()
-        page.locator('[data-focus="path"]').click()
-        page.wait_for_url("**/#path")
+        _answer_onboarding(page)
+        _finish_onboarding(page)
         self._open(page)
         page.wait_for_function(
             "() => document.querySelector('#profileOut')?.textContent.includes('Õppija')")
@@ -731,8 +731,9 @@ _WRONG_VOICE = r"""() => {
     const latin = LATIN.test(t), cyr = CYR.test(t);
     if (cyr && !latin && langOf(el) === "et") bad.push(`Russian read as et: ${t.slice(0, 40)}`);
     const words = t.split(/[\s·—→←↗✓✗■()«»:,;!?+]+/).filter(Boolean);
+    // An element marked English says so itself (onboarding's *English*).
     if (latin && !cyr && !words.every(w => NEUTRAL.test(w))
-        && el.closest(LABEL) && !el.closest(".ru") && langOf(el) !== "et")
+        && el.closest(LABEL) && !el.closest(".ru") && !["et", "en"].includes(langOf(el)))
       bad.push(`Estonian read as ru: <${el.tagName.toLowerCase()}> ${t.slice(0, 40)}`);
   }
   return bad;
@@ -2143,8 +2144,32 @@ class TestTheWholeSitting:
         assert not browser_errors(page), browser_errors(page)
 
 
+#: The unit on the session's bench, which changes only once the next one is
+#: painted (after any view transition).
+_UNIT = "document.querySelector('#sessBody').dataset.unit"
+
+
+def _answer_the_set(page, given="vale"):
+    """Answer a set item by item, as the session runner asks it: typed where it
+    is typed, the first choice where it is a choice; Valmis after the last."""
+    for _ in range(60):
+        page.wait_for_selector("#sessBody .sess-item, #sessBody .sess-result", timeout=20000)
+        if page.locator("#sessBody .sess-result").count():
+            return
+        at = page.evaluate(_UNIT)
+        item = page.locator("#sessBody .sess-item")
+        field = item.locator(".gap-field")
+        if field.count():
+            field.fill(given)
+        else:
+            item.locator(".sess-choice").first.click()
+        page.locator("#sessPrimary").click()
+        page.wait_for_function(f"u => {_UNIT} !== u", arg=at)
+    raise AssertionError("the set never ended")
+
+
 class TestTestingOutOfATopic:
-    """Kogu rada offers a test-out; five right marks the topic known."""
+    """Kursus offers a test-out; five right marks the topic known."""
 
     def test_a_clean_sweep_marks_the_topic(self, page, live_server):
         open_tab(page, "learn", "course")
@@ -2153,21 +2178,13 @@ class TestTestingOutOfATopic:
         page.locator("#pathList .topic:has(button[data-testout]) .topic-options > summary").first.click()
         button = page.locator("#pathList button[data-testout]").first
         button.wait_for(timeout=10000)
-        topic = button.get_attribute("data-testout")
         button.click()
-        # A typed answer, or a choice where the item is one (unit 1's phrases).
-        page.wait_for_selector("#testoutTasks input, #testoutTasks select", timeout=20000)
-
-        # The answers come from the API, as a learner who knows them would type.
-        answers = page.evaluate("""async ([base, topic]) => {
-            const r = await fetch(`${base}/api/testout/${topic}`);
-            return await r.json();
-        }""", [live_server, topic])
-        inputs = page.locator("#testoutTasks input, #testoutTasks select")
-        assert inputs.count() == len(answers["items"])
-        page.click("#testoutDone")
-        page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
-        assert "из" in page.locator("#testoutVerdict").inner_text()
+        page.wait_for_selector("#tab-session:not([hidden]) .sess-item", timeout=20000)
+        assert page.locator("#sessBeads li").count() == 5
+        _answer_the_set(page)
+        verdict = page.locator("#sessBody .sess-result .sess-verdict").inner_text()
+        assert "/5" in verdict
+        assert page.locator("#sessBody .sess-review li").count() == 5
         assert not browser_errors(page), browser_errors(page)
 
 
@@ -2182,16 +2199,15 @@ class TestCheckingAUnit:
         fold = page.locator("#pathList details.path-level:has(button[data-unitcheck='pere'])")
         fold.locator(":scope > summary").click()
         fold.locator("button[data-unitcheck='pere']").click()
-        page.wait_for_selector("#testoutTasks input, #testoutTasks select", timeout=20000)
-        seed = page.evaluate("""async base => {
+        page.wait_for_selector("#tab-session:not([hidden]) .sess-item", timeout=20000)
+        expected = page.evaluate("""async base => {
             const r = await fetch(`${base}/api/units/pere/check?seed=5`);
             return (await r.json()).items.length;
         }""", live_server)
-        tasks = page.locator("#testoutTasks .mock-task")
-        assert tasks.count() == seed
-        page.click("#testoutDone")
-        page.wait_for_selector("#testoutVerdict.ok, #testoutVerdict.no", timeout=20000)
-        assert "из" in page.locator("#testoutVerdict").inner_text()
+        assert page.locator("#sessBeads li").count() == expected
+        _answer_the_set(page)
+        assert page.locator("#sessBody .sess-parts li").count() == 2
+        assert "Veel mitte" in page.locator("#sessBody .sess-result").inner_text()
         assert not browser_errors(page), browser_errors(page)
 
     def test_a_learner_starts_from_a_later_unit_and_puts_one_back(self, page):
@@ -2281,15 +2297,15 @@ class TestPractisingOffline:
         page.context.set_offline(True)
         try:
             page.click("#offlinePractice")
-            page.wait_for_selector("#practiceOut .banner.info", timeout=15000)
-            page.wait_for_selector("#practiceOut .drill input", timeout=15000)
-            first = page.locator("#practiceOut .drill").first
+            page.wait_for_selector("#offlineOut .banner.info", timeout=15000)
+            page.wait_for_selector("#offlineOut .drill input", timeout=15000)
+            first = page.locator("#offlineOut .drill").first
             first.locator("input").fill("ilmselgelt vale")
             first.locator("button").click()
-            page.wait_for_selector("#practiceOut .verdict.no", timeout=15000)
+            page.wait_for_selector("#offlineOut .verdict.no", timeout=15000)
             # The verdict appears first; the queue write follows it.
             page.wait_for_function(
-                "() => document.querySelector('#practiceOut .verdict')"
+                "() => document.querySelector('#offlineOut .verdict')"
                 ".textContent.includes('локально')", timeout=15000)
             page.wait_for_selector("#offlineSend:not([hidden])", timeout=15000)
         finally:
@@ -2310,18 +2326,55 @@ class TestPractisingOffline:
 
 
 
+def _answer_onboarding(page, *, start="start", band=None, lang="ru", goal="igapaev"):
+    """Onboarding's four questions (ADR-0009), answered as a learner would."""
+    page.wait_for_selector("[data-lang]:not([disabled])")
+    page.click(f'[data-lang="{lang}"]')
+    page.click("[data-next]")
+    page.click(f'[data-goal="{goal}"]')
+    page.click("[data-next]")
+    page.click(f'[data-from="{start}"]')
+    page.click("[data-next]")
+    if start == "choose":
+        page.click(f'[data-band="{band}"]')
+        page.click("[data-next]")
+
+
+def _finish_onboarding(page):
+    page.wait_for_selector("[data-week]")
+    page.click('[data-week="3"]')
+    page.click("[data-next]")
+    page.wait_for_selector("#tab-session:not([hidden]) .sess-item, #tab-session:not([hidden]) .sess-notice",
+                           timeout=30000)
+
+
 class TestOnboarding:
-    def test_back_from_goal_returns_to_starting_point_and_focuses_heading(self, page):
-        """Back must let a learner revise their band without restarting onboarding."""
+    def test_the_first_question_is_the_language_preselected_from_the_browser(self, _pw, live_server):
+        """`navigator.languages` decides the preselection (PRODUCT.md): the first
+        of uk, ru, en; a Russian speaker with Estonian first gets Russian."""
+        for locale, expected in (("uk-UA", "uk"), ("et-EE", "en")):
+            context = _pw.new_context(locale=locale, extra_http_headers={
+                "x-eesti-scope": "guest", "x-eesti-guest": f"e2e-{uuid4().hex[:12]}"})
+            page = context.new_page()
+            page.goto(live_server + "/#start", wait_until="networkidle")
+            page.wait_for_selector("[data-lang]:not([disabled])")
+            chosen = page.locator('[data-lang][aria-checked="true"]')
+            assert chosen.get_attribute("data-lang") == expected, locale
+            # What the choice means today is said in the chosen language.
+            page.wait_for_function("document.querySelector('#startLangNote').textContent.length > 20")
+            assert page.locator("#startLangNote").get_attribute("lang") == expected
+            context.close()
+
+    def test_back_returns_to_the_previous_question_and_focuses_its_heading(self, page):
         page.goto(page.url.split("#")[0] + "#start")
-        page.locator("[data-choose]").click()
-        page.locator('[data-band="a2"]').click()
-        page.locator("[data-back]").click()
-        assert page.locator('[data-band="a2"]').is_visible()
+        page.wait_for_selector("[data-lang]:not([disabled])")
+        page.click("[data-next]")
+        page.click('[data-goal="b1"]')
+        page.click("[data-next]")
+        page.click("[data-back]")
+        assert page.locator('[data-goal="b1"][aria-checked="true"]').is_visible()
         assert page.locator("#onboardingContent h2").evaluate(
             "el => el === document.activeElement")
-        page.locator("[data-back]").click()
-        assert page.locator("[data-start]").is_visible()
 
     @pytest.mark.parametrize("service_workers", ["block"], indirect=True)
     def test_start_does_not_probe_speech_or_private_evaluation(self, page):
@@ -2329,8 +2382,7 @@ class TestOnboarding:
         requests = []
         page.on("request", lambda req: requests.append(urlsplit(req.url).path))
         page.goto(page.url.split("#")[0] + "#start", wait_until="networkidle")
-        # Waits: WebKit can paint the start screen just after the network settles.
-        page.wait_for_selector("[data-start]", state="visible")
+        page.wait_for_selector("[data-lang]:not([disabled])", state="visible")
         assert "/api/asr" not in requests
         assert "/api/speaking/check" not in requests
         assert "/api/eval/available" not in requests
@@ -2339,19 +2391,148 @@ class TestOnboarding:
         page.wait_for_function("document.querySelector('#recPrivacy').textContent.length > 0")
         assert "/api/asr" in requests
 
-    def test_guest_chooses_a_start_and_can_change_it(self, page):
-        page.goto(page.url.split("#")[0] + "#start")
-        page.locator("[data-choose]").click()
-        page.locator('[data-band="a2"]').click()
-        page.locator('[data-focus="path"]').click()
-        page.wait_for_selector("#tab-path:not([hidden])")
-        saved = page.request.get(page.url.split("#")[0].split("?")[0] + "api/me").json()
+    def test_a_chosen_start_moves_past_earlier_stages_and_can_change(self, page, live_server):
+        page.goto(live_server + "/#start", wait_until="networkidle")
+        _answer_onboarding(page, start="choose", band="a2")
+        _finish_onboarding(page)
+        saved = page.request.get(live_server + "/api/me").json()
         assert saved["onboarding"]["start_band"] == "a2"
         assert saved["onboarding"]["navigate"] is True
-        open_tab(page, "exam", "profile")
-        page.locator("#editOnboarding").click()
+        assert saved["totals"]["mastered"] == 0
+        # The session is on the first A2 unit, not on a skipped one.
+        made = page.request.get(live_server + "/api/session").json()["session"]
+        assert made["unit"]["stage"] == "A2"
+        open_tab(page, "learn", "course")
+        page.locator('#tab-course a[href="#start"]').click()
         page.wait_for_selector("#tab-start:not([hidden])")
-        assert page.locator("[data-start]").is_visible()
+        assert page.locator("[data-lang]").first.is_visible()
+        assert not browser_errors(page), browser_errors(page)
+
+
+class TestTheSession:
+    """ADR-0009's session: built by code, one item at a time, one primary in one
+    place, a result carried by a shape and a word, the form named only after
+    the attempt, and only the first attempt counted."""
+
+    def test_a_new_beginner_reaches_the_first_task_within_a_minute(self, page, live_server):
+        began = time.monotonic()
+        page.goto(live_server + "/#start", wait_until="networkidle")
+        _answer_onboarding(page, start="start")
+        _finish_onboarding(page)
+        assert time.monotonic() - began < 60
+        saved = page.request.get(live_server + "/api/me").json()
+        assert saved["onboarding"]["start_band"] == "a0"
+        assert saved["onboarding"]["explanation_language"] == "ru"
+        goal = page.request.get(live_server + "/api/session/goal").json()["goal"]
+        assert goal == {"goal": "igapaev", "per_week": 3}
+        made = page.request.get(live_server + "/api/session").json()["session"]
+        assert made["unit"]["n"] == 1
+        # The session line names the step it is on.
+        line = page.locator("#sessLine ol").first
+        assert line.get_attribute("aria-label").startswith("Samm 1/")
+        assert page.locator('#sessLine [aria-current="step"]').count() == 1
+        # Peata goes back to Täna, which shows the plan.
+        if page.viewport_name == "phone":
+            page.locator(".hdr-pause").click()
+        else:
+            page.locator(".sess-pause").click()
+        page.wait_for_selector("#tab-path:not([hidden]) .tana-step")
+        assert page.locator('.tana-step[data-state="current"]').count() == 1
+        assert page.locator(".tana-alt li").count() == 2
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_an_assessed_start_asks_at_most_twelve_items_and_masters_nothing(self, page, live_server):
+        page.goto(live_server + "/#start", wait_until="networkidle")
+        _answer_onboarding(page, start="check")
+        asked = 0
+        for _ in range(6):
+            page.wait_for_selector("#placementForm input, #onboardingContent [data-week], "
+                                   "#onboardingContent .placement-review, #onboardingContent [data-next]")
+            if not page.locator("#placementForm").count():
+                break
+            inputs = page.locator("#placementForm input")
+            for i in range(inputs.count()):
+                inputs.nth(i).fill("vale")
+            asked += inputs.count()
+            page.locator("#placementForm button[type=submit]").click()
+            page.wait_for_function("!document.querySelector('#placementForm') || "
+                                   "document.querySelector('#placementForm input').value === ''")
+        assert 0 < asked <= 12
+        assert "Sinu algus" in page.locator("#onboardingContent h2").inner_text()
+        assert "CEFR не подтверждён" in page.locator("#onboardingContent").inner_text()
+        page.click("[data-next]")
+        _finish_onboarding(page)
+        me = page.request.get(live_server + "/api/me").json()
+        assert me["onboarding"]["start_band"] == "unsure"
+        assert me["totals"]["mastered"] == 0
+        assert not browser_errors(page), browser_errors(page)
+
+    def _practice(self, page, live_server, topic="olevik"):
+        """Guided practice on one topic, opened from its rule page's Harjuta."""
+        page.goto(live_server + f"/#rule/{topic}", wait_until="networkidle")
+        page.locator("#lessonPractice").click()
+        page.wait_for_selector("#tab-session:not([hidden]) .sess-item[data-state=awaiting]")
+        heading = page.locator("#sessStep").inner_text()
+        assert heading.startswith("Harjutamine"), heading
+        return page.locator(".sess-item")
+
+    def test_a_first_miss_gets_a_hint_and_only_the_first_attempt_counts(self, page, live_server):
+        item = self._practice(page, live_server)
+        primary = page.locator("#sessPrimary")
+        # The primary's place: its row end and its top, on the bench (desktop) or
+        # on the screen (fixed in a phone's action bar). A longer label may widen
+        # it towards the start of the row; it never moves.
+        where = """e => { const r = e.getBoundingClientRect();
+          const b = getComputedStyle(e).position === 'fixed' ? {left: 0, top: 0}
+            : document.querySelector('#sessBench').getBoundingClientRect();
+          return [Math.round(r.right - b.left), Math.round(r.top - b.top)]; }"""
+        field = item.locator(".gap-field")
+        # Awaiting: the primary is off, the form is not named under the gap.
+        assert primary.get_attribute("aria-disabled") == "true"
+        assert item.locator(".il-name").count() <= 1
+        named_before = item.locator(".il-name").all_inner_texts()
+        placed = primary.evaluate(where)
+        field.fill("kindlasti-vale")
+        primary.click()
+        page.wait_for_selector('.sess-item[data-state="hint"]')
+        assert "Proovi veel" in item.locator(".sess-corr").inner_text()
+        assert primary.evaluate(where) == placed
+        field.fill("ikka-vale")
+        primary.click()
+        page.wait_for_selector('.sess-item[data-state="revealed"]')
+        corr = item.locator(".sess-corr").inner_text()
+        assert "Pole õige" in corr and "Sinu vastus" in corr
+        # The form is named under the word only now, and the word wears its bar.
+        word = item.locator('.sess-sentence .il[data-state="revealed"]')
+        assert word.count() == 1
+        assert word.locator(".il-name").inner_text() not in named_before
+        assert page.locator('#sessBeads [data-mark="wrong"]').count() == 1
+        assert primary.evaluate(where) == placed
+        assert "Edasi" in primary.inner_text()
+        me = page.request.get(live_server + "/api/me").json()
+        assert me["totals"]["attempts"] == 1
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_the_dock_is_a_task_row_while_an_item_waits(self, page, live_server):
+        if page.viewport_name != "phone":
+            pytest.skip("the dock is a phone's")
+        self._practice(page, live_server)
+        assert page.evaluate("document.body.classList.contains('dock-task')")
+        assert not page.locator(".dock-tabs").is_visible()
+        assert page.locator("#skillsKey").is_visible()
+        primary = page.locator("#sessPrimary")
+        assert "dock-primary" in primary.get_attribute("class")
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_a_skipped_item_counts_nothing(self, page, live_server):
+        item = self._practice(page, live_server)
+        page.locator("#sessSkip").click()
+        assert item.get_attribute("data-state") == "skipped"
+        assert "Vahele jäetud" in item.locator(".sess-corr").inner_text()
+        assert page.locator('#sessBeads [data-mark="skipped"]').count() == 1
+        me = page.request.get(live_server + "/api/me").json()
+        assert me["totals"]["attempts"] == 0
+        assert not browser_errors(page), browser_errors(page)
 
 
 class TestAGrammarCardIsAnswered:
@@ -2473,37 +2654,33 @@ class TestPhoneInLandscape:
     @pytest.fixture
     def landscape(self, _pw, live_server):
         context = _pw.new_context(viewport={"width": 874, "height": 402},
-                                  has_touch=True)
+                                  has_touch=True, extra_http_headers={
+                                      "x-eesti-scope": "guest",
+                                      "x-eesti-guest": f"e2e-{uuid4().hex[:12]}"})
         pg = context.new_page()
-        pg.goto(live_server + "/#session/asesonad", wait_until="networkidle")
-        pg.wait_for_selector("#beginPractice", timeout=20000)
-        pg.click("#beginPractice")
-        pg.wait_for_selector("#practiceOut .drill", timeout=20000)
+        pg.goto(live_server + "/#rule/olevik", wait_until="networkidle")
+        pg.locator("#lessonPractice").click()
+        pg.wait_for_selector("#sessBody .sess-item", timeout=20000)
         yield pg
         context.close()
 
     def test_one_drill_at_a_time(self, landscape):
         visible = landscape.eval_on_selector_all(
-            "#practiceOut .drill", "els=>els.filter(e=>e.checkVisibility()).length")
+            "#sessBody .sess-item", "els=>els.filter(e=>e.checkVisibility()).length")
         assert visible == 1
 
     def test_the_drill_starts_in_the_upper_part_of_the_screen(self, landscape):
-        top = landscape.eval_on_selector(
-            "#practiceOut .drill", "e=>e.getBoundingClientRect().top")
-        assert top < 402 * 0.8, f"first drill starts at {top}px of 402"
+        top = landscape.evaluate(
+            "document.querySelector('#sessBody .sess-sentence').getBoundingClientRect().top + scrollY")
+        assert top < 402 * 1.5, f"the sentence starts at {top}px of a 402px screen"
 
     def test_the_first_answer_is_reachable_above_the_dock(self, landscape):
-        """Opening a short phone session must expose its answer and check button."""
-        blocked = landscape.evaluate("""() => {
-          const drill = document.querySelector('#practiceOut .drill:not(.done)');
-          const dock = document.querySelector('#nav-learn').getBoundingClientRect();
-          return [...drill.querySelectorAll('input, .row button')].filter(e => {
-            const r = e.getBoundingClientRect();
-            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-            return r.top < 0 || r.bottom > dock.top || !hit || !e.contains(hit);
-          }).map(e => e.getAttribute('aria-label') || e.textContent.trim());
-        }""")
-        assert not blocked, f"first answer controls hidden by the dock: {blocked}"
+        """The answer field and the primary are where a thumb can reach them."""
+        field = landscape.locator("#sessBody .gap-field")
+        field.focus()
+        landscape.evaluate(SETTLE)
+        assert field.evaluate(OBSCURED) is None
+        assert landscape.locator("#sessPrimary").evaluate(OBSCURED) is None
 
     def test_nothing_scrolls_sideways(self, landscape):
         assert landscape.evaluate(
@@ -2647,10 +2824,10 @@ class TestFocusIsNeverUnderTheDock:
         return [f"{pg.size} {where}: {over}px wider than the screen"] if over > 1 else []
 
     def _session(self, pg):
-        self._open(pg, "#session/asesonad")
-        pg.wait_for_selector("#beginPractice", timeout=20000)
-        pg.click("#beginPractice")
-        pg.wait_for_selector("#practiceOut .drill", timeout=20000)
+        """Guided practice on a topic, from its rule page's Harjuta."""
+        self._open(pg, "#rule/olevik")
+        pg.locator("#lessonPractice").click()
+        pg.wait_for_selector("#sessBody .sess-item .gap-field", timeout=20000)
 
     def test_tabbing_never_lands_under_the_chrome(self, shell):
         found = []
@@ -2659,9 +2836,13 @@ class TestFocusIsNeverUnderTheDock:
             found += self._tab_through(shell, route)
         self._session(shell)
         found += self._tab_through(shell, "session awaiting")
-        item = shell.locator("#practiceOut .drill").first
-        item.locator(".choice").first.click()
-        item.locator(".exercise-next").wait_for(timeout=10000)
+        field = shell.locator("#sessBody .gap-field")
+        for wrong in ("vale", "ikka-vale"):
+            field.fill(wrong)
+            shell.locator("#sessPrimary").click()
+            shell.wait_for_selector("#sessBody .sess-item[data-state=hint], "
+                                    "#sessBody .sess-item[data-state=revealed]", timeout=10000)
+        shell.wait_for_selector("#sessBody .sess-item[data-state=revealed]", timeout=10000)
         found += self._tab_through(shell, "session revealed")
         assert not found, "focus under the chrome:\n  " + "\n  ".join(found)
         assert not shell.errors, shell.errors
@@ -2720,6 +2901,8 @@ class TestFocusIsNeverUnderTheDock:
         shell.click("#freeBtn")
         shell.wait_for_selector("#freeOut .drill input", timeout=15000)
         each_field("free practice")
+        self._session(shell)
+        each_field("session")
         for route in ("#write", "#listen"):
             self._open(shell, route)
             each_field(route)
@@ -2992,7 +3175,9 @@ class TestTheRuleWalk:
         lesson = page.request.get(live_server + "/api/lesson/obj-case").json()
         gist = sheet.locator(".rule-gist").inner_text().strip()
         assert gist and gist == lesson["gist_ru"].replace("**", "").replace("*", "")
-        assert lesson["tip"]["wrong"] not in sheet.inner_text()
+        from eesti.lessontext import TIPS
+
+        assert "tip" not in lesson and TIPS["obj-case"].wrong not in sheet.inner_text()
         # One primary, Harjuta, in a place that does not move as the walk is done.
         primary = page.locator("section.panel:not([hidden]) [data-primary]")
         assert primary.count() == 1 and "Harjuta" in primary.inner_text()
@@ -3094,72 +3279,15 @@ class TestTheRuleWalk:
 class TestLearningRedesign:
     """Starting and passing over familiar work must not invent checked progress."""
 
-    def test_beginning_onboarding_saves_a_guest_route_without_mastery(self, page, live_server):
-        page.goto(live_server + '/#start', wait_until='networkidle')
-        page.click('[data-start="a0"]')
-        page.click('[data-focus="path"]')
-        page.wait_for_selector('#tab-path:not([hidden]) #practiceBtn')
-        me = page.request.get(live_server + '/api/me').json()
-        assert me['onboarding']['start_band'] == 'a0'
-        assert me['onboarding']['explanation_language'] == 'ru'
-        assert me['totals']['attempts'] == me['totals']['mastered'] == 0
-        assert page.locator('#nav-learn button').count() == 4
-        assert not browser_errors(page), browser_errors(page)
-
-    def test_lesson_explains_before_issuing_five_exercises(self, page, live_server):
-        issued = []
-        page.on('request', lambda r: issued.append(r) if r.method == 'POST' and r.url.endswith('/api/practice') else None)
-        page.goto(live_server + '/#session/asesonad', wait_until='networkidle')
-        page.wait_for_selector('#beginPractice')
-        assert page.locator('#lessonIntro .lesson-examples strong').count() > 0
-        assert page.locator('#lessonIntro .lesson-source a').count() > 0
-        assert not issued, 'reading the explanation issued a practice set'
-        page.click('#beginPractice')
-        page.wait_for_selector('#practiceOut .drill')
-        assert page.locator('#practiceOut .drill').count() == 5
-        assert len(issued) == 1 and issued[0].post_data_json['count'] == 5
-        assert not browser_errors(page), browser_errors(page)
-
-    def test_skipping_an_exercise_posts_no_answer_and_awards_nothing(self, page, live_server):
-        answered = []
-        page.on('request', lambda r: answered.append(r) if r.url.endswith('/api/practice/answer') else None)
-        page.goto(live_server + '/#session/asesonad', wait_until='networkidle')
-        page.click('#beginPractice')
-        page.wait_for_selector('#practiceOut .drill')
-        first = page.locator('#practiceOut .drill').first
-        first.locator('.exercise-skip').click()
-        assert 'skipped' in first.get_attribute('class')
-        assert not page.locator('#practiceOut .drill').nth(1).is_visible()
-        first.locator('.exercise-next').click()
-        assert page.locator('#practiceOut .drill').nth(1).is_visible()
-        for i in range(1, 5):
-            current = page.locator('#practiceOut .drill').nth(i)
-            current.locator('.exercise-skip').click()
-            current.locator('.exercise-next').click()
-        assert 'Пропущено: 5' in page.locator('#practiceOut .set-end').inner_text()
-        assert not answered
-        me = page.request.get(live_server + '/api/me').json()
-        assert me['totals']['attempts'] == me['totals']['mastered'] == me['totals']['review_cards'] == 0
-        assert not browser_errors(page), browser_errors(page)
-
-    @pytest.mark.parametrize('recall', [False, True], ids=['recognition', 'recall'])
-    def test_feedback_keeps_the_task_and_continue_in_one_workspace(self, page, live_server, recall):
-        if recall:
-            TestTheGrammarDrill()._start(page)
-            selector = '#freeOut .drill'
-        else:
-            page.goto(live_server + '/#session/asesonad', wait_until='networkidle')
-            page.click('#beginPractice')
-            selector = '#practiceOut .drill'
+    def test_feedback_keeps_the_task_and_continue_in_one_workspace(self, page, live_server):
+        TestTheGrammarDrill()._start(page)
+        selector = '#freeOut .drill'
         item = page.locator(selector).first
         item.wait_for(state='visible')
         document_top = '(el) => el.getBoundingClientRect().top + window.scrollY'
         before = item.locator('.exercise-actions').evaluate(document_top)
-        if recall:
-            item.locator('input').fill('vale')
-            item.locator('input').press('Enter')
-        else:
-            item.locator('.choice').first.click()
+        item.locator('input').fill('vale')
+        item.locator('input').press('Enter')
         item.locator('.exercise-next').wait_for(state='visible')
         after = item.locator('.exercise-actions').evaluate(document_top)
         assert abs(after - before) < 12
@@ -3198,13 +3326,14 @@ class TestLearningRedesign:
 
     def test_stopping_assessment_awards_no_level_or_mastery(self, page, live_server):
         page.goto(live_server + '/#start', wait_until='networkidle')
-        page.click('[data-assess]')
+        _answer_onboarding(page, start='check')
         page.wait_for_selector('#placementForm input')
-        assert page.locator('#placementForm input').count() == 5
+        assert page.locator('#placementForm input').count() <= 3
         page.click('[data-stop]')
+        page.wait_for_selector('#onboardingContent .start-actions [data-next]')
         assert 'CEFR не подтверждён' in page.locator('#onboardingContent').inner_text()
-        page.click('[data-save]')
-        page.wait_for_selector('#tab-path:not([hidden])')
+        page.click('[data-next]')
+        _finish_onboarding(page)
         me = page.request.get(live_server + '/api/me').json()
         assert me['onboarding']['start_band'] == 'unsure'
         assert me['totals']['attempts'] == me['totals']['mastered'] == 0

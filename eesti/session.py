@@ -130,6 +130,18 @@ TASK_MINUTES = 3
 EXAM_NEAR = 60
 EXAM_LEADS = 14
 
+#: Explanation languages, each with what choosing it means today, said in it:
+#: the app's own explanations are Russian until the catalogue has the others
+#: (S4); a model's explanations already answer in the chosen language.
+LANGUAGES = (
+    ("ru", "Русский", "Объяснения, подсказки и комментарии модели — на русском."),
+    ("uk", "Українська", "Пояснення застосунку поки що російською: український текст ще "
+     "готується. Пояснення моделі (Miks?) — українською. Змінити мову можна в профілі."),
+    ("en", "English", "The app's own explanations are in Russian for now: the English text "
+     "is being prepared. The model's explanations (Miks?) answer in English. You can "
+     "change the language in Profile."),
+)
+
 #: Goals the onboarding offers (ADR-0009), and the lane each leads to first.
 GOALS = {"igapaev": "path", "too": "path", "a2": "exam", "b1": "exam"}
 GOAL_NAMES = {"igapaev": ("Igapäevaelu", "для жизни"), "too": ("Töö", "для работы"),
@@ -728,14 +740,16 @@ def today(now: datetime | None = None) -> dict:
     inputs = gather(now)
     session = compose(inputs)
     with evidence.connect() as log:
-        first = not evidence.since(log, (DONE,), "")
+        finished = len({e.payload.get("session") for e in evidence.since(log, (DONE,), "")})
     return {
         "today": inputs.today,
         "session": session.to_dict(),
         "started": inputs.started,
         "next": next_task(inputs, session),
         "hero": hero(session),
-        "first": first,
+        "first": not finished,
+        #: Sessions finished so far: after the first, onboarding's last questions.
+        "sessions_done": finished,
         "goal": inputs.goal,
         "sitting_days": inputs.sitting_days,
     }

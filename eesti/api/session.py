@@ -69,6 +69,13 @@ def page_item(item, ref: dict, *, choice: bool = False, withhold: bool = False) 
     return shown
 
 
+def _same(it: dict) -> tuple:
+    """What makes two page items the same item: heard ones share a prompt
+    (`Kuula ja vali: ____`) and differ by what is said and offered."""
+    return (it.get("prompt"), it.get("say"), tuple(it.get("choices") or ()), it.get("lemma"),
+            tuple(it.get("tiles") or ()))
+
+
 def _items(topic: str, count: int, seed: int, rules=None, **kw) -> list[dict]:
     from ..itemref import practice_ref
     from ..practice import items_for
@@ -110,7 +117,7 @@ def session_start() -> dict:
 
 
 @router.get("/api/session/topic/{topic}")
-def session_topic(topic: str) -> dict:
+def session_topic(topic: str, rules: str | None = None) -> dict:
     """A session on one topic: its rule, practice and a short check."""
     from .. import session
     from ..curriculum import by_id
@@ -124,12 +131,13 @@ def session_topic(topic: str) -> dict:
 
 
 @router.get("/api/session/step/{step}")
-def session_step(step: str, topic: str | None = None) -> dict:
+def session_step(step: str, topic: str | None = None, rules: str | None = None) -> dict:
     """One step's content, generated again from the session's seed, so a reload
-    shows the same items."""
+    shows the same items. `rules` narrows a topic session to a unit's revisit."""
     from .. import session
 
     inputs, made = _session(topic)
+    chosen = tuple(r for r in (rules or "").split(",") if r) or None
     found = made.step(step)
     if found is None:
         raise HTTPException(status_code=404, detail="Такого шага сегодня нет.")
@@ -137,10 +145,10 @@ def session_step(step: str, topic: str | None = None) -> dict:
     body = {"session": made.id, "step": step, "et": found.et, "ru": found.ru,
             "why_ru": found.why_ru, "count": found.count}
     builder = _BUILDERS[step]
-    return body | builder(inputs, made, found, seed)
+    return body | builder(inputs, made, found, seed, chosen)
 
 
-def _review(inputs, made, step, seed) -> dict:
+def _review(inputs, made, step, seed, rules=None) -> dict:
     """Due cards and yesterday's misses, mixed; graded cards are answered by code
     (typed or chosen), meaning cards rated by the learner."""
     from datetime import datetime, timezone
@@ -186,7 +194,7 @@ def _review(inputs, made, step, seed) -> dict:
     return {"kind": "cards", "cards": out, "glosses": _glosses_for([c.lemma for c in cards])}
 
 
-def _rule(inputs, made, step, seed) -> dict:
+def _rule(inputs, made, step, seed, rules=None) -> dict:
     """Rule by doing: the forms to notice, then items chosen between two forms
     with the form not named, then the rule from its sources (shown after)."""
     from .. import session
@@ -196,25 +204,26 @@ def _rule(inputs, made, step, seed) -> dict:
     topic = made.topic
     items: list[dict] = []
     walked = walk(topic, words=db(), seed=seed) if inputs.walk else None
-    if walked:
-        # The walk's own ask items: two forms each, the key not marked.
+    if walked and not rules:
+        # The walk's own ask items: two forms each, the key not marked. A revisit
+        # (`rules`) asks only its own rules.
         items = [dict(it, typed=False) for it in walked["ask"]["items"]]
-    more = _items(topic, step.count * 2, seed, choice=True, withhold=True)
-    seen = {it["prompt"] for it in items}
+    more = _items(topic, step.count * 2, seed, rules, choice=True, withhold=True)
+    seen = {_same(it) for it in items}
     for it in more:
         if len(items) >= step.count:
             break
-        if it["prompt"] in seen or not it.get("choices"):
+        if _same(it) in seen or not it.get("choices"):
             continue
-        seen.add(it["prompt"])
+        seen.add(_same(it))
         items.append(it)
     if len(items) < 3:
         # Too few pairs to choose between: typed items, the form named.
-        for it in _items(topic, step.count, seed + 1):
+        for it in _items(topic, step.count, seed + 1, rules):
             if len(items) >= step.count:
                 break
-            if it["prompt"] not in seen:
-                seen.add(it["prompt"])
+            if _same(it) not in seen:
+                seen.add(_same(it))
                 items.append(it)
     found = lesson(topic, words=db()) or {}
     return {
@@ -234,14 +243,14 @@ def _rule(inputs, made, step, seed) -> dict:
     }
 
 
-def _practice(inputs, made, step, seed) -> dict:
+def _practice(inputs, made, step, seed, rules=None) -> dict:
     """Blocked on the topic, then mixed with the contrasting topic."""
     import random
 
     topic, detail = made.topic, step.detail
-    blocked = _items(topic, detail["blocked"], seed)
-    contrast = detail.get("contrast")
-    mixed = _items(topic, detail["mixed"], seed + 7)
+    blocked = _items(topic, detail["blocked"], seed, rules)
+    contrast = None if rules else detail.get("contrast")
+    mixed = _items(topic, detail["mixed"], seed + 7, rules)
     if contrast:
         other = _items(contrast, max(1, detail["mixed"] // 2), seed + 11)
         mixed = mixed[:detail["mixed"] - len(other)] + other
@@ -249,15 +258,15 @@ def _practice(inputs, made, step, seed) -> dict:
     seen, out = set(), []
     for block, items in (("blocked", blocked), ("mixed", mixed)):
         for it in items:
-            if it["prompt"] in seen:
+            if _same(it) in seen:
                 continue
-            seen.add(it["prompt"])
+            seen.add(_same(it))
             out.append(it | {"block": block})
     return {"kind": "items", "items": out, "contrast": contrast,
             "glosses": _glosses_for([it.get("lemma", "") for it in out])}
 
 
-def _words(inputs, made, step, seed) -> dict:
+def _words(inputs, made, step, seed, rules=None) -> dict:
     from .. import session
 
     lemmas = inputs.words_new or inputs.words
@@ -278,7 +287,7 @@ def _material(unit: str, kind: str) -> dict | None:
     return next((m for m in found if m["kind"] == kind), None)
 
 
-def _listening(inputs, made, step, seed) -> dict:
+def _listening(inputs, made, step, seed, rules=None) -> dict:
     """The unit's checked dialogue, heard; or heard items (sounds, numbers) at
     the start; or dictation. The transcript is shown after the answers."""
     source = step.detail.get("material")
@@ -299,44 +308,64 @@ def _listening(inputs, made, step, seed) -> dict:
     return {"kind": "dictation", **dictation_next(count=step.count, seed=seed)}
 
 
-def _reading(inputs, made, step, seed) -> dict:
+def _reading(inputs, made, step, seed, rules=None) -> dict:
     found = _material(made.unit, "tekst")
     if not found:
-        return _listening(inputs, made, step, seed)
+        return _listening(inputs, made, step, seed, rules)
     return {"kind": "material", "material": found,
             "questions": found["questions"][:step.count]}
 
 
-def _speaking(inputs, made, step, seed) -> dict:
-    """Sentences to repeat after the recording, then questions to answer."""
+def _speaking(inputs, made, step, seed, rules=None) -> dict:
+    """Sentences to repeat after the recording, then questions to answer. The
+    sentences are the unit's checked dialogue; at the start, EKI's A1 phrase
+    collection; otherwise the topic's own sentences, credited where they come
+    from a source."""
     import random
 
+    from ..licences import credit
     from ..speaking import bank
 
-    shadow: list[str] = []
+    rng = random.Random(seed)
+    shadow: list[dict] = []
     found = _material(made.unit, "dialoog")
     if found:
-        shadow = [t["text"] for t in found["turns"] if 3 <= len(t["text"].split()) <= 10]
+        shadow = [{"text": t["text"], "attribution": f"{found['label']} ({found['engine']})"}
+                  for t in found["turns"] if 3 <= len(t["text"].split()) <= 10]
+    if not shadow and inputs.stage == "algus":
+        from ..practice import items_for
+
+        try:
+            said = items_for("fraasid", count=12, seed=seed)
+        except (ValueError, RuntimeError, KeyError):
+            said = []
+        shadow = [{"text": i.answer, "attribution": credit(getattr(i, "source_id", "")) or ""}
+                  for i in said if i.answer and "____" not in i.answer]
     if not shadow and made.topic:
         from ..lessons import examples
 
         try:
-            shadow = [r["before"] + r["answer"] + r["after"]
-                      for r in examples(made.topic, count=6, seed=seed)]
+            rows = examples(made.topic, count=8, seed=seed)
         except Exception:  # noqa: BLE001 - no frames: the step keeps its task
-            shadow = []
-    rng = random.Random(seed)
+            rows = []
+        shadow = [{"text": (r["before"] + r["answer"] + r["after"]).strip(), "attribution": ""}
+                  for r in rows if ":" not in r["before"] and 3 <= len((r["before"] + r["answer"] + r["after"]).split())]
     rng.shuffle(shadow)
+    seen, unique = set(), []
+    for row in shadow:
+        if row["text"] not in seen:
+            seen.add(row["text"])
+            unique.append(row)
     tasks = [q for q in bank() if q.kind == "vestlus"]
     rng.shuffle(tasks)
     return {"kind": "speaking",
-            "shadow": shadow[:step.detail.get("shadow", 1)],
+            "shadow": unique[:step.detail.get("shadow", 1)],
             "tasks": [{"question": q.question, "topic": q.topic, "hint_ru": q.hint_ru}
                       for q in tasks[:step.detail.get("tasks", 0)]],
             "level": "B1" if inputs.stage == "B1" else "A2"}
 
 
-def _writing(inputs, made, step, seed) -> dict:
+def _writing(inputs, made, step, seed, rules=None) -> dict:
     """One writing task in HARNO's format (A2's below B1), checked by code first."""
     import random
 
@@ -349,7 +378,7 @@ def _writing(inputs, made, step, seed) -> dict:
             "prompts_by": PROMPTS_BY}
 
 
-def _check(inputs, made, step, seed) -> dict:
+def _check(inputs, made, step, seed, rules=None) -> dict:
     """The exit check: items from the unit's topics so far, no hints, counted
     once; in a unit's fifth session the unit check itself."""
     if step.detail.get("unit_check"):
@@ -375,7 +404,7 @@ def _check(inputs, made, step, seed) -> dict:
     items: list[dict] = []
     for n, topic in enumerate(topics or ([made.topic] if made.topic else [])):
         share = step.count - len(items) if n == len(topics) - 1 else max(1, step.count // len(topics))
-        items += _items(topic, share, seed + n)
+        items += _items(topic, share, seed + n, rules if topic == made.topic else None)
     return {"kind": "items", "items": items[:step.count], "no_hints": True,
             "glosses": _glosses_for([it.get("lemma", "") for it in items])}
 
@@ -497,6 +526,16 @@ def session_step_done(step: str, req: StepDone) -> dict:
 # --------------------------------------------------------------------------
 # Onboarding: the goal, sessions a week, and the placement check
 # --------------------------------------------------------------------------
+
+@router.get("/api/session/languages")
+def explanation_languages() -> dict:
+    """The explanation languages onboarding offers, each with what choosing it
+    means today, in its own language."""
+    from .. import session
+
+    return {"languages": [{"id": i, "name": name, "note": note}
+                          for i, name, note in session.LANGUAGES]}
+
 
 class GoalIn(BaseModel):
     goal: str

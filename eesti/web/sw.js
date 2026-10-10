@@ -32,7 +32,7 @@ const ASSETS = [
   "/js/vocab.js", "/js/voice.js", "/js/reading.js", "/js/listen.js", "/js/speak.js",
   "/js/exam.js", "/js/mock.js", "/js/offline.js", "/js/write.js", "/js/sources.js",
   "/js/remind.js", "/js/icons.js", "/js/words.js", "/js/lesson.js",
-  "/js/dictionary.js",
+  "/js/dictionary.js", "/js/session.js",
   "/fonts/geologica-latin.woff2", "/fonts/geologica-latin-ext.woff2",
   "/fonts/geologica-cyrillic.woff2",
 ];

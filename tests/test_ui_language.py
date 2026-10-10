@@ -555,14 +555,16 @@ class TestEachLabelIsReadInItsLanguage:
 
     def test_every_estonian_label_is_marked_estonian(self, trees):
         """Latin text in a button, summary, form label, option, link, heading or
-        tag is an Estonian label, unless it is a code no voice mispronounces."""
+        tag is an Estonian label, unless it is a code no voice mispronounces, or
+        an element marked English says so itself (onboarding's *English*, the
+        language's own name)."""
         wrong = []
         for where, tree, default in trees:
             for text, parent in _texts(tree.root):
                 if not LATIN.search(text) or CYRILLIC.search(text) or _neutral(text):
                     continue
                 if _nearest(parent, _is_label) and not _in_gloss(parent) \
-                        and _lang(parent, default) != "et":
+                        and _lang(parent, default) not in ("et", "en"):
                     wrong.append(f"{where}: <{parent.tag}> {_show(text)!r}")
         assert not wrong, ("an Estonian label read in a Russian voice:\n  "
                            + "\n  ".join(sorted(set(wrong))))

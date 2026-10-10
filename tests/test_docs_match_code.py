@@ -189,6 +189,9 @@ class TestTheModeStructure:
             r'data-tab="[a-z]+"[^>]*>.*?<span class="lbl"[^>]*>([^<]+)', html, re.S)}
         header = html[html.index('<header class="spine">'):]
         header = header[:header.index('</header>')]
+        # *Peata* stands in for the mark during a session: the session's own
+        # control, back to Täna, not a destination of its own.
+        header = re.sub(r'<a class="hdr-pause".*?</a>', "", header, flags=re.S)
         destinations = {label.strip() for label in re.findall(
             r'<a[^>]*href="#[a-z]+"[^>]*lang="et"[^>]*>([^<]+)', header)}
         account = re.search(r'aria-label="([^—]+) —[^\"]*"[^>]*id="accountBtn"', header)

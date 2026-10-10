@@ -156,7 +156,7 @@ export function taskLine(it, ru, opts) {
 }
 
 /* The task of an item that is not a form to produce (unit 1). */
-const TASK_RU = {
+export const TASK_RU = {
   "sõnadega": "Напиши число словами.",
   "numbritega": "Послушай и напиши число цифрами.",
   "kuula": "Послушай и выбери, что прозвучало.",
@@ -180,7 +180,7 @@ const FORM_RU = {
 /* The Russian gloss of a form name: the item's own reading of it when the server
    gave one (`form_ru`), else each term's from the fixed list above. One gloss per
    term, the same in the instruction and under the word. */
-function formGloss(it, name) {
+export function formGloss(it, name) {
   if (it.form_ru) return it.form_ru;
   return name.split(", ").map(term => FORM_RU[term]).filter(Boolean).join(", ");
 }

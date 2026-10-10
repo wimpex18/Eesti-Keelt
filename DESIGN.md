@@ -254,9 +254,9 @@ This is the specification of the Klint redesign: the target for every screen
 rebuilt from now on. The tokens and the shell ship: `eesti/web/app.css` defines
 this record's roles for both themes and every rule reads them, and the header,
 sidebar, dock, action bar and sheets are built (steps 1 and 2 of
-**Migration**). The Reegel page is rebuilt to this record (step 4); the other
-screens keep their earlier layouts on the new ground until their own step
-rebuilds them. The audit of the screens, the
+**Migration**). Täna and the session (step 3) and the Reegel page (step 4) are
+rebuilt to this record; the other screens keep their earlier layouts on the new
+ground until their own step rebuilds them. The audit of the screens, the
 references and the reasons behind each decision are in
 [design research](docs/design-research.md).
 
@@ -637,11 +637,14 @@ Browse                         Act                            Task
   four small squares in the four skills' colours.
 - A screen names its primary by `data-primary` on the button, and the shell
   sets that button in the action bar (it keeps its place in the screen's
-  markup and Tab order). Today Täna (*Alusta*), Kirjutamine and Kuulamine
-  (*Kontrolli*) do. A screen enters the task state by holding a rendered
-  `data-dock-task` element (S8's session item while it awaits an answer); a
-  focused text field with the keyboard up does the same. With no primary, the
-  task row holds the skills key alone, so the four skills stay one tap away.
+  markup and Tab order): Täna (*Jätka*), the session (*Kontrolli*, *Edasi*),
+  onboarding (*Edasi*), a rule (*Harjuta*), a Sõnastik entry, Kirjutamine and
+  Kuulamine. A screen enters the task state by holding a rendered
+  `data-dock-task` element (the session's item while it awaits an answer or
+  shows its correction); a focused text field with the keyboard up does the
+  same. With no primary, the task row holds the skills key alone, so the four
+  skills stay one tap away. Where speech input is available the microphone key
+  sits between the skills key and the primary.
 - The dock is opaque `sheet` with a `line` top rule; no blur, no shadow.
 - Kursus, Kordamine, Eksam, Sõnavara, Sõnastik, Töövihikud, Edenemine, Profiil and the
   appearance switch (*Süsteem*, *Hele*, *Tume*) live in **Veel**, a sheet
@@ -668,8 +671,8 @@ field triggers the primary.
   the right. The page title stays the first heading of the content: it is the
   page's own heading, which a screen reader and the screens' journeys find
   there, and repeating it in the header would either read it twice or hide
-  the real one. During a session the left control is **Peata** ("пауза";
-  progress is kept), which S8 places.
+  the real one. During a session **Peata** ("пауза"; progress is kept) takes
+  the mark's place at the left; on a desktop it heads the session's column.
 - Desktop: no header bar; the page title is the first element of the content
   column (Title role). The sidebar holds Klint, then Täna, Kursus, Kordamine
   (with its due count), Eksam; then *Oskused* and the four skills; then Veel,
@@ -756,16 +759,17 @@ once; the form line is not announced a second time.
 
 ## Practice rhythm
 
-The item rhythm is unchanged in substance and is now one state machine shared
-by guided practice, the rule walk's ask step, review and the exit check. ADR-0009
-adds the retry: a first miss gets one retry with a hint; only the first attempt
-counts for mastery and FSRS.
+The item rhythm is one state machine shared by the session's steps (`eesti/web/js/session.js`): the
+rule step's choices, guided practice, words, review cards, the questions on a
+heard or read text, and the exit check. ADR-0009 adds the retry: a first miss
+gets one retry with a hint; only the first attempt counts for mastery and FSRS.
 
 ```
           type / choose                Kontrolli
  Awaiting ───────────────▶ Ready ─────────────────▶ Checking
     ▲                                                 │
-    │ Proovi veel (first miss, guided practice only)  ├─ right ──────────▶ Right ─┐
+    │ Proovi veel (first miss, typed, guided practice ├─ right ──────────▶ Right ─┐
+    │ and words only)                                 │                           │
     └──────────────────────── Hint ◀─ first miss ─────┤                           │
                                                       └─ second miss ───▶ Revealed┤
  Jäta vahele (any time before Checking) ─────────────────────────────▶ Skipped ───┤
@@ -774,21 +778,40 @@ counts for mastery and FSRS.
 
 | State | Primary action | Correction region | Notes |
 |---|---|---|---|
-| Awaiting | **Kontrolli** "проверить", disabled until there is an answer | Empty, reserved | Disabled primary keeps the ink fill at 40 % opacity with its label; it never looks like a second button. |
-| Checking | **Kontrollin…** after 300ms | Unchanged | Field and choices locked; no spinner. |
-| Right | **Edasi** "дальше" | *Õige* "верно", the reason if the topic hides its form until now | The bead becomes a filled moss disc. |
-| Hint (first miss) | **Kontrolli** | *Proovi veel* "попробуй ещё раз" and the hint from code | Field keeps the value, selected for editing. Exit check and review skip this state. |
-| Revealed | **Edasi** | *Pole õige* "неверно", *Sinu vastus* with the learner's answer struck through, the reason, **Miks?** and **Reegel** | The sentence shows the key with its form line; the bead becomes a slashed cranberry ring. |
+| Awaiting | **Kontrolli** "проверить", off until there is an answer | The sentence's support only (its translation, or *Tõlge* on request) | Off is the ink fill at 40 % with its label and `aria-disabled`; it never looks like a second button. The form line under the gap is the lemma and its meaning, never the form's name. |
+| Checking | **Kontrollin…** after 300ms | Unchanged | Field read-only, choices locked; no spinner. |
+| Right | **Edasi** "дальше" | A tick and *Õige* "верно"; the reason where a choice hid the form until now | The word wears a moss bar and its form line names the form; the bead becomes a filled moss disc. |
+| Hint (first miss) | **Kontrolli** | *Proovi veel* "попробуй ещё раз" and one sentence from code | The answer stays, selected for editing; the key is not sent to the page. Only typed items in guided practice and words: a choice has nothing left to choose, and review and the exit check count once. The bead is already the slashed ring: the first attempt was wrong. |
+| Revealed | **Edasi** | A cross and *Pole õige* "неверно", *Sinu vastus* struck through, then **Miks?** and **Reegel**, then the reason | The key at the word with a cranberry bar and its form line; the bead a slashed cranberry ring. |
 | Skipped | **Edasi** | *Vahele jäetud* "пропущено, без оценки" | A dash bead; no grade, no mastery. |
 
-The correction region is reserved at 150px under the sentence (it scrolls
+**The hint is code's.** In order: the dictionary form typed where the sentence
+needs another form; another real form of the right word (Vabamorf reads it as
+the lemma), with the first sentence of the rule the item is keyed by; a slip of
+one or two letters near the key, "проверь окончание" or "основу"; else that
+rule, or the form asked for. A rule sentence that spells the key is never
+offered (`session.hint`).
+
+**A choice** fills the gap when chosen and is checked with *Kontrolli*; after
+the check the chosen row says what became of it: a moss tick where it was
+right, struck through with a cranberry cross where it was not.
+
+**A set answered whole** (the unit check, a test-out) keeps the same item and
+primary, but its *Kontrolli* records the answer without a verdict (a neutral
+`ink-2` bead, "vastatud") and the last one reads *Valmis*: the server grades the
+set from its seed (ADR-0007), then every item is listed with the key at the
+word.
+
+The correction region is reserved at 200px under the sentence (it scrolls
 inside itself when longer) so the primary action and the sentence never move
-between states. Under the reason, a muted line says what checked the answer:
-*Kontrollis kood: Vabamorf ja ülesande võti* "проверено кодом". A model's
-explanation (**Miks?**, Claude Haiku 5.5 per ADR-0008) appears below that in a
-block with a dashed `edge` outline and the label *Selgitab mudel, ei hinda*
-"объясняет модель, не оценивает", with the engine named. Nothing a model writes
-uses `good` or `bad`.
+between states; *Miks?* and *Reegel* sit right under the verdict and the
+learner's answer, so they are in the same place on every item (WCAG 3.2.6)
+whatever the length of the reason. In the action row, a muted line says what
+checked the answer: *Kontrollis kood* "проверено кодом: Vabamorf и ключ задания".
+A model's explanation (**Miks?**, Claude Haiku 5.5 per ADR-0008, in the
+explanation language) appears under the help row in a block with a dashed
+`edge` outline and the label *Selgitab mudel, ei hinda* "объясняет модель, не
+оценивает", with the engine named. Nothing a model writes uses `good` or `bad`.
 
 ## Screens
 
@@ -832,22 +855,37 @@ Phone 390                                   Desktop 1280
 └──────────────────────────────────┘
 ```
 
-- **Hero:** the first notice examples of today's rule step, display size, with
-  the forms to notice underlined in ink and **no form names** (the learner
-  chooses first; ADR-0009). A one-sentence Russian question built from a
-  template names the two forms; it states no rule. If today's session has no
-  rule step, the hero is the unit's title and goal.
-- **Plan:** the seven steps in order with what each holds, the current one
-  marked by an ink dot. A step done today is `muted` with a check.
+- **Hero:** the rule step's sentences to notice (a topic with a rule walk), at
+  display size, the forms underlined in ink and **no form names** (the learner
+  chooses first; ADR-0009), then the walk's question, which names the forms and
+  states no rule. Without a walk, or once the rule step is done, the hero is
+  the unit's title and goal. Built from `session.notice`, without generating
+  the walk's items, so Täna stays light.
+- **Plan:** *Tänane tund* with the unit, the session's place in the unit's
+  five and its emphasis (*блок 10, занятие 1 из 5: правило*), then the steps in
+  order, each with its name, gloss and a count in Estonian (*8 ülesannet*,
+  *4 sõna*: the singular after one, Vabamorf's singular partitive after more).
+  The current step is an ink dot, a step done today a muted tick, a step to
+  come an `edge` ring. A step with nothing to do (no card due) is not listed.
 - **Alternatives:** *Või* "или", then two links in `jarv`, each with its reason
-  from code on the line below. They are links, not buttons: one primary.
-- **Primary:** **Jätka** "продолжить", with the estimated minutes in the gloss.
-  When today's session is done, the hero reports what was done and the primary
-  becomes the next task code chose, with its reason as the gloss line under the
-  hero.
+  from code on the line below (`session.next_task`): review when cards wait, a
+  remediation after a failed unit check, an exam task with a sitting near, the
+  exam part practised least recently, the weakest rule. There are always two.
+- **Primary:** **Jätka** "продолжить, 26 мин". When today's session is done,
+  the hero says so and what was done, and the primary becomes the next task
+  code chose, with its reason under the hero.
 - Removed from today's screen: the generic page title "Õpime eesti keelt", the
-  starting-point link (moves to Profiil and Kursus), the note restating that
+  starting-point link (moved to Kursus and Profiil), the note restating that
   skills exist.
+- Onboarding (`#start`) asks four questions, each on its own screen with one
+  primary, *Edasi*: the explanation language (preselected from
+  `navigator.languages`, with what the choice means today said in that
+  language), the goal (*Igapäevaelu*, *Töö*, *A2 eksam*, *B1 eksam*), the
+  starting point (from the beginning; a chosen stage; or *Proovin ennast*, at
+  most twelve code-graded items, three a unit, placing by unit and mastering
+  nothing), and sessions a week. *Alusta* opens today's session: the first
+  task is a few taps away. The exam sitting and the reminders are offered at
+  the end of the first session, never before.
 
 ### Kursus (`#course`)
 
@@ -892,7 +930,7 @@ Phone 390                                   Desktop 1280 (880px list)
 - **Primary:** **Jätka** for the current unit. Free practice and the offline
   pack sit behind the segmented control and a disclosure, as now.
 
-### The session (`#session/<topic>`)
+### The session (`#session`, `#session/<topic>`)
 
 ```
 Phone 390, awaiting                  Phone 390, revealed               Desktop 1280, revealed
@@ -906,28 +944,34 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
 │ Ta ei leidnud [        ].      │   │ Ta ei leidnud rahakotti.       │ │        │ │ Ta ei leidnud rahakotti.       │ │
 │               rahakott кошелёк │   │               ‾‾‾‾‾‾‾‾‾        │ │        │ │               ‾‾‾‾‾‾‾‾‾        │ │
 │ ────────────────────────────── │   │               osastav частич…  │ │        │ │               osastav частич…  │ │
-│                                │   │ ────────────────────────────── │ │        │ │ ────────────────────────────── │ │
-│   (correction region, 150px,   │   │ ✕ Pole õige  неверно           │ │        │ │ ✕ Pole õige  неверно           │ │
-│    reserved and empty)         │   │ Sinu vastus  ~~rahakott~~      │ │        │ │ Sinu vastus  ~~rahakott~~      │ │
+│ [Tõlge перевод предложения]    │   │ ────────────────────────────── │ │        │ │ ────────────────────────────── │ │
+│   (correction region, 200px,   │   │ ✕ Pole õige  неверно           │ │        │ │ ✕ Pole õige  неверно           │ │
+│    reserved)                   │   │ Sinu vastus  ~~rahakott~~      │ │        │ │ Sinu vastus  ~~rahakott~~      │ │
+│                                │   │ [Miks? объясни] [Reegel]       │ │        │ │ [Miks?] [Reegel]               │ │
 │                                │   │ После «ei» объект всегда в     │ │        │ │ После «ei» объект всегда в     │ │
 │                                │   │ osastav (частичный падеж)…     │ │        │ │ osastav (частичный падеж)…     │ │
-│                                │   │ [Miks? объясни] [Reegel]       │ │        │ │ [Miks?] [Reegel]               │ │
 │ Jäta vahele  пропустить        │   │ Kontrollis kood: Vabamorf…     │ │        │ │ ─────────────────────────────  │ │
 ├────────────────────────────────┤   ├────────────────────────────────┤ │        │ │ Kontrollis kood…     [ Edasi ] │ │
 │ [⊞] [🎙] [   Kontrolli       ] │   │ [⊞] [        Edasi           ] │ │        │ └────────────────────────────────┘ │
 └────────────────────────────────┘   └────────────────────────────────┘ └────────┴────────────────────────────────────┘
 ```
 
-- **Session line:** seven segments for ADR-0009's steps, grouped under the
+- **Routes:** `#session` is today's session; `#session/<topic>` is a session on
+  one topic (its rule, practice and a short check), opened by Kursus' *Õpi*, a
+  remediation, the weakest rule or a rule page's *Harjuta*, which starts it at
+  practice. Kursus' test-out and unit check run in the same screen as a set
+  answered whole.
+- **Session line:** a segment per step of today's session, grouped under the
   three phase labels: **Õpi** (Kordamine, Reegel), **Harjuta** (Harjutamine,
-  Sõnad, Kuulamine, Rääkimine), **Kontrolli** (Kontroll). Segments are 3px
-  apart within a phase and 8px between phases. Done segments are `ink-2` and
-  2px high on the line's baseline; the current segment is `ink` at the full
-  6px; segments to come are `sunk` at 6px. The current step is the only tall
-  dark segment, so shape tells it apart as well as tone (`ink` against `ink-2`
-  alone is about 1.7:1). The current segment has `aria-current="step"` and the
-  line's accessible name says "Samm 3/7: Harjutamine". When a step begins, its
-  name appears once as the bench's heading; it is not repeated on every item.
+  Sõnad, Kuulamine or Lugemine, Rääkimine or Kirjutamine), **Kontrolli**
+  (Kontroll). Segments are 3px apart within a phase and 8px between phases; a
+  phase is as wide as its steps' share and never narrower than its label (the
+  gloss under the name on a phone), so nothing is cut. Done segments are
+  `ink-2` and 2px high on the line's baseline; the current segment is `ink` at
+  the full 6px and fills from the left when its step begins; segments to come
+  are `sunk` at 6px. The current segment has `aria-current="step"` and the
+  line's accessible name says "Samm 3/7: Harjutamine". A step's name appears
+  once as the bench's heading when it begins.
 - **Beads:** one bead per item of the current step, each in a 12px cell so a
   change of shape moves nothing. Every state has its own shape, which also
   survives forced colours:
@@ -937,36 +981,58 @@ Phone 390, awaiting                  Phone 390, revealed               Desktop 1
   | Right | Filled 8px disc, `good` |
   | Wrong | 8px ring (2px) with a diagonal stroke, `bad` |
   | Skipped | 8×2px dash, `muted` |
+  | Answered (a set graded whole) | Filled 8px disc, `ink-2` |
   | Current | 10px ring (2px), `ink` |
   | To come | 8px ring (1px), `edge` |
 
   The beads are a list; each item's accessible text gives its position and
   result ("Ülesanne 2/10, pole õige"; "Ülesanne 4/10, vahele jäetud"), and the
   current one carries `aria-current="step"`.
-- **Instruction:** one Russian sentence (body, `ink-2`). The lemma is not
-  repeated in it: it is under the gap.
+- **Instruction:** one sentence in the explanation language (body, `ink-2`). It
+  names the form asked for where producing it is the task (*Впиши форму:
+  osastav — частичный падеж*), names nothing on a choice, and never repeats
+  the lemma: it is under the gap.
 - **The gap is the field.** The answer is typed in the sentence: an inline
-  input with `field-sizing: content` (Baseline since June 2026) and a minimum
-  of 6ch, with the `size` attribute updated from the value as a fallback.
-  Choice items show choices as full-width rows under the sentence (radio
-  semantics; selecting fills the gap); tile items keep the line-and-bank
-  construction with tap only (no drag requirement, WCAG 2.5.7).
-- **Tõlge** (the on-demand translation) moves out of the way of the answer:
-  a secondary button in the correction region before a check, labelled with
-  its engine when shown.
-- **Microphone:** a 52px key in the task row when speech input is available;
-  recording turns the key `bad` with a static dot and an elapsed-time counter.
-- **Jäta vahele** is a secondary button at the bottom-left of the bench
-  (desktop) or at the end of the correction region (phone), never beside the
-  primary.
-- **Bench:** desktop only. On phones the screen is the surface.
-- **Step intros** (Kuulamine, Rääkimine): the bench heading, one sentence of
-  purpose, then the step's own content with the same primary location. The
-  exit check states that it has no hints and counts once.
-- **Session end:** a summary on the ground: what was done per step in plain
-  counts, missed items as a short list of interlinear corrections, the next
-  task code chose with its reason as the primary, two alternatives as links.
-  No score theatre: the exit check result is "4/5", nothing larger.
+  input with `field-sizing: content` and a minimum of 6ch, the `size`
+  attribute following the value as a fallback; under it the lemma and its
+  meaning (for a word to recall, the meaning alone). Choice items show their
+  choices as full-width rows under the sentence (radio semantics, arrows move
+  and select; choosing fills the gap); tile items keep the line and the bank,
+  tap only (WCAG 2.5.7).
+- **Tõlge** (the on-demand translation) waits in the correction region before a
+  check, labelled with its engine when shown; an item that carries its own
+  translation (an EKI phrase) shows that instead.
+- **Microphone:** a 52px key in the task row between the skills key and the
+  primary when speech input is available; it fills the field with what was
+  heard, for the learner to check before *Kontrolli*.
+- **Jäta vahele** is a text action at the left of the action row (desktop) or
+  at the end of the bench (phone), never beside the primary.
+- **Bench:** desktop only, 720px of `sheet`. On phones the screen is the surface.
+- **Steps.** *Kordamine*: due cards and yesterday's misses; a grammar card is
+  answered like an item, a meaning card is shown (*Näita*), then rated by the
+  learner on three rows. *Reegel*: the sentences to notice, then six to ten
+  choices between two forms with the form unnamed, then *Miks nii*: the
+  sourced gist, the walk's model-written explanation in its block, the
+  wrong/right pairs and three sourced points with the sources linked.
+  *Harjutamine*: blocked, then *Nüüd segamini* "теперь вперемешку" with the
+  contrasting topic. *Sõnad*: a unit's word in EKI's phrase, recalled from its
+  meaning; the first right recall puts it in review. *Kuulamine*: the unit's
+  checked dialogue read by two voices, questions answered in words from it, the
+  transcript after; at the start EKI's heard sounds and numbers; elsewhere
+  dictation. *Lugemine*: the unit's checked text with its questions.
+  *Rääkimine*: sentences to repeat after the recording, then a question
+  answered aloud (or typed), the transcript confirmed (*Kinnita*), what code
+  counted, then the model's comments. *Kirjutamine*: a task in HARNO's format,
+  code's checklist (a tick or a cross per point), then the model's comments.
+  The model's comments sit in the model block, each naming HARNO's criterion,
+  quoting the learner's words and linking the handbook page; never a score.
+  *Kontroll*: three to five items with no hints, counted once; in a unit's
+  fifth session the unit check.
+- **Session end:** on the bench: what was done per step in plain counts
+  (*4/5*), the misses as interlinear corrections, the next task's reason with
+  the next task as the primary, two alternatives as links. After the first
+  session, *Järgmiseks*: the exam sitting for an exam goal, and where the
+  reminders are. No score theatre.
 
 ### Reegel (`#rule/<topic>`)
 
@@ -1509,8 +1575,9 @@ green on both engines and both viewports.
    `eesti/web/js/chrome.js`). The interlinear word is a component with its
    helper (`interlinear()` in `eesti/web/js/core.js`) for the screens that
    follow.
-3. **Session and Täna** with S8's session (`eesti/web/js/path.js`), including
-   the interlinear word and the state machine.
+3. **Session and Täna**. Done (S8): Täna in `eesti/web/js/path.js`, the session
+   and its state machine in `eesti/web/js/session.js`, onboarding in
+   `eesti/web/js/onboarding.js`, composed by `eesti/session.py`.
 4. **Reegel**. Done (S3): the rule walk and the form switch
    (`eesti/rulewalk.py`, `eesti/web/js/lesson.js`).
 5. **Kursus**, then the skills, Kordamine, Eksam and Profiil.

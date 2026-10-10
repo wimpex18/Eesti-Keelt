@@ -104,10 +104,10 @@ strong,b{font-weight:600}
    prompt stays as sharp as the prompt. */
 [lang="et"]{font-variation-settings:var(--et-cut)}
 [lang="ru"],[lang="uk"],[lang="en"],.ru{font-variation-settings:var(--soft)}
-.prompt,.page-title,.reader-title,.speak-prompt,.fc-word,.lesson-head h2,.next-copy h3,
+.prompt,.page-title,.reader-title,.speak-prompt,.fc-word,.lesson-head h2,.tana-sent,.tana-unit-title,
 #wordCard .lemma,.rail-topic,.brand h1,.il{--et-cut:var(--cut);font-variation-settings:var(--cut)}
 /* Estonian material written without a lang attribute of its own. */
-.task .word,.choice,.verdict ins,.set-missed,.topic-name,.lib-item h4,.prose,.quiz-item p,
+.task .word,.choice,.verdict ins,.set-missed,.topic-name,.lib-item h4,.prose,.quiz-item p,.sess-choice,.gap-field,.sess-answer,
 .vocword .w,#dictTyped,#dictOut,.vestlus-me,.vestlus-them,.write-stage textarea,
 .drill input[type=text],.mock-task input[type=text],.topic .name,.lesson-examples,
 .lesson-table td,.word-forms > span{font-variation-settings:var(--et-cut)}
@@ -1395,16 +1395,6 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .practice-instruction{margin:0 0 var(--s3);color:var(--ink)}
 .practice-meaning{margin:var(--s2) 0 var(--s4)}
 .practice-meaning p{margin:var(--s2) 0 0}
-.next-lesson{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s6);align-items:center;background:var(--sheet);
-  border-radius:var(--r-3);padding:var(--s6);margin-bottom:var(--s5)}
-.next-copy h3{font-size:var(--t-title);margin:0 0 var(--s2);max-width:22ch;line-height:1.15}
-.next-copy #pathOf{color:var(--muted);font-size:var(--t-note);margin-bottom:var(--s5)}
-.lesson-purpose{margin-bottom:0}
-.next-action{display:flex;flex-direction:column;align-items:stretch;gap:var(--s4);max-width:220px;text-align:center}
-.home-links{display:flex;gap:var(--s5);padding:var(--s4) 0;border-bottom:1px solid var(--line);margin-bottom:var(--s5)}
-.home-links a{min-height:44px;text-decoration:none;font-weight:600}
-.home-links .ru{display:block;color:var(--muted);font-weight:400}
-.home-note{color:var(--muted);font-size:var(--t-note);max-width:64ch}
 .start-content{max-width:700px}.start-content>p{color:var(--muted);margin:var(--s4) 0 var(--s5)}
 .start-routes{display:flex;flex-direction:column;border-top:1px solid var(--line);margin:var(--s6) 0 var(--s5)}
 .start-route{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2);text-align:left;padding:var(--s5) var(--s3);
@@ -1417,19 +1407,6 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .placement-task .hint{display:block;margin-top:var(--s1)}
 .placement-review{margin:var(--s3) 0;padding-left:var(--s5)}
 .placement-review li{margin-bottom:var(--s2)}
-.lesson-steps{list-style:none;display:flex;gap:var(--s5);padding:0;margin:var(--s5) 0 var(--s6);border-bottom:1px solid var(--line)}
-.lesson-steps li{padding:0 0 var(--s3);color:var(--muted);font-size:var(--t-body);flex:1}
-.lesson-steps li>span{display:block;font-size:var(--t-gloss)}
-.lesson-steps li[aria-current]{color:var(--ink);box-shadow:0 2px var(--ink);font-weight:600}
-.session-heading>a{display:inline-block;margin-bottom:var(--s4)}
-.session-options{margin:0 0 var(--s3)}
-.lesson-copy{background:var(--sheet);border-radius:var(--r-3);padding:var(--s6);max-width:76ch}
-.lesson-gist{font-size:var(--t-lead);line-height:1.5}
-.lesson-copy li{margin-bottom:var(--s3)}
-.lesson-examples{padding:var(--s4) 0;border-block:1px solid var(--line);margin:var(--s5) 0;font-size:var(--t-reading)}
-.lesson-examples p:last-child{margin-bottom:0}
-.lesson-source{font-size:var(--t-note);color:var(--muted);margin-bottom:var(--s3)}
-.lesson-actions{display:flex;align-items:center;gap:var(--s5);flex-wrap:wrap;margin:var(--s5) 0}
 .stage{background:var(--sheet);border-radius:var(--r-3);padding:var(--s5);border:0;box-shadow:none;overflow:visible;margin:var(--s4) 0}
 .stage-top{padding:0 0 var(--s4)}
 .drill{padding:var(--s5) 0;border:0;box-shadow:none;background:transparent}
@@ -1502,27 +1479,14 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 .mock-review{margin:var(--s3) 0;padding-left:var(--s5)}
 .mock-review li{margin-bottom:var(--s2)}
 @media (max-width:1079px){
-  .next-lesson{grid-template-columns:1fr;padding:var(--s6)}
-  .next-action{max-width:none;align-items:flex-start}
-  .topic{grid-template-columns:80px minmax(0,1fr)}
+      .topic{grid-template-columns:80px minmax(0,1fr)}
   .topic .acts{grid-column:2;grid-row:3;justify-content:flex-start}
 }
 @media (max-width:719px), (hover:none) and (max-height:559px){
   .page-head{display:flex;margin-bottom:var(--s5)}
   .page-title{display:block;font-size:var(--t-prompt)}
   .page-title .ru{display:block}
-  .next-lesson{padding:var(--s5);gap:var(--s5);margin-bottom:var(--s4)}
-  .next-copy h3{font-size:var(--t-prompt)}
-  .next-copy #pathOf{margin-bottom:var(--s4)}
-  .next-action{align-items:stretch;gap:var(--s2)}
-  .home-links{gap:var(--s5)}
-  .home-links a{flex:1;font-size:var(--t-note)}
-  .lesson-copy{padding:var(--s5)}
-  .lesson-gist{font-size:var(--t-reading)}
-  .lesson-steps{gap:var(--s3);margin:var(--s4) 0 var(--s5)}
-  .lesson-steps li{font-size:var(--t-note)}
-  .lesson-actions{flex-direction:column;align-items:stretch;gap:var(--s2)}
-  .stage{padding:var(--s4);margin:var(--s4) 0}
+                        .stage{padding:var(--s4);margin:var(--s4) 0}
   .drill .row{flex-wrap:wrap}
   .drill .row input{flex:1;min-width:100px;max-width:100%}
   .drill .task-line{flex-basis:100%}
@@ -1542,16 +1506,281 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
   .page-head{margin-bottom:var(--s3)}
   .page-title .ru{display:inline;margin-left:var(--s2);font-size:var(--t-note)}
   .page-date{display:none}
-  .next-lesson{padding:var(--s4);gap:var(--s3);grid-template-columns:minmax(0,1fr) auto}
-  .next-copy #pathOf{margin-bottom:var(--s2)}
-  .lesson-purpose{display:none}
-  .next-action{min-width:170px}
-  .lesson-steps{margin:var(--s3) 0}
-  .stage{margin:var(--s3) 0;padding:var(--s3)}
+            .stage{margin:var(--s3) 0;padding:var(--s3)}
   .writing-prompt p{display:none}
   .write-stage textarea{min-height:100px;height:110px}
-  .lesson-copy{padding:var(--s4)}
+  }
+
+/* ── Täna (DESIGN.md, Täna) ───────────────────────────────────────
+   The session's front door: today's first sentences to notice at display size,
+   the forms underlined and not named; the plan of steps; two alternatives as
+   links with their reasons; one Jätka. Two columns on a desktop. */
+.tana{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s6)}
+.tana-head{display:flex;flex-direction:column;gap:var(--s1)}
+.tana-head .page-title{margin:0}
+.tana-head .page-title .ru{display:inline;margin-left:var(--s2);font-size:var(--t-body)}
+.tana-head .page-date{margin:0;color:var(--ink-2)}
+.tana-hero{min-height:9rem}
+.tana-notice{display:flex;flex-direction:column;gap:var(--s3)}
+.tana-sent{margin:0;font-size:var(--t-display);font-weight:500;line-height:1.15;letter-spacing:-.02em;max-width:none;overflow-wrap:break-word}
+.tana-sent .il{white-space:normal}
+.tana-unit-title{margin:0;font-size:var(--t-display);font-weight:500;line-height:1.15;letter-spacing:-.02em}
+.tana-done{margin:0;font-size:var(--t-title);font-weight:600;line-height:1.15}
+.tana-done .ru{display:block;margin-top:var(--s1);font-size:var(--t-body)}
+.tana-lead{margin:var(--s5) 0 0;font-size:var(--t-lead);line-height:1.4;max-width:34ch}
+.tana-lead em[lang="et"]{font-weight:600}
+.tana-why{margin:var(--s4) 0 0;color:var(--ink-2)}
+.tana-why:empty{display:none}
+.tana-act{display:flex;justify-content:flex-end;margin-top:var(--s6)}
+.tana-plan h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--s2);margin:0;font-size:var(--t-body);font-weight:600;letter-spacing:0}
+.tana-plan h3 .ru{margin:0}
+.tana-unit{margin:var(--s1) 0 var(--s3);font-size:var(--t-note);color:var(--ink-2)}
+.tana-unit .ru{display:block}
+.tana-steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.tana-step{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:baseline;gap:var(--s2);min-height:44px;
+  padding:var(--s2) 0;border-bottom:1px solid var(--line)}
+.tana-step-name{font-weight:600}
+.tana-step-name .ru{display:inline;margin-left:var(--s1)}
+.tana-step-count{font-size:var(--t-note);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* The current step is an ink dot; a done step is muted with a tick; to come, a ring. */
+.tana-dot{width:10px;height:10px;border-radius:50%;border:1px solid var(--edge);align-self:center}
+.tana-step[data-state="current"] .tana-dot{background:var(--ink);border-color:var(--ink)}
+.tana-step[data-state="done"] .tana-dot{border:0;border-radius:0;width:12px;height:12px;background:var(--muted);
+  -webkit-mask:var(--tick) center/12px no-repeat;mask:var(--tick) center/12px no-repeat}
+.tana-step[data-state="done"] .tana-step-name{color:var(--muted)}
+.tana-or{margin-top:var(--s6)!important}
+.tana-alt{list-style:none;margin:var(--s2) 0 0;padding:0}
+.tana-alt li{padding:var(--s2) 0}
+.tana-alt a{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--s2);min-height:44px;font-weight:600}
+.tana-alt a .ru{display:inline;margin:0}
+.tana-alt-why{margin:0;font-size:var(--t-note);color:var(--ink-2)}
+:root{--cross:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M208.49 191.51a12 12 0 0 1-17 17L128 145l-63.51 63.49a12 12 0 0 1-17-17L111 128 47.51 64.49a12 12 0 0 1 17-17L128 111l63.51-63.52a12 12 0 0 1 17 17L145 128Z'/%3E%3C/svg%3E")}
+:root{--tick:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M232.49 80.49l-128 128a12 12 0 0 1-17 0l-56-56a12 12 0 1 1 17-17L96 183 215.51 63.51a12 12 0 0 1 17 17Z'/%3E%3C/svg%3E")}
+@media (min-width:1024px){
+  .tana{grid-template-columns:minmax(0,1fr) 300px;column-gap:var(--s7);row-gap:var(--s5)}
+  .tana-head{grid-column:1 / -1}
 }
+@media (max-width:719px), (hover:none) and (max-height:559px){
+  .tana{gap:var(--s5)}
+  .tana-sent,.tana-unit-title{font-size:var(--t-title);line-height:1.18}
+  .tana-lead{font-size:var(--t-reading);margin-top:var(--s4)}
+  .tana-act{margin-top:0}
+}
+
+/* ── The session (DESIGN.md, The session) ───────────────────────────
+   A bench on a desktop (the screen itself on a phone): the session line, the
+   beads, the step's heading, the item, the reserved correction region, and the
+   sticky row whose right end holds the one primary. */
+.sess-head{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s1);margin-bottom:var(--s4)}
+.sess-pause{display:inline-flex;align-items:center;gap:var(--s1);min-height:44px;color:var(--ink-2);font-weight:600;text-decoration:none}
+.sess-pause .ru{display:inline;margin-left:var(--s1)}
+.sess-pause::before{content:"";width:16px;height:16px;background:currentColor;
+  -webkit-mask:var(--back) center/16px no-repeat;mask:var(--back) center/16px no-repeat}
+:root{--back:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M168.49 199.51a12 12 0 0 1-17 17l-80-80a12 12 0 0 1 0-17l80-80a12 12 0 0 1 17 17L97 128Z'/%3E%3C/svg%3E")}
+.sess-title{margin:0;font-size:var(--t-lead)}
+.sess-title .ru{display:inline;margin-left:var(--s2);font-size:var(--t-note)}
+.bench{max-width:720px;padding:var(--s6) var(--s6) 0;border-radius:var(--r-3);background:var(--sheet)}
+/* The session line: seven segments under the three phases. The current one is
+   the only tall dark segment, so shape tells it as well as tone. */
+.sess-line ol{list-style:none;margin:0;padding:0}
+.sess-phases{display:flex;gap:var(--s2);align-items:flex-end}
+/* Each phase is as wide as its steps' share, and never narrower than its own
+   label: nothing is cut. */
+.sess-phase{display:flex;flex-direction:column;gap:var(--s1);flex:var(--n,1) 1 0;min-width:min-content}
+.sess-phase-name{font-size:var(--t-gloss);font-weight:600;line-height:1.25;color:var(--ink-2)}
+.sess-phase-name .ru{display:inline;margin-left:var(--s1);white-space:nowrap}
+@media (max-width:719px){.sess-phase-name .ru{display:block;margin:0}}
+.sess-segs{display:flex;gap:3px;align-items:flex-end;height:6px}
+.sess-seg{flex:1;height:6px;border-radius:3px;background:var(--sunk);transform-origin:left}
+.sess-seg[data-state="done"]{height:2px;background:var(--ink-2)}
+.sess-seg[data-state="current"]{background:var(--ink);animation:seg-fill var(--dur-4) var(--ease-standard)}
+@keyframes seg-fill{from{transform:scaleX(0)}}
+/* Beads: one 12px cell each, a shape per state, so a change moves nothing. */
+.sess-beads{display:flex;flex-wrap:wrap;gap:0;list-style:none;margin:var(--s3) 0 0;padding:0;min-height:12px}
+.sess-bead{position:relative;width:12px;height:12px;margin-right:var(--s1)}
+.sess-bead::before{content:"";position:absolute;inset:2px;border-radius:50%;border:1px solid var(--edge)}
+.sess-bead[data-mark="current"]::before{inset:1px;border:2px solid var(--ink)}
+.sess-bead[data-mark="right"]::before{background:var(--good);border-color:var(--good)}
+.sess-bead[data-mark="answered"]::before{background:var(--ink-2);border-color:var(--ink-2)}
+.sess-bead[data-mark="wrong"]::before{border:2px solid var(--bad)}
+.sess-bead[data-mark="wrong"]::after{content:"";position:absolute;left:1px;right:1px;top:50%;height:2px;margin-top:-1px;
+  background:var(--bad);transform:rotate(-45deg)}
+.sess-bead[data-mark="skipped"]::before{inset:5px 2px;border:0;border-radius:1px;background:var(--muted)}
+.sess-step{margin:var(--s5) 0 0;font-size:var(--t-reading);font-weight:600;letter-spacing:0}
+.sess-step .ru{display:inline;margin-left:var(--s2)}
+.sess-step:empty{display:none}
+.sess-body{min-height:12rem;padding:var(--s4) 0 var(--s5)}
+.sess-instr{margin:0 0 var(--s2);color:var(--ink-2)}
+.sess-note{margin:0 0 var(--s3);font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.sess-note .ru{display:inline;margin-left:var(--s1)}
+.sess-sentence,.sess-line,.sess-say-line,.sess-task-et,.sess-question-et,.sess-word{margin:var(--s2) 0 0;font-size:var(--t-title);font-weight:500;
+  line-height:1.4;letter-spacing:-.005em;max-width:none}
+.sess-sentence:has(.il){line-height:2.5}
+.sess-sentence .il-f{animation:none}
+.sess-item:is([data-state="right"],[data-state="revealed"]) .sess-sentence .il-f{animation:rise-in var(--dur-3) var(--ease-enter)}
+/* The gap is the field: typed in the sentence, its form line hanging under it. */
+.gap-field{field-sizing:content;min-width:6ch;max-width:100%;min-height:0;height:auto;padding:2px 10px;margin:0;border:1px solid var(--edge);
+  border-radius:var(--r-2);background:var(--sheet);font:inherit;font-size:1em;line-height:1.2;color:var(--ink);vertical-align:baseline}
+.gap-field:focus{border-color:var(--ink)}
+.il[data-state="awaiting"] .il-w{border-bottom:0;padding-bottom:0}
+.gap-blank{display:inline-block;min-width:4.5em;min-height:1.15em;border-bottom:2px solid var(--ink-2)}
+.sess-choices{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
+.sess-choice{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);min-height:52px;padding:var(--s2) var(--s4);
+  border:1px solid var(--edge);border-radius:var(--r-2);background:var(--sheet);color:var(--ink);font-size:var(--t-reading);
+  font-weight:500;text-align:left;cursor:pointer}
+.sess-choice:hover:not(:disabled){border-color:var(--ink)}
+.sess-choice[aria-checked="true"]{border:2px solid var(--ink);padding:calc(var(--s2) - 1px) calc(var(--s4) - 1px)}
+.sess-choice[aria-checked="true"]::after{content:"";width:18px;height:18px;flex:none;background:var(--ink);
+  -webkit-mask:var(--tick) center/18px no-repeat;mask:var(--tick) center/18px no-repeat}
+.sess-choice:disabled{cursor:default;color:var(--ink-2)}
+.sess-choice[data-result="right"]{border-color:var(--good);color:var(--ink)}
+.sess-choice[data-result="right"]::after{background:var(--good)}
+.sess-choice[data-result="wrong"]{border-color:var(--bad);text-decoration:line-through;text-decoration-color:var(--bad);text-decoration-thickness:2px}
+.sess-choice[data-result="wrong"]::after{background:var(--bad);-webkit-mask-image:var(--cross);mask-image:var(--cross)}
+.sess-choice .ru{display:inline;margin-left:var(--s2)}
+.sess-tiles .sess-line{min-height:1.6em;border-bottom:1px solid var(--edge)}
+.sess-bank{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s3)}
+.sess-tile{font-size:var(--t-reading)}
+/* The correction region: reserved, so the sentence and the primary never move
+   between states; it scrolls inside itself when the correction is longer. */
+.sess-corr{block-size:200px;overflow-y:auto;overscroll-behavior:contain;margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)}
+.sess-corr > :first-child{margin-top:0}
+.sess-verdict{display:flex;align-items:center;flex-wrap:wrap;gap:0 var(--s2);margin:0;font-weight:600;
+  animation:rise-in var(--dur-3) var(--ease-enter)}
+.sess-verdict .ru{display:inline;margin-left:var(--s1)}
+.sess-ok{color:var(--good)}
+.sess-no{color:var(--bad)}
+.sess-mark{width:18px;height:18px;flex:none}
+.sess-ok .sess-mark,.sess-checklist [data-ok="true"] .sess-mark,.sess-right .sess-mark{color:var(--good)}
+.sess-no .sess-mark,.sess-checklist [data-ok="false"] .sess-mark,.sess-wrong .sess-mark{color:var(--bad)}
+.sess-hint{color:var(--ink)}
+.sess-hint-text,.sess-reason{margin:var(--s2) 0 0}
+.sess-yours{margin:var(--s1) 0 0;color:var(--ink-2)}
+.sess-yours .ru{display:inline;margin:0 var(--s1)}
+.sess-yours del,.sess-wrong del{color:var(--bad);text-decoration-thickness:2px}
+.sess-help{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s3)}
+.sess-support{margin:0;color:var(--ink-2)}
+.sess-translate{margin:0}
+.sess-play{margin:var(--s2) 0}
+.sess-answer{width:100%;max-width:32rem;margin-top:var(--s3)}
+textarea.sess-answer{display:block;max-width:none;min-height:7rem}
+.sess-field{display:block;margin-top:var(--s4);font-weight:600}
+.sess-field .ru{display:inline;margin-left:var(--s1);font-weight:400}
+.sess-text{margin:var(--s3) 0;padding:var(--s4);border-radius:var(--r-2);background:var(--ground);font-size:var(--t-reading);max-height:16rem;overflow:auto}
+.sess-dict{margin:var(--s2) 0 0;font-size:var(--t-reading)}
+.sess-missed-word{background:var(--bad-soft);color:var(--ink);text-decoration:underline;text-decoration-color:var(--bad);text-decoration-thickness:2px}
+.sess-turns{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--s2) var(--s4);margin:var(--s3) 0}
+.sess-turns dt{font-weight:600;color:var(--ink-2)}
+.sess-turns dd{margin:0;font-size:var(--t-reading)}
+.sess-context{margin:var(--s2) 0 0;color:var(--ink-2)}
+.sess-meaning{margin:0;font-size:var(--t-lead);color:var(--gloss)}
+.sess-phrase .ru{display:block}
+.sess-rates{margin-top:var(--s3)}
+.sess-checklist,.sess-findings,.sess-points,.sess-parts,.sess-review,.sess-sum,.sess-missed,.sess-pairs{margin:var(--s2) 0 0;padding:0;list-style:none}
+.sess-checklist li{display:flex;align-items:baseline;gap:var(--s2);padding:var(--s1) 0}
+.sess-checklist .ru{display:inline;margin-left:var(--s1)}
+.sess-findings li{font-size:var(--t-note);padding:2px 0}
+.sess-points{padding-left:var(--s5);list-style:disc}
+.sess-points li{margin:var(--s2) 0;line-height:1.55}
+.sess-rule h4,.sess-end h4,.sess-transcript h4{margin:var(--s5) 0 var(--s2);font-size:var(--t-body)}
+.sess-rule h4:first-child{margin-top:0}
+.sess-rule h4 .ru,.sess-end h4 .ru,.sess-transcript h4 .ru{display:inline;margin-left:var(--s1)}
+.sess-gist{font-size:var(--t-lead);line-height:1.4;margin:0 0 var(--s4)}
+.sess-pairs li + li{margin-top:var(--s4)}
+.sess-wrong{margin:var(--s1) 0 0;font-size:var(--t-reading);color:var(--ink-2)}
+.sess-right{margin:0;font-size:var(--t-prompt);line-height:2.5}
+.sess-sources{display:flex;flex-wrap:wrap;align-items:center;gap:0 var(--s3);margin-top:var(--s4);font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.sess-sources .ru{display:inline;margin:0 var(--s1) 0 calc(-1 * var(--s2));font-weight:400}
+.sess-sources a{display:inline-flex;align-items:center;min-height:44px;font-weight:400}
+.sess-review li,.sess-missed li{font-size:var(--t-prompt);line-height:2.5;font-weight:500}
+.sess-review .sess-mark{margin-right:var(--s2)}
+.sess-sum li{display:flex;justify-content:space-between;gap:var(--s3);min-height:44px;align-items:baseline;padding:var(--s2) 0;border-bottom:1px solid var(--line)}
+.sess-sum .ru{display:inline;margin-left:var(--s1)}
+.sess-sum-count{font-variant-numeric:tabular-nums}
+.sess-next-why{margin:var(--s5) 0 0;color:var(--ink-2)}
+.sess-after-first{margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line)}
+.sess-question{margin:var(--s3) 0 0;font-size:var(--t-lead);line-height:1.4}
+/* The action row: sticky at the bench's foot on a desktop; on a phone its
+   primary sits in the action bar and the rest stays at the region's end. */
+.sess-actions{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:var(--s3);
+  margin:0 calc(-1 * var(--s6));padding:var(--s4) var(--s6);background:var(--sheet);border-top:1px solid var(--line);
+  border-radius:0 0 var(--r-3) var(--r-3)}
+.sess-checked{flex:1;margin:0;font-size:var(--t-note);color:var(--muted)}
+.sess-checked .ru{display:inline;margin-left:var(--s1)}
+.sess-actions .go{margin-left:auto}
+.sess-actions .mic{flex:none}
+button.go[aria-disabled="true"]{opacity:.4;cursor:default}
+button.go[aria-disabled="true"]:hover{background:var(--act)}
+/* A model's words: a dashed outline and the engine first, never a result
+   colour or a score (DESIGN.md, Model output). */
+.model-out{margin-top:var(--s3);padding:var(--s4);border:1px dashed var(--edge);border-radius:var(--r-2)}
+.model-by{margin:0 0 var(--s2);font-size:var(--t-note);font-weight:600;color:var(--ink-2)}
+.model-by .ru{display:inline;margin-left:var(--s1);font-weight:400}
+.model-text{margin:0;line-height:1.55}
+.model-points{margin:0;padding-left:var(--s5)}
+.model-points li{margin:var(--s2) 0;line-height:1.5}
+.model-crit{font-weight:600;margin-right:var(--s1)}
+.model-points q{color:var(--ink-2);quotes:"«" "»"}
+.model-src{margin:var(--s2) 0 0;font-size:var(--t-note)}
+.model-src a{display:inline-flex;align-items:center;min-height:44px}
+.model-label{margin-top:var(--s2)}
+.hdr-pause{display:none}
+@media (max-width:719px), (hover:none) and (max-height:559px){
+  .bench{max-width:none;padding:0;background:transparent;border-radius:0}
+  .sess-head .sess-pause{display:none}
+  body.in-session .hdr-pause:not([hidden]){display:inline-flex;align-items:center;gap:var(--s1);min-height:44px;margin-right:auto;
+    color:var(--ink);font-weight:600;text-decoration:none;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.2}
+  body.in-session .hdr-pause .ru{display:block;margin:0}
+  body.in-session .brand{display:none}
+  .sess-sentence,.sess-line,.sess-say-line,.sess-task-et,.sess-question-et,.sess-word{font-size:var(--t-prompt)}
+  .sess-sentence:has(.il){line-height:2.6}
+  .sess-right{line-height:2.6}
+  .sess-review li,.sess-missed li{font-size:var(--t-reading);line-height:2.6}
+  .sess-actions{position:static;margin:0;padding:0;border:0;background:none;flex-wrap:wrap}
+  .sess-checked:empty{display:none}
+  /* In the task row: the skills key, the microphone, then the primary. */
+  body.dock-task.has-mic .sess-mic{position:fixed;z-index:22;left:calc(max(var(--s4),env(safe-area-inset-left)) + 52px + var(--s2));
+    bottom:calc(var(--kb) + var(--s3))}
+  body.dock-task.has-mic .dock-primary{left:calc(max(var(--s4),env(safe-area-inset-left)) + 2 * (52px + var(--s2)))}
+}
+@media (forced-colors:active){
+  .sess-seg{border:1px solid CanvasText;background:Canvas}
+  .sess-seg[data-state="current"],.sess-seg[data-state="done"]{background:CanvasText}
+  .sess-bead::before,.sess-bead[data-mark]::before{border-color:CanvasText}
+  .sess-bead[data-mark="right"]::before,.sess-bead[data-mark="answered"]::before,.sess-bead[data-mark="skipped"]::before{background:CanvasText}
+  .sess-bead[data-mark="wrong"]::after{background:CanvasText}
+  .tana-step[data-state="current"] .tana-dot{background:CanvasText}
+  .sess-choice{border:1px solid ButtonText}
+  .sess-choice[aria-checked="true"]{forced-color-adjust:none;background:Highlight;color:HighlightText}
+  .model-out{border-color:CanvasText}
+}
+@media (prefers-reduced-motion:reduce){.sess-seg[data-state="current"]{animation:none}}
+
+/* ── Onboarding ───────────────────────────────────────────────────── */
+.start-q{margin:var(--s5) 0 0;padding:0;border:0}
+.start-q legend{padding:0;font-weight:600}
+.start-q legend .ru{display:inline;margin-left:var(--s1)}
+.start-routes{margin-top:var(--s3)}
+.start-route[aria-checked="true"]{background:var(--sheet);box-shadow:inset 3px 0 0 var(--ink)}
+.start-route[aria-checked="true"] strong::after{content:"";display:inline-block;width:18px;height:18px;margin-left:var(--s2);vertical-align:-2px;
+  background:var(--ink);-webkit-mask:var(--tick) center/18px no-repeat;mask:var(--tick) center/18px no-repeat}
+.start-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin:var(--s5) 0}
+.start-actions .go{margin-left:auto}
+.start-week{display:inline-grid;grid-template-columns:repeat(6,minmax(44px,auto));margin-top:var(--s4)}
+.start-week button{min-height:48px;font-variant-numeric:tabular-nums}
+.start-week button[aria-checked="true"]{background:var(--sheet);color:var(--ink);box-shadow:inset 0 0 0 1px var(--edge)}
+.start-lang-note{margin-top:var(--s3)}
+@media (forced-colors:active){
+  .start-route[aria-checked="true"],.start-week button[aria-checked="true"]{forced-color-adjust:none;background:Highlight;color:HighlightText}
+}
+
+/* ── The rule page's question box ─────────────────────────────────── */
+.rule-ask-form{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s2)}
+.rule-ask-form label{font-weight:600}
+.rule-ask-form label .hint{display:block;font-weight:400}
+.rule-ask-form textarea{width:100%;min-height:4.5rem}
+.rule-ask-out:not(:empty){margin-top:var(--s3)}
+.rule-ask-q{margin:0 0 var(--s2);color:var(--ink-2)}
 
 /* Skill identity uses shape and labels as well as colour. */
 .skill-read{color:var(--skill-blue);--skill-soft:var(--skill-blue-soft)}
@@ -1594,7 +1823,7 @@ footer.sources .changed{margin-top:3px;font-size:var(--t-gloss);line-height:1.5}
 /* ── Forced colours: meaning by shape ─────────────────────────────── */
 @media(forced-colors:active){
   body{background:Canvas;color:CanvasText}
-  .spine,.dock-tabs,.actbar,dialog.sheet,.stage,.next-lesson,.lesson,#wordCard,#vocCard{border:1px solid CanvasText}
+  .spine,.dock-tabs,.actbar,dialog.sheet,.stage,.bench,.lesson,#wordCard,#vocCard{border:1px solid CanvasText}
   dialog.sheet::backdrop{background:transparent}
   button.go,a.go,button.primary{border:2px solid ButtonText;background:ButtonFace;color:ButtonText}
   button.ghost,a.ghost,.iconbtn.mic,.skills-key,.choice{border:1px solid ButtonText}

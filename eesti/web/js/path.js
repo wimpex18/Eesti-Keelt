@@ -1,99 +1,21 @@
-/* Rada: the syllabus, where you stand on it, and one topic's practice. */
+/* Täna and Kursus: today's session at a glance (ADR-0009), the syllabus, free
+   practice, the offline pack and the progress page. The session itself runs in
+   `session.js`. */
 
-import {RU, celebrate, flowerSvg, forecastHtml, gateHtml, kindIcon, rhythmHtml, sealsHtml,
-  stateIcon, uiIcon} from "./chrome.js";
-import {$, addPracticeSupport, api, attribHtml, blankForm, esc, glide, md, ruCount,
-  setLabel, taskLine, wrongVerdict} from "./core.js";
+import {RU, celebrate, forecastHtml, rhythmHtml, sealsHtml, stateIcon, uiIcon} from "./chrome.js";
+import {$, api, attribHtml, blankForm, esc, glide, interlinear, md, ruCount, setLabel, taskLine,
+  wrongVerdict, addPracticeSupport} from "./core.js";
 import {sayHtml, wireSay} from "./media.js";
 import * as offline from "./offline.js";
 import {loadReminders} from "./remind.js";
-import {onLessonPractice} from "./lesson.js";
 import {addMic} from "./voice.js";
 import {loadRail, refreshDueBadge} from "./review.js";
 import {examLevel} from "./state.js";
 import {icon} from "./icons.js";
-
-// ── the path ────────────────────────────────────────────────────────
-let pathTopic = null;
-/* Sub-rules for one topic's sets: a unit's revisit practises only the rules
-   its stage unlocks, for as long as that topic's session runs. */
-let pathRules = null;   // {topic, rules}
-
-/* A running score for one set. Rada's is recorded by the server and shows the
-   mastery window; Vaba harjutus is graded by the same code and recorded nowhere. */
-const pathTally = {answered: 0, correct: 0, size: 0, missed: [], marks: [], out: "#pathScore",
-                   box: "#practiceOut", beads: "#pathBeads",
-                   record: true, gate: true, again: () => startPractice()};
-const freeTally = {answered: 0, correct: 0, size: 0, missed: [], marks: [], out: "#freeScore",
-                   box: "#freeOut", beads: "#freeBeads",
-                   record: false, again: () => $("#freeBtn").click()};
-
-/* A new set on a tally. `gen` names the set, so an answer still in flight from the
-   set it replaced is not counted in this one (see `grade`). */
-function newSet(tally) {
-  $(tally.box)?.parentElement.querySelector(".session-history")?.remove();
-  Object.assign(tally, {answered: 0, correct: 0, size: 0, skipped: 0, missed: [], marks: [],
-                        gen: (tally.gen || 0) + 1});
-  paintBeads(tally);
-}
+import {etCount, openTopic, startCheckSet, STEP_UNITS} from "./session.js";
 
 
-/* One bead per item in the set: moss for right, cranberry for wrong, cornflower for
-   the one being answered. A wrong answer stays visible; the row is the set's shape
-   at a glance, and it is what the end card repeats. */
-function beadsHtml(tally) {
-  return Array.from({length: tally.size}, (_, i) => {
-    const m = tally.marks[i];
-    const cls = m === true ? "ok" : m === false ? "no" : m === "skipped" ? "skipped"
-      : i === tally.marks.filter(x => x !== undefined).length ? "now" : "";
-    return `<span class="bead ${cls}"></span>`;
-  }).join("");
-}
-
-function paintBeads(tally) {
-  const box = tally.beads && $(tally.beads);
-  if (box) box.innerHTML = tally.size ? beadsHtml(tally) : "";
-}
-
-/* A tally for a set rendered somewhere else (the Kontrolltöö). */
-export function newTally(out, box, again) {
-  $(box)?.parentElement.querySelector(".session-history")?.remove();
-  // A Kontrolltöö is a test: its misses are listed, not re-drilled on the spot.
-  return {answered: 0, correct: 0, size: 0, missed: [], marks: [], out, box, record: true,
-          again, redo: false};
-}
-
-let pathMeta = {};
-let practiceRequest = 0, lessonRequest = 0, sessionTopic = null;
-/* What the learner types is the thing being graded: iOS must not capitalise it,
-   correct it or underline it, and a password manager must not offer to fill it. */
-const ANSWER_FIELD = `autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"`;
-const START = ["Harjuta", "упражняться"], NEW_SET = ["Uued laused", "новые задания"];
-
-function themeApplies() {
-  const meta = pathMeta[pathTopic];
-  // An unknown topic (a stale page, or before the first load) offers the control:
-  // withholding a filter from a topic that supports it is as wrong as offering
-  // one that does nothing.
-  return !meta || meta.themed !== false;
-}
-
-
-/* The theme select is shown only where it changes the drill.
-
-   A closed-class topic (e.g. küsisõnad) has no words to swap, so the control would
-   do nothing: it is reset, disabled and taken off the screen rather than left there
-   with a paragraph explaining why it does nothing. */
-function paintTheme() {
-  const sel = $("#wordTheme");
-  if (!sel) return;
-  const applies = themeApplies();
-  if (!applies) sel.value = "";
-  sel.disabled = !applies;
-  sel.closest("label").hidden = !applies;
-}
-
-
+// ── Täna ────────────────────────────────────────────────────────────
 /* Today's date in Estonian: the interface is exposure, and a date is a word the
    learner reads every day. */
 function paintDate() {
@@ -105,40 +27,96 @@ function paintDate() {
   } catch { el.textContent = ""; }
 }
 
+/* A sentence of the rule walk with its word underlined and not named: the
+   learner has not tried yet (DESIGN.md, Principles). */
+const noticeLine = e => `<p class="tana-sent" lang="et">${esc(e.before)}${interlinear(e.form, {}, {state: "notice"})}${esc(e.after)}</p>`;
+
+function heroHtml(t) {
+  const s = t.session, h = t.hero;
+  if (s.done) {
+    const done = s.steps.map(st => `${st.et}`).join(", ");
+    return `<p class="tana-done" lang="et">Tänane tund on tehtud <span class="ru" lang="ru">занятие на сегодня пройдено</span></p>
+      <p class="tana-lead" lang="ru">Сделано: <span lang="et">${esc(done)}</span>.</p>`;
+  }
+  if (h.kind === "notice")
+    return `<div class="tana-notice">${h.examples.map(noticeLine).join("")}</div>
+      <p class="tana-lead" lang="ru">${md(h.question_ru)} Сначала попробуешь сам, потом прочитаешь правило.</p>`;
+  return `<p class="tana-unit-title" lang="et">${esc(h.et)}</p>
+    <p class="tana-lead" lang="ru">${esc(h.goal_ru)}</p>`;
+}
+
+const STATE_ET = {done: ["tehtud", "сделано"], current: ["praegu", "сейчас"], todo: ["", ""]};
+
+function stepRow(st) {
+  const [unitOne, unitMany] = STEP_UNITS[st.id] || ["", ""];
+  const count = unitOne ? etCount(st.count, unitOne, unitMany) : "";
+  const [stateEt, stateRu] = STATE_ET[st.state] || ["", ""];
+  return `<li class="tana-step" data-state="${esc(st.state)}"${st.state === "current" ? ' aria-current="step"' : ""}>
+    <span class="tana-dot" aria-hidden="true"></span>
+    <span class="tana-step-name" lang="et">${esc(st.et)} <span class="ru" lang="ru">${esc(st.ru)}</span></span>
+    <span class="tana-step-count" lang="et">${esc(count)}${stateEt ? `<span class="sr-only">, ${esc(stateEt)}</span>` : ""}</span></li>`;
+}
+
+const altRow = a => `<li><a href="${esc(a.href)}" lang="et">${esc(a.et)} <span class="ru" lang="ru">${esc(a.ru)}</span></a>
+  <p class="tana-alt-why" lang="ru">${esc(a.why_ru)}</p></li>`;
+
+let todayLoad = 0;
+export async function loadToday() {
+  paintDate();
+  const mine = ++todayLoad;
+  const btn = $("#practiceBtn");
+  try {
+    const t = await (await api("/api/session", null, "GET")).json();
+    if (mine !== todayLoad) return;
+    const s = t.session, next = t.next;
+    $("#tanaHero").innerHTML = heroHtml(t);
+    const unit = s.unit;
+    $("#tanaUnit").innerHTML = `<span lang="et">${unit.n}. ${esc(unit.et)}
+      <span class="ru" lang="ru">блок ${unit.n}, занятие ${s.n} из ${s.of}: ${esc(s.emphasis.ru)}</span></span>`;
+    $("#tanaSteps").innerHTML = s.steps.map(stepRow).join("");
+    $("#tanaAlt").innerHTML = next.alternatives.map(altRow).join("");
+    const primary = next.primary;
+    const minutes = primary.minutes ? `, ${primary.minutes} мин` : "";
+    if (primary.kind === "session") {
+      setLabel(btn, "Jätka");
+      btn.querySelector(".ru").textContent = `продолжить${minutes}`;
+      $("#tanaWhy").textContent = "";
+    } else {
+      setLabel(btn, primary.et);
+      btn.querySelector(".ru").textContent = primary.ru + minutes;
+      $("#tanaWhy").textContent = primary.why_ru;
+    }
+    btn.dataset.href = primary.href;
+    btn.disabled = false;
+  } catch (e) {
+    if (mine !== todayLoad) return;
+    $("#tanaHero").innerHTML = `<div class="banner recoverable-error" role="alert">${esc(e.message)}
+      <button class="ghost" id="tanaRetry" type="button" lang="et">Proovi uuesti <span class="ru" lang="ru">загрузить ещё раз</span></button></div>`;
+    $("#tanaRetry").onclick = loadToday;
+    btn.disabled = true;
+  }
+}
+
+$("#practiceBtn").onclick = () => {
+  const href = $("#practiceBtn").dataset.href || "#session";
+  if (location.hash !== href) location.hash = href;
+};
+
+
+// ── Kursus ──────────────────────────────────────────────────────────
+let pathMeta = {};
+/* What the learner types is the thing being graded: iOS must not capitalise it,
+   correct it or underline it, and a password manager must not offer to fill it. */
+const ANSWER_FIELD = `autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"`;
 
 let pathLoad = 0;
 
 export async function loadPath() {
-  paintDate();
   const mine = ++pathLoad;
   try {
     const p = await (await api("/api/curriculum", null, "GET")).json();
     if (mine !== pathLoad) return;
-    // A load that worked clears an earlier load's error (never a mastery note).
-    if ($("#pathHead").className === "banner") $("#pathHead").hidden = true;
-    if (!sessionTopic) pathTopic = p.resume;
-    const next = p.topics.find(t => t.id === (sessionTopic || p.resume));
-    $("#pathNow").textContent = next ? next.et : "Все открытые темы пройдены";
-    // A reference topic has no checked exercises: promise only what it gives.
-    $("#tab-path .lesson-purpose").textContent = next && next.drillable === false
-      ? "Разбери правило на примерах. Упражнений с проверкой по этой теме пока нет."
-      : "Разбери правило на примерах, попробуй сам и получи проверку.";
-    const tried = next && next.attempts
-      ? ` · ${ruCount(next.attempts, ["попытка", "попытки", "попыток"])}` +
-        (next.accuracy != null ? `, ${Math.round(next.accuracy * 100)}% верно` : "")
-      : "";
-    // Where the topic sits in the course: its unit, else (an older payload) its level.
-    const unit = p.units?.find(u => u.topics.includes(next?.id));
-    $("#pathOf").innerHTML = next
-      ? `${next.ru ? `<span lang="ru">${esc(next.ru)}</span> · ` : ""}${unit
-        ? `<span lang="et">${unit.n}. ${esc(unit.et)}</span>` : esc(next.level)}${tried}`
-      : `${p.mastered}/${p.total} тем`;
     p.topics.forEach(t => { pathMeta[t.id] = t; });
-    paintTheme();
-    setLabel($("#practiceBtn"), sessionTopic ? "Jätka" : "Alusta");
-    $("#practiceBtn .ru").textContent = sessionTopic ? "продолжить урок" : "начать урок";
-    $("#practiceBtn").disabled = !next && !sessionTopic;
-    $("#practiceBtn").hidden = false;
     /* One topic's row: state, name, gloss, and its actions. */
     const topicRow = t => {
       /* Names, not ids — the API resolves them. Tolerant of an older payload so a
@@ -201,14 +179,12 @@ export async function loadPath() {
     }).join("") : [...new Set(p.topics.map(t => t.level))].map(lv => {
       const here = p.topics.filter(t => t.level === lv);
       const done = here.filter(t => t.state === "mastered").length;
-      return fold(lv === next?.level, `<span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>`,
+      return fold(here.some(t => t.id === p.resume), `<span class="lv" data-level="${esc(lv)}">${esc(lv)}</span>`,
         `${done} из ${here.length} пройдено`, here.map(topicRow).join(""));
     }).join("");
   } catch (e) {
     if (mine !== pathLoad) return;
-    $("#pathHead").className = "banner";   // an error is the amber one
-    $("#pathHead").hidden = false;
-    $("#pathHead").textContent = e.message;
+    $("#pathList").innerHTML = `<div class="banner" role="alert">${esc(e.message)}</div>`;
   }
 }
 
@@ -298,114 +274,57 @@ $("#pathList").addEventListener("click", async e => {
     return;
   }
   const test = e.target.closest("button[data-testout]");
-  if (test) { startTestOut(test.dataset.testout); return; }
+  if (test) { startCheckSet({kind: "testout", topic: test.dataset.testout, et: pathMeta[test.dataset.testout]?.et}); return; }
   const unitCheck = e.target.closest("button[data-unitcheck]");
   if (unitCheck) {
-    startUnitCheck(unitCheck.dataset.unitcheck, unitCheck.dataset.title, unitCheck.dataset.first);
+    startCheckSet({kind: "unit", unit: unitCheck.dataset.unitcheck, et: unitCheck.dataset.title,
+                   topic: unitCheck.dataset.first});
     return;
   }
   const b = e.target.closest("button[data-topic]");
   // A unit's revisit practises only the rules its stage unlocks.
-  if (b) {
-    pathRules = b.dataset.rules ? {topic: b.dataset.topic, rules: b.dataset.rules.split(",")} : null;
-    beginLesson(b.dataset.topic);
-  }
+  if (b) openTopic(b.dataset.topic, {rules: b.dataset.rules ? b.dataset.rules.split(",") : null});
 });
 
-/* A unit's check: five items per core topic and per revisited rule; every part
-   4 of 5 passes it, and a part answered 5 of 5 counts its topic as mastered
-   (`eesti/unitcheck.py`). */
-async function startUnitCheck(unitId, title, topic) {
-  // The session route names a topic; holding one keeps the router from opening
-  // that topic's lesson over the check.
-  sessionTopic = topic || pathTopic;
-  showSession(); sessionStep("check");
-  $("#lessonIntro").hidden = true; $("#pathRada").hidden = false;
-  setLabel($("#sessionTitle"), title || "Ühiku kontroll");
-  const out = $("#practiceOut");
-  out.innerHTML = `<p class="hint">Загружаю…</p>`;
-  let set;
-  try {
-    set = await (await api(`/api/units/${encodeURIComponent(unitId)}/check`, null, "GET")).json();
-  } catch (e) {
-    out.innerHTML = `<div class="banner">${esc(e.message)}</div>`;
-    return;
-  }
-  out.innerHTML = `
-    <div class="banner info"><b lang="et">Ühiku kontroll · ${esc(set.et)}</b> · ${esc(set.note)}</div>
-    ${checkTasksHtml(set.items)}
-    <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
-      <span class="ru" lang="ru">проверить</span></button></div>
-    <div class="verdict" id="testoutVerdict" role="status"></div>`;
-  out.querySelector("input, select")?.focus();
-  wireSay(out, message => { $("#testoutVerdict").textContent = message; });
-  $("#testoutDone").onclick = async () => {
-    $("#testoutDone").disabled = true;
-    const verdict = $("#testoutVerdict");
-    try {
-      const r = await (await api(`/api/units/${encodeURIComponent(unitId)}/check`,
-                                 {seed: set.seed, given: checkAnswers(out)})).json();
-      const names = Object.fromEntries(set.parts.map(p => [p.topic, p.et]));
-      verdict.className = r.passed ? "verdict ok" : "verdict no";
-      verdict.innerHTML = `${r.passed ? "Блок проверен." : "Пока не сдан — ничего не потеряно."}
-        <ul>${r.parts.map(p => `<li><span lang="et">${esc(names[p.topic] || p.topic)}</span>:
-          ${p.correct} из ${p.asked}${p.passed ? " ✓" : ""}</li>`).join("")}</ul>`;
-      loadPath(); loadRail();
-    } catch (e) {
-      $("#testoutDone").disabled = false;
-      verdict.className = "verdict no";
-      verdict.innerHTML = `Не проверено: ${esc(e.message)}`;
-    }
-  };
+
+// ── Free practice and the checkpoint's sets ─────────────────────────
+/* A running score for one set. Vaba harjutus is graded by the same server code
+   as everything else and recorded nowhere; a Kontrolltöö (exam.js) is recorded. */
+const freeTally = {answered: 0, correct: 0, size: 0, missed: [], marks: [], out: "#freeScore",
+                   box: "#freeOut", beads: "#freeBeads",
+                   record: false, again: () => $("#freeBtn").click()};
+
+/* A new set on a tally. `gen` names the set, so an answer still in flight from the
+   set it replaced is not counted in this one (see `grade`). */
+function newSet(tally) {
+  $(tally.box)?.parentElement.querySelector(".session-history")?.remove();
+  Object.assign(tally, {answered: 0, correct: 0, size: 0, skipped: 0, missed: [], marks: [],
+                        gen: (tally.gen || 0) + 1});
+  paintBeads(tally);
 }
 
-function sessionStep(step) {
-  document.querySelectorAll(".lesson-steps li").forEach(li => {
-    if (li.dataset.step === step) li.setAttribute("aria-current", "step");
-    else li.removeAttribute("aria-current");
-  });
+/* One bead per item in the set: a filled disc for right, a slashed ring for
+   wrong, a dash for skipped, a ring for the one being answered. */
+function beadsHtml(tally) {
+  return Array.from({length: tally.size}, (_, i) => {
+    const m = tally.marks[i];
+    const cls = m === true ? "ok" : m === false ? "no" : m === "skipped" ? "skipped"
+      : i === tally.marks.filter(x => x !== undefined).length ? "now" : "";
+    return `<span class="bead ${cls}"></span>`;
+  }).join("");
 }
-function showSession() {
-  const hash = "#session/" + encodeURIComponent(sessionTopic || pathTopic || "");
-  if (location.hash !== hash) location.hash = hash;
+
+function paintBeads(tally) {
+  const box = tally.beads && $(tally.beads);
+  if (box) box.innerHTML = tally.size ? beadsHtml(tally) : "";
 }
-export async function ensureSession(topic) {
-  if (sessionTopic && (!topic || sessionTopic === topic)) return;
-  if (!topic) await loadPath();
-  beginLesson(topic || pathTopic);
-}
-async function beginLesson(topic = pathTopic) {
-  if (!topic) return;
-  const request = ++lessonRequest;
-  sessionTopic = topic; pathTopic = topic;
-  showSession(); sessionStep("learn");
-  $("#pathRada").hidden = true;
-  const intro = $("#lessonIntro"); intro.hidden = false;
-  intro.innerHTML = '<p role="status">Загружаю правило и примеры…</p>';
-  try {
-    const lesson = await api(`/api/lesson/${encodeURIComponent(topic)}`, null, "GET").then(r => r.json());
-    if (request !== lessonRequest) return;
-    setLabel($("#sessionTitle"), lesson.et);
-    const points = lesson.points_ru || [];
-    intro.innerHTML = `<div class="lesson-copy">
-      <p class="lesson-gist" lang="ru">${md(lesson.tip?.gist_ru || lesson.rule?.summary_ru || lesson.ru || "")}</p>
-      ${points.length ? `<ul>${points.slice(0, 3).map(point => `<li>${md(point)}</li>`).join("")}</ul>` : ""}
-      ${(lesson.examples || []).length ? `<div class="lesson-examples" lang="et">${lesson.examples.slice(0, 3).map(ex => `<p>${esc(ex.before)}<strong>${esc(ex.answer)}</strong>${esc(ex.after)}</p>`).join("")}</div>` : ""}
-      <div class="lesson-source" lang="ru">${(lesson.sources || []).map(ref => `<a href="${esc(ref.url)}" target="_blank" rel="noopener">${esc(ref.label)}</a>`).join(" · ")}</div>
-      <button class="quiet" data-lesson="${esc(topic)}" lang="et">Reegel tervikuna <span class="ru" lang="ru">полное правило</span></button></div>
-      <div class="lesson-actions">${lesson.drillable ? `<button class="go" id="beginPractice" lang="et">Harjuta <span class="ru" lang="ru">попробовать на заданиях</span></button>` : `<a class="go" href="#course" lang="et">Kursuse juurde <span class="ru" lang="ru">к темам курса</span></a>`}
-      <button class="quiet" id="skipLesson" lang="et">Tean juba — jäta vahele <span class="ru" lang="ru">уже знаю — пропустить тему</span></button></div>`;
-    $("#beginPractice")?.addEventListener("click", () => startPractice({focus: false}));
-    $("#skipLesson").onclick = async () => {
-      $("#skipLesson").disabled = true;
-      try { await api(`/api/course/topics/${encodeURIComponent(topic)}/skip`, {skip: true}); sessionTopic = null; await loadPath(); location.hash = "#path"; }
-      catch (error) { $("#skipLesson").disabled = false; intro.insertAdjacentHTML("beforeend", `<p role="alert">${esc(error.message)}</p>`); }
-    };
-    loadPath();
-  } catch (error) {
-    intro.innerHTML = `<p role="alert">${esc(error.message)}</p><button class="go" id="retryLesson" lang="et">Proovi uuesti <span class="ru" lang="ru">загрузить урок ещё раз</span></button>`;
-    $("#retryLesson").onclick = () => beginLesson(topic);
-  }
+
+/* A tally for a set rendered somewhere else (the Kontrolltöö). */
+export function newTally(out, box, again) {
+  $(box)?.parentElement.querySelector(".session-history")?.remove();
+  // A Kontrolltöö is a test: its misses are listed, not re-drilled on the spot.
+  return {answered: 0, correct: 0, size: 0, missed: [], marks: [], out, box, record: true,
+          again, redo: false};
 }
 
 /* A missed item can be explained — by a model, saying so, grounded in Vabamorf
@@ -433,179 +352,11 @@ function offerExplanation(verdict, eventId) {
   };
 }
 
-
-/* A checked set's tasks: typed, or chosen where the item is a choice, with its
-   recording to play and its source credited. The server grades the whole set. */
-const checkTasksHtml = items => `<div id="testoutTasks">${items.map((it, i) => `
-      <div class="mock-task" data-i="${i}">
-        <div class="prompt" lang="et">${esc(it.prompt).replace("____",
-          '<span class="blank">____</span>')}</div>
-        ${sayHtml(it)}
-        <div class="row"><span class="hint" lang="et">${esc(it.hint || "")}</span>
-          ${it.choices && it.choices.length
-            ? `<select lang="et" aria-label="Vastus — ответ"><option value=""></option>${it.choices.map(c =>
-                `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>`
-            : `<input type="text" size="16" lang="et" aria-label="Vastus — ответ" ${ANSWER_FIELD}>`}</div>
-        ${attribHtml(it)}
-      </div>`).join("")}</div>`;
-const checkAnswers = out => [...out.querySelectorAll("#testoutTasks .mock-task")]
-  .map(task => task.querySelector("input, select").value);
-
-/* Test-out: five items, all five right marks the topic known (`placement.py`).
-   Answered as one set, graded by the server, so the page never decides. */
-async function startTestOut(topic) {
-  sessionTopic = topic;
-  showSession(); sessionStep("check");
-  $("#lessonIntro").hidden = true; $("#pathRada").hidden = false;
-  setLabel($("#sessionTitle"), pathMeta[topic]?.et || "Kontroll");
-  const out = $("#practiceOut");
-  out.innerHTML = `<p class="hint">Загружаю…</p>`;
-  let set;
-  try {
-    set = await (await api(`/api/testout/${encodeURIComponent(topic)}`, null, "GET")).json();
-  } catch (e) {
-    out.innerHTML = `<div class="banner">${esc(e.message)}</div>`;
-    return;
-  }
-  out.innerHTML = `
-    <div class="banner info"><b lang="et">${esc(set.et)}</b> · ${esc(set.note)}</div>
-    ${checkTasksHtml(set.items)}
-    <div class="row"><button class="go" id="testoutDone" lang="et">Valmis
-      <span class="ru" lang="ru">проверить</span></button></div>
-    <div class="verdict" id="testoutVerdict" role="status"></div>`;
-  out.querySelector("input, select")?.focus();
-  wireSay(out, message => { $("#testoutVerdict").textContent = message; });
-  $("#testoutDone").onclick = async () => {
-    $("#testoutDone").disabled = true;
-    const given = checkAnswers(out);
-    const verdict = $("#testoutVerdict");
-    try {
-      const r = await (await api(`/api/testout/${encodeURIComponent(topic)}`,
-                                 {seed: set.seed, given})).json();
-      verdict.className = r.passed ? "verdict ok" : "verdict no";
-      verdict.innerHTML = r.passed
-        ? `${r.correct} из ${r.asked} — тема засчитана.`
-        : `${r.correct} из ${r.asked}. Нужно ${set.required} из ${set.required};
-           ничего не потеряно — тема просто остаётся в пути.`;
-      loadPath(); loadRail();
-    } catch (e) {
-      $("#testoutDone").disabled = false;
-      verdict.className = "verdict no";
-      verdict.innerHTML = `Не проверено: ${esc(e.message)}`;
-    }
-  };
-}
-
-
-async function loadThemes() {
-  try {
-    const {themes} = await (await api("/api/themes", null, "GET")).json();
-    $("#wordTheme").innerHTML = '<option value="" lang="et">kõik sõnad</option>' +
-      themes.map(t => `<option value="${esc(t.id)}" lang="et">${esc(t.et)}</option>`).join("");
-  } catch {}
-}
-
-
-async function startPractice({focus = true} = {}) {
-  let loaded = false;
-  showSession(); sessionStep("practice");
-  $("#lessonIntro").hidden = true; $("#pathRada").hidden = false;
-  sessionTopic = pathTopic;
-  /* The auto-start and a topic picked from Kogu rada can be in flight together; only
-     the latest may paint, or a slow first answer replaces the learner's choice. */
-  const mine = ++practiceRequest;
-  const out = $("#practiceOut"); out.innerHTML = "";
-  $("#pathRada").classList.remove("has-running-set");
-  newSet(pathTally);
-  $("#pathScore").textContent = "";
-  const btn = $("#practiceBtn"); btn.disabled = true; setLabel(btn, "Laadin…");
-  try {
-    const body = {count: 5};
-    if (pathTopic) body.topic = pathTopic;
-    if (pathRules && pathRules.topic === pathTopic) body.rules = pathRules.rules;
-    const theme = themeApplies() ? $("#wordTheme").value : "";
-    if (theme) body.theme = theme;
-    const res = await (await api("/api/practice", body)).json();
-    if (mine !== practiceRequest) return;
-    if (!res.items.length) {
-      // An empty topic is still a topic: those with no generator carry an EKK
-      // reference, which is the learner's way forward.
-      let msg = `<div class="banner">${esc(res.detail || "ничего не пришло")}`;
-      if (res.reference && res.reference.known)
-        msg += ` · <a href="${esc(res.reference.url)}" target="_blank" rel="noopener">EKK ${esc(res.reference.ekk_section)}</a>`;
-      out.innerHTML = msg + `</div>`;
-      /* Some topic × theme pairs return fewer than three items or none, because a
-         corpus cloze needs a sentence containing a theme noun. The way out is one
-         click, so it is a button. */
-      if (res.theme_emptied) {
-        out.insertAdjacentHTML("beforeend",
-          `<button class="ghost" lang="et">Proovi ilma teemata <span class="ru" lang="ru">без темы</span></button>`);
-        out.lastElementChild.onclick = () => { $("#wordTheme").value = ""; startPractice(); };
-      }
-      return;
-    }
-    pathTopic = res.topic;
-    paintTheme();
-    /* The topic line above already names the resume topic; the head names it only
-       when a different one was picked from the list. */
-    const bits = [];
-    if (res.et !== $("#pathNow").textContent)
-      bits.push(`<strong lang="et">${esc(res.et)}</strong> · ${esc(res.level)}`);
-    /* A short set is not a broken one, but silence would read as "this topic only has
-       three". */
-    if (res.theme && res.items.length < 10)
-      bits.push(`<span class="hint">по этой теме нашлось ${res.items.length}</span>`);
-    /* A plain line, not a banner: the set starts right under it. The rule is a
-       quiet action at its end, one tap away without competing with the drill. */
-    out.innerHTML = `<div class="set-head"><span>${bits.join(" · ")}</span>
-      <button class="quiet" type="button" data-lesson="${esc(res.topic)}" lang="et">reegel
-        <i class="ru" lang="ru">правило</i></button></div>`;
-    loaded = true;
-    $("#pathRada").classList.add("has-running-set");
-    pathTally.size = res.items.length;
-    paintBeads(pathTally);
-    res.items.forEach((it, i) =>
-      out.appendChild(renderPracticeItem(it, res.topic, i, res.glosses || {}, focus)));
-    // A phone session opens on the task. Added reading support must not push
-    // its answer below the dock; scroll without opening the software keyboard.
-    if (matchMedia("(max-width:719px), (hover:none) and (max-width:1079px) and (max-height:559px)").matches) {
-      requestAnimationFrame(() => {
-        const first = out.querySelector(".drill");
-        if (first?.checkVisibility()) first.scrollIntoView({block: "start", behavior: "instant"});
-      });
-    }
-  } catch (e) {
-    if (mine !== practiceRequest) return;
-    out.innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
-  } finally {
-    // A superseded request leaves the button to the one that replaced it.
-    if (mine !== practiceRequest) return;
-    btn.disabled = false;
-    /* With a set on screen, answering is the main action; the button only swaps
-       the set, so it steps down to a secondary one. */
-    btn.className = "go";
-    // With a set on screen the next set is offered at its end, not above it.
-    btn.hidden = false;
-    btn.querySelector(".btn-ico")?.replaceWith(
-      document.createRange().createContextualFragment(uiIcon(loaded ? "next" : "play")));
-    const [et, ru] = loaded ? ["Jätka", "продолжить урок"] : ["Alusta", "начать урок"];
-    setLabel(btn, et);
-    btn.querySelector(".ru").textContent = ru;
-  }
-}
-
-
-/* The end of a set: the one moment a session has. It says how the set went in one
-   line and puts the next set under the thumb. No streak, no confetti: the count is
-   the reward, and the path's own gate says how far there is to go. */
+/* The end of a set: how it went in one line and the next set under the thumb.
+   No streak, no confetti: the count is the reward. */
 function finishSet(tally, res) {
   const box = $(tally.box);
   if (!box || box.querySelector(".set-end")) return;
-  const [need, of] = (res.gate || "").split("/");
-  // Only Rada's set is one topic, so only there does the topic's gate apply.
-  const gate = tally.gate && res.accuracy != null && res.gate && !res.just_mastered
-    ? `<p class="hint">Тема засчитывается, когда из последних ${esc(of)} ответов
-         верны ${esc(need)}. Сейчас: ${Math.round(res.accuracy * 100)}%.</p>` : "";
   /* What went wrong, in the sentence it went wrong in, with the right form: the end
      of a set is where a learner looks back, so the misses are there to look at. */
   const missed = tally.missed.length ? `<ul class="set-missed" lang="et">${
@@ -613,46 +364,25 @@ function finishSet(tally, res) {
       `<b>${esc(blankForm(it.prompt, it.answer.split(" ~ ")[0]))}</b>`)}</li>`).join("")}</ul>` : "";
   const redo = tally.missed.length && tally.redo !== false
     ? `<button class="ghost" data-act="redo" lang="et">Korda vigu <span class="ru" lang="ru">повторить ошибки</span></button>` : "";
-  if (tally === pathTally) sessionStep("check");
   const progress = tally.skipped ? `<p lang="ru">Пропущено: ${tally.skipped}. Они не проверены и не засчитаны.</p>` : "";
-  const advance = tally === pathTally && (res.just_mastered || pathMeta[sessionTopic]?.state === "mastered");
-  const continuation = `<button class="go" data-act="new" lang="et">${uiIcon("next")}${advance ? "Järgmine teema" : "Uued laused"} <span class="ru" lang="ru">${advance ? "следующая тема" : "ещё задания"}</span></button>
-    <a class="ghost" href="#path" lang="et">Täna <span class="ru" lang="ru">на сегодня</span></a>`;
   const end = document.createElement("div");
-  /* The score, the beads again, and the next set under the thumb. A set nearly all
-     right wears moss; the count is the reward, not a streak. */
   end.className = "set-end";
   if (tally.size && tally.correct >= 0.8 * tally.size) end.classList.add("great");
   end.setAttribute("role", "status");
   end.innerHTML = `<h4 lang="et">Komplekt tehtud <i class="ru" lang="ru">набор пройден</i></h4>
     <p class="set-score">${tally.correct}<small> из ${tally.answered} проверенных верно</small></p>
-    <div class="beads" aria-hidden="true">${beadsHtml(tally)}</div>${gate}${progress}${missed}
-    <div class="row">${redo}${continuation}</div>`;
-  end.querySelector('[data-act="new"]').onclick = advance ? async e => {
-    const button = e.currentTarget;
-    button.disabled = true;
-    try {
-      const p = await (await api("/api/curriculum", null, "GET")).json();
-      if (p.resume) await beginLesson(p.resume);
-      else location.hash = "#course";
-    } catch (error) {
-      button.disabled = false;
-      end.insertAdjacentHTML("beforeend", `<p class="banner">Следующая тема не загрузилась: ${esc(error.message)}. Попробуй ещё раз.</p>`);
-    }
-  } : tally.again;
+    <div class="beads" aria-hidden="true">${beadsHtml(tally)}</div>${progress}${missed}
+    <div class="row">${redo}<button class="go" data-act="new" lang="et">${uiIcon("next")}Uued laused <span class="ru" lang="ru">ещё задания</span></button></div>`;
+  end.querySelector('[data-act="new"]').onclick = tally.again;
   end.querySelector('[data-act="redo"]')?.addEventListener("click", () => redoMissed(tally));
-  // The score line said the same thing one line lower; the card says it now.
   $(tally.out).textContent = "";
   box.appendChild(end);
-  // Fully in view, above the dock: this is the moment the set exists for.
   requestAnimationFrame(() => requestAnimationFrame(() =>
     end.scrollIntoView({block: "nearest", behavior: glide()})));
   tally.done?.(tally);
 }
 
-
-/* The missed items again, as a short set of their own: graded and recorded the same
-   way as the first time (a Rada miss is already in the review queue either way). */
+/* The missed items again, as a short set of their own, graded the same way. */
 function redoMissed(tally) {
   const again = tally.missed;
   const box = $(tally.box);
@@ -665,14 +395,7 @@ function redoMissed(tally) {
 }
 
 
-export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = pathTally) {
-  // First exposure offers recognition before recall, using only issued forms.
-  // The signed server item still grades the selected form; skipping submits none.
-  if (tally === pathTally && !(pathMeta[topic]?.attempts) && !it.choices?.length
-      && it.distractor && !it.answer.split(" ~ ").includes(it.distractor)) {
-    const options = [it.answer.split(" ~ ")[0], it.distractor];
-    it = {...it, choices: i % 2 ? options : options.reverse()};
-  }
+export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = freeTally) {
   /* What the word means, when the app already knows.
 
      The gloss comes from the local store, so it is either instantly there or
@@ -859,17 +582,9 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
     $(tally.out).textContent = line;
     awaitForward(res);
     if (res.just_mastered) {
-      // Good news wears the accent. `#pathHead` is shared with the error path, so the
-      // class is set at each use.
-      const name = pathMeta[topic]?.et || topic;
-      $("#pathHead").className = "banner ok";
-      $("#pathHead").hidden = false;
-      $("#pathHead").innerHTML =
-        `✓ Тема <strong lang="et">${esc(name)}</strong> пройдена и открывает следующие темы. ` +
-        `Упражнения ушли в очередь повторения.`;
-      celebrate({title: "Teema läbitud", name,
+      // Mastery, decided by the server, is said once through the live region.
+      celebrate({title: "Teema läbitud", name: pathMeta[topic]?.et || topic,
                  note: "Тема пройдена: следующие темы открыты."});
-      loadPath();
       refreshDueBadge();
       loadRail();
     }
@@ -960,14 +675,6 @@ export function renderPracticeItem(it, topic, i, glosses, focus = true, tally = 
 }
 
 
-$("#practiceBtn").onclick = () => {
-  if (sessionTopic) showSession(); else beginLesson();
-};
-// A new word theme is a new set: with the button folded into the end card, the
-// select itself starts it.
-$("#wordTheme").addEventListener("change", () => startPractice());
-
-
 // ── Rada or Vaba harjutus ───────────────────────────────────────────
 /* One panel, two ways through the same drills. The switch changes only what is
    recorded: Vaba harjutus is graded by the same server code, with `record: false`. */
@@ -996,7 +703,9 @@ async function fillFreeTopics() {
         `<option value="${esc(t.id)}">${esc(t.et)}</option>`).join("")}</optgroup>`
     ).join("");
     sel.value = "obj-case";
+    p.topics.forEach(t => { pathMeta[t.id] = t; });
     paintFreeRule();
+    paintTheme();
   } catch (e) {
     $("#freeOut").innerHTML = `<div class="banner">Ошибка: ${esc(e.message)}</div>`;
   }
@@ -1008,14 +717,38 @@ function paintFreeRule() {
   $("#freeRuleLabel").hidden = !on;
   if (!on) $("#freeRule").value = "";
 }
-$("#freeTopic").onchange = paintFreeRule;
+$("#freeTopic").onchange = () => { paintFreeRule(); paintTheme(); };
+
+/* The word theme: a theme picks words, the topic picks the rule. Shown only
+   where it changes the drill: a closed-class topic (küsisõnad) has no word to
+   vary, so the control is reset, disabled and taken off the screen. */
+function themeApplies() {
+  const meta = pathMeta[$("#freeTopic").value];
+  return !meta || meta.themed !== false;
+}
+function paintTheme() {
+  const sel = $("#wordTheme");
+  const applies = themeApplies();
+  if (!applies) sel.value = "";
+  sel.disabled = !applies;
+  sel.closest("label").hidden = !applies;
+}
+async function loadThemes() {
+  try {
+    const {themes} = await (await api("/api/themes", null, "GET")).json();
+    $("#wordTheme").innerHTML = '<option value="" lang="et">kõik sõnad</option>' +
+      themes.map(t => `<option value="${esc(t.id)}" lang="et">${esc(t.et)}</option>`).join("");
+  } catch { /* the control keeps its one option: every word */ }
+}
+loadThemes();
 
 
 /* Folded: one line saying what is being practised, and "Muuda" to change it. */
 function foldFreeControls(fold) {
   const pick = sel => sel.options[sel.selectedIndex]?.text || "";
   $("#freeWhat").textContent = [pick($("#freeTopic")),
-    $("#freeRule").value ? pick($("#freeRule")) : "", pick($("#freeLevel"))]
+    $("#freeRule").value ? pick($("#freeRule")) : "",
+    $("#wordTheme").value ? pick($("#wordTheme")) : "", pick($("#freeLevel"))]
     .filter(Boolean).join(" · ");
   $("#freeSummary").hidden = !fold;
   $("#freeControls").hidden = fold;
@@ -1032,13 +765,23 @@ $("#freeBtn").onclick = async () => {
   btn.disabled = true;
   try {
     const rule = $("#freeRule").value;
+    // A disabled control posts no leftover theme value.
+    const theme = themeApplies() ? $("#wordTheme").value : "";
     const res = await (await api("/api/practice", {
       topic: $("#freeTopic").value, count: 10,
       levels: $("#freeLevel").value.split(","),
       ...(rule ? {rules: [rule]} : {}),
+      ...(theme ? {theme} : {}),
     })).json();
     if (!res.items.length) {
       out.innerHTML = `<div class="banner">${esc(res.detail || "ничего не пришло")}</div>`;
+      /* A topic × theme pair can leave no sentence with a theme noun; the way
+         out is one click. */
+      if (res.theme_emptied) {
+        out.insertAdjacentHTML("beforeend",
+          `<button class="ghost" type="button" lang="et">Proovi ilma teemata <span class="ru" lang="ru">без темы</span></button>`);
+        out.lastElementChild.onclick = () => { $("#wordTheme").value = ""; $("#freeBtn").click(); };
+      }
       return;
     }
     freeTally.size = res.items.length;
@@ -1057,14 +800,14 @@ $("#freeBtn").onclick = async () => {
   } finally { btn.disabled = false; }
 };
 
-loadThemes();
 
 
-// ── offline ─────────────────────────────────────────────────────────
+// ── Offline ─────────────────────────────────────────────────────────
 /* A pack is fetched while there is a connection and answered without one. The
    page grades by the same rule the server does, queues what was answered, and
    sends it when the connection returns — the server re-grades each answer from
    its token, so nothing here decides what counts (`js/offline.js`). */
+const offlineTally = {answered: 0, correct: 0, size: 0, marks: [], beads: "#offlineBeads"};
 
 async function paintOffline() {
   const pack = await offline.savedPack();
@@ -1088,22 +831,15 @@ $("#offlineGet").onclick = async () => {
 $("#offlinePractice").onclick = async () => {
   const pack = await offline.savedPack();
   if (!pack) return;
-  sessionTopic = pack.items[0]?.topic || pathTopic;
-  showSession(); sessionStep("practice");
-  $("#lessonIntro").hidden = true;
-  $("#pathRada").hidden = false;
-  /* A set fetched on load can still be in flight; claiming the request id
-     stops it painting over the offline one when it lands. */
-  practiceRequest++;
-  const out = $("#practiceOut");
+  $("#offlineStage").hidden = false;
+  const out = $("#offlineOut");
   out.innerHTML = `<div class="banner info">Офлайн-набор: ответы записываются
     на сервере, когда связь вернётся.</div>`;
-  newSet(pathTally);
-  pathTally.size = pack.items.length;
-  paintBeads(pathTally);
+  Object.assign(offlineTally, {answered: 0, correct: 0, size: pack.items.length, marks: []});
+  paintBeads(offlineTally);
   pack.items.forEach((it, i) => out.appendChild(
     renderOfflineItem(it, i, pack.glosses || {})));
-  out.querySelector("input")?.focus();
+  out.querySelector("input, select")?.focus();
 };
 
 $("#offlineSend").onclick = async () => {
@@ -1158,9 +894,9 @@ function renderOfflineItem(it, i, glosses) {
       blank.classList.add("filled", ok ? "ok" : "no");
     }
     el.classList.add("done");
-    pathTally.marks[i] = ok;
-    pathTally.answered++; if (ok) pathTally.correct++;
-    paintBeads(pathTally);
+    offlineTally.marks[i] = ok;
+    offlineTally.answered++; if (ok) offlineTally.correct++;
+    paintBeads(offlineTally);
     el.nextElementSibling?.querySelector?.("input")?.focus({preventScroll: true});
     try {
       await offline.queueAnswer(it, input.value,
@@ -1182,9 +918,3 @@ addEventListener("online", () => offline.flush().then(paintOffline));
 paintOffline();
 
 
-/* "Harjuta" on a Reegel page starts a Minu rada set on that topic. */
-onLessonPractice(topic => {
-  pathTopic = topic;
-  paintTheme();
-  startPractice();
-});

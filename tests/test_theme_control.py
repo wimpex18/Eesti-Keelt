@@ -90,9 +90,6 @@ class TestThePageActsOnIt:
         """A disabled control posts no leftover theme value."""
         assert 'const theme = themeApplies() ? $("#wordTheme").value : "";' in page
 
-    def test_the_whole_path_is_one_disclosure_away(self, page):
-        assert "Kogu rada" in page
-
 
 class TestTheDeadEnd:
     """A theme × topic pair that yields nothing tells the learner and offers a

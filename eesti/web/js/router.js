@@ -10,7 +10,8 @@ import {ensureDictionary} from "./dictionary.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
 import {loadLibrary} from "./reading.js";
-import {loadPath, loadStatus, setPathMode, ensureSession} from "./path.js";
+import {loadPath, loadStatus, loadToday, setPathMode} from "./path.js";
+import {ensureSession} from "./session.js";
 import {ensureRule} from "./lesson.js";
 import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions, loadSpeechCapabilities} from "./speak.js";
@@ -24,7 +25,7 @@ const TABS = [...document.querySelectorAll("section.panel[id^='tab-']")]
 const ON_OPEN = {
   exam: () => loadExam(),
   vihikud: () => loadVihikud(),
-  path: () => loadPath(),
+  path: () => loadToday(),
   course: () => loadPath(),
   review: () => refreshDueBadge(),
   status: () => loadStatus(),

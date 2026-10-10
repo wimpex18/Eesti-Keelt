@@ -244,6 +244,42 @@ and Russian side by side per sense. The sources answer per word (EVS) or for
 the main sense (Ekilex's lists), not per sense in every language, so a per-sense
 grid would have invented alignments.
 
+## Session and Täna as built
+
+S8 (11 October 2026) built Täna, the session and onboarding as Migration step 3
+of DESIGN.md, on ADR-0009's session composed by code (`eesti/session.py`), and
+checked them as the spec was checked: screenshots of Täna (fresh, mid-session
+and done), every step of a session and its end, and onboarding's four
+questions, at 390 and 1280px in both themes; the focus journey through Täna,
+Kursus, a rule and a session item awaiting and revealed at 390×844, 874×402
+and 1280×800 on both engines, with the session's answer field above a stubbed
+keyboard; every new colour pairing computed with the WCAG formula and rounded
+down (light / dark): `ink` on `bad-soft` 13.87 / 11.57 and `bad` on `bad-soft`
+5.74 / 7.94 (a missed dictation word), `ink-2` on `sheet` 9.74 / 9.16 (the
+answered bead), `good` and `bad` on `sheet` 6.93 / 9.01 and 6.93 / 8.80 (the
+chosen row's border after a check), `edge` on `ground` 3.57 / 4.98 (the plan's
+ring), `muted` on `ground` 5.68 / 7.35 (the plan's counts). Where the build
+differs from the reviewed proposal, the reason:
+
+| Proposal | Built | Why |
+|---|---|---|
+| Correction region 150px; *Miks?* and *Reegel* after the reason | 200px; *Miks?* and *Reegel* right under the verdict and *Sinu vastus*, the reason after them | A two-line reason pushed the help out of the reserved region on a phone, so it moved from item to item; WCAG 3.2.6 asks for help in one place. 200px holds the verdict, the struck answer and the help row with the first line of a reason. |
+| A choice fills the gap; its row shows a check while selected | After the check the chosen row also says what became of it: a moss tick where right, struck through with a cranberry cross where wrong | A tick left on a wrong choice read as "right". |
+| Seven segments always | A segment per step today's session has; a step with nothing to do (no card due) is left out | An empty Kordamine segment would be a step the learner cannot take; the plan and the line say the same thing. |
+| Phase labels with their glosses on one line | A phase is never narrower than its label; on a phone the gloss sits under the name | With one step in *Õpi* and one in *Kontrolli*, the label was cut on a 390px phone. |
+| (none) What the hint says | Code's sentence, in a fixed order: the dictionary form, another real form of the word with the rule's first sentence, a slip of one or two letters, the rule; never a sentence that spells the key | ADR-0009 asks for prompts that make the learner correct themselves (Lyster & Saito 2010); a hint that names the key is a recast. |
+| (none) The unit check and a test-out | The same screen, answered item by item, the verdicts after the last (*Valmis*), with an `ink-2` "vastatud" bead | The server grades these sets whole from their seed (ADR-0007), so an item has no verdict of its own until the end; a neutral bead says the answer was taken without saying how it went. |
+| The words step, unspecified | The word recalled from its meaning in one of EKI's phrases; the meaning alone under the gap | The lemma under the gap would be the answer. |
+| The microphone in the task row | Between the skills key and the primary | One row, three keys; the primary keeps its place in the row's end. |
+| The rule step, unspecified beyond the walk | Notice, six to ten choices between the key and the generator's other form with the form unnamed, then *Miks nii* (gist, the walk's model text, the pairs, three sourced points) | The walk's own three items are few for a step; the generator gives more pairs, keyed by the same code. Every topic gets the step; only walk topics get the notice and the pairs. |
+| Session end, unspecified first-session prompts | *Järgmiseks* after the first session only: the sitting (exam goals) and where the reminders are | ADR-0009: asked after the first session, never before. |
+| Onboarding: one screen with three routes | Four screens, one question each, one *Edasi*; the language note in the chosen language comes from the server (`session.LANGUAGES`) | Each question has one primary in the same place; the language note must be in the language chosen, and the app's static text stays Russian until the catalogue (S4). |
+| Täna's plan counts | In Estonian, the singular after one and Vabamorf's singular partitive after more (*8 ülesannet*, *4 sõna*) | The interface is exposure; a count is Estonian a learner reads every day. |
+
+The word theme moved from the session's settings fold to *Vaba harjutus*: a
+session's words are the unit's, and a theme chosen for free practice still
+picks words for a rule there.
+
 ## Platform and standards references
 
 | Source | Finding | Application |

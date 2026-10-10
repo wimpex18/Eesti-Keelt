@@ -202,6 +202,63 @@ function pointsHtml(points) {
   </section>`;
 }
 
+/* Küsi: the learner's own question, answered by Claude Haiku from this topic's
+   sources alone (`tutor.ask_rule`), in the explanation language; labelled as a
+   model's text with its engine, and never a verdict on anything. */
+function questionBoxHtml(L) {
+  if (!L.rule && !L.points_ru.length) return "";
+  return `<section class="rule-ask" aria-labelledby="ruleAskH">
+    ${heading("ruleAskH", "Küsi", "спроси о правиле")}
+    <form class="rule-ask-form">
+      <label for="ruleAskQ" lang="ru">Твой вопрос <span class="hint">ответит модель по источникам этой темы; она объясняет и ничего не оценивает</span></label>
+      <textarea id="ruleAskQ" rows="2" maxlength="300" lang="ru"></textarea>
+      <button class="ghost" type="submit" lang="et">Küsi <span class="ru" lang="ru">спросить</span></button>
+    </form>
+    <div class="rule-ask-out" aria-live="polite"></div>
+  </section>`;
+}
+
+let explanationLanguage = null;
+async function language() {
+  if (explanationLanguage) return explanationLanguage;
+  try {
+    const me = await (await api("/api/me", null, "GET")).json();
+    explanationLanguage = me.onboarding?.explanation_language || "ru";
+  } catch { explanationLanguage = "ru"; }
+  return explanationLanguage;
+}
+
+function wireAskBox(L) {
+  const form = sheet.querySelector(".rule-ask-form");
+  if (!form) return;
+  const box = form.querySelector("textarea"), out = sheet.querySelector(".rule-ask-out");
+  language().then(lang => { box.lang = lang; });
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const question = box.value.trim();
+    if (!question) { box.focus(); return; }
+    const go = form.querySelector("button");
+    go.disabled = true;
+    out.innerHTML = `<p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">модель отвечает</span></p>`;
+    try {
+      const lang = await language();
+      const a = await (await api(`/api/rule/${encodeURIComponent(L.id)}/ask`, {question, lang})).json();
+      const by = a.engine && a.engine !== "none" ? a.engine.replace(/^llm:/, "") : "";
+      out.innerHTML = `<div class="rw-model">
+        <p class="rw-model-by" lang="et">Selgitab mudel, ei hinda <span class="ru" lang="ru">объясняет модель, не оценивает${by ? `: ${esc(by)}` : ""}</span></p>
+        <p class="rule-ask-q" lang="${esc(lang)}">${esc(question)}</p>
+        ${a.text ? `<p class="rw-model-text" lang="${esc(a.lang)}">${md(a.text)}</p>` : ""}
+        ${a.note ? `<p class="hint" lang="${esc(a.lang)}">${esc(a.note)}</p>` : ""}
+        ${a.reference?.known ? `<p class="rw-model-src" lang="et">Allikas <span class="ru" lang="ru">источник</span>
+          <a href="${esc(a.reference.url)}" target="_blank" rel="noopener" lang="et">EKK ${esc(a.reference.ekk_section)}</a></p>` : ""}
+      </div>`;
+      box.value = "";
+    } catch (error) {
+      out.replaceChildren(retryableError(error.message, () => form.requestSubmit()));
+    } finally { go.disabled = false; }
+  });
+}
+
 /* A row label that names a case and its number ("nimetav · ainsus"): the
    number in the quieter voice, not after a dot. */
 function rowLabel(c) {
@@ -276,6 +333,7 @@ function render(L) {
     + (w ? `<div class="rw">${noticeHtml(w.notice)}${askHtml(w.ask.items)}${explainHtml(w.explain, asked)}${contrastHtml(w.contrast, asked)}</div>
         ${switchHtml(w.switch.conditions, [...w.notice.examples, ...w.contrast, ...w.switch.conditions])}` : "")
     + pointsHtml(L.points_ru)
+    + questionBoxHtml(L)
     + tableHtml(L.table)
     + examplesHtml(L)
     + mistakesHtml(L.mistakes)
@@ -405,6 +463,7 @@ function wire(L, onPractice) {
   const go = $("#lessonPractice");
   if (go) go.onclick = () => { closeRule(); (onPractice || practiseHandler)(L.id); };
   if (L.walk) wireAsk(L.walk.ask.items);
+  wireAskBox(L);
   const fitSwitch = L.walk ? wireSwitch(L.walk.switch.conditions) : () => {};
   measure = () => {
     sheet.querySelectorAll(".lesson-table").forEach(scrollable);

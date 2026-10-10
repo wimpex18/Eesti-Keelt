@@ -87,5 +87,9 @@ class TestRussianForEveryTopic:
             assert t.id in LESSONS and LESSONS[t.id].points_ru, t.id
             assert t.id in TIPS and TIPS[t.id].wrong != TIPS[t.id].right, t.id
 
-    def test_the_tip_reaches_the_page(self):
-        assert lesson("obj-case")["tip"]["right"] == "Vii laps lasteaeda!"
+    def test_no_unsourced_tip_reaches_the_page(self):
+        from eesti.lessontext import TIPS
+
+        served = lesson("obj-case")
+        assert "tip" not in served
+        assert TIPS["obj-case"].gist_ru not in str(served)
