@@ -1,6 +1,6 @@
 ---
-name: Grove
-description: Interlinear. Every Estonian form shows what it is; spruce ink on birch ground; one fixed primary action per screen.
+name: Klint
+description: Interlinear. Every Estonian form shows what it is; spruce ink on a birch and limestone ground; one fixed primary action per screen.
 colors:
   ground: '#F1F4F1'
   sheet: '#FFFFFF'
@@ -246,11 +246,11 @@ components:
     padding: 24px
 ---
 
-# Design System: Grove
+# Design System: Klint
 
 ## Status of this record
 
-This is the specification of the Grove redesign: the target for every screen
+This is the specification of the Klint redesign: the target for every screen
 rebuilt from now on. The stylesheet in `eesti/web/app.css` still ships the
 previous system, Practice rhythm (pale blue wash, frosted navigation, deep blue
 actions), until a screen is rebuilt to this record. The order of that work and
@@ -268,7 +268,7 @@ are unchanged: code grades, models are labelled, sources stay attributed
 **Creative North Star: "Interlinear"**
 
 Linguists write a sentence with its analysis underneath, word by word: the
-interlinear gloss. Grove's whole subject is that analysis — which form a word
+interlinear gloss. Klint's whole subject is that analysis — which form a word
 takes and why — and the code already knows it, because Vabamorf and each item's
 key name the form. So the interface sets the Estonian word large and sharp and,
 when the learner needs it, writes its form under it in small soft type:
@@ -286,7 +286,8 @@ ink, the most legible colour the page has.
 - The interlinear word: Estonian form above, its form name and meaning below,
   supplied by code.
 - One family, two voices: Geologica's sharp cut (`SHRP` 100) for Estonian
-  material, its soft cut (`SHRP` 0) for Russian and interface text.
+  material, its soft cut (`SHRP` 0) for the explanation language (Russian,
+  Ukrainian or English) and interface text.
 - One primary action per screen, always in the same place: the action bar
   above the phone dock, the sticky action row on desktop.
 - Practice rhythm kept: one item, answer, correction at the word, Edasi.
@@ -299,8 +300,9 @@ ink, the most legible colour the page has.
 | Practice rhythm (one item → check → correction → Edasi) | Kept | It works; the audit found the rhythm sound and its presentation weak. |
 | Õpi → Harjuta → Kontrolli | Kept as the three phase labels of the session line | It is the app's loop; ADR-0009's seven steps group under it. |
 | Reserved correction region | Kept, moved under the sentence | The answer no longer jumps; the correction now starts at the word. |
-| Geologica, leaf mark, Grove name, skill pictograms | Kept | Identity and licensing are settled; the font's `SHRP` axis is used fully for the first time. |
-| Both phone skill labels (Estonian and Russian) | Kept | The interface is language exposure (`PRODUCT.md`). |
+| Geologica, skill pictograms | Kept | Licensing is settled; the font's `SHRP` axis is used fully for the first time. |
+| Name and mark | Grove becomes Klint; the leaf becomes an underlined K | Another company holds grove.ee. Klint, the limestone cliff of north Estonia, is a step learners climb; the mark is the signature component itself: a letter with its interlinear bar (`docs/brand.md`). |
+| Both phone skill labels (Estonian and the explanation language) | Kept | The interface is language exposure (`PRODUCT.md`). |
 | Pale blue wash, frosted navigation, deep blue buttons | Replaced | Generic 2021–23 SaaS material, unrelated to the name; glass imitates what iOS renders natively. |
 | White cards on a tinted page | Replaced | Content chopped into identical cards; only the item bench and reading sheets keep a surface. |
 | Primary action placement | Changed: fixed bar on phones, sticky row on desktop | Two primary-looking buttons and an off-screen Edasi were the commonest defects. |
@@ -327,7 +329,7 @@ ink, the most legible colour the page has.
 ## Forbidden defaults
 
 These are defaults that appear whatever the subject. None of them may appear in
-Grove, in either theme, on any screen.
+Klint, in either theme, on any screen.
 
 - **Cream backgrounds.** No warm off-white ground (the `#F4F1EA` family) and no
   terracotta or clay accent beside it.
@@ -364,8 +366,10 @@ Grove, in either theme, on any screen.
 
 ## Colors
 
-The ground is birch shade, the ink is spruce; both are deliberately cool and
-slightly green, connecting the screen to the name without decoration. Lake blue
+The ground is birch bark and the pale limestone of the klint's face; the ink
+is the spruce forest that grows along its top. Both are deliberately cool and
+slightly green, tying the screen to the place the name comes from without a
+picture of it. Lake blue
 (järv) is the only blue: links, focus and selection. Frontmatter values are
 normative.
 
@@ -407,7 +411,7 @@ Ratios are computed with the relative-luminance formula defined by
 down to two decimals. Requirements: text 4.5:1
 ([SC 1.4.3](https://www.w3.org/TR/WCAG22/#contrast-minimum)); user-interface
 boundaries, focus indicators and meaningful graphics 3:1
-([SC 1.4.11](https://www.w3.org/TR/WCAG22/#non-text-contrast)). Grove holds
+([SC 1.4.11](https://www.w3.org/TR/WCAG22/#non-text-contrast)). Klint holds
 every text pair to 4.5:1, including large text, which the standard would let
 fall to 3:1.
 
@@ -454,7 +458,7 @@ the form line takes weight 600.
 
 ### Forced colours
 
-Under `forced-colors: active` the browser replaces the palette; Grove keeps
+Under `forced-colors: active` the browser replaces the palette; Klint keeps
 meaning by shape.
 
 | Element | System colours |
@@ -479,7 +483,7 @@ italic. Sizes are set in `rem` so the browser's text size setting scales them.
 
 **Two voices.** `SHRP` 100 for Estonian at display and prompt sizes, `SHRP` 60
 for Estonian at running sizes (reading, labels, table cells), `SHRP` 0 for
-Russian and every interface sentence. The difference shows at the terminals of
+the explanation language and every interface sentence. The difference shows at the terminals of
 *k*, *t* and the tail of *Щ*; it is felt rather than read, and it marks
 material without colour.
 
@@ -494,14 +498,14 @@ and nothing between them.
 | Prompt | 36/2.5 desktop, 24/2.6 phone | 500 | 100 | The item sentence; the tall line holds the form line |
 | Lead | 21/1.4 | 400 | 0 | A rule's gist, Täna's question |
 | Reading | 18/1.7 | 400 | 60 | Estonian prose, at most 66 characters a line |
-| Body | 16/1.5 | 400 | 0 | Russian explanation and interface text, at most 66 characters |
+| Body | 16/1.5 | 400 | 0 | Explanations and interface text, at most 66 characters |
 | Label / action | 16/1.25, 18/1.2 in the action bar | 600 | 60 | Buttons and navigation |
 | Form line, note | 14/1.2, 14/1.45 | 400 | 0 | The interlinear line, metadata |
-| Gloss | 12/1.3 | 400 | 0 | The Russian under an Estonian label; never smaller |
+| Gloss | 12/1.3 | 400 | 0 | The explanation-language gloss under an Estonian label; never smaller |
 
 Rules: tabular figures for every count and time; `text-wrap: balance` on
 headings, `pretty` on paragraphs; Estonian elements carry `lang="et"` so
-hyphenation and screen-reader voices are right; Russian glosses never take
+hyphenation and screen-reader voices are right; glosses never take
 the sharp cut. Fields stay at 16px or more so iOS Safari does not zoom.
 Bringhurst's 45–75 character measure (66 ideal) bounds every paragraph.
 
@@ -542,8 +546,8 @@ Browse                         Act                            Task
 └──────────────────────────┘   └──────────────────────────┘
 ```
 
-- Tabs show the pictogram (24px), the Estonian label (12px) and the Russian
-  gloss (12px; the owner's rule that both phone labels stay 12px holds). The
+- Tabs show the pictogram (24px), the Estonian label (12px) and its gloss in
+  the explanation language (12px; the owner's rule that both phone labels stay 12px holds). The
   selected tab has an ink label at weight 700 and a 44×28 `sunk` rectangle
   behind its pictogram (radius 10px, not a capsule).
 - The skills key opens the four skills as a sheet. In the task state the four
@@ -565,12 +569,12 @@ triggers the primary.
 
 ### Header
 
-- Phone: leaf mark (28px) or a back control, the page title as the `h1` (18px,
+- Phone: the mark (28px) or a back control, the page title as the `h1` (18px,
   600, Russian gloss below at 12px), and **Veel** at the right. During a session
   the left control is **Peata** ("пауза"; progress is kept) and the title is
   the topic.
 - Desktop: no header bar; the page title is the first element of the content
-  column (Title role). The sidebar holds Grove, then Täna, Kursus, Kordamine
+  column (Title role). The sidebar holds Klint, then Täna, Kursus, Kordamine
   (with its due count), Eksam; then *Oskused* and the four skills; then Veel,
   Profiil and appearance at the bottom. Items are one line, 44px: label and
   gloss on one baseline. Selected: `sheet` fill and a 3px ink bar at the left.
@@ -590,7 +594,7 @@ triggers the primary.
 
 ## The signature: interlinear word
 
-The component that makes Grove recognisable. It is used wherever one Estonian
+The component that makes Klint recognisable. It is used wherever one Estonian
 form is the point: the item gap, the correction, the rule page's contrast
 example, the review card and the form switch.
 
@@ -688,7 +692,7 @@ alternatives with one-line reasons, and nothing else competing.
 ```
 Phone 390                                   Desktop 1280
 ┌──────────────────────────────────┐        ┌────────┬──────────────────────────────────────────────┐
-│ ◆ Täna                      Veel │        │ Grove  │ Täna  сегодня                                 │
+│ ◆ Täna                      Veel │        │ Klint  │ Täna  сегодня                                 │
 │   сегодня                        │        │        │ laupäev, 10. oktoober                         │
 │ laupäev, 10. oktoober            │        │ Täna   │                                               │
 │                                  │        │ Kursus │ Ma sõin jäätise ära.          │ Kordamine  6 │
@@ -999,7 +1003,7 @@ View Transitions are Baseline for same-document updates (Firefox 144, October
 
 WCAG 2.2 requires that a focused component is not entirely hidden by
 author-created content ([SC 2.4.11](https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum)).
-Grove holds the stricter bar of
+Klint holds the stricter bar of
 [SC 2.4.12](https://www.w3.org/TR/WCAG22/#focus-not-obscured-enhanced): no part
 of a focused element is under the dock, the action bar, the header or the
 keyboard.
@@ -1049,6 +1053,41 @@ existing journeys in `tests/test_e2e_journeys.py`.
 - Reduced motion, reduced transparency (nothing translucent), forced colours
   and `prefers-contrast: more` as specified above.
 
+## Explanation languages
+
+Klint teaches Estonian in Russian, English and Ukrainian. Estonian material,
+labels, keys and progress are shared; explanations, glosses, instructions,
+warnings and accessible names follow the learner's explanation language.
+Russian is the MVP and the language of this record's examples; every rule here
+applies equally to Ukrainian and English.
+
+**Default.** On first run the web app reads `navigator.languages` and the iOS
+app its preferred languages (honouring a per-app language set in iOS
+Settings), and takes the first whose primary subtag is `uk`, `ru` or `en`;
+none matching gives English. A Russian speaker whose system is set to Estonian
+first (`et-EE, ru`) therefore gets Russian. The result is preselected in
+onboarding's first question, changeable in Profile at any time, and a saved
+choice always wins over detection. Location is never used to guess a language.
+
+**Markup.** The document's `lang` is the explanation language; Estonian
+elements carry `lang="et"`; every gloss carries the explanation language's
+code, so screen readers switch voices correctly in all three languages.
+
+**Layout.** No component may depend on the length of one language's strings.
+Russian and Ukrainian strings are often longer than English ones: primary
+labels keep the gloss on one line and truncate nothing (the gloss wraps under
+the label in the action bar before it is clipped); tab glosses use the shortest
+established term per language from the term catalogue; the correction region
+scrolls inside itself rather than growing. Every screen is checked in all three
+languages at 390px.
+
+**Missing translations.** Where reviewed text is missing in the chosen
+language, the slot says so in that language and offers the Russian text as an
+explicit choice; it is never silently replaced (`PRODUCT.md`).
+
+**Type.** The bundled Geologica Cyrillic subset covers Ukrainian letters (і, ї,
+є, ґ) and the apostrophe; English needs only the Latin subset.
+
 ## iOS
 
 The planned iPhone and iPad app is native SwiftUI on iOS 26, sharing the API,
@@ -1083,6 +1122,7 @@ variation attributes; each type role scales with Dynamic Type through
 | Motion tokens | `Animation.timingCurve(0.2, 0, 0, 1, duration: 0.16)` and peers; `accessibilityReduceMotion` swaps movement for opacity |
 | Verdict feedback | `sensoryFeedback(.success)` on right; a light impact on a miss; nothing on skip |
 | Materials | Liquid Glass only where the system draws it (tab bar, toolbars); content stays solid, as on the web |
+| Explanation language | `uk`, `ru`, `en` localizations declared so iOS offers a per-app language; the default from `Bundle.main.preferredLocalizations` and preferred languages, as on the web; a saved choice wins |
 
 Apple's own guidance places Liquid Glass in the navigation layer and asks that
 motion communicate and never be the only carrier of information; the web
@@ -1109,9 +1149,9 @@ green on both engines and both viewports.
    the interlinear word and the state machine.
 4. **Reegel** with S3's rule walk (`eesti/web/js/lesson.js`).
 5. **Kursus**, then the skills, Kordamine, Eksam and Profiil.
-6. **Brand derivatives.** Platform tiles and social artwork move from deep blue
-   to spruce and birch through `deploy/build-brand.py`; the leaf is unchanged
-   (`docs/brand.md`).
+6. **Brand.** Done with the rename: the underlined K, spruce tiles and birch
+   social artwork ship, rebuilt by `deploy/build-brand.py` (`docs/brand.md`).
+   Manifest and `theme-color` follow the ground in step 1.
 
 When a step lands, the same change updates the documents that describe the
 shipped interface: `docs/status.md` (Interface), `docs/brand.md`, the visual
@@ -1125,7 +1165,8 @@ system line in `PRODUCT.md` and the Practice rhythm sentence in
 - Do show a form's name under the word, from code, at the moment it helps.
 - Do keep one primary action per screen in the action bar or the action row.
 - Do pair every result colour with an icon and a word.
-- Do set Estonian in the sharp cut with `lang="et"`, Russian in the soft cut.
+- Do set Estonian in the sharp cut with `lang="et"`, the explanation language
+  in the soft cut with its own `lang`.
 - Do keep sources visible near the top of any rule or text.
 - Do label every model's words with the engine, outside the result colours.
 - Do keep all four skills one tap away on every screen.
@@ -1139,7 +1180,7 @@ system line in `PRODUCT.md` and the Practice rhythm sentence in
 - Don't put a correction in a separate paragraph when it can sit at the word.
 - Don't animate anything the learner did not cause, or loop anything but a
   recording clock.
-- Don't use colour for a language: Russian is not grey because it is Russian;
-  it is `muted` only where it is a gloss.
+- Don't use colour for a language: an explanation is not grey because it is
+  Russian, Ukrainian or English; it is `muted` only where it is a gloss.
 - Don't treat a trend, a competitor or visual freshness as evidence of better
   learning.

@@ -12,7 +12,7 @@ the household needed their own progress.
 
 ## Decision
 
-Grove opens publicly. Accounts live in the app and are optional.
+Klint opens publicly. Accounts live in the app and are optional.
 
 | Scope | Who | How | Origin files | Durable Object | Lifetime |
 |---|---|---|---|---|---|

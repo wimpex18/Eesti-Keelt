@@ -77,7 +77,7 @@ class Shell:
     status = 200
     def __enter__(self): return self
     def __exit__(self, *args): pass
-    def read(self): return b"<title>Grove</title>"
+    def read(self): return b"<title>Klint</title>"
 
 
 def test_public_checks_identify_the_deployer_without_forwarding_credentials(monkeypatch):
@@ -88,7 +88,7 @@ def test_public_checks_identify_the_deployer_without_forwarding_credentials(monk
     def urlopen(request, **kwargs):
         url = request.full_url
         headers = {name.lower(): value for name, value in request.header_items()}
-        if headers.get("user-agent") != "Grove-deploy/1.0":
+        if headers.get("user-agent") != "Klint-deploy/1.0":
             raise module.HTTPError(url, 403, "Forbidden", {}, None)
         if url.startswith(ENV["CLOUD_RUN_URL"]):
             assert headers["x-proxy-token"] == ENV["PROXY_TOKEN"]

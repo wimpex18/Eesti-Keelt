@@ -9,7 +9,7 @@ issues are in `docs/status.md`; work is tracked on the existing Linear issues
 ## Owner decisions
 
 - A complete, practice-first path from A0 to B1 that learners use alongside
-  Keeleklikk (0–A2) and Keeletee (B1), plus B1 exam preparation. Grove makes no
+  Keeleklikk (0–A2) and Keeletee (B1), plus B1 exam preparation. Klint makes no
   video lessons.
 - Explanations in Russian, then Ukrainian, then English; Estonian material,
   keys and progress shared.
@@ -88,7 +88,7 @@ Labelled "written with a model, checked by Vabamorf and automatic checks".
 
 HARNO's A2 exam has 13 tasks (14 counting writing task 2's two variants) and
 B1 12 (15 counting both writing tasks' variants; harno.ee, read 9 Oct 2026).
-Grove reproduces two reading tasks (owner-only, from printed keys), sets both
+Klint reproduces two reading tasks (owner-only, from printed keys), sets both
 writing tasks per level in their variants with a code checklist, and
 approximates reading and listening with gap-fill and dictation; it has no HARNO
 listening task type yet. Build:
@@ -159,5 +159,5 @@ the A2 exam, English only, EKI-verified), Konsta.app (Russian/Ukrainian, generat
 content, unverified), Keeli (student project), Speakly and Lingvist (vocabulary),
 state courses Keeleklikk, Keeletee and Keelelend (B2, Estonian only). B1 is the
 largest and hardest cohort (2024: 3,615 candidates, 62.9% pass; A2: 2,387, 70.7%).
-Grove's distinct offer: Russian, Ukrainian and English explanations, verified
+Klint's distinct offer: Russian, Ukrainian and English explanations, verified
 grading, B1 practice, honest per-part readiness, free offline use.

@@ -42,7 +42,7 @@ therefore keeps the rhythm and replaces the presentation.
 
 ## Decisions
 
-**Interlinear as the signature.** Grove teaches which form a word takes. Code
+**Interlinear as the signature.** Klint teaches which form a word takes. Code
 already names that form for every keyed item (the form label, the rule's form,
 Vabamorf's analysis), so showing it under the word costs no new linguistic data
 and invents nothing. It moves the correction to where the learner is looking
@@ -58,8 +58,9 @@ partitives (*leiva*, *jäätise*) — exactly the forms of `obj-case`, the
 documented weakness — so the seam would be missing where it matters most. It
 can return as a refinement where Vabamorf separates a non-zero ending.
 
-**Spruce ink on birch ground.** Cool, faintly green neutrals connect the screen
-to the name Grove without decoration and are clearly not the cream default.
+**Spruce ink on birch ground.** Cool, faintly green neutrals — the klint's pale
+limestone and the spruce on its top — tie the screen to the name without a
+picture and are clearly not the cream default.
 The primary action takes the ink colour: the most legible fill on the page,
 and it leaves every hue free for learning state. Lake blue stays for links,
 focus and selection, the convention learners expect. *Considered:* keeping the
@@ -75,8 +76,28 @@ will get the real material for free; the web uses opaque surfaces.
 focus that the phone's skill tray never hides. iOS 26 answers the same problem
 with a floating tab bar that minimises on scroll and a bottom accessory above
 it that moves inline when the bar minimises ([WWDC25 session 284](https://developer.apple.com/videos/play/wwdc2025/284/)).
-Grove's browse, act and task states follow that model, so the web and the
+Klint's browse, act and task states follow that model, so the web and the
 future app behave alike.
+
+**The name: Klint.** The earlier name, Grove, collides with a company that
+holds grove.ee. The owner ruled out Estonian common words and word mashups;
+candidates were checked on 10 October 2026 against the `.ee` registry
+(whois.tld.ee), the `.app` registry (Google's RDAP service) and a web search
+for apps and companies. Klint — the Baltic Klint, the limestone escarpment of
+north Estonia running through Ida-Virumaa, where many of the learners live —
+had a free `klint.ee` (`klint.app` is registered) and no clashing app or
+company; it reads the same in Russian, Ukrainian and English. A Business
+Register and trademark search remain for the owner before the domain is bought.
+The mark is the design's own signature: a K with the interlinear bar, which is
+also the shore line under the cliff. Leaf and cliff silhouettes were drawn and
+set aside: at 16px they read as a boot, a folder or a stock stairs icon.
+
+**Default explanation language from the system.** Learners arrive with a
+phone or browser already set to their language; asking before showing anything
+costs the first minute ADR-0009 protects. The first preferred language that is
+Ukrainian, Russian or English is preselected, English otherwise, and a saved
+choice always wins. Location is not used: in Estonia it says nothing about
+which of the three languages a person reads.
 
 **Täna for Home.** ADR-0009 makes Home the session; *Täna* ("today") names
 what the learner gets there.
@@ -125,7 +146,7 @@ is not committed.
 Snapshot 3 October 2026, from official product pages, support guides and
 publisher material; native apps and subscription accounts were not tested.
 
-| Product | Verified public experience | Useful adaptation for Grove | Tradeoff to avoid |
+| Product | Verified public experience | Useful adaptation for Klint | Tradeoff to avoid |
 |---|---|---|---|
 | Duolingo | A guided course path plus on-demand speaking, listening, mistakes and word practice. | A strong next lesson, easy review of prior material, direct skill practice. | A long path or reward systems must not obscure the next action. [Practice guide](https://blog.duolingo.com/guide-to-duolingo-practice-hub/), [course navigation](https://blog.duolingo.com/how-to-review-lessons-on-duolingo/) |
 | Babbel | A placement quiz recommends a course; review mixes flashcards, writing, speaking and listening. | Editable starting point; one practice system with several exercise types. | Do not expose every method as its own page. [Placement](https://support.babbel.com/hc/en-us/articles/20202703767442-Placement-quiz), [review](https://support.babbel.com/hc/en-gb/articles/205600228-Vocab-workout-Review) |
@@ -154,13 +175,13 @@ flashcards, typed forms and EVS example phrases; the
 [website](https://www.sonastik.app/en) shows meanings and declension views.
 These are vendor claims, not verified outcomes.
 
-**Grove's distinction is the learning journey:** an entry choice leads to a
+**Klint's distinction is the learning journey:** an entry choice leads to a
 lesson, checked practice, a correction the learner can understand and a next
 action, across four skills, with optional exam preparation. Dictionary lookup
 serves the current text or exercise. Adaptations that fit: meaning and a usage
 example before a large form table; the learner's place preserved when a lookup
 closes; tolerant matches resolved visibly so they never become a correct drill
-answer; one review queue. Grove already imports EVS examples and supports
+answer; one review queue. Klint already imports EVS examples and supports
 optional Ekilex lookups beside Vabamorf forms ([sources](sources.md),
 [integrations](source-integrations.md)); Sõnastik's service and artwork are not
 needed. A vendor's word-percentage presentation is not adopted as a

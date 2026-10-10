@@ -527,7 +527,7 @@ REGISTRY: tuple[Source, ...] = ENGINES + AUDIO + (
         "Drills built from Vabamorf forms. Unlimited, deterministic.",
     ),
     Source(
-        "grove-material", "Grove: dialoogid ja tekstid", "generated",
+        "grove-material", "Klint: dialoogid ja tekstid", "generated",
         "own work", True, None,
         "Unit dialogues and reading texts written with a model, checked by "
         "Vabamorf and automatic checks (ADR-0009, `docs/material.md`): every "

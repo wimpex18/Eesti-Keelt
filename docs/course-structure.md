@@ -52,7 +52,7 @@ earlier unit not yet complete — a run of units or whole stages in one step
 
 | Destination | With units |
 |---|---|
-| *Kodu* | One action: the current unit's next session (*Ühik 3 · 2/5*), the due review count beside it, homework until it is done. Exam appears only after the learner picks a sitting. |
+| *Täna* | One action: the current unit's next session (*Ühik 3 · 2/5*), the due review count beside it, homework until it is done. Exam appears only after the learner picks a sitting. |
 | *Kursus* | Stages → units → parts. Each topic keeps its rule page, test-out and free practice, reached from its unit or from an *All topics* fold. |
 | *Kordamine* | One FSRS queue. Unit words and missed items join it; there is no per-unit queue. |
 | *Eksam* | Mocks, readiness and sittings stay here. From the A2 stage on, a unit ends with one HARNO-format task on its HARNO topic once DEV-41 builds those task types; the answer counts as evidence for that exam part. |
@@ -85,9 +85,9 @@ earlier unit not yet complete — a run of units or whole stages in one step
 
 ## Keeleklikk and Keeletee
 
-The state's free courses carry video lessons; Grove does not. A unit names its
+The state's free courses carry video lessons; Klint does not. A unit names its
 companion unit and links to its course map, labelled as an external, free
-course. Grove never rehosts it.
+course. Klint never rehosts it.
 
 - Keeleklikk (0–A2, 16 units, Russian, Ukrainian and English instructions):
   `https://www.keeleklikk.ee/{ru|ua|en}/A/coursemap/list/{n}`.

@@ -58,6 +58,7 @@ Merge PR #125 before starting any session: every branch starts from `main`.
 | 1 | S5 generators the units lack | `eesti/modals.py`, `eesti/negation.py`, `eesti/future.py`, `eesti/conjugation.py`, `eesti/evs.py`, their tests | `eesti/curriculum.py`, `eesti/practice.py`, `eesti/grammar.py`, `eesti/unitcheck.py`, `eesti/itemref.py`, `docs/curriculum.md`, `docs/course-structure.md` |
 | 1 | S6 HARNO B1 task types | `eesti/harnotasks.py`, `eesti/mock.py`, `eesti/web/js/mock.js`, `tests/test_harnotasks.py` | `eesti/api/exam.py` |
 | 1 | S7 design and motion | `DESIGN.md`, `docs/design-research.md` | — |
+| 2 | S10 redesign tokens and shell (first in wave 2) | `eesti/web/app.css`, `eesti/web/js/chrome.js`, `eesti/web/js/core.js` (the interlinear helper), `eesti/web/sw.js` (offline page), `eesti/api/assets.py` (manifest colours), `tests/test_shell.py` | `eesti/web/index.html`, `eesti/web/js/router.js`, `tests/test_e2e_journeys.py`, `docs/app-structure.md` |
 | 2 | S2 unit dialogues and texts | `content/material/` | — |
 | 2 | S3 interactive rules | `eesti/rulewalk.py`, `eesti/web/js/lesson.js`, `tests/test_rulewalk.py` | `eesti/lessontext.py` (walk data) |
 | 2 | S9 dictionary | `eesti/dictionary.py`, `eesti/api/dictionary.py`, `eesti/web/js/dictionary.js`, `eesti/web/js/words.js`, `tests/test_dictionary*.py` | `eesti/web/index.html`, `eesti/web/js/router.js`, `docs/identity.md` |
@@ -66,7 +67,10 @@ Merge PR #125 before starting any session: every branch starts from `main`.
 
 Every session may add its row to `docs/status.md` and its own
 `qa/sessions/<branch>.md`. Wave 2 starts when S1 is merged (S2 needs its
-checks); S4 touches many call sites, so it runs alone, last.
+checks); S4 touches many call sites, so it runs alone, last. S10 goes first
+among the sessions that touch `eesti/web/`: S3 and S9 start when it is merged,
+so they build their screens on its tokens and shell; S2 (content only) may run
+beside it. The S7 spec is checked by the reviewer brief S7R before S10 starts.
 
 ## Merging (owner)
 
@@ -83,7 +87,7 @@ checks); S4 touches many call sites, so it runs alone, last.
 ## S1. Material pipeline (wave 1, first)
 
 ```text
-Grove S1: build the material pipeline of ADR-0009. Follow "Every session first"
+Klint S1: build the material pipeline of ADR-0009. Follow "Every session first"
 in qa/opus-sessions.md; your files are listed there under S1.
 Read ADR-0004, ADR-0009, eesti/comprehension.py, eesti/phrases.py,
 eesti/units.py, docs/course-structure.md.
@@ -105,7 +109,7 @@ wrote without the gates.
 ## S2. Lessons: unit dialogues and texts (wave 2, after S1)
 
 ```text
-Grove S2: draft dialogues and reading texts for units 2–10 with the material
+Klint S2: draft dialogues and reading texts for units 2–10 with the material
 pipeline. Follow "Every session first" in qa/opus-sessions.md; you own
 content/material/ only. Read docs/course-structure.md, eesti/units.py,
 eesti/phrases.py (EKI's A1 exchanges), Sõnaveeb's A2/B1 phrase collections
@@ -121,7 +125,7 @@ Label every file with engine and prompt version.
 ## S3. Interactive rules (wave 2)
 
 ```text
-Grove S3: make the Reegel page teach by doing, starting with obj-case and
+Klint S3: make the Reegel page teach by doing, starting with obj-case and
 osaalus (ADR-0009 step 2). Follow "Every session first" in
 qa/opus-sessions.md; your files are listed there under S3. Read
 eesti/lessons.py, eesti/drills.py, eesti/existential.py, eesti/grammar.py,
@@ -133,13 +137,15 @@ On #rule/obj-case the learner toggles completed/ongoing, negation, plural,
 imperative, impersonal and watches the object form change, every form from
 Vabamorf. Model-written prose is labelled; any Estonian string not from code or
 the cited source is rejected (tutor._grounded as a second gate). Keyboard and
-screen reader complete; a reduced-motion version.
+screen reader complete; a reduced-motion version. Build the page to DESIGN.md
+(Reegel): a page with a back control, sources under the title, the form switch
+with the interlinear word, Harjuta as the one primary action.
 ```
 
 ## S4. Explanation languages (wave 4, alone)
 
 ```text
-Grove S4: make English and Ukrainian explanation languages beside Russian.
+Klint S4: make English and Ukrainian explanation languages beside Russian.
 Follow "Every session first" in qa/opus-sessions.md; run it with no other
 session open. Read qa/architecture-review.md ("Explanation languages"),
 ADR-0009, eesti/lessontext.py, eesti/drills.py.
@@ -153,13 +159,18 @@ examples, evidence, sources, status), shipping only notes with a published
 source (Keelehärm 2003, Külmoja et al. 2003, Heinsoo for Ukrainian, Erelt's
 Estonian Language for English) — a Ukrainian note written for Ukrainian
 speakers, never translated from the Russian. Unsourced tips in lessontext.py
-move into this shape or go.
+move into this shape or go. The default explanation language comes from the
+system or browser (PRODUCT.md): the first of `navigator.languages` (iOS:
+preferred languages) that is uk, ru or en, else en; preselected, changeable in
+Profile, a saved choice always wins, location never used. The page's `lang`
+and every gloss's `lang` follow the chosen language; a missing reviewed
+translation is shown as missing, never silently replaced by Russian.
 ```
 
 ## S5. Exercises: generators the units lack (wave 1)
 
 ```text
-Grove S5: add the generators the course map names as missing. Follow "Every
+Klint S5: add the generators the course map names as missing. Follow "Every
 session first" in qa/opus-sessions.md; your files are listed there under S5.
 Read docs/course-structure.md ("What each unit still needs"), eesti/evs.py,
 eesti/cloze.py.
@@ -176,7 +187,7 @@ for tulevik, and give units 17 and 28 a check.
 ## S6. Exam: HARNO B1 task types (wave 1)
 
 ```text
-Grove S6: generate HARNO B1 reading and listening task types keyed by code, A2
+Klint S6: generate HARNO B1 reading and listening task types keyed by code, A2
 after; the sittings are 7–8 Nov 2026. Follow "Every session first" in
 qa/opus-sessions.md; your files are listed there under S6. Read
 docs/exam-native.md, ADR-0009 (exam loops), eesti/writingtasks.py,
@@ -193,7 +204,7 @@ and "Harjuta neid" practice re-tested 1–6 days later.
 ## S7. Design system and motion (wave 1, documents)
 
 ```text
-Grove S7: write the design and motion spec for the redesign; documents only.
+Klint S7: write the design and motion spec for the redesign; documents only.
 Follow "Every session first" in qa/opus-sessions.md; you own DESIGN.md and
 docs/design-research.md. Read PRODUCT.md, eesti/web/app.css, ADR-0009.
 Screenshot Kodu, Kursus, #session and #rule at 390 and 1280 px, light and dark.
@@ -207,10 +218,32 @@ reviewer session scores the result on design quality, originality, craft and
 function before it is accepted.
 ```
 
+## S7R. Review of the design spec (after S7, before S10)
+
+```text
+Klint S7R: review the redesign spec as an independent reviewer; read and judge,
+change nothing. Follow steps 1 and 2 of "Every session first" in
+qa/opus-sessions.md. Read DESIGN.md in full, docs/design-research.md,
+PRODUCT.md (languages, brand), docs/brand.md, ADR-0009 and the S7 pull request.
+Run the app (python -m eesti.cli serve) and look at Täna, Kursus, #session and
+#rule at 390 and 1280 px, light and dark, to see what the spec replaces.
+Score design quality, originality, craft and function from 1 to 5, each with
+evidence. Then check, and report every failure with the line it is on: no
+forbidden default in the spec's own examples; one primary action per screen;
+every result carried by a word and a shape as well as colour; three contrast
+pairs per theme recomputed with the WCAG 2.2 formula; every motion row has
+purpose, duration, easing, reduced-motion and forced-colours; focus never under
+the dock at 390x844 and 874x402; the iOS mapping buildable on iOS 26; every
+Estonian example is the app's own (no invented linguistic fact); Russian,
+English and Ukrainian and the default-language rule covered. Verdict: accept,
+or numbered changes required. Post it as one comment on the S7 pull request
+(gh pr comment); make no commits and do not edit DESIGN.md.
+```
+
 ## S8. The session, Home and Haiku in the app (wave 3)
 
 ```text
-Grove S8: build the session and the next task of ADR-0009, with Haiku 5.5 as
+Klint S8: build the session and the next task of ADR-0009, with Haiku 5.5 as
 the in-app helper. Follow "Every session first" in qa/opus-sessions.md; your
 files are listed there under S8. Read ADR-0008, ADR-0009, eesti/planning.py,
 eesti/units.py, eesti/unitcheck.py, eesti/tutor.py, eesti/providers/claude.py.
@@ -224,13 +257,16 @@ miss explains it in the explanation language from the item's EKK section; a
 question box on the rule page; advisory feedback on writing and speaking after
 the code checklist, against HARNO's descriptors; the conversation partner.
 Journeys for a new beginner, a chosen start and an assessed start, both
-viewports.
+viewports. Onboarding's first question, the explanation language, is preselected
+from the system or browser language (PRODUCT.md). Build Täna and the session to
+DESIGN.md: the interlinear word, the item state machine, one fixed primary
+action, the seven-step session line.
 ```
 
 ## S9. Dictionary (wave 2)
 
 ```text
-Grove S9: build the learner's dictionary (Sõnastik) on the shared word card.
+Klint S9: build the learner's dictionary (Sõnastik) on the shared word card.
 Follow "Every session first" in qa/opus-sessions.md; your files are listed
 there under S9. Read eesti/lookup.py, eesti/evs.py, eesti/meaning.py,
 eesti/wordlist.py, eesti/haaldus.py, eesti/licences.py, docs/sources.md.
@@ -242,5 +278,29 @@ and meanings in Russian, English and Ukrainian from EKI sources. Where no source
 has a translation, a gloss drafted by a model is labelled as such and kept only
 when a second model's blind back-translation agrees; never shown as a source's.
 "Lisa kordamisse" uses the existing vocabulary and review path. Every entry
-names its sources. Search, the entry and the card work at phone width.
+names its sources. Search, the entry and the card work at phone width. The
+card follows DESIGN.md (sheet on phones, the tapped form as an interlinear word).
+```
+
+## S10. Redesign: tokens and shell (wave 2, first)
+
+```text
+Klint S10: build steps 1 and 2 of DESIGN.md's Migration — the Interlinear
+tokens and the app shell. Follow "Every session first" in qa/opus-sessions.md;
+your files are listed there under S10. Read DESIGN.md in full,
+docs/design-research.md, docs/brand.md, .claude/rules/web.md, PRODUCT.md.
+Tokens: DESIGN.md's roles in eesti/web/app.css, light and dark, old names kept
+as aliases for one release; Geologica cuts (SHRP 100 display and prompt, 60
+running Estonian, 0 Russian); rem type on the 12–48 scale; remove glass,
+washes, pill radii, uppercase labels, italics and the decorative motion the
+spec lists; the motion tokens with reduced-motion, reduced-transparency,
+forced-colours and prefers-contrast rules; manifest and theme-color on the new
+ground; the offline page in sw.js. Shell: desktop sidebar, phone header with
+Veel as a sheet, the dock with its browse, act and task states, the action bar
+and the desktop action row, scroll padding tied to the dock's measured height,
+the keyboard rule (visualViewport; interactive-widget), the interlinear word as
+a CSS component with a core.js helper whose form name comes only from the
+item's data. Tests: a focus-versus-dock journey at 390x844, 874x402 and
+1280x800 on both engines; the whole journey suite on both engines. Every
+screen keeps working on the aliases; S3, S8 and S9 rebuild their own screens.
 ```

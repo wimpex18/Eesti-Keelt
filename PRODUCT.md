@@ -48,7 +48,7 @@ Exam practice builds on that learning path rather than defining the entire app.
 
 Dictionary information supports a lesson, text or review card: meaning first,
 source-attributed examples and forms when needed, then a clear return to practice.
-Grove's primary value is guided learning across reading, listening, speaking and
+Klint's primary value is guided learning across reading, listening, speaking and
 writing, with grammar feedback and optional exam preparation. Vocabulary tools
 must support that sequence without becoming another competing home or dashboard.
 
@@ -84,6 +84,13 @@ feedback. The app says plainly what was checked and by what.
   explanations, meanings, instructions, warnings and accessibility wording in
   the learner's selected supported language. Gloss an Estonian term once in
   that language rather than transliterating it.
+- **Default explanation language:** the web app and the iOS app take it from
+  the system or browser language: the first of the learner's preferred
+  languages that is Ukrainian, Russian or English (browser `navigator.languages`,
+  iOS preferred languages), English when none is. It is preselected, never
+  imposed: the first onboarding question shows it, Profile changes it at any
+  time, and a saved choice always wins over detection. Location is never used
+  to guess a language.
 - **Preparation for localisation:** separate language-dependent instructional
   copy from shared lessons and exercises; retain stable topic, material and
   progress identities when the explanation language changes. Missing reviewed
@@ -92,8 +99,9 @@ feedback. The app says plainly what was checked and by what.
   action first, and reveal detail when needed. Exam preparation remains an
   optional learner goal; no exam sitting is assumed.
 - **Design authority:** simplify page structure, navigation, controls and
-  interaction logic where that improves learning. The current visual system is
-  Practice rhythm; its blue materials and component rules are in `DESIGN.md`.
+  interaction logic where that improves learning. The redesign, Interlinear, is
+  specified in `DESIGN.md` and replaces the shipped Practice rhythm visuals
+  screen by screen (its migration order is in the same file).
 - **Market-informed learning:** use current guided-course, targeted-practice,
   authentic-media and supported-speaking patterns as references. Prefer one
   recommended session with freedom to explore, change entry point and revisit
@@ -162,14 +170,20 @@ answers are only available there.
 
 ## Brand Commitments
 
-- Name: **Grove**, an English word for a small wood, connected to Estonia’s forests, with **Eesti keel · A2/B1** identifying the subject.
-  The A2/B1 descriptor is current artwork and metadata, not the full product scope.
+- Name: **Klint**, after the Baltic Klint, the limestone escarpment along
+  Estonia's north coast that learners climb step by step; the name is not an
+  Estonian common word and reads the same in Russian, Ukrainian and English.
+  **Eesti keel** identifies the subject; the artwork says *algusest kuni B1-ni*
+  (from the beginning to B1). Stored identifiers that carry the earlier name
+  Grove (the `grove-material` source id, the Worker service) stay unchanged.
   Russian is supported today; English and Ukrainian are planned explanation
   languages.
-- Visual system: **Practice rhythm**, with pale blue/aqua grounds, deep blue
-  actions, frosted navigation, solid learning surfaces, Geologica and four
-  original colourful skill pictograms. Sources and applications are recorded
-  in `docs/design-research.md`.
+- Visual system: **Interlinear** (`DESIGN.md`): the Estonian form with its form
+  name beneath it from code, spruce ink on a birch ground, solid surfaces,
+  Geologica in two cuts, one fixed primary action per screen and the four
+  original skill pictograms. The mark is an underlined K. Practice rhythm (pale
+  blue, frosted navigation) ships until each screen is rebuilt. Research and
+  reasons are in `docs/design-research.md`.
 - The interface is itself language exposure: Estonian labels with a gloss in
   the learner's supported explanation language where needed; Russian in the MVP.
 - Honest about limits: a caveat the learner cannot read is not a caveat.

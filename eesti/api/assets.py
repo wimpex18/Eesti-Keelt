@@ -219,8 +219,8 @@ def manifest() -> Response:
     """Enough for "Add to Home Screen" to produce an app-like window."""
     return Response(
         json.dumps({
-            "name": "Grove · Eesti keel",
-            "short_name": "Grove",
+            "name": "Klint · Eesti keel",
+            "short_name": "Klint",
             "description": "Eesti keele õppimine ja A2/B1 tasemeeksami ettevalmistus",
             "id": "/",
             "scope": "/",

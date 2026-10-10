@@ -1,27 +1,27 @@
-# S7 design and motion spec — `claude/s7-design-spec`
+# S7 design spec, rename to Klint — `claude/s7-design-spec`
 
-Task: the design and motion spec for the redesign, documents only
-(`qa/opus-sessions.md`, S7). Written.
+Task: the redesign spec (S7), then at the owner's request the follow-ups:
+rename Grove → Klint, the default explanation language, a session for
+`eesti/web/app.css`, Kodu → Täna. PR #131.
 
-State: `DESIGN.md` is the target spec, "Interlinear": the Estonian form with
-its form name under it from code; spruce ink on birch ground; one primary per
-screen in a phone action bar or a desktop sticky row; a three-state phone dock;
-seven-step session line under Õpi / Harjuta / Kontrolli; motion inventory with
-reduced-motion and forced-colours fallbacks; WCAG 2.2 AA contrast table; focus
-rules against the dock; iOS 26 mapping; migration order and token map.
-`docs/design-research.md` holds the audit of today's screens (390 and 1280 px,
-light and dark), the October 2026 references and the decisions.
+State: `DESIGN.md` is the target spec, "Interlinear" (form name under the
+Estonian word from code; spruce ink on birch; one fixed primary; three-state
+phone dock; seven-step session line; motion, contrast, focus, iOS, explanation
+languages, migration). `docs/design-research.md` holds the audit, the
+references and the decisions, including the name. The app is Klint: page
+title, metadata, manifest, header, reminders, profile copy, docs and qa notes;
+the mark is an underlined K and the brand assets are rebuilt in spruce and
+birch (`deploy/build-brand.py`). Identifiers keep "grove" (`grove-material`,
+the Worker). Home's label is Täna. `PRODUCT.md` states the language default
+(first of uk, ru, en from the system; else en; a saved choice wins).
+`qa/opus-sessions.md` adds S7R (the spec review) and S10 (tokens and shell,
+owns `app.css`); S3, S4, S8, S9 briefs point at DESIGN.md and the language rule.
 
-Next step: the reviewer session scores it; then the owner merges.
+Next step: run S7R in a new session; then the owner merges; then S10.
 
-Follow-ups (outside S7's files; for the PR and later sessions):
-- No session owns `eesti/web/app.css`; migration step 1 (tokens) needs one.
-- When a step ships, update `PRODUCT.md` (visual system line),
-  `.claude/rules/web.md` (Practice rhythm sentence), `docs/status.md`
-  (Interface), `docs/brand.md` and `deploy/build-brand.py` (tile colours).
-- S8: Täna, the session state machine (retry with hint), the interlinear word.
-- S3: Reegel as a page with sources at the top and the form switch.
-- A focus-versus-dock journey in `tests/test_e2e_journeys.py`.
-- Tab labels "Kodu" → "Täna" is a copy change for S8.
+Follow-ups:
+- Owner: Business Register and trademark search for "Klint", then buy klint.ee.
+- S10: tokens, shell, manifest/theme colours, offline page, focus journey.
+- S4: implement the language default on web; the iOS app later.
 
 Uncommitted paths: none after the commit. Blockers: none. No secrets used.

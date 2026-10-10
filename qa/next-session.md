@@ -13,7 +13,7 @@ own worktree on the files it owns.
 ## After a wave is merged
 
 ```text
-Grove (Eesti-Keelt): fold the merged wave into the shared notes. Read AGENTS.md,
+Klint (Eesti-Keelt): fold the merged wave into the shared notes. Read AGENTS.md,
 qa/opus-sessions.md and every qa/sessions/*.md. Rewrite HANDOFF.md as the
 present state (≤30 lines), bring docs/status.md and qa/architecture-review.md up
 to date with what merged, move each session's open follow-ups into HANDOFF.md

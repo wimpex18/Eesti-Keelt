@@ -1,4 +1,4 @@
-/** Public front door for Grove: trusted identity, speech and durable progress.
+/** Public front door for Klint: trusted identity, speech and durable progress.
  * The guarded Cloud Run origin accepts only PROXY_TOKEN. Anonymous requests
  * always use guest scope; in-app sessions select permanent learner state.
  */

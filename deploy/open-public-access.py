@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 API = "https://api.cloudflare.com/client/v4"
-USER_AGENT = "Grove-deploy/1.0"
+USER_AGENT = "Klint-deploy/1.0"
 
 
 def request_json(url, *, headers=None, method="GET"):
@@ -105,8 +105,8 @@ def open_public(env):
     if not health.get("public_access"):
         raise RuntimeError("Public URL is not serving the public-safe origin")
     with urlopen(Request(public + "/", headers={"User-Agent": USER_AGENT}), timeout=30) as response:
-        if response.status != 200 or b"Grove" not in response.read():
-            raise RuntimeError("Public shell is not serving Grove")
+        if response.status != 200 or b"Klint" not in response.read():
+            raise RuntimeError("Public shell is not serving Klint")
     print("Public shell, health and anonymous guest identity verified", flush=True)
 
 

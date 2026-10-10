@@ -617,7 +617,7 @@ function finishSet(tally, res) {
   const progress = tally.skipped ? `<p lang="ru">Пропущено: ${tally.skipped}. Они не проверены и не засчитаны.</p>` : "";
   const advance = tally === pathTally && (res.just_mastered || pathMeta[sessionTopic]?.state === "mastered");
   const continuation = `<button class="go" data-act="new" lang="et">${uiIcon("next")}${advance ? "Järgmine teema" : "Uued laused"} <span class="ru" lang="ru">${advance ? "следующая тема" : "ещё задания"}</span></button>
-    <a class="ghost" href="#path" lang="et">Kodu <span class="ru" lang="ru">на главную</span></a>`;
+    <a class="ghost" href="#path" lang="et">Täna <span class="ru" lang="ru">на сегодня</span></a>`;
   const end = document.createElement("div");
   /* The score, the beads again, and the next set under the thumb. A set nearly all
      right wears moss; the count is the reward, not a streak. */
