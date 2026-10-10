@@ -1,21 +1,29 @@
 # Handoff
 
-Current task: remove the Impeccable design tool and all its traces on
-`claude/remove-impeccable`. PR #125 merged; stale branches deleted.
-Earlier (merged): course units (ADR-0007), unit 1, nominative object, osaalus, EKI credit,
-unit check, skipping a unit or every unit before a chosen one, the start of the
-B1 exam loop (writing tasks with a code checklist, *Eksamipäev*), restored
-reminder push handler. Claude Haiku 5.5 passed ADR-0008's bar at effort high
-(9 Oct) and leads the grammar/tutor chain, Workers AI behind it; prompt caching
-and a byte bound under 100K tokens; its own prompt (`grammar.CLAUDE_PROMPT`).
-Parallel Opus sessions: `qa/opus-sessions.md` (waves, file ownership, merging);
-`cli worktree-data` gives a worktree reference data, never learner data.
-Fast suite and browser journeys (both engines) green.
-Next: the owner merges the remove-impeccable PR, runs `bash deploy/set-llm-key.sh
-ANTHROPIC_API_KEY` in Cloud Shell, then `smoke` with `deep: true`; then wave 1
-of `qa/opus-sessions.md` (S1, S5, S6, S7), per `qa/next-session.md`.
-Owner: set a spend limit on the Anthropic account; send the permission requests
-in `qa/source-permission-requests.md` (Monday); re-subscribe to reminders on each
-device; verify a backup with `cli verify-backup`.
-Linear is paused (owner, 9 Oct): follow-ups live here and in PRs.
-Uncommitted task paths: none after the commit. No secrets revealed.
+Current task: PR #132 (`claude/s7f-design-review`) applies the S7R review to
+`DESIGN.md` (S7F) and adds its "Fixed and open" section, so redesign sessions
+keep the rules and may improve the proposal. It also refreshes the notes after
+step 0 (R1). It waits for the owner's merge.
+
+On `main`: step 0 of `qa/opus-sessions.md` is merged: the material pipeline
+(S1, `docs/material.md`), generators for negation, modals, the future and EVS
+gaps (S5), HARNO reading and listening task types (S6), and the Interlinear spec
+with the rename to Klint (S7). Haiku 5.5 leads the grammar and tutor chain once
+its key is on Cloud Run (ADR-0008).
+
+Next: after #132 merges, S2 (unit dialogues and texts) and S10 (tokens and
+shell) are ready; start each with "Run <ID> from qa/opus-sessions.md." in its
+own session. If only one runs, S2 first: exam reading task 4 waits for its
+checked texts (sittings 7–8 Nov 2026).
+
+Owner operations: re-run the `deploy` workflow (its run after #131 failed the
+shell check, most likely before Cloud Build had replaced the origin;
+`docs/status.md`); then the outstanding list in `qa/architecture-review.md`
+(Haiku key on Cloud Run with a spend limit, `cli import-evs` in local serving
+checkouts, the Klint trademark search and `klint.ee`, permission requests,
+backup verification). Re-subscribe to reminders on each device.
+
+Follow-ups from step 0 now sit in `qa/architecture-review.md` (material, course
+structure, exam fidelity) and `docs/status.md`. Linear is paused (owner, 9 Oct):
+follow-ups live here, in PRs and in `qa/sessions/`.
+Uncommitted paths: none after the commit. No secrets revealed.

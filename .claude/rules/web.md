@@ -17,10 +17,11 @@ paths:
 - `main.js` bootstraps last. Never set `textContent` on decorated label children;
   use `setLabel` so the explanation-language gloss survives.
 - Define every CSS token. Use spacing `--s1`…`--s7` and semantic palette roles.
-  A screen rebuilt from now on follows `DESIGN.md` (Interlinear: spruce ink on
-  birch, solid surfaces, one fixed primary action, the interlinear word, its
-  motion and focus rules); screens not yet rebuilt keep the shipped Practice
-  rhythm tokens until the token step of its Migration section lands.
+  A screen rebuilt from now on keeps every fixed rule of `DESIGN.md` and starts
+  from its reviewed proposal, which the builder may improve and then records
+  there (its "Fixed and open" section); screens not yet rebuilt keep the
+  shipped Practice rhythm tokens until the token step of its Migration section
+  lands.
 - Use native links, buttons, details and labelled fields. View switches use
   `role="tablist"`, roving focus and `aria-selected`. Long references use a page;
   popovers are reserved for contextual word lookup.

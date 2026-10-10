@@ -187,6 +187,11 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
 - **Speech quality depends on the owner's Mac mini being awake.** When it is
   off, the Worker falls back to Workers AI after up to 25 s
   (`deploy/home-asr/README.md`).
+- **The Worker deploy can fail just after a merge that changes the shell.**
+  The `deploy` workflow's last step checks that the public shell names Klint
+  (`deploy/open-public-access.py`) about a minute after the merge, while Cloud
+  Build may still be replacing the origin; the run after PR #131 failed that
+  check. Re-run the workflow once the new origin serves.
 - **Backups are nightly, and restore is manual.** Permanent-account API
   responses wait for acknowledgement in the Durable Object; each night every
   account's log is strictly verified and copied to a private Cloud Storage
