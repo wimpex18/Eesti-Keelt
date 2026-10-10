@@ -1,6 +1,6 @@
 # S8: the session, Täna and Haiku in the app
 
-Current task: PR [S8] waits for the owner's merge. Built: `eesti/session.py`,
+Current task: PR #139 [S8] waits for the owner's merge. Built: `eesti/session.py`,
 `eesti/api/session.py`, `eesti/web/js/session.js`, Täna (`path.js`),
 onboarding, Haiku's *Miks?*, *Küsi* and HARNO-descriptor comments
 (`eesti/tutor.py`), DESIGN.md's rhythm, Täna and session sections.
