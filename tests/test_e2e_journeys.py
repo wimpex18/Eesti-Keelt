@@ -2367,14 +2367,14 @@ SHELL_SIZES = {
 KEYBOARD = {"390x844": 340, "874x402": 200}
 
 #: Wait until the page has stopped scrolling: the browser's own focus scroll,
-#: then the shell's correction two frames later.
+#: then the shell's correction, which waits for three still frames itself.
 SETTLE = """() => new Promise(done => {
   let last = -1, still = 0, frames = 0;
   const tick = () => {
     const y = scrollY;
     still = y === last ? still + 1 : 0;
     last = y;
-    if (still >= 4 || ++frames > 90) done(); else requestAnimationFrame(tick);
+    if (still >= 8 || ++frames > 120) done(); else requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 })"""
@@ -2407,15 +2407,22 @@ OBSCURED = """el => {
 }"""
 
 #: Replace the visual viewport with one a keyboard of `kb` pixels has shrunk, as
-#: Safari reports it, and say so.
+#: Safari reports it, and say so; `kb` 0 puts the real one back. A browser never
+#: swaps the object, so the window is told as well, for the shell to notice the
+#: new one.
 KEYBOARD_STUB = """kb => {
-  const fake = new EventTarget();
-  const now = () => ({width: innerWidth, height: innerHeight - kb, offsetTop: 0, offsetLeft: 0,
-                      pageTop: scrollY, pageLeft: scrollX, scale: 1});
-  for (const key of Object.keys(now()))
-    Object.defineProperty(fake, key, {get: () => now()[key]});
-  Object.defineProperty(window, 'visualViewport', {configurable: true, get: () => fake});
-  fake.dispatchEvent(new Event('resize'));
+  window.realViewport = window.realViewport || window.visualViewport;
+  let viewport = window.realViewport;
+  if (kb) {
+    viewport = new EventTarget();
+    const now = () => ({width: innerWidth, height: innerHeight - kb, offsetTop: 0, offsetLeft: 0,
+                        pageTop: scrollY, pageLeft: scrollX, scale: 1});
+    for (const key of Object.keys(now()))
+      Object.defineProperty(viewport, key, {get: () => now()[key]});
+  }
+  Object.defineProperty(window, 'visualViewport', {configurable: true, get: () => viewport});
+  viewport.dispatchEvent(new Event('resize'));
+  window.dispatchEvent(new Event('resize'));
 }"""
 
 
@@ -2474,7 +2481,14 @@ class TestFocusIsNeverUnderTheDock:
             # "Press Tab to highlight each item"; Option-Tab always reaches links.
             pg.keyboard.press("Alt+Tab" if pg.engine == "webkit" else "Tab")
         assert reached > 5, f"{pg.size} {where}: Tab reached only {reached} elements"
-        return found
+        return found + TestFocusIsNeverUnderTheDock._sideways(pg, where)
+
+    @staticmethod
+    def _sideways(pg, where):
+        """A page wider than the screen makes Safari zoom out when a field takes
+        focus, and a zoomed viewport hides the keyboard from the shell."""
+        over = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+        return [f"{pg.size} {where}: {over}px wider than the screen"] if over > 1 else []
 
     def _session(self, pg):
         self._open(pg, "#session/asesonad")
@@ -2502,32 +2516,42 @@ class TestFocusIsNeverUnderTheDock:
         keyboard, found = KEYBOARD[shell.size], []
 
         def each_field(where):
-            shell.evaluate(KEYBOARD_STUB, keyboard)
             fields = shell.locator("section.panel:not([hidden]) :is(input[type=text], textarea)")
             checked = 0
             for i in range(fields.count()):
                 field = fields.nth(i)
                 if not field.evaluate("e => e.checkVisibility()"):
                     continue
-                # As a tap would: the keyboard comes with focus arriving.
-                field.evaluate("e => e.blur()")
-                field.focus()
-                # Text a screen is still fetching can land above the field; the
-                # shell puts the field back in sight, and that is what is checked.
-                shell.evaluate(SETTLE)
-                shell.wait_for_timeout(300)
-                shell.evaluate(SETTLE)
                 checked += 1
-                if verdict := field.evaluate(OBSCURED):
-                    found.append(f"{shell.size} {where}: {verdict}")
-                # The tab row gives way; a screen's primary rides on the keyboard.
-                if shell.locator("#nav-learn").is_visible():
-                    found.append(f"{shell.size} {where}: the tab row stayed up over the keyboard")
-                primary = shell.locator(".dock-primary")
-                if primary.count() and primary.evaluate(
-                        "(e, kb) => e.getBoundingClientRect().bottom > innerHeight - kb + 1", keyboard):
-                    found.append(f"{shell.size} {where}: the primary is under the keyboard")
+                # A tap: focus first, then the keyboard slides in (as on iOS); then
+                # moving to the field with the keyboard already up.
+                for order in ("tapped", "keyboard up"):
+                    shell.evaluate(KEYBOARD_STUB, 0 if order == "tapped" else keyboard)
+                    field.evaluate("e => e.blur()")
+                    shell.evaluate(SETTLE)
+                    field.focus()
+                    if order == "tapped":
+                        shell.evaluate(SETTLE)
+                        shell.evaluate(KEYBOARD_STUB, keyboard)
+                    # Text a screen is still fetching can land above the field;
+                    # the shell puts the field back in sight, and that is checked.
+                    shell.evaluate(SETTLE)
+                    shell.wait_for_timeout(300)
+                    shell.evaluate(SETTLE)
+                    check(field, f"{where} ({order})")
             assert checked, f"{shell.size} {where}: no answer field to check"
+
+        def check(field, where):
+            found.extend(self._sideways(shell, where))
+            if verdict := field.evaluate(OBSCURED):
+                found.append(f"{shell.size} {where}: {verdict}")
+            # The tab row gives way; a screen's primary rides on the keyboard.
+            if shell.locator("#nav-learn").is_visible():
+                found.append(f"{shell.size} {where}: the tab row stayed up over the keyboard")
+            primary = shell.locator(".dock-primary")
+            if primary.count() and primary.evaluate(
+                    "(e, kb) => e.getBoundingClientRect().bottom > innerHeight - kb + 1", keyboard):
+                found.append(f"{shell.size} {where}: the primary is under the keyboard")
 
         self._open(shell, "#course")
         shell.click('#pathModes button[data-pm="vaba"]')

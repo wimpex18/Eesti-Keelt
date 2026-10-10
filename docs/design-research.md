@@ -153,6 +153,18 @@ reason:
 | Sheet close `dur-2` exit | Closes at once | A closing animation in WebKit needs `overlay` and discrete transitions it does not have; the open keeps its motion. |
 | Banner icons from the icon set | Marks drawn as CSS masks | Banners are written by many modules; the stylesheet gives every one its mark without new markup. |
 
+Checked by hand in Safari on the iOS 27 simulator (iPhone 18 Pro) with the
+software keyboard, the device check found three things the stubbed journeys
+had not, each now fixed and covered by the journey: iOS raises the keyboard
+*after* the field takes focus, so the first correction ran before the
+keyboard existed and the task row landed on the field (the journey now tries
+both orders); while the keyboard slides in Safari pans the visual viewport to
+the bottom, so the keyboard is read from how much the viewport shrank, not
+where it sits; and a screen focusing its field during its own smooth scroll
+was pushed past its target, so the correction waits until the page is still.
+A free-practice row that no longer wrapped made the page 22px wider than the
+screen, and Safari zoomed out on focus; the journey fails on that now.
+
 The audio player's spinner, the celebration overlay and the shimmer skeleton
 are gone (a still ring, the live region's announcement, *Laadin…* after
 400ms). Phosphor's duotone fills had no style and drew solid; they are a 20 %

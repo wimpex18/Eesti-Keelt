@@ -326,16 +326,19 @@ function screenPrimary() {
   return panel && [...panel.querySelectorAll("[data-primary]")].find(b => !b.hidden && rendered(b)) || null;
 }
 
-/* How much of the layout viewport the keyboard covers: Safari keeps a full-height
-   layout viewport and shrinks the visual one. Pinch zoom also shrinks it, and is
-   no keyboard. Read afresh each time, so a replaced `visualViewport` is honoured. */
-function keyboardInset() {
+/* The keyboard, read off the visual viewport: Safari keeps a full-height layout
+   viewport and shrinks the visual one. How much it shrank says whether a
+   keyboard is up; how much of the layout viewport lies below it says where the
+   keyboard starts (0 while Safari has panned to the bottom, which it does as the
+   keyboard slides in). Pinch zoom also shrinks it, and is no keyboard. Read
+   afresh each time, so a replaced `visualViewport` is honoured. */
+function keyboardGap() {
   const v = window.visualViewport;
-  if (!v || Math.abs((v.scale ?? 1) - 1) > .01) return 0;
-  return Math.max(0, Math.round(innerHeight - v.height - v.offsetTop));
+  if (!v || Math.abs((v.scale ?? 1) - 1) > .01) return {shrunk: 0, below: 0};
+  return {shrunk: innerHeight - v.height, below: Math.max(0, Math.round(innerHeight - v.height - v.offsetTop))};
 }
 
-let frame = 0, watched = null;
+let frame = 0, watched = null, keyboardWas = false, settling = 0;
 function soon() { if (!frame) frame = requestAnimationFrame(syncShell); }
 
 function watchViewport() {
@@ -356,15 +359,15 @@ function syncShell() {
   document.querySelectorAll(".dock-primary").forEach(b => b !== primary && b.classList.remove("dock-primary"));
   primary?.classList.add("dock-primary");
   const typing = phone && document.activeElement?.matches?.(TEXT_FIELD);
-  const inset = typing ? keyboardInset() : 0;
-  const keyboard = inset > 120;
+  const gap = typing ? keyboardGap() : {shrunk: 0, below: 0};
+  const keyboard = gap.shrunk > 120;
   const height = window.visualViewport?.height ?? innerHeight;
   const task = phone && [...(openPanel()?.querySelectorAll("[data-dock-task]") || [])].some(rendered);
   body.classList.toggle("has-primary", !!primary);
   body.classList.toggle("dock-task", keyboard || task);
   body.classList.toggle("kb", keyboard);
   body.classList.toggle("kb-compact", keyboard && height < 320);
-  docEl.style.setProperty("--kb", `${keyboard ? inset : 0}px`);
+  docEl.style.setProperty("--kb", `${keyboard ? gap.below : 0}px`);
   const tabs = phone && !(keyboard || task) ? Math.round($(".dock-tabs").getBoundingClientRect().height) : 0;
   const bar = primary ? Math.round($("#actbar").getBoundingClientRect().height) : 0;
   docEl.style.setProperty("--tabs-h", `${tabs}px`);
@@ -373,6 +376,14 @@ function syncShell() {
   // caps a multi-line field at.
   const header = getComputedStyle($(".spine")).position === "sticky" ? $(".spine").offsetHeight : 0;
   docEl.style.setProperty("--band", `${Math.max(0, Math.round(height - header - bar - 16))}px`);
+  /* A phone raises its keyboard after the field takes focus, and then scrolls the
+     page its own way while the keyboard slides in: the task row lands on the
+     keyboard and can cover the field. For a moment after the keyboard arrives,
+     each change of the visual viewport puts the field back in sight; after that
+     the learner's own scrolling is left alone. */
+  if (keyboard && !keyboardWas) settling = performance.now() + 1000;
+  keyboardWas = keyboard;
+  if (keyboard && performance.now() < settling) keepInSightWhenStill();
 }
 
 /* The band a focused element must sit in: below the visible top (the sticky
@@ -402,11 +413,29 @@ function keepInSight(el) {
   if (by) window.scrollBy({top: by, behavior: "instant"});
 }
 
-addEventListener("focusin", e => {
+/* Measured only once the page has stopped moving: a screen often focuses its
+   field while its own smooth scroll is still travelling, and Safari scrolls to a
+   field it focuses; a correction added to a scroll in flight overshoots it. The
+   wait also lets the dock take its new state first. */
+let stillRun = 0;
+function keepInSightWhenStill() {
+  const run = ++stillRun;
+  let last = "", still = 0, frames = 0;
+  const tick = () => {
+    if (run !== stillRun) return;
+    const v = window.visualViewport;
+    const now = `${scrollY}|${v ? `${v.offsetTop}|${v.height}` : ""}`;
+    still = now === last ? still + 1 : 0;
+    last = now;
+    if (still >= 3 || ++frames > 90) keepInSight(document.activeElement);
+    else requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+addEventListener("focusin", () => {
   soon();
-  // After the dock has taken its keyboard state: two frames, one for the classes
-  // and one for the layout they cause.
-  requestAnimationFrame(() => requestAnimationFrame(() => keepInSight(e.target)));
+  keepInSightWhenStill();
 });
 addEventListener("focusout", soon);
 addEventListener("resize", soon);
@@ -419,8 +448,7 @@ new ResizeObserver(soon).observe($("#actbar"));
    the field, which goes back into sight. */
 new MutationObserver(() => {
   soon();
-  if (document.body.classList.contains("kb"))
-    requestAnimationFrame(() => requestAnimationFrame(() => keepInSight(document.activeElement)));
+  if (document.body.classList.contains("kb")) keepInSightWhenStill();
 }).observe($("main"), {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["hidden"]});
 soon();
 

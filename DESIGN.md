@@ -1160,21 +1160,29 @@ keyboard.
    `scroll-padding-top` equal to the sticky header, so the browser's own focus
    scrolling stops clear of both; the page's bottom padding is the same sum, so
    the last control can always be scrolled above them.
-2. On `focusin`, two frames later (once the dock has taken its new state), an
-   element that meets the header, the tab row, the action bar, the primary or
-   the keyboard is scrolled instantly into the band between them. While the
-   keyboard is up, the same happens after the screen changes (text arriving
-   above the field moves it). Focus scrolling is never smooth: the page sets no
+2. On `focusin`, once the page has stopped moving (three still frames, so a
+   screen's own smooth scroll or Safari's scroll to the field has landed and
+   the dock has taken its new state), an element that meets the header, the
+   tab row, the action bar, the primary or the keyboard is scrolled instantly
+   into the band between them. While the keyboard is up, the same happens after
+   the screen changes (text arriving above the field moves it), and for a
+   second after the keyboard arrives at every change of the visual viewport:
+   iOS raises the keyboard after the field takes focus and pans the page while
+   it slides in. Focus scrolling is never smooth: the page sets no
    `scroll-behavior`.
 3. When a text field is focused and the keyboard is up, the dock enters the
    task state and sits on the keyboard. Both engines are read the same way:
    Safari keeps a full-height layout viewport, and Chromium has done the same
    by default since version 108, so the keyboard's height is
    `innerHeight − visualViewport.height − visualViewport.offsetTop`, read on
-   the visual viewport's `resize` and `scroll` events and on focus. Over 120px
-   counts as a keyboard; pinch zoom (a scale other than 1) never does. The
-   viewport meta asks for no `interactive-widget`, which keeps one path and
-   lets the journeys stub it.
+   the visual viewport's `resize` and `scroll` events and on focus. Whether a
+   keyboard is up is read from how much the visual viewport shrank (over
+   120px), not from where it sits: as the keyboard slides in, Safari pans the
+   visual viewport to the bottom of the layout viewport, and the formula above
+   is then 0. Pinch zoom (a scale other than 1) never counts, which is why no
+   page may be wider than the screen: Safari zooms such a page out when a field
+   takes focus. The viewport meta asks for no `interactive-widget`, which keeps
+   one path and lets the journeys stub it.
 
    **Compact keyboard state.** When the visual viewport is under 320px high
    with a text field focused (a phone in landscape), the header stops being
@@ -1209,10 +1217,13 @@ the learner turns that on. Playwright opens no on-screen keyboard, so the
 keyboard cases run through a stub: the journey replaces `visualViewport` with
 one whose height is the viewport less an assumed keyboard (340px at 390×844,
 200px at 874×402), fires its `resize` event, focuses each answer field (free
-practice, Kirjutamine, Kuulamine) as a tap would and asserts the same
-conditions inside the stubbed band, that the tab row has given way, that the
-primary sits above the keyboard and that the skills key opens the skills.
-One field per screen is still to be checked by hand in the iOS simulator.
+practice, Kirjutamine, Kuulamine) in both orders — the keyboard arriving
+after focus, as on iOS, and focus moving with the keyboard already up — and
+asserts the same conditions inside the stubbed band, that the tab row has
+given way, that the primary sits above the keyboard, that the skills key opens
+the skills and that no page is wider than the screen. The same three fields
+were checked by hand with the software keyboard in Safari on the iOS 27
+simulator (iPhone 18 Pro) on 10 October 2026.
 
 ## Accessibility checklist (WCAG 2.2 AA)
 

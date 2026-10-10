@@ -609,7 +609,8 @@ details.more ul{margin:var(--s2) 0 0;padding-left:var(--s5)}
 .verdict:is(.ok,.no){animation:rise-in var(--dur-3) var(--ease-enter)}
 .gloss-late{color:var(--gloss);font-size:var(--t-note);display:block;margin-top:var(--s1)}
 .gloss-late b{font-weight:600;color:var(--ink)}
-.free-summary{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);font-size:var(--t-body);font-weight:600;color:var(--ink-2)}
+.free-summary{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:var(--s2) var(--s3);font-size:var(--t-body);font-weight:600;color:var(--ink-2)}
+.free-summary > #freeWhat{flex:1 1 12rem;min-width:0}
 
 /* The end of a set. */
 .set-end{margin-top:var(--s4);padding:var(--s5);border-radius:var(--r-3);text-align:center;background:var(--sunk);border:0}
