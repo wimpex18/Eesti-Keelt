@@ -2750,6 +2750,132 @@ class TestTheTabRowFitsEveryLanguage:
         assert not found, f"{width}px:\n  " + "\n  ".join(found)
 
 
+class TestTheRuleWalk:
+    """The Reegel page teaches by doing (ADR-0009 step 2): its sources and the
+    sourced gist first, a back control and one primary; the learner chooses
+    before the rule appears, the server grades the choice and records nothing;
+    the form switch is a tablist the keyboard drives, and its changed form is
+    said once."""
+
+    @staticmethod
+    def _open(page, live_server, topic):
+        page.goto(live_server + f"/#rule/{topic}", wait_until="networkidle")
+        page.wait_for_selector("#lessonSheet .rw-notice")
+
+    def test_the_page_keeps_the_fixed_rules(self, page, live_server):
+        self._open(page, live_server, "obj-case")
+        sheet = page.locator("#lessonSheet")
+        # A page with a back control, not a modal with a close cross.
+        assert sheet.locator("a.rule-back").is_visible()
+        assert sheet.locator("#lessonClose").count() == 0
+        # Attribution before the content, inside the first screen.
+        first = sheet.locator(".rule-sources a").first
+        assert first.is_visible() and "EKK" in first.inner_text()
+        assert first.evaluate("e => e.getBoundingClientRect().bottom") < page.viewport_size["height"]
+        assert first.bounding_box()["y"] < sheet.locator(".rw-notice").bounding_box()["y"]
+        # The gist is the sourced summary's; no unsourced tip is on the page.
+        lesson = page.request.get(live_server + "/api/lesson/obj-case").json()
+        gist = sheet.locator(".rule-gist").inner_text().strip()
+        assert gist and gist == lesson["gist_ru"].replace("**", "").replace("*", "")
+        assert lesson["tip"]["wrong"] not in sheet.inner_text()
+        # One primary, Harjuta, in a place that does not move as the walk is done.
+        primary = page.locator("section.panel:not([hidden]) [data-primary]")
+        assert primary.count() == 1 and "Harjuta" in primary.inner_text()
+        where = "e => { scrollTo(0, 0); const r = e.getBoundingClientRect(); return [r.left, r.top]; }"
+        before = primary.evaluate(where)
+        sheet.locator(".rw-skip").click()
+        sheet.locator(".rw-explain").wait_for(state="visible")
+        assert primary.evaluate(where) == before
+        sheet.locator("a.rule-back").click()
+        page.wait_for_selector("#tab-course:not([hidden])")
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_the_learner_chooses_first_and_nothing_is_recorded(self, page, live_server):
+        self._open(page, live_server, "obj-case")
+        sheet = page.locator("#lessonSheet")
+        # Notice names no form, and the rule waits for the learner's choices.
+        assert sheet.locator(".rw-notice .il-f").count() == 0
+        assert not sheet.locator(".rw-explain").is_visible()
+        items = sheet.locator(".rw-item")
+        for i in range(items.count()):
+            item = items.nth(i)
+            choice = item.locator(".rw-choice").first
+            choice.focus()
+            with page.expect_response("**/api/practice/answer") as answered:
+                page.keyboard.press("Enter")
+            sent = answered.value.request.post_data_json
+            assert sent["record"] is False and sent["token"] and sent["answer"] == ""
+            item.locator(".rw-verdict :is(.rw-ok, .rw-no)").wait_for()
+            # The verdict lands at the word: the key, its form named by code.
+            assert item.locator(".rw-line .il-name").inner_text().strip() in ("omastav", "osastav")
+            assert item.locator(".rw-choice:not(:disabled)").count() == 0
+            if i + 1 < items.count():
+                # Focus goes on to the next item rather than to a dead button.
+                page.wait_for_function(
+                    "i => document.activeElement === document.querySelectorAll('.rw-item')[i].querySelector('.rw-choice')",
+                    arg=i + 1)
+        explain = sheet.locator(".rw-explain")
+        explain.wait_for(state="visible")
+        assert "Claude Opus 5.5" in explain.locator(".rw-model-by").inner_text()
+        assert explain.locator("a").get_attribute("href").startswith("https://arhiiv.eki.ee/")
+        assert sheet.locator(".rw-contrast del").count() >= 1
+        # A model's words never take a result colour.
+        model = explain.locator(".rw-model-text").evaluate("e => getComputedStyle(e).color")
+        results = sheet.locator(".rw-verdict :is(.rw-ok, .rw-no)").evaluate_all(
+            "els => els.map(e => getComputedStyle(e).color)")
+        assert model not in results
+        me = page.request.get(live_server + "/api/me").json()
+        assert me["totals"]["attempts"] == 0 and me["totals"]["review_cards"] == 0
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_the_form_switch_is_driven_by_the_keyboard(self, page, live_server):
+        self._open(page, live_server, "obj-case")
+        tabs = page.locator("#lessonSheet [role=tablist] [role=tab]")
+        assert tabs.count() == 6
+        tabs.first.focus()
+        seen = []
+        for _ in range(tabs.count()):
+            seen.append((page.locator("#rwPanel .il-w").inner_text().strip(),
+                         page.locator("#rwPanel .il-name").inner_text().strip()))
+            page.keyboard.press("ArrowRight")
+        assert {"leiva", "leiba", "leivad", "leib"} == {form for form, _ in seen}
+        assert {"omastav", "osastav", "mitmuse nimetav", "nimetav"} == {name for _, name in seen}
+        # Selection follows focus; one tab in the Tab order.
+        assert page.evaluate("document.activeElement.getAttribute('aria-selected')") == "true"
+        assert [tabs.nth(i).get_attribute("tabindex") for i in range(6)].count("0") == 1
+        page.keyboard.press("End")
+        page.wait_for_function("document.querySelector('#announce').textContent.includes('umbisikuline')")
+        said = page.locator("#announce").inner_text()
+        assert said.count("nimetav") == 1 and "leib" in said
+        page.keyboard.press("Home")
+        assert tabs.first.get_attribute("aria-selected") == "true"
+        assert page.locator("#rwPanel").get_attribute("aria-labelledby") == tabs.first.get_attribute("id")
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_with_reduced_motion_the_switch_is_instant(self, page, live_server):
+        page.emulate_media(reduced_motion="reduce")
+        self._open(page, live_server, "obj-case")
+        page.locator("#lessonSheet [role=tab]").nth(2).click()
+        running = page.locator("#rwPanel .rw-line").evaluate(
+            "e => e.getAnimations({subtree: true}).filter(a => a.playState === 'running').length")
+        assert running == 0
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_osaalus_walks_its_two_rules(self, page, live_server):
+        self._open(page, live_server, "osaalus")
+        sheet = page.locator("#lessonSheet")
+        assert sheet.locator(".rw-notice .rw-line").count() == 2
+        tabs = sheet.locator("[role=tab]")
+        assert tabs.count() == 4
+        tabs.nth(3).click()
+        assert sheet.locator("#rwPanel .il-w").inner_text().strip() == "õpilasi"
+        assert sheet.locator("#rwPanel .il-name").inner_text().strip() == "mitmuse osastav"
+        sheet.locator(".rw-skip").click()
+        sheet.locator(".rw-explain").wait_for(state="visible")
+        assert page.evaluate("document.activeElement.id") == "rwWhyH"
+        assert not browser_errors(page), browser_errors(page)
+
+
 class TestLearningRedesign:
     """Starting and passing over familiar work must not invent checked progress."""
 
@@ -2871,11 +2997,15 @@ class TestLearningRedesign:
 
     def test_rule_reload_and_malformed_route_have_a_recovery(self, page, live_server):
         page.goto(live_server + '/#rule/asesonad', wait_until='networkidle')
-        page.wait_for_selector('#lessonSheet .lesson-examples')
+        page.wait_for_selector('#lessonSheet .rule-examples')
         page.reload(wait_until='networkidle')
-        page.wait_for_selector('#lessonSheet .lesson-examples')
+        page.wait_for_selector('#lessonSheet .rule-examples')
         assert page.locator('#tab-rule').is_visible()
         assert not page.locator('#lessonSheet').evaluate('(el) => el instanceof HTMLDialogElement')
+        # A topic without a walk still opens on its sources and its sourced gist.
+        assert page.locator('#lessonSheet .rule-sources a').first.is_visible()
+        assert page.locator('#lessonSheet .rule-gist').is_visible()
+        assert page.locator('#lessonSheet .rw').count() == 0
         page.goto(live_server + '/#session/%E0%A4%A', wait_until='networkidle')
         page.wait_for_selector('#tab-path:not([hidden]), #tab-start:not([hidden])')
         assert not browser_errors(page), browser_errors(page)

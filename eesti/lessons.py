@@ -281,6 +281,7 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
     """Everything the Reegel page shows for one topic, or None for an unknown id."""
     from .curriculum import TOPICS
     from .lessontext import LESSONS, TIPS
+    from .rulewalk import gist, walk
 
     t = next((x for x in TOPICS if x.id == topic), None)
     if t is None:
@@ -298,6 +299,10 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
         "id": t.id, "level": t.level, "et": t.et, "ru": t.ru,
         "drillable": bool(t.generator) and t.id not in _missing_here(),
         "rule": _rule(t.reference),
+        # The page's one-line rule, from the sourced summary (never a tip), and
+        # the topic's rule walk (`eesti/rulewalk.py`).
+        "gist_ru": gist(t.reference.summary_ru if t.reference else None),
+        "walk": walk(topic, words=words),
         "tip": ({"gist_ru": TIPS[topic].gist_ru, "wrong": TIPS[topic].wrong,
                  "right": TIPS[topic].right} if topic in TIPS else None),
         "points_ru": list(text.points_ru) if text else [],

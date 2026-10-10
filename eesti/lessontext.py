@@ -707,6 +707,144 @@ LESSONS.update({
 })
 
 
+# ---------------------------------------------------------------------------
+# Rule walks (ADR-0009 step 2): notice, ask, explain, contrast, and the form
+# switch, resolved by `eesti/rulewalk.py`.
+#
+# A walk names no form. Its sentences are the generators' own frames
+# (`drills.TEMPLATES`, `existential.FRAMES`) with a noun, or a sentence quoted
+# in the topic's points above with the word it is about; Vabamorf supplies
+# every form and code names it. The explanation is the one piece of prose here
+# written by a model (Claude Opus 5.5, in session S3 on 10 October 2026): the
+# page labels it, and `rulewalk` refuses it if it names an Estonian word that is
+# neither code's nor the cited source's.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Sentence:
+    """A generator frame (`____` for the gap) filled with `noun`, or a `quote`
+    from the topic's sourced points with the word in it the walk is about."""
+
+    frame: str = ""
+    noun: str = ""
+    rule: str = ""
+    quote: str = ""
+    form: str = ""
+    tag: str = ""
+
+
+@dataclass(frozen=True)
+class Condition:
+    """One segment of the form switch, or one wrong/right pair: a condition
+    named in Estonian with its Russian gloss, and the sentence it governs."""
+
+    id: str
+    et: str
+    ru: str
+    sentence: Sentence
+
+
+@dataclass(frozen=True)
+class Explanation:
+    """The walk's explain step: at most 40 words in the explanation language,
+    from one cited section. `id` stays when other languages join (S4)."""
+
+    id: str
+    section: str
+    text_ru: str
+    engine: str
+    written: str
+
+
+@dataclass(frozen=True)
+class Walk:
+    notice: tuple[Sentence, ...]
+    #: One item per entry, each from the topic's generator with these sub-rules.
+    ask: tuple[tuple[str, ...], ...]
+    explain: Explanation
+    contrast: tuple[Condition, ...]
+    switch: tuple[Condition, ...]
+
+
+OPUS = "Claude Opus 5.5"
+
+WALKS: dict[str, Walk] = {
+    "obj-case": Walk(
+        notice=(
+            Sentence(frame="Ma sõin ____ ära.", noun="leib", rule="completed"),
+            Sentence(frame="Ma ei söönud ____.", noun="leib", rule="negation"),
+            Sentence(frame="Ma ostsin ____ iga nädal.", noun="leib", rule="ongoing"),
+        ),
+        ask=(("completed",), ("ongoing",), ("negation",)),
+        explain=Explanation(
+            id="obj-case.walk.explain", section="SÜ 38", engine=OPUS,
+            written="2026-10-10",
+            text_ru=(
+                "Действие с результатом и целый объект — **täissihitis** "
+                "(полное дополнение); в единственном числе это обычно omastav "
+                "(родительный падеж): *Ma sõin leiva ära*. Действие без "
+                "результата или с отрицанием — **osasihitis** (частичное "
+                "дополнение), osastav (частичный падеж): *Ma ei söönud leiba*."
+            ),
+        ),
+        contrast=(
+            Condition("negation", "eitus", "отрицание",
+                      Sentence(frame="Ma ei söönud ____.", noun="leib", rule="negation")),
+            Condition("imperative", "käskiv", "приказ",
+                      Sentence(frame="Söö ____ ära!", noun="leib", rule="imperative")),
+        ),
+        switch=(
+            Condition("completed", "lõpetatud", "завершено",
+                      Sentence(frame="Ma ostsin ____ ära.", noun="leib", rule="completed")),
+            Condition("ongoing", "kestev", "длится, повторяется",
+                      Sentence(frame="Ma ostsin ____ iga nädal.", noun="leib", rule="ongoing")),
+            Condition("negation", "eitus", "отрицание",
+                      Sentence(frame="Ma ei ostnud ____.", noun="leib", rule="negation")),
+            Condition("plural", "mitmus", "мн. число",
+                      Sentence(frame="Ma ostsin kõik ____ ära.", noun="leib", rule="plural")),
+            Condition("imperative", "käskiv", "приказ",
+                      Sentence(frame="Osta ____ ära!", noun="leib", rule="imperative")),
+            Condition("impersonal", "umbisikuline", "безлично",
+                      Sentence(frame="Eile osteti ____ ära.", noun="leib", rule="impersonal")),
+        ),
+    ),
+    "osaalus": Walk(
+        notice=(
+            Sentence(quote="Laual on raamat", form="raamat", tag="sg n"),
+            Sentence(quote="Laual pole raamatut", form="raamatut", tag="sg p"),
+        ),
+        ask=(("eitus",), ("mitmus",), ("mitmus",)),
+        explain=Explanation(
+            id="osaalus.walk.explain", section="SÜ 35", engine=OPUS,
+            written="2026-10-10",
+            text_ru=(
+                "В предложении о наличии при отрицании подлежащее (**alus**) "
+                "стоит в osastav (частичный падеж): *Laual pole raamatut*. Это "
+                "**osaalus** (частичное подлежащее). С ним глагол остаётся в "
+                "единственном числе: *Klassis istub õpilasi*, но *Klassis "
+                "istuvad õpilased*."
+            ),
+        ),
+        contrast=(
+            Condition("eitus", "eitus", "отрицание",
+                      Sentence(frame="Laual ei ole ____.", noun="raamat", rule="eitus")),
+            Condition("ainsus", "verb ainsuses", "глагол в ед. ч.",
+                      Sentence(frame="Klassis istub ____.", noun="õpilane", rule="mitmus")),
+        ),
+        switch=(
+            Condition("jaatus", "jaatus", "утверждение",
+                      Sentence(quote="Laual on raamat", form="raamat", tag="sg n")),
+            Condition("eitus", "eitus", "отрицание",
+                      Sentence(frame="Laual ei ole ____.", noun="raamat", rule="eitus")),
+            Condition("mitmus", "verb mitmuses", "глагол во мн. ч.",
+                      Sentence(frame="Klassis istuvad ____.", noun="õpilane", rule="mitmus")),
+            Condition("ainsus", "verb ainsuses", "глагол в ед. ч.",
+                      Sentence(frame="Klassis istub ____.", noun="õpilane", rule="mitmus")),
+        ),
+    ),
+}
+
+
 @dataclass(frozen=True)
 class Tip:
     """The Reegel page's first card: the rule in one line, then the mistake a
