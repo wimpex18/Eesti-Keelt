@@ -5,7 +5,8 @@ as checked are asserted by `tests/test_docs_match_code.py`; update this file in
 the same change that makes it untrue.
 
 The interface below is what `main` builds: the Interlinear tokens and shell,
-with the screens keeping their earlier layouts until each is rebuilt. The public health
+the Reegel page and Sõnastik with the word card; the other screens keep their
+earlier layouts until each is rebuilt (the session and Täna next). The public health
 stamp has no Git revision, so it does not establish exact parity with `main`;
 the `smoke` workflow checks the deployment (`docs/deploy.md`).
 
@@ -75,7 +76,8 @@ Explanations currently support Russian speakers; Sõnastik also gives English an
 Ukrainian word meanings (sourced, or checked model drafts for A1 and unit words).
 English and Ukrainian speakers do not have equivalent instructional support. Unit 1 gives a
 complete beginner a first week (sounds in EKI's voices, greetings, numbers, first
-words); no unit yet has a dialogue, a reading text every learner may see,
+words); units 2–10 each have a dialogue and a reading text every learner may
+see (no unit page shows them yet), units 11–30 have none, and no unit has
 homework or a weekly plan; unit 28's own topic (`liitsonad`) has no drill, so
 its check asks the B1 topics before it (`docs/course-structure.md`). Candidate courses
 and dictionary exports still need rights and quality review
@@ -210,6 +212,9 @@ The grammar assessment never claims to measure all four skills or certify CEFR.
   (`official_level_pos`). Keeping the lower level would change what S2's
   checked material declares off-list (*vana* in `minu-pere`), so it waits for
   that material to be re-checked.
+- **On iOS Safari with the keyboard up, Sõnastik's dock band leaves room for
+  one result row.** Seen on the iOS 27 simulator; S8, which marks each screen's
+  dock task, is the session that touches those states.
 - **A few EVS glosses follow the rarer homograph or a phrase.** Where EKI's
   level list tags a word by its rarer reading, the card follows the list
   (*väär* is listed as a noun, so EVS's «хоры» shows rather than
