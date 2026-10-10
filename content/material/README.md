@@ -22,7 +22,7 @@ reading text on the unit's HARNO topic, five questions each:
 | `checked/<unit>/<slug>.json` | Material that passed the gates and the blind check, stamped by `cli material blind`. The record: `cli material build` re-checks each file into `content.db`. |
 | `draft.py` | How the drafts were asked for: the system prompt, each unit's brief, the Batches API calls. |
 | `log.md` | Every draft the gates or the blind check refused, and why. |
-| `rejected/<unit>/<slug>.r<n>.json` | The refused drafts themselves, round `n`. |
+| `rejected/<unit>/<slug>.r<n>.json` | Drafts the gates or `draft.py`'s own checks refused, round `n`. A draft the blind check left short was revised too; its drops are in `log.md`. |
 | `batches.jsonl` | Each Batches API call: batch id, drafting or revision, prompt version. |
 
 ## How a file was made
