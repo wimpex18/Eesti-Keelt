@@ -247,7 +247,7 @@ def _open(name: str) -> sqlite3.Connection:
 def _register_all() -> None:
     """Import every module that registers an apply function."""
     from . import (checkpoint, course, dictation, exam, library, mock, profile,  # noqa: F401
-                   notion, progress, review, unitcheck, vocab)
+                   notion, progress, review, session, unitcheck, vocab)
 
 
 @applies("legacy-row")
