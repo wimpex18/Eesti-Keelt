@@ -6,7 +6,8 @@ Where a model touches the learner, and where code decides.
 
 | Job | Engine | Model judgement? |
 |---|---|---|
-| What to practise next | prerequisite graph, evidence arithmetic (`planning.py`) | no |
+| What to practise next | prerequisite graph, evidence arithmetic (`planning.py`); today's session and the next task (`session.py`) | no |
+| A first miss's hint | `session.hint`: the item's key, lemma and rule, and Vabamorf's reading of the answer | no — and never a sentence that spells the key |
 | Generating a drill | Vabamorf synthesis, EKK tables, attested corrections | no — round-trip validated, ambiguous words refused |
 | **Grading a drill** | string comparison | **no** |
 | Mastery, placement, checkpoints | arithmetic over recorded attempts | no |
@@ -14,7 +15,9 @@ Where a model touches the learner, and where code decides.
 | Subject–verb agreement | Vabamorf tags + synthesis (rules from GiellaLT's Estonian CG) | no |
 | Rection (`rektsioon`) | EKK SÜ 65 list + Vabamorf | no — only confusions the handbook records |
 | Other free-writing errors, explanations | Qualified LLM chain → Vabamorf offline | yes; engine always named, and every correction says what code could check (`deterministic` / `model+verified` / `model-only`) |
-| Explaining a mistake or a rule | `tutor.py`: EKK section + Vabamorf's reading, one model call | yes; dropped if it quotes a form Vabamorf does not know |
+| Explaining a mistake or a rule (*Miks?*) | `tutor.py`: EKK section + Vabamorf's reading, one model call, in the explanation language | yes; dropped if it quotes a form Vabamorf does not know (in English, every Estonian word is marked and checked) |
+| Answering a question on a rule page | `tutor.ask_rule`: the topic's EKK summary and sourced points only | yes; labelled, refused if it writes an Estonian word neither the sources nor Vabamorf have |
+| Comments on writing and speaking (a session, the mock exam's writing, Rääkimine's open answers) | `tutor.descriptor_feedback`: HARNO's level descriptors (`tutor.DESCRIPTORS`), after code's checklist | yes, advisory; a comment is kept only when its quote is the learner's own words, it marks nothing and its Estonian is Vabamorf's; never a score |
 | Playing the exam partner (`Vestlus`) | `tutor.converse`: a task card from the bank and the turns so far | yes; Estonian only, capped at 8 turns, never a correction or a verdict, and the forms Vabamorf rejects are named |
 | Meaning, conversation scoring | LLM chain → Vabamorf offline | authorised as advisory evidence, not built |
 | Transcribing speech | the owner's home service, then Workers AI Whisper (production); provider chain locally | yes |

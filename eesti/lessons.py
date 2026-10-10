@@ -280,7 +280,7 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
            words: sqlite3.Connection | None = None) -> dict | None:
     """Everything the Reegel page shows for one topic, or None for an unknown id."""
     from .curriculum import TOPICS
-    from .lessontext import LESSONS, TIPS
+    from .lessontext import LESSONS
     from .rulewalk import gist, walk
 
     t = next((x for x in TOPICS if x.id == topic), None)
@@ -303,8 +303,6 @@ def lesson(topic: str, *, log: sqlite3.Connection | None = None,
         # the topic's rule walk (`eesti/rulewalk.py`).
         "gist_ru": gist(t.reference.summary_ru if t.reference else None),
         "walk": walk(topic, words=words),
-        "tip": ({"gist_ru": TIPS[topic].gist_ru, "wrong": TIPS[topic].wrong,
-                 "right": TIPS[topic].right} if topic in TIPS else None),
         "points_ru": list(text.points_ru) if text else [],
         "sources": [{"label": s.label, "url": s.url} for s in text.sources] if text else [],
         "table": table(topic, words),

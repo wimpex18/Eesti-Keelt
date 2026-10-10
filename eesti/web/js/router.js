@@ -10,7 +10,8 @@ import {ensureDictionary} from "./dictionary.js";
 import {loadExam, loadVihikud} from "./exam.js";
 import {loadDictation, loadListenLibrary} from "./listen.js";
 import {loadLibrary} from "./reading.js";
-import {loadPath, loadStatus, setPathMode, ensureSession} from "./path.js";
+import {loadPath, loadStatus, loadToday, setPathMode} from "./path.js";
+import {ensureSession} from "./session.js";
 import {ensureRule} from "./lesson.js";
 import {refreshDueBadge} from "./review.js";
 import {loadReadAloud, loadSpeakQuestions, loadSpeechCapabilities} from "./speak.js";
@@ -24,7 +25,7 @@ const TABS = [...document.querySelectorAll("section.panel[id^='tab-']")]
 const ON_OPEN = {
   exam: () => loadExam(),
   vihikud: () => loadVihikud(),
-  path: () => loadPath(),
+  path: () => loadToday(),
   course: () => loadPath(),
   review: () => refreshDueBadge(),
   status: () => loadStatus(),
@@ -137,10 +138,12 @@ function rememberPlace() {
 
 
 export function goToPlace(tab) {
-  const [page, encodedTopic] = tab.split("/");
-  let topic;
-  try { topic = encodedTopic ? decodeURIComponent(encodedTopic) : null; }
-  catch { return false; }
+  const [page, encodedTopic, ...encodedRest] = tab.split("/");
+  let topic, rest;
+  try {
+    topic = encodedTopic ? decodeURIComponent(encodedTopic) : null;
+    rest = encodedRest.map(decodeURIComponent);
+  } catch { return false; }
   tab = page;
   /* `#drill` was the free-practice tab; it is Rada's second mode now, so an old
      bookmark still lands on the same drills. */
@@ -168,7 +171,7 @@ export function goToPlace(tab) {
   document.querySelector(".more-nav").open = false;
   if (changed) window.scrollTo({top: 0});
   ON_OPEN[tab]?.();
-  if (tab === "session") ensureSession(topic);
+  if (tab === "session") ensureSession(topic, rest);
   if (tab === "rule") ensureRule(topic);
   if (tab === "sonastik") ensureDictionary(topic);
   window.dispatchEvent(new CustomEvent("eesti:place", {detail: tab}));

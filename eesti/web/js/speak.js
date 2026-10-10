@@ -5,6 +5,8 @@
    rather than the learner's mouth, and a caveat nobody can read is not one. */
 
 import {$, api, esc, md, rawApi, ruCount, setLabel} from "./core.js";
+import {commentsSlot, descriptorComments} from "./modeltext.js";
+import {examLevel} from "./state.js";
 
 
 // ── speaking ────────────────────────────────────────────────────────
@@ -314,8 +316,18 @@ if (!canRecord) {
                 `<div class="why">✗ <del lang="et">${esc(c.wrong)}</del> →
                  <ins lang="et">${esc(c.correct)}</ins> — ${esc(c.why || "")}</div>`).join("");
             } catch {}
+            /* The model's comments against HARNO's descriptors, once the
+               learner says the transcript is what they said (ADR-0009). */
+            html += `<div class="row"><button class="ghost" type="button" data-comment lang="et">Kinnita ja kommenteeri
+              <span class="ru" lang="ru">текст верный — комментарий модели</span></button></div>`;
           }
           heard.innerHTML = html;
+          heard.querySelector("[data-comment]")?.addEventListener("click", e => {
+            const row = e.currentTarget.closest(".row");
+            row.outerHTML = commentsSlot();
+            descriptorComments(heard.querySelector(".model-slot"),
+                               {kind: "raakimine", text: t.text, level: examLevel(), task: task.question});
+          });
           if (t.comparison) bindCheck(heard, task, t);
         } catch (e) {
           heard.innerHTML = `<span class="tag" lang="et">Kuuldi <i class="ru" lang="ru">услышано</i></span><div class="why">${esc(e.message)}</div>`;

@@ -55,7 +55,7 @@
 <div class="wrap">
 <!-- The shell (DESIGN.md): the sidebar on a desktop; on a phone the header, with
      its tab row (Täna and the four skills) as the dock along the bottom. -->
-<header class="spine"><a aria-label="Klint — на главную" class="brand" href="#path">
+<header class="spine"><a class="hdr-pause" hidden="" href="#path" lang="et">Peata <span class="ru" lang="ru">пауза</span></a><a aria-label="Klint — на главную" class="brand" href="#path">
 <!-- brand:header:start -->
       <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path class="brand-k" fill-rule="evenodd" d="M18.44 42V12H25.16V25.23L35.71 12H44.09L33.01 25.75L45.56 42H36.92L28.58 30.85L25.16 34.77V42Z"/><path class="brand-bar" fill-rule="evenodd" d="M20.11 47.0H43.89A1.67 1.67 0 0 1 45.56 48.67V50.33A1.67 1.67 0 0 1 43.89 52.0H20.11A1.67 1.67 0 0 1 18.44 50.33V48.67A1.67 1.67 0 0 1 20.11 47.0Z"/></svg>
       <!-- brand:header:end -->
@@ -107,24 +107,33 @@
 </div></header>
 <main class="stage-col" id="main">
 
-<!-- ── The path ──────────────────────────────────────────────────
-       Two ways through the same drills. `Rada`: ordered, gated, recorded; the
-       learner sees one next topic first. `Vaba harjutus`: any topic, graded by the
-       same code, recorded nowhere. -->
+<!-- ── Täna (DESIGN.md, Täna) ─────────────────────────────────────
+       Today's session (ADR-0009): its first sentences to notice, the seven
+       steps, one Jätka and two alternatives with their reasons (path.js). -->
 <section class="panel" id="tab-path">
-<div class="page-head"><div><h2 class="page-title" lang="et">Õpime eesti keelt <i class="ru" lang="ru">учим эстонский</i></h2><p class="page-date" id="pathDate" lang="et"></p></div></div>
-<section aria-labelledby="pathNow" class="next-lesson">
-<div class="next-copy"><h3 id="pathNow" lang="et">Laadin…</h3><p id="pathOf"></p>
-<p class="lesson-purpose" lang="ru">Разбери правило на примерах, попробуй сам и получи проверку.</p></div>
-<div class="next-action"><button class="go" data-primary="" id="practiceBtn" lang="et">Alusta <span class="ru" lang="ru">начать урок</span></button><a class="quiet" href="#course" lang="et">Vali teine teema <span class="ru" lang="ru">выбрать другую тему</span></a></div>
-</section>
-<div class="home-links"><a href="#review" lang="et">Korda õpitut <span class="ru" lang="ru">повтори изученное</span></a><a href="#start" lang="et">Muuda algust <span class="ru" lang="ru">выбери точку старта</span></a></div>
-<p class="home-note" lang="ru">Чтение, слух, речь и письмо всегда доступны в навигации. Можно учиться с начала или двигаться сразу к знакомым темам.</p></section><section class="panel" hidden="" id="tab-course">
-<div class="page-head"><div><h2 class="page-title" lang="et">Kursus <i class="ru" lang="ru">темы курса</i></h2><p lang="ru">Учись по порядку или выбери то, что нужно сейчас.</p></div></div>
+<div class="tana">
+<header class="tana-head"><h2 class="page-title" id="tanaTitle" lang="et">Täna <span class="ru" lang="ru">сегодня</span></h2><p class="page-date" id="pathDate" lang="et"></p></header>
+<div class="tana-main">
+<div class="tana-hero" id="tanaHero"><p class="loading-note" lang="et">Laadin… <span class="ru" lang="ru">загружаю</span></p></div>
+<p class="tana-why" id="tanaWhy" lang="ru"></p>
+<div class="tana-act"><button class="go" data-primary="" id="practiceBtn" lang="et">Jätka <span class="ru" lang="ru">продолжить</span></button></div>
+</div>
+<aside aria-labelledby="tanaPlanH" class="tana-plan">
+<h3 id="tanaPlanH" lang="et">Tänane tund <span class="ru" lang="ru">занятие на сегодня</span></h3>
+<p class="tana-unit" id="tanaUnit"></p>
+<p class="tana-first" hidden="" id="tanaFirst" lang="ru">Каждый день — одно занятие из того, что нужно сейчас. Ответы проверяет код; ошибки возвращаются в повторение.</p>
+<ol class="tana-steps" id="tanaSteps"></ol>
+<h3 class="tana-or" id="tanaOrH" lang="et">Või <span class="ru" lang="ru">или</span></h3>
+<ul aria-labelledby="tanaOrH" class="tana-alt" id="tanaAlt"></ul>
+</aside>
+</div>
+</section><section class="panel" hidden="" id="tab-course">
+<div class="page-head"><div><h2 class="page-title" lang="et">Kursus <i class="ru" lang="ru">темы курса</i></h2><p lang="ru">Учись по порядку или выбери то, что нужно сейчас.</p>
+<a class="quiet" href="#start" lang="et">Muuda algust <span class="ru" lang="ru">изменить точку старта</span></a></div></div>
 <div id="courseBody"><div aria-label="Harjutamine — режим" class="levels seg" id="pathModes" role="tablist">
-<button aria-controls="pathRada" aria-selected="true" data-pm="rada" lang="et" role="tab">Minu rada <i class="ru" lang="ru">по порядку</i></button>
+<button aria-controls="courseTopics" aria-selected="true" data-pm="rada" lang="et" role="tab">Minu rada <i class="ru" lang="ru">по порядку</i></button>
 <button aria-controls="pathFree" aria-selected="false" data-pm="vaba" lang="et" role="tab">Vaba harjutus <i class="ru" lang="ru">без записи</i></button>
-</div><div id="courseTopics"><div class="fold" id="pathAll">
+</div><div id="courseTopics" role="tabpanel"><div class="fold" id="pathAll">
 <p class="note">Выбирай любую тему. Пропуск меняет маршрут; только проверенные ответы засчитывают освоение.</p>
 <div id="pathList"></div>
 </div></div><div hidden="" id="pathFree" role="tabpanel">
@@ -149,6 +158,9 @@
 <option value="infinitive">da-tegevusnimi → nimetav</option>
 <option value="plural">mitmus → nimetav</option>
 </select>
+</label>
+<label lang="et">Sõnade teema <i class="ru" lang="ru">тема слов</i>
+<select id="wordTheme"><option value="">kõik sõnad</option></select>
 </label>
 <label lang="et">Raskus <i class="ru" lang="ru">уровень слов</i>
 <select id="freeLevel">
@@ -182,30 +194,36 @@
 <button class="ghost" hidden="" id="offlineSend" lang="et">Saada vastused
           <span class="ru" lang="ru">отправить ответы</span></button>
 </div>
-</details></section>
-<section class="panel" hidden="" id="tab-session">
-<div class="session-heading"><a class="quiet" href="#course" lang="et">Kursus <span class="ru" lang="ru">к темам</span></a><h2 class="page-title" id="sessionTitle" lang="et">Õppetund <i class="ru" lang="ru">урок</i></h2></div>
-<ol aria-label="Õppetunni sammud — шаги урока" class="lesson-steps"><li aria-current="step" data-step="learn" lang="et">Õpi <span lang="ru">разбери</span></li><li data-step="practice" lang="et">Harjuta <span lang="ru">попробуй</span></li><li data-step="check" lang="et">Kontrolli <span lang="ru">проверь</span></li></ol>
-<div id="lessonIntro"></div><div aria-label="Harjutamine — упражнения" id="pathRada" role="region"><div class="banner" hidden="" id="pathHead"></div><details class="fold session-options"><summary lang="et">Sõnade teema <span class="ru" lang="ru">настройка слов</span></summary><label lang="et">Sõnade teema <i class="ru" lang="ru">тема слов</i>
-<select id="wordTheme"><option value="">kõik sõnad</option></select>
-</label></details><div class="stage" id="pathStage">
-<div class="stage-top">
-<div aria-hidden="true" class="beads" id="pathBeads"></div>
-<span class="hint" id="pathScore"></span>
+<div class="stage" hidden="" id="offlineStage">
+<div class="stage-top"><div aria-hidden="true" class="beads" id="offlineBeads"></div></div>
+<div id="offlineOut"></div>
 </div>
-<!-- Two axes: `Rada` chooses the rule; `Sõnavara teema` chooses the words it is
-           drilled over. The label hides for topics it cannot change. -->
-<div id="practiceOut"></div>
-</div></div>
+</details></section>
+<!-- ── The session (DESIGN.md, The session) ──────────────────────
+       One item at a time on the bench: the session line, the beads, the
+       sentence with its gap, the reserved correction region and one primary
+       that changes its label and never its place (session.js). -->
+<section class="panel" hidden="" id="tab-session">
+<div class="sess-head"><a class="sess-pause" href="#path" lang="et">Peata <span class="ru" lang="ru">пауза, прогресс сохранится</span></a>
+<h2 class="page-title sess-title" id="sessionTitle" lang="et">Tund <span class="ru" lang="ru">занятие</span></h2></div>
+<div class="bench" id="sessBench">
+<div class="sess-line" id="sessLine"></div>
+<div class="sess-steprow"><h3 class="sess-step" id="sessStep" tabindex="-1"></h3>
+<ol aria-label="Ülesanded — задания" class="sess-beads" id="sessBeads"></ol></div>
+<p class="sess-why" hidden="" id="sessWhy" lang="ru"></p>
+<div class="sess-body" id="sessBody"></div>
+<div class="sess-actions" id="sessActions"><button class="quiet" hidden="" id="sessSkip" lang="et" type="button">Jäta vahele <span class="ru" lang="ru">пропустить</span></button><p class="sess-checked" id="sessChecked" lang="et"></p><button class="go" data-primary="" id="sessPrimary" lang="et" type="button">Alusta <span class="ru" lang="ru">начать</span></button></div>
+</div>
 </section>
-<section class="panel" hidden="" id="tab-start"><div class="start-content" id="onboardingContent"><h2 class="page-title" lang="et">Kust alustame? <i class="ru" lang="ru">с чего начнём?</i></h2>
-    <p lang="ru">Выбери удобный старт. Позже можно вернуться и изменить маршрут.</p>
-    <div class="start-routes">
-      <button disabled="" class="start-route" data-start="a0" lang="et"><strong>Alustan algusest</strong><span lang="ru">С начала: правила, примеры и первые упражнения.</span></button>
-      <button disabled="" class="start-route" data-choose lang="et"><strong>Valin alguse</strong><span lang="ru">Что-то уже знаю: выберу точку входа сам.</span></button>
-      <button disabled="" class="start-route" data-assess lang="et"><strong>Proovin ennast</strong><span lang="ru">Не уверен: короткая проверка грамматики, до 3 тем.</span></button>
-    </div>
-    <p class="hint" lang="ru">Объяснения сейчас на русском. Это учебный маршрут, не подтверждение уровня CEFR.</p>
+<section class="panel" hidden="" id="tab-start"><div class="start-content" id="onboardingContent"><h2 class="page-title" lang="et">Kust alustame? <span class="ru" lang="ru">с чего начнём?</span></h2>
+    <p lang="ru">Четыре коротких вопроса, потом сразу первое задание.</p>
+    <fieldset class="start-q"><legend lang="et">Selgituste keel <span class="ru" lang="ru">язык объяснений</span></legend>
+    <div class="start-routes" role="radiogroup">
+      <button aria-checked="false" class="start-route" data-lang="ru" disabled="" lang="ru" role="radio" type="button"><strong>Русский</strong></button>
+      <button aria-checked="false" class="start-route" data-lang="uk" disabled="" lang="uk" role="radio" type="button"><strong>Українська</strong></button>
+      <button aria-checked="false" class="start-route" data-lang="en" disabled="" lang="en" role="radio" type="button"><strong>English</strong></button>
+    </div></fieldset>
+    <p class="hint start-lang-note" id="startLangNote" lang="ru"></p>
     <a class="quiet" href="#path" lang="et">Vaata esmalt ringi <span class="ru" lang="ru">сначала осмотреться</span></a></div></section>
 <!-- ── Speaking ──────────────────────────────────────────────────
        The B1 speaking exam is paired, so this voices the other side and lets the
