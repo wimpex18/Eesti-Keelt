@@ -1,6 +1,6 @@
 # Source permission requests
 
-Drafts for the owner to review and send (Linear DEV-55). Grove opens a source to
+Drafts for the owner to review and send (Linear DEV-55). Klint opens a source to
 every learner only after a written answer: record each reply in
 `eesti/licences.py` and `docs/sources.md`, then set `redistributable` for what was
 granted, with the stated conditions. Fill in the bracketed fields before sending.
@@ -16,7 +16,7 @@ The Selges keeles author is still to be found; the other addresses are the organ
 | Selges keeles authors | *find the author* via selgeskeeles.wordpress.com | The 349 archived posts |
 
 Every message also asks that the permission cover the web app and the coming
-iOS app. Common facts to keep identical in every message: Grove is free and non-commercial,
+iOS app. Common facts to keep identical in every message: Klint is free and non-commercial,
 has no advertising or paid tier, shows the source, author and a link beside every
 item, does not alter the text, and serves Russian-, Ukrainian- and English-speaking
 learners from beginner level to the A2/B1 exams.
@@ -29,9 +29,9 @@ learners from beginner level to the A2/B1 exams.
 
 Tere!
 
-Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
-Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
-Grove aitab vene, ukraina ja inglise keelt kõnelevatel inimestel õppida eesti keelt
+Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Klint ([link]) arendaja.
+Klint töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
+Klint aitab vene, ukraina ja inglise keelt kõnelevatel inimestel õppida eesti keelt
 algtasemest kuni B1-tasemeni ning valmistuda A2- ja B1-taseme eksamiks. Rakenduses ei
 ole reklaami ega tasulisi teenuseid ning me ei teeni sellest tulu.
 
@@ -64,8 +64,8 @@ conditions.
 
 Tere!
 
-Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
-Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
+Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Klint ([link]) arendaja.
+Klint töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Rakendus aitab vene, ukraina ja inglise keelt kõnelevatel õppijatel valmistuda A2- ja
 B1-taseme eksamiks.
 
@@ -97,9 +97,9 @@ link; answer keys only if allowed, otherwise learners are sent to EIS to self-ch
 
 Tere!
 
-Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
-Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
-Grove pakub vene, ukraina ja inglise keelt kõnelevatele õppijatele harjutusi
+Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Klint ([link]) arendaja.
+Klint töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
+Klint pakub vene, ukraina ja inglise keelt kõnelevatele õppijatele harjutusi
 algtasemest B1-tasemeni ning sobib kasutamiseks koos Keeleklikiga.
 
 1. e-Koolikotis on Settle in Estonia A1- ja A2-kursuse materjalide (metoodiline
@@ -110,7 +110,7 @@ algtasemest B1-tasemeni ning sobib kasutamiseks koos Keeleklikiga.
 2. Kas TestEsti diagnostilisi ja näidiseksami ülesandeid tohib rakenduses kasutada või
    tuleks õppija suunata TestEsti lehele?
 3. Kas tohime Keeleklikki ja Keeletee peatükkidele viidata otselinkidega, et õppija
-   saaks Groves harjutada sama teemat, mida ta Keeleklikis õpib?
+   saaks rakenduses Klint harjutada sama teemat, mida ta Keeleklikis õpib?
 
 Täname!
 
@@ -120,7 +120,7 @@ Lugupidamisega
 
 *English summary:* asks whether the CC BY-SA 3.0 shown on e-Koolikott covers the
 Settle in Estonia A1/A2 files themselves; whether TestEst tasks may be reused or only
-linked; whether Grove may deep-link Keeleklikk/Keeletee units.
+linked; whether Klint may deep-link Keeleklikk/Keeletee units.
 
 ---
 
@@ -130,8 +130,8 @@ linked; whether Grove may deep-link Keeleklikk/Keeletee units.
 
 Tere!
 
-Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
-Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
+Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Klint ([link]) arendaja.
+Klint töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Rakendus kasutab juba EKI sõnastikke (PSV, EVS, EKSS, VSL, HAR, tasemesõnavara) ja
 Ekilexi API-t CC BY 4.0 tingimustel ning viitab neile igal pool, kus EKI materjali
 näidatakse.
@@ -176,8 +176,8 @@ A2/B1 phrases and model letters, with exercises built from them.
 
 Tere!
 
-Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Grove ([link]) arendaja.
-Grove töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
+Olen [nimi], tasuta ja mitteärilise eesti keele õpirakenduse Klint ([link]) arendaja.
+Klint töötab praegu veebis ja hiljem ka iOS-i rakendusena; palume, et luba kehtiks mõlemale.
 Teie blogi „Selges keeles“ lihtsas eesti keeles kirjutatud uudised on algajatele väga
 sobiv lugemismaterjal. Palume luba näidata neid tekste rakenduse sees kõigile
 õppijatele muutmata kujul, koos autori nime ja lingiga algsele postitusele, ning

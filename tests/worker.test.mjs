@@ -107,7 +107,7 @@ test("the front door overwrites a forged social artwork origin", async () => {
   let forwarded;
   globalThis.fetch = async request => {
     forwarded = request;
-    return new Response("<html>Grove</html>", {headers: {"content-type": "text/html"}});
+    return new Response("<html>Klint</html>", {headers: {"content-type": "text/html"}});
   };
   const response = await worker.fetch(new Request("https://learn.test/", {
     headers: {"x-brand-origin": "https://forged.test", cookie: app.cookie},

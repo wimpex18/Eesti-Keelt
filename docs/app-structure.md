@@ -9,7 +9,7 @@ classifies source material; it does not determine the navigation shell.
 
 ```
 Learning and practice
-├── Kodu          one next lesson or the current session, with a starting-point link
+├── Täna          one next lesson or the current session, with a starting-point link
 ├── Kursus        units and their topics, rules, checked test-out and reversible skips;
 │                 Vaba harjutus and a five-item offline pack live here
 ├── Lugemine      source texts and word lookup; five source-backed starter

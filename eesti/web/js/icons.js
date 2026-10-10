@@ -101,7 +101,7 @@ export function icon(name, {cls = "", weight = "duotone", label = ""} = {}) {
   return `<svg class="ph${cls ? " " + cls : ""}" viewBox="0 0 256 256" fill="currentColor" ${a11y}>${d}</svg>`;
 }
 
-/* Original Grove skill pictograms: one 32-unit grid, rounded 2-unit lines,
+/* Original Klint skill pictograms: one 32-unit grid, rounded 2-unit lines,
    and one secondary fill. Labels on their controls carry the accessible name. */
 const SKILL = {
   read: '<path class="skill-fill" d="M4 6h6a8 8 0 0 1 6 3 8 8 0 0 1 6-3h6v18h-6a8 8 0 0 0-6 3 8 8 0 0 0-6-3H4Z"/><path d="M4 6h6a8 8 0 0 1 6 3 8 8 0 0 1 6-3h6v18h-6a8 8 0 0 0-6 3 8 8 0 0 0-6-3H4ZM16 9v18M8 11h3M8 15h3M21 11h3M21 15h3"/>',

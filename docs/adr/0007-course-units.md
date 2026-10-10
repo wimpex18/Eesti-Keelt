@@ -9,7 +9,7 @@ The course was a prerequisite graph of grammar topics (`eesti/curriculum.py`)
 with a mastery gate. That orders grammar soundly, but it gives a beginner no
 greetings, numbers or sounds. It also has no communicative goal, no words,
 dialogue or skill work tied to the grammar, and no weekly rhythm towards an
-exam sitting. Learners use Grove alongside Keeleklikk and Keeletee, whose
+exam sitting. Learners use Klint alongside Keeleklikk and Keeletee, whose
 courses are organised in units, and HARNO examines by topic.
 
 ## Decision

@@ -728,7 +728,6 @@ _WRONG_VOICE = r"""() => {
   for (let n; (n = walk.nextNode());) {
     const el = n.parentElement, t = n.data.trim();
     if (!el || !t || el.closest("script,style")) continue;
-    if (t === "Grove" && langOf(el) === "en") continue;
     const latin = LATIN.test(t), cyr = CYR.test(t);
     if (cyr && !latin && langOf(el) === "et") bad.push(`Russian read as et: ${t.slice(0, 40)}`);
     const words = t.split(/[\s·—→←↗✓✗■()«»:,;!?+]+/).filter(Boolean);
@@ -2112,7 +2111,7 @@ class TestPractisingOffline:
             connection['available'] = True
         with page.expect_navigation(wait_until='networkidle'):
             page.get_by_role('link', name='Proovi uuesti повторить', exact=True).click()
-        assert page.get_by_role('link', name='Grove — на главную', exact=True).is_visible()
+        assert page.get_by_role('link', name='Klint — на главную', exact=True).is_visible()
         assert page.locator('#nav-learn button').count() == 4
 
     @pytest.mark.usefixtures("corpus")

@@ -82,7 +82,7 @@ of explanation language. Linear DEV-40 tracks the course, DEV-42 the explanation
 languages.
 
 Keeleklikk/Keeletee are the state's free courses for beginner/A2/B1 with
-multilingual guidance; each Grove unit links to its companion unit's public
+multilingual guidance; each Klint unit links to its companion unit's public
 course map (`eesti/units.py`), but free access is not permission to rehost their
 animations, video and exercises. EKI's English dictionary download is marked
 public domain; its reversed Estonian-English file explicitly warns about use

@@ -1,171 +1,201 @@
 # Design research and decisions
 
-Source snapshot: **3 October 2026**. Official product pages, support guides,
-publisher screenshots, releases and brand references inform the current design.
-Native competitor apps and subscription accounts were not tested. Dated releases
-and forecasts do not establish universal availability or learning effectiveness.
-This record explains the choices; current capabilities and gaps live in
-[status.md](status.md), structure in [app-structure.md](app-structure.md), and
-implemented tokens/components in [DESIGN.md](../DESIGN.md).
+Snapshot: **10 October 2026**. This record holds the audit of the current
+screens, the references behind the redesign and the reasons for each choice.
+The specification itself is [DESIGN.md](../DESIGN.md); current capabilities are
+in [status.md](status.md), structure in [app-structure.md](app-structure.md).
+Published sources inform the design; none of them establishes that a visual
+style improves learning.
 
-## Applied to Grove
+## Audit of the current screens
 
-- One next lesson on Home, then learn → practise → check in a five-item session.
-- Beginning, chosen starting point and a bounded grammar check are separate entry
-  choices. Skips advance navigation without awarding mastery or review success.
-- Reading, listening, speaking and writing remain visible. Course, Review, Exam
-  and account own their supporting tools instead of duplicating dashboards.
-- Contextual dictionary lookup supports the lesson or text and the same review
-  queue. It does not become a second learning home or CEFR percentage.
-- Pale blue/aqua grounds, deep blue actions and a navy dark theme match the
-  selected Practice rhythm direction. Glass is limited to navigation; text,
-  exercises, correction and word cards stay solid.
-- Self-hosted Geologica distinguishes softer interface text from sharper
-  Estonian material. Its bundled glyphs cover Estonian, Russian and Ukrainian;
-  glyph coverage is distinct from complete translated instruction.
-- Original book, headphones, microphone and pencil pictograms identify the
-  skills by shape and colour. Phosphor supplies the small utility set; visible
-  labels and keyboard access carry meaning independently of colour.
+**Method.** `main` at `01fdce2`, served locally with reference data only, in a
+guest sandbox after choosing *Alustan algusest*. Chromium through Playwright at
+390×844 (touch) and 1280×800, light and dark: Kodu (`#path`), Kursus
+(`#course`), `#session/obj-case` at its learn step, an item awaiting an answer
+and a revealed miss, and `#rule/obj-case`; also `#start` as a new guest first
+sees it. Screenshots are not committed (images are outside this record's
+files); the routes reproduce them.
+
+| Screen | Finding | Effect | Decision in DESIGN.md |
+|---|---|---|---|
+| Kodu | A generic title (*Õpime eesti keelt*), the date, a white card with the next topic, two tertiary links and a note restating that the skills exist. | No session shape; ADR-0009's one Jätka with two reasoned alternatives has nowhere to live. | Täna |
+| Kodu, phone | The header holds the brand, a *Kursus* link wrapping to three lines, two icon buttons and *Veel*. | Five targets compete in 390px; the page title moves below. | Header |
+| `#start` | The page heading draws the 3px focus ring after load (programmatic focus). | A large blue box around a non-interactive heading. | Focus and the dock, item 6 |
+| Kursus | Thirty identical collapsed unit rows; metadata as middle-dot strings ("sihttase A1 · 0 из 4 пройдено") wrapping beside the title on phones; B1 unit numbers turn blue with no stated meaning. | A long list with no current position and no primary action. | Kursus |
+| Kursus, phone | Topic rows spend 70px on a status-word column; *Õpi* and *Veel* are small buttons in each row. | Names truncate; actions are hard to hit. | Kursus |
+| Session, learn | A readable sheet, but Estonian examples inside Russian are italic. The bundled Geologica has no slant axis (rendering `slnt` and `CRSV` changed nothing), so the browser synthesizes an oblique. | Faked italics, the "italic accent word" default. | Forbidden defaults; Typography |
+| Session, practice | About 150px of blank space between the beads and the sentence; the lemma appears twice (in the instruction and the task line); "1 / 5" repeats the beads; *Tõlge* sits between the sentence and the field. | The answer field starts low; the eye travels sentence → button → field. | The session |
+| Session, revealed | The disabled *Kontrolli* stays a pale primary beside the new *Edasi*; on 390px *Edasi* needs a scroll and the skill tray covers the bottom of the correction. | Two primary-looking buttons; the next action is hidden. | Practice rhythm; the dock |
+| Session, revealed | The correction "✕ vale → rahakotti" is a separate line under the field; the sentence shows the key in colour but not its form. | The learner must connect three places to learn one form. | The signature: interlinear word |
+| Session | Three equal labels *Õpi / Harjuta / Kontrolli* with a peach underline. | ADR-0009's session has seven steps. | Session line |
+| Rule | A 720px sheet with a close cross although it is a page; gist, summary, seven points, a form table cut off at the sheet's edge, examples, mistakes, texts; sources and *Harjuta* at the end (about 2,000px down at 1280, 3,200px at 390). | A wall of text; attribution and the primary action are out of reach. | Reegel |
+| Rule | The "Частая ошибка" card is the unsourced kind of tip ADR-0009 retires. | An unsourced claim on screen. | Reegel |
+| All | Every label has a 12px Russian gloss on its own line; desktop navigation items are 74px tall. | Doubled vertical rhythm and visual noise. | Header (one baseline on desktop; phone tabs keep both lines) |
+| All | Pale blue wash, frosted navigation, white cards. | Reads as a generic 2021–23 SaaS kit and has no relation to the name; the glass imitates material iOS draws natively. | Colors; Elevation and shape |
+| All | Weights 500–600 and sizes 12–16px for most text; the Estonian cut at `SHRP` 40 is barely distinguishable from 0 at text sizes. | Weak hierarchy; the two voices do not read. | Typography |
+| All | The current bead pulses forever; skeletons shimmer; a celebration overlay with petals; charts grow on load. | Motion without an action or a state change. | Motion (removed list) |
+
+The audit found the learning rhythm sound — one item, a correction kept until
+*Edasi*, skips distinct from mastery — and its presentation weak. The redesign
+therefore keeps the rhythm and replaces the presentation.
+
+## Decisions
+
+**Interlinear as the signature.** Klint teaches which form a word takes. Code
+already names that form for every keyed item (the form label, the rule's form,
+Vabamorf's analysis), so showing it under the word costs no new linguistic data
+and invents nothing. It moves the correction to where the learner is looking
+and, shown only after an attempt, fits ADR-0009's evidence that corrective
+prompts asking for self-correction outperform recasts. The convention is the
+linguist's interlinear gloss ([Leipzig Glossing Rules](https://www.eva.mpg.de/lingua/resources/glossing-rules.php)),
+adapted: Estonian term names in lower case instead of small-caps abbreviations,
+which would be opaque to learners and are all-caps labels.
+
+*Considered and set aside:* a "seam" marking the boundary between stem and
+ending. Vabamorf reports a zero ending for the genitive singular and for many
+partitives (*leiva*, *jäätise*) — exactly the forms of `obj-case`, the
+documented weakness — so the seam would be missing where it matters most. It
+can return as a refinement where Vabamorf separates a non-zero ending.
+
+**Spruce ink on birch ground.** Cool, faintly green neutrals — the klint's pale
+limestone and the spruce on its top — tie the screen to the name without a
+picture and are clearly not the cream default.
+The primary action takes the ink colour: the most legible fill on the page,
+and it leaves every hue free for learning state. Lake blue stays for links,
+focus and selection, the convention learners expect. *Considered:* keeping the
+deep blue action; set aside because it then competes with links and focus and
+keeps the generic look the owner calls outdated.
+
+**No glass on the web.** Apple places Liquid Glass in the functional navigation
+layer, drawn by the system ([materials](https://developer.apple.com/design/human-interface-guidelines/materials)).
+On the web, CSS blur only imitates it and needs three fallbacks. The iOS app
+will get the real material for free; the web uses opaque surfaces.
+
+**A dock with three states.** The brief asks for one fixed primary action and
+focus that the phone's skill tray never hides. iOS 26 answers the same problem
+with a floating tab bar that minimises on scroll and a bottom accessory above
+it that moves inline when the bar minimises ([WWDC25 session 284](https://developer.apple.com/videos/play/wwdc2025/284/)).
+Klint's browse, act and task states follow that model, so the web and the
+future app behave alike.
+
+**The name: Klint.** The earlier name, Grove, collides with a company that
+holds grove.ee. The owner ruled out Estonian common words and word mashups;
+candidates were checked on 10 October 2026 against the `.ee` registry
+(whois.tld.ee), the `.app` registry (Google's RDAP service) and a web search
+for apps and companies. Klint — the Baltic Klint, the limestone escarpment of
+north Estonia running through Ida-Virumaa, where many of the learners live —
+had a free `klint.ee` (`klint.app` is registered) and no clashing app or
+company; it reads the same in Russian, Ukrainian and English. A Business
+Register and trademark search remain for the owner before the domain is bought.
+The mark is the design's own signature: a K with the interlinear bar, which is
+also the shore line under the cliff. Leaf and cliff silhouettes were drawn and
+set aside: at 16px they read as a boot, a folder or a stock stairs icon.
+
+**Default explanation language from the system.** Learners arrive with a
+phone or browser already set to their language; asking before showing anything
+costs the first minute ADR-0009 protects. The first preferred language that is
+Ukrainian, Russian or English is preselected, English otherwise, and a saved
+choice always wins. Location is not used: in Estonia it says nothing about
+which of the three languages a person reads.
+
+**Täna for Home.** ADR-0009 makes Home the session; *Täna* ("today") names
+what the learner gets there.
+
+**The answer typed in the sentence.** The gap becomes the field, so the
+sentence, the answer and the correction share one line of sight. Automatic
+sizing uses `field-sizing: content`, Baseline since Firefox 152 joined Safari
+26.2 and Chromium ([web.dev, June 2026](https://web.dev/blog/web-platform-06-2026)),
+with a `size` fallback.
+
+**Seven steps under three phases.** ADR-0009's steps are the session's real
+structure; *Õpi / Harjuta / Kontrolli* remain the labels learners already know.
+
+**Sharper Estonian.** `SHRP` 100 at display and prompt sizes was rendered next
+to 0 and 40: the cut shows at the terminals of *k*, *t* and the tail of *Щ*.
+At 40 the difference disappears at text sizes, so running Estonian moves to 60.
+
+**Bringhurst's scale and measure.** Sizes 12–48px from the classic typographic
+scale and the 45–75 character line (66 ideal) from *The Elements of
+Typographic Style*.
+
+**Validation before writing.** A throwaway HTML mock of Täna, an item (awaiting
+and revealed), the rule page and Kursus was rendered at 390 and 1280px in both
+themes. It showed that a form line widening its word breaks the sentence's
+spacing (now absolutely positioned), that a struck wrong answer inside the
+sentence wraps at 390px (now in the correction region), and that repeating the
+step name beside the phase labels was noise (now shown once per step). The mock
+is not committed.
+
+## Platform and standards references
+
+| Source | Finding | Application |
+|---|---|---|
+| [WCAG 2.2](https://www.w3.org/TR/WCAG22/) | Contrast 4.5:1 text and 3:1 non-text (1.4.3, 1.4.11); focus not entirely hidden (2.4.11, AA) and not hidden at all (2.4.12, AAA); dragging alternatives (2.5.7); 24px minimum targets (2.5.8); consistent help (3.2.6); accessible authentication (3.3.8); the relative-luminance formula. | The contrast table, the focus rules for the dock, tap-only tile building, 44px targets, fixed places for *Miks?* and *Reegel*. |
+| [Vispero: testing 2.4.11](https://vispero.com/resources/how-to-test-2-4-11-focus-not-obscured-minimum/), [TabNav: 2.4.11](https://tabnav.com/academy/wcag/success-criterion-2.4.11) | Sticky footers are the usual failure; `scroll-padding` and `scroll-margin` give focus room. | `scroll-padding-bottom` tied to the dock's measured height. |
+| [Apple HIG: Motion](https://developer.apple.com/design/human-interface-guidelines/motion), [App Store reduced-motion criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria) | Motion should communicate and never be the only carrier of information; scaling, spinning and peripheral motion need alternatives. | Motion inventory with reduced-motion fallbacks; no shake, spin or overlay. |
+| [Material 3 easing and duration tokens](https://m3.material.io/styles/motion/easing-and-duration/tokens-specs) | Standard `cubic-bezier(.2,0,0,1)`, emphasized decelerate `(.05,.7,.1,1)` and accelerate `(.3,0,.8,.15)`; short durations for small changes. | Motion tokens, capped at 320ms. |
+| [Chrome: view transitions in 2025](https://developer.chrome.com/blog/view-transitions-in-2025), [web.dev, October 2025](https://web.dev/blog/web-platform-10-2025) | Same-document View Transitions are Baseline since Firefox 144 (14 October 2025). | The next-item transition, with plain replacement as fallback. |
+| [MDN: VirtualKeyboard API](https://developer.mozilla.org/en-US/docs/Web/API/VirtualKeyboard_API), [Chrome: VirtualKeyboard](https://developer.chrome.com/docs/web-platform/virtual-keyboard), [WebKit bug 230225](https://bugs.webkit.org/show_bug.cgi?id=230225) | Not Baseline; Safari keeps a full-height layout viewport; `interactive-widget=resizes-content` is Chromium's. | The dock follows `visualViewport` on Safari and the viewport meta on Chromium. |
+| [Safari 26 release notes](https://developer.apple.com/documentation/safari-release-notes/safari-26-release-notes) | CSS anchor positioning and scroll-driven animations ship. | Desktop popovers may anchor to their control; scroll-driven animation is not used for decoration. |
+| [SwiftUI tab bars on iOS 26](https://www.donnywals.com/exploring-tab-bars-on-ios-26-with-liquid-glass/), [Apple forums: bottom accessory collapse](https://developer.apple.com/forums/thread/809945) | `tabViewBottomAccessory` is app-wide and collapses only with long scroll content. | On iOS the session is a full-screen flow with its own bottom bar; other screens use a per-screen inset. |
+| [Design Tokens specification 2025.10](https://www.w3.org/community/design-tokens/2025/10/28/design-tokens-specification-reaches-first-stable-version/) | First stable, vendor-neutral token format with theming. | One token source for CSS and the iOS asset catalog. |
 
 ## Language-learning references
 
-| Product | Verified public experience | Useful adaptation for Grove | Tradeoff to avoid |
+Snapshot 3 October 2026, from official product pages, support guides and
+publisher material; native apps and subscription accounts were not tested.
+
+| Product | Verified public experience | Useful adaptation for Klint | Tradeoff to avoid |
 |---|---|---|---|
-| Duolingo | A guided course path plus on-demand speaking, listening, mistakes and word practice; its current guide says skill practice is free on iOS and Android. | A strong next lesson, easy review of prior material, and direct skill practice. | A long path or extra reward systems must not obscure the next action. [Practice guide](https://blog.duolingo.com/guide-to-duolingo-practice-hub/), [course navigation](https://blog.duolingo.com/how-to-review-lessons-on-duolingo/) |
-| Babbel | A placement quiz recommends a course; learners can change it. Review uses flashcards, writing, speaking and listening and can be recommended alongside the next lesson. | Editable starting point and one practice system with several exercise types. | Do not expose every practice method as a separate page. Placement availability varies by language. [Placement](https://support.babbel.com/hc/en-us/articles/20202703767442-Placement-quiz), [review](https://support.babbel.com/hc/en-gb/articles/205600228-Vocab-workout-Review) |
-| Busuu | Placement suggests an entry level, with the option to begin earlier. The support page distinguishes placement from completed lessons, although it can suppress review of earlier words and grammar. | Let learners choose the beginning after assessment; make course position and completion separate. | Grove must not copy the automatic mastery implication: navigation choices do not award checked mastery. [Placement](https://help.busuu.com/hc/en-us/articles/16526383831569-What-is-a-Placement-Test) |
-| Drops | Topics and word previews allow reversible hiding of words. Review Dojo schedules vocabulary review; its empty state explains when no review is needed. | Familiar-word controls, undo, and useful review-empty explanations. | Hiding words can prevent Drops topic progress; Grove skips should advance navigation and remain visibly distinct from completion. [Hide/unhide](https://support.languagedrops.com/hc/en-us/articles/19405567894419-How-do-I-hide-or-unhide-words), [Dojo](https://support.languagedrops.com/hc/en-us/articles/19334419328275-Dojo-Feature-What-is-it-and-How-to-Review-Words) |
-| Speak | An expert-led learn–practise–apply sequence places speaking in situations. Tutor lessons offer hints, repetition and flexible pace; a September 2026 announcement describes help during an answer. | Give a speaking goal, example and suggested reply before asking a beginner to talk. | Open chat alone is not a beginner curriculum; advertised speech feedback is not evidence that Grove can grade pronunciation. [Method](https://www.speak.com/), [September release](https://www.speak.com/blog/live-tutor-lessons-powered-by-openais-gpt-live-1) |
-| Praktika | Its February 2026 4.0 release describes a complete UI redesign, system dark mode, improved VoiceOver and goal-based scenario practice. Published practice screens use labelled topic rows. | Clear scenario choices, everyday goals and accessible controls. | Animated tutors and personalisation should not become prerequisites for a useful session. [4.0 release and screenshots](https://praktika.ai/blog/praktika-4-0) |
-| Langua | July–September 2026 updates describe a recommended Path with a separate Explore route, content-to-conversation practice, suggested replies and recovery from stalled chats. Some new call features are a gradual beta rollout. | Guided by default, flexible by choice; preserve work and offer recovery when speech or a provider fails. | Do not infer universal availability from a beta announcement or copy its growing settings surface. [Current updates](https://support.languatalk.com/article/152-see-the-latest-updates-on-langua) |
-| Memrise | The current public experience centres native-speaker video, understanding phrases and repeating them; it also describes private AI practice. | Connect listening, reading and speaking around one useful piece of language. | A video collection still needs a recommended next activity and suitable beginner material. [Current method](https://www.memrise.com/) |
-| LingQ | A library, Continue Studying shelf, guided entry options and a reader combine audio, word lookup, sentence view and review. Its April 2026 notes describe reader, playback and offline reliability work. | Keep source text, audio and vocabulary together; resume the actual material. | A large import/library catalogue should not be the novice's first decision. [Reader and mobile flow](https://www.lingq.com/en/ios-app-support/), [2026 updates](https://forum.lingq.com/t/batch-importing-instagram-import-new-lesson-complete/2620919) |
-| Lingvist | Adaptive vocabulary exercises use contextual sentences and scheduled repetition, with desktop and mobile access. | One compact exercise, then actionable feedback; vocabulary review can reuse the lesson context. | Vocabulary coverage is not a CEFR test or a complete four-skill course. [Current product](https://lingvist.com/) |
-| Pimsleur | Core audio lessons lead to recall, reading and speaking activities, with mobile/offline use and a web app. Some features vary by language. | A simple audio session with replay, pace and a next step, plus supporting transcript/exercises. | Long audio alone does not meet every short-session or exam need. [Learning loop](https://www.pimsleur.com/), [app](https://www.pimsleur.com/pimsleur-app/) |
-| ELSA Speak | Goal-based English speaking practice combines personalised lessons, role-play and feedback, with progress reporting. | Show a concrete speaking purpose and a small amount of actionable feedback. | Keep diagnostics out of the exercise; English speech-scoring claims do not transfer to Estonian. [Current product](https://elsaspeak.com/en) |
+| Duolingo | A guided course path plus on-demand speaking, listening, mistakes and word practice. | A strong next lesson, easy review of prior material, direct skill practice. | A long path or reward systems must not obscure the next action. [Practice guide](https://blog.duolingo.com/guide-to-duolingo-practice-hub/), [course navigation](https://blog.duolingo.com/how-to-review-lessons-on-duolingo/) |
+| Babbel | A placement quiz recommends a course; review mixes flashcards, writing, speaking and listening. | Editable starting point; one practice system with several exercise types. | Do not expose every method as its own page. [Placement](https://support.babbel.com/hc/en-us/articles/20202703767442-Placement-quiz), [review](https://support.babbel.com/hc/en-gb/articles/205600228-Vocab-workout-Review) |
+| Busuu | Placement suggests an entry level with the option to begin earlier. | Course position and completion stay separate. | Navigation choices do not award mastery. [Placement](https://help.busuu.com/hc/en-us/articles/16526383831569-What-is-a-Placement-Test) |
+| Drops | Reversible hiding of words; Review Dojo explains when no review is needed. | Undoable word choices; useful empty states. | Skips advance navigation and stay distinct from completion. [Hide/unhide](https://support.languagedrops.com/hc/en-us/articles/19405567894419-How-do-I-hide-or-unhide-words), [Dojo](https://support.languagedrops.com/hc/en-us/articles/19334419328275-Dojo-Feature-What-is-it-and-How-to-Review-Words) |
+| Speak | A learn–practise–apply sequence places speaking in situations; tutor lessons give hints and repetition. | A speaking goal, an example and a suggested reply before a beginner talks. | Open chat alone is not a beginner curriculum. [Method](https://www.speak.com/), [September release](https://www.speak.com/blog/live-tutor-lessons-powered-by-openais-gpt-live-1) |
+| Praktika | A February 2026 redesign with system dark mode, improved VoiceOver and goal-based scenarios. | Clear scenario choices; accessible controls. | Animated tutors must not gate a useful session. [4.0 release](https://praktika.ai/blog/praktika-4-0) |
+| Langua | A recommended Path beside an Explore route; recovery from stalled chats. | Guided by default, flexible by choice; preserve work when a provider fails. | Beta announcements are not universal availability. [Updates](https://support.languatalk.com/article/152-see-the-latest-updates-on-langua) |
+| LingQ | A reader combining audio, word lookup, sentence view and review; Continue Studying. | Keep text, audio and vocabulary together; resume the actual material. | A large library is not a novice's first decision. [Reader](https://www.lingq.com/en/ios-app-support/) |
+| Lingvist | Adaptive vocabulary in contextual sentences with scheduled repetition. | One compact exercise, then actionable feedback. | Vocabulary coverage is not a CEFR test. [Product](https://lingvist.com/) |
 
-The strongest references for this project are Babbel/Busuu for course entry,
-Duolingo for a next lesson plus targeted practice, Drops for reversible word
-choices, Speak/Praktika/Langua for supported speaking, and LingQ/Memrise for
-using real material across skills. This is a design judgement from the evidence,
-not a ranking of learning effectiveness.
-
-The synthesis also follows established usability research: show frequent tasks
-first and reveal occasional detail on request; make distinctions between options
-explicit; teach controls in context instead of through a long introductory tour.
-[Progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/),
-[clear option differences](https://www.nngroup.com/articles/explicit-differences/),
-[contextual help](https://www.nngroup.com/articles/onboarding-tutorials/).
+The strongest references remain Babbel and Busuu for entry, Duolingo for a
+next lesson plus targeted practice, Drops for reversible choices,
+Speak/Praktika/Langua for supported speaking and LingQ for real material across
+skills. Usability research supports showing frequent tasks first and revealing
+detail on request ([progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/)),
+making differences between options explicit ([explicit differences](https://www.nngroup.com/articles/explicit-differences/))
+and teaching controls in context rather than in a tour
+([onboarding tutorials](https://www.nngroup.com/articles/onboarding-tutorials/)).
 
 ## Estonian-specific reference: Sõnastik
 
 The [App Store listing](https://apps.apple.com/ee/app/s%C3%B5nastik-learn-estonian/id6764018075)
-shows version 1.18.2 and describes Ekilex-backed lookup, five translation
-languages, saved words, flashcards, vocabulary-level practice, typed forms and
-EVS example phrases. These are vendor claims, not independently verified
-outcomes. The [published website](https://www.sonastik.app/en) shows search
-history, meanings and declension views; it describes spelling/diacritic/form
-tolerance, cached recent entries and separate meaning/form information.
+describes Ekilex-backed lookup, five translation languages, saved words,
+flashcards, typed forms and EVS example phrases; the
+[website](https://www.sonastik.app/en) shows meanings and declension views.
+These are vendor claims, not verified outcomes.
 
-**Grove's distinction is the learning journey.** Its entry choice leads to a
-lesson, checked practice, understandable correction and a next action. Reading,
-listening, speaking and writing stay visible; optional exam preparation adds
-real task formats and evidence. Dictionary lookup helps with the current text
-or exercise rather than becoming the main product. A beginner curriculum and
-complete English/Ukrainian instruction still require reviewed content; the
-redesign does not establish that these are complete.
+**Klint's distinction is the learning journey:** an entry choice leads to a
+lesson, checked practice, a correction the learner can understand and a next
+action, across four skills, with optional exam preparation. Dictionary lookup
+serves the current text or exercise. Adaptations that fit: meaning and a usage
+example before a large form table; the learner's place preserved when a lookup
+closes; tolerant matches resolved visibly so they never become a correct drill
+answer; one review queue. Klint already imports EVS examples and supports
+optional Ekilex lookups beside Vabamorf forms ([sources](sources.md),
+[integrations](source-integrations.md)); Sõnastik's service and artwork are not
+needed. A vendor's word-percentage presentation is not adopted as a
+proficiency score.
 
-Useful adaptations fit that positioning:
+## Acceptance
 
-- Put a concise meaning and relevant usage example ahead of a large form table.
-  Keep detailed forms available within the same contextual card.
-- Preserve the learner's text, query and course position when returning from a
-  lookup. Save a useful word directly into the existing review queue.
-- Resolve inflected forms and spelling alternatives visibly, so a tolerant
-  dictionary match does not silently become a correct drill answer.
-- Reuse cached source data and honest retry states. Keep one review system and
-  learner-owned progress rather than adding separate vocabulary dashboards.
-- Prepare instructional-language selection independently from the Estonian
-  target word/topic identity; do not reset progress when language changes.
-
-There is no new exclusive source to acquire from Sõnastik. Grove already imports
-EVS examples and supports optional authenticated Ekilex lookups alongside Vabamorf forms;
-see [sources.md](sources.md) and [source-integrations.md](source-integrations.md).
-Fetch reference data from its upstream and preserve its attribution. EKI itself
-[distinguishes current Sõnaveeb/Ekilex data from historical dictionary editions](https://arhiiv.eki.ee/dict/).
-Sõnastik's private service, artwork and UI are not needed for that reuse.
-
-Vocabulary tags and a brief word quiz are useful routing evidence; they do not
-establish CEFR proficiency across four skills. Grove retains named word-level
-sources, bounded grammar assessment and a separate exam-readiness view. The
-vendor's word-percentage presentation is not adopted as a proficiency score.
-
-## Colour, hierarchy and materials
-
-| Source | Finding | Application |
-|---|---|---|
-| [Shopify: color psychology](https://www.shopify.com/blog/color-psychology) | Published 27 January 2023. Colour associations vary with context, culture and audience; the article recommends testing. Its ecommerce conversion percentages are not evidence for educational outcomes. | Blue is a visual preference, not a promise of trust or better learning. Contrast, consistent roles and learner feedback determine whether it works. |
-| [Figma: colour combinations](https://www.figma.com/resource-library/color-combinations/) | Harmony, lightness and contrast matter alongside hue. Analogous and complementary relationships serve different hierarchies. | Blue/aqua carry the ground; deep blue identifies actions. Warm peach and distinct skill colours have limited named roles. Semantic success/error colours retain text and shape cues. |
-| [Figma: pricing-page best practices](https://www.figma.com/resource-library/pricing-page-best-practices/) | Simple choices, benefit-oriented labels, clear hierarchy, progressive disclosure, obvious CTAs and mobile usability reduce decision friction. | Apply these principles to starting choices and exam entry. Grove stays free; pricing tiers, decoys, urgency and conversion tactics do not enter the learning flow. |
-| [Figma: web-design trends for 2026](https://www.figma.com/resource-library/web-design-trends/) | A broad trend guide covers depth, vivid colour, variable type, motion, dark mode, accessibility and lean delivery, alongside experimental navigation and maximalism. The page still contains forecast wording. | Use controlled depth, colour and theme support. Keep familiar navigation and the settled density; decorative motion and complex navigation would conflict with the learner's task. |
-
-## Product and brand references
-
-**Dropbox.** Its live [colour guide](https://brand.dropbox.com/color) separates
-core, accents and greys. Its [icon guide](https://brand.dropbox.com/iconography)
-separates 24px UI icons, 64px pictograms and larger spot artwork, and relates
-their geometry to the typeface. [Typography](https://brand.dropbox.com/typography)
-uses a flexible custom variable family. Adopt consistent roles and a distinction
-between small utility marks and expressive skill marks; retain Grove's own
-lettering, logo, colours and artwork.
-
-**Meetup.** The [2025 redesign account](https://www.meetup.com/blog/new-design-2025/)
-describes stronger colour, new icons and type, clearer spacing and contrast,
-with familiar core navigation. Its [2026 roadmap](https://www.meetup.com/blog/2026-meetup-roadmap/)
-states that mobile launched in December 2025 and proposes a unified member and
-organizer app. These are dated publisher accounts, not verification of every
-roadmap item. Grove adopts coherence across skills and devices, with less
-duplicated navigation, rather than collecting more separate tools.
-
-**Airbnb and Bend.** Airbnb's [2025 release screens](https://news.airbnb.com/product-releases/airbnb-2025-summer-release)
-use expressive object imagery to distinguish major destinations. [Bend's live
-site](https://bend.com/) shows restrained illustrated routines, a clear current
-step and short instructions. Borrow recognizable silhouettes, restrained
-colour and a focused task. Grove's small navigation pictograms are original
-vector geometry; they are not copied competitor artwork or photorealistic 3D.
-
-**Apple.** Current [material guidance](https://developer.apple.com/design/human-interface-guidelines/materials)
-places Liquid Glass in the functional navigation/control layer and advises
-sparing use, distinct from ordinary content surfaces. Grove is a web app, so
-its frosted effect uses CSS blur and transparency, not Apple's native optical
-rendering. Navigation has a high-opacity tint, opaque fallbacks, reduced
-transparency and forced-colour support; learning content remains solid.
-
-## Design and icon references
-
-- [Nielsen Norman Group](https://www.nngroup.com/articles/ten-usability-heuristics/):
-  usability principles, status visibility, recognition, recovery and user control.
-- [Mobbin](https://mobbin.com/): published real-app screens and flows for comparing
-  onboarding and navigation; screenshots do not prove a pattern's effectiveness.
-- [Awwwards](https://www.awwwards.com/): expressive brand, typography and motion
-  inspiration; marketing-site experiments require judgment before use in lessons.
-- [Figma Resource Library](https://www.figma.com/resource-library/): practical
-  colour, hierarchy and design-system references.
-- [Lucide](https://lucide.dev/), [Tabler](https://tabler.io/icons) and
-  [Phosphor](https://phosphoricons.com/?size=64&weight=duotone): current scalable
-  icon systems compared. Grove keeps its small cached Phosphor subset and adds
-  four dedicated skill pictograms, avoiding a second full icon dependency.
-
-## Acceptance and remaining release work
-
-Readable copy in both themes, working keyboard/touch controls, clear recovery
-and no horizontal overflow are the acceptance bar. Familiar navigation and one
-obvious next action matter more than following every visual trend. A colour or
-visual style is not evidence of improved learning.
-
-The current app supports Russian explanations. Expanded beginner sequencing and
-reviewed English/Ukrainian instruction remain release work; the onboarding
-recommendation is not a certified CEFR result. Source access, attribution and
-integration details belong in [sources.md](sources.md) and
-[source-integrations.md](source-integrations.md). Verification is described in
-[testing.md](testing.md); product commitments are in [PRODUCT.md](../PRODUCT.md).
+A separate reviewer session scores the redesign on design quality,
+originality, craft and function before it is accepted. The bar it checks:
+every forbidden default absent; one primary per screen in its fixed place;
+every result carried by a word and a shape as well as colour; the contrast
+table holding in both themes; focus never under the dock at phone sizes in
+both orientations; reduced motion, forced colours and keyboard use complete;
+no horizontal page scroll at 320px; source attribution visible near the top of
+rules and texts. English and Ukrainian instructional support and the complete
+beginner path remain content work; the design prepares for them and does not
+establish them.

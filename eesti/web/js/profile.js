@@ -122,7 +122,7 @@ function authHtml() {
   const signup = authView === "signup" && canSignup;
   return `<section class="profile-auth" aria-label="Sisselogimine">
     ${tabs}
-    <p class="hint" lang="ru">Можно заниматься без входа. Аккаунт Grove сохраняет твой прогресс между устройствами.</p>
+    <p class="hint" lang="ru">Можно заниматься без входа. Аккаунт Klint сохраняет твой прогресс между устройствами.</p>
     <form id="authForm" data-mode="${signup ? "signup" : "login"}">
       ${signup ? `<label lang="et" for="authName">Nimi <i class="ru" lang="ru">имя</i></label>
         <input id="authName" name="name" type="text" maxlength="60" autocomplete="name" required>` : ""}
@@ -133,7 +133,7 @@ function authHtml() {
         <input id="authPassword" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 10 : 1}" maxlength="1024" aria-describedby="authPasswordHelp" required>
         <button class="ghost" id="showPassword" type="button" aria-controls="authPassword" aria-pressed="false" lang="et">Näita <span class="ru" lang="ru">показать</span></button>
       </div>
-      <p id="authPasswordHelp" class="hint" lang="ru">${signup ? "Не менее 10 символов. Используй отдельный пароль для Grove." : "Если забыл пароль Grove, обратись к владельцу приложения. Самостоятельного сброса пока нет."}</p>
+      <p id="authPasswordHelp" class="hint" lang="ru">${signup ? "Не менее 10 символов. Используй отдельный пароль для Klint." : "Если забыл пароль от Klint, обратись к владельцу приложения. Самостоятельного сброса пока нет."}</p>
       <button class="go" type="submit" lang="et">${signup ? "Loo konto" : "Logi sisse"} <span class="ru" lang="ru">${signup ? "создать аккаунт" : "войти"}</span></button>
       <p id="authError" class="profile-error" role="alert" hidden></p>
     </form>

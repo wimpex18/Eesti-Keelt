@@ -1,6 +1,6 @@
 """Who a request is for: a signed-in learner, or a guest sandbox (ADR-0006).
 
-Grove opens publicly and accounts live in the app. The
+Klint opens publicly and accounts live in the app. The
 Worker owns sign-up, sign-in and the session cookie (`deploy/worker.ts`), and
 tells the origin who is signed in (`x-eesti-scope`, `x-eesti-learner`,
 `x-eesti-email`):

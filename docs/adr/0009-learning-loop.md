@@ -8,7 +8,7 @@ DEV-45 comments of 9 Oct 2026.
 
 ## Context
 
-Grove has units, generators, checks and review, but a learner still picks tools
+Klint has units, generators, checks and review, but a learner still picks tools
 from menus. The owner wants one interactive path in which each completed step
 leads to the next task — words, an exercise, a rule learned by doing, listening,
 speaking — while every part stays reachable on its own, for learners with or

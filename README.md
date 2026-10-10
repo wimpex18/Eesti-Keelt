@@ -1,6 +1,6 @@
-# Grove
+# Klint
 
-**Grove** (the Eesti-Keelt repository) is a free educational app for learning
+**Klint** (the Eesti-Keelt repository) is a free educational app for learning
 Estonian. The MVP supports Russian-speaking learners and **A2/B1 tasemeeksam**
 preparation. The product direction includes learning from the beginning,
 flexible entry and skipping, and English and Ukrainian explanation languages;
@@ -15,7 +15,7 @@ not set mastery or FSRS ratings.
 
 ## Features
 
-- **Kodu** — one next lesson or current session, with beginning, chosen-start
+- **Täna** — one next lesson or current session, with beginning, chosen-start
   and bounded grammar-check entry routes.
 - **Kursus** — ordered grammar topics, source-backed rules, five-item guided
   sessions, checkpoints and checked test-out. Familiar topics can be skipped
