@@ -2543,6 +2543,10 @@ class TestFocusIsNeverUnderTheDock:
 
         def check(field, where):
             found.extend(self._sideways(shell, where))
+            # The tab row has given way; the four skills stay one key away.
+            key = shell.locator("#skillsKey")
+            if not key.is_visible() or key.evaluate(OBSCURED):
+                found.append(f"{shell.size} {where}: the skills are out of reach while typing")
             if verdict := field.evaluate(OBSCURED):
                 found.append(f"{shell.size} {where}: {verdict}")
             # The tab row gives way; a screen's primary rides on the keyboard.
@@ -2608,6 +2612,18 @@ class TestTheShellSheets:
         sheet.get_by_role("link", name=re.compile("^Edenemine")).click()
         page.wait_for_selector("#tab-status:not([hidden])")
         assert not sheet.evaluate("d => d.open")
+        assert not browser_errors(page), browser_errors(page)
+
+    def test_the_skip_link_keeps_the_screen(self, page):
+        """Skipping the navigation lands in the open screen, never on another."""
+        open_tab(page, "learn", "course")
+        page.locator(".skip").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("document.querySelector('main').contains(document.activeElement)")
+        assert page.evaluate("location.hash") == "#course"
+        assert page.is_visible("#tab-course")
+        page.keyboard.press("Alt+Tab" if page.engine_name == "webkit" else "Tab")
+        assert page.evaluate("document.querySelector('#tab-course').contains(document.activeElement)")
         assert not browser_errors(page), browser_errors(page)
 
     def test_the_appearance_keeps_the_browser_on_the_ground(self, page):

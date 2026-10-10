@@ -640,7 +640,7 @@ Browse                         Act                            Task
   (*Kontrolli*) do. A screen enters the task state by holding a rendered
   `data-dock-task` element (S8's session item while it awaits an answer); a
   focused text field with the keyboard up does the same. With no primary, the
-  task state shows no row at all.
+  task row holds the skills key alone, so the four skills stay one tap away.
 - The dock is opaque `sheet` with a `line` top rule; no blur, no shadow.
 - Kursus, Kordamine, Eksam, Sõnavara, Töövihikud, Edenemine, Profiil and the
   appearance switch (*Süsteem*, *Hele*, *Tume*) live in **Veel**, a sheet
@@ -678,6 +678,7 @@ field triggers the primary.
   left. The sidebar is the viewport's height and scrolls inside itself when it
   is taller.
 - A skip link, *Sisu juurde* "к содержанию", is the first thing Tab reaches.
+  It moves focus to the open screen's heading and leaves the route as it is.
 
 ## Elevation and shape
 

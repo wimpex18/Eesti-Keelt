@@ -239,7 +239,7 @@ footer.sources{max-width:760px;margin:var(--s6) auto 0;padding:0 var(--gutter) 9
   .dock-home[aria-current="page"],#nav-learn button[aria-selected="true"]{color:var(--ink)}
   .dock-home[aria-current="page"] .ico,#nav-learn button[aria-selected="true"] .ico{background:var(--sunk);border-color:var(--edge)}
   /* The action bar: the screen's one primary, in the place it keeps. */
-  body.has-primary .actbar{display:flex;align-items:center;gap:var(--s2);position:fixed;left:0;right:0;bottom:var(--tabs-h);z-index:21;
+  body:is(.has-primary,.dock-task) .actbar{display:flex;align-items:center;gap:var(--s2);position:fixed;left:0;right:0;bottom:var(--tabs-h);z-index:21;
     min-height:76px;padding:var(--s3) max(var(--s4),env(safe-area-inset-right)) var(--s3) max(var(--s4),env(safe-area-inset-left));
     background:var(--sheet);border-top:1px solid var(--line)}
   body.has-primary .dock-primary{position:fixed;z-index:22;left:max(var(--s4),env(safe-area-inset-left));
@@ -248,10 +248,12 @@ footer.sources{max-width:760px;margin:var(--s6) auto 0;padding:0 var(--gutter) 9
   /* The task state: an item awaits an answer (its screen says so with
      `data-dock-task`) or the keyboard is up. The tab row gives way, the skills
      wait behind one key, and the row sits on the keyboard when there is one
-     (`--kb` is 0 otherwise). A screen with no primary shows no row. */
+     (`--kb` is 0 otherwise). With no primary the row holds the skills key
+     alone, so the four skills stay one tap away. */
   body.dock-task .dock-tabs{display:none}
   body.dock-task .actbar{bottom:var(--kb)}
   body.dock-task .skills-key{display:grid}
+  body.dock-task:not(.has-primary) .actbar{min-height:0;padding-block:var(--s2)}
   body.dock-task .dock-primary{bottom:calc(var(--kb) + var(--s3));left:calc(max(var(--s4),env(safe-area-inset-left)) + 52px + var(--s2))}
   /* Little height left (a phone on its side with the keyboard up): the header
      scrolls away and the row tightens to 44px controls. */

@@ -369,7 +369,7 @@ function syncShell() {
   body.classList.toggle("kb-compact", keyboard && height < 320);
   docEl.style.setProperty("--kb", `${keyboard ? gap.below : 0}px`);
   const tabs = phone && !(keyboard || task) ? Math.round($(".dock-tabs").getBoundingClientRect().height) : 0;
-  const bar = primary ? Math.round($("#actbar").getBoundingClientRect().height) : 0;
+  const bar = phone && (primary || keyboard || task) ? Math.round($("#actbar").getBoundingClientRect().height) : 0;
   docEl.style.setProperty("--tabs-h", `${tabs}px`);
   docEl.style.setProperty("--dock-h", `${tabs + bar}px`);
   // What is left for the field being typed in, which a compact keyboard state
@@ -492,6 +492,20 @@ document.querySelectorAll("dialog.sheet").forEach(sheet => {
     sheet.opener = null;
     if (opener && rendered(opener)) opener.focus({preventScroll: true});
   });
+});
+
+/* The skip link moves the keyboard's place to the open screen's heading without
+   touching the route: its `#main` would be read as a page that does not exist,
+   and the learner sent back to Täna. */
+$(".skip").addEventListener("click", e => {
+  e.preventDefault();
+  const panel = document.querySelector("main > section.panel:not([hidden])");
+  const target = panel?.querySelector("h1, h2, h3") || panel || $("main");
+  if (!target.hasAttribute("tabindex")) {
+    target.setAttribute("tabindex", "-1");
+    target.addEventListener("blur", () => target.removeAttribute("tabindex"), {once: true});
+  }
+  target.focus();
 });
 
 const veel = $(".more-nav"), veelSheet = $("#veelSheet");
