@@ -246,9 +246,10 @@ Direction: the exercise forms and their look are to be rethought from the
 best product design and apps of October 2026, not polished. Take what works
 from competitors, and avoid both their exercise types and the look we share
 with them. `DESIGN.md`'s session ("the gap is the field") is still a
-gap-fill, so it is a starting point here, not the answer. The owner will add
-screenshots, comments and a video of the competitor; the redesign of the
-exercise is discussed once the S sessions are done. The learning rules stay
+gap-fill, so it is a starting point here, not the answer. The owner's
+screenshots and the competitor's walkthrough are reviewed in
+`qa/competitor-review.md`; the redesign is session S11, a discussion with the
+owner once the other sessions are done. The learning rules stay
 fixed whatever the exercise looks like: code grades, only the first attempt
 counts, a form is named only after the learner has tried.
 

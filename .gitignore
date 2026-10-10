@@ -17,6 +17,9 @@ audio-cache/
 data/exam/
 # Private learner speech, reviewed transcripts and ASR reports.
 data/eval/
+# Competitor screenshots and recordings: third-party material, local only
+# (qa/competitor-review.md describes them).
+/research/
 
 .env
 .dev.vars

@@ -14,7 +14,8 @@ tab row at 390/320 px in three languages, the sheets and the interlinear word;
 checked by hand on the iOS 27 simulator too. Differences from the spec and
 the device findings: `docs/design-research.md` ("Tokens and shell as built").
 
-Next step: the owner merges; then S3 and S9 (step 4).
+Next step: the owner merges; then S3 and S9 (step 4). Also on this branch at
+the owner's request: `qa/competitor-review.md` and session S11 (after R4).
 
 Follow-ups:
 - S8: mark the session's one primary `data-primary` and its awaiting item
